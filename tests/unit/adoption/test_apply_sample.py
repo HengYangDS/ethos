@@ -2,14 +2,19 @@
 
 import os
 import shlex
+import shutil
 from hashlib import sha256
 from pathlib import Path
 
 import pytest
 
+import ethos.adapters.openspec.configuration as configuration
+import ethos.adapters.repo.adoption as adoption_effect
+from ethos.adapters.openspec.cli import openspec_base_command
+from ethos.adapters.process import run_command
+from ethos.adapters.repo.adoption import adoption_plan
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.domain.adoption import adopt_repository
-from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.profile import load_repository_profile
 from tests.support.governed_repository import declare_fixture_code_correctness
 from tests.support.governed_repository import git
@@ -80,7 +85,7 @@ def test_adoption_repository_identity_does_not_depend_on_checkout_path(tmp_path:
     assert adoption_plan(first)["repository_id"] == second_plan["repository_id"]
 
 
-@pytest.mark.parametrize("newline", ["\n", "\r\n", "\r"])
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
 @pytest.mark.parametrize("apply", [False, True])
 @pytest.mark.parametrize(
     ("relative", "content", "valid"),
@@ -88,17 +93,28 @@ def test_adoption_repository_identity_does_not_depend_on_checkout_path(tmp_path:
         (".ethos/profile.toml", "profile_id = 'foreign'\n", True),
         ("AGENTS.md", "# Existing\n", True),
         (".gitlab-ci.yml", "stages: [test]\n", True),
+        ("openspec/config.yml", "schema: spec-driven\ncontext: native spelling\n", True),
         (
             "openspec/config.yaml",
             (
                 "schema: intent-to-proof\ncontext: preserve the adopter workflow\n"
-                "rules:\n  verification: [bind exact evidence]\n"
+                "rules:\n  tasks: [bind exact evidence]\n"
             ),
             True,
         ),
         ("openspec/config.yaml", "schema: [", False),
         ("openspec/config.yaml", "", False),
         ("openspec/config.yaml", "schema: spec-driven\ndefaultStore: foreign\n", False),
+        ("openspec/config.yaml", "schema: spec-driven\rcontext: legacy line endings\r", False),
+        ("openspec/config.yaml", "schema: unavailable-schema\n", False),
+        ("openspec/config.yaml", "schema: spec-driven\ncontext: 23\n", False),
+        ("openspec/config.yaml", "schema: spec-driven\nrules:\n  tasks: 23\n", False),
+        ("openspec/config.yaml", "schema: spec-driven\nrules:\n  unknown: [retain me]\n", False),
+        (
+            "openspec/config.yaml",
+            "schema: spec-driven\noperations:\n  apply:\n    guidance: 23\n",
+            False,
+        ),
     ],
 )
 def test_adoption_preserves_existing_authored_surfaces(
@@ -106,6 +122,11 @@ def test_adoption_preserves_existing_authored_surfaces(
 ):
     """Preserve authored bytes without mistaking rejected config for valid adoption."""
     repo = init_git_repo(tmp_path / "repo")
+    if "intent-to-proof" in content:
+        shutil.copytree(
+            ROOT / "node_modules/@fission-ai/openspec/schemas/spec-driven",
+            repo / "openspec/schemas/intent-to-proof",
+        )
     target = repo / relative
     target.parent.mkdir(parents=True, exist_ok=True)
     content = content.replace("\n", newline).encode()
@@ -170,13 +191,14 @@ def test_adopt_rejects_unsafe_binding_without_touching_target(tmp_path, monkeypa
 
 
 @pytest.mark.parametrize("second", [False, True])
-@pytest.mark.parametrize("empty", [False, True])
+@pytest.mark.parametrize("existing", ["missing", "parent", "empty"])
 def test_atomic_profile_write_cleans_temporary_file_on_failure(
-    tmp_path, monkeypatch, second, empty
+    tmp_path, monkeypatch, second, existing
 ):
     target = tmp_path / ".ethos" / "profile.toml"
-    target.parent.mkdir()
-    if empty:
+    if existing != "missing":
+        target.parent.mkdir()
+    if existing == "empty":
         target.touch()
     original_replace = Path.replace
     message = "replace failed"
@@ -192,7 +214,9 @@ def test_atomic_profile_write_cleans_temporary_file_on_failure(
         adoption_plan(tmp_path, apply=True)
 
     assert not list(tmp_path.rglob(".profile-*"))
-    assert target.read_bytes() == b"" if empty else not target.exists()
+    assert target.read_bytes() == b"" if existing == "empty" else not target.exists()
+    assert target.parent.exists() is (existing != "missing")
+    assert not (tmp_path / "openspec").exists()
 
 
 @pytest.mark.parametrize("condition", ["valid", "denied", "stale", "digest", "conflict", "preview"])
@@ -231,3 +255,122 @@ def test_application_adoption_preserves_admission_and_direct_result(tmp_path, ca
     assert result.user_decision_required is (condition in {"preview", "denied", "conflict"})
     assert "next_action" not in result.data
     assert not capsys.readouterr().out
+
+
+def test_adoption_projects_official_initialization_without_placeholder_files(tmp_path):
+    """The official CLI independently witnesses generated bytes and first-Change usability."""
+    native = tmp_path / "native"
+    native.mkdir()
+    home = tmp_path / "home"
+    home.mkdir()
+    command = openspec_base_command()
+    assert command is not None
+    environment = {"HOME": str(home), "XDG_CONFIG_HOME": str(home), "XDG_DATA_HOME": str(home)}
+    initialized = run_command(
+        native,
+        (*command, "init", "--tools", "none", "--profile", "core", "--no-animation"),
+        env=environment,
+        timeout=30,
+    )
+    assert initialized.returncode == 0, initialized.stderr
+    repo = init_git_repo(tmp_path / "adopter")
+    result = adopt_repository(
+        repo, apply=True, authorize=True, expect_head=git(repo, "rev-parse", "HEAD")
+    )
+    assert result.verdict == "pass", result.to_dict()
+    assert (repo / "openspec/config.yaml").read_bytes() == (
+        native / "openspec/config.yaml"
+    ).read_bytes()
+    assert not list((repo / "openspec").rglob(".gitkeep"))
+    first = run_command(
+        repo, (*command, "new", "change", "first-change"), env=environment, timeout=30
+    )
+    assert first.returncode == 0, first.stderr
+    assert (repo / "openspec/changes/first-change/.openspec.yaml").is_file()
+
+
+def test_adoption_preserves_unknown_native_supply_without_writing(tmp_path, monkeypatch):
+    """An unavailable native observer is not a malformed user configuration."""
+    repo = init_git_repo(tmp_path / "repo")
+    monkeypatch.setattr(configuration, "openspec_base_command", lambda: None)
+    result = adopt_repository(
+        repo, apply=True, authorize=True, expect_head=git(repo, "rev-parse", "HEAD")
+    )
+    assert (result.verdict, result.state) == ("unknown", "unknown")
+    assert result.required_gaps == ("openspec_official_cli_missing",)
+    assert not result.user_decision_required
+    assert not (repo / ".ethos").exists()
+    assert not (repo / "openspec").exists()
+
+
+@pytest.mark.parametrize("relative", ["schema.yaml", "templates/tasks.md"])
+def test_adoption_preview_binds_native_schema_and_template_inputs(tmp_path, relative):
+    """A changed native input cannot reuse authorization for the previous preview."""
+    repo = init_git_repo(tmp_path / "repo")
+    schema = repo / "openspec/schemas/custom"
+    shutil.copytree(ROOT / "node_modules/@fission-ai/openspec/schemas/spec-driven", schema)
+    (repo / "openspec/config.yaml").write_text("schema: custom\n")
+    preview = adopt_repository(repo)
+    assert preview.verdict == "pass", preview.to_dict()
+    changed = schema / relative
+    changed.write_text(changed.read_text() + "\n# Revised native input\n")
+    result = adopt_repository(
+        repo,
+        apply=True,
+        authorize=True,
+        expect_head=git(repo, "rev-parse", "HEAD"),
+        expect_plan_digest=preview.data["plan_digest"],
+    )
+    assert result.verdict == "block"
+    assert "adoption_plan_digest_mismatch" in result.required_gaps
+    assert not (repo / ".ethos").exists()
+
+
+def test_adoption_compensation_preserves_contested_bytes_and_cleans_independent_writes(
+    tmp_path, monkeypatch
+):
+    """One contested rollback cannot prevent safe cleanup or erase the initiating failure."""
+    repo = init_git_repo(tmp_path / "repo")
+    config = repo / "openspec/config.yaml"
+    intervening = b"schema: spec-driven\ncontext: intervening author\n"
+    original = OSError("postcondition observation failed")
+
+    def changed_then_failed(root):
+        assert root == repo
+        config.write_bytes(intervening)
+        raise original
+
+    monkeypatch.setattr(adoption_effect, "_verify_native_postcondition", changed_then_failed)
+    result = adopt_repository(
+        repo, apply=True, authorize=True, expect_head=git(repo, "rev-parse", "HEAD")
+    )
+    assert (result.verdict, result.state) == ("unknown", "unknown")
+    assert config.read_bytes() == intervening
+    assert not (repo / ".ethos").exists()
+    assert "postcondition observation failed" in repr(result.data)
+    assert "adoption_input_changed" in repr(result.data)
+    assert str(config) in repr(result.data)
+
+
+@pytest.mark.parametrize("planning", ["specs", "changes", None])
+def test_adoption_retains_native_warning_when_real_root_ignores_store(tmp_path, planning):
+    """An ignored authored store declaration is not a silent successful adoption."""
+    repo = init_git_repo(tmp_path / "repo")
+    (repo / "openspec" / (planning or "")).mkdir(parents=True)
+    config = repo / "openspec/config.yaml"
+    content = b"schema: spec-driven\nstore: missing-store\n"
+    config.write_bytes(content)
+    result = adopt_repository(
+        repo, apply=True, authorize=True, expect_head=git(repo, "rev-parse", "HEAD")
+    )
+    assert result.verdict == "block", result.to_dict()
+    assert (
+        "openspec_config_native_warning"
+        if planning
+        else "openspec_config_external_store_unsupported"
+    ) in result.required_gaps
+    assert any(
+        "declaration is ignored" in warning for warning in result.data["openspec"]["warnings"]
+    ) is bool(planning)
+    assert config.read_bytes() == content
+    assert not (repo / ".ethos").exists()

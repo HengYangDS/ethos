@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ethos.adapters.openspec.configuration import official_config_report
 from ethos.adapters.repo.git import run_git
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.repository.openspec.audit import active_change_names_from_paths
@@ -56,6 +57,7 @@ def openspec_shape_report(root: Path) -> dict[str, object]:
         root,
         branch_intent=intent,
         spec_diff=diff.stdout if diff.returncode in {0, 1} else None,
+        official_config=official_config_report(root),
     )
 
 

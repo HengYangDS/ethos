@@ -1,1 +1,1 @@
-"""Adopter planning, fleet, and evolution projections."""
+"""Adopter fleet observations."""

@@ -13,7 +13,6 @@ from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import LaneLease
-from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
 from tests.support.ethos_cli_runner import run_ethos
@@ -163,7 +162,7 @@ def init_git_repo(path: Path, *, object_format: str = "sha1") -> Path:
 def init_repo_with_candidate(tmp_path: Path) -> tuple[Path, Path]:
     """Create a minimal accepted root and its linked candidate checkout."""
     repo = init_git_repo(tmp_path / "repo")
-    adoption_plan(repo, apply=True)
+    initialize_adopted_fixture(repo)
     commit_fixture(repo, "adopt ethos governance")
     commit_openspec_baseline(repo)
     candidate = tmp_path / "repo-candidate-dev"
@@ -342,8 +341,7 @@ def write_role_policy(
 
 
 def adopt_and_commit(repo: Path, *, release_mirror: str = "independent") -> str:
-    plan = adoption_plan(repo, apply=True)
-    assert plan["applied"] is True
+    initialize_adopted_fixture(repo)
     (repo / ".ethos" / "workspace.toml").write_text(
         render_branch_policy(
             release_branch="main",
@@ -485,6 +483,14 @@ def _commit_fixture(root: Path, message: str, *, hooks_path: Path | None = None)
         message,
     )
     return git(root, "rev-parse", "HEAD")
+
+
+def initialize_adopted_fixture(root: Path) -> None:
+    """Declare valid fixture state without retesting native onboarding in unrelated tests."""
+    write_test_profile(root, openspec={"material_paths": ["**"]})
+    config = root / "openspec/config.yaml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text("schema: spec-driven\n", encoding="utf-8")
 
 
 def declare_fixture_code_correctness(repo: Path) -> None:

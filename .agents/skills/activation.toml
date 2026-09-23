@@ -181,6 +181,8 @@ path_globs = [
   "docs/architecture/adoption-profiles.md",
   "docs/architecture/fleet-and-adopters.md",
   "src/ethos/repository/adoption/**",
+  "src/ethos/adapters/repo/adoption.py",
+  "src/ethos/adapters/openspec/configuration.*",
   "src/ethos/repository/profile*.py",
   "openspec/specs/adapters/**",
   "openspec/specs/repository-governance/**",

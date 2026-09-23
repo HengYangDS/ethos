@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from typing import TYPE_CHECKING
 from typing import cast
 
+import pytest
+import tomli_w
+
+import ethos.adapters.openspec.configuration as configuration
 import ethos.repository.openspec.audit as audit
 from ethos.contracts.branch.roles import BranchRolePolicy
 
@@ -17,49 +22,47 @@ def _write(path: Path, content: str = "") -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def _protected_policy(monkeypatch) -> None:
-    policy = BranchRolePolicy(release_branch="release")
-    monkeypatch.setattr(audit, "load_branch_role_policy", lambda _root: policy)
-
-
 def test_official_config_reports_malformed_unavailable_and_invalid_shapes(monkeypatch, tmp_path):
     config = tmp_path / "openspec/config.yaml"
+    missing = configuration.official_config_report(tmp_path)
+    assert missing["verdict"] == "block"
+    assert missing["path"] == config.as_posix()
+    assert missing["required_gaps"] == ["openspec_config_missing"]
     _write(config, "schema: [unterminated\n")
-    malformed = audit.official_config_report(tmp_path)
+    malformed = configuration.official_config_report(tmp_path)
     assert malformed["verdict"] == "block"
-    assert malformed["required_gaps"] == ["openspec_config_invalid:ParserError"]
+    assert malformed["required_gaps"] == ["openspec_config_invalid:YAMLParseError"]
 
     monkeypatch.setattr(
-        audit,
-        "_load_official_config",
-        lambda _path: (_ for _ in ()).throw(OSError("unavailable")),
+        configuration,
+        "run_command",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("unavailable")),
     )
-    unavailable = audit.official_config_report(tmp_path)
-    assert unavailable == {
-        "verdict": "unknown",
-        "path": config.as_posix(),
-        "required_gaps": ["openspec_config_unavailable:OSError"],
-    }
+    unavailable = configuration.official_config_report(tmp_path)
+    assert unavailable["verdict"] == "unknown"
+    assert unavailable["path"] == config.as_posix()
+    assert unavailable["required_gaps"] == ["openspec_configuration_observation_unavailable"]
 
     monkeypatch.undo()
     config.write_text("[]\n", encoding="utf-8")
-    invalid = audit.official_config_report(tmp_path)
+    invalid = configuration.official_config_report(tmp_path)
     assert invalid["required_gaps"] == [
         "openspec_config_not_mapping",
         "openspec_config_schema_missing",
     ]
 
 
-def test_official_config_reports_legacy_and_forbidden_global_store(tmp_path):
+@pytest.mark.parametrize("schema", ["schema: spec-driven\n", ""])
+def test_official_config_reports_legacy_and_forbidden_global_store(tmp_path, schema):
     _write(
         tmp_path / "openspec/config.yaml",
-        "schema: spec-driven\ndefaultStore: global\nproject: old\nversion: 1\n",
+        schema + "defaultStore: global\nproject: old\nversion: 1\n",
     )
 
-    report = audit.official_config_report(tmp_path)
+    report = configuration.official_config_report(tmp_path)
 
     assert report["verdict"] == "block"
-    assert report["required_gaps"] == [
+    assert report["required_gaps"] == ([] if schema else ["openspec_config_schema_missing"]) + [
         "openspec_config_default_store_forbidden",
         "openspec_config_legacy_key:project",
         "openspec_config_legacy_key:version",
@@ -80,53 +83,51 @@ def test_active_change_reports_ignore_archives_and_reject_invalid_identifiers(tm
     assert audit.active_change_names(tmp_path / "absent") == []
 
 
-def test_governed_branch_report_preserves_unknown_and_unreadable_observations(
-    monkeypatch, tmp_path
+@pytest.mark.parametrize("release", ["main", "release"])
+@pytest.mark.parametrize(
+    ("ref_unknown", "tree_unknown", "current"),
+    [(True, True, "dev"), (False, False, "dev"), (True, False, "work/current")],
+)
+def test_governed_branch_report_preserves_partial_knowledge_and_unique_intent(
+    tmp_path, release, ref_unknown, tree_unknown, current
 ):
-    _protected_policy(monkeypatch)
-    observations: dict[str, tuple[dict[str, object], dict[str, object] | None]] = {
-        "release": (
-            {"verdict": "unknown", "state": "unknown", "required_gaps": ["release-unavailable"]},
-            None,
+    """Native branch policy and independent observations preserve known intent amid gaps."""
+    _write(
+        tmp_path / ".ethos/workspace.toml",
+        tomli_w.dumps({"branch_roles": asdict(BranchRolePolicy(release_branch=release))}),
+    )
+    present = {"verdict": "pass", "state": "present", "required_gaps": []}
+    active = {"verdict": "pass", "changes": ["active", "active"], "required_gaps": []}
+    ref_gaps = ["release-unavailable"] if ref_unknown else []
+    tree_gaps = ["tree-unavailable"] if tree_unknown else []
+    observations = {
+        release: (
+            present | {"verdict": "unknown", "required_gaps": ref_gaps} if ref_unknown else present,
+            None if ref_unknown else active,
         ),
+        "dev": (present | {"state": "absent"}, None),
         "candidate/dev": (
-            {"verdict": "pass", "state": "present", "required_gaps": []},
-            {"verdict": "unknown", "changes": [], "required_gaps": ["tree-unavailable"]},
-        ),
-    }
-
-    report = audit.governed_branch_intent_report(
-        tmp_path,
-        current_branch="dev",
-        branch_observations=observations,
-    )
-
-    assert report["verdict"] == "unknown"
-    assert report["required_gaps"] == ["release-unavailable", "tree-unavailable"]
-    assert report["records"] == []
-
-
-def test_governed_branch_report_deduplicates_intent_without_residue(monkeypatch, tmp_path):
-    _protected_policy(monkeypatch)
-    present: dict[str, object] = {"verdict": "pass", "state": "present", "required_gaps": []}
-    observations: dict[str, tuple[dict[str, object], dict[str, object] | None]] = {
-        "release": (
             present,
-            {"verdict": "pass", "changes": ["active", "active"], "required_gaps": []},
+            {"verdict": "unknown", "changes": [], "required_gaps": tree_gaps}
+            if tree_unknown
+            else active,
         ),
-        "candidate/dev": (present, {"verdict": "pass", "changes": ["active"], "required_gaps": []}),
     }
-
     report = audit.governed_branch_intent_report(
-        tmp_path, current_branch="dev", branch_observations=observations
+        tmp_path, current_branch=current, branch_observations=observations
     )
-    assert report["summary"] == {"change_count": 2}
-    assert report["verdict"] == "pass"
-    assert report["advisory_gaps"] == report["required_gaps"] == []
-    assert report["records"] == [
-        {"branch": "release", "role": "release_root", "change": "active"},
-        {"branch": "candidate/dev", "role": "candidate", "change": "active"},
-    ]
+    records = (
+        [] if ref_unknown else [{"branch": release, "role": "release_root", "change": "active"}]
+    ) + (
+        []
+        if tree_unknown
+        else [{"branch": "candidate/dev", "role": "candidate", "change": "active"}]
+    )
+    assert report["verdict"] == ("unknown" if ref_gaps or tree_gaps else "pass")
+    assert report["required_gaps"] == ref_gaps + tree_gaps
+    assert report["advisory_gaps"] == []
+    assert report["records"] == records
+    assert report["summary"] == {"change_count": len(records)}
 
 
 def test_active_change_paths_preserve_unknown_and_exclude_archive():
@@ -195,6 +196,7 @@ def test_shape_report_exposes_non_directory_symlinks_and_missing_specs(monkeypat
             tmp_path,
             branch_intent=residue,
             spec_diff="",
+            official_config=configuration.official_config_report(tmp_path),
         )["required_gaps"],
     )
 
@@ -213,6 +215,7 @@ def test_shape_report_exposes_non_directory_symlinks_and_missing_specs(monkeypat
             absent,
             branch_intent=residue,
             spec_diff="",
+            official_config=configuration.official_config_report(absent),
         )["required_gaps"],
     )
     assert "openspec_specs_not_directory" in absent_gaps

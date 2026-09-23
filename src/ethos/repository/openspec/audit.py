@@ -6,67 +6,26 @@ import re
 from typing import TYPE_CHECKING
 from typing import cast
 
-import yaml
-
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.verdict import close_verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
     from pathlib import Path
 
 OPENSPEC_SPEC_OBLIGATION_PATTERN = re.compile(r"^\*\*(WHEN|THEN|AND)\*\*")
 _OPEN_SPEC_CHANGE_PATH_MIN_PARTS = 4
 
 
-def _load_official_config(path: Path) -> dict[str, object]:
-    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return cast("dict[str, object]", payload) if isinstance(payload, dict) else {}
-
-
-def official_config_report(root: Path) -> dict[str, object]:
-    """Validate `openspec/config.yaml` against the official OpenSpec shape."""
-    path = root / "openspec" / "config.yaml"
-    if not path.exists():
-        return {
-            "verdict": "block",
-            "path": path.as_posix(),
-            "required_gaps": ["openspec_config_missing"],
-        }
-    try:
-        payload = _load_official_config(path)
-    except yaml.YAMLError as exc:
-        return {
-            "verdict": "block",
-            "path": path.as_posix(),
-            "required_gaps": [f"openspec_config_invalid:{exc.__class__.__name__}"],
-        }
-    except (OSError, UnicodeError) as exc:
-        return {
-            "verdict": "unknown",
-            "path": path.as_posix(),
-            "required_gaps": [f"openspec_config_unavailable:{exc.__class__.__name__}"],
-        }
-    gaps: list[str] = []
-    if not payload:
-        gaps.append("openspec_config_not_mapping")
-        payload = {}
-    if not isinstance(payload.get("schema"), str) or not str(payload["schema"]).strip():
-        gaps.append("openspec_config_schema_missing")
-    gaps += ["openspec_config_default_store_forbidden"] * ("defaultStore" in payload)
+def configuration_policy_gaps(keys: Collection[str]) -> list[str]:
+    """Apply ETHOS authority constraints without interpreting native OpenSpec fields."""
+    gaps = ["openspec_config_default_store_forbidden"] * ("defaultStore" in keys)
     gaps.extend(
-        f"openspec_config_legacy_key:{key}"
-        for key in sorted(key for key in ("project", "version") if key in payload)
+        f"openspec_config_legacy_key:{key}" for key in ("project", "version") if key in keys
     )
-    return {
-        "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
-        "path": path.as_posix(),
-        "context": payload.get("context", ""),
-        "rules": payload.get("rules", {}),
-        "required_gaps": gaps,
-    }
+    return gaps
 
 
 def active_change_names(openspec_root: Path) -> list[str]:
@@ -223,13 +182,13 @@ def openspec_shape_report(
     *,
     branch_intent: dict[str, object],
     spec_diff: str | None,
+    official_config: dict[str, object],
 ) -> dict[str, object]:
     """Report OpenSpec repository shape without invoking the OpenSpec CLI."""
     openspec_root = root / "openspec"
     required_gaps = []
     if not openspec_root.exists():
         required_gaps.append("openspec_directory_missing")
-    official_config = official_config_report(root)
     required_gaps.extend(cast("list[str]", official_config["required_gaps"]))
     specs_root = openspec_root / "specs"
     if not specs_root.exists():

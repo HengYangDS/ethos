@@ -20,6 +20,88 @@ invalid carrier. CLI, SDK and MCP SHALL share this decision and retain its gaps.
 
 ## MODIFIED Requirements
 
+### Requirement: Minimal Adoption Binding
+
+ETHOS SHALL own one typed profile binding and compose official OpenSpec
+configuration initialization and readiness. Optional domain, documentation,
+Skills and provider surfaces SHALL retain their own owners.
+
+#### Scenario: A repository is adopted
+
+- **WHEN** authorized exact-HEAD adoption targets an eligible Git repository
+- **THEN** it plans the ETHOS profile and the selected native OpenSpec configuration
+- **AND** no placeholder, generic project context, artifact rules or unrelated surface is invented
+
+#### Scenario: Default binding serializes from the typed contract
+
+- **WHEN** ETHOS compiles its default profile binding
+- **THEN** one strict frozen declaration validates the in-memory value and native TOML serialization
+- **AND** no profile registry, renderer manifest, digest snapshot or template environment becomes a second owner
+
+#### Scenario: Existing bootstrap content differs
+
+- **WHEN** an ETHOS binding is invalid, symlinked, non-regular or unreadable
+- **THEN** adoption refuses the exact path without an implicit merge, alias or migration
+- **AND** a valid existing profile is preserved, while an empty ETHOS profile may be replaced
+- **AND** an empty native OpenSpec configuration remains an invalid existing carrier rather than absent configuration
+
+#### Scenario: Unselected optional capabilities do not block a new adopter
+
+- **WHEN** a valid adopter has not selected optional documentation, Skills, schemas, generated assets or hosted providers
+- **THEN** their absence does not become a bootstrap gap
+- **AND** native configuration and applicable material-scope correctness remain independently enforced
+
+#### Scenario: Configuration is absent
+
+- **WHEN** adoption initializes native configuration
+- **THEN** its bytes match the official initializer's default configuration
+- **AND** a first Change is usable through the official CLI without generated directory anchors
+
+#### Scenario: Native meaning cannot be preserved
+
+- **WHEN** configuration fields, schema resolution, rule applicability or required templates fail native validation
+- **THEN** adoption blocks before writing and retains native warnings and reasons
+- **AND** unavailable supply or observation remains UNKNOWN rather than malformed-user-content blame
+- **AND** a pointer-only external store receives an explicit unsupported-operation reason, independent of host registration
+
+#### Scenario: Authored configuration and custom schemas already exist
+
+- **WHEN** the official reader selects valid YAML or YML and resolves repository-owned schema inputs
+- **THEN** their exact bytes remain unchanged
+- **AND** an explicit expected-plan digest rejects changed configuration, schemas or templates before apply
+
+#### Scenario: A file effect fails
+
+- **WHEN** an admitted write or its native postcondition fails
+- **THEN** every independently safe owned write is compensated without overwriting intervening content
+- **AND** incomplete or unobserved recovery is not reported as successful adoption
+- **AND** the initiating failure and each failed compensation remain observable
+- **AND** no multi-file crash-atomic guarantee is inferred from individual atomic replacements
+
+### Requirement: Current product revision one-binding external-adopter observation is bounded and durable
+
+ETHOS SHALL distinguish its sole binding from native initialization effects when
+observing isolated adopter clones. Evidence SHALL bind exact inputs and effects
+without private adopter coupling or claims beyond the exercised boundary.
+
+#### Scenario: Missing binding is created without unrelated writes
+
+- **WHEN** an isolated clone lacks the ETHOS profile
+- **THEN** preview reports that binding and any required native configuration initialization separately
+- **AND** authorized exact-HEAD apply preserves the source clone and unrelated files
+
+#### Scenario: Existing adopter surfaces reject generic replacement
+
+- **WHEN** an existing binding conflicts or its native configuration is invalid
+- **THEN** no implicit merge, alias or replacement hides the conflict
+- **AND** the result preserves the precise owning reason
+
+#### Scenario: Current observation is promoted without private coupling
+
+- **WHEN** an observation is retained as product evidence
+- **THEN** it binds revisions, observed outcomes and the raw-bundle identity without host paths or credentials
+- **AND** native backend parity, full semantic correctness, hosted execution and independent review require their own evidence
+
 ### Requirement: Exact accepted proposal retirement
 
 ETHOS SHALL retire a proposal through its existing publication effect only after

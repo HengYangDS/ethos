@@ -20,7 +20,7 @@ from ethos.repository.release.identity import is_release_build
 def package_runtime(
     runtime: Path, wheel: Path, destination: Path, *, download_url: str | None = None
 ) -> dict[str, object]:
-    """Archive exact installed bytes without rebuilding or changing their identity."""
+    """Archive exact installed bytes; project Homebrew only on supported hosts."""
     selected = require_selected_runtime(runtime)
     url = download_url or destination.resolve().as_uri()
     _require_distribution_version(selected, url)
@@ -39,6 +39,7 @@ def package_runtime(
         message = "distribution_format_unsupported"
         raise ValueError(message)
     destination.parent.mkdir(parents=True, exist_ok=True)
+    cask_path: Path | None = None
     with TemporaryDirectory(prefix=".ethos-distribution-", dir=destination.parent) as work:
         archive_path = Path(work) / destination.name
         if disk_image:
@@ -69,14 +70,15 @@ def package_runtime(
             raise ValueError(message)
         with archive_path.open("rb") as stream:
             digest = hashlib.file_digest(stream, "sha256").hexdigest()
-        cask = homebrew_cask(selected, url, digest)
+        cask = None if selected.platform == "windows" else homebrew_cask(selected, url, digest)
         archive_path.replace(destination)
-        cask_path = destination.parent / "homebrew" / "Casks" / "ethos.rb"
-        cask_path.parent.mkdir(parents=True, exist_ok=True)
-        cask_path.write_text(cask)
+        if cask is not None:
+            cask_path = destination.parent / "homebrew" / "Casks" / "ethos.rb"
+            cask_path.parent.mkdir(parents=True, exist_ok=True)
+            cask_path.write_text(cask)
     return {
         "path": str(destination),
-        "homebrew_cask": str(cask_path),
+        "homebrew_cask": str(cask_path) if cask_path is not None else None,
         "published": False,
         "sha256": digest,
         "runtime_digest": selected.digest,

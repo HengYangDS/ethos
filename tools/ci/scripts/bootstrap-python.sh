@@ -3,7 +3,8 @@
 set -euo pipefail
 
 if (($#)); then
-	if [[ "$1" != -- || $# -lt 2 || $$ != 1 || ${EUID} != 0 ||
+	if [[ "$1" != -- || $# -lt 2 || $$ != 1 ||
+		(${EUID} != 0 && ${EUID} != 65534) ||
 		${CI_PROJECT_DIR:-} != /* || ${CI_PROJECT_DIR:-} == / ||
 		! -d ${CI_PROJECT_DIR:-}/.git || -L ${CI_PROJECT_DIR:-} ]]; then
 		echo 'container_job_entrypoint_required' >&2
@@ -16,14 +17,15 @@ if (($#)); then
 	export XDG_CACHE_HOME="${HOME}/.cache"
 	export UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR:-${CI_PROJECT_DIR}/build/runtime/tool-cache/python}"
 	mkdir -p -- "${HOME}"
-	find "${CI_PROJECT_DIR}" -xdev ! -type l -exec chown --no-dereference 65534:65534 {} +
-	# Supply is immutable and writable by the target UID; never prime its cache as root.
-	# The bootstrap child does not consume the Runner script on stdin.
-	# The child, not the root shell, must expand CI_PROJECT_DIR and runner arguments.
-	# shellcheck disable=SC2016
-	exec setpriv --reuid=65534 --regid=65534 --clear-groups --no-new-privs \
-		/bin/bash -c 'bash "$CI_PROJECT_DIR/tools/ci/scripts/bootstrap-python.sh" </dev/null && exec "$@"' \
-		ethos-ci-entrypoint "$@"
+	if [[ ${EUID} == 0 ]]; then
+		find "${CI_PROJECT_DIR}" -xdev ! -type l -exec chown --no-dereference 65534:65534 {} +
+		# Supply is immutable and writable by the target UID; bootstrap only after dropping it.
+		exec setpriv --reuid=65534 --regid=65534 --clear-groups --no-new-privs \
+			"${BASH_SOURCE[0]}" -- "$@"
+	fi
+	# Do not consume the Runner script on stdin while preparing the unprivileged child.
+	bash "${BASH_SOURCE[0]}" </dev/null
+	exec "$@"
 fi
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"

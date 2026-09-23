@@ -90,9 +90,7 @@ github: {
 					smoke_command+=(--env UV_OFFLINE=true --env NPM_CONFIG_OFFLINE=true --env UV_NO_BUILD_ISOLATION=1)
 					smoke_command+=(--env CI_PROJECT_DIR=/workspace --env ETHOS_CI_SUPPLY_MANIFEST=/opt/ethos-supply/input.sha256)
 					smoke_command+=(--env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory --env GIT_CONFIG_VALUE_0=/workspace)
-					# shellcheck disable=SC2016
-					smoke_inner='test "$EUID" -eq 65534 && uv run --frozen --offline python -B -I -m ethos.cli --version'
-					smoke_command+=(--entrypoint /bin/bash "$image" -c 'exec /workspace/tools/ci/scripts/bootstrap-python.sh -- "$@"' ethos-supply /bin/bash -lc "$smoke_inner")
+					smoke_command+=(--entrypoint /workspace/tools/ci/scripts/bootstrap-python.sh "$image" -- /bin/bash -lc "test \\$EUID -eq 65534 && uv run --frozen --offline python -B -I -m ethos.cli --version")
 					"${smoke_command[@]}"
 					docker cp "$smoke_root/repo/." "$smoke_name:/workspace"
 					docker start --attach "$smoke_name"

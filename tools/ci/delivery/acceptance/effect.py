@@ -19,6 +19,7 @@ import tools.ci.delivery.acceptance.invocation as cli_invocation
 import tools.ci.delivery.acceptance.lane as lane_acceptance
 import tools.ci.delivery.acceptance.runtime as runtime_acceptance
 from ethos.adapters.process import run_command
+from ethos.adapters.process import windows_powershell
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.materialization.dependency_supply import install_locked_runtime
@@ -115,7 +116,11 @@ def _independent_host_environment() -> tuple[dict[str, str], str]:
             "WINDIR",
         }
     }
-    env["PATH"] = str(git.parent)
+    native_dirs = ()
+    if os.name == "nt":
+        powershell = Path(windows_powershell())
+        native_dirs = (powershell.parents[2], powershell.parents[3])
+    env["PATH"] = os.pathsep.join((str(git.parent), *(str(path) for path in native_dirs)))
     if shutil.which("git", path=env["PATH"]) is None:
         message = "minimal host environment cannot resolve Git"
         raise RuntimeError(message)

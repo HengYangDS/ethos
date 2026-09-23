@@ -287,10 +287,11 @@ def prove_shared_supply(
         selector = common / "ethos/runtime/CURRENT"
         selectors.append(selector)
         databases.append(common / "ethos/state.sqlite")
-        if any(path.is_dir() for path in selector.parent.iterdir()) or data.get(
-            "runtime_manifest_path"
-        ) != str(selected.manifest):
-            message = "shared_supply_was_copied_or_reselected"
+        if any(path.is_dir() for path in selector.parent.iterdir()):
+            message = "shared_supply_was_copied"
+            raise RuntimeError(message)
+        if Path(str(data.get("runtime_manifest_path") or "")) != selected.manifest:
+            message = "shared_supply_was_reselected"
             raise RuntimeError(message)
     original = selectors[0].read_bytes()
     if (

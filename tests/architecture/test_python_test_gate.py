@@ -29,6 +29,8 @@ def test_parallel_python_test_gate_bounds_failed_attempt_without_replay(
     tmp_path: Path, monkeypatch, failure: str
 ) -> None:
     """The native owner stops failed work, preserves success coverage and reclaims scratch."""
+    config = tomllib.loads(python_test_gate.PYTEST_CONFIG.read_text())
+    assert "timeout_method" not in config["pytest"]
     gate = _test_gate(tmp_path, workers=2)
     failed = failure not in {"none", "cached"}
     cache = tmp_path / "cache"
@@ -79,8 +81,7 @@ def test_worker_loss(index):
         gate.run_tests(cast("nox.Session", SimpleNamespace(run=execute)))
     except subprocess.CalledProcessError:
         assert failed
-    assert len(observed) == 1
-    result = observed[0]
+    (result,) = observed
     assert (result.returncode != 0) is failed, result.stdout + result.stderr
     observations = [path.read_text().strip() for path in tmp_path.glob("case-*")]
     assert set(observations) <= {"before", "after"}
@@ -282,9 +283,8 @@ def test_python_attempt_revokes_previous_success_before_any_work(
         gate.run_tests(cast("nox.Session", SimpleNamespace(run=execute)))
 
     assert not gate.head_file.exists()
-    session = SimpleNamespace(error=pytest.fail)
     with pytest.raises(pytest.fail.Exception, match="missing or stale"):
-        gate.enforce_floor(cast("nox.Session", session))
+        gate.enforce_floor(cast("nox.Session", SimpleNamespace(error=pytest.fail)))
 
 
 def test_python_single_attempt_discards_partial_and_sharded_outputs(tmp_path, monkeypatch) -> None:

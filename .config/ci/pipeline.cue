@@ -72,6 +72,7 @@ github: {
 					set -euo pipefail
 					image="ghcr.io/hengyangds/ethos-ci-supply:${{ github.sha }}"
 					printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+					docker buildx build --check --platform linux/arm64 --file .config/ci/supply/Dockerfile .
 					docker build --platform linux/arm64 --file .config/ci/supply/Dockerfile --tag "$image" .
 					docker push "$image"
 					docker buildx imagetools inspect "$image"

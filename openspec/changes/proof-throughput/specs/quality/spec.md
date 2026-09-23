@@ -578,7 +578,7 @@ actual execution or required artifact validation.
 - **THEN** its jobs select GitHub-hosted runners without workstation labels or inherited-hook overrides
 - **AND** local emulation derives its platform mapping from the selected workflow job
 - **AND** ephemeral hosted tool storage is not presented as cross-job persistence
-- **AND** GitLab retains its separately declared persistent supply boundary
+- **AND** GitLab uses a separate digest-bound image, not an assumed runner-local cache
 
 #### Scenario: Complete partitioned execution succeeds
 

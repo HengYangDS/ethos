@@ -1,13 +1,5 @@
 #!/usr/bin/env bash
-# Install Node.js from an official prebuilt tarball for the hosted npm jobs.
-#
-# The `node:24` Docker image is only reachable through registry-1.docker.io,
-# which this runner's egress blocks: every pull times out at 15s and even a
-# retried job never succeeds (unlike python:3.12, which the runner keeps
-# layer-cached). Rather than depend on that registry, the npm jobs run on the
-# always-cached python:3.12 image and install Node from nodejs.org — the same
-# egress used by the declared upstream tool suppliers.
-# Kept outside .gitlab-ci.yml so CI stays a projection over reusable setup logic.
+# Activate one checksum-pinned Node release from the declared cache or official archive.
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -87,14 +79,6 @@ url="https://nodejs.org/dist/v${version}/${archive}"
 cache_root="${ETHOS_CI_TOOL_CACHE_DIR:-${CI_PROJECT_DIR:-$(pwd)}/build/runtime/tool-cache/ci-tools}"
 cache_dir="${cache_root}/node/${version}"
 archive_path="${cache_dir}/${archive}"
-persistent_cache_root="${ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR:-}"
-if [ -n "${persistent_cache_root}" ]; then
-	persistent_cache_dir="${persistent_cache_root}/node/${version}/linux-${arch}"
-	persistent_archive_path="${persistent_cache_dir}/${archive}"
-else
-	persistent_cache_dir=""
-	persistent_archive_path=""
-fi
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "${tmpdir}"' EXIT
 
@@ -104,16 +88,13 @@ verify_archive_checksum() {
 	printf '%s  %s\n' "${archive_sha256}" "$1" | sha256sum -c -
 }
 
-if [ -n "${persistent_archive_path}" ] &&
-	[ -s "${persistent_archive_path}" ] &&
-	tar tJf "${persistent_archive_path}" >/dev/null 2>&1 &&
-	verify_archive_checksum "${persistent_archive_path}" >/dev/null 2>&1; then
-	cp "${persistent_archive_path}" "${archive_path}"
-fi
-
 if [ ! -s "${archive_path}" ] ||
 	! tar tJf "${archive_path}" >/dev/null 2>&1 ||
 	! verify_archive_checksum "${archive_path}" >/dev/null 2>&1; then
+	if [[ -n ${ETHOS_CI_SUPPLY_MANIFEST:-} ]]; then
+		echo "ci_node_supply_invalid: ${archive}" >&2
+		exit 2
+	fi
 	rm -f "${archive_path}"
 	echo "Installing node v${version} for linux-${arch} from ${url}"
 	"${script_dir}/download-file.sh" "${url}" "${archive_path}"
@@ -123,12 +104,6 @@ if ! verify_archive_checksum "${archive_path}"; then
 	rm -f "${archive_path}"
 	echo "Node archive checksum mismatch: ${archive}" >&2
 	exit 1
-fi
-
-if [ -n "${persistent_archive_path}" ]; then
-	mkdir -p "${persistent_cache_dir}"
-	cp "${archive_path}" "${persistent_archive_path}.tmp"
-	mv "${persistent_archive_path}.tmp" "${persistent_archive_path}"
 fi
 
 tar xJf "${archive_path}" -C "${tmpdir}"

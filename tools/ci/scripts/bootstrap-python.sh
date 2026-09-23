@@ -14,29 +14,30 @@ if (($#)); then
 	[[ "$(pwd -P)" == "${CI_PROJECT_DIR}" ]] || exit 2
 	export HOME="${CI_PROJECT_DIR}/build/runtime/work/ci-home"
 	export XDG_CACHE_HOME="${HOME}/.cache"
-	export UV_PYTHON_INSTALL_DIR="${CI_PROJECT_DIR}/build/runtime/tool-cache/python"
-	# Preserve the Runner script on stdin; setup must not consume it.
-	bash "${BASH_SOURCE[0]}" </dev/null
-	owned_roots=("${CI_PROJECT_DIR}")
-	if [[ -n ${ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR:-} ]]; then
-		cache="/cache/${CI_PROJECT_PATH_SLUG:?}/ci-tools"
-		[[ ${ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR} == "${cache}" ]] || exit 2
-		mkdir -p -- "${cache}"
-		[[ "$(cd -- "${cache}" && pwd -P)" == "${cache}" ]] || exit 2
-		owned_roots+=("${cache}")
-	fi
+	export UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR:-${CI_PROJECT_DIR}/build/runtime/tool-cache/python}"
 	mkdir -p -- "${HOME}"
-	for owned_root in "${owned_roots[@]}"; do
-		find "${owned_root}" -xdev ! -type l -exec chown --no-dereference 65534:65534 {} +
-	done
-	# Replace PID 1 before Runner creates shells, proof or pytest children.
-	exec setpriv --reuid=65534 --regid=65534 --clear-groups --no-new-privs "$@"
+	find "${CI_PROJECT_DIR}" -xdev ! -type l -exec chown --no-dereference 65534:65534 {} +
+	# Supply is immutable and writable by the target UID; never prime its cache as root.
+	# The bootstrap child does not consume the Runner script on stdin.
+	# The child, not the root shell, must expand CI_PROJECT_DIR and runner arguments.
+	# shellcheck disable=SC2016
+	exec setpriv --reuid=65534 --regid=65534 --clear-groups --no-new-privs \
+		/bin/bash -c 'bash "$CI_PROJECT_DIR/tools/ci/scripts/bootstrap-python.sh" </dev/null && exec "$@"' \
+		ethos-ci-entrypoint "$@"
 fi
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 export UV_PROJECT_ENVIRONMENT="${repo_root}/.venv"
 host_os="$(uname -s)"
+
+if [[ -n ${ETHOS_CI_SUPPLY_MANIFEST:-} ]]; then
+	if [[ ! -f ${ETHOS_CI_SUPPLY_MANIFEST} ]] ||
+		! sha256sum --check --status "${ETHOS_CI_SUPPLY_MANIFEST}"; then
+		echo 'ci_supply_input_mismatch' >&2
+		exit 2
+	fi
+fi
 
 case "${host_os}" in
 Linux)
@@ -51,6 +52,10 @@ Linux)
 		missing_packages+=(libatomic1)
 	fi
 	if ((${#missing_packages[@]})); then
+		if [[ -n ${ETHOS_CI_SUPPLY_MANIFEST:-} ]]; then
+			printf 'ci_supply_prerequisite_missing: %s\n' "${missing_packages[*]}" >&2
+			exit 2
+		fi
 		if ! command -v apt-get >/dev/null 2>&1; then
 			printf 'missing Linux prerequisites and apt-get is unavailable: %s\n' "${missing_packages[*]}" >&2
 			exit 1

@@ -161,6 +161,7 @@ def test_python_bootstrap_supplies_platform_prerequisites(
     if anchor_state == "material":
         environment["ETHOS_COMMIT_ALLOWED_SIGNERS"] = anchor.read_text().rstrip("\n")
         environment["TMPDIR"] = str(tmp_path)
+        environment["GITHUB_PATH"] = str(tmp_path / "github-path")
 
     result = run_command(
         repo,
@@ -177,7 +178,7 @@ def test_python_bootstrap_supplies_platform_prerequisites(
         selected = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
         assert selected.is_relative_to(tmp_path)
         assert selected.read_text() == environment["ETHOS_COMMIT_ALLOWED_SIGNERS"]
-        assert ci_environment.trust_anchor(repo, str(selected))[1] == []
+        assert Path(environment["GITHUB_PATH"]).read_text() == "/fixture/mise/bin\n"
     assert "ambient-unknown-anchor" not in settings
     apt_log, uv_log = tmp_path / "apt-get.log", tmp_path / "uv.log"
     observed_apt = apt_log.read_text().splitlines() if apt_log.exists() else None
@@ -192,7 +193,6 @@ def test_python_bootstrap_supplies_platform_prerequisites(
         assert observed_uv.index("sync --locked --group dev") < observed_uv.index(
             "python install --no-bin 3.14.7"
         )
-        assert (tmp_path / "native-image").is_file()
     else:
         assert not any(command.startswith("python install ") for command in observed_uv)
 

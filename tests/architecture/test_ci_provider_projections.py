@@ -66,9 +66,9 @@ def _range_coordinates(command: str) -> tuple[str, ...]:
 
 
 def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None:
-    assert gitlab["variables"]["ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR"] == (
-        "/cache/${CI_PROJECT_PATH_SLUG}/ci-tools"
-    )
+    assert "ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR" not in gitlab["variables"]
+    assert gitlab["variables"]["UV_OFFLINE"] == "true"
+    assert gitlab["variables"]["NPM_CONFIG_OFFLINE"] == "true"
     assert {item["provider"] for item in projection_entries()} == {"github", "gitlab"}
     assert check_templates(json_output=False) == owner.check_workflow() == 0
     jobs = {name: github["jobs"][name] for name in ("quality", "verify", "package")}
@@ -218,7 +218,7 @@ def test_hosted_runtime_versions_are_checked_projections_of_native_owners(github
     declared = providers["gitlab"]
     assert declared["emulator_job"] == "ethos:verify"
     assert images == {declared["emulator_image"]}
-    assert declared["emulator_image"].startswith(f"ghcr.io/astral-sh/uv:{uv_version}-")
+    assert declared["emulator_image"].startswith("ghcr.io/hengyangds/ethos-ci-supply@sha256:")
 
 
 def test_host_conformance_receives_native_python_supply_before_activation(github, gitlab) -> None:

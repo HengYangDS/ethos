@@ -19,6 +19,7 @@ _gateIDs: [for gate in _inputs.gate_registry.gates {gate.id}]
 let githubView = github
 let gitlabView = gitlab
 let sourceCLI = "uv run --frozen --offline python -B -I -m ethos.cli"
+let gitlabImage = "ghcr.io/hengyangds/ethos-ci-supply@sha256:72e2434cbc0ac30cce6c312618c51beb290a214f4e60b0af51af95a79c0dce0f"
 
 compiled: {
 	checks: {
@@ -65,6 +66,7 @@ github: {
 			}
 			steps: [{
 				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+				with: "fetch-depth": 0
 			}, {
 				name: "Build and publish immutable supply"
 				env: GHCR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
@@ -86,8 +88,11 @@ github: {
 					git -C "$smoke_root/repo" checkout --detach "${{ github.sha }}"
 					smoke_command=(docker create --name "$smoke_name" --network none)
 					smoke_command+=(--env UV_OFFLINE=true --env NPM_CONFIG_OFFLINE=true --env UV_NO_BUILD_ISOLATION=1)
+					smoke_command+=(--env CI_PROJECT_DIR=/workspace --env ETHOS_CI_SUPPLY_MANIFEST=/opt/ethos-supply/input.sha256)
 					smoke_command+=(--env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory --env GIT_CONFIG_VALUE_0=/workspace)
-					smoke_command+=("$image" /bin/bash -lc 'cd /workspace && sha256sum -c /opt/ethos-supply/input.sha256 && tools/ci/scripts/bootstrap-python.sh')
+					# shellcheck disable=SC2016
+					smoke_inner='test "$EUID" -eq 65534 && uv run --frozen --offline python -B -I -m ethos.cli --version'
+					smoke_command+=(--entrypoint /bin/bash "$image" -c 'exec /workspace/tools/ci/scripts/bootstrap-python.sh -- "$@"' ethos-supply /bin/bash -lc "$smoke_inner")
 					"${smoke_command[@]}"
 					docker cp "$smoke_root/repo/." "$smoke_name:/workspace"
 					docker start --attach "$smoke_name"
@@ -259,14 +264,15 @@ gitlab: {
 	}
 	variables: #ExecutionEnvironment & {
 		// Full history keeps Git-derived ancestry and evidence checks available.
-		GIT_DEPTH: "0"
-		// GitLab exposes /cache through a project-scoped runner cache volume.
-		// Native tool owners verify locked archive bytes before reuse.
-		ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR: "/cache/${CI_PROJECT_PATH_SLUG}/ci-tools"
-	}
-	cache: {
-		key: "${CI_PROJECT_PATH_SLUG}"
-		paths: ["build/runtime/tool-cache/uv/"]
+		GIT_DEPTH:                "0"
+		UV_CACHE_DIR:             "/opt/ethos-supply/uv-cache"
+		ETHOS_CI_TOOL_CACHE_DIR:  "/opt/ethos-supply/tool-cache"
+		UV_PYTHON_INSTALL_DIR:    "/opt/ethos-supply/python"
+		NPM_CONFIG_CACHE:         "/opt/ethos-supply/npm-cache"
+		ETHOS_CI_SUPPLY_MANIFEST: "/opt/ethos-supply/input.sha256"
+		UV_OFFLINE:               "true"
+		UV_NO_BUILD_ISOLATION:    "1"
+		NPM_CONFIG_OFFLINE:       "true"
 	}
 
 	// Auto-retry every job on infrastructure failures only (image-pull timeouts to
@@ -292,12 +298,8 @@ gitlab: {
 
 	// The full registry owns quality, proof, package creation and SBOM once.
 	// Commit admission and native host/Node conformance retain their own boundaries.
-	".python_setup": {
-		image: "ghcr.io/astral-sh/uv:0.12.16-python3.14-trixie-slim@sha256:768543c09cfe47d3d08c3cbfffadead2029a96d19c3c05285c8b6c6f637aa3a8"
-		before_script: ["tools/ci/scripts/bootstrap-python.sh"]
-	}
 	"ethos:commit-policy": {
-		image: "ghcr.io/astral-sh/uv:0.12.16-python3.14-trixie-slim@sha256:768543c09cfe47d3d08c3cbfffadead2029a96d19c3c05285c8b6c6f637aa3a8"
+		image: gitlabImage
 		before_script: ["tools/ci/scripts/bootstrap-python.sh"]
 		stage: "quality"
 		variables: GIT_STRATEGY: "clone"
@@ -328,7 +330,7 @@ gitlab: {
 		script: ["\(sourceCLI) hook commit-range --target-ref \"${ETHOS_COMMIT_TARGET_REF}\" --proposed-head \"${ETHOS_COMMIT_PROPOSED_HEAD}\" --remote-head \"${ETHOS_COMMIT_REMOTE_HEAD}\" --remote origin --root . --json"]
 	}
 	"ethos:host-conformance": {
-		image: "ghcr.io/astral-sh/uv:0.12.16-python3.14-trixie-slim@sha256:768543c09cfe47d3d08c3cbfffadead2029a96d19c3c05285c8b6c6f637aa3a8"
+		image: gitlabImage
 		before_script: ["tools/ci/scripts/bootstrap-python.sh"]
 		stage: "verify"
 		script: ["uv run --frozen --offline python -m nox -s host_conformance"]
@@ -339,7 +341,7 @@ gitlab: {
 	}
 	"ethos:verify": {
 		image: {
-			name: "ghcr.io/astral-sh/uv:0.12.16-python3.14-trixie-slim@sha256:768543c09cfe47d3d08c3cbfffadead2029a96d19c3c05285c8b6c6f637aa3a8"
+			name: gitlabImage
 			entrypoint: [
 				"bash",
 				"-c",
@@ -393,7 +395,7 @@ gitlab: {
 		}]
 		// Runs on python:3.14 with exact Node
 		// releases installed from nodejs.org; see the runtime policy and installer.
-		image: "ghcr.io/astral-sh/uv:0.12.16-python3.14-trixie-slim@sha256:768543c09cfe47d3d08c3cbfffadead2029a96d19c3c05285c8b6c6f637aa3a8"
+		image: gitlabImage
 		script: [
 			"source tools/ci/scripts/bootstrap-python.sh",
 			"tools/ci/scripts/install-node.sh",
@@ -406,6 +408,6 @@ gitlab: {
 	...
 	PYTHONWARNINGS:          "error"
 	UV_LINK_MODE:            "copy"
-	UV_CACHE_DIR:            "build/runtime/tool-cache/uv"
-	ETHOS_CI_TOOL_CACHE_DIR: "build/runtime/tool-cache/ci-tools"
+	UV_CACHE_DIR:            *"build/runtime/tool-cache/uv" | string
+	ETHOS_CI_TOOL_CACHE_DIR: *"build/runtime/tool-cache/ci-tools" | string
 }

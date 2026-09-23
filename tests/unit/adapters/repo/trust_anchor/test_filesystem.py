@@ -152,15 +152,43 @@ def test_posix_protection_preserves_directory_traversal(tmp_path: Path) -> None:
     "foreign_sid", ["S-1-5-32-545", "S-1-5-21-123456789-123456789-123456789-54321"]
 )
 def test_windows_native_acl_protection_rejects_foreign_writer(
-    tmp_path: Path, foreign_sid: str
+    tmp_path: Path, foreign_sid: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     anchor = _anchor(tmp_path)
     protect_for_current_identity(anchor.parent)
     protect_for_current_identity(anchor)
 
     isolated, _git = _independent_host_environment()
-    with patch.dict(os.environ, isolated, clear=True):
-        assert protected_from_untrusted_write(anchor)
+    full = dict(os.environ)
+    extras = tuple(sorted(full.keys() - isolated.keys()))
+    original = trust_anchor_filesystem.run_command
+
+    def bounded(*args, **kwargs):
+        return original(*args, **(kwargs | {"timeout": 8}))
+
+    monkeypatch.setattr(trust_anchor_filesystem, "run_command", bounded)
+
+    def probe(keys: tuple[str, ...]) -> bool:
+        values = isolated | {key: full[key] for key in keys}
+        with patch.dict(os.environ, values, clear=True):
+            try:
+                return protected_from_untrusted_write(anchor)
+            except ValueError:
+                return False
+
+    assert probe(extras), "full native context must observe the anchor"
+    if not probe(()):
+        needed = extras
+        while len(needed) > 1:
+            midpoint = len(needed) // 2
+            left, right = needed[:midpoint], needed[midpoint:]
+            if probe(left):
+                needed = left
+            elif probe(right):
+                needed = right
+            else:
+                break
+        pytest.fail(f"isolated_windows_acl_requires_environment_keys:{needed!r}")
 
     run_command(
         anchor.parent,

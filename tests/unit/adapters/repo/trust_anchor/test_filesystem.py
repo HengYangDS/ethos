@@ -104,7 +104,7 @@ def test_windows_protection_preserves_native_result_and_environment(
 ) -> None:
     executable = _fake_powershell(tmp_path, {})
     body = {
-        0: "exit 0",
+        0: 'case "$PATH" in *System32*) exit 0 ;; *) exit 92 ;; esac',
         5: "echo 'Set-Acl: Access is denied.' >&2; exit 5",
         None: "exec /bin/sleep 1",
     }[native_exit]

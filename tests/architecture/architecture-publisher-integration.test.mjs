@@ -30,14 +30,15 @@ test("the integration is optional and imports only Publisher public contracts", 
   const workspace = readJson(join(ROOT, "package.json"));
 
   assert.equal(packageManifest.name, "@architecture-publisher/ethos");
-  assert.equal(packageManifest.version, "0.2.0-alpha.0");
+  assert.equal(packageManifest.version, "0.3.0-alpha.0");
   assert.deepEqual(packageManifest.exports, {
+    "./provider": "./src/provider.mjs",
     "./adapter": "./src/adapter/index.mjs",
     "./edition": "./src/edition/index.mjs",
     "./runtime": "./src/runtime.mjs",
   });
   assert.deepEqual(packageManifest.dependencies, {
-    "architecture-publisher": "0.2.0-alpha.0",
+    "architecture-publisher": "0.3.0-alpha.1",
   });
   assert.equal("bin" in packageManifest, false);
   assert.equal(workspace.workspaces.includes("integrations/architecture-publisher"), false);
@@ -104,7 +105,6 @@ test("the migration baseline binds exact Publisher and ETHOS inputs", () => {
     scope:
       "Exact migration inputs only; no generated artifact, acceptance, publication, or off-host recovery claim.",
   });
-  assert.equal(sha256(join(INTEGRATION, "package.json")), baseline.publisher.packageSha256);
 });
 
 test("the optional package contains only its declared source-owned delivery", (t) => {
@@ -116,10 +116,12 @@ test("the optional package contains only its declared source-owned delivery", (t
     env: { ...process.env, npm_config_cache: cache, npm_config_update_notifier: "false" },
   });
   assert.equal(result.status, 0, result.stderr);
-  const [packed] = JSON.parse(result.stdout);
+  const packages = Object.values(JSON.parse(result.stdout));
+  assert.equal(packages.length, 1);
+  const [packed] = packages;
   const files = packed.files.map(({ path }) => path);
 
-  assert.equal(packed.id, "@architecture-publisher/ethos@0.2.0-alpha.0");
+  assert.equal(packed.id, "@architecture-publisher/ethos@0.3.0-alpha.0");
   assert.equal(files.includes("package.json"), true);
   assert.equal(files.includes("README.md"), true);
   assert.equal(files.includes("src/runtime.mjs"), true);

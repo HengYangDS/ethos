@@ -20,9 +20,8 @@ _ADMINISTRATORS_SID = "S-1-5-32-544"
 _WINDOWS_OBSERVE = r"""
 $ErrorActionPreference = 'Stop'
 $path = $env:ETHOS_TRUST_ANCHOR_PATH
-$acl = Get-Acl -LiteralPath $path
 $current = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-$owner = $acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value
+$sidType = [System.Security.Principal.SecurityIdentifier]
 $writeMask = [int64](
   [System.Security.AccessControl.FileSystemRights]::WriteData -bor
   [System.Security.AccessControl.FileSystemRights]::AppendData -bor
@@ -33,19 +32,24 @@ $writeMask = [int64](
   [System.Security.AccessControl.FileSystemRights]::ChangePermissions -bor
   [System.Security.AccessControl.FileSystemRights]::TakeOwnership
 )
-$writers = @(
-  $acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier]) | Where-Object {
-    $_.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and
-    (([int64]$_.FileSystemRights -band $writeMask) -ne 0)
-  } | ForEach-Object {
-    $_.IdentityReference.Value
-  } | Sort-Object -Unique
-)
-[pscustomobject]@{
-  current_sid = $current
-  owner_sid = $owner
-  write_allow_sids = $writers
-} | ConvertTo-Json -Compress
+$results = foreach ($candidate in @($path, [System.IO.Path]::GetDirectoryName($path))) {
+  $acl = Get-Acl -LiteralPath $candidate
+  $owner = $acl.GetOwner($sidType).Value
+  $writers = @(
+    $acl.GetAccessRules($true, $true, $sidType) | Where-Object {
+      $_.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow -and
+      (([int64]$_.FileSystemRights -band $writeMask) -ne 0)
+    } | ForEach-Object {
+      $_.IdentityReference.Value
+    } | Sort-Object -Unique
+  )
+  [pscustomobject]@{
+    current_sid = $current
+    owner_sid = $owner
+    write_allow_sids = $writers
+  }
+}
+ConvertTo-Json -InputObject @($results) -Compress
 """
 _WINDOWS_PROTECT = r"""
 $ErrorActionPreference = 'Stop'
@@ -78,7 +82,7 @@ def protected_from_untrusted_write(
         return False
     if (platform_name or os.name) != "nt":
         return all(_posix_protected(candidate) for candidate in (target, target.parent))
-    return all(_windows_protected(candidate) for candidate in (target, target.parent))
+    return _windows_protected(target)
 
 
 def protect_for_current_identity(path: Path, *, platform_name: str | None = None) -> None:
@@ -110,6 +114,7 @@ def _posix_protected(path: Path) -> bool:
 
 def _windows_protected(path: Path) -> bool:
     message = "git_object_trust_anchor_observation_unavailable"
+    invalid_output = f"{message}:invalid_native_output"
     try:
         completed = _run_windows(path, _WINDOWS_OBSERVE)
     except ProcessExecutionError as error:
@@ -120,14 +125,24 @@ def _windows_protected(path: Path) -> bool:
         diagnostic = f"{message}:exit_code={completed.returncode}:stderr={detail}"
         raise ValueError(diagnostic)
     try:
-        payload = cast("dict[str, Any]", json.loads(completed.stdout))
-        current = str(payload["current_sid"])
-        owner = str(payload["owner_sid"])
-        writers = {str(value) for value in cast("list[object]", payload["write_allow_sids"])}
-    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
-        diagnostic = f"{message}:invalid_native_output"
-        raise ValueError(diagnostic) from error
-    return owner == current and writers <= {current, _SYSTEM_SID, _ADMINISTRATORS_SID}
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError as error:
+        raise ValueError(invalid_output) from error
+    if not isinstance(payload, list) or len(payload) != 2:
+        raise ValueError(invalid_output)
+    try:
+        reports = cast("list[dict[str, Any]]", payload)
+        protected = []
+        for report in reports:
+            current = str(report["current_sid"])
+            owner = str(report["owner_sid"])
+            writers = {str(value) for value in cast("list[object]", report["write_allow_sids"])}
+            protected.append(
+                owner == current and writers <= {current, _SYSTEM_SID, _ADMINISTRATORS_SID}
+            )
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError(invalid_output) from error
+    return all(protected)
 
 
 def _run_windows(path: Path, script: str) -> subprocess.CompletedProcess[str]:

@@ -6,6 +6,7 @@ import json
 import os
 from contextlib import nullcontext
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 
@@ -20,11 +21,12 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _fake_powershell(tmp_path: Path, payload: dict[str, object]) -> Path:
+def _fake_powershell(tmp_path: Path, payload: dict[str, object] | list[dict[str, object]]) -> Path:
     executable = tmp_path / "System32/WindowsPowerShell/v1.0/powershell.exe"
     executable.parent.mkdir(parents=True)
+    observations = payload if isinstance(payload, list) else [payload, payload]
     executable.write_bytes(
-        f"#!/bin/sh\nprintf '%s\\n' '{json.dumps(payload, separators=(',', ':'))}'\n".encode(
+        f"#!/bin/sh\nprintf '%s\\n' '{json.dumps(observations, separators=(',', ':'))}'\n".encode(
             "ascii"
         )
     )
@@ -62,6 +64,44 @@ def test_windows_protection_distinguishes_owner_and_write_authority(
     monkeypatch.setenv("SYSTEMROOT", str(tmp_path))
     anchor = _anchor(tmp_path)
     assert protected_from_untrusted_write(anchor, platform_name="nt") is expected
+
+
+def test_windows_protection_observes_file_and_parent_in_one_native_call(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _fake_powershell(
+        tmp_path,
+        {
+            "current_sid": "S-1-5-21-1000",
+            "owner_sid": "S-1-5-21-1000",
+            "write_allow_sids": ["S-1-5-21-1000"],
+        },
+    )
+    monkeypatch.setenv("SYSTEMROOT", str(tmp_path))
+    observed = Mock(wraps=trust_anchor_filesystem.run_command)
+    monkeypatch.setattr(trust_anchor_filesystem, "run_command", observed)
+
+    assert protected_from_untrusted_write(_anchor(tmp_path), platform_name="nt")
+    assert observed.call_count == 1
+
+
+def test_windows_protection_rejects_foreign_parent_writer(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    safe = {
+        "current_sid": "S-1-5-21-1000",
+        "owner_sid": "S-1-5-21-1000",
+        "write_allow_sids": ["S-1-5-21-1000"],
+    }
+    _fake_powershell(
+        tmp_path,
+        [safe, safe | {"write_allow_sids": ["S-1-5-21-1000", "S-1-5-32-545"]}],
+    )
+    monkeypatch.setenv("SYSTEMROOT", str(tmp_path))
+
+    assert not protected_from_untrusted_write(_anchor(tmp_path), platform_name="nt")
 
 
 @pytest.mark.parametrize(

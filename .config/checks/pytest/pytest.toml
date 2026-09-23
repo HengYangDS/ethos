@@ -6,7 +6,6 @@ testpaths = ["tests"]
 pythonpath = ["../../..", "../../../src"]
 required_plugins = ["pytest-timeout", "pytest-cov", "pytest-xdist"]
 timeout = "120"
-timeout_method = "thread"
 markers = [
   "unit: unit tests for deterministic product logic.",
   "architecture: repository architecture and boundary tests.",

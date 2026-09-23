@@ -274,6 +274,14 @@ Package execution SHALL still validate supply in its own current environment.
 - **AND** a retained adopter runtime selector cannot redirect source CI to older code
 - **AND** the later package boundary retains its own executable validation
 
+#### Scenario: Linux runner reuses locked immutable supply
+
+- **WHEN** a new GitLab checkout begins on a cold ARM64 runner
+- **THEN** its image is selected by published OCI digest, not a mutable tag or local cache hit
+- **AND** the image's input hashes match the checkout's Python and Node locks before provisioning or proof
+- **AND** APT, PyPI and npm registry access are not required by the quality job
+- **AND** missing or mismatched supply fails before any quality result is issued
+
 #### Scenario: Native provisioning exceeds its execution deadline
 
 - **WHEN** a native tool emits partial output before its bounded preparation times out

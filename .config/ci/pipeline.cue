@@ -45,14 +45,43 @@ github: {
 			"main",
 			"proposal/**",
 		]
-		workflow_dispatch: null
+		workflow_dispatch: inputs: supply_image: {
+			description: "Build the locked Linux ARM64 CI supply image"
+			required:    false
+			type:        "boolean"
+			default:     false
+		}
 	}
 	permissions: contents: "read"
 	env: #ExecutionEnvironment
 	jobs: {
+		"supply-image": {
+			name:      "locked Linux ARM64 supply"
+			if:        "${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev' && inputs.supply_image }}"
+			"runs-on": "ubuntu-24.04-arm"
+			permissions: {
+				contents: "read"
+				packages: "write"
+			}
+			steps: [{
+				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+			}, {
+				name: "Build and publish immutable supply"
+				env: GHCR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+				run: """
+					set -euo pipefail
+					image="ghcr.io/hengyangds/ethos-ci-supply:${{ github.sha }}"
+					printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+					docker build --platform linux/arm64 --file .config/ci/supply/Dockerfile --tag "$image" .
+					docker push "$image"
+					docker buildx imagetools inspect "$image"
+					"""
+			}]
+		}
 		"host-conformance": {
 			name:      "${{ matrix.os }} / Python ${{ matrix.python }}"
 			"runs-on": "${{ matrix.os }}"
+			if:        "${{ !inputs.supply_image }}"
 			env: UV_PYTHON_INSTALL_DIR: "${{ github.workspace }}/build/runtime/python"
 			strategy: {
 				"fail-fast": false
@@ -102,6 +131,7 @@ github: {
 		quality: {
 			name:      "quality gates"
 			"runs-on": "macos-latest"
+			if:        "${{ !inputs.supply_image }}"
 			env: ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
 			steps: [{
 				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
@@ -166,7 +196,7 @@ github: {
 			name:      "repository proof"
 			"runs-on": "ubuntu-latest"
 			needs:     "quality"
-			if:        "${{ always() }}"
+			if:        "${{ always() && !inputs.supply_image }}"
 			steps: [{
 				name: "Require successful hosted execution and artifact publication"
 				env: QUALITY_RESULT: "${{ needs.quality.result }}"
@@ -177,7 +207,7 @@ github: {
 			name:      "package artifacts"
 			"runs-on": "ubuntu-latest"
 			needs:     "quality"
-			if:        "${{ always() }}"
+			if:        "${{ always() && !inputs.supply_image }}"
 			steps: [{
 				name: "Require successful hosted execution and artifact publication"
 				env: QUALITY_RESULT: "${{ needs.quality.result }}"

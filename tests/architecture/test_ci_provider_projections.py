@@ -135,7 +135,7 @@ def test_required_github_checks_project_only_successful_execution(github, job, n
     projected = github["jobs"][job]
     assert projected["name"] == name
     assert projected["needs"] == "quality"
-    assert projected["if"] == "${{ always() }}"
+    assert projected["if"] == "${{ always() && !inputs.supply_image }}"
     (step,) = projected["steps"]
     assert step["env"] == {"QUALITY_RESULT": "${{ needs.quality.result }}"}
     for result in ("success", "failure", "cancelled", "skipped", ""):

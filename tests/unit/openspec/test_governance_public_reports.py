@@ -75,7 +75,7 @@ def test_governance_rejects_archive_and_invalid_active_identifiers(
 
 def test_governance_reports_cli_unavailable_and_optional_absent_workspace(monkeypatch, tmp_path):
     root, _candidate = fixture.start_adopted_candidate(tmp_path)
-    monkeypatch.setattr(cli, "openspec_base_command", lambda: None)
+    monkeypatch.setattr(cli, "openspec_base_command", lambda **_kwargs: None)
 
     unavailable = governance.openspec_governance_report(root)
     absent = fixture.init_git_repo(tmp_path / "absent")

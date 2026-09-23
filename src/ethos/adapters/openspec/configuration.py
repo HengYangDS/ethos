@@ -19,7 +19,7 @@ from ethos.repository.openspec.audit import configuration_policy_gaps
 def official_config_report(root: Path, *, initialize: bool = False) -> dict[str, object]:
     """Resolve the selected native config, schema and templates before claiming readiness."""
     target = root.resolve()
-    command = openspec_base_command()
+    command = openspec_base_command(execution_probe=False)
     fallback: dict[str, object] = {
         "verdict": "unknown",
         "path": str(target / "openspec/config.yaml"),

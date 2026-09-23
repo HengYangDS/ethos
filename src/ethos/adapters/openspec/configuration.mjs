@@ -87,7 +87,12 @@ function material(file) {
 
 try {
   const metadata = JSON.parse(readFileSync(path.join(packageRoot, "package.json"), "utf8"));
-  if (metadata.name !== "@fission-ai/openspec" || metadata.version !== expectedVersion) {
+  const { program } = await import(pathToFileURL(require.resolve("@fission-ai/openspec")));
+  if (
+    metadata.name !== "@fission-ai/openspec" ||
+    metadata.version !== expectedVersion ||
+    program.version() !== expectedVersion
+  ) {
     throw new Error("openspec_effective_version_mismatch");
   }
   nativeBinding(OPENSPEC_CONFIG_YAML);

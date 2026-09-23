@@ -292,7 +292,7 @@ def test_adoption_projects_official_initialization_without_placeholder_files(tmp
 def test_adoption_preserves_unknown_native_supply_without_writing(tmp_path, monkeypatch):
     """An unavailable native observer is not a malformed user configuration."""
     repo = init_git_repo(tmp_path / "repo")
-    monkeypatch.setattr(configuration, "openspec_base_command", lambda: None)
+    monkeypatch.setattr(configuration, "openspec_base_command", lambda **_kwargs: None)
     result = adopt_repository(
         repo, apply=True, authorize=True, expect_head=git(repo, "rev-parse", "HEAD")
     )

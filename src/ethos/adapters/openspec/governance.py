@@ -9,6 +9,7 @@ from typing import cast
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
+from ethos.adapters.openspec.configuration import official_config_report
 from ethos.adapters.openspec.lifecycle.archive_transition import lease_bound_archive_scope_report
 from ethos.adapters.openspec.lifecycle.intent import compile_intent_context
 from ethos.adapters.openspec.lifecycle.report import OpenSpecReportContext
@@ -26,7 +27,6 @@ from ethos.adapters.openspec.selection import requested_change
 from ethos.adapters.openspec.selection import selected_change
 from ethos.adapters.openspec.selection import selection_gaps
 from ethos.adapters.repo.git import current_branch as git_current_branch
-from ethos.repository.openspec.audit import official_config_report
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
 if TYPE_CHECKING:

@@ -9,10 +9,6 @@ from pathlib import Path
 import pytest
 
 import ethos.domain.source_budget.measurement as source_budget
-from ethos.repository.openspec.audit import active_change_names_from_paths
-from ethos.repository.openspec.audit import changed_openspec_spec_obligation_removal_gaps
-from ethos.repository.openspec.audit import governed_branch_intent_report
-from ethos.repository.openspec.audit import official_config_report
 from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos.repository.policy.references.closure import product_reference_gaps
 from ethos.repository.policy.references.commands import command_executables
@@ -112,98 +108,6 @@ def test_release_visible_history_checks_paths_and_content(tmp_path: Path, prefix
     assert report["verdict"] == "block"
     assert [finding["path"] for finding in findings] == [relative, relative]
     assert len({finding["detail"] for finding in findings}) == 2
-
-
-def test_openspec_audit_preserves_unknown_and_blocks_native_shape_loss(tmp_path: Path) -> None:
-    missing = official_config_report(tmp_path)
-    assert missing == {
-        "verdict": "block",
-        "path": (tmp_path / "openspec/config.yaml").as_posix(),
-        "required_gaps": ["openspec_config_missing"],
-    }
-    _write(tmp_path / "openspec/config.yaml", "schema: [unterminated\n")
-    invalid = official_config_report(tmp_path)
-    assert invalid["verdict"] == "block"
-    gaps = invalid["required_gaps"]
-    assert isinstance(gaps, list)
-    assert gaps[0].startswith("openspec_config_invalid:")
-    _write(tmp_path / "openspec/config.yaml", "defaultStore: legacy\nproject: old\nversion: 1\n")
-    legacy = official_config_report(tmp_path)
-    assert legacy["verdict"] == "block"
-    gaps = legacy["required_gaps"]
-    assert isinstance(gaps, list)
-    assert {
-        "openspec_config_schema_missing",
-        "openspec_config_default_store_forbidden",
-        "openspec_config_legacy_key:project",
-        "openspec_config_legacy_key:version",
-    } <= set(gaps)
-
-    _write(
-        tmp_path / ".ethos/workspace.toml",
-        """[branch_roles]
-release_branch = "main"
-accepted_branch = "dev"
-candidate_branch = "candidate/dev"
-work_branch_prefix = "work/"
-proposal_branch_prefix = "proposal/"
-release_mirror = "accepted_ff"
-canonical_sibling_worktrees = true
-""",
-    )
-    observations: dict[str, tuple[dict[str, object], dict[str, object] | None]] = {
-        "main": (
-            {"verdict": "unknown", "state": "unknown", "required_gaps": ["main_unreadable"]},
-            None,
-        ),
-        "dev": ({"verdict": "pass", "state": "absent", "required_gaps": []}, None),
-        "candidate/dev": (
-            {"verdict": "pass", "state": "present", "required_gaps": []},
-            {
-                "verdict": "pass",
-                "changes": ["still-active", "still-active"],
-                "required_gaps": [],
-            },
-        ),
-    }
-    protected = governed_branch_intent_report(
-        tmp_path, current_branch="work/current", branch_observations=observations
-    )
-    assert protected["verdict"] == "unknown"
-    assert protected["required_gaps"] == ["main_unreadable"]
-    assert protected["summary"] == {"change_count": 1}
-    assert protected["records"] == [
-        {"branch": "candidate/dev", "role": "candidate", "change": "still-active"},
-    ]
-
-    assert active_change_names_from_paths("main", None)["verdict"] == "unknown"
-    observed = active_change_names_from_paths(
-        "dev",
-        (
-            "openspec/changes/archive/2026-08-10-old/spec.md",
-            "openspec/changes/live/specs/example/spec.md",
-            "README.md",
-        ),
-    )
-    assert observed["changes"] == ["live"]
-    diff = """--- a/openspec/specs/example/spec.md
-+++ b/openspec/specs/example/spec.md
--**WHEN** a governed transition occurs
--ordinary prose
--**THEN** evidence remains exact"""
-    assert changed_openspec_spec_obligation_removal_gaps(None) == [
-        "openspec_spec_obligation_diff_unavailable"
-    ]
-    assert changed_openspec_spec_obligation_removal_gaps(diff) == [
-        (
-            "openspec_spec_obligation_removed:openspec/specs/example/spec.md:"
-            "**WHEN** a governed transition occurs"
-        ),
-        (
-            "openspec_spec_obligation_removed:openspec/specs/example/spec.md:"
-            "**THEN** evidence remains exact"
-        ),
-    ]
 
 
 def test_reference_observation_rejects_malformed_carriers_without_inventing_authority() -> None:

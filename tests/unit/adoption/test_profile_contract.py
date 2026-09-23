@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import tomli_w
 from pydantic import ValidationError
 
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
@@ -14,6 +13,7 @@ from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_root
 from ethos.repository.profile import render_repository_profile
+from tests.support.governed_repository import declare_fixture_code_correctness
 from tests.support.governed_repository import git
 from tests.support.literal_cases import literal_case
 
@@ -85,36 +85,8 @@ def test_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Path) -
     git(tmp_path, "init", "-q")
     git(tmp_path, "config", "user.name", "test")
     git(tmp_path, "config", "user.email", "test@example.invalid")
-    cases = (
-        ("python-quality", "static", "quality", "static-analysis"),
-        ("python-matrix", "test", "tests", "behavior"),
-    )
-    gates = [
-        {
-            "id": name,
-            "kind": kind,
-            "command": ["nox", "-s", command],
-            "dimensions": [dimension],
-            "execution_mode": "subprocess",
-            "evidence_class": "proof",
-            "trust_bearing": True,
-            "tool_adapter": "repository-native",
-        }
-        for name, kind, command, dimension in cases
-    ]
-    _write_profile(
-        tmp_path,
-        tomli_w.dumps(
-            {
-                "profile_id": "native-check-adopter",
-                "proof": {
-                    "code_correctness_gates": [row[0] for row in cases],
-                    "code_correctness_map": {row[3]: row[0] for row in cases},
-                    "gates": gates,
-                },
-            }
-        ),
-    )
+    _write_profile(tmp_path, 'profile_id = "native-check-adopter"\n')
+    declare_fixture_code_correctness(tmp_path)
     git(tmp_path, "add", ".ethos/profile.toml")
     git(tmp_path, "commit", "-q", "-m", "profile")
     head = git(tmp_path, "rev-parse", "HEAD")
@@ -125,7 +97,7 @@ def test_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Path) -
     assert worktree.profile is not None
     assert worktree.profile.state == "valid"
     assert worktree.digest == committed.digest
-    assert set(worktree.gate_ids) == {"python-quality", "python-matrix"}
+    assert set(worktree.gate_ids) == {"sample-tests", "sample-static"}
 
 
 def test_profile_gate_rejects_retired_registry_projection_field(tmp_path: Path) -> None:

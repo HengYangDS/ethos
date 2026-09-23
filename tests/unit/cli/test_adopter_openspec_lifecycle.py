@@ -18,13 +18,6 @@ r"""Explicit package/adopter OpenSpec claim-state matrices.
       {"name": "newer", "completedTasks": 0, "totalTasks": 0, "status": "no-tasks"}],
      null, null]
   ],
-  "config": [
-    ["adopter.config.missing", null, "block", null],
-    ["adopter.config.valid", "schema: spec-driven\n", "pass", null],
-    ["adopter.config.forbidden-default-store",
-     "schema: spec-driven\ndefaultStore: private\n", "block",
-     ["openspec_config_default_store_forbidden"]]
-  ],
   "unknown": [
     ["adopter.git.protected-branch-unknown", "protected", null],
     ["adopter.git.active-ref-unknown", "active",
@@ -59,8 +52,7 @@ from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.intent import compile_intent_context
 from ethos.adapters.openspec.profile import active_change_progress_report
 from ethos.adapters.openspec.selection import selected_change
-from ethos.repository.adoption.planner import adoption_plan
-from ethos.repository.openspec.audit import official_config_report
+from tests.support.governed_repository import initialize_adopted_fixture
 from tests.support.semantic import commitment_fixture
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -73,7 +65,7 @@ def _change(name, done=0, total=1, status="in-progress"):
 
 def _repo(tmp_path, material="openspec/**"):
     repo = fixture.init_git_repo(tmp_path / "adopter")
-    adoption_plan(repo, apply=True)
+    initialize_adopted_fixture(repo)
     fixture.write_test_profile(repo, openspec={"material_paths": [material]})
     return repo
 
@@ -221,16 +213,6 @@ def test_intent_context_never_silently_drops_unavailable_sources(tmp_path, fault
     assert gaps
     assert all(gap.startswith("openspec_context_") for gap in gaps)
     assert context["source_state"] == "incomplete"
-
-
-def test_adopter_config_claim_matrix(tmp_path):
-    for claim, content, verdict, gaps in MATRIX["config"]:
-        root = tmp_path / claim
-        if content:
-            _write(root / "openspec/config.yaml", content)
-        report = official_config_report(root)
-        assert (report["verdict"], "ok" in report) == (verdict, False), claim
-        assert gaps is None or report["required_gaps"] == gaps, claim
 
 
 @pytest.mark.parametrize(

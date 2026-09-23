@@ -154,7 +154,7 @@
     "adoption": {
       "path": "docs/architecture/adoption-profiles.md",
       "authority": "current adopter binding",
-      "sha256": "5c81a41e505bbc55fe285421746a4581bcc2de959c4eacfcc71a2b4ec3800f2d"
+      "sha256": "ce2bdcd024e66a833beaea304c3ef5c9d6bfb983bc6d1772d4ba8dfc23884d1e"
     },
     "projections": {
       "path": "docs/architecture/agent-projections.md",

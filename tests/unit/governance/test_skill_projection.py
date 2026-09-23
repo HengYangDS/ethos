@@ -16,11 +16,11 @@ from ethos.assistants.skills.portfolio import portfolio_design
 from ethos.assistants.skills.portfolio import portfolio_retirement
 from ethos.contracts.skill.activation import compile_skill_activation
 from ethos.contracts.skill.activation import normalize_skill_activation
-from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.schema import validate_schema_instance
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import initialize_adopted_fixture
 from tests.support.governed_repository import write_active_commitment
 from tests.support.literal_cases import literal_case
 from tests.support.skills import write_skill_package
@@ -201,7 +201,7 @@ def test_plan_projects_the_compiled_skill_activation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo = init_git_repo(tmp_path / "adopter")
-    adoption_plan(repo, apply=True)
+    initialize_adopted_fixture(repo)
     activation_path = repo / ".agents" / "skills" / "activation.toml"
     activation_path.parent.mkdir(parents=True)
     activation_path.write_text("[meta]\nversion = 2\n", encoding="utf-8")

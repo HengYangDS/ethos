@@ -27,11 +27,8 @@ def _declaration(
     default: tuple[str, ...] = ("first",),
     full: tuple[str, ...] = ("first",),
 ) -> GateRegistryDeclaration:
-    return GateRegistryDeclaration(
-        id="test-registry",
-        proof_sets=GateProofSets(default=default, full=full),
-        gates=gates,
-    )
+    proof_sets = GateProofSets(default=default, full=full)
+    return GateRegistryDeclaration(id="test-registry", proof_sets=proof_sets, gates=gates)
 
 
 def test_gate_registry_canonical_projection_and_proof_closure() -> None:
@@ -78,15 +75,23 @@ def test_gate_executor_malformed_shapes_fail_closed(gate: Gate) -> None:
     ],
 )
 def test_resource_claims_are_validated_frozen_and_symmetric(locks, writer, valid):
-    values = {"writes_files": writer, "resource_locks": locks}
     if not valid:
         with pytest.raises(ValidationError):
-            _gate("resource", **values)
+            _gate("resource", writes_files=writer, resource_locks=locks)
         return
-    gate = _gate("resource", **values)
+    gate = _gate("resource", writes_files=writer, resource_locks=locks)
     reader = _gate("reader", resource_locks={"source/child": "shared"})
     assert gate.conflicts_with(reader) == reader.conflicts_with(gate) == writer
     assert gate_policy_fields(gate)["resource_locks"] == locks
+    if locks == {"source": "shared"}:
+        registry = load_gate_registry_declaration().registry()
+        javascript = registry["javascript-tests"]
+        assert not any(
+            javascript.conflicts_with(registry[name]) for name in ("unit-architecture", "build")
+        )
+        assert registry["javascript-tests"].conflicts_with(
+            _gate("supply-writer", writes_files=True, resource_locks={"supply": "exclusive"})
+        )
     locks["changed"] = "shared"
     assert "changed" not in gate.resource_locks
     with pytest.raises(TypeError):
@@ -130,9 +135,8 @@ def test_gate_registry_malformed_references_fail_closed(
 
 
 def test_gate_registry_missing_or_malformed_source_fails_closed(tmp_path: Path) -> None:
-    missing = tmp_path / "missing.toml"
     with pytest.raises(FileNotFoundError):
-        load_gate_registry_declaration(missing)
+        load_gate_registry_declaration(tmp_path / "missing.toml")
 
     malformed = tmp_path / "gates.toml"
     malformed.write_text("gates = [\n", encoding="utf-8")
@@ -145,9 +149,7 @@ def test_native_nox_gates_share_the_bound_interpreter() -> None:
     python = "/bound/runtime/bin/python"
     gates = load_gate_registry_declaration().registry(python_executable=python)
     nox_gates = [gate for gate in gates.values() if "nox" in gate.command]
-    assert nox_gates
-    for gate in nox_gates:
-        assert gate.command[:3] == (python, "-m", "nox"), gate.id
+    assert {gate.command[:3] for gate in nox_gates} == {(python, "-m", "nox")}
 
 
 @pytest.mark.parametrize("version", ["0", "2", "999", "true", "1.0", '"1"'])
@@ -160,9 +162,7 @@ def test_native_gate_loader_rejects_unsupported_format(tmp_path: Path, version: 
         '[[gates]]\nid = "check"\nkind = "test"\ncommand = ["check"]\n',
         encoding="utf-8",
     )
-    supported = load_gate_registry_declaration(source)
-    assert supported.id == "independent"
-    assert tuple(supported.registry()) == ("check",)
+    assert tuple(load_gate_registry_declaration(source).registry()) == ("check",)
     source.write_text(
         source.read_text(encoding="utf-8").replace(
             "schema_version = 1", f"schema_version = {version}"

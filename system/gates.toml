@@ -504,6 +504,7 @@ evidence_class = "proof"
 trust_bearing = true
 tool_adapter = "javascript_tests"
 writes_files = false
+resource_locks = { repository = "shared", supply = "shared", "scratch/javascript" = "exclusive" }
 network_policy = "offline"
 version_source = "locked-toolchain"
 

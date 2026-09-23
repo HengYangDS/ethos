@@ -15,9 +15,6 @@ variables:
   UV_PYTHON_INSTALL_DIR: /opt/ethos-supply/python
   NPM_CONFIG_CACHE: /opt/ethos-supply/npm-cache
   ETHOS_CI_SUPPLY_MANIFEST: /opt/ethos-supply/input.sha256
-  UV_OFFLINE: "true"
-  UV_NO_BUILD_ISOLATION: "1"
-  NPM_CONFIG_OFFLINE: "true"
 default:
   tags:
     - ${ETHOS_GITLAB_RUNNER_TAG}
@@ -121,6 +118,6 @@ ethos:npm:
           - 26.9.0
   image: ghcr.io/hengyangds/ethos-ci-supply@sha256:72e2434cbc0ac30cce6c312618c51beb290a214f4e60b0af51af95a79c0dce0f
   script:
-    - source tools/ci/scripts/bootstrap-python.sh
+    - tools/ci/scripts/bootstrap-python.sh
     - tools/ci/scripts/install-node.sh
     - tools/ci/scripts/run-node-compatibility.sh

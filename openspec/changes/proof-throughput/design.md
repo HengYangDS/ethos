@@ -1976,6 +1976,10 @@ a third-party 503 is not evidence that the repository proof failed or the link i
 valid, and cannot prevent JUnit, coverage, wheel or SBOM publication. Provider
 observation remains explicit because it is not in the full set. The nine native
 OS/Python conformance jobs remain independent.
+The digest-bound CI image makes bootstrap offline; it does not make the whole
+quality job offline. Global uv/npm offline flags prevented the declared OSV
+audit from running. Preparation scopes those flags to its own process, while
+network-required assurance retains a separate fail-closed boundary.
 No supply policy, security service or dependency constraint changes.
 
 The existing required quality, proof and package check identities remain.

@@ -77,6 +77,8 @@ fi
 node --version
 npm --version
 export npm_config_engine_strict=true
-npm ci --ignore-scripts
+npm_options=(--ignore-scripts)
+if [[ -n ${ETHOS_CI_SUPPLY_MANIFEST:-} ]]; then npm_options+=(--offline); fi
+npm ci "${npm_options[@]}"
 npm run ethos -- --version
 npm run test:npm

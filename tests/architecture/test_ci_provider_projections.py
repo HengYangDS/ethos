@@ -67,7 +67,7 @@ def _range_coordinates(command: str) -> tuple[str, ...]:
 
 def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None:
     assert "ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR" not in gitlab["variables"]
-    assert all(gitlab["variables"][key] == "true" for key in ("UV_OFFLINE", "NPM_CONFIG_OFFLINE"))
+    assert not set(gitlab["variables"]) & {"UV_OFFLINE", "NPM_CONFIG_OFFLINE"}
     assert {item["provider"] for item in projection_entries()} == {"github", "gitlab"}
     assert check_templates(json_output=False) == owner.check_workflow() == 0
     jobs = {name: github["jobs"][name] for name in ("quality", "verify", "package")}
@@ -84,6 +84,7 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     assert github["jobs"]["external-links"]["continue-on-error"] is True
     assert "External links" not in [step.get("name") for step in jobs["quality"]["steps"]]
     assert re.search(r"--network none.*safe.directory", str(github["jobs"]["supply-image"]))
+    assert "UV_OFFLINE=true" not in str(github["jobs"]["supply-image"])
     assert sum("actions/checkout@" in step.get("uses", "") for step in steps) == 1
     assert not any(
         " -m nox -s build" in command or " -m nox -s supply_chain" in command
@@ -122,6 +123,7 @@ def test_provider_commands_use_shared_owners_without_activating_mutation(provide
         assert gitlab["ethos:verify"]["script"][-1] == "tools/ci/scripts/run-head-bound-proof.sh"
         assert "external-links" not in " ".join(gitlab["ethos:verify"]["script"])
         assert gitlab["ethos:external-links"]["allow_failure"] is True
+        assert gitlab["ethos:npm"]["script"][0] == "tools/ci/scripts/bootstrap-python.sh"
         assert gitlab["ethos:verify"]["before_script"] == []
         assert "bootstrap-python.sh" in gitlab["ethos:verify"]["image"]["entrypoint"][2]
         assert "build/artifacts/python/" in gitlab["ethos:verify"]["artifacts"]["paths"]

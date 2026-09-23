@@ -85,25 +85,34 @@ def _single_wheel() -> Path:
 
 
 def _independent_host_environment() -> tuple[dict[str, str], str]:
-    """Return the smallest host environment that supplies Git but no host control plane."""
+    """Retain native OS context and Git without inheriting agent control planes."""
     git = Path(_executable("git")).resolve()
     env = {
         key: value
         for key, value in os.environ.items()
         if key
         in {
+            "ALLUSERSPROFILE",
+            "APPDATA",
+            "COMMONPROGRAMFILES",
             "COMSPEC",
             "HOME",
             "HOMEDRIVE",
             "HOMEPATH",
+            "LOCALAPPDATA",
             "PATHEXT",
+            "PROGRAMDATA",
+            "PROGRAMFILES",
+            "SYSTEMDRIVE",
             "SYSTEMROOT",
             "TEMP",
             "TMP",
             "TMPDIR",
             "USER",
+            "USERPROFILE",
             "USERNAME",
             "UV_PYTHON_INSTALL_DIR",
+            "WINDIR",
         }
     }
     env["PATH"] = str(git.parent)

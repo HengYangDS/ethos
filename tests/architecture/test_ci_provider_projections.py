@@ -117,10 +117,8 @@ def test_provider_commands_use_shared_owners_without_activating_mutation(provide
     assert "ethos hook install" not in text
     assert "\n    - openspec validate" not in text
     if provider == "gitlab":
-        assert {name for name in gitlab if name.startswith("ethos:")} == set(
-            "ethos:commit-policy ethos:external-links ethos:host-conformance "
-            "ethos:npm ethos:verify".split()
-        )
+        jobs = {name.removeprefix("ethos:") for name in gitlab if name.startswith("ethos:")}
+        assert jobs == {"commit-policy", "external-links", "host-conformance", "npm", "verify"}
         assert gitlab["ethos:verify"]["script"][-1] == "tools/ci/scripts/run-head-bound-proof.sh"
         assert "external-links" not in " ".join(gitlab["ethos:verify"]["script"])
         assert gitlab["ethos:external-links"]["allow_failure"] is True

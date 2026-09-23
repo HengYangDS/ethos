@@ -82,7 +82,7 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     commands = [step.get("run", "") for step in steps]
     assert commands.count("tools/ci/scripts/bootstrap-python.sh") == 1
     assert commands.count("tools/ci/scripts/run-head-bound-proof.sh") == 1
-    assert "--network none" in github["jobs"]["supply-image"]["steps"][-1]["run"]
+    assert re.search(r"--network none.*safe.directory", str(github["jobs"]["supply-image"]))
     assert sum("actions/checkout@" in step.get("uses", "") for step in steps) == 1
     assert not any(
         " -m nox -s build" in command or " -m nox -s supply_chain" in command

@@ -49,7 +49,11 @@ jobs:
           trap cleanup EXIT
           git clone --local --no-hardlinks --no-checkout . "$smoke_root/repo"
           git -C "$smoke_root/repo" checkout --detach "${{ github.sha }}"
-          docker create --name "$smoke_name" --network none --env UV_OFFLINE=true --env NPM_CONFIG_OFFLINE=true --env UV_NO_BUILD_ISOLATION=1 "$image" /bin/bash -lc 'cd /workspace && sha256sum -c /opt/ethos-supply/input.sha256 && tools/ci/scripts/bootstrap-python.sh'
+          smoke_command=(docker create --name "$smoke_name" --network none)
+          smoke_command+=(--env UV_OFFLINE=true --env NPM_CONFIG_OFFLINE=true --env UV_NO_BUILD_ISOLATION=1)
+          smoke_command+=(--env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory --env GIT_CONFIG_VALUE_0=/workspace)
+          smoke_command+=("$image" /bin/bash -lc 'cd /workspace && sha256sum -c /opt/ethos-supply/input.sha256 && tools/ci/scripts/bootstrap-python.sh')
+          "${smoke_command[@]}"
           docker cp "$smoke_root/repo/." "$smoke_name:/workspace"
           docker start --attach "$smoke_name"
           test "$(docker inspect --format '{{.State.ExitCode}}' "$smoke_name")" = 0

@@ -19,7 +19,21 @@ _gateIDs: [for gate in _inputs.gate_registry.gates {gate.id}]
 let githubView = github
 let gitlabView = gitlab
 let sourceCLI = "uv run --frozen --offline python -B -I -m ethos.cli"
+let externalLinkCommand = "tools/ci/scripts/with-python-runtime.sh -- \(sourceCLI) prove --host --execute --gate external-links --expect-head \"$(git rev-parse HEAD)\" --json"
 let gitlabImage = "ghcr.io/hengyangds/ethos-ci-supply@sha256:72e2434cbc0ac30cce6c312618c51beb290a214f4e60b0af51af95a79c0dce0f"
+let githubPythonBootstrap = [{
+	uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+	with: "fetch-depth": 0
+}, {
+	uses: "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
+	with: "python-version": "3.14"
+}, {
+	uses: "astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4"
+	with: version: "0.12.16"
+}, {
+	name: "Bootstrap Python and OpenSpec"
+	run:  "tools/ci/scripts/bootstrap-python.sh"
+}]
 
 compiled: {
 	checks: {
@@ -159,19 +173,7 @@ github: {
 			"runs-on": "macos-latest"
 			if:        "${{ !inputs.supply_image }}"
 			env: ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
-			steps: [{
-				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-				with: "fetch-depth": 0
-			}, {
-				uses: "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
-				with: "python-version": "3.14"
-			}, {
-				uses: "astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4"
-				with: version: "0.12.16"
-			}, {
-				name: "Bootstrap Python and OpenSpec"
-				run:  "tools/ci/scripts/bootstrap-python.sh"
-			}, {
+			steps: list.Concat([githubPythonBootstrap, [{
 				name: "Admit pushed commit range"
 				if:   "github.event_name == 'push'"
 				run:  "\(sourceCLI) hook commit-range --target-ref \"${{ github.ref }}\" --proposed-head \"${{ github.sha }}\" --remote-head \"${{ github.event.before }}\" --remote origin --root . --json"
@@ -180,12 +182,8 @@ github: {
 				if:   "github.event_name == 'pull_request'"
 				run:  "\(sourceCLI) hook commit-range --target-ref \"refs/heads/${{ github.event.pull_request.base.ref }}\" --proposed-head \"${{ github.event.pull_request.head.sha }}\" --remote-head \"${{ github.event.pull_request.base.sha }}\" --remote origin --root . --json"
 			}, {
-
 				// The registry owns gate order and package creation. Execute it once;
 				// independently required hosted checks below project this exact result.
-				name: "External links"
-				run:  "tools/ci/scripts/with-python-runtime.sh -- \(sourceCLI) prove --host --execute --gate external-links --expect-head \"$(git rev-parse HEAD)\" --json"
-			}, {
 				name: "Hosted provider observation envelope"
 				run:  "uv run --frozen --offline python -m nox -s hosted_observation"
 			}, {
@@ -216,7 +214,26 @@ github: {
 
 						"""
 				}
-			}]
+			}]])
+		}
+		"external-links": {
+			name:                "external link health"
+			"runs-on":           "ubuntu-latest"
+			if:                  "${{ !inputs.supply_image }}"
+			"continue-on-error": true
+			steps: list.Concat([githubPythonBootstrap, [{
+				name: "External links"
+				run:  "mkdir -p build/evidence/quality/external-links\n\(externalLinkCommand) > build/evidence/quality/external-links/report.json"
+			}, {
+				name: "Upload external link observation"
+				if:   "always()"
+				uses: "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+				with: {
+					name:                "ethos-external-link-health"
+					path:                "build/evidence/quality/external-links/report.json"
+					"if-no-files-found": "error"
+				}
+			}]])
 		}
 		verify: {
 			name:      "repository proof"
@@ -362,7 +379,6 @@ gitlab: {
 			ETHOS_TEST_WORKERS: "1"
 		}
 		script: [
-			"tools/ci/scripts/with-python-runtime.sh -- \(sourceCLI) prove --host --execute --gate external-links --expect-head \"$(git rev-parse HEAD)\" --json",
 			"uv run --frozen --offline python -m nox -s hosted_observation",
 			"tools/ci/scripts/run-head-bound-proof.sh",
 		]
@@ -384,6 +400,20 @@ gitlab: {
 					path:            "build/evidence/quality/tests/coverage/coverage.xml"
 				}
 			}
+		}
+	}
+	"ethos:external-links": {
+		image:         gitlabImage
+		stage:         "verify"
+		allow_failure: true
+		before_script: ["tools/ci/scripts/bootstrap-python.sh"]
+		script: [
+			"mkdir -p build/evidence/quality/external-links",
+			"\(externalLinkCommand) > build/evidence/quality/external-links/report.json",
+		]
+		artifacts: {
+			when: "always"
+			paths: ["build/evidence/quality/external-links/report.json"]
 		}
 	}
 	"ethos:npm": {

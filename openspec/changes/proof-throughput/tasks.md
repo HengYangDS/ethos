@@ -90,7 +90,7 @@
 - [x] 7.1 Remove stale hosted defaults at the template and assert projection consistency.
 - [x] 7.2 Restore vendor runner resource policy through drained cutover and verify routing, old-process cleanup and new-job consumption.
 - [ ] 7.3 Requalify hosted supply failure after repairing lost timeout output; retain native diagnostics and clear prior reports before any proof.
-- [ ] 7.4 Consolidate hosted preparation and full execution with fail-closed required-check projections.
+- [ ] 7.4 Consolidate hosted full execution and fail-closed required checks; observe external-link health separately without starving proof reports or hiding its failure.
 - [ ] 7.5 Qualify and deliver the exact single-execution CI candidate.
 - [x] 7.6 Consolidate GitLab execution and replace privileged link supply with the official wheel.
 - [x] 7.7 Qualify accepted-mirror signed tags, exact hook recovery, no-op selection and both-mode interrupted effects through public release and peer publication.

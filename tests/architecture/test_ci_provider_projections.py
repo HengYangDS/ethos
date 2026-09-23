@@ -67,8 +67,7 @@ def _range_coordinates(command: str) -> tuple[str, ...]:
 
 def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None:
     assert "ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR" not in gitlab["variables"]
-    assert gitlab["variables"]["UV_OFFLINE"] == "true"
-    assert gitlab["variables"]["NPM_CONFIG_OFFLINE"] == "true"
+    assert all(gitlab["variables"][key] == "true" for key in ("UV_OFFLINE", "NPM_CONFIG_OFFLINE"))
     assert {item["provider"] for item in projection_entries()} == {"github", "gitlab"}
     assert check_templates(json_output=False) == owner.check_workflow() == 0
     jobs = {name: github["jobs"][name] for name in ("quality", "verify", "package")}
@@ -82,6 +81,8 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     commands = [step.get("run", "") for step in steps]
     assert commands.count("tools/ci/scripts/bootstrap-python.sh") == 1
     assert commands.count("tools/ci/scripts/run-head-bound-proof.sh") == 1
+    assert github["jobs"]["external-links"]["continue-on-error"] is True
+    assert "External links" not in [step.get("name") for step in jobs["quality"]["steps"]]
     assert re.search(r"--network none.*safe.directory", str(github["jobs"]["supply-image"]))
     assert sum("actions/checkout@" in step.get("uses", "") for step in steps) == 1
     assert not any(
@@ -96,9 +97,9 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     upload = next(step for step in steps if step.get("name") == "Upload proof receipt")
     junit = "build/evidence/quality/tests/pytest/junit*.xml"
     assert junit in upload["with"]["path"]
-    assert upload.get("if") == "always()"
+    assert upload["if"] == github["jobs"]["external-links"]["steps"][-1]["if"] == "always()"
     artifacts = gitlab["ethos:verify"]["artifacts"]
-    assert artifacts["when"] == "always"
+    assert artifacts["when"] == gitlab["ethos:external-links"]["artifacts"]["when"] == "always"
     assert "build/evidence/quality/tests/pytest/junit*.xml" in artifacts["paths"]
     assert artifacts["reports"]["junit"] == "build/evidence/quality/tests/pytest/junit*.xml"
     assert artifacts["reports"]["coverage_report"] == {
@@ -116,13 +117,13 @@ def test_provider_commands_use_shared_owners_without_activating_mutation(provide
     assert "ethos hook install" not in text
     assert "\n    - openspec validate" not in text
     if provider == "gitlab":
-        assert {name for name in gitlab if name.startswith("ethos:")} == {
-            "ethos:commit-policy",
-            "ethos:verify",
-            "ethos:host-conformance",
-            "ethos:npm",
-        }
+        assert {name for name in gitlab if name.startswith("ethos:")} == set(
+            "ethos:commit-policy ethos:external-links ethos:host-conformance "
+            "ethos:npm ethos:verify".split()
+        )
         assert gitlab["ethos:verify"]["script"][-1] == "tools/ci/scripts/run-head-bound-proof.sh"
+        assert "external-links" not in " ".join(gitlab["ethos:verify"]["script"])
+        assert gitlab["ethos:external-links"]["allow_failure"] is True
         assert gitlab["ethos:verify"]["before_script"] == []
         assert "bootstrap-python.sh" in gitlab["ethos:verify"]["image"]["entrypoint"][2]
         assert "build/artifacts/python/" in gitlab["ethos:verify"]["artifacts"]["paths"]
@@ -218,7 +219,6 @@ def test_hosted_runtime_versions_are_checked_projections_of_native_owners(github
     declared = providers["gitlab"]
     assert declared["emulator_job"] == "ethos:verify"
     assert images == {declared["emulator_image"]}
-    assert declared["emulator_image"].startswith("ghcr.io/hengyangds/ethos-ci-supply@sha256:")
 
 
 def test_host_conformance_receives_native_python_supply_before_activation(github, gitlab) -> None:

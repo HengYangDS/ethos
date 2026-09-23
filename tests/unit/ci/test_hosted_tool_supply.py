@@ -40,7 +40,8 @@ ROOT = Path(__file__).resolve().parents[3]
 
 @pytest.fixture(autouse=True)
 def isolated_supply_cache(monkeypatch):
-    """Native fixtures never inherit the runner's persistent production cache."""
+    """Native fixtures never inherit either runner cache root."""
+    monkeypatch.delenv("ETHOS_CI_TOOL_CACHE_DIR", raising=False)
     monkeypatch.delenv("ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR", raising=False)
 
 
@@ -285,9 +286,7 @@ def test_native_tool_supply_rejects_invalid_supply_without_replacement(tmp_path,
     """Invalid external bytes preserve the old executable and remove owned scratch."""
     invoke, executable, package, _body = _native_supply(tmp_path, tool, fault)
 
-    result = invoke()
-
-    assert result.returncode != 0
+    assert (result := invoke()).returncode != 0
     assert result.stderr
     if fault == "transport":
         assert "transport-down" in result.stderr
@@ -369,7 +368,7 @@ def test_native_supply_rejects_unsupported_targets_before_creating_cache(
     assert not (tmp_path / "build").exists()
 
 
-def test_native_supply_lock_timeout_preserves_prior_bytes_and_creates_no_scratch(tmp_path):
+def test_native_supply_lock_timeout_preserves_bytes_and_scratch(tmp_path):
     """A contending caller has a bounded wait, not permission to bypass the writer."""
     _invoke, executable, _package, _body = _native_supply(tmp_path, "scc")
     with FileLock(executable.parent / ".prepare.lock"), pytest.raises(Timeout):

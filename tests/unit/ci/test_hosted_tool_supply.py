@@ -107,7 +107,7 @@ def bootstrap_tools(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return tools
 
 
-@pytest.mark.parametrize("anchor_state", ["absent", "declared"])
+@pytest.mark.parametrize("anchor_state", ["absent", "declared", "material"])
 @pytest.mark.parametrize(
     ("system", "image_state"),
     [("Linux", "available"), ("Darwin", "missing"), ("Darwin", "available")],
@@ -158,6 +158,9 @@ def test_python_bootstrap_supplies_platform_prerequisites(
     anchor.chmod(0o600)
     if anchor_state == "declared":
         environment["ETHOS_COMMIT_TRUST_ANCHOR"] = str(anchor)
+    if anchor_state == "material":
+        environment["ETHOS_COMMIT_ALLOWED_SIGNERS"] = anchor.read_text().rstrip("\n")
+        environment["TMPDIR"] = str(tmp_path)
 
     result = run_command(
         repo,
@@ -170,8 +173,12 @@ def test_python_bootstrap_supplies_platform_prerequisites(
     assert result.returncode == 0, result.stdout + result.stderr
     settings = git(repo, "config", "--local", "--list")
     assert (f"gpg.ssh.allowedsignersfile={anchor}" in settings) == (anchor_state == "declared")
+    if anchor_state == "material":
+        selected = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
+        assert selected.is_relative_to(tmp_path)
+        assert selected.read_text() == environment["ETHOS_COMMIT_ALLOWED_SIGNERS"]
+        assert ci_environment.trust_anchor(repo, str(selected))[1] == []
     assert "ambient-unknown-anchor" not in settings
-    assert anchor.read_text() == "fixture-controlled public trust\n"
     apt_log, uv_log = tmp_path / "apt-get.log", tmp_path / "uv.log"
     observed_apt = apt_log.read_text().splitlines() if apt_log.exists() else None
     assert observed_apt == (

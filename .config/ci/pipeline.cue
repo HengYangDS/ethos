@@ -102,6 +102,7 @@ github: {
 		quality: {
 			name:      "quality gates"
 			"runs-on": "macos-latest"
+			env: ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
 			steps: [{
 				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 				with: "fetch-depth": 0

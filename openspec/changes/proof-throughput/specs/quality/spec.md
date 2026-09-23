@@ -282,6 +282,12 @@ Package execution SHALL still validate supply in its own current environment.
 - **AND** APT, PyPI and npm registry access are not required by the quality job
 - **AND** missing or mismatched supply fails before any quality result is issued
 
+#### Scenario: Unqualified image is not published
+
+- **WHEN** a newly built image cannot bootstrap a fresh checkout without network access
+- **THEN** the build job fails before pushing that image
+- **AND** the previously published digest remains available for diagnosis or rollback
+
 #### Scenario: Native provisioning exceeds its execution deadline
 
 - **WHEN** a native tool emits partial output before its bounded preparation times out

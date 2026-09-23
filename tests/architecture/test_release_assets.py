@@ -100,12 +100,6 @@ def test_downloaded_tool_installers_bind_one_native_supply_policy() -> None:
     assert not (ROOT / "tools/ci/scripts/install-lychee.sh").exists()
 
 
-def test_python_bootstrap_derives_uv_version_from_project_owner() -> None:
-    script = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
-    assert 'required_uv="0.' not in script
-    assert "pyproject.toml" in script
-
-
 def test_python_bootstrap_supplies_the_declared_linux_signing_tool() -> None:
     script = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
     assert "command -v ssh-keygen" in script

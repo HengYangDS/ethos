@@ -2850,6 +2850,16 @@ points suffice for discovery. Trial OpenTelemetry as a nonauthorizing projection
 of existing operation identities, not a second receipt store or required broker.
 Do not add a universal plugin or workflow platform to solve a bounded wiring gap.
 
+The optional Publisher integration uses one selected Provider export over its
+existing source adaptation, Claim Model and Edition authors. Its closed reply
+contains portable values, never Candidate, acceptance or publication claims.
+Use the public Source Bundle writer for manifest identity rather than duplicate
+its serialization; any temporary materialization stays in owned scratch.
+Freeze the incumbent before retiring generic mechanics. Compare semantic,
+scene and artifact parity or explicitly reviewed successor differences, and
+rehearse rollback. Relocation must preserve the complete installed dependency
+closure, not merely copy the Provider folder. Product acceptance remains ETHOS-owned.
+
 ## Installed Staged Formatting
 
 The configured pre-commit formatting capability is a product dependency, not a

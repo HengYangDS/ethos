@@ -1,8 +1,13 @@
+import { readFileSync } from "node:fs";
 import { sha256, stableStringify, validateProjectionEnvelope } from "../adapter/projection.mjs";
 import { ethosClaimModel } from "../adapter/semantics.mjs";
 import { claimModelDigest, exact, record, text } from "architecture-publisher/semantics";
 import { compileEditionEvolution } from "architecture-publisher/edition";
 import { isDigest } from "architecture-publisher/source";
+
+const publisherVersion = JSON.parse(
+  readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+).dependencies["architecture-publisher"];
 
 const map = (rows) => Object.fromEntries(rows.map((row) => [row.id, row]));
 const sorted = (values) => [...new Set(values)].sort();
@@ -222,7 +227,7 @@ const scene = (value, model) => ({
 });
 
 /** Adapt explicit ETHOS publication dependencies into the public Edition contract. */
-function createEthosEvolutionEdition(projection, sourceManifestSha256, selection) {
+export function createEthosEdition(projection, sourceManifestSha256, selection) {
   validateProjectionEnvelope(projection, projection?.digest);
   if (
     !isDigest(sourceManifestSha256) ||
@@ -266,7 +271,7 @@ function createEthosEvolutionEdition(projection, sourceManifestSha256, selection
     product: {
       name: "Architecture Publisher",
       schema: "architecture.publisher/v1",
-      version: "0.2.0-alpha.0",
+      version: publisherVersion,
     },
     source: { manifestSha256: sourceManifestSha256 },
     claimModel: {
@@ -382,12 +387,12 @@ export function compileEthosEditionEvolution(input) {
   if (before.source.id !== after.source.id) throw Error("Semantic source owner changed");
   const beforeModel = ethosClaimModel(before),
     afterModel = ethosClaimModel(after),
-    beforeEdition = createEthosEvolutionEdition(
+    beforeEdition = createEthosEdition(
       before,
       input.before.sourceManifestSha256,
       input.before.selection,
     ),
-    afterEdition = createEthosEvolutionEdition(
+    afterEdition = createEthosEdition(
       after,
       input.after.sourceManifestSha256,
       input.after.selection,

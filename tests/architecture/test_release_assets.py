@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ast
 import json
 import os
 import re
@@ -26,6 +25,7 @@ import tools.ci.sessions as ci_sessions
 from ethos.adapters.gates.runner import ActionRunResult
 from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos.contracts.artifacts.topology import path_policy_from_declaration
+from ethos.repository.policy.references.observation import reference_consumer_sources_from_files
 from tests.support.architecture import isolated_path
 from tests.support.runtime_scenarios import empty_node_package_supply
 from tools.ci.delivery.pipeline import DeliveryPipeline
@@ -125,54 +125,18 @@ def test_direct_node_declarations_equal_the_lock_root() -> None:
         assert package.get(group, {}) == locked.get(group, {})
 
 
-def test_node_package_supply_environment_has_one_python_owner() -> None:
-    def reads_supply_environment(path: Path) -> bool:
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=path.as_posix())
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call) and node.args:
-                key = node.args[0]
-                function = node.func
-                if (
-                    isinstance(key, ast.Constant)
-                    and key.value == "ETHOS_NODE_PACKAGE_SUPPLY"
-                    and isinstance(function, ast.Attribute)
-                    and (
-                        (
-                            function.attr == "getenv"
-                            and isinstance(function.value, ast.Name)
-                            and function.value.id == "os"
-                        )
-                        or (
-                            function.attr == "get"
-                            and isinstance(function.value, ast.Attribute)
-                            and function.value.attr == "environ"
-                            and isinstance(function.value.value, ast.Name)
-                            and function.value.value.id == "os"
-                        )
-                    )
-                ):
-                    return True
-            if (
-                isinstance(node, ast.Subscript)
-                and isinstance(node.ctx, ast.Load)
-                and isinstance(node.value, ast.Attribute)
-                and node.value.attr == "environ"
-                and isinstance(node.value.value, ast.Name)
-                and node.value.value.id == "os"
-                and isinstance(node.slice, ast.Constant)
-                and node.slice.value == "ETHOS_NODE_PACKAGE_SUPPLY"
-            ):
-                return True
-        return False
-
-    readers = {
-        path.relative_to(ROOT).as_posix()
+def test_current_node_package_supply_read_has_one_observed_owner() -> None:
+    files = {
+        path.relative_to(ROOT).as_posix(): path.read_text(encoding="utf-8")
         for parent in (ROOT / "src", ROOT / "tools", ROOT / "tests")
         for path in parent.rglob("*.py")
-        if reads_supply_environment(path)
     }
+    observed = reference_consumer_sources_from_files(files)
 
-    assert readers == {"src/ethos/adapters/repo/runtime/materialization/node_package_supply.py"}
+    assert observed.unknown_paths == ()
+    assert observed.sources["value"].get("ETHOS_NODE_PACKAGE_SUPPLY") == frozenset(
+        {"src/ethos/adapters/repo/runtime/materialization/node_package_supply.py"}
+    )
 
 
 def test_python_test_sessions_receive_the_frozen_node_package_supply(tmp_path, monkeypatch) -> None:
@@ -420,9 +384,11 @@ def _run_node_compatibility(
 def test_node_runtime_compatibility_accepts_each_declared_version(
     tmp_path: Path,
     version: str,
+    monkeypatch: pytest.MonkeyPatch,
     *,
     supplied: bool,
 ) -> None:
+    monkeypatch.setenv("ETHOS_CI_SUPPLY_MANIFEST", "/ambient-runner-supply")
     result, npm_log = _run_node_compatibility(tmp_path, version, version, supplied=supplied)
     assert result.returncode == 0, result.stderr
     assert npm_log.read_text(encoding="utf-8").splitlines() == [
@@ -431,17 +397,6 @@ def test_node_runtime_compatibility_accepts_each_declared_version(
         "run ethos -- --version|engine=true",
         "run test:npm|engine=true",
     ]
-
-
-def test_node_runtime_compatibility_does_not_inherit_runner_supply(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("ETHOS_CI_SUPPLY_MANIFEST", "/ambient-runner-supply")
-    version = NODE_POLICY["compatibility_versions"][0]
-    result, npm_log = _run_node_compatibility(tmp_path, version, version)
-    assert result.returncode == 0, result.stderr
-    assert "ci --ignore-scripts|engine=true" in npm_log.read_text(encoding="utf-8").splitlines()
 
 
 def test_node_runtime_compatibility_rejects_active_version_drift(tmp_path: Path) -> None:

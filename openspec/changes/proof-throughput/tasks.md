@@ -66,7 +66,7 @@
 - [x] 5.4 Resolve exited-group cancellation races without suppressing live-group cleanup failures.
 - [x] 5.5 Bound worker-loss and assertion-failure scheduling through the native gate; verify complete healthy workloads with warm and empty failure-order caches.
 - [ ] 5.6 Close supervisor-loss and Windows descendant recovery with native regressions.
-  - [ ] 5.6.1 Propagate caller interruption through parallel gate command ownership; verify native cancellation, preserved independent diagnostics, exact proof and installed-runtime behavior.
+  - [x] 5.6.1 Propagate caller interruption through parallel gate command ownership; verify native cancellation, preserved independent diagnostics, exact proof and installed-runtime behavior.
 - [x] 5.7 Remove newly exposed runtime generations after failed verification or caller cancellation.
 - [x] 5.8 Verify retained native downloads across executable failure without weakening activation.
 - [x] 5.9 Route native executable verification through the process owner and reproduce descendant cleanup at the supply boundary.
@@ -130,6 +130,7 @@
   - [x] 9.9.1 Derive common and product release protection from configured branch roles; preserve malformed/conflicting declaration and trusted-prior-policy rejection, qualify the reader, then retire redundant self-profile branch declarations.
   - [x] 9.9.2 Reject conflicting active rule identities at the typed contract, compiler and plan-selection boundary without choosing a winner or emitting partial executable policy.
   - [x] 9.9.3 Unify native object identity/type observation, remove scalar duplicate readers, and qualify moved-ref, malformed/missing-object and SHA-1/SHA-256 consumers through reduced-work evidence, exact proof and installed runtime.
+  - [ ] 9.9.4 Admit the Publisher Provider contract and migrate through one manifest; preserve ETHOS source authority, authored Claim Models/Editions and renderer-neutral intent. Verify conformance, parity or a reviewed semantic successor, relocated empty-config execution and rollback before retiring replaced mechanics; close package/API references, exact proof and publication readback.
 
 ## 10. Native Quality Rules and Early Failure
 

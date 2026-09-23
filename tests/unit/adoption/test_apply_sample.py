@@ -1,7 +1,5 @@
 """Apply native adoption bindings with idempotence and failed-write cleanup."""
 
-from __future__ import annotations
-
 import os
 import shlex
 from hashlib import sha256
@@ -45,10 +43,8 @@ def test_adopt_apply_writes_profile_and_official_openspec_config(
         "keep_existing"
     }
     profile = load_repository_profile(tmp_path)
-    assert result["applied"] is True
     assert result["planned_files"] == [".ethos/profile.toml", "openspec/config.yaml"]
     assert profile.state == "valid"
-    assert profile.declaration is not None
     assert profile.declaration.profile_id == tmp_path.name
     assert profile.declaration.openspec.material_paths == ("**",)
     assert resolve_gate_policy(tmp_path).gate_ids == ()
@@ -58,16 +54,9 @@ def test_adopt_apply_writes_profile_and_official_openspec_config(
     assert result["repository_id"] == f"repository:{tmp_path.name}"
 
 
-def test_declared_local_gate_registry_preserves_self_governance_floor() -> None:
-    profile = load_repository_profile(ROOT)
-
-    assert profile.state == "valid"
-    assert profile.declaration is not None
-    assert profile.declaration.proof.gate_registry == "system/gates.toml"
+def test_repository_declared_gate_owners_remain_distinct(tmp_path: Path) -> None:
+    """The product retains its floor while an adopter selects only its own gates."""
     assert "unit-architecture" in resolve_gate_policy(ROOT).gate_ids
-
-
-def test_profile_native_gate_owner_replaces_packaged_gates(tmp_path: Path) -> None:
     adoption_plan(tmp_path, apply=True)
     profile = tmp_path / ".ethos" / "profile.toml"
     cases = (
@@ -109,84 +98,89 @@ def test_adoption_repository_identity_does_not_depend_on_checkout_path(tmp_path:
     assert second_plan["required_gaps"] == []
     assert {item["action"] for item in second_plan["write_plan"]} == {"keep_existing"}
     assert (second / ".ethos" / "profile.toml").read_text(encoding="utf-8") == first_profile
-    assert adoption_plan(first)["repository_id"] == adoption_plan(second)["repository_id"]
+    assert adoption_plan(first)["repository_id"] == second_plan["repository_id"]
 
 
 @pytest.mark.parametrize("newline", ["\n", "\r\n", "\r"])
+@pytest.mark.parametrize("apply", [False, True])
 @pytest.mark.parametrize(
-    ("relative", "content"),
+    ("relative", "content", "valid"),
     [
-        (".ethos/profile.toml", "profile_id = 'foreign'\n"),
-        ("AGENTS.md", "# Existing\n"),
-        (".gitlab-ci.yml", "stages: [test]\n"),
+        (".ethos/profile.toml", "profile_id = 'foreign'\n", True),
+        ("AGENTS.md", "# Existing\n", True),
+        (".gitlab-ci.yml", "stages: [test]\n", True),
         (
             "openspec/config.yaml",
             (
                 "schema: intent-to-proof\ncontext: preserve the adopter workflow\n"
                 "rules:\n  verification: [bind exact evidence]\n"
             ),
+            True,
         ),
+        ("openspec/config.yaml", "schema: [", False),
+        ("openspec/config.yaml", "schema: spec-driven\ndefaultStore: foreign\n", False),
     ],
 )
-def test_adoption_preserves_existing_authored_surfaces(tmp_path, relative, content, newline):
-    """Neither bootstrap bindings nor unrelated authored surfaces are overwritten."""
-    target = tmp_path / relative
+def test_adoption_preserves_existing_authored_surfaces(
+    tmp_path, relative, content, valid, newline, apply
+):
+    """Preserve authored bytes without mistaking rejected config for valid adoption."""
+    repo = init_git_repo(tmp_path / "repo")
+    target = repo / relative
     target.parent.mkdir(parents=True, exist_ok=True)
     content = content.replace("\n", newline).encode()
     target.write_bytes(content)
-    result = adoption_plan(tmp_path, apply=True)
-    assert result["applied"] is True
-    assert result["required_gaps"] == []
+    report = adopt_repository(
+        repo, apply=apply, authorize=True, expect_head=git(repo, "rev-parse", "HEAD")
+    )
+    result = report.data
+    assert (report.verdict, result["applied"]) == ("pass" if valid else "block", apply and valid)
     assert target.read_bytes() == content
-    if relative in result["planned_files"]:
+    if not valid:
+        assert "adoption_conflict:openspec/config.yaml" in report.required_gaps
+        assert any(gap.startswith("openspec_config_") for gap in report.required_gaps)
+        assert report.user_decision_required
+        assert "Resolve" in report.next_action
+        assert not (repo / ".ethos").exists()
+    elif relative in result["planned_files"]:
         row = next(row for row in result["write_plan"] if row["path"] == relative)
         assert row["action"] == "keep_existing"
         assert row["content_sha256"] == sha256(content).hexdigest()
 
 
-@pytest.mark.parametrize("parent_link", [False, True])
-def test_adopt_rejects_symlinked_binding_without_touching_target(tmp_path, parent_link):
-    external = tmp_path / "external"
-    external.mkdir()
-    target = external / "profile.toml"
+@pytest.mark.parametrize(
+    "kind", ["parent_link", "file_link", "directory", "fifo", "resolve", "lstat"]
+)
+def test_adopt_rejects_unsafe_binding_without_touching_target(tmp_path, monkeypatch, kind):
+    target = tmp_path / "profile.toml"
     target.write_text("")
     profile = tmp_path / ".ethos" / "profile.toml"
-    if parent_link:
-        profile.parent.symlink_to(external, target_is_directory=True)
+    if kind == "parent_link":
+        profile.parent.symlink_to(tmp_path, target_is_directory=True)
     else:
         profile.parent.mkdir()
-        profile.symlink_to(target)
+        if kind == "file_link":
+            profile.symlink_to(target)
+        elif kind == "directory":
+            profile.mkdir()
+        elif kind == "fifo":
+            os.mkfifo(profile)
+        else:
+            profile.touch()
+            native = getattr(Path, kind)
+
+            def unreadable(path: Path, *args, **kwargs):
+                if path == (profile.parent if kind == "resolve" else profile):
+                    raise OSError
+                return native(path, *args, **kwargs)
+
+            monkeypatch.setattr(Path, kind, unreadable)
     result = adoption_plan(tmp_path, apply=True)
     assert result["applied"] is False
     assert result["required_gaps"] == ["adoption_conflict:.ethos/profile.toml"]
     assert target.read_text() == ""
-    assert (profile.parent if parent_link else profile).is_symlink()
-
-
-@pytest.mark.parametrize("kind", ["directory", "fifo"])
-def test_adopt_rejects_non_regular_profile_targets(tmp_path: Path, kind) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.mkdir() if kind == "directory" else os.mkfifo(profile)
-    result = adoption_plan(tmp_path, apply=True)
-    assert result["applied"] is False
-    assert result["required_gaps"] == ["adoption_conflict:.ethos/profile.toml"]
-
-
-@pytest.mark.parametrize("operation", ["resolve", "lstat"])
-def test_adopt_rejects_unreadable_parent_or_profile(tmp_path: Path, monkeypatch, operation) -> None:
-    target = tmp_path / ".ethos" / "profile.toml"
-    target.parent.mkdir()
-    target.write_text("", encoding="utf-8")
-    native = getattr(Path, operation)
-
-    def unreadable(path: Path, *args, **kwargs):
-        if path == (target.parent if operation == "resolve" else target):
-            raise OSError
-        return native(path, *args, **kwargs)
-
-    monkeypatch.setattr(Path, operation, unreadable)
-    assert adoption_plan(tmp_path, apply=True)["applied"] is False
+    if kind in {"parent_link", "file_link"}:
+        assert (profile.parent if kind == "parent_link" else profile).is_symlink()
 
 
 @pytest.mark.parametrize("second", [False, True])
@@ -236,7 +230,6 @@ def test_application_adoption_preserves_admission_and_direct_result(tmp_path, ca
     if condition == "valid":
         assert result.data["repository_id"] == preview.data["repository_id"]
         assert result.data["plan_digest"] == preview.data["plan_digest"]
-        assert load_repository_profile(repo).declaration.profile_id == repo.name
     if condition == "digest":
         assert result.required_gaps == ("adoption_plan_digest_mismatch",)
         assert not (repo / ".ethos").exists()

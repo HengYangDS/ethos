@@ -9,6 +9,8 @@ import tempfile
 from pathlib import Path
 
 from ethos.contracts.openspec.models import OpenSpecPolicy
+from ethos.normalization.coercion import string_sequence
+from ethos.repository.openspec.audit import official_config_report
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import render_repository_profile
@@ -57,7 +59,15 @@ def adoption_plan(
         for path, (current, _exists, safe, content) in bindings.items()
         if not safe or current not in {None, "", content}
     ]
+    config_gaps = (
+        list(string_sequence(official_config_report(root)["required_gaps"]))
+        if current_openspec[0] and current_openspec[2]
+        else []
+    )
+    if config_gaps and OPENSPEC_CONFIG_PATH not in conflicts:
+        conflicts.append(OPENSPEC_CONFIG_PATH)
     required_gaps = [f"adoption_conflict:{path}" for path in conflicts]
+    required_gaps.extend(config_gaps)
     applied = False
     write_plan = []
     generated = []

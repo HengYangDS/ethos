@@ -1,3 +1,23 @@
+## ADDED Requirements
+
+### Requirement: Adoption rejects invalid existing intent configuration before binding
+
+Adoption SHALL consume the existing official OpenSpec configuration audit before
+writing any binding. Preserving authored bytes SHALL NOT imply accepting an
+invalid carrier. CLI, SDK and MCP SHALL share this decision and retain its gaps.
+
+#### Scenario: Existing OpenSpec configuration fails its owning audit
+
+- **WHEN** adoption previews or applies with malformed, missing-schema or forbidden-root configuration
+- **THEN** it reports the OpenSpec path conflict and the owning audit's reasons
+- **AND** no profile or configuration is written, existing bytes remain unchanged, and continuation requires resolving that conflict
+
+#### Scenario: A valid authored configuration differs from the default
+
+- **WHEN** its owning audit passes
+- **THEN** adoption preserves its exact bytes and does not replace its schema, context or rules
+- **AND** this preservation does not certify full mutation readiness or executed proof
+
 ## MODIFIED Requirements
 
 ### Requirement: Exact accepted proposal retirement

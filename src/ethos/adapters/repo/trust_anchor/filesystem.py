@@ -6,7 +6,7 @@ import json
 import os
 import stat
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 from typing import Any
 from typing import cast
 
@@ -14,9 +14,6 @@ from ethos.adapters.process import NATIVE_WINDOWS_POWERSHELL_UNAVAILABLE
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
 from ethos.adapters.process import windows_powershell
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 _SYSTEM_SID = "S-1-5-18"
 _ADMINISTRATORS_SID = "S-1-5-32-544"
@@ -134,13 +131,18 @@ def _windows_protected(path: Path) -> bool:
 
 
 def _run_windows(path: Path, script: str) -> subprocess.CompletedProcess[str]:
-    command = (windows_powershell(), "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script)
+    executable = windows_powershell()
+    native = Path(executable)
+    command = (executable, "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script)
     try:
         return run_command(
             path.parent,
             command,
             check=False,
-            env={"ETHOS_TRUST_ANCHOR_PATH": str(path)},
+            env={
+                "ETHOS_TRUST_ANCHOR_PATH": str(path),
+                "PATH": os.pathsep.join(str(native.parents[index]) for index in (0, 2, 3)),
+            },
             remove_env=("PSModulePath",),
             remove_env_prefixes=("GIT_",),
             timeout=30,

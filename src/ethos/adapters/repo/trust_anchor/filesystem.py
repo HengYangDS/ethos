@@ -17,8 +17,14 @@ from ethos.adapters.process import windows_powershell
 
 _SYSTEM_SID = "S-1-5-18"
 _ADMINISTRATORS_SID = "S-1-5-32-544"
-_WINDOWS_OBSERVE = r"""
+_WINDOWS_MODULES = r"""
 $ErrorActionPreference = 'Stop'
+foreach ($name in @('Microsoft.PowerShell.Security', 'Microsoft.PowerShell.Utility')) {
+  $module = [System.IO.Path]::Combine($PSHOME, 'Modules', $name, "$name.psd1")
+  Import-Module -Name $module -ErrorAction Stop
+}
+"""
+_WINDOWS_OBSERVE = r"""
 $path = $env:ETHOS_TRUST_ANCHOR_PATH
 $current = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 $sidType = [System.Security.Principal.SecurityIdentifier]
@@ -52,7 +58,6 @@ $results = foreach ($candidate in @($path, [System.IO.Path]::GetDirectoryName($p
 ConvertTo-Json -InputObject @($results) -Compress
 """
 _WINDOWS_PROTECT = r"""
-$ErrorActionPreference = 'Stop'
 $path = $env:ETHOS_TRUST_ANCHOR_PATH
 $acl = Get-Acl -LiteralPath $path
 $acl.SetAccessRuleProtection($true, $false)
@@ -148,7 +153,14 @@ def _windows_protected(path: Path) -> bool:
 def _run_windows(path: Path, script: str) -> subprocess.CompletedProcess[str]:
     executable = windows_powershell()
     native = Path(executable)
-    command = (executable, "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script)
+    command = (
+        executable,
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        _WINDOWS_MODULES + script,
+    )
     try:
         return run_command(
             path.parent,

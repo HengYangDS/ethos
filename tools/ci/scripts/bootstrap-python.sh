@@ -47,7 +47,7 @@ Linux)
 	if ! command -v lsof >/dev/null 2>&1; then missing_packages+=(lsof); fi
 	if ! command -v setpriv >/dev/null 2>&1; then missing_packages+=(util-linux); fi
 	if ! command -v ldconfig >/dev/null 2>&1 ||
-		! ldconfig -p 2>/dev/null | grep -q 'libatomic\.so\.1'; then
+		! ldconfig -p 2>/dev/null | grep 'libatomic\.so\.1' >/dev/null; then
 		missing_packages+=(libatomic1)
 	fi
 	if ((${#missing_packages[@]})); then
@@ -55,7 +55,7 @@ Linux)
 			printf 'missing Linux prerequisites and apt-get is unavailable: %s\n' "${missing_packages[*]}" >&2
 			exit 1
 		fi
-		apt-get update
+		apt-get update -o APT::Update::Error-Mode=any
 		apt-get install -y --no-install-recommends "${missing_packages[@]}"
 	fi
 	;;

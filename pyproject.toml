@@ -33,6 +33,7 @@ prerelease = "disallow"
 dev = [
   "codespell>=2.4.3",
   "deptry>=0.25.1",
+  "editables>=0.6",
   "hatchling>=1.32.3",
   "hypothesis>=6.168.0",
   "import-linter>=2.15",
@@ -53,7 +54,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["hatchling>=1.32.3"]
+requires = ["editables>=0.6", "hatchling>=1.32.3"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]

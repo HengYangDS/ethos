@@ -71,11 +71,29 @@ github: {
 				run: """
 					set -euo pipefail
 					image="ghcr.io/hengyangds/ethos-ci-supply:${{ github.sha }}"
-					printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
 					docker buildx build --check --platform linux/arm64 --file .config/ci/supply/Dockerfile .
 					docker build --platform linux/arm64 --file .config/ci/supply/Dockerfile --tag "$image" .
+					smoke_root="$(mktemp -d)"
+					smoke_name="ethos-ci-supply-${{ github.run_id }}"
+					export DOCKER_CONFIG="$smoke_root/docker-config"
+					mkdir -m 0700 "$DOCKER_CONFIG"
+					cleanup() {
+					  docker rm -f "$smoke_name" >/dev/null 2>&1 || true
+					  rm -rf "$smoke_root"
+					}
+					trap cleanup EXIT
+					git clone --local --no-hardlinks --no-checkout . "$smoke_root/repo"
+					git -C "$smoke_root/repo" checkout --detach "${{ github.sha }}"
+					docker create --name "$smoke_name" --network none --env UV_OFFLINE=true --env NPM_CONFIG_OFFLINE=true --env UV_NO_BUILD_ISOLATION=1 "$image" /bin/bash -lc 'cd /workspace && sha256sum -c /opt/ethos-supply/input.sha256 && tools/ci/scripts/bootstrap-python.sh'
+					docker cp "$smoke_root/repo/." "$smoke_name:/workspace"
+					docker start --attach "$smoke_name"
+					test "$(docker inspect --format '{{.State.ExitCode}}' "$smoke_name")" = 0
+					docker rm "$smoke_name"
+					printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
 					docker push "$image"
 					docker buildx imagetools inspect "$image"
+					cleanup
+					trap - EXIT
 					"""
 			}]
 		}

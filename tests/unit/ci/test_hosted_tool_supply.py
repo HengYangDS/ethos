@@ -87,7 +87,7 @@ def bootstrap_tools(tmp_path_factory: pytest.TempPathFactory) -> Path:
         "npx": "exit 0\n",
         "apt-get": 'printf "%s\\n" "$*" >>../apt-get.log\n',
         "ssh-keygen": "exit 0\n",
-        "ldconfig": "printf 'libatomic.so.1\\n'\n",
+        "ldconfig": "printf 'libatomic.so.1\\n'; awk 'BEGIN {for(i=0;i<100000;i++) print \"x\"}'\n",
         "openspec": "printf '1.12.0\\n'\n",
         "python": (
             f'[ "$1 $2" != "-B -" ] || exec {shlex.quote(sys.executable)} "$@"\n'
@@ -181,7 +181,10 @@ def test_python_bootstrap_supplies_platform_prerequisites(
     apt_log, uv_log = tmp_path / "apt-get.log", tmp_path / "uv.log"
     observed_apt = apt_log.read_text().splitlines() if apt_log.exists() else None
     assert observed_apt == (
-        ["update", "install -y --no-install-recommends procps lsof util-linux"]
+        [
+            "update -o APT::Update::Error-Mode=any",
+            "install -y --no-install-recommends procps lsof util-linux",
+        ]
         if system == "Linux"
         else None
     )

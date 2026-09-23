@@ -44,7 +44,8 @@ def hosted_proof_transport(tmp_path_factory: pytest.TempPathFactory) -> Path:
         "sys.exit(case['exit_code'])\n"
     )
     binary.chmod(0o555)
-    scanner = binary.with_name("gitleaks")
+    scanner = binary.parent / "supply" / "gitleaks"
+    scanner.parent.mkdir()
     scanner.write_text("#!/bin/sh\nprintf fixture-scanner\n")
     scanner.chmod(0o555)
     supply = binary.with_name("prepare")
@@ -52,10 +53,11 @@ def hosted_proof_transport(tmp_path_factory: pytest.TempPathFactory) -> Path:
         f"#!{sys.executable}\n"
         "import json, os, pathlib, subprocess, sys\n"
         "bodies = json.loads(pathlib.Path('supply-case.json').read_text())\n"
-        "assert sys.argv[1:] == ['--root', os.getcwd(), 'gitleaks', 'scc', 'syft']\n"
+        "assert sys.argv[1:] == ['--root', os.getcwd(), '--mise', 'gitleaks', 'scc', 'syft']\n"
         "for body in bodies:\n"
         " result = subprocess.run(['/bin/sh', '-c', body])\n"
         " if result.returncode: sys.exit(result.returncode)\n"
+        "print(pathlib.Path(os.path.realpath(__file__)).parent / 'supply')\n"
     )
     supply.chmod(0o555)
     return binary
@@ -215,7 +217,6 @@ def test_hosted_receipt_requires_exact_executed_observation(
     payload = _observation_payload(expected, fault)
     binary = tmp_path / "bin/uv"
     binary.parent.mkdir()
-    scanner = binary.parent / "gitleaks"
     (repo / "proof-case.json").write_text(
         json.dumps(
             {
@@ -227,12 +228,7 @@ def test_hosted_receipt_requires_exact_executed_observation(
     )
     binary.symlink_to(hosted_proof_transport)
     assert binary.samefile(hosted_proof_transport)
-    scripts = _hosted_scripts(
-        repo,
-        hosted_proof_transport,
-        f"printf '%s\\n' '{binary.parent}'\n",
-        f"ln -s '{hosted_proof_transport.with_name('gitleaks')}' '{scanner}'\n",
-    )
+    scripts = _hosted_scripts(repo, hosted_proof_transport, "exit 0\n")
     assert (repo / "tools/ci/toolchain/native.py").samefile(
         hosted_proof_transport.with_name("prepare")
     )
@@ -242,7 +238,6 @@ def test_hosted_receipt_requires_exact_executed_observation(
     )
     expected_pass = fault == "none" and reports == "valid"
     assert (completed.returncode == 0) is expected_pass, completed.stdout + completed.stderr
-    assert scanner.samefile(hosted_proof_transport.with_name("gitleaks"))
     receipt = json.loads(completed.stdout)
     assert receipt["kind"] == "ethos_hosted_verification_receipt"
     assert receipt["satisfies_repository_proof"] is False

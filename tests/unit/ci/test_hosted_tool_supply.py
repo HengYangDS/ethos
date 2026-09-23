@@ -92,8 +92,6 @@ def bootstrap_tools(tmp_path_factory: pytest.TempPathFactory) -> Path:
         "python": (
             f'[ "$1 $2" != "-B -" ] || exec {shlex.quote(sys.executable)} "$@"\n'
             'case "$*" in\n'
-            "  *toolchain/native.py*) printf 'mise-prepared\\n' >>../mise.log; "
-            "printf '/fixture/mise/bin\\n' ;;\n"
             "  *platform.python_version*) printf '3.14.7\\n' ;;\n"
             "  '-B -I -') cat >/dev/null\n"
             '    [ "$FIXTURE_IMAGE_STATE" = available ] || [ -f ../native-image ] ;;\n'
@@ -178,7 +176,7 @@ def test_python_bootstrap_supplies_platform_prerequisites(
         selected = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
         assert selected.is_relative_to(tmp_path)
         assert selected.read_text() == environment["ETHOS_COMMIT_ALLOWED_SIGNERS"]
-        assert Path(environment["GITHUB_PATH"]).read_text() == "/fixture/mise/bin\n"
+        assert not Path(environment["GITHUB_PATH"]).exists()
     assert "ambient-unknown-anchor" not in settings
     apt_log, uv_log = tmp_path / "apt-get.log", tmp_path / "uv.log"
     observed_apt = apt_log.read_text().splitlines() if apt_log.exists() else None
@@ -187,7 +185,7 @@ def test_python_bootstrap_supplies_platform_prerequisites(
         if system == "Linux"
         else None
     )
-    assert (tmp_path / "mise.log").read_text() == "mise-prepared\n"
+    assert not (tmp_path / "mise.log").exists()
     observed_uv = uv_log.read_text(encoding="utf-8").splitlines()
     if image_state == "missing":
         assert observed_uv.index("sync --locked --group dev") < observed_uv.index(

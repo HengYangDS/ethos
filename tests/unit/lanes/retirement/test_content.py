@@ -413,6 +413,8 @@ def test_reviewed_derivation_rejects_unsafe_target_before_inventory(
 def test_retirement_rechecks_after_native_worktree_observation(
     divergent_lane, monkeypatch, drift, detached
 ):
+    """Isolate authority/content races; live-process and unknown scans have dedicated cases."""
+    monkeypatch.setattr(operation, "process_file_identities", lambda _root: frozenset())
     repo, lane = divergent_lane
     if detached:
         git(lane, "switch", "--detach")
@@ -452,8 +454,7 @@ def test_retirement_rechecks_after_native_worktree_observation(
     monkeypatch.setattr(worktree_effects, "worktree_record", observe_then_drift)
     result = apply_retirement_receipt(repo, receipt)
 
-    assert lane.is_dir(), result
-    assert (lane / "abandoned.txt").read_bytes() == original_bytes
+    assert (lane / "abandoned.txt").read_bytes() == original_bytes, result
     assert git(repo, "rev-parse", "refs/heads/work/abandon") == request.head
     assert result["verdict"] == "block", result
     assert result["required_gaps"] == [
@@ -464,7 +465,7 @@ def test_retirement_rechecks_after_native_worktree_observation(
         else "foreign_work_lane_retire_authority_required"
         if drift == "actor"
         else "retirement_operation_state_drift"
-    ]
+    ], result
     if drift in {"ignored", "unreviewed", "process-scan", "git-admission"}:
         assert (lane / "residual.txt").read_text() == "new unreviewed ignored data\n"
 

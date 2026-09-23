@@ -379,7 +379,13 @@ def test_config_quality_consumes_source_bound_node_package_supply(tmp_path, monk
     )
 
 
-def _run_node_compatibility(tmp_path: Path, requested_version: str, active_version: str):
+def _run_node_compatibility(
+    tmp_path: Path,
+    requested_version: str,
+    active_version: str,
+    *,
+    supplied: bool = False,
+):
     npm_log = tmp_path / "npm.log"
     env = isolated_path(
         tmp_path,
@@ -393,6 +399,9 @@ def _run_node_compatibility(tmp_path: Path, requested_version: str, active_versi
         "FAKE_NODE_VERSION": active_version,
         "FAKE_NPM_LOG": str(npm_log),
     }
+    env.pop("ETHOS_CI_SUPPLY_MANIFEST", None)
+    if supplied:
+        env["ETHOS_CI_SUPPLY_MANIFEST"] = str(tmp_path / "supply.sha256")
     bin_path, *_ = env["PATH"].split(os.pathsep)
     env["PATH"] = os.pathsep.join((bin_path, os.environ["PATH"]))
     result = subprocess.run(
@@ -407,18 +416,32 @@ def _run_node_compatibility(tmp_path: Path, requested_version: str, active_versi
 
 
 @pytest.mark.parametrize("version", NODE_POLICY["compatibility_versions"])
+@pytest.mark.parametrize("supplied", [False, True])
 def test_node_runtime_compatibility_accepts_each_declared_version(
     tmp_path: Path,
     version: str,
+    *,
+    supplied: bool,
 ) -> None:
-    result, npm_log = _run_node_compatibility(tmp_path, version, version)
+    result, npm_log = _run_node_compatibility(tmp_path, version, version, supplied=supplied)
     assert result.returncode == 0, result.stderr
     assert npm_log.read_text(encoding="utf-8").splitlines() == [
         "--version|engine=",
-        "ci --ignore-scripts|engine=true",
+        f"ci --ignore-scripts{' --offline' if supplied else ''}|engine=true",
         "run ethos -- --version|engine=true",
         "run test:npm|engine=true",
     ]
+
+
+def test_node_runtime_compatibility_does_not_inherit_runner_supply(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ETHOS_CI_SUPPLY_MANIFEST", "/ambient-runner-supply")
+    version = NODE_POLICY["compatibility_versions"][0]
+    result, npm_log = _run_node_compatibility(tmp_path, version, version)
+    assert result.returncode == 0, result.stderr
+    assert "ci --ignore-scripts|engine=true" in npm_log.read_text(encoding="utf-8").splitlines()
 
 
 def test_node_runtime_compatibility_rejects_active_version_drift(tmp_path: Path) -> None:

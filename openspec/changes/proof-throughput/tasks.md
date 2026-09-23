@@ -56,7 +56,7 @@
 - [x] 4.11 Preserve validated source deletions and archive effect paths through public proof/replay.
 - [x] 4.12 Reject unsupported reference kinds and malformed transport; qualify package entry aliases and native archive execution.
 - [x] 4.13 Complete exact full proof and source/package/runtime delivery for archive preservation.
-- [ ] 4.14 Reproduce post-archive native formatting and sibling-reference drift; qualify the actual generated tree before successful archive completion without weakening repository gates.
+- [x] 4.14 Reproduce post-archive native formatting and sibling-reference drift; qualify the actual generated tree before successful archive completion without weakening repository gates.
 
 ## 5. Process Lifetimes and Resource Recovery
 
@@ -66,6 +66,7 @@
 - [x] 5.4 Resolve exited-group cancellation races without suppressing live-group cleanup failures.
 - [x] 5.5 Bound worker-loss and assertion-failure scheduling through the native gate; verify complete healthy workloads with warm and empty failure-order caches.
 - [ ] 5.6 Close supervisor-loss and Windows descendant recovery with native regressions.
+  - [ ] 5.6.1 Propagate caller interruption through parallel gate command ownership; verify native cancellation, preserved independent diagnostics, exact proof and installed-runtime behavior.
 - [x] 5.7 Remove newly exposed runtime generations after failed verification or caller cancellation.
 - [x] 5.8 Verify retained native downloads across executable failure without weakening activation.
 - [x] 5.9 Route native executable verification through the process owner and reproduce descendant cleanup at the supply boundary.

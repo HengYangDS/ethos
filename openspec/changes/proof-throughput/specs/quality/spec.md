@@ -389,6 +389,14 @@ the supervisor or containment of deliberately detached processes.
 - **AND** the verified archive and previous executable retain their existing protections
 - **AND** transport and verification do not define competing cancellation semantics
 
+#### Scenario: A parallel proof caller is interrupted
+
+- **WHEN** the proof caller is interrupted while worker threads own native commands
+- **THEN** the shared process owner cancels those groups before the executor joins its workers
+- **AND** late command creation is denied within the cancelled invocation
+- **AND** the original interruption remains observable without a passing proof claim
+- **AND** an independent subsequent invocation has fresh command ownership
+
 #### Scenario: A test supervisor is killed
 
 - **WHEN** a worker exits without executing its cleanup

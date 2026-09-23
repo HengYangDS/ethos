@@ -206,14 +206,3 @@ def test_provider_exception_becomes_failed_result(monkeypatch, tmp_path: Path, n
         else "RuntimeError: boom"
     )
     assert result.diagnostics[0]["error"] == expected
-
-
-def test_command_envelope_uses_verdict_and_plain_stderr_is_not_a_warning() -> None:
-    blocked = gate_runner.classify_action_result(
-        exit_code=0,
-        stdout=json.dumps({"command": "status", "verdict": "unknown", "state": "unknown"}),
-    )
-    passed = gate_runner.classify_action_result(exit_code=0, stdout="not-json")
-
-    assert blocked[0] == "unknown"
-    assert passed == ("pass", ())

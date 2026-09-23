@@ -355,7 +355,7 @@ def adopt_and_commit(repo: Path, *, release_mirror: str = "independent") -> str:
         ),
         encoding="utf-8",
     )
-    _declare_minimal_code_correctness(repo)
+    declare_fixture_code_correctness(repo)
     _enable_openspec_profile(repo)
     write_publication_topology(repo)
     _write_openspec_baseline(repo)
@@ -487,17 +487,8 @@ def _commit_fixture(root: Path, message: str, *, hooks_path: Path | None = None)
     return git(root, "rev-parse", "HEAD")
 
 
-def _declare_minimal_code_correctness(repo: Path) -> None:
-    """Declare a minimal, axis-covering code-correctness map on the scaffolded profile.
-
-    `ethos adopt` scaffolds a recognized adopter profile but deliberately leaves the
-    code-correctness declaration commented out — an adopter's real test/lint commands are
-    toolchain-specific and cannot be guessed. The honest onboarding lifecycle is therefore
-    adopt -> DECLARE your native code-correctness gates -> prove. These fixtures walk that
-    third step: they append two qualifying native gates (one behavior, one static-analysis)
-    and map the required axes, so a proof seeded over the required floor is also complete
-    on the code-correctness dimension (Tier 1.2).
-    """
+def declare_fixture_code_correctness(repo: Path) -> None:
+    """Bind fixture-owned behavior and static checks without changing adopter defaults."""
     profile_path = repo / ".ethos" / "profile.toml"
     declaration = (
         "\n[proof]\n"

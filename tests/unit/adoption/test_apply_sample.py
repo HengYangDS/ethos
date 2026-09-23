@@ -6,12 +6,12 @@ from hashlib import sha256
 from pathlib import Path
 
 import pytest
-import tomli_w
 
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.domain.adoption import adopt_repository
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.profile import load_repository_profile
+from tests.support.governed_repository import declare_fixture_code_correctness
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
@@ -58,28 +58,7 @@ def test_repository_declared_gate_owners_remain_distinct(tmp_path: Path) -> None
     """The product retains its floor while an adopter selects only its own gates."""
     assert "unit-architecture" in resolve_gate_policy(ROOT).gate_ids
     adoption_plan(tmp_path, apply=True)
-    profile = tmp_path / ".ethos" / "profile.toml"
-    cases = (
-        ("sample-tests", "test", "tests", "behavior", "proof"),
-        ("sample-static", "typing", "types", "static-analysis", "contract"),
-    )
-    gates = [
-        {
-            "id": name,
-            "kind": kind,
-            "command": ["custom", command],
-            "dimensions": [dimension],
-            "evidence_class": evidence,
-            "trust_bearing": True,
-        }
-        for name, kind, command, dimension, evidence in cases
-    ]
-    proof = {
-        "code_correctness_gates": [row[0] for row in cases],
-        "code_correctness_map": {row[3]: row[0] for row in cases},
-        "gates": gates,
-    }
-    profile.write_text(profile.read_text() + tomli_w.dumps({"proof": proof}))
+    declare_fixture_code_correctness(tmp_path)
 
     assert set(resolve_gate_policy(tmp_path).registry) == {"sample-tests", "sample-static"}
 
@@ -118,6 +97,7 @@ def test_adoption_repository_identity_does_not_depend_on_checkout_path(tmp_path:
             True,
         ),
         ("openspec/config.yaml", "schema: [", False),
+        ("openspec/config.yaml", "", False),
         ("openspec/config.yaml", "schema: spec-driven\ndefaultStore: foreign\n", False),
     ],
 )
@@ -152,6 +132,7 @@ def test_adoption_preserves_existing_authored_surfaces(
     "kind", ["parent_link", "file_link", "directory", "fifo", "resolve", "lstat"]
 )
 def test_adopt_rejects_unsafe_binding_without_touching_target(tmp_path, monkeypatch, kind):
+    observe = Path.lstat
     target = tmp_path / "profile.toml"
     target.write_text("")
     profile = tmp_path / ".ethos" / "profile.toml"
@@ -175,12 +156,17 @@ def test_adopt_rejects_unsafe_binding_without_touching_target(tmp_path, monkeypa
                 return native(path, *args, **kwargs)
 
             monkeypatch.setattr(Path, kind, unreadable)
+    before = observe(profile)
     result = adoption_plan(tmp_path, apply=True)
     assert result["applied"] is False
     assert result["required_gaps"] == ["adoption_conflict:.ethos/profile.toml"]
     assert target.read_text() == ""
     if kind in {"parent_link", "file_link"}:
         assert (profile.parent if kind == "parent_link" else profile).is_symlink()
+    after = observe(profile)
+    assert (after.st_mode, after.st_ino) == (before.st_mode, before.st_ino)
+    if profile.is_file():
+        assert profile.read_bytes() == b""
 
 
 @pytest.mark.parametrize("second", [False, True])

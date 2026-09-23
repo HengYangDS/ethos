@@ -779,3 +779,9 @@ metadata SHALL reference the executable owner, not imply execution by listing it
 - **WHEN** the JavaScript behavior gate runs with the locked toolchain
 - **THEN** nested package checks use the same npm CLI and Node executable
 - **AND** success and failure both remove owned temporary npm state
+
+#### Scenario: Independent package behavior starts with other heavy checks
+
+- **WHEN** JavaScript behavior and Python or package checks use disjoint owned outputs
+- **THEN** the gate scheduler may execute them concurrently after their real prerequisites pass
+- **AND** a writer that claims the shared supply still excludes the JavaScript behavior gate

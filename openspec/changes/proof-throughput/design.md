@@ -3088,3 +3088,9 @@ it is not another executable registry. Node and npm share the locked wheel
 supply, and nested packaging consumes npm's native `npm_execpath`. This closes
 the missing package-behavior edge; it does not claim complete semantic lint,
 installed Publisher conformance or new launcher qualification.
+
+The behavior gate declares its actual repository and supply reads plus one
+owned JavaScript scratch domain. Omitting that declaration would make the
+conservative wildcard reader conflict with every named exclusive output and
+serialize the subsecond check behind the full Python suite. An exclusive supply
+writer still conflicts; independent test, build and evidence outputs do not.

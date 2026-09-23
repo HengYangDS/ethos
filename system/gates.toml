@@ -4,7 +4,7 @@ source_refs = ["system/gates.toml"]
 
 [proof_sets]
 default = ["repository-audit", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "config-quality", "shell-lint"]
-full = ["repository-audit", "repository-hygiene", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "github-workflow-syntax", "python-size", "source-budget", "markdown-lint", "javascript-lint", "svg-format", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "prose", "dependency-vulnerabilities", "release-sbom", "secrets"]
+full = ["repository-audit", "repository-hygiene", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "github-workflow-syntax", "python-size", "source-budget", "markdown-lint", "javascript-lint", "javascript-tests", "svg-format", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "prose", "dependency-vulnerabilities", "release-sbom", "secrets"]
 
 [[gates]]
 id = "repository-audit"
@@ -485,6 +485,24 @@ execution_mode = "adapter"
 evidence_class = "diagnostic"
 trust_bearing = true
 tool_adapter = "javascript_lint"
+writes_files = false
+network_policy = "offline"
+version_source = "locked-toolchain"
+
+[[gates]]
+id = "javascript-tests"
+kind = "test"
+depends_on = ["javascript-lint"]
+command = ["{python}", "-m", "nox", "-s", "javascript_tests"]
+policy = "required"
+profile = "product-toolchain"
+toolchain = "uv-python"
+asset_classes = ["javascript-code"]
+dimensions = ["package-behavior"]
+execution_mode = "adapter"
+evidence_class = "proof"
+trust_bearing = true
+tool_adapter = "javascript_tests"
 writes_files = false
 network_policy = "offline"
 version_source = "locked-toolchain"

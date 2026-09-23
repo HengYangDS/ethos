@@ -37,6 +37,7 @@ PUBLIC_SESSIONS = (
     "shell_lint",
     "markdown_lint",
     "javascript_lint",
+    "javascript_tests",
     "svg_lint",
     "asset_validation",
     "config_quality",
@@ -281,6 +282,25 @@ def schemas(session) -> None:
 
 def local_ci(session) -> None:
     import_module("tools.ci.local_ci").run(session)
+
+
+def javascript_tests(session) -> None:
+    """Execute package-owned behavior with locked tools and disposable npm state."""
+    command = RUNTIME.npm_command()
+    with TemporaryDirectory(prefix="ethos-javascript-tests-") as cache:
+        session.run(
+            *command,
+            "run",
+            "test:npm",
+            env={
+                "PATH": os.pathsep.join((str(Path(command[0]).parent), os.environ.get("PATH", ""))),
+                "npm_config_cache": cache,
+                "npm_config_offline": "true",
+                "npm_config_update_notifier": "false",
+                "npm_config_audit": "false",
+                "npm_config_fund": "false",
+            },
+        )
 
 
 def javascript_lint(session) -> None:

@@ -56,6 +56,15 @@ class ProjectRuntime:
         owner = import_module("ethos.adapters.repo.runtime.materialization.input_resolution")
         return owner.resolve_node_executable()
 
+    def npm_command(self) -> tuple[str, str]:
+        """Bind npm's native CLI to the same locked Node distribution."""
+        package = import_module("nodejs_wheel")
+        cli = Path(str(package.__file__)).parent / "lib/node_modules/npm/bin/npm-cli.js"
+        if not cli.is_file():
+            message = f"project npm CLI is unavailable: {cli}"
+            raise RuntimeError(message)
+        return str(self.node_executable()), str(cli)
+
     def node_package_supply(self) -> Path:
         """Validate current locked Node supply at the capability boundary."""
         owner = import_module("ethos.adapters.repo.runtime.materialization.node_package_supply")

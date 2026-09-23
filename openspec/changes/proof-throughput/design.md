@@ -3078,3 +3078,13 @@ refusal, preview and replay matrix already covered by sibling cases. A covered
 16-worker identity/release replay passes all 48 cases, with the repaired journey
 at 87.65 seconds. The native 120-second case timeout, no-worker-restart rule,
 coverage collection and full-proof requirement remain unchanged.
+
+### JavaScript Execution Ownership
+
+Formatting remains the fast `javascript-lint` gate. The required
+`javascript-tests` gate invokes the package's `test:npm` script through the
+existing ProjectRuntime and Nox owners. Format metadata references that gate;
+it is not another executable registry. Node and npm share the locked wheel
+supply, and nested packaging consumes npm's native `npm_execpath`. This closes
+the missing package-behavior edge; it does not claim complete semantic lint,
+installed Publisher conformance or new launcher qualification.

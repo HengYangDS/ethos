@@ -319,6 +319,7 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
     acceptance_case,
     selection,
 ) -> None:
+    monkeypatch.setenv("UV_PYTHON_INSTALL_DIR", str(tmp_path / "python-images"))
     case = acceptance_case
     work, evidence = effect.WORK, effect.EVIDENCE
     session = SimpleNamespace(error=pytest.fail, log=case.logs.append)
@@ -361,6 +362,9 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
             work / "locked-requirements.txt",
         )
         assert case.observed["environment"]["UV_OFFLINE"] == "1"
+        assert case.observed["environment"]["UV_PYTHON_INSTALL_DIR"] == str(
+            tmp_path / "python-images"
+        )
         assert "UV_CACHE_DIR" not in case.observed["environment"]
         _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact)
         assert not work.exists()

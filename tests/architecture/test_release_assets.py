@@ -326,6 +326,9 @@ def test_test_environment_freezes_locked_supply_as_absolute_paths(
     monkeypatch.setattr(python_test_gate, "_head", lambda: "a" * 40)
     monkeypatch.setenv("UV_CACHE_DIR", "build/runtime/tool-cache/uv")
     monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
+    monkeypatch.delenv("ETHOS_TEST_WORKERS", raising=False)
+    monkeypatch.setattr(python_test_gate.os, "cpu_count", lambda: 3)
+    assert python_test_gate.Settings.load(node_package_supply=supply).workers == 3
 
     gate = python_test_gate.PythonTestGate.from_environment(node_package_supply=supply)
     gate = python_test_gate.PythonTestGate(replace(gate.s, workers=workers))

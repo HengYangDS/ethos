@@ -103,6 +103,7 @@ def _independent_host_environment() -> tuple[dict[str, str], str]:
             "TMPDIR",
             "USER",
             "USERNAME",
+            "UV_PYTHON_INSTALL_DIR",
         }
     }
     env["PATH"] = str(git.parent)

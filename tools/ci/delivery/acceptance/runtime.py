@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 import shlex
-import shutil
 import tarfile
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -119,7 +118,9 @@ def require_manifest(
     return python
 
 
-def require_production_dependencies(python: Path) -> dict[str, object]:
+def require_production_dependencies(
+    python: Path, *, environment: Mapping[str, str]
+) -> dict[str, object]:
     """Require the immutable package runtime to exclude development dependencies."""
     probe = """
 import importlib.util
@@ -149,14 +150,10 @@ with TemporaryDirectory(prefix="ethos-installed-format-") as temporary:
         observed = subprocess.check_output(["git", "-C", str(root), "show", ":change.py"])
         assert observed == staged.encode()
 """
-    git = shutil.which("git")
-    if git is None:
-        message = "package_runtime_git_unavailable"
-        raise RuntimeError(message)
     completed = run_command(
         python.parent,
         (python.as_posix(), "-B", "-I", "-c", probe),
-        env={"PATH": str(Path(git).parent)},
+        env=environment,
         inherit_environment=False,
         timeout=120,
     )

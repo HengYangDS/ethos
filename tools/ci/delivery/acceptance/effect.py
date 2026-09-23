@@ -359,7 +359,7 @@ def observe_runtime_lifecycle(
             "candidate_worktree": candidate.as_posix(),
         },
         "development_dependencies": runtime_acceptance.require_production_dependencies(
-            runtime_python
+            runtime_python, environment=environment
         ),
         "immutable_identity": runtime_acceptance.require_version_identity(
             runtime_python,

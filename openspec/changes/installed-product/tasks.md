@@ -6,6 +6,7 @@
 - [x] 1.4 Centralize root-bound adoption continuation; distinguish preview, applied, conflict, stale request and missing authorization through SDK/CLI with no planner-owned competing action.
 - [ ] 1.5 Deliver version-matched installed Skills/context and verify a fresh Agent-equivalent discovery, admitted change, failure, recovery and handoff without ETHOS source or user retelling.
 - [x] 1.6 Add an explicit typed repository identity transition through the existing effect and Attestation owners; preserve ordinary cross-identity refusal and verify exact intent/proof, object-database continuity, target-ref coordinates, actor/Lease generation, per-effect one-shot recovery, independently authorized later stages and absence of compatibility aliases.
+- [ ] 1.7 Reconcile the sole ETHOS binding with official OpenSpec initialization and verified mutation readiness at the shared adoption owner; preserve preview, existing customizations, precise conflicts, bounded recovery and CLI/SDK/MCP agreement without hand-rendered native configuration or a second lifecycle.
 
 ## 2. Installed MCP Transport
 

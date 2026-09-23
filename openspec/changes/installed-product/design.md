@@ -84,6 +84,15 @@ deployment boundaries, not prerequisites for local stdio.
 
 ## Decisions
 
+Adoption separates the sole ETHOS binding from official OpenSpec initialization
+and mutation readiness. Existing configuration must pass its existing audit
+before any binding write; equality with the same observed bytes proves
+preservation, not validity. The shared planner owns this precondition, so CLI,
+SDK and MCP cannot disagree or write before discovering the conflict. Reuse the
+audit owner rather than another parser. Full native initialization and readiness
+remain a distinct acceptance obligation; template discovery is not a substitute
+for validating the selected project configuration and schema.
+
 - Move result composition to the existing domain layer, retaining its current
   Git, policy and effect owners. CLI only resolves native arguments and renders
   the returned EthosResult. SDK and MCP call that same operation directly.

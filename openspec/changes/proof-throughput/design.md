@@ -969,30 +969,21 @@ The public effect tests separately verify real writes and partial recovery.
 
 ### Gate Process Ownership
 
-Command gates now use the existing process executor instead of a parallel raw
-subprocess path. The same socket-based native regression covers direct-command
-timeout, direct cancellation and gate cancellation, each with inherited or closed
-output pipes. Both new gate cases first failed because descendants kept their
-sockets after cancellation. An earlier probe had an invalid canonical command
-identity and did not reach execution; only the corrected admitted probe is RED
-evidence. No new process framework or timeout setting is introduced.
+Command gates use the existing process executor. A transient command scope binds
+the caller and context-propagating worker threads to one owner of actual process
+handles. Creation and cancellation share its fence. Caller interruption closes
+owned groups before the thread pool waits; completed handles are released, and
+the context is reset before an independent invocation. No process-ID registry,
+new execution framework or timeout setting is introduced.
 
 Missing commands retain exit 127 and their exact command/root diagnostics.
-Other process-creation failures retain structured evidence and are not mislabeled
-as missing executables. Real native missing, permission-denied and nonzero-exit
-cases replace the old raw-subprocess mock. Provider result cases share one
-matrix while retaining success, failure, warning, informational and missing-verdict
-assertions. Product/test ELOC is 45,403/49,992; type and size/budget gates pass.
-
-The same 111 process/gate/architecture consumers pass at two, four and eight
-workers in 5.93, 5.36 and 5.32 seconds, respectively. Wrapper times including
-cleanup are 6.44, 5.88 and 5.85 seconds. All use the declared thread timeout,
-no retries and equal no-coverage diagnostic settings. The two-worker sample
-briefly overlaps a read-only quality check; these are correctness/scaling
-observations, not a controlled speedup claim. Another 47 public proof-command
-consumers pass in 14.58 seconds, or 15.03 including cleanup. Every owned test
-root is removed. Receipts use the `throughput-gate-process-` prefix in the
-existing evidence root.
+Other creation and cleanup failures preserve their native evidence. A negative
+gate result still permits independent diagnostics to finish; it is not caller
+cancellation. Serializing all delivery behind tests or killing arbitrary process
+trees is not an equivalent latency optimization. Socket-based native tests cover
+direct timeout and cancellation, parallel caller interruption, inherited pipes
+and exited leaders. One resource-relation matrix retains compatible-reader and
+conflicting-writer scheduling across sequential and parallel execution.
 
 This repair requires a living caller. The separate
 `throughput-worker-loss-same-group-current.json` probe at `7b5ad8964` proves

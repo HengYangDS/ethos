@@ -140,25 +140,26 @@ def test_run_plan_checks_executes_ready_checks_concurrently_in_plan_order(
         assert check["duration_seconds"] >= 0
 
 
-@pytest.mark.parametrize("writer", [False, True])
+@pytest.mark.parametrize("domain", [False, "output", None, "source/child", "source"])
 @pytest.mark.parametrize(
     ("parallel", "capacity"), [(False, 1), (False, 4), (True, 1), (True, 2), (True, 4)]
 )
 def test_ready_child_does_not_wait_for_unrelated_slow_reader(
-    tmp_path: Path, writer, parallel, capacity
+    tmp_path: Path, domain, parallel, capacity
 ) -> None:
-    """An independent slow reader must not create a global wave barrier."""
+    """Actual resource conflicts alone determine whether a ready child must wait."""
     started = threading.Barrier(2)
-    child_started = threading.Event()
+    progress = threading.Event()
+    release_by = "queued" if domain in {None, "source/child", "source"} else "child"
+    order = []
     concurrent = parallel and capacity > 1
+    locks = {name: {"source/child": "shared"} for name in ("fast", "slow", "child", "queued")}
+    if domain:
+        locks["child"] = {str(domain): "exclusive"}
     nodes, gates = _graph(
-        {"fast": (), "slow": (), "child": ("fast",)},
-        writer="child" if writer else "",
-        resource_locks={
-            name: {"source": "shared"}
-            | ({"output": "exclusive"} if writer and name == "child" else {})
-            for name in ("fast", "slow", "child")
-        },
+        {"fast": (), "slow": (), "child": ("fast",), "queued": ("fast",)},
+        writer="child" if domain is not False else "",
+        resource_locks=locks if domain is not None else None,
     )
 
     class Runner(gate_runner.LocalGateRunner):
@@ -166,15 +167,18 @@ def test_ready_child_does_not_wait_for_unrelated_slow_reader(
             if concurrent and node.id in {"fast", "slow"}:
                 started.wait(timeout=2)
             if concurrent and node.id == "slow":
-                assert child_started.wait(timeout=1)
-            if node.id == "child":
-                child_started.set()
+                assert progress.wait(timeout=2)
+            order.append(node.id)
+            if node.id == release_by:
+                progress.set()
             return ActionRunResult(node.id, node.command, "pass", 0)
 
     results = gate_runner.run_gate_graph(
         Runner(), nodes, gates, root=tmp_path, capacity=capacity, parallel=parallel
     )
     assert [result.action_id for result in results] == [node.id for node in nodes]
+    assert not concurrent or order.index(release_by) < order.index("slow")
+    assert not concurrent or release_by != "queued" or order.index("slow") < order.index("child")
 
 
 @pytest.mark.parametrize("verdict", ["block", "unknown"])
@@ -234,43 +238,8 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
     assert len(checks) == len(nodes)
     tests = next(check for check in checks if check["action_id"] == "unit-architecture")
     assert tests["exit_code"] is None
-    assert len(tests["diagnostics"]) == 1
-    assert tests["diagnostics"][0]["kind"] == "gate_dependency"
-    assert (
-        f"gate_dependency_not_proven:{readiness_gate}" in tests["diagnostics"][0]["required_gaps"]
-    )
+    (diagnostic,) = tests["diagnostics"]
+    assert diagnostic["kind"] == "gate_dependency"
+    assert f"gate_dependency_not_proven:{readiness_gate}" in diagnostic["required_gaps"]
     assert registry["generated-artifacts"].providers == registry["repository-audit"].providers[1:]
     assert registry["generated-artifacts"].depends_on == (postexecution_dependency,)
-
-
-@pytest.mark.parametrize("domain", [None, "source/child", "source"])
-def test_conflicting_writer_waits_without_blocking_compatible_readers(tmp_path, domain):
-    """Writer exclusion is tested while a reader is provably still active."""
-    started = threading.Barrier(2)
-    release = threading.Event()
-    order = []
-    nodes, gates = _graph(
-        {"fast": (), "slow": (), "writer": ("fast",), "queued": ("fast",)},
-        writer="writer",
-        resource_locks=(
-            {"writer": {domain: "exclusive"}}
-            | {name: {"source/child": "shared"} for name in ("fast", "slow", "queued")}
-            if domain
-            else None
-        ),
-    )
-
-    class Runner(gate_runner.LocalGateRunner):
-        def run(self, node, _gate, **_context):
-            if node.id in {"fast", "slow"}:
-                started.wait(timeout=2)
-            if node.id == "slow":
-                assert release.wait(timeout=2)
-            order.append(node.id)
-            if node.id == "queued":
-                release.set()
-            return ActionRunResult(node.id, node.command, "pass", 0)
-
-    gate_runner.run_gate_graph(Runner(), nodes, gates, root=tmp_path, capacity=2, parallel=True)
-    assert order.index("slow") < order.index("writer")
-    assert order.index("queued") < order.index("writer")

@@ -11,6 +11,7 @@ from collections.abc import Mapping
 from concurrent.futures import FIRST_COMPLETED
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait
+from contextvars import copy_context
 from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import replace
@@ -23,6 +24,7 @@ from typing import cast
 
 import ethos
 from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.process import command_scope
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_head
@@ -300,7 +302,7 @@ def run_gate_graph(
     scheduled_event = on_schedule or (lambda _action_id: None)
     completed_event = on_result or (lambda _result: None)
 
-    with ThreadPoolExecutor(max_workers=limit) as executor:
+    with ThreadPoolExecutor(max_workers=limit) as executor, command_scope():
         while graph.is_active():
             ready.update(graph.get_ready())
             selected = _ready_checks(
@@ -318,7 +320,14 @@ def run_gate_graph(
                 else:
                     running[
                         executor.submit(
-                            _run_ready_gate, runner, node, gates[node.id], results, root, epoch
+                            copy_context().run,
+                            _run_ready_gate,
+                            runner,
+                            node,
+                            gates[node.id],
+                            results,
+                            root,
+                            epoch,
                         )
                     ] = node.id
             if selected:

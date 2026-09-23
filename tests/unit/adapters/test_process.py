@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import subprocess
 import sys
+import threading
+from contextlib import ExitStack
+from unittest.mock import Mock
 
 import pytest
 
+import ethos.adapters.gates.runner as gate_runner
 import ethos.adapters.process as process_adapter
 import ethos.adapters.repo.runtime.retirement as retirement
-from ethos.adapters.gates.runner import LocalGateRunner
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_execution_identity
@@ -218,7 +222,7 @@ def test_command_environment_and_native_io(tmp_path, monkeypatch, mode):
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX process-group boundary")
-@pytest.mark.parametrize("failure", ["timeout", "cancel", "gate-cancel"])
+@pytest.mark.parametrize("failure", ["timeout", "cancel", "gate-cancel", "gate-overlap"])
 @pytest.mark.parametrize(
     ("parent_exited", "inherit_pipes"), [(False, False), (False, True), (True, True)]
 )
@@ -226,11 +230,29 @@ def test_command_failure_closes_owned_descendants(
     tmp_path, monkeypatch, failure, inherit_pipes, parent_exited
 ):
     """A ready descendant cannot retain its socket after the command is interrupted."""
+    fallback = []
+    signals = Mock(wraps=os.killpg)
+    monkeypatch.setattr(os, "killpg", signals)
 
     def after_ready(process, _options):
         if parent_exited:
             os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT)
-        if failure != "timeout":
+        if failure == "gate-overlap":
+            monkeypatch.setattr(subprocess.Popen, "wait", Mock(side_effect=KeyboardInterrupt))
+            raise subprocess.TimeoutExpired(process.args, 1)
+        if failure == "gate-cancel":
+
+            def rescue():
+                fallback.append(True)
+                process.poll()
+                os.killpg(process.pid, signal.SIGKILL)
+
+            timer = threading.Timer(2, rescue)
+            interrupts.callback(timer.join)
+            interrupts.callback(timer.cancel)
+            timer.start()
+            os.kill(os.getpid(), signal.SIGINT)
+        elif failure != "timeout":
             raise KeyboardInterrupt
 
     with ready_descendant(monkeypatch, after_ready) as (child, closed):
@@ -244,15 +266,25 @@ def test_command_failure_closes_owned_descendants(
 
         def execute():
             command = (sys.executable, "-c", parent)
-            if failure != "gate-cancel":
-                return process_adapter.run_command(tmp_path, command, timeout=0.2)
-            gate = Gate(id="probe", kind="test", command=command)
-            node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
-            return LocalGateRunner().run(node, gate, root=tmp_path)
+            if not failure.startswith("gate-"):
+                process_adapter.run_command(tmp_path, command, timeout=0.2)
+            else:
+                gate = Gate(id="probe", kind="test", command=command)
+                node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
+                gate_runner.run_gate_graph(
+                    gate_runner.LocalGateRunner(),
+                    (node,),
+                    {gate.id: gate},
+                    root=tmp_path,
+                    capacity=1,
+                    parallel=True,
+                )
 
         error = subprocess.TimeoutExpired if failure == "timeout" else KeyboardInterrupt
-        with pytest.raises(error) as raised:
+        with pytest.raises(error) as raised, ExitStack() as interrupts:
             execute()
         if failure == "timeout":
             assert raised.value.output == b"started\n"
         assert closed()
+        assert not fallback, "caller cancellation waited for external rescue"
+        assert sum(call.args[1] == signal.SIGKILL for call in signals.call_args_list) == 1

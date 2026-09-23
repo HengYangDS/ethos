@@ -68,6 +68,8 @@ def test_command_runner_surfaces_missing_command_and_nonzero_exit(
     [
         (1, "{}", "block", ""),
         (0, '{"value": 1}', "pass", ""),
+        (0, "not-json", "pass", ""),
+        (0, '{"command":"status","verdict":"unknown","state":"unknown"}', "unknown", ""),
         (
             0,
             '{"command":"prove","verdict":[]}',
@@ -106,6 +108,8 @@ def test_command_runner_rejects_invalid_or_adverse_ethos_envelopes(
     observed, diagnostics = gate_runner.classify_action_result(exit_code=exit_code, stdout=stdout)
     assert observed == verdict
     assert not gap or gap in diagnostics[0]["required_gaps"]
+    if verdict == "pass" or exit_code:
+        assert diagnostics == ()
 
 
 @pytest.mark.parametrize(

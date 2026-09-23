@@ -8,12 +8,16 @@ import shutil
 import signal
 import subprocess
 import sys
+from contextlib import contextmanager
 from contextlib import suppress
+from contextvars import ContextVar
 from pathlib import Path
+from threading import Lock
 from typing import TYPE_CHECKING
 from typing import Any
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from collections.abc import Mapping
 
 PROCESS_CREATION_FAILED = "process_creation_failed"
@@ -52,6 +56,74 @@ class ProcessExecutionError(ValueError):
             "cause": self.cause,
             **({"observation": self.observation} if self.observation else {}),
         }
+
+
+class CommandScope:
+    """Own commands across one caller and its context-propagating worker threads."""
+
+    def __init__(self) -> None:
+        self._lock = Lock()
+        self._processes: set[subprocess.Popen[Any]] = set()
+        self._cancelled = False
+
+    def start(self, command: tuple[str, ...], **kwargs: Any) -> subprocess.Popen[Any]:
+        """Fence creation against cancellation, retaining the actual process handle."""
+        with self._lock:
+            if self._cancelled:
+                message = "process_cancelled"
+                raise ProcessExecutionError(
+                    message,
+                    reason="command_scope_cancelled",
+                    command=command,
+                    cwd=str(kwargs.get("cwd", "")),
+                )
+            process = subprocess.Popen(command, **kwargs)
+            self._processes.add(process)
+            return process
+
+    def discard(self, process: subprocess.Popen[Any]) -> None:
+        """Release a completed command without retaining historical process IDs."""
+        with self._lock:
+            self._processes.discard(process)
+
+    def terminate(self, process: subprocess.Popen[Any]) -> None:
+        """Fence both cleanup initiators; the command caller still owns reaping."""
+        with self._lock:
+            if process in self._processes:
+                _terminate_command(process)
+                self._processes.discard(process)
+
+    def cancel(self) -> None:
+        """Stop owned groups before thread-pool shutdown waits on their callers."""
+        errors: list[OSError] = []
+        with self._lock:
+            self._cancelled = True
+            processes = tuple(self._processes)
+        for process in processes:
+            try:
+                self.terminate(process)
+            except OSError as error:
+                errors.append(error)
+        if errors:
+            message = "command_scope_cleanup_failed"
+            raise ExceptionGroup(message, errors)
+
+
+_COMMAND_SCOPE: ContextVar[CommandScope | None] = ContextVar("command_scope", default=None)
+
+
+@contextmanager
+def command_scope() -> Iterator[CommandScope]:
+    """Propagate caller interruption through one transient native command owner."""
+    scope = _COMMAND_SCOPE.get() or CommandScope()
+    token = _COMMAND_SCOPE.set(scope)
+    try:
+        yield scope
+    except BaseException:
+        scope.cancel()
+        raise
+    finally:
+        _COMMAND_SCOPE.reset(token)
 
 
 def windows_powershell(*, environment: Mapping[str, str] | None = None) -> str:
@@ -213,8 +285,9 @@ def _execute_command(
 ) -> subprocess.CompletedProcess[Any]:
     """Separate creation failures from communication and owned-process cleanup."""
     stdin = kwargs.pop("input")
+    scope = _COMMAND_SCOPE.get()
     try:
-        process = subprocess.Popen(
+        process = (scope.start if scope is not None else subprocess.Popen)(
             command,
             stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
             stdout=subprocess.PIPE,
@@ -234,11 +307,14 @@ def _execute_command(
         try:
             stdout, stderr = process.communicate(stdin, timeout=timeout)
         except BaseException as error:
-            _terminate_command(process)
+            (scope.terminate if scope is not None else _terminate_command)(process)
             if os.name == "nt" and isinstance(error, subprocess.TimeoutExpired):
                 error.stdout, error.stderr = process.communicate()
             process.wait()
             raise
+        finally:
+            if scope is not None and process.returncode is not None:
+                scope.discard(process)
         result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
         if check:
             result.check_returncode()

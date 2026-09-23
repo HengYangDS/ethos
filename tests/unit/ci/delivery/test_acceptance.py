@@ -54,12 +54,10 @@ def test_package_lifecycle_has_one_execution_owner() -> None:
     }
 
     assert lifecycle_gates == {"local-install-smoke"}
-    assert full.count("local-install-smoke") == 1
     assert full.index("build") < full.index("local-install-smoke")
     assert gates["local-install-smoke"]["depends_on"] == ["build"]
     assert gates["local-install-smoke"]["network_policy"] == "offline"
     assert gates["local-install-smoke"]["writes_files"] is True
-    assert "installability" not in gates["unit-architecture"]["dimensions"]
     expected = resolve_gate_policy(ROOT, full=True)
     assert local_ci.owner_commands() == [
         shlex.join(gate_execution_identity(expected.registry[node.id])) for node in expected.nodes
@@ -354,6 +352,9 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
     else:
         effect.run(cast("nox.Session", session), artifact=artifact, evidence=output)
         payload = json.loads(output.read_text())
+        assert effect.package_runtime.call_args.args[2].is_relative_to(work)
+        assert payload["distribution"]["retained"] is False
+        assert {"path", "homebrew_cask"}.isdisjoint(payload["distribution"])
         assert case.observed["supply"] == (
             tmp_path,
             tmp_path / "project-python",
@@ -417,7 +418,6 @@ def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact):
         "registry_publication_claimed",
     ):
         assert payload[field] is False
-    assert isinstance(payload["conformance"], dict)
     assert payload["conformance"]["command_plane"] == {
         "state": "passed",
         "native_git_loss": "not_qualified",

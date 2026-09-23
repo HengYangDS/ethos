@@ -494,6 +494,20 @@ native failure reporting SHALL remain effective.
 - **THEN** generic cleanup preserves external referents and runtime admission retains its stronger rejection
 - **AND** a native deletion failure remains observable under the caller's declared policy
 
+### Requirement: Package validation output has bounded custody
+
+Install-smoke archives SHALL be owned by that invocation, not retained as
+release assets. Successful or failed validation SHALL remove their bytes.
+Evidence SHALL retain the verified digest without claiming a surviving path;
+publication retains a separate explicit artifact owner.
+
+#### Scenario: Repeated validation across source revisions
+
+- **WHEN** install smoke packages a runtime and checks shared supply
+- **THEN** the archive exists while consumed and is removed before evidence is written
+- **AND** a failed supply check also removes it without producing passing evidence
+- **AND** repeated revisions do not accumulate native validation archives
+
 ### Requirement: Archive preserves relative reference meaning
 
 Archive projection SHALL resolve supported local Markdown destinations against

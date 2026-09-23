@@ -85,7 +85,7 @@ def _single_wheel() -> Path:
     return wheels[0]
 
 
-def _independent_host_environment() -> tuple[dict[str, str], str]:
+def independent_host_environment() -> tuple[dict[str, str], str]:
     """Retain native OS context and Git without inheriting agent control planes."""
     git = Path(_executable("git")).resolve()
     env = {
@@ -134,7 +134,7 @@ def _independent_host_environment() -> tuple[dict[str, str], str]:
 
 def observe_independent_command_plane(ethos: Path, adopter: Path) -> dict[str, object]:
     """Run the installed reader and lane admission surface without a host control plane."""
-    env, git = _independent_host_environment()
+    env, git = independent_host_environment()
     head = run_command(
         adopter,
         (git, "rev-parse", "HEAD"),
@@ -427,7 +427,7 @@ def run(
         _run(uv, "pip", "check", "--python", str(_venv_executable(smoke, "python")))
         resources = _verify_resources(wheel)
         build, wheel_sha256 = selected.build, selected.sha256
-        package_environment, _git = _independent_host_environment()
+        package_environment, _git = independent_host_environment()
         package_environment["UV_OFFLINE"] = "1"
         lifecycle = observe_runtime_lifecycle(
             installed_ethos=installed_ethos,

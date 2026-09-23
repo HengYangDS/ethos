@@ -1970,9 +1970,12 @@ nor extending the executable timeout follows from a faster warm sample.
 
 Instead, the existing GitHub quality job owns one checkout, locked bootstrap,
 explicit full host observation and upload of the exact wheel and SBOM produced
-by that execution. The gate registry replaces the copied quality command list;
-external links and provider observation remain explicit because they are not in
-the full set. The nine native OS/Python conformance jobs remain independent.
+by that execution. The gate registry replaces the copied quality command list.
+External HTTP reachability is a separate, visible nonblocking health observation:
+a third-party 503 is not evidence that the repository proof failed or the link is
+valid, and cannot prevent JUnit, coverage, wheel or SBOM publication. Provider
+observation remains explicit because it is not in the full set. The nine native
+OS/Python conformance jobs remain independent.
 No supply policy, security service or dependency constraint changes.
 
 The existing required quality, proof and package check identities remain.

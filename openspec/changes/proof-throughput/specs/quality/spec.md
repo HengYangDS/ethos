@@ -587,6 +587,13 @@ actual execution or required artifact validation.
 - **AND** the published wheel and SBOM bytes originate from that verified execution
 - **AND** platform conformance and provider-only obligations retain their distinct execution
 
+#### Scenario: External availability cannot starve repository proof
+
+- **WHEN** an upstream link returns an unavailable or adverse HTTP response
+- **THEN** the external-health observation remains nonpassing and retains its exact report
+- **AND** the required repository proof and its JUnit, coverage, wheel and SBOM artifacts execute independently
+- **AND** a failing upstream site is not presented as a valid link or a repository proof failure
+
 #### Scenario: A required result cannot establish success
 
 - **WHEN** a result or required upload fails, is cancelled, skipped, missing, malformed or UNKNOWN

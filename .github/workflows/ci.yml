@@ -134,8 +134,6 @@ jobs:
       - name: Admit pull request commit range
         if: github.event_name == 'pull_request'
         run: uv run --frozen --offline python -B -I -m ethos.cli hook commit-range --target-ref "refs/heads/${{ github.event.pull_request.base.ref }}" --proposed-head "${{ github.event.pull_request.head.sha }}" --remote-head "${{ github.event.pull_request.base.sha }}" --remote origin --root . --json
-      - name: External links
-        run: tools/ci/scripts/with-python-runtime.sh -- uv run --frozen --offline python -B -I -m ethos.cli prove --host --execute --gate external-links --expect-head "$(git rev-parse HEAD)" --json
       - name: Hosted provider observation envelope
         run: uv run --frozen --offline python -m nox -s hosted_observation
       - name: HEAD-bound hosted verification receipt
@@ -157,6 +155,34 @@ jobs:
           path: |
             build/artifacts/python/
             build/evidence/release/
+  external-links:
+    name: external link health
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.supply_image }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.14"
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4
+        with:
+          version: 0.12.16
+      - name: Bootstrap Python and OpenSpec
+        run: tools/ci/scripts/bootstrap-python.sh
+      - name: External links
+        run: |-
+          mkdir -p build/evidence/quality/external-links
+          tools/ci/scripts/with-python-runtime.sh -- uv run --frozen --offline python -B -I -m ethos.cli prove --host --execute --gate external-links --expect-head "$(git rev-parse HEAD)" --json > build/evidence/quality/external-links/report.json
+      - name: Upload external link observation
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ethos-external-link-health
+          path: build/evidence/quality/external-links/report.json
+          if-no-files-found: error
   verify:
     name: repository proof
     runs-on: ubuntu-latest

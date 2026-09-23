@@ -82,7 +82,6 @@ ethos:verify:
     GIT_STRATEGY: clone
     ETHOS_TEST_WORKERS: "1"
   script:
-    - tools/ci/scripts/with-python-runtime.sh -- uv run --frozen --offline python -B -I -m ethos.cli prove --host --execute --gate external-links --expect-head "$(git rev-parse HEAD)" --json
     - uv run --frozen --offline python -m nox -s hosted_observation
     - tools/ci/scripts/run-head-bound-proof.sh
   artifacts:
@@ -100,6 +99,19 @@ ethos:verify:
       coverage_report:
         coverage_format: cobertura
         path: build/evidence/quality/tests/coverage/coverage.xml
+ethos:external-links:
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:72e2434cbc0ac30cce6c312618c51beb290a214f4e60b0af51af95a79c0dce0f
+  stage: verify
+  allow_failure: true
+  before_script:
+    - tools/ci/scripts/bootstrap-python.sh
+  script:
+    - mkdir -p build/evidence/quality/external-links
+    - tools/ci/scripts/with-python-runtime.sh -- uv run --frozen --offline python -B -I -m ethos.cli prove --host --execute --gate external-links --expect-head "$(git rev-parse HEAD)" --json > build/evidence/quality/external-links/report.json
+  artifacts:
+    when: always
+    paths:
+      - build/evidence/quality/external-links/report.json
 ethos:npm:
   stage: verify
   parallel:

@@ -32,8 +32,10 @@ provider projections.
 7. Resolve the selected gates' dependency closure before execution. A focused
    name can select the full test suite. Carry the current worker, shard, root and
    evidence controls explicitly into every process; inspect the actual child
-   command before treating it as the intended run. Verify focused consumers
-   first, then run one head-bound proof with those same controls.
+   command before treating it as the intended run. For CI or shell edits, check
+   repository hygiene, native shell lint and compiled workflow syntax first;
+   never replace a diagnostic with a lint suppression. Then run one exact-HEAD
+   `--full --execute` proof with the same controls, not the weaker default set.
 8. Close each reproduced failure through the existing owner, a distinguishing
    regression, replacement-path deletion and actual consumer verification.
    Apply the learning and interrupted-execution boundaries in
@@ -53,7 +55,7 @@ ethos prove --gate python-types --json
 ethos prove --gate docstrings --json
 # Without --execute this observes readiness; execution follows all dependencies.
 ethos prove --gate unit-architecture --json
-ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
+ethos prove --full --execute --expect-head "$(git rev-parse HEAD)" --json
 ```
 
 ## Trust Boundary

@@ -187,6 +187,16 @@ validation_owner = "repository-hygiene"
 validation_command = "uv run --frozen --offline python -m nox -s repository_hygiene"
 mutation_policy = "canonical-text"
 
+[[ownership]]
+id = "oci-ci-supply"
+paths = [".config/ci/supply/Dockerfile", ".config/ci/supply/Dockerfile.dockerignore"]
+format_owner = "docker-buildx"
+format_command = "not-applicable:native-containerfile"
+format_check = "docker buildx build --check --file .config/ci/supply/Dockerfile ."
+validation_owner = "docker-buildx"
+validation_command = "docker build --platform linux/arm64 --file .config/ci/supply/Dockerfile ."
+mutation_policy = "authored-source"
+
 [[format]]
 extensions = [".py", ".pyi"]
 carrier = "Python source"
@@ -248,6 +258,13 @@ carrier = "JSONL"
 owner = "system/formats.toml"
 execution = "report-only"
 truth_boundary = "generated append-only streams, not tracked source of truth"
+
+[[format]]
+extensions = [".dockerignore"]
+carrier = "OCI build-context selection"
+owner = ".config/ci/supply/Dockerfile"
+execution = "docker buildx build --check --file .config/ci/supply/Dockerfile ."
+truth_boundary = "authored CI supply input"
 
 [[format]]
 extensions = [".sh"]
@@ -312,6 +329,7 @@ yaml_allowed_roots = [
 ]
 
 [policy.extension_paths]
+".dockerignore" = { roots = [".config/ci/supply/"] }
 ".ini" = { roots = [".config/"] }
 ".json" = { roots = [
   "system/schemas/",

@@ -446,11 +446,14 @@ def run(
         distribution = package_runtime(
             runtime,
             wheel,
-            ROOT / "build/artifacts/native" / f"ethos-{build.distribution_version}.tar.gz",
+            WORK / "native" / f"ethos-{build.distribution_version}.tar.gz",
         )
         distribution["shared_supply"] = runtime_acceptance.prove_shared_supply(
             Path(str(distribution["path"])), WORK, environment=package_environment
         )
+        distribution.pop("path")
+        distribution.pop("homebrew_cask", None)
+        distribution["retained"] = False
         _require_artifact_current(selected, head=head)
         if current_tracked_head(ROOT) != head:
             session.error(f"local install smoke HEAD moved from {head}")

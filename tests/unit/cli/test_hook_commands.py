@@ -38,41 +38,6 @@ def test_commit_range_grammar_requires_named_coordinates() -> None:
     assert "--target-ref requires an argument" in rejected.stderr
 
 
-def test_commit_range_command_forwards_explicit_coordinates(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, emitted: list[EthosResult]
-) -> None:
-    expected = {
-        "target_ref": "refs/heads/dev",
-        "proposed_head": "a" * 40,
-        "remote_head": "b" * 40,
-        "remote_name": "origin",
-        "trusted_baseline": "c" * 40,
-    }
-
-    def admit(root: Path, **coordinates: str) -> dict[str, object]:
-        assert root == tmp_path
-        assert coordinates == expected
-        return {
-            "verdict": "pass",
-            "state": "admitted",
-            "target_ref": "refs/heads/dev",
-            "update_kind": "existing",
-            "checked_commit_count": 1,
-            "revisions": ["a" * 40],
-        }
-
-    monkeypatch.setattr(commands, "commit_range_admission_report", admit)
-    result = run_ethos_raw(
-        *(
-            f"hook commit-range --target-ref refs/heads/dev --proposed-head {'a' * 40} "
-            f"--remote-head {'b' * 40} --remote origin --trusted-baseline {'c' * 40} --json"
-        ).split()
-    )
-    assert result.returncode == 0, result.stderr
-    assert emitted[-1].verdict == "pass"
-    assert emitted[-1].data["revisions"] == ("a" * 40,)
-
-
 @pytest.mark.parametrize(
     "failure",
     [

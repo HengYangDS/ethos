@@ -112,13 +112,20 @@ export PATH="${mise_bin}:${PATH}"
 
 # The runner/operator supplies this protected public anchor outside the checkout.
 # No candidate key discovery, signer generation or user identity mutation occurs.
-if [[ -n ${ETHOS_COMMIT_TRUST_ANCHOR:-} ]]; then
-	"${UV_PROJECT_ENVIRONMENT}/bin/python" -B - "${repo_root}" "${ETHOS_COMMIT_TRUST_ANCHOR}" <<'PY_TRUST'
+if [[ -n ${ETHOS_COMMIT_TRUST_ANCHOR:-} || -n ${ETHOS_COMMIT_ALLOWED_SIGNERS:-} ]]; then
+	"${UV_PROJECT_ENVIRONMENT}/bin/python" -B - "${repo_root}" <<'PY_TRUST'
+import os
 import sys
 from pathlib import Path
-from tools.ci.toolchain.environment import bind_commit_trust
+from tools.ci.toolchain.environment import bind_commit_trust, bind_commit_trust_material
 
-bind_commit_trust(Path(sys.argv[1]), Path(sys.argv[2]))
+path, material = os.getenv("ETHOS_COMMIT_TRUST_ANCHOR"), os.getenv("ETHOS_COMMIT_ALLOWED_SIGNERS")
+if path and material:
+    raise ValueError("ci_commit_trust_inputs_ambiguous")
+if material:
+    bind_commit_trust_material(Path(sys.argv[1]), material)
+elif path:
+    bind_commit_trust(Path(sys.argv[1]), Path(path))
 PY_TRUST
 fi
 

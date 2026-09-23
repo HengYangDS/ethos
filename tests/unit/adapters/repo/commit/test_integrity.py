@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -13,6 +14,7 @@ from ethos.adapters.repo.commit.integration import commit_range_admission_report
 from ethos.adapters.repo.commit.integration import validate_replayed_commits
 from ethos.adapters.repo.git import run_git
 from ethos.repository.policy.commit import commit_policy_from_text
+from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import render_branch_policy
@@ -46,7 +48,9 @@ def _repository(tmp_path: Path) -> tuple[Path, str, str]:
     return repo, baseline, tree
 
 
-@pytest.mark.parametrize("case", ["valid", "unsigned", "forged", "weakened", "removed"])
+@pytest.mark.parametrize(
+    "case", ["valid", "anchorless", "unsigned", "forged", "weakened", "removed"]
+)
 def test_range_requires_real_signature_under_trusted_prestate(tmp_path: Path, case: str) -> None:
     repo, baseline, tree = _repository(tmp_path)
     if case in {"weakened", "removed"}:
@@ -58,7 +62,7 @@ def test_range_requires_real_signature_under_trusted_prestate(tmp_path: Path, ca
     revision = git(
         repo,
         "commit-tree",
-        *(("-S",) if case == "valid" else ()),
+        *(("-S",) if case in {"valid", "anchorless"} else ()),
         tree,
         "-p",
         baseline,
@@ -77,6 +81,8 @@ def test_range_requires_real_signature_under_trusted_prestate(tmp_path: Path, ca
             .stdout.decode()
             .strip()
         )
+    if case == "anchorless":
+        git(repo, "config", "gpg.ssh.allowedSignersFile", str(tmp_path / "missing"))
     report = commit_range_admission_report(
         repo,
         target_ref="refs/heads/proposal/test",
@@ -86,6 +92,24 @@ def test_range_requires_real_signature_under_trusted_prestate(tmp_path: Path, ca
     )
     assert report["verdict"] == ("pass" if case == "valid" else "block"), report
     assert report["revisions"] == [revision]
+    if case == "anchorless":
+        assert report["required_gaps"] == ["commit_trust_anchor_missing"]
+    if case in {"valid", "anchorless", "unsigned", "forged"}:
+        args = (
+            f"hook commit-range --target-ref refs/heads/topic --proposed-head {revision} "
+            f"--remote-head {'0' * 40} --remote origin --trusted-baseline {baseline} --json"
+        )
+        result = run_ethos_raw(*args.split(), cwd=repo)
+        payload = json.loads(result.stdout)
+        assert result.returncode == (0 if case == "valid" else 1), payload
+        assert payload["data"]["target_ref"] == "refs/heads/topic"
+        assert payload["data"]["proposed_head"] == revision
+        assert payload["data"]["remote_head"] == "0" * 40
+        assert payload["data"]["remote_name"] == "origin"
+        assert payload["data"]["baseline_commit"] == baseline
+        assert payload["data"]["revisions"] == [revision]
+        assert payload["data"]["signature_verification"] == "required_native"
+        assert payload["required_gaps"] == report["required_gaps"]
 
 
 @pytest.mark.parametrize("role", ["author", "committer"])

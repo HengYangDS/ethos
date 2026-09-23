@@ -5,11 +5,11 @@ from __future__ import annotations
 import ast
 import json
 import shutil
-import subprocess
 from pathlib import Path
 
 import pytest
 
+from ethos.adapters.process import run_command
 from ethos.contracts.admission import ethos_command_is_readonly
 from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos.repository.policy.references.closure import repository_semantic_closure
@@ -95,13 +95,8 @@ def test_npm_launcher_prefers_the_bound_source_checkout(tmp_path: Path) -> None:
         {"uv": f'#!/bin/sh\nprintf \'%s\\n\' "$*" > "{uv_log}"\n'},
     )
 
-    result = subprocess.run(
-        [node, str(_launcher(tmp_path)), "status", "--json"],
-        cwd=checkout,
-        env=environment,
-        text=True,
-        capture_output=True,
-        check=False,
+    result = run_command(
+        checkout, (node, str(_launcher(tmp_path)), "status", "--json"), env=environment, timeout=30
     )
 
     assert result.returncode == 0, result.stderr
@@ -140,13 +135,8 @@ def test_npm_launcher_fallback_is_interpreter_selective_and_trust_bound(
         (cwd / "pyproject.toml").write_text("[project]\nname='fake'\n", encoding="utf-8")
         (cwd / "src/ethos/__init__.py").write_text("", encoding="utf-8")
 
-    result = subprocess.run(
-        [node, str(_launcher(tmp_path)), "--version"],
-        cwd=cwd,
-        env=environment,
-        text=True,
-        capture_output=True,
-        check=False,
+    result = run_command(
+        cwd, (node, str(_launcher(tmp_path)), "--version"), env=environment, timeout=30
     )
 
     if mode == "untrusted":
@@ -172,17 +162,15 @@ def test_npm_launcher_reaches_the_source_command_plane(tmp_path: Path) -> None:
         ("git", "config", "user.name", "Test User"),
         ("git", "config", "user.email", "test@example.invalid"),
     ):
-        subprocess.run(command, cwd=adopter, check=True)
+        run_command(adopter, command, check=True, timeout=30)
     (adopter / "README.md").write_text("fixture\n", encoding="utf-8")
-    subprocess.run(("git", "add", "README.md"), cwd=adopter, check=True)
-    subprocess.run(("git", "commit", "-qm", "initial"), cwd=adopter, check=True)
+    run_command(adopter, ("git", "add", "README.md"), check=True, timeout=30)
+    run_command(adopter, ("git", "commit", "-qm", "initial"), check=True, timeout=30)
 
-    result = subprocess.run(
-        ["node", str(ROOT / "distributions/npm/bin/ethos.mjs"), "adopt", "--json"],
-        cwd=adopter,
-        text=True,
-        capture_output=True,
-        check=False,
+    result = run_command(
+        adopter,
+        ("node", str(ROOT / "distributions/npm/bin/ethos.mjs"), "adopt", "--json"),
+        timeout=60,
     )
 
     assert result.returncode == 0, result.stderr

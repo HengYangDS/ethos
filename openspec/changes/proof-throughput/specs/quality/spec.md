@@ -760,3 +760,22 @@ source, Lease and effect authorization SHALL NOT be cached as permission.
 - **THEN** the reader returns the same validated meaning without repeated warm decoding
 - **AND** changed or deleted refs remain observable on every read
 - **AND** corrupt replacement bytes cannot inherit an earlier valid member identity
+
+### Requirement: JavaScript behavior is executed rather than merely declared
+
+The full gate graph SHALL execute package-owned JavaScript behavior separately
+from formatting. The locked toolchain SHALL bind Node and npm to one supply;
+owned disposable state SHALL be reclaimed on success and failure. Formatting
+metadata SHALL reference the executable owner, not imply execution by listing it.
+
+#### Scenario: Formatted JavaScript has failing behavior
+
+- **WHEN** the package test command exits unsuccessfully
+- **THEN** the required behavior gate fails and preserves its native diagnostic
+- **AND** formatting success cannot substitute for that result
+
+#### Scenario: Native package checks run without host npm
+
+- **WHEN** the JavaScript behavior gate runs with the locked toolchain
+- **THEN** nested package checks use the same npm CLI and Node executable
+- **AND** success and failure both remove owned temporary npm state

@@ -107,14 +107,41 @@ test("the migration baseline binds exact Publisher and ETHOS inputs", () => {
   });
 });
 
+test("the launcher package exposes only its declared transport", (t) => {
+  const cache = mkdtempSync(join(tmpdir(), "ethos-launcher-npm-"));
+  t.after(() => rmSync(cache, { recursive: true, force: true }));
+  const result = spawnSync(
+    process.execPath,
+    [process.env.npm_execpath, "pack", "--dry-run", "--json", join(ROOT, "distributions/npm")],
+    {
+      cwd: ROOT,
+      encoding: "utf8",
+      timeout: 30000,
+      env: { ...process.env, npm_config_cache: cache, npm_config_offline: "true" },
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const packages = Object.values(JSON.parse(result.stdout));
+  assert.equal(packages.length, 1);
+  assert.deepEqual(packages[0].files.map(({ path }) => path).sort(), [
+    "README.md",
+    "bin/ethos.mjs",
+    "package.json",
+  ]);
+});
+
 test("the optional package contains only its declared source-owned delivery", (t) => {
   const cache = mkdtempSync(join(tmpdir(), "ethos-architecture-publisher-npm-"));
   t.after(() => rmSync(cache, { recursive: true, force: true }));
-  const result = spawnSync("npm", ["pack", "--dry-run", "--json", INTEGRATION], {
-    cwd: ROOT,
-    encoding: "utf8",
-    env: { ...process.env, npm_config_cache: cache, npm_config_update_notifier: "false" },
-  });
+  const result = spawnSync(
+    process.execPath,
+    [process.env.npm_execpath, "pack", "--dry-run", "--json", INTEGRATION],
+    {
+      cwd: ROOT,
+      encoding: "utf8",
+      env: { ...process.env, npm_config_cache: cache, npm_config_update_notifier: "false" },
+    },
+  );
   assert.equal(result.status, 0, result.stderr);
   const packages = Object.values(JSON.parse(result.stdout));
   assert.equal(packages.length, 1);

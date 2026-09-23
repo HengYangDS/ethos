@@ -144,7 +144,7 @@ format_command = "uv run --frozen --offline python -m nox -s format -- javascrip
 format_check = "uv run --frozen --offline python -m nox -s javascript_lint"
 validation_owner = "prettier"
 validation_command = "uv run --frozen --offline python -m nox -s javascript_lint"
-semantic_companions = ["npm run test:npm"]
+semantic_companions = ["javascript-tests"]
 mutation_policy = "native-formatter"
 
 [[ownership]]

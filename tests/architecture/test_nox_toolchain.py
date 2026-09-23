@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 import tomllib
+from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -288,3 +289,23 @@ def test_dependency_runner_consumes_declared_policy(tmp_path, monkeypatch, fault
     assert args[args.index("--package-module-name-map") + 1] == ",".join(
         package["package_module_name_map"]
     )
+
+
+@pytest.mark.parametrize("code", [0, 19])
+def test_javascript_gate_executes_package_behavior(tmp_path, monkeypatch, code):
+    """Native package failure propagates, and both outcomes reclaim owned state."""
+    registry = tomllib.loads((ROOT / "system/gates.toml").read_text())
+    assert "javascript-tests" in registry["proof_sets"]["full"]
+    body = "require('node:fs').writeFileSync('node.txt', process.execPath);"
+    script = f'node -e "{body}process.exit({code})"'
+    (tmp_path / "package.json").write_text(json.dumps({"scripts": {"test:npm": script}}))
+    monkeypatch.setattr(sessions, "ROOT", tmp_path)
+    session = Mock()
+    session.run.side_effect = lambda *args, env: run_command(
+        tmp_path, args, env=env, timeout=30, check=True
+    )
+    with pytest.raises(subprocess.CalledProcessError) if code else nullcontext():
+        sessions.javascript_tests(session)
+    session.run.assert_called_once()
+    assert (tmp_path / "node.txt").read_text() == str(sessions.RUNTIME.node_executable())
+    assert not Path(session.run.call_args.kwargs["env"]["npm_config_cache"]).exists()

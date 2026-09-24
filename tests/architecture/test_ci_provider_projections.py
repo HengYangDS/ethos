@@ -233,9 +233,7 @@ def test_host_conformance_receives_native_python_supply_before_activation(github
     )
     commands = [str(step.get("run", "")) for step in github_steps]
 
-    assert all(
-        not str(step.get("uses", "")).startswith("actions/setup-python@") for step in github_steps
-    )
+    assert not any("actions/setup-python@" in str(step.get("uses", "")) for step in github_steps)
     assert job["env"]["UV_PYTHON_INSTALL_DIR"] == "${{ github.workspace }}/build/runtime/python"
     assert setup_uv["with"]["python-version"] == "${{ matrix.python }}"
     preparation = [

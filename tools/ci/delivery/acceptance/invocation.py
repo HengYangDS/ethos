@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shlex
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
@@ -11,7 +13,28 @@ from ethos.result import EthosResult
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-    from pathlib import Path
+
+
+def require_installed_guidance(status_json: str, origin: str) -> None:
+    """Bind status guidance to the exact installed package, never a source checkout."""
+    try:
+        payload = json.loads(status_json)
+        guidance = payload["governance_context"]["agent_guidance"]
+        package = Path(origin).resolve(strict=True).parent
+        expected = (package / "data/skills/ethos-repository-work/SKILL.md").resolve(strict=True)
+        observed = Path(guidance["path"]).resolve(strict=True)
+        valid = (
+            guidance["authority"] == "product_projection"
+            and guidance["media_type"] == "text/markdown"
+            and expected.is_relative_to(package)
+            and observed == expected
+            and guidance["sha256"] == hashlib.sha256(expected.read_bytes()).hexdigest()
+        )
+    except (KeyError, OSError, TypeError, ValueError):
+        valid = False
+    if not valid:
+        message = "installed_agent_guidance_invalid"
+        raise RuntimeError(message)
 
 
 def invoke(

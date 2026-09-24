@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib
 import json
 import sys
@@ -140,6 +141,11 @@ def test_installed_observation_runs_shared_isolated_conformance(
 ) -> None:
     smoke, adopter = tmp_path / "venv", tmp_path / "adopter"
     adopter.mkdir()
+    package = smoke / "site-packages/ethos"
+    guide = package / "data/skills/ethos-repository-work/SKILL.md"
+    guide.parent.mkdir(parents=True)
+    guide.write_text("Run ethos status.\n", encoding="utf-8")
+    (package / "__init__.py").write_text("", encoding="utf-8")
     executed: list[tuple[str, ...]] = []
 
     def run(*command: str, **_kwargs: object) -> str:
@@ -149,7 +155,18 @@ def test_installed_observation_runs_shared_isolated_conformance(
         if "Path(ethos.__file__)" in " ".join(command):
             return (smoke / "site-packages/ethos/__init__.py").as_posix()
         if "status" in command:
-            return "{}"
+            return json.dumps(
+                {
+                    "governance_context": {
+                        "agent_guidance": {
+                            "authority": "product_projection",
+                            "media_type": "text/markdown",
+                            "path": str(guide),
+                            "sha256": hashlib.sha256(guide.read_bytes()).hexdigest(),
+                        }
+                    }
+                }
+            )
         if len(command) > 3 and Path(command[3]).name == "mcp.py":
             return '{"state":"passed","native_git_loss":"not_qualified"}'
         return ""
@@ -178,6 +195,46 @@ def test_installed_observation_runs_shared_isolated_conformance(
     assert Path(probe[4]).is_relative_to(smoke)
     assert Path(probe[4]).stem == "ethos"
     assert probe[5] == str(effect.WORK)
+
+
+def test_installed_guidance_must_match_the_package_that_served_status(tmp_path: Path) -> None:
+    """An installed CLI cannot point an Agent at source or altered guidance."""
+    package = tmp_path / "venv/site-packages/ethos"
+    guide = package / "data/skills/ethos-repository-work/SKILL.md"
+    guide.parent.mkdir(parents=True)
+    guide.write_text("Run ethos status and follow next_action.\n", encoding="utf-8")
+    origin = package / "__init__.py"
+    origin.write_text("", encoding="utf-8")
+    guidance = {
+        "authority": "product_projection",
+        "media_type": "text/markdown",
+        "path": str(guide),
+        "sha256": hashlib.sha256(guide.read_bytes()).hexdigest(),
+    }
+
+    def payload(value: dict[str, str] | None) -> str:
+        return json.dumps({"governance_context": {"agent_guidance": value}})
+
+    invocation.require_installed_guidance(payload(guidance), origin.as_posix())
+    for altered in (
+        None,
+        guidance | {"path": (tmp_path / "source/SKILL.md").as_posix()},
+        guidance | {"sha256": "0" * 64},
+        guidance | {"authority": "repository_policy"},
+    ):
+        with pytest.raises(RuntimeError, match="installed_agent_guidance_invalid"):
+            invocation.require_installed_guidance(payload(altered), origin.as_posix())
+
+    outside = tmp_path / "source/SKILL.md"
+    outside.parent.mkdir()
+    outside.write_bytes(guide.read_bytes())
+    guide.unlink()
+    try:
+        guide.symlink_to(outside)
+    except OSError:
+        pytest.skip("native symlink creation unavailable")
+    with pytest.raises(RuntimeError, match="installed_agent_guidance_invalid"):
+        invocation.require_installed_guidance(payload(guidance), origin.as_posix())
 
 
 def test_independent_cli_checks_do_not_replace_a_blocked_request(

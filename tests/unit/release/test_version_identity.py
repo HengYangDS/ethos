@@ -51,6 +51,8 @@ def test_source_and_release_builds_preserve_exact_metadata(tmp_path: Path, monke
     root = Path.cwd()
     repo = _build_repository(root, tmp_path / "repo")
     first = _build_wheel(repo, tmp_path / "first")
+    with zipfile.ZipFile(next((tmp_path / "first").glob("*.whl"))) as archive:
+        assert "ethos/data/skills/ethos-repository-work/SKILL.md" in archive.namelist()
 
     readme = repo / "README.md"
     readme.write_text(readme.read_text(encoding="utf-8") + "\n", encoding="utf-8")

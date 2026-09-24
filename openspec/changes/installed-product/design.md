@@ -464,6 +464,22 @@ retirement owners support shared immutable supply with exact repository binding,
 concurrent activation, live-consumer fencing and safe removal. These incomplete
 obligations retain their current tasks and cannot be checked from a working CLI.
 
+Repository-local generations are not the terminal shared-supply store. A source
+repository's worktrees and processes cannot prove that another repository's
+`CURRENT` does not select an old generation. Preserve such unproven generations
+until exact consumer migration to host-owned supply is observed; a digest-shaped
+directory alone is not positive deletion ownership. After that migration is
+qualified, reject new foreign selection of repository-local generations and
+retire only resources with proved ownership and no live selector. This does not
+weaken the independent package-manager consumer check for host-owned supply.
+
+Accepted tests measured 49,999/50,000 ELOC. Distinct manifest-grammar,
+cross-repository-selection and cleanup-recovery negatives bring this candidate
+to 50,098 after shared-fixture consolidation. Removing them or compressing their
+formatting would reduce assurance. The source-budget owner raises only the test
+aggregate ceiling to 55,000; the product ceiling, 500-per-file limit and
+95-percent coverage floor stay unchanged. No installed-product proof is implied.
+
 The real formula experiment installed but rewrote native dylib identities;
 preserve_rpath retained one extension but not libpython. Exact payload verification
 rejected the result. Reject formula installation of prebuilt sealed images; use

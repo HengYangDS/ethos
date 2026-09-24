@@ -16,8 +16,12 @@ from ethos.adapters.process import process_listing_command
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.hook.binding import load_hook_contract
+from ethos.adapters.repo.hook.binding import require_hook_projection
 from ethos.adapters.repo.runtime.filesystem import is_junction
+from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
+from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.repo.runtime.selection import runtime_selection_transaction
 
@@ -29,6 +33,7 @@ class GenerationCleanup(TypedDict):
     checked: list[str]
     removed: list[str]
     retained: list[str]
+    unproven_removals: list[str]
     deferred: NotRequired[list[str]]
     error: NotRequired[str]
 
@@ -51,12 +56,6 @@ def _generations(common: Path) -> tuple[Path, ...]:
             continue
         _directory_identity(root)
         candidates.extend(path for path in root.iterdir() if _digest(path.name))
-    candidates.extend(
-        path
-        for path in common.iterdir()
-        if path.name == "ethos-hooks"
-        or (path.name.startswith("ethos-hooks-") and _digest(path.name[len("ethos-hooks-") :]))
-    )
     return tuple(sorted(candidates))
 
 
@@ -177,6 +176,27 @@ def _require_identities(
             _require_identity(path, expected)
 
 
+def _reclamation_unproven(path: Path, common: Path) -> bool:
+    """A digest-shaped local directory alone proves neither ownership nor non-use."""
+    if path.parent == common / "ethos/hooks":
+        contract = load_hook_contract()
+        if path.name != contract["generation_digest"]:
+            return True
+        try:
+            require_hook_projection(path, contract)
+        except ValueError:
+            return True
+        return False
+    if path.parent == common / "ethos/runtime":
+        try:
+            manifest = load_runtime_manifest_bytes((path / "manifest.json").read_bytes())
+            if manifest.repository_private:
+                return not require_selected_runtime(path).repository_private
+        except (OSError, TypeError, UnicodeError, ValueError):
+            pass
+    return True
+
+
 def retire_generations(root: Path, *, hooks: Path, runtime: Path) -> GenerationCleanup:
     """Retire only currently unused generations, conserving partial outcomes."""
     selected = {hooks, runtime}
@@ -184,6 +204,7 @@ def retire_generations(root: Path, *, hooks: Path, runtime: Path) -> GenerationC
     candidates: tuple[Path, ...] = ()
     removed: list[Path] = []
     retained = set(selected)
+    unproven = set[Path]()
     error = ""
     try:
         common = Path(git_common_dir(root)).resolve()
@@ -211,6 +232,11 @@ def retire_generations(root: Path, *, hooks: Path, runtime: Path) -> GenerationC
                 if path in used:
                     retained.add(path)
                     continue
+                if _reclamation_unproven(path, common):
+                    # A repository-local runtime may be selected by another Git common-dir.
+                    retained.add(path)
+                    unproven.add(path)
+                    continue
                 try:
                     remove_generated_tree(path)
                 finally:
@@ -230,6 +256,7 @@ def retire_generations(root: Path, *, hooks: Path, runtime: Path) -> GenerationC
         "checked": [str(path) for path in candidates],
         "removed": [str(path) for path in removed],
         "retained": [str(path) for path in sorted(retained)],
+        "unproven_removals": [str(path) for path in sorted(unproven)],
     }
     if error:
         result.update(deferred=[str(path) for path in sorted(deferred)], error=error)

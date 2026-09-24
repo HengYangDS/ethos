@@ -16,9 +16,11 @@ import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 import tests.support.runtime_scenarios as runtime_scenarios
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
+from ethos.adapters.repo.runtime.manifest import load_runtime_manifest_bytes
 from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_environment
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
+from ethos.adapters.repo.runtime.manifest import runtime_manifest_bytes
 from tests.support.runtime_scenarios import create_fixture_python
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import runtime_build
@@ -139,9 +141,40 @@ def test_runtime_identity_distinguishes_canonical_architectures() -> None:
         "runtime_files": {"python": "f" * 64},
     }
 
-    assert arm.architecture == "arm64"
-    assert x86.architecture == "x86_64"
+    assert (arm.architecture, x86.architecture) == ("arm64", "x86_64")
     assert runtime_digest(**inputs, environment=arm) != runtime_digest(**inputs, environment=x86)
+    assert runtime_digest(**inputs, environment=arm, repository_private=True) != runtime_digest(
+        **inputs, environment=arm, repository_private=False
+    )
+
+
+@pytest.mark.parametrize("manifest_kind", ["legacy", "private"])
+def test_runtime_manifest_rejects_fractional_schema_version(manifest_kind: str) -> None:
+    """Canonical JSON spelling cannot turn a fractional version into an integer."""
+    repository_private = manifest_kind == "private"
+    identity = {
+        "wheel_sha256": "e" * 64,
+        "build": runtime_build("a" * 40, "b" * 40),
+        "environment": runtime_environment(
+            python_abi="cpython-314",
+            python_version="3.14.7",
+            python_implementation="cpython",
+            dependency_lock_sha256="d" * 64,
+            platform_name="linux",
+            architecture_name="aarch64",
+        ),
+        "runtime_files": {"python": "f" * 64},
+        "repository_private": repository_private,
+    }
+    raw = runtime_manifest_bytes(digest=runtime_digest(**identity), **identity)
+    version = 7 if repository_private else 6
+    malformed = raw.replace(
+        f'"schema_version":{version}'.encode(), f'"schema_version":{version}.0'.encode()
+    )
+    assert malformed != raw
+
+    with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
+        load_runtime_manifest_bytes(malformed)
 
 
 @pytest.mark.parametrize(

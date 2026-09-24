@@ -18,7 +18,8 @@ from ethos.repository.release.identity import build_identity_from_projection
 if TYPE_CHECKING:
     from ethos.repository.release.identity import BuildIdentity
 
-_SCHEMA_VERSION = 6
+_SCHEMA_VERSION = 7
+_LEGACY_SCHEMA_VERSION = 6
 _HEX = frozenset("0123456789abcdef")
 _ENVIRONMENT_INVALID = "hook_runtime_environment_invalid"
 _MANIFEST_INVALID = "hook_runtime_manifest_invalid"
@@ -43,10 +44,12 @@ class RuntimeManifest(NamedTuple):
     build: BuildIdentity
     environment: RuntimeEnvironment
     runtime_files: dict[str, str]
+    repository_private: bool
 
     def projection(self) -> dict[str, object]:
-        return {
-            "schema_version": _SCHEMA_VERSION,
+        version = _SCHEMA_VERSION if self.repository_private else _LEGACY_SCHEMA_VERSION
+        payload: dict[str, object] = {
+            "schema_version": version,
             "runtime_digest": self.digest,
             "wheel_sha256": self.wheel_sha256,
             **self.environment._asdict(),
@@ -57,6 +60,9 @@ class RuntimeManifest(NamedTuple):
             },
             "runtime_files": self.runtime_files,
         }
+        if self.repository_private:
+            payload["repository_private"] = True
+        return payload
 
 
 def runtime_environment(
@@ -88,15 +94,18 @@ def runtime_digest(
     build: BuildIdentity,
     environment: RuntimeEnvironment,
     runtime_files: dict[str, str],
+    repository_private: bool = True,
 ) -> str:
     """Return the content address for one complete executable runtime closure."""
     payload = {
-        "schema_version": _SCHEMA_VERSION,
+        "schema_version": _SCHEMA_VERSION if repository_private else _LEGACY_SCHEMA_VERSION,
         "wheel_sha256": wheel_sha256,
         **{key: value for key, value in build.projection().items() if key != "schema_version"},
         **environment._asdict(),
         "runtime_files": runtime_files,
     }
+    if repository_private:
+        payload["repository_private"] = True
     return hashlib.sha256(_canonical(payload)).hexdigest()
 
 
@@ -155,9 +164,12 @@ def runtime_manifest_bytes(
     build: BuildIdentity,
     environment: RuntimeEnvironment,
     runtime_files: dict[str, str],
+    repository_private: bool = True,
 ) -> bytes:
     """Serialize one validated runtime manifest as canonical UTF-8 JSON."""
-    manifest = RuntimeManifest(digest, wheel_sha256, build, environment, runtime_files)
+    manifest = RuntimeManifest(
+        digest, wheel_sha256, build, environment, runtime_files, repository_private
+    )
     _validate(manifest)
     return _canonical(manifest.projection()) + b"\n"
 
@@ -166,6 +178,16 @@ def load_runtime_manifest_bytes(raw: bytes) -> RuntimeManifest:
     """Load one canonical runtime manifest without observing its filesystem."""
     try:
         payload = json.loads(raw.decode("utf-8"))
+        if not isinstance(payload, dict):
+            _raise_manifest_invalid()
+        version = payload.get("schema_version")
+        private = payload.get("repository_private", False)
+        if (
+            type(version) is not int
+            or version not in {_LEGACY_SCHEMA_VERSION, _SCHEMA_VERSION}
+            or private is not (version == _SCHEMA_VERSION)
+        ):
+            _raise_manifest_invalid()
         build = build_identity_from_projection(
             {
                 "schema_version": 2,
@@ -199,6 +221,7 @@ def load_runtime_manifest_bytes(raw: bytes) -> RuntimeManifest:
         build,
         environment,
         {str(path): str(digest) for path, digest in files.items()},
+        private,
     )
     _validate(manifest)
     if payload != manifest.projection() or raw != _canonical(payload) + b"\n":
@@ -214,11 +237,13 @@ def _validate(manifest: RuntimeManifest) -> None:
             not _valid_inventory_path(path) or not _valid_digest(digest)
             for path, digest in manifest.runtime_files.items()
         )
+        or type(manifest.repository_private) is not bool
         or runtime_digest(
             wheel_sha256=manifest.wheel_sha256,
             build=manifest.build,
             environment=manifest.environment,
             runtime_files=manifest.runtime_files,
+            repository_private=manifest.repository_private,
         )
         != manifest.digest
     ):

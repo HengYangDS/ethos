@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import stat
 import tomllib
 from pathlib import Path
 from pathlib import PurePosixPath
@@ -93,3 +94,26 @@ def hook_launcher(name: str) -> str:
         message = "hook_name_invalid"
         raise ValueError(message)
     return load_hook_contract()["launchers"][name]
+
+
+def require_hook_projection(hooks: Path, contract: HookContract) -> None:
+    """Validate the generated launcher set against its sole package declaration."""
+    expected = contract["launchers"]
+    try:
+        valid = (
+            not hooks.is_symlink()
+            and {path.name for path in hooks.iterdir()} == expected.keys()
+            and all(
+                not (path := hooks / name).is_symlink()
+                and path.is_file()
+                and path.read_bytes() == content.encode()
+                and (os.name == "nt" or stat.S_IMODE(path.stat().st_mode) == 0o755)
+                for name, content in expected.items()
+            )
+        )
+    except OSError as error:
+        message = "hook_launcher_projection_invalid"
+        raise ValueError(message) from error
+    if not valid:
+        message = "hook_launcher_projection_invalid"
+        raise ValueError(message)

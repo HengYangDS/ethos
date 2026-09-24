@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import uuid
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -22,7 +23,9 @@ from ethos.adapters.repo.hook.activation import materialize_hook_launchers
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.authority import runtime_build_identity
+from ethos.adapters.repo.runtime.filesystem import runtime_python
 from ethos.adapters.repo.runtime.manifest import runtime_digest
+from ethos.adapters.repo.runtime.manifest import runtime_environment
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
 from ethos.adapters.repo.runtime.manifest import runtime_manifest_bytes
 from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
@@ -164,13 +167,50 @@ def runtime_build(commit: str, tree: str, *, release: bool = False) -> BuildIden
     )
 
 
+def fixture_runtime_generation(
+    runtime: Path, name: str, *, repository_private: bool = True
+) -> Path:
+    """Create a manifest-bound private generation for retirement scenarios."""
+    staging = runtime.parent / f".{name}"
+    staging.mkdir()
+    (staging / "payload").write_bytes(name.encode())
+    python = runtime_python(staging / "python")
+    python.parent.mkdir(parents=True)
+    python.write_bytes(b"fixture executable")
+    identity = {
+        "wheel_sha256": "f" * 64,
+        "build": runtime_build("a" * 40, "a" * 40),
+        "environment": runtime_environment(
+            python_abi="fixture",
+            python_version="3.12",
+            python_implementation="cpython",
+            dependency_lock_sha256="d" * 64,
+        ),
+        "runtime_files": runtime_file_inventory(staging),
+        "repository_private": repository_private,
+    }
+    digest = runtime_digest(**identity)
+    (staging / "manifest.json").write_bytes(runtime_manifest_bytes(digest=digest, **identity))
+    target = runtime.parent / digest
+    staging.rename(target)
+    return target
+
+
 def materialize_runtime_case(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     *,
     package_identity: BuildIdentity | None = None,
+    legacy: bool = False,
 ) -> tuple[Path, Path]:
     """Materialize one deterministic immutable runtime without host package mutation."""
+    for name, owner in (
+        ("runtime_digest", runtime_digest),
+        ("runtime_manifest_bytes", runtime_manifest_bytes),
+    ):
+        monkeypatch.setattr(
+            runtime_materialization, name, partial(owner, repository_private=not legacy)
+        )
     repo = tmp_path / "repo"
     repo.mkdir()
     assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0

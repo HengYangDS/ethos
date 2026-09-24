@@ -2,13 +2,100 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
 
 import ethos.adapters.repo.hook.activation as hook_activation
+import ethos.adapters.repo.runtime.retirement as retirement
+from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.hook.binding import HOOK_NAMES
 from ethos.adapters.repo.hook.binding import hook_launcher
+from tests.support.runtime_scenarios import fixture_runtime_generation
+from tests.support.runtime_scenarios import materialized_activation_case
+
+
+@pytest.mark.parametrize("failure", ["io", "residue", "retained"])
+def test_hook_install_reports_deferred_generation_cleanup_after_successful_activation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    """Installation succeeds while exposing exact cleanup failure and effects."""
+    repo, runtime, common = materialized_activation_case(tmp_path, monkeypatch)
+    stale, retained = sorted(
+        fixture_runtime_generation(runtime.parent, letter * 64) for letter in "bc"
+    )
+    monkeypatch.setattr(retirement, "process_commands", lambda _root: retained.as_posix())
+    remove = retirement.remove_generated_tree
+
+    def remove_tree(path: Path) -> None:
+        assert path == stale
+        if failure == "io":
+            message = "cleanup failed"
+            raise OSError(message)
+        if failure == "retained":
+            remove(path)
+            remove(retained)
+
+    monkeypatch.setattr(retirement, "remove_generated_tree", remove_tree)
+    installed = install_hook_launchers(repo)
+    cleanup = installed["generation_cleanup"]
+    assert (common / "ethos/runtime/CURRENT").read_text(encoding="ascii") == (
+        f"{runtime.parent.name}\n"
+    )
+    assert installed["state_transition"]["after"] == "current"
+    assert installed["current"] is True
+    assert installed["required_gaps"] == ["hook_runtime_cleanup_deferred"]
+    assert installed["next_action"] == "ethos hook install --json"
+    assert cleanup["state"] == "deferred"
+    assert cleanup["removed"] == ([stale.as_posix()] if failure == "retained" else [])
+    assert cleanup["error"] == (
+        "cleanup failed"
+        if failure == "io"
+        else "hook_runtime_generation_identity_stale"
+        if failure == "retained"
+        else "hook_runtime_generation_cleanup_failed"
+    )
+    assert cleanup["deferred"] == [
+        retained.as_posix() if failure == "retained" else stale.as_posix()
+    ]
+    assert stale.exists() is (failure != "retained")
+
+
+def test_generation_cleanup_reobserves_a_consumer_after_activation_validation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The post-activation read cannot reuse a pre-activation process snapshot."""
+    repo, _runtime, common = materialized_activation_case(tmp_path, monkeypatch)
+    needed = fixture_runtime_generation(common / "ethos/runtime" / "selected", "b" * 64)
+    sentinel = needed / "payload"
+    original = sentinel.read_bytes()
+    active = False
+    native = retirement.process_listing_command()
+    run = retirement.run_command
+
+    def observe(root, command, **kwargs):
+        if command == native:
+            return subprocess.CompletedProcess(command, 0, needed.as_posix() if active else "", "")
+        return run(root, command, **kwargs)
+
+    binding = hook_activation.hook_runtime_binding
+
+    def observe_activated(*args, **kwargs):
+        nonlocal active
+        result = binding(*args, **kwargs)
+        active = True
+        return result
+
+    monkeypatch.setattr(retirement, "run_command", observe)
+    monkeypatch.setattr(hook_activation, "hook_runtime_binding", observe_activated)
+
+    result = install_hook_launchers(repo)
+
+    assert sentinel.is_file(), "cleanup reused the pre-activation process snapshot"
+    assert sentinel.read_bytes() == original
+    assert needed.as_posix() in result["generation_cleanup"]["retained"]
+    assert needed.as_posix() not in result["generation_cleanup"]["removed"]
 
 
 def test_hook_generation_failure_never_mutates_an_existing_generation(

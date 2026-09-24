@@ -106,6 +106,31 @@ def test_missing_external_selection_reuses_only_the_valid_invoking_runtime(
     assert selected_runtime_path(common) == current.root
 
 
+@pytest.mark.parametrize("selection", ["current", "explicit"])
+def test_foreign_repository_private_current_never_enters_reuse_fast_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, selection: str
+) -> None:
+    """An exact private manifest cannot authorize another repository's reuse."""
+    _, runtime = materialize_runtime_case(tmp_path, monkeypatch)
+    source = require_selected_runtime(runtime.parent)
+    adopter = tmp_path / "adopter"
+    adopter.mkdir()
+    subprocess.run(("git", "init", "--quiet", "--initial-branch=dev"), cwd=adopter, check=True)
+    adopter_common = Path(git_common_dir(adopter))
+    selector = adopter_common / "ethos/runtime/CURRENT"
+    selector.parent.mkdir(parents=True)
+    selector.write_bytes(runtime_selection_bytes(adopter_common, source.root))
+    assert source.repository_private
+    with pytest.raises(ValueError, match="hook_runtime_repository_private"):
+        materialization.materialize_runtime(
+            adopter,
+            Path(sys.executable),
+            expected_build=source.build,
+            installed_runtime=source.root if selection == "explicit" else None,
+        )
+    assert selector.read_bytes() == runtime_selection_bytes(adopter_common, source.root)
+
+
 def _generation_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     runtime_root, source = tmp_path / "runtime", tmp_path / "source"
     interpreter, wheel = tmp_path / "python", tmp_path / "ethos.whl"

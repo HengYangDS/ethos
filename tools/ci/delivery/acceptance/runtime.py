@@ -13,6 +13,7 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.manifest import canonical_architecture
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from tools.ci.delivery.acceptance.invocation import invoke
 
 if TYPE_CHECKING:
@@ -233,10 +234,11 @@ def prove_repair(
 def _prove_external_supply_recovery(
     prefix: tuple[str, ...], repo: Path, runtime: Path, *, environment: Mapping[str, str]
 ) -> None:
-    """A missing wheel blocks private fallback and gives explicit installation recovery."""
+    """Reject damaged supply, then recover an absent selection from the invoking package."""
     packages = runtime.parent.parent / "packages"
     preserved = packages.with_name("preserved-packages")
-    selector = Path(git_common_dir(repo)) / "ethos/runtime/CURRENT"
+    common = Path(git_common_dir(repo))
+    selector = common / "ethos/runtime/CURRENT"
     original = selector.read_bytes()
     packages.rename(preserved)
     try:
@@ -246,12 +248,13 @@ def _prove_external_supply_recovery(
             environment=environment,
         )
         recovery = shlex.split(str(report.get("next_action") or ""))
-        expected = f"hook_install_failed:hook_runtime_installed_supply_unavailable:{runtime}"
+        expected = f"hook_install_failed:hook_runtime_installed_supply_invalid:{runtime}"
         if (
             not code
             or report.get("required_gaps") != [expected]
             or "--runtime" not in recovery
-            or str(runtime) not in recovery
+            or str(runtime) in recovery
+            or report.get("user_decision_required") is not True
             or selector.read_bytes() != original
             or any(path.is_dir() for path in selector.parent.iterdir())
         ):
@@ -260,6 +263,27 @@ def _prove_external_supply_recovery(
     finally:
         preserved.rename(packages)
     _activate(prefix, repo, environment=environment, installed_runtime=runtime)
+    missing = repo.parent / "missing-installation/ethos/runtime" / runtime.name
+    if missing.exists() or missing.is_symlink():
+        message = "shared_missing_selection_fixture_occupied"
+        raise RuntimeError(message)
+    selector.write_bytes(runtime_selection_bytes(common, missing))
+    code, recovered, detail = invoke(
+        repo,
+        (*prefix, "hook", "install", "--root", str(repo), "--json"),
+        environment=environment,
+    )
+    data = recovered.get("data")
+    if (
+        code
+        or recovered.get("verdict") != "pass"
+        or not isinstance(data, dict)
+        or data.get("runtime_manifest_path") != str(runtime / "manifest.json")
+        or selector.read_bytes() != original
+        or any(path.is_dir() for path in selector.parent.iterdir())
+    ):
+        message = f"shared_missing_selection_recovery_failed:{detail}"
+        raise RuntimeError(message)
 
 
 def prove_shared_supply(
@@ -323,7 +347,8 @@ def prove_shared_supply(
         "shared_bytes": True,
         "independent_state": True,
         "damaged_selector_isolated": True,
-        "missing_supply_preserves_selection": True,
+        "invalid_supply_preserves_selection": True,
+        "missing_selection_recovered": True,
         "recovered": True,
         "package_manager_uninstall_qualified": False,
     }

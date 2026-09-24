@@ -225,6 +225,14 @@ checkout and compare-delete its exact ref in a transaction verifying accepted.
 - **THEN** fresh effect admission refuses deletion and selects a new content review
 - **AND** a reviewed receipt still refuses changed content, foreign ownership and active consumers
 
+#### Scenario: Unrelated native file-descriptor churn is not a retirement consumer
+
+- **WHEN** unrelated processes close descriptors during selected content retirement
+- **THEN** the native observer scopes its search to the worktree and external Git index
+- **AND** cwd, file, mapping, writer, hardlink and index holders still block deletion
+- **AND** missing scope, incomplete output, permission failure or timeout remains unknown
+- **AND** reviewed content is rechecked after the process observation
+
 #### Scenario: Exact Lease observation changed after planning
 
 - **WHEN** a planned live or expired Lease differs in lane ref, holder ref,

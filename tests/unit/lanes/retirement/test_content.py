@@ -186,7 +186,7 @@ def test_reviewed_inventory_rejects_incomplete_or_unsafe_observation(
 
 
 @pytest.mark.skipif(os.name != "posix", reason="native POSIX process-reference observation")
-@pytest.mark.parametrize("consumer", ["cwd", "file", "mapping", "hardlink", "writer"])
+@pytest.mark.parametrize("consumer", ["cwd", "file", "mapping", "hardlink", "writer", "index"])
 @pytest.mark.parametrize("detached", [False, True])
 def test_reviewed_retirement_preserves_content_held_by_live_process(
     divergent_lane, consumer, detached
@@ -195,6 +195,8 @@ def test_reviewed_retirement_preserves_content_held_by_live_process(
     if detached:
         git(lane, "switch", "--detach")
     selected = lane if consumer == "cwd" else lane / "abandoned.txt"
+    if consumer == "index":
+        selected = Path(git(lane, "rev-parse", "--path-format=absolute", "--git-path", "index"))
     if consumer == "hardlink":
         selected = repo.parent / "external-hardlink"
         os.link(lane / "abandoned.txt", selected)
@@ -233,14 +235,12 @@ if mode == 'writer':
             child.stdin.write(json.dumps([consumer, str(selected)]) + "\n")
             child.stdin.flush()
             assert select.select([child.stdout], [], [], 10)[0], "consumer did not become ready"
-            assert child.stdout.readline() == "ready\n"
-            assert child.poll() is None
+            assert (child.stdout.readline(), child.poll()) == ("ready\n", None)
             result = apply_retirement_receipt(repo, receipt)
         finally:
             child.communicate("x", timeout=10)
 
-    assert lane.is_dir(), json.dumps(result, indent=2)
-    assert child.returncode == 0
+    assert (lane.is_dir(), child.returncode) == (True, 0), json.dumps(result, indent=2)
     assert (lane / "abandoned.txt").read_text() == (
         "stopped writer bytes\n" if consumer == "writer" else "abandoned\n"
     )
@@ -293,7 +293,7 @@ def test_reviewed_retirement_rejects_unknown_process_references(
         cause="permission denied",
     )
 
-    def unavailable(_root):
+    def unavailable(_root, **_scope):
         raise error
 
     monkeypatch.setattr(operation, "process_file_identities", unavailable)
@@ -414,7 +414,7 @@ def test_retirement_rechecks_after_native_worktree_observation(
     divergent_lane, monkeypatch, drift, detached
 ):
     """Isolate authority/content races; live-process and unknown scans have dedicated cases."""
-    monkeypatch.setattr(operation, "process_file_identities", lambda _root: frozenset())
+    monkeypatch.setattr(operation, "process_file_identities", lambda _root, **_scope: frozenset())
     repo, lane = divergent_lane
     if detached:
         git(lane, "switch", "--detach")

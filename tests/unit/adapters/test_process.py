@@ -57,7 +57,8 @@ def _file_reference_payloads():
         "empty-type": payload.replace(b"tDIR\0", b"t\0"),
         "orphan": payload.removeprefix(b"p12\0\n"),
         "negative-inode": payload.replace(b"i31\0", b"i-1\0", 1),
-        **dict.fromkeys(("valid", "status", "stderr", "timeout", "missing"), payload),
+        **dict.fromkeys(("valid", "status", "fatal", "stderr", "timeout", "missing"), payload),
+        "no-match": b"",
     }
 
 
@@ -83,31 +84,30 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
 
     def capture(root, command, **kwargs):
         assert root == tmp_path
-        assert command == (str(executable), "-nP", "-F0pftDin")
+        assert command == (str(executable), "-nP", "-F0pftDin", "+D", str(root), str(executable))
         assert kwargs["timeout"] == 10
         assert kwargs["text"] is False
         if fault == "timeout":
             raise subprocess.TimeoutExpired(command, kwargs["timeout"])
-        return subprocess.CompletedProcess(
-            command,
-            1 if fault == "status" else 0,
-            payload,
-            b"permission denied" if fault == "stderr" else b"",
-        )
+        status = 2 if fault == "fatal" else 1 if fault in {"status", "no-match"} else 0
+        stderr = b"permission denied" if fault == "stderr" else b""
+        return subprocess.CompletedProcess(command, status, payload, stderr)
 
     monkeypatch.setattr(process_adapter, "run_command", capture)
-    if fault in {"valid", "fd-gone", "process-gone", "named-live-file", "unix-inode"}:
-        assert process_adapter.process_file_identities(tmp_path) == frozenset({(16, 31), (32, 31)})
+    observe = process_adapter.process_file_identities
+    if fault in {"valid", "status", "fd-gone", "process-gone", "named-live-file", "unix-inode"}:
+        assert observe(tmp_path, tree=tmp_path, index=executable) == frozenset({(16, 31), (32, 31)})
+    elif fault == "no-match":
+        assert observe(tmp_path, tree=tmp_path, index=executable) == frozenset()
     else:
         with pytest.raises(process_adapter.ProcessExecutionError) as error:
-            process_adapter.process_file_identities(tmp_path)
+            observe(tmp_path, tree=tmp_path, index=executable)
         assert error.value.code == "native_process_observer_unavailable"
         assert error.value.reason == "file_references_unavailable"
         assert error.value.cwd == str(tmp_path)
         if fault == "empty-type":
             assert repr(b"fcwd\0t\0D0x10\0i31") in error.value.cause
-    assert observed[0][0] == "lsof"
-    assert str(tmp_path / "ambient") not in observed[0][1]
+    assert (observed[0][0], str(tmp_path / "ambient") in observed[0][1]) == ("lsof", False)
 
 
 @pytest.mark.parametrize("platform", ["posix", "nt"])

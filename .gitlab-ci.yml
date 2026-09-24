@@ -77,7 +77,7 @@ ethos:verify:
   stage: verify
   variables:
     GIT_STRATEGY: clone
-    ETHOS_TEST_WORKERS: "1"
+    ETHOS_TEST_WORKERS: "4"
   script:
     - uv run --frozen --offline python -m nox -s hosted_observation
     - tools/ci/scripts/run-head-bound-proof.sh

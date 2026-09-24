@@ -377,12 +377,11 @@ gitlab: {
 			// shallow. Reclone this history-sensitive execution owner so replay can
 			// resolve pinned commits without repeating preparation for every gate.
 			GIT_STRATEGY: "clone"
-			// The arm64 hosted runner can terminate xdist workers under the full
-			// coverage suite. Keep the reusable owner script and its default parallel
-			// capability intact; this hosted projection deliberately runs one worker.
+			// Scoped native process observation removes unrelated descriptor churn.
+			// Qualify four workers through the full hosted proof and coverage floor.
 			// The entrypoint prepares the image and then replaces PID 1. The entire
 			// job runs unprivileged, preserving process visibility and permission tests.
-			ETHOS_TEST_WORKERS: "1"
+			ETHOS_TEST_WORKERS: "4"
 		}
 		script: [
 			"uv run --frozen --offline python -m nox -s hosted_observation",

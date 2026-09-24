@@ -22,7 +22,7 @@ FOREIGN_WORK_LANE_NEXT_ACTION = (
 
 
 def branch_path_scope(
-    root: Path, *, branch: str, candidate_branch: str
+    root: Path, *, branch: str, baseline_branch: str
 ) -> tuple[tuple[str, ...], str]:
     if not branch or branch == "detached":
         return (), "unknown"
@@ -30,7 +30,7 @@ def branch_path_scope(
         root,
         "diff",
         "--name-only",
-        f"{candidate_branch}...{branch}",
+        f"{baseline_branch}...{branch}",
         check=False,
     )
     if completed.returncode:
@@ -61,7 +61,7 @@ class ForeignLaneContext:
     current_role: str
     current_path_scope: tuple[str, ...]
     current_scope_state: str
-    candidate_branch: str
+    baseline_branch: str
     lease: dict[str, object]
     root: Path
     relation_to_accepted: str = ""
@@ -72,7 +72,7 @@ def foreign_work_lane(worktree: dict[str, str], context: ForeignLaneContext) -> 
     committed, committed_state = branch_path_scope(
         context.root,
         branch=worktree["branch"],
-        candidate_branch=context.candidate_branch,
+        baseline_branch=context.baseline_branch,
     )
     path_scope = tuple(dict.fromkeys((*committed, *context.dirty_paths)))
     scope_state = _combined_scope_state(committed_state, path_scope)

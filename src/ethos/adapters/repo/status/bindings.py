@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -9,6 +10,7 @@ from pathlib import Path
 from ethos.adapters.repo.git import git_stdout_checked
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
+from ethos.adapters.repo.merge.observation import pending_merge_heads
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.lease.projection import lease_observations
 from ethos.adapters.store.state.schema import state_database
@@ -155,6 +157,92 @@ def ref_relation(root: Path, branch: str, accepted_branch: str) -> str:
         if is_ancestor(root, accepted_branch, branch)
         else "diverged_from_accepted"
     )
+
+
+def landing_readiness(
+    root: Path,
+    *,
+    head: str,
+    branch: str,
+    role: str,
+    candidate: dict[str, object],
+    accepted: dict[str, object],
+) -> dict[str, object]:
+    """Select the next integration boundary from exact Git containment."""
+    candidate_branch = str(candidate.get("branch") or "")
+    candidate_head = str(candidate.get("head") or "")
+    accepted_head = str(accepted.get("head") or "")
+    accepted_root = (
+        str(accepted.get("worktree_path") or "")
+        if accepted.get("worktree_binding") in {"current", "linked"}
+        else ""
+    )
+    accepted_includes_head = bool(
+        role == ROLE_WORK_LANE and head and accepted_head and is_ancestor(root, head, accepted_head)
+    )
+    if role != ROLE_WORK_LANE:
+        result = "not_work_lane", [], "start or enter a Work Lane before landing"
+    elif not accepted_includes_head and not candidate.get("exists"):
+        result = (
+            "blocked",
+            ["candidate_branch_missing"],
+            "create or repair the configured candidate branch",
+        )
+    elif not accepted_includes_head and not candidate.get("worktree_exists"):
+        result = (
+            "blocked",
+            ["candidate_worktree_missing"],
+            "create or repair the configured candidate worktree",
+        )
+    elif pending_merge_heads(root):
+        result = (
+            "blocked",
+            ["merge_in_progress"],
+            (
+                "ethos lane refresh-base --strategy merge "
+                f"--root {shlex.quote(str(root.resolve()))} --json"
+            ),
+        )
+    elif accepted_includes_head:
+        result = (
+            "accepted_integrated" if accepted_root else "blocked",
+            [] if accepted_root else ["accepted_worktree_missing"],
+            (
+                "ethos lane retire landed "
+                f"--branch {shlex.quote(branch)} --root {shlex.quote(accepted_root)} --json"
+                if accepted_root
+                else "link the configured accepted checkout before lane retirement"
+            ),
+        )
+    elif head and candidate_head and is_ancestor(root, head, candidate_head):
+        result = (
+            "candidate_integrated" if accepted_root else "blocked",
+            [] if accepted_root else ["accepted_worktree_missing"],
+            (
+                f"ethos status --root {shlex.quote(accepted_root)} --json"
+                if accepted_root
+                else "link the configured accepted checkout before closeout"
+            ),
+        )
+    elif head and candidate_head and not is_ancestor(root, candidate_head, head):
+        result = (
+            "candidate_base_stale",
+            ["candidate_base_stale"],
+            f"ethos lane refresh-base --apply --authorize --expect-head {head or '<head>'} --json",
+        )
+    else:
+        result = "candidate_base_current", [], "ethos land --json"
+    state, gaps, action = result
+    return {
+        "kind": "landing_readiness",
+        "state": state,
+        "branch": branch,
+        "head": head,
+        "candidate_branch": candidate_branch,
+        "candidate_head": candidate_head,
+        "required_gaps": gaps,
+        "next_action": action,
+    }
 
 
 def unbound_ref_next_action(relation: str) -> str:

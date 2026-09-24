@@ -210,6 +210,18 @@ checkout and compare-delete its exact ref in a transaction verifying accepted.
 - **AND** executing it rechecks all current admission and exact-effect conditions
 - **AND** an explicitly supplied expected HEAD is preserved, never silently replaced
 
+#### Scenario: Integration continuation follows Git containment
+
+- **WHEN** a Work Lane HEAD is already contained in the candidate but not accepted
+- **THEN** lane status selects accepted closeout instead of repeating land
+- **WHEN** the Work Lane HEAD is contained in accepted
+- **THEN** lane status selects the existing landed-retirement preview
+- **AND** retirement still reviews nontracked content and rechecks exact authority
+- **AND** an absent candidate does not turn already accepted content into an
+  authoring or coordination failure
+- **AND** uncommitted lane content remains authoring work, not a retirement cue
+- **AND** a lane ahead of candidate continues to select land
+
 #### Scenario: Nontracked content requires an explicit disposition
 
 - **WHEN** a linked worktree contains nontracked content, including ignored evidence

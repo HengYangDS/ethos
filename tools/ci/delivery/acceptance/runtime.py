@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import shlex
 import tarfile
@@ -11,7 +10,6 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.runtime.manifest import canonical_architecture
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from tools.ci.delivery.acceptance.invocation import invoke
@@ -76,47 +74,36 @@ def require_manifest(
     """Require one selected runtime manifest to match its wheel and source identity."""
     try:
         manifest_path = Path(str(report["runtime_manifest_path"]))
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         runtime_digest = str(report["runtime_digest"])
         python = Path(str(report["python"]))
-    except (KeyError, OSError, json.JSONDecodeError) as error:
+    except KeyError as error:
         message = "package_runtime_manifest_missing"
         raise RuntimeError(message) from error
+    if not manifest_path.is_file():
+        message = "package_runtime_manifest_missing"
+        raise RuntimeError(message)
+    try:
+        selected = require_selected_runtime(manifest_path.parent, expected_build=build)
+    except (OSError, TypeError, ValueError) as error:
+        message = "package_runtime_identity_mismatch"
+        raise RuntimeError(message) from error
     expected_root = Path(git_common_dir(repo)) / "ethos/runtime"
-    expected = {
-        "schema_version": 6,
-        "architecture": canonical_architecture(__import__("platform").machine()),
-        "runtime_digest": runtime_digest,
-        "wheel_sha256": wheel_sha256,
+    expected_report = {
         **build._asdict(),
-    }
-    observed = {key: manifest.get(key) for key in expected}
-    report_identity = {
-        key: report.get(key)
-        for key in (
-            "product_version",
-            "distribution_version",
-            "source_commit",
-            "source_tree",
-            "wheel_sha256",
-            "runtime_digest",
-        )
+        "wheel_sha256": wheel_sha256,
+        "runtime_digest": selected.digest,
     }
     if (
         manifest_path.parent.parent != expected_root
-        or manifest_path.parent.name != runtime_digest
-        or observed != expected
-        or report_identity
-        != {
-            **build._asdict(),
-            "wheel_sha256": wheel_sha256,
-            "runtime_digest": runtime_digest,
-        }
-        or not python.is_file()
+        or selected.manifest != manifest_path
+        or selected.digest != runtime_digest
+        or selected.python != python
+        or selected.wheel_sha256 != wheel_sha256
+        or any(report.get(key) != value for key, value in expected_report.items())
     ):
         message = "package_runtime_identity_mismatch"
         raise RuntimeError(message)
-    return python
+    return selected.python
 
 
 def require_production_dependencies(

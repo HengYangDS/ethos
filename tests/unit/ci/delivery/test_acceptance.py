@@ -17,13 +17,18 @@ import pytest
 
 import tools.ci.local_ci as local_ci
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.release.identity import BuildIdentity
+from tests.support.governed_repository import init_git_repo
+from tests.support.runtime_scenarios import fixture_runtime_generation
 from tools.ci import sessions
 from tools.ci.delivery import pipeline
 from tools.ci.delivery.acceptance import effect
 from tools.ci.delivery.acceptance import receipt
+from tools.ci.delivery.acceptance import runtime as runtime_acceptance
 from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
@@ -149,6 +154,42 @@ def test_host_conformance_reuses_the_single_package_acceptance_effect(
     with pytest.raises(RuntimeError, match="native preflight failed"):
         delivery.prove_host(session)
     assert calls.mock_calls == [preflight]
+
+
+@pytest.mark.parametrize("case", ["private", "legacy", "reported-source-drift", "payload-drift"])
+def test_package_manifest_acceptance_uses_selected_runtime_owner(tmp_path: Path, case: str) -> None:
+    """Accept both manifest generations without trusting a report or changed bytes."""
+    repo = init_git_repo(tmp_path / "adopter")
+    runtime_root = Path(git_common_dir(repo)) / "ethos/runtime"
+    runtime_root.mkdir(parents=True)
+    generation = fixture_runtime_generation(
+        runtime_root / "selected", "package", repository_private=case == "private"
+    )
+    selected = require_selected_runtime(generation)
+    report = {
+        "runtime_manifest_path": selected.manifest.as_posix(),
+        "runtime_digest": selected.digest,
+        "python": selected.python.as_posix(),
+        "wheel_sha256": selected.wheel_sha256,
+        **selected.build._asdict(),
+    }
+    if case == "reported-source-drift":
+        report["source_commit"] = "0" * 40
+    elif case == "payload-drift":
+        (generation / "payload").write_bytes(b"changed")
+
+    if case.endswith("drift"):
+        with pytest.raises(RuntimeError, match="package_runtime_identity_mismatch"):
+            runtime_acceptance.require_manifest(
+                report, repo, build=selected.build, wheel_sha256=selected.wheel_sha256
+            )
+    else:
+        assert (
+            runtime_acceptance.require_manifest(
+                report, repo, build=selected.build, wheel_sha256=selected.wheel_sha256
+            )
+            == selected.python
+        )
 
 
 def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(

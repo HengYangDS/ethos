@@ -1358,13 +1358,12 @@ because the current focused suite passed.
 The critical path is serial; coverage of user obligations is not selective.
 This checkpoint routes existing obligations to existing owners and exit tests;
 it does not claim complete historical-input recovery or establish another queue.
-Full history and source-by-source semantic coverage remain unproved. Latest
-direct user budget instructions supersede stale goal snapshots: independent
-product/test ceilings are 50000, combined coverage is at least 95 percent, and
-the current native per-file ceiling is uniformly 500. No test or surface override
-remains. Existing file sizes cannot justify a looser limit; consolidation must
-preserve distinguishing cases and readable semantic boundaries. Examples do not
-narrow the global principles they illustrate.
+Full history and source-by-source semantic coverage remain unproved. Current
+numeric ceilings come only from the native source-budget declaration; stale goal
+snapshots cannot override it. Combined coverage remains at least 95 percent and
+the native per-file ceiling is uniformly 500, without test or surface overrides.
+Consolidation must preserve distinguishing cases and readable semantic
+boundaries. Examples do not narrow the global principles they illustrate.
 
 | Existing obligation | Current evidence boundary | Owner and remaining exit condition |
 | --- | --- | --- |
@@ -6613,8 +6612,9 @@ only for demonstrated external obligations, not as a default. The existing
 research owner holds comparisons; this plan holds dependency order; official
 Change tasks alone hold implementation progress.
 
-Keep product/tests independently within 50,000 ELOC, Python files within 500,
-combined coverage at least 95%, and full proof within 900 seconds; 600 seconds
+Keep product/tests within their independently declared ELOC ceilings, Python
+files within 500, combined coverage at least 95%, and full proof within 900
+seconds; 600 seconds
 remains a direction. Native Windows recovery, JavaScript semantics, test/tool
 typing, complete reports/warnings, actual hosted admission, historical-intent
 settlement, documentation comprehension/structure, adopter/ecosystem paths and

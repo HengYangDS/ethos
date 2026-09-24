@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import os
 import shutil
 import sqlite3
-import stat
 import sys
 import uuid
 from contextlib import closing
@@ -17,9 +15,8 @@ import ethos.adapters.repo.config_effects as config_effects
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.hook.binding import HOOK_NAMES
-from ethos.adapters.repo.hook.binding import hook_generation_digest
-from ethos.adapters.repo.hook.binding import hook_launcher
+from ethos.adapters.repo.hook.binding import load_hook_contract
+from ethos.adapters.repo.hook.binding import require_hook_projection
 from ethos.adapters.repo.hook.observation import HookRuntimeBinding
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
@@ -189,12 +186,13 @@ def materialize_hook_launchers(generations: Path) -> Path:
     """Materialize or repair one immutable content-addressed hook generation."""
     if generations.parent.is_symlink() or generations.is_symlink():
         _fail("hook_generation_root_invalid")
-    expected = {name: hook_launcher(name) for name in HOOK_NAMES}
-    target = generations / hook_generation_digest(expected)
+    contract = load_hook_contract()
+    expected = contract["launchers"]
+    target = generations / contract["generation_digest"]
     if target.is_symlink():
         _fail("hook_launcher_projection_invalid")
     try:
-        _require_launcher_projection(target, expected)
+        require_hook_projection(target, contract)
     except ValueError:
         pass
     else:
@@ -209,12 +207,12 @@ def materialize_hook_launchers(generations: Path) -> Path:
             launcher = staging / name
             launcher.write_text(content, encoding="utf-8", newline="\n")
             launcher.chmod(0o755)
-        _require_launcher_projection(staging, expected)
+        require_hook_projection(staging, contract)
         if had_target:
             target.rename(backup)
         try:
             staging.rename(target)
-            _require_launcher_projection(target, expected)
+            require_hook_projection(target, contract)
         except (OSError, ValueError):
             if target.is_dir():
                 shutil.rmtree(target)
@@ -225,25 +223,6 @@ def materialize_hook_launchers(generations: Path) -> Path:
         return target
     finally:
         shutil.rmtree(staging, ignore_errors=True)
-
-
-def _require_launcher_projection(hooks: Path, expected: dict[str, str]) -> None:
-    try:
-        valid = (
-            not hooks.is_symlink()
-            and {path.name for path in hooks.iterdir()} == expected.keys()
-            and all(
-                not (path := hooks / name).is_symlink()
-                and path.is_file()
-                and path.read_bytes() == content.encode()
-                and (os.name == "nt" or stat.S_IMODE(path.stat().st_mode) == 0o755)
-                for name, content in expected.items()
-            )
-        )
-    except OSError as error:
-        _fail("hook_launcher_projection_invalid", error)
-    if not valid:
-        _fail("hook_launcher_projection_invalid")
 
 
 def _activate_common_runtime(

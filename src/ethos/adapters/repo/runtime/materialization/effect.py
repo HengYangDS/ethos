@@ -43,6 +43,7 @@ from ethos.adapters.repo.runtime.materialization.python_environment import (
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
 from ethos.adapters.repo.runtime.materialization.python_image import materialize_python_image
 from ethos.adapters.repo.runtime.materialization.python_image import render_console_script
+from ethos.adapters.repo.runtime.selection import require_runtime_selection_scope
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.repo.runtime.selection import selected_runtime_path
@@ -71,8 +72,10 @@ def materialize_runtime(
     package_source = build_source or invoking_source
     project = build_source or resolve_runtime_project(package_source)
     if installed_runtime is not None:
-        runtime_selection_bytes(Path(git_common_dir(repo)), installed_runtime)
+        common = Path(git_common_dir(repo))
+        runtime_selection_bytes(common, installed_runtime)
         selected = require_selected_runtime(installed_runtime, expected_build=expected_build)
+        require_runtime_selection_scope(common, selected)
         if not _runtime_supply_current(selected, project):
             _fail("hook_runtime_installed_supply_invalid")
         return selected.root / "python"
@@ -148,10 +151,13 @@ def _reusable_runtime(
     external = candidate.parent != common / "ethos/runtime"
     try:
         selected = require_selected_runtime(candidate, expected_build=expected_build)
+        require_runtime_selection_scope(common, selected)
         if _runtime_supply_current(selected, project):
             return selected.root
     except (OSError, ValueError) as error:
         if external:
+            if str(error) == "hook_runtime_repository_private":
+                raise
             absent = _target_absent(candidate)
             if absent and (
                 invoking := _compatible_invoking_runtime(invoking_source, expected_build, project)

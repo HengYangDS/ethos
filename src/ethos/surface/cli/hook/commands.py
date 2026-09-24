@@ -336,7 +336,12 @@ def install(
             "python": "",
             "scripts": [],
             "linked_worktrees": [],
-            "generation_cleanup": {"checked": [], "removed": [], "retained": []},
+            "generation_cleanup": {
+                "checked": [],
+                "removed": [],
+                "retained": [],
+                "unproven_removals": [],
+            },
         }
         if isinstance(error, (ProcessExecutionError, HookActivationError)):
             if isinstance(error, ProcessExecutionError):
@@ -361,6 +366,8 @@ def install(
     cleanup = runtime.get("generation_cleanup")
     removed = cleanup.get("removed", []) if isinstance(cleanup, dict) else []
     removed_count = len(removed) if isinstance(removed, list) else 0
+    unproven = cleanup.get("unproven_removals", []) if isinstance(cleanup, dict) else []
+    unproven_count = len(unproven) if isinstance(unproven, list) else 0
     cleanup_state = str(cleanup.get("state") or "") if isinstance(cleanup, dict) else ""
     legacy = runtime.get("legacy_runtime_locator")
     legacy_state = str(legacy.get("state") or "") if isinstance(legacy, dict) else ""
@@ -386,6 +393,7 @@ def install(
                 item.get("state") == "repaired" for item in linked if isinstance(item, dict)
             ),
             "generated_paths_removed": removed_count,
+            "generation_removals_unproven": unproven_count,
             "generation_cleanup": cleanup_state,
             "legacy_runtime_locator": legacy_state,
             "state_transition": (

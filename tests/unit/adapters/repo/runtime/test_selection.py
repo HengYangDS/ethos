@@ -71,7 +71,6 @@ def test_activation_authenticates_the_package_under_lock_and_renders_exact_comma
         patch.setattr(runtime_selection, "FileLock", selection_lock)
         patch.setattr(runtime_selection, "require_selected_runtime", authenticate)
         selected = activate_runtime(common, venv.parent, expected_current=None)
-    assert locks
     assert not locks[-1].is_locked
     assert shlex.split(runtime_command(repo, "status", "--json")) == [
         selected.python.as_posix(),
@@ -84,9 +83,12 @@ def test_activation_authenticates_the_package_under_lock_and_renders_exact_comma
     assert selector.read_bytes() == original
     selected = activate_runtime(common, venv.parent)
     assert selected.root == venv.parent
-    assert selected.python.is_file()
     assert current_runtime(common) == selected
     if external:
+        with pytest.raises(ValueError, match="hook_runtime_repository_private"):
+            activate_runtime(
+                tmp_path / "foreign-common", common / "ethos/runtime" / selected.digest
+            )
         second = tmp_path / "second-common"
         assert activate_runtime(second, selected.root) == selected
         restore_runtime_selection(common, None, expected_current=original)

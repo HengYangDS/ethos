@@ -35,6 +35,7 @@ _CURRENT_INVALID = "hook_runtime_current_invalid"
 _CURRENT_TARGET_INVALID = "hook_runtime_current_target_invalid"
 _MANIFEST_INVALID = "hook_runtime_manifest_invalid"
 _CURRENT_STALE = "hook_runtime_current_stale"
+_CURRENT_REPOSITORY_PRIVATE = "hook_runtime_repository_private"
 _UNSPECIFIED = object()
 
 
@@ -53,6 +54,7 @@ class SelectedRuntime(NamedTuple):
     platform: str
     architecture: str
     build: BuildIdentity
+    repository_private: bool
 
 
 def current_runtime(
@@ -61,7 +63,24 @@ def current_runtime(
     expected_build: BuildIdentity | None = None,
 ) -> SelectedRuntime:
     """Read and validate the canonical runtime selected by ``CURRENT``."""
-    return require_selected_runtime(selected_runtime_path(common), expected_build=expected_build)
+    selected = require_selected_runtime(
+        selected_runtime_path(common), expected_build=expected_build
+    )
+    require_runtime_selection_scope(common, selected)
+    return selected
+
+
+def require_runtime_selection_scope(common: Path, selected: SelectedRuntime) -> None:
+    """Keep a new private repository generation out of another Git common-dir."""
+    source = selected.root.parent.parent.parent
+    local_store = selected.root.parent == common.resolve() / "ethos/runtime"
+    repository_store = (
+        selected.root.parent == source / "ethos/runtime"
+        and (source / "HEAD").is_file()
+        and (source / "objects").is_dir()
+    )
+    if selected.repository_private and repository_store and not local_store:
+        raise ValueError(_CURRENT_REPOSITORY_PRIVATE)
 
 
 def selected_runtime_path(common: Path) -> Path:
@@ -126,6 +145,7 @@ def activate_runtime(
     runtime_root.mkdir(parents=True, exist_ok=True)
     with _selection_lock(common_root):
         selected = require_selected_runtime(candidate)
+        require_runtime_selection_scope(common_root, selected)
         current = _selector_bytes(runtime_root / _SELECTOR)
         if expected_current is not _UNSPECIFIED and current != expected_current:
             raise ValueError(_CURRENT_STALE)
@@ -254,6 +274,7 @@ def require_selected_runtime(
         identity.wheel_sha256,
         *identity.environment,
         identity.build,
+        identity.repository_private,
     )
 
 

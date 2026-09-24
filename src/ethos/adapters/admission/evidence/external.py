@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import stat
 import subprocess
 import tempfile
 import tomllib
@@ -56,19 +57,49 @@ class IndependentVerificationProvider:
 
 
 def _is_protected_from_current_identity(path: Path) -> bool:
-    """Return whether `path` and its parent cannot be changed by this process identity."""
-    try:
-        target = path.resolve(strict=True)
-        target_stat = target.stat()
-        parent_stat = target.parent.stat()
-    except OSError:
+    """Follow only path components that the current identity cannot replace."""
+    if os.name != "posix" or not path.is_absolute():
         return False
-    return (
-        target_stat.st_uid != os.geteuid()
-        and parent_stat.st_uid != os.geteuid()
-        and not target_stat.st_mode & 0o022
-        and not parent_stat.st_mode & 0o022
-    )
+    try:
+        identity = os.geteuid()
+        current = Path(path.anchor)
+        anchor = current.stat()
+        if (
+            anchor.st_uid == identity
+            or anchor.st_mode & 0o022
+            or os.access(current, os.W_OK, effective_ids=True)
+        ):
+            return False
+        remaining = list(path.parts[1:])
+        links = 0
+        while remaining:
+            part = remaining.pop(0)
+            if part == "..":
+                current = current.parent
+                continue
+            node = current / part
+            observed = node.lstat()
+            link = stat.S_ISLNK(observed.st_mode)
+            if observed.st_uid == identity or (
+                not link
+                and (observed.st_mode & 0o022 or os.access(node, os.W_OK, effective_ids=True))
+            ):
+                return False
+            if link:
+                links += 1
+                if links > 40:
+                    return False
+                target = node.readlink()
+                destination = (target if target.is_absolute() else current / target).joinpath(
+                    *remaining
+                )
+                current = Path(destination.anchor)
+                remaining = list(destination.parts[1:])
+                continue
+            current = node
+    except (OSError, ValueError, NotImplementedError):
+        return False
+    return True
 
 
 def _absolute_path(value: object) -> Path | None:

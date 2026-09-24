@@ -489,13 +489,21 @@ not be resolved by choosing a convenient proof.
 Required independent verification SHALL validate the configured provider before
 requesting its receipt. Control replacement and publication SHALL share that
 owner and report an actionable prerequisite without inventing evidence paths.
-Optional unselected verification SHALL preserve local-first behavior.
+Every provider path component and symbolic-link hop SHALL be protected from the
+current identity before it is read. Optional unselected verification SHALL
+preserve local-first behavior.
 
 #### Scenario: The required provider is unavailable
 
 - **WHEN** its protected configuration is missing, unreadable or invalid
 - **THEN** admission identifies that provider prerequisite and requests operator repair
 - **AND** no repository effect or executable retry is presented as the repair
+
+#### Scenario: A protected target is reached through a replaceable path
+
+- **WHEN** a provider configuration, receipt store or signer anchor traverses a user-owned alias or writable ancestor
+- **THEN** provider admission rejects that path even if its resolved target is system-owned
+- **AND** a system-owned symlink chain with protected components remains eligible
 
 #### Scenario: A configured provider has no valid receipt
 

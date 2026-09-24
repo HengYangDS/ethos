@@ -168,9 +168,17 @@ async def _adoption(
             assert not stale["data"]["applied"]
         assert before == {path: (path.stat().st_ino, path.stat().st_mtime_ns) for path in retained}
     async with Client(transport, timeout=30) as client:
-        assert (await client.call_tool("status")).structured_content == inspect_repository(
-            root
-        ).to_dict()
+        observed = (await client.call_tool("status")).structured_content
+        expected = inspect_repository(root).to_dict()
+        assert observed == expected, {
+            "different_fields": sorted(
+                key
+                for key in observed.keys() | expected.keys()
+                if observed.get(key) != expected.get(key)
+            ),
+            "mcp_guidance": (observed.get("governance_context") or {}).get("agent_guidance"),
+            "sdk_guidance": (expected.get("governance_context") or {}).get("agent_guidance"),
+        }
         if surface == "mcp":
             _git(root, git, env, "add", "--", *(str(p.relative_to(root)) for p in retained))
             _git(root, git, env, "commit", "--quiet", "-m", "accept conformance adoption")

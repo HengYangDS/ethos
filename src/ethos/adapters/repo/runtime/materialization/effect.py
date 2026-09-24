@@ -31,6 +31,7 @@ from ethos.adapters.repo.runtime.materialization.input_resolution import (
 )
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_runtime_project
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_runtime_wheel
+from ethos.adapters.repo.runtime.materialization.input_resolution import selected_runtime_source
 from ethos.adapters.repo.runtime.materialization.python_environment import file_sha256
 from ethos.adapters.repo.runtime.materialization.python_environment import observe_python_facts
 from ethos.adapters.repo.runtime.materialization.python_environment import (
@@ -66,7 +67,8 @@ def materialize_runtime(
     installed_runtime: Path | None = None,
 ) -> Path:
     """Select admitted installed supply or materialize an exact repository runtime."""
-    package_source = build_source or Path(__file__).resolve().parents[6]
+    invoking_source = Path(__file__).resolve().parents[6]
+    package_source = build_source or invoking_source
     project = build_source or resolve_runtime_project(package_source)
     if installed_runtime is not None:
         runtime_selection_bytes(Path(git_common_dir(repo)), installed_runtime)
@@ -79,7 +81,7 @@ def materialize_runtime(
         _fail("hook_runtime_root_invalid")
     work = runtime_root / f".build-{uuid.uuid4().hex}"
     try:
-        if reusable := _reusable_runtime(repo, expected_build, project):
+        if reusable := _reusable_runtime(repo, expected_build, project, invoking_source):
             return reusable / "python"
         dependency_python = (
             resolve_locked_environment_python(project)
@@ -134,6 +136,7 @@ def _reusable_runtime(
     repo: Path,
     expected_build: BuildIdentity,
     project: Path,
+    invoking_source: Path,
 ) -> Path | None:
     common = Path(git_common_dir(repo)).resolve()
     try:
@@ -142,15 +145,50 @@ def _reusable_runtime(
         if str(error) == "hook_runtime_current_missing":
             return None
         raise
+    external = candidate.parent != common / "ethos/runtime"
     try:
         selected = require_selected_runtime(candidate, expected_build=expected_build)
         if _runtime_supply_current(selected, project):
             return selected.root
     except (OSError, ValueError) as error:
-        if candidate.parent != common / "ethos/runtime":
-            _fail(f"hook_runtime_installed_supply_unavailable:{candidate}", error)
-    if candidate.parent != common / "ethos/runtime":
-        _fail(f"hook_runtime_installed_supply_unavailable:{candidate}")
+        if external:
+            absent = _target_absent(candidate)
+            if absent and (
+                invoking := _compatible_invoking_runtime(invoking_source, expected_build, project)
+            ):
+                return invoking
+            condition = "unavailable" if absent else "invalid"
+            _fail(f"hook_runtime_installed_supply_{condition}:{candidate}", error)
+    if external:
+        _fail(f"hook_runtime_installed_supply_invalid:{candidate}")
+    return None
+
+
+def _target_absent(path: Path) -> bool:
+    """Distinguish an absent target from an inaccessible or invalid one."""
+    try:
+        path.lstat()
+    except FileNotFoundError:
+        return True
+    except OSError:
+        pass
+    return False
+
+
+def _compatible_invoking_runtime(
+    source: Path, expected_build: BuildIdentity, project: Path
+) -> Path | None:
+    """Reuse only the invoking immutable package with the exact required closure."""
+    try:
+        invoking = selected_runtime_source(source)
+        if (
+            invoking is not None
+            and invoking.build == expected_build
+            and _runtime_supply_current(invoking, project)
+        ):
+            return invoking.root
+    except (OSError, ValueError):
+        pass
     return None
 
 

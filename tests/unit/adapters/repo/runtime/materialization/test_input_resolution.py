@@ -148,6 +148,7 @@ def test_managed_runtime_requires_one_exact_wheel(tmp_path, monkeypatch, content
     """Resolve the package by verified content identity, not directory presence."""
     source, package_root = _managed_runtime_case(monkeypatch, tmp_path)
     assert runtime_inputs.is_selected_runtime_source(source) is True
+    assert runtime_inputs.selected_runtime_source(source).root == source.parents[3]
     if contents:
         package_root.mkdir(parents=True)
         for index, content in enumerate(contents):

@@ -22,7 +22,11 @@ import tests.support.runtime_scenarios as runtime_scenarios
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.manifest import runtime_environment
 from ethos.adapters.repo.runtime.selection import activate_runtime
+from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from ethos.adapters.repo.runtime.selection import selected_runtime_path
 from ethos.adapters.repo.runtime.transition import PackageArtifact
+from tests.support.ethos_cli_runner import run_ethos
 from tests.support.runtime_scenarios import REPOSITORY_ROOT
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import runtime_build
@@ -52,6 +56,54 @@ def _write(path: Path, payload: bytes = b"payload") -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(payload)
     return path
+
+
+def test_missing_external_selection_reuses_only_the_valid_invoking_runtime(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An absent external CURRENT target must not strand a compatible installed caller."""
+    repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
+    common = Path(git_common_dir(repo))
+    available = tmp_path / "available"
+    shutil.copytree(common / "ethos", available)
+    current = require_selected_runtime(available / "runtime" / runtime.parent.name)
+    stale = tmp_path / "retired/runtime" / runtime.parent.name
+    selector = common / "ethos/runtime/CURRENT"
+    selector.write_bytes(runtime_selection_bytes(common, stale))
+    before = selector.read_bytes()
+    invoking_source = Path(materialization.__file__).resolve().parents[6]
+    invoking = Mock(side_effect=lambda source: current if source == invoking_source else None)
+    monkeypatch.setattr(materialization, "selected_runtime_source", invoking, raising=False)
+    validated = Mock(wraps=materialization.require_selected_runtime)
+    monkeypatch.setattr(materialization, "require_selected_runtime", validated)
+
+    recovered = materialization.materialize_runtime(
+        repo, Path(sys.executable), expected_build=current.build
+    )
+    assert recovered == current.root / "python"
+    assert selector.read_bytes() == before
+    invoking.assert_called_once_with(invoking_source)
+    assert validated.call_count == 1
+    requested = tmp_path / "requested-source"
+    requested.mkdir()
+    shutil.copy2(REPOSITORY_ROOT / "uv.lock", requested / "uv.lock")
+    assert (
+        materialization.materialize_runtime(
+            repo, Path(sys.executable), expected_build=current.build, build_source=requested
+        )
+        == current.root / "python"
+    )
+    assert invoking.call_count == 2
+    assert invoking.call_args.args == (invoking_source,)
+    with pytest.raises(ValueError, match="hook_runtime_installed_supply_unavailable"):
+        materialization.materialize_runtime(
+            repo, Path(sys.executable), expected_build=runtime_build("a" * 40, "b" * 40)
+        )
+
+    installed = run_ethos("hook", "install", "--root", str(repo), "--json", cwd=repo)
+    assert installed["verdict"] == "pass"
+    assert installed["data"]["runtime_digest"] == current.digest
+    assert selected_runtime_path(common) == current.root
 
 
 def _generation_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -376,13 +428,20 @@ def test_runtime_reuse_requires_current_supply_and_entry(tmp_path, monkeypatch, 
     elif fault == "wheel":
         next((selected.root.parent.parent / "packages").rglob("*.whl")).unlink()
     invalid = fault in {"lock", "absent", "wheel"} or (fault != "valid" and os.name != "nt")
-    expectation = nullcontext()
-    if invalid:
-        expectation = (
-            pytest.raises(ValueError, match="hook_runtime_installed_supply_unavailable")
-            if external
-            else pytest.raises(AssertionError, match="rebuild required")
+    reason = (
+        (
+            "hook_runtime_installed_supply_unavailable"
+            if fault == "absent"
+            else "hook_runtime_installed_supply_invalid"
         )
+        if external
+        else "rebuild required"
+    )
+    expectation = (
+        pytest.raises(ValueError if external else AssertionError, match=reason)
+        if invalid
+        else nullcontext()
+    )
     with monkeypatch.context() as probe:
         probe.setattr(
             materialization,

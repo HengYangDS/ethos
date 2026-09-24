@@ -130,7 +130,7 @@ def resolve_locked_environment_python(project: Path) -> Path:
 
 def is_selected_runtime_source(source: Path) -> bool:
     """Return whether the invoking package belongs to an immutable selected runtime."""
-    return _selected_runtime_source(source) is not None
+    return selected_runtime_source(source) is not None
 
 
 def run_runtime_tool(
@@ -176,7 +176,7 @@ def run_runtime_tool(
 
 
 def _managed_runtime_wheel(source: Path) -> Path | None:
-    selected = _selected_runtime_source(source)
+    selected = selected_runtime_source(source)
     if selected is None:
         return None
     runtime = selected.root
@@ -193,7 +193,8 @@ def _managed_runtime_wheel(source: Path) -> Path | None:
     return wheels[0]
 
 
-def _selected_runtime_source(source: Path) -> SelectedRuntime | None:
+def selected_runtime_source(source: Path) -> SelectedRuntime | None:
+    """Return only the validated immutable runtime carrying the invoking package."""
     prefix = Path(sys.prefix)
     runtime = prefix.parent
     try:

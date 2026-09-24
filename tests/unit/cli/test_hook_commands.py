@@ -43,6 +43,8 @@ def test_commit_range_grammar_requires_named_coordinates() -> None:
     [
         OSError("readonly"),
         ValueError("invalid runtime"),
+        ValueError("hook_runtime_installed_supply_unavailable:/missing/runtime/old"),
+        ValueError("hook_runtime_installed_supply_invalid:/missing/runtime/old"),
         ValueError("state_schema_migration_requires_reset"),
         ValueError("state_reset_authorization_required"),
         ProcessExecutionError(
@@ -70,7 +72,12 @@ def test_install_failure_preserves_diagnostics_and_executable_recovery(
     assert (result.verdict, result.state, result.summary["wired"]) == ("block", "blocked", False)
     assert result.required_gaps == ((str(failure) if state else f"hook_install_failed:{failure}"),)
     reset = " --reset-state --authorize" if state else ""
-    assert result.next_action == f"ethos hook install --root {tmp_path}{reset} --json"
+    if "hook_runtime_installed_supply_" in str(failure):
+        assert "/missing/runtime/old" not in result.next_action
+        assert "--runtime" in result.next_action
+        assert result.user_decision_required is True
+    else:
+        assert result.next_action == f"ethos hook install --root {tmp_path}{reset} --json"
     if state:
         assert result.data["state_schema"] == {
             "expected_state": "current",

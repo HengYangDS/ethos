@@ -71,11 +71,7 @@ def package_runtime(
         with archive_path.open("rb") as stream:
             digest = hashlib.file_digest(stream, "sha256").hexdigest()
         cask = None if selected.platform == "windows" else homebrew_cask(selected, url, digest)
-        archive_path.replace(destination)
-        if cask is not None:
-            cask_path = destination.parent / "homebrew" / "Casks" / "ethos.rb"
-            cask_path.parent.mkdir(parents=True, exist_ok=True)
-            cask_path.write_text(cask)
+        cask_path = _publish_outputs(archive_path, destination, cask, Path(work))
     return {
         "path": str(destination),
         "homebrew_cask": str(cask_path) if cask_path is not None else None,
@@ -87,6 +83,33 @@ def package_runtime(
         "architecture": selected.architecture,
         **selected.build.projection(),
     }
+
+
+def _publish_outputs(archive: Path, destination: Path, cask: str | None, work: Path) -> Path | None:
+    """Replace the archive only after its companion Cask is staged and recoverable."""
+    if cask is None:
+        archive.replace(destination)
+        return None
+    cask_path = destination.parent / "homebrew" / "Casks" / "ethos.rb"
+    if any(path.is_symlink() for path in (cask_path.parent.parent, cask_path.parent, cask_path)):
+        message = "distribution_cask_destination_invalid"
+        raise ValueError(message)
+    staged = work / "ethos.rb"
+    staged.write_text(cask, encoding="utf-8")
+    cask_path.parent.mkdir(parents=True, exist_ok=True)
+    previous = work / "previous-ethos.rb"
+    if cask_path.exists():
+        shutil.copy2(cask_path, previous)
+    staged.replace(cask_path)
+    try:
+        archive.replace(destination)
+    except OSError:
+        if previous.exists():
+            previous.replace(cask_path)
+        else:
+            cask_path.unlink(missing_ok=True)
+        raise
+    return cask_path
 
 
 def _disk_image(payload: Path, destination: Path) -> None:

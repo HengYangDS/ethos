@@ -285,6 +285,55 @@ def test_host_console_obeys_repository_selection(tmp_path, monkeypatch, mode):
     assert calls == expected
 
 
+@pytest.mark.parametrize("failure", ["write", "replace", "archive"])
+def test_distribution_preserves_previous_outputs_when_cask_projection_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    """A failed Cask projection cannot expose a new archive as an old release."""
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = require_selected_runtime(python.parent)
+    wheel = Path(git_common_dir(repo)) / "ethos/packages" / selected.wheel_sha256 / "ethos-test.whl"
+    destination = tmp_path / "ethos.tar.gz"
+    destination.write_bytes(b"prior archive")
+    cask = destination.parent / "homebrew/Casks/ethos.rb"
+    cask.parent.mkdir(parents=True)
+    cask.write_bytes(b"prior Cask")
+    write_text = Path.write_text
+
+    def reject_cask(
+        self: Path,
+        content: str,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
+    ) -> int:
+        if self.name == "ethos.rb":
+            message = "Cask projection unavailable"
+            raise OSError(message)
+        return write_text(self, content, encoding=encoding, errors=errors, newline=newline)
+
+    replace = Path.replace
+
+    def reject_replace(self: Path, target: Path) -> Path:
+        if failure == "replace" and target == cask:
+            message = "Cask replacement unavailable"
+            raise OSError(message)
+        if failure == "archive" and target == destination:
+            message = "archive replacement unavailable"
+            raise OSError(message)
+        return replace(self, target)
+
+    if failure == "write":
+        monkeypatch.setattr(Path, "write_text", reject_cask)
+    else:
+        monkeypatch.setattr(Path, "replace", reject_replace)
+    with pytest.raises(OSError, match=r"(Cask|archive) .* unavailable"):
+        distribution.package_runtime(selected.root, wheel, destination)
+    assert destination.read_bytes() == b"prior archive"
+    assert cask.read_bytes() == b"prior Cask"
+    assert not list(tmp_path.glob(".ethos-distribution-*"))
+
+
 @pytest.mark.parametrize("producer", ["archive", "wheel", "diskutil", "hdiutil", "failed"])
 def test_distribution_retains_exact_input_and_previous_output(tmp_path, monkeypatch, producer):
     """One source-bound workload covers archive and native-envelope success and refusal."""

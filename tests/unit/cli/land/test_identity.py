@@ -105,6 +105,7 @@ def test_identity_transition_is_explicit_and_target_scoped(
         "feat: transition the repository identity",
     )
     seed_executed_proof(work, head)
+    # Keep one control replay per distinct normal, mirror, tag, or interrupted stage.
     candidate_args = ("--expect-head", head, "--candidate-head", old)
     candidate = _exercise_transition(
         work,
@@ -114,6 +115,9 @@ def test_identity_transition_is_explicit_and_target_scoped(
         "candidate_update",
         interrupt=interrupt == "candidate",
         checkout=fixture.candidate,
+        verify_controls=bool(tag)
+        or interrupt == "candidate"
+        or (mode == "accepted_ff" and not interrupt),
     )
     assert git(repo, "rev-parse", "HEAD") == old
     assert tomllib.loads(profile.read_text())["profile_id"] == "renamed-product"
@@ -134,6 +138,7 @@ def test_identity_transition_is_explicit_and_target_scoped(
         head,
         "accepted_update",
         interrupt=interrupt == "accepted",
+        verify_controls=bool(tag) or mode == "accepted_ff" or interrupt == "accepted",
     )
     assert accepted["id"] != candidate["id"]
     assert git(repo, "rev-parse", "HEAD") == head
@@ -150,6 +155,7 @@ def test_identity_transition_is_explicit_and_target_scoped(
             head,
             interrupt=interrupt == "release",
             checkout=release_checkout,
+            verify_controls=bool(tag) or interrupt == "release",
         )
         assert released["id"] != accepted["id"]
         if tag:
@@ -186,15 +192,17 @@ def _exercise_transition(
     *,
     interrupt: bool = False,
     checkout: Path | None = None,
+    verify_controls: bool,
 ) -> dict[str, Any]:
-    """Exercise the same refusal, preview, effect and replay contract at each public stage."""
+    """Exercise each effect while selecting distinct control checks in the matrix."""
     args = ("land", *arguments, "--json")
-    ordinary = run_ethos_blocked(*args, "--apply", "--authorize", cwd=root)
-    detail = ordinary["data"].get(key, ordinary["data"])
-    if key == "accepted_update":
-        assert detail["stderr"] == "git_effect_repository_identity_mismatch"
-    else:
-        assert ordinary["required_gaps"] == ["git_effect_repository_identity_mismatch"]
+    if verify_controls:
+        ordinary = run_ethos_blocked(*args, "--apply", "--authorize", cwd=root)
+        detail = ordinary["data"].get(key, ordinary["data"])
+        if key == "accepted_update":
+            assert detail["stderr"] == "git_effect_repository_identity_mismatch"
+        else:
+            assert ordinary["required_gaps"] == ["git_effect_repository_identity_mismatch"]
     preview = run_ethos(*args, "--identity-transition", cwd=root)
     assert preview["verdict"] == "pass", preview["required_gaps"]
     assert "--identity-transition" in preview["next_action"]
@@ -219,11 +227,12 @@ def _exercise_transition(
     if interrupt:
         assert statement["id"] == original_id
     _assert_identity_statement(root, statement, before, head)
-    repeated = run_ethos(*effect_args, cwd=root)
-    assert repeated["data"].get(key, repeated["data"])["attestation"]["id"] == statement["id"]
-    wrong = list(effect_args)
-    wrong[wrong.index("--expect-head") + 1] = "0" * len(head)
-    assert run_ethos_blocked(*wrong, cwd=root)["verdict"] == "block"
+    if verify_controls:
+        repeated = run_ethos(*effect_args, cwd=root)
+        assert repeated["data"].get(key, repeated["data"])["attestation"]["id"] == statement["id"]
+        wrong = list(effect_args)
+        wrong[wrong.index("--expect-head") + 1] = "0" * len(head)
+        assert run_ethos_blocked(*wrong, cwd=root)["verdict"] == "block"
     assert {ref: git(root, "rev-parse", ref) for ref in before} == dict.fromkeys(before, head)
     return statement
 

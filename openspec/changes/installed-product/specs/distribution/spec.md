@@ -52,6 +52,16 @@ SHALL prevent deletion without erasing successful activation evidence.
 - **THEN** the consumer's selected bytes remain available
 - **AND** cleanup reports the exact remaining dependency
 
+#### Scenario: An external selected runtime has disappeared
+
+- **WHEN** a repository's `CURRENT` names an absent external runtime
+- **AND** the invoking installed package is valid for that repository's exact build and lock
+- **THEN** installation reuses that package and replaces the stale selection by exact CAS
+- **AND** an existing but invalid external target never silently falls back
+- **AND** an invalid target is distinguished from an absent target
+- **AND** no compatible invoking runtime produces an explicit supply requirement, not
+  a command that repeats the missing path
+
 ### Requirement: Installing released supply is not publishing a release
 
 Repository runtime selection SHALL validate the exact supplied package without

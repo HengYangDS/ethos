@@ -278,7 +278,7 @@ def _prove_external_supply_recovery(
         code
         or recovered.get("verdict") != "pass"
         or not isinstance(data, dict)
-        or data.get("runtime_manifest_path") != str(runtime / "manifest.json")
+        or Path(str(data.get("runtime_manifest_path") or "")) != runtime / "manifest.json"
         or selector.read_bytes() != original
         or any(path.is_dir() for path in selector.parent.iterdir())
     ):

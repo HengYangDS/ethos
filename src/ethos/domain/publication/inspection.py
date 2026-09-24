@@ -492,7 +492,7 @@ def publication_readiness_result(
     publish_decision = admission_decision(
         subject=MutationSubject(
             action="remote.publish",
-            resource=str(publish_expected_state["target_ref"]),
+            resource=target_ref or "refs/<kind>/<name>",
             expected_state=publish_expected_state,
         ),
         verdict=publication_verdict,

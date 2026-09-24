@@ -86,6 +86,13 @@ def publication_ref_role(
     return "unknown", ROLE_OTHER, False
 
 
+def publication_target_ref_for_source(policy: BranchRolePolicy, branch: str) -> str:
+    """Project a local source branch onto an admitted remote branch role."""
+    target = policy.proposal_branch_for_source(branch) or branch
+    ref = f"refs/heads/{target}"
+    return ref if publication_ref_role(policy, ref, ())[2] else ""
+
+
 def publication_topology(root: Path, config: Mapping[str, Any]) -> dict[str, object]:
     """Compile and validate the repository's sole publication declaration."""
     raw = config.get("publication")

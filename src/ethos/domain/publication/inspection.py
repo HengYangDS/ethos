@@ -30,6 +30,7 @@ from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
 from ethos.repository.release.configuration import release_config
 from ethos.repository.release.publication import publication_ref_admission
+from ethos.repository.release.publication import publication_target_ref_for_source
 from ethos.repository.release.publication import publication_topology
 from ethos.repository.release.publication import topology_remotes
 from ethos.result import EthosResult
@@ -182,8 +183,11 @@ def publication_readiness(
         else "deferred"
     )
     evidence = fallback.get("evidence_status")
+    target_ref = publication_target_ref_for_source(policy, branch)
     probe_action = (
-        f"ethos publish --ref refs/heads/{branch} --probe-remote --expect-head {head} --json"
+        f"ethos publish --ref {target_ref} --probe-remote --expect-head {head} --json"
+        if target_ref
+        else "select an admitted publication target ref"
     )
     action = (
         probe_action
@@ -260,7 +264,7 @@ def _publish_expected_state(
     remote_observations: Mapping[str, object],
     ref_admissions: Mapping[str, object],
 ) -> dict[str, object]:
-    """Bind no-push observations without inventing a proposal target."""
+    """Bind no-push observations to the policy-derived destination."""
     observations = {key: _object(value) for key, value in remote_observations.items()}
     targets = [
         {
@@ -279,7 +283,7 @@ def _publish_expected_state(
         "root": context.root.resolve().as_posix(),
         "source_ref": f"refs/heads/{context.branch}",
         "source_head": context.head,
-        "target_ref": f"refs/heads/{context.branch}",
+        "target_ref": publication_target_ref_for_source(context.role_policy, context.branch),
         "remote_targets": targets,
         "ref_admissions": dict(ref_admissions),
     }
@@ -415,6 +419,7 @@ def publication_readiness_result(
     release_tags, local_verdict, gaps = context.release_tags, context.verdict, context.required_gaps
     audit, independent_verification = context.audit, context.independent_verification
     governance = context.governance
+    target_ref = publication_target_ref_for_source(policy, branch)
     local_verification_command = str(
         _object(remote_topology.get("local")).get("verification_command") or ""
     )
@@ -422,7 +427,7 @@ def publication_readiness_result(
         peer_id: publication_ref_admission(
             remote_topology,
             policy=policy,
-            target_ref=f"refs/heads/{branch}",
+            target_ref=target_ref,
             release_tags=release_tags,
             remote_name=remote,
         )
@@ -430,7 +435,7 @@ def publication_readiness_result(
     }
     remote_observations = _remote_observations(
         repo=repo,
-        branch=str(branch),
+        branch=target_ref.removeprefix("refs/heads/") if target_ref else branch,
         remotes=configured_remotes,
         probe_remote=probe_remote,
     )

@@ -392,8 +392,10 @@ require authorized intent alignment rather than outcome-driven relaxation.
 
 Locally ready publication with an unprobed configured peer SHALL select exact
 remote observation before suggesting repeated local verification. The command
-SHALL bind the current source ref and HEAD. Cached tracking, local proof and
-remote effects SHALL remain distinct evidence; observation grants no authority.
+SHALL bind the current source HEAD and a policy-admitted destination ref: a
+Work Lane maps to its proposal branch, while accepted and release branches
+retain their roles. Cached tracking, local proof and remote effects SHALL
+remain distinct evidence; observation grants no authority.
 
 #### Scenario: A configured peer has not been probed
 
@@ -401,6 +403,13 @@ remote effects SHALL remain distinct evidence; observation grants no authority.
 - **THEN** continuation selects the public exact-ref remote observation command
 - **AND** cached synchronized tracking cannot replace that observation
 - **AND** no local verification or remote publication effect is repeated
+
+#### Scenario: Work Lane continuation uses a publishable destination
+
+- **WHEN** a proved Work Lane is locally ready but its peer has not been probed
+- **THEN** continuation names the policy-derived proposal ref, not its local Work Lane ref
+- **AND** remote tracking and admission refer to that same proposal destination
+- **AND** an ineligible source role cannot produce an impossible publish command
 
 #### Scenario: No remote observation is available
 

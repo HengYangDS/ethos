@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,12 +20,11 @@ from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.dirty.change_provenance import dirty_provenance
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout_checked
-from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
-from ethos.adapters.repo.merge.observation import pending_merge_heads
 from ethos.adapters.repo.runtime.binding import runtime_binding
 from ethos.adapters.repo.status.bindings import branch_bindings
 from ethos.adapters.repo.status.bindings import closeout_support
+from ethos.adapters.repo.status.bindings import landing_readiness
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.bindings import ref_relation
 from ethos.adapters.repo.status.bindings import unbound_work_lane_refs
@@ -65,56 +63,6 @@ class _StatusPayload:
     selected_runtime: SelectedRuntime | None
     hook_binding: HookRuntimeBinding | None
     authority: dict[str, object]
-
-
-def landing_readiness(
-    root: Path, *, branch: str, role: str, candidate: dict[str, object]
-) -> dict[str, object]:
-    """Expose candidate-base readiness without replacing land-time CAS."""
-    head, candidate_branch = _safe_ref(root, "HEAD"), str(candidate.get("branch") or "")
-    candidate_head = str(candidate.get("head") or "")
-    if role != ROLE_WORK_LANE:
-        result = "not_work_lane", [], "start or enter a Work Lane before landing"
-    elif not candidate.get("exists"):
-        result = (
-            "blocked",
-            ["candidate_branch_missing"],
-            "create or repair the configured candidate branch",
-        )
-    elif not candidate.get("worktree_exists"):
-        result = (
-            "blocked",
-            ["candidate_worktree_missing"],
-            "create or repair the configured candidate worktree",
-        )
-    elif pending_merge_heads(root):
-        result = (
-            "blocked",
-            ["merge_in_progress"],
-            (
-                "ethos lane refresh-base --strategy merge "
-                f"--root {shlex.quote(str(root.resolve()))} --json"
-            ),
-        )
-    elif head and candidate_head and not is_ancestor(root, candidate_head, head):
-        result = (
-            "candidate_base_stale",
-            ["candidate_base_stale"],
-            f"ethos lane refresh-base --apply --authorize --expect-head {head or '<head>'} --json",
-        )
-    else:
-        result = "candidate_base_current", [], "ethos land --json"
-    state, gaps, action = result
-    return {
-        "kind": "landing_readiness",
-        "state": state,
-        "branch": branch,
-        "head": head,
-        "candidate_branch": candidate_branch,
-        "candidate_head": candidate_head,
-        "required_gaps": gaps,
-        "next_action": action,
-    }
 
 
 def _safe_ref(root: Path, ref: str) -> str:
@@ -188,8 +136,9 @@ def workspace_status_observation(
     )
     authority_projection = authority.projection()
     bindings = branch_bindings(repo, worktrees, candidate, policy=policy, lease_by_branch=leases)
+    scope_base = policy.candidate_branch if candidate["exists"] else policy.accepted_branch
     scope = (
-        branch_path_scope(repo, branch=branch, candidate_branch=policy.candidate_branch)
+        branch_path_scope(repo, branch=branch, baseline_branch=scope_base)
         if include_foreign_path_scope
         else ((), "deferred")
     )
@@ -197,6 +146,7 @@ def workspace_status_observation(
         worktrees,
         current=(repo, role, *scope),
         policy=policy,
+        baseline_branch=scope_base,
         leases=leases,
         include_path_scope=include_foreign_path_scope,
     )
@@ -212,7 +162,10 @@ def workspace_status_observation(
         lease_by_branch=leases,
         coordination_required_gaps=required,
     )
-    landing = landing_readiness(repo, branch=branch, role=role, candidate=candidate)
+    accepted = next((item for item in bindings if item["branch"] == policy.accepted_branch), {})
+    landing = landing_readiness(
+        repo, head=head, branch=branch, role=role, candidate=candidate, accepted=accepted
+    )
     workspace_gaps = [
         *cast("list[str]", authority_projection["required_gaps"]),
         *required,
@@ -224,7 +177,7 @@ def workspace_status_observation(
         if not candidate["worktree_exists"]
         else ""
     )
-    if missing_candidate:
+    if missing_candidate and landing["state"] != "accepted_integrated":
         workspace_gaps.append(missing_candidate)
     workspace_gaps.extend(
         gap for gap in cast("list[str]", landing["required_gaps"]) if gap not in workspace_gaps
@@ -284,6 +237,7 @@ def _status_payload(payload: _StatusPayload) -> dict[str, object]:
             "stage_gates": _stage_gates(
                 branch=payload.branch,
                 role=payload.role,
+                accepted_branch=payload.policy.accepted_branch,
                 authority=payload.authority,
                 closeout_support=payload.support,
                 landing_readiness=payload.landing,
@@ -298,6 +252,7 @@ def _stage_gates(
     *,
     branch: str,
     role: str,
+    accepted_branch: str,
     authority: Mapping[str, object],
     closeout_support: Mapping[str, object],
     landing_readiness: Mapping[str, object],
@@ -306,17 +261,28 @@ def _stage_gates(
     authoring = is_work_lane and authority.get("verdict") == "pass"
     landing_gaps = tuple(map(str, cast("list[object]", landing_readiness.get("required_gaps", []))))
     stale = bool(landing_gaps)
-    integration = bool(closeout_support.get("supported")) and not stale
-    next_action = (
-        str(landing_readiness.get("next_action") or "ethos lane refresh-base --json")
-        if stale
-        else "ethos land --json"
-        if integration
-        else "ethos lane prewrite <path>"
-        if authoring
-        else ""
-    )
-    if not authoring:
+    state = str(landing_readiness.get("state") or "")
+    integrated = state in {"candidate_integrated", "accepted_integrated"}
+    support_gaps = tuple(map(str, cast("list[object]", closeout_support.get("required_gaps", []))))
+    dirty = "work_lane_dirty" in support_gaps
+    integration = bool(closeout_support.get("supported")) and not stale and not integrated
+    if stale:
+        next_action = str(landing_readiness.get("next_action") or "ethos lane refresh-base --json")
+    elif integrated and dirty:
+        next_action = "ethos lane prewrite <path>" if authoring else ""
+    elif integrated:
+        next_action = str(landing_readiness.get("next_action") or "ethos lane status --json")
+    elif integration:
+        next_action = "ethos land --json"
+    else:
+        next_action = "ethos lane prewrite <path>" if authoring else ""
+    if integrated and dirty:
+        blocked, owner = "authoring", branch
+    elif state == "accepted_integrated":
+        blocked, owner = "", ""
+    elif state == "candidate_integrated":
+        blocked, owner = "accepted_closeout", accepted_branch
+    elif not authoring:
         blocked, owner = "authoring", branch if is_work_lane else ""
     elif not integration:
         blocked, owner = (
@@ -451,6 +417,7 @@ def _foreign_work_lanes(
     *,
     current: tuple[Path, str, tuple[str, ...], str],
     policy: BranchRolePolicy,
+    baseline_branch: str,
     leases: dict[str, dict[str, object]],
     include_path_scope: bool,
 ) -> list[dict[str, object]]:
@@ -475,7 +442,7 @@ def _foreign_work_lanes(
                     current_role=current_role,
                     current_path_scope=current_path_scope,
                     current_scope_state=current_scope_state,
-                    candidate_branch=policy.candidate_branch,
+                    baseline_branch=baseline_branch,
                     root=root,
                     lease=lease,
                     relation_to_accepted=ref_relation(root, branch, policy.accepted_branch),

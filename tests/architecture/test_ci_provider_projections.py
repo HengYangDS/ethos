@@ -72,6 +72,10 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     assert check_templates(json_output=False) == owner.check_workflow() == 0
     jobs = {name: github["jobs"][name] for name in ("quality", "verify", "package")}
     assert jobs["quality"]["runs-on"] == "macos-latest"
+    assert {
+        github["jobs"][name]["steps"][0]["with"].get("ref")
+        for name in ("quality", "host-conformance", "supply-image", "external-links")
+    } == {"${{ github.event.pull_request.head.sha || github.sha }}"}
     steps = [step for job in jobs.values() for step in job["steps"]]
     assert all("self-hosted" not in str(job.get("runs-on", "")) for job in github["jobs"].values())
     assert not any(
@@ -222,8 +226,8 @@ def test_hosted_runtime_versions_are_checked_projections_of_native_owners(github
 
 
 def test_host_conformance_receives_native_python_supply_before_activation(github, gitlab) -> None:
-    github_job = github["jobs"]["host-conformance"]
-    github_steps = github_job["steps"]
+    job = github["jobs"]["host-conformance"]
+    github_steps = job["steps"]
     setup_uv = next(
         step for step in github_steps if str(step.get("uses", "")).startswith("astral-sh/setup-uv@")
     )
@@ -232,9 +236,7 @@ def test_host_conformance_receives_native_python_supply_before_activation(github
     assert all(
         not str(step.get("uses", "")).startswith("actions/setup-python@") for step in github_steps
     )
-    assert github_job["env"]["UV_PYTHON_INSTALL_DIR"] == (
-        "${{ github.workspace }}/build/runtime/python"
-    )
+    assert job["env"]["UV_PYTHON_INSTALL_DIR"] == "${{ github.workspace }}/build/runtime/python"
     assert setup_uv["with"]["python-version"] == "${{ matrix.python }}"
     preparation = [
         "uv python install --no-bin ${{ matrix.python }}",

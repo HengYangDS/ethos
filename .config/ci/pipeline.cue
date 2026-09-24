@@ -18,12 +18,16 @@ _inputs: {
 _gateIDs: [for gate in _inputs.gate_registry.gates {gate.id}]
 let githubView = github
 let gitlabView = gitlab
+let githubSourceSHA = "${{ github.event.pull_request.head.sha || github.sha }}"
 let sourceCLI = "uv run --frozen --offline python -B -I -m ethos.cli"
 let externalLinkCommand = "tools/ci/scripts/with-python-runtime.sh -- \(sourceCLI) prove --host --execute --gate external-links --expect-head \"$(git rev-parse HEAD)\" --json"
 let gitlabImage = "ghcr.io/hengyangds/ethos-ci-supply@sha256:72e2434cbc0ac30cce6c312618c51beb290a214f4e60b0af51af95a79c0dce0f"
 let githubPythonBootstrap = [{
 	uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-	with: "fetch-depth": 0
+	with: {
+		"fetch-depth": 0
+		ref:           githubSourceSHA
+	}
 }, {
 	uses: "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
 	with: "python-version": "3.14"
@@ -80,7 +84,10 @@ github: {
 			}
 			steps: [{
 				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-				with: "fetch-depth": 0
+				with: {
+					"fetch-depth": 0
+					ref:           githubSourceSHA
+				}
 			}, {
 				name: "Build and publish immutable supply"
 				env: GHCR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
@@ -131,7 +138,10 @@ github: {
 			}
 			steps: [{
 				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-				with: "fetch-depth": 0
+				with: {
+					"fetch-depth": 0
+					ref:           githubSourceSHA
+				}
 			}, {
 				uses: "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020"
 				with: {

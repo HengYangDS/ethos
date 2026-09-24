@@ -183,12 +183,10 @@ def publication_readiness(
         else "deferred"
     )
     evidence = fallback.get("evidence_status")
-    target_ref = publication_target_ref_for_source(policy, branch)
-    probe_action = (
-        f"ethos publish --ref {target_ref} --probe-remote --expect-head {head} --json"
-        if target_ref
-        else "select an admitted publication target ref"
-    )
+    ref = publication_target_ref_for_source(policy, branch)
+    probe_action = "select an admitted publication target ref"
+    if ref:
+        probe_action = f"ethos publish --ref {ref} --probe-remote --expect-head {head} --json"
     action = (
         probe_action
         if any(

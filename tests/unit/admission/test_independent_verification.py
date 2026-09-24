@@ -8,7 +8,7 @@ import subprocess
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -26,11 +26,9 @@ from ethos.repository.profile import IndependentVerificationPolicy
 from tests.support.governed_repository import write_test_profile
 from tests.support.literal_cases import literal_case
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
-
 REQUEST = literal_case("admission.test_independent_verification:assign:REQUEST:derived")
+REQUIRED_PUBLISH_POLICY = {"actions": {"publish": {"mode": "required"}}}
+CONFIG_UNTRUSTED = "independent_verification_provider_config_untrusted"
 
 
 def _receipt(**updates: object) -> IndependentVerificationReceipt:
@@ -139,9 +137,7 @@ def test_profile_policy_is_valid_action_scoped_and_default_disabled(
         )
 
     assert observe()["verdict"] == "pass"
-    write_test_profile(
-        tmp_path, independent_verification={"actions": {"publish": {"mode": "required"}}}
-    )
+    write_test_profile(tmp_path, independent_verification=REQUIRED_PUBLISH_POLICY)
     assert observe()["required_gaps"] == ["independent_verification_receipt_required"]
     assert observe("land")["verdict"] == "pass"
     profile = tmp_path / ".ethos/profile.toml"
@@ -207,16 +203,11 @@ def test_provider_configuration_is_protected_outside_agent_identity(
 ) -> None:
     provider = _provider(tmp_path)
     config = _write_provider_config(tmp_path, provider)
-    owner = config.stat().st_uid
-    monkeypatch.setattr(external.os, "geteuid", lambda: owner)
-    assert load_independent_verification_provider(config) == (
-        None,
-        ["independent_verification_provider_config_untrusted"],
-    )
-    monkeypatch.setattr(external.os, "geteuid", lambda: owner + 1)
+    monkeypatch.setattr(external.os, "geteuid", lambda: config.stat().st_uid)
+    assert load_independent_verification_provider(config) == (None, [CONFIG_UNTRUSTED])
+    monkeypatch.setattr(external, "_is_protected_from_current_identity", lambda _path: True)
     loaded, gaps = load_independent_verification_provider(config)
-    assert gaps == []
-    assert loaded == provider
+    assert (loaded, gaps) == (provider, [])
     absent = external.configured_verification_report(
         root=tmp_path,
         policy=IndependentVerificationPolicy(mode="required"),
@@ -228,10 +219,25 @@ def test_provider_configuration_is_protected_outside_agent_identity(
     assert str(provider.receipt_store) in absent["next_action"]
     assert absent["provider"]["issuer"] == provider.issuer
     with patch.object(type(config), "read_text", side_effect=PermissionError):
-        assert load_independent_verification_provider(config) == (
-            None,
-            ["independent_verification_provider_config_unreadable"],
-        )
+        unreadable_gap = "independent_verification_provider_config_unreadable"
+        assert load_independent_verification_provider(config) == (None, [unreadable_gap])
+
+
+@pytest.mark.skipif(external.os.name != "posix", reason="POSIX host path semantics")
+def test_provider_rejects_replaceable_symlink_components(tmp_path: Path) -> None:
+    """A protected target does not protect a user-owned alias or ancestor."""
+    trusted = Path("/etc/hosts")
+    if not trusted.is_file() or external.os.geteuid() == 0:
+        pytest.skip("requires an unprivileged system-host path")
+    assert load_independent_verification_provider(trusted)[1][0].endswith("_invalid")
+    with patch.object(external.os, "access", return_value=True):
+        assert load_independent_verification_provider(trusted)[1] == [CONFIG_UNTRUSTED]
+    alias = tmp_path / "provider.toml"
+    alias.symlink_to(trusted)
+    ancestor = tmp_path / "system"
+    ancestor.symlink_to(trusted.parent, target_is_directory=True)
+    for path in (alias, ancestor / trusted.name):
+        assert load_independent_verification_provider(path)[1] == [CONFIG_UNTRUSTED]
 
 
 @pytest.mark.parametrize(
@@ -246,7 +252,7 @@ def test_provider_configuration_invalid_inputs_fail_closed(
     path = tmp_path / "provider.toml"
     if content is not None:
         path.write_text(content, encoding="utf-8")
-        monkeypatch.setattr(external.os, "geteuid", lambda: path.stat().st_uid + 1)
+        monkeypatch.setattr(external, "_is_protected_from_current_identity", lambda _path: True)
     assert load_independent_verification_provider(path) == (None, [gap])
 
 
@@ -259,10 +265,7 @@ def test_required_provider_rejects_receipt_outside_read_only_store(
         external, "load_independent_verification_provider", lambda _path: (provider, [])
     )
     monkeypatch.setenv("ETHOS_INDEPENDENT_VERIFICATION_RECEIPT", outside.as_posix())
-    write_test_profile(
-        tmp_path,
-        independent_verification={"actions": {"publish": {"mode": "required"}}},
-    )
+    write_test_profile(tmp_path, independent_verification=REQUIRED_PUBLISH_POLICY)
     report = independent_verification_admission_report(
         root=tmp_path,
         action="publish",
@@ -297,11 +300,8 @@ def test_provider_verifies_signature_from_protected_anchor(
     receipt = unsigned.model_copy(update={"signature": payload.with_suffix(".sig").read_text()})
     receipt_path = provider.receipt_store / "receipt.json"
     receipt_path.write_text(json.dumps(receipt.model_dump(mode="json")), encoding="utf-8")
-    write_test_profile(
-        tmp_path,
-        independent_verification={"actions": {"publish": {"mode": "required"}}},
-    )
-    monkeypatch.setattr(external.os, "geteuid", lambda: config.stat().st_uid + 1)
+    write_test_profile(tmp_path, independent_verification=REQUIRED_PUBLISH_POLICY)
+    monkeypatch.setattr(external, "_is_protected_from_current_identity", lambda _path: True)
     monkeypatch.setenv("ETHOS_INDEPENDENT_VERIFICATION_RECEIPT", receipt_path.as_posix())
     report = independent_verification_admission_report(
         root=tmp_path,

@@ -129,7 +129,7 @@ def load_independent_verification_provider(
         return None, ["independent_verification_provider_config_untrusted"]
     try:
         payload = tomllib.loads(config_path.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError) as exc:
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError) as exc:
         kind = "unreadable" if isinstance(exc, OSError) else "invalid"
         return None, [f"independent_verification_provider_config_{kind}"]
     store_table = payload.get("receipt_store")

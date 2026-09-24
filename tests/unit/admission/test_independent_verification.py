@@ -29,6 +29,7 @@ from tests.support.literal_cases import literal_case
 REQUEST = literal_case("admission.test_independent_verification:assign:REQUEST:derived")
 REQUIRED_PUBLISH_POLICY = {"actions": {"publish": {"mode": "required"}}}
 CONFIG_UNTRUSTED = "independent_verification_provider_config_untrusted"
+CONFIG_INVALID = "independent_verification_provider_config_invalid"
 
 
 def _receipt(**updates: object) -> IndependentVerificationReceipt:
@@ -225,11 +226,12 @@ def test_provider_configuration_is_protected_outside_agent_identity(
 
 @pytest.mark.skipif(external.os.name != "posix", reason="POSIX host path semantics")
 def test_provider_rejects_replaceable_symlink_components(tmp_path: Path) -> None:
-    """A protected target does not protect a user-owned alias or ancestor."""
+    """Protected system paths reach validation; user-owned aliases remain untrusted."""
     trusted = Path("/etc/hosts")
     if not trusted.is_file() or external.os.geteuid() == 0:
         pytest.skip("requires an unprivileged system-host path")
-    assert load_independent_verification_provider(trusted)[1][0].endswith("_invalid")
+    assert load_independent_verification_provider(trusted)[1] == [CONFIG_INVALID]
+    assert load_independent_verification_provider(Path("/bin/sh"))[1] == [CONFIG_INVALID]
     with patch.object(external.os, "access", return_value=True):
         assert load_independent_verification_provider(trusted)[1] == [CONFIG_UNTRUSTED]
     alias = tmp_path / "provider.toml"

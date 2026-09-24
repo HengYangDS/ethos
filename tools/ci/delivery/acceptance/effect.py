@@ -275,6 +275,7 @@ def observe_installed_package(smoke: Path, adopter: Path) -> tuple[str, str, dic
         status_json,
         cwd=adopter,
     )
+    cli_invocation.require_installed_guidance(status_json, origin)
     _run(
         str(python),
         "-c",

@@ -10,6 +10,7 @@ globs:
   - "docs/**/*.md"
   - "openspec/**/*.md"
   - "rules/**/*.md"
+  - "src/**/*.md"
   - "system/**/*.md"
 
 noInlineConfig: true

@@ -74,6 +74,7 @@ packages = ["src/ethos"]
 "uv.lock" = "ethos/data/runtime-project/uv.lock"
 "VERSION" = "ethos/data/runtime-project/VERSION"
 "system/schemas" = "ethos/data/schemas"
+"src/ethos/data/skills/ethos-repository-work/SKILL.md" = "ethos/data/skills/ethos-repository-work/SKILL.md"
 
 [tool.hatch.build.targets.wheel.hooks.custom]
 path = "tools/ci/openspec_runtime_hook.py"

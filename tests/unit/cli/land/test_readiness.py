@@ -92,35 +92,28 @@ def test_publish_peer_topology_matrix(tmp_path: Path, mode: str, *, probe_remote
     peer_count = {"local": 0, "single": 1}.get(mode, 2)
     if peer_count < 2:
         release = repo / ".ethos/release.toml"
-        release.write_text(
-            "[[publication.peers]]".join(
-                release.read_text().split("[[publication.peers]]")[: peer_count + 1]
-            )
-        )
+        sections = release.read_text().split("[[publication.peers]]")
+        release.write_text("[[publication.peers]]".join(sections[: peer_count + 1]))
         head = commit_fixture(repo, f"declare {mode} publication")
         seed_executed_proof(repo, head)
-    peers = (("gitlab", "origin"), ("github", "github"))[
-        : min(peer_count, 2 if mode == "dual" else 1)
-    ]
+    observed_peers = peer_count if mode == "dual" else min(peer_count, 1)
+    peers = (("gitlab", "origin"), ("github", "github"))[:observed_peers]
     for peer, remote in peers:
         target = tmp_path / f"{peer}.git"
         git(tmp_path, "init", "--bare", target.as_posix())
         git(repo, "remote", "add", remote, target.as_posix())
         git(repo, "push", "--set-upstream", remote, "dev")
-    payload = run_ethos(
-        "publish", *(("--probe-remote",) if probe_remote else ()), "--json", cwd=repo
-    )
+    args = ("--probe-remote",) if probe_remote else ()
+    payload = run_ethos("publish", *args, "--json", cwd=repo)
     if mode == "local":
         assert payload["verdict"] == "pass"
         return
     if not probe_remote:
-        assert payload["next_action"] == (
-            f"ethos publish --ref refs/heads/dev --probe-remote --expect-head {head} --json"
-        )
+        expected = f"ethos publish --ref refs/heads/dev --probe-remote --expect-head {head} --json"
+        assert payload["next_action"] == expected
     observations = payload["data"]["remote_observations"]
-    assert set(observations) == (
-        {"gitlab", "github"} if mode in {"dual", "tracking"} else {"gitlab"}
-    )
+    expected_peers = {"gitlab", "github"} if mode in {"dual", "tracking"} else {"gitlab"}
+    assert set(observations) == expected_peers
     assert payload["summary"]["remote_push"] == "not_performed"
     if mode == "dual":
         assert observations["github"]["availability"]["remote"] == "github"
@@ -135,20 +128,26 @@ def test_publish_peer_topology_matrix(tmp_path: Path, mode: str, *, probe_remote
         assert payload["data"]["mutation"]["decision"]["verdict"] == "unknown"
 
 
-def test_publication_readiness_uses_local_fallback_when_fallback_omits_evidence_status() -> None:
+def test_publication_readiness_selects_fallback_or_admitted_proposal_observation() -> None:
     policy = load_branch_role_policy(Path.cwd())
-    command = "dev/verify"
-    for evidence_status in ({}, None):
+    fallback = "run dev/verify as local fallback evidence"
+    unprobed = {"gitlab": {"availability": {"state": "not_probed"}}}
+    for branch, evidence_status, remotes, expected in (
+        ("dev", {}, {}, fallback),
+        ("dev", None, {}, fallback),
+        (policy.work_branch("topic"), None, unprobed, "refs/heads/proposal/topic"),
+        (policy.candidate_branch, None, unprobed, "select an admitted publication target ref"),
+    ):
         publication = publication_readiness(
-            branch="dev",
+            branch=branch,
             head="a" * 40,
             local_ok=True,
             policy=policy,
             local_ci_fallback={"evidence_status": evidence_status},
-            local_verification_command=command,
+            local_verification_command="dev/verify",
+            remote_observations=remotes,
         )
-
-        assert publication["next_action"] == f"run {command} as local fallback evidence"
+        assert expected in publication["next_action"]
 
 
 def test_publish_local_readiness_does_not_project_a_publication_plan(tmp_path: Path) -> None:
@@ -161,8 +160,7 @@ def test_publish_local_readiness_does_not_project_a_publication_plan(tmp_path: P
     publication = payload["data"]["publication"]
     assert publication["source_branch"] == "lane/topic"
     assert publication["source_role"] == "work_lane"
-    assert "proposal_branch" not in publication
-    assert "local_proposal_package" not in publication
+    assert not {"proposal_branch", "local_proposal_package"} & publication.keys()
     context = publication_domain.observe_publication(
         repo, apply=False, authorized=False, expect_head=None, target_refs=()
     )

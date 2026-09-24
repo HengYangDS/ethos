@@ -35,7 +35,8 @@ provider projections.
    command before treating it as the intended run. For CI or shell edits, check
    repository hygiene, native shell lint and compiled workflow syntax first;
    never replace a diagnostic with a lint suppression. Then run one exact-HEAD
-   `--full --execute` proof with the same controls, not the weaker default set.
+   `--full --execute` proof from the candidate's locked Python module, not the
+   `ethos` launcher that selects the accepted runtime; `--host` is not an Attestation.
 8. Close each reproduced failure through the existing owner, a distinguishing
    regression, replacement-path deletion and actual consumer verification.
    Apply the learning and interrupted-execution boundaries in
@@ -55,7 +56,7 @@ ethos prove --gate python-types --json
 ethos prove --gate docstrings --json
 # Without --execute this observes readiness; execution follows all dependencies.
 ethos prove --gate unit-architecture --json
-ethos prove --full --execute --expect-head "$(git rev-parse HEAD)" --json
+uv run --frozen --offline python -B -I -m ethos.cli prove --full --execute --expect-head "$(git rev-parse HEAD)" --json
 ```
 
 ## Trust Boundary

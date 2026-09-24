@@ -230,7 +230,8 @@ checkout and compare-delete its exact ref in a transaction verifying accepted.
 - **WHEN** unrelated processes close descriptors during selected content retirement
 - **THEN** the native observer scopes its search to the worktree and external Git index
 - **AND** cwd, file, mapping, writer, hardlink and index holders still block deletion
-- **AND** missing scope, incomplete output, permission failure or timeout remains unknown
+- **AND** an already absent reviewed worktree is not a deletion target; its surviving index remains observed
+- **AND** a present unsafe worktree, missing index, incomplete output, permission failure or timeout remains unknown
 - **AND** reviewed content is rechecked after the process observation
 
 #### Scenario: Exact Lease observation changed after planning

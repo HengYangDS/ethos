@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 from contextlib import contextmanager
@@ -216,22 +217,31 @@ def _file_identities(payload: bytes) -> frozenset[tuple[int, int]]:
 
 
 def process_file_identities(root: Path, *, tree: Path, index: Path) -> frozenset[tuple[int, int]]:
-    """Observe references to one selected worktree and its external Git index."""
+    """Observe surviving retirement targets, including the external Git index."""
     command: tuple[str, ...] = ()
     try:
         executable = shutil.which("lsof", path=os.defpath + os.pathsep + "/usr/sbin")
         if os.name != "posix" or executable is None:
             _file_observation_failure("native_file_observer_missing")
+        try:
+            tree_status = tree.lstat()
+        except FileNotFoundError:
+            tree_status = None
         if (
             not tree.is_absolute()
             or not index.is_absolute()
-            or tree.is_symlink()
             or index.is_symlink()
-            or not tree.is_dir()
+            or (tree_status is not None and not stat.S_ISDIR(tree_status.st_mode))
             or not index.is_file()
         ):
             _file_observation_failure("file_observation_scope_unavailable")
-        command = (str(executable), "-nP", "-F0pftDin", "+D", str(tree), str(index))
+        command = (
+            str(executable),
+            "-nP",
+            "-F0pftDin",
+            *(("+D", str(tree)) if tree_status is not None else ()),
+            str(index),
+        )
         result = run_command(root, command, text=False, timeout=10, remove_env_prefixes=("GIT_",))
         # Scoped lsof exits 1 when a selected path has no open match.
         if result.returncode not in {0, 1} or result.stderr:

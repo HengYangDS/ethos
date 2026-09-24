@@ -788,6 +788,14 @@ repository implementation bindings remain valid.
 - **THEN** its declared Python module executes the source implementation directly
 - **AND** the installed product dispatcher still honors ordinary adopter runtime selection
 
+#### Scenario: A pull request offers a synthetic merge object
+
+- **WHEN** GitHub supplies a synthetic merge SHA for a pull-request run
+- **THEN** source checkout, host conformance and proof execute the authored PR head
+- **AND** the commit-range check validates that head against the PR base
+- **AND** push and manual-dispatch runs continue to execute their triggering commit
+- **AND** review and integration admission remain separate from this source check
+
 ### Requirement: Canonical decoding reuse preserves fresh observation
 
 Attestation decoding reuse SHALL be keyed by exact bytes and bounded by total

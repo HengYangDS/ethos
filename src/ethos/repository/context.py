@@ -14,7 +14,8 @@ def repository_context(root: Path) -> dict[str, object]:
     if profile.state == "invalid":
         raise ValueError(INVALID_PROFILE_ERROR)
     guidance_resource = files("ethos").joinpath("data/skills/ethos-repository-work/SKILL.md")
-    guidance = guidance_resource.read_bytes()
+    guidance_path = Path(str(guidance_resource)).resolve(strict=True)
+    guidance = guidance_path.read_bytes()
     return {
         "contract": "governed_repository",
         "profile": profile.declaration.profile_id if profile.declaration else "unbound",
@@ -26,6 +27,6 @@ def repository_context(root: Path) -> dict[str, object]:
             "authority": "product_projection",
             "media_type": "text/markdown",
             "sha256": hashlib.sha256(guidance).hexdigest(),
-            "path": str(guidance_resource),
+            "path": guidance_path.as_posix(),
         },
     }

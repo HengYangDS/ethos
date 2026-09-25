@@ -34,12 +34,16 @@ def test_explicit_installed_supply_is_pinned_before_repository_selection(
     expected = (
         tmp_path
         / "user-data/ethos/installations"
-        / selected.digest
-        / "ethos/runtime"
+        / selected.digest[:16]
+        / "runtime"
         / selected.digest
     )
     assert pinned_python == expected / "python"
-    assert {item.name for item in expected.parents[2].iterdir()} == {"OWNER", "ethos"}
+    assert {item.name for item in expected.parents[1].iterdir()} == {
+        "OWNER",
+        "runtime",
+        "packages",
+    }
     materialization.remove_generated_tree(package)
     assert require_selected_runtime(expected).digest == selected.digest
     assert (
@@ -51,6 +55,26 @@ def test_explicit_installed_supply_is_pinned_before_repository_selection(
         )
         == pinned_python
     )
+
+
+def test_pinned_runtime_path_leaves_room_for_native_windows_dependencies(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The installed path must not repeat a full digest before loading native modules."""
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = require_selected_runtime(python.parent)
+    home = tmp_path / "user-data"
+    monkeypatch.setenv("XDG_DATA_HOME", str(home))
+
+    pinned = materialization.materialize_runtime(
+        repo,
+        Path(sys.executable),
+        expected_build=selected.build,
+        installed_runtime=selected.root,
+    )
+    relative = pinned.relative_to(home).as_posix()
+    assert len(relative) <= 128, relative
+    assert relative.count(selected.digest) == 1
 
 
 def test_host_store_recovery_preserves_unowned_directory_with_a_valid_looking_marker(
@@ -104,7 +128,7 @@ def test_interrupted_owned_import_is_recovered_before_new_selection(
     assert require_selected_runtime(pinned.parent).digest == selected.digest
 
 
-@pytest.mark.parametrize("fault", ["invalid_owner", "missing_runtime"])
+@pytest.mark.parametrize("fault", ["invalid_owner", "missing_runtime", "prefix_collision"])
 def test_occupied_installation_does_not_replace_unknown_content(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str
 ) -> None:
@@ -112,10 +136,16 @@ def test_occupied_installation_does_not_replace_unknown_content(
     repo, python = materialize_runtime_case(tmp_path, monkeypatch)
     selected = require_selected_runtime(python.parent)
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user-data"))
-    installation = tmp_path / "user-data/ethos/installations" / selected.digest
+    installation = tmp_path / "user-data/ethos/installations" / selected.digest[:16]
     installation.mkdir(parents=True)
     marker = installation / "OWNER"
-    owner = selected.digest + "\n" if fault == "missing_runtime" else "foreign\n"
+    if fault == "missing_runtime":
+        owner = selected.digest + "\n"
+    elif fault == "prefix_collision":
+        other_last_digit = "0" if selected.digest[-1] != "0" else "1"
+        owner = selected.digest[:-1] + other_last_digit + "\n"
+    else:
+        owner = "foreign\n"
     marker.write_text(owner, encoding="utf-8")
 
     with pytest.raises(ValueError, match="hook_runtime_host_store_conflict"):
@@ -219,8 +249,8 @@ def test_existing_host_installation_reuses_valid_bytes_and_rejects_damaged_wheel
         installed_runtime=selected.root,
     )
     assert second == first
-    installation = first.parent.parents[2]
-    wheel = next((installation / "ethos/packages" / selected.wheel_sha256).glob("ethos-*.whl"))
+    installation = first.parent.parents[1]
+    wheel = next((installation / "packages" / selected.wheel_sha256).glob("ethos-*.whl"))
     wheel.write_bytes(b"tampered wheel")
     with pytest.raises(ValueError, match="hook_runtime_host_store_conflict"):
         materialization.materialize_runtime(

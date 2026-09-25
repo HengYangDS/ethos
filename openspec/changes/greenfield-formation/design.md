@@ -34,14 +34,21 @@ entry, then invokes the existing profile renderer, official OpenSpec config
 owner and Git operations. Candidate construction uses a disposable directory
 whose final component is the requested project name; this keeps profile
 identity independent of the random staging parent. Generated input/output
-digests exclude transient absolute paths. The initial commit uses the actual
+digests exclude transient absolute paths. Preview exposes the physical target
+after resolving its parent and binds both the requested alias and parent file
+identity. Apply rechecks that binding and writes only to the physical target:
+stable aliases such as macOS `/tmp` work, but a retargeted alias cannot move an
+effect and an existing target link is refused. The initial commit uses the actual
 author and committer selected by invocation flags or process-scoped Git
 identity; their values enter the plan digest. Missing identity blocks before
 publication. The foundation declares no signing requirement and does not
-claim an unsigned commit is signed. `dev` and
-`candidate/dev` start from that same object; normal status and hook activation
-then provide the next governed action. The first Change is authored through
-official OpenSpec, not a copied template.
+claim an unsigned commit is signed. Formation binds the policy-derived sibling
+worktree path in the plan and refuses a collision before publishing the target.
+After publication, the existing candidate bootstrap alone creates the
+`candidate/dev` ref, worktree and shared hook/runtime activation from `dev`'s
+initial object. A failed post-publication bootstrap is UNKNOWN, not permission
+to repeat the effect. The first Change is authored through official OpenSpec,
+not a copied template.
 
 Preview touches no destination. Apply checks parent/path safety, exact plan
 identity and target absence immediately before effect. Exclusive target

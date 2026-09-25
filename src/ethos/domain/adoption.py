@@ -142,7 +142,7 @@ def _form_repository(
     verdict = "block" if expect_head is not None else report_verdict(plan)
     digest = str(plan.get("plan_digest") or "")
     applied = plan.get("applied") is True and verdict == "pass"
-    target = root.absolute()
+    target = Path(str(plan.get("root") or root.absolute()))
     sources = plan.get("source_inputs")
     selected = sources if isinstance(sources, dict) else {}
     selected_name = str(selected.get("author_name") or author_name)

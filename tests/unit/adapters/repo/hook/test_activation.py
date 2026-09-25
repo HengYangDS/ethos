@@ -216,6 +216,7 @@ def test_repeated_hook_install_reuses_the_exact_common_runtime_generation(
     repo, runtime = materialize_runtime_case(tmp_path, monkeypatch)
     common = Path(git_common_dir(repo))
     if external:
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user-data"))
         supply = tmp_path / "installed"
         shutil.copytree(common / "ethos", supply)
         runtime = supply / "runtime" / runtime.parent.name / "python"
@@ -238,6 +239,17 @@ def test_repeated_hook_install_reuses_the_exact_common_runtime_generation(
     assert first["runtime_digest"] == second["runtime_digest"] == selected.digest
     assert runtime_selection.runtime_file_inventory(selected.root) == before
     assert first["required_gaps"] == second["required_gaps"] == []
+    if external:
+        pinned = runtime_selection.current_runtime(common)
+        assert pinned.root == (
+            tmp_path
+            / "user-data/ethos/installations"
+            / selected.digest
+            / "ethos/runtime"
+            / selected.digest
+        )
+        runtime_materialization.remove_generated_tree(supply)
+        assert runtime_selection.current_runtime(common).root == pinned.root
 
 
 def _configured_worktrees(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

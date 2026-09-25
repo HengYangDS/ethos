@@ -458,11 +458,15 @@ archive with native ownership and its source/platform identity; local file URLs
 are qualification input, never a claim of remote publication. Keep the immutable
 payload outside the shell entry and preserve its hash-bound permissions.
 
-This delivers distribution mechanics, not shared version-store migration.
-Repository-local copies remain until the existing selection, activation and
-retirement owners support shared immutable supply with exact repository binding,
-concurrent activation, live-consumer fencing and safe removal. These incomplete
-obligations retain their current tasks and cannot be checked from a working CLI.
+The package-manager directory is a carrier, not a safe long-lived selector.
+Explicit installation now pins only the validated runtime and its exact wheel
+once under a user-owned, content-addressed installation directory before
+repository activation. The existing selector then names that pinned runtime;
+repositories share its immutable bytes without sharing Git state. A host lock,
+exact owner marker and same-parent atomic directory exposure support reuse and
+recovery of marked interrupted imports. This does not yet qualify real Homebrew
+upgrade/uninstall or safe garbage collection of unreferenced host generations.
+Repository-local generations remain until exact consumer migration is observed.
 
 Repository-local generations are not the terminal shared-supply store. A source
 repository's worktrees and processes cannot prove that another repository's
@@ -594,29 +598,29 @@ not signing, notarization, installed behavior or release acceptance.
 
 ## Shared Installed Supply Activation
 
-Use the existing hook installation operation with an explicit runtime path to
-admit external immutable supply. CURRENT remains the single repository selector:
-its digest line is unchanged; external selection adds one canonical absolute
-runtime path. Local digest-only selectors retain their existing behavior. The
-launcher reads these bounded location fields only; Python still owns manifest,
-platform, build and admission checks.
+Use the existing hook installation operation with an explicit runtime path as
+the package-carrier input. The runtime and wheel are copied together into one
+user-owned installation generation before CURRENT selects its canonical path.
+CURRENT remains the single repository selector; local digest-only selectors
+retain their existing behavior. The launcher reads only bounded location
+fields; Python still owns manifest, platform, build and admission checks.
 
 The supplied runtime must match the invoking/accepted product build, its carried
 dependency lock and its exact wheel. Reject symbolic links, junctions, invalid
 paths and altered payloads before selector or state changes. This is explicit
 installation ownership, not permission to execute a path inferred from PATH,
 an environment variable or another repository. No host-wide mutable selection,
-catalogue, source copy or additional package manager is introduced.
+catalogue, source-checkout copy or additional package manager is introduced.
 
-Two independent repositories can select the same external bytes while retaining
+Two independent repositories select the same pinned bytes while retaining
 separate hooks, policy, state and selector CAS. Compensation restores the prior
 selector exactly. Repository retirement observes the selected external identity
-but never enumerates that external store for deletion. Missing or replaced supply
-blocks use rather than floating to a host upgrade or silently rebuilding a private
-copy. The native selector reader owns location parsing even when its payload is
-unavailable. Recovery names the selected location; the operator restores it or
-explicitly chooses new supply. The package-manager owner must still prove
-live-consumer-safe upgrade/uninstall before its channel is qualified.
+but never enumerates the host store for deletion. Removing the package carrier
+after selection must leave pinned clients usable. Missing or replaced pinned
+supply blocks use rather than floating to a host upgrade or silently rebuilding
+a private copy. The native selector reader owns location parsing even when its
+payload is unavailable. Actual package-manager uninstall and host-store
+reclamation still require separate consumer-safe acceptance.
 
 The retained predecessor migration probe preserves one live Lease and five
 authored files while changing from repository-local to shared installed supply.

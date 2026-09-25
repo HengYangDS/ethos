@@ -26,7 +26,6 @@ if [[ ${supply_status} -eq 0 ]]; then
 fi
 python3 - "${receipt}" "${head}" "$(git rev-parse HEAD)" "${proof_status}" "${supply_status}" <<'PY'
 import hashlib, json, os, sys
-import xml.etree.ElementTree as ET
 from pathlib import Path
 path, expected, observed, exit_code, supply_exit = Path(sys.argv[1]), *sys.argv[2:]
 report = {"kind": "ethos_hosted_verification_receipt", "verdict": "block",
@@ -70,40 +69,22 @@ if report["verdict"] != "pass" and not report["required_gaps"]:
 evidence = Path(os.environ.get("ETHOS_TEST_EVIDENCE_DIR", "build/evidence/quality/tests"))
 report_lines = []
 if supply_exit == "0":
+    from ethos.repository.policy.quality_reports import coverage_report, junit_report
     try:
         files = sorted((evidence / "pytest").glob("junit*.xml"))
-        if not files:
-            raise ValueError("missing JUnit")
-        suites = [ET.parse(file).getroot() for file in files]
-        if any(suite.tag not in {"testsuite", "testsuites"} for suite in suites):
-            raise ValueError("invalid JUnit root")
-        cases = [case for suite in suites for case in suite.iter("testcase")]
-        if not cases:
-            raise ValueError("empty JUnit")
-        failures, errors, skipped = (sum(case.find(tag) is not None for case in cases)
-                                     for tag in ("failure", "error", "skipped"))
-        report["tests"] = dict(total=len(cases), failures=failures, errors=errors, skipped=skipped)
-        report_lines.append(f"Tests: {len(cases)}; failures: {failures}; errors: {errors}; skipped: {skipped}")
-        if failures or errors or any(int(suite.get(key, "0")) for root in suites
-                                    for suite in root.iter() if suite.tag in {"testsuite", "testsuites"}
-                                    for key in ("failures", "errors")):
+        tests, failed = junit_report(files)
+        report["tests"] = tests
+        report_lines.append(f"Tests: {tests['total']}; failures: {tests['failures']}; errors: {tests['errors']}; skipped: {tests['skipped']}")
+        if failed:
             report["required_gaps"].append("hosted_test_report_failed")
-    except (OSError, ValueError, ET.ParseError) as error:
+    except (OSError, ValueError) as error:
         report["required_gaps"].append("hosted_test_report_invalid")
         report_lines.append(f"Tests: unavailable ({type(error).__name__})")
     try:
-        coverage_root = ET.parse(evidence / "coverage/coverage.xml").getroot()
-        coverage = coverage_root.attrib
-        covered, total = ((int(coverage[f"{name}-covered"]), int(coverage[f"{name}-valid"]))
-                          for name in ("lines", "branches"))
-        if coverage_root.tag != "coverage" or any(not 0 <= hit <= count for hit, count in (covered, total)):
-            raise ValueError("invalid coverage counts")
-        hit, count = covered[0] + total[0], covered[1] + total[1]
-        if count == 0:
-            raise ValueError("empty coverage")
-        report["coverage"] = dict(covered=hit, total=count, combined_percent=100 * hit / count)
-        report_lines.append(f"Coverage: {100 * hit / count:.2f}% combined statements/branches")
-    except (OSError, ValueError, KeyError, ET.ParseError) as error:
+        coverage = coverage_report(evidence / "coverage/coverage.xml")
+        report["coverage"] = coverage
+        report_lines.append(f"Coverage: {coverage['combined_percent']:.2f}% combined statements/branches")
+    except (OSError, ValueError) as error:
         report["required_gaps"].append("hosted_coverage_report_invalid")
         report_lines.append(f"Coverage: unavailable ({type(error).__name__})")
 if report["required_gaps"]:

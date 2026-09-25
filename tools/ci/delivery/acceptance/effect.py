@@ -430,6 +430,9 @@ def run(
         build, wheel_sha256 = selected.build, selected.sha256
         package_environment, _git = independent_host_environment()
         package_environment["UV_OFFLINE"] = "1"
+        formation = adopter_fixture.prove_formation(
+            installed_ethos, WORK, origin=origin, environment=package_environment
+        )
         lifecycle = observe_runtime_lifecycle(
             installed_ethos=installed_ethos,
             bootstrap_environment=smoke,
@@ -467,6 +470,7 @@ def run(
             line_endings=line_endings,
             independent_host=independent_host,
             command_plane=command_plane,
+            formation=formation,
             resources=resources,
             runtime_lifecycle=lifecycle,
             generated_at=datetime.now(UTC),

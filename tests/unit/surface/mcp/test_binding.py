@@ -32,6 +32,15 @@ def test_bound_tools_reject_spoofing_and_preserve_results(tmp_path, monkeypatch)
                     assert not (root / ".ethos").exists()
             observed = await client.call_tool("adopt")
             assert observed.structured_content == adopt_repository(root).to_dict()
+            evolution = await client.call_tool(
+                "adopt", {"evolve_starter": True, "purpose": "Revised project purpose"}
+            )
+            assert (
+                evolution.structured_content
+                == adopt_repository(
+                    root, evolve_starter=True, purpose="Revised project purpose"
+                ).to_dict()
+            )
             monkeypatch.setenv("ETHOS_ACTOR", "changed-actor")
             for name in ("adopt", "land", "publish"):
                 rejected = await client.call_tool(name, raise_on_error=False)

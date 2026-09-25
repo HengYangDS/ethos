@@ -12,6 +12,7 @@ from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
 from ethos.adapters.openspec.lifecycle.scope import official_change_bootstrap_scope_report
 from ethos.adapters.openspec.lifecycle.scope import official_validation_repair_scope_report
+from ethos.adapters.openspec.lifecycle.scope import prospective_change_scope_report
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.openspec.selection import artifact_path_change
 from ethos.adapters.openspec.selection import requested_change
@@ -280,6 +281,7 @@ def resolve_current_resolution(
         change_scope_paths_from_status(root, status) if changed else ()
     )
     change = change if change is not None else artifact_path_change(root, prewrite_paths)
+    prospective_scope = prospective_change_scope_report(prewrite_paths, change) if change else {}
     official = openspec_governance_report(
         root,
         change=change,
@@ -340,7 +342,7 @@ def resolve_current_resolution(
             requested_change=change,
         )
     )
-    prewrite_scope = repair_scope or bootstrap_scope
+    prewrite_scope = prospective_scope or repair_scope or bootstrap_scope
     if prewrite_paths and prewrite_scope:
         prewrite_gaps = tuple(string_sequence(prewrite_scope.get("required_gaps")))
         return CurrentResolution(

@@ -43,30 +43,32 @@ def material_change_scope_report(
         return _scope_report(paths, patterns, material, state="unattributed", gaps=gaps)
     change = names[0]
     owner = {"name": change, "path": f"openspec/changes/{change}"}
-    mismatched = tuple(path for path in material if _other_active_change_path(path, change))
-    covered: list[dict[str, object]] = [
-        {"path": path, "changes": [change]} for path in material if path not in mismatched
-    ]
-    gaps = [f"openspec_change_path_mismatch:{change}:{path}" for path in mismatched]
+    covered: list[dict[str, object]] = [{"path": path, "changes": [change]} for path in material]
     return _scope_report(
         paths,
         patterns,
         material,
         changes=[owner],
         covered=covered,
-        uncovered=list(mismatched),
-        state="unattributed" if gaps else "attributed",
-        gaps=gaps,
+        state="attributed",
     )
 
 
-def _other_active_change_path(path: str, selected: str) -> bool:
-    parts = PurePosixPath(path).parts
-    return (
-        len(parts) >= 3
+def prospective_change_scope_report(paths: tuple[str, ...], selected: str) -> dict[str, object]:
+    """Block cross-Change authoring without blocking a proved incoming merge."""
+    gaps = [
+        f"openspec_change_path_mismatch:{selected}:{path}"
+        for path in paths
+        if (parts := PurePosixPath(path).parts)
+        and len(parts) >= 3
         and parts[:2] == ("openspec", "changes")
         and parts[2] not in {"archive", selected}
-    )
+    ]
+    if not gaps:
+        return {}
+    report = _scope_report(paths, (), paths, state="unattributed", gaps=gaps)
+    report["next_action"] = "unset ETHOS_CHANGE"
+    return report
 
 
 def official_change_bootstrap_scope_report(

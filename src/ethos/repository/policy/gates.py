@@ -246,7 +246,8 @@ def _owner_projection(
         }
         axes = dict(proof.code_correctness_map)
     code_subjects = observed_code_subjects(repository_paths)
-    if code_subjects:
+    # A declared code obligation survives incomplete carrier discovery.
+    if code_subjects or any(axes.values()):
         owner["quality_floor_version"] = 2
         owner["code_correctness_map"] = {axis: axes.get(axis, "") for axis in _QUALITY_PROVIDERS}
         owner["quality_subjects"] = {

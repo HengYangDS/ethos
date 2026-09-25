@@ -156,8 +156,6 @@ def _verify_formed(
         or data.get("dirty") is not False
         or not isinstance(data.get("hook_runtime"), dict)
         or data["hook_runtime"].get("current") is not True
-        or not isinstance(data.get("candidate"), dict)
-        or data["candidate"].get("worktree_exists") is not True
     ):
         message = (
             f"installed_formation_status_invalid:exit={code}:"
@@ -198,6 +196,32 @@ def _verify_formed(
             message = "installed_formation_output_invalid"
             raise RuntimeError(message)
     return str(data["head"])
+
+
+def _verify_candidate(
+    target: Path, applied: dict[str, object], head: str, environment: Mapping[str, str]
+) -> None:
+    """Read both Git coordinates independently of the formation result."""
+    effect = applied.get("effect")
+    path = effect.get("candidate_worktree_path") if isinstance(effect, dict) else None
+    if not isinstance(path, str):
+        message = "installed_formation_candidate_invalid"
+        raise TypeError(message)
+    candidate = Path(path)
+    if not candidate.is_dir() or candidate.is_symlink():
+        message = "installed_formation_candidate_invalid"
+        raise RuntimeError(message)
+    for root, revision in ((target, "candidate/dev"), (candidate, "HEAD")):
+        observed = run_command(
+            root,
+            ("git", "rev-parse", revision),
+            env=environment,
+            inherit_environment=False,
+            check=False,
+        )
+        if observed.returncode or observed.stdout.strip() != head:
+            message = "installed_formation_candidate_invalid"
+            raise RuntimeError(message)
 
 
 def prove_formation(
@@ -285,6 +309,7 @@ def prove_formation(
             invoke(target, status_command, environment=environment),
             expected_guidance,
         )
+        _verify_candidate(target, applied_data, head, environment)
         retry_code, retry, _retry_detail = invoke(work, apply_command, environment=environment)
         if retry_code == 0 or retry.get("required_gaps") != ["formation_target_exists"]:
             message = "installed_formation_retry_replayed_effect"

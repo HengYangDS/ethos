@@ -31,6 +31,12 @@ starter MAY add its own layout without making that layout ETHOS policy.
 - **THEN** the result identifies confirmed effects and reports the unresolved remainder as UNKNOWN
 - **AND** recovery reobserves before any retry; it does not repeat a possibly completed effect blindly.
 
+#### Scenario: Candidate bootstrap is interrupted after its ref
+
+- **WHEN** the candidate ref exists but its worktree or runtime activation is missing
+- **THEN** status selects the candidate bootstrap's reviewed continuation before a hook-only repair when the worktree is missing
+- **AND** status and bootstrap preview produce no effect; recovery preserves the initial commit.
+
 ### Requirement: Scaffold evolution preserves project authorship
 
 Generated starter files SHALL become project-owned content after acceptance.

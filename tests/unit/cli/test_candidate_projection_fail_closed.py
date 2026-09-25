@@ -8,6 +8,7 @@ import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as projection
 from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.domain.inspection import inspect_repository
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
@@ -25,7 +26,7 @@ def _repo_without_candidate(tmp_path: Path) -> tuple[Path, str]:
 
 
 @pytest.mark.parametrize("should_apply", [False, True])
-def test_candidate_bootstrap_distinguishes_plan_from_path_collision(
+def test_candidate_bootstrap_rejects_path_collision_before_effect(
     tmp_path: Path, *, should_apply: bool
 ) -> None:
     repo, head = _repo_without_candidate(tmp_path)
@@ -39,11 +40,77 @@ def test_candidate_bootstrap_distinguishes_plan_from_path_collision(
         apply=should_apply,
     )
 
-    assert report["state"] == ("planned" if not should_apply else "blocked")
-    assert report["required_gaps"] == (
-        [] if not should_apply else ["candidate_worktree_path_exists"]
-    )
+    assert report["state"] == "blocked"
+    assert report["required_gaps"] == ["candidate_worktree_path_exists"]
+    assert report["next_action"].startswith(f"Inspect {target}")
     assert git(repo, "branch", "--list", "candidate/dev") == ""
+
+
+@pytest.mark.parametrize("should_apply", [False, True])
+def test_candidate_bootstrap_rejects_dangling_leaf_link(
+    tmp_path: Path, *, should_apply: bool
+) -> None:
+    """An unbound symlink cannot redirect the selected candidate worktree path."""
+    repo, head = _repo_without_candidate(tmp_path)
+    target = tmp_path / "candidate"
+    foreign = tmp_path / "foreign"
+    try:
+        target.symlink_to(foreign, target_is_directory=True)
+    except OSError:
+        pytest.skip("directory symlinks unavailable")
+
+    report = projection.bootstrap_candidate(
+        root=repo, path=target, expect_head=head, apply=should_apply
+    )
+
+    assert report["required_gaps"] == ["candidate_worktree_path_exists"]
+    assert target.is_symlink()
+    assert not foreign.exists()
+    assert git(repo, "branch", "--list", "candidate/dev") == ""
+
+
+def test_candidate_bootstrap_preview_of_present_worktree_has_no_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Read-only candidate discovery cannot repair refs or install a runtime."""
+    repo, head = _repo_without_candidate(tmp_path)
+    candidate = tmp_path / "candidate"
+    git(repo, "branch", "candidate/dev", head)
+    git(repo, "worktree", "add", str(candidate), "candidate/dev")
+
+    def reject_effect(*_args: object, **_kwargs: object) -> None:
+        pytest.fail("read-only bootstrap attempted an effect")
+
+    monkeypatch.setattr(projection, "execute_git_effect", reject_effect)
+    monkeypatch.setattr(projection, "install_hook_launchers", reject_effect)
+    report = projection.bootstrap_candidate(root=repo, path=candidate, apply=False)
+
+    assert report["state"] == "present"
+    assert report["required_gaps"] == []
+    assert git(repo, "rev-parse", "candidate/dev") == head
+
+
+def test_candidate_bootstrap_preview_requires_an_explicit_apply_decision(tmp_path: Path) -> None:
+    """A planned ref and worktree effect cannot be presented as automatic recovery."""
+    repo, head = _repo_without_candidate(tmp_path)
+
+    report = projection.bootstrap_candidate(root=repo, expect_head=head)
+
+    assert report["state"] == "planned"
+    assert report["user_decision_required"] is True
+    assert "--apply" in report["next_action"]
+    assert git(repo, "branch", "--list", "candidate/dev") == ""
+
+
+def test_accepted_status_routes_missing_candidate_to_its_owner(tmp_path: Path) -> None:
+    """A clean accepted root should not prescribe hook-only work before bootstrap."""
+    repo, _head = _repo_without_candidate(tmp_path)
+
+    result = inspect_repository(repo)
+
+    assert "candidate_branch_missing" in result.required_gaps
+    assert "lane candidate" in result.next_action
+    assert result.user_decision_required
 
 
 def test_candidate_bootstrap_reports_unproven_recovery_before_any_ref_effect(

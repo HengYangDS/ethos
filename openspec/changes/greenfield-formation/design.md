@@ -47,7 +47,9 @@ worktree path in the plan and refuses a collision before publishing the target.
 After publication, the existing candidate bootstrap alone creates the
 `candidate/dev` ref, worktree and shared hook/runtime activation from `dev`'s
 initial object. A failed post-publication bootstrap is UNKNOWN, not permission
-to repeat the effect. The first Change is authored through official OpenSpec,
+to repeat the effect. Status selects that bootstrap owner before a hook-only
+repair when its worktree is missing; preview refuses a path collision before
+another ref effect. The first Change is authored through official OpenSpec,
 not a copied template.
 
 Preview touches no destination. Apply checks parent/path safety, exact plan

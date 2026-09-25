@@ -84,6 +84,28 @@ def _add_candidate_worktree(root: Path, path: Path, branch: str) -> None:
     install_hook_launchers(path)
 
 
+def _candidate_target(requested: Path) -> tuple[Path, str, str]:
+    """Keep the requested leaf distinct from its physical parent and collisions."""
+    try:
+        parent = requested.parent.resolve(strict=True)
+    except (OSError, RuntimeError):
+        parent = requested.parent
+    target = parent / requested.name
+    if not parent.is_dir():
+        return (
+            target,
+            "candidate_worktree_parent_unsafe",
+            f"Choose an existing directory for the candidate worktree parent: {parent}",
+        )
+    if requested.is_symlink() or target.exists() or target.is_symlink():
+        return (
+            target,
+            "candidate_worktree_path_exists",
+            f"Inspect {target} and preserve its content before choosing another path",
+        )
+    return target, "", ""
+
+
 def bootstrap_candidate(
     *,
     root: Path,
@@ -96,7 +118,8 @@ def bootstrap_candidate(
     status = workspace_status(repo)
     head = run_git(repo, "rev-parse", "HEAD").stdout.strip()
     issuer = os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
-    target = (path or default_worktree_path(repo, policy.candidate_branch)).resolve()
+    requested = (path or default_worktree_path(repo, policy.candidate_branch)).absolute()
+    target, path_gap, path_action = _candidate_target(requested)
     status_action = f"ethos status --root {shlex.quote(repo.as_posix())} --json"
     start_action = "ethos lane start --help"
     apply_action = (
@@ -117,15 +140,20 @@ def bootstrap_candidate(
     candidate = cast("dict[str, object]", status["candidate"])
     if candidate["exists"] and candidate["worktree_exists"]:
         gaps: list[str] = []
-        try:
-            plan = _recovery_plan(
-                repo, policy.accepted_branch, policy.candidate_branch, head, "candidate.bootstrap"
-            )
-            if plan is not None:
-                execute_git_effect(repo, plan, issuer=issuer)
-            install_hook_launchers(Path(str(candidate["worktree_path"])))
-        except ValueError as error:
-            gaps.append(str(error))
+        if apply:
+            try:
+                plan = _recovery_plan(
+                    repo,
+                    policy.accepted_branch,
+                    policy.candidate_branch,
+                    head,
+                    "candidate.bootstrap",
+                )
+                if plan is not None:
+                    execute_git_effect(repo, plan, issuer=issuer)
+                install_hook_launchers(Path(str(candidate["worktree_path"])))
+            except ValueError as error:
+                gaps.append(str(error))
         return _report(
             policy.candidate_branch,
             head,
@@ -135,14 +163,19 @@ def bootstrap_candidate(
             next_action=status_action if gaps else start_action,
             user_decision_required=not gaps,
         )
-    if not apply or target.exists():
-        gaps = [] if not apply else ["candidate_worktree_path_exists"]
+    if not apply or path_gap:
         return _report(
             policy.candidate_branch,
             head,
-            "blocked" if gaps else "planned",
-            gaps,
-            **(details | {"next_action": status_action if gaps else apply_action}),
+            "blocked" if path_gap else "planned",
+            [path_gap] if path_gap else [],
+            **(
+                details
+                | {
+                    "next_action": path_action or apply_action,
+                    "user_decision_required": True,
+                }
+            ),
         )
     operation = "candidate.bootstrap"
     try:

@@ -5,9 +5,11 @@ from typing import cast
 
 from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
+from ethos.adapters.mutation.lane_lifecycle.candidate_projection import bootstrap_candidate
 from ethos.adapters.repo.hook.observation import commit_policy_enforcement
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.status.workspace import workspace_status_observation
+from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
@@ -106,11 +108,24 @@ def inspect_repository(root: Path) -> EthosResult:
     scope_exceeded = any(item.state == "uncovered" for item in generation_scope.attributions)
     runtime_action = runtime["next_action"] if runtime_gaps else ""
     commit_policy_action = str(commit_policy.get("next_action") or "")
+    candidate_action = ""
+    candidate_decision = False
+    if (
+        observed.get("role") == ROLE_ACCEPTED_ROOT
+        and not observed.get("dirty")
+        and {"candidate_branch_missing", "candidate_worktree_missing"}.intersection(gaps)
+    ):
+        candidate_report = bootstrap_candidate(
+            root=repo, expect_head=str(observed.get("head") or "")
+        )
+        candidate_action = str(candidate_report.get("next_action") or "")
+        candidate_decision = bool(candidate_report.get("user_decision_required"))
     next_action = (
         resolution.next_action
         if resolution is not None
         and (resolution.authority is None or resolution.authority.verdict != "pass")
-        else runtime_action
+        else candidate_action
+        or runtime_action
         or commit_policy_action
         or closeout_action
         or (
@@ -123,7 +138,9 @@ def inspect_repository(root: Path) -> EthosResult:
         or ("ethos lane status --json" if foreign or unbound else "")
     )
     user_decision_required = (
-        False
+        candidate_decision
+        if candidate_action and next_action == candidate_action
+        else False
         if next_action in {runtime_action, commit_policy_action} and next_action
         else resolution.user_decision_required
         if resolution is not None and resolution.next_action

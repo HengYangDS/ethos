@@ -12,6 +12,7 @@ import pytest
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
 import ethos.adapters.repo.formation as formation_effect
 from ethos.domain.adoption import adopt_repository
+from ethos.domain.inspection import inspect_repository
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
@@ -59,6 +60,7 @@ def test_brownfield_public_adopt_remains_two_binding_only(tmp_path: Path) -> Non
     assert applied["verdict"] == "pass"
     assert status["verdict"] == "block"
     assert "candidate_branch_missing" in status["required_gaps"]
+    assert "lane candidate" not in status["next_action"]
     assert not (root / "AGENTS.md").exists()
 
 
@@ -419,3 +421,67 @@ def test_greenfield_runtime_failure_reobserves_created_repository(
     assert result.verdict == "unknown"
     assert git(target, "symbolic-ref", "--short", "HEAD") == "dev"
     assert result.next_action.startswith("ethos status --root ")
+    candidate = target.with_name("new-project-candidate-dev")
+    assert candidate.is_dir()
+    head = git(target, "rev-parse", "HEAD")
+    blocked = inspect_repository(target)
+    assert blocked.verdict == "block"
+    assert " -I -m ethos.cli hook install --root " in blocked.next_action
+    assert str(target) in blocked.next_action
+
+    monkeypatch.setattr(
+        candidate_projection, "install_hook_launchers", install_fixture_hook_runtime
+    )
+    recovered = candidate_projection.bootstrap_candidate(
+        root=target, path=candidate, expect_head=head, apply=True
+    )
+
+    assert recovered["verdict"] == "pass"
+    assert recovered["state"] == "present"
+    assert git(target, "rev-parse", "HEAD") == head
+    assert git(candidate, "rev-parse", "HEAD") == head
+    assert inspect_repository(target).verdict == "pass"
+
+
+def test_greenfield_worktree_failure_selects_recovery_before_runtime(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A completed ref effect must lead to worktree recovery, not a fresh formation."""
+    target = tmp_path / "new-project"
+    request = {"create": True, "purpose": "Verifiable changes.", "starter": "foundation"}
+    preview = adopt_repository(target, **request)
+
+    def fail_worktree(*_args: object, **_kwargs: object) -> None:
+        message = "worktree unavailable"
+        raise OSError(message)
+
+    with monkeypatch.context() as failure:
+        failure.setattr(candidate_projection, "add_worktree", fail_worktree)
+        result = adopt_repository(
+            target,
+            **request,
+            apply=True,
+            authorize=True,
+            expect_plan_digest=str(preview.data["plan_digest"]),
+        )
+
+    candidate = target.with_name("new-project-candidate-dev")
+    head = git(target, "rev-parse", "HEAD")
+    assert result.verdict == "unknown"
+    assert git(target, "rev-parse", "candidate/dev") == head
+    assert not candidate.exists()
+    blocked = inspect_repository(target)
+    assert blocked.verdict == "block"
+    assert "lane candidate" in blocked.next_action
+    assert blocked.user_decision_required
+
+    monkeypatch.setattr(
+        candidate_projection, "install_hook_launchers", install_fixture_hook_runtime
+    )
+    recovered = candidate_projection.bootstrap_candidate(
+        root=target, path=candidate, expect_head=head, apply=True
+    )
+    assert recovered["verdict"] == "pass"
+    assert git(target, "rev-parse", "HEAD") == head
+    assert git(candidate, "rev-parse", "HEAD") == head
+    assert inspect_repository(target).verdict == "pass"

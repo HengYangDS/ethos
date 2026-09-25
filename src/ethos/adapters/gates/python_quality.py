@@ -21,11 +21,11 @@ def _source(root: Path) -> tuple[str, tuple[str, ...]]:
     """Bind selected tracked Python files to the current committed tree."""
     head = current_tracked_head(root)
     if not head:
-        message = "quality_source_head_missing"
+        message = "source_head_missing"
         raise ValueError(message)
     paths = tuple(sorted(path for path in git_files(root, "*.py") if (root / path).is_file()))
     if not paths:
-        message = "quality_python_sources_missing"
+        message = "python_sources_missing"
         raise ValueError(message)
     return current_tree(root, head), paths
 
@@ -42,23 +42,30 @@ def static_report(root: Path) -> dict[str, object]:
     """Run product-pinned Ruff over every tracked Python file, not a profile argv."""
     try:
         tree, paths = _source(root)
-        command = (
-            sys.executable,
-            "-m",
-            "ruff",
-            "check",
-            "--isolated",
-            "--no-cache",
-            "--output-format",
-            "json",
-            "--select",
-            "E,F,B,I,UP",
-            *paths,
-        )
+    except (OSError, ValueError) as error:
+        reason = str(error) if isinstance(error, ValueError) else "source_unavailable"
+        return _failure("static", reason)
+    command = (
+        sys.executable,
+        "-m",
+        "ruff",
+        "check",
+        "--isolated",
+        "--no-cache",
+        "--output-format",
+        "json",
+        "--select",
+        "E,F,B,I,UP",
+        *paths,
+    )
+    try:
         result = run_command(root, command, timeout=180, remove_env=("PYTHONPATH",))
-        findings = json.loads(result.stdout)
-    except (OSError, ValueError, ProcessExecutionError, subprocess.TimeoutExpired) as error:
+    except (OSError, ValueError, subprocess.TimeoutExpired) as error:
         return _failure("static", f"tool_unavailable:{type(error).__name__}")
+    try:
+        findings = json.loads(result.stdout)
+    except (TypeError, json.JSONDecodeError):
+        return _failure("static", "report_invalid")
     if not isinstance(findings, list) or any(not isinstance(item, dict) for item in findings):
         return _failure("static", "report_invalid")
     if result.returncode or findings:

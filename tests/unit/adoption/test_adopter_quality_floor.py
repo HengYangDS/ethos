@@ -60,6 +60,8 @@ def test_success_only_commands_do_not_qualify_broken_code(tmp_path: Path) -> Non
     [
         ("main.go", "package main\nfunc main( {\n"),
         ("main.js", "function broken( {\n"),
+        ("main.ts", "export const answer: = ;\n"),
+        ("main.sh", "#!/bin/sh\nif then\n"),
     ],
 )
 def test_non_python_source_cannot_pass_on_success_only_commands(

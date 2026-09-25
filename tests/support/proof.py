@@ -162,9 +162,10 @@ def assert_selected_proof(
 def declare_native_proof_checks(root: Path, *, test: str, typecheck: str) -> None:
     """Bind the fixture's behavior and static gates to real Python programs."""
     profile = root / ".ethos/profile.toml"
-    source = profile.read_text()
+    target = root / "system/gates.toml" if "gate_registry" in profile.read_text() else profile
+    source = target.read_text()
     for gate, program in (("test", test), ("typecheck", typecheck)):
         source = source.replace(
             json.dumps(["sample", gate]), json.dumps([sys.executable, "-c", program])
         )
-    profile.write_text(source)
+    target.write_text(source)

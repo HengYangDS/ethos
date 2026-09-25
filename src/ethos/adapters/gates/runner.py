@@ -39,6 +39,7 @@ from ethos.contracts.verdict import execution_succeeded
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.policy.gates import PRODUCT_PROVIDER_SOURCE
 from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.policy.gates import source_paths_for_gate
 
@@ -208,7 +209,9 @@ def observe_gate_execution(
                 capacity=max(1, os.cpu_count() or 1),
                 parallel=True,
             )
-            gaps.extend(policy.result_gaps(tuple(asdict(result) for result in results)))
+            gaps.extend(
+                policy.result_gaps(tuple(asdict(result) for result in results), source_tree=tree)
+            )
             if exact and (
                 current_tracked_head(root) != head
                 or observe_execution_source(root, head, tree) != source
@@ -476,7 +479,7 @@ def assert_provider_execution_source(root: Path, gates: tuple[Gate, ...]) -> Non
         for gate in gates
         if gate.providers
         for reference, relative in zip(gate.providers, source_paths_for_gate(gate), strict=True)
-        if (root / relative).is_file()
+        if not relative.startswith(PRODUCT_PROVIDER_SOURCE) and (root / relative).is_file()
     )
     package = Path(ethos.__file__).resolve()
     if not bound or package == (root / "src/ethos/__init__.py").resolve():

@@ -12,6 +12,7 @@ from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import execution_succeeded
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.policy.gates import quality_obligation_gaps
 
 if TYPE_CHECKING:
     from ethos.contracts.semantic import Attestation
@@ -145,6 +146,9 @@ def _gate_gaps(
             or check.get("evidence_class") != gate.get("evidence_class")
         ):
             gaps.append(f"proof_gate_not_policy_conformant:{node.id}")
+    gaps.extend(
+        quality_obligation_gaps(plan.policy, checks, source_tree=str(plan.facts.get("tree") or ""))
+    )
     return gaps
 
 

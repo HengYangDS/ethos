@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from pathlib import Path
 
+import ethos
 from ethos.adapters.repo.git import committed_file_bytes
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.profile import load_committed_repository_profile
+from ethos.repository.policy.gates import PRODUCT_PROVIDER_SOURCE
 from ethos.repository.policy.gates import ResolvedGatePolicy
 from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
 from ethos.repository.policy.gates import source_paths_for_gates
 from ethos.repository.profile import load_repository_profile
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def resolve_gate_policy(
@@ -50,12 +50,14 @@ def _resolve_policies(
         profile.declaration.proof.gate_registry if profile.declaration is not None else None
     )
     registry_source = _material(root, tree_ref, registry_path) if registry_path else None
+    repository_paths = _repository_paths(root, tree_ref)
     python = _repository_python(root)
     initial = tuple(
         compile_gate_policy(
             profile=profile,
             gate_registry_source=registry_source,
             repository_python=python,
+            repository_paths=repository_paths,
             gate_ids=gate_ids,
             full=full,
         )
@@ -73,6 +75,7 @@ def _resolve_policies(
             gate_registry_source=registry_source,
             source_materials=materials,
             repository_python=python,
+            repository_paths=repository_paths,
             gate_ids=gate_ids,
             full=full,
         )
@@ -80,7 +83,24 @@ def _resolve_policies(
     )
 
 
+def _repository_paths(root: Path, tree_ref: str | None) -> tuple[str, ...]:
+    """Observe tracked subjects at the selected Git identity, not from a profile claim."""
+    arguments = ("ls-tree", "-r", "--name-only", "-z", tree_ref) if tree_ref else ("ls-files", "-z")
+    completed = run_git(root, *arguments, check=tree_ref is not None, text=False, observation=True)
+    if completed.returncode:
+        return ()
+    try:
+        return tuple(path.decode("utf-8") for path in completed.stdout.split(b"\0") if path)
+    except UnicodeDecodeError as error:
+        message = "quality_subject_path_encoding_unknown"
+        raise ValueError(message) from error
+
+
 def _material(root: Path, tree_ref: str | None, relative: str) -> bytes | None:
+    if relative.startswith(PRODUCT_PROVIDER_SOURCE):
+        package = Path(ethos.__file__).resolve().parent
+        path = package / relative.removeprefix(PRODUCT_PROVIDER_SOURCE)
+        return path.read_bytes() if path.is_file() and not path.is_symlink() else None
     if tree_ref is not None:
         source = committed_file_bytes(root, tree_ref, relative)
         return source or None

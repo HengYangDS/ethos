@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import sys
 import tomllib
 from collections import Counter
@@ -24,6 +25,11 @@ from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import RepositoryProfile
 
 _PACKAGED_GATE_DECLARATION = load_gate_registry_declaration()
+PRODUCT_PROVIDER_SOURCE = "@ethos/"
+_QUALITY_PROVIDERS = {
+    "behavior": "ethos.adapters.gates.python_quality:behavior_report",
+    "static-analysis": "ethos.adapters.gates.python_quality:static_report",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +42,7 @@ class ResolvedGatePolicy:
     python_executable: str = sys.executable
     sources: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = ()
     gaps: tuple[str, ...] = ()
+    repository_paths: tuple[str, ...] = ()
 
     @property
     def registry(self) -> dict[str, Gate]:
@@ -59,7 +66,7 @@ class ResolvedGatePolicy:
             )
         )
 
-    def result_gaps(self, checks: object) -> tuple[str, ...]:
+    def result_gaps(self, checks: object, *, source_tree: str = "") -> tuple[str, ...]:
         """Require one successful, identity-matching result per declared obligation."""
         if not isinstance(checks, (list, tuple)) or any(
             not isinstance(check, Mapping) or not isinstance(check.get("action_id"), str)
@@ -79,6 +86,7 @@ class ResolvedGatePolicy:
                 gaps.append(f"gate_identity_mismatch:{name}")
             if not execution_succeeded(check):
                 gaps.append(f"gate_execution_not_proven:{name}")
+        gaps.extend(quality_obligation_gaps(self.projection, checks, source_tree=source_tree))
         return tuple(gaps) if checks else ("gate_results_empty", *gaps)
 
     @property
@@ -86,7 +94,11 @@ class ResolvedGatePolicy:
         """Return the exact policy projection bound by a transition plan."""
         sources = dict(self.sources)
         return {
-            "owner": _owner_projection(self.declaration, self.profile),
+            "owner": _owner_projection(
+                self.declaration,
+                self.profile,
+                self.repository_paths,
+            ),
             "gates": [gate_policy_fields(gate, sources.get(gate.id, ())) for gate in self.gates],
             "gaps": list(self.gaps),
         }
@@ -96,8 +108,100 @@ class ResolvedGatePolicy:
         return canonical_json_digest(self.projection)
 
 
+def quality_obligation_gaps(
+    policy: Mapping[str, object], checks: object, *, source_tree: str
+) -> tuple[str, ...]:
+    """Keep execution success distinct from evidence for observed code axes."""
+    owner = policy.get("owner")
+    if not isinstance(owner, Mapping) or owner.get("quality_floor_version") != 1:
+        return ()
+    axes = owner.get("code_correctness_map")
+    if not isinstance(axes, Mapping) or not axes:
+        return ()
+    gates = policy.get("gates")
+    if not isinstance(gates, (list, tuple)) or not isinstance(checks, (list, tuple)):
+        return tuple(f"quality_obligation_unproven:{axis}" for axis in axes)
+    by_gate = {
+        gate.get("id"): gate for gate in gates if isinstance(gate, Mapping) and gate.get("id")
+    }
+    by_check = {
+        check.get("action_id"): check
+        for check in checks
+        if isinstance(check, Mapping) and check.get("action_id")
+    }
+    gaps: list[str] = []
+    for axis, gate_id in axes.items():
+        if (
+            not isinstance(axis, str)
+            or not isinstance(gate_id, str)
+            or not _qualified_quality_check(
+                by_gate.get(gate_id),
+                by_check.get(gate_id),
+                axis,
+                source_tree,
+                owner.get("quality_subjects"),
+            )
+        ):
+            gaps.append(f"quality_obligation_unproven:{axis}")
+    return tuple(gaps)
+
+
+def _qualified_quality_check(
+    gate: object, check: object, axis: str, source_tree: str, subjects: object
+) -> bool:
+    """Accept only a product provider's scoped native-evidence result."""
+    if not isinstance(gate, Mapping) or not isinstance(check, Mapping) or not source_tree:
+        return False
+    identity = gate.get("execution_identity")
+    if (
+        gate.get("execution_mode") != "provider"
+        or gate.get("tool_adapter") != "ethos"
+        or not isinstance(identity, (list, tuple))
+        or len(identity) < 2
+        or identity[0] != "provider"
+    ):
+        return False
+    providers = identity[1:]
+    try:
+        payload = json.loads(str(check.get("stdout") or ""))
+    except json.JSONDecodeError:
+        return False
+    if not isinstance(payload, Mapping) or payload.get("gate") != gate.get("id"):
+        return False
+    observations = payload.get("providers")
+    if not isinstance(observations, list):
+        return False
+    return any(
+        isinstance(item, Mapping)
+        and item.get("provider") in providers
+        and _quality_evidence_matches(item.get("report"), axis, source_tree, subjects)
+        for item in observations
+    )
+
+
+def _quality_evidence_matches(
+    report: object, axis: str, source_tree: str, subjects: object
+) -> bool:
+    if not isinstance(report, Mapping) or report.get("verdict") != "pass":
+        return False
+    evidence = report.get("quality_evidence")
+    selected = evidence.get("selected_paths") if isinstance(evidence, Mapping) else None
+    expected = subjects.get(axis) if isinstance(subjects, Mapping) else None
+    return (
+        isinstance(evidence, Mapping)
+        and evidence.get("axis") == axis
+        and evidence.get("source_tree") == source_tree
+        and isinstance(selected, (list, tuple))
+        and bool(selected)
+        and all(isinstance(path, str) and path for path in selected)
+        and (expected is None or list(selected) == expected)
+    )
+
+
 def _owner_projection(
-    declaration: GateRegistryDeclaration, profile: RepositoryProfile | None
+    declaration: GateRegistryDeclaration,
+    profile: RepositoryProfile | None,
+    repository_paths: tuple[str, ...],
 ) -> dict[str, object]:
     identity: dict[str, object] = {
         "id": declaration.id,
@@ -108,13 +212,30 @@ def _owner_projection(
         return {"kind": "packaged", **identity}
     proof = profile.declaration.proof
     if proof.gate_registry:
-        return {"kind": "registry", "path": proof.gate_registry, **identity}
-    return {
-        "kind": "profile",
-        "code_correctness_gates": list(proof.code_correctness_gates),
-        "code_correctness_map": dict(proof.code_correctness_map),
-        **identity,
-    }
+        owner: dict[str, object] = {"kind": "registry", "path": proof.gate_registry, **identity}
+        if declaration == _PACKAGED_GATE_DECLARATION:
+            return owner
+        axes = {
+            axis: next((gate.id for gate in declaration.gates if provider in gate.providers), "")
+            for axis, provider in _QUALITY_PROVIDERS.items()
+        }
+    else:
+        owner = {
+            "kind": "profile",
+            "code_correctness_gates": list(proof.code_correctness_gates),
+            **identity,
+        }
+        axes = dict(proof.code_correctness_map)
+    python_paths = sorted(path for path in repository_paths if path.endswith((".py", ".pyi")))
+    if python_paths:
+        owner["quality_floor_version"] = 1
+        owner["code_correctness_map"] = {axis: axes.get(axis, "") for axis in _QUALITY_PROVIDERS}
+        if python_paths:
+            owner["quality_subjects"] = {
+                "behavior": [path for path in python_paths if not path.startswith("tests/")],
+                "static-analysis": python_paths,
+            }
+    return owner
 
 
 def _profile_declaration(profile: RepositoryProfile) -> GateRegistryDeclaration:
@@ -132,9 +253,9 @@ def _profile_declaration(profile: RepositoryProfile) -> GateRegistryDeclaration:
             gate.model_copy(
                 update={
                     "profile": "repository",
-                    "toolchain": "repository-native",
-                    "execution_mode": "subprocess",
-                    "tool_adapter": "repository-native",
+                    "toolchain": "ethos" if gate.providers else "repository-native",
+                    "execution_mode": "provider" if gate.providers else "subprocess",
+                    "tool_adapter": "ethos" if gate.providers else "repository-native",
                 }
             )
             for gate in proof.gates
@@ -169,8 +290,14 @@ def _gate_declaration(
 
 
 def source_paths_for_gate(gate: Gate) -> tuple[str, ...]:
+    provider_root = (
+        PRODUCT_PROVIDER_SOURCE
+        if gate.profile == "repository" and gate.tool_adapter == "ethos"
+        else "src/ethos/"
+    )
     providers = tuple(
-        f"src/{reference.partition(':')[0].replace('.', '/')}.py" for reference in gate.providers
+        provider_root + reference.partition(":")[0].removeprefix("ethos.").replace(".", "/") + ".py"
+        for reference in gate.providers
     )
     command = canonical_gate_command(gate.command)
     noxfile = (
@@ -221,6 +348,7 @@ def resolve_gate_policy(
     gate_registry_source: bytes | None = None,
     source_materials: dict[str, bytes | None] | None = None,
     repository_python: str | None = None,
+    repository_paths: tuple[str, ...] = (),
     gate_ids: tuple[str, ...] = (),
     full: bool = False,
 ) -> ResolvedGatePolicy:
@@ -260,6 +388,7 @@ def resolve_gate_policy(
         python_executable,
         sources,
         tuple(dict.fromkeys(gaps)),
+        repository_paths,
     )
 
 

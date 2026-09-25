@@ -222,6 +222,10 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
         raise ValueError(msg)
     normalized = tuple(checks_by_id[gate_id] for gate_id in execution_order)
     checks_pass = all(execution_succeeded(check) for check in normalized)
+    if quality_gaps := policy.result_gaps(
+        normalized, source_tree=str(plan.facts.get("tree") or "")
+    ):
+        raise ValueError(quality_gaps[0])
     if verdict == "pass" and (required_gaps or not checks_pass):
         msg = "proof_attestation_verdict_mismatch"
         raise ValueError(msg)

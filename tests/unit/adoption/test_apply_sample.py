@@ -23,6 +23,15 @@ from tests.support.governed_repository import init_git_repo
 ROOT = Path(__file__).resolve().parents[3]
 
 
+def _official_spec_driven_schema() -> Path:
+    """Select fixture material from the same locked OpenSpec runtime as adoption."""
+    command = openspec_base_command(execution_probe=False)
+    assert command is not None
+    schema = Path(command[1]).resolve().parent.parent / "schemas/spec-driven"
+    assert schema.is_dir()
+    return schema
+
+
 @pytest.mark.parametrize("newline", ["\n", "\r\n"])
 @pytest.mark.parametrize("empty", [False, True])
 def test_adopt_apply_writes_profile_and_official_openspec_config(
@@ -124,7 +133,7 @@ def test_adoption_preserves_existing_authored_surfaces(
     repo = init_git_repo(tmp_path / "repo")
     if "intent-to-proof" in content:
         shutil.copytree(
-            ROOT / "node_modules/@fission-ai/openspec/schemas/spec-driven",
+            _official_spec_driven_schema(),
             repo / "openspec/schemas/intent-to-proof",
         )
     target = repo / relative
@@ -308,7 +317,7 @@ def test_adoption_preview_binds_native_schema_and_template_inputs(tmp_path, rela
     """A changed native input cannot reuse authorization for the previous preview."""
     repo = init_git_repo(tmp_path / "repo")
     schema = repo / "openspec/schemas/custom"
-    shutil.copytree(ROOT / "node_modules/@fission-ai/openspec/schemas/spec-driven", schema)
+    shutil.copytree(_official_spec_driven_schema(), schema)
     (repo / "openspec/config.yaml").write_text("schema: custom\n")
     preview = adopt_repository(repo)
     assert preview.verdict == "pass", preview.to_dict()

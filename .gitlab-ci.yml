@@ -29,7 +29,7 @@ default:
       - api_failure
       - scheduler_failure
 ethos:commit-policy:
-  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:72e2434cbc0ac30cce6c312618c51beb290a214f4e60b0af51af95a79c0dce0f
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:973b6ae2ebe7336d0f57f888801a8ef44d095722add25e3df4da586d454eb8ad
   before_script:
     - tools/ci/scripts/bootstrap-python.sh
   stage: quality
@@ -55,7 +55,7 @@ ethos:commit-policy:
   script:
     - uv run --frozen --offline python -B -I -m ethos.cli hook commit-range --target-ref "${ETHOS_COMMIT_TARGET_REF}" --proposed-head "${ETHOS_COMMIT_PROPOSED_HEAD}" --remote-head "${ETHOS_COMMIT_REMOTE_HEAD}" --remote origin --root . --json
 ethos:host-conformance:
-  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:72e2434cbc0ac30cce6c312618c51beb290a214f4e60b0af51af95a79c0dce0f
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:973b6ae2ebe7336d0f57f888801a8ef44d095722add25e3df4da586d454eb8ad
   before_script:
     - tools/ci/scripts/bootstrap-python.sh
   stage: verify
@@ -67,7 +67,7 @@ ethos:host-conformance:
       - build/evidence/local-install/smoke.json
 ethos:verify:
   image:
-    name: ghcr.io/hengyangds/ethos-ci-supply@sha256:72e2434cbc0ac30cce6c312618c51beb290a214f4e60b0af51af95a79c0dce0f
+    name: ghcr.io/hengyangds/ethos-ci-supply@sha256:973b6ae2ebe7336d0f57f888801a8ef44d095722add25e3df4da586d454eb8ad
     entrypoint:
       - bash
       - -c
@@ -97,7 +97,7 @@ ethos:verify:
         coverage_format: cobertura
         path: build/evidence/quality/tests/coverage/coverage.xml
 ethos:external-links:
-  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:72e2434cbc0ac30cce6c312618c51beb290a214f4e60b0af51af95a79c0dce0f
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:973b6ae2ebe7336d0f57f888801a8ef44d095722add25e3df4da586d454eb8ad
   stage: verify
   allow_failure: true
   before_script:
@@ -116,7 +116,7 @@ ethos:npm:
       - NODE_VERSION:
           - 24.21.0
           - 26.9.0
-  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:72e2434cbc0ac30cce6c312618c51beb290a214f4e60b0af51af95a79c0dce0f
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:973b6ae2ebe7336d0f57f888801a8ef44d095722add25e3df4da586d454eb8ad
   script:
     - tools/ci/scripts/bootstrap-python.sh
     - tools/ci/scripts/install-node.sh

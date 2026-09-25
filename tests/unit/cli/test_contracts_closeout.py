@@ -348,9 +348,6 @@ def test_land_closeout_defers_control_replacement_without_signed_receipt(
             + '\n[independent_verification]\nmode = "required"\n',
             encoding="utf-8",
         )
-        path = worktree / "src" / "ethos" / "adapters" / "admission"
-        path.mkdir(parents=True, exist_ok=True)
-        (path / "new_control.py").write_text("CONTROL = 'candidate'\n", encoding="utf-8")
 
     repo, candidate, _accepted_head, candidate_head = _archived_candidate(
         tmp_path, monkeypatch, prepare=prepare

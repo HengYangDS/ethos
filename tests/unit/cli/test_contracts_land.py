@@ -488,6 +488,40 @@ def test_closeout_policy_claim_matrix(
     _assert_declared_closeout_policy(claim, repo, candidate, monkeypatch)
 
 
+def test_closeout_accepts_exact_previous_policy_schema(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    repo, candidate = start_adopted_candidate(tmp_path)
+    workspace = repo / ".ethos/workspace.toml"
+    previous = workspace.read_text().replace("canonical_sibling_worktrees = false\n", "")
+    workspace.write_text(previous)
+    git(repo, "add", workspace.as_posix())
+    git(repo, "commit", "-m", "retain previous complete policy")
+    accepted = git(repo, "rev-parse", "HEAD")
+    git(candidate, "reset", "--hard", accepted)
+
+    worktree = create_change_source_lane(
+        repo,
+        repo.parent / "repo-work-legacy-policy",
+        branch="work/legacy-policy",
+        holder_ref="agent:test:case:agent-test",
+    )
+    target = worktree / ".ethos/workspace.toml"
+    target.write_text(previous + "canonical_sibling_worktrees = false\n")
+    git(worktree, "add", target.as_posix())
+    git(worktree, "commit", "-m", "upgrade declared branch roles")
+    head = _archive(monkeypatch, worktree)
+    seed_executed_proof(worktree, head)
+    assert _land(worktree, head)["verdict"] == "pass"
+
+    report = landing_mutation.candidate_to_accepted(
+        root=repo, authorized=True, expect_head=accepted
+    )
+    assert report["verdict"] == "pass", report
+    assert git(repo, "rev-parse", "dev") == head
+    assert git(repo, "show", f"{accepted}:.ethos/workspace.toml") == previous.rstrip("\n")
+
+
 CAS_CASES = literal_case("cli.test_contracts_land:assign:CAS_CASES:5")
 
 

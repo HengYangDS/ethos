@@ -161,11 +161,19 @@ def branch_role_policy_from_text(text: str) -> BranchRolePolicy:
     )
 
 
-def strict_branch_role_policy_from_text(text: str) -> BranchRolePolicy:
-    """Parse one complete branch-role table without fallback or coercion."""
+def strict_branch_role_policy_from_text(
+    text: str, *, allow_legacy_sibling_default: bool = False
+) -> BranchRolePolicy:
+    """Parse complete branch roles, optionally recognizing one predecessor schema."""
     payload = tomllib.loads(text)
     raw_policy = payload.get("branch_roles")
-    if type(raw_policy) is not dict or set(raw_policy) != _STRICT_BRANCH_ROLE_FIELDS:
+    if type(raw_policy) is not dict:
+        raise ValueError(_STRICT_BRANCH_ROLE_TABLE_ERROR)
+    if allow_legacy_sibling_default and set(raw_policy) == (
+        _STRICT_BRANCH_ROLE_FIELDS - {"canonical_sibling_worktrees"}
+    ):
+        raw_policy = {**raw_policy, "canonical_sibling_worktrees": False}
+    if set(raw_policy) != _STRICT_BRANCH_ROLE_FIELDS:
         raise ValueError(_STRICT_BRANCH_ROLE_TABLE_ERROR)
     text_fields = _STRICT_BRANCH_ROLE_FIELDS - {"canonical_sibling_worktrees"}
     if any(

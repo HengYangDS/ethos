@@ -137,3 +137,30 @@ def test_native_code_provider_checks_real_sources(
         )
         if defect in {"unexercised", "same-name"}:
             assert "quality_obligation_unproven:behavior" in payload["required_gaps"]
+
+
+def test_javascript_test_directory_uses_native_test_identity(tmp_path: Path) -> None:
+    """An explicit tracked test under tests need not duplicate a filename suffix."""
+    if shutil.which("node") is None:
+        pytest.skip("node is unavailable on this runner")
+    repo = init_git_repo(tmp_path / "adopter")
+    _declare_quality_profile(repo, "profile")
+    (repo / "package.json").write_text('{"name":"quality","type":"module"}\n')
+    (repo / "answer.js").write_text("export function answer() { return 42; }\n")
+    tests = repo / "tests"
+    tests.mkdir()
+    (tests / "behavior.js").write_text(
+        'import test from "node:test";\n'
+        'import assert from "node:assert/strict";\n'
+        'import {answer} from "../answer.js";\n'
+        'test("answer", () => assert.equal(answer(), 42));\n'
+    )
+    head = commit_fixture(repo, "declare directory-owned native test")
+
+    result = run_ethos_raw(
+        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
+    )
+    payload = json.loads(result.stdout)
+
+    assert result.returncode == 0, payload["required_gaps"]
+    assert payload["verdict"] == "pass"

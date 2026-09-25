@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 from typing import NoReturn
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 from xml.etree import ElementTree
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from pathlib import Path
 
 
 def _invalid(code: str, error: Exception | None = None) -> NoReturn:
@@ -120,3 +123,80 @@ def _coverage_files(root: ElementTree.Element) -> dict[str, dict[str, int]]:
     if not files:
         _invalid("coverage_files_missing")
     return files
+
+
+def go_covered_paths(profile: list[str], production: tuple[str, ...]) -> list[str]:
+    """Bind Go's native coverage profile to exact tracked source paths."""
+    if not profile or not profile[0].startswith("mode: "):
+        _invalid("go_coverage_invalid")
+    hits = dict.fromkeys(production, 0)
+    for line in profile[1:]:
+        fields = line.split()
+        if len(fields) != 3:
+            _invalid("go_coverage_invalid")
+        source = fields[0].split(":", maxsplit=1)[0]
+        try:
+            statements = int(fields[1])
+            count = int(fields[2])
+        except ValueError as error:
+            _invalid("go_coverage_invalid", error)
+        if statements <= 0 or count < 0:
+            _invalid("go_coverage_invalid")
+        candidate = source
+        while candidate:
+            if candidate in hits:
+                hits[candidate] += count
+                break
+            _, separator, candidate = candidate.partition("/")
+            if not separator:
+                break
+    if any(count == 0 for count in hits.values()):
+        _invalid("go_source_unexercised")
+    return list(hits)
+
+
+def _v8_entry_executed(entry: dict[str, object]) -> bool:
+    """Distinguish loaded modules from unexecuted V8 source ranges."""
+    functions = entry.get("functions")
+    if not isinstance(functions, list):
+        _invalid("javascript_coverage_invalid")
+    for function in functions:
+        if not isinstance(function, dict):
+            _invalid("javascript_coverage_invalid")
+        ranges = function.get("ranges")
+        if not isinstance(ranges, list):
+            _invalid("javascript_coverage_invalid")
+        if any(
+            isinstance(block, dict) and isinstance(block.get("count"), int) and block["count"] > 0
+            for block in ranges
+        ):
+            return True
+    return False
+
+
+def v8_covered_paths(root: Path, directory: Path, production: tuple[str, ...]) -> set[str]:
+    """Bind owned V8 coverage artifacts to committed JavaScript modules."""
+    expected = {(root / path).resolve(): path for path in production}
+    observed: set[str] = set()
+    artifacts = list(directory.glob("coverage-*.json"))
+    if not artifacts:
+        _invalid("javascript_coverage_missing")
+    for artifact in artifacts:
+        try:
+            document = json.loads(artifact.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as error:
+            _invalid("javascript_coverage_invalid", error)
+        if not isinstance(document, dict) or not isinstance(document.get("result"), list):
+            _invalid("javascript_coverage_invalid")
+        for entry in document["result"]:
+            if not isinstance(entry, dict):
+                _invalid("javascript_coverage_invalid")
+            url = entry.get("url")
+            if not isinstance(url, str) or not url.startswith("file:"):
+                continue
+            path = Path(url2pathname(urlparse(url).path)).resolve()
+            if path in expected and _v8_entry_executed(entry):
+                observed.add(expected[path])
+    if observed != set(production):
+        _invalid("javascript_source_unexercised")
+    return observed

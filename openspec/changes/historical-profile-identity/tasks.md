@@ -18,8 +18,8 @@
 
 ## 3. Accept and exercise the product
 
-- [ ] 3.1 Run strict official OpenSpec, focused tests, static checks and exact
+- [x] 3.1 Run strict official OpenSpec, focused tests, static checks and exact
       full proof; verify a clean signed product source.
-- [ ] 3.2 Accept and install through ETHOS, then verify the adopter's installed
+- [x] 3.2 Accept and install through ETHOS, then verify the adopter's installed
       peer-scoped preview no longer fails on historical profile schema. Keep
       remote effects outside this product Change.

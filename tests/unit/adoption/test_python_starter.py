@@ -9,7 +9,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
-import ethos.adapters.repo.formation as formation_effect
+import ethos.adapters.repo.starter.formation as formation_effect
+import ethos.adapters.repo.starter.generation as generator_effect
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.domain.adoption import adopt_repository
 from tests.support.governed_repository import git
@@ -141,7 +142,7 @@ def test_unknown_starter_never_invokes_generator(
     def reject_execution(*_args: object, **_kwargs: object) -> None:
         pytest.fail("unselected generator executed")
 
-    monkeypatch.setattr(formation_effect, "run_command", reject_execution, raising=False)
+    monkeypatch.setattr(generator_effect, "run_command", reject_execution, raising=False)
     target = tmp_path / "new-project"
     result = adopt_repository(
         target,
@@ -162,7 +163,7 @@ def test_python_library_generator_failure_is_not_a_retry_loop(
     def rejected(_root: Path, command: tuple[str, ...], **_kwargs: object) -> object:
         return subprocess.CompletedProcess(command, 1, "", "generator unavailable")
 
-    monkeypatch.setattr(formation_effect, "run_command", rejected)
+    monkeypatch.setattr(generator_effect, "run_command", rejected)
     target = tmp_path / "new-project"
     result = adopt_repository(
         target, create=True, purpose="Verifiable changes.", starter="python-library"
@@ -181,7 +182,7 @@ def test_python_library_rejects_empty_success_from_generator(
     def empty_success(_root: Path, command: tuple[str, ...], **_kwargs: object) -> object:
         return subprocess.CompletedProcess(command, 0, "", "")
 
-    monkeypatch.setattr(formation_effect, "run_command", empty_success)
+    monkeypatch.setattr(generator_effect, "run_command", empty_success)
     target = tmp_path / "new-project"
     result = adopt_repository(
         target, create=True, purpose="Verifiable changes.", starter="python-library"
@@ -200,7 +201,7 @@ def test_python_library_cannot_replace_foundation_content(
         (root / "README.md").write_text("replaced\n", encoding="utf-8")
         return subprocess.CompletedProcess(command, 0, "", "")
 
-    monkeypatch.setattr(formation_effect, "run_command", overwrite)
+    monkeypatch.setattr(generator_effect, "run_command", overwrite)
     target = tmp_path / "new-project"
     result = adopt_repository(
         target, create=True, purpose="Verifiable changes.", starter="python-library"
@@ -225,7 +226,7 @@ def test_python_library_rejects_generator_link_escape(
             pytest.skip("file symlinks unavailable")
         return subprocess.CompletedProcess(command, 0, "", "")
 
-    monkeypatch.setattr(formation_effect, "run_command", hostile)
+    monkeypatch.setattr(generator_effect, "run_command", hostile)
     target = tmp_path / "new-project"
     result = adopt_repository(
         target, create=True, purpose="Verifiable changes.", starter="python-library"

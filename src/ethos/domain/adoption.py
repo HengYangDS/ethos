@@ -6,7 +6,7 @@ from pathlib import Path
 import ethos.adapters.repo.git as git
 from ethos.adapters.mutation.decision import request_gaps
 from ethos.adapters.repo.adoption import adoption_plan
-from ethos.adapters.repo.formation import formation_plan
+from ethos.adapters.repo.starter.formation import formation_plan
 from ethos.contracts.verdict import report_verdict
 from ethos.domain.execution import application_result
 from ethos.normalization.coercion import object_sequence

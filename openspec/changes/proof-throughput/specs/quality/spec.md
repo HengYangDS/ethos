@@ -77,6 +77,13 @@ not ETHOS-specific paths, tools or code budgets.
 - **THEN** both are judged against the same scope and evidence contract
 - **AND** neither must copy ETHOS's package layout or self-hosted gate commands
 
+#### Scenario: Several native checks cover one property
+
+- **WHEN** an applicable property spans several carrier or tool scopes
+- **THEN** fresh admitted reports SHALL jointly cover every applicable subject
+- **AND** a gate name, aggregate pass, or one report for only part of that scope SHALL NOT discharge the property
+- **AND** shared native execution SHALL be reused rather than repeated for each rule
+
 #### Scenario: Applicability follows repository facts
 
 - **WHEN** a repository contains code, only documentation, or a versioned release target

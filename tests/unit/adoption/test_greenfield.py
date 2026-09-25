@@ -9,10 +9,12 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
 import ethos.adapters.repo.formation as formation_effect
 from ethos.domain.adoption import adopt_repository
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -165,10 +167,9 @@ def test_greenfield_apply_forms_one_author_attributed_repository(
     """The actual file and ref effects use one approved candidate and real Git identity."""
     target = tmp_path / "new-project"
     monkeypatch.setattr(
-        formation_effect,
+        candidate_projection,
         "install_hook_launchers",
-        lambda _root: {"current": True, "required_gaps": []},
-        raising=False,
+        install_fixture_hook_runtime,
     )
     request = {
         "create": True,
@@ -189,6 +190,10 @@ def test_greenfield_apply_forms_one_author_attributed_repository(
     assert applied.state == "applied"
     assert git(target, "symbolic-ref", "--short", "HEAD") == "dev"
     assert git(target, "rev-parse", "HEAD") == git(target, "rev-parse", "candidate/dev")
+    candidate = target.with_name("new-project-candidate-dev")
+    assert candidate.is_dir()
+    assert str(candidate) in git(target, "worktree", "list", "--porcelain")
+    assert applied.data["candidate_worktree_path"] == str(candidate)
     assert git(target, "log", "-1", "--format=%an <%ae>") == ("ETHOS Test <test@example.invalid>")
     for row in preview.data["write_plan"]:
         path = target / str(row["path"])
@@ -261,6 +266,23 @@ def test_greenfield_copy_failure_preserves_unknown_target(
     assert "Inspect" in result.next_action
 
 
+def test_greenfield_candidate_path_collision_preserves_foreign_content(tmp_path: Path) -> None:
+    """The candidate worktree is a reviewed effect, not an implicit sibling overwrite."""
+    sibling = tmp_path / "new-project-candidate-dev"
+    sibling.mkdir()
+    (sibling / "foreign.txt").write_text("preserve", encoding="utf-8")
+    target = tmp_path / "new-project"
+
+    result = adopt_repository(
+        target, create=True, purpose="Verifiable changes.", starter="foundation"
+    )
+
+    assert result.verdict == "block"
+    assert result.required_gaps == ("formation_candidate_path_exists",)
+    assert not target.exists()
+    assert (sibling / "foreign.txt").read_text(encoding="utf-8") == "preserve"
+
+
 def test_greenfield_preview_binds_purpose_and_identity(tmp_path: Path) -> None:
     """A changed semantic input invalidates a prior reviewed candidate."""
     target = tmp_path / "new-project"
@@ -300,8 +322,8 @@ def test_greenfield_missing_identity_blocks_before_target(
     assert not target.exists()
 
 
-def test_greenfield_refuses_a_symlinked_parent(tmp_path: Path) -> None:
-    """A selected path cannot escape through a linked ancestor."""
+def test_greenfield_binds_canonical_parent_and_refuses_retarget(tmp_path: Path) -> None:
+    """A reviewed alias cannot silently move the effect to a new destination."""
     actual = tmp_path / "actual"
     actual.mkdir()
     linked = tmp_path / "linked"
@@ -310,14 +332,31 @@ def test_greenfield_refuses_a_symlinked_parent(tmp_path: Path) -> None:
     except OSError:
         pytest.skip("directory symlinks unavailable")
 
-    result = adopt_repository(
+    preview = adopt_repository(
         linked / "new-project", create=True, purpose="Verifiable changes.", starter="foundation"
     )
 
+    assert preview.verdict == "pass"
+    assert preview.data["root"] == str(actual / "new-project")
+    replacement = tmp_path / "replacement"
+    replacement.mkdir()
+    linked.unlink()
+    linked.symlink_to(replacement, target_is_directory=True)
+
+    result = adopt_repository(
+        linked / "new-project",
+        create=True,
+        purpose="Verifiable changes.",
+        starter="foundation",
+        apply=True,
+        authorize=True,
+        expect_plan_digest=str(preview.data["plan_digest"]),
+    )
+
     assert result.verdict == "block"
-    assert result.required_gaps == ("formation_parent_unsafe",)
-    assert "Choose an existing" in result.next_action
+    assert result.required_gaps == ("formation_plan_digest_mismatch",)
     assert not (actual / "new-project").exists()
+    assert not (replacement / "new-project").exists()
 
 
 @pytest.mark.parametrize(
@@ -366,7 +405,7 @@ def test_greenfield_runtime_failure_reobserves_created_repository(
         message = "runtime unavailable"
         raise ValueError(message)
 
-    monkeypatch.setattr(formation_effect, "install_hook_launchers", fail_activation)
+    monkeypatch.setattr(candidate_projection, "install_hook_launchers", fail_activation)
     result = adopt_repository(
         target,
         **request,

@@ -9,7 +9,7 @@ starter MAY add its own layout without making that layout ETHOS policy.
 #### Scenario: A foundation project is formed
 
 - **WHEN** an authorized exact formation plan targets an absent destination
-- **THEN** the project has a real author-attributed initial commit, an accepted development ref, and an integration candidate ref
+- **THEN** the project has a real author-attributed initial commit, an accepted development ref, and a usable integration candidate ref with its own worktree
 - **AND** it has an authored purpose, the one ETHOS profile, official OpenSpec configuration, and discoverable installed guidance
 - **AND** a fresh Agent can reach the first governed Change through the installed product without an ETHOS source checkout.
 
@@ -21,7 +21,7 @@ starter MAY add its own layout without making that layout ETHOS policy.
 
 #### Scenario: The destination or prerequisite is not safe
 
-- **WHEN** the destination exists, its parent cannot be trusted, or Git identity, official intent supply or product installation is unavailable
+- **WHEN** the destination or its planned candidate worktree exists, its parent cannot be trusted, or Git identity, official intent supply or product installation is unavailable
 - **THEN** creation refuses before publishing a target and names the owning conflict or missing fact
 - **AND** an existing project, foreign file or symlink target is not overwritten.
 

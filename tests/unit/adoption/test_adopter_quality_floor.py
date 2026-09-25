@@ -105,14 +105,20 @@ def test_non_python_source_cannot_pass_on_success_only_commands(
 
 
 @pytest.mark.parametrize(
-    ("source_path", "source_text", "asset_class", "mode"),
+    ("source_path", "source_text", "asset_class", "mode", "role_attr"),
     [
-        ("src/app.py", 'raise RuntimeError("broken")\n', "python-code", 0o644),
-        ("run", "#!/bin/sh\nif then\n", "documentation", 0o755),
+        ("src/app.py", 'raise RuntimeError("broken")\n', "python-code", 0o644, ""),
+        ("run", "#!/bin/sh\nif then\n", "documentation", 0o755, ""),
+        ("main.ts", "export const answer: = ;\n", "documentation", 0o644, "*.ts ethos-role=code\n"),
     ],
 )
 def test_registry_cannot_omit_common_code_obligations(
-    tmp_path: Path, source_path: str, source_text: str, asset_class: str, mode: int
+    tmp_path: Path,
+    source_path: str,
+    source_text: str,
+    asset_class: str,
+    mode: int,
+    role_attr: str,
 ) -> None:
     """A registry label cannot remove observed code quality obligations."""
     repo = init_git_repo(tmp_path / "adopter")
@@ -139,6 +145,8 @@ def test_registry_cannot_omit_common_code_obligations(
     source.parent.mkdir(exist_ok=True)
     source.write_text(source_text, encoding="utf-8")
     source.chmod(mode)
+    if role_attr:
+        (repo / ".gitattributes").write_text(role_attr, encoding="utf-8")
     if source_path.endswith(".py"):
         (repo / "tests").mkdir()
         (repo / "tests/test_app.py").write_text(

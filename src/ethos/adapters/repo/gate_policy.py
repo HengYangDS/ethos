@@ -8,6 +8,7 @@ import ethos
 from ethos.adapters.repo.git import committed_file_bytes
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.profile import load_committed_repository_profile
+from ethos.repository.policy.code_subjects import CARRIER_ROLES
 from ethos.repository.policy.gates import PRODUCT_PROVIDER_SOURCE
 from ethos.repository.policy.gates import ResolvedGatePolicy
 from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
@@ -52,6 +53,7 @@ def _resolve_policies(
     registry_source = _material(root, tree_ref, registry_path) if registry_path else None
     repository_paths = _repository_paths(root, tree_ref)
     script_paths = _repository_script_paths(root, tree_ref, repository_paths)
+    carrier_roles = _repository_carrier_roles(root, tree_ref, repository_paths)
     python = _repository_python(root)
     initial = tuple(
         compile_gate_policy(
@@ -60,6 +62,7 @@ def _resolve_policies(
             repository_python=python,
             repository_paths=repository_paths,
             script_paths=script_paths,
+            carrier_roles=carrier_roles,
             gate_ids=gate_ids,
             full=full,
         )
@@ -79,6 +82,7 @@ def _resolve_policies(
             repository_python=python,
             repository_paths=repository_paths,
             script_paths=script_paths,
+            carrier_roles=carrier_roles,
             gate_ids=gate_ids,
             full=full,
         )
@@ -147,6 +151,50 @@ def _repository_script_paths(
         if raw_line == b"1":
             scripts.append(path)
     return tuple(sorted(set(scripts)))
+
+
+def _repository_carrier_roles(
+    root: Path, tree_ref: str | None, repository_paths: tuple[str, ...]
+) -> tuple[tuple[str, str], ...]:
+    """Read optional carrier roles from native Git attributes at the selected tree."""
+    if not repository_paths:
+        return ()
+    arguments = (
+        "check-attr",
+        "-z",
+        "--stdin",
+        *(("--source", tree_ref) if tree_ref else ("--cached",)),
+        "ethos-role",
+    )
+    completed = run_git(
+        root,
+        *arguments,
+        stdin=b"\0".join(path.encode("utf-8") for path in repository_paths) + b"\0",
+        check=False,
+        text=False,
+        observation=True,
+    )
+    values = completed.stdout.split(b"\0")
+    if completed.returncode or values.pop() != b"" or len(values) != 3 * len(repository_paths):
+        message = "quality_carrier_role_observation_unknown"
+        raise ValueError(message)
+    roles: list[tuple[str, str]] = []
+    try:
+        for index, path in enumerate(repository_paths):
+            observed_path, attribute, value = values[3 * index : 3 * index + 3]
+            if observed_path.decode("utf-8") != path or attribute != b"ethos-role":
+                message = "quality_carrier_role_observation_invalid"
+                raise ValueError(message)
+            role = value.decode("utf-8")
+            if role in CARRIER_ROLES:
+                roles.append((path, role))
+            elif role not in {"unspecified", "unset"}:
+                message = f"quality_carrier_role_invalid:{path}"
+                raise ValueError(message)
+    except UnicodeError as error:
+        message = "quality_carrier_role_observation_invalid"
+        raise ValueError(message) from error
+    return tuple(roles)
 
 
 def _material(root: Path, tree_ref: str | None, relative: str) -> bytes | None:

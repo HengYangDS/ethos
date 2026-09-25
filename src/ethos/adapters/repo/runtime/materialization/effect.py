@@ -12,6 +12,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import NoReturn
 
+from filelock import FileLock
+from platformdirs import user_data_path
+
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.filesystem import remove_owned_path
 from ethos.adapters.repo.runtime.filesystem import require_exclusive_inodes
@@ -78,7 +81,7 @@ def materialize_runtime(
         require_runtime_selection_scope(common, selected)
         if not _runtime_supply_current(selected, project):
             _fail("hook_runtime_installed_supply_invalid")
-        return selected.root / "python"
+        return _pin_installed_runtime(selected, project) / "python"
     runtime_root = Path(git_common_dir(repo)) / "ethos" / "runtime"
     if runtime_root.parent.is_symlink() or runtime_root.is_symlink():
         _fail("hook_runtime_root_invalid")
@@ -133,6 +136,122 @@ def materialize_runtime(
         return target / "python"
     finally:
         shutil.rmtree(work, ignore_errors=True)
+
+
+def _host_runtime_store() -> Path:
+    """Choose user-owned installed supply independently of package-manager files."""
+    if declared := os.environ.get("XDG_DATA_HOME"):
+        root = Path(declared)
+        if not root.is_absolute():
+            _fail("hook_runtime_host_store_invalid")
+        return root.resolve() / "ethos/installations"
+    return user_data_path("ethos", appauthor=False).resolve() / "installations"
+
+
+def _pin_installed_runtime(selected: SelectedRuntime, project: Path) -> Path:
+    """Pin the runtime and its exact wheel as one reusable installation."""
+    store = _host_runtime_store()
+    installation = store / selected.digest
+    target = installation / "ethos/runtime" / selected.digest
+    if selected.root.resolve() == target.resolve():
+        return selected.root
+    if store.is_symlink() or installation.is_symlink():
+        _fail("hook_runtime_host_store_invalid")
+    store.mkdir(parents=True, mode=0o700, exist_ok=True)
+    with FileLock(
+        store / "install.lock", timeout=10, fallback_to_soft=False, preserve_lock_file=True
+    ):
+        _recover_pin_staging(store)
+        if installation.exists():
+            owner = installation / "OWNER"
+            if (
+                owner.is_symlink()
+                or not owner.is_file()
+                or owner.read_text() != selected.digest + "\n"
+            ):
+                _fail("hook_runtime_host_store_conflict")
+            try:
+                pinned = require_selected_runtime(target, expected_build=selected.build)
+                complete = _runtime_supply_current(pinned, project)
+            except (OSError, ValueError) as error:
+                _fail("hook_runtime_host_store_conflict", error)
+            if not complete:
+                _fail("hook_runtime_host_store_conflict")
+            return pinned.root
+        staging = store / f".pin-{uuid.uuid4().hex}"
+        marker = staging.with_name(staging.name + ".owner")
+        marker.write_text(selected.digest + "\n", encoding="utf-8")
+        try:
+            staging.mkdir(mode=0o700)
+            (staging / "OWNER").write_text(selected.digest + "\n", encoding="utf-8")
+            staged_runtime = staging / "ethos/runtime" / selected.digest
+            staged_runtime.parent.mkdir(parents=True)
+            shutil.copytree(selected.root, staged_runtime, symlinks=True)
+            wheel = _runtime_supply_wheel(selected, project)
+            if wheel is None:
+                _fail("hook_runtime_installed_supply_invalid")
+            staged_package = staging / "ethos/packages" / selected.wheel_sha256
+            staged_package.mkdir(parents=True)
+            try:
+                shutil.copyfile(wheel, staged_package / wheel.name)
+            except OSError as error:
+                _fail("hook_runtime_installed_supply_invalid", error)
+            pinned = require_selected_runtime(
+                staged_runtime, expected_root=target, expected_build=selected.build
+            )
+            if not _runtime_supply_current(pinned, project):
+                _fail("hook_runtime_host_store_copy_invalid")
+            staging.rename(installation)
+            return require_selected_runtime(target, expected_build=selected.build).root
+        finally:
+            remove_generated_tree(staging)
+            marker.unlink(missing_ok=True)
+
+
+def _recover_pin_staging(store: Path) -> None:
+    """Reclaim only marked imports after the sole host-store writer has exited."""
+    for work in sorted(store.glob(".pin-*")):
+        if work.name.endswith(".owner"):
+            continue
+        marker = work.with_name(work.name + ".owner")
+        if (
+            not _valid_pin_name(work.name)
+            or work.is_symlink()
+            or not work.is_dir()
+            or marker.is_symlink()
+            or not marker.is_file()
+        ):
+            _fail("hook_runtime_host_store_residue_unreviewed")
+        digest = marker.read_text(encoding="utf-8")
+        if not _valid_pin_marker(digest):
+            _fail("hook_runtime_host_store_residue_unreviewed")
+        remove_generated_tree(work)
+        marker.unlink()
+    for marker in store.glob(".pin-*.owner"):
+        if (
+            not _valid_pin_name(marker.name.removesuffix(".owner"))
+            or marker.is_symlink()
+            or not marker.is_file()
+            or not _valid_pin_marker(marker.read_text(encoding="utf-8"))
+        ):
+            _fail("hook_runtime_host_store_residue_unreviewed")
+        marker.unlink()
+
+
+def _valid_pin_name(value: str) -> bool:
+    return (
+        value.startswith(".pin-")
+        and len(value) == 37
+        and all(character in "0123456789abcdef" for character in value[5:])
+    )
+
+
+def _valid_pin_marker(value: str) -> bool:
+    return (
+        len(value) == 65
+        and value.endswith("\n")
+        and all(character in "0123456789abcdef" for character in value[:-1])
+    )
 
 
 def _reusable_runtime(
@@ -200,21 +319,28 @@ def _compatible_invoking_runtime(
 
 def _runtime_supply_current(selected: SelectedRuntime, project: Path) -> bool:
     """Check the installed entry, lock and exact wheel without copying supply."""
+    return _runtime_supply_wheel(selected, project) is not None
+
+
+def _runtime_supply_wheel(selected: SelectedRuntime, project: Path) -> Path | None:
+    """Return the sole exact wheel in a complete installed runtime carrier."""
     if selected.dependency_lock_sha256 != file_sha256(project / "uv.lock"):
-        return False
+        return None
     if os.name != "nt":
         entry = selected.python.with_name("ethos")
         if not os.access(entry, os.X_OK) or entry.read_text() != render_console_script("ethos"):
-            return False
+            return None
     package_root = selected.root.parent.parent / "packages" / selected.wheel_sha256
     if package_root.is_symlink() or not package_root.is_dir():
-        return False
+        return None
     wheels = tuple(
         path
         for path in package_root.glob("ethos-*.whl")
         if path.is_file() and not path.is_symlink()
     )
-    return len(wheels) == 1 and file_sha256(wheels[0]) == selected.wheel_sha256
+    return (
+        wheels[0] if len(wheels) == 1 and file_sha256(wheels[0]) == selected.wheel_sha256 else None
+    )
 
 
 def materialize_runtime_generation(

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from tools.ci.delivery.acceptance.invocation import invoke
@@ -288,12 +289,18 @@ def prove_shared_supply(
         message = "shared_supply_generation_ambiguous"
         raise ValueError(message)
     selected = require_selected_runtime(generations[0])
-    prefix = (str(selected.python), "-B", "-I", "-m", "ethos.cli")
+    package_prefix = (str(selected.python), "-B", "-I", "-m", "ethos.cli")
+    scoped_environment = {**environment, "XDG_DATA_HOME": str(work / "host-data")}
+    pinned_root = (
+        work / "host-data/ethos/installations" / selected.digest / "ethos/runtime" / selected.digest
+    )
     repositories = [work / f"shared-adopter-{ordinal}" for ordinal in range(2)]
     selectors, databases = [], []
     for repo in repositories:
         run_command(work, ("git", "init", "--quiet", "--initial-branch=dev", str(repo)), check=True)
-        data = _activate(prefix, repo, environment=environment, installed_runtime=selected.root)
+        data = _activate(
+            package_prefix, repo, environment=scoped_environment, installed_runtime=selected.root
+        )
         common = Path(git_common_dir(repo))
         selector = common / "ethos/runtime/CURRENT"
         selectors.append(selector)
@@ -301,9 +308,11 @@ def prove_shared_supply(
         if any(path.is_dir() for path in selector.parent.iterdir()):
             message = "shared_supply_was_copied"
             raise RuntimeError(message)
-        if Path(str(data.get("runtime_manifest_path") or "")) != selected.manifest:
+        if Path(str(data.get("runtime_manifest_path") or "")) != pinned_root / "manifest.json":
             message = "shared_supply_was_reselected"
             raise RuntimeError(message)
+    pinned = require_selected_runtime(pinned_root)
+    prefix = (str(pinned.python), "-B", "-I", "-m", "ethos.cli")
     original = selectors[0].read_bytes()
     if (
         databases[0].samefile(databases[1])
@@ -315,18 +324,25 @@ def prove_shared_supply(
     selectors[0].write_bytes(b"invalid\n")
     for ordinal, repo in enumerate(repositories):
         _code, report, detail = invoke(
-            repo, (*prefix, "status", "--root", str(repo), "--json"), environment=environment
+            repo,
+            (*prefix, "status", "--root", str(repo), "--json"),
+            environment=scoped_environment,
         )
         data = report.get("data")
         runtime = data.get("hook_runtime") if isinstance(data, dict) else None
         if not isinstance(runtime, dict) or runtime.get("current") is not (ordinal != 0):
             message = f"shared_repository_isolation_failed:{detail}"
             raise RuntimeError(message)
-    _activate(prefix, repositories[0], environment=environment, installed_runtime=selected.root)
-    _prove_external_supply_recovery(prefix, repositories[0], selected.root, environment=environment)
-    if selectors[0].read_bytes() != original or require_selected_runtime(selected.root) != selected:
+    _activate(
+        prefix, repositories[0], environment=scoped_environment, installed_runtime=pinned.root
+    )
+    _prove_external_supply_recovery(
+        prefix, repositories[0], pinned.root, environment=scoped_environment
+    )
+    if selectors[0].read_bytes() != original or require_selected_runtime(pinned_root) != pinned:
         message = "shared_supply_recovery_or_integrity_failed"
         raise RuntimeError(message)
+    _prove_package_carrier_removal(installed, prefix, repositories, scoped_environment)
     return {
         "state": "passed",
         "runtime_digest": selected.digest,
@@ -336,6 +352,28 @@ def prove_shared_supply(
         "damaged_selector_isolated": True,
         "invalid_supply_preserves_selection": True,
         "missing_selection_recovered": True,
+        "source_removal_preserves_consumers": True,
         "recovered": True,
         "package_manager_uninstall_qualified": False,
     }
+
+
+def _prove_package_carrier_removal(
+    installed: Path,
+    prefix: tuple[str, ...],
+    repositories: list[Path],
+    environment: Mapping[str, str],
+) -> None:
+    """Remove package-owned bytes and run both repositories from pinned supply."""
+    remove_generated_tree(installed)
+    for repo in repositories:
+        code, report, detail = invoke(
+            repo,
+            (*prefix, "status", "--root", str(repo), "--json"),
+            environment=environment,
+        )
+        data = report.get("data")
+        runtime = data.get("hook_runtime") if isinstance(data, dict) else None
+        if code or not isinstance(runtime, dict) or runtime.get("current") is not True:
+            message = f"shared_supply_source_removal_failed:{detail}"
+            raise RuntimeError(message)

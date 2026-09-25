@@ -7,9 +7,11 @@ from contextlib import suppress
 import pytest
 from fastmcp import Client
 
+import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
 from ethos.domain.adoption import adopt_repository
 from ethos.surface.mcp.server import create_server
 from tests.support.governed_repository import init_git_repo
+from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 
 def test_bound_tools_reject_spoofing_and_preserve_results(tmp_path, monkeypatch):
@@ -46,6 +48,85 @@ def test_bound_tools_reject_spoofing_and_preserve_results(tmp_path, monkeypatch)
                 rejected = await client.call_tool(name, raise_on_error=False)
                 assert rejected.is_error
                 assert not (root / ".ethos").exists()
+
+    asyncio.run(exercise())
+
+
+def test_absent_target_mcp_stays_bound_through_formation(tmp_path, monkeypatch):
+    """Explicit formation binding admits one absent target without a root override."""
+    target = tmp_path / "new-project"
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:formation")
+    with pytest.raises(ValueError, match="mcp_root_unavailable"):
+        create_server(target)
+    monkeypatch.setattr(
+        candidate_projection, "install_hook_launchers", install_fixture_hook_runtime
+    )
+    server = create_server(target, create_target=True)
+
+    async def exercise():
+        request = {
+            "create": True,
+            "starter": "foundation",
+            "purpose": "Govern a new repository.",
+            "author_name": "Test Contributor",
+            "author_email": "test@example.invalid",
+        }
+        async with Client(server) as client:
+            preview = (await client.call_tool("adopt", request)).structured_content
+            assert preview["verdict"] == "pass"
+            assert not target.exists()
+            applied = (
+                await client.call_tool(
+                    "adopt",
+                    request
+                    | {
+                        "apply": True,
+                        "authorize": True,
+                        "expect_plan_digest": preview["data"]["plan_digest"],
+                    },
+                )
+            ).structured_content
+            assert applied["verdict"] == "pass"
+            assert target.is_dir()
+            status = (await client.call_tool("status")).structured_content
+            assert status["data"]["root"] == str(target)
+        with pytest.raises(ValueError, match="formation_target_exists"):
+            create_server(target, create_target=True)
+
+    asyncio.run(exercise())
+
+
+def test_absent_target_mcp_rejects_retargeted_parent(tmp_path, monkeypatch):
+    """A moved alias cannot redirect a root-bound formation transport."""
+    original, foreign = tmp_path / "original", tmp_path / "foreign"
+    original.mkdir()
+    foreign.mkdir()
+    alias = tmp_path / "alias"
+    try:
+        alias.symlink_to(original, target_is_directory=True)
+    except OSError:
+        pytest.skip("directory symlinks unavailable")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:formation")
+    server = create_server(alias / "new-project", create_target=True)
+    alias.unlink()
+    alias.symlink_to(foreign, target_is_directory=True)
+
+    async def exercise():
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "adopt",
+                {
+                    "create": True,
+                    "starter": "foundation",
+                    "purpose": "Govern a new repository.",
+                    "author_name": "Test Contributor",
+                    "author_email": "test@example.invalid",
+                },
+                raise_on_error=False,
+            )
+            assert result.is_error
+            assert not (original / "new-project").exists()
+            assert not (foreign / "new-project").exists()
 
     asyncio.run(exercise())
 

@@ -12,6 +12,7 @@ import sys
 import tempfile
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 from fastmcp import Client
 from fastmcp.client.transports import StdioTransport
@@ -187,6 +188,52 @@ async def _adoption(
             assert hashlib.sha256(path.read_bytes()).hexdigest() == value, str(path)
 
 
+async def _formation_preview(command: tuple[str, ...], target: Path, env: dict[str, str]) -> None:
+    """Compare all installed transports while the selected repository is absent."""
+    purpose = "Govern a new repository."
+    author_name = "ETHOS Conformance"
+    author_email = "conformance@example.invalid"
+    request = {
+        "create": True,
+        "starter": "foundation",
+        "purpose": purpose,
+        "author_name": author_name,
+        "author_email": author_email,
+    }
+    transport = StdioTransport(
+        command[0],
+        [*command[1:], "mcp", "--root", str(target), "--create-target"],
+        cwd=str(target.parent),
+        env=env,
+        keep_alive=False,
+    )
+    async with Client(transport, timeout=30) as client:
+        with patch.dict(os.environ, env, clear=True):
+            expected = adopt_repository(
+                target,
+                create=True,
+                starter="foundation",
+                purpose=purpose,
+                author_name=author_name,
+                author_email=author_email,
+            ).to_dict()
+        assert expected["verdict"] == "pass"
+        for surface in ("cli", "mcp"):
+            actual = await _call(surface, client, command, target, "adopt", request, env)
+            assert actual == expected, {
+                "surface": surface,
+                "changed_fields": sorted(
+                    key for key in actual if actual.get(key) != expected.get(key)
+                ),
+                "changed_inputs": sorted(
+                    key
+                    for key in actual.get("data", {}).get("source_inputs", {})
+                    if actual["data"]["source_inputs"].get(key)
+                    != expected["data"]["source_inputs"].get(key)
+                ),
+            }
+
+
 async def _observations(
     client: Client, command: tuple[str, ...], root: Path, env: dict[str, str]
 ) -> None:
@@ -275,6 +322,8 @@ def verify(command: tuple[str, ...], workspace: Path) -> dict[str, object]:
         assert not failed.stdout
         assert "install Git" in failed.stderr
         assert "Traceback" not in failed.stderr
+        asyncio.run(_formation_preview(command, base / "new-project", env))
+        assert not (base / "new-project").exists()
         for surface in ("cli", "sdk", "mcp"):
             root = base / surface
             _initialize(root, git, env)
@@ -285,6 +334,7 @@ def verify(command: tuple[str, ...], workspace: Path) -> dict[str, object]:
     assert (dict(os.environ), Path.cwd()) == before
     return {
         "state": "passed",
+        "formation_preview": "passed",
         "mutation_surfaces": ["cli", "sdk", "mcp"],
         "planning_no_changes": "passed",
         "profile_refusal": "passed",

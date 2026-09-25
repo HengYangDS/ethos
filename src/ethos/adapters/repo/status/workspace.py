@@ -29,6 +29,7 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.bindings import ref_relation
 from ethos.adapters.repo.status.bindings import unbound_work_lane_refs
 from ethos.adapters.repo.status.bindings import worktree_binding
+from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
@@ -170,6 +171,8 @@ def workspace_status_observation(
         *cast("list[str]", authority_projection["required_gaps"]),
         *required,
     ]
+    if role == ROLE_ACCEPTED_ROOT and not head:
+        workspace_gaps.append("accepted_head_unavailable")
     missing_candidate = (
         "candidate_branch_missing"
         if not candidate["exists"]

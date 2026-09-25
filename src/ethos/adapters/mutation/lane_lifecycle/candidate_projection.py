@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import shlex
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.mutation.lane_lifecycle.start import default_worktree_path
@@ -19,11 +20,15 @@ from ethos.adapters.repo.hook.activation import install_hook_launchers
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.adapters.repo.worktree_effects import add_worktree
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 def _report(
@@ -106,6 +111,48 @@ def _candidate_target(requested: Path) -> tuple[Path, str, str]:
     return target, "", ""
 
 
+def _accepted_head(repo: Path) -> str:
+    """Observe a candidate base without treating an unborn HEAD as an exception."""
+    observed = run_git(repo, "rev-parse", "HEAD", check=False, observation=True)
+    return observed.stdout.strip() if observed.returncode == 0 else ""
+
+
+def _head_recovery_action(repo: Path, accepted_branch: str) -> str:
+    """Keep unavailable accepted HEAD recovery ahead of candidate effects."""
+    return (
+        f"Create or repair the first commit on {accepted_branch}; "
+        f"then ethos status --root {shlex.quote(repo.as_posix())} --json"
+    )
+
+
+def _bootstrap_preflight(
+    repo: Path,
+    policy: BranchRolePolicy,
+    status: dict[str, object],
+    head: str,
+    expect_head: str | None,
+    details: Mapping[str, object],
+) -> dict[str, object] | None:
+    """Refuse a missing accepted base or mismatched candidate precondition."""
+    gap = (
+        "accepted_head_unavailable"
+        if not head
+        else "candidate_bootstrap_requires_clean_accepted_root"
+        if status["role"] != ROLE_ACCEPTED_ROOT or status["dirty"]
+        else "expect_head_mismatch"
+        if expect_head is not None and expect_head != head
+        else ""
+    )
+    if not gap:
+        return None
+    if gap == "accepted_head_unavailable":
+        details = dict(details) | {
+            "next_action": _head_recovery_action(repo, policy.accepted_branch),
+            "user_decision_required": True,
+        }
+    return _report(policy.candidate_branch, head, "blocked", [gap], **details)
+
+
 def bootstrap_candidate(
     *,
     root: Path,
@@ -116,7 +163,7 @@ def bootstrap_candidate(
     repo = repository_root(root)
     policy = load_branch_role_policy(repo)
     status = workspace_status(repo)
-    head = run_git(repo, "rev-parse", "HEAD").stdout.strip()
+    head = _accepted_head(repo)
     issuer = os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
     requested = (path or default_worktree_path(repo, policy.candidate_branch)).absolute()
     target, path_gap, path_action = _candidate_target(requested)
@@ -128,15 +175,9 @@ def bootstrap_candidate(
         f"--apply --root {shlex.quote(repo.as_posix())} --json"
     )
     details = {"path": target.as_posix(), "next_action": status_action}
-    gap = (
-        "candidate_bootstrap_requires_clean_accepted_root"
-        if status["role"] != ROLE_ACCEPTED_ROOT or status["dirty"]
-        else "expect_head_mismatch"
-        if expect_head is not None and expect_head != head
-        else ""
-    )
-    if gap:
-        return _report(policy.candidate_branch, head, "blocked", [gap], **details)
+    refusal = _bootstrap_preflight(repo, policy, status, head, expect_head, details)
+    if refusal is not None:
+        return refusal
     candidate = cast("dict[str, object]", status["candidate"])
     if candidate["exists"] and candidate["worktree_exists"]:
         gaps: list[str] = []
@@ -249,7 +290,7 @@ def refresh_candidate_from_accepted(
     repo = repository_root(root)
     policy = load_branch_role_policy(repo)
     status = workspace_status(repo)
-    head = run_git(repo, "rev-parse", "HEAD").stdout.strip()
+    head = _accepted_head(repo)
     issuer = os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
     candidate = cast("dict[str, object]", status["candidate"])
     previous = str(candidate.get("head") or "")
@@ -264,6 +305,7 @@ def refresh_candidate_from_accepted(
     gaps = [
         gap
         for gap, present in (
+            ("accepted_head_unavailable", not head),
             ("accepted_root_required", status["role"] != ROLE_ACCEPTED_ROOT),
             ("accepted_root_dirty", status["role"] == ROLE_ACCEPTED_ROOT and status["dirty"]),
             ("candidate_branch_missing", not candidate["exists"]),
@@ -297,12 +339,17 @@ def refresh_candidate_from_accepted(
             )
             gaps.append(gap)
     if gaps:
+        action = (
+            _head_recovery_action(repo, policy.accepted_branch)
+            if "accepted_head_unavailable" in gaps
+            else status_action
+        )
         return _report(
             policy.candidate_branch,
             head,
             "blocked",
             gaps,
-            **(details | {"next_action": status_action}),
+            **(details | {"next_action": action}),
         )
     if previous == head and plan is None:
         return _report(

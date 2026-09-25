@@ -26,7 +26,11 @@ def console_main() -> None:
     command = "version" if "--version" in argv else root_command(argv) or "ethos"
     try:
         target = _argument_root(argv)
-        if (command == "adopt" and "--create" in argv) or not target.exists():
+        if (
+            (command == "adopt" and "--create" in argv)
+            or (command == "mcp" and "--create-target" in argv)
+            or not target.exists()
+        ):
             main()
             return
         common = git_common_dir(target)

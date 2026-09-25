@@ -119,7 +119,15 @@ def tests(session) -> None:
     gate = import_module("tools.ci.python_test_gate").PythonTestGate.from_environment(
         node_package_supply=RUNTIME.node_package_supply()
     )
-    gate.run_tests(session)
+    try:
+        gate.run_tests(session)
+    except Exception:
+        try:
+            gate.render_report()
+        except (OSError, RuntimeError, ValueError) as error:
+            session.log(f"Allure report unavailable after failed tests: {error}")
+        raise
+    gate.render_report()
 
 
 def coverage_floor(session) -> None:

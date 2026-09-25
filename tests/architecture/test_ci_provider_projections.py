@@ -102,10 +102,13 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     upload = next(step for step in steps if step.get("name") == "Upload proof receipt")
     junit = "build/evidence/quality/tests/pytest/junit*.xml"
     assert junit in upload["with"]["path"]
+    allure = "build/evidence/quality/tests/allure/"
+    assert allure in upload["with"]["path"]
     assert upload["if"] == github["jobs"]["external-links"]["steps"][-1]["if"] == "always()"
     artifacts = gitlab["ethos:verify"]["artifacts"]
     assert artifacts["when"] == gitlab["ethos:external-links"]["artifacts"]["when"] == "always"
     assert "build/evidence/quality/tests/pytest/junit*.xml" in artifacts["paths"]
+    assert allure in artifacts["paths"]
     assert artifacts["reports"]["junit"] == "build/evidence/quality/tests/pytest/junit*.xml"
     assert artifacts["reports"]["coverage_report"] == {
         "coverage_format": "cobertura",
@@ -132,6 +135,16 @@ def test_provider_commands_use_shared_owners_without_activating_mutation(provide
         assert "bootstrap-python.sh" in gitlab["ethos:verify"]["image"]["entrypoint"][2]
         assert "build/artifacts/python/" in gitlab["ethos:verify"]["artifacts"]["paths"]
         assert "stuck_or_timeout_failure" not in gitlab["default"]["retry"]["when"]
+
+
+def test_hosted_pipeline_does_not_launch_nonexecuted_provider_observation(github, gitlab) -> None:
+    """Hosted jobs must not spend a Nox startup on an unclaimed dry-run envelope."""
+    github_commands = [step.get("run", "") for step in github["jobs"]["quality"]["steps"]]
+    gitlab_commands = gitlab["ethos:verify"]["script"]
+    assert all("-s hosted_observation" not in command for command in github_commands)
+    assert all("-s hosted_observation" not in command for command in gitlab_commands)
+    assert "ETHOS_HOSTED_OBSERVATION_EXECUTE" not in github["jobs"]["quality"].get("env", {})
+    assert "ETHOS_HOSTED_OBSERVATION_EXECUTE" not in gitlab["ethos:verify"].get("variables", {})
 
 
 @pytest.mark.parametrize(

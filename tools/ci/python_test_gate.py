@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -18,8 +19,11 @@ from typing import Self
 from filelock import FileLock
 from filelock import Timeout
 
+from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.filesystem import remove_owned_path as remove_generated_path
+from ethos.repository.policy.quality_reports import junit_report
+from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -128,8 +132,13 @@ class PythonTestGate:
         self.s = settings
         self.coverage = settings.evidence / "coverage"
         self.pytest = settings.evidence / "pytest"
+        self.allure = settings.evidence / "allure"
+        self.allure_results = self.allure / "results"
+        self.allure_head = self.allure / "head.txt"
+        self.allure_report = self.allure / "agent"
         self.data = self.coverage / ".coverage"
         self.head_file = self.coverage / "head.txt"
+        self._allure_started = False
 
     @classmethod
     def from_environment(cls, *, node_package_supply: Path) -> Self:
@@ -140,13 +149,85 @@ class PythonTestGate:
         """Run unit and architecture tests with branch coverage."""
         with self._coverage_lock():
             self.head_file.unlink(missing_ok=True)
+            self.allure_head.unlink(missing_ok=True)
+            self._allure_started = False
             try:
                 self._prepare()
                 self._sharded(session) if self.s.shards not in {None, 1} else self._single(session)
             finally:
                 self._cleanup()
                 self._stable_head()
+                if self._allure_started and self._allure_result_dirs():
+                    self.allure_head.write_text(self.s.head + "\n", encoding="utf-8")
             self.head_file.write_text(self.s.head + "\n", encoding="utf-8")
+
+    def render_report(self) -> Path:
+        """Rebuild Allure 3 views from this exact test attempt without executing tests."""
+        remove_generated_path(self.allure_report)
+        if self.allure_head.is_file() and self.allure_head.read_text().strip() != self.s.head:
+            message = "allure_source_stale"
+            raise RuntimeError(message)
+        directories = self._allure_result_dirs()
+        if not self.allure_head.is_file() or not directories:
+            message = "allure_results_missing"
+            raise RuntimeError(message)
+        self._stable_head()
+        cli = self.s.node_package_supply / "allure/cli.js"
+        if not cli.is_file():
+            message = "allure_cli_unavailable"
+            raise RuntimeError(message)
+        self.allure.mkdir(parents=True, exist_ok=True)
+        command = (
+            str(ProjectRuntime.discover(ROOT).node_executable()),
+            str(cli),
+            "agent",
+            "inspect",
+            "--cwd",
+            str(self.allure),
+            "--output",
+            str(self.allure_report),
+            "--report",
+            "awesome",
+            *(str(directory) for directory in directories),
+        )
+        try:
+            result = run_command(ROOT, command, timeout=180)
+        except (OSError, ValueError):
+            remove_generated_path(self.allure_report)
+            raise
+        if result.returncode:
+            remove_generated_path(self.allure_report)
+            message = f"allure_render_failed:{result.returncode}:{result.stderr[-500:]}"
+            raise RuntimeError(message)
+        try:
+            manifest = json.loads((self.allure_report / "manifest/human-report.json").read_text())
+            run = json.loads((self.allure_report / "manifest/run.json").read_text())
+            total, _ = junit_report(sorted(self.pytest.glob("junit*.xml")))
+            if (
+                manifest["status"] != "generated"
+                or run["summary"]["stats"]["total"] != total["total"]
+                or not (self.allure_report / "awesome/index.html").is_file()
+            ):
+                remove_generated_path(self.allure_report)
+                message = "allure_report_incomplete"
+                raise RuntimeError(message)
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            remove_generated_path(self.allure_report)
+            message = "allure_report_invalid"
+            raise RuntimeError(message) from error
+        self._stable_head()
+        return self.allure_report
+
+    def _allure_result_dirs(self) -> tuple[Path, ...]:
+        if not self.allure_results.is_dir():
+            return ()
+        return tuple(
+            sorted(
+                path
+                for path in self.allure_results.iterdir()
+                if path.is_dir() and any(path.glob("*-result.json"))
+            )
+        )
 
     def enforce_floor(self, session: nox.Session) -> None:
         """Enforce the hard floor against current-HEAD evidence only."""
@@ -174,6 +255,7 @@ class PythonTestGate:
 
     def _prepare(self) -> None:
         self._cleanup()
+        remove_generated_path(self.allure_report)
         for path in (self.coverage, self.pytest, self.s.basetemp):
             path.mkdir(parents=True, exist_ok=True)
 
@@ -262,13 +344,16 @@ class PythonTestGate:
             *self.coverage.glob(".coverage*"),
             self.coverage / "coverage.xml",
             self.pytest,
+            self.allure_results,
         ):
             remove_generated_path(path)
         self.pytest.mkdir(parents=True)
+        self._allure_started = True
         self._run(
             session,
             *self._args(),
             f"--junitxml={self.pytest / 'junit.xml'}",
+            f"--alluredir={self.allure_results / 'single'}",
             "--cov-report=term-missing",
             f"--cov-report=xml:{self.coverage / 'coverage.xml'}",
             "--cov-fail-under=0",
@@ -288,6 +373,7 @@ class PythonTestGate:
                 *self.coverage.glob(".coverage*"),
                 *self.pytest.glob("junit*.xml"),
                 shard_dir,
+                self.allure_results,
             ):
                 remove_generated_path(path)
             shard_dir.mkdir(parents=True)
@@ -314,10 +400,11 @@ class PythonTestGate:
             raise RuntimeError(message)
         files = []
         for index in range(1, shards + 1):
-            assigned, data, marker = (
+            assigned, data, marker, allure_dir = (
                 nodeids[index - 1 :: shards],
                 self.coverage / f".coverage.shard-{index}",
                 shard_dir / f"shard-{index}.passed",
+                self.allure_results / f"shard-{index}",
             )
             if not assigned:
                 continue
@@ -325,21 +412,26 @@ class PythonTestGate:
                 not data.is_file()
                 or not marker.is_file()
                 or marker.read_text(encoding="utf-8").strip() != key
+                or not any(allure_dir.glob("*-result.json"))
             ):
                 remove_generated_path(data)
                 remove_generated_path(marker)
+                remove_generated_path(allure_dir)
+                self._allure_started = True
                 self._run(
                     session,
                     *self._args(),
                     "--cov-report=",
                     "--cov-fail-under=0",
                     f"--junitxml={self.pytest / f'junit-shard-{index}.xml'}",
+                    f"--alluredir={allure_dir}",
                     *assigned,
                     "-q",
                     data=data,
                 )
                 marker.write_text(key + "\n", encoding="utf-8")
             files.append(str(data))
+        self._allure_started = True
         session.run(*self._coverage("combine", *files), env=self._env())
         session.run(
             *self._coverage("xml", "-o", str(self.coverage / "coverage.xml")), env=self._env()

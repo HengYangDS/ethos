@@ -24,6 +24,32 @@ wheels = [
 ]
 
 [[package]]
+name = "allure-pytest"
+version = "2.16.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "allure-python-commons" },
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/72/26/2c5b357f349a42c81f1f9ddb4ed6e05352f34a18f6f88b8d466a443b049f/allure_pytest-2.16.1.tar.gz", hash = "sha256:4aefe54f9b6020f44a113af94f0772a9a95f47472358d9d27ccf1edb886e05f7", size = 17779, upload-time = "2026-09-18T19:46:50.364Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ee/07/46cb1eca6f025e5c22bb1fc0b0d6bbfb79f73bbb0ebe2919a02d43b32bd4/allure_pytest-2.16.1-py3-none-any.whl", hash = "sha256:07a9b8ae2840254250887b27e1f51af9732611285f7db301048c388fb60bddf4", size = 12496, upload-time = "2026-09-18T19:46:49.084Z" },
+]
+
+[[package]]
+name = "allure-python-commons"
+version = "2.16.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "pluggy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/17/06/bad27c0d10d9c7f03b40bcf85d7d56e098a44b4de13e7fed177fdf528f89/allure_python_commons-2.16.1.tar.gz", hash = "sha256:3bfb00982a17dd325581f7ca7ebc142d4e3ba2a001ba1f800c2d4e69ddf54a82", size = 15779, upload-time = "2026-09-18T19:46:41.393Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/45/53/8e55e46cf7f90a0e7a2c3938fa17563e6d6539ce268344c217f7638377b2/allure_python_commons-2.16.1-py3-none-any.whl", hash = "sha256:bcc9698e3df33bcc83ab9df276c4e17c8f8007837e216b17bc9b0385043d00c2", size = 16934, upload-time = "2026-09-18T19:46:40.111Z" },
+]
+
+[[package]]
 name = "annotated-types"
 version = "0.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -552,6 +578,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "allure-pytest" },
     { name = "codespell" },
     { name = "deptry" },
     { name = "editables" },
@@ -597,6 +624,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "allure-pytest", specifier = ">=2.16.1" },
     { name = "codespell", specifier = ">=2.4.3" },
     { name = "deptry", specifier = ">=0.25.1" },
     { name = "editables", specifier = ">=0.6" },

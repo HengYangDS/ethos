@@ -193,9 +193,6 @@ github: {
 			}, {
 				// The registry owns gate order and package creation. Execute it once;
 				// independently required hosted checks below project this exact result.
-				name: "Hosted provider observation envelope"
-				run:  "uv run --frozen --offline python -m nox -s hosted_observation"
-			}, {
 				name: "HEAD-bound hosted verification receipt"
 				run:  "tools/ci/scripts/run-head-bound-proof.sh"
 			}, {
@@ -208,6 +205,7 @@ github: {
 						build/evidence/quality/proof/
 						build/evidence/quality/tests/pytest/junit*.xml
 						build/evidence/quality/tests/coverage/coverage.xml
+						build/evidence/quality/tests/allure/
 
 						"""
 					"if-no-files-found": "error"
@@ -384,7 +382,6 @@ gitlab: {
 			ETHOS_TEST_WORKERS: "4"
 		}
 		script: [
-			"uv run --frozen --offline python -m nox -s hosted_observation",
 			"tools/ci/scripts/run-head-bound-proof.sh",
 		]
 		artifacts: {
@@ -393,6 +390,7 @@ gitlab: {
 				"build/evidence/quality/proof/",
 				"build/evidence/quality/tests/pytest/junit*.xml",
 				"build/evidence/quality/tests/coverage/coverage.xml",
+				"build/evidence/quality/tests/allure/",
 				"build/evidence/quality/security/",
 				"build/evidence/quality/secrets/",
 				"build/artifacts/python/",

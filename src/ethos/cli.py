@@ -25,7 +25,11 @@ def console_main() -> None:
     argv = sys.argv[1:]
     command = "version" if "--version" in argv else root_command(argv) or "ethos"
     try:
-        common = git_common_dir(_argument_root(argv))
+        target = _argument_root(argv)
+        if (command == "adopt" and "--create" in argv) or not target.exists():
+            main()
+            return
+        common = git_common_dir(target)
         selector = Path(common) / "ethos/runtime/CURRENT"
         if (
             common

@@ -12,6 +12,11 @@ from ethos.surface.cli.root_binding import resolve_root
 def adopt(
     *,
     root: RootOption | None = None,
+    create: bool = False,
+    purpose: str = "",
+    starter: str = "",
+    author_name: str = "",
+    author_email: str = "",
     apply: bool = False,
     authorize: bool = False,
     expect_head: str | None = None,
@@ -19,8 +24,17 @@ def adopt(
     json_output: JsonFlag = False,
 ) -> None:
     """Plan or apply ETHOS adoption for a repository."""
+    if create and root is None:
+        message = "formation_root_required"
+        raise ValueError(message)
+    target = root if create and root is not None else resolve_root(root)
     result = adopt_repository(
-        resolve_root(root),
+        target,
+        create=create,
+        purpose=purpose,
+        starter=starter,
+        author_name=author_name,
+        author_email=author_email,
         apply=apply,
         authorize=authorize,
         expect_head=expect_head,

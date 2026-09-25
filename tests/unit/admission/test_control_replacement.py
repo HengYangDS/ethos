@@ -238,9 +238,18 @@ def test_receipt_and_proof_negative_matrix_fails_closed(tmp_path: Path) -> None:
         "src/ethos/repository/release/configuration.py",
     ],
 )
-def test_control_path_matrix_requires_independent_verification(tmp_path: Path, path: str) -> None:
+def test_control_path_matrix_requires_independent_verification(
+    tmp_path: Path, path: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Inspect the control-path policy with an admitted proof as an explicit prerequisite."""
     candidate, accepted, head = _control_change(tmp_path, path)
-    seed_executed_proof(candidate, head)
+    proof = SimpleNamespace(
+        id="a" * 64,
+        plan_digest="b" * 64,
+        policy_digest="c" * 64,
+        payload=SimpleNamespace(body={"fixture": "admitted proof"}),
+    )
+    monkeypatch.setattr(replacement, "proof_for_repository_transition", lambda *_args: (proof, []))
     report = _report(candidate, accepted, head)
     if path == "README.md":
         assert (report["required"], report["verdict"], report["required_gaps"]) == (

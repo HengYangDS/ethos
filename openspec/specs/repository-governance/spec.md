@@ -4871,17 +4871,12 @@ exact remote CAS.
 
 ### Requirement: Explicit peer-scoped publication
 
-For an exact `ethos publish --ref` request, a caller MAY select a nonempty
-subset of the declared publication peers by ID. Without a selector, ETHOS
-SHALL retain the all-peer request. Selection SHALL be explicit and
-invocation-local, never inferred from peer availability. ETHOS SHALL validate
-the complete declared topology, then observe and compile only selected peers
-into one immutable request. That request SHALL bind each selected ID, Git
-remote, ref and exact expected and desired OID. Before and between remote
-effects, replay SHALL recheck the current selected ID-to-remote binding and
-the existing source, proof, role and exact-CAS obligations. Results and
-Attestations SHALL identify the selected peers and SHALL NOT claim an
-unselected peer was published.
+For exact `ethos publish --ref`, callers MAY explicitly select a nonempty
+subset of declared peers by ID for that invocation. Omitted selection SHALL
+retain the all-peer request; peer health SHALL never select implicitly. ETHOS
+SHALL validate the full declared topology, then observe only selected peers
+and compile one immutable request binding each selected ID, Git remote, ref,
+and exact expected and desired OIDs.
 
 #### Scenario: One declared peer is unavailable
 
@@ -4902,6 +4897,14 @@ unselected peer was published.
 
 - **WHEN** a caller names an undeclared peer ID or repeats one ID
 - **THEN** ETHOS rejects the request before remote observation or mutation.
+
+### Requirement: Peer-scoped replay and reporting remain bounded
+
+Before and between remote effects, replay SHALL recheck each selected
+ID-to-remote binding and the existing source, proof, ref-role, signature and
+exact-CAS obligations. A receipt SHALL NOT accept a new selector or widen its
+bound peer set. Results and Attestations SHALL name selected and unselected
+peers, and SHALL NOT claim an unselected peer was published.
 
 #### Scenario: Bound peer identity changes before replay
 

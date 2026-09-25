@@ -16,6 +16,8 @@ from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.bindings import has_changed_paths
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos.repository.openspec.identifiers import OPEN_SPEC_ARCHIVE_ROOT
+from ethos.repository.openspec.identifiers import parse_archived_change_root
 
 if TYPE_CHECKING:
     from ethos.contracts.branch.roles import BranchRolePolicy
@@ -93,14 +95,14 @@ def _archive_roots(repo: Path, accepted_head: str, change: str) -> tuple[str, ..
         "-d",
         "--name-only",
         accepted_head,
-        "openspec/changes/archive/",
+        f"{OPEN_SPEC_ARCHIVE_ROOT}/",
         check=False,
     )
     return (
         tuple(
             path
             for path in archives.stdout.splitlines()
-            if path.rsplit("/", 1)[-1].endswith(f"-{change}")
+            if (parsed := parse_archived_change_root(path)) is not None and parsed[0] == change
         )
         if archives.returncode == 0
         else ()

@@ -10,6 +10,8 @@ import pytest
 
 import ethos.adapters.mutation.lane_retirement.effects as effects
 from ethos.contracts.branch.roles import BranchRolePolicy
+from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -17,6 +19,31 @@ if TYPE_CHECKING:
 _ARCHIVE_LISTING = """openspec/changes/archive/2026-08-29-change
 openspec/changes/archive/2026-08-29-other
 """
+
+
+def test_archive_absorption_selects_exact_official_change_identity(tmp_path: Path) -> None:
+    """A suffix-sharing archived Change is not the selected Change's archive."""
+    repo = init_git_repo(tmp_path / "repo")
+    for name in ("bar", "foo-bar"):
+        target = repo / f"openspec/changes/archive/2026-09-01-{name}/proposal.md"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("accepted contribution\n", encoding="utf-8")
+    accepted_head = commit_fixture(repo, "retain exact archives")
+    source = repo / "openspec/changes/bar/proposal.md"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_text("accepted contribution\n", encoding="utf-8")
+    head = commit_fixture(repo, "observe active contribution")
+
+    mapping = effects.archived_carrier_absorption(repo, head=head, accepted_head=accepted_head)
+
+    assert mapping["change"] == "bar"
+    assert mapping["archive_root"] == "openspec/changes/archive/2026-09-01-bar"
+    assert mapping["paths"] == {
+        "openspec/changes/bar/proposal.md": {
+            "target": "openspec/changes/archive/2026-09-01-bar/proposal.md",
+            "blob": effects.output(repo, "rev-parse", f"{head}:openspec/changes/bar/proposal.md"),
+        }
+    }
 
 
 @pytest.mark.parametrize(

@@ -56,6 +56,38 @@ Unknown required discovery SHALL NOT become empty successful coverage.
 - **AND** explicit native selection is evaluated under its own declared scope
 - **AND** relabeling implementation as evidence cannot silently remove hard obligations
 
+### Requirement: Adopters share applicable quality obligations
+
+ETHOS SHALL compile a common, versioned quality floor from observed repository
+facts before selecting native checks. A repository profile MAY add domain
+constraints and map native evidence, but omission, renaming or a candidate's
+own changed policy SHALL NOT remove an applicable common obligation. The floor
+SHALL express properties, not ETHOS-specific paths, tools or numeric budgets.
+
+#### Scenario: Binding is not quality qualification
+
+- **WHEN** a valid new or existing repository has no checks for applicable obligations
+- **THEN** adoption MAY report its binding effect, but readiness, proof and integration SHALL report the missing obligations rather than quality success
+- **AND** an empty native proof floor or a passing command with no relevant evidence SHALL NOT satisfy them
+
+#### Scenario: Native implementations differ but obligations do not
+
+- **WHEN** two repositories use different native tools and layouts for the same applicable property
+- **THEN** both are judged against the same scope and evidence contract
+- **AND** neither must copy ETHOS's package layout or self-hosted gate commands
+
+#### Scenario: Applicability follows repository facts
+
+- **WHEN** a repository contains code, only documentation, or a versioned release target
+- **THEN** code correctness, reader navigation, and release-version obligations apply to their respective observed subjects
+- **AND** absent, ambiguous or unavailable required discovery is not treated as an empty successful check
+
+#### Scenario: A candidate weakens its own quality policy
+
+- **WHEN** a candidate removes a required check or narrows its source scope
+- **THEN** the trusted prior floor still judges the candidate until an independently admitted policy transition replaces it
+- **AND** local and hosted consumers reject a result set that omits a required obligation
+
 ### Requirement: Release protection projects configured branch roles
 
 ETHOS SHALL derive protected branch membership from the configured branch-role

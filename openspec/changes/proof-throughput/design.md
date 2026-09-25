@@ -2339,15 +2339,16 @@ unproven. Native JUnit, coverage and static diagnostics can be adapters, not
 parallel quality authorities. A candidate cannot waive its trusted prior floor.
 
 The replacement keeps one `Rule` obligation compiler and one `Gate` execution
-graph. A native command may run a supplementary check, but its exit status or
-self-declared dimensions cannot discharge a common obligation. A qualified
-provider must observe the selected repository inputs, execute a bound native
-tool, interpret its fresh standard report, and return the exact property and
-scope it can support. Provider qualification requires real good/bad, missing
-report and narrowed-scope cases; naming a provider is not qualification. First
-adoption must expose unqualified properties for review, while later policy
-replacement is judged against the trusted prior. Neither CUE/CEL validation nor
-an attractive test dashboard makes an untrusted observation true.
+graph. Git-tree carrier metadata and native build selection supply facts, not
+another role authority; candidate labels cannot overrule native facts or the
+trusted prior. Syntax classifiers may suggest a conflict, but cannot certify a
+role. Missing role or discovery remains unknown, not an empty subject set.
+Each applicable property is judged over its exact subject scope and may need
+several conjunctive reports. A qualified adapter interprets fresh reports from
+the existing native execution; independent reruns are risk-selected, not the
+default. Gate names, exit codes and aggregate green cannot replace missing
+scope or proof. First adoption exposes unqualified claims for review. Provider
+qualification requires good/bad, missing-report and narrowed-scope cases.
 
 The native Go 1.27.1 probe uses an isolated module and offline owned caches.
 Default discovery/build includes live and generated packages but excludes the

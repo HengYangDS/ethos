@@ -157,7 +157,7 @@
 - [ ] 11.8 Converge root configuration placement with native discovery, hook and CI consumer evidence; remove replaced declarations and stale documentation.
 - [ ] 11.9 Verify declaration-to-consumer wiring with disconnected, misbound and unavailable-capability cases through public entrypoints; preserve adverse results through receipt and admission.
   - [ ] 11.9.1 Qualify carrier-role and native-discovery applicability, including frozen provenance, generated build inputs, explicit selection, missing discovery and unauthorized relabeling; preserve integrity obligations without language or directory-name exceptions.
-  - [ ] 11.9.2 Compile the common quality floor through the existing rule, profile and gate owners; verify empty and false evidence, native equivalence, code/document/release applicability and trusted-prior preservation at public adopter and installed boundaries.
+  - [ ] 11.9.2 Compile the common quality floor through the existing rule, profile and gate owners; verify empty and false evidence, conjunctive per-subject native evidence without duplicate execution, code/document/release applicability and trusted-prior preservation at public adopter and installed boundaries.
 - [x] 11.10 Verify native TOML and mise migrations through focused native checks, exact-source full proof and installed runtime.
 
 ## 12. Documentation Comprehension and Research Delivery

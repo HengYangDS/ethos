@@ -51,6 +51,7 @@ def _resolve_policies(
     )
     registry_source = _material(root, tree_ref, registry_path) if registry_path else None
     repository_paths = _repository_paths(root, tree_ref)
+    script_paths = _repository_script_paths(root, tree_ref, repository_paths)
     python = _repository_python(root)
     initial = tuple(
         compile_gate_policy(
@@ -58,6 +59,7 @@ def _resolve_policies(
             gate_registry_source=registry_source,
             repository_python=python,
             repository_paths=repository_paths,
+            script_paths=script_paths,
             gate_ids=gate_ids,
             full=full,
         )
@@ -76,6 +78,7 @@ def _resolve_policies(
             source_materials=materials,
             repository_python=python,
             repository_paths=repository_paths,
+            script_paths=script_paths,
             gate_ids=gate_ids,
             full=full,
         )
@@ -94,6 +97,56 @@ def _repository_paths(root: Path, tree_ref: str | None) -> tuple[str, ...]:
     except UnicodeDecodeError as error:
         message = "quality_subject_path_encoding_unknown"
         raise ValueError(message) from error
+
+
+def _repository_script_paths(
+    root: Path, tree_ref: str | None, repository_paths: tuple[str, ...]
+) -> tuple[str, ...]:
+    """Observe first-line shebangs from the exact Git tree or index in one query."""
+    if not repository_paths and tree_ref is None:
+        return ()
+    arguments = (
+        "grep",
+        "-n",
+        "-I",
+        "-z",
+        "-m",
+        "1",
+        "-e",
+        "^#!",
+        *((tree_ref,) if tree_ref else ("--cached",)),
+        "--",
+    )
+    completed = run_git(root, *arguments, check=False, text=False, observation=True)
+    if completed.returncode == 1 and not completed.stdout and not completed.stderr:
+        return ()
+    if completed.returncode or not completed.stdout:
+        message = "quality_script_discovery_unknown"
+        raise ValueError(message)
+    data = completed.stdout
+    prefix = f"{tree_ref}:".encode() if tree_ref else b""
+    tracked = set(repository_paths)
+    scripts: list[str] = []
+    while data:
+        try:
+            raw_path, data = data.split(b"\0", 1)
+            raw_line, data = data.split(b"\0", 1)
+            content, data = data.split(b"\n", 1)
+            path = raw_path.removeprefix(prefix).decode("utf-8")
+        except (UnicodeError, ValueError) as error:
+            message = "quality_script_discovery_invalid"
+            raise ValueError(message) from error
+        if (
+            (prefix and not raw_path.startswith(prefix))
+            or not raw_line.isdigit()
+            or path not in tracked
+            or not content.startswith(b"#!")
+        ):
+            message = "quality_script_discovery_invalid"
+            raise ValueError(message)
+        if raw_line == b"1":
+            scripts.append(path)
+    return tuple(sorted(set(scripts)))
 
 
 def _material(root: Path, tree_ref: str | None, relative: str) -> bytes | None:

@@ -104,8 +104,17 @@ def test_non_python_source_cannot_pass_on_success_only_commands(
     )
 
 
-def test_registry_cannot_omit_common_code_obligations(tmp_path: Path) -> None:
-    """A registry representation cannot make observed Python code quality optional."""
+@pytest.mark.parametrize(
+    ("source_path", "source_text", "asset_class", "mode"),
+    [
+        ("src/app.py", 'raise RuntimeError("broken")\n', "python-code", 0o644),
+        ("run", "#!/bin/sh\nif then\n", "documentation", 0o755),
+    ],
+)
+def test_registry_cannot_omit_common_code_obligations(
+    tmp_path: Path, source_path: str, source_text: str, asset_class: str, mode: int
+) -> None:
+    """A registry label cannot remove observed code quality obligations."""
     repo = init_git_repo(tmp_path / "adopter")
     profile = repo / ".ethos/profile.toml"
     profile.parent.mkdir()
@@ -123,13 +132,18 @@ def test_registry_cannot_omit_common_code_obligations(tmp_path: Path) -> None:
         '[[gates]]\nid = "claimed-tests"\nkind = "test"\n'
         f"command = {json.dumps([sys.executable, '-c', 'pass'])}\n"
         'dimensions = ["test", "coverage", "static-analysis"]\n'
-        'asset_classes = ["python-code"]\n',
+        f'asset_classes = ["{asset_class}"]\n',
         encoding="utf-8",
     )
-    (repo / "src").mkdir()
-    (repo / "src/app.py").write_text('raise RuntimeError("broken")\n', encoding="utf-8")
-    (repo / "tests").mkdir()
-    (repo / "tests/test_app.py").write_text('raise AssertionError("not run")\n', encoding="utf-8")
+    source = repo / source_path
+    source.parent.mkdir(exist_ok=True)
+    source.write_text(source_text, encoding="utf-8")
+    source.chmod(mode)
+    if source_path.endswith(".py"):
+        (repo / "tests").mkdir()
+        (repo / "tests/test_app.py").write_text(
+            'raise AssertionError("not run")\n', encoding="utf-8"
+        )
     head = commit_fixture(repo, "claim quality without execution")
 
     result = run_ethos_raw(
@@ -139,6 +153,9 @@ def test_registry_cannot_omit_common_code_obligations(tmp_path: Path) -> None:
 
     assert result.returncode != 0
     assert payload["verdict"] == "block"
+    assert any(
+        str(gap).startswith("quality_obligation_unproven:") for gap in payload["required_gaps"]
+    )
     assert "quality_obligation_unproven:behavior" in payload["required_gaps"]
     assert "quality_obligation_unproven:static-analysis" in payload["required_gaps"]
 

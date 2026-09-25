@@ -24,12 +24,17 @@ class CodeSubject:
     is_test: bool
 
 
-def observed_code_subjects(repository_paths: tuple[str, ...]) -> tuple[CodeSubject, ...]:
+def observed_code_subjects(
+    repository_paths: tuple[str, ...], *, script_paths: tuple[str, ...] = ()
+) -> tuple[CodeSubject, ...]:
     """Flag known code carriers without treating a suffix as quality evidence."""
     subjects = []
+    scripts = set(script_paths)
     for path in repository_paths:
         name = PurePosixPath(path).name
-        language = _LANGUAGE_BY_SUFFIX.get(PurePosixPath(path).suffix)
+        language = _LANGUAGE_BY_SUFFIX.get(PurePosixPath(path).suffix) or (
+            "script" if path in scripts else None
+        )
         if language is None:
             continue
         is_test = (

@@ -110,3 +110,23 @@ def test_gate_policy_identity_binds_profile_semantics_and_python_command(tmp_pat
     assert canonical_gate_command(("python3.12", "-m", "tool")) != canonical_gate_command(
         ("python3.13", "-m", "tool")
     )
+
+
+def test_script_discovery_reads_selected_git_object_not_mutable_checkout(tmp_path: Path) -> None:
+    """Script role follows Git content at the selected tree or index."""
+    repo = init_git_repo(tmp_path / "repo")
+    write_script_gate_policy(repo)
+    (repo / "notes.txt").write_text("example\n#!/bin/sh\n", encoding="utf-8")
+    head = commit_fixture(repo, "declare scripts")
+    committed = resolve_gate_policy(repo, tree_ref=head)
+    assert "tools/check.sh" in committed.script_paths
+    assert "notes.txt" not in committed.script_paths
+
+    script = repo / "tools/check.sh"
+    script.write_text("echo changed\n", encoding="utf-8")
+    assert resolve_gate_policy(repo, tree_ref=head).script_paths == committed.script_paths
+    assert "tools/check.sh" in resolve_gate_policy(repo).script_paths
+
+    git(repo, "add", "tools/check.sh")
+    assert "tools/check.sh" not in resolve_gate_policy(repo).script_paths
+    assert resolve_gate_policy(repo, tree_ref=head).script_paths == committed.script_paths

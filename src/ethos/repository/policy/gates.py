@@ -21,14 +21,21 @@ from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.verdict import execution_succeeded
+from ethos.repository.policy.code_subjects import observed_code_subjects
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import RepositoryProfile
 
 _PACKAGED_GATE_DECLARATION = load_gate_registry_declaration()
 PRODUCT_PROVIDER_SOURCE = "@ethos/"
 _QUALITY_PROVIDERS = {
-    "behavior": "ethos.adapters.gates.python_quality:behavior_report",
-    "static-analysis": "ethos.adapters.gates.python_quality:static_report",
+    "behavior": (
+        "ethos.adapters.gates.python_quality:behavior_report",
+        "ethos.adapters.gates.code_quality:behavior_report",
+    ),
+    "static-analysis": (
+        "ethos.adapters.gates.python_quality:static_report",
+        "ethos.adapters.gates.code_quality:static_report",
+    ),
 }
 
 
@@ -113,8 +120,13 @@ def quality_obligation_gaps(
 ) -> tuple[str, ...]:
     """Keep execution success distinct from evidence for observed code axes."""
     owner = policy.get("owner")
-    if not isinstance(owner, Mapping) or owner.get("quality_floor_version") != 1:
+    if not isinstance(owner, Mapping):
         return ()
+    version = owner.get("quality_floor_version")
+    if version is None:
+        return ()
+    if version not in (1, 2):
+        return (f"quality_floor_version_unsupported:{version}",)
     axes = owner.get("code_correctness_map")
     if not isinstance(axes, Mapping) or not axes:
         return ()
@@ -216,8 +228,15 @@ def _owner_projection(
         if declaration == _PACKAGED_GATE_DECLARATION:
             return owner
         axes = {
-            axis: next((gate.id for gate in declaration.gates if provider in gate.providers), "")
-            for axis, provider in _QUALITY_PROVIDERS.items()
+            axis: next(
+                (
+                    gate.id
+                    for gate in declaration.gates
+                    if any(provider in gate.providers for provider in providers)
+                ),
+                "",
+            )
+            for axis, providers in _QUALITY_PROVIDERS.items()
         }
     else:
         owner = {
@@ -226,15 +245,14 @@ def _owner_projection(
             **identity,
         }
         axes = dict(proof.code_correctness_map)
-    python_paths = sorted(path for path in repository_paths if path.endswith((".py", ".pyi")))
-    if python_paths:
-        owner["quality_floor_version"] = 1
+    code_subjects = observed_code_subjects(repository_paths)
+    if code_subjects:
+        owner["quality_floor_version"] = 2
         owner["code_correctness_map"] = {axis: axes.get(axis, "") for axis in _QUALITY_PROVIDERS}
-        if python_paths:
-            owner["quality_subjects"] = {
-                "behavior": [path for path in python_paths if not path.startswith("tests/")],
-                "static-analysis": python_paths,
-            }
+        owner["quality_subjects"] = {
+            "behavior": [subject.path for subject in code_subjects if not subject.is_test],
+            "static-analysis": [subject.path for subject in code_subjects],
+        }
     return owner
 
 

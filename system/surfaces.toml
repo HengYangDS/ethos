@@ -36,6 +36,7 @@ inputs = [
   "SYSTEMROOT",
   "TMPDIR",
   "USER",
+  "XDG_DATA_HOME",
 ]
 
 [[surface]]

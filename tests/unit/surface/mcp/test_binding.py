@@ -18,6 +18,7 @@ def test_bound_tools_reject_spoofing_and_preserve_results(tmp_path, monkeypatch)
     root = init_git_repo(tmp_path / "bound")
     monkeypatch.setenv("ETHOS_ACTOR", "bound-actor")
     server = create_server(root)
+    assert "Read status" in server.instructions
 
     async def exercise():
         async with Client(server) as client:
@@ -62,6 +63,8 @@ def test_absent_target_mcp_stays_bound_through_formation(tmp_path, monkeypatch):
         candidate_projection, "install_hook_launchers", install_fixture_hook_runtime
     )
     server = create_server(target, create_target=True)
+    assert "Preview adopt with create=true" in server.instructions
+    assert "Read status" not in server.instructions
 
     async def exercise():
         request = {

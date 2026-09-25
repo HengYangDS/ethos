@@ -115,6 +115,11 @@ def test_readers_end_observation_or_select_a_real_boundary(tmp_path, condition, 
     assert {key: compact[key] for key in ("verdict", "required_gaps", "next_action")} == {
         key: direct[key] for key in ("verdict", "required_gaps", "next_action")
     }
+    official = compact["governance_context"]["official_openspec"]
+    assert official == direct["governance_context"]["official_openspec"]
+    assert official["available"] is True
+    assert len(official["base_command"]) == 2
+    assert all(Path(part).is_file() for part in official["base_command"])
     detail = run_ethos("lane", "status", "--root", repo.as_posix(), "--json", cwd=repo)
     if condition == "candidate":
         assert compact["next_action"].startswith("ethos land --closeout --apply --authorize ")

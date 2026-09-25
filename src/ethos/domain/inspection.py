@@ -6,6 +6,9 @@ from typing import cast
 from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.adapters.mutation.lane_lifecycle.candidate_projection import bootstrap_candidate
+from ethos.adapters.openspec.cli import OFFICIAL_PACKAGE_SPEC
+from ethos.adapters.openspec.cli import openspec_base_command
+from ethos.adapters.openspec.lifecycle.report import openspec_official_cli
 from ethos.adapters.repo.hook.observation import commit_policy_enforcement
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.status.workspace import workspace_status_observation
@@ -175,6 +178,12 @@ def inspect_repository(root: Path) -> EthosResult:
         required_gaps=gaps,
         next_action=next_action,
         user_decision_required=user_decision_required,
-        governance_context=repository_context(repo),
+        governance_context=repository_context(repo)
+        | {
+            "official_openspec": openspec_official_cli(
+                package=OFFICIAL_PACKAGE_SPEC,
+                base_command=openspec_base_command(execution_probe=False),
+            )
+        },
         data=data,
     )

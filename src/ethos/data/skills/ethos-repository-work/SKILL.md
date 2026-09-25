@@ -13,7 +13,10 @@ repository policy, authorization, proof, or an Agent-specific command channel.
    together. An empty `next_action` does not mean the product or task is done.
 2. Read the target repository's `AGENTS.md` when present, its accepted OpenSpec
    Change, and the rules or documents selected by that repository's current
-   result. Do not import ETHOS's source-tree instructions into an adopter.
+   result. To create or inspect a Change, execute the current status result's
+   `governance_context.official_openspec.base_command` with official OpenSpec
+   arguments from the target worktree. Do not assume an ambient `openspec`
+   executable or import ETHOS's source-tree instructions into an adopter.
 3. For a tracked edit, obtain a passing `ethos lane prewrite` for the exact
    worktree and paths immediately before writing. A Skill, lease, or status
    observation alone grants no mutation authority.

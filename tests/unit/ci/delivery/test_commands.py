@@ -20,7 +20,7 @@ from tools.ci.delivery.acceptance import adopter as fixture
 from tools.ci.delivery.acceptance import effect
 from tools.ci.delivery.acceptance import invocation
 from tools.ci.delivery.acceptance import lane
-from tools.ci.delivery.acceptance.adopter import _verify_formed
+from tools.ci.delivery.acceptance.adopter import verify_formed
 
 ROOT = Path(__file__).resolve().parents[4]
 
@@ -51,9 +51,9 @@ def test_installed_formation_observation_binds_the_effect_head(tmp_path: Path) -
         "governance_context": {"agent_guidance": {"sha256": digest, "path": str(guide)}},
     }
 
-    assert _verify_formed(target, plan, {"effect": {"head": head}}, (0, status, ""), digest) == head
+    assert verify_formed(target, plan, {"effect": {"head": head}}, (0, status, ""), digest) == head
     with pytest.raises(RuntimeError, match="installed_formation_status_invalid"):
-        _verify_formed(target, plan, {"head": head}, (0, status, ""), digest)
+        verify_formed(target, plan, {"head": head}, (0, status, ""), digest)
 
 
 def _run(*command: str, cwd: Path | None = None) -> str:

@@ -15,6 +15,7 @@ import ethos.adapters.openspec.cli as cli
 import ethos.adapters.openspec.governance as governance
 import ethos.adapters.openspec.lifecycle.report as lifecycle_report
 import tests.support.governed_repository as fixture
+from ethos.adapters.openspec.lifecycle.scope import material_change_scope_report
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
 
@@ -28,6 +29,29 @@ def _repo(tmp_path: Path) -> Path:
     (root / "openspec/specs").mkdir(parents=True)
     (root / "openspec/config.yaml").write_text("schema: spec-driven\n", encoding="utf-8")
     return root
+
+
+def test_selected_change_cannot_claim_another_active_change_path(tmp_path: Path) -> None:
+    """A broad material glob does not turn one Change into another's owner."""
+    root = _repo(tmp_path)
+    paths = (
+        "src/example.py",
+        "openspec/changes/proof-throughput/tasks.md",
+        "openspec/changes/fresh/.openspec.yaml",
+    )
+
+    report = material_change_scope_report(
+        root, changed_paths=paths, active_change_names=("proof-throughput",)
+    )
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == [
+        "openspec_change_path_mismatch:proof-throughput:openspec/changes/fresh/.openspec.yaml"
+    ]
+    assert report["uncovered_paths"] == ["openspec/changes/fresh/.openspec.yaml"]
+    assert {item["path"] for item in report["covered_paths"]} == {
+        "openspec/changes/proof-throughput/tasks.md"
+    }
 
 
 def test_governance_reports_not_applicable_without_profile(tmp_path, monkeypatch):

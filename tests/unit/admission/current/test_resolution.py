@@ -276,6 +276,95 @@ def test_current_resolution_derives_only_exact_new_change_metadata(tmp_path, mon
         assert not resolution.scope.material_scope.get("authorized_paths")
 
 
+@pytest.mark.parametrize("target", ["metadata", "absent-root", "existing-root"])
+def test_new_change_bootstrap_coexists_with_other_active_changes(tmp_path, monkeypatch, target):
+    """An exact new carrier may bootstrap without selecting an unrelated active Change."""
+    change = "openspec/changes/fresh"
+    if target == "existing-root":
+        (tmp_path / change).mkdir(parents=True)
+    report = official_report(gaps=("openspec_active_change_ambiguous:first,second",))
+    report["commands"]["list"]["json"] = {"changes": [{"name": "first"}, {"name": "second"}]}
+    report["lifecycle"]["changes"] = [{"name": "first"}, {"name": "second"}]
+
+    resolution = resolve_report(
+        monkeypatch,
+        report,
+        root=tmp_path,
+        paths=(f"{change}/.openspec.yaml" if target == "metadata" else change,),
+    )
+
+    assert resolution.verdict == ("pass" if target == "metadata" else "block")
+    if target == "metadata":
+        assert resolution.scope.material_scope["authorized_paths"] == [f"{change}/.openspec.yaml"]
+        assert resolution.next_action == "openspec new change fresh --json"
+    elif target == "absent-root":
+        assert resolution.required_gaps == ("openspec_change_metadata_prewrite_required:fresh",)
+    else:
+        assert not resolution.scope.material_scope.get("authorized_paths")
+
+
+def test_new_change_bootstrap_does_not_override_an_explicit_other_change(
+    tmp_path, monkeypatch
+) -> None:
+    """An explicit current Change cannot silently authorize a different new Change."""
+    monkeypatch.setenv("ETHOS_CHANGE", "first")
+    report = official_report(gaps=("openspec_active_change_ambiguous:first,second",))
+    report["commands"]["list"]["json"] = {"changes": [{"name": "first"}, {"name": "second"}]}
+
+    resolution = resolve_report(
+        monkeypatch,
+        report,
+        root=tmp_path,
+        paths=("openspec/changes/fresh/.openspec.yaml",),
+    )
+
+    assert resolution.verdict == "block"
+    assert not resolution.scope.material_scope.get("authorized_paths")
+
+
+def test_exact_new_metadata_precedes_unfinished_other_change(monkeypatch, tmp_path) -> None:
+    """An incomplete neighbor cannot capture a new Change's metadata intent."""
+    report = official_report(
+        change="first",
+        gaps=("openspec_status_incomplete:first",),
+        artifacts=(official_artifact("proposal", "proposal.md", status="ready"),),
+    )
+    metadata = "openspec/changes/second/.openspec.yaml"
+
+    resolution = resolve_report(monkeypatch, report, root=tmp_path, paths=(metadata,))
+
+    assert resolution.verdict == "pass"
+    assert resolution.scope.material_scope["authorized_paths"] == [metadata]
+    assert resolution.next_action == "openspec new change second --json"
+
+
+@pytest.mark.parametrize(
+    "rows",
+    [
+        [{"name": "fresh"}],
+        [{"name": "first"}, {"name": "first"}],
+        [{"name": "Invalid"}],
+        [{}],
+    ],
+)
+def test_new_change_bootstrap_rejects_existing_or_invalid_official_rows(
+    monkeypatch, tmp_path, rows
+) -> None:
+    """Absent paths do not make malformed or already-listed identities new."""
+    report = official_report(gaps=("openspec_active_change_ambiguous:first,second",))
+    report["commands"]["list"]["json"] = {"changes": rows}
+
+    resolution = resolve_report(
+        monkeypatch,
+        report,
+        root=tmp_path,
+        paths=("openspec/changes/fresh/.openspec.yaml",),
+    )
+
+    assert resolution.verdict == "block"
+    assert not resolution.scope.material_scope.get("authorized_paths")
+
+
 def test_current_resolution_admits_remaining_official_artifact_after_partial_compilation(
     monkeypatch,
 ) -> None:

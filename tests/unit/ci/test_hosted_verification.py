@@ -67,8 +67,15 @@ def _report_contents(reports: str) -> dict[str, str]:
     """Keep per-case report data separate from the shared executable fixture."""
     contents = {
         "pytest/junit.xml": (
-            "<testsuite><testcase/>"
-            + ("<testcase><failure/></testcase>" if reports == "failed" else "<testcase/>")
+            "<testsuite>"
+            + ("<testcase><skipped/></testcase>" if reports == "skipped" else "<testcase/>")
+            + (
+                "<testcase><failure/></testcase>"
+                if reports == "failed"
+                else "<testcase><skipped/></testcase>"
+                if reports == "skipped"
+                else "<testcase/>"
+            )
             + "</testsuite>"
         ),
         "coverage/coverage.xml": (
@@ -188,7 +195,7 @@ def _observation_payload(expected: str, fault: str) -> dict[str, object]:
 
 @pytest.mark.parametrize(
     ("fault", "reports"),
-    [("none", report) for report in ("missing", "malformed", "failed", "valid")]
+    [("none", report) for report in ("missing", "malformed", "failed", "skipped", "valid")]
     + [
         (fault, "valid")
         for fault in (
@@ -251,13 +258,15 @@ def test_hosted_receipt_requires_exact_executed_observation(
     summary = summary_file.read_text()
     assert expected in summary
     assert receipt["verdict"] in summary
-    assert (
-        f"Tests: 2; failures: {int(reports == 'failed')}; errors: 0; skipped: 0"
-        if reports in {"valid", "failed"}
+    expected_tests = (
+        f"Tests: 2; failures: {int(reports == 'failed')}; errors: 0; "
+        f"skipped: {2 * int(reports == 'skipped')}"
+        if reports in {"valid", "failed", "skipped"}
         else "Tests: unavailable"
-    ) in summary
+    )
+    assert expected_tests in summary
     assert (
-        "Coverage: 95.50%" if reports in {"valid", "failed"} else "Coverage: unavailable"
+        "Coverage: 95.50%" if reports in {"valid", "failed", "skipped"} else "Coverage: unavailable"
     ) in summary
 
 

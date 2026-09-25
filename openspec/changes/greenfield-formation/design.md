@@ -70,11 +70,21 @@ formation digest. Only exclusive regular files are admitted; links, junctions
 and special files fail before the target exists. Unknown starter spellings do
 not become generator arguments. Other domains retain their own native layout
 owners. A zero-exit generator still needs the selected library output. For a
-template that must evolve with project customization, use Copier's versioned
-three-way update instead of implementing another merge algorithm. Keep
-executable template tasks disabled unless separately trusted. Its native
-answer/source metadata is upgrade input, not ETHOS intent or proof. An upgrade yields a candidate
-subject to normal repository admission; conflicts remain unapplied.
+later `uv` starter version, bind a caller-reviewed old generated commit, the
+current authored HEAD, and the new generator/version/outputs. Reuse the existing
+quarantined Git-object merge mechanism, rather than writing another merge
+algorithm or changing adopter files during preview. A clean object merge is a
+candidate, not semantic acceptance; a conflict preserves authored bytes and
+requires an explicit decision before normal repository admission.
+
+Copier is not the update owner for this `uv` starter. Its documented update
+path expects a Copier answers file and versioned Git template, and can run
+migrations while writing conflicts into the destination. Adding those carriers
+would duplicate the native `uv` layout and provenance. Projects already formed
+from Copier templates may use that native capability through a separate
+optional adapter, but it cannot become ETHOS intent or effect authority.
+See [Copier 9.18.2 update semantics](https://github.com/copier-org/copier/blob/v9.18.2/docs/updating.md)
+and [Git object-tree merge](https://github.com/git/git/blob/v2.55.0/Documentation/git-merge-tree.adoc).
 
 ## Risks / Trade-offs
 

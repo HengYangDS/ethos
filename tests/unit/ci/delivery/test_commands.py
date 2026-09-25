@@ -12,6 +12,9 @@ from types import SimpleNamespace
 import pytest
 
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.runtime.materialization.node_package_supply import (
+    resolve_node_package_supply,
+)
 from ethos.result import EthosResult
 from tools.ci.delivery.acceptance import adopter as fixture
 from tools.ci.delivery.acceptance import effect
@@ -50,7 +53,8 @@ def test_adopter_is_clean_under_host_autocrlf(monkeypatch, tmp_path: Path) -> No
 
 
 @pytest.mark.parametrize("historical", [False, True])
-def test_signature_acceptance_exercises_the_real_isolated_command_boundary(tmp_path, historical):
+def test_signature_acceptance_binds_source_supply_across_isolated_commands(tmp_path, historical):
+    """Source-bound CLI tests pass only the validated native supply to child commands."""
     adopter = tmp_path / "adopter"
     fixture.materialize_adopter(
         adopter,
@@ -58,8 +62,12 @@ def test_signature_acceptance_exercises_the_real_isolated_command_boundary(tmp_p
         run=_run,
     )
     fixture.prepare_acceptance_topology(adopter, run=_run)
+    supply = resolve_node_package_supply(ROOT)
     observed = lane.prove_signature_repair(
-        Path(sys.executable), adopter, environment={}, historical=historical
+        Path(sys.executable),
+        adopter,
+        environment={"ETHOS_NODE_PACKAGE_SUPPLY": supply.as_posix()},
+        historical=historical,
     )
     assert observed["state"] == "passed"
     assert observed["head"] != observed["previous_head"]

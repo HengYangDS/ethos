@@ -62,10 +62,66 @@ def official_change_rows(list_payload: dict[str, Any]) -> list[dict[str, str]] |
     return rows
 
 
+def _validation_items(validate_payload: dict[str, Any]) -> list[dict[str, Any]] | None:
+    """Select exactly one supported official validation envelope."""
+    if "items" in validate_payload and set(validate_payload) <= {
+        "items",
+        "summary",
+        "version",
+        "root",
+    }:
+        items = validate_payload["items"]
+    elif "itemFindings" in validate_payload and set(validate_payload) <= {
+        "report",
+        "itemFindings",
+        "summary",
+        "root",
+    }:
+        report = validate_payload.get("report")
+        items = validate_payload["itemFindings"]
+        if not (
+            isinstance(report, dict)
+            and report.get("kind") == "validation-findings"
+            and report.get("version") == "1.0"
+            and isinstance(report.get("returnedItems"), int)
+            and not isinstance(report["returnedItems"], bool)
+            and isinstance(report.get("totalItems"), int)
+            and not isinstance(report["totalItems"], bool)
+            and 0 <= report["returnedItems"] <= report["totalItems"]
+            and isinstance(items, list)
+            and len(items) == report["returnedItems"]
+        ):
+            return None
+    else:
+        return None
+    return items if isinstance(items, list) else None
+
+
+def _valid_issue_gaps(item: dict[str, Any]) -> list[str]:
+    """Keep canonical spec guidance strict without rejecting normal Change INFO."""
+    issues = item.get("issues", [])
+    if not isinstance(issues, list):
+        return ["openspec_validation_unreadable"]
+    gaps: list[str] = []
+    for issue in issues:
+        if (
+            not isinstance(issue, dict)
+            or issue.get("level") not in {"ERROR", "WARNING", "INFO"}
+            or not isinstance(issue.get("path"), str)
+        ):
+            gaps.append("openspec_validation_unreadable")
+        elif item["type"] == "spec" or issue["level"] != "INFO":
+            gaps.append(
+                f"openspec_validation_issue:{issue['level']}:"
+                f"{item['type']}:{item['id']}:{issue['path'] or 'root'}"
+            )
+    return gaps
+
+
 def validation_failures(validate_payload: dict[str, Any]) -> list[str]:
-    """Read full native items without coercing validity or reinterpreting findings."""
-    items = validate_payload.get("items")
-    if not isinstance(items, list):
+    """Admit native validity and issue content from one declared report envelope."""
+    items = _validation_items(validate_payload)
+    if items is None:
         return ["openspec_validation_unreadable"]
     gaps: list[str] = []
     for item in items:
@@ -79,6 +135,8 @@ def validation_failures(validate_payload: dict[str, Any]) -> list[str]:
             gaps.append("openspec_validation_unreadable")
         elif not item["valid"]:
             gaps.append(f"openspec_validation_failed:{item['type']}:{item['id']}")
+        else:
+            gaps.extend(_valid_issue_gaps(item))
     return list(dict.fromkeys(gaps))
 
 

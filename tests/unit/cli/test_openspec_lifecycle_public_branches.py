@@ -58,6 +58,54 @@ def _validation_item(**fields: object) -> dict[str, object]:
         (
             {
                 "items": [
+                    _validation_item(
+                        id="long",
+                        type="spec",
+                        issues=[
+                            {"level": "INFO", "path": "requirements[0]", "message": "Long text"}
+                        ],
+                    )
+                ]
+            },
+            ["openspec_validation_issue:INFO:spec:long:requirements[0]"],
+        ),
+        (
+            {
+                "report": {
+                    "kind": "validation-findings",
+                    "version": "1.0",
+                    "scope": "all",
+                    "returnedItems": 1,
+                    "totalItems": 1,
+                },
+                "itemFindings": [
+                    _validation_item(
+                        id="long",
+                        type="spec",
+                        issues=[
+                            {"level": "INFO", "path": "requirements[0]", "message": "Long text"}
+                        ],
+                    )
+                ],
+            },
+            ["openspec_validation_issue:INFO:spec:long:requirements[0]"],
+        ),
+        (
+            {
+                "report": {
+                    "kind": "validation-findings",
+                    "version": "1.0",
+                    "scope": "all",
+                    "returnedItems": 0,
+                    "totalItems": 1,
+                },
+                "itemFindings": [_validation_item(id="long", type="spec")],
+            },
+            ["openspec_validation_unreadable"],
+        ),
+        (
+            {
+                "items": [
                     _validation_item(id="valid", type="spec"),
                     _validation_item(id="invalid", type="spec", valid=False),
                 ]

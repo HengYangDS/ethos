@@ -173,7 +173,7 @@ def completed_lifecycle(
     holder: str = HOLDER,
 ) -> OpenSpecLifecycle:
     """Bind prearchive proof exactly; isolate postimage quality in lifecycle-only tests."""
-    fixture = prepared_work_lane(tmp_path, holder_ref=holder)
+    fixture = prepared_work_lane(tmp_path, holder_ref=holder, docs_only=True)
     monkeypatch.setenv("ETHOS_ACTOR", holder)
     tasks = fixture.worktree / "openspec/changes/fixture-change/tasks.md"
     completed = tasks.read_text(encoding="utf-8").replace("- [ ]", "- [x]")

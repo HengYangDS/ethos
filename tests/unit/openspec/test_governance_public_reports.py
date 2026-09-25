@@ -173,7 +173,7 @@ def test_public_plan_batches_fresh_intent_and_preserves_native_failure(
     ) in projected["required_gaps"]
 
 
-@pytest.mark.parametrize("mode", ["empty", "info", "mixed"])
+@pytest.mark.parametrize("mode", ["empty", "info", "canonical-info", "mixed"])
 def test_locked_native_validation_preserves_empty_and_informational_results(
     tmp_path: Path, mode: str, monkeypatch
 ) -> None:
@@ -184,7 +184,22 @@ def test_locked_native_validation_preserves_empty_and_informational_results(
         change = root / "openspec/changes/fixture-change"
         shutil.rmtree(change / "specs")
         (change / ".openspec.yaml").write_text("schema: spec-driven\nskip_specs: true\n")
-        if mode == "mixed":
+        if mode == "canonical-info":
+            long_spec = root / "openspec/specs/long/spec.md"
+            long_spec.parent.mkdir()
+            long_spec.write_text(
+                "# Long Specification\n\n## Purpose\n\n"
+                "Check that informational findings in current canonical requirements "
+                "remain visible to the repository quality gate.\n\n"
+                "## Requirements\n\n### Requirement: Long content\n\n"
+                + "The system SHALL retain the complete observable meaning of this requirement. "
+                * 8
+                + "\n\n#### Scenario: The reader validates it\n\n"
+                "- **WHEN** the current spec is validated\n"
+                "- **THEN** the native finding remains visible\n",
+                encoding="utf-8",
+            )
+        elif mode == "mixed":
             invalid = root / "openspec/specs/invalid/spec.md"
             invalid.parent.mkdir()
             invalid.write_text("# Invalid native specification\n")
@@ -192,7 +207,7 @@ def test_locked_native_validation_preserves_empty_and_informational_results(
     observed = run_ethos_raw(
         "prove", "--host", "--execute", "--gate", "openspec", "--json", cwd=root
     )
-    assert observed.returncode == (1 if mode == "mixed" else 0), observed.stdout
+    assert observed.returncode == (1 if mode in {"canonical-info", "mixed"} else 0), observed.stdout
     checks = json.loads(observed.stdout)["data"]["checks"]
     check = next(item for item in checks if item["action_id"] == "openspec")
     result = json.loads(check["stdout"])["providers"][0]["report"]["validation"]
@@ -205,9 +220,14 @@ def test_locked_native_validation_preserves_empty_and_informational_results(
         info = next(item for item in items if item["id"] == "fixture-change")
         assert info["valid"] is True
         assert any(issue["level"] == "INFO" for issue in info["issues"])
-    assert lifecycle_report.validation_failures(result["json"]) == (
-        ["openspec_validation_failed:spec:invalid"] if mode == "mixed" else []
+    expected = (
+        ["openspec_validation_failed:spec:invalid"]
+        if mode == "mixed"
+        else ["openspec_validation_issue:INFO:spec:long:requirements[0]"]
+        if mode == "canonical-info"
+        else []
     )
+    assert lifecycle_report.validation_failures(result["json"]) == expected
 
 
 @pytest.mark.parametrize("mode", ["unsynced", "early-synced", "near-miss", "conflict"])

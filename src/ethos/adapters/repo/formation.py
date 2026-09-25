@@ -85,7 +85,9 @@ def formation_plan(
                 policy = load_branch_role_policy(candidate)
                 candidate_path = default_worktree_path(target, policy.candidate_branch)
                 if candidate_path.exists() or candidate_path.is_symlink():
-                    return _unavailable(target, "formation_candidate_path_exists")
+                    return _unavailable(target, "formation_candidate_path_exists") | {
+                        "candidate_worktree_path": str(candidate_path)
+                    }
                 (candidate / "README.md").write_text(
                     f"# {target.name}\n\n{purpose.strip()}\n", encoding="utf-8"
                 )

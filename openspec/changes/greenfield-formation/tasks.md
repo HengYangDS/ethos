@@ -2,7 +2,7 @@
 
 - [x] 1.1 Reproduce the absent-project and two-binding-only gaps through public CLI tests; assert preview has no destination effect and default brownfield adoption is unchanged.
 - [x] 1.2 Add typed `adopt --create` preview over one installed foundation and verify exact inputs, hashes, purpose, Agent guidance, unsafe-parent refusal and SDK/CLI agreement.
-- [ ] 1.3 Apply only an authorized current plan to an absent destination; verify real Git author, initial commit, dev/candidate refs, official configuration, hook readiness, collision denial and post-effect recovery.
+- [x] 1.3 Apply only an authorized current plan to an absent destination; verify real Git author, initial commit, dev/candidate refs, official configuration, hook readiness, collision denial and post-effect recovery.
 
 ## 2. Evolution And Installed Conformance
 

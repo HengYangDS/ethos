@@ -139,6 +139,12 @@ def _admitted_proofs(
         set_gaps = ["contradiction"]
     else:
         set_gaps = []
+    if not set_gaps and attestation_id:
+        selected_gaps = next(
+            (item_gaps for item, _floor, item_gaps in evaluated if item.id == attestation_id),
+            [],
+        )
+        set_gaps = list(selected_gaps)
     return ((), set_gaps) if set_gaps else (valid, [])
 
 
@@ -202,6 +208,7 @@ def _integrity_gaps(evaluated: tuple[tuple[Attestation, str, list[str]], ...]) -
         "proof_attestation_verdict_block",
         "proof_attestation_verdict_unknown",
         "proof_attestation_check_not_passed",
+        "proof_attestation_repository_policy_mismatch",
     }
     return list(
         dict.fromkeys(

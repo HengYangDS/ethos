@@ -45,6 +45,84 @@ if TYPE_CHECKING:
 _issue = partial(issue_conformant_proof, issuer="agent:test:case:proof")
 
 
+def _policy_proof_pair(repo: Path, head: str) -> tuple[Attestation, Attestation]:
+    current = _issue(repo, head)
+    plan = current_proof_plan(repo, expected_head=head)
+    former = compile_plan(
+        Commitment.model_validate(dict(plan.commitment)),
+        Facts.model_validate(plan.facts | {"observed_at": datetime.now(UTC)}),
+        plan.nodes,
+        policy=dict(plan.policy) | {"former_policy": True},
+        prior_attestations=dict(plan.prior_attestations),
+    )
+    old = reissue_attestation(
+        current,
+        commitment_digest=former.inputs.commitment,
+        facts_digest=former.inputs.facts,
+        plan_digest=former.digest,
+        policy_digest=former.inputs.policy,
+        effect_digest=former.inputs.effect,
+        body=current.payload.body | {"plan": former.model_dump(mode="json")},
+    )
+    return current, old
+
+
+def test_current_policy_proof_coexists_with_superseded_policy_proof(tmp_path: Path) -> None:
+    repo, head = proof_repository(tmp_path / "repo")
+    current, old = _policy_proof_pair(repo, head)
+    persist_proof_attestation(repo, current)
+    persist_proof_attestation(repo, old)
+
+    assert proof_module.proof_for_repository_transition(repo, head) == (current, [])
+    assert proof_module.proof_for_repository_transition(repo, head, attestation_id=current.id) == (
+        current,
+        [],
+    )
+    assert proof_module.proof_for_repository_transition(repo, head, attestation_id=old.id) == (
+        None,
+        ["proof_attestation_repository_policy_mismatch"],
+    )
+
+
+def test_superseded_policy_proof_alone_is_insufficient(tmp_path: Path) -> None:
+    repo, head = proof_repository(tmp_path / "repo")
+    _current, old = _policy_proof_pair(repo, head)
+    persist_proof_attestation(repo, old)
+
+    assert proof_module.proof_for_repository_transition(repo, head) == (
+        None,
+        ["proof_attestation_repository_policy_mismatch"],
+    )
+
+
+def test_superseded_policy_proof_does_not_hide_tampered_binding(tmp_path: Path) -> None:
+    repo, head = proof_repository(tmp_path / "repo")
+    current, old = _policy_proof_pair(repo, head)
+    persist_proof_attestation(repo, current)
+    persist_proof_attestation(repo, old)
+    store_proof(repo, reissue_attestation(old, policy_digest=current.policy_digest))
+
+    assert proof_module.proof_for_repository_transition(repo, head) == (
+        None,
+        ["proof_policy_digest_stale"],
+    )
+
+
+def test_superseded_policy_proof_does_not_hide_current_conflict(tmp_path: Path) -> None:
+    repo, head = proof_repository(tmp_path / "repo")
+    current, old = _policy_proof_pair(repo, head)
+    persist_proof_attestation(repo, current)
+    persist_proof_attestation(repo, old)
+    conflict = reissue_attestation(
+        current,
+        verifier="agent:test:case:current-conflict",
+        body=current.payload.body | {"claim": {"objective": "conflict", "verdict": "pass"}},
+    )
+    persist_proof_attestation(repo, conflict)
+
+    assert proof_module.proof_for_repository_transition(repo, head) == (None, ["contradiction"])
+
+
 @pytest.mark.parametrize(
     ("case", "gap"),
     frozen_tuple(

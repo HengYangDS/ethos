@@ -172,7 +172,7 @@ def strict_branch_role_policy_from_text(
     if allow_legacy_sibling_default and set(raw_policy) == (
         _STRICT_BRANCH_ROLE_FIELDS - {"canonical_sibling_worktrees"}
     ):
-        raw_policy = {**raw_policy, "canonical_sibling_worktrees": False}
+        raw_policy["canonical_sibling_worktrees"] = False
     if set(raw_policy) != _STRICT_BRANCH_ROLE_FIELDS:
         raise ValueError(_STRICT_BRANCH_ROLE_TABLE_ERROR)
     text_fields = _STRICT_BRANCH_ROLE_FIELDS - {"canonical_sibling_worktrees"}

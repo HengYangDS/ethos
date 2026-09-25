@@ -36,6 +36,7 @@ checks = []
 try:
     if supply_exit != "0":
         raise ValueError("hosted_tool_supply_failed")
+    from ethos.adapters.repo.git import current_tree
     from ethos.adapters.repo.gate_policy import resolve_gate_policy
     policy = resolve_gate_policy(Path.cwd(), tree_ref=observed, full=True)
     if policy.gaps:
@@ -46,7 +47,7 @@ try:
     coordinates, checks = data["expected_head"], data["checks"]
     if not isinstance(checks, list) or any(not isinstance(check, dict) for check in checks):
         raise ValueError("hosted_checks_invalid")
-    gaps = list(policy.result_gaps(checks))
+    gaps = list(policy.result_gaps(checks, source_tree=current_tree(Path.cwd(), observed)))
     valid = (
         exit_code == "0" and observed == expected
         and proof["verdict"] == "pass" and proof["state"] == "observed"

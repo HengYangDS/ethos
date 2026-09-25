@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 from typing import NoReturn
 from xml.etree import ElementTree
@@ -64,7 +65,7 @@ def _declared_junit_failures(roots: tuple[ElementTree.Element, ...]) -> bool:
     return failed
 
 
-def coverage_report(path: Path) -> dict[str, int | float]:
+def coverage_report(path: Path, *, include_files: bool = False) -> dict[str, object]:
     """Return combined statement-and-branch coverage from native XML counts."""
     try:
         root = ElementTree.parse(path).getroot()
@@ -85,4 +86,37 @@ def coverage_report(path: Path) -> dict[str, int | float]:
     total = sum(item[1] for item in pairs)
     if not total:
         _invalid("coverage_empty")
-    return {"covered": covered, "total": total, "combined_percent": 100 * covered / total}
+    report: dict[str, object] = {
+        "covered": covered,
+        "total": total,
+        "combined_percent": 100 * covered / total,
+    }
+    if include_files:
+        report["files"] = _coverage_files(root)
+    return report
+
+
+def _coverage_files(root: ElementTree.Element) -> dict[str, dict[str, int]]:
+    """Expose native covered-source scope without reparsing the XML report."""
+    files: dict[str, dict[str, int]] = {}
+    for item in root.iter("class"):
+        filename = item.get("filename", "")
+        relative = PurePosixPath(filename)
+        if (
+            not filename
+            or relative.is_absolute()
+            or ".." in relative.parts
+            or "\\" in filename
+            or filename in files
+        ):
+            _invalid("coverage_file_invalid")
+        try:
+            hits = tuple(int(line.get("hits", "")) for line in item.iter("line"))
+        except ValueError as error:
+            _invalid("coverage_hit_invalid", error)
+        if any(hit < 0 for hit in hits):
+            _invalid("coverage_hit_invalid")
+        files[filename] = {"lines": len(hits), "hit_lines": sum(hit > 0 for hit in hits)}
+    if not files:
+        _invalid("coverage_files_missing")
+    return files

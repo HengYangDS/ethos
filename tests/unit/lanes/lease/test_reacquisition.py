@@ -18,6 +18,7 @@ from ethos.adapters.store.state.schema import state_database
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_repo_with_candidate
+from tests.support.governed_repository import render_branch_policy
 from tests.support.lifecycle_cases import strict_lease
 
 SOURCE = "agent:test:case:source"
@@ -91,6 +92,45 @@ def test_reacquire_missing_lease_preserves_index_and_dirty_content(
     assert git(target, "show", ":README.md") == "staged"
     assert (target / "README.md").read_text() == "unstaged\n"
     assert (target / "untracked.txt").read_bytes() == b"retained\x00bytes"
+
+
+def test_reacquire_recognizes_previous_complete_accepted_policy(tmp_path, monkeypatch):
+    repo, target = _unleased_dirty_lane(tmp_path)
+    workspace = repo / ".ethos/workspace.toml"
+    workspace.parent.mkdir(parents=True, exist_ok=True)
+    workspace.write_text(
+        render_branch_policy(
+            release_branch="main",
+            accepted_branch="dev",
+            candidate_branch="candidate/dev",
+            work_branch_prefix="work/",
+            proposal_branch_prefix="proposal/",
+            release_mirror="independent",
+        ).replace("canonical_sibling_worktrees = false\n", "")
+    )
+    git(repo, "add", workspace.as_posix())
+    git(repo, "commit", "-m", "retain previous complete policy")
+    monkeypatch.setenv("ETHOS_ACTOR", TARGET)
+    before = (
+        git(target, "rev-parse", "HEAD"),
+        git(target, "diff", "--cached"),
+        (target / "README.md").read_bytes(),
+        (target / "untracked.txt").read_bytes(),
+    )
+
+    planned = _reacquire(repo, target)
+    applied = _reacquire(repo, target, **_reacquire_arguments(planned))
+
+    assert planned["verdict"] == "pass", planned
+    assert planned["state"] == "planned"
+    assert applied["verdict"] == "pass", applied
+    assert applied["state"] == "acquired"
+    assert before == (
+        git(target, "rev-parse", "HEAD"),
+        git(target, "diff", "--cached"),
+        (target / "README.md").read_bytes(),
+        (target / "untracked.txt").read_bytes(),
+    )
 
 
 @pytest.mark.parametrize(

@@ -86,6 +86,24 @@ def test_branch_role_current_schema_maps_exactly() -> None:
     )
 
 
+def test_previous_complete_policy_requires_explicit_incumbent_compatibility() -> None:
+    previous = CURRENT.replace("canonical_sibling_worktrees = false\n", "")
+
+    with pytest.raises(ValueError, match="complete and exact"):
+        strict_branch_role_policy_from_text(previous)
+    assert strict_branch_role_policy_from_text(
+        previous, allow_legacy_sibling_default=True
+    ) == BranchRolePolicy(canonical_sibling_worktrees=False)
+
+    incomplete = previous.replace('release_branch = "main"\n', "")
+    with pytest.raises(ValueError, match="complete and exact"):
+        strict_branch_role_policy_from_text(incomplete, allow_legacy_sibling_default=True)
+    with pytest.raises(ValueError, match="complete and exact"):
+        strict_branch_role_policy_from_text(
+            previous + "unknown = true\n", allow_legacy_sibling_default=True
+        )
+
+
 @pytest.mark.parametrize(
     ("text", "error"),
     [

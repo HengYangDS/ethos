@@ -52,6 +52,13 @@ SHALL prevent deletion without erasing successful activation evidence.
 - **THEN** the consumer's selected bytes remain available
 - **AND** cleanup reports the exact remaining dependency
 
+#### Scenario: A retained adopter uses the previous complete branch-role schema
+
+- **WHEN** an incumbent accepted commit has every previously required branch-role field but no `canonical_sibling_worktrees` field
+- **THEN** accepted closeout and Lease reacquisition interpret that historical absence as `false`
+- **AND** current policy validation still rejects every other incomplete or unknown branch-role table
+- **AND** neither operation rewrites the incumbent commit or retained Work Lane content
+
 #### Scenario: An external selected runtime has disappeared
 
 - **WHEN** a repository's `CURRENT` names an absent external runtime

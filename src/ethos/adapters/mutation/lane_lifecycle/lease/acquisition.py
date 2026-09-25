@@ -60,7 +60,8 @@ def _reacquire_coordinates(root: Path, path: Path) -> dict[str, str]:
             ).stdout
             policy = (
                 strict_branch_role_policy_from_text(
-                    committed_file_text(repo, row["head"], ".ethos/workspace.toml")
+                    committed_file_text(repo, row["head"], ".ethos/workspace.toml"),
+                    allow_legacy_sibling_default=True,
                 )
                 if declared
                 else BranchRolePolicy()

@@ -63,10 +63,10 @@ def isolated_git_objects(
         "GIT_NO_LAZY_FETCH": "1",
         "GIT_TERMINAL_PROMPT": "0",
         "GIT_AUTHOR_NAME": "ETHOS Candidate",
-        "GIT_AUTHOR_EMAIL": "candidate@ethos.local",
+        "GIT_AUTHOR_EMAIL": "candidate@example.invalid",
         "GIT_AUTHOR_DATE": "@0 +0000",
         "GIT_COMMITTER_NAME": "ETHOS Candidate",
-        "GIT_COMMITTER_EMAIL": "candidate@ethos.local",
+        "GIT_COMMITTER_EMAIL": "candidate@example.invalid",
         "GIT_COMMITTER_DATE": "@0 +0000",
         **{
             name: os.environ[name]

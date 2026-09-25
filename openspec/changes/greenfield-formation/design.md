@@ -62,14 +62,18 @@ crash residue needs owner/liveness-based bounded recovery before shipping.
 
 ### Let domain generators propose, not govern
 
-The foundation is language-neutral. A selected domain starter runs in the
-same isolated candidate boundary with pinned source and inputs; its output is
-reviewed under the same digest and path-safety contract. Use the domain's
-native generator when it is the owner of that layout. For a template that must
-evolve with project customization, use Copier's versioned three-way update
-instead of implementing another merge algorithm. Keep executable template
-tasks disabled unless separately trusted. Its native answer/source metadata
-is upgrade input, not ETHOS intent or proof. An upgrade yields a candidate
+The foundation is language-neutral. The first optional `python-library`
+starter invokes the product's locked `uv` module in the disposable candidate,
+offline and without ambient uv configuration, workspace discovery, VCS or
+template tasks. Its selected package version and exact output bytes bind the
+formation digest. Only exclusive regular files are admitted; links, junctions
+and special files fail before the target exists. Unknown starter spellings do
+not become generator arguments. Other domains retain their own native layout
+owners. A zero-exit generator still needs the selected library output. For a
+template that must evolve with project customization, use Copier's versioned
+three-way update instead of implementing another merge algorithm. Keep
+executable template tasks disabled unless separately trusted. Its native
+answer/source metadata is upgrade input, not ETHOS intent or proof. An upgrade yields a candidate
 subject to normal repository admission; conflicts remain unapplied.
 
 ## Risks / Trade-offs

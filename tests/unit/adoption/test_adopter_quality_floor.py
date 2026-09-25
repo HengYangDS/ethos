@@ -55,6 +55,53 @@ def test_success_only_commands_do_not_qualify_broken_code(tmp_path: Path) -> Non
     )
 
 
+@pytest.mark.parametrize(
+    ("source_path", "broken_source"),
+    [
+        ("main.go", "package main\nfunc main( {\n"),
+        ("main.js", "function broken( {\n"),
+    ],
+)
+def test_non_python_source_cannot_pass_on_success_only_commands(
+    tmp_path: Path, source_path: str, broken_source: str
+) -> None:
+    """A native source language still needs real behavior and static evidence."""
+    repo = init_git_repo(tmp_path / "adopter")
+    profile = repo / ".ethos/profile.toml"
+    profile.parent.mkdir()
+    declaration = (
+        'profile_id = "non-python-quality-probe"\n\n'
+        '[openspec]\nmaterial_paths = ["**"]\n\n'
+        '[proof]\ncode_correctness_gates = ["behavior", "static"]\n\n'
+        '[proof.code_correctness_map]\nbehavior = "behavior"\n'
+        'static-analysis = "static"\n'
+    )
+    for gate_id, kind, axis in (
+        ("behavior", "test", "behavior"),
+        ("static", "typing", "static-analysis"),
+    ):
+        declaration += (
+            f'\n[[proof.gates]]\nid = "{gate_id}"\nkind = "{kind}"\n'
+            f"command = {json.dumps([sys.executable, '-c', f'print({gate_id!r})'])}\n"
+            f'dimensions = ["{axis}"]\nasset_classes = ["source-code"]\n'
+            'evidence_class = "proof"\ntrust_bearing = true\n'
+        )
+    profile.write_text(declaration, encoding="utf-8")
+    (repo / source_path).write_text(broken_source, encoding="utf-8")
+    head = commit_fixture(repo, "declare native checks")
+
+    result = run_ethos_raw(
+        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
+    )
+    payload = json.loads(result.stdout)
+
+    assert result.returncode != 0
+    assert payload["verdict"] == "block"
+    assert any(
+        str(gap).startswith("quality_obligation_unproven:") for gap in payload["required_gaps"]
+    )
+
+
 def test_registry_cannot_omit_common_code_obligations(tmp_path: Path) -> None:
     """A registry representation cannot make observed Python code quality optional."""
     repo = init_git_repo(tmp_path / "adopter")
@@ -105,6 +152,22 @@ def test_historical_policy_without_the_new_floor_keeps_its_recorded_meaning() ->
     }
 
     assert quality_obligation_gaps(policy, (), source_tree="a" * 40) == ()
+
+
+def test_unknown_quality_floor_version_cannot_remove_obligations() -> None:
+    """An unknown version is not permission to skip a declared quality floor."""
+    policy = {
+        "owner": {
+            "kind": "profile",
+            "quality_floor_version": 99,
+            "code_correctness_map": {"behavior": "tests"},
+        },
+        "gates": [{"id": "tests", "command": ["check"]}],
+    }
+
+    assert quality_obligation_gaps(policy, (), source_tree="a" * 40) == (
+        "quality_floor_version_unsupported:99",
+    )
 
 
 def test_policy_selected_provider_report_must_cover_observed_subjects() -> None:

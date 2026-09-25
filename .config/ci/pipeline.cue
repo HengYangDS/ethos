@@ -21,7 +21,7 @@ let gitlabView = gitlab
 let githubSourceSHA = "${{ github.event.pull_request.head.sha || github.sha }}"
 let sourceCLI = "uv run --frozen --offline python -B -I -m ethos.cli"
 let externalLinkCommand = "tools/ci/scripts/with-python-runtime.sh -- \(sourceCLI) prove --host --execute --gate external-links --expect-head \"$(git rev-parse HEAD)\" --json"
-let gitlabImage = "ghcr.io/hengyangds/ethos-ci-supply@sha256:72e2434cbc0ac30cce6c312618c51beb290a214f4e60b0af51af95a79c0dce0f"
+let gitlabImage = "ghcr.io/hengyangds/ethos-ci-supply@sha256:973b6ae2ebe7336d0f57f888801a8ef44d095722add25e3df4da586d454eb8ad"
 let githubPythonBootstrap = [{
 	uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 	with: {
@@ -72,7 +72,10 @@ github: {
 		}
 	}
 	permissions: contents: "read"
-	env: #ExecutionEnvironment
+	env: #ExecutionEnvironment & {
+		UV_CACHE_DIR:            "${{ github.workspace }}/build/runtime/tool-cache/uv"
+		ETHOS_CI_TOOL_CACHE_DIR: "${{ github.workspace }}/build/runtime/tool-cache/ci-tools"
+	}
 	jobs: {
 		"supply-image": {
 			name:      "locked Linux ARM64 supply"
@@ -439,6 +442,6 @@ gitlab: {
 	...
 	PYTHONWARNINGS:          "error"
 	UV_LINK_MODE:            "copy"
-	UV_CACHE_DIR:            *"build/runtime/tool-cache/uv" | string
-	ETHOS_CI_TOOL_CACHE_DIR: *"build/runtime/tool-cache/ci-tools" | string
+	UV_CACHE_DIR:            string
+	ETHOS_CI_TOOL_CACHE_DIR: string
 }

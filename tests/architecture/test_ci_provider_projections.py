@@ -261,6 +261,14 @@ def test_host_conformance_receives_native_python_supply_before_activation(github
     assert gitlab_job["script"] == ["uv run --frozen --offline python -m nox -s host_conformance"]
 
 
+def test_hosted_cache_roots_do_not_move_with_child_working_directories(github, gitlab) -> None:
+    workspace_cache = "${{ github.workspace }}/build/runtime/tool-cache/"
+    assert github["env"]["UV_CACHE_DIR"] == workspace_cache + "uv"
+    assert github["env"]["ETHOS_CI_TOOL_CACHE_DIR"] == workspace_cache + "ci-tools"
+    assert gitlab["variables"]["UV_CACHE_DIR"].startswith("/")
+    assert gitlab["variables"]["ETHOS_CI_TOOL_CACHE_DIR"].startswith("/")
+
+
 def test_full_proof_owns_github_workflow_syntax_before_hosted_execution() -> None:
     declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
     gates = {gate["id"]: gate for gate in declaration["gates"]}

@@ -17,6 +17,7 @@ import ethos.adapters.mutation.publication.observation as publication_observatio
 import ethos.adapters.mutation.publication.retirement as retirement
 import ethos.adapters.repo.commit.rewrite as rewrite
 import ethos.adapters.repo.git_effect_attestation as git_effect_attestation
+import ethos.adapters.repo.git_object_sandbox as object_sandbox
 from ethos.adapters.mutation.lane_retirement.absorbed import retire_absorbed_ref
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import read_attestation_set
@@ -305,7 +306,7 @@ def test_refreshed_retirement_requires_current_complete_evidence(tmp_path, monke
         monkeypatch.setattr(
             rewrite, "read_attestation_set", lambda _root: (selected, (*records, refresh))
         )
-    native = rewrite.run_command
+    native = object_sandbox.run_command
     temporary = set()
 
     def run(root, command, **kwargs):
@@ -314,7 +315,7 @@ def test_refreshed_retirement_requires_current_complete_evidence(tmp_path, monke
             raise subprocess.TimeoutExpired(command, 30)
         return native(root, command, **kwargs)
 
-    monkeypatch.setattr(rewrite, "run_command", run)
+    monkeypatch.setattr(object_sandbox, "run_command", run)
     if fault in {"missing", "invalid"}:
         retained = tuple(r for r in records if r is not refresh)
         if fault == "invalid":

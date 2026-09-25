@@ -2,29 +2,27 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
-import tempfile
 from collections.abc import Mapping
-from pathlib import Path
-from time import monotonic
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import NamedTuple
 
-from ethos.adapters.process import run_command
 from ethos.adapters.repo.attestation_set import read_attestation_set
-from ethos.adapters.repo.git import git_executable
 from ethos.adapters.repo.git import is_ancestor
-from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import declares_transition
 from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
 from ethos.adapters.repo.git_effect_attestation import validate as validate_git_effect_attestation
+from ethos.adapters.repo.git_object_sandbox import isolated_git_objects
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.value import mutable_json
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class RewriteEdge(NamedTuple):
@@ -65,62 +63,9 @@ def refreshed_object_provenance(root: Path, *, old: str, new: str) -> dict[str, 
 
 def observe_refresh_conservation(root: Path, edge: RewriteEdge) -> dict[str, object]:
     """Compose exact native inputs in an owned bare object store, never in the source."""
-    environment = {
-        "PATH": os.environ.get("PATH", os.defpath),
-        "LC_ALL": "C",
-        "GIT_CONFIG_NOSYSTEM": "1",
-        "GIT_CONFIG_GLOBAL": os.devnull,
-        "GIT_ATTR_NOSYSTEM": "1",
-        "GIT_NO_REPLACE_OBJECTS": "1",
-        "GIT_NO_LAZY_FETCH": "1",
-        "GIT_TERMINAL_PROMPT": "0",
-    }
-    deadline = monotonic() + 30
     observed: dict[str, object] = {"verdict": "unknown", "reason": "native_composition_unavailable"}
-
-    def remaining_seconds() -> float:
-        remaining = deadline - monotonic()
-        if remaining <= 0:
-            command = ("git", "merge-tree")
-            raise subprocess.TimeoutExpired(command, 30)
-        return remaining
-
     try:
-        coordinates = run_git(
-            root,
-            "rev-parse",
-            "--path-format=absolute",
-            "--git-path",
-            "objects",
-            "--show-object-format",
-            observation=True,
-            timeout=remaining_seconds(),
-            check=False,
-        )
-        values = coordinates.stdout.splitlines()
-        if coordinates.returncode or len(values) != 2 or values[1] not in {"sha1", "sha256"}:
-            return observed
-        objects, object_format = Path(values[0]), values[1]
-        if not objects.is_absolute() or not objects.is_dir():
-            return observed
-        executable = git_executable(environment)
-        with tempfile.TemporaryDirectory(prefix="ethos-contribution-") as temporary:
-            isolated = Path(temporary)
-
-            def git(*args: str) -> subprocess.CompletedProcess[str]:
-                return run_command(
-                    isolated,
-                    (executable, *args),
-                    env=environment,
-                    inherit_environment=False,
-                    stdin="",
-                    timeout=remaining_seconds(),
-                )
-
-            initialized = git("init", "--bare", "--template=", f"--object-format={object_format}")
-            if initialized.returncode:
-                return observed
-            (isolated / "objects/info/alternates").write_text(objects.resolve().as_posix() + "\n")
+        with isolated_git_objects(root) as git:
             bases = git("merge-base", "--all", edge.previous, edge.candidate)
             if bases.returncode or len(bases.stdout.splitlines()) != 1:
                 return {**observed, "reason": "unique_merge_base_unavailable"}

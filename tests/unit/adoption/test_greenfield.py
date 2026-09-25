@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
-import ethos.adapters.repo.formation as formation_effect
+import ethos.adapters.repo.starter.formation as formation_effect
 from ethos.domain.adoption import adopt_repository
 from ethos.domain.inspection import inspect_repository
 from tests.support.governed_repository import git

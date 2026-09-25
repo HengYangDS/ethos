@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.adapters.repo.starter_evolution import compose_starter_evolution
+from ethos.adapters.repo.starter.evolution import compose_starter_evolution
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 

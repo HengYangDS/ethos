@@ -87,7 +87,8 @@ def test_report_rebuilds_from_one_failed_pytest_attempt_without_rerun(tmp_path: 
     """JUnit failure remains adverse while Allure renders every outcome class."""
     root = owner.ROOT
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
-    gate = _gate(tmp_path, node_package_supply=root / "node_modules", head=head)
+    supply = owner.ProjectRuntime.discover(root).node_package_supply()
+    gate = _gate(tmp_path, node_package_supply=supply, head=head)
     result_dir = gate.s.evidence / "allure/results/single"
     result_dir.mkdir(parents=True)
     (gate.s.evidence / "allure/head.txt").write_text(head + "\n", encoding="utf-8")
@@ -151,7 +152,7 @@ def test_report_rebuilds_from_one_failed_pytest_attempt_without_rerun(tmp_path: 
         root,
         (
             str(owner.ProjectRuntime.discover(root).node_executable()),
-            str(root / "node_modules/allure/cli.js"),
+            str(supply / "allure/cli.js"),
             "agent",
             "query",
             "--from",
@@ -191,7 +192,8 @@ def test_binary_parameter_cases_remain_distinct_in_native_agent_report(tmp_path:
     """Allure must not call distinct pytest node IDs retries of one binary case."""
     root = owner.ROOT
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
-    gate = _gate(tmp_path, node_package_supply=root / "node_modules", head=head)
+    supply = owner.ProjectRuntime.discover(root).node_package_supply()
+    gate = _gate(tmp_path, node_package_supply=supply, head=head)
     result_dir = gate.allure_results / "single"
     gate.pytest.mkdir(parents=True)
     result_dir.mkdir(parents=True)

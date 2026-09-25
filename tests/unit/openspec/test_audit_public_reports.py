@@ -219,3 +219,34 @@ def test_shape_report_exposes_non_directory_symlinks_and_missing_specs(monkeypat
         )["required_gaps"],
     )
     assert "openspec_specs_not_directory" in absent_gaps
+
+
+def test_first_change_accepts_no_prior_spec_directory(tmp_path: Path) -> None:
+    """An empty accepted capability set is not an invalid physical layout."""
+    _write(tmp_path / "openspec/config.yaml", "schema: spec-driven\n")
+    branch_intent = {"verdict": "pass", "advisory_gaps": [], "required_gaps": []}
+
+    report = audit.openspec_shape_report(
+        tmp_path,
+        branch_intent=branch_intent,
+        spec_diff="",
+        official_config=configuration.official_config_report(tmp_path),
+    )
+
+    assert report["verdict"] == "pass"
+    assert report["required_gaps"] == []
+    linked = tmp_path / "linked"
+    _write(linked / "openspec/config.yaml", "schema: spec-driven\n")
+    existing = tmp_path / "existing-specs"
+    existing.mkdir()
+    try:
+        (linked / "openspec/specs").symlink_to(existing, target_is_directory=True)
+    except OSError:
+        pytest.skip("directory symlinks unavailable")
+    linked_report = audit.openspec_shape_report(
+        linked,
+        branch_intent=branch_intent,
+        spec_diff="",
+        official_config=configuration.official_config_report(linked),
+    )
+    assert linked_report["required_gaps"] == ["openspec_specs_not_directory"]

@@ -51,6 +51,9 @@ to repeat the effect. Status selects that bootstrap owner before a hook-only
 repair when its worktree is missing; preview refuses a path collision before
 another ref effect. The first Change is authored through official OpenSpec,
 not a copied template.
+An absent `openspec/specs` means no accepted capabilities yet, not a broken
+repository. Native OpenSpec accepts a first ADDED Change; ETHOS validates a
+specs root when present without requiring a placeholder directory or README.
 
 Preview touches no destination. Apply checks parent/path safety, exact plan
 identity and target absence immediately before effect. Exclusive target

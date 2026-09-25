@@ -17,7 +17,6 @@ from ethos.domain.adoption import adopt_repository
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_fixture_file
-from tests.support.governed_repository import commit_openspec_baseline
 from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -324,8 +323,6 @@ def test_starter_evolution_reviewed_patch_uses_existing_lane_admission(
     """An authored lane admits the exact reviewed patch, not a generator-owned write."""
     repo = _formed_python_repo(tmp_path, monkeypatch)
     actor = "agent:test:case:starter-upgrade"
-    candidate = default_worktree_path(repo, load_branch_role_policy(repo).candidate_branch)
-    commit_openspec_baseline(candidate)
     lane = create_change_source_lane(
         repo,
         tmp_path / "starter-upgrade-lane",
@@ -333,6 +330,7 @@ def test_starter_evolution_reviewed_patch_uses_existing_lane_admission(
         holder_ref=actor,
         base_ref=load_branch_role_policy(repo).candidate_branch,
     )
+    assert not (lane / "openspec/specs").exists()
     commit_fixture_file(lane, "src/custom.py", "value = 1\n", "feat: authored extension")
     authored = (lane / "src/custom.py").read_bytes()
     monkeypatch.setenv("ETHOS_ACTOR", actor)

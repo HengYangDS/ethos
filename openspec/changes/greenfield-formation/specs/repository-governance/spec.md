@@ -13,6 +13,12 @@ starter MAY add its own layout without making that layout ETHOS policy.
 - **AND** it has an authored purpose, the one ETHOS profile, official OpenSpec configuration, and discoverable installed guidance
 - **AND** a fresh Agent can reach the first governed Change through the installed product without an ETHOS source checkout.
 
+#### Scenario: The first Change adds a capability
+
+- **WHEN** a formed repository has official OpenSpec configuration but no accepted specs yet
+- **THEN** a valid first ADDED Change can pass write admission without a placeholder `openspec/specs` directory or invented requirement
+- **AND** an existing malformed or linked specs root remains invalid.
+
 #### Scenario: A selected domain starter is composed
 
 - **WHEN** the optional Python library starter is explicitly selected

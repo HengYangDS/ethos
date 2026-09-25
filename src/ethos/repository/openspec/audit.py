@@ -153,9 +153,11 @@ def changed_openspec_spec_obligation_removal_gaps(diff_text: str | None) -> list
     return gaps
 
 
-def _accepted_spec_physical_grammar_gaps(specs_root: Path) -> list[str]:
-    """Require README plus capability directories containing only spec.md."""
-    if not specs_root.is_dir():
+def accepted_spec_root_gaps(specs_root: Path) -> list[str]:
+    """Accept no prior capabilities; validate the physical shape when specs exist."""
+    if not specs_root.exists() and not specs_root.is_symlink():
+        return []
+    if not specs_root.is_dir() or specs_root.is_symlink():
         return ["openspec_specs_not_directory"]
     gaps: list[str] = []
     for entry in sorted(specs_root.iterdir(), key=lambda path: path.name):
@@ -191,10 +193,7 @@ def openspec_shape_report(
         required_gaps.append("openspec_directory_missing")
     required_gaps.extend(cast("list[str]", official_config["required_gaps"]))
     specs_root = openspec_root / "specs"
-    if not specs_root.exists():
-        required_gaps.append("openspec_specs_missing")
-    else:
-        required_gaps.extend(_accepted_spec_physical_grammar_gaps(specs_root))
+    required_gaps.extend(accepted_spec_root_gaps(specs_root))
     required_gaps.extend(cast("list[str]", branch_intent["required_gaps"]))
     required_gaps.extend(active_change_identifier_violations(openspec_root))
     required_gaps.extend(changed_openspec_spec_obligation_removal_gaps(spec_diff))

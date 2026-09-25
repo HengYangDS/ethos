@@ -9,6 +9,12 @@ import pytest
 
 import ethos.adapters.mutation.landing as landing
 from ethos.contracts.branch.roles import BranchRolePolicy
+from tests.support.ethos_cli_runner import run_ethos
+from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import create_change_source_lane
+from tests.support.governed_repository import git
+from tests.support.governed_repository import start_adopted_candidate
+from tests.support.proof import seed_executed_proof
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -184,3 +190,42 @@ def test_default_accepted_policy_rejects_unreadable_or_changed_carrier(
     )
 
     assert report["required_gaps"] == ["accepted_policy_unavailable"]
+
+
+def test_closeout_accepts_exact_previous_policy_schema(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    repo, candidate = start_adopted_candidate(tmp_path)
+    workspace = repo / ".ethos/workspace.toml"
+    previous = workspace.read_text().replace("canonical_sibling_worktrees = false\n", "")
+    workspace.write_text(previous)
+    git(repo, "add", workspace.as_posix())
+    git(repo, "commit", "-m", "retain previous complete policy")
+    accepted = git(repo, "rev-parse", "HEAD")
+    git(candidate, "reset", "--hard", accepted)
+
+    worktree = create_change_source_lane(
+        repo,
+        repo.parent / "repo-work-legacy-policy",
+        branch="work/legacy-policy",
+        holder_ref="agent:test:case:agent-test",
+    )
+    head = commit_fixture_file(
+        worktree,
+        ".ethos/workspace.toml",
+        previous + "canonical_sibling_worktrees = false\n",
+        "upgrade declared branch roles",
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    seed_executed_proof(worktree, head)
+    assert (
+        run_ethos("land", "--apply", "--authorize", "--expect-head", head, "--json", cwd=worktree)[
+            "verdict"
+        ]
+        == "pass"
+    )
+
+    report = landing.candidate_to_accepted(root=repo, authorized=True, expect_head=accepted)
+    assert report["verdict"] == "pass", report
+    assert git(repo, "rev-parse", "dev") == head
+    assert git(repo, "show", f"{accepted}:.ethos/workspace.toml") == previous.rstrip("\n")

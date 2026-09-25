@@ -5,10 +5,12 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.gates.python_quality as native_quality
 from ethos.repository.policy.gates import quality_obligation_gaps
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
@@ -163,6 +165,15 @@ def test_policy_selected_provider_report_must_cover_observed_subjects() -> None:
     check["stdout"] = json.dumps(payload)
     assert quality_obligation_gaps(policy, (check,), source_tree="a" * 40) == ()
 
+    assert quality_obligation_gaps(policy, None, source_tree="a" * 40) == (
+        "quality_obligation_unproven:behavior",
+    )
+    for malformed in ("{}", '{"gate":"behavior","providers":{}}'):
+        check["stdout"] = malformed
+        assert quality_obligation_gaps(policy, (check,), source_tree="a" * 40) == (
+            "quality_obligation_unproven:behavior",
+        )
+
 
 @pytest.mark.parametrize(
     "defect",
@@ -284,3 +295,63 @@ def test_real_locked_python_checks_qualify_the_selected_source(
         axis = "static-analysis" if defect == "lint-error" else "behavior"
         assert f"quality_obligation_unproven:{axis}" in payload["required_gaps"]
     assert payload["summary"]["proof_attestation_issued"] is False
+
+
+def test_native_quality_requires_committed_python_scope(tmp_path: Path) -> None:
+    """No HEAD or selected Python file must not become an empty success."""
+    untracked = tmp_path / "untracked"
+    untracked.mkdir()
+    assert native_quality.static_report(untracked)["required_gaps"] == [
+        "quality_static_source_head_missing"
+    ]
+
+    repo = init_git_repo(tmp_path / "repo")
+    assert native_quality.static_report(repo)["required_gaps"] == [
+        "quality_static_python_sources_missing"
+    ]
+
+
+def test_native_behavior_requires_source_tests_and_a_lock(tmp_path: Path) -> None:
+    """An unrecognized or unlocked scope cannot claim behavior coverage."""
+    repo = init_git_repo(tmp_path / "repo")
+    source = repo / "src/app.py"
+    source.parent.mkdir()
+    source.write_text("def answer(): return 42\n", encoding="utf-8")
+    commit_fixture(repo, "add source without tests")
+    assert native_quality.behavior_report(repo)["required_gaps"] == [
+        "quality_behavior_scope_unrecognized"
+    ]
+
+    test = repo / "tests/test_app.py"
+    test.parent.mkdir()
+    test.write_text("def test_answer(): assert True\n", encoding="utf-8")
+    commit_fixture(repo, "add tests without lock")
+    assert native_quality.behavior_report(repo)["required_gaps"] == [
+        "quality_behavior_locked_toolchain_missing"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("stdout", "returncode", "gap"),
+    [
+        ("{", 0, "quality_static_report_invalid"),
+        ("{}", 0, "quality_static_report_invalid"),
+        ("[]", 1, "quality_static_diagnostics"),
+        ('[{"code":"E999"}]', 1, "quality_static_diagnostics"),
+    ],
+)
+def test_native_static_adapter_distinguishes_report_from_diagnostics(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    stdout: str,
+    returncode: int,
+    gap: str,
+) -> None:
+    """A malformed tool report differs from a valid report containing findings."""
+    monkeypatch.setattr(native_quality, "_source", lambda _root: ("a" * 40, ("src/app.py",)))
+    monkeypatch.setattr(
+        native_quality,
+        "run_command",
+        lambda *_args, **_kwargs: SimpleNamespace(stdout=stdout, returncode=returncode),
+    )
+    assert native_quality.static_report(tmp_path)["required_gaps"] == [gap]

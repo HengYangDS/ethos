@@ -20,6 +20,7 @@ from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.release import accepted_delivery_report
+from ethos.adapters.repo.release import release_ref_subject
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
@@ -333,6 +334,18 @@ def push_admission_report(
         release_tags=tags,
         remote_name=remote_name,
     )
+    tag_gaps: list[str] = []
+    if target_ref.startswith("refs/tags/"):
+        try:
+            release_ref_subject(
+                repo,
+                ref=target_ref,
+                old=remote_head,
+                new=pushed_head,
+                allow_identical=True,
+            )
+        except (OSError, ValueError) as error:
+            tag_gaps.append(str(error))
     proof_head = (
         git_stdout(repo, "rev-parse", "--verify", f"{pushed_head}^{{commit}}")
         if preliminary["ref_kind"] == "tag"
@@ -418,12 +431,15 @@ def push_admission_report(
                 *proof_gaps,
                 *topology_gaps,
                 *closeout_gaps,
+                *tag_gaps,
             )
         )
     )
     reason = (
         "publication_ref_unavailable"
         if ref_gaps
+        else "release_tag_not_admitted"
+        if tag_gaps
         else "push_to_protected_role_not_proven"
         if proof_gaps or topology_gaps or closeout_gaps
         else "pushed_commit_policy_not_allowed"
@@ -434,7 +450,7 @@ def push_admission_report(
     )
     verdict = reduce_verdicts(
         report_verdict(observed),
-        "block" if ref_gaps or proof_gaps or topology_gaps or closeout_gaps else "pass",
+        "block" if ref_gaps or proof_gaps or topology_gaps or closeout_gaps or tag_gaps else "pass",
         required_gaps=tuple(gaps),
     )
     return {

@@ -14,6 +14,7 @@ from ethos.adapters.repo.commit.history import history_repair_coordinates
 from ethos.adapters.repo.commit.history import history_repair_scope
 from ethos.adapters.repo.commit.history import prepare_history_repair
 from ethos.adapters.repo.commit.history import validate_history_repair
+from ethos.adapters.repo.commit.signature import repaired_peer_ref_provenance
 from ethos.adapters.repo.commit.signature import repaired_ref_provenance
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import unsigned_commit_payload
@@ -102,6 +103,13 @@ def test_repaired_history_descendants_keep_forward_commit_admission(tmp_path, ca
         assert {item["commit"] for item in admission["violations"]} == {new}
     if case == "valid":
         assert repaired_ref_provenance(repo, ref="refs/heads/main", old=old, new=new)
+        assert repaired_peer_ref_provenance(repo, ref="refs/heads/main", old=old, new=new)
+        assert repaired_peer_ref_provenance(repo, ref="refs/heads/other", old=old, new=new) is None
+        assert repaired_peer_ref_provenance(repo, ref="refs/tags/v1", old=old, new=new) is None
+        assert (
+            repaired_peer_ref_provenance(repo, ref="refs/heads/main", old=old + "0", new=new)
+            is None
+        )
         assert repaired_ref_provenance(repo, ref="refs/heads/other", old=old, new=new) is None
         assert repaired_ref_provenance(repo, ref="refs/heads/dev", old=old + "0", new=new) is None
         unrelated = git(repo, "commit-tree", "-S", tree, "-p", old, "-m", "fix: unrelated")
@@ -152,7 +160,7 @@ def test_repaired_history_descendants_keep_forward_commit_admission(tmp_path, ca
         assert git(repo, "show-ref") == refs
 
 
-@pytest.mark.parametrize("case", ["missing_effect", "ambiguous", "revoked_trust"])
+@pytest.mark.parametrize("case", ["missing_effect", "ambiguous", "tampered", "revoked_trust"])
 def test_repair_descendant_provenance_revalidates_evidence_and_trust(tmp_path, monkeypatch, case):
     """Prior success is not reusable authority after its selected evidence changes."""
     repo, old, _candidate = signature_repository(tmp_path, coupled=True)
@@ -163,21 +171,32 @@ def test_repair_descendant_provenance_revalidates_evidence_and_trust(tmp_path, m
     tree = git(repo, "rev-parse", f"{replacement}^{{tree}}")
     new = git(repo, "commit-tree", "-S", tree, "-p", replacement, "-m", "fix: descendant")
     assert repaired_ref_provenance(repo, ref="refs/heads/dev", old=old, new=new)
+    assert repaired_peer_ref_provenance(repo, ref="refs/heads/dev", old=old, new=new)
     selected, records = signature.read_attestation_set(repo)
     if case == "missing_effect":
         records = tuple(record for record in records if record.predicate != "effect:git-ref-update")
     elif case == "ambiguous":
         record = next(record for record in records if record.predicate == signature.RESULT)
         records = (*records, record)
+    elif case == "tampered":
+        records = tuple(
+            record.model_copy(update={"plan_digest": "0" * 64})
+            if record.predicate == signature.RESULT
+            else record
+            for record in records
+        )
     else:
         anchor = tmp_path / "trust/allowed-signers"
         anchor.write_text("")
     monkeypatch.setattr(signature, "read_attestation_set", lambda _root: (selected, records))
     if case == "missing_effect":
         assert repaired_ref_provenance(repo, ref="refs/heads/dev", old=old, new=new) is None
+        assert repaired_peer_ref_provenance(repo, ref="refs/heads/dev", old=old, new=new) is None
     else:
         with pytest.raises(ValueError, match="signature_repair_"):
             repaired_ref_provenance(repo, ref="refs/heads/dev", old=old, new=new)
+        with pytest.raises(ValueError, match="signature_repair_"):
+            repaired_peer_ref_provenance(repo, ref="refs/heads/dev", old=old, new=new)
 
 
 def test_history_repair_preserves_every_unchanged_field_and_parent(tmp_path):

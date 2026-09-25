@@ -9,7 +9,7 @@ from typing import cast
 from ethos.adapters.repo.commit.admission import commit_policy_for_revision
 from ethos.adapters.repo.commit.admission import commit_policy_report
 from ethos.adapters.repo.commit.admission import peel_commit
-from ethos.adapters.repo.commit.signature import repaired_ref_provenance
+from ethos.adapters.repo.commit.signature import repaired_peer_ref_provenance
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import zero_oid
@@ -69,7 +69,7 @@ def commit_range_admission_report(
     if gap:
         return report(state="blocked", required_gaps=[gap])
     report = partial(report, baseline_commit=baseline)
-    repair = repaired_ref_provenance(repo, ref=target_ref, old=baseline, new=proposed_commit)
+    repair = repaired_peer_ref_provenance(repo, ref=target_ref, old=baseline, new=proposed_commit)
     if repair is not None and repair["new"] == proposed_commit:
         revisions = tuple(cast("Mapping[str, str]", repair["mapping"]).values())
         return {

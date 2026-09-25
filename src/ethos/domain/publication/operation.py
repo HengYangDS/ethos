@@ -55,7 +55,7 @@ def _publication_admission_gaps(
     *,
     repo: Path,
     target_refs: tuple[str, ...],
-    current_head: str,
+    source_object_oid: str,
     remotes: Mapping[str, str],
     observations: Mapping[str, Mapping[str, object]],
     effect_gaps: tuple[str, ...],
@@ -76,7 +76,7 @@ def _publication_admission_gaps(
             reports[f"{peer_id}:{target_ref}"] = push_admission_report(
                 root=repo,
                 target_ref=target_ref,
-                pushed_head=zero_oid(repo) if retire else current_head,
+                pushed_head=zero_oid(repo) if retire else source_object_oid,
                 remote_head=object_oid,
                 remote_name=remote,
                 proof_admission=proof_admission,
@@ -162,7 +162,7 @@ def _publication_effect_observation(
     admission_gaps, reports = _publication_admission_gaps(
         repo=repo,
         target_refs=target_refs,
-        current_head=current_head,
+        source_object_oid=effect.source.object_oid if effect is not None else current_head,
         remotes=remotes,
         observations=observations,
         effect_gaps=effect_gaps,

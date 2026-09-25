@@ -31,7 +31,9 @@ from tests.support.governed_repository import init_git_repo
 from tests.support.proof import seed_executed_proof
 from tests.support.subprocesses import kill_after_marker
 from tests.unit.cli.land.publication.support import accepted_release_fixture
+from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import assert_signed_publication
+from tests.unit.cli.land.publication.support import branch_publication
 from tests.unit.cli.land.publication.support import publication_peers
 
 
@@ -234,6 +236,23 @@ def test_public_release_preserves_native_package_and_signed_tag(
     assert report["commit_policy_admission"]["baseline_ref"] == "refs/heads/dev"
     assert report["accepted_closeout_effect"]
     assert_signed_publication(repo, peers, head, tag)
+
+
+def test_signed_release_tag_can_publish_only_selected_declared_peer(tmp_path: Path) -> None:
+    repo, _main, old, head = accepted_release_fixture(tmp_path, release_mirror="accepted_ff")
+    released = release_cli(repo, head, head, "--apply", "--authorize")
+    assert released["verdict"] == "pass"
+    peers = publication_peers(repo, tmp_path, f"{old}:refs/heads/main")
+    git(repo, "remote", "set-url", "origin", str(tmp_path / "unavailable-gitlab.git"))
+
+    preview = branch_publication(repo, head, "--peer", "github", target_ref="refs/tags/v1.2.3")
+    assert preview["verdict"] == "pass"
+    assert preview["summary"]["selected_peer_ids"] == ["github"]
+    applied = apply_receipt(repo, preview["data"]["request_receipt"], head)
+    assert (applied["verdict"], applied["state"]) == ("pass", "published")
+    tag = git(repo, "rev-parse", "refs/tags/v1.2.3")
+    assert git(peers["github"], "rev-parse", "refs/tags/v1.2.3") == tag
+    assert git(peers["gitlab"], "for-each-ref", "--format=%(objectname)", "refs/tags/v1.2.3") == ""
 
 
 @pytest.mark.parametrize(

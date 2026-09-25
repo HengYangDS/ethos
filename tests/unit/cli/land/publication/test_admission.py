@@ -217,6 +217,37 @@ def test_publish_uses_git_ref_grammar_as_the_positive_name_authority(
     ]
 
 
+@pytest.mark.parametrize(
+    ("options", "gap"),
+    [
+        (("--peer", "unknown"), "publication_peer_unknown:unknown"),
+        (("--peer", "github", "--peer", "github"), "publication_peer_duplicate:github"),
+    ],
+)
+def test_publish_rejects_invalid_peer_selection_before_remote_observation(
+    tmp_path: Path, options: tuple[str, ...], gap: str
+) -> None:
+    repo, _peers, head = branch_publication_fixture(tmp_path, proof=False)
+
+    payload = branch_publication(repo, head, *options, blocked=True)
+
+    assert payload["required_gaps"] == [gap]
+    assert payload["data"]["remote_observations"] == {}
+    assert payload["data"]["request_receipt"] == {}
+
+
+def test_selected_proposal_peer_does_not_borrow_repository_proof(tmp_path: Path) -> None:
+    repo, peers, head = branch_publication_fixture(tmp_path, proof=False)
+    git(repo, "remote", "set-url", "origin", str(tmp_path / "unavailable-gitlab.git"))
+
+    payload = branch_publication(repo, head, "--peer", "github", "--apply", "--authorize")
+
+    assert (payload["verdict"], payload["state"]) == ("pass", "published")
+    assert payload["data"]["proof_admission"]["state"] == "not_required"
+    assert proposal_ref(peers["github"]) == head
+    assert proposal_ref(peers["gitlab"]) == ""
+
+
 @pytest.mark.parametrize("source_branch", ["dev", "candidate/dev", "work/review"])
 def test_review_publication_uses_the_selected_object_not_candidate_checkout(
     tmp_path: Path, source_branch: str

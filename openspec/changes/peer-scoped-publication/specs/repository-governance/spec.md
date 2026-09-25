@@ -1,0 +1,60 @@
+## ADDED Requirements
+
+### Requirement: Explicit peer-scoped publication
+
+For an exact `ethos publish --ref` request, a caller MAY select a nonempty
+subset of the declared publication peers by ID. Without a selector, ETHOS
+SHALL retain the all-peer request. Selection SHALL be explicit and
+invocation-local, never inferred from peer availability. ETHOS SHALL validate
+the complete declared topology, then observe and compile only selected peers
+into one immutable request. That request SHALL bind each selected ID, Git
+remote, ref and exact expected and desired OID. Before and between remote
+effects, replay SHALL recheck the current selected ID-to-remote binding and
+the existing source, proof, role and exact-CAS obligations. Results and
+Attestations SHALL identify the selected peers and SHALL NOT claim an
+unselected peer was published.
+
+#### Scenario: One declared peer is unavailable
+
+- **GIVEN** GitLab and GitHub are declared and GitLab cannot be observed
+- **WHEN** the caller selects only GitHub for an exact publication request
+- **THEN** ETHOS may admit and apply the GitHub peer-local transaction without
+  observing or mutating GitLab
+- **AND THEN** the result identifies GitLab as declared but unselected, not
+  published.
+
+#### Scenario: No peer is explicitly selected
+
+- **WHEN** one declared peer is unavailable and the caller supplies no `--peer`
+- **THEN** the all-peer request remains unproved and no peer effect begins
+- **AND THEN** ETHOS does not silently substitute an available subset.
+
+#### Scenario: Selector is unknown or repeated
+
+- **WHEN** a caller names an undeclared peer ID or repeats one ID
+- **THEN** ETHOS rejects the request before remote observation or mutation.
+
+#### Scenario: Bound peer identity changes before replay
+
+- **WHEN** a receipt's selected peer ID no longer maps to its bound Git remote
+- **THEN** replay rejects the receipt before any remote push
+- **AND THEN** another declared peer or remote cannot inherit that receipt.
+
+#### Scenario: An existing receipt is given a new selector
+
+- **WHEN** a caller combines `--receipt` with `--peer`
+- **THEN** ETHOS rejects the ambiguous request without changing its targets.
+
+#### Scenario: The selected peer itself is unavailable
+
+- **WHEN** the selected peer cannot be observed before an exact-CAS effect
+- **THEN** ETHOS reports that selected peer's missing fact and performs no push
+- **AND THEN** its continuation preserves the explicit peer selection rather
+  than falling back to another peer.
+
+#### Scenario: Release and review roles keep their proof boundaries
+
+- **WHEN** a caller selects one peer for an accepted branch, release branch,
+  signed annotated release tag, or proposal ref
+- **THEN** the existing role-specific source, signature and proof obligations
+  still apply to that selected effect.

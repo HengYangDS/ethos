@@ -36,6 +36,20 @@ ETHOS exposes exactly these public roots:
 | `ethos adopt --root <repo> --json`                                                                         | Plan adoption for one repository.                                                                                                                          | Applying requires explicit authorization and an expected head.                                                                                                     |
 | `ethos mcp --root <repo>`                                                                                  | Serve MCP over stdio for one exact repository.                                                                                                             | Tool calls retain native admission; launching the transport grants no authority.                                                                                   |
 
+An exact `publish --ref` request selects every declared peer by default.
+Repeat `--peer <declared-id>` to select only named peers. For example:
+
+```text
+ethos publish --ref refs/heads/main --peer github --probe-remote --expect-head <head> --json
+```
+
+ETHOS still validates the complete declaration but observes and updates only
+the selected peer set. The request receipt binds that set; `--receipt` cannot
+take a new `--peer` choice. Results distinguish declared, selected, and
+unselected peers. A successful selected-peer result does not claim that
+another declared peer received the object, and an unavailable peer is never
+skipped automatically.
+
 The workflow roots are `status`, `plan`, `prove`, `land`, `publish`, and
 `adopt`. The additional `mcp` root launches a transport, not a seventh lifecycle.
 Its current tools are status, planning, adoption and integration over the same typed application owners;

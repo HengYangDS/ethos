@@ -316,7 +316,11 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         (effect.runtime_acceptance, "prove_shared_supply", {"state": "passed"}),
         (effect.adopter_fixture, "materialize_adopter", "d" * 40),
         (effect.adopter_fixture, "line_ending_conformance", ["lf", "crlf"]),
-        (effect.adopter_fixture, "prove_formation", {"state": "passed"}),
+        (
+            effect.adopter_fixture,
+            "prove_formation",
+            {"state": "passed", "first_change": "skeleton_created"},
+        ),
         (
             effect,
             "observe_installed_package",
@@ -465,6 +469,14 @@ def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact):
         "native_git_loss": "not_qualified",
     }
     assert payload["conformance"]["formation"]["state"] == "passed"
+    assert payload["conformance"]["formation"]["first_change"] == "skeleton_created"
+    with pytest.raises(ValueError, match="package_first_change_claim_invalid"):
+        receipt.package_acceptance_evidence(
+            **(
+                case.receipt.call_args.kwargs
+                | {"formation": {"state": "passed", "first_change": "passed"}}
+            )
+        )
     with pytest.raises(ValueError, match="package_formation_incomplete"):
         receipt.package_acceptance_evidence(
             **(case.receipt.call_args.kwargs | {"formation": {"state": "blocked"}})

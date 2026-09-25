@@ -224,13 +224,13 @@ def _verify_candidate(
             raise RuntimeError(message)
 
 
-def _verify_first_change(
+def _initialize_first_change_skeleton(
     candidate: Path,
     status: dict[str, object],
     *,
     environment: Mapping[str, str],
-) -> None:
-    """Use only the installed status projection to invoke native OpenSpec."""
+) -> str:
+    """Observe native creation of the first Change skeleton, not its acceptance."""
     context = status.get("governance_context")
     native = context.get("official_openspec") if isinstance(context, dict) else None
     guidance = context.get("agent_guidance") if isinstance(context, dict) else None
@@ -266,6 +266,7 @@ def _verify_first_change(
     ):
         message = f"installed_first_change_failed:{created.stderr[-256:]}"
         raise RuntimeError(message)
+    return "skeleton_created"
 
 
 def prove_formation(
@@ -281,6 +282,7 @@ def prove_formation(
     ).read_bytes()
     expected_guidance = hashlib.sha256(package_guidance).hexdigest()
     formed: list[dict[str, object]] = []
+    first_change = "not_attempted"
     for starter in ("foundation", "python-library"):
         target = work / f"formed-{starter}"
         command = (
@@ -373,7 +375,7 @@ def prove_formation(
             ):
                 message = "installed_formation_candidate_invalid"
                 raise RuntimeError(message)
-            _verify_first_change(
+            first_change = _initialize_first_change_skeleton(
                 Path(effect["candidate_worktree_path"]),
                 preserved[1],
                 environment=environment,
@@ -404,7 +406,7 @@ def prove_formation(
         "state": "passed",
         "formed": formed,
         "guidance_sha256": expected_guidance,
-        "first_change": "passed",
+        "first_change": first_change,
         "retry_preserved": True,
         "source_checkout_required": False,
     }

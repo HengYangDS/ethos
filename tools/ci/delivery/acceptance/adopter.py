@@ -228,18 +228,27 @@ def _verify_first_change(
     candidate: Path,
     status: dict[str, object],
     *,
-    origin: str,
     environment: Mapping[str, str],
 ) -> None:
     """Use only the installed status projection to invoke native OpenSpec."""
     context = status.get("governance_context")
     native = context.get("official_openspec") if isinstance(context, dict) else None
+    guidance = context.get("agent_guidance") if isinstance(context, dict) else None
     command = native.get("base_command") if isinstance(native, dict) else None
+    guide = guidance.get("path") if isinstance(guidance, dict) else None
+    package = (
+        Path(guide).resolve().parents[3]
+        if isinstance(guide, str)
+        and Path(guide).is_absolute()
+        and Path(guide).parts[-4:] == ("data", "skills", "ethos-repository-work", "SKILL.md")
+        else None
+    )
     if (
         not isinstance(command, list)
         or len(command) != 2
         or not all(isinstance(part, str) and Path(part).is_file() for part in command)
-        or not Path(command[1]).resolve().is_relative_to(Path(origin).resolve().parent)
+        or package is None
+        or not Path(command[1]).resolve().is_relative_to(package)
         or shutil.which("openspec", path=environment.get("PATH", "")) is not None
     ):
         message = "installed_first_change_tool_unavailable"
@@ -367,7 +376,6 @@ def prove_formation(
             _verify_first_change(
                 Path(effect["candidate_worktree_path"]),
                 preserved[1],
-                origin=origin,
                 environment=environment,
             )
         if starter == "python-library":

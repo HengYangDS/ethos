@@ -195,6 +195,7 @@ def validate(
             allow_absent_prestate=plan.policy.get("repository_prestate") == "absent",
             plan=plan,
             current_scope=current_postconditions,
+            historical_identity=not current_postconditions,
         )
     )
     evidence = (

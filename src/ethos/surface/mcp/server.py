@@ -101,11 +101,17 @@ def create_server(
             message = "mcp_root_unavailable"
             raise ValueError(message) from error
         target_binding = None
+    first_action = (
+        "Preview adopt with create=true before status; after formation, read status and follow "
+        "its current continuation. "
+        if create_target
+        else "Read status and follow its current continuation. "
+    )
     server = FastMCP(
         "ETHOS",
         instructions=(
             "This instance is bound to one repository and its startup process actor. "
-            "Read status and follow its current continuation. Adoption preview is not "
+            f"{first_action}Adoption preview is not "
             "authorization. Review exact inputs before requesting an effect. "
             "Deadlines include queueing; synchronous work drains before completion. "
             "Cancellation or connection loss does not prove rollback: observe before retry."

@@ -292,7 +292,7 @@ def prove_shared_supply(
     package_prefix = (str(selected.python), "-B", "-I", "-m", "ethos.cli")
     scoped_environment = {**environment, "XDG_DATA_HOME": str(work / "host-data")}
     pinned_root = (
-        work / "host-data/ethos/installations" / selected.digest / "ethos/runtime" / selected.digest
+        work / "host-data/ethos/installations" / selected.digest[:16] / "runtime" / selected.digest
     )
     repositories = [work / f"shared-adopter-{ordinal}" for ordinal in range(2)]
     selectors, databases = [], []

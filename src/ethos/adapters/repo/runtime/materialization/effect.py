@@ -151,8 +151,9 @@ def _host_runtime_store() -> Path:
 def _pin_installed_runtime(selected: SelectedRuntime, project: Path) -> Path:
     """Pin the runtime and its exact wheel as one reusable installation."""
     store = _host_runtime_store()
-    installation = store / selected.digest
-    target = installation / "ethos/runtime" / selected.digest
+    # Abbreviate only the directory index; OWNER and the runtime retain full identity.
+    installation = store / selected.digest[:16]
+    target = installation / "runtime" / selected.digest
     if selected.root.resolve() == target.resolve():
         return selected.root
     if store.is_symlink() or installation.is_symlink():
@@ -184,13 +185,13 @@ def _pin_installed_runtime(selected: SelectedRuntime, project: Path) -> Path:
         try:
             staging.mkdir(mode=0o700)
             (staging / "OWNER").write_text(selected.digest + "\n", encoding="utf-8")
-            staged_runtime = staging / "ethos/runtime" / selected.digest
+            staged_runtime = staging / "runtime" / selected.digest
             staged_runtime.parent.mkdir(parents=True)
             shutil.copytree(selected.root, staged_runtime, symlinks=True)
             wheel = _runtime_supply_wheel(selected, project)
             if wheel is None:
                 _fail("hook_runtime_installed_supply_invalid")
-            staged_package = staging / "ethos/packages" / selected.wheel_sha256
+            staged_package = staging / "packages" / selected.wheel_sha256
             staged_package.mkdir(parents=True)
             try:
                 shutil.copyfile(wheel, staged_package / wheel.name)

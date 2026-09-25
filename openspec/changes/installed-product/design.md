@@ -468,6 +468,14 @@ recovery of marked interrupted imports. This does not yet qualify real Homebrew
 upgrade/uninstall or safe garbage collection of unreferenced host generations.
 Repository-local generations remain until exact consumer migration is observed.
 
+Changing locked Python inputs invalidates the GitLab immutable supply image.
+Close the source locally, project its reviewed exact commit to GitHub dev, and
+use the trusted dev supply-image workflow to publish and read back a new digest.
+Then update the one CUE image declaration and checked Forge projections before
+projecting GitLab. This is a bounded sequence across independent peers, not
+cross-provider atomicity. A locally built image or a credential without package
+write authority cannot substitute for the trusted registry publication.
+
 Repository-local generations are not the terminal shared-supply store. A source
 repository's worktrees and processes cannot prove that another repository's
 `CURRENT` does not select an old generation. Preserve such unproven generations

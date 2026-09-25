@@ -2325,6 +2325,19 @@ remains risk/profile-selected, not an unconditional external broker.
 | Repository choices | Python 3.12 support, 95-percent coverage, Nox and uv are self-profile choices. Common obligations concern supported versions, explicit floors, locked supply and reproducible evidence, not those particular values. |
 | Failure and continuation | Keep current facts, native failures, normalized evidence, applicable verification and one admission result in the existing chain. No parallel lifecycle, task ledger or graph authority is introduced. |
 
+An exact-HEAD public host observation on September 25 exposed the missing
+boundary: an adopter mapped `behavior` and `static-analysis` to two commands
+that only exited zero; the source and test both raised on import, yet full host
+quality returned `pass`. Host observation issued no Attestation, so this does
+not establish a land or publication bypass. It does establish that gate names,
+dimensions, exit codes and policy digests prove execution identity, not the
+claimed property. Do not repair it with a `true`/`echo` blacklist or more
+profile labels. The existing gate owner must resolve applicable obligations
+from observed subjects and trusted policy, then verify native evidence for
+the selected input scope; missing or stale evidence leaves that obligation
+unproven. Native JUnit, coverage and static diagnostics can be adapters, not
+parallel quality authorities. A candidate cannot waive its trusted prior floor.
+
 The native Go 1.27.1 probe uses an isolated module and offline owned caches.
 Default discovery/build includes live and generated packages but excludes the
 sample snapshot directories. Explicit package/file selection of the snapshot

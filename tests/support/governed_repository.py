@@ -28,7 +28,7 @@ class WorkLaneFixture(NamedTuple):
 
 
 def start_adopted_candidate(
-    tmp_path: Path, *, release_mirror: str = "independent"
+    tmp_path: Path, *, release_mirror: str = "independent", docs_only: bool = False
 ) -> tuple[Path, Path]:
     """Create an adopted accepted root and its candidate worktree.
 
@@ -38,7 +38,7 @@ def start_adopted_candidate(
     runtime image.
     """
     repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo, release_mirror=release_mirror)
+    adopt_and_commit(repo, release_mirror=release_mirror, docs_only=docs_only)
     commit_openspec_baseline(repo)
     candidate = tmp_path / "repo-candidate-dev"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
@@ -52,9 +52,12 @@ def prepared_work_lane(
     name: str = "feature",
     holder_ref: str = "agent:test:case:agent-test",
     release_mirror: str = "independent",
+    docs_only: bool = False,
 ) -> WorkLaneFixture:
     """Prepare isolated native state; public start is exercised by its own acceptance."""
-    repo, candidate = start_adopted_candidate(tmp_path, release_mirror=release_mirror)
+    repo, candidate = start_adopted_candidate(
+        tmp_path, release_mirror=release_mirror, docs_only=docs_only
+    )
     worktree = create_change_source_lane(
         repo,
         tmp_path / f"repo-work-{name}",
@@ -340,7 +343,9 @@ def write_role_policy(
     commit_fixture(repo, "configure branch roles")
 
 
-def adopt_and_commit(repo: Path, *, release_mirror: str = "independent") -> str:
+def adopt_and_commit(
+    repo: Path, *, release_mirror: str = "independent", docs_only: bool = False
+) -> str:
     initialize_adopted_fixture(repo)
     (repo / ".ethos" / "workspace.toml").write_text(
         render_branch_policy(
@@ -353,9 +358,13 @@ def adopt_and_commit(repo: Path, *, release_mirror: str = "independent") -> str:
         ),
         encoding="utf-8",
     )
-    declare_fixture_code_correctness(repo)
+    if docs_only:
+        declare_fixture_documentation_proof(repo)
+    else:
+        declare_fixture_code_correctness(repo)
     _enable_openspec_profile(repo)
-    write_publication_topology(repo)
+    if not docs_only:
+        write_publication_topology(repo)
     _write_openspec_baseline(repo)
     return commit_fixture(repo, "adopt ethos governance")
 
@@ -514,6 +523,23 @@ def declare_fixture_code_correctness(repo: Path) -> None:
             'trust_bearing = true\ntool_adapter = "repository-native"\n\n'
         )
     profile_path.write_text(profile_path.read_text() + declaration.rstrip() + "\n")
+
+
+def declare_fixture_documentation_proof(repo: Path) -> None:
+    """Use a neutral proof gate without inventing executable code subjects."""
+    registry = repo / "system/gates.toml"
+    registry.parent.mkdir(parents=True, exist_ok=True)
+    registry.write_text(
+        'schema_version = 1\nid = "fixture-docs-gates"\n'
+        '[proof_sets]\ndefault = ["spec-check"]\nfull = ["spec-check"]\n'
+        '[[gates]]\nid = "spec-check"\nkind = "governance"\n'
+        'command = ["fixture", "spec-check"]\n'
+        'asset_classes = ["markdown-docs"]\ndimensions = ["governance"]\n'
+        'evidence_class = "contract"\ntrust_bearing = true\n'
+        'tool_adapter = "fixture"\n',
+        encoding="utf-8",
+    )
+    write_test_profile(repo, proof={"gate_registry": "system/gates.toml"})
 
 
 def exact_lease(

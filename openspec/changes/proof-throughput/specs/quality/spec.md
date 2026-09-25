@@ -56,6 +56,13 @@ Unknown required discovery SHALL NOT become empty successful coverage.
 - **AND** explicit native selection is evaluated under its own declared scope
 - **AND** relabeling implementation as evidence cannot silently remove hard obligations
 
+#### Scenario: A native role owner projects carrier facts
+
+- **WHEN** an adopter supplies repository-native role assignments
+- **THEN** ETHOS SHALL bind them to the selected Git tree and account for every tracked carrier exactly once
+- **AND** unresolved or conflicting roles SHALL remain unknown rather than remove an applicable obligation
+- **AND** ETHOS SHALL validate the projection without copying the adopter's role parser or making it a second owner
+
 ### Requirement: Adopters share applicable quality obligations
 
 ETHOS SHALL compile a common, versioned quality floor from observed repository

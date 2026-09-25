@@ -7,6 +7,8 @@ from pathlib import PurePosixPath
 from stat import S_ISREG
 from typing import TYPE_CHECKING
 
+from ethos.adapters.openspec.lifecycle.bootstrap import bootstrap_artifacts
+from ethos.adapters.openspec.lifecycle.bootstrap import new_change_root_intent
 from ethos.contracts.semantic import Commitment
 from ethos.normalization.coercion import repository_path_matches
 from ethos.normalization.coercion import string_sequence
@@ -84,7 +86,7 @@ def official_change_bootstrap_scope_report(
         for path in paths
     ):
         return {}
-    intent = _new_change_root_intent(root, official, paths)
+    intent = new_change_root_intent(root, official, paths)
     if intent:
         metadata = f"{active_change_root(intent)}/.openspec.yaml"
         resolved = root.resolve().as_posix()
@@ -103,7 +105,7 @@ def official_change_bootstrap_scope_report(
             f"--root {shlex.quote(resolved)} --json"
         )
         return report
-    change, outputs, next_action = _bootstrap_artifacts(root, official, paths)
+    change, outputs, next_action = bootstrap_artifacts(root, official, paths)
     if not change:
         return {}
     covered = tuple(path for path in paths if _official_artifact_path(path, outputs))
@@ -429,111 +431,6 @@ def _canonical_spec_repair_paths(official: dict[str, object]) -> tuple[str, ...]
         and all(not logical_change_identifier_issue(part) for part in capability.split("/"))
     )
     return tuple(dict.fromkeys(f"openspec/specs/{capability}/spec.md" for capability in valid))
-
-
-def _bootstrap_artifacts(
-    root: Path, official: dict[str, object], paths: tuple[str, ...]
-) -> tuple[str, tuple[str, ...], str]:
-    new = _new_change_metadata_artifact(root, official, paths)
-    if new[0]:
-        return new
-    return _active_bootstrap_artifacts(official) or new
-
-
-def _listed_change_names(official: dict[str, object]) -> frozenset[str] | None:
-    """Treat official list rows as observed identities, not as write authority."""
-    commands = official.get("commands")
-    listed = commands.get("list") if isinstance(commands, dict) else None
-    payload = listed.get("json") if isinstance(listed, dict) else None
-    changes = payload.get("changes") if isinstance(payload, dict) else None
-    if not isinstance(changes, list):
-        return None
-    names = [row.get("name") if isinstance(row, dict) else None for row in changes]
-    if any(not isinstance(name, str) or logical_change_identifier_issue(name) for name in names):
-        return None
-    return frozenset(names) if len(names) == len(set(names)) else None
-
-
-def _active_bootstrap_artifacts(
-    official: dict[str, object],
-) -> tuple[str, tuple[str, ...], str] | None:
-    lifecycle = official.get("lifecycle")
-    changes = lifecycle.get("changes") if isinstance(lifecycle, dict) else None
-    if not isinstance(changes, list) or len(changes) != 1 or not isinstance(changes[0], dict):
-        return None
-    change = str(changes[0].get("name") or "")
-    artifacts = changes[0].get("artifacts")
-    if logical_change_identifier_issue(change) or not isinstance(artifacts, list) or not artifacts:
-        return None
-    if f"openspec_status_incomplete:{change}" not in string_sequence(official.get("required_gaps")):
-        return None
-    root = active_change_root(change)
-    outputs = [f"{root}/.openspec.yaml"]
-    ready = ""
-    for artifact in artifacts:
-        if not isinstance(artifact, dict):
-            return None
-        identifier = str(artifact.get("id") or "")
-        output = str(artifact.get("outputPath") or "")
-        status = str(artifact.get("status") or "")
-        requires = artifact.get("requires")
-        if not identifier or not output or not status or not isinstance(requires, list):
-            return None
-        outputs.append(f"{root}/{output}")
-        if not ready and status == "ready":
-            ready = identifier
-    return (
-        change,
-        tuple(dict.fromkeys(outputs)),
-        (
-            f"openspec instructions {ready} --change {change} --json"
-            if ready
-            else f"openspec status --change {change} --json"
-        ),
-    )
-
-
-def _new_change_metadata_artifact(
-    root: Path, official: dict[str, object], paths: tuple[str, ...]
-) -> tuple[str, tuple[str, ...], str]:
-    names = _listed_change_names(official)
-    if names is None:
-        return "", (), ""
-    metadata = tuple(path for path in paths if path.endswith("/.openspec.yaml"))
-    if len(paths) != 1 or len(metadata) != 1:
-        return "", (), ""
-    parts = metadata[0].split("/")
-    if len(parts) != 4 or parts[:2] != ["openspec", "changes"]:
-        return "", (), ""
-    change = parts[2]
-    if change == "archive" or logical_change_identifier_issue(change) or change in names:
-        return "", (), ""
-    target = root / active_change_root(change)
-    if target.exists() or target.is_symlink():
-        return "", (), ""
-    return (
-        change,
-        (metadata[0],),
-        f"openspec new change {change} --json",
-    )
-
-
-def _new_change_root_intent(root: Path, official: dict[str, object], paths: tuple[str, ...]) -> str:
-    names = _listed_change_names(official)
-    if names is None or len(paths) != 1:
-        return ""
-    parts = paths[0].rstrip("/").split("/")
-    if len(parts) != 3 or parts[:2] != ["openspec", "changes"]:
-        return ""
-    change = parts[2]
-    invalid = (
-        change == "archive"
-        or logical_change_identifier_issue(change)
-        or change in names
-        or (root / paths[0]).exists()
-        or (root / paths[0]).is_symlink()
-    )
-    return "" if invalid else change
 
 
 def _official_artifact_path(path: str, outputs: tuple[str, ...]) -> bool:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tomllib
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import run_git
@@ -60,3 +61,31 @@ def repository_identity(
     if profile.state != "valid" or profile.declaration is None:
         raise ValueError(INVALID_PROFILE_ERROR)
     return f"repository:{profile.declaration.profile_id}"
+
+
+def historical_repository_identity(
+    root: Path,
+    *,
+    tree_ref: str,
+    environment: Mapping[str, str] | None = None,
+) -> str:
+    """Read stable identity from an exact past tree without applying today's profile schema."""
+    result = run_git(
+        root,
+        "show",
+        f"{tree_ref}:.ethos/profile.toml",
+        check=False,
+        env=environment,
+        text=False,
+    )
+    message = "repository_historical_identity_invalid:.ethos/profile.toml"
+    if result.returncode:
+        raise ValueError(message)
+    try:
+        values = tomllib.loads(result.stdout.decode("utf-8"))
+    except (UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+        raise ValueError(message) from error
+    profile_id = values.get("profile_id")
+    if not isinstance(profile_id, str) or not profile_id:
+        raise ValueError(message)
+    return f"repository:{profile_id}"

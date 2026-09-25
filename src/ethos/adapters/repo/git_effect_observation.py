@@ -19,6 +19,7 @@ from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import resolve_revisions
+from ethos.adapters.repo.profile import historical_repository_identity
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -73,8 +74,12 @@ def resolve_git_effect_repository(
     allow_absent_prestate: bool = False,
     plan: TransitionPlan | None = None,
     current_scope: bool = True,
+    historical_identity: bool = False,
 ) -> str:
     """Resolve one repository identity across every revision touched by an effect."""
+    if historical_identity and plan is None:
+        message = "git_effect_historical_identity_plan_required"
+        raise ValueError(message)
     revisions = {
         str(before["head"]),
         *(update.expected for update in effect.updates.values()),
@@ -99,11 +104,10 @@ def resolve_git_effect_repository(
         }
         expected |= retained
     identities: dict[str, str] = {}
+    identity_reader = historical_repository_identity if historical_identity else repository_identity
     for revision in revisions:
         try:
-            identities[revision] = repository_identity(
-                root, tree_ref=revision, environment=environment
-            )
+            identities[revision] = identity_reader(root, tree_ref=revision, environment=environment)
         except ValueError:
             if allow_absent_prestate and revision in expected:
                 continue

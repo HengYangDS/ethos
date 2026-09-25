@@ -25,6 +25,7 @@ from ethos.adapters.repo.git_object import commit_payload
 from ethos.adapters.repo.git_object import equivalent_commit_identity
 from ethos.adapters.repo.git_object import observe_commit
 from ethos.adapters.repo.git_ref_worktrees import worktree_sync_gap
+from ethos.adapters.repo.profile import historical_repository_identity
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.adapters.repo.worktree_effects import raw_worktree_records
@@ -376,7 +377,7 @@ def _validate_historical_source(root: Path, coordinates: Mapping[str, object]) -
         isinstance(refs, dict)
         and required.items() <= refs.items() <= allowed.items()
         and coordinates["accepted_branch"] == policy.accepted_branch
-        and coordinates["repository"] == repository_identity(root, tree_ref=old)
+        and coordinates["repository"] == historical_repository_identity(root, tree_ref=old)
         and coordinates["policy_sha256"] == hashlib.sha256(policy_text.encode()).hexdigest()
         and coordinates["payload_sha256"] == hashlib.sha256(commit_payload(root, old)).hexdigest(),
         "signature_repair_source_coordinates_mismatch",

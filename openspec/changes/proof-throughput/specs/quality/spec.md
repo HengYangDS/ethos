@@ -643,6 +643,12 @@ relevant test or hosted acceptance; rendering never changes a test verdict.
 - **THEN** old results and rendered views are invalidated
 - **AND** missing or count-mismatched results cannot satisfy report admission
 
+#### Scenario: Opaque parameters do not invent retries
+
+- **WHEN** distinct pytest cases carry binary parameters with the same display representation
+- **THEN** Allure retains their distinct logical test identities
+- **AND** it does not present those cases as retries of one test
+
 #### Scenario: GitHub execution is independent of workstation runners
 
 - **WHEN** GitHub executes the selected quality workflow

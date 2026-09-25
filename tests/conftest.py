@@ -22,6 +22,7 @@ import shutil
 import sys
 from pathlib import Path
 
+import allure
 import pytest
 from hypothesis.configuration import set_hypothesis_home_dir
 
@@ -33,6 +34,15 @@ set_hypothesis_home_dir(
     / "build/runtime/tool-cache/hypothesis"
     / os.environ.get("PYTEST_XDIST_WORKER", "local")
 )
+
+
+@pytest.fixture(autouse=True)
+def _report_case_identity(request: pytest.FixtureRequest) -> None:
+    """Keep distinct pytest cases separate when display parameters lose information."""
+    if request.config.getoption("--alluredir", default=None):
+        allure.dynamic.parameter(
+            "pytest_nodeid", request.node.nodeid, mode=allure.parameter_mode.HIDDEN
+        )
 
 
 @pytest.fixture(scope="session", autouse=True)

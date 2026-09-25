@@ -185,3 +185,47 @@ def test_failing_test_session_still_renders_without_replacing_test_failure(monke
         sessions.tests(SimpleNamespace(log=lambda _message: None))
 
     gate.render_report.assert_called_once_with()
+
+
+def test_binary_parameter_cases_remain_distinct_in_native_agent_report(tmp_path: Path) -> None:
+    """Allure must not call distinct pytest node IDs retries of one binary case."""
+    root = owner.ROOT
+    head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+    gate = _gate(tmp_path, node_package_supply=root / "node_modules", head=head)
+    result_dir = gate.allure_results / "single"
+    gate.pytest.mkdir(parents=True)
+    result_dir.mkdir(parents=True)
+    gate.allure_head.write_text(head + "\n")
+    target = (
+        "tests/unit/adapters/repo/commit/test_admission.py::test_indexed_policy_projection_matrix"
+    )
+    executed = run_command(
+        root,
+        (
+            sys.executable,
+            "-m",
+            "pytest",
+            "-c",
+            str(owner.PYTEST_CONFIG),
+            "-o",
+            "addopts=",
+            "-n",
+            "2",
+            f"--rootdir={root}",
+            f"--basetemp={tmp_path / 'pytest'}",
+            f"--junitxml={gate.pytest / 'junit.xml'}",
+            f"--alluredir={result_dir}",
+            target,
+            "-q",
+        ),
+        timeout=30,
+        check=True,
+    )
+    assert executed.returncode == 0
+    assert len(tuple(result_dir.glob("*-result.json"))) == 7
+
+    report = gate.render_report()
+
+    run = json.loads((report / "manifest/run.json").read_text())
+    assert run["summary"]["stats"].get("total") == 7
+    assert run["summary"]["stats"].get("retries", 0) == 0

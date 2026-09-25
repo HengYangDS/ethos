@@ -382,8 +382,8 @@ def _bootstrap_source(root: Path, script: str, version: str = "2026.9.11") -> Pa
     """Materialize one locked native input; each caller owns its mutable fixture."""
     write_reference_source(root, ".config/mise/config.toml", f'min_version = "{version}"')
     write_reference_source(root, ".config/mise/mise.lock", "lockfile_version = 2")
-    installer = root / ".config/ci/mise-install.sh"
-    write_reference_source(root, ".config/ci/mise-install.sh", script)
+    installer = root / "tools/ci/scripts/mise-install.sh"
+    write_reference_source(root, "tools/ci/scripts/mise-install.sh", script)
     write_reference_source(
         root,
         ".config/checks/ci/templates.toml",

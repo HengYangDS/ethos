@@ -190,7 +190,11 @@ internals and external conventions do not establish current entrypoints.
 `README.md` is retained only when it is the actual index, navigation entrypoint,
 or semantic boundary for its directory. A directory with one substantive child
 does not receive a README merely because the directory exists; an empty
-directory and a marker-only README are removed. If a README contains the only
+directory and a marker-only README are removed. A directory with at least two
+immediate navigable children needs a README with a local route into its content;
+this applies to a profile-selected adopter documentation root as well as ETHOS.
+Document and documentation-metadata files count as content; generated diagrams
+do not. If a README contains the only
 unique navigation or boundary meaning, absorb that meaning into the owning
 document before deleting it.
 

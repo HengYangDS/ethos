@@ -16,7 +16,7 @@ forbidden_log_patterns = [
 ]
 required_owner_scripts = [
   "tools/ci/scripts/bootstrap-python.sh",
-  ".config/ci/mise-install.sh",
+  "tools/ci/scripts/mise-install.sh",
   "noxfile.py",
   "tools/ci/repository_hygiene.py",
   "tools/ci/scripts/run-secrets-scan.sh",
@@ -39,7 +39,7 @@ forbidden_log_patterns = [
 ]
 required_owner_scripts = [
   "tools/ci/scripts/bootstrap-python.sh",
-  ".config/ci/mise-install.sh",
+  "tools/ci/scripts/mise-install.sh",
   "tools/ci/scripts/run-node-compatibility.sh",
   "noxfile.py",
   "tools/ci/repository_hygiene.py",

@@ -142,20 +142,9 @@ comparative winners. Follow the existing plan and Changes for actual cutover.
 
 ## Read By Question
 
-The overview owns the comparative frame and common workload; topic pages own
-detailed alternatives, observations and source references. Dated observations
-are not present-tense completion claims.
-
-| Question | Topic |
-| --- | --- |
-| Who selects tools, locks dependencies and prepares environments? | [Toolchain and supply](foundations/toolchain.md) |
-| What should run natively or in containers, and what may be reused? | [Execution and reuse](foundations/execution.md) |
-| What do state machines, hooks and durable engines guarantee? | [Effects and recovery](foundations/effects.md) |
-| What distinguishes configuration validity from program meaning? | [Executable semantics](foundations/semantics.md) |
-| How do tests, reports and telemetry support evidence? | [Verification and observability](foundations/verification.md) |
-| How are intent, adoption, upgrades and actual benefit preserved? | [Intent and adoption](foundations/adoption.md) |
-| Where do SDK/MCP, plugins and other languages belong? | [Interfaces and extensions](foundations/interfaces.md) |
-| How can people and agents navigate one reliable source? | [Documentation and knowledge interchange](foundations/documentation.md) |
+The [foundation topic entrance](foundations/README.md) routes each question to
+its detailed comparison, observations, and source references. This overview
+owns only the comparative frame and common workload.
 
 ## Comparative Acceptance Workload
 

@@ -166,7 +166,7 @@
 - [ ] 12.2 Repair native metadata parsing and typed relationships; replay quoted-scalar, duplicate-key, delimiter, dangling-owner and human/machine contradiction cases through the public report.
 - [ ] 12.3 Derive human and agent navigation from one source; verify semantic hierarchy, reader orientation, prerequisites, section links, rename closure and independently understandable topics.
   - [x] 12.3.1 Settle the terminal plan's current-entry observations into existing history retrieval; preserve open obligations and dependency order without copying task status or dropping source evidence.
-- [ ] 12.4 Calibrate document and token costs against human and agent retrieval and verified outcomes; preserve functionality, performance and effectiveness, and reject cosmetic wrapping, hidden content and fragmented or duplicated meaning.
+- [ ] 12.4 Enforce a 500-nonblank-line ceiling for current authored Markdown in ETHOS and governed repositories after semantic partition of existing oversize owners; exclude only generated and archived carriers by existing classification. Verify human/agent retrieval and token cost without cosmetic splitting or lost meaning.
 - [ ] 12.5 Qualify a bounded OKF consumer when needed; preserve identity, scope, unknown fields and declared loss without inherited authority or a parallel knowledge store.
 - [ ] 12.6 Settle source research into its topic owner and execute the existing framework comparisons; report adoption or rejection from actual replacement evidence.
 

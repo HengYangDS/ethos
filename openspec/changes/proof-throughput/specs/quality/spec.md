@@ -62,7 +62,8 @@ ETHOS SHALL compile a common, versioned quality floor from observed repository
 facts before selecting native checks. A repository profile MAY add domain
 constraints and map native evidence, but omission, renaming or a candidate's
 own changed policy SHALL NOT remove an applicable common obligation. The floor
-SHALL express properties, not ETHOS-specific paths, tools or numeric budgets.
+SHALL express observable properties and explicitly accepted portable limits,
+not ETHOS-specific paths, tools or code budgets.
 
 #### Scenario: Binding is not quality qualification
 
@@ -87,6 +88,28 @@ SHALL express properties, not ETHOS-specific paths, tools or numeric budgets.
 - **WHEN** a candidate removes a required check or narrows its source scope
 - **THEN** the trusted prior floor still judges the candidate until an independently admitted policy transition replaces it
 - **AND** local and hosted consumers reject a result set that omits a required obligation
+
+### Requirement: Current Markdown stays within one navigable topic
+
+Every tracked, current, hand-authored Markdown file in ETHOS or a governed
+repository SHALL contain at most 500 nonblank physical lines. Code fences,
+tables, and quoted material count. Existing carrier classification SHALL exclude
+generated output and archived records, not exempt current oversized owners.
+
+#### Scenario: A current topic exceeds the ceiling
+
+- **WHEN** a tracked current authored Markdown file exceeds 500 nonblank lines
+- **THEN** the quality floor reports that exact source and blocks acceptance
+- **AND** adding blank lines or relabeling current content as history does not
+  satisfy the requirement
+
+#### Scenario: A complex topic needs more space
+
+- **WHEN** one topic cannot fit without losing necessary meaning
+- **THEN** it is divided at coherent semantic responsibilities with a README
+  route and repaired links, while retaining the original owner relationship
+- **AND** arbitrary numbered fragments, copied paragraphs or hidden content
+  do not count as progressive disclosure
 
 ### Requirement: Release protection projects configured branch roles
 

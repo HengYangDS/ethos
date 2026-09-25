@@ -53,7 +53,7 @@ configuration plane, not a truth center.
 - [The secret-scanning policy](checks/secrets/gitleaks.toml) is reached through the root Gitleaks discovery reference; `.config/mise/config.toml` and `.config/mise/mise.lock` own native tool selections and platform artifact digests. `tools/ci/scripts/run-secrets-scan.sh` obtains verified project-local supply through `tools/ci/toolchain/native.py` and passes the policy explicitly. Hosted proof uses the same supply owner; neither path installs system files or trusts ambient scanner bytes.
 - `tools/ci/repository_hygiene.py`, invoked through the `repository_hygiene` Nox session, owns cross-file hygiene such as tracked-file size, LF endings, final newline, JSON parseability, merge-conflict markers, and the zero-suppression invariant.
 - `.config/mise/config.toml` and `.config/mise/mise.lock` select native developer/CI supply through native discovery. The existing
-  Python bootstrap prepares missing mise with .config/ci/mise-install.sh,
+  Python bootstrap prepares missing mise with tools/ci/scripts/mise-install.sh,
   a version-bound official generator projection checked by ci_templates.
   Installation is staged and bounded; observation does not install tools.
   Isolated consumers preserve this same nested layout; disposable copies do

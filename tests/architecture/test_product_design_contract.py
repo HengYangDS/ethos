@@ -103,23 +103,34 @@ def test_agent_entrypoint_is_thin_and_continuation_driven() -> None:
     assert entrypoint.count("ethos status --json") == 1
 
 
-def test_documentation_has_one_entrypoint_without_decision_index_shells() -> None:
-    """ETHOS keeps one docs root and no marker-only Decision Record index."""
-    assert (ROOT / "docs/README.md").is_file()
-    assert not (ROOT / "docs/decisions/README.md").exists()
+def test_documentation_routes_decisions_through_one_meaningful_local_entrance() -> None:
+    """The docs root routes to a real decision entrance, not a second registry."""
+    root = (ROOT / "docs/README.md").read_text(encoding="utf-8")
+    entrance = ROOT / "docs/decisions/README.md"
+    metadata = front_matter(entrance)
+    text = entrance.read_text(encoding="utf-8")
+
+    assert "(decisions/README.md)" in root
+    assert metadata["role"] == "index"
+    assert "Purpose:" in text
+    assert "See also:" in text
+    assert not (ROOT / "docs/decisions/index.md").exists()
 
 
 def test_decision_records_are_audited_product_surfaces() -> None:
     """Every retained Decision Record participates in product-boundary audit."""
     audited = {path.relative_to(ROOT).as_posix() for path in product_surface_files(ROOT)}
-    decision_paths = sorted((ROOT / "docs/decisions").glob("*.md"))
+    decision_paths = sorted(
+        path for path in (ROOT / "docs/decisions").glob("*.md") if path.name != "README.md"
+    )
     decisions = {path.relative_to(ROOT).as_posix() for path in decision_paths}
-    documentation_root = (ROOT / "docs/README.md").read_text(encoding="utf-8")
+    entrance = (ROOT / "docs/decisions/README.md").read_text(encoding="utf-8")
 
     assert decisions
     assert decisions <= audited
+    assert "docs/decisions/README.md" in audited
     for path in decision_paths:
-        assert f"(decisions/{path.name})" in documentation_root
+        assert f"({path.name})" in entrance
 
 
 def test_decision_records_preserve_complete_cross_change_rationale() -> None:
@@ -133,7 +144,9 @@ def test_decision_records_preserve_complete_cross_change_rationale() -> None:
         "## Revisit And Retirement",
     )
 
-    for path in sorted((ROOT / "docs/decisions").glob("*.md")):
+    for path in sorted(
+        path for path in (ROOT / "docs/decisions").glob("*.md") if path.name != "README.md"
+    ):
         metadata = front_matter(path)
         text = path.read_text(encoding="utf-8")
 

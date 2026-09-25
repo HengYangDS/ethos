@@ -69,7 +69,7 @@ def test_docs_health_rejects_unindexed_plan(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("boundary", [False, True])
 def test_docs_health_retains_only_meaningful_readme_boundaries(tmp_path, boundary) -> None:
-    """A real boundary needs no child page; an empty directory marker is rejected."""
+    """An empty directory cannot use metadata to masquerade as navigation."""
     path = tmp_path / "docs/native/README.md"
     path.parent.mkdir(parents=True)
     text = _document("docs:native", "index", "canonical", "Native")
@@ -77,9 +77,72 @@ def test_docs_health_retains_only_meaningful_readme_boundaries(tmp_path, boundar
         text = text.replace("relations: {}", "relations:\n  canonical_for: native documentation")
     path.write_text(text)
     report = docs_registry_report(tmp_path)
-    assert report["readme_disposition"] == (
-        [] if boundary else ["docs_readme_without_children:docs/native/README.md"]
+    assert report["readme_disposition"] == ["docs_readme_without_children:docs/native/README.md"]
+
+
+def test_docs_health_requires_a_navigation_entrypoint_for_multiple_topics(tmp_path: Path) -> None:
+    """A reader can enter a multi-topic directory without guessing file names."""
+    topic = tmp_path / "docs/topic"
+    topic.mkdir(parents=True)
+    for name in ("first", "second"):
+        (topic / f"{name}.md").write_text(
+            _document(f"ethos:{name}", "explanation", "canonical", name.title())
+        )
+
+    missing = docs_health_report(tmp_path)
+    assert missing["readme_disposition"] == ["docs_readme_missing:docs/topic/README.md"]
+
+    readme = topic / "README.md"
+    readme.write_text(_document("docs:topic", "index", "canonical", "Topic"))
+    no_route = docs_health_report(tmp_path)
+    assert no_route["readme_disposition"] == [
+        "docs_readme_without_local_route:docs/topic/README.md"
+    ]
+
+    readme.write_text(readme.read_text() + "\nStart with [First](first.md).\n")
+    assert docs_health_report(tmp_path)["readme_disposition"] == []
+
+
+def test_docs_health_routes_nested_topics_from_a_portable_root(tmp_path: Path) -> None:
+    """The same rule applies to an adopter-selected root, not only docs/."""
+    profile = tmp_path / ".ethos/profile.toml"
+    profile.parent.mkdir()
+    profile.write_text("profile_id = 'sample'\n[roots]\ndocs = 'handbook'\n")
+    handbook = tmp_path / "handbook"
+    topic = handbook / "topics"
+    topic.mkdir(parents=True)
+    (handbook / "overview.md").write_text(
+        _document("adopter:overview", "explanation", "canonical", "Overview")
     )
+    (topic / "one.md").write_text(_document("adopter:one", "explanation", "active", "One"))
+    (topic / "two.md").write_text(_document("adopter:two", "explanation", "active", "Two"))
+
+    assert docs_health_report(tmp_path)["readme_disposition"] == [
+        "docs_readme_missing:handbook/README.md",
+        "docs_readme_missing:handbook/topics/README.md",
+    ]
+
+
+def test_docs_health_routes_metadata_without_indexing_generated_diagrams(tmp_path: Path) -> None:
+    """Document declarations need an entrance; diagram outputs do not."""
+    metadata = tmp_path / "docs/_meta"
+    metadata.mkdir(parents=True)
+    for name in ("stable_paths.toml", "taxonomy.toml"):
+        (metadata / name).write_text("[meta]\nversion = 1\n")
+    diagrams = tmp_path / "docs/_generated"
+    diagrams.mkdir()
+    for name in ("a.mmd", "b.mmd"):
+        (diagrams / name).write_text("graph LR\n")
+
+    assert docs_health_report(tmp_path)["readme_disposition"] == [
+        "docs_readme_missing:docs/_meta/README.md"
+    ]
+
+    (metadata / "README.md").write_text(
+        _document("docs:metadata", "index", "canonical", "Metadata")
+        + "\nRead [Taxonomy](taxonomy.toml).\n"
+    )
+    assert docs_health_report(tmp_path)["readme_disposition"] == []
 
 
 def test_docs_health_reports_missing_invalid_and_duplicate_metadata(tmp_path: Path) -> None:
@@ -291,6 +354,10 @@ def test_metadata_retains_structures_and_excludes_literal_guidance(tmp_path: Pat
     )
     (path.parent / "owner.md").write_text(
         _document("ethos:owner", "reference", "canonical", "Owner")
+    )
+    (path.parent / "README.md").write_text(
+        _document("docs:reference", "index", "canonical", "Reference")
+        + "\nStart with [Example](example.md).\n"
     )
     path.write_text(text)
     metadata = front_matter(path)

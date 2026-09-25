@@ -4,18 +4,27 @@ from __future__ import annotations
 
 import subprocess
 from collections.abc import Mapping
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
 import ethos.repository.policy.references.closure as reference_closure
 from ethos.repository.policy.references.closure import repository_semantic_closure
+from ethos.repository.policy.references.declarations import native_owned_references_from_files
 from tests.support.architecture import declare_reference_package
 from tests.support.architecture import declare_reference_surface
 from tests.support.architecture import write_reference_source
 
-if TYPE_CHECKING:
-    from pathlib import Path
+
+def test_current_dev_dependency_owns_its_import_module() -> None:
+    """The test reporter's import is admitted by package metadata, not a name bypass."""
+    root = Path(__file__).resolve().parents[4]
+    files = {
+        name: (root / name).read_text()
+        for name in ("pyproject.toml", ".config/checks/deptry/policy.toml")
+    }
+
+    assert "allure" in native_owned_references_from_files(files)["import"]
 
 
 def _git(root: Path, *args: str) -> str:

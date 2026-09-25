@@ -324,6 +324,7 @@ def resolve_current_resolution(
     )
     repair_scope = official_validation_repair_scope_report(
         root=root,
+        head=str(status.get("head") or ""),
         official=official,
         official_artifact_paths=artifact_output_paths(
             root,

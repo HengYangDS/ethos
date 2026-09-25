@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.openspec.lifecycle.bootstrap import bootstrap_artifacts
 from ethos.adapters.openspec.lifecycle.bootstrap import new_change_root_intent
+from ethos.adapters.openspec.relocation import archived_reference_repair_paths
 from ethos.contracts.semantic import Commitment
 from ethos.normalization.coercion import repository_path_matches
 from ethos.normalization.coercion import string_sequence
@@ -130,6 +131,7 @@ def official_change_bootstrap_scope_report(
 def official_validation_repair_scope_report(
     *,
     root: Path,
+    head: str,
     official: dict[str, object],
     official_artifact_paths: tuple[str, ...],
     requested_paths: tuple[str, ...],
@@ -152,6 +154,12 @@ def official_validation_repair_scope_report(
     )
     if not repair_paths and archived is not None:
         repair_paths = _archived_canonical_repair_paths(root, official, change, archived)
+    if not repair_paths and archived is not None:
+        reference_repair = _archived_reference_repair_scope_report(
+            root, head, official, change, archived, paths
+        )
+        if reference_repair:
+            return reference_repair
     if not repair_paths:
         state = "official_change_validation_repair"
         repair_paths = _active_change_validation_repair_paths(
@@ -181,6 +189,57 @@ def official_validation_repair_scope_report(
     )
     report["authorized_paths"] = list(repair_paths)
     report["next_action"] = "openspec validate --all --strict --json"
+    return report
+
+
+def _archived_reference_repair_scope_report(
+    root: Path,
+    head: str,
+    official: dict[str, object],
+    change: str,
+    archived: tuple[Commitment, dict[str, object]],
+    paths: tuple[str, ...],
+) -> dict[str, object]:
+    """Keep authored stale-link repair scoped to one verified archive effect."""
+    lifecycle = official.get("lifecycle")
+    binding = lifecycle.get("scope_binding") if isinstance(lifecycle, dict) else None
+    if (
+        not isinstance(binding, dict)
+        or binding.get("state") != "post_archive_closeout"
+        or binding.get("verdict") != "pass"
+    ):
+        return {}
+    try:
+        selected = archived_reference_repair_paths(
+            root,
+            head=head,
+            change=change,
+            archive_path=str(binding.get("archive_path") or ""),
+            authorized_paths=tuple(string_sequence(archived[1].get("authorized_paths"))),
+            requested_paths=paths,
+        )
+    except ValueError as error:
+        report = _scope_report(
+            paths, (), paths, state="archive_reference_repair_unavailable", gaps=[str(error)]
+        )
+        report["next_action"] = "openspec new change <name>"
+        return report
+    if not selected:
+        return {}
+    uncovered = [path for path in paths if path not in selected]
+    gaps = [f"openspec_material_path_uncovered:{path}" for path in uncovered]
+    report = _scope_report(
+        paths,
+        (),
+        paths,
+        changes=[{"name": change, "source": "archive_commit"}],
+        covered=[{"path": path, "changes": [change]} for path in selected],
+        uncovered=uncovered,
+        state="archive_reference_repair",
+        gaps=gaps,
+    )
+    report["authorized_paths"] = list(selected)
+    report["next_action"] = "openspec new change <name>" if gaps else ""
     return report
 
 

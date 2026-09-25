@@ -86,6 +86,65 @@ def archive_relocation(
     return updates, preimages
 
 
+def archived_reference_repair_paths(
+    root: Path,
+    *,
+    head: str,
+    change: str,
+    archive_path: str,
+    authorized_paths: tuple[str, ...],
+    requested_paths: tuple[str, ...],
+) -> tuple[str, ...]:
+    """Select exact tracked Markdown consumers of one attested archive move."""
+    members = tuple(
+        path
+        for path in authorized_paths
+        if archived_change_from_path(path) == (archive_path, change)
+    )
+    if not members or not requested_paths:
+        return ()
+    active = active_change_root(change)
+    postimage = _entries(root, head, None)
+    preimage = dict(postimage)
+    for path in members:
+        if entry := postimage.get(path):
+            preimage[active + path.removeprefix(archive_path)] = entry
+
+    originals: dict[str, bytes] = {}
+    documents: list[dict[str, str]] = []
+    for path in dict.fromkeys(requested_paths):
+        entry = postimage.get(path)
+        if not path.endswith(".md") or entry is None or entry[0] not in {"100644", "100755"}:
+            continue
+        content = _blob(root, head, path, None)
+        if active.encode() not in content:
+            continue
+        try:
+            decoded = content.decode("utf-8")
+        except UnicodeDecodeError as error:
+            message = f"archive_reference_consumer_encoding_invalid:{path}"
+            raise ValueError(message) from error
+        originals[path] = content
+        documents.append({"before": path, "after": path, "content": decoded})
+    if not documents:
+        return ()
+    observed = _observe(
+        root,
+        {
+            "documents": documents,
+            "canonical": [],
+            "files": {path: entry[0] for path, entry in preimage.items()},
+            "postimage_files": {path: entry[0] for path, entry in postimage.items()},
+            "moves": [[active, archive_path]],
+            "change": change,
+        },
+    )
+    rows = _result_rows(observed, "documents", set(originals), complete=True)
+    return tuple(
+        sorted(row["path"] for row in rows if row["content"].encode() != originals[row["path"]])
+    )
+
+
 def _source_documents(
     root: Path, before: TreeEntries, after: TreeEntries, active: str, target: str
 ) -> dict[str, bytes]:

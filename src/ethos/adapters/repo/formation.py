@@ -6,6 +6,9 @@ import hashlib
 import json
 import os
 import shutil
+import stat
+import subprocess
+import sys
 from importlib import metadata
 from importlib.resources import files
 from pathlib import Path
@@ -14,9 +17,11 @@ from tempfile import TemporaryDirectory
 from ethos.adapters.mutation.lane_lifecycle.candidate_projection import bootstrap_candidate
 from ethos.adapters.mutation.lane_lifecycle.start import default_worktree_path
 from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.process import run_command
 from ethos.adapters.repo.adoption import adoption_plan
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
+from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.normalization.coercion import string_sequence
 
@@ -54,7 +59,7 @@ def formation_plan(
     committer_email = os.environ.get("GIT_COMMITTER_EMAIL", "").strip() or email
     gap = (
         "formation_starter_unavailable"
-        if starter != "foundation"
+        if starter not in {"foundation", "python-library"}
         else "formation_purpose_missing"
         if not purpose.strip()
         else "formation_target_exists"
@@ -92,20 +97,23 @@ def formation_plan(
                     f"# {target.name}\n\n{purpose.strip()}\n", encoding="utf-8"
                 )
                 (candidate / "AGENTS.md").write_text(_AGENT_ENTRY, encoding="utf-8")
-                paths = sorted(
-                    path.relative_to(candidate).as_posix()
-                    for path in candidate.rglob("*")
-                    if path.is_file()
-                )
-                outputs = {
-                    path: hashlib.sha256((candidate / path).read_bytes()).hexdigest()
-                    for path in paths
-                }
+                outputs, starter_gap, detail = _compose_starter(candidate, starter, purpose.strip())
+                if starter_gap:
+                    return _unavailable(target, starter_gap, detail=detail)
+                paths = sorted(outputs)
                 sources = {
                     "starter": starter,
                     "product_version": metadata.version("ethos"),
                     "guidance_sha256": guidance_digest,
                     "adoption_plan_digest": str(binding["plan_digest"]),
+                    **(
+                        {
+                            "starter_generator": "uv",
+                            "starter_generator_version": metadata.version("uv"),
+                        }
+                        if starter == "python-library"
+                        else {}
+                    ),
                     "author_name": author,
                     "author_email": email,
                     "committer_name": committer,
@@ -164,6 +172,89 @@ def formation_plan(
         return _unavailable(target, "formation_observation_unavailable", detail=str(error))
     else:
         return result
+
+
+def _compose_starter(
+    candidate: Path, starter: str, purpose: str
+) -> tuple[dict[str, str], str, str]:
+    """Let the selected native owner generate optional domain content."""
+    if starter == "foundation":
+        return _candidate_outputs(candidate)
+    command = (
+        sys.executable,
+        "-B",
+        "-I",
+        "-m",
+        "uv",
+        "init",
+        "--lib",
+        "--name",
+        candidate.name,
+        "--description",
+        purpose,
+        "--vcs",
+        "none",
+        "--no-readme",
+        "--no-pin-python",
+        "--no-workspace",
+        "--author-from",
+        "none",
+        "--offline",
+        "--no-python-downloads",
+        "--no-config",
+        "--python",
+        "3.12",
+        ".",
+    )
+    try:
+        result = run_command(
+            candidate,
+            command,
+            timeout=30,
+            env={"UV_NO_CACHE": "1"},
+            remove_env=("VIRTUAL_ENV",),
+            remove_env_prefixes=("UV_",),
+        )
+    except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+        return {}, "formation_starter_generation_failed", str(error)
+    if result.returncode:
+        return (
+            {},
+            "formation_starter_generation_failed",
+            (result.stderr.strip() or "starter_generator_exit_nonzero"),
+        )
+    outputs, gap, detail = _candidate_outputs(candidate)
+    if gap:
+        return outputs, gap, detail
+    if "pyproject.toml" not in outputs or not any(
+        path.startswith("src/") and path.endswith("/__init__.py") for path in outputs
+    ):
+        return {}, "formation_starter_output_incomplete", "Python library files missing"
+    return outputs, "", ""
+
+
+def _candidate_outputs(candidate: Path) -> tuple[dict[str, str], str, str]:
+    """Inventory only exclusive regular files below an unlinked candidate tree."""
+    files: list[Path] = []
+    pending = [candidate]
+    while pending:
+        with os.scandir(pending.pop()) as entries:
+            for entry in entries:
+                path = Path(entry.path)
+                info = entry.stat(follow_symlinks=False)
+                if is_junction(path):
+                    return {}, "formation_starter_output_unsafe", str(path)
+                if stat.S_ISDIR(info.st_mode):
+                    pending.append(path)
+                elif stat.S_ISREG(info.st_mode) and info.st_nlink == 1:
+                    files.append(path)
+                else:
+                    return {}, "formation_starter_output_unsafe", str(path)
+    outputs = {
+        path.relative_to(candidate).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in files
+    }
+    return dict(sorted(outputs.items())), "", ""
 
 
 def _publish(

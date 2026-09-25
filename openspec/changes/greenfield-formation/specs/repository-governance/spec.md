@@ -15,9 +15,14 @@ starter MAY add its own layout without making that layout ETHOS policy.
 
 #### Scenario: A selected domain starter is composed
 
-- **WHEN** a supported starter is explicitly selected
-- **THEN** its exact identity, version, inputs and outputs are bound to the reviewed plan
+- **WHEN** the optional Python library starter is explicitly selected
+- **THEN** the locked native generator's identity, version, inputs and outputs are bound to the reviewed plan
 - **AND** ETHOS does not impose that starter's language, build tool or directory shape on other repositories.
+
+#### Scenario: A starter attempts unsafe output
+
+- **WHEN** a generator fails, omits the selected library output, produces a link or special file, or a caller supplies an unknown starter or task spelling
+- **THEN** formation rejects before publishing a target and reports the responsible generator or output boundary.
 
 #### Scenario: The destination or prerequisite is not safe
 

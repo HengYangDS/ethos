@@ -13,6 +13,20 @@ from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_sequence
 from ethos.result import EthosResult
 
+_FORMATION_REPAIR_ACTIONS = {
+    "formation_starter_unavailable": "Choose a supported starter (foundation or python-library)",
+    "formation_starter_generation_failed": (
+        "Repair the installed uv generator or its locked supply before previewing again"
+    ),
+    "formation_starter_output_unsafe": (
+        "Inspect the selected starter output and reject unsafe links or shared files"
+    ),
+    "formation_starter_output_incomplete": (
+        "Repair the selected uv generator before previewing again"
+    ),
+    "formation_purpose_missing": "Supply --purpose for the new project before retrying",
+}
+
 
 @application_result("adopt")
 def adopt_repository(
@@ -162,6 +176,7 @@ def _form_repository(
         "--json",
     ]
     mutation = [*preview, "--apply", "--authorize", "--expect-plan-digest", digest]
+    repair = next((action for gap, action in _FORMATION_REPAIR_ACTIONS.items() if gap in gaps), "")
     if applied or (verdict == "unknown" and (target / ".git").is_dir()):
         next_action = shlex.join(("ethos", "status", "--root", str(target), "--json"))
     elif target.exists():
@@ -177,10 +192,8 @@ def _form_repository(
             "Supply the actual contributor's --author-name and --author-email; "
             f"then {shlex.join(preview)}"
         )
-    elif "formation_starter_unavailable" in gaps:
-        next_action = "Choose a supported starter (currently: foundation) before retrying"
-    elif "formation_purpose_missing" in gaps:
-        next_action = "Supply --purpose for the new project before retrying"
+    elif repair:
+        next_action = repair
     elif "formation_parent_unsafe" in gaps:
         next_action = "Choose an existing, non-symlink parent directory before retrying"
     elif digest and (verdict == "pass" or "authorization_required" in gaps):

@@ -337,6 +337,7 @@ def resolve_current_resolution(
             root=root,
             official=official,
             requested_paths=prewrite_paths,
+            requested_change=change,
         )
     )
     prewrite_scope = repair_scope or bootstrap_scope

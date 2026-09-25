@@ -41,14 +41,29 @@ def material_change_scope_report(
         return _scope_report(paths, patterns, material, state="unattributed", gaps=gaps)
     change = names[0]
     owner = {"name": change, "path": f"openspec/changes/{change}"}
-    covered: list[dict[str, object]] = [{"path": path, "changes": [change]} for path in material]
+    mismatched = tuple(path for path in material if _other_active_change_path(path, change))
+    covered: list[dict[str, object]] = [
+        {"path": path, "changes": [change]} for path in material if path not in mismatched
+    ]
+    gaps = [f"openspec_change_path_mismatch:{change}:{path}" for path in mismatched]
     return _scope_report(
         paths,
         patterns,
         material,
         changes=[owner],
         covered=covered,
-        state="attributed",
+        uncovered=list(mismatched),
+        state="unattributed" if gaps else "attributed",
+        gaps=gaps,
+    )
+
+
+def _other_active_change_path(path: str, selected: str) -> bool:
+    parts = PurePosixPath(path).parts
+    return (
+        len(parts) >= 3
+        and parts[:2] == ("openspec", "changes")
+        and parts[2] not in {"archive", selected}
     )
 
 
@@ -57,10 +72,17 @@ def official_change_bootstrap_scope_report(
     root: Path,
     official: dict[str, object],
     requested_paths: tuple[str, ...],
+    requested_change: str | None = None,
 ) -> dict[str, object]:
     """Admit only official artifacts needed to compile the first Commitment."""
     paths = tuple(dict.fromkeys(filter(None, requested_paths)))
     if not _official_observation_available(official):
+        return {}
+    if requested_change is not None and any(
+        path != active_change_root(requested_change)
+        and not path.startswith(f"{active_change_root(requested_change)}/")
+        for path in paths
+    ):
         return {}
     intent = _new_change_root_intent(root, official, paths)
     if intent:
@@ -81,7 +103,7 @@ def official_change_bootstrap_scope_report(
             f"--root {shlex.quote(resolved)} --json"
         )
         return report
-    change, outputs, next_action = _bootstrap_artifacts(official, paths)
+    change, outputs, next_action = _bootstrap_artifacts(root, official, paths)
     if not change:
         return {}
     covered = tuple(path for path in paths if _official_artifact_path(path, outputs))
@@ -410,12 +432,26 @@ def _canonical_spec_repair_paths(official: dict[str, object]) -> tuple[str, ...]
 
 
 def _bootstrap_artifacts(
-    official: dict[str, object], paths: tuple[str, ...]
+    root: Path, official: dict[str, object], paths: tuple[str, ...]
 ) -> tuple[str, tuple[str, ...], str]:
-    active = _active_bootstrap_artifacts(official)
-    if active is not None:
-        return active
-    return _new_change_metadata_artifact(official, paths)
+    new = _new_change_metadata_artifact(root, official, paths)
+    if new[0]:
+        return new
+    return _active_bootstrap_artifacts(official) or new
+
+
+def _listed_change_names(official: dict[str, object]) -> frozenset[str] | None:
+    """Treat official list rows as observed identities, not as write authority."""
+    commands = official.get("commands")
+    listed = commands.get("list") if isinstance(commands, dict) else None
+    payload = listed.get("json") if isinstance(listed, dict) else None
+    changes = payload.get("changes") if isinstance(payload, dict) else None
+    if not isinstance(changes, list):
+        return None
+    names = [row.get("name") if isinstance(row, dict) else None for row in changes]
+    if any(not isinstance(name, str) or logical_change_identifier_issue(name) for name in names):
+        return None
+    return frozenset(names) if len(names) == len(set(names)) else None
 
 
 def _active_bootstrap_artifacts(
@@ -458,13 +494,10 @@ def _active_bootstrap_artifacts(
 
 
 def _new_change_metadata_artifact(
-    official: dict[str, object], paths: tuple[str, ...]
+    root: Path, official: dict[str, object], paths: tuple[str, ...]
 ) -> tuple[str, tuple[str, ...], str]:
-    commands = official.get("commands")
-    listed = commands.get("list") if isinstance(commands, dict) else None
-    payload = listed.get("json") if isinstance(listed, dict) else None
-    changes = payload.get("changes") if isinstance(payload, dict) else None
-    if not isinstance(changes, list) or changes:
+    names = _listed_change_names(official)
+    if names is None:
         return "", (), ""
     metadata = tuple(path for path in paths if path.endswith("/.openspec.yaml"))
     if len(paths) != 1 or len(metadata) != 1:
@@ -473,7 +506,10 @@ def _new_change_metadata_artifact(
     if len(parts) != 4 or parts[:2] != ["openspec", "changes"]:
         return "", (), ""
     change = parts[2]
-    if change == "archive" or logical_change_identifier_issue(change):
+    if change == "archive" or logical_change_identifier_issue(change) or change in names:
+        return "", (), ""
+    target = root / active_change_root(change)
+    if target.exists() or target.is_symlink():
         return "", (), ""
     return (
         change,
@@ -483,18 +519,19 @@ def _new_change_metadata_artifact(
 
 
 def _new_change_root_intent(root: Path, official: dict[str, object], paths: tuple[str, ...]) -> str:
-    commands = official.get("commands")
-    listed = commands.get("list") if isinstance(commands, dict) else None
-    payload = listed.get("json") if isinstance(listed, dict) else None
-    changes = payload.get("changes") if isinstance(payload, dict) else None
-    if not isinstance(changes, list) or changes or len(paths) != 1:
+    names = _listed_change_names(official)
+    if names is None or len(paths) != 1:
         return ""
     parts = paths[0].rstrip("/").split("/")
     if len(parts) != 3 or parts[:2] != ["openspec", "changes"]:
         return ""
     change = parts[2]
     invalid = (
-        change == "archive" or logical_change_identifier_issue(change) or (root / paths[0]).exists()
+        change == "archive"
+        or logical_change_identifier_issue(change)
+        or change in names
+        or (root / paths[0]).exists()
+        or (root / paths[0]).is_symlink()
     )
     return "" if invalid else change
 

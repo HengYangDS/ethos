@@ -16,6 +16,7 @@ from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_active_commitment
 from tests.support.lane_scenarios import leased_worktree
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
@@ -182,6 +183,28 @@ def test_owned_lane_bootstraps_only_official_change_artifacts(worktree: Path) ->
     )
     assert sidecar["verdict"] == "block"
     assert product["verdict"] == "block"
+
+
+def test_owned_lane_bootstraps_third_change_without_cross_change_authority(
+    worktree: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Public prewrite keeps exact bootstrap reachable amid other active Changes."""
+    write_active_commitment(worktree, change_id="second")
+    metadata = "openspec/changes/third/.openspec.yaml"
+
+    unselected = _guard(worktree, (metadata,))
+    assert unselected["verdict"] == "pass"
+    assert unselected["next_action"] == "openspec new change third --json"
+
+    monkeypatch.setenv("ETHOS_CHANGE", "fixture-change")
+    mismatched = _guard(worktree, (metadata,))
+    assert mismatched["verdict"] == "block"
+    assert mismatched["error"] == f"openspec_change_path_mismatch:fixture-change:{metadata}"
+
+    monkeypatch.setenv("ETHOS_CHANGE", "third")
+    selected = _guard(worktree, (metadata,))
+    assert selected["verdict"] == "pass"
+    assert selected["next_action"] == "openspec new change third --json"
 
 
 def test_cli_path_token(worktree: Path) -> None:

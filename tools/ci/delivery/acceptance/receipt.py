@@ -52,6 +52,9 @@ def package_acceptance_evidence(
     if formation.get("state") != "passed":
         message = "package_formation_incomplete"
         raise ValueError(message)
+    if formation.get("first_change") != "skeleton_created":
+        message = "package_first_change_claim_invalid"
+        raise ValueError(message)
     try:
         wheel_path = wheel.relative_to(root).as_posix()
     except ValueError:

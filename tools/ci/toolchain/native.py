@@ -171,7 +171,7 @@ def render_mise_installer(root: Path) -> str:
 def validate_mise_installer(root: Path) -> bytes:
     """Read locked bootstrap bytes without network, caches or candidate execution."""
     message = "mise_bootstrap_drift"
-    target = root / ".config/ci/mise-install.sh"
+    target = root / "tools/ci/scripts/mise-install.sh"
     if not target.is_file() or target.is_symlink() or target.is_junction():
         raise ValueError(message)
     try:

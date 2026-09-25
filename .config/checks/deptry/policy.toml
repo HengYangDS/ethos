@@ -9,6 +9,7 @@ config = "pyproject.toml"
 known_first_party = ["ethos", "noxfile"]
 per_rule_ignores = ["DEP002=uv"]
 package_module_name_map = [
+  "allure-pytest=allure",
   "cel-expr-python=cel_expr_python",
   "markdown-it-py=markdown_it",
   "nodejs-wheel-binaries=nodejs_wheel",

@@ -161,8 +161,8 @@ their native subject layout under the portable Docs Registry contract.
 #### Scenario: A documentation directory needs a README
 
 - **WHEN** a documentation directory is evaluated for a README
-- **THEN** a README SHALL exist only when it provides real navigation, a
-  semantic boundary, or an index for multiple meaningful children
+- **THEN** two or more immediate navigable children SHALL have a README
+  with a local route into the directory's content
 - **AND** a directory with one substantive document SHALL not receive a
   placeholder README merely because the directory exists
 - **AND** an empty directory or `.gitkeep` SHALL be removed
@@ -194,6 +194,34 @@ their native subject layout under the portable Docs Registry contract.
   metadata roots may appear as product extensions
 - **AND** contract and evolution labels do not become mandatory replacement
   roots for the removed `current`/`future` lanes
+
+### Requirement: Minimal Decision Rationale Preservation
+
+ETHOS SHALL retain a decision record only when deleting it would erase
+cross-Change rationale not carried by the current semantic owner. A record
+explains why; it SHALL NOT own current product behavior or workflow state.
+
+#### Scenario: Historical decision material is evaluated
+
+- **WHEN** a removed decision subsystem contains rationale from several files
+- **THEN** semantically distinct alternatives, consequences and revisit
+  conditions are retained; overlapping or fully absorbed records are removed
+
+#### Scenario: Decision rationale uses the minimum physical shape
+
+- **WHEN** more than one decision rationale is retained under `docs/decisions/`
+- **THEN** lowercase semantic record filenames remain directly navigable from
+  `docs/decisions/README.md`, which explains the directory's role
+- **AND** `docs/README.md` routes readers to that entrance instead of copying
+  the record list
+- **AND** the entrance is not a decision registry, runtime authority, or
+  reason to add a template, schema, lifecycle directory, or duplicate catalog
+
+#### Scenario: Current authority is resolved
+
+- **WHEN** a reader opens a decision record
+- **THEN** it identifies the current semantic owner
+- **AND** current behavior is determined by that owner, not historical rationale
 
 ### Requirement: Linked Work Lane retirement has one exact effect
 

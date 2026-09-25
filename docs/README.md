@@ -28,8 +28,9 @@ and [Command Plane](reference/command-plane.md).
 | Remaining convergence work | [Terminal Governance Product Design](plans/terminal-governance-product-design.md) |
 | Public commands | [Command Plane](reference/command-plane.md) |
 | Agent entry | [AGENTS.md](../AGENTS.md) and [Rules](../rules/README.md) |
-| Adoption | [Adoption Profiles](architecture/adoption-profiles.md) |
-| Engineering foundation evaluation | [Modern Engineering Foundations](research/modern-engineering-foundations.md) |
+| Architecture and adoption | [Architecture](architecture/README.md) |
+| Engineering foundation evaluation | [Research](research/README.md) |
+| Durable decisions | [Decisions](decisions/README.md) |
 
 ## ETHOS Documentation Shape
 
@@ -47,17 +48,9 @@ and [Command Plane](reference/command-plane.md).
 | `governance/` | Product governance models and policies. |
 | `concepts/`, `plans/`, `research/`, `guides/` | Product-specific explanation, planning, research, and onboarding. |
 
-## Decision Rationale
-
-These records preserve choices whose reasons are not fully recoverable from
-current contracts alone. They do not own current behavior or workflow state.
-
-- [Documentation portability](decisions/documentation-portability.md)
-- [Proof trust boundary](decisions/proof-trust-boundary.md)
-- [Source-budget non-compensation](decisions/source-budget-non-compensation.md)
-
 Additional routes: [Governance](governance/README.md),
-[Reference](reference/README.md), and [History](history/README.md).
+[Reference](reference/README.md), [History](history/README.md), and
+[Documentation Metadata](_meta/README.md).
 The sole terminal plan is linked directly above; it needs no intermediate index.
 
 Truth state is document metadata, not path topology. Use the explicit

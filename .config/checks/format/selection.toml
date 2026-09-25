@@ -272,7 +272,7 @@ carrier = "Generated native tool bootstrap"
 owner = ".config/mise/config.toml"
 execution = "uv run --frozen --offline python -m nox -s ci_templates"
 truth_boundary = "exact native installer projection; not hand-authored tool policy"
-budget = [{ category = "native_bootstrap", paths = [".config/ci/mise-install.sh"], comment_prefixes = ["#"], accounting = "generated_evidence" }]
+budget = [{ category = "native_bootstrap", paths = ["tools/ci/scripts/mise-install.sh"], comment_prefixes = ["#"], accounting = "generated_evidence" }]
 
 [[format]]
 extensions = [".sh", ".bash", ".zsh"]
@@ -366,7 +366,7 @@ mutation_policy = "native-formatter"
 [[ownership]]
 id = "mise-bootstrap"
 priority = 100
-paths = [".config/ci/mise-install.sh"]
+paths = ["tools/ci/scripts/mise-install.sh"]
 format_owner = "mise"
 format_command = "uv run --frozen --offline python tools/ci/toolchain/native.py --render-installer"
 format_check = "uv run --frozen --offline python -m nox -s ci_templates"

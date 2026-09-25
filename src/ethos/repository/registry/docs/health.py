@@ -149,21 +149,43 @@ def plan_index_gaps(root: Path, registry: list[dict[str, Any]]) -> list[str]:
 
 
 def readme_disposition_gaps(root: Path, registry: list[dict[str, Any]]) -> list[str]:
-    """Reject README files that only mark a directory with no meaningful children."""
-    by_parent: dict[Path, list[dict[str, Any]]] = {}
-    for entry in registry:
-        path = root / entry["path"]
-        by_parent.setdefault(path.parent, []).append(entry)
+    """Require a real directory entrance and reject inert README markers."""
+    docs = docs_root(root)
+    by_parent: dict[Path, set[Path]] = {}
+    sources = [root / entry["path"] for entry in registry]
+    sources.extend(
+        path for path in docs.rglob("*.toml") if path.is_file() and not path.is_symlink()
+    )
+    for source in sources:
+        parent = source.parent
+        by_parent.setdefault(parent, set()).add(source)
+        while parent != docs:
+            by_parent.setdefault(parent.parent, set()).add(parent)
+            parent = parent.parent
     gaps: list[str] = []
+    for directory, entries in sorted(by_parent.items()):
+        children = entries - {directory / "README.md"}
+        if len(children) >= 2 and not (directory / "README.md").is_file():
+            relative = (directory / "README.md").relative_to(root).as_posix()
+            gaps.append(f"docs_readme_missing:{relative}")
     for entry in registry:
         if Path(entry["path"]).name != "README.md":
             continue
         path = root / entry["path"]
-        children = [
-            child for child in by_parent.get(path.parent, []) if child["path"] != entry["path"]
-        ]
-        if not children and "canonical_for" not in entry.get("relations", {}):
+        children = by_parent.get(path.parent, set()) - {path}
+        if not children:
             gaps.append(f"docs_readme_without_children:{entry['path']}")
+        elif not any(
+            (target := link.partition("#")[0].partition("?")[0])
+            and not target.startswith(("/", "http:", "https:", "mailto:"))
+            and any(
+                (resolved := (path.parent / target).resolve()) == child
+                or (child.is_dir() and resolved.is_relative_to(child))
+                for child in children
+            )
+            for _line, link in markdown_links(path)
+        ):
+            gaps.append(f"docs_readme_without_local_route:{entry['path']}")
     return gaps
 
 

@@ -335,7 +335,7 @@ def test_cue_owner_requires_native_semantics_without_parallel_templates(
         "model": model,
         "output": output,
         "declaration": owner.CONFIG_RELATIVE_PATH,
-        "bootstrap": ".config/ci/mise-install.sh",
+        "bootstrap": "tools/ci/scripts/mise-install.sh",
         "mise": config["compiler"]["supply"]["config"],
     }[target]
     if new is None:
@@ -361,7 +361,7 @@ def test_cue_owner_requires_native_semantics_without_parallel_templates(
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text(content)
     if fault == "bootstrap-link":
-        installer = tmp_path / ".config/ci/mise-install.sh"
+        installer = tmp_path / "tools/ci/scripts/mise-install.sh"
         retained = tmp_path / "retained"
         installer.rename(retained)
         installer.symlink_to(retained)

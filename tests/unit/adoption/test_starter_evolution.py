@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
@@ -15,6 +16,9 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.domain.adoption import adopt_repository
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import commit_openspec_baseline
+from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
@@ -312,3 +316,89 @@ def test_starter_evolution_public_apply_refuses_generator_authority(
 
     assert result["required_gaps"] == ["starter_evolution_requires_work_lane"]
     assert (repo / "pyproject.toml").read_bytes() == before
+
+
+def test_starter_evolution_reviewed_patch_uses_existing_lane_admission(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An authored lane admits the exact reviewed patch, not a generator-owned write."""
+    repo = _formed_python_repo(tmp_path, monkeypatch)
+    actor = "agent:test:case:starter-upgrade"
+    candidate = default_worktree_path(repo, load_branch_role_policy(repo).candidate_branch)
+    commit_openspec_baseline(candidate)
+    lane = create_change_source_lane(
+        repo,
+        tmp_path / "starter-upgrade-lane",
+        branch="work/starter-upgrade",
+        holder_ref=actor,
+        base_ref=load_branch_role_policy(repo).candidate_branch,
+    )
+    commit_fixture_file(lane, "src/custom.py", "value = 1\n", "feat: authored extension")
+    authored = (lane / "src/custom.py").read_bytes()
+    monkeypatch.setenv("ETHOS_ACTOR", actor)
+    monkeypatch.setenv("ETHOS_CHANGE", "fixture-change")
+
+    preview = run_ethos(
+        "adopt",
+        "--evolve-starter",
+        "--purpose",
+        "New purpose.",
+        "--root",
+        str(lane),
+        "--json",
+        cwd=lane,
+    )
+    assert preview["verdict"] == "pass"
+    assert preview["data"]["changed_paths"] == ["pyproject.toml"]
+    patch = str(preview["data"]["patch"])
+    patch_path = tmp_path / "reviewed.patch"
+    patch_path.write_text(patch, encoding="utf-8")
+    before = git(lane, "rev-parse", "HEAD")
+
+    admitted = run_ethos(
+        "lane",
+        "prewrite",
+        "--paths",
+        "pyproject.toml",
+        "--patch",
+        str(patch_path),
+        "--editor-root",
+        str(lane),
+        "--require-editor-root",
+        "--root",
+        str(lane),
+        "--json",
+        cwd=lane,
+    )
+    assert admitted["verdict"] == "pass"
+    assert admitted["data"]["patch_admission"]["paths"] == ["pyproject.toml"]
+    assert admitted["data"]["request_binding"]["expected_state"]["head"] == before
+    subprocess.run(
+        ["git", "apply", "--whitespace=error-all", "-"],
+        input=patch,
+        text=True,
+        cwd=lane,
+        check=True,
+        capture_output=True,
+    )
+    assert (lane / "src/custom.py").read_bytes() == authored
+    assert "New purpose." in (lane / "pyproject.toml").read_text(encoding="utf-8")
+    git(lane, "add", "pyproject.toml")
+    git(lane, "commit", "-m", "chore: upgrade reviewed starter")
+    assert git(lane, "status", "--porcelain") == ""
+    stale = run_ethos_blocked(
+        "lane",
+        "prewrite",
+        "--paths",
+        "pyproject.toml",
+        "--patch",
+        str(patch_path),
+        "--editor-root",
+        str(lane),
+        "--require-editor-root",
+        "--root",
+        str(lane),
+        "--json",
+        cwd=lane,
+    )
+    assert stale["data"]["patch_admission"]["reason"] == "prewrite_patch_preimage_mismatch"

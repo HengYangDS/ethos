@@ -29,8 +29,7 @@ def inspect_adopter(root: Path) -> dict[str, object]:
     paths = {key: repo / value for key, value in roots.model_dump().items()}
     capabilities = {
         "rules": paths["rules"].exists(),
-        "openspec": (paths["openspec"] / "config.yaml").exists()
-        and (paths["openspec"] / "specs").exists(),
+        "openspec": (repo / "openspec/config.yaml").exists() and (repo / "openspec/specs").exists(),
         "skills": (paths["agent_skills"] / "activation.toml").exists(),
         "docs": _has_docs(repo, paths["docs"]),
     }

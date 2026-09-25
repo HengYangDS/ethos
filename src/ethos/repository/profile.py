@@ -26,7 +26,6 @@ from ethos.contracts.openspec.models import OpenSpecPolicy
 DEFAULT_ROOTS = {
     "rules": "rules",
     "docs": "docs",
-    "openspec": "openspec",
     "agent_skills": ".agents/skills",
 }
 
@@ -74,7 +73,6 @@ class _ProfileModel(BaseModel):
 class RepositoryRoots(_ProfileModel):
     rules: RepositoryPath = DEFAULT_ROOTS["rules"]
     docs: RepositoryPath = DEFAULT_ROOTS["docs"]
-    openspec: RepositoryPath = DEFAULT_ROOTS["openspec"]
     agent_skills: RepositoryPath = DEFAULT_ROOTS["agent_skills"]
 
 

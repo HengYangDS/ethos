@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.profile import load_committed_repository_profile
+from ethos.repository.adoption.fleet import inspect_adopter
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_root
@@ -159,6 +160,32 @@ def test_current_profile_rejects_root_rules_workaround(tmp_path: Path) -> None:
         "[openspec]\n"
         'material_paths = ["openspec/**"]\n',
     )
+
+
+def test_profile_rejects_open_spec_root_relocation(tmp_path: Path) -> None:
+    """The native OpenSpec CLI cannot consume a renamed repository root."""
+    _assert_invalid_profile(
+        tmp_path,
+        'profile_id = "sample"\n\n[roots]\nopenspec = "contracts"\n',
+    )
+
+
+def test_adopter_inspection_does_not_accept_a_relocated_open_spec_root(
+    tmp_path: Path,
+) -> None:
+    """Capability discovery must agree with the native OpenSpec reader."""
+    relocated = tmp_path / "contracts"
+    (relocated / "specs").mkdir(parents=True)
+    (relocated / "config.yaml").write_text("schema: spec-driven\n", encoding="utf-8")
+    _write_profile(
+        tmp_path,
+        'profile_id = "sample"\n\n[roots]\nopenspec = "contracts"\n',
+    )
+
+    report = inspect_adopter(tmp_path)
+
+    assert report["verdict"] == "block"
+    assert report["adopter"]["capabilities"]["openspec"] is False
 
 
 def test_profile_includes_declared_normative_sources_without_root_escape(tmp_path: Path) -> None:

@@ -279,6 +279,8 @@ def test_greenfield_candidate_path_collision_preserves_foreign_content(tmp_path:
 
     assert result.verdict == "block"
     assert result.required_gaps == ("formation_candidate_path_exists",)
+    assert result.data["candidate_worktree_path"] == str(sibling)
+    assert result.next_action.startswith(f"Inspect {sibling}")
     assert not target.exists()
     assert (sibling / "foreign.txt").read_text(encoding="utf-8") == "preserve"
 

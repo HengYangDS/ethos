@@ -166,6 +166,12 @@ def _form_repository(
         next_action = shlex.join(("ethos", "status", "--root", str(target), "--json"))
     elif target.exists():
         next_action = f"Inspect {target} and preserve its bytes before resolving formation"
+    elif "formation_candidate_path_exists" in gaps:
+        candidate_path = str(plan["candidate_worktree_path"])
+        next_action = (
+            f"Inspect {candidate_path} and preserve its content; "
+            "coordinate with its owner before choosing another destination"
+        )
     elif "formation_git_identity_missing" in gaps:
         next_action = (
             "Supply the actual contributor's --author-name and --author-email; "
@@ -200,6 +206,7 @@ def _form_repository(
             or "authorization_required" in gaps
             or "formation_git_identity_missing" in gaps
             or "formation_target_exists" in gaps
+            or "formation_candidate_path_exists" in gaps
             or "formation_starter_unavailable" in gaps
             or "formation_purpose_missing" in gaps
             or "formation_parent_unsafe" in gaps

@@ -222,6 +222,17 @@ def release_ref_subject(
     return head
 
 
+def release_tag_publication_gaps(root: Path, ref: str, old: str, new: str) -> list[str]:
+    """Check the complete tag object at the native pre-push boundary."""
+    if not ref.startswith("refs/tags/"):
+        return []
+    try:
+        release_ref_subject(root, ref=ref, old=old, new=new, allow_identical=True)
+    except (OSError, ValueError) as error:
+        return [str(error)]
+    return []
+
+
 def release_checkout_gaps(root: Path, head: str) -> list[str]:
     """Require the exact clean accepted checkout before local release effects."""
     policy = load_branch_role_policy(root)

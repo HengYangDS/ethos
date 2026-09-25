@@ -130,3 +130,28 @@ def test_script_discovery_reads_selected_git_object_not_mutable_checkout(tmp_pat
     git(repo, "add", "tools/check.sh")
     assert "tools/check.sh" not in resolve_gate_policy(repo).script_paths
     assert resolve_gate_policy(repo, tree_ref=head).script_paths == committed.script_paths
+
+
+def test_carrier_role_projection_reads_selected_git_tree(tmp_path: Path) -> None:
+    """A mutable attribute file cannot reinterpret committed carrier roles."""
+    repo = init_git_repo(tmp_path / "repo")
+    write_script_gate_policy(repo)
+    (repo / "main.ts").write_text("export const answer = 42;\n", encoding="utf-8")
+    attributes = repo / ".gitattributes"
+    attributes.write_text("*.ts ethos-role=code\n", encoding="utf-8")
+    head = commit_fixture(repo, "declare carrier role")
+    committed = resolve_gate_policy(repo, tree_ref=head)
+    assert ("main.ts", "code") in committed.carrier_roles
+
+    attributes.write_text("*.ts ethos-role=docs\n", encoding="utf-8")
+    assert resolve_gate_policy(repo, tree_ref=head).carrier_roles == committed.carrier_roles
+    assert ("main.ts", "code") in resolve_gate_policy(repo).carrier_roles
+
+    git(repo, "add", ".gitattributes")
+    assert ("main.ts", "docs") in resolve_gate_policy(repo).carrier_roles
+    assert resolve_gate_policy(repo, tree_ref=head).carrier_roles == committed.carrier_roles
+
+    attributes.write_text("*.ts ethos-role=unknown-value\n", encoding="utf-8")
+    git(repo, "add", ".gitattributes")
+    with pytest.raises(ValueError, match=r"quality_carrier_role_invalid:main\.ts"):
+        resolve_gate_policy(repo)

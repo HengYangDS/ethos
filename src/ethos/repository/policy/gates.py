@@ -51,6 +51,7 @@ class ResolvedGatePolicy:
     gaps: tuple[str, ...] = ()
     repository_paths: tuple[str, ...] = ()
     script_paths: tuple[str, ...] = ()
+    carrier_roles: tuple[tuple[str, str], ...] = ()
 
     @property
     def registry(self) -> dict[str, Gate]:
@@ -107,6 +108,7 @@ class ResolvedGatePolicy:
                 self.profile,
                 self.repository_paths,
                 self.script_paths,
+                self.carrier_roles,
             ),
             "gates": [gate_policy_fields(gate, sources.get(gate.id, ())) for gate in self.gates],
             "gaps": list(self.gaps),
@@ -217,6 +219,7 @@ def _owner_projection(
     profile: RepositoryProfile | None,
     repository_paths: tuple[str, ...],
     script_paths: tuple[str, ...],
+    carrier_roles: tuple[tuple[str, str], ...],
 ) -> dict[str, object]:
     identity: dict[str, object] = {
         "id": declaration.id,
@@ -248,7 +251,9 @@ def _owner_projection(
             **identity,
         }
         axes = dict(proof.code_correctness_map)
-    code_subjects = observed_code_subjects(repository_paths, script_paths=script_paths)
+    code_subjects = observed_code_subjects(
+        repository_paths, script_paths=script_paths, roles=dict(carrier_roles)
+    )
     # A declared code obligation survives incomplete carrier discovery.
     if code_subjects or any(axes.values()):
         owner["quality_floor_version"] = 2
@@ -372,6 +377,7 @@ def resolve_gate_policy(
     repository_python: str | None = None,
     repository_paths: tuple[str, ...] = (),
     script_paths: tuple[str, ...] = (),
+    carrier_roles: tuple[tuple[str, str], ...] = (),
     gate_ids: tuple[str, ...] = (),
     full: bool = False,
 ) -> ResolvedGatePolicy:
@@ -413,6 +419,7 @@ def resolve_gate_policy(
         tuple(dict.fromkeys(gaps)),
         repository_paths,
         script_paths,
+        carrier_roles,
     )
 
 

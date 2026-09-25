@@ -618,6 +618,31 @@ obligation, dependency and source binding. Compatible evidence MAY be reused
 without repeating checks; aggregate-only forwarding SHALL NOT substitute for
 actual execution or required artifact validation.
 
+#### Scenario: A nonexecuted provider envelope adds no hosted assurance
+
+- **WHEN** CI has not explicitly requested a post-run provider observation
+- **THEN** it does not launch a dry-run session before the real quality graph
+- **AND** later provider status remains a separate, fresh observation
+
+### Requirement: One test attempt provides reconstructable reports
+
+The Python test owner SHALL emit JUnit, coverage and Allure results from one
+execution. Allure 3 SHALL derive human and Agent views from those results without
+rerunning tests. Missing, stale or incomplete required reports SHALL fail the
+relevant test or hosted acceptance; rendering never changes a test verdict.
+
+#### Scenario: A failed test still has a diagnostic report
+
+- **WHEN** pytest records passing, failing and skipped cases in one attempt
+- **THEN** Allure 3 can rebuild a human report and Agent query from the retained results
+- **AND** the original pytest failure remains a failure
+
+#### Scenario: Stale results cannot describe a new attempt
+
+- **WHEN** a new test attempt begins or its source binding changes
+- **THEN** old results and rendered views are invalidated
+- **AND** missing or count-mismatched results cannot satisfy report admission
+
 #### Scenario: GitHub execution is independent of workstation runners
 
 - **WHEN** GitHub executes the selected quality workflow

@@ -79,7 +79,6 @@ ethos:verify:
     GIT_STRATEGY: clone
     ETHOS_TEST_WORKERS: "4"
   script:
-    - uv run --frozen --offline python -m nox -s hosted_observation
     - tools/ci/scripts/run-head-bound-proof.sh
   artifacts:
     when: always
@@ -87,6 +86,7 @@ ethos:verify:
       - build/evidence/quality/proof/
       - build/evidence/quality/tests/pytest/junit*.xml
       - build/evidence/quality/tests/coverage/coverage.xml
+      - build/evidence/quality/tests/allure/
       - build/evidence/quality/security/
       - build/evidence/quality/secrets/
       - build/artifacts/python/

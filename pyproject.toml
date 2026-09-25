@@ -32,6 +32,7 @@ prerelease = "disallow"
 
 [dependency-groups]
 dev = [
+  "allure-pytest>=2.16.1",
   "codespell>=2.4.3",
   "deptry>=0.25.1",
   "editables>=0.6",

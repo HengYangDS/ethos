@@ -89,6 +89,9 @@ def test_worker_loss(index):
     assert observations.count("after") <= 3 if failed else len(observations) == 80, observations
     assert gate.head_file.exists() is not failed
     assert not gate.s.basetemp.exists()
+    if not failed:
+        assert len(tuple((gate.allure_results / "single").glob("*-result.json"))) == 80
+        assert gate.allure_head.read_text().strip() == gate.s.head
     if failure == "cached":
         assert (tmp_path / "case-79").stat().st_mtime_ns < (tmp_path / "case-40").stat().st_mtime_ns
     if failure == "crash":
@@ -259,6 +262,10 @@ def test_python_attempt_revokes_previous_success_before_any_work(
     gate.coverage.mkdir(parents=True)
     gate.head_file.write_text(gate.s.head + "\n")
     gate.data.write_bytes(b"old evidence")
+    stale_results = gate.allure_results / "single"
+    stale_results.mkdir(parents=True)
+    (stale_results / "old-result.json").write_text("{}")
+    gate.allure_head.write_text(gate.s.head + "\n")
     remove = python_test_gate.remove_generated_path
 
     def execute(*_args, **_kwargs) -> None:
@@ -283,6 +290,7 @@ def test_python_attempt_revokes_previous_success_before_any_work(
         gate.run_tests(cast("nox.Session", SimpleNamespace(run=execute)))
 
     assert not gate.head_file.exists()
+    assert not gate.allure_head.exists()
     with pytest.raises(pytest.fail.Exception, match="missing or stale"):
         gate.enforce_floor(cast("nox.Session", SimpleNamespace(error=pytest.fail)))
 

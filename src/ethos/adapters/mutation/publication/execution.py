@@ -22,7 +22,10 @@ from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.release.configuration import release_config
 from ethos.repository.release.publication import publication_proof_selection
+from ethos.repository.release.publication import publication_topology
+from ethos.repository.release.publication import topology_remotes
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -233,6 +236,13 @@ def _publication_authority(
     target: PublicationTarget | None = None,
 ) -> tuple[Verdict, tuple[str, ...]]:
     """Preflight every destination, then recheck one peer and the bound common proof."""
+    topology = publication_topology(root, release_config(root))
+    declared = topology_remotes(topology)
+    peer_gaps = tuple(
+        f"publication_peer_binding_drift:{peer.id}"
+        for peer in effect.targets
+        if declared.get(peer.id) != peer.remote
+    )
     admissions = []
     proof: object = None
     retain_bound_proof = target is not None and bool(plan.prior_attestations.get("proof"))
@@ -269,12 +279,14 @@ def _publication_authority(
             (
                 *proof_gaps,
                 *source_gaps,
+                *string_sequence(topology.get("required_gaps")),
+                *peer_gaps,
                 *(gap for report in admissions for gap in string_sequence(report["required_gaps"])),
             )
         )
     )
     return reduce_verdicts(
-        "block" if proof_gaps or source_gaps else "pass",
+        "block" if proof_gaps or source_gaps or peer_gaps else "pass",
         *(report_verdict(report) for report in admissions),
         required_gaps=gaps,
     ), gaps

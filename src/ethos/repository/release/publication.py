@@ -198,6 +198,24 @@ def topology_remotes(topology: Mapping[str, object]) -> dict[str, str]:
     }
 
 
+def select_publication_peers(
+    remotes: Mapping[str, str], requested: tuple[str, ...]
+) -> tuple[dict[str, str], list[str]]:
+    """Select declared IDs without treating peer availability as authorization."""
+    if not requested:
+        return dict(remotes), []
+    seen: set[str] = set()
+    gaps: list[str] = []
+    for peer_id in requested:
+        if peer_id in seen:
+            gaps.append(f"publication_peer_duplicate:{peer_id}")
+        elif peer_id not in remotes:
+            gaps.append(f"publication_peer_unknown:{peer_id}")
+        seen.add(peer_id)
+    selected = {peer_id: remote for peer_id, remote in remotes.items() if peer_id in seen}
+    return selected, gaps
+
+
 def _compile_peer(root: Path, raw: object, *, index: int) -> tuple[dict[str, object], list[str]]:
     if not isinstance(raw, Mapping) or set(raw) - _PEER_FIELDS:
         return {}, [f"publication_topology_peer_declaration_invalid:{index}"]

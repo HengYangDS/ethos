@@ -27,6 +27,7 @@ from ethos.contracts.verdict import report_verdict
 from ethos.domain.publication.inspection import observe_publication
 from ethos.domain.publication.inspection import publication_readiness_result
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.release.publication import select_publication_peers
 from ethos.result import EthosResult
 
 if TYPE_CHECKING:
@@ -190,6 +191,7 @@ def _publish_projection(
     expect_head: str | None,
     probe_remote: bool,
     target_refs: tuple[str, ...],
+    peer_ids: tuple[str, ...],
     receipt: str | None,
     receipt_sha256: str | None,
     retire: bool,
@@ -214,6 +216,9 @@ def _publish_projection(
     )
     current_head = context.head
     gaps.extend(context.required_gaps)
+    selected_remotes, selection_gaps = select_publication_peers(context.remotes, peer_ids)
+    if replay and peer_ids:
+        selection_gaps.append("publication_peer_selection_receipt_conflict")
     request_gaps = _publication_request_gaps(
         repo=repo,
         apply=apply,
@@ -225,6 +230,7 @@ def _publish_projection(
         target_refs=target_refs,
         remotes=context.remotes,
     )
+    request_gaps.extend(selection_gaps)
     gaps.extend(request_gaps)
     if not replay and (not request_gaps):
         effect, observations, push_admission, admission_gaps, projection_verdict = (
@@ -234,7 +240,7 @@ def _publish_projection(
                 retire=retire,
                 target_refs=target_refs,
                 current_head=current_head,
-                remotes=context.remotes,
+                remotes=selected_remotes,
                 proof_admission=context.proof_admission,
                 ref_admissions=context.ref_admissions,
             )
@@ -273,6 +279,7 @@ def _publish_projection(
         repo,
         context,
         target_refs=target_refs,
+        peer_ids=peer_ids,
         retirement=retirement,
         replay=replay,
         apply=apply,
@@ -294,6 +301,7 @@ def _publication_result(
     context: "PublicationContext",
     *,
     target_refs: tuple[str, ...],
+    peer_ids: tuple[str, ...],
     retirement: bool,
     replay: bool,
     apply: bool,
@@ -310,6 +318,12 @@ def _publication_result(
 ) -> EthosResult:
     """Project confirmed peer effects and the independently admitted local continuation."""
     current_head = context.head
+    selected_ids = (
+        tuple(target.id for target in effect.targets)
+        if effect is not None
+        else tuple(peer_id for peer_id in context.remotes if not peer_ids or peer_id in peer_ids)
+    )
+    unselected_ids = tuple(peer_id for peer_id in context.remotes if peer_id not in selected_ids)
     target_refs = (
         tuple(update.target_ref for update in effect.targets[0].updates)
         if effect is not None
@@ -368,6 +382,11 @@ def _publication_result(
                 "publish",
                 *(("--retire",) if retirement else ()),
                 *(item for target_ref in target_refs for item in ("--ref", target_ref)),
+                *(
+                    item
+                    for peer_id in (peer_ids or (selected_ids if unselected_ids else ()))
+                    for item in ("--peer", peer_id)
+                ),
                 "--probe-remote",
                 "--expect-head",
                 current_head,
@@ -430,9 +449,9 @@ def _publication_result(
             else state
             if state in {"partial", "outcome_unknown"}
             else "not_performed",
-            "declared_peer_count": len(effect.targets)
-            if effect is not None
-            else len(context.remotes),
+            "declared_peer_count": len(context.remotes),
+            "selected_peer_ids": list(selected_ids),
+            "unselected_peer_ids": list(unselected_ids),
             "cross_provider_atomicity_claimed": False,
         },
         required_gaps=tuple(gaps),
@@ -470,6 +489,7 @@ def publish_repository(
     expect_head: str | None = None,
     probe_remote: bool = False,
     target_refs: tuple[str, ...] = (),
+    peer_ids: tuple[str, ...] = (),
     receipt: str | None = None,
     receipt_sha256: str | None = None,
     retire: bool = False,
@@ -478,7 +498,7 @@ def publish_repository(
     repo = root.resolve()
     if load_repository_profile(repo).state == "invalid":
         return profile_failure_result("publish")
-    if target_refs or receipt is not None or retire:
+    if target_refs or peer_ids or receipt is not None or retire:
         return _publish_projection(
             repo,
             apply=apply,
@@ -486,6 +506,7 @@ def publish_repository(
             expect_head=expect_head,
             probe_remote=probe_remote,
             target_refs=target_refs,
+            peer_ids=peer_ids,
             receipt=receipt,
             receipt_sha256=receipt_sha256,
             retire=retire,

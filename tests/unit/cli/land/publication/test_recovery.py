@@ -29,6 +29,101 @@ from tests.unit.cli.land.publication.support import branch_publication_fixture
 from tests.unit.cli.land.publication.support import proposal_ref
 
 
+def test_selected_peer_can_publish_when_other_declared_peer_is_unavailable(
+    tmp_path: Path,
+) -> None:
+    repo, peers, head = branch_publication_fixture(tmp_path, accepted=True)
+    git(repo, "remote", "set-url", "origin", str(tmp_path / "unavailable-gitlab.git"))
+
+    default = branch_publication(repo, head, target_ref="refs/heads/main")
+    assert default["verdict"] == "unknown"
+    assert default["data"]["request_receipt"] == {}
+
+    selected = branch_publication(repo, head, "--peer", "github", target_ref="refs/heads/main")
+    assert selected["verdict"] == "pass"
+    assert selected["summary"]["declared_peer_count"] == 2
+    assert selected["summary"]["selected_peer_ids"] == ["github"]
+    assert selected["summary"]["unselected_peer_ids"] == ["gitlab"]
+    assert set(selected["data"]["remote_observations"]) == {"github"}
+    assert [target["id"] for target in selected["data"]["remote_effect"]["targets"]] == ["github"]
+
+    applied = apply_receipt(repo, selected["data"]["request_receipt"], head)
+    assert (applied["verdict"], applied["state"]) == ("pass", "published")
+    assert applied["summary"]["selected_peer_ids"] == ["github"]
+    _set_root, records = read_attestation_set(repo)
+    effect_id = applied["data"]["remote_effect"]["attestation"]["id"]
+    attested = next(record for record in records if record.id == effect_id)
+    assert attested.evidence_refs == (f"git:github:refs/heads/main:{head}",)
+    assert git(peers["github"], "for-each-ref", "--format=%(objectname)", "refs/heads/main") == head
+    assert git(peers["gitlab"], "for-each-ref", "--format=%(objectname)", "refs/heads/main") == ""
+
+
+def test_selected_peer_receipt_cannot_relabel_the_declared_remote(tmp_path: Path) -> None:
+    repo, peers, head = branch_publication_fixture(tmp_path, accepted=True)
+    preview = branch_publication(repo, head, "--peer", "github", target_ref="refs/heads/main")
+    original = TransitionPlan.model_validate(preview["data"]["transition_plan"])
+    effect = publication_effect_from_plan(original)
+    relabeled = effect.model_copy(
+        update={
+            "targets": (effect.targets[0].model_copy(update={"id": "gitlab"}),),
+        }
+    )
+    forged = publication_request.compile_remote_publication_request(
+        root=repo,
+        effect=relabeled,
+        proof=mutable_json(original.prior_attestations["proof"]),
+    )
+    receipt = publication_request.persist_remote_publication_request(repo, forged)
+
+    blocked = apply_receipt(repo, receipt, head, blocked=True)
+    assert "publication_peer_binding_drift:gitlab" in blocked["required_gaps"]
+    assert blocked["data"]["remote_effect"]["attempts"] == []
+    for peer in peers.values():
+        assert git(peer, "for-each-ref", "--format=%(objectname)", "refs/heads/main") == ""
+
+
+def test_unavailable_selected_peer_does_not_fall_back_or_widen_retry(tmp_path: Path) -> None:
+    repo, peers, head = branch_publication_fixture(tmp_path, accepted=True)
+    git(repo, "remote", "set-url", "github", str(tmp_path / "unavailable-github.git"))
+
+    report = branch_publication(repo, head, "--peer", "github", target_ref="refs/heads/main")
+
+    assert report["verdict"] == "unknown"
+    assert report["required_gaps"] == [
+        "publication_remote_observation_unavailable:github:github:refs/heads/main"
+    ]
+    assert set(report["data"]["remote_observations"]) == {"github"}
+    assert "--peer github" in report["next_action"]
+    for peer in peers.values():
+        assert git(peer, "for-each-ref", "--format=%(objectname)", "refs/heads/main") == ""
+
+
+def test_receipt_cannot_accept_a_new_peer_selector(tmp_path: Path) -> None:
+    repo, peers, head = branch_publication_fixture(tmp_path, accepted=True)
+    preview = branch_publication(repo, head, "--peer", "github", target_ref="refs/heads/main")
+    receipt = preview["data"]["request_receipt"]
+
+    blocked = run_ethos_blocked(
+        "publish",
+        "--receipt",
+        str(receipt["path"]),
+        "--receipt-sha256",
+        str(receipt["sha256"]),
+        "--peer",
+        "gitlab",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        head,
+        "--json",
+        cwd=repo,
+    )
+
+    assert blocked["required_gaps"] == ["publication_peer_selection_receipt_conflict"]
+    for peer in peers.values():
+        assert git(peer, "for-each-ref", "--format=%(objectname)", "refs/heads/main") == ""
+
+
 @pytest.mark.parametrize("apply", [False, True])
 def test_unavailable_remote_preserves_unknown_without_false_divergence(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, apply: bool
@@ -236,6 +331,8 @@ def test_publication_rechecks_authority_between_independent_peer_effects(
     assert mutated
     assert result["state"] == ("published" if success else "partial")
     assert expected[case] in result["required_gaps"] if not success else not result["required_gaps"]
+    if case == "policy":
+        assert "publication_peer_binding_drift:github" in result["required_gaps"]
     assert git(remotes["gitlab"], "for-each-ref", "--format=%(objectname)", target) == head
     assert git(remotes["github"], "for-each-ref", "--format=%(objectname)", peer_target) == (
         {"mixed": head, "peer": baseline}.get(case, previous)

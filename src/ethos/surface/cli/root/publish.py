@@ -23,6 +23,7 @@ class _PublishOptions:
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
     probe_remote: Annotated[bool, Parameter(name="--probe-remote")] = False
     target_refs: Annotated[tuple[str, ...], Parameter(name="--ref")] = ()
+    peer_ids: Annotated[tuple[str, ...], Parameter(name="--peer")] = ()
     receipt: Annotated[str | None, Parameter(name="--receipt")] = None
     receipt_sha256: Annotated[str | None, Parameter(name="--receipt-sha256")] = None
     retire: bool = False
@@ -41,7 +42,11 @@ def publish(
     """Report readiness or project one exact publication operation."""
     repo = resolve_root(root)
     result = publish_repository(repo, **asdict(options))
-    projection = bool(options.target_refs) or options.receipt is not None or options.retire
+    projection = (
+        bool(options.target_refs or options.peer_ids)
+        or options.receipt is not None
+        or options.retire
+    )
     emit(
         result,
         json_output=json_output,

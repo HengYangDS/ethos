@@ -10,6 +10,7 @@ import ethos.adapters.openspec.lifecycle.scope as scope
 from ethos.adapters.openspec.lifecycle.validation import validation_result_gaps
 from ethos.adapters.openspec.selection import selected_change
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.openspec.audit import accepted_spec_root_gaps
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
 _ACTIVE_STATUSES = frozenset({"in-progress", "no-tasks"})
@@ -64,17 +65,11 @@ def official_change_rows(list_payload: dict[str, Any]) -> list[dict[str, str]] |
 
 
 def openspec_root_gaps(openspec_root: Path, official_config: dict[str, Any]) -> list[str]:
-    return [
-        *map(str, official_config["required_gaps"]),
-        *(
-            gap
-            for path, gap in (
-                (openspec_root, "openspec_directory_missing"),
-                (openspec_root / "specs", "openspec_specs_missing"),
-            )
-            if not path.exists()
-        ),
-    ]
+    gaps = list(map(str, official_config["required_gaps"]))
+    if not openspec_root.exists():
+        gaps.append("openspec_directory_missing")
+    gaps.extend(accepted_spec_root_gaps(openspec_root / "specs"))
+    return gaps
 
 
 def openspec_official_cli(

@@ -68,9 +68,13 @@ offline and without ambient uv configuration, workspace discovery, VCS or
 template tasks. Its selected package version and exact output bytes bind the
 formation digest. Only exclusive regular files are admitted; links, junctions
 and special files fail before the target exists. Unknown starter spellings do
-not become generator arguments. Other domains retain their own native layout
-owners. A zero-exit generator still needs the selected library output. For a
-later `uv` starter version, bind a caller-reviewed old generated commit, the
+not become generator arguments. A generated file cannot silently replace the
+foundation's own output. The initial commit is bound to one result Attestation
+holding the selected generator and exact starter path/digest subset; this is
+upgrade provenance, not a second template manifest or rewrite authority.
+Other domains retain their own native layout owners. A zero-exit generator
+still needs the selected library output. For a later `uv` starter version,
+bind a caller-reviewed old generated commit, the
 current authored HEAD, and the new generator/version/outputs. Reuse the existing
 quarantined Git-object merge mechanism, rather than writing another merge
 algorithm or changing adopter files during preview. A clean object merge is a

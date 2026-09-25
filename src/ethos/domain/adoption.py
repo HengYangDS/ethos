@@ -24,6 +24,9 @@ _FORMATION_REPAIR_ACTIONS = {
     "formation_starter_output_incomplete": (
         "Repair the selected uv generator before previewing again"
     ),
+    "formation_starter_overwrote_foundation": (
+        "Reject the selected starter output; it changed foundation-owned files"
+    ),
     "formation_purpose_missing": "Supply --purpose for the new project before retrying",
 }
 

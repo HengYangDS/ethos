@@ -316,6 +316,7 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         (effect.runtime_acceptance, "prove_shared_supply", {"state": "passed"}),
         (effect.adopter_fixture, "materialize_adopter", "d" * 40),
         (effect.adopter_fixture, "line_ending_conformance", ["lf", "crlf"]),
+        (effect.adopter_fixture, "prove_formation", {"state": "passed"}),
         (
             effect,
             "observe_installed_package",
@@ -463,6 +464,11 @@ def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact):
         "state": "passed",
         "native_git_loss": "not_qualified",
     }
+    assert payload["conformance"]["formation"]["state"] == "passed"
+    with pytest.raises(ValueError, match="package_formation_incomplete"):
+        receipt.package_acceptance_evidence(
+            **(case.receipt.call_args.kwargs | {"formation": {"state": "blocked"}})
+        )
     with pytest.raises(ValueError, match="package_command_plane_incomplete"):
         receipt.package_acceptance_evidence(
             **(case.receipt.call_args.kwargs | {"command_plane": {"state": "blocked"}})

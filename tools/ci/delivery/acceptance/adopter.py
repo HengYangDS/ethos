@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import shutil
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.openspec.cli import archive_result
@@ -11,9 +13,10 @@ from ethos.adapters.openspec.cli import openspec_base_command
 from ethos.adapters.openspec.cli import run_json
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
+from tools.ci.delivery.acceptance.invocation import invoke
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    from collections.abc import Mapping
 
 CommandRunner = Callable[..., str]
 
@@ -130,6 +133,183 @@ capabilities = ["repository", "publication"]
     run(git, "add", ".", cwd=root)
     run(git, "commit", "--quiet", "-m", "initialize installed CLI adopter", cwd=root)
     return run(git, "rev-parse", "HEAD", cwd=root)
+
+
+def _verify_formed(
+    target: Path,
+    plan: dict[str, object],
+    applied: dict[str, object],
+    observation: tuple[int, dict[str, object], str],
+    expected_guidance: str,
+) -> str:
+    """Reobserve exact Git, installed guidance and every formed output."""
+    code, status, detail = observation
+    data = status.get("data")
+    if (
+        code
+        or status.get("verdict") != "pass"
+        or not isinstance(data, dict)
+        or not isinstance(data.get("head"), str)
+        or data.get("head") != applied.get("head")
+        or data.get("dirty") is not False
+        or not isinstance(data.get("hook_runtime"), dict)
+        or data["hook_runtime"].get("current") is not True
+        or not isinstance(data.get("candidate"), dict)
+        or data["candidate"].get("worktree_exists") is not True
+    ):
+        message = f"installed_formation_status_invalid:{detail}"
+        raise RuntimeError(message)
+    context = status.get("governance_context")
+    guidance = context.get("agent_guidance") if isinstance(context, dict) else None
+    entry = target / "AGENTS.md"
+    if (
+        not isinstance(guidance, dict)
+        or guidance.get("sha256") != expected_guidance
+        or not isinstance(guidance.get("path"), str)
+        or not Path(guidance["path"]).is_file()
+        or hashlib.sha256(Path(guidance["path"]).read_bytes()).hexdigest() != expected_guidance
+        or not entry.is_file()
+        or "ethos status --root . --json" not in entry.read_text(encoding="utf-8")
+    ):
+        message = "installed_formation_guidance_invalid"
+        raise RuntimeError(message)
+    outputs = plan.get("write_plan")
+    if not isinstance(outputs, list):
+        message = "installed_formation_output_invalid"
+        raise TypeError(message)
+    for output in outputs:
+        if not isinstance(output, dict) or not isinstance(output.get("path"), str):
+            message = "installed_formation_output_invalid"
+            raise TypeError(message)
+        relative = Path(output["path"])
+        if (
+            not relative.parts
+            or relative.is_absolute()
+            or ".." in relative.parts
+            or hashlib.sha256((target / relative).read_bytes()).hexdigest()
+            != output.get("content_sha256")
+        ):
+            message = "installed_formation_output_invalid"
+            raise RuntimeError(message)
+    return str(data["head"])
+
+
+def prove_formation(
+    executable: Path,
+    work: Path,
+    *,
+    origin: str,
+    environment: Mapping[str, str],
+) -> dict[str, object]:
+    """Form both starters from the installed CLI without a source checkout."""
+    package_guidance = (
+        Path(origin).parent / "data/skills/ethos-repository-work/SKILL.md"
+    ).read_bytes()
+    expected_guidance = hashlib.sha256(package_guidance).hexdigest()
+    formed: list[dict[str, object]] = []
+    for starter in ("foundation", "python-library"):
+        target = work / f"formed-{starter}"
+        command = (
+            str(executable),
+            "adopt",
+            "--create",
+            "--root",
+            str(target),
+            "--starter",
+            starter,
+            "--purpose",
+            "An independently installed governed repository.",
+            "--author-name",
+            "ETHOS Install Smoke",
+            "--author-email",
+            "ethos-install-smoke@example.invalid",
+        )
+        preview_code, preview, preview_detail = invoke(
+            work, (*command, "--json"), environment=environment
+        )
+        plan = preview.get("data")
+        if (
+            preview_code
+            or preview.get("verdict") != "pass"
+            or not isinstance(plan, dict)
+            or target.exists()
+        ):
+            message = f"installed_formation_preview_failed:{preview_detail}"
+            raise RuntimeError(message)
+        digest = plan.get("plan_digest")
+        candidate = plan.get("candidate_worktree_path")
+        if (
+            not isinstance(digest, str)
+            or len(digest) != 64
+            or not isinstance(candidate, str)
+            or Path(candidate).exists()
+        ):
+            message = "installed_formation_plan_invalid"
+            raise RuntimeError(message)
+        apply_command = (
+            *command,
+            "--apply",
+            "--authorize",
+            "--expect-plan-digest",
+            digest,
+            "--json",
+        )
+        applied_code, applied, applied_detail = invoke(work, apply_command, environment=environment)
+        applied_data = applied.get("data")
+        if (
+            applied_code
+            or applied.get("verdict") != "pass"
+            or not isinstance(applied_data, dict)
+            or applied_data.get("applied") is not True
+            or not target.is_dir()
+        ):
+            message = f"installed_formation_apply_failed:{applied_detail}"
+            raise RuntimeError(message)
+        status_command = (str(executable), "status", "--root", str(target), "--json")
+        head = _verify_formed(
+            target,
+            plan,
+            applied_data,
+            invoke(target, status_command, environment=environment),
+            expected_guidance,
+        )
+        retry_code, retry, _retry_detail = invoke(work, apply_command, environment=environment)
+        if retry_code == 0 or retry.get("required_gaps") != ["formation_target_exists"]:
+            message = "installed_formation_retry_replayed_effect"
+            raise RuntimeError(message)
+        _verify_formed(
+            target,
+            plan,
+            applied_data,
+            invoke(target, status_command, environment=environment),
+            expected_guidance,
+        )
+        if starter == "python-library":
+            evolved_code, evolved, evolved_detail = invoke(
+                target,
+                (
+                    str(executable),
+                    "adopt",
+                    "--evolve-starter",
+                    "--root",
+                    str(target),
+                    "--purpose",
+                    "A revised independently installed repository.",
+                    "--json",
+                ),
+                environment=environment,
+            )
+            if evolved_code or evolved.get("verdict") != "pass":
+                message = f"installed_starter_evolution_preview_failed:{evolved_detail}"
+                raise RuntimeError(message)
+        formed.append({"starter": starter, "head": head})
+    return {
+        "state": "passed",
+        "formed": formed,
+        "guidance_sha256": expected_guidance,
+        "retry_preserved": True,
+        "source_checkout_required": False,
+    }
 
 
 def line_ending_conformance(adopter: Path, *, run: CommandRunner) -> list[str]:

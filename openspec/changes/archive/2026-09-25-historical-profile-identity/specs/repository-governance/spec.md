@@ -2,16 +2,13 @@
 
 ### Requirement: Historical effect identity survives profile schema evolution
 
-ETHOS SHALL revalidate completed repair and Git-ref-effect Attestations against
-each exact former commit's repository identity without requiring a historical
-profile to satisfy today's full operational profile schema. Historical replay
-SHALL read only the stable identity declaration needed for this comparison;
-current effect admission SHALL continue to require the strict current profile.
-Original repair coordinates, policy and payload digests, replacement history,
-effect Attestations, current source proof, ref role and exact remote
-compare-and-swap SHALL remain required. A missing, malformed or mismatched
-historical identity SHALL block rather than fall back to the current profile or
-a caller-supplied identity.
+ETHOS SHALL validate repair and Git-ref-effect Attestations against each exact
+former commit's stable repository identity declaration, not today's full
+profile schema. Missing, malformed or mismatched historical identity SHALL
+block without current-profile or caller fallback. Current effects SHALL still
+require the strict current profile, repair coordinates, policy and payload
+digests, replacement history, effect Attestations, source proof, ref role and
+exact remote CAS.
 
 #### Scenario: Retired profile field does not erase a valid repair
 

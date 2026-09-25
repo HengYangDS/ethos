@@ -135,7 +135,7 @@ capabilities = ["repository", "publication"]
     return run(git, "rev-parse", "HEAD", cwd=root)
 
 
-def _verify_formed(
+def verify_formed(
     target: Path,
     plan: dict[str, object],
     applied: dict[str, object],
@@ -224,6 +224,41 @@ def _verify_candidate(
             raise RuntimeError(message)
 
 
+def _verify_first_change(
+    candidate: Path,
+    status: dict[str, object],
+    *,
+    origin: str,
+    environment: Mapping[str, str],
+) -> None:
+    """Use only the installed status projection to invoke native OpenSpec."""
+    context = status.get("governance_context")
+    native = context.get("official_openspec") if isinstance(context, dict) else None
+    command = native.get("base_command") if isinstance(native, dict) else None
+    if (
+        not isinstance(command, list)
+        or len(command) != 2
+        or not all(isinstance(part, str) and Path(part).is_file() for part in command)
+        or not Path(command[1]).resolve().is_relative_to(Path(origin).resolve().parent)
+        or shutil.which("openspec", path=environment.get("PATH", "")) is not None
+    ):
+        message = "installed_first_change_tool_unavailable"
+        raise RuntimeError(message)
+    created = run_command(
+        candidate,
+        (*command, "new", "change", "first-change"),
+        env=environment,
+        inherit_environment=False,
+        timeout=60,
+    )
+    if (
+        created.returncode
+        or not (candidate / "openspec/changes/first-change/.openspec.yaml").is_file()
+    ):
+        message = f"installed_first_change_failed:{created.stderr[-256:]}"
+        raise RuntimeError(message)
+
+
 def prove_formation(
     executable: Path,
     work: Path,
@@ -302,7 +337,7 @@ def prove_formation(
             )
             raise RuntimeError(message)
         status_command = (str(executable), "status", "--root", str(target), "--json")
-        head = _verify_formed(
+        head = verify_formed(
             target,
             plan,
             applied_data,
@@ -314,13 +349,27 @@ def prove_formation(
         if retry_code == 0 or retry.get("required_gaps") != ["formation_target_exists"]:
             message = "installed_formation_retry_replayed_effect"
             raise RuntimeError(message)
-        _verify_formed(
+        preserved = invoke(target, status_command, environment=environment)
+        verify_formed(
             target,
             plan,
             applied_data,
-            invoke(target, status_command, environment=environment),
+            preserved,
             expected_guidance,
         )
+        if starter == "foundation":
+            effect = applied_data["effect"]
+            if not isinstance(effect, dict) or not isinstance(
+                effect.get("candidate_worktree_path"), str
+            ):
+                message = "installed_formation_candidate_invalid"
+                raise RuntimeError(message)
+            _verify_first_change(
+                Path(effect["candidate_worktree_path"]),
+                preserved[1],
+                origin=origin,
+                environment=environment,
+            )
         if starter == "python-library":
             evolved_code, evolved, evolved_detail = invoke(
                 target,
@@ -347,6 +396,7 @@ def prove_formation(
         "state": "passed",
         "formed": formed,
         "guidance_sha256": expected_guidance,
+        "first_change": "passed",
         "retry_preserved": True,
         "source_checkout_required": False,
     }

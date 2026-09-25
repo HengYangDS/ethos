@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
+from contextlib import redirect_stderr
+from io import StringIO
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -17,6 +20,7 @@ from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.hook.protocol import execute_hook
 from ethos.adapters.repo.release import committed_release_version
 from ethos.adapters.repo.release import release_ref_subject
 from tests.support.ethos_cli_runner import run_ethos
@@ -29,6 +33,86 @@ from tests.support.subprocesses import kill_after_marker
 from tests.unit.cli.land.publication.support import accepted_release_fixture
 from tests.unit.cli.land.publication.support import assert_signed_publication
 from tests.unit.cli.land.publication.support import publication_peers
+
+
+def test_native_pre_push_rejects_peeled_commit_as_release_tag(tmp_path: Path) -> None:
+    """A signed commit cannot masquerade as the signed annotated tag object."""
+    repo, _main, _old, head = accepted_release_fixture(tmp_path)
+    publication_peers(repo, tmp_path)
+    zero = "0" * len(head)
+    stream = StringIO()
+    with redirect_stderr(stream):
+        code = execute_hook(
+            repo,
+            "pre-push",
+            ("origin",),
+            stdin=StringIO(f"refs/heads/dev {head} refs/tags/v1.2.3 {zero}\n"),
+        )
+    assert code == 1
+    report = json.loads(stream.getvalue())
+    assert "release_tag_source_untrusted" in report["required_gaps"]
+
+
+def test_native_pre_push_preserves_signed_tag_noop_and_immutability(tmp_path: Path) -> None:
+    """A real release tag is eligible, but cannot replace a different peer tag."""
+    repo, _main, old, head = accepted_release_fixture(tmp_path)
+    publication_peers(repo, tmp_path)
+    applied = release_cli(repo, head, old, "--apply", "--authorize")
+    assert applied["verdict"] == "pass", applied
+    tag = git(repo, "rev-parse", "refs/tags/v1.2.3")
+    zero = "0" * len(head)
+    for remote_oid in (zero, tag):
+        stream = StringIO()
+        with redirect_stderr(stream):
+            code = execute_hook(
+                repo,
+                "pre-push",
+                ("origin",),
+                stdin=StringIO(f"refs/tags/v1.2.3 {tag} refs/tags/v1.2.3 {remote_oid}\n"),
+            )
+        assert (code, stream.getvalue()) == (0, "")
+    stream = StringIO()
+    with redirect_stderr(stream):
+        code = execute_hook(
+            repo,
+            "pre-push",
+            ("origin",),
+            stdin=StringIO(f"refs/tags/v1.2.3 {tag} refs/tags/v1.2.3 {old}\n"),
+        )
+    assert code == 1
+    assert "release_tag_immutable" in json.loads(stream.getvalue())["required_gaps"]
+    git(repo, "tag", "-s", "-m", "wrong name", "v9.9.9", head)
+    wrong = git(repo, "rev-parse", "refs/tags/v9.9.9")
+    for target, gap in (
+        ("refs/tags/v1.2.3", "release_tag_name_mismatch"),
+        ("refs/tags/v9.9.9", "release_tag_version_mismatch"),
+    ):
+        stream = StringIO()
+        with redirect_stderr(stream):
+            code = execute_hook(
+                repo,
+                "pre-push",
+                ("origin",),
+                stdin=StringIO(f"refs/tags/v9.9.9 {wrong} {target} {zero}\n"),
+            )
+        assert code == 1
+        assert gap in json.loads(stream.getvalue())["required_gaps"]
+    anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
+    original = anchor.read_text()
+    try:
+        anchor.write_text("")
+        stream = StringIO()
+        with redirect_stderr(stream):
+            code = execute_hook(
+                repo,
+                "pre-push",
+                ("origin",),
+                stdin=StringIO(f"refs/tags/v1.2.3 {tag} refs/tags/v1.2.3 {zero}\n"),
+            )
+        assert code == 1
+        assert "release_tag_source_untrusted" in json.loads(stream.getvalue())["required_gaps"]
+    finally:
+        anchor.write_text(original)
 
 
 def native_failed_result(effect, args, options, *, scope, boundary, root):

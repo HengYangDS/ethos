@@ -5,7 +5,10 @@ from contextlib import redirect_stderr
 from io import StringIO
 from pathlib import Path
 
+import pytest
+
 import ethos.adapters.repo.commit.signature as signature_observation
+from ethos.adapters.admission.publication import ref_update_admission_report
 from ethos.adapters.mutation.lane_retirement.absorbed import retire_absorbed_ref
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import read_attestation_set
@@ -152,6 +155,142 @@ def test_publication_consumes_repaired_forward_baseline_at_every_boundary(tmp_pa
         for update in target["updates"]
     } == {(old, head)}
     assert all(git(peer, "rev-parse", "dev") == old for peer in peers)
+    result = apply_receipt(repo, preview["data"]["request_receipt"], head)
+    assert result["state"] == "published", result
+    assert {git(peer, "rev-parse", ref) for peer in peers for ref in ("dev", "main")} == {head}
+
+
+def _historical_peer_fixture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> tuple[Path, Path, str, str, str]:
+    """Accept forward content after repairing a lagging peer's original history."""
+    repo, old, candidate = signature_repository(tmp_path, coupled=True)
+    (repo / "peer-prefix.txt").write_text("peer prefix\n", encoding="utf-8")
+    git(repo, "add", "peer-prefix.txt")
+    with monkeypatch.context() as scope:
+        scope.setenv("GIT_AUTHOR_NAME", "Wrong")
+        scope.setenv("GIT_AUTHOR_EMAIL", "wrong@example.invalid")
+        git(repo, "commit", "-S", "-m", "legacy peer prefix")
+    peer_old = git(repo, "rev-parse", "HEAD")
+    (repo / "old-tip.txt").write_text("old tip\n", encoding="utf-8")
+    git(repo, "add", "old-tip.txt")
+    git(repo, "commit", "-S", "-m", "fix: old tip")
+    old_tip = git(repo, "rev-parse", "HEAD")
+    git(candidate, "reset", "--hard", old_tip)
+    git(repo, "update-ref", "refs/heads/main", old_tip, old)
+    replacement = repair_fixture_history(
+        repo,
+        tmp_path / "original.bundle",
+        corrections={
+            peer_old: {
+                "author": {
+                    "expected": {"name": "Wrong", "email": "wrong@example.invalid"},
+                    "replacement": {"name": "ETHOS Test", "email": "test@example.invalid"},
+                }
+            }
+        },
+    )
+    write_publication_topology(candidate)
+    write_script_gate_policy(candidate)
+    profile = candidate / ".ethos/profile.toml"
+    profile.write_text(profile.read_text().replace('"policy-test"', '"signature-fixture"'))
+    git(candidate, "add", "-A")
+    git(candidate, "commit", "-S", "-m", "fix: declare independent publication peers")
+    head = git(candidate, "rev-parse", "HEAD")
+    install_fixture_hook_runtime(repo)
+    seed_executed_proof(candidate, head)
+    accepted = run_ethos(
+        "land",
+        "--closeout",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        replacement,
+        "--candidate-head",
+        head,
+        "--json",
+        cwd=repo,
+    )
+    assert accepted["verdict"] == "pass", accepted
+    return repo, candidate, peer_old, replacement, head
+
+
+def test_historical_peer_prefix_uses_verified_replacement_tip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A lagging peer is mapped by repair evidence, not rescanned as new work."""
+    repo, candidate, peer_old, replacement, head = _historical_peer_fixture(tmp_path, monkeypatch)
+    peers = publication_peers(
+        repo, tmp_path, f"{peer_old}:refs/heads/dev", f"{peer_old}:refs/heads/main"
+    ).values()
+    report = run_ethos(
+        "hook",
+        "pre-push",
+        "refs/heads/dev",
+        head,
+        "--remote-head",
+        peer_old,
+        "--remote",
+        "origin",
+        "--json",
+        cwd=repo,
+    )
+    assert report["verdict"] == "pass", report
+    commits = report["data"]["commit_policy_admission"]
+    assert commits["integration_baseline"] == replacement
+    assert commits["revisions"] == [head]
+    _require_independent_admission(repo, candidate, peer_old, head, report["data"])
+    bad = git(repo, "commit-tree", "-S", f"{head}^{{tree}}", "-p", head, "-m", "invalid forward")
+    bad_range = ref_update_admission_report(
+        repo,
+        target_ref="refs/heads/dev",
+        proposed_head=bad,
+        remote_head=peer_old,
+        remote_name="origin",
+    )["commit_policy_admission"]
+    assert bad_range["integration_baseline"] == replacement
+    assert {item["commit"] for item in bad_range["violations"]} == {bad}
+    preview = run_ethos(
+        "publish",
+        "--ref",
+        "refs/heads/dev",
+        "--ref",
+        "refs/heads/main",
+        "--probe-remote",
+        "--expect-head",
+        head,
+        "--json",
+        cwd=repo,
+    )
+    assert preview["verdict"] == "pass", preview
+    assert {
+        (update["expected"], update["desired"])
+        for target in preview["data"]["remote_effect"]["targets"]
+        for update in target["updates"]
+    } == {(peer_old, head)}
+    assert all(git(peer, "rev-parse", "dev") == peer_old for peer in peers)
+    selected, records = read_attestation_set(repo)
+    git(repo, "update-ref", "-d", ATTESTATION_SET_REF, selected)
+    changed = record_attestations(
+        repo, tuple(item for item in records if item.predicate != "effect:commit-signature")
+    )
+    try:
+        blocked = run_ethos_blocked(
+            "hook",
+            "pre-push",
+            "refs/heads/dev",
+            head,
+            "--remote-head",
+            peer_old,
+            "--remote",
+            "origin",
+            "--json",
+            cwd=repo,
+        )
+        assert blocked["data"]["commit_policy_admission"]["update_kind"] == "existing"
+        assert any(gap.startswith("commit_subject_invalid:") for gap in blocked["required_gaps"])
+    finally:
+        git(repo, "update-ref", ATTESTATION_SET_REF, selected, str(changed["root"]))
     result = apply_receipt(repo, preview["data"]["request_receipt"], head)
     assert result["state"] == "published", result
     assert {git(peer, "rev-parse", ref) for peer in peers for ref in ("dev", "main")} == {head}

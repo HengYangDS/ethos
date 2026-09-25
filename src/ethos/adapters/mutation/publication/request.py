@@ -10,7 +10,7 @@ from pathlib import Path
 
 import ethos.adapters.mutation.publication.observation as publication_observation
 import ethos.adapters.repo.git as git
-from ethos.adapters.repo.commit.signature import repaired_ref_provenance
+from ethos.adapters.repo.commit.signature import repaired_peer_ref_provenance
 from ethos.adapters.repo.git_object import GitObjectKind
 from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.repo.git_object import zero_oid
@@ -122,7 +122,7 @@ def observe_remote_publication_effect(
                     observed not in {zero, source.object_oid}
                     and git.is_ancestor(root, observed, source.peeled_commit)
                 ),
-                repaired=repaired_ref_provenance(
+                repaired=repaired_peer_ref_provenance(
                     root, ref=target_ref, old=observed, new=source.object_oid
                 )
                 is not None,

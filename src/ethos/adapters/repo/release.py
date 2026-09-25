@@ -191,7 +191,9 @@ def accepted_delivery_report(
     }
 
 
-def release_ref_subject(root: Path, *, ref: str, old: str, new: str) -> str:
+def release_ref_subject(
+    root: Path, *, ref: str, old: str, new: str, allow_identical: bool = False
+) -> str:
     """Require native release identity; callers separately admit proof and intent."""
     policy = load_branch_role_policy(root)
     head = ref_head(root, policy.accepted_branch)
@@ -208,7 +210,9 @@ def release_ref_subject(root: Path, *, ref: str, old: str, new: str) -> str:
         ]
         require_release(names == [ref.removeprefix("refs/tags/")], "release_tag_name_mismatch")
         release_tag_policy(root, head, ref.removeprefix("refs/tags/"))
-        require_release(old == zero_oid(root), "release_tag_immutable")
+        require_release(
+            old == zero_oid(root) or (allow_identical and old == new), "release_tag_immutable"
+        )
     else:
         require_release(new == head, "release_source_not_current_accepted")
         require_release(

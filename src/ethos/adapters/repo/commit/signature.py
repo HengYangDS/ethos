@@ -429,3 +429,16 @@ def repaired_object_provenance(root: Path, *, old: str, new: str) -> dict[str, o
             matches.append(repair)
     _require(len(matches) <= 1, "signature_repair_evidence_ambiguous")
     return matches[0] if matches else None
+
+
+def repaired_peer_ref_provenance(
+    root: Path, *, ref: str, old: str, new: str
+) -> dict[str, object] | None:
+    """Bind one advertised peer prefix to a completed repair of that exact ref."""
+    if not ref.startswith("refs/heads/"):
+        return None
+    repair = repaired_object_provenance(root, old=old, new=new)
+    if repair is None:
+        return None
+    refs = repair["refs"]
+    return repair if isinstance(refs, Mapping) and ref in refs else None

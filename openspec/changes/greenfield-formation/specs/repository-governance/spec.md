@@ -19,6 +19,12 @@ starter MAY add its own layout without making that layout ETHOS policy.
 - **THEN** the locked native generator's identity, version, inputs and outputs are bound to the reviewed plan
 - **AND** ETHOS does not impose that starter's language, build tool or directory shape on other repositories.
 
+#### Scenario: Formation records starter provenance
+
+- **WHEN** the initial commit is created from a selected starter
+- **THEN** a result Attestation binds that commit, generator version and exact generated path/digest subset
+- **AND** the Attestation grants no permission to replace later authored bytes.
+
 #### Scenario: A starter attempts unsafe output
 
 - **WHEN** a generator fails, omits the selected library output, produces a link or special file, or a caller supplies an unknown starter or task spelling

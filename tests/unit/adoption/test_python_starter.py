@@ -10,6 +10,7 @@ import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
 import ethos.adapters.repo.formation as formation_effect
+from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.domain.adoption import adopt_repository
 from tests.support.governed_repository import git
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
@@ -53,6 +54,20 @@ def test_python_library_starter_uses_pinned_native_generator(
     assert "A verifiable Python library." in (target / "pyproject.toml").read_text()
     assert (target / "src/new_project/__init__.py").is_file()
     assert git(target, "status", "--porcelain") == ""
+    records = [
+        item
+        for item in read_attestation_set(target)[1]
+        if item.predicate == "effect:starter-formation"
+    ]
+    assert len(records) == 1
+    body = records[0].payload.body
+    assert body["input"]["sources"]["starter_generator_version"] == metadata.version("uv")
+    assert body["output"]["head"] == git(target, "rev-parse", "HEAD")
+    assert set(body["output"]["starter_outputs"]) == {
+        "pyproject.toml",
+        "src/new_project/__init__.py",
+        "src/new_project/py.typed",
+    }
 
 
 def test_python_library_changed_input_invalidates_preview(tmp_path: Path) -> None:
@@ -173,6 +188,26 @@ def test_python_library_rejects_empty_success_from_generator(
     )
 
     assert result.required_gaps == ("formation_starter_output_incomplete",)
+    assert not target.exists()
+
+
+def test_python_library_cannot_replace_foundation_content(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A domain generator cannot silently acquire the foundation's authored files."""
+
+    def overwrite(root: Path, command: tuple[str, ...], **_kwargs: object) -> object:
+        (root / "README.md").write_text("replaced\n", encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(formation_effect, "run_command", overwrite)
+    target = tmp_path / "new-project"
+    result = adopt_repository(
+        target, create=True, purpose="Verifiable changes.", starter="python-library"
+    )
+
+    assert result.required_gaps == ("formation_starter_overwrote_foundation",)
+    assert result.next_action.startswith("Reject")
     assert not target.exists()
 
 

@@ -19,8 +19,12 @@ from ethos.adapters.mutation.lane_lifecycle.start import default_worktree_path
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.adoption import adoption_plan
+from ethos.adapters.repo.attestation_set import record_attestation_once
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
+from ethos.adapters.repo.native_effect_attestation import NativeEffect
+from ethos.adapters.repo.native_effect_attestation import issue_native_effect
+from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.runtime.filesystem import is_junction
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.normalization.coercion import string_sequence
@@ -97,7 +101,9 @@ def formation_plan(
                     f"# {target.name}\n\n{purpose.strip()}\n", encoding="utf-8"
                 )
                 (candidate / "AGENTS.md").write_text(_AGENT_ENTRY, encoding="utf-8")
-                outputs, starter_gap, detail = _compose_starter(candidate, starter, purpose.strip())
+                outputs, starter_outputs, starter_gap, detail = _compose_starter(
+                    candidate, starter, purpose.strip()
+                )
                 if starter_gap:
                     return _unavailable(target, starter_gap, detail=detail)
                 paths = sorted(outputs)
@@ -129,6 +135,7 @@ def formation_plan(
                             "candidate_worktree_path": str(candidate_path),
                             "sources": sources,
                             "outputs": outputs,
+                            "starter_outputs": starter_outputs,
                         },
                         sort_keys=True,
                     ).encode()
@@ -144,6 +151,7 @@ def formation_plan(
                         {"path": path, "content_sha256": outputs[path]} for path in paths
                     ],
                     "source_inputs": sources,
+                    "starter_outputs": starter_outputs,
                     "plan_digest": digest,
                     "applied": False,
                 }
@@ -164,6 +172,7 @@ def formation_plan(
                         candidate_path,
                         report,
                         outputs,
+                        starter_outputs,
                         sources,
                     )
                 else:
@@ -176,10 +185,29 @@ def formation_plan(
 
 def _compose_starter(
     candidate: Path, starter: str, purpose: str
-) -> tuple[dict[str, str], str, str]:
+) -> tuple[dict[str, str], dict[str, str], str, str]:
     """Let the selected native owner generate optional domain content."""
-    if starter == "foundation":
-        return _candidate_outputs(candidate)
+    foundation, gap, detail = _candidate_outputs(candidate)
+    if gap or starter == "foundation":
+        return foundation, {}, gap, detail
+    generator_gap, detail = _run_python_library_generator(candidate, purpose)
+    if generator_gap:
+        return {}, {}, generator_gap, detail
+    outputs, gap, detail = _candidate_outputs(candidate)
+    if gap:
+        return outputs, {}, gap, detail
+    if any(outputs.get(path) != digest for path, digest in foundation.items()):
+        return {}, {}, "formation_starter_overwrote_foundation", ""
+    if "pyproject.toml" not in outputs or not any(
+        path.startswith("src/") and path.endswith("/__init__.py") for path in outputs
+    ):
+        return {}, {}, "formation_starter_output_incomplete", "Python library files missing"
+    generated = {path: digest for path, digest in outputs.items() if path not in foundation}
+    return outputs, generated, "", ""
+
+
+def _run_python_library_generator(candidate: Path, purpose: str) -> tuple[str, str]:
+    """Run only the locked native uv initializer with fixed inert flags."""
     command = (
         sys.executable,
         "-B",
@@ -216,21 +244,12 @@ def _compose_starter(
             remove_env_prefixes=("UV_",),
         )
     except (OSError, ValueError, subprocess.TimeoutExpired) as error:
-        return {}, "formation_starter_generation_failed", str(error)
+        return "formation_starter_generation_failed", str(error)
     if result.returncode:
-        return (
-            {},
-            "formation_starter_generation_failed",
-            (result.stderr.strip() or "starter_generator_exit_nonzero"),
+        return "formation_starter_generation_failed", (
+            result.stderr.strip() or "starter_generator_exit_nonzero"
         )
-    outputs, gap, detail = _candidate_outputs(candidate)
-    if gap:
-        return outputs, gap, detail
-    if "pyproject.toml" not in outputs or not any(
-        path.startswith("src/") and path.endswith("/__init__.py") for path in outputs
-    ):
-        return {}, "formation_starter_output_incomplete", "Python library files missing"
-    return outputs, "", ""
+    return "", ""
 
 
 def _candidate_outputs(candidate: Path) -> tuple[dict[str, str], str, str]:
@@ -264,10 +283,11 @@ def _publish(
     candidate_path: Path,
     report: dict[str, object],
     outputs: dict[str, str],
+    starter_outputs: dict[str, str],
     sources: dict[str, str],
 ) -> dict[str, object]:
     """Publish one staged Git repository, then activate its installed runtime."""
-    head, gap, detail = _prepare_history(candidate, outputs, sources)
+    head, gap, detail = _prepare_history(candidate, outputs, starter_outputs, sources)
     if gap:
         return _refuse(report, gap, detail=detail)
     try:
@@ -291,7 +311,10 @@ def _publish(
 
 
 def _prepare_history(
-    candidate: Path, outputs: dict[str, str], sources: dict[str, str]
+    candidate: Path,
+    outputs: dict[str, str],
+    starter_outputs: dict[str, str],
+    sources: dict[str, str],
 ) -> tuple[str, str, str]:
     """Create one author-attributed initial commit in scratch."""
     identity = {
@@ -309,6 +332,42 @@ def _prepare_history(
         if result.returncode:
             return "", gap, result.stderr.strip()
     head = run_git(candidate, "rev-parse", "HEAD", timeout=10).stdout.strip()
+    try:
+        effect = NativeEffect(
+            predicate="effect:starter-formation",
+            operation="starter.form",
+            command=("ethos", "adopt", "--create", "--starter", sources["starter"]),
+            subject={"head": head, "starter": sources["starter"]},
+            before={
+                "sources": {
+                    key: sources[key]
+                    for key in (
+                        "starter",
+                        "product_version",
+                        "starter_generator",
+                        "starter_generator_version",
+                    )
+                    if key in sources
+                }
+            },
+            after={
+                "head": head,
+                "starter_outputs": starter_outputs,
+                "all_outputs": outputs,
+            },
+        )
+        record_attestation_once(
+            candidate,
+            issue_native_effect(
+                candidate,
+                effect=effect,
+                state="applied",
+                commitment_digest=None,
+                repository_id=repository_identity(candidate),
+            ),
+        )
+    except (OSError, ValueError) as error:
+        return "", "formation_attestation_failed", str(error)
     return head, "", ""
 
 

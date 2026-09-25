@@ -29,6 +29,7 @@ from ethos.adapters.repo.git_effects import compensate_git_worktree
 from ethos.adapters.repo.git_effects import move_tracked_tree
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.repository.openspec.identifiers import archived_change_root
 from ethos.repository.policy.commit import load_commit_policy
 
 if TYPE_CHECKING:
@@ -46,7 +47,7 @@ class ArchiveCollision(NamedTuple):
 
 def archive_collision(root: Path, head: str, change: str) -> ArchiveCollision | None:
     """Describe the deterministic preservation target for today's collision."""
-    path = f"openspec/changes/archive/{datetime.now(UTC).date()}-{change}"
+    path = archived_change_root(change, datetime.now(UTC).date())
     tree = git_stdout(root, "rev-parse", f"{head}:{path}")
     if not tree:
         return None

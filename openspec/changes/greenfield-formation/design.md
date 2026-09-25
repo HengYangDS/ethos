@@ -88,8 +88,14 @@ currently installed native generator in owned scratch. The original project
 name comes from the recorded baseline's native `pyproject.toml`, not a Work Lane
 directory name. It returns a Git merge patch or conflict without touching the
 adopter. `--apply` is refused: review and effect admission belong to a current
-owned Work Lane, not to generator provenance. This distinction remains open for
-the full effect and installed-product replay in tasks 2.2 and 2.3.
+owned Work Lane, not to generator provenance. The exact-patch lane admission
+is covered by task 2.2; installed-product replay remains task 2.3.
+
+For a missing repository, MCP requires explicit `--create-target` at startup.
+It binds the requested alias and physical target, rejects retargeting on each
+call, and keeps effect authorization in `adopt --create`. Ordinary MCP startup
+still requires an existing root. An unborn Git root cannot supply a candidate
+base; status and candidate operations report that missing fact before ref work.
 
 Copier is not the update owner for this `uv` starter. Its documented update
 path expects a Copier answers file and versioned Git template, and can run

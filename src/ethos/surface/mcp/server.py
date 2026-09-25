@@ -26,9 +26,12 @@ from ethos.domain.publication.operation import publish_repository
 class _BoundCalls(Middleware):
     """Keep process identity stable and drain each call before its successor."""
 
-    def __init__(self, timeout_seconds: float) -> None:
+    def __init__(
+        self, timeout_seconds: float, *, target_binding: tuple[Path, Path] | None = None
+    ) -> None:
         self.timeout_seconds = timeout_seconds
         self.actor = os.environ.get("ETHOS_ACTOR", "")
+        self.target_binding = target_binding
         self.lock = anyio.Lock()
 
     async def on_call_tool(
@@ -42,6 +45,18 @@ class _BoundCalls(Middleware):
                     if os.environ.get("ETHOS_ACTOR", "") != self.actor:
                         message = "MCP process identity changed; restart with the intended actor."
                         raise ToolError(message)
+                    if self.target_binding is not None:
+                        requested, physical = self.target_binding
+                        try:
+                            current = requested.resolve(strict=False)
+                        except (OSError, RuntimeError) as error:
+                            message = (
+                                "MCP target binding unavailable; restart with the intended root."
+                            )
+                            raise ToolError(message) from error
+                        if current != physical:
+                            message = "MCP target binding changed; restart with the intended root."
+                            raise ToolError(message)
                     result = await call_next(context)
                     await anyio.lowlevel.checkpoint()
         except TimeoutError:
@@ -51,12 +66,41 @@ class _BoundCalls(Middleware):
             return result
 
 
-def create_server(root: Path, *, timeout_seconds: float = 180.0) -> FastMCP:
-    """Bind one exact repository without granting new authority or storing tasks."""
+def create_server(
+    root: Path, *, create_target: bool = False, timeout_seconds: float = 180.0
+) -> FastMCP:
+    """Bind one repository or an explicit absent formation target without effects."""
     if not 0 < timeout_seconds < math.inf:
         message = "MCP timeout must be finite and positive."
         raise ValueError(message)
-    target = root.resolve(strict=True)
+    if create_target:
+        requested = root.absolute()
+        try:
+            parent = requested.parent.resolve(strict=True)
+        except (OSError, RuntimeError) as error:
+            message = "formation_parent_unsafe"
+            raise ValueError(message) from error
+        if not parent.is_dir():
+            message = "formation_parent_unsafe"
+            raise ValueError(message)
+        physical = parent / requested.name
+        if (
+            requested.exists()
+            or requested.is_symlink()
+            or physical.exists()
+            or physical.is_symlink()
+        ):
+            message = "formation_target_exists"
+            raise ValueError(message)
+        target = requested
+        target_binding = (requested, physical)
+    else:
+        try:
+            target = root.resolve(strict=True)
+        except (OSError, RuntimeError) as error:
+            message = "mcp_root_unavailable"
+            raise ValueError(message) from error
+        target_binding = None
     server = FastMCP(
         "ETHOS",
         instructions=(
@@ -69,7 +113,7 @@ def create_server(root: Path, *, timeout_seconds: float = 180.0) -> FastMCP:
         strict_input_validation=True,
         tasks=False,
         mask_error_details=True,
-        middleware=[_BoundCalls(timeout_seconds)],
+        middleware=[_BoundCalls(timeout_seconds, target_binding=target_binding)],
     )
     for name, operation in (
         ("status", inspect_repository),

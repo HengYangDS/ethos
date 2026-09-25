@@ -11,6 +11,7 @@ import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
 import ethos.adapters.repo.starter.formation as formation_effect
+import ethos.cli as product_cli
 from ethos.domain.adoption import adopt_repository
 from ethos.domain.inspection import inspect_repository
 from tests.support.governed_repository import git
@@ -161,6 +162,26 @@ def test_greenfield_console_refuses_linked_target_before_runtime_selection(tmp_p
 
     assert completed.returncode == 0, completed.stderr
     assert json.loads(completed.stdout)["required_gaps"] == ["formation_target_exists"]
+
+
+def test_mcp_creation_does_not_select_an_existing_target_runtime(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A mistaken formation target cannot choose the product that judges its refusal."""
+    target = tmp_path / "already-present"
+    target.mkdir()
+    entered: list[bool] = []
+    monkeypatch.setattr(sys, "argv", ["ethos", "mcp", "--create-target", "--root", str(target)])
+    monkeypatch.setattr(
+        product_cli,
+        "git_common_dir",
+        lambda _root: pytest.fail("creation selected the target's runtime"),
+    )
+    monkeypatch.setattr(product_cli, "main", lambda: entered.append(True))
+
+    product_cli.console_main()
+
+    assert entered == [True]
 
 
 def test_greenfield_apply_forms_one_author_attributed_repository(

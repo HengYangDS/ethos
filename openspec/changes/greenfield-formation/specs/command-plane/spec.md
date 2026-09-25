@@ -28,3 +28,14 @@ the default existing-repository adoption contract SHALL remain unchanged.
 - **WHEN** CLI, SDK or MCP selects `adopt --evolve-starter` on a formed repository
 - **THEN** the same owner checks recorded starter provenance and returns a reviewable old/current/new proposal with exact changed paths or a typed refusal
 - **AND** preview changes no project files or refs; `--apply` cannot use generator provenance as repository write authority.
+
+#### Scenario: MCP binds an absent formation target
+
+- **WHEN** an MCP host explicitly selects `mcp --create-target --root` for an absent destination
+- **THEN** its adopt tool consumes the same typed formation plan as CLI and SDK, while default MCP binding still requires an existing root
+- **AND** the requested root and actor remain bound across calls; parent retargeting, root overrides and an existing target cannot redirect creation.
+
+#### Scenario: A Git root has no accepted commit
+
+- **WHEN** status or candidate bootstrap observes an unborn accepted branch
+- **THEN** it reports the missing accepted HEAD and a first-commit recovery action without creating a candidate ref or emitting a traceback.

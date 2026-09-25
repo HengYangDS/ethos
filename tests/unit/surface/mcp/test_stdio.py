@@ -13,5 +13,6 @@ def test_stdio_discovery_adoption_and_reconnect(tmp_path):
     """Effects, refusals and reconnect must agree through all supported transports."""
     result = verify((sys.executable, "-B", "-m", "ethos.cli"), tmp_path)
     assert result["state"] == "passed"
+    assert result["formation_preview"] == "passed"
     assert result["mutation_surfaces"] == ["cli", "sdk", "mcp"]
     assert result["owned_work_removed"]

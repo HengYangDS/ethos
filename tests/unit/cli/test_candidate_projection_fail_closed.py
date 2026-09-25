@@ -9,6 +9,7 @@ import pytest
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as projection
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.domain.inspection import inspect_repository
+from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
@@ -111,6 +112,31 @@ def test_accepted_status_routes_missing_candidate_to_its_owner(tmp_path: Path) -
     assert "candidate_branch_missing" in result.required_gaps
     assert "lane candidate" in result.next_action
     assert result.user_decision_required
+
+
+@pytest.mark.parametrize("apply", [False, True])
+def test_unborn_accepted_head_refuses_candidate_without_traceback(
+    tmp_path: Path, *, apply: bool
+) -> None:
+    """A new Git repository must make its first commit before candidate bootstrap."""
+    repo = tmp_path / "unborn"
+    repo.mkdir()
+    git(repo, "init", "--quiet", "--initial-branch=dev")
+
+    report = projection.bootstrap_candidate(root=repo, expect_head="", apply=apply)
+
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["accepted_head_unavailable"]
+    assert "first commit" in report["next_action"]
+    assert git(repo, "branch", "--list", "candidate/dev") == ""
+    refresh = projection.refresh_candidate_from_accepted(
+        root=repo, apply=apply, authorized=True, expect_head=""
+    )
+    assert "accepted_head_unavailable" in refresh["required_gaps"]
+    if not apply:
+        status = run_ethos("status", "--root", str(repo), "--json", cwd=repo)
+        assert "accepted_head_unavailable" in status["required_gaps"]
+        assert "first commit" in status["next_action"]
 
 
 def test_candidate_bootstrap_reports_unproven_recovery_before_any_ref_effect(

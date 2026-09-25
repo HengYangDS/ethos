@@ -143,21 +143,27 @@ def _verify_formed(
     expected_guidance: str,
 ) -> str:
     """Reobserve exact Git, installed guidance and every formed output."""
-    code, status, detail = observation
+    code, status, _detail = observation
     data = status.get("data")
+    effect = applied.get("effect")
     if (
         code
         or status.get("verdict") != "pass"
         or not isinstance(data, dict)
         or not isinstance(data.get("head"), str)
-        or data.get("head") != applied.get("head")
+        or not isinstance(effect, dict)
+        or data.get("head") != effect.get("head")
         or data.get("dirty") is not False
         or not isinstance(data.get("hook_runtime"), dict)
         or data["hook_runtime"].get("current") is not True
         or not isinstance(data.get("candidate"), dict)
         or data["candidate"].get("worktree_exists") is not True
     ):
-        message = f"installed_formation_status_invalid:{detail}"
+        message = (
+            f"installed_formation_status_invalid:exit={code}:"
+            f"gaps={status.get('required_gaps')}:"
+            f"head={data.get('head') if isinstance(data, dict) else None}:effect={effect}"
+        )
         raise RuntimeError(message)
     context = status.get("governance_context")
     guidance = context.get("agent_guidance") if isinstance(context, dict) else None
@@ -234,7 +240,10 @@ def prove_formation(
             or not isinstance(plan, dict)
             or target.exists()
         ):
-            message = f"installed_formation_preview_failed:{preview_detail}"
+            message = (
+                f"installed_formation_preview_failed:exit={preview_code}:"
+                f"gaps={preview.get('required_gaps')}:detail={preview_detail[-256:]}"
+            )
             raise RuntimeError(message)
         digest = plan.get("plan_digest")
         candidate = plan.get("candidate_worktree_path")
@@ -263,7 +272,10 @@ def prove_formation(
             or applied_data.get("applied") is not True
             or not target.is_dir()
         ):
-            message = f"installed_formation_apply_failed:{applied_detail}"
+            message = (
+                f"installed_formation_apply_failed:exit={applied_code}:"
+                f"gaps={applied.get('required_gaps')}:detail={applied_detail[-256:]}"
+            )
             raise RuntimeError(message)
         status_command = (str(executable), "status", "--root", str(target), "--json")
         head = _verify_formed(
@@ -300,7 +312,10 @@ def prove_formation(
                 environment=environment,
             )
             if evolved_code or evolved.get("verdict") != "pass":
-                message = f"installed_starter_evolution_preview_failed:{evolved_detail}"
+                message = (
+                    f"installed_starter_evolution_preview_failed:exit={evolved_code}:"
+                    f"gaps={evolved.get('required_gaps')}:detail={evolved_detail[-256:]}"
+                )
                 raise RuntimeError(message)
         formed.append({"starter": starter, "head": head})
     return {

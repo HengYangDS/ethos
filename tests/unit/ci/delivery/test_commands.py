@@ -20,8 +20,40 @@ from tools.ci.delivery.acceptance import adopter as fixture
 from tools.ci.delivery.acceptance import effect
 from tools.ci.delivery.acceptance import invocation
 from tools.ci.delivery.acceptance import lane
+from tools.ci.delivery.acceptance.adopter import _verify_formed
 
 ROOT = Path(__file__).resolve().parents[4]
+
+
+def test_installed_formation_observation_binds_the_effect_head(tmp_path: Path) -> None:
+    """A formation plan is not the result; the applied effect owns the commit OID."""
+    target = tmp_path / "formed"
+    target.mkdir()
+    entry = target / "AGENTS.md"
+    entry.write_text("Run ethos status --root . --json\n", encoding="utf-8")
+    guide = tmp_path / "SKILL.md"
+    guide.write_text("Use the installed product.\n", encoding="utf-8")
+    digest = hashlib.sha256(guide.read_bytes()).hexdigest()
+    head = "a" * 40
+    plan = {
+        "write_plan": [
+            {"path": "AGENTS.md", "content_sha256": hashlib.sha256(entry.read_bytes()).hexdigest()}
+        ]
+    }
+    status = {
+        "verdict": "pass",
+        "data": {
+            "head": head,
+            "dirty": False,
+            "hook_runtime": {"current": True},
+            "candidate": {"worktree_exists": True},
+        },
+        "governance_context": {"agent_guidance": {"sha256": digest, "path": str(guide)}},
+    }
+
+    assert _verify_formed(target, plan, {"effect": {"head": head}}, (0, status, ""), digest) == head
+    with pytest.raises(RuntimeError, match="installed_formation_status_invalid"):
+        _verify_formed(target, plan, {"head": head}, (0, status, ""), digest)
 
 
 def _run(*command: str, cwd: Path | None = None) -> str:

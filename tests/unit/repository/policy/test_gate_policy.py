@@ -11,7 +11,7 @@ from ethos.adapters.repo.gate_policy import resolve_proof_policies
 from ethos.repository.policy.gates import canonical_gate_command
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
-from tests.support.governed_repository import declare_fixture_code_correctness
+from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_script_gate_policy
 
@@ -79,12 +79,7 @@ def test_gate_policy_identity_binds_profile_semantics_and_python_command(tmp_pat
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     profile = repo / ".ethos/profile.toml"
-    profile.write_text(
-        profile.read_text().replace('[proof]\ngate_registry = "system/gates.toml"\n', "")
-    )
-    (repo / "system/gates.toml").unlink()
-    declare_fixture_code_correctness(repo)
-    head = commit_fixture(repo, "bind inline proof")
+    head = git(repo, "rev-parse", "HEAD")
     selected = resolve_gate_policy(repo, tree_ref=head, full=True)
     first = selected.digest
     assert first == resolve_gate_policy(repo, tree_ref=head, gate_ids=selected.gate_ids).digest

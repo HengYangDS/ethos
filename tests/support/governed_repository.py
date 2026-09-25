@@ -353,7 +353,7 @@ def adopt_and_commit(repo: Path, *, release_mirror: str = "independent") -> str:
         ),
         encoding="utf-8",
     )
-    declare_fixture_proof_registry(repo)
+    declare_fixture_code_correctness(repo)
     _enable_openspec_profile(repo)
     write_publication_topology(repo)
     _write_openspec_baseline(repo)
@@ -514,29 +514,6 @@ def declare_fixture_code_correctness(repo: Path) -> None:
             'trust_bearing = true\ntool_adapter = "repository-native"\n\n'
         )
     profile_path.write_text(profile_path.read_text() + declaration.rstrip() + "\n")
-
-
-def declare_fixture_proof_registry(repo: Path) -> None:
-    """Keep envelope fixtures independent of code-quality qualification."""
-    profile = repo / ".ethos/profile.toml"
-    profile.write_text(
-        profile.read_text(encoding="utf-8") + '\n[proof]\ngate_registry = "system/gates.toml"\n',
-        encoding="utf-8",
-    )
-    registry = repo / "system/gates.toml"
-    registry.parent.mkdir(parents=True, exist_ok=True)
-    registry.write_text(
-        'schema_version = 1\nid = "fixture-proof"\n\n'
-        '[proof_sets]\ndefault = ["sample-tests", "sample-static"]\n'
-        'full = ["sample-tests", "sample-static"]\n\n'
-        '[[gates]]\nid = "sample-tests"\nkind = "test"\n'
-        'command = ["sample", "test"]\nevidence_class = "proof"\n'
-        "trust_bearing = true\n\n"
-        '[[gates]]\nid = "sample-static"\nkind = "typing"\n'
-        'command = ["sample", "typecheck"]\nevidence_class = "contract"\n'
-        "trust_bearing = true\n",
-        encoding="utf-8",
-    )
 
 
 def exact_lease(

@@ -461,16 +461,18 @@ def test_canonical_json_bytes_use_utf16_key_order_and_utf8_strings() -> None:
 
 
 @pytest.mark.parametrize(
-    ("invalid", "error"),
-    [
-        pytest.param(1.5, "semantic_json_value_invalid", id="float"),
-        pytest.param("\ud800", "semantic_string_surrogate_invalid", id="surrogate"),
-        pytest.param(9_007_199_254_740_992, "semantic_integer_out_of_range", id="integer"),
-    ],
+    "case",
+    ["float", "surrogate", "integer"],
 )
 def test_canonical_json_digest_rejects_values_outside_closed_grammar(
-    invalid: object, error: str
+    case: str,
 ) -> None:
+    # Keep malformed values out of pytest's serialized case metadata.
+    invalid, error = {
+        "float": (1.5, "semantic_json_value_invalid"),
+        "surrogate": ("\ud800", "semantic_string_surrogate_invalid"),
+        "integer": (9_007_199_254_740_992, "semantic_integer_out_of_range"),
+    }[case]
     with pytest.raises((TypeError, ValueError), match=error):
         canonical_json_digest({"value": invalid})
 

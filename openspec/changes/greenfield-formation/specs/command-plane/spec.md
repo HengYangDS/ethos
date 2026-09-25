@@ -22,3 +22,9 @@ the default existing-repository adoption contract SHALL remain unchanged.
 
 - **WHEN** `ethos adopt` is used without `--create` on an existing repository
 - **THEN** it retains exact-HEAD-bound minimal adoption and does not write a project scaffold.
+
+#### Scenario: A caller previews starter evolution
+
+- **WHEN** CLI, SDK or MCP selects `adopt --evolve-starter` on a formed repository
+- **THEN** the same owner checks recorded starter provenance and returns a reviewable old/current/new proposal with exact changed paths or a typed refusal
+- **AND** preview changes no project files or refs; `--apply` cannot use generator provenance as repository write authority.

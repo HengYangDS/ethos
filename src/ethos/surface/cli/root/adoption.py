@@ -13,6 +13,7 @@ def adopt(
     *,
     root: RootOption | None = None,
     create: bool = False,
+    evolve_starter: bool = False,
     purpose: str = "",
     starter: str = "",
     author_name: str = "",
@@ -31,6 +32,7 @@ def adopt(
     result = adopt_repository(
         target,
         create=create,
+        evolve_starter=evolve_starter,
         purpose=purpose,
         starter=starter,
         author_name=author_name,

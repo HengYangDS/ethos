@@ -81,6 +81,16 @@ algorithm or changing adopter files during preview. A clean object merge is a
 candidate, not semantic acceptance; a conflict preserves authored bytes and
 requires an explicit decision before normal repository admission.
 
+The public `adopt --evolve-starter` path is preview-only. It reads the one
+formation result from the existing Attestation Set, checks its repository and
+initial Git object, verifies the recorded starter byte digests, and runs the
+currently installed native generator in owned scratch. The original project
+name comes from the recorded baseline's native `pyproject.toml`, not a Work Lane
+directory name. It returns a Git merge patch or conflict without touching the
+adopter. `--apply` is refused: review and effect admission belong to a current
+owned Work Lane, not to generator provenance. This distinction remains open for
+the full effect and installed-product replay in tasks 2.2 and 2.3.
+
 Copier is not the update owner for this `uv` starter. Its documented update
 path expects a Copier answers file and versioned Git template, and can run
 migrations while writing conflicts into the destination. Adding those carriers

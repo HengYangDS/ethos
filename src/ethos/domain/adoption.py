@@ -6,6 +6,7 @@ from pathlib import Path
 import ethos.adapters.repo.git as git
 from ethos.adapters.mutation.decision import request_gaps
 from ethos.adapters.repo.adoption import adoption_plan
+from ethos.adapters.repo.starter.evolution import plan_starter_evolution
 from ethos.adapters.repo.starter.formation import formation_plan
 from ethos.contracts.verdict import report_verdict
 from ethos.domain.execution import application_result
@@ -36,6 +37,7 @@ def adopt_repository(
     root: Path,
     *,
     create: bool = False,
+    evolve_starter: bool = False,
     purpose: str = "",
     starter: str = "",
     author_name: str = "",
@@ -46,6 +48,17 @@ def adopt_repository(
     expect_plan_digest: str | None = None,
 ) -> EthosResult:
     """Plan or apply native adoption with unchanged exact-request admission."""
+    if evolve_starter:
+        return _evolve_starter(
+            root,
+            purpose=purpose,
+            starter=starter,
+            create=create,
+            apply=apply,
+            authorize=authorize,
+            expect_head=expect_head,
+            expect_plan_digest=expect_plan_digest,
+        )
     if create:
         return _form_repository(
             root,
@@ -127,6 +140,74 @@ def adopt_repository(
                 "current_head": current_head,
             }
         },
+    )
+
+
+def _evolve_starter(
+    root: Path,
+    *,
+    purpose: str,
+    starter: str,
+    create: bool,
+    apply: bool,
+    authorize: bool,
+    expect_head: str | None,
+    expect_plan_digest: str | None,
+) -> EthosResult:
+    """Expose a reviewed starter proposal without granting generator write authority."""
+    target = root.resolve()
+    gap = (
+        "starter_evolution_requires_work_lane"
+        if apply or authorize
+        else "starter_evolution_request_invalid"
+        if create or expect_plan_digest is not None
+        else "starter_evolution_starter_unsupported"
+        if starter not in {"", "python-library"}
+        else ""
+    )
+    if gap:
+        return EthosResult(
+            command="adopt",
+            verdict="block",
+            state="blocked",
+            required_gaps=(gap,),
+            next_action="Use preview; apply reviewed changes through an owned Work Lane",
+            data={"root": str(target), "changed_paths": [], "patch": ""},
+        )
+    report = plan_starter_evolution(target, purpose=purpose)
+    inputs = report.get("source_inputs")
+    current = inputs.get("current") if isinstance(inputs, dict) else None
+    if expect_head is not None and current != expect_head:
+        report = {
+            "verdict": "block",
+            "required_gaps": ["starter_evolution_head_changed"],
+            "changed_paths": [],
+            "patch": "",
+        }
+    verdict = report_verdict(report)
+    gaps = tuple(string_sequence(report.get("required_gaps")))
+    changed = tuple(string_sequence(report.get("changed_paths")))
+    action = (
+        "Review the patch, then obtain exact-path prewrite in an owned Work Lane"
+        if verdict == "pass" and changed
+        else "No starter changes to apply"
+        if verdict == "pass"
+        else "Resolve the reported conflict without replacing authored bytes"
+        if "starter_evolution_conflict" in gaps
+        else "Establish valid formation provenance before proposing an upgrade"
+        if "starter_evolution_provenance_missing" in gaps
+        else "Inspect required_gaps and reobserve the repository before retrying"
+    )
+    return EthosResult(
+        command="adopt",
+        verdict=verdict,
+        state="planned" if verdict == "pass" else "unknown" if verdict == "unknown" else "blocked",
+        summary={"planned_file_count": len(changed)},
+        required_gaps=gaps,
+        next_action=action,
+        user_decision_required=(verdict == "pass" and bool(changed))
+        or "starter_evolution_conflict" in gaps,
+        data=report | {"root": str(target)},
     )
 
 

@@ -2344,9 +2344,13 @@ another role authority; candidate labels cannot overrule native facts or the
 trusted prior. Syntax classifiers may suggest a conflict, but cannot certify a
 role. Missing role or discovery remains unknown, not an empty subject set.
 Each applicable property is judged over its exact subject scope and may need
-several conjunctive reports. A qualified adapter interprets fresh reports from
-the existing native execution; independent reruns are risk-selected, not the
-default. Gate names, exit codes and aggregate green cannot replace missing
+several conjunctive reports. An arbitrary repository command can fabricate
+passing JUnit and V8-shaped files while never running a tracked test; such
+command-authored bytes cannot qualify behavior. The product-owned native test
+invocation instead selects tracked tests and consumes its runner-produced JUnit
+and LCOV, rejecting unexecuted production modules. Adopters should remove
+duplicated tests from wrappers rather than trade this boundary for a nominal
+one-run result. Gate names, exit codes and aggregate green cannot replace missing
 scope or proof. First adoption exposes unqualified claims for review. Provider
 qualification requires good/bad, missing-report and narrowed-scope cases.
 

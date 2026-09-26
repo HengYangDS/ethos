@@ -20,7 +20,7 @@ from ethos.repository.policy.code_subjects import CodeSubject
 from ethos.repository.policy.code_subjects import observed_code_subjects
 from ethos.repository.policy.quality_reports import go_covered_paths
 from ethos.repository.policy.quality_reports import junit_report
-from ethos.repository.policy.quality_reports import v8_covered_paths
+from ethos.repository.policy.quality_reports import lcov_covered_paths
 
 
 def _invalid(reason: str) -> Never:
@@ -127,7 +127,7 @@ def _go_static(root: Path, paths: tuple[str, ...]) -> dict[str, object]:
 
 
 def _javascript_behavior(root: Path, subjects: tuple[CodeSubject, ...]) -> dict[str, object]:
-    """Require native tests and V8 execution evidence for all production modules."""
+    """Use one product-owned Node test run for cases and per-module coverage."""
     if not (root / "package.json").is_file():
         _invalid("javascript_package_missing")
     tests = tuple(subject.path for subject in subjects if subject.is_test)
@@ -135,20 +135,29 @@ def _javascript_behavior(root: Path, subjects: tuple[CodeSubject, ...]) -> dict[
     if not tests or not production:
         _invalid("javascript_tests_or_sources_missing")
     with TemporaryDirectory(prefix="ethos-javascript-coverage-") as directory:
+        junit = Path(directory) / "junit.xml"
+        lcov = Path(directory) / "coverage.lcov"
         result = run_command(
             root,
-            (_executable("node"), "--test", "--test-reporter=junit", *tests),
+            (
+                _executable("node"),
+                "--test",
+                "--experimental-test-coverage",
+                "--test-reporter=junit",
+                f"--test-reporter-destination={junit}",
+                "--test-reporter=lcov",
+                f"--test-reporter-destination={lcov}",
+                *tests,
+            ),
             timeout=300,
-            env={"NODE_V8_COVERAGE": directory},
+            remove_env=("NODE_OPTIONS", "NODE_V8_COVERAGE"),
         )
         if result.returncode:
             _invalid("javascript_tests_failed")
-        junit = Path(directory) / "junit.xml"
-        junit.write_text(result.stdout, encoding="utf-8")
         counts, failed = junit_report((junit,))
         if failed:
             _invalid("javascript_tests_failed")
-        observed = v8_covered_paths(root, Path(directory), production)
+        observed = lcov_covered_paths(root, lcov, production)
     return {
         "language": "javascript",
         "tests_passed": counts["total"] - counts["skipped"],

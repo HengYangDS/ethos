@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.gates.native_evidence as native_evidence
 import ethos.adapters.gates.runner as gate_runner
 import ethos.adapters.gates.tool as gate_tool
 from ethos.contracts.gates import Gate
@@ -107,6 +108,107 @@ def test_native_evidence_adapter_does_not_qualify_self_reported_json(tmp_path: P
     assert result.verdict == "block"
     assert result.exit_code == 0
     assert result.evidence[0]["report"]["verdict"] == "block"
+
+
+def test_native_gate_rejects_invalid_interpreter_before_running(tmp_path: Path) -> None:
+    """An importable product function is not automatically an evidence adapter."""
+    gate = Gate(
+        id="behavior",
+        kind="test",
+        command=(sys.executable, "-c", "pass"),
+        evidence_adapters=("ethos.adapters.gates.native_evidence:evidence_gaps",),
+    )
+
+    result = gate_runner.LocalGateRunner().run(_node(gate), gate, root=tmp_path)
+
+    assert result.verdict == "block"
+    expected = f"native_evidence_adapter_invalid:{gate.evidence_adapters[0]}"
+    assert result.diagnostics[0]["required_gaps"] == [
+        f"native_evidence_unavailable:behavior:{expected}"
+    ]
+
+
+def test_native_gate_rejects_conflicting_environment_requests(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two interpreters cannot silently override one another's process inputs."""
+    adapters = ("ethos.test:first", "ethos.test:second")
+    monkeypatch.setattr(
+        native_evidence,
+        "_load",
+        lambda reference: native_evidence.NativeEvidenceAdapter(
+            lambda _directory: {"NODE_OPTIONS": reference},
+            lambda _root, _directory, _completed: {"verdict": "pass"},
+        ),
+    )
+    gate = Gate(
+        id="behavior",
+        kind="test",
+        command=(sys.executable, "-c", "pass"),
+        evidence_adapters=adapters,
+    )
+
+    result = gate_runner.LocalGateRunner().run(_node(gate), gate, root=tmp_path)
+
+    assert result.verdict == "block"
+    assert result.diagnostics[0]["required_gaps"] == [
+        "native_evidence_unavailable:behavior:native_evidence_environment_conflict:NODE_OPTIONS"
+    ]
+
+
+def test_native_gate_rejects_failed_execution_without_junit(tmp_path: Path) -> None:
+    """A failed command cannot inherit behavior success from report configuration."""
+    gate = Gate(
+        id="behavior",
+        kind="test",
+        command=(sys.executable, "-c", "raise SystemExit(2)"),
+        evidence_adapters=("ethos.adapters.gates.native_evidence:javascript_behavior",),
+    )
+
+    result = gate_runner.LocalGateRunner().run(_node(gate), gate, root=tmp_path)
+
+    assert result.verdict == "block"
+    assert result.exit_code == 2
+    assert result.evidence[0]["report"]["required_gaps"] == ["native_javascript_tests_failed"]
+
+
+def test_native_gate_rejects_symlinked_material(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A command cannot make the interpreter hash a file outside its owned root."""
+    target = tmp_path / "external"
+    target.write_text("outside", encoding="utf-8")
+    probe = tmp_path / "link-probe"
+    try:
+        probe.symlink_to(target)
+    except OSError:
+        pytest.skip("creating symlinks is unavailable on this host")
+    probe.unlink()
+
+    def environment(directory: Path) -> dict[str, str]:
+        (directory / "linked-report").symlink_to(target)
+        return {}
+
+    monkeypatch.setattr(
+        native_evidence,
+        "_load",
+        lambda _reference: native_evidence.NativeEvidenceAdapter(
+            environment, lambda _root, _directory, _completed: {"verdict": "pass"}
+        ),
+    )
+    gate = Gate(
+        id="behavior",
+        kind="test",
+        command=(sys.executable, "-c", "pass"),
+        evidence_adapters=("ethos.test:symlink",),
+    )
+
+    result = gate_runner.LocalGateRunner().run(_node(gate), gate, root=tmp_path)
+
+    assert result.verdict == "block"
+    assert result.diagnostics[0]["required_gaps"] == [
+        "native_evidence_unavailable:behavior:native_evidence_material_invalid"
+    ]
 
 
 @pytest.mark.parametrize(

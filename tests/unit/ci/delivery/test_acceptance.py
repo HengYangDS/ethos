@@ -319,7 +319,7 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         (
             effect.adopter_fixture,
             "prove_formation",
-            {"state": "passed", "first_change": "lane_admitted"},
+            {"state": "passed", "first_change": "lane_admitted", "agent_handoff": "passed"},
         ),
         (
             effect,
@@ -470,6 +470,7 @@ def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact):
     }
     assert payload["conformance"]["formation"]["state"] == "passed"
     assert payload["conformance"]["formation"]["first_change"] == "lane_admitted"
+    assert payload["conformance"]["formation"]["agent_handoff"] == "passed"
     with pytest.raises(ValueError, match="package_first_change_claim_invalid"):
         receipt.package_acceptance_evidence(
             **(
@@ -480,6 +481,13 @@ def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact):
     with pytest.raises(ValueError, match="package_formation_incomplete"):
         receipt.package_acceptance_evidence(
             **(case.receipt.call_args.kwargs | {"formation": {"state": "blocked"}})
+        )
+    with pytest.raises(ValueError, match="package_agent_handoff_incomplete"):
+        receipt.package_acceptance_evidence(
+            **(
+                case.receipt.call_args.kwargs
+                | {"formation": {"state": "passed", "first_change": "lane_admitted"}}
+            )
         )
     with pytest.raises(ValueError, match="package_command_plane_incomplete"):
         receipt.package_acceptance_evidence(

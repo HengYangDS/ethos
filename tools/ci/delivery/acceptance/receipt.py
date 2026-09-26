@@ -55,6 +55,9 @@ def package_acceptance_evidence(
     if formation.get("first_change") != "lane_admitted":
         message = "package_first_change_claim_invalid"
         raise ValueError(message)
+    if formation.get("agent_handoff") != "passed":
+        message = "package_agent_handoff_incomplete"
+        raise ValueError(message)
     try:
         wheel_path = wheel.relative_to(root).as_posix()
     except ValueError:

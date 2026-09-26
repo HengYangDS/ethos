@@ -79,12 +79,79 @@ def _official_command(status: dict[str, object], environment: Mapping[str, str])
     return command[0], command[1]
 
 
+def _handoff(
+    executable: Path,
+    lane: Path,
+    started: dict[str, object],
+    environment: Mapping[str, str],
+    source_actor: str,
+) -> tuple[dict[str, object], dict[str, str]]:
+    """Transfer one exact Lease, then let only the new Agent continue."""
+    lease = started.get("lease")
+    branch = started.get("branch")
+    if (
+        not isinstance(lease, dict)
+        or not isinstance(lease.get("generation"), int)
+        or not isinstance(lease.get("expires_at"), str)
+        or not isinstance(branch, str)
+    ):
+        message = "installed_first_change_lease_invalid"
+        raise TypeError(message)
+    successor = "agent:test:package-only:successor"
+    source_env = {**environment, "ETHOS_ACTOR": source_actor, "ETHOS_CHANGE": _CHANGE}
+    successor_env = {**environment, "ETHOS_ACTOR": successor, "ETHOS_CHANGE": _CHANGE}
+    request = (
+        str(executable),
+        "lane",
+        "handoff",
+        "transfer",
+        "--generation",
+        str(lease["generation"]),
+        "--expires-at",
+        lease["expires_at"],
+        "--branch",
+        branch,
+        "--holder-ref",
+        source_actor,
+        "--target-holder-ref",
+        successor,
+        "--root",
+        str(lane),
+    )
+    code, preview, detail = invoke(lane, (*request, "--json"), environment=source_env)
+    if code or (preview.get("verdict"), preview.get("state")) != ("pass", "planned"):
+        message = f"installed_first_change_handoff_preview_failed:{detail[-512:]}"
+        raise RuntimeError(message)
+    code, applied, detail = invoke(lane, (*request, "--apply", "--json"), environment=source_env)
+    output = applied.get("data")
+    transferred = output.get("lease") if isinstance(output, dict) else None
+    if (
+        code
+        or (applied.get("verdict"), applied.get("state")) != ("pass", "transferred")
+        or not isinstance(transferred, dict)
+        or transferred.get("holder_ref") != successor
+        or transferred.get("generation") != lease["generation"] + 1
+    ):
+        message = f"installed_first_change_handoff_failed:{detail[-512:]}"
+        raise RuntimeError(message)
+    command = (str(executable), "status", "--root", str(lane), "--json")
+    old_code, old, diagnostic = invoke(lane, command, environment=source_env)
+    if old_code or old.get("required_gaps") != [f"lease_holder_mismatch:{branch}"]:
+        message = f"installed_first_change_old_holder_not_fenced:{diagnostic[-512:]}"
+        raise RuntimeError(message)
+    new_code, current, diagnostic = invoke(lane, command, environment=successor_env)
+    if new_code or current.get("required_gaps") != [f"openspec_requested_change_missing:{_CHANGE}"]:
+        message = f"installed_first_change_successor_status_invalid:{diagnostic[-512:]}"
+        raise RuntimeError(message)
+    return current, successor_env
+
+
 def prove_first_change(
     executable: Path,
     target: Path,
     *,
     environment: Mapping[str, str],
-) -> str:
+) -> dict[str, str]:
     """Prove first ADDED intent and write admission without source or candidate edits."""
     actor = "agent:test:package-only:formation"
     selected = {**environment, "ETHOS_ACTOR": actor, "ETHOS_CHANGE": _CHANGE}
@@ -106,21 +173,19 @@ def prove_first_change(
     )
     data = started.get("data")
     path = data.get("path") if isinstance(data, dict) else None
-    if started_code or started.get("verdict") != "pass" or not isinstance(path, str):
+    if (
+        started_code
+        or started.get("verdict") != "pass"
+        or not isinstance(data, dict)
+        or not isinstance(path, str)
+    ):
         message = f"installed_first_change_lane_failed:{detail[-512:]}"
         raise RuntimeError(message)
     lane = Path(path)
     if not lane.is_dir() or lane.is_symlink():
         message = "installed_first_change_lane_missing"
         raise RuntimeError(message)
-    status_code, status, diagnostic = invoke(
-        lane, (str(executable), "status", "--root", str(lane), "--json"), environment=selected
-    )
-    if status_code or status.get("required_gaps") != [
-        f"openspec_requested_change_missing:{_CHANGE}"
-    ]:
-        message = f"installed_first_change_status_invalid:{diagnostic[-512:]}"
-        raise RuntimeError(message)
+    status, selected = _handoff(executable, lane, data, environment, actor)
     command = _official_command(status, selected)
     _admitted(lane, executable, selected, f"{_ROOT}/.openspec.yaml")
     created = run_command(
@@ -164,4 +229,4 @@ def prove_first_change(
         message = f"installed_first_change_validation_failed:{validated.stderr[-256:]}"
         raise RuntimeError(message)
     _admitted(lane, executable, selected, f"{_ROOT}/specs/foundation/spec.md")
-    return "lane_admitted"
+    return {"first_change": "lane_admitted", "agent_handoff": "passed"}

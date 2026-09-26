@@ -31,7 +31,6 @@ from tests.support.proof import seed_executed_proof
 
 FIXTURE_ROOT = Path(__file__).parents[2] / "fixtures/contracts-land"
 FULL_GATES = (FIXTURE_ROOT / "full-gates.toml").read_text()
-FULL_PROFILE = (FIXTURE_ROOT / "full-profile.toml").read_text()
 CHANGED_TOPOLOGY = (FIXTURE_ROOT / "changed-topology.toml").read_text()
 
 
@@ -201,9 +200,6 @@ def test_land_readiness_claim_matrix(
     if claim == LAND_CASES[8]:
         commit_fixture_file(
             fixture.worktree, "system/gates.toml", FULL_GATES, "declare split proof floors"
-        )
-        commit_fixture_file(
-            fixture.worktree, ".ethos/profile.toml", FULL_PROFILE, "select split proof floors"
         )
     commit_fixture_file(fixture.worktree, "FEATURE.md", "# feature\n", "feature work")
     if claim in LAND_CASES[4:6]:

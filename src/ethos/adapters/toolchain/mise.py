@@ -53,6 +53,7 @@ def run_mise(
             if key in {"MISE_DATA_DIR", "MISE_CACHE_DIR", "MISE_INSTALLS_DIR"}
         } | {
             "MISE_SAFE": "1",
+            "MISE_DISABLE_UPDATE_WARNING": "1",
             "MISE_LOCKED": "1",
             "MISE_NOT_FOUND_SYSTEM_FALLBACK": "0",
             "MISE_YES": "0",

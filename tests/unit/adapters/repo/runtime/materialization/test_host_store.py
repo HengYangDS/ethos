@@ -5,13 +5,17 @@ from __future__ import annotations
 import shutil
 import sys
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
 import ethos.adapters.repo.runtime.materialization.effect as materialization
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from tests.support.runtime_scenarios import REPOSITORY_ROOT
 from tests.support.runtime_scenarios import materialize_runtime_case
+from tests.support.runtime_scenarios import runtime_build
 
 
 def test_explicit_installed_supply_is_pinned_before_repository_selection(
@@ -55,6 +59,46 @@ def test_explicit_installed_supply_is_pinned_before_repository_selection(
         )
         == pinned_python
     )
+
+
+@pytest.mark.parametrize("lock_changed", [False, True])
+def test_complete_external_predecessor_allows_new_source_build(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, lock_changed: bool
+) -> None:
+    """A valid old installation is not damaged merely because source advanced."""
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    common = Path(git_common_dir(repo))
+    previous = require_selected_runtime(python.parent)
+    installed = tmp_path / "installed"
+    shutil.copytree(common / "ethos", installed)
+    selected = activate_runtime(common, installed / "runtime" / previous.digest)
+    selector = common / "ethos/runtime/CURRENT"
+    before = selector.read_bytes()
+    successor = runtime_build("c" * 40, "d" * 40)
+    if lock_changed:
+        digest = materialization.file_sha256
+        monkeypatch.setattr(
+            materialization,
+            "file_sha256",
+            lambda path: "e" * 64 if path == REPOSITORY_ROOT / "uv.lock" else digest(path),
+        )
+    assert selected.build == previous.build != successor
+    rebuild = Mock(side_effect=AssertionError("new runtime build reached"))
+    monkeypatch.setattr(materialization, "resolve_locked_environment_python", rebuild)
+    with pytest.raises(AssertionError, match="new runtime build reached"):
+        materialization.materialize_runtime(
+            repo, Path(sys.executable), expected_build=successor, build_source=REPOSITORY_ROOT
+        )
+    assert selector.read_bytes() == before
+
+    wheel = next((installed / "packages" / selected.wheel_sha256).glob("ethos-*.whl"))
+    wheel.unlink()
+    with pytest.raises(ValueError, match="hook_runtime_installed_supply_invalid"):
+        materialization.materialize_runtime(
+            repo, Path(sys.executable), expected_build=successor, build_source=REPOSITORY_ROOT
+        )
+    rebuild.assert_called_once_with(REPOSITORY_ROOT)
+    assert selector.read_bytes() == before
 
 
 def test_pinned_runtime_path_leaves_room_for_native_windows_dependencies(

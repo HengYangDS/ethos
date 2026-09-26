@@ -15,3 +15,11 @@
 - [x] 3.1 Reproduce the hosted adopter test failure with a relative UV cache and verify that moving into its temporary repository loses the supplied cache.
 - [x] 3.2 Bind GitHub cache paths to the workspace in CUE, regenerate its workflow, and add a regression that rejects relative cache paths.
 - [x] 3.3 Run the adopter quality cases against the supplied absolute cache and recheck both Forge projections, strict OpenSpec, formatting, lint, and diff hygiene.
+- [x] 3.4 Reproduce the cold-cache offline-solve failure, replace test-time lock resolution with a checked-in project/lock fixture, and retain the missing-lock and lock-drift negative cases.
+- [x] 3.5 Recheck the full adopter quality suite, CI projections, strict OpenSpec, formatting, lint, and diff hygiene for the revised source.
+
+## 4. Accept and verify hosted delivery
+
+- [ ] 4.1 Commit and prove the revised source at its exact HEAD, then accept and install it through the native lane and runtime transitions.
+- [ ] 4.2 Publish the accepted `dev` source to each selected Forge through fresh receipts and verify all required jobs on that exact commit.
+- [ ] 4.3 Publish verified `main` through fresh receipts and confirm both remote refs, leaving the Change active until hosted evidence is complete.

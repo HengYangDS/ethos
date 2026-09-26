@@ -5,7 +5,10 @@ still uses an immutable supply image built from the previous inputs. Its
 bootstrap correctly stops at `ci_supply_input_mismatch` before any quality job
 can run. Separately, GitHub's relative UV cache path moves when an adopter
 quality test changes its working directory, making an offline lock resolution
-fail despite the supplied cache. Both execution paths must be repaired without
+fail despite the supplied cache. Anchoring that cache exposed a second failure:
+the same test still asks a cold hosted runner to resolve a new lockfile offline.
+The supply image guarantees locked installation inputs, not package-index
+metadata for a fresh solve. Both execution paths must be repaired without
 bypassing their checks.
 
 ## What Changes
@@ -17,6 +20,9 @@ bypassing their checks.
   graph or weakening the input-hash check.
 - Anchor GitHub's UV and CI-tool cache paths to the checkout workspace in CUE,
   regenerate its workflow, and test the child-working-directory boundary.
+- Commit the adopter quality sample's project and lockfile as a fixture, so
+  its positive and defect cases test the locked toolchain without resolving a
+  new lockfile on a hosted runner. Preserve missing-lock and lock-drift cases.
 - Verify the published image manifest against the five locked inputs, then
   publish and inspect the repaired source and hosted jobs on each selected peer.
 
@@ -29,6 +35,6 @@ existing fail-closed CI supply contract for changed lock inputs. The
 ## Impact
 
 The existing CUE CI declaration, both generated Forge workflows, the CI
-emulator image assertion, one architecture regression, and hosted CI
-observations. No new dependency, command plane, credential store, or release
-tag is introduced.
+emulator image assertion, one architecture regression, the adopter quality
+test and its locked fixture, and hosted CI observations. No new dependency,
+command plane, credential store, or release tag is introduced.

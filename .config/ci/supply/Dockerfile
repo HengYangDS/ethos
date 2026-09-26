@@ -22,6 +22,7 @@ COPY src/ethos/adapters/__init__.py src/ethos/adapters/process.py src/ethos/adap
 COPY src/ethos/adapters/toolchain/__init__.py src/ethos/adapters/toolchain/mise.py src/ethos/adapters/toolchain/
 COPY pyproject.toml uv.lock VERSION README.md package.json package-lock.json ./
 COPY distributions/npm/package.json distributions/npm/package.json
+COPY tests/fixtures/quality-sample/pyproject.toml tests/fixtures/quality-sample/uv.lock tests/fixtures/quality-sample/
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git openssh-client procps lsof libatomic1 curl ca-certificates xz-utils coreutils \
@@ -32,12 +33,18 @@ RUN for version in $(python3 -c 'import tomllib; print(" ".join(tomllib.load(ope
     done
 RUN uv python install --no-bin "$(python3 -c 'import platform; print(platform.python_version())')" \
     && uv sync --locked --no-install-project --group dev \
+    && mkdir -p /tmp/ethos-quality-sample/src/sample \
+    && cp tests/fixtures/quality-sample/pyproject.toml tests/fixtures/quality-sample/uv.lock /tmp/ethos-quality-sample/ \
+    && touch /tmp/ethos-quality-sample/src/sample/__init__.py \
+    && (cd /tmp/ethos-quality-sample && uv sync --no-config --locked --group dev) \
+    && rm -rf /tmp/ethos-quality-sample \
     && npm ci --ignore-scripts \
     && PYTHONPATH=src .venv/bin/python tools/ci/toolchain/native.py --root . --mise gitleaks scc syft \
     && sha256sum .config/checks/node/runtime.toml .config/mise/config.toml \
          .config/mise/mise.lock .config/ci/supply/Dockerfile \
          .config/ci/supply/Dockerfile.dockerignore pyproject.toml uv.lock VERSION \
          README.md package.json package-lock.json distributions/npm/package.json \
+         tests/fixtures/quality-sample/pyproject.toml tests/fixtures/quality-sample/uv.lock \
          tools/ci/scripts/install-node.sh tools/ci/scripts/download-file.sh \
          tools/ci/scripts/with-python-runtime.sh tools/ci/scripts/mise-install.sh \
          tools/ci/toolchain/native.py src/ethos/__init__.py \
@@ -45,6 +52,6 @@ RUN uv python install --no-bin "$(python3 -c 'import platform; print(platform.py
          src/ethos/adapters/toolchain/__init__.py \
          src/ethos/adapters/toolchain/mise.py > input.sha256 \
     && chown -R 65534:65534 /opt/ethos-supply \
-    && rm -rf .venv node_modules src/ethos tools/ci/toolchain
+    && rm -rf .venv node_modules src/ethos tools/ci/toolchain tests/fixtures/quality-sample
 
 LABEL org.opencontainers.image.source="https://github.com/HengYangDS/ethos"

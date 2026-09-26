@@ -142,6 +142,11 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_pa
             if parent != Path():
                 assert f"!{parent.as_posix()}/" in context_rules
     assert "MISE_DATA_DIR=/opt/ethos-supply/mise-data" in dockerfile
+    assert {
+        "tests/fixtures/quality-sample/pyproject.toml",
+        "tests/fixtures/quality-sample/uv.lock",
+    } <= copy_sources
+    assert "uv sync --no-config --locked --group dev" in dockerfile
     native_command = "tools/ci/toolchain/native.py --root . --mise gitleaks scc syft"
     assert f"PYTHONPATH=src .venv/bin/python {native_command}" in dockerfile
     for relative in copy_sources:
@@ -179,6 +184,7 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_pa
     smoke = github["jobs"]["supply-image"]["steps"][-1]["run"]
     assert "--network none" in smoke
     assert native_command in smoke
+    assert "test_real_locked_python_checks_qualify_the_selected_source[inline-none]" in smoke
 
 
 @pytest.mark.parametrize("provider", ["github", "gitlab"])

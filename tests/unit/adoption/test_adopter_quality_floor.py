@@ -220,12 +220,13 @@ def test_policy_selected_provider_report_must_cover_observed_subjects() -> None:
         ],
     }
     check = {"action_id": "behavior", "stdout": json.dumps(payload)}
+    owner: dict[str, object] = {
+        "kind": "profile",
+        "quality_floor_version": 1,
+        "code_correctness_map": {"behavior": "behavior"},
+    }
     policy = {
-        "owner": {
-            "kind": "profile",
-            "quality_floor_version": 1,
-            "code_correctness_map": {"behavior": "behavior"},
-        },
+        "owner": owner,
         "gates": [
             {
                 "id": "behavior",
@@ -248,7 +249,7 @@ def test_policy_selected_provider_report_must_cover_observed_subjects() -> None:
         }
     ]
     assert quality_obligation_gaps(policy, (check,), source_tree="a" * 40) == ()
-    policy["owner"]["quality_subjects"] = {"behavior": ["src/app.py", "src/other.py"]}
+    owner["quality_subjects"] = {"behavior": ["src/app.py", "src/other.py"]}
     assert quality_obligation_gaps(policy, (check,), source_tree="a" * 40) == (
         "quality_obligation_unproven:behavior",
     )
@@ -499,3 +500,42 @@ def test_native_static_adapter_distinguishes_report_from_diagnostics(
         lambda *_args, **_kwargs: SimpleNamespace(stdout=stdout, returncode=returncode),
     )
     assert native_quality.static_report(tmp_path)["required_gaps"] == [gap]
+
+
+def test_python_behavior_detaches_the_outer_uv_project(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An adopter's locked run must not inherit ETHOS's project selection."""
+
+    def observe(_root: Path, _command: tuple[str, ...], **options: object) -> None:
+        removed = options["remove_env"]
+        assert isinstance(removed, tuple)
+        assert "UV_PROJECT_ENVIRONMENT" in removed
+        message = "observed"
+        raise ValueError(message)
+
+    monkeypatch.setattr(native_quality, "_source", lambda _root: ("a" * 40, ("src/app.py",)))
+    monkeypatch.setattr(native_quality, "_behavior_scope", lambda _root, _paths: ("src/app.py",))
+    monkeypatch.setattr(native_quality, "run_command", observe)
+    assert native_quality.behavior_report(tmp_path)["required_gaps"] == [
+        "quality_behavior_observed"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("exit_code", "reason"), [(0, "test_report_missing"), (1, "test_command_failed")]
+)
+def test_python_behavior_distinguishes_command_failure_from_missing_report(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, exit_code: int, reason: str
+) -> None:
+    """A failed locked tool must not masquerade as a filesystem-only failure."""
+    monkeypatch.setattr(
+        native_quality,
+        "run_command",
+        lambda *_args, **_kwargs: SimpleNamespace(returncode=exit_code, stdout="", stderr=""),
+    )
+    monkeypatch.setattr(native_quality, "_source", lambda _root: ("a" * 40, ("src/app.py",)))
+    monkeypatch.setattr(native_quality, "_behavior_scope", lambda _root, _paths: ("src/app.py",))
+    assert native_quality.behavior_report(tmp_path)["required_gaps"] == [
+        f"quality_behavior_{reason}"
+    ]

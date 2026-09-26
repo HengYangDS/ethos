@@ -4,12 +4,17 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 import ethos.adapters.gates.python_quality as native_quality
+from ethos.contracts.plan import PlanNode
+from ethos.contracts.plan import compile_plan
+from ethos.contracts.semantic import Facts
 from ethos.repository.policy.gates import quality_obligation_gaps
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
@@ -259,6 +264,74 @@ def test_policy_selected_provider_report_must_cover_observed_subjects() -> None:
         assert quality_obligation_gaps(policy, (check,), source_tree="a" * 40) == (
             "quality_obligation_unproven:behavior",
         )
+
+
+def test_frozen_transition_plan_policy_preserves_quality_subject_match() -> None:
+    """Proof issuance must judge the same paths before and after plan freezing."""
+    tree = "a" * 40
+    reference = "ethos.adapters.gates.code_quality:behavior_report"
+    policy = {
+        "owner": {
+            "quality_floor_version": 2,
+            "code_correctness_map": {"behavior": "behavior"},
+            "quality_subjects": {"behavior": ["src/app.mjs"]},
+        },
+        "gates": [
+            {
+                "id": "behavior",
+                "execution_identity": ["node", "check"],
+                "execution_mode": "verified-command",
+                "tool_adapter": "ethos",
+                "verification_providers": [reference],
+            }
+        ],
+    }
+    plan = compile_plan(
+        None,
+        Facts(
+            repository="test:quality",
+            head="b" * 40,
+            tree=tree,
+            observed_at=datetime.now(UTC),
+            values={"execution_source": {"worktree": tree, "index": tree}},
+        ),
+        (PlanNode(id="behavior", kind="check", command=("node", "check")),),
+        policy=policy,
+    )
+    evidence = {
+        "axis": "behavior",
+        "source_tree": tree,
+        "selected_paths": ["src/app.mjs"],
+    }
+    check = {
+        "action_id": "behavior",
+        "command": ["node", "check"],
+        "verification": {
+            "gate": "behavior",
+            "providers": [
+                {
+                    "provider": reference,
+                    "report": {
+                        "verdict": "pass",
+                        "quality_evidence": evidence,
+                    },
+                }
+            ],
+        },
+    }
+
+    assert isinstance(plan.policy["owner"]["quality_subjects"]["behavior"], tuple)
+    assert quality_obligation_gaps(policy, (check,), source_tree=tree) == ()
+    assert quality_obligation_gaps(plan.policy, (check,), source_tree=tree) == ()
+    evidence["selected_paths"] = ["src/other.mjs"]
+    assert quality_obligation_gaps(plan.policy, (check,), source_tree=tree) == (
+        "quality_obligation_unproven:behavior",
+    )
+    evidence["selected_paths"] = ["src/app.mjs"]
+    evidence["source_tree"] = "c" * 40
+    assert quality_obligation_gaps(plan.policy, (check,), source_tree=tree) == (
+        "quality_obligation_unproven:behavior",
+    )
 
 
 @pytest.mark.parametrize(

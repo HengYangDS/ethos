@@ -229,7 +229,10 @@ def _quality_evidence_matches(
         and isinstance(selected, (list, tuple))
         and bool(selected)
         and all(isinstance(path, str) and path for path in selected)
-        and (expected is None or list(selected) == expected)
+        and (
+            expected is None
+            or (isinstance(expected, (list, tuple)) and tuple(selected) == tuple(expected))
+        )
     )
 
 

@@ -642,3 +642,9 @@ coordinates. Equal trees alone SHALL NOT establish acceptance or authority.
 - **WHEN** repair provenance is absent, ambiguous, cyclic or does not select the accepted ref
 - **THEN** acceptance is not inferred from matching trees or a historical identity
 - **AND** unrelated plans are not decoded as potential authority for that source
+
+#### Scenario: Ordinary publication does not validate rewritten history
+
+- **WHEN** a peer ref is already current, absent or an ancestor of the signed source
+- **THEN** exact publication admission uses that observed relation without validating a historical repair
+- **AND** a divergent peer still requires completed repair provenance or is rejected

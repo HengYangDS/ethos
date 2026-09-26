@@ -12,9 +12,11 @@ import pytest
 import ethos.adapters.mutation.proof as proof_adapter
 import ethos.adapters.mutation.publication.execution as publication_execution
 import ethos.adapters.mutation.publication.request as publication_request
+import ethos.adapters.repo.commit.integration as commit_integration
 import ethos.repository.release.publication as release_publication
 from ethos.adapters.admission.publication import publication_proof_admission
 from ethos.adapters.admission.publication import ref_update_admission_report
+from ethos.adapters.repo.git_object import zero_oid
 from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import load_branch_role_policy
@@ -131,6 +133,63 @@ def test_publication_contract_failure_matrix(tmp_path: Path) -> None:
         )
         assert isinstance(admission["enforcement_gaps"], list)
         assert any(gap in item for item in admission["enforcement_gaps"])
+
+
+def test_ordinary_publication_does_not_validate_history_repair(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Current, created, and advancing refs need no rewritten-history proof."""
+    repo, peers, head = branch_publication_fixture(tmp_path, proof=False, peer_ids=("gitlab",))
+    repair = Mock(side_effect=AssertionError("ordinary publication queried history repair"))
+    monkeypatch.setattr(publication_request, "repaired_peer_ref_provenance", repair)
+
+    def observe(source: str, expected: str) -> None:
+        effect, observations, gaps = publication_request.observe_remote_publication_effect(
+            root=repo,
+            source_ref=source,
+            target_refs=("refs/heads/dev",),
+            remotes={"gitlab": str(peers["gitlab"])},
+            ref_admissions={
+                "refs/heads/dev": {"ref_kind": "branch", "remote_mutation_allowed": True}
+            },
+        )
+        assert not gaps, (observations, gaps)
+        assert effect is not None
+        update = effect.targets[0].updates[0]
+        assert (update.expected, update.desired) == (expected, source)
+
+    observe(head, head)
+    advanced = commit_fixture_file(repo, "next.txt", "next\n", "fix: next contribution")
+    observe(advanced, head)
+    git(peers["gitlab"], "update-ref", "-d", "refs/heads/dev")
+    observe(advanced, zero_oid(repo))
+    repair.assert_not_called()
+
+
+def test_ordinary_commit_range_does_not_validate_history_repair(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Introduced-commit admission checks normal ancestry before repair provenance."""
+    repo, _peers, head = branch_publication_fixture(tmp_path, proof=False, peer_ids=("gitlab",))
+    repair = Mock(side_effect=AssertionError("ordinary commit range queried history repair"))
+    monkeypatch.setattr(commit_integration, "repaired_peer_ref_provenance", repair)
+
+    def admit(source: str, remote: str, *, trusted_baseline: str = "") -> None:
+        report = commit_integration.commit_range_admission_report(
+            repo,
+            target_ref="refs/heads/dev",
+            proposed_head=source,
+            remote_head=remote,
+            remote_name="origin",
+            trusted_baseline=trusted_baseline,
+        )
+        assert report["verdict"] == "pass", report
+
+    admit(head, head)
+    advanced = commit_fixture_file(repo, "next.txt", "next\n", "fix: next contribution")
+    admit(advanced, head)
+    admit(advanced, zero_oid(repo), trusted_baseline=head)
+    repair.assert_not_called()
 
 
 def test_publication_remote_failure_matrix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

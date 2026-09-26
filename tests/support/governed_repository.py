@@ -403,15 +403,17 @@ def write_publication_topology(
     installation_command: str = "dev/install",
     gitlab_ci_surface: str = ".gitlab-ci.yml",
     github_ci_surface: str = ".github/workflows/verify.yml",
+    materialize_commands: bool = True,
 ) -> None:
     """Declare the canonical independent GitLab and GitHub test peers."""
     release = repo / ".ethos" / "release.toml"
     release.parent.mkdir(parents=True, exist_ok=True)
-    for command in (verification_command, installation_command):
-        path = repo / command
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
-        path.chmod(0o755)
+    if materialize_commands:
+        for command in (verification_command, installation_command):
+            path = repo / command
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            path.chmod(0o755)
     for surface in (gitlab_ci_surface, github_ci_surface):
         path = repo / surface
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -525,7 +527,7 @@ def declare_fixture_code_correctness(repo: Path) -> None:
     profile_path.write_text(profile_path.read_text() + declaration.rstrip() + "\n")
 
 
-def declare_fixture_documentation_proof(repo: Path) -> None:
+def declare_fixture_documentation_proof(repo: Path, *, profile_id: str | None = None) -> None:
     """Use a neutral proof gate without inventing executable code subjects."""
     registry = repo / "system/gates.toml"
     registry.parent.mkdir(parents=True, exist_ok=True)
@@ -539,7 +541,10 @@ def declare_fixture_documentation_proof(repo: Path) -> None:
         'tool_adapter = "fixture"\n',
         encoding="utf-8",
     )
-    write_test_profile(repo, proof={"gate_registry": "system/gates.toml"})
+    updates: dict[str, object] = {"proof": {"gate_registry": "system/gates.toml"}}
+    if profile_id is not None:
+        updates["profile_id"] = profile_id
+    write_test_profile(repo, **updates)
 
 
 def exact_lease(

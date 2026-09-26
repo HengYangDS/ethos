@@ -21,6 +21,11 @@
 !distributions/
 !distributions/npm/
 !distributions/npm/package.json
+!tests/
+!tests/fixtures/
+!tests/fixtures/quality-sample/
+!tests/fixtures/quality-sample/pyproject.toml
+!tests/fixtures/quality-sample/uv.lock
 !tools/
 !tools/ci/
 !tools/ci/scripts/

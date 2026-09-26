@@ -104,6 +104,13 @@ prove that a `COPY` source survived context filtering.
 It also cannot prove Python import closure: the image's explicit cache path
 must not load the checkout-only Git adapter. An isolated executable test uses
 the actual COPY set before the trusted image build.
+The locked adopter fixture also needs isolated editable-build metadata for
+`hatchling` and `editables`; an ETHOS dependency sync alone caches wheels but
+not every resolver index entry. The trusted build syncs that committed fixture,
+binds its project and lock in the image manifest, and runs its positive public
+proof case in the no-network smoke. Nested verification clears the outer uv
+project selection and reports a failed command before trying to read absent
+JUnit or coverage files.
 
 When `ETHOS_CI_SUPPLY_MANIFEST` selects the immutable hosted image, a cache
 miss fails immediately before either `mise` bootstrap or another native tool

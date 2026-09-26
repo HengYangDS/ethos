@@ -13,11 +13,13 @@ WORKDIR /opt/ethos-supply
 COPY .config/checks/node/runtime.toml .config/checks/node/runtime.toml
 COPY .config/mise/config.toml .config/mise/mise.lock .config/mise/
 COPY .config/checks/ci/templates.toml .config/checks/ci/templates.toml
-COPY .config/ci/supply/Dockerfile .config/ci/supply/Dockerfile
+COPY .config/ci/supply/Dockerfile .config/ci/supply/Dockerfile.dockerignore .config/ci/supply/
 COPY tools/ci/scripts/install-node.sh tools/ci/scripts/download-file.sh \
     tools/ci/scripts/with-python-runtime.sh tools/ci/scripts/mise-install.sh tools/ci/scripts/
 COPY tools/ci/toolchain/native.py tools/ci/toolchain/native.py
-COPY src/ethos src/ethos
+COPY src/ethos/__init__.py src/ethos/__init__.py
+COPY src/ethos/adapters/__init__.py src/ethos/adapters/process.py src/ethos/adapters/
+COPY src/ethos/adapters/toolchain/__init__.py src/ethos/adapters/toolchain/mise.py src/ethos/adapters/toolchain/
 COPY pyproject.toml uv.lock VERSION README.md package.json package-lock.json ./
 COPY distributions/npm/package.json distributions/npm/package.json
 
@@ -33,9 +35,14 @@ RUN uv python install --no-bin "$(python3 -c 'import platform; print(platform.py
     && npm ci --ignore-scripts \
     && PYTHONPATH=src .venv/bin/python tools/ci/toolchain/native.py --root . --mise gitleaks scc syft \
     && sha256sum .config/checks/node/runtime.toml .config/mise/config.toml \
-         .config/mise/mise.lock .config/ci/supply/Dockerfile pyproject.toml uv.lock \
-         package.json package-lock.json tools/ci/scripts/mise-install.sh \
-         tools/ci/toolchain/native.py src/ethos/adapters/process.py \
+         .config/mise/mise.lock .config/ci/supply/Dockerfile \
+         .config/ci/supply/Dockerfile.dockerignore pyproject.toml uv.lock VERSION \
+         README.md package.json package-lock.json distributions/npm/package.json \
+         tools/ci/scripts/install-node.sh tools/ci/scripts/download-file.sh \
+         tools/ci/scripts/with-python-runtime.sh tools/ci/scripts/mise-install.sh \
+         tools/ci/toolchain/native.py src/ethos/__init__.py \
+         src/ethos/adapters/__init__.py src/ethos/adapters/process.py \
+         src/ethos/adapters/toolchain/__init__.py \
          src/ethos/adapters/toolchain/mise.py > input.sha256 \
     && chown -R 65534:65534 /opt/ethos-supply \
     && rm -rf .venv node_modules src/ethos tools/ci/toolchain

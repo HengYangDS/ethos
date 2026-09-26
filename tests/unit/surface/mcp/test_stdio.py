@@ -2,9 +2,13 @@
 
 import sys
 
+import pytest
+
 from tools.ci.delivery.acceptance.mcp import verify
 
 
+# Three real transports share one case; each underlying operation retains its own deadline.
+@pytest.mark.timeout(240)
 def test_stdio_discovery_adoption_and_reconnect(tmp_path):
     """Effects, refusals and reconnect must agree through all supported transports."""
     result = verify((sys.executable, "-B", "-m", "ethos.cli"), tmp_path)

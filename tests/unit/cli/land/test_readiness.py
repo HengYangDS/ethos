@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 
 import pytest
+import tomli_w
 
 import ethos.domain.publication.inspection as publication_domain
 from ethos.contracts.branch.roles import load_branch_role_policy
@@ -53,11 +55,12 @@ def test_publish_fallback_evidence_matrix(tmp_path: Path, case: str) -> None:
     repo, head = _publish_fixture(tmp_path)
     manifest = repo / "build" / "evidence" / "local-ci" / "fallback.json"
     command = "uv run --locked --no-sync nox -s full"
+    release = repo / ".ethos/release.toml"
+    declaration = tomllib.loads(release.read_text())
+    default_command = declaration["publication"]["local_verification_command"]
     if case == "custom":
-        release = repo / ".ethos/release.toml"
-        release.write_text(
-            release.read_text().replace('"dev/verify"', f'"{command}"'), encoding="utf-8"
-        )
+        declaration["publication"]["local_verification_command"] = command
+        release.write_text(tomli_w.dumps(declaration), encoding="utf-8")
         head = commit_fixture(repo, "declare canonical local verification")
         seed_executed_proof(repo, head)
     else:
@@ -73,9 +76,12 @@ def test_publish_fallback_evidence_matrix(tmp_path: Path, case: str) -> None:
     payload = run_ethos("publish", "--json", cwd=repo)
     evidence = payload["data"]["local_ci_fallback"]["evidence_status"]
     expected = {
-        "invalid": ("invalid", "rerun dev/verify to refresh local fallback evidence"),
+        "invalid": (
+            "invalid",
+            f"rerun {default_command} to refresh local fallback evidence",
+        ),
         "custom": ("missing", f"run {command} as local fallback evidence"),
-        "retired": ("stale", "run dev/verify as local fallback evidence"),
+        "retired": ("stale", f"run {default_command} as local fallback evidence"),
     }[case]
     assert (evidence["state"], evidence["next_action"]) == expected
     if case == "custom":

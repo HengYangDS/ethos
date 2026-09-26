@@ -346,6 +346,7 @@ def write_role_policy(
 def adopt_and_commit(
     repo: Path, *, release_mirror: str = "independent", docs_only: bool = False
 ) -> str:
+    """Create code-free governance truth; quality tests opt into code subjects."""
     initialize_adopted_fixture(repo)
     (repo / ".ethos" / "workspace.toml").write_text(
         render_branch_policy(
@@ -358,13 +359,15 @@ def adopt_and_commit(
         ),
         encoding="utf-8",
     )
-    if docs_only:
-        declare_fixture_documentation_proof(repo)
-    else:
-        declare_fixture_code_correctness(repo)
+    declare_fixture_documentation_proof(repo)
     _enable_openspec_profile(repo)
     if not docs_only:
-        write_publication_topology(repo)
+        write_publication_topology(
+            repo,
+            verification_command="git fsck --no-reflogs",
+            installation_command="git --version",
+            materialize_commands=False,
+        )
     _write_openspec_baseline(repo)
     return commit_fixture(repo, "adopt ethos governance")
 
@@ -528,17 +531,19 @@ def declare_fixture_code_correctness(repo: Path) -> None:
 
 
 def declare_fixture_documentation_proof(repo: Path, *, profile_id: str | None = None) -> None:
-    """Use a neutral proof gate without inventing executable code subjects."""
+    """Check the committed OpenSpec baseline without inventing code subjects."""
     registry = repo / "system/gates.toml"
     registry.parent.mkdir(parents=True, exist_ok=True)
     registry.write_text(
         'schema_version = 1\nid = "fixture-docs-gates"\n'
-        '[proof_sets]\ndefault = ["spec-check"]\nfull = ["spec-check"]\n'
-        '[[gates]]\nid = "spec-check"\nkind = "governance"\n'
-        'command = ["fixture", "spec-check"]\n'
-        'asset_classes = ["markdown-docs"]\ndimensions = ["governance"]\n'
+        '[proof_sets]\ndefault = ["openspec-baseline"]\n'
+        'full = ["openspec-baseline"]\n'
+        '[[gates]]\nid = "openspec-baseline"\nkind = "governance"\n'
+        'command = ["git", "grep", "-q", "^### Requirement:", "HEAD", "--", '
+        '"openspec/specs"]\n'
+        'asset_classes = ["markdown-docs"]\ndimensions = ["carrier-presence"]\n'
         'evidence_class = "contract"\ntrust_bearing = true\n'
-        'tool_adapter = "fixture"\n',
+        'tool_adapter = "git"\n',
         encoding="utf-8",
     )
     updates: dict[str, object] = {"proof": {"gate_registry": "system/gates.toml"}}

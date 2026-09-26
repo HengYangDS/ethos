@@ -7,6 +7,7 @@ import os
 import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import cast
@@ -18,37 +19,36 @@ from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalGateRunner
-from ethos.adapters.gates.runner import observe_gate_execution
 from ethos.adapters.gates.runner import run_gate_graph
 from ethos.adapters.mutation.proof import assert_proof_execution_source
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
+from ethos.adapters.mutation.proof_validation import assess_proof_execution
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.adapters.repo.proof_execution_carrier import ProofExecutionCarrier
 from ethos.adapters.repo.status.workspace import workspace_status_observation
-from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import execution_succeeded
-from ethos.contracts.verdict import observation_verdict
-from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.result import EthosResult
 from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
 from ethos.surface.cli.output import emit
+from ethos.surface.cli.proof.host import host_gate_observation
+from ethos.surface.cli.proof.host import host_probe_boundary
+from ethos.surface.cli.proof.report import compact_proof_context
+from ethos.surface.cli.proof.report import proof_scope_binding
+from ethos.surface.cli.proof.report import summarize_checks
 from ethos.surface.cli.root_binding import RootOption
 from ethos.surface.cli.root_binding import resolve_root
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from ethos.adapters.gates.runner import ActionRunResult
     from ethos.contracts.plan import TransitionPlan
     from ethos.contracts.semantic import Attestation
-KNOWN_PROOF_SCOPES = frozenset(
-    {"repository", "change", "proof-kernel", "code", "docs", "openspec", "quality"}
-)
+    from ethos.contracts.verdict import Verdict
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,6 +60,7 @@ class _ProofOptions:
     full: bool = False
     change: str | None = None
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
+    execution_root: Annotated[str | None, Parameter(name="--execution-root")] = None
     host: bool = False
     probe: bool = False
 
@@ -67,74 +68,26 @@ class _ProofOptions:
 _DEFAULT_PROOF_OPTIONS = _ProofOptions()
 
 
-def proof_scope_binding(scope: str) -> dict[str, object]:
-    """Return the proof-scope binding for command payloads."""
-    normalized = " ".join(scope.split()) or "repository"
-    known = normalized in KNOWN_PROOF_SCOPES
-    return {
-        "scope": normalized,
-        "accepted": known,
-        "known": known,
-        "known_scopes": sorted(KNOWN_PROOF_SCOPES),
-        "semantics": "repository is terminal readiness; other scopes are focused evidence",
-        "required_gaps": [] if known else [f"unknown_proof_scope:{normalized}"],
-    }
-
-
-def host_probe_boundary(*, host: bool, probe: bool) -> dict[str, object]:
-    """Describe optional host-readiness probe flags without minting proof truth."""
-    return {
-        "requested": host or probe,
-        "host": host,
-        "probe": probe,
-        "evidence_class": "optional_host_readiness",
-        "satisfies_repository_proof": False,
-        "truth_boundary": "host-local projection",
-        "state": "not_requested" if not (host or probe) else "boundary_recorded",
-    }
-
-
-def _host_gate_observation(
-    *, repo: Path, gate_ids: tuple[str, ...], expect_head: str | None, full: bool = False
-) -> EthosResult:
-    """Execute focused gates without repository lifecycle or Attestation authority."""
-    observed = observe_gate_execution(repo, gate_ids=gate_ids, full=full, expect_head=expect_head)
-    checks, required_gaps = observed["checks"], tuple(observed["required_gaps"])
-    current_head, verdict = observed["head"], observed["verdict"]
-    return EthosResult(
-        command="prove",
-        verdict=verdict,
-        state="observed" if verdict == "pass" else "gapped",
-        summary={
-            "boundary": "host",
-            "gate_count": len(checks),
-            "proof_attestation_issued": False,
-        },
-        required_gaps=required_gaps,
-        next_action="repair the selected host gate" if required_gaps else "",
-        data={
-            "executed": bool(checks),
-            "execution_source": observed["execution_source"],
-            "policy_digest": observed["policy_digest"],
-            "boundary": "host",
-            "host_probe": host_probe_boundary(host=True, probe=False),
-            "checks": checks,
-            "attestation": {},
-            "expected_head": {
-                "expected": expect_head or "",
-                "current": current_head,
-                "matches": expect_head is None or expect_head == current_head,
-            },
-        },
-    )
-
-
-def _emit_host_gate_observation(*, repo: Path, options: _ProofOptions, json_output: bool) -> bool:
-    """Emit the host-only gate result and report whether it owned this invocation."""
+def _emit_proof_preflight(*, repo: Path, options: _ProofOptions, json_output: bool) -> bool:
+    """Admit one proof mode before any governed repository observation."""
+    execution_root = getattr(options, "execution_root", None)
+    if execution_root and (
+        not options.execute
+        or not options.full
+        or not options.expect_head
+        or options.scope != "repository"
+        or options.gate
+        or options.host
+        or options.probe
+    ):
+        _emit_proof_gap(
+            ValueError("proof_execution_carrier_requires_full_exact_head"), json_output=json_output
+        )
+        return True
     if not (options.host and options.execute):
         return False
     emit(
-        _host_gate_observation(
+        host_gate_observation(
             repo=repo,
             gate_ids=options.gate,
             expect_head=options.expect_head,
@@ -156,6 +109,11 @@ def _proof_context(
         authority=authority,
         change=options.change,
         changed=True,
+        intent_tree_ref=(
+            authority.current_head
+            if getattr(options, "execution_root", None) and authority
+            else None
+        ),
     )
     current_head = resolution.authority.current_head if resolution.authority is not None else ""
     openspec_lifecycle: dict[str, object] = (
@@ -200,6 +158,7 @@ def run_plan_checks(
     plan: TransitionPlan,
     execute: bool,
     capacity: int | None = None,
+    carrier: ProofExecutionCarrier | None = None,
 ) -> tuple[list[dict[str, object]], bool]:
     """Run or project the admitted TransitionPlan gate sequence."""
     plan_head = plan.facts.get("head")
@@ -212,13 +171,17 @@ def run_plan_checks(
         repo,
         tree_ref=plan_head,
         gate_ids=tuple(node.id for node in plan.nodes),
-    ).registry
+    )
+    if carrier is not None and gates_by_id.digest != plan.inputs.policy:
+        message = "proof_execution_environment_mismatch"
+        raise ValueError(message)
+    registry = gates_by_id.registry
     runner = LocalGateRunner() if execute else DryRunRunner()
     node_capacity = capacity or max(1, os.cpu_count() or 1)
     results = run_gate_graph(
         runner,
         plan.nodes,
-        gates_by_id,
+        registry,
         root=repo,
         capacity=node_capacity,
         parallel=execute,
@@ -229,7 +192,7 @@ def run_plan_checks(
     )
     checks: list[dict[str, object]] = []
     for run_result in results:
-        gate = gates_by_id[run_result.action_id]
+        gate = registry[run_result.action_id]
         checks.append(
             {
                 "action_id": run_result.action_id,
@@ -245,7 +208,7 @@ def run_plan_checks(
                 "duration_seconds": run_result.duration_seconds,
             }
         )
-    if execute:
+    if execute and carrier is None:
         assert_proof_execution_source(repo, plan, checks=tuple(checks))
     verdicts_ok = bool(checks) and all(execution_succeeded(check) for check in checks)
     trust_bearing_ok = any(
@@ -257,24 +220,6 @@ def run_plan_checks(
         else bool(checks) and all(check["exit_code"] is None for check in checks)
     )
     return checks, runs_ok
-
-
-def _check_summaries(checks: list[dict[str, object]]) -> list[dict[str, object]]:
-    """Project proof checks without embedding diagnostic payloads in command output."""
-    return [
-        {
-            "action_id": check["action_id"],
-            "command": check["command"],
-            "exit_code": check["exit_code"],
-            "verdict": check["verdict"],
-            "evidence_class": check["evidence_class"],
-            "trust_bearing": check["trust_bearing"],
-            "diagnostic_count": len(cast("list[object]", check["diagnostics"])),
-            "started_after_seconds": check.get("started_after_seconds"),
-            "duration_seconds": check.get("duration_seconds"),
-        }
-        for check in checks
-    ]
 
 
 def _proof_next_action(
@@ -306,41 +251,39 @@ def _emit_proof_gap(error: ValueError, *, json_output: bool) -> None:
     )
 
 
-def _issue_proof_or_emit_gap(
-    repo: Path, payload: Mapping[str, object], *, json_output: bool
-) -> Attestation | None:
-    """Expose an issuance failure once, without disguising it as an Attestation."""
+def _apply_proof_effect(
+    repo: Path,
+    payload: Mapping[str, object],
+    *,
+    execute: bool,
+    verdict: Verdict,
+    required_gaps: tuple[str, ...],
+    execution_carrier: ProofExecutionCarrier | None,
+    json_output: bool,
+) -> tuple[Attestation | None, Verdict, tuple[str, ...]]:
+    """Issue and select one proof, or emit the single failed effect boundary."""
+    if not execute:
+        return None, verdict, required_gaps
+    kwargs = {"execution_carrier": execution_carrier} if execution_carrier is not None else {}
     try:
-        return issue_proof_attestation(repo, payload)
+        attestation = issue_proof_attestation(repo, payload, **kwargs)
+        if attestation.verdict == "pass":
+            try:
+                persist_proof_attestation(repo, attestation, **kwargs)
+            except ValueError as error:
+                required_gaps = tuple(
+                    dict.fromkeys((*required_gaps, f"proof_attestation_persistence_failed:{error}"))
+                )
+                verdict = "block"
+                attestation = issue_proof_attestation(
+                    repo,
+                    {**payload, "verdict": verdict, "required_gaps": required_gaps},
+                    **kwargs,
+                )
     except ValueError as error:
         _emit_proof_gap(error, json_output=json_output)
-        return None
-
-
-def _compact_proof_context(
-    audit: dict[str, object], lifecycle: dict[str, object]
-) -> dict[str, object]:
-    """Project bounded audit and lifecycle summaries without their full evidence bodies."""
-    audit_openspec = cast("dict[str, object]", audit.get("openspec") or {})
-    lifecycle_summary = cast("dict[str, object]", lifecycle.get("summary") or {})
-    lifecycle_change_count = lifecycle_summary.get("change_count")
-    return {
-        "audit": {
-            "verdict": report_verdict(audit),
-            "mode": str(audit.get("mode") or ""),
-            "openspec_mode": str(audit_openspec.get("mode") or ""),
-            "required_gap_count": len(string_sequence(audit.get("required_gaps"))),
-        },
-        "openspec_lifecycle": {
-            "verdict": report_verdict(lifecycle),
-            "change": str(lifecycle.get("change") or ""),
-            "schema_name": str(lifecycle.get("schema_name") or ""),
-            "change_count": (
-                lifecycle_change_count if isinstance(lifecycle_change_count, int) else 0
-            ),
-            "required_gaps": list(string_sequence(lifecycle.get("required_gaps"))),
-        },
-    }
+        return None, verdict, required_gaps
+    return attestation, verdict, required_gaps
 
 
 @app.command
@@ -352,8 +295,9 @@ def prove(
 ) -> None:
     """Produce proof readiness or one executed generic proof Attestation."""
     repo = resolve_root(root)
-    if _emit_host_gate_observation(repo=repo, options=options, json_output=json_output):
+    if _emit_proof_preflight(repo=repo, options=options, json_output=json_output):
         return
+    execution_root = getattr(options, "execution_root", None)
     current_head, audit, resolution, openspec_lifecycle = _proof_context(repo, options)
     if resolution.verdict != "pass" or report_verdict(audit) != "pass":
         unresolved = resolution.verdict != "pass"
@@ -376,11 +320,24 @@ def prove(
         return
     changed_paths = resolution.scope.paths
     try:
+        carrier = (
+            ProofExecutionCarrier.capture(
+                repo,
+                Path(execution_root),
+                head=current_head,
+                tree=resolution.authority.current_tree,
+                lease=resolution.lease,
+                expect_head=options.expect_head,
+            )
+            if execution_root is not None and resolution.authority is not None
+            else None
+        )
         plan = proof_plan(
             repo,
             resolution=resolution,
             gate_ids=options.gate,
             full=options.full,
+            execution_root=carrier.execution if carrier is not None else None,
         )
     except ValueError as exc:
         _emit_proof_gap(exc, json_output=json_output)
@@ -399,66 +356,31 @@ def prove(
         )
         return
     try:
-        checks, runs_ok = run_plan_checks(repo=repo, plan=plan, execute=options.execute)
+        checks, runs_ok = run_plan_checks(
+            repo=carrier.execution if carrier is not None else repo,
+            plan=plan,
+            execute=options.execute,
+            carrier=carrier,
+        )
     except ValueError as exc:
         _emit_proof_gap(exc, json_output=json_output)
         return
-    verdicts_ok = bool(checks) and all(execution_succeeded(check) for check in checks)
-    trust_bearing_ok = any(
-        check["trust_bearing"] is True and check["verdict"] == "pass" for check in checks
-    )
-    failed_gate_gaps: tuple[str, ...] = (
-        tuple(
-            (
-                f"gate_failed:{check['action_id']}"
-                if check["verdict"] == "block"
-                else f"gate_unknown:{check['action_id']}"
-            )
-            for check in checks
-            if check["verdict"] != "pass"
-        )
-        if options.execute
-        else ()
-    )
-    trust_gaps: tuple[str, ...] = (
-        ("trust_bearing_proof_missing",)
-        if options.execute and verdicts_ok and not trust_bearing_ok
-        else ()
-    )
     scope_binding, host_probe = (
         proof_scope_binding(options.scope),
         host_probe_boundary(host=options.host, probe=options.probe),
     )
     focused = bool(options.gate) or scope_binding["scope"] != "repository"
-    required_gaps = tuple(
-        dict.fromkeys(
-            tuple(string_sequence(audit.get("required_gaps")))
-            + tuple(string_sequence(openspec_lifecycle.get("required_gaps")))
-            + plan_gaps
-            + failed_gate_gaps
-            + (("full_proof_requires_execute",) if options.full and not options.execute else ())
-            + trust_gaps
-            + (
-                ("expected_head_mismatch",)
-                if options.expect_head is not None and options.expect_head != current_head
-                else ()
-            )
-            + tuple(cast("list[str]", scope_binding["required_gaps"]))
-        )
-    )
-    check_verdict: Verdict = (
-        reduce_verdicts(*(cast("Verdict", check["verdict"]) for check in checks))
-        if options.execute and checks
-        else observation_verdict(ok=runs_ok)
-        if checks
-        else "unknown"
-    )
-    verdict = reduce_verdicts(
-        report_verdict(audit),
-        report_verdict(openspec_lifecycle),
-        plan.verdict,
-        check_verdict,
-        required_gaps=required_gaps,
+    verdict, required_gaps = assess_proof_execution(
+        audit=audit,
+        lifecycle=openspec_lifecycle,
+        plan=plan,
+        checks=checks,
+        runs_ok=runs_ok,
+        execute=options.execute,
+        full=options.full,
+        expected_head=options.expect_head,
+        current_head=current_head,
+        scope_gaps=tuple(cast("list[str]", scope_binding["required_gaps"])),
     )
     boundary = "focused" if focused else "repository"
     payload = {
@@ -471,24 +393,15 @@ def prove(
         "objective": options.objective,
         "required_gaps": required_gaps,
     }
-    attestation = (
-        _issue_proof_or_emit_gap(repo, payload, json_output=json_output)
-        if options.execute
-        else None
+    attestation, verdict, required_gaps = _apply_proof_effect(
+        repo,
+        payload,
+        execute=options.execute,
+        verdict=verdict,
+        required_gaps=required_gaps,
+        execution_carrier=carrier,
+        json_output=json_output,
     )
-    if attestation is not None and attestation.verdict == "pass":
-        try:
-            persist_proof_attestation(repo, attestation)
-        except ValueError as error:
-            required_gaps = tuple(
-                dict.fromkeys((*required_gaps, f"proof_attestation_persistence_failed:{error}"))
-            )
-            verdict = "block"
-            attestation = _issue_proof_or_emit_gap(
-                repo,
-                {**payload, "verdict": verdict, "required_gaps": required_gaps},
-                json_output=json_output,
-            )
     if options.execute and attestation is None:
         return
     result_state = (
@@ -499,7 +412,7 @@ def prove(
         else "gapped"
     )
     detailed = options.execute or bool(options.gate) or options.full
-    check_summaries = _check_summaries(checks)
+    check_summaries = summarize_checks(checks)
     artifact = attestation.payload.body.get("artifact") if attestation is not None else {}
     data = {
         "executed": options.execute,
@@ -528,7 +441,7 @@ def prove(
         data.update(
             gate_ids=[check["action_id"] for check in checks],
             changed_path_count=len(changed_paths),
-            **_compact_proof_context(audit, openspec_lifecycle),
+            **compact_proof_context(audit, openspec_lifecycle),
         )
     result = EthosResult(
         command="prove",

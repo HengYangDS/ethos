@@ -46,6 +46,12 @@ def dirty_content_sha256(root: Path) -> str:
     return _working_content_sha256(root, baseline="HEAD", drift_gap="dirty_content_snapshot_drift")
 
 
+def index_content_sha256(root: Path) -> str:
+    """Bind staged modes, object identities, and conflict stages without writing the index."""
+    entries = run_git(root, "ls-files", "--stage", "-z", text=False, observation=True).stdout
+    return hashlib.sha256(entries).hexdigest()
+
+
 def working_overlay_sha256(root: Path) -> str:
     """Bind unstaged tracked bytes and untracked files independently of HEAD."""
     return _working_content_sha256(

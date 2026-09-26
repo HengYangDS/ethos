@@ -125,7 +125,7 @@ def _arrange(
         scope=CurrentScope(("changed.py",)),
     )
     monkeypatch.setattr(proof_cli, "resolve_root", lambda _root: repo)
-    monkeypatch.setattr(proof_cli, "_emit_host_gate_observation", lambda **_kwargs: False)
+    monkeypatch.setattr(proof_cli, "_emit_proof_preflight", lambda **_kwargs: False)
     monkeypatch.setattr(
         proof_cli,
         "_proof_context",
@@ -243,7 +243,7 @@ def test_prove_does_not_replace_unexpected_resolution_failure(
     tmp_path: Path,
 ) -> None:
     monkeypatch.setattr(proof_cli, "resolve_root", lambda _root: tmp_path)
-    monkeypatch.setattr(proof_cli, "_emit_host_gate_observation", lambda **_kwargs: False)
+    monkeypatch.setattr(proof_cli, "_emit_proof_preflight", lambda **_kwargs: False)
     monkeypatch.setattr(
         proof_cli.status_domain,
         "audit_for_root",
@@ -410,7 +410,7 @@ def test_prove_compiles_one_shared_repository_and_openspec_context(
     status = {"head": "a" * 40, "branch": "dev", "role": "accepted"}
     authority = object()
     monkeypatch.setattr(proof_cli, "resolve_root", lambda _root: tmp_path)
-    monkeypatch.setattr(proof_cli, "_emit_host_gate_observation", lambda **_kwargs: False)
+    monkeypatch.setattr(proof_cli, "_emit_proof_preflight", lambda **_kwargs: False)
 
     def audit_once(_root, **kwargs):
         assert kwargs["openspec"] == (

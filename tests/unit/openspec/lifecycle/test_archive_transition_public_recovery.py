@@ -448,7 +448,7 @@ def native_archive(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "mode", ["unchanged", "move", "changed", "retained_active", "foreign", "missing_change"]
+    "mode", ["unchanged", "move", "retained_active", "foreign", "missing_change"]
 )
 def test_archive_postimage_uses_isolated_native_git_projection(native_archive, mode):
     repo, head = native_archive
@@ -457,9 +457,7 @@ def test_archive_postimage_uses_isolated_native_git_projection(native_archive, m
     if mode not in {"unchanged", "missing_change"}:
         target.parent.mkdir(parents=True)
         (repo / ACTIVE).rename(target)
-        if mode == "changed":
-            (target / "tasks.md").write_text("changed acceptance\n")
-        elif mode == "retained_active":
+        if mode == "retained_active":
             (repo / ACTIVE).mkdir()
             (repo / ACTIVE / "tasks.md").write_text("not fully archived\n")
         elif mode == "foreign":

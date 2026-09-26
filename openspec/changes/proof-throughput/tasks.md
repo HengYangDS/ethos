@@ -57,6 +57,7 @@
 - [x] 4.12 Reject unsupported reference kinds and malformed transport; qualify package entry aliases and native archive execution.
 - [x] 4.13 Complete exact full proof and source/package/runtime delivery for archive preservation.
 - [x] 4.14 Reproduce post-archive native formatting and sibling-reference drift; qualify the actual generated tree before successful archive completion without weakening repository gates.
+- [x] 4.15 Admit only complete, monotonic final task progress in an official staged archive; retain source/postimage proof boundaries, precise drift diagnostics and public positive/negative regressions.
 
 ## 5. Process Lifetimes and Resource Recovery
 

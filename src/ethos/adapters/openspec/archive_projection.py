@@ -70,25 +70,14 @@ def archive_projection_scope(
     allow_pending: bool,
 ) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
     """Recognize exact derived output or an unchanged input still awaiting rendering."""
-    try:
-        updates, preimages = _archive_projection_values(
-            root,
-            source_head,
-            tree,
-            changed_paths,
-            environment,
-            _binding_declaration(root, source_head, environment),
-        )
-    except ValueError as error:
-        if str(error).startswith(
-            (
-                "archive_reference_content_changed",
-                "archive_reference_members_changed",
-                "archive_reference_canonical_type_invalid",
-            )
-        ):
-            return None
-        raise
+    updates, preimages = _archive_projection_values(
+        root,
+        source_head,
+        tree,
+        changed_paths,
+        environment,
+        _binding_declaration(root, source_head, environment),
+    )
     pending: list[str] = []
     for path, expected in updates.items():
         actual = _blob(root, tree, path, environment)

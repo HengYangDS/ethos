@@ -116,6 +116,35 @@ function relocate(text, before, after) {
 const result = { documents: [], canonical: [] };
 let owned;
 try {
+  if (source.task_transition) {
+    const taskProgress = new URL("../dist/utils/task-progress.js", pathToFileURL(entry));
+    const { parseTaskLines } = await import(taskProgress.href);
+    const { before, after, path: taskPath } = source.task_transition;
+    const oldLines = before.split("\n");
+    const newLines = after.split("\n");
+    let completed = 0;
+    if (oldLines.length !== newLines.length) fail("task_transition_invalid", taskPath);
+    for (let index = 0; index < oldLines.length; index++) {
+      if (oldLines[index] === newLines[index]) continue;
+      const previous = parseTaskLines(oldLines[index]);
+      const current = parseTaskLines(newLines[index]);
+      if (
+        oldLines[index].replace("[ ]", "[x]") !== newLines[index] ||
+        previous.length !== 1 ||
+        current.length !== 1 ||
+        previous[0].done ||
+        !current[0].done ||
+        previous[0].description !== current[0].description
+      )
+        fail("task_transition_invalid", taskPath);
+      completed++;
+    }
+    const oldTasks = parseTaskLines(before);
+    const newTasks = parseTaskLines(after);
+    if (oldTasks.length !== newTasks.length || (before !== after && completed === 0))
+      fail("task_transition_invalid", taskPath);
+    if (newTasks.some((task) => !task.done)) fail("task_incomplete", taskPath);
+  }
   for (const doc of source.documents) {
     result.documents.push({
       path: doc.after,

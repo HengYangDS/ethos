@@ -884,6 +884,19 @@ SHALL preserve prior bytes and remove owned preparation scratch.
 - **WHEN** a selected cache path is symlinked or otherwise unsafe
 - **THEN** preparation rejects it before writing or replacing external content
 
+#### Scenario: Linked worktrees reuse native supply
+
+- **WHEN** two worktrees share one Git common directory and no explicit CI cache root is selected
+- **THEN** their locked native tool supply uses the same Git-common cache
+- **AND** concurrent preparation uses one bounded lock and downloads at most once
+- **AND** the verified archive remains available after one worktree is retired.
+
+#### Scenario: Explicit CI cache ownership remains selected
+
+- **WHEN** a CI invocation selects an explicit tool cache root
+- **THEN** native supply uses that root instead of the Git-common default
+- **AND** archive and executable verification remain unchanged.
+
 ### Requirement: Source-bound runtime fixtures
 
 Runtime fixtures SHALL execute isolated children from their own Python prefix

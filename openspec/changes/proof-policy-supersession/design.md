@@ -36,6 +36,18 @@ records. Timestamps and record order do not establish current policy, and an
 invalid old record does not become harmless merely because another proof
 passes.
 
+### Use one proof predicate at accepted-ref admission
+
+Promotion preflight uses repository-transition proof selection, but its native
+accepted-ref hook used the stricter ordinary full-binding query. Two complete
+same-HEAD executions may differ in facts, plan and effect while retaining the
+same accepted intent, policy, verifier and claim. The preflight then passed and
+the hook rejected the same transition as `stale_binding`. Route accepted-ref
+admission through the existing transition selector, as release-ref admission
+already does. Keep candidate ancestry, prepared ref intent and Git CAS as
+independent requirements. A changed verifier or claim remains a contradiction;
+ordinary full-binding queries still reject distinct execution closures.
+
 ### Keep replay at the public adopter boundary
 
 Owner-level tests use two complete same-HEAD records with different internally

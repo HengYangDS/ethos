@@ -183,9 +183,10 @@ def ref_move_admission_report(
     if operation in {"release.promote", "release.tag"}:
         return _release_move_report(repo, base, ref_name, old_value, new_value, operation)
     if mirror or branch == policy.accepted_branch:
+        _, proof_required = proof_for_repository_transition(repo, new_value)
         gaps = [
             *accepted_advance_gaps(repo, policy, old_value=old_value, new_value=new_value),
-            *proof_gaps(repo, new_value),
+            *proof_required,
         ]
         if not gaps:
             gaps.extend(

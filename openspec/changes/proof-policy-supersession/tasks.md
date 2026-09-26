@@ -13,3 +13,11 @@
 ## 3. Verify source
 
 - [x] 3.1 Run strict OpenSpec, repository format/lint, focused regressions and diff hygiene on the exact source; leave accepted-ref and adopter replay effects outside this checklist.
+
+## 4. Align Native Accepted-Ref Admission
+
+- [x] 4.1 Reproduce the preflight/hook mismatch with a real Git ref update and
+  two valid same-assertion proofs; retain a contradictory-assertion negative case.
+- [x] 4.2 Use the existing repository-transition selector at the accepted-ref
+  hook, preserve strict ordinary proof queries and exact ref intent, and run
+  affected public regressions, strict OpenSpec and static checks.

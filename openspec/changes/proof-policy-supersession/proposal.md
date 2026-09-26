@@ -15,6 +15,8 @@ record is not a valid remedy.
   or explicitly selected old proof remains insufficient.
 - Preserve global fail-closed behavior for tampered records, conflicting
   current proofs, stale source, wrong intent and missing current proof.
+- Make accepted-ref hook admission use the same repository-transition proof
+  predicate as promotion preflight; keep ordinary full-binding queries strict.
 - Add owner-level positive and adversarial tests, then replay the observed
   adopter publication path with both immutable proofs still present.
 
@@ -31,7 +33,7 @@ None.
 
 ## Impact
 
-The existing proof-attestation selection reducer and its tests. The accepted
-Attestation set, proof artifacts, policy compiler, publication CAS and all
-recorded evidence remain unchanged; no revocation store or cleanup command is
-introduced.
+The existing proof-attestation selection reducer, accepted-ref admission and
+their tests. The accepted Attestation set, proof artifacts, policy compiler,
+publication CAS and all recorded evidence remain unchanged; no revocation store
+or cleanup command is introduced.

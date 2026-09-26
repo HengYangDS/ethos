@@ -75,16 +75,10 @@ def materialize_adopter(
         'profile_id = "installed-cli-adopter"\n\n[openspec]\nmaterial_paths = ["**"]\n',
         encoding="utf-8",
     )
-    dev = root / "dev"
-    dev.mkdir()
-    for name in ("verify", "install"):
-        command = dev / name
-        command.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
-        command.chmod(0o755)
     (root / ".ethos/release.toml").write_text(
         """[publication]
-local_verification_command = "dev/verify"
-local_installation_command = "dev/install"
+local_verification_command = "git fsck --no-reflogs"
+local_installation_command = "git --version"
 
 [[publication.peers]]
 id = "file"
@@ -204,20 +198,32 @@ def prepare_acceptance_topology(
     )
     profile = root / ".ethos/profile.toml"
     profile.write_text(
-        profile.read_text(encoding="utf-8")
-        + '\n[proof]\ncode_correctness_gates = ["signature-trust", "patch-validity"]\n'
-        + '[proof.code_correctness_map]\nbehavior = "signature-trust"\n'
-        + 'static-analysis = "patch-validity"\n'
-        + '[[proof.gates]]\nid = "signature-trust"\nkind = "test"\n'
-        + 'command = ["git", "verify-commit", "HEAD"]\ndimensions = ["behavior"]\n'
-        + 'execution_mode = "subprocess"\nevidence_class = "proof"\ntrust_bearing = true\n'
-        + '[[proof.gates]]\nid = "patch-validity"\nkind = "lint"\n'
-        + 'command = ["git", "diff", "--check", "HEAD^", "HEAD"]\n'
-        + 'dimensions = ["static-analysis"]\nexecution_mode = "subprocess"\n'
-        + 'evidence_class = "contract"\ntrust_bearing = true\n',
+        profile.read_text(encoding="utf-8") + '\n[proof]\ngate_registry = "system/gates.toml"\n',
         encoding="utf-8",
     )
-    run(git, "add", ".ethos/workspace.toml", ".ethos/profile.toml", cwd=root)
+    registry = root / "system/gates.toml"
+    registry.parent.mkdir()
+    registry.write_text(
+        'schema_version = 1\nid = "package-smoke-trust"\n\n'
+        '[proof_sets]\ndefault = ["signature-trust", "patch-validity"]\n'
+        'full = ["signature-trust", "patch-validity"]\n\n'
+        '[[gates]]\nid = "signature-trust"\nkind = "governance"\n'
+        'command = ["git", "verify-commit", "HEAD"]\n'
+        'profile = "repository"\ntoolchain = "git"\n'
+        'asset_classes = ["git-history"]\ndimensions = ["signature-trust"]\n'
+        'execution_mode = "subprocess"\nevidence_class = "contract"\n'
+        'trust_bearing = true\ntool_adapter = "repository-native"\n'
+        'version_source = "git"\n\n'
+        '[[gates]]\nid = "patch-validity"\nkind = "governance"\n'
+        'command = ["git", "diff", "--check", "HEAD^", "HEAD"]\n'
+        'profile = "repository"\ntoolchain = "git"\n'
+        'asset_classes = ["git-history"]\ndimensions = ["patch-integrity"]\n'
+        'execution_mode = "subprocess"\nevidence_class = "contract"\n'
+        'trust_bearing = true\ntool_adapter = "repository-native"\n'
+        'version_source = "git"\n',
+        encoding="utf-8",
+    )
+    run(git, "add", ".ethos/workspace.toml", ".ethos/profile.toml", "system/gates.toml", cwd=root)
     run(
         git,
         "-c",

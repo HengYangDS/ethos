@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-import json
 import os
 import sys
+import tomllib
 from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
+
+import tomli_w
 
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.adapters.mutation.proof import issue_proof_attestation
@@ -160,11 +162,47 @@ def assert_selected_proof(
 
 
 def declare_native_proof_checks(root: Path, *, test: str, typecheck: str) -> None:
-    """Bind the fixture's behavior and static gates to real Python programs."""
-    profile = root / ".ethos/profile.toml"
-    source = profile.read_text()
-    for gate, program in (("test", test), ("typecheck", typecheck)):
-        source = source.replace(
-            json.dumps(["sample", gate]), json.dumps([sys.executable, "-c", program])
-        )
-    profile.write_text(source)
+    """Replace the selected fixture registry with executable source observations."""
+    profile = tomllib.loads((root / ".ethos/profile.toml").read_text())
+    binding = profile.get("proof", {}).get("gate_registry")
+    if not isinstance(binding, str) or not binding:
+        message = "fixture_native_gate_registry_missing"
+        raise ValueError(message)
+    registry = root / binding
+    if not registry.is_file():
+        message = "fixture_native_gate_registry_unavailable"
+        raise ValueError(message)
+    ids = ["sample-tests", "sample-static"]
+    gates = []
+    for name, program, dimension, writes in (
+        (ids[0], test, "source-observation", True),
+        (ids[1], typecheck, "policy-observation", False),
+    ):
+        gate = {
+            "id": name,
+            "kind": "governance",
+            "command": [sys.executable, "-c", program],
+            "profile": "repository",
+            "toolchain": "python",
+            "asset_classes": ["fixture-source"],
+            "dimensions": [dimension],
+            "execution_mode": "subprocess",
+            "evidence_class": "contract",
+            "trust_bearing": True,
+            "tool_adapter": "repository-native",
+            "writes_files": writes,
+        }
+        if writes:
+            gate["resource_locks"] = {"*": "exclusive"}
+        gates.append(gate)
+    registry.write_text(
+        tomli_w.dumps(
+            {
+                "schema_version": 1,
+                "id": "fixture-native-checks",
+                "proof_sets": {"default": ids, "full": ids},
+                "gates": gates,
+            }
+        ),
+        encoding="utf-8",
+    )

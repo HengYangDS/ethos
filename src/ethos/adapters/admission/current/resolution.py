@@ -10,6 +10,7 @@ from typing import cast
 from ethos.adapters.openspec.governance import artifact_output_paths
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
+from ethos.adapters.openspec.lifecycle.scope import canonical_repair_action
 from ethos.adapters.openspec.lifecycle.scope import official_change_bootstrap_scope_report
 from ethos.adapters.openspec.lifecycle.scope import official_validation_repair_scope_report
 from ethos.adapters.openspec.lifecycle.scope import prospective_change_scope_report
@@ -378,6 +379,9 @@ def resolve_current_resolution(
         ambiguous = next(
             (g for g in official_gaps if g.startswith("openspec_active_change_ambiguous:")), ""
         )
+        repair_action = canonical_repair_action(
+            root, official, change=change or str(official.get("change") or "")
+        )
         return CurrentResolution(
             verdict=official_verdict,
             authority=authority,
@@ -390,6 +394,7 @@ def resolve_current_resolution(
             openspec=official,
             required_gaps=official_gaps or (gap,),
             next_action=str(bootstrap_scope.get("next_action") or "")
+            or repair_action
             or _intent_action(root, ambiguous or gap, change),
             user_decision_required=bool(ambiguous),
         )

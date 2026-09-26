@@ -13,7 +13,7 @@ import pytest
 
 import ethos.adapters.openspec.cli as cli
 import ethos.adapters.openspec.governance as governance
-import ethos.adapters.openspec.lifecycle.report as lifecycle_report
+import ethos.adapters.openspec.lifecycle.validation as lifecycle_validation
 import tests.support.governed_repository as fixture
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -227,7 +227,7 @@ def test_locked_native_validation_preserves_empty_and_informational_results(
         if mode == "canonical-info"
         else []
     )
-    assert lifecycle_report.validation_failures(result["json"]) == expected
+    assert lifecycle_validation.validation_failures(result["json"]) == expected
 
 
 @pytest.mark.parametrize("mode", ["unsynced", "early-synced", "near-miss", "conflict"])

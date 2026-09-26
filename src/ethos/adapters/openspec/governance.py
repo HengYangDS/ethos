@@ -21,7 +21,7 @@ from ethos.adapters.openspec.lifecycle.report import openspec_official_cli
 from ethos.adapters.openspec.lifecycle.report import openspec_root_gaps
 from ethos.adapters.openspec.lifecycle.report import openspec_timeout_report
 from ethos.adapters.openspec.lifecycle.report import openspec_unavailable_report
-from ethos.adapters.openspec.lifecycle.report import validation_result_gaps
+from ethos.adapters.openspec.lifecycle.validation import validation_result_gaps
 from ethos.adapters.openspec.observation import governed_branch_intent_report
 from ethos.adapters.openspec.selection import requested_change
 from ethos.adapters.openspec.selection import selected_change

@@ -319,7 +319,7 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         (
             effect.adopter_fixture,
             "prove_formation",
-            {"state": "passed", "first_change": "skeleton_created"},
+            {"state": "passed", "first_change": "lane_admitted"},
         ),
         (
             effect,
@@ -398,7 +398,7 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
     else:
         effect.run(cast("nox.Session", session), artifact=artifact, evidence=output)
         payload = json.loads(output.read_text())
-        assert effect.package_runtime.call_args.args[2].is_relative_to(work)
+        assert cast("Mock", effect.package_runtime).call_args.args[2].is_relative_to(work)
         assert payload["distribution"]["retained"] is False
         assert {"path", "homebrew_cask"}.isdisjoint(payload["distribution"])
         assert case.observed["supply"] == (
@@ -469,12 +469,12 @@ def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact):
         "native_git_loss": "not_qualified",
     }
     assert payload["conformance"]["formation"]["state"] == "passed"
-    assert payload["conformance"]["formation"]["first_change"] == "skeleton_created"
+    assert payload["conformance"]["formation"]["first_change"] == "lane_admitted"
     with pytest.raises(ValueError, match="package_first_change_claim_invalid"):
         receipt.package_acceptance_evidence(
             **(
                 case.receipt.call_args.kwargs
-                | {"formation": {"state": "passed", "first_change": "passed"}}
+                | {"formation": {"state": "passed", "first_change": "skeleton_created"}}
             )
         )
     with pytest.raises(ValueError, match="package_formation_incomplete"):

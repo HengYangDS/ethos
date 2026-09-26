@@ -24,10 +24,18 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.skipif(platform.system() not in {"Darwin", "Linux"}, reason="native supply target")
+@pytest.mark.parametrize(
+    "cache_selector",
+    [None, "ETHOS_CI_TOOL_CACHE_DIR", "ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR"],
+)
 def test_linked_worktrees_reuse_one_locked_native_download(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cache_selector: str | None
 ) -> None:
     """One Git common-dir owns the cache and lock; sibling roots do not redownload."""
+    for name in ("ETHOS_CI_TOOL_CACHE_DIR", "ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR"):
+        monkeypatch.delenv(name, raising=False)
+    if cache_selector is not None:
+        monkeypatch.setenv(cache_selector, str(tmp_path / "explicit-cache"))
     repo = init_git_repo(tmp_path / "repo")
     backend = "github:gitleaks/gitleaks"
     version = "8.30.1"
@@ -73,15 +81,17 @@ def test_linked_worktrees_reuse_one_locked_native_download(
             )
         )
     supply = native.NativeSupply.read(repo, "gitleaks")
-    expected = (
-        Path(git_common_dir(repo))
-        / "ethos/tool-cache/ci-tools/gitleaks"
-        / version
-        / supply.platform
+    cache_root = (
+        tmp_path / "explicit-cache"
+        if cache_selector is not None
+        else Path(git_common_dir(repo)) / "ethos/tool-cache/ci-tools"
     )
+    expected = cache_root / "gitleaks" / version / supply.platform
     assert caches == (expected, expected)
     assert len(calls) == 1
     assert (expected / "gitleaks").read_bytes() == body
     assert supply.executable_bytes(expected / package.name) == body
     assert not (repo / "build/runtime/tool-cache/ci-tools").exists()
     assert not (linked / "build/runtime/tool-cache/ci-tools").exists()
+    if cache_selector is not None:
+        assert not (Path(git_common_dir(repo)) / "ethos/tool-cache/ci-tools").exists()

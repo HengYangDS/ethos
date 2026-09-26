@@ -275,8 +275,9 @@ def test_container_bootstrap_refuses_non_entrypoint_invocation(tmp_path, argumen
 
 
 @pytest.mark.parametrize("workers", [None, 1, 8])
+@pytest.mark.parametrize(("cores", "expected_default"), [(3, 3), (18, 12)])
 def test_test_environment_freezes_locked_supply_as_absolute_paths(
-    tmp_path, monkeypatch, workers
+    tmp_path, monkeypatch, workers, cores, expected_default
 ) -> None:
     root = tmp_path / "repo"
     supply = empty_node_package_supply(root)
@@ -285,8 +286,9 @@ def test_test_environment_freezes_locked_supply_as_absolute_paths(
     monkeypatch.setenv("UV_CACHE_DIR", "build/runtime/tool-cache/uv")
     monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
     monkeypatch.delenv("ETHOS_TEST_WORKERS", raising=False)
-    monkeypatch.setattr(python_test_gate.os, "cpu_count", lambda: 3)
-    assert python_test_gate.Settings.load(node_package_supply=supply).workers == 3
+    monkeypatch.delenv("ETHOS_TEST_EVIDENCE_DIR", raising=False)
+    monkeypatch.setattr(python_test_gate.os, "cpu_count", lambda: cores)
+    assert python_test_gate.Settings.load(node_package_supply=supply).workers == expected_default
 
     gate = python_test_gate.PythonTestGate.from_environment(node_package_supply=supply)
     gate = python_test_gate.PythonTestGate(replace(gate.s, workers=workers))

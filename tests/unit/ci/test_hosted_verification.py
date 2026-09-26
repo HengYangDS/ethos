@@ -122,7 +122,7 @@ def _run_hosted(repo: Path, scripts: Path, bins: Path, *args: str, **environment
     return subprocess.run(
         ["bash", str(scripts / "run-head-bound-proof.sh"), *args],
         cwd=repo,
-        env=os.environ
+        env={key: value for key, value in os.environ.items() if not key.startswith("ETHOS_TEST_")}
         | {
             "PATH": f"{bins}{os.pathsep}{os.environ['PATH']}",
             "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
@@ -218,7 +218,11 @@ def _observation_payload(expected: str, fault: str) -> dict[str, object]:
     ],
 )
 def test_hosted_receipt_requires_exact_executed_observation(
-    tmp_path: Path, fault: str, reports: str, hosted_proof_transport: Path
+    tmp_path: Path,
+    fault: str,
+    reports: str,
+    hosted_proof_transport: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """No local lane readiness or misleading passing field can authorize CI success."""
     repo = init_git_repo(tmp_path / "repo")
@@ -243,6 +247,8 @@ def test_hosted_receipt_requires_exact_executed_observation(
         hosted_proof_transport.with_name("prepare")
     )
     summary_file = tmp_path / "summary.md"
+    if fault == "none" and reports == "valid":
+        monkeypatch.setenv("ETHOS_TEST_EVIDENCE_DIR", str(tmp_path / "outer-evidence"))
     completed = _run_hosted(
         repo, scripts, binary.parent, expected, GITHUB_STEP_SUMMARY=str(summary_file)
     )

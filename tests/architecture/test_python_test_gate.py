@@ -361,6 +361,7 @@ def test_python_basetemp_ownership(tmp_path, monkeypatch, failure, ownership) ->
     monkeypatch.setattr(python_test_gate.tempfile, "gettempdir", lambda: str(tmp_path))
     monkeypatch.setattr(python_test_gate, "_head", lambda: "a" * 40)
     monkeypatch.delenv("ETHOS_TEST_BASETEMP", raising=False)
+    monkeypatch.delenv("ETHOS_TEST_EVIDENCE_DIR", raising=False)
     monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
     if ownership == "external":
         monkeypatch.setenv("ETHOS_TEST_BASETEMP", str(external))

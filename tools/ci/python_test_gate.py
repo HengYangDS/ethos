@@ -105,7 +105,7 @@ class Settings:
             evidence,
             Path(configured_temp) if configured_temp else default_temp,
             configured_temp is None,
-            _parallelism("ETHOS_TEST_WORKERS", min(8, os.cpu_count() or 1)),
+            _parallelism("ETHOS_TEST_WORKERS", min(12, os.cpu_count() or 1)),
             _parallelism("ETHOS_TEST_SHARDS", 1),
             _number("ETHOS_TEST_DURATIONS", 20),
             cls._pair("ETHOS_TEST_TIMEOUT_SECONDS", "ETHOS_TEST_TIMEOUT_METHOD"),

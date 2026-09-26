@@ -9,10 +9,11 @@ import pytest
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.gate_policy import resolve_proof_policies
 from ethos.repository.policy.gates import canonical_gate_command
-from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import declare_fixture_code_correctness
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import initialize_adopted_fixture
 from tests.support.governed_repository import write_script_gate_policy
 
 if TYPE_CHECKING:
@@ -77,7 +78,9 @@ def test_nox_gate_binds_repository_sources_and_requires_runtime(tmp_path: Path) 
 
 def test_gate_policy_identity_binds_profile_semantics_and_python_command(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
+    initialize_adopted_fixture(repo)
+    declare_fixture_code_correctness(repo)
+    commit_fixture(repo, "declare native quality policy")
     profile = repo / ".ethos/profile.toml"
     head = git(repo, "rev-parse", "HEAD")
     selected = resolve_gate_policy(repo, tree_ref=head, full=True)

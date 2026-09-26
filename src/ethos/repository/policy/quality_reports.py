@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 from typing import NoReturn
-from urllib.parse import urlparse
-from urllib.request import url2pathname
 from xml.etree import ElementTree
 
 if TYPE_CHECKING:
@@ -165,48 +162,40 @@ def go_covered_paths(profile: list[str], production: tuple[str, ...]) -> list[st
     return list(hits)
 
 
-def _v8_entry_executed(entry: dict[str, object]) -> bool:
-    """Distinguish loaded modules from unexecuted V8 source ranges."""
-    functions = entry.get("functions")
-    if not isinstance(functions, list):
+def _lcov_hit_count(line: str) -> int:
+    """Read only the line counter needed for positive source execution."""
+    fields = line[3:].split(",")
+    try:
+        number, count = int(fields[0]), int(fields[1])
+    except (IndexError, ValueError) as error:
+        _invalid("javascript_coverage_invalid", error)
+    if len(fields) not in {2, 3} or number < 1 or count < 0:
         _invalid("javascript_coverage_invalid")
-    for function in functions:
-        if not isinstance(function, dict):
-            _invalid("javascript_coverage_invalid")
-        ranges = function.get("ranges")
-        if not isinstance(ranges, list):
-            _invalid("javascript_coverage_invalid")
-        if any(
-            isinstance(block, dict) and isinstance(block.get("count"), int) and block["count"] > 0
-            for block in ranges
-        ):
-            return True
-    return False
+    return count
 
 
-def v8_covered_paths(root: Path, directory: Path, production: tuple[str, ...]) -> set[str]:
-    """Bind owned V8 coverage artifacts to committed JavaScript modules."""
+def lcov_covered_paths(root: Path, report: Path, production: tuple[str, ...]) -> set[str]:
+    """Bind the Node test runner's LCOV report to exact production modules."""
+    if not report.is_file():
+        _invalid("javascript_coverage_missing")
+    text = report.read_text(encoding="utf-8")
+    if not text.strip().endswith("end_of_record"):
+        _invalid("javascript_coverage_invalid")
     expected = {(root / path).resolve(): path for path in production}
     observed: set[str] = set()
-    artifacts = list(directory.glob("coverage-*.json"))
-    if not artifacts:
-        _invalid("javascript_coverage_missing")
-    for artifact in artifacts:
-        try:
-            document = json.loads(artifact.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as error:
-            _invalid("javascript_coverage_invalid", error)
-        if not isinstance(document, dict) or not isinstance(document.get("result"), list):
+    for block in text.split("end_of_record"):
+        if not block.strip():
+            continue
+        lines = block.splitlines()
+        sources = [line[3:] for line in lines if line.startswith("SF:")]
+        if len(sources) != 1 or not sources[0]:
             _invalid("javascript_coverage_invalid")
-        for entry in document["result"]:
-            if not isinstance(entry, dict):
-                _invalid("javascript_coverage_invalid")
-            url = entry.get("url")
-            if not isinstance(url, str) or not url.startswith("file:"):
-                continue
-            path = Path(url2pathname(urlparse(url).path)).resolve()
-            if path in expected and _v8_entry_executed(entry):
-                observed.add(expected[path])
+        source = Path(sources[0])
+        path = (source if source.is_absolute() else root / source).resolve()
+        if path in expected and any(
+            _lcov_hit_count(line) > 0 for line in lines if line.startswith("DA:")
+        ):
+            observed.add(expected[path])
     if observed != set(production):
         _invalid("javascript_source_unexercised")
     return observed

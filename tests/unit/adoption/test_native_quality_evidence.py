@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import subprocess
 from pathlib import Path
 
@@ -10,7 +9,7 @@ import pytest
 
 import ethos.adapters.gates.code_quality as native_quality
 from ethos.repository.policy.quality_reports import go_covered_paths
-from ethos.repository.policy.quality_reports import v8_covered_paths
+from ethos.repository.policy.quality_reports import lcov_covered_paths
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
 
@@ -57,70 +56,42 @@ def test_go_coverage_accepts_exact_positive_blocks() -> None:
 
 
 @pytest.mark.parametrize(
-    "evidence",
+    ("evidence", "reason"),
     [
-        "missing",
-        "malformed-json",
-        "bad-root",
-        "bad-functions",
-        "bad-ranges",
-        "non-dict-entry",
-        "zero-hit",
-        "other-file",
+        (None, "javascript_coverage_missing"),
+        ("not-lcov", "javascript_coverage_invalid"),
+        ("SF:answer.js\nDA:1,1\n", "javascript_coverage_invalid"),
+        ("SF:\nDA:1,1\nend_of_record\n", "javascript_coverage_invalid"),
+        ("SF:answer.js\nDA:1,-1\nend_of_record\n", "javascript_coverage_invalid"),
+        ("SF:answer.js\nDA:1,0\nend_of_record\n", "javascript_source_unexercised"),
+        ("SF:other.js\nDA:1,1\nend_of_record\n", "javascript_source_unexercised"),
+        ("SF:sub/answer.js\nDA:1,1\nend_of_record\n", "javascript_source_unexercised"),
     ],
 )
-def test_javascript_coverage_rejects_unproved_module(tmp_path: Path, evidence: str) -> None:
-    """Only positive V8 ranges for the selected file qualify it."""
+def test_javascript_coverage_rejects_unproved_module(
+    tmp_path: Path, evidence: str | None, reason: str
+) -> None:
+    """Only positive LCOV line counters for the selected file qualify it."""
     root = tmp_path / "repo"
     root.mkdir()
     source = root / "answer.js"
     source.write_text("export const answer = 42;\n")
-    coverage = tmp_path / "coverage"
-    coverage.mkdir()
-    if evidence != "missing":
-        if evidence == "malformed-json":
-            (coverage / "coverage-1.json").write_text("{invalid")
-        else:
-            entry = {
-                "url": (root / "other.js").as_uri()
-                if evidence == "other-file"
-                else source.as_uri(),
-                "functions": "invalid"
-                if evidence == "bad-functions"
-                else [{"ranges": "invalid" if evidence == "bad-ranges" else [{"count": 0}]}],
-            }
-            document = (
-                {"result": {"not": "a list"}}
-                if evidence == "bad-root"
-                else {"result": [42 if evidence == "non-dict-entry" else entry]}
-            )
-            (coverage / "coverage-1.json").write_text(json.dumps(document))
-    reason = (
-        "javascript_coverage_missing"
-        if evidence == "missing"
-        else "javascript_coverage_invalid"
-        if evidence
-        in {"malformed-json", "bad-root", "bad-functions", "bad-ranges", "non-dict-entry"}
-        else "javascript_source_unexercised"
-    )
+    coverage = tmp_path / "coverage.lcov"
+    if evidence is not None:
+        coverage.write_text(evidence)
     with pytest.raises(ValueError, match=reason):
-        v8_covered_paths(root, coverage, ("answer.js",))
+        lcov_covered_paths(root, coverage, ("answer.js",))
 
 
 def test_javascript_coverage_accepts_exact_executed_module(tmp_path: Path) -> None:
-    """Valid V8 execution metadata is not blocked by the adverse cases."""
+    """A native LCOV record with a positive line hit has a reachable success path."""
     root = tmp_path / "repo"
     root.mkdir()
     source = root / "answer.js"
     source.write_text("export const answer = 42;\n")
-    coverage = tmp_path / "coverage"
-    coverage.mkdir()
-    (coverage / "coverage-1.json").write_text(
-        json.dumps(
-            {"result": [{"url": source.as_uri(), "functions": [{"ranges": [{"count": 1}]}]}]}
-        )
-    )
-    assert v8_covered_paths(root, coverage, ("answer.js",)) == {"answer.js"}
+    coverage = tmp_path / "coverage.lcov"
+    coverage.write_text("TN:\nSF:answer.js\nDA:1,1\nend_of_record\n")
+    assert lcov_covered_paths(root, coverage, ("answer.js",)) == {"answer.js"}
 
 
 def test_native_provider_rejects_missing_repository_and_code(tmp_path: Path) -> None:

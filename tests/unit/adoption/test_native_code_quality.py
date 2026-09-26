@@ -164,3 +164,63 @@ def test_javascript_test_directory_uses_native_test_identity(tmp_path: Path) -> 
 
     assert result.returncode == 0, payload["required_gaps"]
     assert payload["verdict"] == "pass"
+
+
+def test_public_proof_rejects_test_forged_v8_coverage(tmp_path: Path) -> None:
+    """A passing test cannot fabricate execution of an untouched source module."""
+    if shutil.which("node") is None:
+        pytest.skip("node is unavailable on this runner")
+    repo = init_git_repo(tmp_path / "adopter")
+    _declare_quality_profile(repo, "profile")
+    (repo / "package.json").write_text('{"name":"quality","type":"module"}\n')
+    (repo / "answer.js").write_text("export function answer() { return 42; }\n")
+    (repo / "answer.test.js").write_text(
+        'import test from "node:test";\n'
+        'import { writeFileSync } from "node:fs";\n'
+        'import { join, resolve } from "node:path";\n'
+        'import { pathToFileURL } from "node:url";\n'
+        'test("forged coverage", () => {\n'
+        '  const entry = {url: pathToFileURL(resolve("answer.js")).href, '
+        "functions: [{ranges: [{count: 1}]}]};\n"
+        "  if (process.env.NODE_V8_COVERAGE) "
+        '  writeFileSync(join(process.env.NODE_V8_COVERAGE, "coverage-forged.json"), '
+        "JSON.stringify({result: [entry]}));\n"
+        "});\n"
+    )
+    head = commit_fixture(repo, "declare forged coverage test")
+
+    result = run_ethos_raw(
+        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
+    )
+    payload = json.loads(result.stdout)
+
+    assert result.returncode != 0
+    assert payload["verdict"] == "block"
+    assert "quality_obligation_unproven:behavior" in payload["required_gaps"]
+
+
+def test_public_proof_rejects_command_authored_evidence_adapter(tmp_path: Path) -> None:
+    """An arbitrary repository command cannot mint a product-quality report."""
+    repo = init_git_repo(tmp_path / "adopter")
+    _declare_quality_profile(repo, "profile")
+    profile = repo / ".ethos/profile.toml"
+    declaration = profile.read_text(encoding="utf-8").replace(
+        'providers = ["ethos.adapters.gates.code_quality:behavior_report"]',
+        'command = ["node", "fake.mjs"]\n'
+        'evidence_adapters = ["ethos.adapters.gates.native_evidence:javascript_behavior"]',
+    )
+    profile.write_text(declaration, encoding="utf-8")
+    (repo / "package.json").write_text('{"name":"quality","type":"module"}\n')
+    (repo / "answer.js").write_text("export function answer() { return 42; }\n")
+    (repo / "answer.test.js").write_text('throw new Error("never run");\n')
+    (repo / "fake.mjs").write_text("process.exit(0);\n")
+    head = commit_fixture(repo, "claim command-authored native evidence")
+
+    result = run_ethos_raw(
+        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
+    )
+    payload = json.loads(result.stdout)
+
+    assert result.returncode != 0
+    assert payload["verdict"] == "block"
+    assert any("repository_profile_invalid" in str(gap) for gap in payload["required_gaps"])

@@ -242,6 +242,7 @@ def _native_supply(
         f"#!{sys.executable}\nimport os, pathlib, shutil, sys\n"
         f'assert sys.argv[1:] == ["install", "--locked", {backend!r}]\n'
         'assert os.environ["MISE_SAFE"] == os.environ["MISE_LOCKED"] == "1"\n'
+        'assert os.environ["MISE_DISABLE_UPDATE_WARNING"] == "1"\n'
         'assert os.environ["MISE_ALWAYS_KEEP_DOWNLOAD"] == "1"\n'
         'assert all((pathlib.Path(".config/mise")/p).is_file() '
         'for p in ("config.toml", "mise.lock"))\n'
@@ -391,6 +392,26 @@ def _bootstrap_source(root: Path, script: str, version: str = "2026.9.11") -> Pa
         f'sha256 = "{hashlib.sha256(installer.read_bytes()).hexdigest()}"\n',
     )
     return installer
+
+
+def test_mise_version_observation_disables_nonsemantic_update_notices(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A newer upstream release must not make a pinned tool appear invalid."""
+    _bootstrap_source(tmp_path, "exit 99\n")
+    executable = tmp_path / "mise"
+    executable.write_text(
+        f"#!{sys.executable}\n"
+        "import os, sys\n"
+        'print("2026.9.11 linux-arm64")\n'
+        'if os.environ.get("MISE_DISABLE_UPDATE_WARNING") != "1":\n'
+        '    print("mise WARN newer version available", file=sys.stderr)\n'
+    )
+    executable.chmod(0o755)
+    monkeypatch.delenv("MISE_DISABLE_UPDATE_WARNING", raising=False)
+    monkeypatch.setattr(native.shutil, "which", lambda _name: str(executable))
+
+    assert native.prepare_mise(tmp_path) == executable
 
 
 def test_manifest_bound_mise_supply_does_not_download_on_a_cold_cache(

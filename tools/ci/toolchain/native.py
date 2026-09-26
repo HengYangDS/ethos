@@ -202,7 +202,11 @@ def prepare_mise(root: Path) -> Path:
 
     def verify(executable: Path, *, exact: bool = True) -> None:
         observed = run_command(
-            root, (str(executable), "--version"), timeout=15, check=True, env={"MISE_SAFE": "1"}
+            root,
+            (str(executable), "--version"),
+            timeout=15,
+            check=True,
+            env={"MISE_SAFE": "1", "MISE_DISABLE_UPDATE_WARNING": "1"},
         )
         if observed.stderr:
             message = f"mise_version_observation_failed:{executable}:{observed.stderr.strip()}"
@@ -244,6 +248,7 @@ def prepare_mise(root: Path) -> Path:
                 remove_env_prefixes=("MISE_",),
                 env={
                     "MISE_SAFE": "1",
+                    "MISE_DISABLE_UPDATE_WARNING": "1",
                     "MISE_VERSION": version,
                     "MISE_INSTALL_PATH": str(candidate),
                     "MISE_INSTALL_FROM_GITHUB": "1",
@@ -267,6 +272,7 @@ def download(command: tuple[str, ...], *, root: Path, timeout: float = 180) -> N
         remove_env_prefixes=("MISE_",),
         env={
             "MISE_SAFE": "1",
+            "MISE_DISABLE_UPDATE_WARNING": "1",
             "MISE_LOCKED": "1",
             "MISE_YES": "0",
             "MISE_ALWAYS_KEEP_DOWNLOAD": "1",

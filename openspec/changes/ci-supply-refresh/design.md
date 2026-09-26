@@ -107,6 +107,10 @@ miss fails immediately before either `mise` bootstrap or another native tool
 download. Local and GitHub-hosted environments without that supply contract
 retain the existing bounded native provisioning path. This is a tool supply
 boundary, not a second quality-gate policy.
+Version checks disable only `mise`'s optional newer-release announcement through
+its native `MISE_DISABLE_UPDATE_WARNING` setting. They still reject remaining
+stderr and any version mismatch; a harmless notice must not invalidate pinned
+tool identity during the trusted build.
 
 ### Publish per peer from fresh receipts
 

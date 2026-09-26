@@ -165,24 +165,10 @@ def quality_obligation_gaps(
 def _qualified_quality_check(
     gate: object, check: object, axis: str, source_tree: str, subjects: object
 ) -> bool:
-    """Match scoped product evidence from a provider or the selected native run."""
+    """Accept only a product provider's scoped native-evidence result."""
     if not isinstance(gate, Mapping) or not isinstance(check, Mapping) or not source_tree:
         return False
     identity = gate.get("execution_identity")
-    if gate.get("execution_mode") == "subprocess":
-        return _qualified_native_check(gate, check, axis, source_tree, subjects, identity)
-    return _qualified_provider_check(gate, check, axis, source_tree, subjects, identity)
-
-
-def _qualified_provider_check(
-    gate: Mapping[str, object],
-    check: Mapping[str, object],
-    axis: str,
-    source_tree: str,
-    subjects: object,
-    identity: object,
-) -> bool:
-    """Keep packaged provider provenance separate from native gate evidence."""
     if (
         gate.get("execution_mode") != "provider"
         or gate.get("tool_adapter") != "ethos"
@@ -207,54 +193,6 @@ def _qualified_provider_check(
         and _quality_evidence_matches(item.get("report"), axis, source_tree, subjects)
         for item in observations
     )
-
-
-def _qualified_native_check(
-    gate: Mapping[str, object],
-    check: Mapping[str, object],
-    axis: str,
-    source_tree: str,
-    subjects: object,
-    identity: object,
-) -> bool:
-    """Require the selected adapters' fresh, joint scope, not command-authored JSON."""
-    adapters = gate.get("evidence_adapters")
-    observations = check.get("evidence")
-    command = check.get("command")
-    if (
-        gate.get("tool_adapter") != "repository-native"
-        or not isinstance(identity, (list, tuple))
-        or not isinstance(command, (list, tuple))
-        or tuple(command) != tuple(identity)
-        or not isinstance(adapters, (list, tuple))
-        or not adapters
-        or not isinstance(observations, (list, tuple))
-        or tuple(
-            item.get("adapter") if isinstance(item, Mapping) else None for item in observations
-        )
-        != tuple(adapters)
-    ):
-        return False
-    selected: set[str] = set()
-    for item in observations:
-        report = item.get("report")
-        if not isinstance(report, Mapping) or report.get("verdict") != "pass":
-            return False
-        evidence = report.get("quality_evidence")
-        if not isinstance(evidence, Mapping) or evidence.get("source_tree") != source_tree:
-            return False
-        if evidence.get("axis") != axis:
-            continue
-        paths = evidence.get("selected_paths")
-        if (
-            not isinstance(paths, (list, tuple))
-            or not paths
-            or any(not isinstance(path, str) or not path for path in paths)
-        ):
-            return False
-        selected.update(paths)
-    expected = subjects.get(axis) if isinstance(subjects, Mapping) else None
-    return bool(selected) and (expected is None or selected == set(expected))
 
 
 def _quality_evidence_matches(
@@ -388,12 +326,6 @@ def source_paths_for_gate(gate: Gate) -> tuple[str, ...]:
         provider_root + reference.partition(":")[0].removeprefix("ethos.").replace(".", "/") + ".py"
         for reference in gate.providers
     )
-    evidence_adapters = tuple(
-        PRODUCT_PROVIDER_SOURCE
-        + reference.partition(":")[0].removeprefix("ethos.").replace(".", "/")
-        + ".py"
-        for reference in gate.evidence_adapters
-    )
     command = canonical_gate_command(gate.command)
     noxfile = (
         ("noxfile.py", "pyproject.toml", "uv.lock")
@@ -410,7 +342,7 @@ def source_paths_for_gate(gate: Gate) -> tuple[str, ...]:
         and ".." not in Path(command[0]).parts
         else ()
     )
-    return (*providers, *evidence_adapters, *noxfile, *script)
+    return (*providers, *noxfile, *script)
 
 
 def source_paths_for_gates(gates: tuple[Gate, ...]) -> tuple[str, ...]:

@@ -44,7 +44,6 @@ class Gate(BaseModel):
     kind: str = Field(min_length=1)
     command: FrozenTuple[str] = ()
     providers: FrozenTuple[str] = ()
-    evidence_adapters: FrozenTuple[str] = ()
     policy: str = "required"
     profile: str = "product"
     toolchain: str = "quality-adapter"
@@ -68,17 +67,11 @@ class Gate(BaseModel):
         """Require exactly one executable adapter form per gate."""
         if bool(self.command) == bool(self.providers):
             raise ValueError(_GATE_EXECUTOR_INVALID)
-        if self.evidence_adapters and not self.command:
-            raise ValueError(_GATE_EXECUTOR_INVALID)
-        if any(
-            len(references) != len(set(references))
-            or any(
-                not reference.startswith("ethos.")
-                or reference.count(":") != 1
-                or not all(reference.partition(":")[::2])
-                for reference in references
-            )
-            for references in (self.providers, self.evidence_adapters)
+        if len(self.providers) != len(set(self.providers)) or any(
+            not reference.startswith("ethos.")
+            or reference.count(":") != 1
+            or not all(reference.partition(":")[::2])
+            for reference in self.providers
         ):
             raise ValueError(_GATE_EXECUTOR_INVALID)
         if self.resource_locks is not None and (
@@ -115,12 +108,10 @@ class Gate(BaseModel):
         """Project the descriptor to the stable public quality-gate shape."""
         payload = self.model_dump(
             mode="json",
-            exclude={"command", "providers", "evidence_adapters"},
+            exclude={"command", "providers"},
             exclude_none=True,
         )
         payload["command" if self.command else "providers"] = list(self.command or self.providers)
-        if self.evidence_adapters:
-            payload["evidence_adapters"] = list(self.evidence_adapters)
         return payload
 
 

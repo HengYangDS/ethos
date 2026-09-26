@@ -13,6 +13,7 @@ from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.repository.policy.gates import gate_policy_fields
+from ethos.repository.policy.gates import source_paths_for_gate
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -58,6 +59,41 @@ def test_gate_registry_canonical_projection_and_proof_closure() -> None:
 def test_gate_executor_malformed_shapes_fail_closed(gate: Gate) -> None:
     with pytest.raises(ValidationError, match="gate executor invalid"):
         Gate.model_validate(gate.model_dump())
+
+
+def test_native_evidence_binding_keeps_one_executor_and_product_source_identity() -> None:
+    """An interpreter is evidence for the command, never a second gate executor."""
+    reference = "ethos.adapters.gates.native_evidence:javascript_behavior"
+    gate = Gate(
+        id="docs-integrity",
+        kind="test",
+        command=("node", "tools/docs/cli.mjs", "check"),
+        profile="repository",
+        tool_adapter="repository-native",
+        evidence_adapters=(reference,),
+    )
+
+    projection = gate_policy_fields(gate)
+    assert projection["execution_identity"] == ["node", "tools/docs/cli.mjs", "check"]
+    assert projection["evidence_adapters"] == [reference]
+    assert "@ethos/adapters/gates/native_evidence.py" in source_paths_for_gate(gate)
+    assert "evidence_adapters" not in _gate("plain").to_dict()
+
+
+@pytest.mark.parametrize(
+    "references",
+    [("invalid",), ("ethos.adapters.gates.native_evidence:javascript_behavior",) * 2],
+)
+def test_native_evidence_binding_rejects_unqualified_or_duplicate_refs(references) -> None:
+    with pytest.raises(ValidationError, match="gate executor invalid"):
+        _gate("invalid-evidence", evidence_adapters=references)
+    with pytest.raises(ValidationError, match="gate executor invalid"):
+        Gate(
+            id="provider-with-native-evidence",
+            kind="test",
+            providers=("ethos.adapters.gates.code_quality:behavior_report",),
+            evidence_adapters=references,
+        )
 
 
 @pytest.mark.parametrize(

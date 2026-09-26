@@ -45,6 +45,20 @@ def _decode_artifact(payload: bytes, head: object) -> tuple[dict[str, Any], ...]
     return normalize_checks(document.get("checks"), allow_empty=True)
 
 
+def _native_evidence(raw: Mapping[str, object], message: str) -> list[dict[str, object]]:
+    """Preserve typed native evidence rather than erasing its qualification basis."""
+    evidence = raw.get("evidence", ())
+    if not isinstance(evidence, list | tuple) or any(
+        not isinstance(item, Mapping)
+        or not isinstance(item.get("adapter"), str)
+        or not isinstance(item.get("report"), Mapping)
+        or not isinstance(item.get("materials"), list | tuple)
+        for item in evidence
+    ):
+        raise TypeError(message)
+    return [dict(item) for item in evidence]
+
+
 def normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dict[str, object], ...]:
     """Validate and normalize one ordered collection of gate checks."""
     if not isinstance(checks, list | tuple):
@@ -82,6 +96,7 @@ def normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dict
         ):
             raise TypeError(message)
         normalized_diagnostics = [dict(item) for item in diagnostics if isinstance(item, Mapping)]
+        normalized_evidence = _native_evidence(raw, message)
         timing = {
             name: raw[name] for name in ("started_after_seconds", "duration_seconds") if name in raw
         }
@@ -94,6 +109,7 @@ def normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dict
             {
                 **timing,
                 **{name: raw[name] for name in ("warnings", "required_gaps") if name in raw},
+                **({"evidence": normalized_evidence} if normalized_evidence else {}),
                 "action_id": action_id,
                 "command": list(canonical_gate_command(tuple(str(token) for token in command))),
                 "exit_code": exit_code,

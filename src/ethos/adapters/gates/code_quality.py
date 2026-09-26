@@ -28,7 +28,7 @@ def _invalid(reason: str) -> Never:
     raise ValueError(reason)
 
 
-def _source(root: Path) -> tuple[str, tuple[CodeSubject, ...]]:
+def source_subjects(root: Path) -> tuple[str, tuple[CodeSubject, ...]]:
     """Bind observed code subjects to the exact committed source tree."""
     head = current_tracked_head(root)
     if not head:
@@ -145,10 +145,21 @@ def _javascript_behavior(root: Path, subjects: tuple[CodeSubject, ...]) -> dict[
             _invalid("javascript_tests_failed")
         junit = Path(directory) / "junit.xml"
         junit.write_text(result.stdout, encoding="utf-8")
-        counts, failed = junit_report((junit,))
-        if failed:
-            _invalid("javascript_tests_failed")
-        observed = v8_covered_paths(root, Path(directory), production)
+        return javascript_test_evidence(root, Path(directory), junit, subjects)
+
+
+def javascript_test_evidence(
+    root: Path, directory: Path, junit: Path, subjects: tuple[CodeSubject, ...]
+) -> dict[str, object]:
+    """Qualify the same native JUnit and V8 materials for a tracked JS scope."""
+    tests = tuple(subject.path for subject in subjects if subject.is_test)
+    production = tuple(subject.path for subject in subjects if not subject.is_test)
+    if not tests or not production:
+        _invalid("javascript_tests_or_sources_missing")
+    counts, failed = junit_report((junit,))
+    if failed:
+        _invalid("javascript_tests_failed")
+    observed = v8_covered_paths(root, directory, production)
     return {
         "language": "javascript",
         "tests_passed": counts["total"] - counts["skipped"],
@@ -169,7 +180,7 @@ def _javascript_static(root: Path, paths: tuple[str, ...]) -> dict[str, object]:
 
 def _report(root: Path, axis: str) -> dict[str, object]:
     try:
-        tree, subjects = _source(root)
+        tree, subjects = source_subjects(root)
         languages = {subject.language for subject in subjects}
         native: list[dict[str, object]] = []
         for language in sorted(languages):

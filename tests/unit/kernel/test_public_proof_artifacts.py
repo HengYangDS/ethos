@@ -51,6 +51,43 @@ def test_proof_timing_survives_normalization_without_admitting_invalid_values(se
         proof_artifacts.normalize_checks((check, check))
 
 
+def test_product_verification_survives_proof_artifact_normalization(tmp_path: Path) -> None:
+    """Persist a verifier result separately from native command stdout."""
+    report = {
+        "verdict": "pass",
+        "quality_evidence": {
+            "axis": "behavior",
+            "source_tree": "a" * 40,
+            "selected_paths": ["answer.js"],
+        },
+    }
+    verification = {
+        "gate": "behavior",
+        "providers": [
+            {"provider": "ethos.adapters.gates.code_quality:behavior_report", "report": report}
+        ],
+    }
+    check = {
+        "action_id": "behavior",
+        "command": ["node", "domain-check.mjs"],
+        "verdict": "pass",
+        "exit_code": 0,
+        "stdout": "domain check passed",
+        "verification": verification,
+    }
+
+    normalized = proof_artifacts.normalize_checks((check,))[0]
+
+    assert normalized["stdout"] == "domain check passed"
+    assert normalized["verification"] == verification
+    descriptor = proof_artifacts.write_proof_artifact(tmp_path, "a" * 40, (normalized,))
+    stored = json.loads((tmp_path / descriptor["path"]).read_text())
+    assert stored["checks"][0]["verification"] == verification
+    for malformed in ("self-report", {"gate": "behavior", "providers": [{"report": {}}]}):
+        with pytest.raises(TypeError, match="proof_attestation_check_invalid"):
+            proof_artifacts.normalize_checks((check | {"verification": malformed},))
+
+
 @pytest.mark.parametrize(
     ("mutation", "gap"),
     [

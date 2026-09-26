@@ -224,3 +224,54 @@ def test_public_proof_rejects_command_authored_evidence_adapter(tmp_path: Path) 
     assert result.returncode != 0
     assert payload["verdict"] == "block"
     assert any("repository_profile_invalid" in str(gap) for gap in payload["required_gaps"])
+
+
+@pytest.mark.parametrize("defect", ["none", "unexercised", "command-failed"])
+def test_public_proof_conjoins_native_commands_with_product_verifiers(
+    tmp_path: Path, defect: str
+) -> None:
+    """Two existing gate IDs retain domain commands and gain real code evidence."""
+    if shutil.which("node") is None:
+        pytest.skip("node is unavailable on this runner")
+    repo = init_git_repo(tmp_path / "adopter")
+    _write_javascript_fixture(repo, defect)
+    behavior_command = (
+        ["node", "-e", "process.exit(3)"]
+        if defect == "command-failed"
+        else ["node", "-e", 'console.log("domain check")']
+    )
+    profile = repo / ".ethos/profile.toml"
+    profile.parent.mkdir()
+    profile.write_text(
+        'profile_id = "composite-quality-adopter"\n\n'
+        '[openspec]\nmaterial_paths = ["**"]\n\n'
+        '[proof]\ncode_correctness_gates = ["behavior", "static"]\n\n'
+        '[proof.code_correctness_map]\nbehavior = "behavior"\n'
+        'static-analysis = "static"\n\n'
+        '[[proof.gates]]\nid = "behavior"\nkind = "test"\n'
+        f"command = {json.dumps(behavior_command)}\n"
+        'verification_providers = ["ethos.adapters.gates.code_quality:behavior_report"]\n\n'
+        '[[proof.gates]]\nid = "static"\nkind = "lint"\n'
+        'command = ["node", "-e", "console.log(\\"format check\\")"]\n'
+        'verification_providers = ["ethos.adapters.gates.code_quality:static_report"]\n',
+        encoding="utf-8",
+    )
+    head = commit_fixture(repo, "bind native commands and product verification")
+
+    result = run_ethos_raw(
+        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
+    )
+    payload = json.loads(result.stdout)
+
+    if defect == "none":
+        assert result.returncode == 0, payload["required_gaps"]
+        assert payload["verdict"] == "pass"
+        assert all(
+            check["verification"]["providers"][0]["report"]["verdict"] == "pass"
+            for check in payload["data"]["checks"]
+        )
+    else:
+        assert result.returncode != 0
+        assert payload["verdict"] == "block"
+        assert "quality_obligation_unproven:behavior" in payload["required_gaps"]
+    assert [check["action_id"] for check in payload["data"]["checks"]] == ["behavior", "static"]

@@ -45,6 +45,29 @@ def _decode_artifact(payload: bytes, head: object) -> tuple[dict[str, Any], ...]
     return normalize_checks(document.get("checks"), allow_empty=True)
 
 
+def _normalize_verification(raw: Mapping[str, object], message: str) -> dict[str, object] | None:
+    """Retain only typed product-provider observations in a proof artifact."""
+    value = raw.get("verification")
+    if value is None:
+        return None
+    if not isinstance(value, Mapping) or not isinstance(value.get("gate"), str):
+        raise TypeError(message)
+    providers = value.get("providers")
+    if not isinstance(providers, list | tuple) or any(
+        not isinstance(item, Mapping)
+        or not isinstance(item.get("provider"), str)
+        or not isinstance(item.get("report"), Mapping)
+        for item in providers
+    ):
+        raise TypeError(message)
+    return {
+        "gate": value["gate"],
+        "providers": [
+            {"provider": item["provider"], "report": dict(item["report"])} for item in providers
+        ],
+    }
+
+
 def normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dict[str, object], ...]:
     """Validate and normalize one ordered collection of gate checks."""
     if not isinstance(checks, list | tuple):
@@ -82,6 +105,7 @@ def normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dict
         ):
             raise TypeError(message)
         normalized_diagnostics = [dict(item) for item in diagnostics if isinstance(item, Mapping)]
+        verification = _normalize_verification(raw, message)
         timing = {
             name: raw[name] for name in ("started_after_seconds", "duration_seconds") if name in raw
         }
@@ -94,6 +118,7 @@ def normalize_checks(checks: object, *, allow_empty: bool = False) -> tuple[dict
             {
                 **timing,
                 **{name: raw[name] for name in ("warnings", "required_gaps") if name in raw},
+                **({"verification": verification} if verification is not None else {}),
                 "action_id": action_id,
                 "command": list(canonical_gate_command(tuple(str(token) for token in command))),
                 "exit_code": exit_code,

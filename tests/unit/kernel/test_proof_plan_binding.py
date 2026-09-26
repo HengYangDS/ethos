@@ -39,6 +39,7 @@ from tests.support.literal_cases import literal_case
 from tests.support.proof import assert_selected_proof
 from tests.support.proof import conformant_proof_checks
 from tests.support.proof import current_proof_plan
+from tests.support.proof import declare_native_proof_checks
 from tests.support.proof import issue_conformant_proof
 from tests.support.proof import proof_repository
 from tests.support.proof import store_proof
@@ -311,6 +312,9 @@ def test_proof_issuance_reuses_the_plan_commitment_without_rereading_exact_head(
 )
 def test_proof_issuance_payload_is_a_closed_contract(tmp_path, updates, error):
     repo, head = proof_repository(tmp_path / "repo")
+    if updates == "missing-check":
+        declare_native_proof_checks(repo, test="print('source')", typecheck="print('policy')")
+        head = commit_fixture(repo, "declare two independent proof checks")
     plan = current_proof_plan(repo, expected_head=head)
     checks = conformant_proof_checks(plan)
     if updates == "blocked-plan":

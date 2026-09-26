@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
+from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING
 
 import pytest
 
@@ -15,9 +14,6 @@ from ethos.repository.policy.gates import quality_obligation_gaps
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def test_success_only_commands_do_not_qualify_broken_code(tmp_path: Path) -> None:
@@ -194,15 +190,8 @@ def test_real_locked_python_checks_qualify_the_selected_source(
     """Native tests and static diagnostics can satisfy the same public floor."""
     repo = init_git_repo(tmp_path / "adopter")
     (repo / ".gitignore").write_text(".venv/\n__pycache__/\n", encoding="utf-8")
-    (repo / "pyproject.toml").write_text(
-        '[project]\nname = "quality-sample"\nversion = "0.1.0"\n'
-        'requires-python = ">=3.12"\n\n'
-        '[dependency-groups]\ndev = ["pytest>=9.1.1", "pytest-cov>=7.1.0"]\n\n'
-        '[build-system]\nrequires = ["hatchling>=1.32.3"]\n'
-        'build-backend = "hatchling.build"\n\n'
-        '[tool.hatch.build.targets.wheel]\npackages = ["src/sample"]\n',
-        encoding="utf-8",
-    )
+    fixture = Path(__file__).resolve().parents[2] / "fixtures/quality-sample"
+    (repo / "pyproject.toml").write_bytes((fixture / "pyproject.toml").read_bytes())
     source = repo / "src/sample/__init__.py"
     source.parent.mkdir(parents=True)
     source.write_text(
@@ -261,15 +250,7 @@ def test_real_locked_python_checks_qualify_the_selected_source(
             encoding="utf-8",
         )
     if defect != "missing-lock":
-        locked = subprocess.run(
-            (sys.executable, "-m", "uv", "lock", "--offline"),
-            cwd=repo,
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=False,
-        )
-        assert locked.returncode == 0, locked.stderr
+        (repo / "uv.lock").write_bytes((fixture / "uv.lock").read_bytes())
     if defect == "lock-drift":
         project = repo / "pyproject.toml"
         project.write_text(

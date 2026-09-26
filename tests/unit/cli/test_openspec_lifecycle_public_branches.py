@@ -12,7 +12,10 @@ if TYPE_CHECKING:
 import ethos.adapters.openspec.governance as governance
 import ethos.adapters.openspec.lifecycle.report as report
 from ethos.adapters.openspec.selection import selection_gaps
+from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import prepared_work_lane
 from tests.support.governed_repository import write_test_profile
 
 
@@ -22,6 +25,40 @@ def _completed(name: str = "change", **updates: object) -> dict[str, object]:
 
 def _validation_item(**fields: object) -> dict[str, object]:
     return {"id": "native", "type": "change", "valid": True, **fields}
+
+
+def test_public_prewrite_repairs_valid_canonical_info_without_weakening_status(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One native INFO finding permits its file edit, not ordinary acceptance."""
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    root = prepared_work_lane(tmp_path).worktree
+    path = "openspec/specs/contracts/spec.md"
+    target = root / path
+    original = target.read_text(encoding="utf-8")
+    target.write_text(
+        original.replace(
+            "The governed fixture SHALL remain valid throughout its lifecycle.",
+            "The governed fixture SHALL remain valid throughout its lifecycle. "
+            + "It records one observable repository obligation without changing its meaning. " * 9,
+        ),
+        encoding="utf-8",
+    )
+    official = governance.openspec_governance_report(root, change="fixture-change", lifecycle=True)
+    assert any(
+        gap.startswith("openspec_validation_issue:INFO:spec:contracts:")
+        for gap in official["required_gaps"]
+    )
+    assert official["commands"]["validate"]["exit_code"] == 0
+    status = run_ethos("status", "--json", cwd=root)
+    assert status["verdict"] == "block"
+    assert "ethos lane prewrite" in status["next_action"]
+    options = ("--editor-root", str(root), "--require-editor-root", "--json")
+    repair = run_ethos("lane", "prewrite", path, *options, cwd=root)
+    assert repair["data"]["material_scope"]["state"] == "canonical_spec_repair"
+    assert repair["data"]["material_scope"]["authorized_paths"] == [path]
+    mixed = run_ethos_blocked("lane", "prewrite", path, "README.md", *options, cwd=root)
+    assert "openspec_material_path_uncovered:README.md" in mixed["required_gaps"]
 
 
 @pytest.mark.parametrize("exit_code", [0, 1])

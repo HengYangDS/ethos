@@ -140,6 +140,127 @@ def test_current_resolution_admits_only_validator_named_canonical_spec_repairs(
     assert resolution.next_action == "openspec validate --all --strict --json"
 
 
+def _canonical_info_report() -> dict[str, object]:
+    """Model successful native validation with a repository-blocking spec finding."""
+    report = official_report(
+        change="repair-spec",
+        gaps=("openspec_validation_issue:INFO:spec:quality:requirements[0]",),
+        artifacts=(official_artifact("tasks", "tasks.md"),),
+        commitment=commitment_fixture(id="change:repair-spec").model_dump(mode="json"),
+        validate_payload={
+            "items": [
+                {
+                    "id": "quality",
+                    "type": "spec",
+                    "valid": True,
+                    "issues": [
+                        {
+                            "level": "INFO",
+                            "path": "requirements[0]",
+                            "message": "Requirement text is very long (> 500 characters).",
+                        }
+                    ],
+                }
+            ]
+        },
+    )
+    report["commands"]["validate"]["exit_code"] = 0
+    return report
+
+
+@pytest.mark.parametrize("envelope", ["items", "itemFindings"])
+def test_canonical_info_can_be_repaired_without_satisfying_ordinary_resolution(
+    tmp_path: Path, monkeypatch, envelope: str
+) -> None:
+    path = "openspec/specs/quality/spec.md"
+    target = tmp_path / path
+    target.parent.mkdir(parents=True)
+    target.write_text("### Requirement: Long text\n", encoding="utf-8")
+    report = _canonical_info_report()
+    if envelope == "itemFindings":
+        items = report["commands"]["validate"]["json"]["items"]
+        report["commands"]["validate"]["json"] = {
+            "report": {
+                "kind": "validation-findings",
+                "version": "1.0",
+                "returnedItems": 1,
+                "totalItems": 1,
+            },
+            "itemFindings": items,
+        }
+    repair = resolve_report(monkeypatch, report, root=tmp_path, paths=(path,))
+    assert repair.verdict == "pass"
+    assert repair.scope.material_scope["state"] == "canonical_spec_repair"
+    assert repair.scope_report((path,))["authorized_paths"] == [path]
+    ordinary = resolve_report(monkeypatch, report, root=tmp_path)
+    assert ordinary.verdict == "block"
+    assert ordinary.required_gaps == (
+        "openspec_validation_issue:INFO:spec:quality:requirements[0]",
+    )
+    assert "ethos lane prewrite" in ordinary.next_action
+    assert path in ordinary.next_action
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "missing",
+        "symlink",
+        "mismatch",
+        "bad-envelope",
+        "bad-exit",
+        "duplicate-id",
+        "colon-id",
+        "mixed",
+        "other-path",
+    ],
+)
+def test_canonical_info_repair_rejects_unsupported_evidence_or_paths(
+    tmp_path: Path, monkeypatch, mode: str
+) -> None:
+    path = "openspec/specs/quality/spec.md"
+    target = tmp_path / path
+    target.parent.mkdir(parents=True)
+    if mode == "symlink":
+        target.symlink_to(tmp_path / "outside.md")
+    elif mode != "missing":
+        target.write_text("### Requirement: Long text\n", encoding="utf-8")
+    report = _canonical_info_report()
+    if mode == "mismatch":
+        report["commands"]["validate"]["json"]["items"][0]["id"] = "other"
+    elif mode == "bad-envelope":
+        report["commands"]["validate"]["json"] = {"itemFindings": []}
+    elif mode == "bad-exit":
+        report["commands"]["validate"]["exit_code"] = 1
+    elif mode == "duplicate-id":
+        report["required_gaps"].append(
+            "openspec_validation_issue:INFO:spec:quality:requirements[1]"
+        )
+        report["commands"]["validate"]["json"]["items"].append(
+            {
+                "id": "quality",
+                "type": "spec",
+                "valid": True,
+                "issues": [{"level": "INFO", "path": "requirements[1]"}],
+            }
+        )
+    elif mode == "colon-id":
+        report["required_gaps"] = [
+            "openspec_validation_issue:INFO:spec:quality:spoof:requirements[0]"
+        ]
+        report["commands"]["validate"]["json"]["items"][0]["id"] = "quality:spoof"
+    requested = (
+        (path, "src/ethos/unrelated.py")
+        if mode == "mixed"
+        else ("openspec/specs/unrelated/spec.md",)
+        if mode == "other-path"
+        else (path,)
+    )
+    repair = resolve_report(monkeypatch, report, root=tmp_path, paths=requested)
+    assert repair.verdict == "block"
+    assert repair.scope_report(requested).get("authorized_paths", []) != list(requested)
+
+
 @pytest.mark.parametrize(
     ("issue_level", "issue_path", "requested_path"),
     [

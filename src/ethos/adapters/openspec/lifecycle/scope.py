@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.openspec.lifecycle.bootstrap import bootstrap_artifacts
 from ethos.adapters.openspec.lifecycle.bootstrap import new_change_root_intent
+from ethos.adapters.openspec.lifecycle.validation import canonical_spec_repair_paths
 from ethos.adapters.openspec.relocation import archived_reference_repair_paths
 from ethos.contracts.semantic import Commitment
 from ethos.normalization.coercion import repository_path_matches
@@ -147,11 +148,7 @@ def official_validation_repair_scope_report(
     if logical_change_identifier_issue(change):
         return {}
     state = "canonical_spec_repair"
-    repair_paths = (
-        _canonical_spec_repair_paths(official)
-        if _canonical_spec_repair_context_valid(official, change=change)
-        else ()
-    )
+    repair_paths = canonical_active_repair_paths(root, official, change=change)
     if not repair_paths and archived is not None:
         repair_paths = _archived_canonical_repair_paths(root, official, change, archived)
     if not repair_paths and archived is not None:
@@ -252,7 +249,7 @@ def _archived_canonical_repair_paths(
     """Bind structured canonical failures to the verified archive's exact outputs."""
     commitment, source = archived
     gaps = string_sequence(official.get("required_gaps"))
-    paths = _canonical_spec_repair_paths(official)
+    paths = canonical_spec_repair_paths(root, official)
     commands = official.get("commands")
     validate = commands.get("validate") if isinstance(commands, dict) else None
     if (
@@ -431,9 +428,13 @@ def _is_regular_file(path: Path) -> bool:
 
 def _canonical_spec_repair_context_valid(official: dict[str, object], *, change: str) -> bool:
     """Require one valid selected Change and no non-repair governance gap."""
-    prefix = "openspec_validation_failed:spec:"
     gaps = string_sequence(official.get("required_gaps"))
-    if not gaps or any(not gap.startswith(prefix) for gap in gaps):
+    if not gaps or any(
+        not gap.startswith(
+            ("openspec_validation_failed:spec:", "openspec_validation_issue:INFO:spec:")
+        )
+        for gap in gaps
+    ):
         return False
     projected = official.get("commitment")
     if not isinstance(projected, dict):
@@ -478,20 +479,27 @@ def _official_observation_available(official: dict[str, object]) -> bool:
     )
 
 
-def _canonical_spec_repair_paths(official: dict[str, object]) -> tuple[str, ...]:
-    prefix = "openspec_validation_failed:spec:"
-    capabilities = (
-        gap.removeprefix(prefix)
-        for gap in string_sequence(official.get("required_gaps"))
-        if gap.startswith(prefix)
+def canonical_active_repair_paths(
+    root: Path, official: dict[str, object], *, change: str
+) -> tuple[str, ...]:
+    """Expose only validated active-Change repairs to prewrite and status."""
+    return (
+        canonical_spec_repair_paths(root, official)
+        if _canonical_spec_repair_context_valid(official, change=change)
+        else ()
     )
-    valid = (
-        capability
-        for capability in capabilities
-        if capability
-        and all(not logical_change_identifier_issue(part) for part in capability.split("/"))
+
+
+def canonical_repair_action(root: Path, official: dict[str, object], *, change: str) -> str:
+    """Point blocked readers to the first actual corrective write admission."""
+    paths = canonical_active_repair_paths(root, official, change=change)
+    if not paths:
+        return ""
+    resolved = shlex.quote(root.resolve().as_posix())
+    return (
+        f"ethos lane prewrite --paths {shlex.quote(paths[0])} "
+        f"--editor-root {resolved} --require-editor-root --root {resolved} --json"
     )
-    return tuple(dict.fromkeys(f"openspec/specs/{capability}/spec.md" for capability in valid))
 
 
 def _official_artifact_path(path: str, outputs: tuple[str, ...]) -> bool:

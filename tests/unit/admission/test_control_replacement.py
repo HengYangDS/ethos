@@ -20,6 +20,7 @@ import ethos.adapters.admission.evidence.external as evidence
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.contracts.evidence.external import IndependentVerificationReceipt
 from ethos.contracts.semantic import canonical_json_digest
+from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_candidate
@@ -33,15 +34,19 @@ if TYPE_CHECKING:
 def _control_change(
     tmp_path: Path, path: str = "system/gates.toml", mode: str = "required"
 ) -> tuple[Path, str, str]:
-    repo, candidate = start_adopted_candidate(tmp_path)
+    repo, candidate = start_adopted_candidate(tmp_path, docs_only=True)
+    (repo / "system/gates.toml").rename(repo / ".ethos/fixture-proof.toml")
     profile = repo / ".ethos/profile.toml"
-    commit_fixture_file(
-        repo,
-        ".ethos/profile.toml",
-        profile.read_text() + f'\n[independent_verification]\nmode = "{mode}"\n',
-        "configure independent verification",
+    profile.write_text(
+        profile.read_text().replace(
+            'gate_registry = "system/gates.toml"',
+            'gate_registry = ".ethos/fixture-proof.toml"',
+        )
+        + f'\n[independent_verification]\nmode = "{mode}"\n',
+        encoding="utf-8",
     )
-    accepted = git(repo, "rev-parse", "HEAD")
+    git(repo, "add", "-A")
+    accepted = commit_fixture(repo, "configure independent verification")
     git(candidate, "reset", "--hard", accepted)
     return (
         candidate,
@@ -358,13 +363,13 @@ def test_changed_gate_does_not_enable_an_unselected_external_provider(
 ) -> None:
     """A changed floor is review input, not an implicit external-provider policy."""
     candidate, accepted, _head = _control_change(tmp_path, mode="disabled")
-    profile = candidate / ".ethos/profile.toml"
-    payload = tomllib.loads(profile.read_text())
-    old = payload["proof"]["code_correctness_gates"][0]
-    selected = next(gate for gate in payload["proof"]["gates"] if gate["id"] == old)
-    selected["command"] = ["python", "-c", "print('replacement does not check behavior')"]
+    registry = candidate / ".ethos/fixture-proof.toml"
+    payload = tomllib.loads(registry.read_text())
+    old = payload["proof_sets"]["default"][0]
+    selected = next(gate for gate in payload["gates"] if gate["id"] == old)
+    selected["command"] = ["git", "--version"]
     head = commit_fixture_file(
-        candidate, ".ethos/profile.toml", tomli_w.dumps(payload), "change proof floor"
+        candidate, ".ethos/fixture-proof.toml", tomli_w.dumps(payload), "change proof floor"
     )
     seed_executed_proof(candidate, head)
     monkeypatch.setattr(

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -60,6 +61,22 @@ def test_generic_work_lane_fixture_uses_a_minimal_valid_hook_runtime(tmp_path, m
         leases_by_branch(sibling.worktree)["work/feature"]["holder_ref"]
         == "agent:test:case:sibling"
     )
+
+
+def test_documentation_fixture_gate_observes_committed_requirements(tmp_path: Path) -> None:
+    """The neutral fixture gate must be runnable and reject an absent requirement."""
+    repo = fixtures.init_git_repo(tmp_path / "repo")
+    fixtures.adopt_and_commit(repo, docs_only=True)
+    gate = tomllib.loads((repo / "system/gates.toml").read_text())["gates"][0]
+    command = gate["command"]
+    present = subprocess.run(command, cwd=repo, check=False, capture_output=True)
+    assert present.returncode == 0, present.stderr
+
+    spec = repo / "openspec/specs/contracts/spec.md"
+    spec.write_text("## Requirements\n\nNo accepted requirement remains.\n")
+    fixtures.commit_fixture(repo, "remove fixture requirement")
+    missing = subprocess.run(command, cwd=repo, check=False, capture_output=True)
+    assert missing.returncode == 1, missing.stderr
 
 
 def test_runtime_mutation_fixture_observes_native_prerequisites_before_return(

@@ -31,7 +31,7 @@ def test_same_name_archived_change_keeps_its_exact_acceptance(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, consumer: str, *, existing_capability: bool
 ) -> None:
     """A real official archive cannot let a same-name spec shadow Change evidence."""
-    fixture = prepared_work_lane(tmp_path)
+    fixture = prepared_work_lane(tmp_path, docs_only=True)
     root = fixture.worktree
     change = "contracts" if existing_capability else "new-capability"
     active = root / "openspec/changes" / change

@@ -188,7 +188,7 @@ def _pin_installed_runtime(selected: SelectedRuntime, project: Path) -> Path:
             staged_runtime = staging / "runtime" / selected.digest
             staged_runtime.parent.mkdir(parents=True)
             shutil.copytree(selected.root, staged_runtime, symlinks=True)
-            wheel = _runtime_supply_wheel(selected, project)
+            wheel = _runtime_supply_wheel(selected)
             if wheel is None:
                 _fail("hook_runtime_installed_supply_invalid")
             staged_package = staging / "packages" / selected.wheel_sha256
@@ -270,10 +270,12 @@ def _reusable_runtime(
         raise
     external = candidate.parent != common / "ethos/runtime"
     try:
-        selected = require_selected_runtime(candidate, expected_build=expected_build)
+        selected = require_selected_runtime(candidate)
         require_runtime_selection_scope(common, selected)
-        if _runtime_supply_current(selected, project):
+        if selected.build == expected_build and _runtime_supply_current(selected, project):
             return selected.root
+        if selected.build != expected_build and _runtime_supply_wheel(selected) is not None:
+            return _compatible_invoking_runtime(invoking_source, expected_build, project)
     except (OSError, ValueError) as error:
         if external:
             if str(error) == "hook_runtime_repository_private":
@@ -320,13 +322,14 @@ def _compatible_invoking_runtime(
 
 def _runtime_supply_current(selected: SelectedRuntime, project: Path) -> bool:
     """Check the installed entry, lock and exact wheel without copying supply."""
-    return _runtime_supply_wheel(selected, project) is not None
+    return (
+        selected.dependency_lock_sha256 == file_sha256(project / "uv.lock")
+        and _runtime_supply_wheel(selected) is not None
+    )
 
 
-def _runtime_supply_wheel(selected: SelectedRuntime, project: Path) -> Path | None:
-    """Return the sole exact wheel in a complete installed runtime carrier."""
-    if selected.dependency_lock_sha256 != file_sha256(project / "uv.lock"):
-        return None
+def _runtime_supply_wheel(selected: SelectedRuntime) -> Path | None:
+    """Return the exact wheel only when the installed entry and package are intact."""
     if os.name != "nt":
         entry = selected.python.with_name("ethos")
         if not os.access(entry, os.X_OK) or entry.read_text() != render_console_script("ethos"):

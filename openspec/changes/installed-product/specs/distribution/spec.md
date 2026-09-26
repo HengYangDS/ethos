@@ -69,6 +69,17 @@ SHALL prevent deletion without erasing successful activation evidence.
 - **AND** no compatible invoking runtime produces an explicit supply requirement, not
   a command that repeats the missing path
 
+#### Scenario: A complete external installation predates the accepted build
+
+- **WHEN** `CURRENT` selects an intact external runtime for an older build and
+  the invoking product has an admitted successor build
+- **THEN** installation distinguishes the predecessor's manifest, executable
+  and wheel integrity from applicability to the successor source and lock
+- **AND** it reuses a compatible invoking package or constructs the new
+  source-bound generation before atomically changing selection
+- **AND** build or activation failure preserves the previous selection, while
+  missing or damaged external supply and foreign private runtimes remain refused
+
 ### Requirement: Installing released supply is not publishing a release
 
 Repository runtime selection SHALL validate the exact supplied package without

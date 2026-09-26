@@ -109,11 +109,14 @@ To bind an already installed immutable product, use
 The selected runtime must match the invoking product and its exact wheel/lock.
 Multiple repositories can reference those same bytes while retaining independent
 selectors, hooks and mutable state. The command does not copy external runtime
-bytes or grant permission to delete the installation. An ordinary repair reuses
-a valid selection. Missing or damaged external supply never triggers a private
-runtime rebuild: restore the exact installation or explicitly rebind using
-`--runtime`. A damaged selector also requires explicit installation selection.
-Package-manager upgrade/uninstall qualification remains separate.
+bytes or grant permission to delete the installation. Ordinary repair reuses a
+build-matching complete selection. A complete predecessor remains valid even
+when accepted source or its lock advances: installation validates its bytes,
+then uses a compatible invoking package or builds a new source-bound generation
+before changing the selector. An explicit `--runtime` must match the requested
+build. Missing or damaged external supply never triggers an implicit rebuild;
+restore the installation or explicitly rebind. A damaged selector also requires
+explicit selection. Package-manager upgrade/uninstall qualification is separate.
 
 These roots are capabilities, not a fixed lifecycle. `status` selects the sole
 current continuation; after an effect, the caller re-observes instead of

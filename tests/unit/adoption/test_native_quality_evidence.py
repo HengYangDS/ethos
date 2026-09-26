@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
@@ -14,9 +14,6 @@ from ethos.repository.policy.quality_reports import go_covered_paths
 from ethos.repository.policy.quality_reports import v8_covered_paths
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 @pytest.mark.parametrize(
@@ -248,6 +245,51 @@ def test_go_skipped_tests_do_not_prove_behavior(tmp_path: Path) -> None:
     assert native_quality.behavior_report(repo)["required_gaps"] == [
         "quality_behavior_go_tests_unexecuted"
     ]
+
+
+@pytest.mark.parametrize(
+    ("returncode", "stdout", "coverage_text", "reason"),
+    [
+        (1, '{"Action":"fail","Test":"TestAnswer"}\n', None, "go_tests_failed"),
+        (0, '{"Action":"pass","Test":"TestAnswer"}\n', None, "go_coverage_missing"),
+        (
+            0,
+            "not-json\n",
+            "mode: set\nexample.invalid/quality/answer.go:1.1,1.2 1 1\n",
+            "go_test_report_invalid",
+        ),
+    ],
+)
+def test_go_behavior_rejects_failed_or_incomplete_native_result(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    returncode: int,
+    stdout: str,
+    coverage_text: str | None,
+    reason: str,
+) -> None:
+    """A successful process alone cannot substitute for tests and coverage evidence."""
+    repo = _committed_source_repo(
+        tmp_path,
+        {
+            "go.mod": "module example.invalid/quality\n\ngo 1.26\n",
+            "answer.go": "package quality\n\nfunc Answer() int { return 42 }\n",
+            "answer_test.go": 'package quality\n\nimport "testing"\n\n'
+            'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong") } }\n',
+        },
+    )
+
+    def observed_command(root: Path, command: tuple[str, ...], **_kwargs: object):
+        assert root == repo
+        assert command[1:3] == ("test", "-json")
+        if coverage_text is not None:
+            option = next(arg for arg in command if arg.startswith("-coverprofile="))
+            Path(option.partition("=")[2]).write_text(coverage_text)
+        return subprocess.CompletedProcess(command, returncode, stdout, "")
+
+    monkeypatch.setattr(native_quality, "_executable", lambda name: name)
+    monkeypatch.setattr(native_quality, "run_command", observed_command)
+    assert native_quality.behavior_report(repo)["required_gaps"] == [f"quality_behavior_{reason}"]
 
 
 def test_go_vet_diagnostics_are_not_silenced(tmp_path: Path) -> None:

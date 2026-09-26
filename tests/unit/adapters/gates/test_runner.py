@@ -58,6 +58,7 @@ def test_native_gate_qualifies_same_run_junit_and_v8_in_spaced_root(
     commit_fixture(root, "declare native test")
     marker = tmp_path / "executions"
     monkeypatch.setenv("ETHOS_TEST_EXECUTIONS_FILE", str(marker))
+    monkeypatch.setenv("NODE_OPTIONS", "--test-reporter=spec")
     gate = Gate(
         id="behavior",
         kind="test",

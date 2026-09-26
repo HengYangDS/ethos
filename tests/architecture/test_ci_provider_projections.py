@@ -116,7 +116,7 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     }
 
 
-def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github) -> None:
+def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_path) -> None:
     """The immutable image, not a cold GitLab job, supplies every native gate tool."""
     dockerfile = (ROOT / ".config/ci/supply/Dockerfile").read_text(encoding="utf-8")
     context_rules = set(
@@ -144,6 +144,38 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github) -> Non
     assert "MISE_DATA_DIR=/opt/ethos-supply/mise-data" in dockerfile
     native_command = "tools/ci/toolchain/native.py --root . --mise gitleaks scc syft"
     assert f"PYTHONPATH=src .venv/bin/python {native_command}" in dockerfile
+    for relative in copy_sources:
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((ROOT / relative).read_bytes())
+    environment = {
+        "PYTHONPATH": str(tmp_path / "src"),
+        "ETHOS_CI_TOOL_CACHE_DIR": str(tmp_path / "tool-cache"),
+    }
+    imported = run_command(
+        tmp_path,
+        (sys.executable, "-B", "tools/ci/toolchain/native.py", "--help"),
+        env=environment,
+        timeout=10,
+    )
+    assert imported.returncode == 0, imported.stderr
+    selected = run_command(
+        tmp_path,
+        (
+            sys.executable,
+            "-B",
+            "-c",
+            (
+                "from pathlib import Path\n"
+                "from tools.ci.toolchain.native import _cache_root\n"
+                "print(_cache_root(Path.cwd()))\n"
+            ),
+        ),
+        env=environment,
+        timeout=10,
+    )
+    assert selected.returncode == 0, selected.stderr
+    assert selected.stdout.strip() == str(tmp_path / "tool-cache")
     smoke = github["jobs"]["supply-image"]["steps"][-1]["run"]
     assert "--network none" in smoke
     assert native_command in smoke

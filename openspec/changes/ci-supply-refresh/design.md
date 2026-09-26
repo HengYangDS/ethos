@@ -101,6 +101,9 @@ Python CLI. A warm image passes; an incomplete one cannot be published.
 The Dockerfile-specific context allowlist must admit every copied input and is
 itself hashed into the image manifest. A static Dockerfile syntax check cannot
 prove that a `COPY` source survived context filtering.
+It also cannot prove Python import closure: the image's explicit cache path
+must not load the checkout-only Git adapter. An isolated executable test uses
+the actual COPY set before the trusted image build.
 
 When `ETHOS_CI_SUPPLY_MANIFEST` selects the immutable hosted image, a cache
 miss fails immediately before either `mise` bootstrap or another native tool

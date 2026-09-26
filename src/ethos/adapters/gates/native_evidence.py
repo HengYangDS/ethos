@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import importlib
 import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -108,21 +107,9 @@ def evidence_gaps(evidence: tuple[dict[str, object], ...]) -> tuple[str, ...]:
 def _javascript_environment(directory: Path) -> Mapping[str, str]:
     """Ask Node's native test runner to persist JUnit and V8 from the same run."""
     (directory / "v8").mkdir()
-    options = os.environ.get("NODE_OPTIONS", "")
-    if "--test-reporter" in options:
-        message = "native_evidence_node_reporter_conflict"
-        raise ValueError(message)
     destination = json.dumps(str(directory / "junit.xml"))
     return {
-        "NODE_OPTIONS": " ".join(
-            part
-            for part in (
-                options,
-                "--test-reporter=junit",
-                f"--test-reporter-destination={destination}",
-            )
-            if part
-        ),
+        "NODE_OPTIONS": f"--test-reporter=junit --test-reporter-destination={destination}",
         "NODE_V8_COVERAGE": str(directory / "v8"),
     }
 

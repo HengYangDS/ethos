@@ -23,9 +23,9 @@ from typing import Any
 from typing import cast
 
 import ethos
+import ethos.adapters.gates.native_evidence as native_evidence
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import command_scope
-from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_head
 from ethos.adapters.repo.git import current_tracked_head
@@ -59,6 +59,7 @@ class ActionRunResult:
     stdout: str = ""
     stderr: str = ""
     diagnostics: tuple[dict[str, Any], ...] = ()
+    evidence: tuple[dict[str, object], ...] = ()
     started_after_seconds: float | None = None
     duration_seconds: float | None = None
 
@@ -136,7 +137,7 @@ class LocalGateRunner:
             return _run_providers(node, gate, root)
         command = gate.command
         try:
-            completed = run_command(root, command)
+            completed, evidence = native_evidence.run_native_gate(root, gate)
         except ProcessExecutionError as exc:
             if not isinstance(exc.__cause__, FileNotFoundError):
                 raise
@@ -156,18 +157,38 @@ class LocalGateRunner:
                     },
                 ),
             )
+        except (AttributeError, ImportError, OSError, TypeError, ValueError) as error:
+            return ActionRunResult(
+                action_id=node.id,
+                command=node.command,
+                verdict="block",
+                exit_code=1,
+                diagnostics=(
+                    {
+                        "kind": "native_evidence_error",
+                        "required_gaps": [f"native_evidence_unavailable:{gate.id}:{error}"],
+                    },
+                ),
+            )
         verdict, diagnostics = classify_action_result(
             exit_code=completed.returncode,
             stdout=completed.stdout,
         )
+        evidence_gaps = native_evidence.evidence_gaps(evidence)
+        evidence_diagnostics = (
+            ({"kind": "native_evidence", "required_gaps": list(evidence_gaps)},)
+            if evidence_gaps
+            else ()
+        )
         return ActionRunResult(
             action_id=node.id,
             command=node.command,
-            verdict=verdict,
+            verdict="block" if evidence_gaps else verdict,
             exit_code=completed.returncode,
             stdout=completed.stdout,
             stderr=completed.stderr,
-            diagnostics=diagnostics,
+            diagnostics=(*diagnostics, *evidence_diagnostics),
+            evidence=evidence,
         )
 
 

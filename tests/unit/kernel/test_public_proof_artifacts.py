@@ -51,6 +51,39 @@ def test_proof_timing_survives_normalization_without_admitting_invalid_values(se
         proof_artifacts.normalize_checks((check, check))
 
 
+def test_native_evidence_survives_proof_artifact_normalization() -> None:
+    """A durable proof must retain the same-run materials used at issuance."""
+    report = {
+        "verdict": "pass",
+        "quality_evidence": {
+            "axis": "behavior",
+            "source_tree": "a" * 40,
+            "selected_paths": ["src/app.js"],
+        },
+    }
+    evidence = [
+        {
+            "adapter": "ethos.adapters.gates.native_evidence:javascript_behavior",
+            "report": report,
+            "materials": [{"path": "junit.xml", "sha256": "b" * 64}],
+        }
+    ]
+    check = {
+        "action_id": "behavior",
+        "command": ["node", "--test"],
+        "verdict": "pass",
+        "exit_code": 0,
+        "evidence": evidence,
+    }
+
+    normalized = proof_artifacts.normalize_checks((check,))[0]
+
+    assert normalized["evidence"] == evidence
+    for malformed in ("self-report", [{"adapter": 1}], [{"report": ["invalid"]}]):
+        with pytest.raises((TypeError, ValueError), match="proof_attestation_check_invalid"):
+            proof_artifacts.normalize_checks((check | {"evidence": malformed},))
+
+
 @pytest.mark.parametrize(
     ("mutation", "gap"),
     [

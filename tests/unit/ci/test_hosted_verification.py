@@ -67,7 +67,7 @@ def _report_contents(reports: str) -> dict[str, str]:
     """Keep per-case report data separate from the shared executable fixture."""
     contents = {
         "pytest/junit.xml": (
-            "<testsuite>"
+            ('<testsuite tests="3">' if reports == "contradictory" else "<testsuite>")
             + ("<testcase><skipped/></testcase>" if reports == "skipped" else "<testcase/>")
             + (
                 "<testcase><failure/></testcase>"
@@ -195,7 +195,10 @@ def _observation_payload(expected: str, fault: str) -> dict[str, object]:
 
 @pytest.mark.parametrize(
     ("fault", "reports"),
-    [("none", report) for report in ("missing", "malformed", "failed", "skipped", "valid")]
+    [
+        ("none", report)
+        for report in ("missing", "malformed", "contradictory", "failed", "skipped", "valid")
+    ]
     + [
         (fault, "valid")
         for fault in (
@@ -249,6 +252,8 @@ def test_hosted_receipt_requires_exact_executed_observation(
     assert receipt["kind"] == "ethos_hosted_verification_receipt"
     assert receipt["satisfies_repository_proof"] is False
     assert receipt["verdict"] == ("pass" if expected_pass else "block")
+    if reports == "contradictory":
+        assert receipt["required_gaps"] == ["hosted_test_report_invalid:junit_suite_count_mismatch"]
     (command,) = map(json.loads, (repo / "commands.jsonl").read_text().splitlines())
     assert {"--host", "--execute", "--full"} <= set(command)
     assert "--gate" not in command
@@ -266,7 +271,9 @@ def test_hosted_receipt_requires_exact_executed_observation(
     )
     assert expected_tests in summary
     assert (
-        "Coverage: 95.50%" if reports in {"valid", "failed", "skipped"} else "Coverage: unavailable"
+        "Coverage: 95.50%"
+        if reports in {"valid", "failed", "skipped", "contradictory"}
+        else "Coverage: unavailable"
     ) in summary
 
 

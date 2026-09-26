@@ -21,6 +21,15 @@ if TYPE_CHECKING:
         ("<testsuite/>", "junit_empty"),
         ('<testsuite failures="many"><testcase/></testsuite>', "junit_suite_count_invalid"),
         ('<testsuite errors="-1"><testcase/></testsuite>', "junit_suite_count_invalid"),
+        ('<testsuite tests="2"><testcase/></testsuite>', "junit_suite_count_mismatch"),
+        (
+            '<testsuites tests="2"><testsuite tests="1"><testcase/></testsuite></testsuites>',
+            "junit_suite_count_mismatch",
+        ),
+        (
+            '<testsuite skipped="1"><testcase/></testsuite>',
+            "junit_suite_count_mismatch",
+        ),
     ],
 )
 def test_junit_rejects_invalid_or_false_success(tmp_path: Path, xml: str, gap: str) -> None:
@@ -47,6 +56,21 @@ def test_junit_suite_failure_is_not_hidden_by_a_passing_case(tmp_path: Path) -> 
     counts, failed = junit_report((path,))
     assert counts == {"total": 1, "failures": 0, "errors": 0, "skipped": 0}
     assert failed is True
+
+
+def test_junit_declared_counts_agree_with_executed_cases(tmp_path: Path) -> None:
+    """A complete native report retains matching suite-level totals."""
+    path = tmp_path / "junit.xml"
+    path.write_text(
+        '<testsuites tests="2" failures="0" errors="0" skipped="1">'
+        '<testsuite tests="2" failures="0" errors="0" skipped="1">'
+        '<testcase name="passed"/><testcase name="skipped"><skipped/></testcase>'
+        "</testsuite></testsuites>",
+        encoding="utf-8",
+    )
+    counts, failed = junit_report((path,))
+    assert counts == {"total": 2, "failures": 0, "errors": 0, "skipped": 1}
+    assert failed is False
 
 
 @pytest.mark.parametrize(

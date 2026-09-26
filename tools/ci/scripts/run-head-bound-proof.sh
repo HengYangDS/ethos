@@ -79,7 +79,8 @@ if supply_exit == "0":
         if failed:
             report["required_gaps"].append("hosted_test_report_failed")
     except (OSError, ValueError) as error:
-        report["required_gaps"].append("hosted_test_report_invalid")
+        reason = f":{error}" if isinstance(error, ValueError) else ""
+        report["required_gaps"].append(f"hosted_test_report_invalid{reason}")
         report_lines.append(f"Tests: unavailable ({type(error).__name__})")
     try:
         coverage = coverage_report(evidence / "coverage/coverage.xml")

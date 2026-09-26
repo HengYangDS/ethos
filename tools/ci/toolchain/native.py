@@ -338,6 +338,80 @@ def prepare(root: Path, name: str, *, lock_timeout: float = 30, mise: Path | Non
     return cache
 
 
+def declared_go_version(root: Path) -> str | None:
+    """Read the one project declaration without inferring an ambient Go tool."""
+    declared = tomllib.loads((root / MISE_CONFIG).read_text()).get("tools", {})
+    version = declared.get("go")
+    if version is not None and not isinstance(version, str):
+        msg = "native_tool_policy_invalid:go"
+        raise ValueError(msg)
+    return version
+
+
+def locked_go_bin(root: Path, mise: Path, version: str) -> Path:
+    """Expose Go and gofmt only from mise's installed, locked toolchain."""
+    selected = run_mise(root, ("which", "go"), executable=mise)
+    if selected.returncode or selected.stderr:
+        msg = (
+            "native_tool_offline_cache_missing:go"
+            if _immutable_hosted_supply()
+            else f"native_tool_supply_unavailable:go:{selected.stderr.strip()}"
+        )
+        raise ValueError(msg)
+    go = Path(selected.stdout.strip())
+    gofmt = go.with_name("gofmt")
+    if not (
+        go.is_absolute()
+        and go.is_file()
+        and gofmt.is_file()
+        and os.access(go, os.X_OK)
+        and os.access(gofmt, os.X_OK)
+    ):
+        msg = "native_tool_executable_unavailable:go"
+        raise ValueError(msg)
+    observed = run_command(root, (str(go), "version"), timeout=10, env={"GOTOOLCHAIN": "local"})
+    if (
+        observed.returncode
+        or observed.stderr
+        or not observed.stdout.startswith(f"go version go{version} ")
+    ):
+        msg = "native_tool_executable_version_mismatch:go"
+        raise ValueError(msg)
+    return go.parent
+
+
+def require_cached_mise_tools(root: Path, mise: Path) -> None:
+    """Reject an incomplete immutable image before mise can attempt a download."""
+    for name in ("cue", "actionlint"):
+        selected = run_mise(root, ("which", name), executable=mise)
+        executable = Path(selected.stdout.strip())
+        if (
+            selected.returncode
+            or selected.stderr
+            or not (executable.is_absolute() and executable.is_file())
+        ):
+            msg = f"native_tool_offline_cache_missing:{name}"
+            raise ValueError(msg)
+
+
+def mise_tool_paths(root: Path, mise: Path) -> list[Path]:
+    """Prepare declared tools online or verify the image's existing supply."""
+    go_version = declared_go_version(root)
+    if _immutable_hosted_supply():
+        require_cached_mise_tools(root, mise)
+    else:
+        result = run_mise(
+            root,
+            ("install", "--locked", "cue", "github:rhysd/actionlint")
+            + (("go",) if go_version is not None else ()),
+            executable=mise,
+            timeout=300,
+        )
+        sys.stderr.write(result.stdout + result.stderr)
+        result.check_returncode()
+    return [locked_go_bin(root, mise, go_version)] if go_version is not None else []
+
+
 def main() -> int:
     """Emit only the exact tool PATH; failures remain nonzero diagnostics."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -351,19 +425,14 @@ def main() -> int:
             sys.stdout.write(render_mise_installer(arguments.root))
             return 0
         mise = prepare_mise(arguments.root) if arguments.mise else None
-        paths = [mise.parent] if mise is not None else []
+        paths: list[Path] = []
         if mise is not None:
-            result = run_mise(
-                arguments.root,
-                ("install", "--locked", "cue", "github:rhysd/actionlint"),
-                executable=mise,
-                timeout=180,
-            )
-            sys.stderr.write(result.stdout + result.stderr)
-            result.check_returncode()
+            paths.extend(mise_tool_paths(arguments.root, mise))
         paths.extend(
             prepare(arguments.root, tool, mise=mise) for tool in dict.fromkeys(arguments.tools)
         )
+        if mise is not None:
+            paths.append(mise.parent)
         if not paths:
             parser.error("select --mise or at least one tool")
     except (

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -326,14 +325,9 @@ def test_javascript_skipped_tests_do_not_prove_behavior(tmp_path: Path) -> None:
 def test_generic_provider_uses_real_locked_python_evidence(tmp_path: Path) -> None:
     """The generalized provider preserves Python's existing native success path."""
     repo = init_git_repo(tmp_path / "repo")
-    (repo / "pyproject.toml").write_text(
-        '[project]\nname = "quality-sample"\nversion = "0.1.0"\n'
-        'requires-python = ">=3.12"\n\n'
-        '[dependency-groups]\ndev = ["pytest>=9.1.1", "pytest-cov>=7.1.0"]\n\n'
-        '[build-system]\nrequires = ["hatchling>=1.32.3"]\n'
-        'build-backend = "hatchling.build"\n\n'
-        '[tool.hatch.build.targets.wheel]\npackages = ["src/sample"]\n'
-    )
+    fixture = Path(__file__).resolve().parents[2] / "fixtures/quality-sample"
+    for name in ("pyproject.toml", "uv.lock"):
+        (repo / name).write_bytes((fixture / name).read_bytes())
     source = repo / "src/sample/__init__.py"
     source.parent.mkdir(parents=True)
     source.write_text("def answer() -> int:\n    return 42\n")
@@ -342,15 +336,6 @@ def test_generic_provider_uses_real_locked_python_evidence(tmp_path: Path) -> No
     test.write_text(
         "from sample import answer\n\n\ndef test_answer() -> None:\n    assert answer() == 42\n"
     )
-    locked = subprocess.run(
-        (sys.executable, "-m", "uv", "lock", "--offline"),
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        timeout=60,
-        check=False,
-    )
-    assert locked.returncode == 0, locked.stderr
     commit_fixture(repo, "lock native Python quality")
 
     for report in (native_quality.behavior_report(repo), native_quality.static_report(repo)):

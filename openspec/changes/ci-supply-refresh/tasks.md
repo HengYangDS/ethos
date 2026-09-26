@@ -21,6 +21,7 @@
 - [x] 3.7 Bake the locked native gate tools into the immutable image, bind every copied input to its context allowlist and manifest, reject hosted cache misses before network access, and prove the no-network image smoke.
 - [x] 3.8 Build and verify the new trusted image, pin its digest, regenerate both provider projections, and recheck the affected local quality boundary; exact committed proof follows in 4.1.
 - [ ] 3.9 Keep all three MCP conformance transports and their per-call limits, scope a finite aggregate timeout to the composite test, and verify it in hosted GitHub CI.
+- [ ] 3.10 Reuse the locked Python fixture in every native quality consumer; supply stable Go and gofmt through the mise lock to both hosted providers, keep declared binaries ahead of ambient PATH, and verify cold/warm and offline-image behavior.
 
 ## 4. Accept and verify hosted delivery
 

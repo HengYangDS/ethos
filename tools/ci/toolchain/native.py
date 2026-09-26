@@ -14,6 +14,7 @@ import sys
 import tarfile
 import tomllib
 from dataclasses import dataclass
+from importlib import import_module
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit
@@ -23,7 +24,6 @@ from filelock import Timeout
 from packaging.version import Version
 
 from ethos.adapters.process import run_command
-from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.toolchain.mise import MISE_CONFIG
 from ethos.adapters.toolchain.mise import MISE_LOCK
 from ethos.adapters.toolchain.mise import mise_executable
@@ -153,7 +153,7 @@ def _cache_root(root: Path) -> Path:
     if selected:
         home = Path(selected)
         return home if home.is_absolute() else root / home
-    common = git_common_dir(root)
+    common = import_module("ethos.adapters.repo.git").git_common_dir(root)
     return (
         Path(common) / "ethos/tool-cache/ci-tools"
         if common

@@ -52,7 +52,7 @@ def package_acceptance_evidence(
     if formation.get("state") != "passed":
         message = "package_formation_incomplete"
         raise ValueError(message)
-    if formation.get("first_change") != "skeleton_created":
+    if formation.get("first_change") != "lane_admitted":
         message = "package_first_change_claim_invalid"
         raise ValueError(message)
     try:

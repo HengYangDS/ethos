@@ -13,6 +13,7 @@ from ethos.adapters.openspec.cli import openspec_base_command
 from ethos.adapters.openspec.cli import run_json
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
+from tools.ci.delivery.acceptance.first_change import prove_first_change
 from tools.ci.delivery.acceptance.invocation import invoke
 
 if TYPE_CHECKING:
@@ -224,51 +225,6 @@ def _verify_candidate(
             raise RuntimeError(message)
 
 
-def _initialize_first_change_skeleton(
-    candidate: Path,
-    status: dict[str, object],
-    *,
-    environment: Mapping[str, str],
-) -> str:
-    """Observe native creation of the first Change skeleton, not its acceptance."""
-    context = status.get("governance_context")
-    native = context.get("official_openspec") if isinstance(context, dict) else None
-    guidance = context.get("agent_guidance") if isinstance(context, dict) else None
-    command = native.get("base_command") if isinstance(native, dict) else None
-    guide = guidance.get("path") if isinstance(guidance, dict) else None
-    package = (
-        Path(guide).resolve().parents[3]
-        if isinstance(guide, str)
-        and Path(guide).is_absolute()
-        and Path(guide).parts[-4:] == ("data", "skills", "ethos-repository-work", "SKILL.md")
-        else None
-    )
-    if (
-        not isinstance(command, list)
-        or len(command) != 2
-        or not all(isinstance(part, str) and Path(part).is_file() for part in command)
-        or package is None
-        or not Path(command[1]).resolve().is_relative_to(package)
-        or shutil.which("openspec", path=environment.get("PATH", "")) is not None
-    ):
-        message = "installed_first_change_tool_unavailable"
-        raise RuntimeError(message)
-    created = run_command(
-        candidate,
-        (*command, "new", "change", "first-change"),
-        env=environment,
-        inherit_environment=False,
-        timeout=60,
-    )
-    if (
-        created.returncode
-        or not (candidate / "openspec/changes/first-change/.openspec.yaml").is_file()
-    ):
-        message = f"installed_first_change_failed:{created.stderr[-256:]}"
-        raise RuntimeError(message)
-    return "skeleton_created"
-
-
 def prove_formation(
     executable: Path,
     work: Path,
@@ -369,15 +325,9 @@ def prove_formation(
             expected_guidance,
         )
         if starter == "foundation":
-            effect = applied_data["effect"]
-            if not isinstance(effect, dict) or not isinstance(
-                effect.get("candidate_worktree_path"), str
-            ):
-                message = "installed_formation_candidate_invalid"
-                raise RuntimeError(message)
-            first_change = _initialize_first_change_skeleton(
-                Path(effect["candidate_worktree_path"]),
-                preserved[1],
+            first_change = prove_first_change(
+                executable,
+                target,
                 environment=environment,
             )
         if starter == "python-library":

@@ -18,7 +18,6 @@ from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import git
 from tests.support.governed_repository import write_publication_topology
-from tests.support.governed_repository import write_script_gate_policy
 from tests.support.proof import seed_executed_proof
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 from tests.support.signature import repair_fixture_history
@@ -26,6 +25,7 @@ from tests.support.signature import signature_repository
 from tests.unit.cli.land.publication.support import PROPOSAL_REF
 from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import branch_publication
+from tests.unit.cli.land.publication.support import configure_signature_publication
 from tests.unit.cli.land.publication.support import publication_peers
 
 
@@ -96,10 +96,7 @@ def test_publication_consumes_repaired_forward_baseline_at_every_boundary(tmp_pa
     replacement = repair_fixture_history(
         repo, tmp_path / "original.bundle", corrections={old: {"resign": True}}
     )
-    write_publication_topology(candidate)
-    write_script_gate_policy(candidate)
-    profile = candidate / ".ethos/profile.toml"
-    profile.write_text(profile.read_text().replace('"policy-test"', '"signature-fixture"'))
+    configure_signature_publication(candidate)
     git(candidate, "add", "-A")
     git(candidate, "commit", "-S", "-m", "fix: declare independent publication peers")
     head = git(candidate, "rev-parse", "HEAD")
@@ -190,10 +187,7 @@ def _historical_peer_fixture(
             }
         },
     )
-    write_publication_topology(candidate)
-    write_script_gate_policy(candidate)
-    profile = candidate / ".ethos/profile.toml"
-    profile.write_text(profile.read_text().replace('"policy-test"', '"signature-fixture"'))
+    configure_signature_publication(candidate)
     git(candidate, "add", "-A")
     git(candidate, "commit", "-S", "-m", "fix: declare independent publication peers")
     head = git(candidate, "rev-parse", "HEAD")

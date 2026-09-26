@@ -15,10 +15,12 @@ from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import apply_accepted_closeout
 from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import declare_fixture_documentation_proof
 from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_active_commitment
+from tests.support.governed_repository import write_publication_topology
 from tests.support.proof import seed_executed_proof
 from tests.support.signature import configure_signer
 
@@ -39,6 +41,17 @@ def publication_peers(repo: Path, root: Path, *refs: str, object_format: str = "
     return peers
 
 
+def configure_signature_publication(candidate: Path) -> None:
+    """Keep repair tests focused on signed Git effects, not synthetic script quality."""
+    write_publication_topology(
+        candidate,
+        verification_command="git fsck --no-reflogs",
+        installation_command="git --version",
+        materialize_commands=False,
+    )
+    declare_fixture_documentation_proof(candidate, profile_id="signature-fixture")
+
+
 def branch_publication_fixture(
     tmp_path: Path,
     *,
@@ -49,11 +62,17 @@ def branch_publication_fixture(
     peer_ids: tuple[str, ...] = ("gitlab", "github"),
 ) -> tuple[Path, dict[str, Path], str]:
     repo = init_git_repo(tmp_path / "proposal-repo", object_format=object_format)
-    adopt_and_commit(repo)
+    adopt_and_commit(repo, docs_only=True)
+    write_publication_topology(
+        repo,
+        verification_command="git fsck --no-reflogs",
+        installation_command="git --version",
+        materialize_commands=False,
+    )
     if peer_ids == ("gitlab",):
         release = repo / ".ethos/release.toml"
         release.write_text(release.read_text().rsplit("[[publication.peers]]", 1)[0])
-    baseline = git(repo, "rev-parse", "HEAD")
+    baseline = commit_fixture(repo, "declare publication topology")
     configure_signer(repo, tmp_path)
     git(repo, "config", "commit.gpgsign", "true")
     if accepted:

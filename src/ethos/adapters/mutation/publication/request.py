@@ -113,19 +113,30 @@ def observe_remote_publication_effect(
         updates = []
         for target_ref, observation in ref_observations.items():
             observed = str(observation["object_oid"])
+            admission = ref_admissions.get(target_ref, {})
+            advancing_branch = (
+                admission.get("ref_kind") == "branch"
+                and admission.get("remote_mutation_allowed") is True
+                and observed not in {zero, source.object_oid}
+            )
+            fast_forward = advancing_branch and git.is_ancestor(
+                root, observed, source.peeled_commit
+            )
+            repaired = (
+                advancing_branch
+                and not fast_forward
+                and repaired_peer_ref_provenance(
+                    root, ref=target_ref, old=observed, new=source.object_oid
+                )
+                is not None
+            )
             transition = publication_ref_transition(
-                ref_admissions.get(target_ref, {}),
+                admission,
                 observed=observed,
                 desired=source.object_oid,
                 zero=zero,
-                fast_forward=(
-                    observed not in {zero, source.object_oid}
-                    and git.is_ancestor(root, observed, source.peeled_commit)
-                ),
-                repaired=repaired_peer_ref_provenance(
-                    root, ref=target_ref, old=observed, new=source.object_oid
-                )
-                is not None,
+                fast_forward=fast_forward,
+                repaired=repaired,
             )
             if not retire and transition["effect_allowed"] is not True:
                 gaps.append(

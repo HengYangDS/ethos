@@ -69,7 +69,11 @@ def commit_range_admission_report(
     if gap:
         return report(state="blocked", required_gaps=[gap])
     report = partial(report, baseline_commit=baseline)
-    repair = repaired_peer_ref_provenance(repo, ref=target_ref, old=baseline, new=proposed_commit)
+    repair = (
+        repaired_peer_ref_provenance(repo, ref=target_ref, old=baseline, new=proposed_commit)
+        if target_ref.startswith("refs/heads/") and not is_ancestor(repo, baseline, proposed_commit)
+        else None
+    )
     if repair is not None and repair["new"] == proposed_commit:
         revisions = tuple(cast("Mapping[str, str]", repair["mapping"]).values())
         return {

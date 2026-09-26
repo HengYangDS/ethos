@@ -19,6 +19,12 @@ jobs but failed the verification job before any gate could execute. Its retained
 diagnostics show the `mise` installer downloading only 3% in 180 seconds. The
 supply image's build currently warms Python and npm only; the native gate tools
 still depend on runner egress.
+The GitHub quality job reached the test suite but its sole failure was
+`test_stdio_discovery_adoption_and_reconnect`: pytest stopped it at the global
+120-second limit while a bounded MCP call was pending. That case completes in
+33 seconds locally, but a busy three-worker hosted macOS run placed other
+multi-process cases near 100 seconds. No assertion failure was observed; a
+longer bound still needs hosted validation.
 
 ## Goals and Non-Goals
 
@@ -73,6 +79,15 @@ solve. An empty cache can validate the fixture with
 changing the fixture's lock semantics. Installation still needs the declared
 distribution cache from the CI supply image.
 
+### Bound composite conformance at its aggregate layer
+
+The MCP source case exercises CLI, SDK, and MCP mutation paths in one fixture.
+Keep each subprocess and MCP call's existing 30-second deadline, but give this
+aggregate case a targeted 240-second pytest limit rather than widening the
+global 120-second budget or skipping a transport. The hosted result must finish
+within that bound and pass every existing assertion; a timeout remains a real
+failure, not an automatic retry.
+
 ### Bake the native quality toolchain into the immutable image
 
 Run the existing native tool materializer in the trusted GitHub image build,
@@ -83,6 +98,9 @@ build recipe and tool inputs without hashing the CUE image pin or its generated
 projection; that would create a digest cycle. The supply workflow's existing
 `--network none` smoke must execute the native materializer as well as the
 Python CLI. A warm image passes; an incomplete one cannot be published.
+The Dockerfile-specific context allowlist must admit every copied input and is
+itself hashed into the image manifest. A static Dockerfile syntax check cannot
+prove that a `COPY` source survived context filtering.
 
 When `ETHOS_CI_SUPPLY_MANIFEST` selects the immutable hosted image, a cache
 miss fails immediately before either `mise` bootstrap or another native tool
@@ -116,6 +134,9 @@ new source commit and its own jobs can close this failure.
   hosted cache-miss guard fail before publication or a long runner download.
   Rebuild through the trusted supply workflow; do not mount a host cache or
   turn on network-dependent verification.
+- **Composite MCP case still exceeds its bounded budget:** inspect its real
+  transport stage and fix the owning operation; do not raise the global timeout
+  or treat the local 33-second run as hosted acceptance.
 
 ## Delivery Order
 

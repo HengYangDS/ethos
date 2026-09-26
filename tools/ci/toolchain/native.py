@@ -23,6 +23,7 @@ from filelock import Timeout
 from packaging.version import Version
 
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.toolchain.mise import MISE_CONFIG
 from ethos.adapters.toolchain.mise import MISE_LOCK
 from ethos.adapters.toolchain.mise import mise_executable
@@ -145,12 +146,19 @@ def _directory(path: Path) -> None:
 
 
 def _cache_root(root: Path) -> Path:
-    """Select the declared persistent store independently of disposable checkouts."""
-    home = Path(
-        os.environ.get("ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR")
-        or os.environ.get("ETHOS_CI_TOOL_CACHE_DIR", "build/runtime/tool-cache/ci-tools")
+    """Share default native supply across linked worktrees, honoring explicit CI roots."""
+    selected = os.environ.get("ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR") or os.environ.get(
+        "ETHOS_CI_TOOL_CACHE_DIR"
     )
-    return home if home.is_absolute() else root / home
+    if selected:
+        home = Path(selected)
+        return home if home.is_absolute() else root / home
+    common = git_common_dir(root)
+    return (
+        Path(common) / "ethos/tool-cache/ci-tools"
+        if common
+        else root / "build/runtime/tool-cache/ci-tools"
+    )
 
 
 def _immutable_hosted_supply() -> bool:

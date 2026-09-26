@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import os
 import shlex
 import sqlite3
@@ -16,6 +15,7 @@ from pathlib import Path
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.dirty.change_provenance import dirty_content_sha256
+from ethos.adapters.repo.dirty.change_provenance import index_content_sha256
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_head
@@ -92,7 +92,6 @@ def _reacquire_coordinates(root: Path, path: Path) -> dict[str, str]:
     _require_reacquire(
         condition=current_branch(target) == lane["branch"], gap="lease_reacquire_branch_drift"
     )
-    indexed = run_git(target, "ls-files", "--stage", "-z", text=False, observation=True).stdout
     return {
         "control_root": control.as_posix(),
         "control_head": current_head(control),
@@ -103,7 +102,7 @@ def _reacquire_coordinates(root: Path, path: Path) -> dict[str, str]:
         "branch": lane["branch"],
         "head": current_head(target),
         "tree": current_tree(target),
-        "index_sha256": hashlib.sha256(indexed).hexdigest(),
+        "index_sha256": index_content_sha256(target),
         "dirty_content_sha256": dirty_content_sha256(target),
     }
 

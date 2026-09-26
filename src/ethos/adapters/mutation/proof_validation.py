@@ -5,17 +5,22 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import cast
 
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.proof.plan import execution_source_gaps
 from ethos.contracts.value import mutable_json
 from ethos.contracts.verdict import execution_succeeded
+from ethos.contracts.verdict import observation_verdict
+from ethos.contracts.verdict import reduce_verdicts
+from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.gates import quality_obligation_gaps
 
 if TYPE_CHECKING:
     from ethos.contracts.semantic import Attestation
+    from ethos.contracts.verdict import Verdict
 
 _STATEMENT_FIELDS = {
     "artifact",
@@ -27,6 +32,73 @@ _STATEMENT_FIELDS = {
     "required_gaps",
     "scope",
 }
+
+
+def assess_proof_execution(
+    *,
+    audit: dict[str, object],
+    lifecycle: dict[str, object],
+    plan: TransitionPlan,
+    checks: list[dict[str, object]],
+    runs_ok: bool,
+    execute: bool,
+    full: bool,
+    expected_head: str | None,
+    current_head: str,
+    scope_gaps: tuple[str, ...],
+) -> tuple[Verdict, tuple[str, ...]]:
+    """Reduce current execution observations; issuance still independently validates proof."""
+    verdicts_ok = bool(checks) and all(execution_succeeded(check) for check in checks)
+    trust_bearing_ok = any(
+        check["trust_bearing"] is True and check["verdict"] == "pass" for check in checks
+    )
+    failed_gate_gaps = (
+        tuple(
+            f"gate_failed:{check['action_id']}"
+            if check["verdict"] == "block"
+            else f"gate_unknown:{check['action_id']}"
+            for check in checks
+            if check["verdict"] != "pass"
+        )
+        if execute
+        else ()
+    )
+    trust_gaps = (
+        ("trust_bearing_proof_missing",) if execute and verdicts_ok and not trust_bearing_ok else ()
+    )
+    required_gaps = tuple(
+        dict.fromkeys(
+            tuple(string_sequence(audit.get("required_gaps")))
+            + tuple(string_sequence(lifecycle.get("required_gaps")))
+            + plan.required_gaps
+            + failed_gate_gaps
+            + (("full_proof_requires_execute",) if full and not execute else ())
+            + trust_gaps
+            + (
+                ("expected_head_mismatch",)
+                if expected_head is not None and expected_head != current_head
+                else ()
+            )
+            + scope_gaps
+        )
+    )
+    check_verdict: Verdict = (
+        reduce_verdicts(*(cast("Verdict", check["verdict"]) for check in checks))
+        if execute and checks
+        else observation_verdict(ok=runs_ok)
+        if checks
+        else "unknown"
+    )
+    return (
+        reduce_verdicts(
+            report_verdict(audit),
+            report_verdict(lifecycle),
+            plan.verdict,
+            check_verdict,
+            required_gaps=required_gaps,
+        ),
+        required_gaps,
+    )
 
 
 def plan_from_statement(attestation: Attestation) -> TransitionPlan:

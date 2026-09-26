@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from ethos.adapters.admission.current.resolution import CurrentResolution
+    from ethos.adapters.repo.proof_execution_carrier import ProofExecutionCarrier
 
 
 def _proof_issue_values(
@@ -116,7 +117,11 @@ def _proof_issue_values(
 
 
 def assert_proof_execution_source(
-    root: Path, plan: TransitionPlan, *, checks: tuple[dict[str, object], ...] = ()
+    root: Path,
+    plan: TransitionPlan,
+    *,
+    checks: tuple[dict[str, object], ...] = (),
+    carrier: ProofExecutionCarrier | None = None,
 ) -> None:
     """Fence exact-commit execution and retain completed checks if source drifts."""
     head = str(plan.facts.get("head") or "")
@@ -124,7 +129,9 @@ def assert_proof_execution_source(
     gap = gaps[0] if gaps else ""
     cause: ValueError | None = None
     try:
-        if not gap and (
+        if carrier is not None:
+            carrier.recheck()
+        elif not gap and (
             current_tracked_head(root) != head
             or observe_execution_source(root, head, str(plan.facts.get("tree") or ""))
             != plan.facts["values"]["execution_source"]
@@ -180,7 +187,12 @@ def _assert_proof_issuance_currentness(root: Path, plan: TransitionPlan) -> str:
     return head
 
 
-def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attestation:
+def issue_proof_attestation(
+    root: Path,
+    payload: Mapping[str, object],
+    *,
+    execution_carrier: ProofExecutionCarrier | None = None,
+) -> Attestation:
     """Issue a proof with a self-contained plan and executed-check closure."""
     plan, checks, verdict, issuer, scope, boundary, issued_at, objective, required_gaps = (
         _proof_issue_values(payload)
@@ -188,8 +200,11 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
     if plan.verdict != "pass":
         msg = "proof_plan_not_admitted"
         raise ValueError(msg)
+    if execution_carrier is not None:
+        assert_proof_execution_source(root, plan, carrier=execution_carrier, checks=checks)
     head = _assert_proof_issuance_currentness(root, plan)
-    assert_proof_execution_source(root, plan, checks=checks)
+    if execution_carrier is None:
+        assert_proof_execution_source(root, plan, checks=checks)
     commitment = (
         Commitment.model_validate(mutable_json(plan.commitment), strict=False)
         if plan.commitment is not None
@@ -283,7 +298,12 @@ def issue_proof_attestation(root: Path, payload: Mapping[str, object]) -> Attest
     return attestation
 
 
-def persist_proof_attestation(root: Path, attestation: Attestation) -> dict[str, object]:
+def persist_proof_attestation(
+    root: Path,
+    attestation: Attestation,
+    *,
+    execution_carrier: ProofExecutionCarrier | None = None,
+) -> dict[str, object]:
     """Validate and select one proof Attestation in the sole Git set."""
     if attestation.predicate != "proof:execution" or not attestation.subject.startswith(
         "git:commit:"
@@ -305,7 +325,12 @@ def persist_proof_attestation(root: Path, attestation: Attestation) -> dict[str,
     ]
     if structural_gaps:
         raise ValueError(structural_gaps[0])
-    assert_proof_execution_source(root, plan_from_statement(attestation), checks=checks or ())
+    assert_proof_execution_source(
+        root,
+        plan_from_statement(attestation),
+        carrier=execution_carrier,
+        checks=checks or (),
+    )
     return record_attestations(root, (attestation,))
 
 
@@ -315,6 +340,7 @@ def proof_plan(
     resolution: CurrentResolution,
     gate_ids: tuple[str, ...] = (),
     full: bool = False,
+    execution_root: Path | None = None,
 ) -> TransitionPlan:
     """Compile one plan solely from a passing frozen current resolution."""
     if resolution.verdict != "pass":
@@ -342,7 +368,9 @@ def proof_plan(
             "changed_paths": effective_paths,
             "change_id": selected_change_id,
             "gate_ids": tuple(node.id for node in nodes),
-            "execution_source": observe_execution_source(root, head, authority.current_tree),
+            "execution_source": observe_execution_source(
+                execution_root or root, head, authority.current_tree
+            ),
             **(
                 {
                     "selected_carrier": observed_scope.selected_carrier,

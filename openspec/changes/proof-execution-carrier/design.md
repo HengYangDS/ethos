@@ -51,6 +51,15 @@ Change only the product ceiling in the native source-budget declaration; retain
 the existing test ceiling, 500-ELOC file cap, 95% coverage, strict lint/types,
 and full proof. The extra capacity is not a target or a substitute for deletion.
 
+The first exact-HEAD proof blocked when the `secrets` gate's per-worktree native
+cache redownloaded Gitleaks until the existing 180-second supply deadline. The
+same locked archive already existed in another checkout. The native materializer
+will default to one cache under the Git common directory; explicit CI cache
+selection retains precedence. Its existing archive checksum, executable version,
+unsafe-path checks, atomic replacement and per-identity lock remain authoritative.
+The cache belongs to the repository lifetime, not to any single worktree; no
+foreign or active cache is deleted to make this proof pass.
+
 ## Verification
 
 First reproduce the public staged-archive failure and preserve its eight-path

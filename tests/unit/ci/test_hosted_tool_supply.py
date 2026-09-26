@@ -43,6 +43,7 @@ def isolated_supply_cache(monkeypatch):
     """Native fixtures never inherit either runner cache root."""
     monkeypatch.delenv("ETHOS_CI_TOOL_CACHE_DIR", raising=False)
     monkeypatch.delenv("ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR", raising=False)
+    monkeypatch.setattr(native, "git_common_dir", lambda _root: "")
 
 
 @pytest.mark.parametrize("case", ["valid", "inside", "unprotected", "missing"])

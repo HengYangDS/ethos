@@ -15,6 +15,9 @@
 - [x] 2.3 Apply the previously authorized product source ceiling only in its
   native declaration after deletion review; retain the independent per-file,
   test, coverage and gate floors.
+- [x] 2.4 Make the native tool cache share the Git-common lifetime by default,
+  preserving explicit CI roots and exact supply verification. Prove two linked
+  worktrees download once, including concurrent callers.
 
 ## 3. Qualify Candidate Inputs
 

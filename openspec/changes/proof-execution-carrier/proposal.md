@@ -22,6 +22,9 @@ preserves the original authoring authority and exact effect.
 - Apply the user's conditional product ELOC capacity only in the native source
   budget after deletion review; preserve the independent test, per-file,
   coverage and required-gate floors.
+- Reuse checksum-verified native tool supply across worktrees of one Git common
+  directory. An explicit CI cache root still takes precedence; no gate is
+  skipped or given a longer timeout.
 
 ## Capabilities
 
@@ -42,3 +45,5 @@ tests. A caller-selected carrier is an explicit execution resource, not an
 authority or an archived copy of intent. No adopter repository is modified by
 this Change. The accepted product count was 49,898/50,000 ELOC; the necessary
 carrier boundary exceeds the remaining 102 ELOC after targeted simplification.
+The first exact-HEAD proof exposed a second necessary boundary: per-worktree
+tool caches redownloaded an already verified Gitleaks archive and timed out.

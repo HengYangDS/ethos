@@ -205,6 +205,9 @@ def test_proof_statement_validation_rejects_each_bound_envelope_dimension(tmp_pa
             "proof_attestation_plan_digest_mismatch",
         ),
         ("required_gaps", "invalid", "proof_attestation_required_gaps_invalid"),
+        ("scope", [], "proof_attestation_scope_mismatch"),
+        ("plane", "remote", "proof_attestation_plane_mismatch"),
+        ("context", {"boundary": "focused"}, "proof_attestation_context_mismatch"),
     ):
         assert proof_statement_gaps(
             reissue_attestation(valid, body=valid.payload.body | {field: value}), checks

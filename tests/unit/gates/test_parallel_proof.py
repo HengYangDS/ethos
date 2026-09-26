@@ -8,6 +8,7 @@ from datetime import UTC
 from datetime import datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
+from typing import cast
 
 import pytest
 
@@ -26,6 +27,8 @@ from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from ethos.adapters.repo.proof_execution_carrier import ProofExecutionCarrier
 
 
 def _proof_plan(repo, nodes, policy=None):
@@ -66,6 +69,24 @@ def _graph(dependencies, *, writer="", resource_locks=None, **attributes):
         )
         for node in nodes
     }
+
+
+def test_execution_carrier_rejects_policy_drift_before_running_checks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A matching source is insufficient when the execution policy differs."""
+    repo = init_git_repo(tmp_path / "repo")
+    nodes, registry = _graph({"a": ()}, execution_mode="subprocess", trust_bearing=True)
+    plan = _proof_plan(repo, nodes)
+    monkeypatch.setattr(
+        proof_cli,
+        "resolve_gate_policy",
+        lambda *_args, **_kwargs: SimpleNamespace(registry=registry, digest="different-policy"),
+    )
+    monkeypatch.setattr(proof_cli, "LocalGateRunner", lambda: pytest.fail("gate ran"))
+    carrier = cast("ProofExecutionCarrier", SimpleNamespace(recheck=lambda: None))
+    with pytest.raises(ValueError, match=r"^proof_execution_environment_mismatch$"):
+        proof_cli.run_plan_checks(repo=repo, plan=plan, execute=True, carrier=carrier)
 
 
 @pytest.mark.parametrize("mode", ["parallel", "interrupted", "dry-run"])

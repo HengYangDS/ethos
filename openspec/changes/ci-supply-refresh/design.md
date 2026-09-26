@@ -112,6 +112,16 @@ its native `MISE_DISABLE_UPDATE_WARNING` setting. They still reject remaining
 stderr and any version mismatch; a harmless notice must not invalidate pinned
 tool identity during the trusted build.
 
+The subsequent GitHub run `36224244240` exposed three additional hosted test
+failures: one Python quality case still resolved a fresh lock offline, and two
+real Go quality cases could not reach their assertions without `go` and
+`gofmt`. Reuse the same checked-in Python fixture pair in that sibling case.
+Declare current stable Go in the existing mise config and lock; the native
+supplier installs and checks it with CUE/actionlint, then emits its binary
+directory before any operator PATH. The image already hashes those supply
+inputs, so changed bytes require a newly verified digest. Do not skip Go
+cases or accept an ambient tool as the declared supply.
+
 ### Publish per peer from fresh receipts
 
 After local checks and exact-HEAD proof, use ETHOS publication receipts and

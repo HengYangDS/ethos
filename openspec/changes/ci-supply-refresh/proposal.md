@@ -51,5 +51,5 @@ existing fail-closed CI supply contract for changed lock inputs. The
 The existing CUE CI declaration, both generated Forge workflows, the CI
 emulator image assertion, architecture regressions, the adopter quality test
 and its locked fixture, the native tool supply and image build, and hosted CI
-observations. No new dependency, command plane, credential store, or release
-tag is introduced.
+observations. No new Python/npm product dependency, command plane, credential
+store, or release tag is introduced. Go becomes a locked verification tool.

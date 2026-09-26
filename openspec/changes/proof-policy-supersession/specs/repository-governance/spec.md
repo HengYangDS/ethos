@@ -39,3 +39,26 @@ behavior.
   statement binding, or applicable current-policy records conflict
 - **THEN** a separate valid current proof does not hide that defect
 - **AND THEN** no publication or accepted-ref effect is admitted from the set.
+
+### Requirement: Native accepted-ref admission agrees with transition proof
+
+The accepted-ref hook SHALL use the repository-transition proof selector used
+by promotion preflight. Complete same-HEAD executions with the same accepted
+intent, current policy, verifier and claim MAY differ in their execution facts,
+plan and effect without blocking that transition. Candidate ancestry, exact
+prepared ref intent and Git CAS remain independent requirements. Ordinary
+full-binding proof queries SHALL retain their stricter conflict behavior.
+
+#### Scenario: Two valid executions precede one accepted transition
+
+- **GIVEN** two current proofs share the accepted assertion and policy but have
+  different execution facts, plans and effects
+- **WHEN** the authorized accepted-ref update reaches the native Git hook
+- **THEN** the hook admits the same proof set as promotion preflight
+- **AND THEN** the exact ref update succeeds only with its prepared intent.
+
+#### Scenario: Different assertions remain contradictory
+
+- **WHEN** the same HEAD carries proofs with different verifier or claim
+- **THEN** accepted-ref admission blocks their contradiction
+- **AND THEN** an ordinary full-binding query also remains strict.

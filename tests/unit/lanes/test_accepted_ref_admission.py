@@ -11,7 +11,7 @@ ref/candidate/accepted-contained-rewind-passes|independent|1R|r|candidate/dev|c1
 ref/accepted/rollback-blocks|independent|1P2|r|dev|c2|c1|block|~accepted_ref_move_not_fast_forward
 ref/accepted/non-head-blocks|independent|1P2|r|dev|base|c1|block|~accepted_ref_move_not_candidate_head
 cas/equivalent-proof-keeps-binding|independent|1PIE|r|dev|base|c1|pass|=
-cas/distinct-proof-closure-stales-binding|independent|1PIX|r|dev|base|c1|block|=stale_binding
+cas/different-assertion-remains-contradictory|independent|1PIX|r|dev|base|c1|block|=contradiction
 intent/matching-passes|independent|1PI|r|dev|base|c1|pass|=
 intent/missing-blocks|independent|1P|r|dev|base|c1|block|~accepted_ref_move_no_ref_intent
 intent/mismatch-blocks|independent|1PM|r|dev|base|c1|block|~ref_intent_mismatch
@@ -29,10 +29,11 @@ push/work-lane/remote-publication-blocks|independent|W|p|work/x|base|work|block|
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
@@ -45,9 +46,6 @@ from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from tests.support import governed_repository as fx
 from tests.support import proof as proof_fixture
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def _advance(repo: Path, name: str) -> str:
@@ -122,7 +120,7 @@ class State:
             )
         elif code in "XA":
             if code == "X":
-                self._distinct_proof()
+                self.distinct_proof()
             else:
                 fx.git(self.repo, "update-ref", "refs/heads/dev", self.v["c1"], self.v["base"])
         elif code in "HJ":
@@ -157,8 +155,10 @@ class State:
             plan_digest=proof.canonical_json_digest({"operation": operation}),
         )
 
-    def _distinct_proof(self) -> None:
+    def distinct_proof(self, *, matching_verifier: bool = False) -> None:
         head = self.v["c1"]
+        first = proof.proof_attestation(self.repo, head)
+        assert first is not None
         base = proof_fixture.current_proof_plan(self.repo, expected_head=head)
         values = dict(base.facts["values"])
         values["changed_paths"] = ("other-operation",)
@@ -180,7 +180,7 @@ class State:
                     "plan": plan,
                     "checks": checks,
                     "verdict": "pass",
-                    "issuer": "agent:test:case:ref-move",
+                    "issuer": first.verifier if matching_verifier else "agent:test:case:ref-move",
                     "scope": "repository",
                     "boundary": "repository",
                 },
@@ -234,3 +234,35 @@ def test_accepted_ref_admission_claim_matrix(tmp_path: Path, row: tuple[str, ...
         assert gap in report["required_gaps"]
         if boundary.endswith("+w"):
             assert _call(state, "r", "work/x", old, new)["verdict"] == "pass"
+
+
+def test_native_accepted_ref_move_uses_repository_transition_proof(tmp_path: Path) -> None:
+    """Two valid executions cannot make preflight and the real Git hook disagree."""
+    state = State(tmp_path, "independent")
+    state.run("1PI")
+    state.distinct_proof(matching_verifier=True)
+    old, head = state.v["base"], state.v["c1"]
+    assert proof.proof_gaps(state.repo, head) == ["stale_binding"]
+    assert proof.proof_for_repository_transition(state.repo, head)[1] == []
+    admitted = admission.ref_move_admission_report(
+        root=state.repo, ref_name="refs/heads/dev", old_value=old, new_value=head
+    )
+    assert admitted["verdict"] == "pass", admitted
+    hooks = subprocess.run(
+        ("git", "config", "--path", "--get", "core.hooksPath"),
+        cwd=state.repo,
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout.strip()
+    assert (Path(hooks) / "reference-transaction").is_file()
+    applied = subprocess.run(
+        ("git", "update-ref", "refs/heads/dev", head, old),
+        cwd=state.repo,
+        text=True,
+        capture_output=True,
+        timeout=90,
+        check=False,
+    )
+    assert applied.returncode == 0, applied.stderr
+    assert fx.git(state.repo, "rev-parse", "refs/heads/dev") == head

@@ -238,7 +238,7 @@ def prove_formation(
     ).read_bytes()
     expected_guidance = hashlib.sha256(package_guidance).hexdigest()
     formed: list[dict[str, object]] = []
-    first_change = "not_attempted"
+    journey = {"first_change": "not_attempted", "agent_handoff": "not_attempted"}
     for starter in ("foundation", "python-library"):
         target = work / f"formed-{starter}"
         command = (
@@ -325,7 +325,7 @@ def prove_formation(
             expected_guidance,
         )
         if starter == "foundation":
-            first_change = prove_first_change(
+            journey = prove_first_change(
                 executable,
                 target,
                 environment=environment,
@@ -356,7 +356,7 @@ def prove_formation(
         "state": "passed",
         "formed": formed,
         "guidance_sha256": expected_guidance,
-        "first_change": first_change,
+        **journey,
         "retry_preserved": True,
         "source_checkout_required": False,
     }

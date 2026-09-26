@@ -86,7 +86,6 @@ def test_identity_transition_is_explicit_and_target_scoped(
     release.write_text(
         '[protected_refs]\nbranches = ["main", "dev"]\ntags = ["v*"]\n\n' + release.read_text()
     )
-    git(work, "add", tasks.relative_to(work).as_posix(), "VERSION", ".ethos")
     declare_native_proof_checks(
         work,
         test="from pathlib import Path; assert Path('VERSION').read_text() == '1.2.3\\n'",
@@ -94,6 +93,7 @@ def test_identity_transition_is_explicit_and_target_scoped(
         "assert tomllib.loads(Path('.ethos/profile.toml').read_text())"
         "['profile_id'] == 'renamed-product'",
     )
+    git(work, "add", tasks.relative_to(work).as_posix(), "VERSION", ".ethos", "system/gates.toml")
     profile = work / ".ethos/profile.toml"
     old_profile = tomllib.loads(profile.read_text())["profile_id"]
     head = commit_fixture_file(

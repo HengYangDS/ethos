@@ -201,8 +201,8 @@ def _declare_executable_checks(work: Path) -> None:
     )
     validate = (
         "from pathlib import Path; import tomllib; "
-        "profile = tomllib.loads(Path('.ethos/profile.toml').read_text()); "
-        "assert len(profile['proof']['gates']) == 2; print('gate-policy-verified')"
+        "registry = tomllib.loads(Path('system/gates.toml').read_text()); "
+        "assert len(registry['gates']) == 2; print('gate-policy-verified')"
     )
     declare_native_proof_checks(work, test=verify, typecheck=validate)
 

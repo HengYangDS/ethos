@@ -2350,7 +2350,11 @@ command-authored bytes cannot qualify behavior. The product-owned native test
 invocation instead selects tracked tests and consumes its runner-produced JUnit
 and LCOV, rejecting unexecuted production modules. Adopters should remove
 duplicated tests from wrappers rather than trade this boundary for a nominal
-one-run result. Gate names, exit codes and aggregate green cannot replace missing
+one-run result. Where an authored domain command must remain, that same Gate
+may declare product-owned verification providers. ETHOS requires both outcomes,
+binds provider source in the Gate policy, and persists verifier results apart
+from command stdout; it does not add a hidden gate or trust command-authored
+reports. Gate names, exit codes and aggregate green cannot replace missing
 scope or proof. First adoption exposes unqualified claims for review. Provider
 qualification requires good/bad, missing-report and narrowed-scope cases.
 

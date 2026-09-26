@@ -204,6 +204,11 @@ def run_plan_checks(
                 "evidence_class": gate.evidence_class,
                 "trust_bearing": gate.trust_bearing,
                 "diagnostics": list(run_result.diagnostics),
+                **(
+                    {"verification": run_result.verification}
+                    if run_result.verification is not None
+                    else {}
+                ),
                 "started_after_seconds": run_result.started_after_seconds,
                 "duration_seconds": run_result.duration_seconds,
             }

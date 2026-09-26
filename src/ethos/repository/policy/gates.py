@@ -165,23 +165,13 @@ def quality_obligation_gaps(
 def _qualified_quality_check(
     gate: object, check: object, axis: str, source_tree: str, subjects: object
 ) -> bool:
-    """Accept only a product provider's scoped native-evidence result."""
+    """Accept scoped evidence produced by a product-owned provider invocation."""
     if not isinstance(gate, Mapping) or not isinstance(check, Mapping) or not source_tree:
         return False
     identity = gate.get("execution_identity")
-    if (
-        gate.get("execution_mode") != "provider"
-        or gate.get("tool_adapter") != "ethos"
-        or not isinstance(identity, (list, tuple))
-        or len(identity) < 2
-        or identity[0] != "provider"
-    ):
+    if gate.get("tool_adapter") != "ethos" or not isinstance(identity, (list, tuple)):
         return False
-    providers = identity[1:]
-    try:
-        payload = json.loads(str(check.get("stdout") or ""))
-    except json.JSONDecodeError:
-        return False
+    payload, providers = _quality_provider_payload(gate, check, identity)
     if not isinstance(payload, Mapping) or payload.get("gate") != gate.get("id"):
         return False
     observations = payload.get("providers")
@@ -190,9 +180,38 @@ def _qualified_quality_check(
     return any(
         isinstance(item, Mapping)
         and item.get("provider") in providers
+        and (
+            gate.get("execution_mode") != "verified-command"
+            or item.get("provider") in _QUALITY_PROVIDERS.get(axis, ())
+        )
         and _quality_evidence_matches(item.get("report"), axis, source_tree, subjects)
         for item in observations
     )
+
+
+def _quality_provider_payload(
+    gate: Mapping[str, object], check: Mapping[str, object], identity: list[str] | tuple[str, ...]
+) -> tuple[object, tuple[str, ...]]:
+    """Keep command output distinct from product-owned verifier output."""
+    if (
+        gate.get("execution_mode") == "provider"
+        and len(identity) >= 2
+        and identity[0] == "provider"
+    ):
+        try:
+            return json.loads(str(check.get("stdout") or "")), tuple(identity[1:])
+        except json.JSONDecodeError:
+            return None, ()
+    command = check.get("command")
+    providers = gate.get("verification_providers")
+    if (
+        gate.get("execution_mode") == "verified-command"
+        and isinstance(command, (list, tuple))
+        and tuple(command) == tuple(identity)
+        and isinstance(providers, (list, tuple))
+    ):
+        return check.get("verification"), tuple(providers)
+    return None, ()
 
 
 def _quality_evidence_matches(
@@ -238,7 +257,10 @@ def _owner_projection(
                 (
                     gate.id
                     for gate in declaration.gates
-                    if any(provider in gate.providers for provider in providers)
+                    if any(
+                        provider in (*gate.providers, *gate.verification_providers)
+                        for provider in providers
+                    )
                 ),
                 "",
             )
@@ -280,9 +302,17 @@ def _profile_declaration(profile: RepositoryProfile) -> GateRegistryDeclaration:
             gate.model_copy(
                 update={
                     "profile": "repository",
-                    "toolchain": "ethos" if gate.providers else "repository-native",
-                    "execution_mode": "provider" if gate.providers else "subprocess",
-                    "tool_adapter": "ethos" if gate.providers else "repository-native",
+                    "toolchain": "ethos"
+                    if gate.providers or gate.verification_providers
+                    else "repository-native",
+                    "execution_mode": "verified-command"
+                    if gate.verification_providers
+                    else "provider"
+                    if gate.providers
+                    else "subprocess",
+                    "tool_adapter": "ethos"
+                    if gate.providers or gate.verification_providers
+                    else "repository-native",
                 }
             )
             for gate in proof.gates
@@ -324,7 +354,7 @@ def source_paths_for_gate(gate: Gate) -> tuple[str, ...]:
     )
     providers = tuple(
         provider_root + reference.partition(":")[0].removeprefix("ethos.").replace(".", "/") + ".py"
-        for reference in gate.providers
+        for reference in (*gate.providers, *gate.verification_providers)
     )
     command = canonical_gate_command(gate.command)
     noxfile = (

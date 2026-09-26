@@ -14,6 +14,8 @@ import ethos.adapters.gates.runner as gate_runner
 import ethos.adapters.gates.tool as gate_tool
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
+from ethos.repository.policy.gates import gate_policy_fields
+from ethos.repository.policy.gates import quality_obligation_gaps
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -72,6 +74,112 @@ def test_provider_report_preserves_verdict_and_root(monkeypatch, tmp_path, paylo
     )
     if gap:
         assert result.diagnostics[0]["required_gaps"] == [gap]
+
+
+@pytest.mark.parametrize(
+    ("command_exit", "provider_verdict", "expected_verdict", "expected_calls"),
+    [
+        (0, "pass", "pass", 1),
+        (0, "block", "block", 1),
+        (4, "pass", "block", 0),
+    ],
+)
+def test_verified_command_conjoins_native_and_product_results(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    command_exit: int,
+    provider_verdict: str,
+    expected_verdict: str,
+    expected_calls: int,
+) -> None:
+    """A passing provider cannot rescue a failed command, or vice versa."""
+    calls: list[Path] = []
+
+    def report(root: Path) -> dict[str, str]:
+        calls.append(root)
+        return {"verdict": provider_verdict}
+
+    gate = Gate(
+        id="gate",
+        kind="test",
+        command=(sys.executable, "-c", f"raise SystemExit({command_exit})"),
+        verification_providers=("ethos.test:report",),
+    )
+
+    result = _runner(monkeypatch, report=report).run(_node(gate), gate, root=tmp_path)
+
+    assert result.verdict == expected_verdict
+    assert calls == [tmp_path] * expected_calls
+    assert (result.verification is not None) == bool(expected_calls)
+
+
+def test_verified_command_ignores_forged_provider_stdout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only the product-invoked provider can populate verification evidence."""
+    payload = (
+        '{"gate":"gate","providers":[{"provider":"ethos.test:report","report":{"verdict":"pass"}}]}'
+    )
+    gate = Gate(
+        id="gate",
+        kind="test",
+        command=(sys.executable, "-c", f"print({payload!r})"),
+        verification_providers=("ethos.test:missing",),
+    )
+    monkeypatch.setattr(gate_runner.importlib, "import_module", lambda _name: SimpleNamespace())
+
+    result = gate_runner.LocalGateRunner().run(_node(gate), gate, root=tmp_path)
+
+    assert result.verdict == "block"
+    assert result.stdout.strip() == payload
+    assert result.verification == {"gate": "gate", "providers": []}
+
+
+def test_verified_command_requires_selected_product_scope_not_stdout() -> None:
+    """Policy selection binds the verifier reference, tree, and every source."""
+    reference = "ethos.adapters.gates.code_quality:behavior_report"
+    tree = "a" * 40
+    gate = Gate(
+        id="behavior",
+        kind="test",
+        command=("node", "domain-check.mjs"),
+        verification_providers=(reference,),
+        profile="repository",
+        tool_adapter="ethos",
+        execution_mode="verified-command",
+    )
+    report = {
+        "verdict": "pass",
+        "quality_evidence": {
+            "axis": "behavior",
+            "source_tree": tree,
+            "selected_paths": ["answer.js"],
+        },
+    }
+    payload = {"gate": "behavior", "providers": [{"provider": reference, "report": report}]}
+    check = {
+        "action_id": "behavior",
+        "command": ["node", "domain-check.mjs"],
+        "stdout": json.dumps(payload),
+    }
+    policy = {
+        "owner": {
+            "quality_floor_version": 2,
+            "code_correctness_map": {"behavior": "behavior"},
+            "quality_subjects": {"behavior": ["answer.js"]},
+        },
+        "gates": [gate_policy_fields(gate)],
+    }
+
+    assert quality_obligation_gaps(policy, (check,), source_tree=tree) == (
+        "quality_obligation_unproven:behavior",
+    )
+    check["verification"] = payload
+    assert quality_obligation_gaps(policy, (check,), source_tree=tree) == ()
+    report["quality_evidence"]["source_tree"] = "b" * 40
+    assert quality_obligation_gaps(policy, (check,), source_tree=tree) == (
+        "quality_obligation_unproven:behavior",
+    )
 
 
 @pytest.mark.parametrize(

@@ -59,6 +59,7 @@ class ActionRunResult:
     stdout: str = ""
     stderr: str = ""
     diagnostics: tuple[dict[str, Any], ...] = ()
+    verification: dict[str, object] | None = None
     started_after_seconds: float | None = None
     duration_seconds: float | None = None
 
@@ -160,14 +161,22 @@ class LocalGateRunner:
             exit_code=completed.returncode,
             stdout=completed.stdout,
         )
+        verification: dict[str, object] | None = None
+        if verdict == "pass" and gate.verification_providers:
+            reports, verdict, provider_diagnostics = _provider_reports(
+                gate.id, gate.verification_providers, root
+            )
+            verification = {"gate": gate.id, "providers": reports}
+            diagnostics = (*diagnostics, *provider_diagnostics)
         return ActionRunResult(
             action_id=node.id,
             command=node.command,
             verdict=verdict,
-            exit_code=completed.returncode,
+            exit_code=completed.returncode if verification is None else int(verdict != "pass"),
             stdout=completed.stdout,
             stderr=completed.stderr,
             diagnostics=diagnostics,
+            verification=verification,
         )
 
 
@@ -378,11 +387,14 @@ def _run_ready_gate(
     )
 
 
-def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
+def _provider_reports(
+    gate_id: str, references: tuple[str, ...], root: Path
+) -> tuple[list[dict[str, object]], Verdict, tuple[dict[str, Any], ...]]:
+    """Execute the same product-owned provider contract for either gate form."""
     reports: list[dict[str, object]] = []
     diagnostics: list[dict[str, Any]] = []
     verdicts: list[Verdict] = []
-    for reference in gate.providers:
+    for reference in references:
         try:
             report = _provider_report(reference, root)
         except (
@@ -399,7 +411,7 @@ def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
                     "kind": "gate_provider_error",
                     "provider": reference,
                     "error": f"{type(exc).__name__}: {exc}",
-                    "required_gaps": [f"gate_provider_error:{gate.id}:{reference}"],
+                    "required_gaps": [f"gate_provider_error:{gate_id}:{reference}"],
                 }
             )
             continue
@@ -407,10 +419,10 @@ def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
         gaps = string_sequence(report.get("required_gaps"), drop_empty=True)
         warnings = string_sequence(report.get("warnings"), drop_empty=True)
         warning_gaps = tuple(
-            f"gate_provider_warning:{gate.id}:{reference}:{warning}" for warning in warnings
+            f"gate_provider_warning:{gate_id}:{reference}:{warning}" for warning in warnings
         )
         diagnostic_gaps = _diagnostic_gaps(
-            report.get("diagnostics"), f"gate_provider_diagnostic:{gate.id}:{reference}"
+            report.get("diagnostics"), f"gate_provider_diagnostic:{gate_id}:{reference}"
         )
         provider_gaps = tuple(dict.fromkeys((*gaps, *warning_gaps, *diagnostic_gaps)))
         verdict = report_verdict(
@@ -420,9 +432,9 @@ def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
             }
         )
         if verdict == "block" and not provider_gaps:
-            provider_gaps = (f"gate_provider_blocked:{gate.id}:{reference}",)
+            provider_gaps = (f"gate_provider_blocked:{gate_id}:{reference}",)
         elif verdict == "unknown" and not provider_gaps:
-            provider_gaps = (f"gate_provider_unknown:{gate.id}:{reference}",)
+            provider_gaps = (f"gate_provider_unknown:{gate_id}:{reference}",)
         verdicts.append(verdict)
         if verdict != "pass":
             diagnostics.append(
@@ -433,7 +445,12 @@ def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
                     "required_gaps": list(provider_gaps),
                 }
             )
-    verdict = reduce_verdicts(*verdicts) if len(reports) == len(gate.providers) else "block"
+    verdict = reduce_verdicts(*verdicts) if len(reports) == len(references) else "block"
+    return reports, verdict, tuple(diagnostics)
+
+
+def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
+    reports, verdict, diagnostics = _provider_reports(gate.id, gate.providers, root)
     payload = {"verdict": verdict, "gate": gate.id, "providers": reports}
     return ActionRunResult(
         action_id=node.id,
@@ -441,7 +458,7 @@ def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
         verdict=verdict,
         exit_code=0 if verdict == "pass" else 1,
         stdout=json.dumps(payload, sort_keys=True, separators=(",", ":")),
-        diagnostics=tuple(diagnostics),
+        diagnostics=diagnostics,
     )
 
 

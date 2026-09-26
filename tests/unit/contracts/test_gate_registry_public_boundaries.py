@@ -13,6 +13,7 @@ from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.repository.policy.gates import gate_policy_fields
+from ethos.repository.policy.gates import source_paths_for_gate
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -53,11 +54,44 @@ def test_gate_registry_canonical_projection_and_proof_closure() -> None:
         Gate.model_construct(id="both", kind="test", command=("run",), providers=("x:y",)),
         Gate.model_construct(id="provider", kind="test", providers=("invalid",)),
         Gate.model_construct(id="provider", kind="test", providers=("ethos.owner:call",) * 2),
+        Gate.model_construct(
+            id="orphan-verifier",
+            kind="test",
+            providers=("ethos.owner:call",),
+            verification_providers=("ethos.owner:check",),
+        ),
+        Gate.model_construct(
+            id="invalid-verifier",
+            kind="test",
+            command=("run",),
+            verification_providers=("invalid",),
+        ),
     ],
 )
 def test_gate_executor_malformed_shapes_fail_closed(gate: Gate) -> None:
     with pytest.raises(ValidationError, match="gate executor invalid"):
         Gate.model_validate(gate.model_dump())
+
+
+def test_verified_command_keeps_one_gate_and_binds_product_source() -> None:
+    """The verifier is part of one command gate's policy, not another gate."""
+    reference = "ethos.adapters.gates.code_quality:behavior_report"
+    gate = Gate(
+        id="docs-integrity",
+        kind="test",
+        command=("node", "tools/docs/cli.mjs", "check"),
+        verification_providers=(reference,),
+        profile="repository",
+        tool_adapter="ethos",
+    )
+
+    assert gate.to_dict()["command"] == ["node", "tools/docs/cli.mjs", "check"]
+    assert gate.to_dict()["verification_providers"] == [reference]
+    assert gate_policy_fields(gate)["verification_providers"] == [reference]
+    assert gate_policy_fields(gate) != gate_policy_fields(
+        gate.model_copy(update={"verification_providers": ()})
+    )
+    assert "@ethos/adapters/gates/code_quality.py" in source_paths_for_gate(gate)
 
 
 @pytest.mark.parametrize(

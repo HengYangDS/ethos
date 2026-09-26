@@ -10,6 +10,7 @@ import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.archive.command as archive_command
 import ethos.adapters.mutation.lane_lifecycle.archive.effect as archive_effect
+import ethos.adapters.repo.proof_execution_carrier as execution_carrier
 import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.proof_execution_carrier import ProofExecutionCarrier
@@ -332,6 +333,44 @@ def test_authoring_ref_move_invalidates_captured_carrier(
 
     with pytest.raises(ValueError, match=r"^proof_authoring_source_changed$"):
         guard.recheck()
+
+
+@pytest.mark.parametrize(
+    ("defect", "expected"),
+    [
+        ("toplevel", "proof_execution_carrier_unregistered"),
+        ("unavailable", "proof_execution_carrier_observation_unavailable"),
+    ],
+)
+def test_carrier_recheck_rejects_untrusted_git_observation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, defect: str, expected: str
+) -> None:
+    """A matching HEAD cannot substitute for a registered, observable executor."""
+    authoring, head, before = _staged_archive(
+        tmp_path, monkeypatch, test_program="print('current gate passed')"
+    )
+    carrier = tmp_path / "execution-carrier"
+    git(authoring, "worktree", "add", "--detach", str(carrier), head)
+    branch = git(authoring, "branch", "--show-current")
+    guard = ProofExecutionCarrier.capture(
+        authoring,
+        carrier,
+        head=head,
+        tree=git(authoring, "rev-parse", "HEAD^{tree}"),
+        lease=leases_by_branch(authoring)[branch],
+    )
+    if defect == "toplevel":
+        monkeypatch.setattr(execution_carrier, "git_stdout", lambda *_args: str(tmp_path))
+    else:
+
+        def unavailable(_root: Path) -> str:
+            message = "git observation unavailable"
+            raise OSError(message)
+
+        monkeypatch.setattr(execution_carrier, "git_common_dir", unavailable)
+    with pytest.raises(ValueError, match=rf"^{expected}$"):
+        guard.recheck()
+    assert before == _authoring_snapshot(authoring)
 
 
 def test_execution_root_requires_exact_full_repository_proof(

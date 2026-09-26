@@ -17,6 +17,9 @@
 - [x] 3.3 Run the adopter quality cases against the supplied absolute cache and recheck both Forge projections, strict OpenSpec, formatting, lint, and diff hygiene.
 - [x] 3.4 Reproduce the cold-cache offline-solve failure, replace test-time lock resolution with a checked-in project/lock fixture, and retain the missing-lock and lock-drift negative cases.
 - [x] 3.5 Recheck the full adopter quality suite, CI projections, strict OpenSpec, formatting, lint, and diff hygiene for the revised source.
+- [x] 3.6 Observe the exact-SHA GitLab verification failure and its retained `mise` download diagnostic; distinguish it from Runner interruption or a test assertion.
+- [ ] 3.7 Bake the locked native gate tools into the immutable image, reject hosted cache misses before network access, and prove the no-network image smoke.
+- [ ] 3.8 Build and verify the new trusted image, pin its digest, regenerate both provider projections, and recheck the full local quality boundary.
 
 ## 4. Accept and verify hosted delivery
 

@@ -116,6 +116,34 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     }
 
 
+def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github) -> None:
+    """The immutable image, not a cold GitLab job, supplies every native gate tool."""
+    dockerfile = (ROOT / ".config/ci/supply/Dockerfile").read_text(encoding="utf-8")
+    manifest = re.search(r"sha256sum(?P<inputs>.*?)> input\.sha256", dockerfile, re.DOTALL)
+    assert manifest is not None
+    for path in (
+        ".config/checks/node/runtime.toml",
+        "pyproject.toml",
+        "uv.lock",
+        "package.json",
+        "package-lock.json",
+        ".config/mise/config.toml",
+        ".config/mise/mise.lock",
+        "tools/ci/scripts/mise-install.sh",
+        "tools/ci/toolchain/native.py",
+        "src/ethos/adapters/toolchain/mise.py",
+        "src/ethos/adapters/process.py",
+        ".config/ci/supply/Dockerfile",
+    ):
+        assert path in manifest.group("inputs")
+    assert "MISE_DATA_DIR=/opt/ethos-supply/mise-data" in dockerfile
+    native_command = "tools/ci/toolchain/native.py --root . --mise gitleaks scc syft"
+    assert f"PYTHONPATH=src .venv/bin/python {native_command}" in dockerfile
+    smoke = github["jobs"]["supply-image"]["steps"][-1]["run"]
+    assert "--network none" in smoke
+    assert native_command in smoke
+
+
 @pytest.mark.parametrize("provider", ["github", "gitlab"])
 def test_provider_commands_use_shared_owners_without_activating_mutation(provider, gitlab) -> None:
     entry = next(item for item in projection_entries() if item["provider"] == provider)

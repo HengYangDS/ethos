@@ -113,7 +113,7 @@ github: {
 					smoke_command=(docker create --name "$smoke_name" --network none)
 					smoke_command+=(--env CI_PROJECT_DIR=/workspace --env ETHOS_CI_SUPPLY_MANIFEST=/opt/ethos-supply/input.sha256)
 					smoke_command+=(--env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory --env GIT_CONFIG_VALUE_0=/workspace)
-					smoke_command+=(--entrypoint /workspace/tools/ci/scripts/bootstrap-python.sh "$image" -- /bin/bash -lc "test \\$EUID -eq 65534 && uv run --frozen --offline python -B -I -m ethos.cli --version")
+					smoke_command+=(--entrypoint /workspace/tools/ci/scripts/bootstrap-python.sh "$image" -- /bin/bash -lc "test \\$EUID -eq 65534 && uv run --frozen --offline python -B -I -m ethos.cli --version && uv run --frozen --offline python tools/ci/toolchain/native.py --root . --mise gitleaks scc syft")
 					"${smoke_command[@]}"
 					docker cp "$smoke_root/repo/." "$smoke_name:/workspace"
 					docker start --attach "$smoke_name"

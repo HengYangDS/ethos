@@ -14,14 +14,21 @@ relative path reproduces the failure locally. After the cache path was anchored
 to the workspace, the hosted test still failed: it creates a project without a
 lockfile and runs `uv lock --offline` against a cold runner cache. A locked
 installation does not promise the index metadata needed to solve a new lock.
+The next exact-SHA GitLab run passed the commit, host, npm, and external-link
+jobs but failed the verification job before any gate could execute. Its retained
+diagnostics show the `mise` installer downloading only 3% in 180 seconds. The
+supply image's build currently warms Python and npm only; the native gate tools
+still depend on runner egress.
 
 ## Goals and Non-Goals
 
 The goal is to restore an exact image-to-checkout input match, keep the GitHub
 offline cache stable across child working directories, and make the adopter
 quality test consume a checked-in lock instead of solving one at test time.
-This Change does not alter product dependencies, disable the bootstrap
-assertion, change CI jobs, or claim a versioned release.
+The immutable Linux image must also carry the complete locked native gate tool
+supply and prove that it works without network access. This Change does not
+alter product dependencies, disable the bootstrap assertion, add CI jobs, or
+claim a versioned release.
 
 ## Decisions
 
@@ -66,6 +73,23 @@ solve. An empty cache can validate the fixture with
 changing the fixture's lock semantics. Installation still needs the declared
 distribution cache from the CI supply image.
 
+### Bake the native quality toolchain into the immutable image
+
+Run the existing native tool materializer in the trusted GitHub image build,
+using the same pinned `mise` installer and lockfiles as repository quality
+gates. Retain its `mise`, CUE, actionlint, gitleaks, scc, and Syft caches in the
+image, owned by the unprivileged job user. Extend `input.sha256` to cover the
+build recipe and tool inputs without hashing the CUE image pin or its generated
+projection; that would create a digest cycle. The supply workflow's existing
+`--network none` smoke must execute the native materializer as well as the
+Python CLI. A warm image passes; an incomplete one cannot be published.
+
+When `ETHOS_CI_SUPPLY_MANIFEST` selects the immutable hosted image, a cache
+miss fails immediately before either `mise` bootstrap or another native tool
+download. Local and GitHub-hosted environments without that supply contract
+retain the existing bounded native provisioning path. This is a tool supply
+boundary, not a second quality-gate policy.
+
 ### Publish per peer from fresh receipts
 
 After local checks and exact-HEAD proof, use ETHOS publication receipts and
@@ -88,10 +112,16 @@ new source commit and its own jobs can close this failure.
 - **The fixture drifts from its lock:** locked validation and the lock-drift
   negative case must fail closed; update the pair together with the official
   lock command when its declared dependencies change.
+- **A native tool is absent from the image:** the no-network image smoke and
+  hosted cache-miss guard fail before publication or a long runner download.
+  Rebuild through the trusted supply workflow; do not mount a host cache or
+  turn on network-dependent verification.
 
 ## Delivery Order
 
-Read back the trusted image, update and verify both checked projections, prove
-the committed source, accept it locally, then publish and inspect each Forge.
-Keep the Change active until source and hosted observations satisfy its tasks;
-archive only through the official ETHOS/OpenSpec transition.
+Read back the first trusted image and the two hosted failures, repair the test
+and native tool supply, then build and inspect a new trusted image. Update its
+digest and verify both checked projections, prove the committed source, accept
+it locally, then publish and inspect each Forge. Keep the Change active until
+source and hosted observations satisfy its tasks; archive only through the
+official ETHOS/OpenSpec transition.

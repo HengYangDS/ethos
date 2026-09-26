@@ -153,6 +153,11 @@ def _cache_root(root: Path) -> Path:
     return home if home.is_absolute() else root / home
 
 
+def _immutable_hosted_supply() -> bool:
+    """Hosted image jobs may verify cached tools but never download replacements."""
+    return bool(os.environ.get("ETHOS_CI_SUPPLY_MANIFEST"))
+
+
 def render_mise_installer(root: Path) -> str:
     """Project the native installer with one semantics-preserving lint normalization."""
     version = tomllib.loads((root / MISE_CONFIG).read_text())["min_version"]
@@ -224,6 +229,9 @@ def prepare_mise(root: Path) -> Path:
         if executable.is_file() and not executable.is_symlink() and os.access(executable, os.X_OK):
             verify(executable)
             return executable
+        if _immutable_hosted_supply():
+            message = "native_tool_offline_cache_missing:mise"
+            raise ValueError(message)
         with TemporaryDirectory(prefix=".bootstrap-", dir=home) as directory:
             isolated = Path(directory)
             candidate = isolated / "mise"
@@ -288,6 +296,9 @@ def prepare(root: Path, name: str, *, lock_timeout: float = 30, mise: Path | Non
         with TemporaryDirectory(prefix=".prepare-", dir=cache) as scratch:
             selected = archive
             if not archive.exists() and not archive.is_symlink():
+                if _immutable_hosted_supply():
+                    message = f"native_tool_offline_cache_missing:{supply.name}"
+                    raise ValueError(message)
                 isolated = Path(scratch)
                 for source in (MISE_CONFIG, MISE_LOCK):
                     target_config = isolated / source

@@ -39,7 +39,7 @@ def junit_report(paths: Iterable[Path]) -> tuple[dict[str, int], bool]:
         "errors": sum(case.find("error") is not None for case in cases),
         "skipped": sum(case.find("skipped") is not None for case in cases),
     }
-    declared_failures = _declared_junit_failures(roots)
+    declared_failures = _validated_suite_failures(roots)
     failed = bool(
         counts["failures"]
         or counts["errors"]
@@ -49,22 +49,32 @@ def junit_report(paths: Iterable[Path]) -> tuple[dict[str, int], bool]:
     return counts, failed
 
 
-def _declared_junit_failures(roots: tuple[ElementTree.Element, ...]) -> bool:
-    """Reject suite-level failures even when testcase elements omit them."""
+def _validated_suite_failures(roots: tuple[ElementTree.Element, ...]) -> bool:
+    """Reject incomplete suite totals and retain suite-level failure evidence."""
     failed = False
     for root in roots:
         for suite in root.iter():
             if suite.tag not in {"testsuite", "testsuites"}:
                 continue
-            for key in ("failures", "errors"):
-                raw = suite.get(key, "0")
+            cases = tuple(suite.iter("testcase"))
+            observed = {
+                "tests": len(cases),
+                "skipped": sum(case.find("skipped") is not None for case in cases),
+            }
+            for key in ("tests", "failures", "errors", "skipped"):
+                raw = suite.get(key)
+                if raw is None:
+                    continue
                 try:
                     value = int(raw)
                 except ValueError as error:
                     _invalid("junit_suite_count_invalid", error)
                 if value < 0:
                     _invalid("junit_suite_count_invalid")
-                failed |= value > 0
+                if key in observed and value != observed[key]:
+                    _invalid("junit_suite_count_mismatch")
+                if key in {"failures", "errors"}:
+                    failed |= value > 0
     return failed
 
 

@@ -332,6 +332,15 @@ preserve and report the observed committed effect without claiming completion.
 - **THEN** archive completion passes using the original effect evidence
 - **AND** replay neither repeats Git effects nor reruns checks
 
+#### Scenario: Final task completion accompanies the official archive
+
+- **GIVEN** the selected source HEAD has its separately admitted review evidence
+- **WHEN** the staged official archive only advances the top-level OpenSpec task checkboxes from open to complete
+- **THEN** archive admission preserves the unchanged task descriptions and other source artifacts
+- **AND** it recognizes the completed postimage without requiring a new prearchive source commit and repeated review CI
+- **AND** unchanged or partly open tasks, changed task prose, or another content edit remains blocked with an exact cause
+- **AND** the checkbox does not replace postimage validation, proof, or evidence of the external review
+
 ### Requirement: Current prose preserves meaning without copied execution state
 
 ETHOS SHALL keep obligations, dependency order, task progress and observed

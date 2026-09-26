@@ -49,9 +49,12 @@ def archive_relocation(
     target, change = valid[0]
     active = active_change_root(change)
     original = _source_documents(root, before, after, active, target)
+    documents_at_archive, task_transition = _task_completion_inputs(
+        root, original, before, after, active, target, tree, environment
+    )
     documents = [
         {"before": path, "after": target + path.removeprefix(active), "content": content.decode()}
-        for path, content in original.items()
+        for path, content in documents_at_archive.items()
     ]
     if not documents:
         return {}, {}
@@ -67,11 +70,12 @@ def archive_relocation(
             "postimage_files": {path: value[0] for path, value in after.items()},
             "moves": [[active, target]],
             "change": change,
+            **({"task_transition": task_transition} if task_transition else {}),
         },
     )
     rows = _result_rows(payload, "documents", {row["after"] for row in documents}, complete=True)
     corrected = {row["path"]: row["content"].encode() for row in rows}
-    native = {row["after"]: original[row["before"]] for row in documents}
+    native = {row["after"]: documents_at_archive[row["before"]] for row in documents}
     for row in _result_rows(payload, "canonical", {row["after"] for row in canonical}):
         path = row["path"]
         corrected[path], native[path] = row["content"].encode(), row["original"].encode()
@@ -84,6 +88,39 @@ def archive_relocation(
         if content != native[path]:
             updates[path], preimages[path] = content, native[path]
     return updates, preimages
+
+
+def _task_completion_inputs(
+    root: Path,
+    original: dict[str, bytes],
+    before: TreeEntries,
+    after: TreeEntries,
+    active: str,
+    target: str,
+    tree: str,
+    environment: Mapping[str, str] | None,
+) -> tuple[dict[str, bytes], dict[str, str]]:
+    """Pass a sole final task carrier to the official parser for validation."""
+    source = f"{active}/tasks.md"
+    destination = f"{target}/tasks.md"
+    if source not in original:
+        return original, {}
+    archived = (
+        original[source]
+        if before[source][2] == after[destination][2]
+        else _blob(root, tree, destination, environment)
+    )
+    if archived != original[source] and any(
+        path.endswith("/tasks.md") and path != source for path in original
+    ):
+        message = f"archive_reference_task_transition_ambiguous:{destination}"
+        raise ValueError(message)
+    documents = original if archived == original[source] else {**original, source: archived}
+    return documents, {
+        "path": destination,
+        "before": original[source].decode(),
+        "after": archived.decode(),
+    }
 
 
 def archived_reference_repair_paths(

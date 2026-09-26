@@ -393,6 +393,41 @@ def _bootstrap_source(root: Path, script: str, version: str = "2026.9.11") -> Pa
     return installer
 
 
+def test_manifest_bound_mise_supply_does_not_download_on_a_cold_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A hosted immutable image must contain mise before the job starts."""
+    _bootstrap_source(tmp_path, "exit 99\n")
+    monkeypatch.setenv("ETHOS_CI_SUPPLY_MANIFEST", "/opt/ethos-supply/input.sha256")
+    monkeypatch.setattr(native.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(
+        native,
+        "run_command",
+        lambda *_args, **_kwargs: pytest.fail("hosted job attempted a network bootstrap"),
+    )
+
+    with pytest.raises(ValueError, match="native_tool_offline_cache_missing:mise"):
+        native.prepare_mise(tmp_path)
+
+
+def test_manifest_bound_native_tool_supply_does_not_download_on_a_cold_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The hosted job must not repair an incomplete image over the network."""
+    _invoke, executable, _archive, _body = _native_supply(tmp_path, "scc")
+    monkeypatch.setenv("ETHOS_CI_SUPPLY_MANIFEST", "/opt/ethos-supply/input.sha256")
+    monkeypatch.setattr(
+        native,
+        "download",
+        lambda *_args, **_kwargs: pytest.fail("hosted job attempted a network download"),
+    )
+
+    with pytest.raises(ValueError, match="native_tool_offline_cache_missing:scc"):
+        native.prepare(tmp_path / "repo", "scc")
+    assert executable.read_text() == "retained-but-untrusted"
+    assert not list(executable.parent.glob(".prepare-*"))
+
+
 @pytest.mark.parametrize("startup_delay", [0, 0.75])
 @pytest.mark.parametrize("boundary", ["download", "verify", "bootstrap"])
 def test_native_supply_timeout_drains_descendants_before_cleanup(

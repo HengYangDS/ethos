@@ -9,7 +9,11 @@ fail despite the supplied cache. Anchoring that cache exposed a second failure:
 the same test still asks a cold hosted runner to resolve a new lockfile offline.
 The supply image guarantees locked installation inputs, not package-index
 metadata for a fresh solve. Both execution paths must be repaired without
-bypassing their checks.
+bypassing their checks. A subsequent exact-SHA GitLab run reached its quality
+job but spent 180 seconds downloading `mise` from GitHub and stopped at 3%.
+The immutable image supplies Python and npm inputs but not the native gate
+tools that the hosted proof requires. The runner must verify those tools from
+the image, not provision them during a supposedly offline job.
 
 ## What Changes
 
@@ -23,6 +27,10 @@ bypassing their checks.
 - Commit the adopter quality sample's project and lockfile as a fixture, so
   its positive and defect cases test the locked toolchain without resolving a
   new lockfile on a hosted runner. Preserve missing-lock and lock-drift cases.
+- Build `mise` and the locked native gate tools into the trusted supply image,
+  bind their source inputs in its manifest, and exercise the complete tool
+  supply in a no-network image smoke test. Missing cached tools fail immediately
+  in hosted jobs rather than downloading over the runner's weak egress.
 - Verify the published image manifest against the five locked inputs, then
   publish and inspect the repaired source and hosted jobs on each selected peer.
 
@@ -35,6 +43,7 @@ existing fail-closed CI supply contract for changed lock inputs. The
 ## Impact
 
 The existing CUE CI declaration, both generated Forge workflows, the CI
-emulator image assertion, one architecture regression, the adopter quality
-test and its locked fixture, and hosted CI observations. No new dependency,
-command plane, credential store, or release tag is introduced.
+emulator image assertion, architecture regressions, the adopter quality test
+and its locked fixture, the native tool supply and image build, and hosted CI
+observations. No new dependency, command plane, credential store, or release
+tag is introduced.

@@ -170,10 +170,18 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, replace_gate: bool
 ) -> None:
     def prepare(worktree: Path) -> None:
-        profile = worktree / ".ethos/profile.toml"
-        declaration = tomllib.loads(profile.read_text())
-        declaration["proof"]["gates"][0]["command"] = ["python", "-c", "print('replacement')"]
-        profile.write_text(tomli_w.dumps(declaration))
+        registry = worktree / "system/gates.toml"
+        declaration = tomllib.loads(registry.read_text())
+        declaration["gates"][0]["command"] = [
+            "git",
+            "grep",
+            "-q",
+            "^### Requirement:",
+            "HEAD",
+            "--",
+            "openspec/specs/contracts/spec.md",
+        ]
+        registry.write_text(tomli_w.dumps(declaration))
 
     repo, candidate, accepted_head, candidate_head = _archived_candidate(
         tmp_path, monkeypatch, prepare=prepare if replace_gate else None

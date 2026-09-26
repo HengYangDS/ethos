@@ -37,6 +37,9 @@ provider projections.
    never replace a diagnostic with a lint suppression. Then run one exact-HEAD
    `--full --execute` proof from the candidate's locked Python module, not the
    `ethos` launcher that selects the accepted runtime; `--host` is not an Attestation.
+   Keep ad hoc logs in a caller-owned external temporary root, not the audited
+   worktree; clean that root after diagnosis. If a local tool wrote new material,
+   run the focused repository audit before starting the expensive full proof.
 8. Close each reproduced failure through the existing owner, a distinguishing
    regression, replacement-path deletion and actual consumer verification.
    Apply the learning and interrupted-execution boundaries in

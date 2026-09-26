@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.repo.git_effects as git_effects
+from ethos.adapters.mutation.lane_retirement.operation import load_operation
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
@@ -104,7 +105,10 @@ def test_landed_topic_retirement_obeys_the_exact_resource_boundary(
     if boundary == "ignored":
         assert blocked["data"]["lanes"][0]["unreviewed_content"] == {"unique.txt": "unclassified"}
         reviewed = run_ethos(*shlex.split(blocked["next_action"])[1:], cwd=repo)
-        assert reviewed["data"]["request"]["reviewed_content"]["entries"]["unique.txt"]
+        receipt = reviewed["data"]["receipt"]
+        assert reviewed["data"]["review_summary"]["entry_count"] > 0
+        request = load_operation(repo, receipt["path"], receipt["sha256"])
+        assert request.reviewed_content["entries"]["unique.txt"]
     assert worktree.is_dir()
     assert git(repo, "rev-parse", branch) == source
     if boundary in {"dirty", "ignored"}:

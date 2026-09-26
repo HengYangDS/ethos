@@ -265,6 +265,13 @@ checkout and compare-delete its exact ref in a transaction verifying accepted.
 - **THEN** fresh effect admission refuses deletion and selects a new content review
 - **AND** a reviewed receipt still refuses changed content, foreign ownership and active consumers
 
+#### Scenario: Reviewed content remains inspectable without repeating its manifest
+
+- **WHEN** an owned lane's reviewed tree contains many generated and nontracked nodes
+- **THEN** the public preview gives its exact receipt and bounded review summary, not a second copy of the complete manifest
+- **AND** the receipt retains every reviewed node for inspection and effect-time drift checks
+- **AND** the summary alone never authorizes disposal
+
 #### Scenario: Unrelated native file-descriptor churn is not a retirement consumer
 
 - **WHEN** unrelated processes close descriptors during selected content retirement

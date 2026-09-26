@@ -146,7 +146,12 @@ def derive_lane_abandonment(
         "state": "derived",
         "branch": request.branch,
         "head": request.head,
-        "request": request.model_dump(mode="json"),
+        "review_summary": {
+            "entry_count": len(request.reviewed_content["entries"]),
+            "full_manifest": receipt["path"],
+        }
+        if request.reviewed_content
+        else {},
         "receipt": receipt,
         "required_gaps": [],
         "next_action": (

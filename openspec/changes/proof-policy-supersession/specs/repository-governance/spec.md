@@ -2,14 +2,12 @@
 
 ### Requirement: Current-policy proof coexists with immutable superseded proofs
 
-When several current same-HEAD proof records exist, ETHOS SHALL select only
-records whose complete plan and evidence match the current canonical proof
-policy, source intent, repository identity and required floor. An internally
-valid record from a superseded policy SHALL remain immutable historical
-evidence but SHALL NOT veto a separate valid current-policy proof. It SHALL NOT
-itself satisfy the current query. Invalid envelope, artifact or statement
-bindings, and conflicting applicable proofs, SHALL retain their fail-closed
-behavior.
+ETHOS SHALL select same-HEAD proofs only when their complete plan and evidence
+match the current canonical policy, source intent, repository identity and
+required floor. An internally valid superseded-policy proof SHALL remain
+immutable history; it SHALL neither satisfy the current query nor veto a
+separate valid current proof. Invalid envelope, artifact or statement bindings
+and conflicting applicable proofs SHALL still fail closed.
 
 #### Scenario: Current proof follows a policy upgrade
 

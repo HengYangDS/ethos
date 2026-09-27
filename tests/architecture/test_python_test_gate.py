@@ -186,6 +186,41 @@ def _test_gate(tmp_path: Path, *, workers: int | None = None):
     )
 
 
+def test_failed_python_attempt_observes_capacity_before_temp_cleanup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The runner reports byte and inode capacity while failed scratch still exists."""
+    gate = _test_gate(tmp_path)
+    sentinel = gate.s.basetemp / "failed-attempt"
+    native_usage = python_test_gate.shutil.disk_usage
+    observed: list[tuple[Path, bool]] = []
+
+    def observe(path: Path) -> tuple[int, int, int]:
+        observed.append((path, sentinel.exists()))
+        return native_usage(path)
+
+    def fail_after_scratch(_gate: python_test_gate.PythonTestGate, _session: object) -> None:
+        sentinel.write_text("still present at failure\n", encoding="utf-8")
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(python_test_gate, "ROOT", tmp_path)
+    monkeypatch.setattr(python_test_gate, "_head", lambda: gate.s.head)
+    monkeypatch.setattr(python_test_gate.shutil, "disk_usage", observe)
+    monkeypatch.setattr(python_test_gate.PythonTestGate, "_single", fail_after_scratch)
+
+    with pytest.raises(OSError, match="No space left on device"):
+        gate.run_tests(cast("nox.Session", SimpleNamespace()))
+
+    diagnostics = capsys.readouterr().err
+    assert "ethos_test_resource phase=start" in diagnostics
+    assert "ethos_test_resource phase=failure" in diagnostics
+    assert "available_bytes=" in diagnostics
+    assert "available_inodes=" in diagnostics
+    assert {path for path, _ in observed} == {tmp_path, gate.s.basetemp.parent}
+    assert [present for _, present in observed] == [False, False, True, True]
+    assert not gate.s.basetemp.exists()
+
+
 @pytest.mark.parametrize("mode", [0o755, 0o555, 0o000, 0o100])
 def test_python_cleanup_changes_only_required_directory_permissions(
     tmp_path, monkeypatch, mode

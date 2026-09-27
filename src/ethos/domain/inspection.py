@@ -119,7 +119,7 @@ def inspect_repository(root: Path) -> EthosResult:
         and {"candidate_branch_missing", "candidate_worktree_missing"}.intersection(gaps)
     ):
         candidate_report = bootstrap_candidate(
-            root=repo, expect_head=str(observed.get("head") or "")
+            root=repo, expect_head=str(observed.get("head") or ""), observed_status=observed
         )
         candidate_action = str(candidate_report.get("next_action") or "")
         candidate_decision = bool(candidate_report.get("user_decision_required"))

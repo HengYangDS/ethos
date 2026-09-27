@@ -128,7 +128,7 @@ def _head_recovery_action(repo: Path, accepted_branch: str) -> str:
 def _bootstrap_preflight(
     repo: Path,
     policy: BranchRolePolicy,
-    status: dict[str, object],
+    status: Mapping[str, object],
     head: str,
     expect_head: str | None,
     details: Mapping[str, object],
@@ -153,17 +153,32 @@ def _bootstrap_preflight(
     return _report(policy.candidate_branch, head, "blocked", [gap], **details)
 
 
+def _candidate_facts(
+    repo: Path, observed_status: Mapping[str, object] | None, *, apply: bool
+) -> tuple[Mapping[str, object], str]:
+    """Reuse one preview snapshot but require fresh effect-time observation."""
+    if observed_status is None:
+        return workspace_status(repo), _accepted_head(repo)
+    if apply:
+        message = "candidate_snapshot_preview_only"
+        raise ValueError(message)
+    if Path(str(observed_status.get("root") or "")).resolve() != repo:
+        message = "candidate_snapshot_root_mismatch"
+        raise ValueError(message)
+    return observed_status, str(observed_status.get("head") or "")
+
+
 def bootstrap_candidate(
     *,
     root: Path,
     path: Path | None = None,
     expect_head: str | None = None,
     apply: bool = False,
+    observed_status: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     repo = repository_root(root)
     policy = load_branch_role_policy(repo)
-    status = workspace_status(repo)
-    head = _accepted_head(repo)
+    status, head = _candidate_facts(repo, observed_status, apply=apply)
     issuer = os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
     requested = (path or default_worktree_path(repo, policy.candidate_branch)).absolute()
     target, path_gap, path_action = _candidate_target(requested)

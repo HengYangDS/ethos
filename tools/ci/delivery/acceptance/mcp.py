@@ -217,7 +217,7 @@ async def _formation_preview(command: tuple[str, ...], target: Path, env: dict[s
                 author_name=author_name,
                 author_email=author_email,
             ).to_dict()
-        assert expected["verdict"] == "pass"
+        assert expected["verdict"] == "pass", expected
         for surface in ("cli", "mcp"):
             actual = await _call(surface, client, command, target, "adopt", request, env)
             assert actual == expected, {

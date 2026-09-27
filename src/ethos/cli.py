@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import shlex
+import subprocess
 import sys
 from importlib import import_module
 from pathlib import Path
@@ -43,7 +44,10 @@ def console_main() -> None:
             selected = current_runtime(Path(common))
             if Path(sys.executable).absolute() != selected.python.absolute():
                 executable = str(selected.python)
-                os.execv(executable, [executable, "-B", "-I", "-m", "ethos.cli", *argv])
+                commandline = [executable, "-B", "-I", "-m", "ethos.cli", *argv]
+                if sys.platform == "win32":
+                    raise SystemExit(subprocess.run(commandline, check=False).returncode)
+                os.execv(executable, commandline)
                 return
     except ProcessExecutionError as exc:
         import_module("ethos.surface.cli.output").emit_process_execution_failure(

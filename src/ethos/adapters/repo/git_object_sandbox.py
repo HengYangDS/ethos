@@ -95,8 +95,8 @@ def isolated_git_objects(
         if initialized.returncode:
             message = "git_object_sandbox_init_failed"
             raise ValueError(message)
-        (isolated / "objects/info/alternates").write_text(
-            objects.resolve().as_posix() + "\n", encoding="utf-8"
+        (isolated / "objects/info/alternates").write_bytes(
+            (objects.resolve().as_posix() + "\n").encode("utf-8")
         )
         yield git
     finally:

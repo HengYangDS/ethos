@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -13,9 +13,6 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object_sandbox import isolated_git_objects
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 @pytest.mark.parametrize("object_format", ["sha1", "sha256"])
@@ -37,6 +34,25 @@ def test_isolated_objects_can_read_source_but_cannot_publish_into_it(
     assert run_git(repo, "cat-file", "-e", created, check=False).returncode != 0
     assert git(repo, "show-ref") == refs
     assert git(repo, "status", "--porcelain") == ""
+
+
+def test_git_alternates_survive_windows_text_newline_translation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Native object alternates must not acquire a carriage return on Windows."""
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    native_write_text = Path.write_text
+
+    def windows_text_write(path: Path, content: str, *, encoding: str | None = None) -> int:
+        if path.name == "alternates":
+            return path.write_bytes(content.replace("\n", "\r\n").encode(encoding or "utf-8"))
+        return native_write_text(path, content, encoding=encoding)
+
+    with monkeypatch.context() as translated:
+        translated.setattr(Path, "write_text", windows_text_write)
+        with isolated_git_objects(repo) as isolated:
+            assert isolated("cat-file", "-t", head).returncode == 0
 
 
 @pytest.mark.parametrize("source", ["command-failed", "relative-objects", "missing-objects"])

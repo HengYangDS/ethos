@@ -24,12 +24,13 @@ def test_windows_publication_does_not_open_parent_directory(
             raise PermissionError(message)
         return original_open(path, flags, mode)
 
-    monkeypatch.setattr(content_addressed, "_DIRECTORY_FSYNC_SUPPORTED", False, raising=False)
-    monkeypatch.setattr(content_addressed.os, "open", reject_directory_open)
-
-    assert (
-        content_addressed.write_content_addressed(target, b"wheel", collision="collision") == target
-    )
+    with monkeypatch.context() as patch:
+        patch.setattr(content_addressed, "_DIRECTORY_FSYNC_SUPPORTED", False, raising=False)
+        patch.setattr(content_addressed.os, "open", reject_directory_open)
+        assert (
+            content_addressed.write_content_addressed(target, b"wheel", collision="collision")
+            == target
+        )
     assert target.read_bytes() == b"wheel"
 
 
@@ -44,9 +45,9 @@ def test_posix_publication_synchronizes_parent_directory(
         opened.append(Path(path))
         return original_open(path, flags, mode)
 
-    monkeypatch.setattr(content_addressed, "_DIRECTORY_FSYNC_SUPPORTED", True, raising=False)
-    monkeypatch.setattr(content_addressed.os, "open", observe_open)
-
-    content_addressed.write_content_addressed(target, b"wheel", collision="collision")
+    with monkeypatch.context() as patch:
+        patch.setattr(content_addressed, "_DIRECTORY_FSYNC_SUPPORTED", True, raising=False)
+        patch.setattr(content_addressed.os, "open", observe_open)
+        content_addressed.write_content_addressed(target, b"wheel", collision="collision")
 
     assert target.parent in opened

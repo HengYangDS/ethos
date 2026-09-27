@@ -5024,23 +5024,34 @@ require an execution carrier.
 
 ### Requirement: Blocking Canonical Guidance Has a Repair Path
 
-ETHOS SHALL admit corrective prewrite for an existing canonical OpenSpec spec named by a current, valid official spec INFO finding when repository policy blocks that finding. The admission SHALL retain the selected Change, actor, Lease, runtime, and exact-path boundaries. It SHALL not satisfy ordinary proof or commit admission.
+ETHOS SHALL admit corrective prewrite for an existing canonical OpenSpec spec
+named by a current, valid official spec INFO finding. The source SHALL be the
+selected active Change or a verified archive effect that owns that output.
+Multiple findings for one spec SHALL map to one path. Admission SHALL retain
+the actor, Lease, runtime, exact path and source bindings; it SHALL NOT satisfy
+ordinary proof or commit admission.
 
 #### Scenario: Exact canonical repair is reachable
 
-- **WHEN** current official validation reports a valid canonical spec with a blocking INFO finding and the owning Work Lane requests prewrite for its existing `openspec/specs/<capability>/spec.md`
-- **THEN** ETHOS admits that exact path so the finding can be removed
-- **AND** ordinary proof remains blocked until fresh validation no longer reports the finding.
+- **WHEN** official validation reports a valid canonical spec with blocking INFO and the owning coordinated Work Lane requests prewrite for that exact spec file
+- **THEN** ETHOS admits only that file for correction
+- **AND THEN** ordinary proof remains blocked until fresh validation clears the finding.
+
+#### Scenario: Archived Change repairs multiple findings in one output
+
+- **WHEN** a verified native archive effect names the canonical spec, official validation reports two valid INFO findings in it, and the same coordinated Work Lane requests prewrite for that file
+- **THEN** ETHOS admits that one exact path without recreating the active Change
+- **AND THEN** ordinary status and proof remain blocked until fresh validation clears both findings.
 
 #### Scenario: Unrelated or unsupported paths gain no authority
 
-- **WHEN** the request includes an unrelated path, a missing or symlinked canonical spec, a mismatched finding, an invalid report envelope, or an INFO finding only on an active Change
-- **THEN** that finding grants no corrective prewrite for the unsupported path.
+- **WHEN** the request includes an unrelated path, a missing or symlinked spec, a mismatched finding, invalid validation evidence, or a missing, mismatched or unverified archive effect
+- **THEN** the finding grants no corrective prewrite for the unsupported path.
 
 #### Scenario: Blocked status selects a repair action
 
-- **WHEN** canonical INFO is the first blocking gap for a coordinated Work Lane
-- **THEN** status names a prewrite action for one exact affected canonical spec rather than another status observation.
+- **WHEN** canonical INFO is the blocking gap for a coordinated Work Lane with an active Change or verified archived output
+- **THEN** status names prewrite for one exact affected canonical spec instead of another status observation.
 
 ### Requirement: Native pre-push validates release-tag objects
 

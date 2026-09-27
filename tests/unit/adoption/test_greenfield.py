@@ -506,3 +506,64 @@ def test_greenfield_worktree_failure_selects_recovery_before_runtime(
     assert git(target, "rev-parse", "HEAD") == head
     assert git(candidate, "rev-parse", "HEAD") == head
     assert inspect_repository(target).verdict == "pass"
+
+
+@pytest.mark.parametrize(
+    ("failure", "gap"),
+    [
+        ("copied-bytes", "formation_postimage_mismatch"),
+        ("runtime-observation", "formation_runtime_observation_required"),
+        ("candidate-exception", "formation_effect_observation_required"),
+    ],
+)
+def test_greenfield_postpublication_failures_preserve_recovery_boundary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str, gap: str
+) -> None:
+    """A published target is observed, not silently rolled back or replayed."""
+    target = tmp_path / "new-project"
+    request = {
+        "create": True,
+        "purpose": "Verifiable changes.",
+        "starter": "foundation",
+        "author_name": "Test Contributor",
+        "author_email": "test@example.invalid",
+    }
+    preview = adopt_repository(target, **request)
+    assert preview.verdict == "pass"
+    monkeypatch.setattr(
+        candidate_projection, "install_hook_launchers", install_fixture_hook_runtime
+    )
+    if failure == "copied-bytes":
+        original_copy = formation_effect.shutil.copytree
+
+        def altered_copy(source: Path, destination: Path, *args, **kwargs):
+            copied = original_copy(source, destination, *args, **kwargs)
+            if Path(destination) == target:
+                (target / "README.md").write_text("changed after copy\n", encoding="utf-8")
+            return copied
+
+        monkeypatch.setattr(formation_effect.shutil, "copytree", altered_copy)
+    elif failure == "runtime-observation":
+        monkeypatch.setattr(
+            formation_effect,
+            "hook_runtime_binding",
+            lambda _target: {"current": False, "required_gaps": ["runtime_unavailable"]},
+        )
+    else:
+
+        def no_candidate(**_kwargs):
+            message = "candidate observation unavailable"
+            raise OSError(message)
+
+        monkeypatch.setattr(formation_effect, "bootstrap_candidate", no_candidate)
+    result = adopt_repository(
+        target,
+        **request,
+        apply=True,
+        authorize=True,
+        expect_plan_digest=str(preview.data["plan_digest"]),
+    )
+    assert result.verdict == "unknown"
+    assert result.required_gaps == (gap,)
+    assert git(target, "symbolic-ref", "--short", "HEAD") == "dev"
+    assert git(target, "rev-parse", "HEAD")

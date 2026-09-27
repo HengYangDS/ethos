@@ -125,7 +125,12 @@ def _template_candidate(
     _required(git("read-tree", baseline), "starter_evolution_object_write_failed")
     for path in sorted(set(old_paths) - new_files.keys()):
         _required(
-            git("update-index", "--force-remove", "--", path),
+            git(
+                "update-index",
+                "-z",
+                "--index-info",
+                stdin=f"0 {'0' * len(baseline)}\t{path}\0",
+            ),
             "starter_evolution_object_write_failed",
         )
     for path, content in sorted(new_files.items()):

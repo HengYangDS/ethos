@@ -14,6 +14,26 @@ from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 
+@pytest.mark.parametrize("timeout", [0.0, -1.0, float("inf"), float("nan")])
+def test_mcp_rejects_unbounded_or_nonpositive_deadlines(tmp_path, timeout):
+    """No transport starts with a deadline that cannot bound its work."""
+    with pytest.raises(ValueError, match="finite and positive"):
+        create_server(tmp_path / "absent", create_target=True, timeout_seconds=timeout)
+    assert not (tmp_path / "absent").exists()
+
+
+@pytest.mark.parametrize("parent_kind", ["missing", "file"])
+def test_mcp_formation_requires_an_existing_directory_parent(tmp_path, parent_kind):
+    """An absent parent or file parent cannot redirect formation effects."""
+    parent = tmp_path / "parent"
+    if parent_kind == "file":
+        parent.write_text("foreign\n", encoding="utf-8")
+    target = parent / "new-project"
+    with pytest.raises(ValueError, match="formation_parent_unsafe"):
+        create_server(target, create_target=True)
+    assert not target.exists()
+
+
 def test_bound_tools_reject_spoofing_and_preserve_results(tmp_path, monkeypatch):
     root = init_git_repo(tmp_path / "bound")
     monkeypatch.setenv("ETHOS_ACTOR", "bound-actor")

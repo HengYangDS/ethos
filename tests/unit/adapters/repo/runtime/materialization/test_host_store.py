@@ -101,6 +101,44 @@ def test_complete_external_predecessor_allows_new_source_build(
     assert selector.read_bytes() == before
 
 
+def test_valid_external_predecessor_rebuilds_instead_of_reusing_private_invoker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An old external selection may advance without selecting another repo's private runtime."""
+    old_root = tmp_path / "old"
+    old_root.mkdir()
+    repo, old_python = materialize_runtime_case(
+        old_root, monkeypatch, package_identity=runtime_build("a" * 40, "b" * 40)
+    )
+    common = Path(git_common_dir(repo))
+    installed = tmp_path / "installed"
+    shutil.copytree(common / "ethos", installed)
+    previous = installed / "runtime" / old_python.parent.name
+    activate_runtime(common, previous)
+    selector = common / "ethos/runtime/CURRENT"
+    before = selector.read_bytes()
+
+    new_root = tmp_path / "new"
+    new_root.mkdir()
+    _, invoking_python = materialize_runtime_case(
+        new_root, monkeypatch, package_identity=runtime_build("c" * 40, "d" * 40)
+    )
+    invoking = require_selected_runtime(invoking_python.parent)
+    monkeypatch.setattr(materialization, "selected_runtime_source", lambda _source: invoking)
+
+    successor = materialization.materialize_runtime(
+        repo,
+        Path(sys.executable),
+        expected_build=invoking.build,
+        build_source=REPOSITORY_ROOT,
+    )
+
+    assert successor.parent == common / "ethos/runtime" / invoking.digest
+    assert successor.parent != invoking.root
+    assert require_selected_runtime(successor.parent).build == invoking.build
+    assert selector.read_bytes() == before
+
+
 def test_pinned_runtime_path_leaves_room_for_native_windows_dependencies(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

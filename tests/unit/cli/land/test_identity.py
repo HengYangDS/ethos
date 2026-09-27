@@ -115,9 +115,7 @@ def test_identity_transition_is_explicit_and_target_scoped(
         "candidate_update",
         interrupt=interrupt == "candidate",
         checkout=fixture.candidate,
-        verify_controls=bool(tag)
-        or interrupt == "candidate"
-        or (mode == "accepted_ff" and not interrupt),
+        verify_controls=interrupt == "candidate" or (mode == "accepted_ff" and not interrupt),
     )
     assert git(repo, "rev-parse", "HEAD") == old
     assert tomllib.loads(profile.read_text())["profile_id"] == "renamed-product"
@@ -138,7 +136,7 @@ def test_identity_transition_is_explicit_and_target_scoped(
         head,
         "accepted_update",
         interrupt=interrupt == "accepted",
-        verify_controls=bool(tag) or mode == "accepted_ff" or interrupt == "accepted",
+        verify_controls=mode == "accepted_ff" or interrupt == "accepted",
     )
     assert accepted["id"] != candidate["id"]
     assert git(repo, "rev-parse", "HEAD") == head

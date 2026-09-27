@@ -14,6 +14,7 @@ import ethos.adapters.openspec.lifecycle.report as report
 from ethos.adapters.openspec.selection import selection_gaps
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import prepared_work_lane
 from tests.support.governed_repository import write_test_profile
@@ -33,6 +34,9 @@ def test_public_prewrite_repairs_valid_canonical_info_without_weakening_status(
     """One native INFO finding permits its file edit, not ordinary acceptance."""
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     root = prepared_work_lane(tmp_path).worktree
+    profile = root / ".ethos/profile.toml"
+    profile.write_text(profile.read_text().replace('["openspec/**"]', '["**"]'))
+    commit_fixture(root, "include ordinary source in Change scope")
     path = "openspec/specs/contracts/spec.md"
     target = root / path
     original = target.read_text(encoding="utf-8")
@@ -57,6 +61,9 @@ def test_public_prewrite_repairs_valid_canonical_info_without_weakening_status(
     repair = run_ethos("lane", "prewrite", path, *options, cwd=root)
     assert repair["data"]["material_scope"]["state"] == "canonical_spec_repair"
     assert repair["data"]["material_scope"]["authorized_paths"] == [path]
+    ordinary = run_ethos("lane", "prewrite", "README.md", *options, cwd=root)
+    assert ordinary["data"]["material_scope"]["state"] == "attributed"
+    assert ordinary["data"]["openspec"]["required_gaps"] == official["required_gaps"]
     mixed = run_ethos_blocked("lane", "prewrite", path, "README.md", *options, cwd=root)
     assert "openspec_material_path_uncovered:README.md" in mixed["required_gaps"]
 

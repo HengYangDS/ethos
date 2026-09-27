@@ -132,6 +132,15 @@ coexist. Only those outputs are admitted; directory-wide authority is excluded.
 - **AND** its next action inspects the official Change list rather than repeating status
 - **AND** explicit plan and proof selection remain bound to the named official intent
 
+#### Scenario: Canonical INFO does not monopolize unrelated authoring
+
+- **GIVEN** one selected valid active Change and an owned Work Lane with a current Lease
+- **AND** official validation succeeds with only blocking INFO findings in existing canonical specs
+- **WHEN** prewrite requests ordinary paths disjoint from those exact spec repairs
+- **THEN** ETHOS applies the selected Change's fresh ordinary material scope and all other prewrite controls, without granting paths from the INFO finding
+- **AND** status, plan, proof and closeout retain the canonical INFO gaps until corrected
+- **AND** a mixed repair-and-ordinary request, invalid validation, missing Commitment or uncovered path remains blocked
+
 ### Requirement: Native Documentation Topology
 
 ETHOS SHALL organize governed documentation by function and authority rather

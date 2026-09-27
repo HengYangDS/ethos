@@ -276,6 +276,30 @@ def _repository_resolution_without_active_intent(
     )
 
 
+def _info_authoring_scope(
+    *,
+    info_capabilities: tuple[str, ...],
+    projected: object,
+    requested_paths: tuple[str, ...],
+    repair_scope: JsonObject,
+    material_scope: JsonObject,
+) -> JsonObject:
+    """Keep accepted-spec INFO blocking proof, not disjoint Change authoring."""
+    repair_paths = set(string_sequence(repair_scope.get("authorized_paths")))
+    if (
+        info_capabilities
+        and isinstance(projected, dict)
+        and projected
+        and repair_scope.get("state") == "canonical_spec_repair"
+        and not any(path in repair_paths for path in requested_paths)
+        and material_scope.get("verdict") == "pass"
+        and tuple(string_sequence(material_scope.get("changed_paths"))) == requested_paths
+        and material_scope.get("uncovered_paths") == []
+    ):
+        return material_scope
+    return {}
+
+
 def resolve_current_resolution(
     root: Path,
     *,
@@ -311,7 +335,10 @@ def resolve_current_resolution(
         require_workspace=require_workspace,
     )
     official_verdict = report_verdict(official)
-    official_gaps = tuple(string_sequence(official.get("required_gaps")))
+    official_gaps, info_capabilities = (
+        tuple(string_sequence(official.get("required_gaps"))),
+        canonical_info_only_capabilities(official),
+    )
     lifecycle = official.get("lifecycle")
     material_scope = (
         string_mapping(lifecycle.get("scope_binding"))
@@ -340,7 +367,7 @@ def resolve_current_resolution(
                 and official_gaps
                 and all(gap.startswith("openspec_validation_failed:spec:") for gap in official_gaps)
             )
-            or bool(canonical_info_only_capabilities(official))
+            or bool(info_capabilities)
         )
         else None
     )
@@ -365,7 +392,18 @@ def resolve_current_resolution(
             requested_change=change,
         )
     )
-    prewrite_scope = prospective_scope or repair_scope or bootstrap_scope
+    prewrite_scope = (
+        prospective_scope
+        or _info_authoring_scope(
+            info_capabilities=info_capabilities,
+            projected=projected,
+            requested_paths=prewrite_paths,
+            repair_scope=repair_scope,
+            material_scope=material_scope,
+        )
+        or repair_scope
+        or bootstrap_scope
+    )
     if prewrite_paths and prewrite_scope:
         prewrite_gaps = tuple(string_sequence(prewrite_scope.get("required_gaps")))
         return CurrentResolution(

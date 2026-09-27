@@ -30,7 +30,6 @@ projection = ".gitlab-ci.yml"
 emulator_tool = "gitlab-ci-local"
 emulator_event = "pipeline"
 emulator_job = "ethos:verify"
-emulator_image = "ghcr.io/hengyangds/ethos-ci-supply@sha256:c86719b005cfb6a42dbd0d0f702a210e0e2dd020021616b3f60f2916390537b9"
 emulator_timeout_seconds = 1800
 provider_specific_owner_scripts = { "tools/ci/scripts/run-node-compatibility.sh" = "GitLab owns the explicit Node compatibility matrix; GitHub package proof covers the canonical npm artifact once." }
 forbidden_log_patterns = [

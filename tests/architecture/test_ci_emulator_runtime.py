@@ -8,6 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 
+import tools.ci.ci_projection as projection
 import tools.ci.ci_templates as ci
 from tests.support.architecture import write_reference_source
 from tools.ci.ci_projection import emulator_declaration
@@ -33,6 +34,24 @@ def test_emulator_timeout_preserves_partial_log_and_blocks(monkeypatch, tmp_path
     assert result["returncode"] == 124
     assert result["timed_out"] is True
     assert "timed out" in result["stderr"]
+
+
+def test_gitlab_emulator_image_is_derived_from_its_ci_projection(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """The local emulator consumes the hosted image, not a second editable pin."""
+    entry = provider_entry("gitlab")
+    assert "emulator_image" not in entry
+    image = "ghcr.io/example/supply@sha256:" + "0" * 64
+    path = entry["projection"]
+    write_reference_source(
+        tmp_path, path, json.dumps({entry["emulator_job"]: {"image": {"name": image}}})
+    )
+    monkeypatch.setattr(projection, "ROOT", tmp_path)
+    assert emulator_declaration(entry)["emulator_image"] == image
+    write_reference_source(tmp_path, path, json.dumps({entry["emulator_job"]: {}}))
+    with pytest.raises(SystemExit, match="CI emulator image unavailable"):
+        emulator_declaration(entry)
 
 
 @pytest.mark.parametrize("runner", ["macos-latest", "ubuntu-latest"])

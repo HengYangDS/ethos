@@ -25,6 +25,7 @@ from tests.support.architecture import isolated_path
 from tests.support.architecture import write_reference_source
 from tools.ci.ci_projection import check_templates
 from tools.ci.ci_projection import compile_providers
+from tools.ci.ci_projection import emulator_declaration
 from tools.ci.ci_projection import projection_entries
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -328,11 +329,12 @@ def test_hosted_runtime_versions_are_checked_projections_of_native_owners(github
         if isinstance(job, dict) and isinstance(job.get("image"), str)
     }
     providers = {entry["provider"]: entry for entry in projection_entries()}
-    assert all("@sha256:" in entry["emulator_image"] for entry in providers.values())
+    assert "@sha256:" in providers["github"]["emulator_image"]
+    assert "emulator_image" not in providers["gitlab"]
     assert all(int(entry["emulator_timeout_seconds"]) > 0 for entry in providers.values())
     declared = providers["gitlab"]
     assert declared["emulator_job"] == "ethos:verify"
-    assert images == {declared["emulator_image"]}
+    assert images == {emulator_declaration(declared)["emulator_image"]}
 
 
 def test_host_conformance_receives_native_python_supply_before_activation(github, gitlab) -> None:

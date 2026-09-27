@@ -225,6 +225,42 @@ def test_failed_python_attempt_observes_capacity_before_temp_cleanup(
     assert not gate.s.basetemp.exists()
 
 
+def test_native_tmp_path_policy_reclaims_passed_case_before_next_case(tmp_path: Path) -> None:
+    """The selected pytest policy bounds scratch during the run, not only at session exit."""
+    marker = tmp_path / "first-path.txt"
+    case = tmp_path / "test_retention.py"
+    case.write_text(
+        "from pathlib import Path\n"
+        f"MARKER = Path({marker.as_posix()!r})\n\n"
+        "def test_create(tmp_path):\n"
+        "    (tmp_path / 'payload').write_bytes(b'owned')\n"
+        "    MARKER.write_text(str(tmp_path))\n\n"
+        "def test_verify():\n"
+        "    assert not Path(MARKER.read_text()).exists()\n",
+        encoding="utf-8",
+    )
+    result = run_command(
+        tmp_path,
+        (
+            str(python_test_gate.PYTHON),
+            "-m",
+            "pytest",
+            "-c",
+            str(python_test_gate.PYTEST_CONFIG),
+            f"--rootdir={tmp_path}",
+            f"--basetemp={tmp_path / 'owned-temp'}",
+            "-o",
+            f"cache_dir={tmp_path / 'cache'}",
+            "-q",
+            str(case),
+        ),
+        timeout=30,
+        remove_env=("PYTEST_ADDOPTS", "PYTEST_XDIST_WORKER", "PYTHONPATH"),
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert marker.is_file()
+
+
 @pytest.mark.parametrize("mode", [0o755, 0o555, 0o000, 0o100])
 def test_python_cleanup_changes_only_required_directory_permissions(
     tmp_path, monkeypatch, mode

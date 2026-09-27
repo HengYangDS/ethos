@@ -12,6 +12,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from ethos.adapters.process import run_command
 from ethos.adapters.projections.cue import compile_projections
 from ethos.adapters.toolchain.mise import locked_tool
@@ -25,7 +27,6 @@ EMULATOR_REQUIRED_FIELDS = (
     "emulator_tool",
     "emulator_event",
     "emulator_job",
-    "emulator_image",
     "emulator_timeout_seconds",
 )
 
@@ -115,7 +116,23 @@ def emulator_declaration(entry: dict[str, Any]) -> dict[str, Any]:
         provider = entry.get("provider", "unknown")
         message = f"CI emulator declaration missing for {provider}: {', '.join(missing)}"
         raise SystemExit(message)
+    image = entry.get("emulator_image")
+    if image is None:
+        try:
+            projected = yaml.safe_load((ROOT / str(entry["projection"])).read_text())
+            jobs = projected.get("jobs", projected)
+            selected = jobs[entry["emulator_job"]]["image"]
+            image = selected.get("name") if isinstance(selected, dict) else selected
+        except (AttributeError, KeyError, OSError, TypeError, ValueError, yaml.YAMLError) as error:
+            provider = entry.get("provider", "unknown")
+            message = f"CI emulator image unavailable for {provider}"
+            raise SystemExit(message) from error
+    if not isinstance(image, str) or "@sha256:" not in image:
+        provider = entry.get("provider", "unknown")
+        message = f"CI emulator image unavailable for {provider}"
+        raise SystemExit(message)
     declaration = {field: entry[field] for field in EMULATOR_REQUIRED_FIELDS} | {
+        "emulator_image": image,
         "emulator_state_dir": entry.get("emulator_state_dir", ""),
         "forbidden_log_patterns": list(entry.get("forbidden_log_patterns", [])),
     }

@@ -2,6 +2,7 @@
 minversion = "9.0"
 addopts = ["--strict-config", "--strict-markers", "--import-mode=importlib", "--max-worker-restart=0", "--maxfail=1", "--failed-first"]
 cache_dir = "build/runtime/tool-cache/pytest"
+tmp_path_retention_policy = "failed"
 testpaths = ["tests"]
 pythonpath = ["../../..", "../../../src"]
 required_plugins = ["allure-pytest", "pytest-timeout", "pytest-cov", "pytest-xdist"]

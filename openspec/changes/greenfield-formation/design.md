@@ -94,6 +94,13 @@ adopter. `--apply` is refused: review and effect admission belong to a current
 owned Work Lane, not to generator provenance. The exact-patch lane admission
 is covered by task 2.2; installed-product replay remains task 2.3.
 
+Formation and starter-evolution tests exercise distinct public requests,
+collisions, failure recovery, identity and authored-content preservation. This
+candidate measures 55,656 test ELOC against the 55,000 aggregate ceiling.
+Rather than delete those checks solely to fit the ceiling, raise only the test
+aggregate to 60,000. Retain the 55,000 product ceiling, 500-per-file limit and
+coverage floor; exact source-budget and full proof remain acceptance conditions.
+
 For a missing repository, MCP requires explicit `--create-target` at startup.
 It binds the requested alias and physical target, rejects retargeting on each
 call, and keeps effect authorization in `adopt --create`. Ordinary MCP startup

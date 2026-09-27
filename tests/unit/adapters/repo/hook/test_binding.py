@@ -226,8 +226,13 @@ def test_status_preserves_runtime_readiness_without_commit_policy(
         assert runtime["required_gaps"] == [gap]
         assert projected["required_gaps"].count(gap) == 1
         assert projected["verdict"] != "pass"
-        assert projected["next_action"] == runtime["next_action"]
-        assert projected["user_decision_required"] is False
+        if adopted:
+            assert projected["next_action"] == runtime["next_action"]
+        else:
+            assert "accepted_head_unavailable" in projected["required_gaps"]
+            assert "first commit on dev" in projected["next_action"]
+            assert projected["next_action"] != runtime["next_action"]
+        assert projected["user_decision_required"] is (not adopted)
 
 
 @pytest.mark.parametrize("adopted", [False, True])

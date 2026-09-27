@@ -19,10 +19,12 @@ from tests.support.governed_repository import init_git_repo
     [
         ([], "go_coverage_invalid"),
         (["not-a-mode"], "go_coverage_invalid"),
+        (["mode: invented"], "go_coverage_invalid"),
         (["mode: set", "invalid row"], "go_coverage_invalid"),
         (["mode: set", "module/answer.go:1.1,1.2 1 nope"], "go_coverage_invalid"),
         (["mode: set", "module/answer.go:1.1,1.2 nope 1"], "go_coverage_invalid"),
         (["mode: set", "module/answer.go:1.1,1.2 1 -1"], "go_coverage_invalid"),
+        (["mode: set", "module/answer.go:1.1,1.2 -1 1"], "go_coverage_invalid"),
         (["mode: set", "module/answer.go:1.1,1.2 1 0"], "go_source_unexercised"),
         (
             [
@@ -53,6 +55,24 @@ def test_go_coverage_accepts_exact_positive_blocks() -> None:
         "answer.go",
         "sub/answer.go",
     ]
+
+
+@pytest.mark.parametrize("zero_count", [0, 1])
+def test_go_zero_statement_source_is_observed_but_not_credited(zero_count: int) -> None:
+    """A native zero-statement segment is legal but cannot prove execution."""
+    profile = [
+        "mode: atomic",
+        "module/live.go:1.1,2.1 1 1",
+        f"module/empty.go:1.1,2.1 0 {zero_count}",
+    ]
+
+    assert go_covered_paths(profile, ("live.go", "empty.go")) == ["live.go"]
+
+
+def test_go_all_zero_statement_profile_cannot_prove_behavior() -> None:
+    """An entirely non-applicable native profile is not a coverage success."""
+    with pytest.raises(ValueError, match="go_coverage_no_applicable_statements"):
+        go_covered_paths(["mode: atomic", "module/empty.go:1.1,2.1 0 0"], ("empty.go",))
 
 
 @pytest.mark.parametrize(
@@ -260,6 +280,47 @@ def test_go_behavior_rejects_failed_or_incomplete_native_result(
     monkeypatch.setattr(native_quality, "_executable", lambda name: name)
     monkeypatch.setattr(native_quality, "run_command", observed_command)
     assert native_quality.behavior_report(repo)["required_gaps"] == [f"quality_behavior_{reason}"]
+
+
+def test_go_behavior_reports_non_applicable_source_without_crediting_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One real covered source can coexist with an observed zero-statement file."""
+    repo = _committed_source_repo(
+        tmp_path,
+        {
+            "go.mod": "module example.invalid/quality\n\ngo 1.26\n",
+            "live.go": "package quality\nfunc Live() int { return 1 }\n",
+            "empty.go": "package quality\n",
+            "live_test.go": "package quality\n",
+        },
+    )
+
+    def observed_command(root: Path, command: tuple[str, ...], **_kwargs: object):
+        assert root == repo
+        option = next(arg for arg in command if arg.startswith("-coverprofile="))
+        Path(option.partition("=")[2]).write_text(
+            "mode: atomic\n"
+            "example.invalid/quality/live.go:1.1,2.1 1 1\n"
+            "example.invalid/quality/empty.go:1.1,2.1 0 0\n",
+            encoding="utf-8",
+        )
+        return subprocess.CompletedProcess(command, 0, '{"Action":"pass","Test":"TestLive"}\n', "")
+
+    monkeypatch.setattr(native_quality, "_executable", lambda name: name)
+    monkeypatch.setattr(native_quality, "run_command", observed_command)
+    report = native_quality.behavior_report(repo)
+
+    assert report["verdict"] == "pass"
+    assert report["quality_evidence"]["selected_paths"] == ["empty.go", "live.go"]
+    assert report["native"] == [
+        {
+            "language": "go",
+            "tests_passed": 1,
+            "covered_paths": ["live.go"],
+            "non_applicable_paths": ["empty.go"],
+        }
+    ]
 
 
 def test_go_vet_diagnostics_are_not_silenced(tmp_path: Path) -> None:

@@ -11,5 +11,5 @@
 
 ## 3. Verify actual consumers
 
-- [ ] 3.1 Run public positive/negative regressions, strict OpenSpec, affected static checks and exact-HEAD full proof; accept and install the source-bound runtime.
-- [ ] 3.2 Give the affected adopter owner the exact rebind path and verify its archived Change can correct both INFO findings under fresh prewrite without waiving the quality gate.
+- [x] 3.1 Run public positive/negative regressions, strict OpenSpec, affected static checks and exact-HEAD full proof; accept and install the source-bound runtime.
+- [x] 3.2 Give the affected adopter owner the exact rebind path and verify its archived Change can correct both INFO findings under fresh prewrite without waiving the quality gate.

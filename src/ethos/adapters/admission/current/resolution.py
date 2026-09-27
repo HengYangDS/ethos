@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 from dataclasses import dataclass
 from dataclasses import field
 from typing import TYPE_CHECKING
@@ -10,10 +11,11 @@ from typing import cast
 from ethos.adapters.openspec.governance import artifact_output_paths
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
-from ethos.adapters.openspec.lifecycle.scope import canonical_repair_action
+from ethos.adapters.openspec.lifecycle.scope import canonical_repair_paths
 from ethos.adapters.openspec.lifecycle.scope import official_change_bootstrap_scope_report
 from ethos.adapters.openspec.lifecycle.scope import official_validation_repair_scope_report
 from ethos.adapters.openspec.lifecycle.scope import prospective_change_scope_report
+from ethos.adapters.openspec.lifecycle.validation import canonical_info_only_capabilities
 from ethos.adapters.openspec.profile import load_profile_commitment
 from ethos.adapters.openspec.selection import artifact_path_change
 from ethos.adapters.openspec.selection import requested_change
@@ -152,6 +154,24 @@ def _intent_action(root: Path, gap: str, change: str | None) -> str:
     if change:
         return f"openspec status --change {change} --json"
     return f"ethos status --root {root.resolve().as_posix()} --json"
+
+
+def _canonical_repair_action(
+    root: Path,
+    official: dict[str, object],
+    *,
+    change: str,
+    archived: tuple[Commitment, dict[str, object]] | None,
+) -> str:
+    """Render the first exact corrective prewrite selected by scope admission."""
+    paths = canonical_repair_paths(root, official, change=change, archived=archived)
+    if not paths:
+        return ""
+    resolved = shlex.quote(root.resolve().as_posix())
+    return (
+        f"ethos lane prewrite --paths {shlex.quote(paths[0])} "
+        f"--editor-root {resolved} --require-editor-root --root {resolved} --json"
+    )
 
 
 def _resolve_without_workspace_intent(
@@ -320,6 +340,7 @@ def resolve_current_resolution(
                 and official_gaps
                 and all(gap.startswith("openspec_validation_failed:spec:") for gap in official_gaps)
             )
+            or bool(canonical_info_only_capabilities(official))
         )
         else None
     )
@@ -360,6 +381,7 @@ def resolve_current_resolution(
             required_gaps=prewrite_gaps,
             next_action=str(prewrite_scope.get("next_action") or ""),
         )
+    repair_archive = archived
     archived = archived if archive_closeout else None
     repository_resolution = _repository_resolution_without_active_intent(
         status=status,
@@ -379,8 +401,11 @@ def resolve_current_resolution(
         ambiguous = next(
             (g for g in official_gaps if g.startswith("openspec_active_change_ambiguous:")), ""
         )
-        repair_action = canonical_repair_action(
-            root, official, change=change or str(official.get("change") or "")
+        repair_action = _canonical_repair_action(
+            root,
+            official,
+            change=change or str(official.get("change") or ""),
+            archived=repair_archive,
         )
         return CurrentResolution(
             verdict=official_verdict,

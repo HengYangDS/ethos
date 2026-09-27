@@ -135,6 +135,14 @@ def valid_canonical_info_capabilities(official: dict[str, object]) -> tuple[str,
     return tuple(dict.fromkeys(gap.removeprefix(_INFO_SPEC).split(":", 1)[0] for gap in expected))
 
 
+def canonical_info_only_capabilities(official: dict[str, object]) -> tuple[str, ...]:
+    """Accept only a complete valid-INFO spec observation, never mixed gaps."""
+    gaps = string_sequence(official.get("required_gaps"))
+    if not gaps or any(not gap.startswith(_INFO_SPEC) for gap in gaps):
+        return ()
+    return valid_canonical_info_capabilities(official) or ()
+
+
 def canonical_spec_repair_paths(root: Path, official: dict[str, object]) -> tuple[str, ...]:
     """Map only supported current spec failures to their canonical source files."""
     gaps = string_sequence(official.get("required_gaps"))

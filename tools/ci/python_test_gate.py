@@ -10,6 +10,7 @@ import sys
 import tempfile
 import tomllib
 from contextlib import contextmanager
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO
@@ -153,13 +154,34 @@ class PythonTestGate:
             self._allure_started = False
             try:
                 self._prepare()
+                self._report_resources("start")
                 self._sharded(session) if self.s.shards not in {None, 1} else self._single(session)
+            except Exception:
+                self._report_resources("failure")
+                raise
             finally:
                 self._cleanup()
                 self._stable_head()
                 if self._allure_started and self._allure_result_dirs():
                     self.allure_head.write_text(self.s.head + "\n", encoding="utf-8")
             self.head_file.write_text(self.s.head + "\n", encoding="utf-8")
+
+    def _report_resources(self, phase: str) -> None:
+        """Observe capacity before work and before failed scratch cleanup."""
+        for name, path in (("repository", ROOT), ("pytest_temp", self.s.basetemp.parent)):
+            try:
+                free_bytes = shutil.disk_usage(path).free
+            except OSError as error:
+                detail = f"observation_unavailable={type(error).__name__}"
+            else:
+                statvfs = getattr(os, "statvfs", None)
+                try:
+                    free_inodes = str(statvfs(path).f_favail) if statvfs else "unknown"
+                except OSError:
+                    free_inodes = "unknown"
+                detail = f"available_bytes={free_bytes} available_inodes={free_inodes}"
+            with suppress(OSError, ValueError):
+                print(f"ethos_test_resource phase={phase} {name}={path} {detail}", file=sys.stderr)
 
     def render_report(self) -> Path:
         """Rebuild Allure 3 views from this exact test attempt without executing tests."""

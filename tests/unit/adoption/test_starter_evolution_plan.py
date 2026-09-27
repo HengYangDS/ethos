@@ -159,6 +159,25 @@ def test_starter_evolution_rejects_untrusted_formation_provenance(
     assert git(repo, "rev-parse", "HEAD") == before
 
 
+def test_starter_evolution_preserves_native_baseline_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An unavailable Git baseline keeps the native cause for recovery."""
+    repo = _formed_python_repo(tmp_path, monkeypatch)
+    original_run_git = evolution.run_git
+
+    def failed_baseline(root: Path, *args: str, **kwargs: object):
+        if args and args[0] == "show":
+            return subprocess.CompletedProcess(args, 128, stdout=b"", stderr=b"fatal: denied")
+        return original_run_git(root, *args, **kwargs)
+
+    monkeypatch.setattr(evolution, "run_git", failed_baseline)
+    report = plan_starter_evolution(repo, purpose="A revised purpose.")
+
+    assert report["required_gaps"] == ["starter_evolution_baseline_unavailable"]
+    assert report["detail"] == "fatal: denied"
+
+
 @pytest.mark.parametrize(
     ("failure", "gap"),
     [

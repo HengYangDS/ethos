@@ -90,7 +90,7 @@ def _candidate_outputs(candidate: Path) -> tuple[dict[str, str], str, str]:
         with os.scandir(pending.pop()) as entries:
             for entry in entries:
                 path = Path(entry.path)
-                info = entry.stat(follow_symlinks=False)
+                info = path.lstat()
                 if is_junction(path):
                     return {}, "formation_starter_output_unsafe", str(path)
                 if stat.S_ISDIR(info.st_mode):

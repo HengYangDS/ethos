@@ -92,3 +92,4 @@ def _hermetic_process_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     monkeypatch.setenv("OPENSPEC_NO_UPDATE_CHECK", "1")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     monkeypatch.delenv("ETHOS_CHANGE", raising=False)
+    monkeypatch.delenv("ETHOS_CI_SUPPLY_MANIFEST", raising=False)

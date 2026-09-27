@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import hashlib
 import subprocess
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
+import ethos.adapters.repo.starter.evolution as evolution
 from ethos.adapters.mutation.lane_lifecycle.start import default_worktree_path
+from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.starter.evolution import compose_starter_evolution
 from ethos.adapters.repo.starter.evolution import plan_starter_evolution
 from ethos.contracts.branch.roles import load_branch_role_policy
@@ -76,6 +79,72 @@ def _history(
     return repo, baseline, git(repo, "rev-parse", "HEAD")
 
 
+@pytest.mark.parametrize(
+    ("defect", "gap"),
+    [
+        ("digest", "starter_evolution_baseline_digest_invalid"),
+        ("stale-head", "starter_evolution_head_changed"),
+        ("unrelated-base", "starter_evolution_baseline_not_ancestor"),
+        ("missing-path", "starter_evolution_baseline_paths_missing"),
+    ],
+)
+def test_starter_evolution_requires_exact_source_history(
+    tmp_path: Path, defect: str, gap: str
+) -> None:
+    """A valid-looking output cannot use an altered digest, HEAD or Git ancestry."""
+    repo, baseline, current = _history(tmp_path, customize_template=False)
+    old_files = _old_files()
+    if defect == "digest":
+        old_files["pyproject.toml"] = "invalid"
+    elif defect == "stale-head":
+        current = baseline
+    elif defect == "unrelated-base":
+        baseline = git(repo, "commit-tree", git(repo, "rev-parse", "HEAD^{tree}"))
+    else:
+        old_files["src/missing.py"] = hashlib.sha256(b"missing\n").hexdigest()
+    before = git(repo, "rev-parse", "HEAD")
+
+    report = compose_starter_evolution(
+        repo,
+        baseline=baseline,
+        current=current,
+        old_files=old_files,
+        new_files={"pyproject.toml": b'description = "new"\n'},
+    )
+
+    assert report["required_gaps"] == [gap]
+    assert report["patch"] == ""
+    assert git(repo, "rev-parse", "HEAD") == before
+
+
+def test_starter_evolution_revalidates_head_after_object_merge(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A concurrent HEAD move invalidates a generated patch before it is offered."""
+    repo, baseline, current = _history(tmp_path, customize_template=False)
+    original_run_git = evolution.run_git
+    head_reads = 0
+
+    def changed_head(root: Path, *args, **kwargs):
+        nonlocal head_reads
+        if args[:2] == ("rev-parse", "HEAD"):
+            head_reads += 1
+            if head_reads == 2:
+                return subprocess.CompletedProcess(args, 0, stdout="0" * len(current), stderr="")
+        return original_run_git(root, *args, **kwargs)
+
+    monkeypatch.setattr(evolution, "run_git", changed_head)
+    report = compose_starter_evolution(
+        repo,
+        baseline=baseline,
+        current=current,
+        old_files=_old_files(),
+        new_files={"pyproject.toml": b'description = "new"\n'},
+    )
+    assert report["required_gaps"] == ["starter_evolution_head_changed"]
+    assert git(repo, "rev-parse", "HEAD") == current
+
+
 @pytest.mark.parametrize("object_format", ["sha1", "sha256"])
 def test_starter_evolution_composes_disjoint_changes_without_source_effect(
     tmp_path: Path, object_format: str
@@ -123,6 +192,35 @@ def test_starter_evolution_conflict_preserves_authored_bytes(tmp_path: Path) -> 
     assert (repo / "pyproject.toml").read_bytes() == before
     assert git(repo, "rev-parse", "HEAD") == current
     assert git(repo, "show-ref") == refs
+
+
+@pytest.mark.parametrize("object_format", ["sha1", "sha256"])
+@pytest.mark.parametrize("state", ["unchanged", "authored"])
+def test_starter_removal_preserves_authored_history(
+    tmp_path: Path, object_format: str, state: str
+) -> None:
+    """Drop unchanged starter bytes, but reject deletion of authored edits."""
+    repo, baseline, current = _history(
+        tmp_path, customize_template=state == "unchanged", object_format=object_format
+    )
+    authored = (repo / "src/custom.py").read_bytes()
+    old_files = _old_files() | {"src/custom.py": hashlib.sha256(b"value = 1\n").hexdigest()}
+
+    report = compose_starter_evolution(
+        repo,
+        baseline=baseline,
+        current=current,
+        old_files=old_files,
+        new_files={"pyproject.toml": b'description = "old"\n'},
+    )
+
+    if state == "authored":
+        assert report["required_gaps"] == ["starter_evolution_conflict"]
+    else:
+        assert report["changed_paths"] == ["src/custom.py"]
+        assert "-value = 1" in report["patch"]
+    assert (repo / "src/custom.py").read_bytes() == authored
+    assert git(repo, "rev-parse", "HEAD") == current
 
 
 def test_starter_evolution_rejects_false_prior_output_digest(tmp_path: Path) -> None:
@@ -236,6 +334,110 @@ def test_starter_evolution_requires_formation_provenance(tmp_path: Path) -> None
 
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["starter_evolution_provenance_missing"]
+
+
+@pytest.mark.parametrize(
+    ("corruption", "gap"),
+    [
+        ("duplicate", "starter_evolution_provenance_ambiguous"),
+        ("claim", "starter_evolution_provenance_invalid"),
+        ("generator", "starter_evolution_provenance_invalid"),
+        ("missing-baseline", "starter_evolution_baseline_unavailable"),
+        ("missing-project-name", "starter_evolution_provenance_invalid"),
+        ("unsafe-project-name", "starter_evolution_provenance_invalid"),
+    ],
+)
+def test_starter_evolution_rejects_untrusted_formation_provenance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, corruption: str, gap: str
+) -> None:
+    """A recorded result must not authorize an unrelated starter or Git base."""
+    repo = _formed_python_repo(tmp_path, monkeypatch)
+    before = git(repo, "rev-parse", "HEAD")
+    _set, records = read_attestation_set(repo)
+    record = next(item for item in records if item.predicate == "effect:starter-formation")
+    body = record.model_dump(mode="json")["payload"]["body"]
+    if corruption == "claim":
+        body["claim"]["operation"] = "other"
+    elif corruption == "generator":
+        body["input"]["sources"]["starter"] = "foundation"
+    elif corruption == "missing-baseline":
+        body["output"]["head"] = "0" * len(before)
+    fake = SimpleNamespace(
+        predicate=record.predicate,
+        verdict=record.verdict,
+        payload=SimpleNamespace(kind=record.payload.kind, body=body),
+    )
+    selected = (fake, fake) if corruption == "duplicate" else (fake,)
+    monkeypatch.setattr(evolution, "read_attestation_set", lambda _root: ("", selected))
+    if corruption in {"missing-project-name", "unsafe-project-name"}:
+        source = (
+            b"[project]\n"
+            if corruption == "missing-project-name"
+            else b'[project]\nname = "outside/path"\n'
+        )
+        original_run_git = evolution.run_git
+
+        def project_object(root: Path, *args, **kwargs):
+            if args and args[0] == "show":
+                return subprocess.CompletedProcess(args, 0, stdout=source, stderr=b"")
+            return original_run_git(root, *args, **kwargs)
+
+        monkeypatch.setattr(evolution, "run_git", project_object)
+    report = plan_starter_evolution(repo, purpose="A revised purpose.")
+    assert report["required_gaps"] == [gap]
+    assert report["patch"] == ""
+    assert git(repo, "rev-parse", "HEAD") == before
+
+
+@pytest.mark.parametrize(
+    ("failure", "gap"),
+    [
+        ("purpose", "starter_evolution_purpose_missing"),
+        ("repository", "starter_evolution_repository_unavailable"),
+        ("generator", "formation_starter_generation_failed"),
+        ("changed-output", "starter_evolution_generation_changed"),
+        ("observation", "starter_evolution_observation_unknown"),
+    ],
+)
+def test_starter_evolution_plan_preserves_distinct_failure_owners(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str, gap: str
+) -> None:
+    """Review never upgrades unavailable source, generator or evidence to a patch."""
+    repo = _formed_python_repo(tmp_path, monkeypatch)
+    before = git(repo, "rev-parse", "HEAD")
+    if failure == "repository":
+        original_run_git = evolution.run_git
+
+        def unavailable_head(root: Path, *args, **kwargs):
+            if args and args[0] == "rev-parse":
+                return subprocess.CompletedProcess(args, 1, stdout="", stderr="missing")
+            return original_run_git(root, *args, **kwargs)
+
+        monkeypatch.setattr(evolution, "run_git", unavailable_head)
+    elif failure == "generator":
+        monkeypatch.setattr(
+            evolution,
+            "compose_starter",
+            lambda *_args: ({}, {}, "formation_starter_generation_failed", "native error"),
+        )
+    elif failure == "changed-output":
+
+        def changed(candidate: Path, *_args):
+            (candidate / "pyproject.toml").write_text("changed\n", encoding="utf-8")
+            return {}, {"pyproject.toml": "0" * 64}, "", ""
+
+        monkeypatch.setattr(evolution, "compose_starter", changed)
+    elif failure == "observation":
+
+        def unavailable(_root: Path):
+            message = "attestation unavailable"
+            raise OSError(message)
+
+        monkeypatch.setattr(evolution, "read_attestation_set", unavailable)
+    report = plan_starter_evolution(repo, purpose="  " if failure == "purpose" else "New purpose.")
+    assert report["required_gaps"] == [gap]
+    assert report["patch"] == ""
+    assert git(repo, "rev-parse", "HEAD") == before
 
 
 def test_starter_evolution_uses_original_name_from_sibling_worktree(

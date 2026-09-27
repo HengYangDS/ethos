@@ -2,14 +2,13 @@
 
 ### Requirement: Publication composes historical repair with forward integration
 
-ETHOS SHALL recognize a completed exact historical repair followed by native
-ancestor-related commits when a selected protected peer ref holds either the
-recorded former tip or an earlier original commit explicitly mapped by that
-repair. The target ref SHALL be included in the repair's exact ref effect. The
-common range owner SHALL validate only commits after the verified replacement
-tip under its baseline and proposed policies. Proposed-object proof, current
-accepted effect, candidate equality, tag-object admission and remote CAS remain
-independent requirements.
+ETHOS SHALL recognize a completed exact history repair with native descendants
+when a protected peer ref holds the former tip or an explicitly mapped original
+commit, and that ref is named by the repair effect. The common range owner
+SHALL validate only commits after the verified
+replacement tip under baseline and proposed policies. Proposed-object proof,
+current accepted effect, candidate equality, tag-object admission and exact
+peer CAS SHALL remain independent.
 
 #### Scenario: Signed forward commits follow a verified replacement
 

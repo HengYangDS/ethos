@@ -34,8 +34,12 @@ export UV_PROJECT_ENVIRONMENT="${repo_root}/.venv"
 host_os="$(uname -s)"
 
 if [[ -n ${ETHOS_CI_SUPPLY_MANIFEST:-} ]]; then
-	if [[ ! -f ${ETHOS_CI_SUPPLY_MANIFEST} ]] ||
-		! sha256sum --check --status "${ETHOS_CI_SUPPLY_MANIFEST}"; then
+	if [[ ! -f ${ETHOS_CI_SUPPLY_MANIFEST} ]]; then
+		echo 'ci_supply_manifest_missing' >&2
+		exit 2
+	fi
+	if ! checksum_result="$(sha256sum --check "${ETHOS_CI_SUPPLY_MANIFEST}" 2>&1)"; then
+		printf '%s\n' "${checksum_result}" >&2
 		echo 'ci_supply_input_mismatch' >&2
 		exit 2
 	fi

@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
+from contextlib import nullcontext
 from importlib import metadata
+from stat import S_IFREG
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
@@ -235,3 +239,44 @@ def test_python_library_rejects_generator_link_escape(
     assert result.required_gaps == ("formation_starter_output_unsafe",)
     assert foreign.read_text(encoding="utf-8") == "preserve"
     assert not target.exists()
+
+
+def test_starter_inventory_uses_complete_file_link_metadata(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A directory entry without link counts does not make a new file unsafe."""
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    (candidate / "AGENTS.md").write_text("# Agent\n", encoding="utf-8")
+    incomplete = SimpleNamespace(
+        path=str(candidate / "AGENTS.md"),
+        stat=lambda **_kwargs: SimpleNamespace(st_mode=S_IFREG, st_nlink=0),
+    )
+    monkeypatch.setattr(generator_effect.os, "scandir", lambda _path: nullcontext((incomplete,)))
+    outputs, _generated, gap, detail = generator_effect.compose_starter(
+        candidate, "foundation", "A governed project."
+    )
+
+    assert (gap, detail) == ("", "")
+    assert set(outputs) == {"AGENTS.md"}
+
+
+def test_starter_inventory_still_rejects_external_hardlink(tmp_path: Path) -> None:
+    """Complete link metadata must retain the external-byte refusal."""
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    foreign = tmp_path / "foreign.md"
+    foreign.write_text("preserve\n", encoding="utf-8")
+    try:
+        os.link(foreign, candidate / "AGENTS.md")
+    except OSError:
+        pytest.skip("hardlinks unavailable")
+
+    outputs, _generated, gap, detail = generator_effect.compose_starter(
+        candidate, "foundation", "A governed project."
+    )
+
+    assert outputs == {}
+    assert gap == "formation_starter_output_unsafe"
+    assert detail == str(candidate / "AGENTS.md")
+    assert foreign.read_text(encoding="utf-8") == "preserve\n"

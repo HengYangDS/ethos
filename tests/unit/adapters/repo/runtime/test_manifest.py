@@ -274,11 +274,6 @@ def test_runtime_inventory_rejects_unverifiable_subtrees_without_changing_conten
     subtree.mkdir()
     sentinel = subtree / ("payload.pyc" if kind == "bytecode" else "payload")
     sentinel.write_bytes(b"retained content")
-    monkeypatch.setattr(
-        runtime_filesystem,
-        "is_junction",
-        lambda path: kind == "junction" and path == subtree,
-    )
     scandir = os.scandir
 
     def readable(path):
@@ -286,7 +281,13 @@ def test_runtime_inventory_rejects_unverifiable_subtrees_without_changing_conten
             raise PermissionError
         return scandir(path)
 
-    monkeypatch.setattr(os, "scandir", readable)
-    with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
-        runtime_file_inventory(tmp_path)
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            runtime_filesystem,
+            "is_junction",
+            lambda path: kind == "junction" and path == subtree,
+        )
+        patch.setattr(os, "scandir", readable)
+        with pytest.raises(ValueError, match="hook_runtime_manifest_invalid"):
+            runtime_file_inventory(tmp_path)
     assert sentinel.read_bytes() == b"retained content"

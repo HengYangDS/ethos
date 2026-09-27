@@ -252,10 +252,11 @@ def test_starter_inventory_uses_complete_file_link_metadata(
         path=str(candidate / "AGENTS.md"),
         stat=lambda **_kwargs: SimpleNamespace(st_mode=S_IFREG, st_nlink=0),
     )
-    monkeypatch.setattr(generator_effect.os, "scandir", lambda _path: nullcontext((incomplete,)))
-    outputs, _generated, gap, detail = generator_effect.compose_starter(
-        candidate, "foundation", "A governed project."
-    )
+    with monkeypatch.context() as patch:
+        patch.setattr(generator_effect.os, "scandir", lambda _path: nullcontext((incomplete,)))
+        outputs, _generated, gap, detail = generator_effect.compose_starter(
+            candidate, "foundation", "A governed project."
+        )
 
     assert (gap, detail) == ("", "")
     assert set(outputs) == {"AGENTS.md"}

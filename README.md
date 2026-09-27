@@ -63,6 +63,11 @@ Apply only when conflicts are empty and the recovery boundary is understood,
 then re-observe and follow the resulting continuation. This bootstrap is not a
 complete domain scaffold or a crash-atomic multi-file migration.
 
+For an absent target, use the distinct `ethos adopt --create` preview and
+reviewed apply path in the [quickstart](docs/guides/quickstart.md#new-repository).
+It forms a governed foundation from an installed product; domain intent still
+belongs to an official Change.
+
 A completed reader may return `continuation=done` with no next action. This ends
 the requested observation, not the repository project or unrelated work. Foreign
 lanes remain visible; seeing them neither grants ownership nor requires a new task.

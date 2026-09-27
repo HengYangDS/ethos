@@ -37,6 +37,7 @@ PYTEST_CONFIG = ROOT / ".config/checks/pytest/pytest.toml"
 COVERAGE_CONFIG = ROOT / ".config/checks/coverage/coverage.toml"
 COVERAGE_POLICY = ROOT / ".config/checks/coverage/policy.toml"
 TARGETS = ("tests/unit", "tests/architecture")
+_FOOTPRINT_ENTRY_LIMIT = 50_000
 
 
 def _executable(name: str) -> str:
@@ -170,7 +171,7 @@ class PythonTestGate:
         """Observe capacity before work and before failed scratch cleanup."""
         for name, path in (("repository", ROOT), ("pytest_temp", self.s.basetemp.parent)):
             try:
-                free_bytes = shutil.disk_usage(path).free
+                usage = shutil.disk_usage(path)
             except OSError as error:
                 detail = f"observation_unavailable={type(error).__name__}"
             else:
@@ -179,9 +180,49 @@ class PythonTestGate:
                     free_inodes = str(statvfs(path).f_favail) if statvfs else "unknown"
                 except OSError:
                     free_inodes = "unknown"
-                detail = f"available_bytes={free_bytes} available_inodes={free_inodes}"
+                detail = (
+                    f"total_bytes={usage.total} used_bytes={usage.used} "
+                    f"available_bytes={usage.free} available_inodes={free_inodes}"
+                )
             with suppress(OSError, ValueError):
                 print(f"ethos_test_resource phase={phase} {name}={path} {detail}", file=sys.stderr)
+        if phase == "failure":
+            for owner, path in (
+                ("pytest_temp", self.s.basetemp),
+                ("test_evidence", self.s.evidence),
+            ):
+                try:
+                    entries, allocated, truncated = self._footprint(path)
+                    detail = (
+                        f"entries={entries} approx_allocated_bytes={allocated} "
+                        f"truncated={str(truncated).lower()}"
+                    )
+                except OSError as error:
+                    detail = f"observation_unavailable={type(error).__name__}"
+                with suppress(OSError, ValueError):
+                    print(
+                        f"ethos_test_footprint phase=failure owner={owner} {detail}",
+                        file=sys.stderr,
+                    )
+
+    @staticmethod
+    def _footprint(root: Path) -> tuple[int, int, bool]:
+        """Bound a no-follow diagnostic scan; it never authorizes cleanup."""
+        count = allocated = 0
+        pending = [root]
+        while pending:
+            with os.scandir(pending.pop()) as entries:
+                for entry in entries:
+                    metadata = entry.stat(follow_symlinks=False)
+                    count += 1
+                    allocated += (
+                        getattr(metadata, "st_blocks", (metadata.st_size + 511) // 512) * 512
+                    )
+                    if count >= _FOOTPRINT_ENTRY_LIMIT:
+                        return count, allocated, True
+                    if entry.is_dir(follow_symlinks=False):
+                        pending.append(Path(entry.path))
+        return count, allocated, False
 
     def render_report(self) -> Path:
         """Rebuild Allure 3 views from this exact test attempt without executing tests."""

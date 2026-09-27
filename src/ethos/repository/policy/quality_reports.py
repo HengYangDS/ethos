@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
@@ -134,32 +135,32 @@ def _coverage_files(root: ElementTree.Element) -> dict[str, dict[str, int]]:
 
 def go_covered_paths(profile: list[str], production: tuple[str, ...]) -> list[str]:
     """Bind Go's native coverage profile to exact tracked source paths."""
-    if not profile or not profile[0].startswith("mode: "):
+    if not profile or profile[0] not in {"mode: set", "mode: count", "mode: atomic"}:
         _invalid("go_coverage_invalid")
-    hits = dict.fromkeys(production, 0)
+    scope = set(production)
+    observed: set[str] = set()
+    applicable: set[str] = set()
+    covered: set[str] = set()
     for line in profile[1:]:
-        fields = line.split()
-        if len(fields) != 3:
+        row = re.fullmatch(r"(.+):[0-9]+\.[0-9]+,[0-9]+\.[0-9]+ ([0-9]+) ([0-9]+)", line)
+        if row is None:
             _invalid("go_coverage_invalid")
-        source = fields[0].split(":", maxsplit=1)[0]
-        try:
-            statements = int(fields[1])
-            count = int(fields[2])
-        except ValueError as error:
-            _invalid("go_coverage_invalid", error)
-        if statements <= 0 or count < 0:
-            _invalid("go_coverage_invalid")
+        source, statements, count = row.group(1), int(row.group(2)), int(row.group(3))
         candidate = source
         while candidate:
-            if candidate in hits:
-                hits[candidate] += count
+            if candidate in scope:
+                observed.add(candidate)
+                if statements:
+                    applicable.add(candidate)
+                    if count:
+                        covered.add(candidate)
                 break
-            _, separator, candidate = candidate.partition("/")
-            if not separator:
-                break
-    if any(count == 0 for count in hits.values()):
+            candidate = candidate.partition("/")[2]
+    if observed != scope or applicable - covered:
         _invalid("go_source_unexercised")
-    return list(hits)
+    if not applicable:
+        _invalid("go_coverage_no_applicable_statements")
+    return [path for path in production if path in applicable]
 
 
 def _lcov_hit_count(line: str) -> int:

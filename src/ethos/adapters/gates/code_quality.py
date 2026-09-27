@@ -102,10 +102,12 @@ def _go_behavior(root: Path, subjects: tuple[CodeSubject, ...]) -> dict[str, obj
     )
     if passes == 0:
         _invalid("go_tests_unexecuted")
+    covered = go_covered_paths(profile, production)
     return {
         "language": "go",
         "tests_passed": passes,
-        "covered_paths": go_covered_paths(profile, production),
+        "covered_paths": covered,
+        "non_applicable_paths": [path for path in production if path not in covered],
     }
 
 

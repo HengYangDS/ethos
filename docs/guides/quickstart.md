@@ -10,8 +10,8 @@ relations:
 
 Status: active.
 
-Purpose: give a first-run path for inspecting a repository, binding an adopter,
-planning proof, and reading the result without claiming a mutation.
+Purpose: give a first-run path for forming or binding a repository, inspecting
+its state, and reading proof without confusing preview with mutation.
 
 See also: [Command Plane](../reference/command-plane.md) and
 [Product Design Contract](../governance/product-design-contract.md).
@@ -32,12 +32,36 @@ publication, or remote push. Follow only the selected boundary, not a fixed
 status/plan/prove pipeline. When `continuation=done`, the requested observation
 is complete; do not repeat it or create work merely to obtain another action.
 
-## Adopted Repository
+## New Repository
+
+With an installed ETHOS executable, preview an absent target using a stable
+purpose and the actual Git identity. Review the returned plan digest before
+applying the same request:
+
+```bash
+ethos adopt --create --root <absent-repo> \
+  --purpose "<purpose>" --starter foundation \
+  --author-name "<name>" --author-email "<email>" --json
+ethos adopt --create --root <absent-repo> \
+  --purpose "<purpose>" --starter foundation \
+  --author-name "<name>" --author-email "<email>" \
+  --apply --authorize --expect-plan-digest <reviewed-digest> --json
+ethos status --root <absent-repo> --json
+```
+
+`python-library` is an optional native starter in place of `foundation`.
+Creation forms the initial Git repository, candidate worktree, bindings and
+Agent entry from installed package bytes; it does not select domain intent.
+A later starter update is a reviewed candidate, never an automatic rewrite.
+If creation reports an unknown post-effect result, inspect the target before
+retrying. Author the first Change with official OpenSpec in an admitted lane.
+
+## Existing Repository
 
 Preview binding of an unadopted repository; do not mutate it from this example:
 
 ```bash
-uv run ethos adopt --root <repo> --json
+ethos adopt --root <repo> --json
 ```
 
 The plan names the adopter profile and official OpenSpec config. Preserve the
@@ -48,8 +72,8 @@ prove scaffold, migration, uninstall, or crash recovery.
 When current status selects verification, choose the required evidence depth:
 
 ```bash
-uv run ethos prove --root <repo> --json
-uv run ethos prove --root <repo> --execute --full --expect-head <exact-head> --json
+ethos prove --root <repo> --json
+ethos prove --root <repo> --execute --full --expect-head <exact-head> --json
 ```
 
 These are alternative readiness and execution requests, not automatic steps.

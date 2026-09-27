@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 import json
+import shutil
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -17,12 +18,55 @@ from ethos.adapters.repo.runtime.materialization.node_package_supply import (
 )
 from ethos.result import EthosResult
 from tools.ci.delivery.acceptance import adopter as fixture
+from tools.ci.delivery.acceptance import brownfield as brownfield_fixture
 from tools.ci.delivery.acceptance import effect
 from tools.ci.delivery.acceptance import invocation
 from tools.ci.delivery.acceptance import lane
 from tools.ci.delivery.acceptance.adopter import verify_formed
 
 ROOT = Path(__file__).resolve().parents[4]
+
+
+def test_installed_brownfield_adoption_preserves_authored_content(tmp_path: Path) -> None:
+    """The package-only adoption path adds bindings without taking authored files."""
+    environment, _git = effect.independent_host_environment()
+    executable = shutil.which("ethos")
+    assert executable is not None
+    result = brownfield_fixture.prove_brownfield(
+        Path(executable), tmp_path, environment=environment, run=_run
+    )
+    assert result["state"] == "passed"
+    assert result["authored_content_preserved"] is True
+    assert result["planned_files"] == [".ethos/profile.toml", "openspec/config.yaml"]
+
+
+@pytest.mark.parametrize(
+    ("phase", "gap"),
+    [
+        ("preview", "installed_brownfield_preview_invalid"),
+        ("apply", "installed_brownfield_authored_content_changed"),
+    ],
+)
+def test_brownfield_conformance_rejects_authored_rewrite(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, phase: str, gap: str
+) -> None:
+    """A green adoption result cannot conceal a rewritten authored file."""
+    original_invoke = brownfield_fixture.invoke
+
+    def rewritten(root: Path, command: tuple[str, ...], **kwargs):
+        result = original_invoke(root, command, **kwargs)
+        if ("--apply" in command) == (phase == "apply"):
+            (root / "README.md").write_text("rewritten\n", encoding="utf-8")
+        return result
+
+    monkeypatch.setattr(brownfield_fixture, "invoke", rewritten)
+    environment, _git = effect.independent_host_environment()
+    executable = shutil.which("ethos")
+    assert executable is not None
+    with pytest.raises(RuntimeError, match=gap):
+        brownfield_fixture.prove_brownfield(
+            Path(executable), tmp_path, environment=environment, run=_run
+        )
 
 
 def test_installed_formation_observation_binds_the_effect_head(tmp_path: Path) -> None:
@@ -56,9 +100,11 @@ def test_installed_formation_observation_binds_the_effect_head(tmp_path: Path) -
         verify_formed(target, plan, {"head": head}, (0, status, ""), digest)
 
 
-def _run(*command: str, cwd: Path | None = None) -> str:
+def _run(*command: str, cwd: Path | None = None, env: dict[str, str] | None = None) -> str:
     assert "--json" not in command, "Structured tools must use their semantic owner"
-    return run_command(cwd or ROOT, command, timeout=20, check=True).stdout.strip()
+    return run_command(
+        cwd or ROOT, command, env=env, inherit_environment=env is None, timeout=20, check=True
+    ).stdout.strip()
 
 
 def test_adopter_is_clean_under_host_autocrlf(monkeypatch, tmp_path: Path) -> None:

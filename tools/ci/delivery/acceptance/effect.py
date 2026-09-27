@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import tools.ci.delivery.acceptance.adopter as adopter_fixture
+import tools.ci.delivery.acceptance.brownfield as brownfield_acceptance
 import tools.ci.delivery.acceptance.invocation as cli_invocation
 import tools.ci.delivery.acceptance.lane as lane_acceptance
 import tools.ci.delivery.acceptance.runtime as runtime_acceptance
@@ -433,6 +434,9 @@ def run(
         formation = adopter_fixture.prove_formation(
             installed_ethos, WORK, origin=origin, environment=package_environment
         )
+        brownfield = brownfield_acceptance.prove_brownfield(
+            installed_ethos, WORK, environment=package_environment, run=_run
+        )
         lifecycle = observe_runtime_lifecycle(
             installed_ethos=installed_ethos,
             bootstrap_environment=smoke,
@@ -471,6 +475,7 @@ def run(
             independent_host=independent_host,
             command_plane=command_plane,
             formation=formation,
+            brownfield=brownfield,
             resources=resources,
             runtime_lifecycle=lifecycle,
             generated_at=datetime.now(UTC),

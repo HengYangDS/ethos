@@ -334,6 +334,17 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         (effect, "_verify_resources", ["ethos/data/gates.toml"]),
     ):
         monkeypatch.setattr(owner, method, Mock(return_value=value))
+    monkeypatch.setattr(
+        effect.brownfield_acceptance,
+        "prove_brownfield",
+        Mock(
+            return_value={
+                "state": "passed",
+                "authored_content_preserved": True,
+                "planned_files": [".ethos/profile.toml", "openspec/config.yaml"],
+            }
+        ),
+    )
 
     def remove_owned_work(path: Path) -> None:
         cleanup_evidence_states.append(evidence.exists())
@@ -471,6 +482,18 @@ def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact):
     assert payload["conformance"]["formation"]["state"] == "passed"
     assert payload["conformance"]["formation"]["first_change"] == "lane_admitted"
     assert payload["conformance"]["formation"]["agent_handoff"] == "passed"
+    assert payload["conformance"]["brownfield"] == {
+        "state": "passed",
+        "authored_content_preserved": True,
+        "planned_files": [".ethos/profile.toml", "openspec/config.yaml"],
+    }
+    with pytest.raises(ValueError, match="package_brownfield_preservation_incomplete"):
+        receipt.package_acceptance_evidence(
+            **(
+                case.receipt.call_args.kwargs
+                | {"brownfield": {"state": "passed", "authored_content_preserved": False}}
+            )
+        )
     with pytest.raises(ValueError, match="package_first_change_claim_invalid"):
         receipt.package_acceptance_evidence(
             **(

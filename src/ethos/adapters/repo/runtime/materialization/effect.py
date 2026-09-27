@@ -275,14 +275,18 @@ def _reusable_runtime(
         if selected.build == expected_build and _runtime_supply_current(selected, project):
             return selected.root
         if selected.build != expected_build and _runtime_supply_wheel(selected) is not None:
-            return _compatible_invoking_runtime(invoking_source, expected_build, project)
+            return _compatible_invoking_runtime(
+                invoking_source, expected_build, project, common=common
+            )
     except (OSError, ValueError) as error:
         if external:
             if str(error) == "hook_runtime_repository_private":
                 raise
             absent = _target_absent(candidate)
             if absent and (
-                invoking := _compatible_invoking_runtime(invoking_source, expected_build, project)
+                invoking := _compatible_invoking_runtime(
+                    invoking_source, expected_build, project, common=common
+                )
             ):
                 return invoking
             condition = "unavailable" if absent else "invalid"
@@ -304,7 +308,7 @@ def _target_absent(path: Path) -> bool:
 
 
 def _compatible_invoking_runtime(
-    source: Path, expected_build: BuildIdentity, project: Path
+    source: Path, expected_build: BuildIdentity, project: Path, *, common: Path
 ) -> Path | None:
     """Reuse only the invoking immutable package with the exact required closure."""
     try:
@@ -314,6 +318,7 @@ def _compatible_invoking_runtime(
             and invoking.build == expected_build
             and _runtime_supply_current(invoking, project)
         ):
+            require_runtime_selection_scope(common, invoking)
             return invoking.root
     except (OSError, ValueError):
         pass

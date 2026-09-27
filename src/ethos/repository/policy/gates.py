@@ -169,7 +169,8 @@ def _qualified_quality_check(
     if not isinstance(gate, Mapping) or not isinstance(check, Mapping) or not source_tree:
         return False
     identity = gate.get("execution_identity")
-    if gate.get("tool_adapter") != "ethos" or not isinstance(identity, (list, tuple)):
+    eligible = _quality_provider_refs(gate, axis)
+    if not eligible or not isinstance(identity, (list, tuple)):
         return False
     payload, providers = _quality_provider_payload(gate, check, identity)
     if not isinstance(payload, Mapping) or payload.get("gate") != gate.get("id"):
@@ -180,13 +181,25 @@ def _qualified_quality_check(
     return any(
         isinstance(item, Mapping)
         and item.get("provider") in providers
-        and (
-            gate.get("execution_mode") != "verified-command"
-            or item.get("provider") in _QUALITY_PROVIDERS.get(axis, ())
-        )
+        and item.get("provider") in eligible
         and _quality_evidence_matches(item.get("report"), axis, source_tree, subjects)
         for item in observations
     )
+
+
+def _quality_provider_refs(gate: Mapping[str, object], axis: str) -> tuple[str, ...]:
+    """Identify a selected product verifier before spending time on a gate."""
+    if gate.get("tool_adapter") != "ethos":
+        return ()
+    if gate.get("execution_mode") == "provider":
+        identity = gate.get("execution_identity")
+        if isinstance(identity, (list, tuple)) and len(identity) > 1 and identity[0] == "provider":
+            return tuple(item for item in identity[1:] if isinstance(item, str))
+    if gate.get("execution_mode") == "verified-command":
+        providers = gate.get("verification_providers")
+        if isinstance(providers, (list, tuple)):
+            return tuple(item for item in providers if item in _QUALITY_PROVIDERS.get(axis, ()))
+    return ()
 
 
 def _quality_provider_payload(
@@ -443,6 +456,18 @@ def resolve_gate_policy(
         gaps = (*gaps, "gate_runtime_missing:repository-python")
     if profile is not None and profile.declaration is not None and not gates:
         gaps = (*gaps, "proof_floor_empty")
+    if profile is not None and profile.declaration is not None:
+        owner = _owner_projection(
+            declaration, profile, repository_paths, script_paths, carrier_roles
+        )
+        axes = owner.get("code_correctness_map")
+        if isinstance(axes, Mapping):
+            selected = {gate.id: gate_policy_fields(gate) for gate in gates}
+            for axis, gate_id in axes.items():
+                if gate_id not in selected:
+                    gaps = (*gaps, f"quality_obligation_unproven:{axis}")
+                elif not _quality_provider_refs(selected[gate_id], axis):
+                    gaps = (*gaps, f"quality_gate_verifier_missing:{axis}:{gate_id}")
     return ResolvedGatePolicy(
         declaration,
         profile,

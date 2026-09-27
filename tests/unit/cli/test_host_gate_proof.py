@@ -126,7 +126,7 @@ def test_host_default_selection_preserves_the_declared_gate_floor(
 
 @pytest.mark.parametrize("missing", [False, True])
 def test_host_admission_requires_committed_executable_source(tmp_path: Path, *, missing: bool):
-    """Committed execution and repository code-quality proof remain distinct."""
+    """Missing source and absent quality verification both block before execution."""
     repo = init_git_repo(tmp_path / "repo")
     write_script_gate_policy(repo, full=True)
     script = repo / "tools/check.sh"
@@ -143,7 +143,8 @@ def test_host_admission_requires_committed_executable_source(tmp_path: Path, *, 
     result = _host(repo, head, "--gate", "check")
     report = json.loads(result.stdout)
     assert (report["verdict"], result.returncode) == ("block", 1)
-    assert bool(report["data"]["checks"]) is not missing
+    assert report["data"]["checks"] == []
+    assert report["data"]["executed"] is False
     if missing:
         assert report["required_gaps"] == ["gate_policy_source_missing:check:tools/check.sh"]
     else:
@@ -151,7 +152,6 @@ def test_host_admission_requires_committed_executable_source(tmp_path: Path, *, 
             "quality_obligation_unproven:behavior",
             "quality_obligation_unproven:static-analysis",
         ]
-        assert report["data"]["checks"][0]["stdout"] == "executed native check\n"
     assert git(repo, "status", "--short") == before
 
 

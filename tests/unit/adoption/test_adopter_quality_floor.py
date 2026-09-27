@@ -55,9 +55,9 @@ def test_success_only_commands_do_not_qualify_broken_code(tmp_path: Path) -> Non
 
     assert result.returncode != 0
     assert payload["verdict"] == "block"
-    assert any(
-        str(gap).startswith("quality_obligation_unproven:") for gap in payload["required_gaps"]
-    )
+    assert payload["data"]["checks"] == []
+    assert "quality_gate_verifier_missing:behavior:behavior" in payload["required_gaps"]
+    assert "quality_gate_verifier_missing:static-analysis:static" in payload["required_gaps"]
 
 
 @pytest.mark.parametrize(
@@ -104,9 +104,9 @@ def test_non_python_source_cannot_pass_on_success_only_commands(
 
     assert result.returncode != 0
     assert payload["verdict"] == "block"
-    assert any(
-        str(gap).startswith("quality_obligation_unproven:") for gap in payload["required_gaps"]
-    )
+    assert payload["data"]["checks"] == []
+    assert "quality_gate_verifier_missing:behavior:behavior" in payload["required_gaps"]
+    assert "quality_gate_verifier_missing:static-analysis:static" in payload["required_gaps"]
 
 
 @pytest.mark.parametrize(
@@ -137,11 +137,13 @@ def test_registry_cannot_omit_common_code_obligations(
     )
     registry = repo / "system/gates.toml"
     registry.parent.mkdir()
+    marker = repo / "executed-marker"
+    command = f'from pathlib import Path; Path({marker.name!r}).write_text("x")'
     registry.write_text(
         'schema_version = 1\nid = "false-quality"\n\n'
         '[proof_sets]\ndefault = ["claimed-tests"]\nfull = ["claimed-tests"]\n\n'
         '[[gates]]\nid = "claimed-tests"\nkind = "test"\n'
-        f"command = {json.dumps([sys.executable, '-c', 'pass'])}\n"
+        f"command = {json.dumps([sys.executable, '-c', command])}\n"
         'dimensions = ["test", "coverage", "static-analysis"]\n'
         f'asset_classes = ["{asset_class}"]\n',
         encoding="utf-8",
@@ -166,6 +168,8 @@ def test_registry_cannot_omit_common_code_obligations(
 
     assert result.returncode != 0
     assert payload["verdict"] == "block"
+    assert payload["data"]["checks"] == []
+    assert not marker.exists()
     assert any(
         str(gap).startswith("quality_obligation_unproven:") for gap in payload["required_gaps"]
     )

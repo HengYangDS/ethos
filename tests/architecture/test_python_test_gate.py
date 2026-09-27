@@ -214,8 +214,12 @@ def test_failed_python_attempt_observes_capacity_before_temp_cleanup(
     diagnostics = capsys.readouterr().err
     assert "ethos_test_resource phase=start" in diagnostics
     assert "ethos_test_resource phase=failure" in diagnostics
+    assert "total_bytes=" in diagnostics
+    assert "used_bytes=" in diagnostics
     assert "available_bytes=" in diagnostics
     assert "available_inodes=" in diagnostics
+    assert "ethos_test_footprint phase=failure owner=pytest_temp entries=1" in diagnostics
+    assert "ethos_test_footprint phase=failure owner=test_evidence entries=" in diagnostics
     assert {path for path, _ in observed} == {tmp_path, gate.s.basetemp.parent}
     assert [present for _, present in observed] == [False, False, True, True]
     assert not gate.s.basetemp.exists()

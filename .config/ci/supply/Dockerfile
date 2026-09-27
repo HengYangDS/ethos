@@ -20,7 +20,7 @@ COPY tools/ci/toolchain/native.py tools/ci/toolchain/native.py
 COPY src/ethos/__init__.py src/ethos/__init__.py
 COPY src/ethos/adapters/__init__.py src/ethos/adapters/process.py src/ethos/adapters/
 COPY src/ethos/adapters/toolchain/__init__.py src/ethos/adapters/toolchain/mise.py src/ethos/adapters/toolchain/
-COPY pyproject.toml uv.lock VERSION README.md package.json package-lock.json ./
+COPY pyproject.toml uv.lock package.json package-lock.json ./
 COPY distributions/npm/package.json distributions/npm/package.json
 COPY tests/fixtures/quality-sample/pyproject.toml tests/fixtures/quality-sample/uv.lock tests/fixtures/quality-sample/
 
@@ -42,8 +42,8 @@ RUN uv python install --no-bin "$(python3 -c 'import platform; print(platform.py
     && PYTHONPATH=src .venv/bin/python tools/ci/toolchain/native.py --root . --mise gitleaks scc syft \
     && sha256sum .config/checks/node/runtime.toml .config/mise/config.toml \
          .config/mise/mise.lock .config/ci/supply/Dockerfile \
-         .config/ci/supply/Dockerfile.dockerignore pyproject.toml uv.lock VERSION \
-         README.md package.json package-lock.json distributions/npm/package.json \
+         .config/ci/supply/Dockerfile.dockerignore pyproject.toml uv.lock \
+         package.json package-lock.json distributions/npm/package.json \
          tests/fixtures/quality-sample/pyproject.toml tests/fixtures/quality-sample/uv.lock \
          tools/ci/scripts/install-node.sh tools/ci/scripts/download-file.sh \
          tools/ci/scripts/with-python-runtime.sh tools/ci/scripts/mise-install.sh \

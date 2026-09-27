@@ -19,6 +19,11 @@ from tests.support.governed_repository import write_script_gate_policy
 if TYPE_CHECKING:
     from pathlib import Path
 
+_MISSING_QUALITY = (
+    "quality_obligation_unproven:behavior",
+    "quality_obligation_unproven:static-analysis",
+)
+
 
 @pytest.mark.parametrize("floor", ["full", "default"])
 def test_gate_policy_binds_committed_sources_and_reports_missing_source(tmp_path, floor) -> None:
@@ -26,7 +31,7 @@ def test_gate_policy_binds_committed_sources_and_reports_missing_source(tmp_path
     write_script_gate_policy(repo, full=True)
     first = dict(resolve_proof_policies(repo, tree_ref=commit_fixture(repo, "policy")))[floor]
     assert first.gate_ids == (("check", "publish") if floor == "full" else ("check",))
-    assert first.gaps == ()
+    assert first.gaps == _MISSING_QUALITY
 
     registry = repo / "system/gates.toml"
     registry.write_text(registry.read_text().replace("tools/check.sh", "tools/check-v2.sh"))
@@ -39,7 +44,10 @@ def test_gate_policy_binds_committed_sources_and_reports_missing_source(tmp_path
     (repo / "tools/check-v2.sh").write_text("#!/bin/sh\nexit 0\n")
     selected = dict(resolve_proof_policies(repo, tree_ref=missing))[floor]
     assert selected == resolve_gate_policy(repo, tree_ref=missing, full=floor == "full")
-    assert selected.gaps == ("gate_policy_source_missing:check:tools/check-v2.sh",)
+    assert selected.gaps == (
+        "gate_policy_source_missing:check:tools/check-v2.sh",
+        *_MISSING_QUALITY,
+    )
 
 
 def test_nox_gate_binds_repository_sources_and_requires_runtime(tmp_path: Path) -> None:
@@ -62,13 +70,14 @@ def test_nox_gate_binds_repository_sources_and_requires_runtime(tmp_path: Path) 
     missing = commit_fixture(repo, "nox without runtime")
     assert resolve_gate_policy(repo, tree_ref=missing).gaps == (
         "gate_runtime_missing:repository-python",
+        *_MISSING_QUALITY,
     )
 
     runtime = repo / ".venv/bin/python"
     runtime.parent.mkdir(parents=True)
     runtime.write_text("")
     bound = resolve_gate_policy(repo, tree_ref=commit_fixture(repo, "bind nox runtime"))
-    assert bound.gaps == ()
+    assert bound.gaps == _MISSING_QUALITY
     assert {path for path, _digest in bound.sources[0][1]} == {
         "noxfile.py",
         "pyproject.toml",

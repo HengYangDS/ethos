@@ -217,11 +217,19 @@ def test_public_execution_rejects_foreign_provider_before_any_gate(
     program = f"from pathlib import Path; Path({str(marker)!r}).touch()"
     provider = "ethos.contracts.gates:load_gate_registry_declaration"
     (repo / "gates.toml").write_text(
-        'id = "provider-fixture"\n[proof_sets]\ndefault = ["external", "provider"]\n'
-        'full = ["external", "provider"]\n[[gates]]\nid = "external"\nkind = "test"\n'
+        'id = "provider-fixture"\n[proof_sets]\n'
+        'default = ["external", "provider", "quality-behavior", "quality-static"]\n'
+        'full = ["external", "provider", "quality-behavior", "quality-static"]\n'
+        '[[gates]]\nid = "external"\nkind = "test"\n'
         f"command = {json.dumps([sys.executable, '-c', program])}\n"
         '[[gates]]\nid = "provider"\nkind = "test"\n'
         f'providers = ["{provider}"]\n'
+        '[[gates]]\nid = "quality-behavior"\nkind = "test"\n'
+        'profile = "repository"\nexecution_mode = "provider"\ntool_adapter = "ethos"\n'
+        'providers = ["ethos.adapters.gates.code_quality:behavior_report"]\n'
+        '[[gates]]\nid = "quality-static"\nkind = "lint"\n'
+        'profile = "repository"\nexecution_mode = "provider"\ntool_adapter = "ethos"\n'
+        'providers = ["ethos.adapters.gates.code_quality:static_report"]\n'
     )
     if local_provider:
         candidate = repo / "src/ethos/contracts/gates.py"

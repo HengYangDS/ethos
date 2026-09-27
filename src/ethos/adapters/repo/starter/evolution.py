@@ -303,7 +303,11 @@ def _formation_source(root: Path) -> tuple[str, dict[str, str], str, str]:
         timeout=10,
     )
     if baseline_project.returncode:
-        _fail("starter_evolution_baseline_unavailable")
+        detail = baseline_project.stderr.decode(errors="replace").strip()
+        _fail(
+            "starter_evolution_baseline_unavailable",
+            detail=detail or f"git show exited {baseline_project.returncode}",
+        )
     try:
         project = tomllib.loads(baseline_project.stdout.decode())["project"]
         project_name = project["name"]

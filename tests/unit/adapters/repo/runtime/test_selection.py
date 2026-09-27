@@ -285,6 +285,39 @@ def test_host_console_obeys_repository_selection(tmp_path, monkeypatch, mode):
     assert calls == expected
 
 
+@pytest.mark.parametrize("exit_code", [0, 1])
+def test_windows_console_relay_preserves_argument_boundaries(tmp_path, monkeypatch, exit_code):
+    """A selected interpreter receives one multiword option as one argument."""
+    root = tmp_path / "formed project"
+    root.mkdir()
+    common = root / ".git"
+    selector = common / "ethos/runtime/CURRENT"
+    selector.parent.mkdir(parents=True)
+    selector.write_text("selected", encoding="utf-8")
+    selected = tmp_path / "selected python.exe"
+    purpose = "A revised independently installed repository."
+    args = ["adopt", "--evolve-starter", "--root", str(root), "--purpose", purpose, "--json"]
+    calls = []
+
+    def relay(command, *, check):
+        calls.append((command, check))
+        return subprocess.CompletedProcess(command, exit_code)
+
+    monkeypatch.setattr(cli.sys, "argv", ["ethos", *args])
+    monkeypatch.setattr(cli.sys, "executable", str(tmp_path / "host python.exe"))
+    monkeypatch.setattr(cli.sys, "platform", "win32")
+    monkeypatch.setattr(cli, "git_common_dir", lambda _root: str(common))
+    monkeypatch.setattr(cli, "current_runtime", lambda _common: SimpleNamespace(python=selected))
+    monkeypatch.setattr(cli, "subprocess", SimpleNamespace(run=relay), raising=False)
+    monkeypatch.setattr(cli.os, "execv", lambda *_args: pytest.fail("Windows used execv"))
+
+    with pytest.raises(SystemExit) as exited:
+        cli.console_main()
+
+    assert exited.value.code == exit_code
+    assert calls == [([str(selected), "-B", "-I", "-m", "ethos.cli", *args], False)]
+
+
 @pytest.mark.parametrize("failure", ["write", "replace", "archive"])
 def test_distribution_preserves_previous_outputs_when_cask_projection_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str

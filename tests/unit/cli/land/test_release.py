@@ -158,6 +158,28 @@ def release_cli(
     )
 
 
+def test_signed_tag_alternates_survive_windows_text_newline_translation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A release tag can read its source objects with byte-exact alternate paths."""
+    repo, _main, _old, head = accepted_release_fixture(tmp_path)
+    native_write_text = Path.write_text
+
+    def windows_text_write(path: Path, content: str, *, encoding: str | None = None) -> int:
+        if path.name == "alternates":
+            return path.write_bytes(content.replace("\n", "\r\n").encode(encoding or "utf-8"))
+        return native_write_text(path, content, encoding=encoding)
+
+    staging = tmp_path / "tag"
+    with monkeypatch.context() as translated:
+        translated.setattr(Path, "write_text", windows_text_write)
+        tag = signing_owner.create_signed_tag(repo, name="v1.2.3", head=head, staging=staging)
+
+    objects = git(repo, "rev-parse", "--path-format=absolute", "--git-path", "objects")
+    assert (staging / "objects/info/alternates").read_bytes() == (objects + "\n").encode()
+    assert git(repo, "cat-file", "-t", tag) == "tag"
+
+
 @pytest.mark.parametrize(
     ("object_format", "native_version"),
     [("sha1", "package.json"), ("sha256", "package.json"), ("sha1", "VERSION")],

@@ -320,7 +320,7 @@ def create_signed_tag(root: Path, *, name: str, head: str, staging: Path) -> str
     if not staging.exists():
         staging.mkdir(mode=0o700)
     run_git(staging, "init", "--bare", "--template=", f"--object-format={object_format}")
-    (staging / "objects/info/alternates").write_text(objects + "\n", encoding="utf-8")
+    (staging / "objects/info/alternates").write_bytes((objects + "\n").encode("utf-8"))
     selected = run_git(staging, "rev-parse", "--verify", f"refs/tags/{name}", check=False)
     if selected.returncode:
         attempt = staging / "signing"

@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.openspec.lifecycle.bootstrap import bootstrap_artifacts
 from ethos.adapters.openspec.lifecycle.bootstrap import new_change_root_intent
+from ethos.adapters.openspec.lifecycle.validation import canonical_info_only_capabilities
 from ethos.adapters.openspec.lifecycle.validation import canonical_spec_repair_paths
 from ethos.adapters.openspec.relocation import archived_reference_repair_paths
 from ethos.contracts.semantic import Commitment
@@ -148,9 +149,7 @@ def official_validation_repair_scope_report(
     if logical_change_identifier_issue(change):
         return {}
     state = "canonical_spec_repair"
-    repair_paths = canonical_active_repair_paths(root, official, change=change)
-    if not repair_paths and archived is not None:
-        repair_paths = _archived_canonical_repair_paths(root, official, change, archived)
+    repair_paths = canonical_repair_paths(root, official, change=change, archived=archived)
     if not repair_paths and archived is not None:
         reference_repair = _archived_reference_repair_scope_report(
             root, head, official, change, archived, paths
@@ -246,31 +245,40 @@ def _archived_canonical_repair_paths(
     change: str,
     archived: tuple[Commitment, dict[str, object]],
 ) -> tuple[str, ...]:
-    """Bind structured canonical failures to the verified archive's exact outputs."""
+    """Bind canonical findings to the verified archive's exact outputs."""
     commitment, source = archived
     gaps = string_sequence(official.get("required_gaps"))
     paths = canonical_spec_repair_paths(root, official)
     commands = official.get("commands")
     validate = commands.get("validate") if isinstance(commands, dict) else None
+    failed = bool(gaps) and all(gap.startswith("openspec_validation_failed:spec:") for gap in gaps)
+    info_capabilities = canonical_info_only_capabilities(official)
     if (
         commitment.id != f"change:{change}"
-        or not gaps
-        or any(not gap.startswith("openspec_validation_failed:spec:") for gap in gaps)
-        or len(paths) != len(set(gaps))
+        or not paths
         or not isinstance(validate, dict)
-        or validate.get("exit_code") != 1
         or validate.get("parse_error")
+        or not (
+            (failed and len(paths) == len(set(gaps)) and validate.get("exit_code") == 1)
+            or (
+                info_capabilities
+                and validate.get("exit_code") == 0
+                and paths
+                == tuple(f"openspec/specs/{capability}/spec.md" for capability in info_capabilities)
+            )
+        )
     ):
         return ()
     for path in paths:
-        capability = path.removeprefix("openspec/specs/").removesuffix("/spec.md")
-        item = _selected_failed_validation_item(official, kind="spec", identifier=capability)
-        if (
-            path not in string_sequence(source.get("authorized_paths"))
-            or not _is_regular_file(root / path)
-            or not _strict_blocking_issue_paths(item)
+        if path not in string_sequence(source.get("authorized_paths")) or not _is_regular_file(
+            root / path
         ):
             return ()
+        if failed:
+            capability = path.removeprefix("openspec/specs/").removesuffix("/spec.md")
+            item = _selected_failed_validation_item(official, kind="spec", identifier=capability)
+            if not _strict_blocking_issue_paths(item):
+                return ()
     return paths
 
 
@@ -490,16 +498,19 @@ def canonical_active_repair_paths(
     )
 
 
-def canonical_repair_action(root: Path, official: dict[str, object], *, change: str) -> str:
-    """Point blocked readers to the first actual corrective write admission."""
-    paths = canonical_active_repair_paths(root, official, change=change)
-    if not paths:
-        return ""
-    resolved = shlex.quote(root.resolve().as_posix())
-    return (
-        f"ethos lane prewrite --paths {shlex.quote(paths[0])} "
-        f"--editor-root {resolved} --require-editor-root --root {resolved} --json"
-    )
+def canonical_repair_paths(
+    root: Path,
+    official: dict[str, object],
+    *,
+    change: str,
+    archived: tuple[Commitment, dict[str, object]] | None = None,
+) -> tuple[str, ...]:
+    """Select the same exact canonical repair paths for readers and prewrite."""
+    selected = change or (archived[0].id.removeprefix("change:") if archived else "")
+    paths = canonical_active_repair_paths(root, official, change=selected)
+    if not paths and archived is not None:
+        paths = _archived_canonical_repair_paths(root, official, selected, archived)
+    return paths
 
 
 def _official_artifact_path(path: str, outputs: tuple[str, ...]) -> bool:

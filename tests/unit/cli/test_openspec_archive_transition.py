@@ -23,6 +23,7 @@ from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.openspec_lifecycle import assert_lifecycle_outcome
@@ -87,6 +88,59 @@ def test_public_prewrite_repairs_canonical_output_after_native_archive(monkeypat
     repaired = run_ethos("lane", "prewrite", *arguments, cwd=root)
     assert repaired["verdict"] == "pass"
     assert repaired["data"]["material_scope"]["state"] == "archive_attested"
+
+
+def test_public_archived_info_repairs_two_findings_in_one_canonical_spec(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A valid archive with two INFO findings keeps an exact repair path open."""
+    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
+    root = lifecycle.worktree
+    repeated = (
+        "The fixture SHALL retain its accepted source, exact archive relation and proof identity. "
+        * 7
+    )
+    delta = lifecycle.active / "specs/contracts/spec.md"
+    delta.write_text(
+        "## ADDED Requirements\n\n"
+        "### Requirement: Fixture change\n\n"
+        f"{repeated}\n\n"
+        "#### Scenario: Fixture change is selected\n\n"
+        "- **WHEN** the fixture lifecycle selects the change\n"
+        "- **THEN** its official artifacts are the single intent carrier\n\n"
+        "### Requirement: Archive repair example\n\n"
+        f"{repeated}The second requirement retains a distinct audit trail.\n\n"
+        "#### Scenario: Archive repair example is selected\n\n"
+        "- **WHEN** the fixture lifecycle archives this requirement\n"
+        "- **THEN** its canonical output remains repairable\n",
+        encoding="utf-8",
+    )
+    commit_fixture(root, "declare two overlong canonical requirements")
+    monkeypatch.setattr(archive, "proof_gaps", proof_gaps)
+    seed_executed_proof(root, lifecycle.head)
+    archived = lifecycle.apply_archive()
+    assert archived["effect_state"] == "committed"
+    assert archived["state"] == "repair_required"
+    path = "openspec/specs/contracts/spec.md"
+    status = run_ethos("status", "--json", cwd=root)
+    assert status["verdict"] == "block"
+    info_gaps = [
+        gap
+        for gap in status["required_gaps"]
+        if gap.startswith("openspec_validation_issue:INFO:spec:contracts:")
+    ]
+    assert len(info_gaps) == 2
+    arguments = (path, "--editor-root", str(root), "--require-editor-root", "--json")
+    repair_result = run_ethos_raw("lane", "prewrite", *arguments, cwd=root)
+    repair = json.loads(repair_result.stdout)
+    assert repair["verdict"] == "pass", repair
+    assert repair["data"]["material_scope"]["authorized_paths"] == [path]
+    assert path in status["next_action"]
+    assert "lane prewrite" in status["next_action"]
+    ordinary = run_ethos_raw("prove", "--json", cwd=root)
+    assert json.loads(ordinary.stdout)["verdict"] == "block"
+    mixed = run_ethos_raw("lane", "prewrite", "README.md", *arguments, cwd=root)
+    assert json.loads(mixed.stdout)["verdict"] == "block"
 
 
 def _stage_exact_archive(lifecycle: OpenSpecLifecycle) -> str:

@@ -40,8 +40,11 @@ def test_declared_go_enters_native_quality_path_only_after_locked_supply(
     mise.write_text("#!/bin/sh\nexit 0\n")
     mise.chmod(0o755)
     calls: list[tuple[str, ...]] = []
+    monkeypatch.setenv("ETHOS_CI_SUPPLY_MANIFEST", str(tmp_path / "ambient-runner-supply"))
     if fault.startswith("offline-"):
         monkeypatch.setenv("ETHOS_CI_SUPPLY_MANIFEST", str(tmp_path / "supply/input.sha256"))
+    else:
+        monkeypatch.delenv("ETHOS_CI_SUPPLY_MANIFEST", raising=False)
 
     def locked_mise(_root: Path, arguments: tuple[str, ...], **_kwargs: object) -> Mock:
         calls.append(arguments)

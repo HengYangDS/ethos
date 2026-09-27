@@ -103,6 +103,30 @@ def test_candidate_bootstrap_preview_requires_an_explicit_apply_decision(tmp_pat
     assert git(repo, "branch", "--list", "candidate/dev") == ""
 
 
+def test_candidate_preview_reuses_snapshot_but_effect_cannot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A caller's observation saves duplicate reads but never authorizes an effect."""
+    repo, head = _repo_without_candidate(tmp_path)
+    snapshot = projection.workspace_status(repo)
+
+    def reject_second_read(_root: Path) -> None:
+        pytest.fail("candidate preview repeated workspace observation")
+
+    monkeypatch.setattr(projection, "workspace_status", reject_second_read)
+    preview = projection.bootstrap_candidate(root=repo, expect_head=head, observed_status=snapshot)
+    assert preview["state"] == "planned"
+    with pytest.raises(ValueError, match="candidate_snapshot_root_mismatch"):
+        projection.bootstrap_candidate(
+            root=repo, observed_status=snapshot | {"root": str(tmp_path)}
+        )
+    with pytest.raises(ValueError, match="candidate_snapshot_preview_only"):
+        projection.bootstrap_candidate(
+            root=repo, expect_head=head, observed_status=snapshot, apply=True
+        )
+    assert git(repo, "branch", "--list", "candidate/dev") == ""
+
+
 def test_accepted_status_routes_missing_candidate_to_its_owner(tmp_path: Path) -> None:
     """A clean accepted root should not prescribe hook-only work before bootstrap."""
     repo, _head = _repo_without_candidate(tmp_path)

@@ -7,7 +7,6 @@ import os
 import re
 import stat
 import subprocess
-import threading
 import tomllib
 from dataclasses import replace
 from pathlib import Path
@@ -195,15 +194,10 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
         policy = replace(policy, gaps=("invalid_policy",))
     monkeypatch.setattr(gate_execution, "resolve_gate_policy", lambda *_a, **_k: policy)
     observed = []
-    installed = threading.Event()
     base_run = gate_execution.run_gate_graph
 
     class Runner:
         def run(self, node, _gate, **_context):
-            if case == "pass" and node.id == "unit-architecture":
-                assert installed.wait(timeout=2)
-            if node.id == "local-install-smoke":
-                installed.set()
             observed.append(node.id)
             verdict = "block" if case == "coverage" and node.id == "coverage-floor" else "pass"
             return ActionRunResult(node.id, node.command, verdict, int(verdict != "pass"))

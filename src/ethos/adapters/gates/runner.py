@@ -277,12 +277,18 @@ def _ready_checks(
         (node for node in nodes if node.id in ready),
         key=lambda node: not gates[node.id].writes_files,
     )
+    occupied = list(active)
+    reserved = sum(min(gates[name].cpu_reservation, capacity) for name in active)
     for node in candidates:
-        if len(selected) >= capacity:
+        if len(occupied) >= capacity:
             break
-        occupied = (*active, *(item.id for item in selected))
-        if not any(gates[node.id].conflicts_with(gates[other]) for other in occupied):
+        demand = min(gates[node.id].cpu_reservation, capacity)
+        if reserved + demand <= capacity and not any(
+            gates[node.id].conflicts_with(gates[other]) for other in occupied
+        ):
             selected.append(node)
+            occupied.append(node.id)
+            reserved += demand
     return tuple(selected)
 
 
@@ -317,9 +323,7 @@ def run_gate_graph(
     with ThreadPoolExecutor(max_workers=limit) as executor, command_scope():
         while graph.is_active():
             ready.update(graph.get_ready())
-            selected = _ready_checks(
-                scheduled, gates, ready, tuple(running.values()), limit - len(running)
-            )
+            selected = _ready_checks(scheduled, gates, ready, tuple(running.values()), limit)
             for node in selected:
                 ready.remove(node.id)
                 scheduled_event(node.id)

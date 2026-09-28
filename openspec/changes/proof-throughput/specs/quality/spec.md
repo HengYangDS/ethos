@@ -202,6 +202,8 @@ line and branch coverage and every existing behavioral acceptance obligation.
 Gate execution SHALL compose dependencies with declared shared and exclusive
 resource-domain claims. Unknown access SHALL retain conservative coordination.
 Resource claims SHALL NOT grant mutation authority or assert filesystem sandboxing.
+Positive per-gate CPU reservations SHALL bound concurrent work against the
+executor's observed capacity; they are scheduling claims, not CPU affinity.
 
 #### Scenario: Independent required checks overlap
 
@@ -216,6 +218,13 @@ Resource claims SHALL NOT grant mutation authority or assert filesystem sandboxi
 - **THEN** those gates do not overlap
 - **AND** an unspecified writer retains global exclusion
 - **AND** a waiting writer does not prevent other compatible ready work from progressing
+
+#### Scenario: Low-capacity hosts do not co-schedule heavy checks
+
+- **WHEN** two otherwise compatible gates each reserve two units
+- **THEN** they run once without overlap at capacity three
+- **AND** they may overlap at capacity four when dependencies and locks permit
+- **AND** one gate whose reservation exceeds capacity still runs alone
 
 #### Scenario: Construction does not establish quality acceptance
 

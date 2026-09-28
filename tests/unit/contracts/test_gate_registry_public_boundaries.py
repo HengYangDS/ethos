@@ -47,6 +47,19 @@ def test_gate_registry_canonical_projection_and_proof_closure() -> None:
     assert [gate.id for gate in declaration.proof_gates(full=True)] == ["first", "second"]
 
 
+def test_gate_cpu_reservation_is_positive_and_only_explicit_values_bind_policy() -> None:
+    for invalid in (0, -1, True):
+        with pytest.raises(ValidationError):
+            _gate("heavy", cpu_reservation=invalid)
+    heavy = _gate("heavy", cpu_reservation=2)
+    assert heavy.to_dict()["cpu_reservation"] == 2
+    assert gate_policy_fields(heavy)["cpu_reservation"] == 2
+    assert "cpu_reservation" not in _gate("ordinary").to_dict()
+    packaged = load_gate_registry_declaration().registry()
+    assert packaged["unit-architecture"].cpu_reservation == 2
+    assert packaged["local-install-smoke"].cpu_reservation == 2
+
+
 @pytest.mark.parametrize(
     "gate",
     [

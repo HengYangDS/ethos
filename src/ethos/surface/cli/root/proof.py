@@ -25,6 +25,7 @@ from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof_validation import assess_proof_execution
+from ethos.adapters.mutation.proof_validation import expected_head_gaps
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.proof_execution_carrier import ProofExecutionCarrier
@@ -304,21 +305,40 @@ def prove(
         return
     execution_root = getattr(options, "execution_root", None)
     current_head, audit, resolution, openspec_lifecycle = _proof_context(repo, options)
-    if resolution.verdict != "pass" or report_verdict(audit) != "pass":
+    audit_verdict = report_verdict(audit)
+    head_gaps = (
+        expected_head_gaps(options.expect_head, current_head)
+        if options.execute and resolution.verdict == "pass" and audit_verdict == "pass"
+        else ()
+    )
+    if resolution.verdict != "pass" or audit_verdict != "pass" or head_gaps:
         unresolved = resolution.verdict != "pass"
+        audit_failed = audit_verdict != "pass"
+        audit_gaps = tuple(string_sequence(audit.get("required_gaps"))) or (
+            "repository_audit_not_passed",
+        )
         emit(
             EthosResult(
                 command="prove",
-                verdict=resolution.verdict if unresolved else report_verdict(audit),
+                verdict=(
+                    resolution.verdict if unresolved else audit_verdict if audit_failed else "block"
+                ),
                 state="gapped",
-                required_gaps=resolution.required_gaps
-                if unresolved
-                else tuple(string_sequence(audit.get("required_gaps")))
-                or ("repository_audit_not_passed",),
-                next_action=resolution.next_action
-                if unresolved
-                else str(audit.get("next_action") or "repair the reported repository policy"),
-                user_decision_required=resolution.user_decision_required,
+                required_gaps=(
+                    resolution.required_gaps
+                    if unresolved
+                    else audit_gaps
+                    if audit_failed
+                    else head_gaps
+                ),
+                next_action=(
+                    resolution.next_action
+                    if unresolved
+                    else str(audit.get("next_action") or "repair the reported repository policy")
+                    if audit_failed
+                    else "ethos plan --changed --json"
+                ),
+                user_decision_required=resolution.user_decision_required if unresolved else False,
             ),
             json_output=json_output,
         )

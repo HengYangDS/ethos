@@ -34,6 +34,15 @@ _STATEMENT_FIELDS = {
 }
 
 
+def expected_head_gaps(expected_head: str | None, current_head: str) -> tuple[str, ...]:
+    """Reject a caller's stale exact-HEAD coordinate before proof execution."""
+    return (
+        ("expected_head_mismatch",)
+        if expected_head is not None and expected_head != current_head
+        else ()
+    )
+
+
 def assess_proof_execution(
     *,
     audit: dict[str, object],
@@ -74,11 +83,7 @@ def assess_proof_execution(
             + failed_gate_gaps
             + (("full_proof_requires_execute",) if full and not execute else ())
             + trust_gaps
-            + (
-                ("expected_head_mismatch",)
-                if expected_head is not None and expected_head != current_head
-                else ()
-            )
+            + expected_head_gaps(expected_head, current_head)
             + scope_gaps
         )
     )

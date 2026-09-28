@@ -427,3 +427,39 @@ def test_stale_expected_head_blocks_before_carrier_checks(
     assert report["required_gaps"] == ["expected_head_mismatch"], report
     assert report["data"] == {}
     assert before == _authoring_snapshot(authoring)
+
+
+def test_stale_expected_head_blocks_before_in_place_checks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A stale request must not execute native gates without a separate carrier."""
+    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
+    authoring = lifecycle.worktree
+    marker = tmp_path / "gate-executed"
+    declare_native_proof_checks(
+        authoring,
+        test=f"from pathlib import Path; Path({str(marker)!r}).touch()",
+        typecheck="print('static green')",
+    )
+    commit_fixture(authoring, "declare current proof gates")
+    stale = git(authoring, "rev-parse", "HEAD^")
+    before = _authoring_snapshot(authoring)
+
+    completed = run_ethos_raw(
+        "prove",
+        "--change",
+        "fixture-change",
+        "--full",
+        "--execute",
+        "--expect-head",
+        stale,
+        "--json",
+        cwd=authoring,
+    )
+
+    assert completed.returncode != 0
+    report = json.loads(completed.stdout)
+    assert report["required_gaps"] == ["expected_head_mismatch"], report
+    assert report["data"] == {}
+    assert not marker.exists()
+    assert before == _authoring_snapshot(authoring)

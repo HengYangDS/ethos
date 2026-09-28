@@ -138,8 +138,8 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_pa
         for source in shlex.split(line)[1:-1]
     }
     manifest_inputs = set(manifest.group("inputs").replace("\\\n", " ").split())
-    # The template carries the image digest pin, so hashing it would be circular.
-    assert copy_sources - {".config/checks/ci/templates.toml"} == manifest_inputs
+    # Build-only implementation is copied for provisioning, then removed and revalidated at use.
+    assert manifest_inputs <= copy_sources
     # Dependency supply does not build the project wheel or consume its prose/version.
     assert {"README.md", "VERSION"}.isdisjoint(manifest_inputs)
     for path in copy_sources:
@@ -153,7 +153,10 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_pa
         "tests/fixtures/quality-sample/pyproject.toml",
         "tests/fixtures/quality-sample/uv.lock",
     } <= copy_sources
-    assert "uv sync --no-config --locked --group dev" in dockerfile
+    assert (
+        "uv --directory /tmp/ethos-quality-sample sync --no-config --locked --group dev"
+        in dockerfile
+    )
     native_command = "tools/ci/toolchain/native.py --root . --mise gitleaks scc syft"
     assert f"PYTHONPATH=src .venv/bin/python {native_command}" in dockerfile
     for relative in copy_sources:

@@ -119,6 +119,11 @@ if [[ ! -x "${repo_root}/node_modules/.bin/openspec" ]]; then npm ci --ignore-sc
 "${repo_root}/node_modules/.bin/openspec" --version
 uv sync --locked --group dev
 
+# Image reuse is safe only after the checkout's current verifier checks cached tool bytes.
+if [[ -n ${ETHOS_CI_SUPPLY_MANIFEST:-} ]]; then
+	"${UV_PROJECT_ENVIRONMENT}/bin/python" -B tools/ci/toolchain/native.py --root "${repo_root}" --mise gitleaks scc syft >/dev/null
+fi
+
 # The runner/operator supplies this protected public anchor outside the checkout.
 # No candidate key discovery, signer generation or user identity mutation occurs.
 if [[ -n ${ETHOS_COMMIT_TRUST_ANCHOR:-} || -n ${ETHOS_COMMIT_ALLOWED_SIGNERS:-} ]]; then

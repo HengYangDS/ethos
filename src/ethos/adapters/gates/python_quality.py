@@ -13,6 +13,7 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_files
+from ethos.adapters.toolchain.mise import mise_executable
 from ethos.repository.policy.code_subjects import observed_code_subjects
 from ethos.repository.policy.quality_reports import coverage_report
 from ethos.repository.policy.quality_reports import junit_report
@@ -106,13 +107,36 @@ def _behavior_evidence(
         junit = output / "junit.xml"
         coverage = output / "coverage.xml"
         targets = tuple(sorted({path.partition("/")[0] for path in tests}))
+        native_mise = (root / "mise.toml").is_file()
+        if native_mise and not (root / "mise.lock").is_file():
+            message = "locked_toolchain_missing"
+            raise ValueError(message)
+        environment = {"COVERAGE_FILE": str(output / ".coverage")}
+        if native_mise:
+            prefix = (
+                str(mise_executable()),
+                "exec",
+                "--locked",
+                "--",
+                "uv",
+                "run",
+                "--locked",
+                "--offline",
+                "--no-sync",
+            )
+            environment.update(
+                MISE_SAFE="1",
+                MISE_LOCKED="1",
+                MISE_YES="0",
+                MISE_NOT_FOUND_SYSTEM_FALLBACK="0",
+                MISE_AUTO_INSTALL="0",
+                MISE_OFFLINE="1",
+            )
+        else:
+            prefix = (sys.executable, "-m", "uv", "run", "--locked", "--offline")
+            environment["UV_PROJECT_ENVIRONMENT"] = str(output / "venv")
         command = (
-            sys.executable,
-            "-m",
-            "uv",
-            "run",
-            "--locked",
-            "--offline",
+            *prefix,
             "python",
             "-m",
             "pytest",
@@ -130,7 +154,7 @@ def _behavior_evidence(
             root,
             command,
             timeout=600,
-            env={"COVERAGE_FILE": str(output / ".coverage")},
+            env=environment,
             remove_env=("VIRTUAL_ENV", "UV_PROJECT_ENVIRONMENT", "PYTHONPATH", "PYTEST_ADDOPTS"),
         )
         if not junit.is_file() or not coverage.is_file():

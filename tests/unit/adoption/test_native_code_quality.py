@@ -309,6 +309,10 @@ def test_public_python_quality_covers_repository_tool_sources(
     )
     marker = tmp_path / "run-count"
     monkeypatch.setenv("ETHOS_TEST_MARKER", str(marker))
+    adopter_environment = repo / ".venv"
+    adopter_environment.mkdir()
+    sentinel = adopter_environment / "adopter-owned"
+    sentinel.write_bytes(b"retain exactly")
     head = commit_fixture(repo, "bind product and repository-tool quality")
 
     result = run_ethos_raw(
@@ -330,3 +334,5 @@ def test_public_python_quality_covers_repository_tool_sources(
         assert "quality_obligation_unproven:behavior" in payload["required_gaps"]
         assert checks["static"]["verdict"] == "pass"
     assert marker.read_text(encoding="utf-8") == "x"
+    assert sentinel.read_bytes() == b"retain exactly"
+    assert tuple(adopter_environment.iterdir()) == (sentinel,)

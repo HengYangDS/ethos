@@ -184,22 +184,34 @@ def _go_behavior(root: Path, subjects: tuple[CodeSubject, ...]) -> dict[str, obj
     source_paths = _go_package_sources(root, production)
     with TemporaryDirectory(prefix="ethos-go-coverage-") as directory:
         coverage = Path(directory) / "coverage.out"
+        command = (
+            _executable("go"),
+            "test",
+            "-json",
+            "-coverpkg=./...",
+            f"-coverprofile={coverage}",
+            "-count=1",
+            "./...",
+        )
         result = run_command(
             root,
-            (
-                _executable("go"),
-                "test",
-                "-json",
-                "-coverpkg=./...",
-                f"-coverprofile={coverage}",
-                "-count=1",
-                "./...",
-            ),
+            command,
             timeout=300,
             env=_go_environment(),
         )
         if result.returncode:
-            _invalid("go_tests_failed")
+            message = "go_tests_failed"
+            raise ProcessExecutionError(
+                message,
+                reason="native_test_failed",
+                command=command,
+                cwd=root.as_posix(),
+                cause=result.stderr[-4096:],
+                observation={
+                    "exit_code": result.returncode,
+                    "stdout_tail": result.stdout[-4096:],
+                },
+            )
         if not coverage.is_file():
             _invalid("go_coverage_missing")
         profile = coverage.read_text(encoding="utf-8").splitlines()
@@ -343,13 +355,9 @@ def _report(root: Path, axis: str) -> dict[str, object]:
                 )
             else:
                 _invalid(f"native_language_unsupported:{language}")
-    except (
-        OSError,
-        TypeError,
-        ValueError,
-        ProcessExecutionError,
-        subprocess.TimeoutExpired,
-    ) as error:
+    except ProcessExecutionError as error:
+        return {**_failure(axis, error.code), "diagnostics": [error.evidence()]}
+    except (OSError, TypeError, ValueError, subprocess.TimeoutExpired) as error:
         return _failure(axis, str(error) if isinstance(error, ValueError) else type(error).__name__)
     return {
         "verdict": "pass",

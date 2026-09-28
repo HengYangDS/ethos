@@ -9,8 +9,10 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.gates.code_quality as native_quality
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import init_git_repo
 
 
@@ -96,6 +98,82 @@ def _write_javascript_fixture(repo: Path, defect: str) -> None:
     )
     if defect == "unexercised":
         (repo / "unused.js").write_text("export function unused() { return 0; }\n")
+
+
+def test_failed_native_go_check_retains_actionable_process_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failed provider must retain the native failure, not only a generic gap."""
+    repo = committed_source_repo(
+        tmp_path,
+        {
+            "go.mod": "module example.invalid/quality\n\ngo 1.26\n",
+            "answer.go": "package quality\nfunc Answer() int { return 41 }\n",
+            "answer_test.go": 'package quality\nimport "testing"\nfunc TestAnswer(t *testing.T) { '
+            'if Answer() != 42 { t.Fatal("wrong answer") } }\n',
+        },
+    )
+    monkeypatch.setattr(native_quality, "_executable", lambda name: name)
+    monkeypatch.setattr(
+        native_quality,
+        "_go_package_sources",
+        lambda _root, _production: {"example.invalid/quality/answer.go": "answer.go"},
+    )
+
+    def fail_command(root: Path, command: tuple[str, ...], **_kwargs: object):
+        assert root == repo
+        return subprocess.CompletedProcess(
+            command,
+            1,
+            '{"Action":"output","Test":"TestAnswer","Output":"wrong answer\\n"}\n'
+            '{"Action":"fail","Test":"TestAnswer"}\n',
+            "go test: exit status 1",
+        )
+
+    monkeypatch.setattr(native_quality, "run_command", fail_command)
+    report = native_quality.behavior_report(repo)
+
+    assert report["required_gaps"] == ["quality_behavior_go_tests_failed"]
+    diagnostics = report["diagnostics"]
+    assert isinstance(diagnostics, list)
+    failure = diagnostics[0]
+    assert failure["code"] == "go_tests_failed"
+    assert failure["cwd"] == str(repo)
+    assert failure["command"][:2] == ["go", "test"]
+    assert failure["observation"]["exit_code"] == 1
+    assert "wrong answer" in failure["observation"]["stdout_tail"]
+    assert failure["cause"] == "go test: exit status 1"
+
+
+def test_public_adopter_proof_reports_native_go_test_failure(tmp_path: Path) -> None:
+    """The public gate keeps a failing Go test's command and native output."""
+    if shutil.which("go") is None:
+        pytest.skip("go is unavailable on this runner")
+    repo = init_git_repo(tmp_path / "adopter")
+    _declare_quality_profile(repo, "profile")
+    (repo / "go.mod").write_text("module example.invalid/quality\n\ngo 1.20\n")
+    (repo / "answer.go").write_text("package quality\nfunc Answer() int { return 41 }\n")
+    (repo / "answer_test.go").write_text(
+        'package quality\nimport "testing"\n'
+        'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong answer") } }\n'
+    )
+    subprocess.run(["gofmt", "-w", "answer.go", "answer_test.go"], cwd=repo, check=True)
+    head = commit_fixture(repo, "bind failing native Go test")
+
+    completed = run_ethos_raw(
+        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
+    )
+    payload = json.loads(completed.stdout)
+    checks = {check["action_id"]: check for check in payload["data"]["checks"]}
+    report = json.loads(checks["behavior"]["stdout"])["providers"][0]["report"]
+
+    assert completed.returncode != 0
+    assert payload["verdict"] == "block"
+    assert report["required_gaps"] == ["quality_behavior_go_tests_failed"]
+    failure = report["diagnostics"][0]
+    assert failure["code"] == "go_tests_failed"
+    assert failure["observation"]["exit_code"] != 0
+    assert "wrong answer" in failure["observation"]["stdout_tail"]
 
 
 @pytest.mark.parametrize("language", ["go", "javascript"])

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 from pathlib import Path
@@ -19,6 +20,29 @@ MISE_CONFIG = ".config/mise/config.toml"
 MISE_LOCK = ".config/mise/mise.lock"
 
 
+def repository_mise_files(root: Path) -> dict[str, str] | None:
+    """Select one repository-owned native Mise lock without host fallback."""
+    layouts = (
+        (root / MISE_CONFIG, root / MISE_LOCK),
+        (root / "mise.toml", root / "mise.lock"),
+        (root / ".mise.toml", root / "mise.lock"),
+    )
+    selected = [(config, lock) for config, lock in layouts if config.is_file()]
+    if not selected:
+        return None
+    if len(selected) != 1:
+        message = "mise_config_ambiguous"
+        raise ValueError(message)
+    config, lock = selected[0]
+    if not lock.is_file():
+        message = "locked_toolchain_missing"
+        raise ValueError(message)
+    return {
+        MISE_CONFIG: config.read_text(encoding="utf-8"),
+        MISE_LOCK: lock.read_text(encoding="utf-8"),
+    }
+
+
 def mise_executable() -> Path:
     """Resolve only the operator-selected native mise executable."""
     if not (installed := shutil.which("mise")):
@@ -34,6 +58,7 @@ def run_mise(
     files: Mapping[str, str] | None = None,
     executable: Path | None = None,
     timeout: float = 15,
+    offline: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     """Run native mise over exact inputs with no project hooks or ambient config."""
     materials = (
@@ -60,6 +85,8 @@ def run_mise(
             "MISE_GLOBAL_CONFIG_FILE": str(isolated / "absent-global.toml"),
             "MISE_SYSTEM_CONFIG_DIR": str(isolated / "absent-system"),
         }
+        if offline:
+            environment.update(MISE_AUTO_INSTALL="0", MISE_OFFLINE="1")
         return run_command(
             isolated,
             (str(executable or mise_executable()), *arguments),
@@ -71,7 +98,7 @@ def run_mise(
 
 def locked_tool(root: Path, name: str, files: Mapping[str, str] | None = None) -> Path:
     """Resolve installed locked supply; never install or use an ambient tool fallback."""
-    result = run_mise(root, ("which", name), files=files)
+    result = run_mise(root, ("which", name), files=files, offline=True)
     if result.returncode or result.stderr:
         message = f"mise_supply_unavailable:{name}:{result.stderr.strip()}"
         raise ValueError(message)
@@ -80,3 +107,30 @@ def locked_tool(root: Path, name: str, files: Mapping[str, str] | None = None) -
         message = f"mise_executable_unavailable:{name}"
         raise ValueError(message)
     return executable
+
+
+def locked_environment(root: Path, files: Mapping[str, str]) -> dict[str, str]:
+    """Expose all installed locked tools without inheriting ambient tool paths."""
+    selected = run_mise(root, ("env", "--json"), files=files, offline=True)
+    if selected.returncode or selected.stderr:
+        message = f"mise_environment_unavailable:{selected.stderr.strip()[:512]}"
+        raise ValueError(message)
+    try:
+        environment = json.loads(selected.stdout)
+    except json.JSONDecodeError as error:
+        message = "mise_environment_invalid"
+        raise ValueError(message) from error
+    if not isinstance(environment, dict) or any(
+        not isinstance(key, str) or not isinstance(value, str) for key, value in environment.items()
+    ):
+        message = "mise_environment_invalid"
+        raise ValueError(message)
+    listed = run_mise(root, ("bin-paths",), files=files, offline=True)
+    if listed.returncode or listed.stderr:
+        message = f"mise_bin_paths_unavailable:{listed.stderr.strip()[:512]}"
+        raise ValueError(message)
+    paths = tuple(Path(line) for line in listed.stdout.splitlines() if line)
+    if not paths or any(not path.is_absolute() or not path.is_dir() for path in paths):
+        message = "mise_bin_paths_invalid"
+        raise ValueError(message)
+    return {**environment, "PATH": os.pathsep.join((*(str(path) for path in paths), os.defpath))}

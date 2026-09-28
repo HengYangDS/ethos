@@ -63,6 +63,14 @@ Unknown required discovery SHALL NOT become empty successful coverage.
 - **AND** unresolved or conflicting roles SHALL remain unknown rather than remove an applicable obligation
 - **AND** ETHOS SHALL validate the projection without copying the adopter's role parser or making it a second owner
 
+#### Scenario: Source tests and artifact-qualified tests have different inputs
+
+- **GIVEN** a native owner selects source tests separately from tests that require an installed package or release artifact
+- **WHEN** ETHOS verifies source quality
+- **THEN** it executes or consumes the selected source tests in the declared locked toolchain without inventing file-name exclusions
+- **AND** artifact-qualified tests remain required at their input boundary, not run early or silently dropped
+- **AND** a passing native command without per-subject evidence is insufficient, while verified evidence from that execution does not require a duplicate run
+
 ### Requirement: Adopters share applicable quality obligations
 
 ETHOS SHALL compile a common, versioned quality floor from observed repository
@@ -372,6 +380,14 @@ Package execution SHALL still validate supply in its own current environment.
 - **AND** the image's input hashes match the checkout's Python and Node locks before provisioning or proof
 - **AND** APT, PyPI and npm registry access are not required by the quality job
 - **AND** missing or mismatched supply fails before any quality result is issued
+
+#### Scenario: One selected Forge remains executable without its peer
+
+- **GIVEN** two selected Forges project the same exact source and required CI graph
+- **WHEN** one Forge's registry and release endpoints are unavailable and the other's runner has no local image or tool cache
+- **THEN** the available Forge executes every required job from its own verified supply or independent sources
+- **AND** the selected source, supply materials and resulting evidence remain bound to that Forge's run
+- **AND** missing bytes or a peer-dependent fetch blocks before proof rather than accepting a warm-cache or other-Forge result
 
 #### Scenario: Unqualified image is not published
 

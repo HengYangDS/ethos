@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
+import subprocess
 from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
@@ -15,14 +18,19 @@ from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
 from ethos.adapters.openspec.observation import active_change_names_in_ref
 from ethos.adapters.openspec.selection import requested_change
+from ethos.adapters.process import run_command
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.gate_policy import resolve_proof_policies
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.authority import invoking_build_identity
+from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.proof.plan import archive_scope_gaps
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import canonical_json_digest
@@ -30,8 +38,6 @@ from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from ethos.contracts.semantic import Attestation
     from ethos.repository.policy.gates import ResolvedGatePolicy
 
@@ -43,6 +49,87 @@ _BINDINGS = (
     "policy_digest",
     "effect_digest",
 )
+
+
+def predecessor_policy_gaps(root: Path, head: str, proof: Attestation) -> list[str]:
+    """Compare the exact proof policy with the installed hook's read-only plan."""
+    try:
+        selected = current_runtime(Path(git_common_dir(root)))
+    except (OSError, ValueError) as error:
+        return [str(error) or "predecessor_runtime_unavailable"]
+    if selected.build == invoking_build_identity():
+        return []
+    candidate = plan_from_statement(proof)
+    command = [
+        selected.python.as_posix(),
+        "-B",
+        "-I",
+        "-m",
+        "ethos.cli",
+        "prove",
+        "--full",
+        "--expect-head",
+        head,
+        "--root",
+        root.as_posix(),
+        "--json",
+    ]
+    change = (
+        str(candidate.commitment.get("id") or "").removeprefix("change:")
+        if isinstance(candidate.commitment, Mapping)
+        else ""
+    )
+    if change:
+        command.extend(("--change", change))
+    try:
+        completed = run_command(root, tuple(command), timeout=60, remove_env_prefixes=("GIT_",))
+    except subprocess.TimeoutExpired:
+        return ["predecessor_policy_probe_timeout"]
+    except (OSError, ValueError):
+        return ["predecessor_policy_probe_unavailable"]
+    predecessor, gaps = _predecessor_plan(completed.stdout, head)
+    if predecessor is None or gaps:
+        return gaps or ["predecessor_policy_probe_invalid"]
+    return (
+        []
+        if (
+            candidate.inputs.policy == predecessor.inputs.policy
+            and candidate.nodes == predecessor.nodes
+            and candidate.policy == predecessor.policy
+        )
+        else ["proof_attestation_repository_policy_mismatch"]
+    )
+
+
+def _predecessor_plan(stdout: str, head: str) -> tuple[TransitionPlan | None, list[str]]:
+    """Extract the installed reader's exact policy without treating dry-run as proof."""
+    try:
+        report = json.loads(stdout)
+    except (TypeError, ValueError):
+        return None, ["predecessor_policy_probe_invalid"]
+    data = report.get("data") if isinstance(report, dict) else None
+    binding = data.get("expected_head") if isinstance(data, dict) else None
+    raw_gaps = report.get("required_gaps") if isinstance(report, dict) else None
+    if not (
+        isinstance(report, dict)
+        and report.get("command") == "prove"
+        and isinstance(data, dict)
+        and isinstance(binding, dict)
+        and binding.get("expected") == head
+        and binding.get("current") == head
+        and binding.get("matches") is True
+        and isinstance(raw_gaps, list)
+        and all(isinstance(gap, str) for gap in raw_gaps)
+    ):
+        return None, ["predecessor_policy_probe_invalid"]
+    gaps = [gap for gap in raw_gaps if gap != "full_proof_requires_execute"]
+    if gaps:
+        return None, gaps
+    try:
+        predecessor = TransitionPlan.model_validate(data.get("transition_plan"))
+    except (TypeError, ValueError):
+        return None, ["predecessor_policy_probe_invalid"]
+    return predecessor, list(predecessor.required_gaps)
 
 
 def proof_attestation(

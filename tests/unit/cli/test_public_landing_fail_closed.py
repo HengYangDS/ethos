@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+from datetime import UTC
+from datetime import datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
@@ -9,10 +12,19 @@ from unittest.mock import Mock
 import pytest
 
 import ethos.adapters.mutation.landing as landing
+import ethos.adapters.mutation.proof_admission as proof_admission
+from ethos.adapters.mutation.proof import proof_attestation
+from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.process import ProcessExecutionError
 from ethos.contracts.branch.roles import BranchRolePolicy
+from ethos.contracts.plan import compile_plan
+from ethos.contracts.semantic import Commitment
+from ethos.contracts.semantic import Facts
+from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_repo_with_candidate
+from tests.support.governed_repository import prepared_work_lane
+from tests.support.proof import seed_executed_proof
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -26,6 +38,69 @@ def _candidate_plan(monkeypatch, root, current, previous):
     """Share the exact plan shape while each failure owns its effect boundary."""
     transition = (BranchRolePolicy(), {"head": current}, root, previous, object())
     monkeypatch.setattr(landing, "_candidate_plan", Mock(return_value=(None, transition)))
+
+
+@pytest.mark.parametrize("case", ["same", "drift", "unreadable"])
+def test_candidate_preview_checks_selected_runtime_policy_before_cas(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
+) -> None:
+    """A source proof cannot turn predecessor policy drift into ready-to-land."""
+    fixture = prepared_work_lane(tmp_path)
+    head = commit_fixture_file(fixture.worktree, "FEATURE.md", "# feature\n", "feature work")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    seed_executed_proof(fixture.worktree, head, full=True)
+    proof = proof_attestation(fixture.worktree, head)
+    assert proof is not None
+    plan = plan_from_statement(proof)
+    assert plan.commitment is not None
+    predecessor = (
+        compile_plan(
+            Commitment.model_validate(dict(plan.commitment)),
+            Facts.model_validate(dict(plan.facts) | {"observed_at": datetime.now(UTC)}),
+            plan.nodes,
+            policy=dict(plan.policy) | {"predecessor_only": True},
+            prior_attestations=dict(plan.prior_attestations),
+        )
+        if case == "drift"
+        else plan
+    )
+    observed = {
+        "command": "prove",
+        "verdict": "block",
+        "required_gaps": ["full_proof_requires_execute"],
+        "data": {
+            "expected_head": {"expected": head, "current": head, "matches": True},
+            "transition_plan": predecessor.model_dump(mode="json"),
+        },
+    }
+    if case == "unreadable":
+        observed["required_gaps"] = ["gate_registry_invalid:system/gates.toml"]
+        observed["data"] = {"expected_head": {"expected": head, "current": head, "matches": True}}
+    monkeypatch.setattr(
+        proof_admission,
+        "current_runtime",
+        lambda _common: SimpleNamespace(build=object(), python=tmp_path / "runtime-python"),
+        raising=False,
+    )
+    monkeypatch.setattr(proof_admission, "invoking_build_identity", object, raising=False)
+    command = Mock(
+        return_value=SimpleNamespace(returncode=1, stdout=json.dumps(observed), stderr="")
+    )
+    monkeypatch.setattr(proof_admission, "run_command", command, raising=False)
+
+    report = landing.candidate_transition_readiness(root=fixture.worktree)
+
+    assert (
+        report["required_gaps"]
+        == {
+            "same": [],
+            "drift": ["proof_attestation_repository_policy_mismatch"],
+            "unreadable": ["gate_registry_invalid:system/gates.toml"],
+        }[case]
+    )
+    assert command.call_count == 1
+    assert "--execute" not in command.call_args.args[1]
+    assert git(fixture.candidate, "rev-parse", "HEAD") != head
 
 
 @pytest.mark.parametrize(

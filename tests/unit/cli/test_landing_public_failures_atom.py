@@ -49,6 +49,7 @@ def _candidate_transition(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tu
             model_dump=lambda **_kwargs: {"id": "proof"},
         ),
     )
+    monkeypatch.setattr(landing, "predecessor_policy_gaps", lambda *_args: [])
     monkeypatch.setattr(
         landing,
         "current_branch",

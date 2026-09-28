@@ -382,7 +382,18 @@ def land_next_action(
         return f"ethos lane refresh-base --apply --authorize --expect-head {current_head} --json"
     if {"proof_not_proven", "full_proof_required"}.intersection(gaps):
         return proof_recovery_command(current_head)
-    return "ethos prove --json"
+    predecessor_gap = any(
+        gap == "proof_attestation_repository_policy_mismatch"
+        or gap.startswith(
+            ("gate_registry_invalid:", "predecessor_policy_", "hook_runtime_current_")
+        )
+        for gap in gaps
+    )
+    return (
+        "inspect and repair installed-runtime policy compatibility before landing"
+        if predecessor_gap
+        else "ethos prove --json"
+    )
 
 
 def repository_audit_after_admission(repo: Path, decision: AdmissionDecision) -> dict[str, object]:

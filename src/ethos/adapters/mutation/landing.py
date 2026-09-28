@@ -13,6 +13,7 @@ from ethos.adapters.mutation.decision import evaluate_closeout_mutation
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.mutation.proof_admission import predecessor_policy_gaps
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import committed_file_text
@@ -265,6 +266,10 @@ def _candidate_plan(
             ),
             None,
         )
+    if candidate_head != current_head and (
+        gaps := predecessor_policy_gaps(root, current_head, proof)
+    ):
+        return _blocked(policy, current_head, gaps, path=candidate_path.as_posix()), None
     branch = current_branch(root)
     lease = leases_by_branch(root).get(branch, {})
     authority = load_openspec_commitment(root, tree_ref=current_head)

@@ -55,6 +55,9 @@ def test_gate_cpu_reservation_is_positive_and_only_explicit_values_bind_policy()
     assert heavy.to_dict()["cpu_reservation"] == 2
     assert gate_policy_fields(heavy)["cpu_reservation"] == 2
     assert "cpu_reservation" not in _gate("ordinary").to_dict()
+    packaged = load_gate_registry_declaration().registry()
+    assert packaged["unit-architecture"].cpu_reservation == 2
+    assert packaged["local-install-smoke"].cpu_reservation == 2
 
 
 @pytest.mark.parametrize(

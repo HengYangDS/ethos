@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import importlib
 import json
-import shutil
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -27,46 +26,54 @@ from tools.ci.delivery.acceptance.adopter import verify_formed
 ROOT = Path(__file__).resolve().parents[4]
 
 
-def test_installed_brownfield_adoption_preserves_authored_content(tmp_path: Path) -> None:
-    """The package-only adoption path adds bindings without taking authored files."""
-    environment, _git = effect.independent_host_environment()
-    executable = shutil.which("ethos")
-    assert executable is not None
-    result = brownfield_fixture.prove_brownfield(
-        Path(executable), tmp_path, environment=environment, run=_run
-    )
-    assert result["state"] == "passed"
-    assert result["authored_content_preserved"] is True
-    assert result["planned_files"] == [".ethos/profile.toml", "openspec/config.yaml"]
-
-
 @pytest.mark.parametrize(
     ("phase", "gap"),
     [
+        ("clean", ""),
         ("preview", "installed_brownfield_preview_invalid"),
         ("apply", "installed_brownfield_authored_content_changed"),
     ],
 )
-def test_brownfield_conformance_rejects_authored_rewrite(
+def test_brownfield_conformance_checks_authored_content(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, phase: str, gap: str
 ) -> None:
-    """A green adoption result cannot conceal a rewritten authored file."""
-    original_invoke = brownfield_fixture.invoke
+    """Check the content guard; the installed wheel is exercised by install smoke."""
+    planned = [".ethos/profile.toml", "openspec/config.yaml"]
+    stages: list[str] = []
 
-    def rewritten(root: Path, command: tuple[str, ...], **kwargs):
-        result = original_invoke(root, command, **kwargs)
-        if ("--apply" in command) == (phase == "apply"):
+    def invoke(root: Path, command: tuple[str, ...], **_kwargs):
+        stage = "apply" if "--apply" in command else "preview"
+        stages.append(stage)
+        if stage == "preview":
+            if phase == "preview":
+                (root / "README.md").write_text("rewritten\n", encoding="utf-8")
+            return (
+                0,
+                {"verdict": "pass", "data": {"planned_files": planned, "plan_digest": "a" * 64}},
+                "",
+            )
+        for relative in planned:
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("installed binding\n", encoding="utf-8")
+        if phase == "apply":
             (root / "README.md").write_text("rewritten\n", encoding="utf-8")
-        return result
+        return 0, {"verdict": "pass"}, ""
 
-    monkeypatch.setattr(brownfield_fixture, "invoke", rewritten)
+    monkeypatch.setattr(brownfield_fixture, "invoke", invoke)
     environment, _git = effect.independent_host_environment()
-    executable = shutil.which("ethos")
-    assert executable is not None
-    with pytest.raises(RuntimeError, match=gap):
-        brownfield_fixture.prove_brownfield(
-            Path(executable), tmp_path, environment=environment, run=_run
-        )
+    arguments = (tmp_path / "ethos", tmp_path)
+    if gap:
+        with pytest.raises(RuntimeError, match=gap):
+            brownfield_fixture.prove_brownfield(*arguments, environment=environment, run=_run)
+    else:
+        result = brownfield_fixture.prove_brownfield(*arguments, environment=environment, run=_run)
+        assert result == {
+            "state": "passed",
+            "authored_content_preserved": True,
+            "planned_files": planned,
+        }
+    assert stages == (["preview"] if phase == "preview" else ["preview", "apply"])
 
 
 def test_installed_formation_observation_binds_the_effect_head(tmp_path: Path) -> None:

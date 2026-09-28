@@ -39,6 +39,10 @@ def emit(
             stream.write(f"{result.to_json()}\n")
         else:
             stream.write(f"{result.command}: {result.state}\n")
+            for reason in _human_reasons(result):
+                stream.write(f"why: {reason}\n")
+            if result.user_decision_required:
+                stream.write("decision: human choice required\n")
             if result.next_action:
                 stream.write(f"next: {result.next_action}\n")
     except (BrokenPipeError, BlockingIOError):
@@ -46,6 +50,38 @@ def emit(
     native_failure = result.data.get("error_boundary") in {"git_execution", "process_execution"}
     if (enforce or native_failure) and result.verdict != "pass":
         raise SystemExit(1)
+
+
+def _human_reasons(result: EthosResult) -> tuple[str, ...]:
+    """Prefer owner-supplied diagnostics and expose every distinct blocker."""
+    adverse = [
+        item
+        for item in result.diagnostics
+        if str(item.get("severity") or "").lower() in {"warning", "error"}
+    ]
+    reasons: list[str] = []
+    rendered_codes: set[str] = set()
+    for gap in dict.fromkeys(result.required_gaps):
+        code = gap.partition(":")[0]
+        messages = [
+            str(item["message"])
+            for item in adverse
+            if item.get("code") == code and item.get("message")
+        ]
+        reasons.extend(messages or [_human_gap(gap)])
+        rendered_codes.add(code)
+    for item in adverse:
+        code = str(item.get("code") or "")
+        if code not in rendered_codes:
+            reasons.append(str(item.get("message") or _human_gap(code) or item["severity"]))
+    return tuple(dict.fromkeys(reasons))
+
+
+def _human_gap(gap: str) -> str:
+    """Space a stable reason code without redefining its meaning."""
+    code, separator, detail = gap.partition(":")
+    label = code.replace("_", " ")
+    return f"{label}: {detail}" if separator else label
 
 
 def emit_invalid_repository_profile(*, command: str, json_output: bool, enforce: bool) -> None:

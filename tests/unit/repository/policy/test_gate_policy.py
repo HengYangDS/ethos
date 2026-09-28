@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 import pytest
@@ -9,10 +10,12 @@ import tomli_w
 
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.gate_policy import resolve_proof_policies
+from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.repository.policy.gates import ResolvedGatePolicy
 from ethos.repository.policy.gates import canonical_gate_command
+from ethos.repository.policy.gates import quality_obligation_gaps
 from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import RepositoryProfile
@@ -31,6 +34,96 @@ _MISSING_QUALITY = (
     "quality_obligation_unproven:behavior",
     "quality_obligation_unproven:static-analysis",
 )
+
+
+def test_quality_axis_conjoins_scoped_evidence_from_distinct_gates() -> None:
+    """Neither one green check nor an out-of-scope report covers every subject."""
+    tree = "a" * 40
+    reference = "ethos.adapters.gates.code_quality:behavior_report"
+    subjects = ["src/app.py", "tools/utility.py"]
+    policy = {
+        "owner": {
+            "quality_floor_version": 2,
+            "code_correctness_map": {"behavior": "primary"},
+            "quality_subjects": {"behavior": subjects},
+        },
+        "gates": [
+            {
+                "id": name,
+                "execution_identity": ["provider", reference],
+                "execution_mode": "provider",
+                "tool_adapter": "ethos",
+                "dimensions": ["behavior"],
+            }
+            for name in ("primary", "additional")
+        ],
+    }
+
+    def check(name: str, path: str) -> dict[str, object]:
+        report = {
+            "verdict": "pass",
+            "quality_evidence": {
+                "axis": "behavior",
+                "source_tree": tree,
+                "selected_paths": [path],
+            },
+        }
+        return {
+            "action_id": name,
+            "stdout": json.dumps(
+                {"gate": name, "providers": [{"provider": reference, "report": report}]}
+            ),
+        }
+
+    primary = check("primary", subjects[0])
+    additional = check("additional", subjects[1])
+    gap = ("quality_obligation_unproven:behavior",)
+    assert quality_obligation_gaps(policy, (primary, additional), source_tree=tree) == ()
+    assert quality_obligation_gaps(policy, (primary,), source_tree=tree) == gap
+    assert quality_obligation_gaps(policy, (additional,), source_tree=tree) == gap
+    assert (
+        quality_obligation_gaps(
+            policy, (primary, check("additional", "other.py")), source_tree=tree
+        )
+        == gap
+    )
+
+
+def test_quality_axis_rejects_unverified_additional_gate_before_execution(tmp_path: Path) -> None:
+    """A claimed supplemental scope cannot become a costly false-green command."""
+    profile = RepositoryProfile(
+        root=tmp_path,
+        exists=True,
+        declaration=RepositoryProfileDeclaration(
+            profile_id="native-quality",
+            proof=ProofPolicy(
+                code_correctness_gates=("behavior", "additional", "static"),
+                code_correctness_map={"behavior": "behavior", "static-analysis": "static"},
+                gates=(
+                    Gate(
+                        id="behavior",
+                        kind="test",
+                        providers=("ethos.adapters.gates.code_quality:behavior_report",),
+                    ),
+                    Gate(
+                        id="additional",
+                        kind="test",
+                        command=("python", "-c", "pass"),
+                        dimensions=("behavior",),
+                    ),
+                    Gate(
+                        id="static",
+                        kind="lint",
+                        providers=("ethos.adapters.gates.code_quality:static_report",),
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    policy = compile_gate_policy(profile=profile, repository_paths=("src/app.py",), full=True)
+
+    assert "quality_gate_verifier_missing:behavior:additional" in policy.gaps
 
 
 def test_scheduler_hint_does_not_reclassify_product_quality_owner(tmp_path: Path) -> None:
@@ -80,7 +173,9 @@ def test_scheduler_hint_does_not_reclassify_product_quality_owner(tmp_path: Path
             )
         }
     )
-    assert compiled(substantive).projection["owner"].get("quality_floor_version") == 2
+    owner = compiled(substantive).projection["owner"]
+    assert isinstance(owner, dict)
+    assert owner.get("quality_floor_version") == 2
 
 
 @pytest.mark.parametrize("floor", ["full", "default"])

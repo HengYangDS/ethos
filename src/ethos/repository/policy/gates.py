@@ -137,53 +137,109 @@ def quality_obligation_gaps(
     gates = policy.get("gates")
     if not isinstance(gates, (list, tuple)) or not isinstance(checks, (list, tuple)):
         return tuple(f"quality_obligation_unproven:{axis}" for axis in axes)
-    by_gate = {
-        gate.get("id"): gate for gate in gates if isinstance(gate, Mapping) and gate.get("id")
-    }
     by_check = {
         check.get("action_id"): check
         for check in checks
         if isinstance(check, Mapping) and check.get("action_id")
     }
+    subjects = owner.get("quality_subjects")
     gaps: list[str] = []
     for axis, gate_id in axes.items():
+        expected = subjects.get(axis) if isinstance(subjects, Mapping) else None
+        valid_expected = (
+            isinstance(expected, (list, tuple))
+            and bool(expected)
+            and all(isinstance(path, str) and path for path in expected)
+            and len(set(expected)) == len(expected)
+        )
         if (
             not isinstance(axis, str)
             or not isinstance(gate_id, str)
-            or not _qualified_quality_check(
-                by_gate.get(gate_id),
-                by_check.get(gate_id),
-                axis,
-                source_tree,
-                owner.get("quality_subjects"),
-            )
+            or (version == 2 and not valid_expected)
+            or (expected is not None and not valid_expected)
+        ):
+            gaps.append(f"quality_obligation_unproven:{axis}")
+            continue
+        selected = _quality_axis_gates(gates, axis, gate_id)
+        observations = [
+            _qualified_quality_paths(gate, by_check.get(gate.get("id")), axis, source_tree)
+            for gate in selected
+        ]
+        observed = {path for paths in observations for path in paths}
+        if (
+            not any(gate.get("id") == gate_id for gate in selected)
+            or any(not paths for paths in observations)
+            or (valid_expected and observed != set(expected))
         ):
             gaps.append(f"quality_obligation_unproven:{axis}")
     return tuple(gaps)
 
 
-def _qualified_quality_check(
-    gate: object, check: object, axis: str, source_tree: str, subjects: object
-) -> bool:
-    """Accept scoped evidence produced by a product-owned provider invocation."""
+def _quality_axis_gates(
+    gates: list[object] | tuple[object, ...], axis: str, primary: str
+) -> tuple[Mapping[str, object], ...]:
+    """Select the mapped gate and every declared contributor to the same axis."""
+    return tuple(
+        gate
+        for gate in gates
+        if isinstance(gate, Mapping)
+        and (
+            gate.get("id") == primary
+            or (isinstance(gate.get("dimensions"), (list, tuple)) and axis in gate["dimensions"])
+        )
+    )
+
+
+def _quality_verifier_gaps(owner: Mapping[str, object], gates: tuple[Gate, ...]) -> tuple[str, ...]:
+    """Reject a missing verifier before native check execution starts."""
+    axes = owner.get("code_correctness_map")
+    if not isinstance(axes, Mapping):
+        return ()
+    selected = tuple(gate_policy_fields(gate) for gate in gates)
+    gaps: list[str] = []
+    for axis, gate_id in axes.items():
+        applicable = _quality_axis_gates(selected, axis, gate_id)
+        if not any(gate.get("id") == gate_id for gate in applicable):
+            gaps.append(f"quality_obligation_unproven:{axis}")
+            continue
+        gaps.extend(
+            f"quality_gate_verifier_missing:{axis}:{gate['id']}"
+            for gate in applicable
+            if not _quality_provider_refs(gate, axis)
+        )
+    return tuple(gaps)
+
+
+def _qualified_quality_paths(
+    gate: object, check: object, axis: str, source_tree: str
+) -> tuple[str, ...]:
+    """Read scoped paths only from the selected product-owned verifier."""
     if not isinstance(gate, Mapping) or not isinstance(check, Mapping) or not source_tree:
-        return False
+        return ()
     identity = gate.get("execution_identity")
     eligible = _quality_provider_refs(gate, axis)
     if not eligible or not isinstance(identity, (list, tuple)):
-        return False
+        return ()
     payload, providers = _quality_provider_payload(gate, check, identity)
     if not isinstance(payload, Mapping) or payload.get("gate") != gate.get("id"):
-        return False
+        return ()
     observations = payload.get("providers")
     if not isinstance(observations, list):
-        return False
-    return any(
-        isinstance(item, Mapping)
-        and item.get("provider") in providers
-        and item.get("provider") in eligible
-        and _quality_evidence_matches(item.get("report"), axis, source_tree, subjects)
-        for item in observations
+        return ()
+    required = set(providers) & set(eligible)
+    measured: dict[str, tuple[str, ...]] = {}
+    for item in observations:
+        if not isinstance(item, Mapping) or item.get("provider") not in required:
+            continue
+        provider = item["provider"]
+        paths = _quality_evidence_paths(item.get("report"), axis, source_tree)
+        if not isinstance(provider, str) or provider in measured or not paths:
+            return ()
+        measured[provider] = paths
+    return (
+        tuple(path for paths in measured.values() for path in paths)
+        if required and measured.keys() == required
+        else ()
     )
 
 
@@ -227,25 +283,23 @@ def _quality_provider_payload(
     return None, ()
 
 
-def _quality_evidence_matches(
-    report: object, axis: str, source_tree: str, subjects: object
-) -> bool:
+def _quality_evidence_paths(report: object, axis: str, source_tree: str) -> tuple[str, ...]:
     if not isinstance(report, Mapping) or report.get("verdict") != "pass":
-        return False
+        return ()
     evidence = report.get("quality_evidence")
     selected = evidence.get("selected_paths") if isinstance(evidence, Mapping) else None
-    expected = subjects.get(axis) if isinstance(subjects, Mapping) else None
     return (
-        isinstance(evidence, Mapping)
-        and evidence.get("axis") == axis
-        and evidence.get("source_tree") == source_tree
-        and isinstance(selected, (list, tuple))
-        and bool(selected)
-        and all(isinstance(path, str) and path for path in selected)
-        and (
-            expected is None
-            or (isinstance(expected, (list, tuple)) and tuple(selected) == tuple(expected))
+        tuple(selected)
+        if (
+            isinstance(evidence, Mapping)
+            and evidence.get("axis") == axis
+            and evidence.get("source_tree") == source_tree
+            and isinstance(selected, (list, tuple))
+            and bool(selected)
+            and all(isinstance(path, str) and path for path in selected)
+            and len(set(selected)) == len(selected)
         )
+        else ()
     )
 
 
@@ -468,14 +522,7 @@ def resolve_gate_policy(
         owner = _owner_projection(
             declaration, profile, repository_paths, script_paths, carrier_roles
         )
-        axes = owner.get("code_correctness_map")
-        if isinstance(axes, Mapping):
-            selected = {gate.id: gate_policy_fields(gate) for gate in gates}
-            for axis, gate_id in axes.items():
-                if gate_id not in selected:
-                    gaps = (*gaps, f"quality_obligation_unproven:{axis}")
-                elif not _quality_provider_refs(selected[gate_id], axis):
-                    gaps = (*gaps, f"quality_gate_verifier_missing:{axis}:{gate_id}")
+        gaps = (*gaps, *_quality_verifier_gaps(owner, gates))
     return ResolvedGatePolicy(
         declaration,
         profile,

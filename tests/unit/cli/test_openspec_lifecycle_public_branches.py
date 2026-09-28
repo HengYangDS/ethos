@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 import ethos.adapters.openspec.governance as governance
 import ethos.adapters.openspec.lifecycle.report as report
-from ethos.adapters.openspec.selection import selection_gaps
+from ethos.adapters.openspec.selection import resolve_change_selection
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_fixture
@@ -195,8 +195,12 @@ def test_official_rows_selection_and_command_gaps_reject_malformed_authority() -
     rows = [_completed("first"), _completed("second")]
     normalized = report.official_change_rows({"changes": rows})
     assert normalized is not None
-    assert selection_gaps(normalized, "missing") == ["openspec_requested_change_missing:missing"]
-    assert selection_gaps(normalized, None) == ["openspec_active_change_ambiguous:first,second"]
+    assert resolve_change_selection(normalized, "missing")[1] == (
+        "openspec_requested_change_missing:missing"
+    )
+    assert resolve_change_selection(normalized, None)[1] == (
+        "openspec_active_change_ambiguous:first,second"
+    )
 
     def result(**updates: object) -> dict[str, object]:
         return {"exit_code": 0, "json": {}, "parse_error": "", **updates}

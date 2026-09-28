@@ -519,7 +519,11 @@ def test_python_behavior_detaches_the_outer_uv_project(
         raise ValueError(message)
 
     monkeypatch.setattr(native_quality, "_source", lambda _root: ("a" * 40, ("src/app.py",)))
-    monkeypatch.setattr(native_quality, "_behavior_scope", lambda _root, _paths: ("src/app.py",))
+    monkeypatch.setattr(
+        native_quality,
+        "_behavior_scope",
+        lambda _root, _paths: (("src/app.py",), ("tests/test_app.py",)),
+    )
     monkeypatch.setattr(native_quality, "run_command", observe)
     assert native_quality.behavior_report(tmp_path)["required_gaps"] == [
         "quality_behavior_observed"
@@ -539,7 +543,11 @@ def test_python_behavior_distinguishes_command_failure_from_missing_report(
         lambda *_args, **_kwargs: SimpleNamespace(returncode=exit_code, stdout="", stderr=""),
     )
     monkeypatch.setattr(native_quality, "_source", lambda _root: ("a" * 40, ("src/app.py",)))
-    monkeypatch.setattr(native_quality, "_behavior_scope", lambda _root, _paths: ("src/app.py",))
+    monkeypatch.setattr(
+        native_quality,
+        "_behavior_scope",
+        lambda _root, _paths: (("src/app.py",), ("tests/test_app.py",)),
+    )
     assert native_quality.behavior_report(tmp_path)["required_gaps"] == [
         f"quality_behavior_{reason}"
     ]

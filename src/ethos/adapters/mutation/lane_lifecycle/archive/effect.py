@@ -126,7 +126,9 @@ def compile_archive_plan(
             "archive_path": archive_path,
             "changed_paths": list(changed),
             "preserved_archive_path": str(scope.get("preserved_archive_path") or ""),
-            "command": list(openspec_cli.archive_command(root, change)),
+            "command": list(
+                openspec_cli.archive_command(root, change, tree_ref=head, archive_path=archive_path)
+            ),
         },
     )
 
@@ -422,6 +424,7 @@ def complete_archive(
             previous_head=str(plan.facts.get("head") or ""),
             archive_path=archive_path,
             changed_paths=list(changed),
+            command=list(facts.get("command", ())),
             lease=current_lease,
             attestation=attestation.model_dump(mode="json"),
             **lifecycle_effect_outcome(

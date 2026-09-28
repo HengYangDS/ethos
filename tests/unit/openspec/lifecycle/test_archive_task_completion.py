@@ -6,13 +6,18 @@ import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.archive.command as archive_command
 import ethos.adapters.mutation.lane_lifecycle.archive.effect as archive_effect
+from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage
+from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_repo_with_candidate
 from tests.support.governed_repository import prepared_work_lane
 from tests.support.openspec_lifecycle import HOLDER
 from tests.support.openspec_lifecycle import OpenSpecLifecycle
+from tests.support.openspec_lifecycle import completed_lifecycle
+from tests.support.proof import seed_executed_proof
 
 CHANGE = "task-completion"
 ACTIVE = f"openspec/changes/{CHANGE}"
@@ -116,6 +121,57 @@ def test_public_archive_preview_recognizes_final_task_check_in_official_stage(
     assert git(root, "rev-parse", "HEAD") != head
     assert not lifecycle.active.exists()
     assert (root / archive_path / "tasks.md").is_file()
+
+
+def test_skip_specs_archive_commits_once_before_exact_postimage_proof(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A blocked completion verdict must not hide or replay a committed native effect."""
+    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
+    root = lifecycle.worktree
+    delta = lifecycle.active / "specs/contracts/spec.md"
+    delta.unlink()
+    delta.parent.rmdir()
+    delta.parent.parent.rmdir()
+    (lifecycle.active / ".openspec.yaml").write_text(
+        "schema: spec-driven\nskip_specs: true\n", encoding="utf-8"
+    )
+    commit_fixture(root, "declare docs-only change")
+    monkeypatch.setattr(archive_command, "proof_gaps", proof_gaps)
+    monkeypatch.setattr(archive_effect, "proof_gaps", proof_gaps)
+    source_head = lifecycle.head
+    seed_executed_proof(root, source_head)
+    arguments = (
+        "lane",
+        "archive-change",
+        "--change",
+        "fixture-change",
+        "--expect-head",
+        source_head,
+        "--apply",
+        "--root",
+        str(root),
+        "--json",
+    )
+
+    first = run_ethos_blocked(*arguments, cwd=root)["data"]
+    archived_head = lifecycle.head
+    assert first["required_gaps"] == ["proof_not_proven"]
+    assert (first["effect_state"], first["residue_state"]) == ("committed", "retained")
+    assert first["user_decision_required"] is False
+    assert f"--expect-head {archived_head}" in first["next_action"]
+    assert "--change fixture-change" in first["next_action"]
+    assert "--skip-specs" in first["command"]
+    assert archived_head != source_head
+    assert not git(root, "status", "--short")
+
+    seed_executed_proof(root, archived_head)
+    replay = run_ethos(*arguments, cwd=root)["data"]
+    assert replay["state"] == "recognized"
+    assert replay["attestation"] == first["attestation"]
+    assert replay["command"] == first["command"]
+    assert lifecycle.head == archived_head
+    assert len(tuple((root / "openspec/changes/archive").glob("*-fixture-change"))) == 1
 
 
 def test_public_archive_preview_reports_the_actual_invalid_task_delta(

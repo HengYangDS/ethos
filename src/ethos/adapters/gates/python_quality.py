@@ -139,26 +139,39 @@ def _behavior_evidence(
             *prefix,
             "python",
             "-m",
+            "coverage",
+            "run",
+            "--branch",
+            "--source=.",
+            "-m",
             "pytest",
             "-q",
             "-p",
             "no:cacheprovider",
             f"--basetemp={output / 'pytest'}",
             f"--junitxml={junit}",
-            "--cov=.",
-            f"--cov-report=xml:{coverage}",
-            "--cov-fail-under=0",
             *targets,
         )
+        removed = ("VIRTUAL_ENV", "UV_PROJECT_ENVIRONMENT", "PYTHONPATH", "PYTEST_ADDOPTS")
         result = run_command(
             root,
             command,
             timeout=600,
             env=environment,
-            remove_env=("VIRTUAL_ENV", "UV_PROJECT_ENVIRONMENT", "PYTHONPATH", "PYTEST_ADDOPTS"),
+            remove_env=removed,
         )
-        if not junit.is_file() or not coverage.is_file():
+        if not junit.is_file():
             message = "test_command_failed" if result.returncode else "test_report_missing"
+            raise ValueError(message)
+        report = run_command(
+            root,
+            (*prefix, "python", "-m", "coverage", "xml", "-o", str(coverage)),
+            timeout=60,
+            env=environment,
+            remove_env=removed,
+        )
+        if report.returncode or not coverage.is_file():
+            message = "test_command_failed" if result.returncode else "coverage_report_missing"
             raise ValueError(message)
         counts, failed = junit_report((junit,))
         measured = coverage_report(coverage, include_files=True)

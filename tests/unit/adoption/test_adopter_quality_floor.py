@@ -343,6 +343,7 @@ def test_frozen_transition_plan_policy_preserves_quality_subject_match() -> None
     "defect",
     [
         "none",
+        "plugin-disabled",
         "wrong-result",
         "unused-source",
         "lint-error",
@@ -353,7 +354,7 @@ def test_frozen_transition_plan_policy_preserves_quality_subject_match() -> None
 )
 @pytest.mark.parametrize("gate_owner", ["inline", "registry"])
 def test_real_locked_python_checks_qualify_the_selected_source(
-    tmp_path: Path, defect: str, gate_owner: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, defect: str, gate_owner: str
 ) -> None:
     """Native tests and static diagnostics can satisfy the same public floor."""
     repo = init_git_repo(tmp_path / "adopter")
@@ -428,13 +429,15 @@ def test_real_locked_python_checks_qualify_the_selected_source(
             encoding="utf-8",
         )
     head = commit_fixture(repo, "bind real native quality")
+    if defect == "plugin-disabled":
+        monkeypatch.setenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
 
     result = run_ethos_raw(
         "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
     )
     payload = json.loads(result.stdout)
 
-    if defect == "none":
+    if defect in {"none", "plugin-disabled"}:
         assert result.returncode == 0, payload["required_gaps"]
         assert payload["verdict"] == "pass"
         assert payload["required_gaps"] == []

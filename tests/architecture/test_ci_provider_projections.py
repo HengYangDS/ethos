@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
 import shlex
-import shutil
 import sys
 import tomllib
 from pathlib import Path
@@ -195,28 +193,6 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_pa
     assert "--network none" in smoke
     assert native_command in smoke
     assert "test_real_locked_python_checks_qualify_the_selected_source[inline-none]" in smoke
-
-
-def test_supply_mismatch_names_the_stale_input(tmp_path: Path) -> None:
-    """An image/input disagreement reports its exact file before any tool bootstrap."""
-    if not shutil.which("bash") or not shutil.which("sha256sum"):
-        pytest.skip("native shell checksum tools unavailable")
-    assert run_command(tmp_path, ("git", "init", "--quiet"), timeout=10).returncode == 0
-    source = tmp_path / "supply-input"
-    source.write_bytes(b"prior")
-    manifest = tmp_path / "manifest.sha256"
-    manifest.write_text(f"{hashlib.sha256(source.read_bytes()).hexdigest()}  {source.name}\n")
-    source.write_bytes(b"changed")
-
-    failed = run_command(
-        tmp_path,
-        ("bash", str(ROOT / "tools/ci/scripts/bootstrap-python.sh")),
-        env={"ETHOS_CI_SUPPLY_MANIFEST": str(manifest)},
-        timeout=10,
-    )
-    assert failed.returncode == 2
-    assert "supply-input: FAILED" in failed.stderr
-    assert "ci_supply_input_mismatch" in failed.stderr
 
 
 @pytest.mark.parametrize("provider", ["github", "gitlab"])

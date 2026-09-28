@@ -8,6 +8,7 @@ import shutil
 import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING
 from typing import Never
 
 from ethos.adapters.gates.python_quality import behavior_report as python_behavior_report
@@ -24,7 +25,12 @@ from ethos.repository.policy.code_subjects import CodeSubject
 from ethos.repository.policy.code_subjects import observed_code_subjects
 from ethos.repository.policy.quality_reports import go_covered_paths
 from ethos.repository.policy.quality_reports import junit_report
+from ethos.repository.policy.quality_reports import junit_stream_report
 from ethos.repository.policy.quality_reports import lcov_covered_paths
+from ethos.repository.policy.quality_reports import lcov_stream_covered_paths
+
+if TYPE_CHECKING:
+    from ethos.adapters.gates.verification import NativeExecution
 
 
 def _invalid(reason: str) -> Never:
@@ -285,41 +291,102 @@ def _go_static(root: Path, paths: tuple[str, ...], native: dict[str, str]) -> di
     return {"language": "go", "checked_paths": len(paths)}
 
 
+def _javascript_native_observation(
+    root: Path,
+    tests: tuple[str, ...],
+    production: tuple[str, ...],
+    native: dict[str, str],
+    execution: NativeExecution,
+) -> tuple[dict[str, int], set[str]] | None:
+    """Reuse a Node test command; leave non-test commands to the product runner."""
+    command = execution.argv
+    if not command:
+        _invalid("javascript_native_test_selection_invalid")
+    mise_wrapped = Path(command[0]).name in {"mise", "mise.exe"} and command[1:4] == (
+        "exec",
+        "--locked",
+        "--",
+    )
+    if mise_wrapped:
+        command = command[4:]
+    if not command:
+        _invalid("javascript_native_test_selection_invalid")
+    test_bearing = Path(command[0]).name in {"node", "node.exe"} and any(
+        part == "--test"
+        or part == "--experimental-test-coverage"
+        or part.startswith("--test-reporter")
+        for part in command[1:]
+    )
+    if not test_bearing:
+        return None
+    required = (
+        "--test",
+        "--experimental-test-coverage",
+        "--test-reporter=junit",
+        "--test-reporter-destination=stdout",
+        "--test-reporter=lcov",
+        "--test-reporter-destination=stderr",
+        *tests,
+    )
+    if command[1:] != required or execution.cwd != root.resolve() or execution.exit_code != 0:
+        _invalid("javascript_native_test_selection_invalid")
+    if "PATH" in native and not mise_wrapped:
+        selected = shutil.which(command[0])
+        locked = shutil.which("node", path=native["PATH"])
+        if selected is None or locked is None or Path(selected).resolve() != Path(locked).resolve():
+            _invalid("javascript_native_toolchain_unbound")
+    counts, failed = junit_stream_report(execution.stdout)
+    if failed:
+        _invalid("javascript_tests_failed")
+    return counts, lcov_stream_covered_paths(root, execution.stderr, production)
+
+
 def _javascript_behavior(
-    root: Path, subjects: tuple[CodeSubject, ...], native: dict[str, str]
+    root: Path,
+    subjects: tuple[CodeSubject, ...],
+    native: dict[str, str],
+    execution: NativeExecution | None,
 ) -> dict[str, object]:
-    """Use one product-owned Node test run for cases and per-module coverage."""
+    """Use one native Node test run for cases and per-module coverage."""
     if not (root / "package.json").is_file():
         _invalid("javascript_package_missing")
     tests = tuple(subject.path for subject in subjects if subject.is_test)
     production = tuple(subject.path for subject in subjects if not subject.is_test)
     if not tests or not production:
         _invalid("javascript_tests_or_sources_missing")
-    with TemporaryDirectory(prefix="ethos-javascript-coverage-") as directory:
-        junit = Path(directory) / "junit.xml"
-        lcov = Path(directory) / "coverage.lcov"
-        result = run_command(
-            root,
-            (
-                _executable(root, "node"),
-                "--test",
-                "--experimental-test-coverage",
-                "--test-reporter=junit",
-                f"--test-reporter-destination={junit}",
-                "--test-reporter=lcov",
-                f"--test-reporter-destination={lcov}",
-                *tests,
-            ),
-            timeout=300,
-            env=native,
-            remove_env=("NODE_OPTIONS", "NODE_V8_COVERAGE"),
-        )
-        if result.returncode:
-            _invalid("javascript_tests_failed")
-        counts, failed = junit_report((junit,))
-        if failed:
-            _invalid("javascript_tests_failed")
-        observed = lcov_covered_paths(root, lcov, production)
+    observation = (
+        _javascript_native_observation(root, tests, production, native, execution)
+        if execution is not None
+        else None
+    )
+    if observation is not None:
+        counts, observed = observation
+    else:
+        with TemporaryDirectory(prefix="ethos-javascript-coverage-") as directory:
+            junit = Path(directory) / "junit.xml"
+            lcov = Path(directory) / "coverage.lcov"
+            result = run_command(
+                root,
+                (
+                    _executable(root, "node"),
+                    "--test",
+                    "--experimental-test-coverage",
+                    "--test-reporter=junit",
+                    f"--test-reporter-destination={junit}",
+                    "--test-reporter=lcov",
+                    f"--test-reporter-destination={lcov}",
+                    *tests,
+                ),
+                timeout=300,
+                env=native,
+                remove_env=("NODE_OPTIONS", "NODE_V8_COVERAGE"),
+            )
+            if result.returncode:
+                _invalid("javascript_tests_failed")
+            counts, failed = junit_report((junit,))
+            if failed:
+                _invalid("javascript_tests_failed")
+            observed = lcov_covered_paths(root, lcov, production)
     return {
         "language": "javascript",
         "tests_passed": counts["total"] - counts["skipped"],
@@ -340,7 +407,9 @@ def _javascript_static(
     return {"language": "javascript", "checked_paths": len(paths)}
 
 
-def _report(root: Path, axis: str) -> dict[str, object]:
+def _report(
+    root: Path, axis: str, *, execution: NativeExecution | None = None
+) -> dict[str, object]:
     try:
         tree, subjects = _source(root)
         languages = {subject.language for subject in subjects}
@@ -378,7 +447,7 @@ def _report(root: Path, axis: str) -> dict[str, object]:
                 )
             elif language == "javascript":
                 native.append(
-                    _javascript_behavior(root, language_subjects, tool_environment)
+                    _javascript_behavior(root, language_subjects, tool_environment, execution)
                     if axis == "behavior"
                     else _javascript_static(root, paths, tool_environment)
                 )
@@ -403,9 +472,9 @@ def _report(root: Path, axis: str) -> dict[str, object]:
     }
 
 
-def behavior_report(root: Path) -> dict[str, object]:
+def behavior_report(root: Path, *, execution: NativeExecution | None = None) -> dict[str, object]:
     """Require non-vacuous native tests for every observed code language."""
-    return _report(root, "behavior")
+    return _report(root, "behavior", execution=execution)
 
 
 def static_report(root: Path) -> dict[str, object]:

@@ -27,6 +27,21 @@ def junit_report(paths: Iterable[Path]) -> tuple[dict[str, int], bool]:
         roots = tuple(ElementTree.parse(path).getroot() for path in files)
     except ElementTree.ParseError as error:
         _invalid("junit_invalid", error)
+    return _junit_roots_report(roots)
+
+
+def junit_stream_report(text: str) -> tuple[dict[str, int], bool]:
+    """Validate a JUnit report captured from the same native command."""
+    try:
+        root = ElementTree.fromstring(text)
+    except ElementTree.ParseError as error:
+        _invalid("junit_invalid", error)
+    return _junit_roots_report((root,))
+
+
+def _junit_roots_report(
+    roots: tuple[ElementTree.Element, ...],
+) -> tuple[dict[str, int], bool]:
     if any(root.tag not in {"testsuite", "testsuites"} for root in roots):
         _invalid("junit_root_invalid")
     cases = tuple(case for root in roots for case in root.iter("testcase"))
@@ -195,7 +210,11 @@ def lcov_covered_paths(root: Path, report: Path, production: tuple[str, ...]) ->
     """Bind the Node test runner's LCOV report to exact production modules."""
     if not report.is_file():
         _invalid("javascript_coverage_missing")
-    text = report.read_text(encoding="utf-8")
+    return lcov_stream_covered_paths(root, report.read_text(encoding="utf-8"), production)
+
+
+def lcov_stream_covered_paths(root: Path, text: str, production: tuple[str, ...]) -> set[str]:
+    """Bind same-execution LCOV output to exact production modules."""
     if not text.strip().endswith("end_of_record"):
         _invalid("javascript_coverage_invalid")
     expected = {(root / path).resolve(): path for path in production}

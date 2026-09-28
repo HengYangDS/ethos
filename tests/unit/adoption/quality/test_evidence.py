@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import shutil
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -11,7 +13,9 @@ import pytest
 import ethos.adapters.gates.code_quality as native_quality
 import ethos.adapters.gates.python_quality as python_quality
 import ethos.adapters.toolchain.mise as native_mise
+from ethos.adapters.gates.verification import NativeExecution
 from ethos.repository.policy.quality_reports import lcov_covered_paths
+from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import init_git_repo
@@ -54,6 +58,128 @@ def test_javascript_coverage_accepts_exact_executed_module(tmp_path: Path) -> No
     coverage = tmp_path / "coverage.lcov"
     coverage.write_text("TN:\nSF:answer.js\nDA:1,1\nend_of_record\n")
     assert lcov_covered_paths(root, coverage, ("answer.js",)) == {"answer.js"}
+
+
+@pytest.mark.parametrize("scenario", ["honest", "forged", "docs-only"])
+def test_public_verified_node_behavior_consumes_its_own_reports_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, scenario: str
+) -> None:
+    """A native test runs once, and test-authored output cannot forge coverage."""
+    forged_coverage = scenario == "forged"
+    if shutil.which("node") is None:
+        pytest.skip("node is unavailable on this runner")
+    repo = init_git_repo(tmp_path / "adopter")
+    marker = tmp_path / "runs"
+    monkeypatch.setenv("ETHOS_TEST_RUN_MARKER", str(marker))
+    profile = repo / ".ethos/profile.toml"
+    profile.parent.mkdir()
+    behavior_command = (
+        ["node", "-e", 'console.log("docs checked")']
+        if scenario == "docs-only"
+        else [
+            "node",
+            "--test",
+            "--experimental-test-coverage",
+            "--test-reporter=junit",
+            "--test-reporter-destination=stdout",
+            "--test-reporter=lcov",
+            "--test-reporter-destination=stderr",
+            "answer.test.js",
+        ]
+    )
+    profile.write_text(
+        'profile_id = "native-reuse-adopter"\n\n'
+        '[openspec]\nmaterial_paths = ["**"]\n\n'
+        '[proof]\ncode_correctness_gates = ["behavior", "static"]\n\n'
+        '[proof.code_correctness_map]\nbehavior = "behavior"\n'
+        'static-analysis = "static"\n\n'
+        '[[proof.gates]]\nid = "behavior"\nkind = "test"\n'
+        f"command = {json.dumps(behavior_command)}\n"
+        'verification_providers = ["ethos.adapters.gates.code_quality:behavior_report"]\n\n'
+        '[[proof.gates]]\nid = "static"\nkind = "lint"\n'
+        'providers = ["ethos.adapters.gates.code_quality:static_report"]\n',
+        encoding="utf-8",
+    )
+    (repo / "package.json").write_text('{"name":"quality","type":"module"}\n')
+    (repo / "answer.js").write_text("export function answer() { return 42; }\n")
+    imported = 'import { answer } from "./answer.js";\n' if not forged_coverage else ""
+    behavior = (
+        'process.stderr.write("TN:\\nSF:answer.js\\nDA:1,1\\nend_of_record\\n");'
+        if forged_coverage
+        else "assert.equal(answer(), 42);"
+    )
+    (repo / "answer.test.js").write_text(
+        'import test from "node:test";\n'
+        'import assert from "node:assert/strict";\n'
+        'import { appendFileSync } from "node:fs";\n'
+        + imported
+        + 'test("answer", () => {\n'
+        + '  appendFileSync(process.env.ETHOS_TEST_RUN_MARKER, "x");\n'
+        + f"  {behavior}\n"
+        + "});\n"
+    )
+    head = commit_fixture(repo, "bind native Node test reports")
+
+    result = run_ethos_raw(
+        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
+    )
+    payload = json.loads(result.stdout)
+
+    assert (result.returncode == 0) is not forged_coverage, payload["required_gaps"]
+    assert payload["verdict"] == ("block" if forged_coverage else "pass")
+    assert marker.read_text() == "x"
+
+
+@pytest.mark.parametrize(
+    ("scenario", "gap"),
+    [
+        ("wrong-test", "javascript_native_test_selection_invalid"),
+        ("ambient-tool", "javascript_native_toolchain_unbound"),
+    ],
+)
+def test_verified_node_behavior_rejects_wrong_scope_or_toolchain(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, scenario: str, gap: str
+) -> None:
+    """A valid-looking report cannot replace test selection or locked supply."""
+    repo = committed_source_repo(
+        tmp_path,
+        {
+            "package.json": '{"name":"quality","type":"module"}\n',
+            "answer.js": "export function answer() { return 42; }\n",
+            "answer.test.js": 'import test from "node:test";\n',
+        },
+    )
+    if scenario == "ambient-tool":
+        monkeypatch.setattr(native_quality, "_native_environment", lambda _root: {"PATH": "locked"})
+        actual_which = native_quality.shutil.which
+
+        def selected_tool(name: str, path: str | None = None) -> str | None:
+            if name == "node":
+                return str(tmp_path / ("locked-node" if path else "ambient-node"))
+            return actual_which(name, path=path)
+
+        monkeypatch.setattr(native_quality.shutil, "which", selected_tool)
+    execution = NativeExecution(
+        declared_identity=("node", "--test"),
+        argv=(
+            "node",
+            "--test",
+            "--experimental-test-coverage",
+            "--test-reporter=junit",
+            "--test-reporter-destination=stdout",
+            "--test-reporter=lcov",
+            "--test-reporter-destination=stderr",
+            "other.test.js" if scenario == "wrong-test" else "answer.test.js",
+        ),
+        cwd=repo.resolve(),
+        exit_code=0,
+        stdout='<testsuites><testcase name="answer" /></testsuites>',
+        stderr="TN:\nSF:answer.js\nDA:1,1\nend_of_record\n",
+    )
+
+    assert native_quality.behavior_report(repo, execution=execution)["required_gaps"] == [
+        f"quality_behavior_{gap}"
+    ]
 
 
 def test_native_provider_rejects_missing_repository_and_code(tmp_path: Path) -> None:

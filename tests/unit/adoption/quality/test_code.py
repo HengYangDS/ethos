@@ -412,7 +412,16 @@ def test_public_proof_conjoins_native_commands_with_product_verifiers(
     behavior_command = (
         ["node", "-e", "process.exit(3)"]
         if defect == "command-failed"
-        else ["node", "-e", 'console.log("domain check")']
+        else [
+            "node",
+            "--test",
+            "--experimental-test-coverage",
+            "--test-reporter=junit",
+            "--test-reporter-destination=stdout",
+            "--test-reporter=lcov",
+            "--test-reporter-destination=stderr",
+            "answer.test.js",
+        ]
     )
     profile = repo / ".ethos/profile.toml"
     profile.parent.mkdir()

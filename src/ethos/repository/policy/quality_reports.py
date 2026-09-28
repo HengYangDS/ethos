@@ -11,6 +11,7 @@ from xml.etree import ElementTree
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from collections.abc import Mapping
 
 
 def _invalid(code: str, error: Exception | None = None) -> NoReturn:
@@ -133,31 +134,46 @@ def _coverage_files(root: ElementTree.Element) -> dict[str, dict[str, int]]:
     return files
 
 
-def go_covered_paths(profile: list[str], production: tuple[str, ...]) -> list[str]:
-    """Bind Go's native coverage profile to exact tracked source paths."""
+def _go_coverage_rows(profile: list[str]) -> list[tuple[str, int, int]]:
+    """Parse Go's native coverage rows before resolving repository identity."""
     if not profile or profile[0] not in {"mode: set", "mode: count", "mode: atomic"}:
         _invalid("go_coverage_invalid")
-    scope = set(production)
-    observed: set[str] = set()
-    applicable: set[str] = set()
-    covered: set[str] = set()
+    rows = []
     for line in profile[1:]:
         row = re.fullmatch(r"(.+):[0-9]+\.[0-9]+,[0-9]+\.[0-9]+ ([0-9]+) ([0-9]+)", line)
         if row is None:
             _invalid("go_coverage_invalid")
-        source, statements, count = row.group(1), int(row.group(2)), int(row.group(3))
-        candidate = source
-        while candidate:
-            if candidate in scope:
-                observed.add(candidate)
-                if statements:
-                    applicable.add(candidate)
-                    if count:
-                        covered.add(candidate)
-                break
-            candidate = candidate.partition("/")[2]
-    if observed != scope or applicable - covered:
+        rows.append((row.group(1), int(row.group(2)), int(row.group(3))))
+    return rows
+
+
+def go_covered_paths(
+    profile: list[str],
+    production: tuple[str, ...],
+    source_paths: Mapping[str, str],
+    *,
+    zero_statement_paths: frozenset[str] = frozenset(),
+) -> list[str]:
+    """Bind Go's complete native profile through exact package-file identities."""
+    scope = set(production)
+    if not source_paths or not set(source_paths.values()) <= scope:
+        _invalid("go_coverage_source_map_invalid")
+    observed: set[str] = set()
+    applicable: set[str] = set()
+    covered: set[str] = set()
+    for source, statements, count in _go_coverage_rows(profile):
+        candidate = source_paths.get(source)
+        if candidate is None:
+            _invalid("go_coverage_source_unmapped")
+        observed.add(candidate)
+        if statements:
+            applicable.add(candidate)
+            if count:
+                covered.add(candidate)
+    if applicable - covered:
         _invalid("go_source_unexercised")
+    if observed | zero_statement_paths != set(source_paths.values()):
+        _invalid("go_coverage_source_missing")
     if not applicable:
         _invalid("go_coverage_no_applicable_statements")
     return [path for path in production if path in applicable]

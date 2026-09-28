@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -61,6 +62,116 @@ def _go_environment() -> dict[str, str]:
     return {"GOTOOLCHAIN": "local", "GOPROXY": "off", "GOSUMDB": "off", "GOWORK": "off"}
 
 
+def _go_packages(root: Path) -> list[dict[str, object]]:
+    """Decode Go's concatenated package observations without a parallel parser."""
+    result = run_command(
+        root,
+        (_executable("go"), "list", "-json", "./..."),
+        timeout=120,
+        env=_go_environment(),
+    )
+    if result.returncode:
+        _invalid("go_package_scope_unavailable")
+    decoder = json.JSONDecoder()
+    position = 0
+    packages: list[dict[str, object]] = []
+    while position < len(result.stdout):
+        while position < len(result.stdout) and result.stdout[position].isspace():
+            position += 1
+        if position == len(result.stdout):
+            break
+        try:
+            package, position = decoder.raw_decode(result.stdout, position)
+        except json.JSONDecodeError:
+            _invalid("go_package_scope_invalid")
+        if not isinstance(package, dict) or package.get("Error") or package.get("Incomplete"):
+            _invalid("go_package_scope_invalid")
+        packages.append(package)
+    return packages
+
+
+def _go_file_names(package: dict[str, object], key: str) -> list[str]:
+    """Reject invalid native package file identities before coverage mapping."""
+    files = package.get(key, [])
+    if not isinstance(files, list) or any(
+        not isinstance(name, str) or Path(name).name != name for name in files
+    ):
+        _invalid("go_package_scope_invalid")
+    if key != "IgnoredGoFiles" and any(name.endswith("_test.go") for name in files):
+        _invalid("go_package_scope_invalid")
+    return files
+
+
+def _go_package_identity(root: Path, package: dict[str, object]) -> tuple[Path, str]:
+    """Bind a native package import path to a directory inside this repository."""
+    directory, import_path = package.get("Dir"), package.get("ImportPath")
+    if not isinstance(directory, str) or not isinstance(import_path, str) or not import_path:
+        _invalid("go_package_scope_invalid")
+    try:
+        return Path(directory).resolve().relative_to(root.resolve()), import_path
+    except ValueError:
+        _invalid("go_package_scope_invalid")
+
+
+def _go_package_sources(root: Path, production: tuple[str, ...]) -> dict[str, str]:
+    """Use Go's selected packages, not file suffixes, as the build-scope owner."""
+    sources: dict[str, str] = {}
+    ignored: set[str] = set()
+    tracked = set(production)
+    for package in _go_packages(root):
+        prefix, import_path = _go_package_identity(root, package)
+        for key in ("GoFiles", "CgoFiles", "IgnoredGoFiles"):
+            for name in _go_file_names(package, key):
+                path = (prefix / name).as_posix()
+                if key == "IgnoredGoFiles":
+                    ignored.add(path)
+                    continue
+                if path not in tracked:
+                    _invalid("go_package_source_untracked")
+                source = f"{import_path}/{name}"
+                if source in sources and sources[source] != path:
+                    _invalid("go_package_scope_invalid")
+                sources[source] = path
+    if not sources:
+        _invalid("go_behavior_source_missing")
+    unlisted = tracked - set(sources.values()) - ignored
+    if any(
+        not any(part.startswith(("_", ".")) or part == "testdata" for part in Path(path).parts[:-1])
+        for path in unlisted
+    ):
+        _invalid("go_source_scope_unknown")
+    return sources
+
+
+def _go_zero_statement_source(root: Path, path: str, output: Path) -> bool:
+    """Ask Go's coverage instrumenter whether an omitted selected file has blocks."""
+    result = run_command(
+        root,
+        (
+            _executable("go"),
+            "tool",
+            "cover",
+            "-mode=set",
+            "-var=EthosCoverageProbe",
+            "-o",
+            str(output),
+            path,
+        ),
+        timeout=60,
+        env=_go_environment(),
+    )
+    if result.returncode or not output.is_file():
+        _invalid("go_coverage_applicability_unknown")
+    marker = "var EthosCoverageProbe = struct {"
+    generated = output.read_text(encoding="utf-8")
+    if marker not in generated:
+        _invalid("go_coverage_applicability_unknown")
+    match = re.match(r"\s*Count\s+\[(\d+)\]uint32", generated.rsplit(marker, 1)[1])
+    if match is None:
+        _invalid("go_coverage_applicability_unknown")
+    return int(match.group(1)) == 0
+
+
 def _go_behavior(root: Path, subjects: tuple[CodeSubject, ...]) -> dict[str, object]:
     """Require an executed test and coverage of each production Go file."""
     if not (root / "go.mod").is_file() or not any(
@@ -70,6 +181,7 @@ def _go_behavior(root: Path, subjects: tuple[CodeSubject, ...]) -> dict[str, obj
     production = tuple(subject.path for subject in subjects if not subject.is_test)
     if not production:
         _invalid("go_behavior_source_missing")
+    source_paths = _go_package_sources(root, production)
     with TemporaryDirectory(prefix="ethos-go-coverage-") as directory:
         coverage = Path(directory) / "coverage.out"
         result = run_command(
@@ -78,6 +190,7 @@ def _go_behavior(root: Path, subjects: tuple[CodeSubject, ...]) -> dict[str, obj
                 _executable("go"),
                 "test",
                 "-json",
+                "-coverpkg=./...",
                 f"-coverprofile={coverage}",
                 "-count=1",
                 "./...",
@@ -90,19 +203,28 @@ def _go_behavior(root: Path, subjects: tuple[CodeSubject, ...]) -> dict[str, obj
         if not coverage.is_file():
             _invalid("go_coverage_missing")
         profile = coverage.read_text(encoding="utf-8").splitlines()
-    try:
-        events = [json.loads(line) for line in result.stdout.splitlines() if line]
-    except json.JSONDecodeError as error:
-        message = "go_test_report_invalid"
-        raise ValueError(message) from error
-    passes = sum(
-        event.get("Action") == "pass" and bool(event.get("Test"))
-        for event in events
-        if isinstance(event, dict)
-    )
-    if passes == 0:
-        _invalid("go_tests_unexecuted")
-    covered = go_covered_paths(profile, production)
+        try:
+            events = [json.loads(line) for line in result.stdout.splitlines() if line]
+        except json.JSONDecodeError as error:
+            message = "go_test_report_invalid"
+            raise ValueError(message) from error
+        passes = sum(
+            event.get("Action") == "pass" and bool(event.get("Test"))
+            for event in events
+            if isinstance(event, dict)
+        )
+        if passes == 0:
+            _invalid("go_tests_unexecuted")
+        observed_sources = {line.partition(":")[0] for line in profile[1:]}
+        missing = [path for source, path in source_paths.items() if source not in observed_sources]
+        zero_statement_paths = frozenset(
+            path
+            for index, path in enumerate(missing)
+            if _go_zero_statement_source(root, path, Path(directory) / f"scope-{index}.go")
+        )
+        covered = go_covered_paths(
+            profile, production, source_paths, zero_statement_paths=zero_statement_paths
+        )
     return {
         "language": "go",
         "tests_passed": passes,

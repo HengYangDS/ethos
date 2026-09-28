@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 import ethos.adapters.gates.code_quality as native_quality
+import ethos.adapters.gates.python_quality as python_quality
 from ethos.repository.policy.quality_reports import lcov_covered_paths
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
@@ -183,3 +185,129 @@ def test_generic_provider_uses_real_locked_python_evidence(tmp_path: Path) -> No
 
     for report in (native_quality.behavior_report(repo), native_quality.static_report(repo)):
         assert report["verdict"] == "pass", report["required_gaps"]
+
+
+def test_native_quality_requires_committed_python_scope(tmp_path: Path) -> None:
+    """No HEAD or selected Python file must not become an empty success."""
+    untracked = tmp_path / "untracked"
+    untracked.mkdir()
+    assert python_quality.static_report(untracked)["required_gaps"] == [
+        "quality_static_source_head_missing"
+    ]
+
+    repo = init_git_repo(tmp_path / "repo")
+    assert python_quality.static_report(repo)["required_gaps"] == [
+        "quality_static_python_sources_missing"
+    ]
+
+
+def test_native_behavior_requires_source_tests_and_a_lock(tmp_path: Path) -> None:
+    """An unrecognized or unlocked scope cannot claim behavior coverage."""
+    repo = init_git_repo(tmp_path / "repo")
+    source = repo / "src/app.py"
+    source.parent.mkdir()
+    source.write_text("def answer(): return 42\n", encoding="utf-8")
+    commit_fixture(repo, "add source without tests")
+    assert python_quality.behavior_report(repo)["required_gaps"] == [
+        "quality_behavior_scope_unrecognized"
+    ]
+
+    test = repo / "tests/test_app.py"
+    test.parent.mkdir()
+    test.write_text("def test_answer(): assert True\n", encoding="utf-8")
+    commit_fixture(repo, "add tests without lock")
+    assert python_quality.behavior_report(repo)["required_gaps"] == [
+        "quality_behavior_locked_toolchain_missing"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("stdout", "returncode", "gap"),
+    [
+        ("{", 0, "quality_static_report_invalid"),
+        ("{}", 0, "quality_static_report_invalid"),
+        ("[]", 1, "quality_static_diagnostics"),
+        ('[{"code":"E999"}]', 1, "quality_static_diagnostics"),
+    ],
+)
+def test_native_static_adapter_distinguishes_report_from_diagnostics(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    stdout: str,
+    returncode: int,
+    gap: str,
+) -> None:
+    """A malformed tool report differs from a valid report containing findings."""
+    monkeypatch.setattr(python_quality, "_source", lambda _root: ("a" * 40, ("src/app.py",)))
+    monkeypatch.setattr(
+        python_quality,
+        "run_command",
+        lambda *_args, **_kwargs: SimpleNamespace(stdout=stdout, returncode=returncode),
+    )
+    assert python_quality.static_report(tmp_path)["required_gaps"] == [gap]
+
+
+@pytest.mark.parametrize("toolchain", ["product", "mise"])
+def test_python_behavior_preserves_selected_locked_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, toolchain: str
+) -> None:
+    """Native mise never syncs; product uv uses an isolated environment."""
+    native_mise = toolchain == "mise"
+    if native_mise:
+        (tmp_path / "mise.toml").write_text('[tools]\nuv = "0.12.18"\n', encoding="utf-8")
+        (tmp_path / "mise.lock").write_text("[tools]\n", encoding="utf-8")
+
+    def observe(_root: Path, command: tuple[str, ...], **options: object) -> None:
+        removed = options["remove_env"]
+        assert isinstance(removed, tuple)
+        assert "UV_PROJECT_ENVIRONMENT" in removed
+        environment = options["env"]
+        assert isinstance(environment, dict)
+        if native_mise:
+            assert command[:4] == ("/native/mise", "exec", "--locked", "--")
+            assert "--no-sync" in command
+            assert environment["MISE_AUTO_INSTALL"] == "0"
+            assert environment["MISE_OFFLINE"] == "1"
+        else:
+            selected = environment["UV_PROJECT_ENVIRONMENT"]
+            assert isinstance(selected, str)
+            assert not Path(selected).is_relative_to(tmp_path)
+        message = "observed"
+        raise ValueError(message)
+
+    monkeypatch.setattr(
+        python_quality, "mise_executable", lambda: Path("/native/mise"), raising=False
+    )
+    monkeypatch.setattr(python_quality, "_source", lambda _root: ("a" * 40, ("src/app.py",)))
+    monkeypatch.setattr(
+        python_quality,
+        "_behavior_scope",
+        lambda _root, _paths: (("src/app.py",), ("tests/test_app.py",)),
+    )
+    monkeypatch.setattr(python_quality, "run_command", observe)
+    assert python_quality.behavior_report(tmp_path)["required_gaps"] == [
+        "quality_behavior_observed"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("exit_code", "reason"), [(0, "test_report_missing"), (1, "test_command_failed")]
+)
+def test_python_behavior_distinguishes_command_failure_from_missing_report(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, exit_code: int, reason: str
+) -> None:
+    """A failed locked tool must not masquerade as a filesystem-only failure."""
+    monkeypatch.setattr(
+        python_quality,
+        "run_command",
+        lambda *_args, **_kwargs: SimpleNamespace(returncode=exit_code, stdout="", stderr=""),
+    )
+    monkeypatch.setattr(python_quality, "_source", lambda _root: ("a" * 40, ("src/app.py",)))
+    monkeypatch.setattr(
+        python_quality,
+        "_behavior_scope",
+        lambda _root, _paths: (("src/app.py",), ("tests/test_app.py",)),
+    )
+    assert python_quality.behavior_report(tmp_path)["required_gaps"] == [
+        f"quality_behavior_{reason}"
+    ]

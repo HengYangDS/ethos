@@ -283,7 +283,7 @@ def test_public_python_quality_covers_repository_tool_sources(
     repo = init_git_repo(tmp_path / "adopter")
     (repo / ".gitignore").write_text(".venv/\n__pycache__/\n", encoding="utf-8")
     _declare_quality_profile(repo, "profile")
-    fixture = Path(__file__).resolve().parents[2] / "fixtures/quality-sample"
+    fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
     (repo / "pyproject.toml").write_bytes((fixture / "pyproject.toml").read_bytes())
     (repo / "uv.lock").write_bytes((fixture / "uv.lock").read_bytes())
     source = repo / "src/sample/__init__.py"

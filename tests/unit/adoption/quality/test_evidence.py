@@ -170,7 +170,7 @@ def test_javascript_skipped_tests_do_not_prove_behavior(tmp_path: Path) -> None:
 def test_generic_provider_uses_real_locked_python_evidence(tmp_path: Path) -> None:
     """The generalized provider preserves Python's existing native success path."""
     repo = init_git_repo(tmp_path / "repo")
-    fixture = Path(__file__).resolve().parents[2] / "fixtures/quality-sample"
+    fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
     for name in ("pyproject.toml", "uv.lock"):
         (repo / name).write_bytes((fixture / name).read_bytes())
     source = repo / "src/sample/__init__.py"

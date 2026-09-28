@@ -116,7 +116,7 @@ github: {
 					smoke_script="test \\$EUID -eq 65534"
 					smoke_script+=" && uv run --frozen --offline python -B -I -m ethos.cli --version"
 					smoke_script+=" && uv run --frozen --offline python tools/ci/toolchain/native.py --root . --mise gitleaks scc syft"
-					smoke_script+=" && uv run --frozen --offline python -B -m pytest -q 'tests/unit/adoption/test_adopter_quality_floor.py::test_real_locked_python_checks_qualify_the_selected_source[inline-none]'"
+					smoke_script+=" && uv run --frozen --offline python -B -m pytest -q 'tests/unit/adoption/quality/test_floor.py::test_real_locked_python_checks_qualify_the_selected_source[inline-none]'"
 					smoke_command+=(--entrypoint /workspace/tools/ci/scripts/bootstrap-python.sh "$image" -- /bin/bash -lc "$smoke_script")
 					"${smoke_command[@]}"
 					docker cp "$smoke_root/repo/." "$smoke_name:/workspace"

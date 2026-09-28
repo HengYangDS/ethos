@@ -357,7 +357,7 @@ def test_real_locked_python_checks_qualify_the_selected_source(
     """Native tests and static diagnostics can satisfy the same public floor."""
     repo = init_git_repo(tmp_path / "adopter")
     (repo / ".gitignore").write_text(".venv/\n__pycache__/\n", encoding="utf-8")
-    fixture = Path(__file__).resolve().parents[2] / "fixtures/quality-sample"
+    fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
     (repo / "pyproject.toml").write_bytes((fixture / "pyproject.toml").read_bytes())
     source = repo / "src/sample/__init__.py"
     source.parent.mkdir(parents=True)

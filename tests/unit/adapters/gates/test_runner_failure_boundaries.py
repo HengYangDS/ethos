@@ -142,6 +142,40 @@ def test_gate_graph_rejects_invalid_plan_before_execution(tmp_path, case, messag
         )
 
 
+@pytest.mark.parametrize(("capacity", "may_overlap"), [(1, False), (3, False), (4, True)])
+def test_gate_cpu_reservations_respect_host_capacity(
+    tmp_path: Path, capacity: int, *, may_overlap: bool
+) -> None:
+    """Two heavy gates serialize on three CPUs but share a four-CPU host."""
+    gates = {
+        name: Gate(id=name, kind="test", command=(name,), cpu_reservation=2)
+        for name in ("unit", "install")
+    }
+    nodes = tuple(PlanNode(id=name, kind="check", command=gates[name].command) for name in gates)
+    events: list[tuple[str, str]] = []
+
+    class Runner(gate_runner.LocalGateRunner):
+        def run(self, node, _gate, *, root):
+            assert root == tmp_path
+            return gate_runner.ActionRunResult(node.id, node.command, "pass", 0)
+
+    results = gate_runner.run_gate_graph(
+        Runner(),
+        nodes,
+        gates,
+        root=tmp_path,
+        capacity=capacity,
+        parallel=True,
+        on_schedule=lambda name: events.append(("scheduled", name)),
+        on_result=lambda result: events.append(("completed", result.action_id)),
+    )
+
+    assert all(result.verdict == "pass" for result in results)
+    assert (
+        events.index(("scheduled", "install")) < events.index(("completed", "unit"))
+    ) is may_overlap
+
+
 @pytest.mark.parametrize(
     ("prerequisite", "exit_code", "expected"),
     [

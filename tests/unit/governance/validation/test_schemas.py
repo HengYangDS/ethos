@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from ethos.contracts.gates import Gate
 from ethos.repository.audit import REQUIRED_SCHEMAS
 from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.repository.policy.schema import load_schema
@@ -150,6 +151,19 @@ def test_gate_schema_accepts_quality_descriptor_fields() -> None:
     )
     validation = validate_schema_instance("gate.schema.json", payload)
     assert validation["verdict"] == "pass"
+
+
+def test_gate_schema_matches_positive_cpu_reservation_contract() -> None:
+    """A product gate's capacity claim is valid in both native contracts."""
+    assert (
+        load_schema("gate.schema.json")["properties"]["cpu_reservation"]
+        == (Gate.model_json_schema()["properties"]["cpu_reservation"])
+    )
+    payload = resolve_gate_policy().registry["unit-architecture"].to_dict()
+    assert payload["cpu_reservation"] == 2
+    assert validate_schema_instance("gate.schema.json", payload)["verdict"] == "pass"
+    payload["cpu_reservation"] = 0
+    assert validate_schema_instance("gate.schema.json", payload)["verdict"] == "block"
 
 
 @pytest.mark.parametrize("scope", ["activation", "packages"])

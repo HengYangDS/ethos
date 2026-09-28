@@ -266,7 +266,7 @@ def _owner_projection(
     proof = profile.declaration.proof
     if proof.gate_registry:
         owner: dict[str, object] = {"kind": "registry", "path": proof.gate_registry, **identity}
-        if declaration == _PACKAGED_GATE_DECLARATION:
+        if _same_packaged_quality_floor(declaration):
             return owner
         axes = {
             axis: next(
@@ -301,6 +301,14 @@ def _owner_projection(
             "static-analysis": [subject.path for subject in code_subjects],
         }
     return owner
+
+
+def _same_packaged_quality_floor(declaration: GateRegistryDeclaration) -> bool:
+    """Keep scheduler capacity out of quality ownership, but bind it in proof policy."""
+    exclusion = {"gates": {"__all__": {"cpu_reservation"}}}
+    return declaration.model_dump(mode="json", exclude=exclusion) == (
+        _PACKAGED_GATE_DECLARATION.model_dump(mode="json", exclude=exclusion)
+    )
 
 
 def _profile_declaration(profile: RepositoryProfile) -> GateRegistryDeclaration:

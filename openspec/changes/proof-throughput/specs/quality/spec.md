@@ -226,6 +226,13 @@ executor's observed capacity; they are scheduling claims, not CPU affinity.
 - **AND** they may overlap at capacity four when dependencies and locks permit
 - **AND** one gate whose reservation exceeds capacity still runs alone
 
+#### Scenario: Scheduling capacity does not redefine quality ownership
+
+- **WHEN** an exact candidate changes only a gate's positive CPU reservation
+- **THEN** the predecessor and candidate retain the same quality-floor owner
+- **AND** the candidate's execution policy still binds the changed reservation
+- **AND** a change to a substantive gate obligation does not inherit this exception
+
 #### Scenario: Construction does not establish quality acceptance
 
 - **WHEN** a package check succeeds but a required test or coverage check fails

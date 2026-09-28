@@ -233,6 +233,12 @@ executor's observed capacity; they are scheduling claims, not CPU affinity.
 - **AND** the candidate's execution policy still binds the changed reservation
 - **AND** a change to a substantive gate obligation does not inherit this exception
 
+#### Scenario: Source proof disagrees with the installed ref guard
+
+- **WHEN** a candidate proof passes but the selected installed runtime cannot compile the same exact policy
+- **THEN** read-only landing reports the predecessor's gap before a ref intent or CAS
+- **AND** the effect-time Git hook still rechecks fresh state independently
+
 #### Scenario: Construction does not establish quality acceptance
 
 - **WHEN** a package check succeeds but a required test or coverage check fails

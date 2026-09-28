@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from functools import partial
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -43,6 +45,53 @@ if TYPE_CHECKING:
 
 
 _issue = partial(issue_conformant_proof, issuer="agent:test:case:proof")
+
+
+@pytest.mark.parametrize(
+    "case", ["malformed_json", "wrong_head", "invalid_gaps", "registry_invalid", "missing_plan"]
+)
+def test_predecessor_policy_probe_preserves_failure_identity(
+    case: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A planned result is not proof, and malformed predecessor facts do not pass."""
+    head = "a" * 40
+    report: dict[str, object] = {
+        "command": "prove",
+        "required_gaps": ["full_proof_requires_execute"],
+        "data": {
+            "expected_head": {"expected": head, "current": head, "matches": True},
+        },
+    }
+    if case == "wrong_head":
+        report["data"] = {"expected_head": {"expected": head, "current": "b" * 40, "matches": True}}
+    elif case == "invalid_gaps":
+        report["required_gaps"] = "full_proof_requires_execute"
+    elif case == "registry_invalid":
+        report["required_gaps"] = ["gate_registry_invalid:system/gates.toml"]
+    payload = "{" if case == "malformed_json" else json.dumps(report)
+    monkeypatch.setattr(proof_admission, "git_common_dir", str)
+    monkeypatch.setattr(
+        proof_admission,
+        "current_runtime",
+        Mock(return_value=SimpleNamespace(build=object(), python=tmp_path / "runtime-python")),
+    )
+    monkeypatch.setattr(proof_admission, "invoking_build_identity", object)
+    monkeypatch.setattr(
+        proof_admission, "plan_from_statement", Mock(return_value=SimpleNamespace(commitment=None))
+    )
+    monkeypatch.setattr(
+        proof_admission,
+        "run_command",
+        Mock(return_value=SimpleNamespace(stdout=payload, returncode=1)),
+    )
+
+    gaps = proof_admission.predecessor_policy_gaps(tmp_path, head, Mock())
+
+    assert gaps == (
+        ["gate_registry_invalid:system/gates.toml"]
+        if case == "registry_invalid"
+        else ["predecessor_policy_probe_invalid"]
+    )
 
 
 def _policy_proof_pair(repo: Path, head: str) -> tuple[Attestation, Attestation]:

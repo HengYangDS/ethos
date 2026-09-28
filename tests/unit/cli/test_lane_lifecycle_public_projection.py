@@ -32,6 +32,21 @@ def test_transition_continuations_request_the_admitted_proof_floor(gap):
     assert actual == (f"{command} --json", f"{command} --change {ARCHIVE_CHANGE} --json")
 
 
+@pytest.mark.parametrize(
+    "gap",
+    [
+        "gate_registry_invalid:system/gates.toml",
+        "proof_attestation_repository_policy_mismatch",
+        "predecessor_policy_probe_timeout",
+    ],
+)
+def test_predecessor_policy_gap_does_not_recommend_repeating_proof(gap: str) -> None:
+    """A source proof cannot repair a predecessor reader or policy mismatch."""
+    assert land_next_action(verdict="block", gaps=(gap,), current_head=ARCHIVE_HEAD) == (
+        "inspect and repair installed-runtime policy compatibility before landing"
+    )
+
+
 def _capture(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
     results: list[Any] = []
     monkeypatch.setattr(lifecycle, "emit", lambda result, **_kwargs: results.append(result))

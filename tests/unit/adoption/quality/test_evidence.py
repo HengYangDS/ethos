@@ -135,6 +135,8 @@ def test_public_verified_node_behavior_consumes_its_own_reports_once(
     [
         ("wrong-test", "javascript_native_test_selection_invalid"),
         ("ambient-tool", "javascript_native_toolchain_unbound"),
+        ("all-skipped", "javascript_tests_failed"),
+        ("invalid-junit", "junit_invalid"),
     ],
 )
 def test_verified_node_behavior_rejects_wrong_scope_or_toolchain(
@@ -159,6 +161,10 @@ def test_verified_node_behavior_rejects_wrong_scope_or_toolchain(
             return actual_which(name, path=path)
 
         monkeypatch.setattr(native_quality.shutil, "which", selected_tool)
+    stdout = {
+        "all-skipped": '<testsuites><testcase name="answer"><skipped /></testcase></testsuites>',
+        "invalid-junit": "not-junit",
+    }.get(scenario, '<testsuites><testcase name="answer" /></testsuites>')
     execution = NativeExecution(
         declared_identity=("node", "--test"),
         argv=(
@@ -173,12 +179,32 @@ def test_verified_node_behavior_rejects_wrong_scope_or_toolchain(
         ),
         cwd=repo.resolve(),
         exit_code=0,
-        stdout='<testsuites><testcase name="answer" /></testsuites>',
+        stdout=stdout,
         stderr="TN:\nSF:answer.js\nDA:1,1\nend_of_record\n",
     )
 
     assert native_quality.behavior_report(repo, execution=execution)["required_gaps"] == [
         f"quality_behavior_{gap}"
+    ]
+
+
+def test_provider_only_javascript_does_not_credit_a_failed_native_test(tmp_path: Path) -> None:
+    """A product-owned test run must retain its own nonzero native result."""
+    if shutil.which("node") is None:
+        pytest.skip("node is unavailable on this runner")
+    repo = committed_source_repo(
+        tmp_path,
+        {
+            "package.json": '{"name":"quality","type":"module"}\n',
+            "answer.js": "export function answer() { return 42; }\n",
+            "answer.test.js": (
+                'import test from "node:test";\ntest("failure", () => { throw Error(); });\n'
+            ),
+        },
+    )
+
+    assert native_quality.behavior_report(repo)["required_gaps"] == [
+        "quality_behavior_javascript_tests_failed"
     ]
 
 

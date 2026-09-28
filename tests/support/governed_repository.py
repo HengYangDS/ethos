@@ -482,6 +482,17 @@ def commit_fixture(root: Path, message: str) -> str:
     return _commit_fixture(root, message)
 
 
+def committed_source_repo(tmp_path: Path, files: dict[str, str]) -> Path:
+    """Commit a native-source fixture for public quality-gate tests."""
+    repo = init_git_repo(tmp_path / "repo")
+    for path, content in files.items():
+        target = repo / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+    commit_fixture(repo, "record native source")
+    return repo
+
+
 def _commit_fixture(root: Path, message: str, *, hooks_path: Path | None = None) -> str:
     """Commit the staged fixture index with deterministic test identity."""
     hook_arguments = ("-c", f"core.hooksPath={hooks_path.as_posix()}") if hooks_path else ()

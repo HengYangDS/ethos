@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -13,10 +14,12 @@ from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.verdict import report_verdict
-from ethos.repository.policy.gates import gate_execution_identity
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from ethos.contracts.gates import Gate
+    from ethos.repository.policy.gates import ResolvedGatePolicy
 
 _CONTROL_PREFIXES = (
     ".ethos/",
@@ -77,23 +80,7 @@ def control_replacement_report(
         return report
     prior = resolve_gate_policy(candidate_root, tree_ref=accepted_head, full=True)
     proposed = resolve_gate_policy(candidate_root, tree_ref=candidate_head, full=True)
-    changed_obligations = tuple(
-        gate.id
-        for gate in prior.gates
-        if gate.policy == "required"
-        and not any(
-            (
-                gate_execution_identity(gate) == gate_execution_identity(candidate)
-                or (bool(gate.providers) and set(gate.providers) <= set(candidate.providers))
-            )
-            and candidate.policy == "required"
-            and (not gate.trust_bearing or candidate.trust_bearing)
-            and gate.evidence_class == candidate.evidence_class
-            and set(gate.dimensions) <= set(candidate.dimensions)
-            and set(gate.depends_on) <= set(candidate.depends_on)
-            for candidate in proposed.gates
-        )
-    )
+    changed_obligations = _changed_obligations(prior, proposed)
     floor = (
         {
             "accepted_policy_digest": prior.digest,
@@ -120,6 +107,41 @@ def control_replacement_report(
     report["required_gaps"] = list(cast("list[str]", verification["required_gaps"]))
     report["verdict"] = report_verdict(verification)
     return report
+
+
+def _preserves_required_gate(prior: Gate, proposed: Gate) -> bool:
+    """Keep the exact execution and verifier boundary, allowing only stronger scope."""
+    refinable = {"cpu_reservation", "depends_on", "asset_classes", "dimensions", "trust_bearing"}
+    return (
+        prior.model_dump(mode="json", exclude=refinable)
+        == proposed.model_dump(mode="json", exclude=refinable)
+        and (not prior.trust_bearing or proposed.trust_bearing)
+        and set(prior.depends_on) <= set(proposed.depends_on)
+        and set(prior.asset_classes) <= set(proposed.asset_classes)
+        and set(prior.dimensions) <= set(proposed.dimensions)
+    )
+
+
+def _changed_obligations(
+    prior: ResolvedGatePolicy, proposed: ResolvedGatePolicy
+) -> tuple[str, ...]:
+    """Name prior gate and axis meanings that the candidate no longer preserves."""
+    changed = [
+        gate.id
+        for gate in prior.gates
+        if gate.policy == "required"
+        and not any(_preserves_required_gate(gate, candidate) for candidate in proposed.gates)
+    ]
+    before, after = (policy.projection.get("owner") for policy in (prior, proposed))
+    old_axes = before.get("code_correctness_map") if isinstance(before, Mapping) else None
+    new_axes = after.get("code_correctness_map") if isinstance(after, Mapping) else None
+    if isinstance(old_axes, Mapping):
+        changed.extend(
+            f"quality-axis:{axis}"
+            for axis, gate in old_axes.items()
+            if gate and (not isinstance(new_axes, Mapping) or new_axes.get(axis) != gate)
+        )
+    return tuple(changed)
 
 
 def _changed_paths(root: Path, accepted_head: str, candidate_head: str) -> tuple[str, ...] | None:

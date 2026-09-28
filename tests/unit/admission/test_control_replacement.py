@@ -19,7 +19,14 @@ import ethos.adapters.admission.control.replacement as replacement
 import ethos.adapters.admission.evidence.external as evidence
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.contracts.evidence.external import IndependentVerificationReceipt
+from ethos.contracts.gates import Gate
+from ethos.contracts.gates import GateProofSets
+from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.semantic import canonical_json_digest
+from ethos.repository.policy.gates import ResolvedGatePolicy
+from ethos.repository.profile import ProofPolicy
+from ethos.repository.profile import RepositoryProfile
+from ethos.repository.profile import RepositoryProfileDeclaration
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
@@ -358,10 +365,10 @@ def test_candidate_cannot_disable_trusted_predecessor_verification(
     assert report["required_gaps"] == ["independent_verification_receipt_required"]
 
 
-def test_changed_gate_does_not_enable_an_unselected_external_provider(
+def test_changed_gate_reports_floor_without_implicit_provider(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A changed floor is review input, not an implicit external-provider policy."""
+    """A changed gate needs explicit selection, not an undeclared host provider."""
     candidate, accepted, _head = _control_change(tmp_path, mode="disabled")
     registry = candidate / ".ethos/fixture-proof.toml"
     payload = tomllib.loads(registry.read_text())
@@ -379,6 +386,91 @@ def test_changed_gate_does_not_enable_an_unselected_external_provider(
     )
     report = _report(candidate, accepted, head)
     assert report["verdict"] == "pass", report
+    assert report["required_gaps"] == []
     assert report["independent_verification"]["state"] == "disabled"
     assert report["mints_authority"] is False
     assert old in report["subject"]["verification_floor"]["changed_obligations"]
+
+
+def test_removed_gate_verifier_cannot_keep_the_same_command_identity(tmp_path: Path) -> None:
+    """Removing verification is a control replacement even when argv is unchanged."""
+    candidate, _accepted, _head = _control_change(tmp_path, mode="disabled")
+    path = ".ethos/fixture-proof.toml"
+    payload = tomllib.loads((candidate / path).read_text(encoding="utf-8"))
+    old = payload["proof_sets"]["default"][0]
+    gate = next(item for item in payload["gates"] if item["id"] == old)
+    gate["verification_providers"] = ["ethos.adapters.gates.code_quality:behavior_report"]
+    prior = commit_fixture_file(candidate, path, tomli_w.dumps(payload), "retain verifier")
+    del gate["verification_providers"]
+    head = commit_fixture_file(candidate, path, tomli_w.dumps(payload), "remove verifier")
+    seed_executed_proof(candidate, head)
+
+    report = _report(candidate, prior, head)
+
+    assert report["verdict"] == "pass", report
+    assert report["required_gaps"] == []
+    assert old in report["subject"]["verification_floor"]["changed_obligations"]
+
+
+def test_axis_remapping_changes_the_floor_without_changing_gate_commands(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A changed quality mapping needs review; a capacity hint alone does not."""
+    gates = (
+        Gate(id="first", kind="test", command=("git", "--version")),
+        Gate(id="second", kind="test", command=("git", "status")),
+        Gate(id="static", kind="lint", command=("git", "diff")),
+    )
+    names = tuple(gate.id for gate in gates)
+    declaration = GateRegistryDeclaration(
+        id="quality", proof_sets=GateProofSets(default=names, full=names), gates=gates
+    )
+
+    def selected(behavior: str, candidates: tuple[Gate, ...] = gates) -> ResolvedGatePolicy:
+        profile = RepositoryProfile(
+            root=tmp_path,
+            exists=True,
+            declaration=RepositoryProfileDeclaration(
+                profile_id="quality",
+                proof=ProofPolicy(
+                    code_correctness_gates=names,
+                    code_correctness_map={"behavior": behavior, "static-analysis": "static"},
+                    gates=candidates,
+                ),
+            ),
+        )
+        return ResolvedGatePolicy(
+            declaration=declaration,
+            profile=profile,
+            gates=candidates,
+            repository_paths=("src/app.py",),
+        )
+
+    candidate, accepted, head = _control_change(tmp_path, mode="disabled")
+    seed_executed_proof(candidate, head)
+    prior = selected("first")
+
+    def report(after: ResolvedGatePolicy) -> dict[str, object]:
+        monkeypatch.setattr(
+            replacement,
+            "resolve_gate_policy",
+            lambda _root, *, tree_ref, full: prior if tree_ref == accepted and full else after,
+        )
+        return _report(candidate, accepted, head)
+
+    changed = report(selected("second"))
+    assert changed["verdict"] == "pass", changed
+    assert changed["required_gaps"] == []
+    changed_subject = changed["subject"]
+    assert isinstance(changed_subject, dict)
+    changed_floor = changed_subject["verification_floor"]
+    assert isinstance(changed_floor, dict)
+    obligations = changed_floor["changed_obligations"]
+    assert isinstance(obligations, list)
+    assert "quality-axis:behavior" in obligations
+    capacity = tuple(gate.model_copy(update={"cpu_reservation": 2}) for gate in gates)
+    unchanged = report(selected("first", capacity))
+    assert unchanged["verdict"] == "pass", unchanged
+    unchanged_subject = unchanged["subject"]
+    assert isinstance(unchanged_subject, dict)
+    assert "verification_floor" not in unchanged_subject

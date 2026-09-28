@@ -18,7 +18,7 @@ historical bindings are governed by [Release Governance](docs/governance/release
   pre-push, GitHub, and GitLab now consume one repository commit-policy owner
   over the exact introduced commit range.
 - Exposed the exact bundled OpenSpec version through the public version surface.
-- Upgraded the repository-locked and runtime-bundled OpenSpec supply to 1.13.1.
+- Upgraded the repository-locked and runtime-bundled OpenSpec supply to 1.13.2.
 - Converged current Python and npm dependencies, CI images, GitHub Actions,
   downloaded release tools, and the hosted Node LTS/current compatibility
   matrix on verified stable releases.

@@ -56,7 +56,7 @@
 - [x] 4.11 Preserve validated source deletions and archive effect paths through public proof/replay.
 - [x] 4.12 Reject unsupported reference kinds and malformed transport; qualify package entry aliases and native archive execution.
 - [x] 4.13 Complete exact full proof and source/package/runtime delivery for archive preservation.
-- [x] 4.14 Reproduce post-archive native formatting and sibling-reference drift; qualify the actual generated tree before successful archive completion without weakening repository gates.
+- [x] 4.14 Qualify the actual archive postimage before Git CAS against native formatting, references and OpenSpec findings; compensate avoidable findings with a source repair action, preserve valid new-capability acceptance, and retain post-CAS proof/recovery without weakening repository gates.
 - [x] 4.15 Admit only complete, monotonic final task progress in an official staged archive; retain source/postimage proof boundaries, precise drift diagnostics and public positive/negative regressions.
 
 ## 5. Process Lifetimes and Resource Recovery

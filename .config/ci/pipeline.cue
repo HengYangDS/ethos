@@ -186,7 +186,7 @@ github: {
 		}
 		quality: {
 			name:      "quality gates"
-			"runs-on": "ubuntu-latest"
+			"runs-on": "ubuntu-24.04-arm"
 			if:        "${{ !inputs.supply_image }}"
 			env: ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
 			steps: list.Concat([githubPythonBootstrap, [{

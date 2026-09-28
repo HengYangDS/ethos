@@ -506,18 +506,37 @@ def test_native_static_adapter_distinguishes_report_from_diagnostics(
     assert native_quality.static_report(tmp_path)["required_gaps"] == [gap]
 
 
-def test_python_behavior_detaches_the_outer_uv_project(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("toolchain", ["product", "mise"])
+def test_python_behavior_preserves_selected_locked_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, toolchain: str
 ) -> None:
-    """An adopter's locked run must not inherit ETHOS's project selection."""
+    """Native mise never syncs; product uv uses an isolated environment."""
+    native_mise = toolchain == "mise"
+    if native_mise:
+        (tmp_path / "mise.toml").write_text('[tools]\nuv = "0.12.18"\n', encoding="utf-8")
+        (tmp_path / "mise.lock").write_text("[tools]\n", encoding="utf-8")
 
-    def observe(_root: Path, _command: tuple[str, ...], **options: object) -> None:
+    def observe(_root: Path, command: tuple[str, ...], **options: object) -> None:
         removed = options["remove_env"]
         assert isinstance(removed, tuple)
         assert "UV_PROJECT_ENVIRONMENT" in removed
+        environment = options["env"]
+        assert isinstance(environment, dict)
+        if native_mise:
+            assert command[:4] == ("/native/mise", "exec", "--locked", "--")
+            assert "--no-sync" in command
+            assert environment["MISE_AUTO_INSTALL"] == "0"
+            assert environment["MISE_OFFLINE"] == "1"
+        else:
+            selected = environment["UV_PROJECT_ENVIRONMENT"]
+            assert isinstance(selected, str)
+            assert not Path(selected).is_relative_to(tmp_path)
         message = "observed"
         raise ValueError(message)
 
+    monkeypatch.setattr(
+        native_quality, "mise_executable", lambda: Path("/native/mise"), raising=False
+    )
     monkeypatch.setattr(native_quality, "_source", lambda _root: ("a" * 40, ("src/app.py",)))
     monkeypatch.setattr(
         native_quality,

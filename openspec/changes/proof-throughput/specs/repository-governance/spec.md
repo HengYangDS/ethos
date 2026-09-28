@@ -347,6 +347,8 @@ preserve and report the observed committed effect without claiming completion.
 - **WHEN** prearchive proof passes but the resulting source has no passing applicable proof
 - **THEN** archive reports a blocked committed repair boundary with the actual HEAD
 - **AND** its continuation selects that HEAD's existing proof command and repository root
+- **AND** the reported native command comes from the committed archive artifact,
+  retaining `skip_specs` rather than reading a now-absent active Change
 - **AND** stale, failed or unrelated proof cannot make archive completion pass
 
 #### Scenario: Exact postimage proof is available

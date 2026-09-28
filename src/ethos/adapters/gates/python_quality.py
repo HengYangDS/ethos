@@ -13,6 +13,7 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_files
+from ethos.repository.policy.code_subjects import observed_code_subjects
 from ethos.repository.policy.quality_reports import coverage_report
 from ethos.repository.policy.quality_reports import junit_report
 
@@ -82,27 +83,29 @@ def static_report(root: Path) -> dict[str, object]:
     }
 
 
-def _behavior_scope(root: Path, paths: tuple[str, ...]) -> tuple[str, ...]:
-    """Require the supported src/tests layout and a native locked toolchain."""
-    source = tuple(path for path in paths if path.startswith("src/"))
-    tests = tuple(path for path in paths if path.startswith("tests/"))
-    if not source or not tests or len(source) + len(tests) != len(paths):
+def _behavior_scope(root: Path, paths: tuple[str, ...]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Select production and test subjects from the common code classifier."""
+    subjects = observed_code_subjects(paths)
+    source = tuple(subject.path for subject in subjects if not subject.is_test)
+    tests = tuple(subject.path for subject in subjects if subject.is_test)
+    if not source or not tests or len(subjects) != len(paths):
         message = "scope_unrecognized"
         raise ValueError(message)
     if not (root / "pyproject.toml").is_file() or not (root / "uv.lock").is_file():
         message = "locked_toolchain_missing"
         raise ValueError(message)
-    return source
+    return source, tests
 
 
 def _behavior_evidence(
-    root: Path, source: tuple[str, ...]
+    root: Path, source: tuple[str, ...], tests: tuple[str, ...]
 ) -> tuple[dict[str, int], dict[str, object]]:
     """Observe one locked native test run and its fresh reports."""
     with TemporaryDirectory(prefix="ethos-python-quality-") as temporary:
         output = Path(temporary)
         junit = output / "junit.xml"
         coverage = output / "coverage.xml"
+        targets = tuple(sorted({path.partition("/")[0] for path in tests}))
         command = (
             sys.executable,
             "-m",
@@ -118,10 +121,10 @@ def _behavior_evidence(
             "no:cacheprovider",
             f"--basetemp={output / 'pytest'}",
             f"--junitxml={junit}",
-            "--cov=src",
+            "--cov=.",
             f"--cov-report=xml:{coverage}",
             "--cov-fail-under=0",
-            "tests",
+            *targets,
         )
         result = run_command(
             root,
@@ -139,7 +142,7 @@ def _behavior_evidence(
         if not isinstance(files, dict):
             message = "coverage_scope_invalid"
             raise TypeError(message)
-        selected = tuple(path.removeprefix("src/") for path in source)
+        selected = source
         if any(name not in files for name in selected):
             message = "coverage_scope_incomplete"
             raise ValueError(message)
@@ -161,8 +164,8 @@ def behavior_report(root: Path) -> dict[str, object]:
     """Run locked pytest and verify fresh JUnit and source coverage evidence."""
     try:
         tree, paths = _source(root)
-        source = _behavior_scope(root, paths)
-        counts, measured = _behavior_evidence(root, source)
+        source, tests = _behavior_scope(root, paths)
+        counts, measured = _behavior_evidence(root, source, tests)
     except (
         OSError,
         TypeError,

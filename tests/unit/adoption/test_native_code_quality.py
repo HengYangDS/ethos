@@ -5,16 +5,13 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def _declare_quality_profile(repo: Path, gate_owner: str) -> None:
@@ -275,3 +272,61 @@ def test_public_proof_conjoins_native_commands_with_product_verifiers(
         assert payload["verdict"] == "block"
         assert "quality_obligation_unproven:behavior" in payload["required_gaps"]
     assert [check["action_id"] for check in payload["data"]["checks"]] == ["behavior", "static"]
+
+
+@pytest.mark.parametrize("exercise_tool", ["exercised", "unexercised"])
+@pytest.mark.parametrize("test_root", ["tests", "checks"])
+def test_public_python_quality_covers_repository_tool_sources(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, exercise_tool: str, test_root: str
+) -> None:
+    """One native run must cover tools as code, not reject or relabel them as tests."""
+    repo = init_git_repo(tmp_path / "adopter")
+    (repo / ".gitignore").write_text(".venv/\n__pycache__/\n", encoding="utf-8")
+    _declare_quality_profile(repo, "profile")
+    fixture = Path(__file__).resolve().parents[2] / "fixtures/quality-sample"
+    (repo / "pyproject.toml").write_bytes((fixture / "pyproject.toml").read_bytes())
+    (repo / "uv.lock").write_bytes((fixture / "uv.lock").read_bytes())
+    source = repo / "src/sample/__init__.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("def answer() -> int:\n    return 42\n", encoding="utf-8")
+    tool = repo / "tools/utility.py"
+    tool.parent.mkdir()
+    tool.write_text("def double(value: int) -> int:\n    return value * 2\n", encoding="utf-8")
+    test = repo / test_root / "test_sample.py"
+    test.parent.mkdir()
+    tool_call = (
+        "    from tools.utility import double\n    assert double(21) == 42\n"
+        if exercise_tool == "exercised"
+        else ""
+    )
+    test.write_text(
+        "import os\nfrom pathlib import Path\n\nfrom sample import answer\n\n\n"
+        "def test_answer() -> None:\n"
+        '    marker = Path(os.environ["ETHOS_TEST_MARKER"])\n'
+        '    marker.write_text(marker.read_text() + "x" if marker.exists() else "x")\n'
+        "    assert answer() == 42\n" + tool_call,
+        encoding="utf-8",
+    )
+    marker = tmp_path / "run-count"
+    monkeypatch.setenv("ETHOS_TEST_MARKER", str(marker))
+    head = commit_fixture(repo, "bind product and repository-tool quality")
+
+    result = run_ethos_raw(
+        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
+    )
+    payload = json.loads(result.stdout)
+    checks = {check["action_id"]: check for check in payload["data"]["checks"]}
+
+    if exercise_tool == "exercised":
+        assert result.returncode == 0, payload["required_gaps"]
+        assert payload["verdict"] == "pass"
+        report = json.loads(checks["behavior"]["stdout"])["providers"][0]["report"]
+        assert report["quality_evidence"]["selected_paths"] == [
+            "src/sample/__init__.py",
+            "tools/utility.py",
+        ]
+    else:
+        assert result.returncode != 0
+        assert "quality_obligation_unproven:behavior" in payload["required_gaps"]
+        assert checks["static"]["verdict"] == "pass"
+    assert marker.read_text(encoding="utf-8") == "x"

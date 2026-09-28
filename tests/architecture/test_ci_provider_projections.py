@@ -74,7 +74,7 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     assert {item["provider"] for item in projection_entries()} == {"github", "gitlab"}
     assert check_templates(json_output=False) == owner.check_workflow() == 0
     jobs = {name: github["jobs"][name] for name in ("quality", "verify", "package")}
-    assert jobs["quality"]["runs-on"] == "ubuntu-latest"
+    assert jobs["quality"]["runs-on"] == "ubuntu-24.04-arm"
     platforms = github["jobs"]["host-conformance"]["strategy"]["matrix"]["os"]
     assert set(platforms) == {"ubuntu-latest", "windows-latest", "macos-latest"}
     assert {

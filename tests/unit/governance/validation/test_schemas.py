@@ -160,7 +160,7 @@ def test_gate_schema_matches_positive_cpu_reservation_contract() -> None:
         == (Gate.model_json_schema()["properties"]["cpu_reservation"])
     )
     payload = resolve_gate_policy().registry["unit-architecture"].to_dict()
-    payload["cpu_reservation"] = 2
+    assert payload["cpu_reservation"] == 2
     assert validate_schema_instance("gate.schema.json", payload)["verdict"] == "pass"
     payload["cpu_reservation"] = 0
     assert validate_schema_instance("gate.schema.json", payload)["verdict"] == "block"

@@ -343,3 +343,8 @@ def stub_archive_public(
     monkeypatch.setattr(archive, "dirty_changed_paths", lambda _root: ("spec.md",))
     monkeypatch.setattr(archive, "normalize_projected_specs", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(archive_effect, "stage_git_worktree", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        archive_effect,
+        "openspec_validation_report",
+        lambda _root: {"verdict": "pass", "required_gaps": []},
+    )

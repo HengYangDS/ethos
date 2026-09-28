@@ -10,11 +10,14 @@ from unittest.mock import Mock
 
 import pytest
 
+import ethos.adapters.mutation.lane_lifecycle.archive.command as archive
 import ethos.adapters.mutation.lane_lifecycle.archive.effect as archive_effect
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Facts
+from tests.support.governed_repository import git
+from tests.support.openspec_lifecycle import completed_lifecycle
 from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
@@ -171,6 +174,9 @@ def test_archive_effect_owns_postimage_commit_and_reuses_resolved_intent(
 
     monkeypatch.setattr(archive_effect, "compile_archive_plan", compile_plan)
     monkeypatch.setattr(
+        archive_effect, "openspec_validation_report", lambda _root: {"required_gaps": []}
+    )
+    monkeypatch.setattr(
         archive_effect,
         "complete_archive",
         lambda *_args, **kwargs: observed.update(completion=kwargs) or {"state": "archived"},
@@ -202,6 +208,47 @@ def test_archive_effect_owns_postimage_commit_and_reuses_resolved_intent(
         "message": "chore(openspec): archive change",
     }
     assert observed["completion"] == {"apply": True, "result": None}
+
+
+@pytest.mark.parametrize(
+    ("gap", "payload"),
+    [
+        ("openspec_validation_unreadable", {}),
+        ("openspec_validation_unreadable", {"items": [None]}),
+        (
+            "openspec_validation_failed:spec:unrelated",
+            {"items": [{"id": "unrelated", "type": "spec", "valid": False, "issues": []}]},
+        ),
+    ],
+)
+def test_unrepairable_native_postimage_compensates_without_inventing_repair(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, gap: str, payload: dict[str, object]
+) -> None:
+    """Unreadable or unrelated native findings cannot name a false Change delta."""
+    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
+    root = lifecycle.worktree
+    head = lifecycle.head
+    monkeypatch.setattr(
+        archive_effect,
+        "openspec_validation_report",
+        lambda _root: {
+            "verdict": "block",
+            "required_gaps": [gap],
+            "validation": {"json": payload},
+        },
+    )
+
+    result = archive.archive_change(
+        root=root, change="fixture-change", expect_head=head, apply=True
+    )
+
+    assert result["required_gaps"] == [gap]
+    assert result["next_action"] == "ethos lane status --json"
+    assert (result["effect_state"], result["compensation_state"]) == ("mutated", "completed")
+    assert result["user_decision_required"] is True
+    assert lifecycle.head == head
+    assert lifecycle.active.is_dir()
+    assert not git(root, "status", "--short")
 
 
 @pytest.mark.parametrize("failure", ["missing", "pending", "index-drift", "concurrent-content"])

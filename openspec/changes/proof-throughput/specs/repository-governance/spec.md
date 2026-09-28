@@ -328,6 +328,20 @@ applicable proof for the actual resulting HEAD. Prearchive proof and Git effect
 evidence SHALL NOT establish postimage quality. Pending verification SHALL
 preserve and report the observed committed effect without claiming completion.
 
+#### Scenario: Native postimage finding before Git CAS
+
+- **WHEN** official archive projection would leave a canonical spec invalid or
+  with a blocking native finding
+- **THEN** ETHOS validates that actual uncommitted postimage before creating a
+  commit or updating the lane ref
+- **AND** it compensates its own archive mutation and reports a source delta
+  repair path only when the native finding maps to that changed spec; otherwise
+  it requires further resolution instead of retrying the unchanged archive
+- **AND** an already staged caller-owned archive remains visible as retained
+  mutation, not a falsely absent effect or permission to discard its bytes
+- **AND** a valid authored Purpose or corrected requirement remains able to
+  archive through the normal postimage proof boundary
+
 #### Scenario: Archive changes an input consumed by a repository check
 
 - **WHEN** prearchive proof passes but the resulting source has no passing applicable proof

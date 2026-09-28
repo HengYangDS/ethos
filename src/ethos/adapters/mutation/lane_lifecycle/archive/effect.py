@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shlex
 from collections.abc import Mapping
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -16,8 +17,10 @@ from ethos.adapters.mutation.remediation.guidance import proof_recovery_command
 from ethos.adapters.openspec.archive_projection import archive_projection_updates
 from ethos.adapters.openspec.archive_projection import refresh_archive_projections
 from ethos.adapters.openspec.governance import openspec_governance_report
+from ethos.adapters.openspec.governance import openspec_validation_report
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage_scope_report
+from ethos.adapters.openspec.lifecycle.validation import validation_items
 from ethos.adapters.repo.commit.creation import create_git_commit
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
@@ -176,21 +179,36 @@ def commit_archive_postimage(
                 next_action=archive_recovery_command(change, previous_head, subject=subject),
             ),
         )
-    if scope.get("pending_projection_paths"):
-        try:
-            updates = archive_projection_updates(
-                root,
-                source_head=previous_head,
-                tree=staged_tree,
-                changed_paths=staged_paths,
-            )
-            projection_restore = {
-                path: ((root / path).read_bytes(), content) for path, content in updates.items()
-            }
-            staged_tree = _complete_projection_postimage(root, previous_head, change)
-        except (OSError, TypeError, ValueError):
-            restore_failure_boundary()
-            raise
+    try:
+        staged_tree = _complete_pending_archive_projection(
+            root,
+            previous_head,
+            change,
+            scope,
+            staged_tree,
+            staged_paths,
+            projection_restore,
+        )
+    except (OSError, TypeError, ValueError):
+        restore_failure_boundary()
+        raise
+    native = openspec_validation_report(root)
+    native_gaps = [str(gap) for gap in native.get("required_gaps", ())]
+    if native_gaps:
+        restore_failure_boundary()
+        repair_action = _archive_source_repair_action(root, change, native, staged_paths)
+        return lifecycle_report(
+            branch,
+            previous_head,
+            "blocked",
+            native_gaps,
+            change=change,
+            **lifecycle_effect_outcome(
+                kind="mutation_compensated" if owned_mutation else "mutation_uncompensated",
+                next_action=repair_action or "ethos lane status --json",
+                user_decision_required=not bool(repair_action),
+            ),
+        )
     committed = create_git_commit(
         root,
         tree=staged_tree,
@@ -235,6 +253,65 @@ def commit_archive_postimage(
         if current_tracked_head(root) == previous_head:
             restore_failure_boundary()
         raise
+
+
+def _complete_pending_archive_projection(
+    root: Path,
+    previous_head: str,
+    change: str,
+    scope: dict[str, Any],
+    staged_tree: str,
+    staged_paths: tuple[str, ...],
+    projection_restore: dict[str, tuple[bytes, bytes]],
+) -> str:
+    """Capture derived preimages before completing the optional archive projection."""
+    if not scope.get("pending_projection_paths"):
+        return staged_tree
+    updates = archive_projection_updates(
+        root,
+        source_head=previous_head,
+        tree=staged_tree,
+        changed_paths=staged_paths,
+    )
+    projection_restore.update(
+        {path: ((root / path).read_bytes(), content) for path, content in updates.items()}
+    )
+    return _complete_projection_postimage(root, previous_head, change)
+
+
+def _archive_source_repair_action(
+    root: Path,
+    change: str,
+    native: dict[str, Any],
+    changed_paths: tuple[str, ...],
+) -> str:
+    """Map an official changed-spec finding back to its retained Change delta."""
+    validation = native.get("validation")
+    payload = validation.get("json") if isinstance(validation, dict) else None
+    items = validation_items(payload) if isinstance(payload, dict) else None
+    if items is None:
+        return ""
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        identifier = item.get("id")
+        if item.get("type") != "spec" or not isinstance(identifier, str):
+            continue
+        capability = PurePosixPath(identifier)
+        if capability.is_absolute() or not capability.parts or ".." in capability.parts:
+            continue
+        canonical = f"openspec/specs/{identifier}/spec.md"
+        source = f"openspec/changes/{change}/specs/{identifier}/spec.md"
+        if canonical not in changed_paths or not (root / source).is_file():
+            continue
+        if item.get("valid") is True and not item.get("issues"):
+            continue
+        resolved = shlex.quote(root.resolve().as_posix())
+        return (
+            f"ethos lane prewrite --paths {shlex.quote(source)} "
+            f"--editor-root {resolved} --require-editor-root --root {resolved} --json"
+        )
+    return ""
 
 
 def _complete_projection_postimage(root: Path, head: str, change: str) -> str:

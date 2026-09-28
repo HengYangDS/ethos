@@ -23,7 +23,6 @@ from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
-from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.openspec_lifecycle import assert_lifecycle_outcome
@@ -46,8 +45,8 @@ def _avoid_unrelated_runtime_materialization(monkeypatch: pytest.MonkeyPatch) ->
     )
 
 
-def test_public_prewrite_repairs_canonical_output_after_native_archive(monkeypatch, tmp_path):
-    """An archived Change remains a repair source, not reusable write permission."""
+def test_public_archive_requires_authored_purpose_before_new_capability_cas(monkeypatch, tmp_path):
+    """An avoidable native placeholder must not force a later repair commit."""
     lifecycle = completed_lifecycle(tmp_path, monkeypatch)
     root = lifecycle.worktree
     delta = lifecycle.active / "specs/contracts/spec.md"
@@ -57,43 +56,36 @@ def test_public_prewrite_repairs_canonical_output_after_native_archive(monkeypat
     commit_fixture(root, "declare a new canonical capability")
     monkeypatch.setattr(archive, "proof_gaps", proof_gaps)
     seed_executed_proof(root, lifecycle.head)
-    archived = lifecycle.apply_archive()
-    assert archived["state"] == "repair_required"
-    assert archived["effect_state"] == "committed"
-    path = "openspec/specs/new-capability/spec.md"
-    assert "TBD" in (root / path).read_text(encoding="utf-8")
-    assert not lifecycle.active.exists()
-    arguments = (path, "--editor-root", str(root), "--require-editor-root", "--json")
-    for command in (("lane", "prewrite"), ("hook", "admit", "pre-tool")):
-        result = run_ethos(*command, *arguments, cwd=root)
-        assert result["verdict"] == "pass", result
-        admission = result["data"] if command[0] == "lane" else result["data"]["admission"]
-        assert admission["material_scope"]["authorized_paths"] == [path]
-    mixed = run_ethos_blocked("lane", "prewrite", "README.md", *arguments, cwd=root)
-    assert mixed["verdict"] == "block"
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:other")
-    stale = run_ethos_blocked("lane", "prewrite", *arguments, cwd=root)
-    assert any("lease_holder_mismatch" in gap for gap in stale["required_gaps"])
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
-    canonical = root / path
-    canonical.write_text(
-        canonical.read_text(encoding="utf-8").replace(
-            "TBD - created by archiving change fixture-change. Update Purpose after archive.",
-            "Exercise a newly archived capability through exact canonical repair admission.",
-        ),
+    before = lifecycle.head
+    blocked = lifecycle.apply_archive()
+    assert blocked["state"] == "blocked"
+    assert blocked["required_gaps"] == ["openspec_validation_failed:spec:new-capability"]
+    assert (blocked["effect_state"], blocked["compensation_state"]) == ("mutated", "completed")
+    assert lifecycle.head == before
+    assert lifecycle.active.is_dir()
+    assert not git(root, "status", "--short")
+    new_delta.write_text(
+        "## Purpose\n\n"
+        "This new capability documents how authored OpenSpec intent remains understandable "
+        "and verifiable throughout the governed repository lifecycle.\n\n"
+        + new_delta.read_text(encoding="utf-8"),
         encoding="utf-8",
     )
-    assert "TBD" not in canonical.read_text(encoding="utf-8")
-    commit_fixture(root, "repair canonical purpose")
-    repaired = run_ethos("lane", "prewrite", *arguments, cwd=root)
-    assert repaired["verdict"] == "pass"
-    assert repaired["data"]["material_scope"]["state"] == "archive_attested"
+    commit_fixture(root, "author new capability purpose")
+    seed_executed_proof(root, lifecycle.head)
+    archived = lifecycle.apply_archive()
+    assert (archived["state"], archived["effect_state"], archived["required_gaps"]) == (
+        "archived",
+        "committed",
+        [],
+    )
+    assert "TBD" not in (root / "openspec/specs/new-capability/spec.md").read_text(encoding="utf-8")
 
 
-def test_public_archived_info_repairs_two_findings_in_one_canonical_spec(
+def test_public_archive_rejects_two_canonical_info_findings_before_git_cas(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """A valid archive with two INFO findings keeps an exact repair path open."""
+    """Native postimage INFO must not first appear after an irreversible Git effect."""
     lifecycle = completed_lifecycle(tmp_path, monkeypatch)
     root = lifecycle.worktree
     repeated = (
@@ -118,29 +110,79 @@ def test_public_archived_info_repairs_two_findings_in_one_canonical_spec(
     commit_fixture(root, "declare two overlong canonical requirements")
     monkeypatch.setattr(archive, "proof_gaps", proof_gaps)
     seed_executed_proof(root, lifecycle.head)
+    before = lifecycle.head
     archived = lifecycle.apply_archive()
-    assert archived["effect_state"] == "committed"
-    assert archived["state"] == "repair_required"
-    path = "openspec/specs/contracts/spec.md"
-    status = run_ethos("status", "--json", cwd=root)
-    assert status["verdict"] == "block"
+    assert archived["state"] == "blocked"
+    outcome = (archived["effect_state"], archived["compensation_state"], archived["residue_state"])
+    assert outcome == (
+        "mutated",
+        "completed",
+        "absent",
+    )
+    assert lifecycle.head == before
+    assert lifecycle.active.is_dir()
+    assert not git(root, "status", "--short")
     info_gaps = [
         gap
-        for gap in status["required_gaps"]
+        for gap in archived["required_gaps"]
         if gap.startswith("openspec_validation_issue:INFO:spec:contracts:")
     ]
     assert len(info_gaps) == 2
-    arguments = (path, "--editor-root", str(root), "--require-editor-root", "--json")
-    repair_result = run_ethos_raw("lane", "prewrite", *arguments, cwd=root)
-    repair = json.loads(repair_result.stdout)
-    assert repair["verdict"] == "pass", repair
-    assert repair["data"]["material_scope"]["authorized_paths"] == [path]
-    assert path in status["next_action"]
-    assert "lane prewrite" in status["next_action"]
-    ordinary = run_ethos_raw("prove", "--json", cwd=root)
-    assert json.loads(ordinary.stdout)["verdict"] == "block"
-    mixed = run_ethos_raw("lane", "prewrite", "README.md", *arguments, cwd=root)
-    assert json.loads(mixed.stdout)["verdict"] == "block"
+    assert "lane prewrite" in archived["next_action"]
+    assert "openspec/changes/fixture-change/specs/contracts/spec.md" in archived["next_action"]
+    repair = run_ethos(
+        "lane",
+        "prewrite",
+        "openspec/changes/fixture-change/specs/contracts/spec.md",
+        "--editor-root",
+        str(root),
+        "--require-editor-root",
+        "--json",
+        cwd=root,
+    )
+    assert repair["verdict"] == "pass"
+
+
+def test_staged_native_archive_preserves_unowned_invalid_postimage(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A pre-existing native mutation remains visible when ETHOS refuses its CAS."""
+    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
+    root = lifecycle.worktree
+    delta = lifecycle.active / "specs/contracts/spec.md"
+    repeated = "The fixture SHALL preserve accepted meaning and archive proof identity. " * 9
+    delta.write_text(
+        "## ADDED Requirements\n\n### Requirement: Fixture change\n\n"
+        f"{repeated}\n\n"
+        "#### Scenario: Fixture change is selected\n\n"
+        "- **WHEN** the change is archived\n"
+        "- **THEN** its meaning remains available\n",
+        encoding="utf-8",
+    )
+    commit_fixture(root, "declare overlong requirement")
+    monkeypatch.setattr(archive, "proof_gaps", proof_gaps)
+    seed_executed_proof(root, lifecycle.head)
+    head = lifecycle.head
+    archive_path = lifecycle.stage_official_archive()
+    archived_delta = root / archive_path / "specs/contracts/spec.md"
+    source_bytes = archived_delta.read_bytes()
+
+    result = lifecycle.apply_archive()
+
+    assert result["state"] == "blocked"
+    assert any(
+        gap.startswith("openspec_validation_issue:INFO:spec:contracts:")
+        for gap in result["required_gaps"]
+    )
+    assert (result["effect_state"], result["compensation_state"], result["residue_state"]) == (
+        "mutated",
+        "not_attempted",
+        "retained",
+    )
+    assert result["user_decision_required"] is True
+    assert lifecycle.head == head
+    assert archived_delta.read_bytes() == source_bytes
+    assert not lifecycle.active.exists()
 
 
 def _stage_exact_archive(lifecycle: OpenSpecLifecycle) -> str:

@@ -14,6 +14,7 @@ import pytest
 import ethos.adapters.openspec.cli as cli
 import ethos.adapters.openspec.governance as governance
 import ethos.adapters.openspec.lifecycle.validation as lifecycle_validation
+import ethos.adapters.openspec.selection as selection
 import tests.support.governed_repository as fixture
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -42,6 +43,26 @@ def test_governance_reports_not_applicable_without_profile(tmp_path, monkeypatch
         [],
     )
     assert report["official_cli"] == {"available": False, "base_command": []}
+
+
+def test_governance_selects_ambiguous_intent_once_per_observation(monkeypatch, tmp_path):
+    """One request must not rescan lane provenance for the same OpenSpec list."""
+    root = _repo(tmp_path)
+    fixture.write_active_commitment(root, change_id="first")
+    fixture.write_active_commitment(root, change_id="second")
+    monkeypatch.delenv("ETHOS_CHANGE", raising=False)
+    calls: list[int] = []
+
+    def observe_lineage(*_args):
+        calls.append(1)
+
+    monkeypatch.setattr(selection, "_lane_contribution", observe_lineage)
+    report = governance.openspec_governance_report(
+        root, lifecycle=True, changed_paths=("openspec/changes/first/tasks.md",)
+    )
+
+    assert report["required_gaps"] == ["openspec_active_change_ambiguous:first,second"]
+    assert len(calls) == 1
 
 
 @pytest.mark.parametrize("selection", ["explicit", "environment"])

@@ -13,8 +13,7 @@ from typing import TYPE_CHECKING
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
 from ethos.adapters.openspec.selection import requested_change
-from ethos.adapters.openspec.selection import selected_change
-from ethos.adapters.openspec.selection import selection_gaps
+from ethos.adapters.openspec.selection import resolve_change_selection
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.contracts.semantic import Commitment
@@ -307,10 +306,8 @@ def load_openspec_commitment(
         if change_id is None:
             (listed,) = openspec_cli.run_json_batch(projection, command, (("list", "--json"),))
             rows = listed.get("json", {}).get("changes", [])
-            selected = selected_change(rows, None, root=repo, tree_ref=tree_ref)
-            gaps = (
-                selection_gaps(rows, None, root=repo, tree_ref=tree_ref) if selected is None else []
-            )
+            selected, gap = resolve_change_selection(rows, None, root=repo, tree_ref=tree_ref)
+            gaps = [gap] if gap else []
             if (
                 gaps == ["openspec_active_change_missing"]
                 and (

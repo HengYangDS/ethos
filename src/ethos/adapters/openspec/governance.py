@@ -24,8 +24,7 @@ from ethos.adapters.openspec.lifecycle.report import openspec_unavailable_report
 from ethos.adapters.openspec.lifecycle.validation import validation_result_gaps
 from ethos.adapters.openspec.observation import governed_branch_intent_report
 from ethos.adapters.openspec.selection import requested_change
-from ethos.adapters.openspec.selection import selected_change
-from ethos.adapters.openspec.selection import selection_gaps
+from ethos.adapters.openspec.selection import resolve_change_selection
 from ethos.adapters.repo.git import current_branch as git_current_branch
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
@@ -210,7 +209,12 @@ def _openspec_governance_report(
             doctor=doctor,
         )
     rows = official_change_rows(list_result["json"])
-    current_change = selected_change(rows, request.change, root=root) if rows is not None else None
+    selection = (
+        resolve_change_selection(rows, request.change, root=root)
+        if rows is not None
+        else (None, "openspec_list_unreadable")
+    )
+    current_change, selection_gap = selection
     status, apply, archive, projection = (
         openspec_cli.run_json_batch(
             root,
@@ -259,11 +263,7 @@ def _openspec_governance_report(
         and archive_scope is None
         and (rows is None or rows or request.change is not None)
     ):
-        required_gaps.extend(
-            ["openspec_list_unreadable"]
-            if rows is None
-            else selection_gaps(rows, request.change, root=root)
-        )
+        required_gaps.extend([selection_gap] if selection_gap else [])
     lifecycle_payload = (
         {
             "required_gaps": archive_scope["required_gaps"],
@@ -279,9 +279,11 @@ def _openspec_governance_report(
             status_payload=status.get("json", {}),
             apply_payload=apply.get("json", {}),
             branch_intent=branch_intent,
+            selection=selection,
         )
     )
     required_gaps.extend(str(gap) for gap in lifecycle_payload["required_gaps"])
+    required_gaps = list(dict.fromkeys(required_gaps))
     intent_context: dict[str, object] = {}
     contract = None
     if current_change:

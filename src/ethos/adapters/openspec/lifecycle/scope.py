@@ -29,6 +29,7 @@ def material_change_scope_report(
     *,
     changed_paths: tuple[str, ...] = (),
     active_change_names: tuple[str, ...] = (),
+    selection_gap: str = "",
 ) -> dict[str, object]:
     """Attribute material paths when exactly one official Change owns the work."""
     paths, patterns, material, applicable = _scope_inputs(root, changed_paths)
@@ -39,7 +40,7 @@ def material_change_scope_report(
         return _scope_report(paths, patterns, material, state="no_material_paths")
     if len(names) != 1:
         gaps = (
-            ["openspec_active_change_missing"]
+            [selection_gap or "openspec_active_change_missing"]
             if not names
             else [f"openspec_active_change_ambiguous:{','.join(names)}"]
         )

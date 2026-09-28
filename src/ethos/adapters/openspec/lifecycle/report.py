@@ -8,7 +8,7 @@ from typing import NamedTuple
 
 import ethos.adapters.openspec.lifecycle.scope as scope
 from ethos.adapters.openspec.lifecycle.validation import validation_result_gaps
-from ethos.adapters.openspec.selection import selected_change
+from ethos.adapters.openspec.selection import resolve_change_selection
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.openspec.audit import accepted_spec_root_gaps
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
@@ -218,6 +218,7 @@ def lifecycle_report(
     status_payload: dict[str, Any] | None = None,
     apply_payload: dict[str, Any] | None = None,
     branch_intent: dict[str, object] | None = None,
+    selection: tuple[str | None, str] | None = None,
 ) -> dict[str, Any]:
     intent = branch_intent or {
         "verdict": "pass",
@@ -231,7 +232,11 @@ def lifecycle_report(
         lifecycle.pop("enabled")
         return {"required_gaps": [], **lifecycle}
     rows = official_change_rows(list_payload) or []
-    selected = selected_change(rows, request.change, root=root)
+    selected, selection_gap = (
+        selection
+        if selection is not None
+        else resolve_change_selection(rows, request.change, root=root)
+    )
     names = [selected] if selected else []
     changes, required_gaps = [], []
     for name in names:
@@ -247,7 +252,10 @@ def lifecycle_report(
         changes.append(change)
         required_gaps.extend(gaps)
     binding = scope.material_change_scope_report(
-        root, changed_paths=request.changed_paths, active_change_names=tuple(names)
+        root,
+        changed_paths=request.changed_paths,
+        active_change_names=tuple(names),
+        selection_gap=selection_gap,
     )
     required_gaps.extend(string_sequence(binding.get("required_gaps")))
     return {

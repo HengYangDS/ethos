@@ -15,8 +15,7 @@ from ethos.adapters.openspec.cli import openspec_base_command
 from ethos.adapters.openspec.cli import run_json
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.openspec.governance import openspec_governance_report
-from ethos.adapters.openspec.selection import selected_change
-from ethos.adapters.openspec.selection import selection_gaps
+from ethos.adapters.openspec.selection import resolve_change_selection
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
@@ -130,8 +129,9 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     rows = [{"name": "active", "status": "in-progress"}]
     revision = base if case == "historical" else merge
     expected = "active" if case in {"valid", "historical"} else None
-    assert selected_change(rows, None, root=repo, tree_ref=revision) == expected
-    gaps = selection_gaps(rows, None, root=repo, tree_ref=revision)
+    selected, gap = resolve_change_selection(rows, None, root=repo, tree_ref=revision)
+    assert selected == expected
+    gaps = [gap] if gap else []
     assert gaps == (
         []
         if expected
@@ -139,7 +139,7 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
         if case in {"corrupt", "ambiguous"}
         else ["openspec_active_change_missing"]
     )
-    assert selected_change(rows, "active", root=repo, tree_ref=revision) == "active"
+    assert resolve_change_selection(rows, "active", root=repo, tree_ref=revision)[0] == "active"
 
 
 @pytest.mark.parametrize("mode", ["pending", "committed", "explicit"])

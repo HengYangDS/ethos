@@ -28,17 +28,6 @@ def requested_change(explicit: str | None = None) -> str | None:
     return explicit if explicit is not None else os.environ.get("ETHOS_CHANGE")
 
 
-def selected_change(
-    rows: list[dict[str, str]],
-    requested: str | None,
-    *,
-    root: Path | None = None,
-    tree_ref: str | None = None,
-) -> str | None:
-    """Select one explicit or unambiguous contribution without storing ownership."""
-    return _selection(rows, requested, root=root, tree_ref=tree_ref)[0]
-
-
 def artifact_path_change(root: Path, paths: tuple[str, ...]) -> str | None:
     """Select one existing Change named by every path, without authorizing writes."""
     parts = [path.split("/") for path in paths]
@@ -56,13 +45,14 @@ def artifact_path_change(root: Path, paths: tuple[str, ...]) -> str | None:
     return name if target.is_dir() and not target.is_symlink() else None
 
 
-def _selection(
+def resolve_change_selection(
     rows: list[dict[str, str]],
     requested: str | None,
     *,
-    root: Path | None,
-    tree_ref: str | None,
+    root: Path | None = None,
+    tree_ref: str | None = None,
 ) -> tuple[str | None, str]:
+    """Resolve one explicit or native contribution with its exact refusal."""
     names = {item["name"] for item in rows}
     if requested is not None:
         return (
@@ -96,18 +86,6 @@ def _unselected_gap(names: set[str]) -> str:
         if names
         else "openspec_active_change_missing"
     )
-
-
-def selection_gaps(
-    rows: list[dict[str, str]],
-    requested: str | None,
-    *,
-    root: Path | None = None,
-    tree_ref: str | None = None,
-) -> list[str]:
-    """Explain an unresolved official selection without guessing an owner."""
-    gap = _selection(rows, requested, root=root, tree_ref=tree_ref)[1]
-    return [gap] if gap else []
 
 
 def incoming_change_gaps(root: Path, selected: str, incoming: str) -> list[str]:

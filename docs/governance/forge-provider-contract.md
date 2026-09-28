@@ -71,6 +71,12 @@ rewrite, tag recreation, history mapping, or tree-only parity.
    paths. Provider-native syntax may differ; required semantics may not drift.
 1. **Local-first proof**: local proof and local provider emulation SHALL be
    available before hosted publication is claimed.
+1. **Failure-independent supply**: each selected provider SHALL run its complete
+   required CI graph for one exact source on a cold runner while another selected
+   provider's registry and release endpoints are unavailable. Images and tools
+   must come from that provider's own verified supply or an independent source;
+   a warm runner cache, image digest without retrievable bytes, or success on the
+   other provider does not satisfy this claim.
 1. **Evidence separation**: local owner gates, local provider emulators, hosted
    GitHub status, hosted GitLab status, remote branch reachability, and release
    publication SHALL remain separate evidence classes.

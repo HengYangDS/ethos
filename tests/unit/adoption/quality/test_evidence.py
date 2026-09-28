@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -9,6 +10,7 @@ import pytest
 
 import ethos.adapters.gates.code_quality as native_quality
 import ethos.adapters.gates.python_quality as python_quality
+import ethos.adapters.toolchain.mise as native_mise
 from ethos.repository.policy.quality_reports import lcov_covered_paths
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
@@ -148,6 +150,47 @@ def test_native_tool_absence_does_not_become_quality_success(tmp_path: Path, mon
     )
     assert native_quality.static_report(repo)["required_gaps"] == [
         "quality_static-analysis_native_tool_unavailable:node"
+    ]
+
+
+def test_unavailable_locked_node_does_not_fall_back_to_host_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A declared locked tool remains required when an ambient binary exists."""
+    repo = committed_source_repo(
+        tmp_path,
+        {
+            "package.json": '{"type":"module"}\n',
+            "answer.js": "export const answer = 42;\n",
+            "mise.toml": '[tools]\nnode = "26.9.0"\n',
+            "mise.lock": "lockfile_version = 2\n",
+        },
+    )
+    original_which = native_quality.shutil.which
+    monkeypatch.setattr(
+        native_quality.shutil,
+        "which",
+        lambda name, *args, **kwargs: (
+            "/ambient/node" if name == "node" else original_which(name, *args, **kwargs)
+        ),
+    )
+    monkeypatch.setattr(
+        native_mise,
+        "run_mise",
+        lambda _root, arguments, **_kwargs: subprocess.CompletedProcess(
+            arguments,
+            0 if arguments in {("env", "--json"), ("bin-paths",)} else 1,
+            '{"PATH":"/ambient/node"}'
+            if arguments == ("env", "--json")
+            else f"{tmp_path}\n"
+            if arguments == ("bin-paths",)
+            else "",
+            "" if arguments in {("env", "--json"), ("bin-paths",)} else "locked node unavailable",
+        ),
+    )
+
+    assert native_quality.static_report(repo)["required_gaps"] == [
+        "quality_static-analysis_mise_supply_unavailable:node:locked node unavailable"
     ]
 
 

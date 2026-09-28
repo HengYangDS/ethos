@@ -281,7 +281,7 @@ def test_go_behavior_rejects_unproved_statementless_classification(
     monkeypatch.setattr(
         native_quality,
         "_go_package_sources",
-        lambda _root, _production: {
+        lambda _root, _production, _native: {
             "example.invalid/quality/answer.go": "answer.go",
             "example.invalid/quality/empty.go": "empty.go",
         },
@@ -438,11 +438,11 @@ def test_go_behavior_rejects_failed_or_incomplete_native_result(
             Path(option.partition("=")[2]).write_text(coverage_text)
         return subprocess.CompletedProcess(command, returncode, stdout, "")
 
-    monkeypatch.setattr(native_quality, "_executable", lambda name: name)
+    monkeypatch.setattr(native_quality, "_executable", lambda _root, name: name)
     monkeypatch.setattr(
         native_quality,
         "_go_package_sources",
-        lambda _root, _production: {"example.invalid/quality/answer.go": "answer.go"},
+        lambda _root, _production, _native: {"example.invalid/quality/answer.go": "answer.go"},
     )
     monkeypatch.setattr(native_quality, "run_command", observed_command)
     assert native_quality.behavior_report(repo)["required_gaps"] == [f"quality_behavior_{reason}"]
@@ -473,11 +473,11 @@ def test_go_behavior_reports_non_applicable_source_without_crediting_it(
         )
         return subprocess.CompletedProcess(command, 0, '{"Action":"pass","Test":"TestLive"}\n', "")
 
-    monkeypatch.setattr(native_quality, "_executable", lambda name: name)
+    monkeypatch.setattr(native_quality, "_executable", lambda _root, name: name)
     monkeypatch.setattr(
         native_quality,
         "_go_package_sources",
-        lambda _root, _production: {
+        lambda _root, _production, _native: {
             "example.invalid/quality/live.go": "live.go",
             "example.invalid/quality/empty.go": "empty.go",
         },

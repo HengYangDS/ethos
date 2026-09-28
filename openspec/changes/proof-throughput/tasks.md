@@ -100,7 +100,7 @@
 - [x] 7.10 Compile shared CI declarations through native CUE and remove independent template authority; exact local proof and installed parity passed.
 - [ ] 7.11 Qualify both CUE-generated Forge projections through current hosted runs.
   - [x] 7.11.1 Qualify compatible operator mise supply and native PowerShell environment isolation through exact source and runtime delivery.
-  - [ ] 7.11.2 Qualify the GitHub-hosted-only matrix and source-derived emulator mapping; retire dedicated-runner and inherited-hook projections, verify GitLab digest-bound supply, and distinguish the bootstrap transport failure in 5.11 from version admission and ACL conformance.
+  - [ ] 7.11.2 Qualify the GitHub-hosted-only matrix and source-derived emulator mapping; retire dedicated-runner and inherited-hook projections, verify GitLab digest-bound supply, and distinguish the bootstrap transport failure in 5.11 from version admission and ACL conformance. Fault-test each selected Forge's complete required graph on a cold runner while the peer's registry and release endpoints are unavailable; current ETHOS and AIGW GitLab images depend on GHCR.
 - [ ] 7.12 Qualify semantic CI job partitions and native successful-pipeline merge enforcement.
 - [ ] 7.13 Qualify runner capacity and dependent-pipeline observation with bounded acquire, terminal readback and original-state restoration; distinguish paused, offline and tag mismatch without repository-specific VM control.
 
@@ -158,7 +158,7 @@
 - [ ] 11.8 Converge root configuration placement with native discovery, hook and CI consumer evidence; remove replaced declarations and stale documentation.
 - [ ] 11.9 Verify declaration-to-consumer wiring with disconnected, misbound and unavailable-capability cases through public entrypoints; preserve adverse results through receipt and admission.
   - [ ] 11.9.1 Qualify carrier-role and native-discovery applicability, including frozen provenance, generated build inputs, explicit selection, missing discovery and unauthorized relabeling; preserve integrity obligations without language or directory-name exceptions.
-  - [ ] 11.9.2 Compile the common quality floor through the existing rule, profile and gate owners; verify empty and false evidence, conjunctive per-subject native evidence without duplicate execution, code/document/release applicability and trusted-prior preservation at public adopter and installed boundaries.
+  - [ ] 11.9.2 Compile the common quality floor through the existing rule, profile and gate owners; verify empty and false evidence, conjunctive per-subject native evidence without duplicate execution, source versus artifact-qualified test inputs, code/document/release applicability and trusted-prior preservation at public adopter and installed boundaries.
 - [x] 11.10 Verify native TOML and mise migrations through focused native checks, exact-source full proof and installed runtime.
 
 ## 12. Documentation Comprehension and Research Delivery

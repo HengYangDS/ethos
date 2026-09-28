@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -10,6 +11,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.gates.code_quality as native_quality
+import ethos.adapters.toolchain.mise as native_mise
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
@@ -113,11 +115,11 @@ def test_failed_native_go_check_retains_actionable_process_evidence(
             'if Answer() != 42 { t.Fatal("wrong answer") } }\n',
         },
     )
-    monkeypatch.setattr(native_quality, "_executable", lambda name: name)
+    monkeypatch.setattr(native_quality, "_executable", lambda _root, name: name)
     monkeypatch.setattr(
         native_quality,
         "_go_package_sources",
-        lambda _root, _production: {"example.invalid/quality/answer.go": "answer.go"},
+        lambda _root, _production, _native: {"example.invalid/quality/answer.go": "answer.go"},
     )
 
     def fail_command(root: Path, command: tuple[str, ...], **_kwargs: object):
@@ -174,6 +176,103 @@ def test_public_adopter_proof_reports_native_go_test_failure(tmp_path: Path) -> 
     assert failure["code"] == "go_tests_failed"
     assert failure["observation"]["exit_code"] != 0
     assert "wrong answer" in failure["observation"]["stdout_tail"]
+
+
+@pytest.mark.parametrize(
+    ("sources", "tool_line", "names"),
+    [
+        (
+            {
+                "go.mod": "module example.invalid/quality\n\ngo 1.20\n",
+                "answer.go": "package quality\nfunc Answer() int { return 42 }\n",
+            },
+            'go = "1.27.1"',
+            ("gofmt", "go"),
+        ),
+        (
+            {"package.json": '{"type":"module"}\n', "answer.js": "export const answer = 42;\n"},
+            'node = "26.9.0"',
+            ("node",),
+        ),
+    ],
+    ids=("go", "node"),
+)
+def test_declared_mise_supply_precedes_ambient_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    sources: dict[str, str],
+    tool_line: str,
+    names: tuple[str, ...],
+) -> None:
+    """A repository's locked tool selection, not host PATH, owns native checks."""
+    config = f"[tools]\n{tool_line}\n"
+    repo = committed_source_repo(
+        tmp_path,
+        {
+            **sources,
+            "mise.toml": config,
+            "mise.lock": "lockfile_version = 2\n",
+        },
+    )
+    binary = tmp_path / "locked-bin"
+    binary.mkdir()
+    for name in (*names, "cue", "rcodesign"):
+        executable = binary / name
+        executable.write_text("locked tool\n")
+        executable.chmod(0o755)
+    selected: list[str] = []
+    executed: list[tuple[str, ...]] = []
+
+    def select(_root: Path, arguments: tuple[str, ...], **kwargs: object):
+        assert kwargs["offline"] is True
+        assert kwargs["files"] == {
+            native_mise.MISE_CONFIG: config,
+            native_mise.MISE_LOCK: "lockfile_version = 2\n",
+        }
+        if arguments == ("env", "--json"):
+            selected.append("env")
+            return subprocess.CompletedProcess(arguments, 0, json.dumps({"PATH": str(binary)}), "")
+        if arguments == ("bin-paths",):
+            selected.append("bin-paths")
+            return subprocess.CompletedProcess(arguments, 0, f"{binary}\n", "")
+        selected.append(arguments[1])
+        return subprocess.CompletedProcess(arguments, 0, f"{binary / arguments[1]}\n", "")
+
+    def execute(_root: Path, command: tuple[str, ...], **kwargs: object):
+        environment = kwargs["env"]
+        assert isinstance(environment, dict)
+        path = environment["PATH"]
+        assert isinstance(path, str)
+        assert path.split(os.pathsep)[0] == str(binary)
+        assert shutil.which("cue", path=path) == str(binary / "cue")
+        assert shutil.which("rcodesign", path=path) == str(binary / "rcodesign")
+        executed.append(command)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(native_mise, "run_mise", select)
+    monkeypatch.setattr(native_quality, "run_command", execute)
+
+    report = native_quality.static_report(repo)
+
+    assert report["verdict"] == "pass", report
+    assert selected == ["env", "bin-paths", *names]
+    assert [Path(command[0]) for command in executed] == [binary / name for name in names]
+
+
+def test_declared_mise_without_lock_does_not_use_ambient_go(tmp_path: Path) -> None:
+    """A missing repository lock is a supply gap, not host-tool permission."""
+    repo = committed_source_repo(
+        tmp_path,
+        {
+            "go.mod": "module example.invalid/quality\n\ngo 1.20\n",
+            "answer.go": "package quality\nfunc Answer() int { return 42 }\n",
+            "mise.toml": '[tools]\ngo = "1.27.1"\n',
+        },
+    )
+
+    assert native_quality.static_report(repo)["required_gaps"] == [
+        "quality_static-analysis_locked_toolchain_missing"
+    ]
 
 
 @pytest.mark.parametrize("language", ["go", "javascript"])

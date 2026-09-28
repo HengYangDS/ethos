@@ -12,6 +12,7 @@ import pytest
 
 import ethos.adapters.gates.runner as gate_runner
 import ethos.adapters.gates.tool as gate_tool
+import ethos.adapters.gates.verification as gate_verification
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_policy_fields
@@ -31,7 +32,7 @@ def _node(gate: Gate) -> PlanNode:
 
 def _runner(monkeypatch, **providers: object) -> gate_runner.LocalGateRunner:
     monkeypatch.setattr(
-        gate_runner.importlib, "import_module", lambda _: SimpleNamespace(**providers)
+        gate_verification.importlib, "import_module", lambda _: SimpleNamespace(**providers)
     )
     return gate_runner.LocalGateRunner()
 
@@ -113,6 +114,68 @@ def test_verified_command_conjoins_native_and_product_results(
     assert (result.verification is not None) == bool(expected_calls)
 
 
+def test_verified_command_passes_its_exact_execution_to_product_verifier(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One product verifier can inspect native output without running the command again."""
+    calls: list[gate_verification.NativeExecution] = []
+    marker = tmp_path / "runs"
+
+    def report(root: Path, *, execution: gate_verification.NativeExecution) -> dict[str, str]:
+        assert root == tmp_path
+        calls.append(execution)
+        return {"verdict": "pass"}
+
+    script = "; ".join(
+        (
+            "from pathlib import Path",
+            "import sys",
+            f"p = Path({str(marker)!r})",
+            'p.write_text((p.read_text() if p.exists() else "") + "x")',
+            'print("native-case")',
+            'print("native-note", file=sys.stderr)',
+        )
+    )
+    gate = Gate(
+        id="gate",
+        kind="test",
+        command=(sys.executable, "-c", script),
+        verification_providers=("ethos.test:report",),
+    )
+
+    result = _runner(monkeypatch, report=report).run(_node(gate), gate, root=tmp_path)
+
+    assert result.verdict == "pass"
+    assert len(calls) == 1
+    assert calls[0].argv == gate.command
+    assert calls[0].declared_identity == _node(gate).command
+    assert calls[0].cwd == tmp_path
+    assert (calls[0].stdout, calls[0].stderr, calls[0].exit_code) == (
+        "native-case\n",
+        "native-note\n",
+        0,
+    )
+    assert marker.read_text() == "x"
+
+
+def test_provider_only_cannot_receive_a_nonexistent_native_execution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Execution evidence is available only after an actual selected command."""
+    seen: list[gate_verification.NativeExecution] = []
+
+    def report(_root: Path, *, execution: gate_verification.NativeExecution) -> dict[str, str]:
+        seen.append(execution)
+        return {"verdict": "pass"}
+
+    gate = _gate("ethos.test:report")
+    result = _runner(monkeypatch, report=report).run(_node(gate), gate, root=tmp_path)
+
+    assert result.verdict == "block"
+    assert seen == []
+    assert result.diagnostics[0]["kind"] == "gate_provider_error"
+
+
 def test_verified_command_ignores_forged_provider_stdout(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -126,7 +189,9 @@ def test_verified_command_ignores_forged_provider_stdout(
         command=(sys.executable, "-c", f"print({payload!r})"),
         verification_providers=("ethos.test:missing",),
     )
-    monkeypatch.setattr(gate_runner.importlib, "import_module", lambda _name: SimpleNamespace())
+    monkeypatch.setattr(
+        gate_verification.importlib, "import_module", lambda _name: SimpleNamespace()
+    )
 
     result = gate_runner.LocalGateRunner().run(_node(gate), gate, root=tmp_path)
 

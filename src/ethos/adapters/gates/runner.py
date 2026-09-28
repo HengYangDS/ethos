@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import importlib
-import inspect
 import json
 import os
 import subprocess
-from collections.abc import Mapping
 from concurrent.futures import FIRST_COMPLETED
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait
@@ -20,14 +17,15 @@ from pathlib import Path
 from time import monotonic
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import cast
 
 import ethos
+from ethos.adapters.gates.verification import NativeExecution
+from ethos.adapters.gates.verification import diagnostic_gaps_for
+from ethos.adapters.gates.verification import provider_reports
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import command_scope
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
-from ethos.adapters.repo.git import current_head
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
@@ -36,7 +34,6 @@ from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.proof.plan import execution_source_gaps
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import execution_succeeded
-from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.gates import PRODUCT_PROVIDER_SOURCE
@@ -45,6 +42,7 @@ from ethos.repository.policy.gates import source_paths_for_gate
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from collections.abc import Mapping
 
     from ethos.contracts.gates import Gate
     from ethos.contracts.plan import PlanNode
@@ -89,7 +87,7 @@ def classify_action_result(
         )
     required_gaps = string_sequence(payload.get("required_gaps"), drop_empty=True)
     warnings = string_sequence(payload.get("warnings"), drop_empty=True)
-    diagnostic_gaps = _diagnostic_gaps(payload.get("diagnostics"), "ethos_result")
+    diagnostic_gaps = diagnostic_gaps_for(payload.get("diagnostics"), "ethos_result")
     gaps = tuple(dict.fromkeys((*required_gaps, *diagnostic_gaps)))
     verdict = report_verdict(payload)
     if verdict == "pass":
@@ -161,20 +159,36 @@ class LocalGateRunner:
             exit_code=completed.returncode,
             stdout=completed.stdout,
         )
-        verification: dict[str, object] | None = None
-        if verdict == "pass" and gate.verification_providers:
-            reports, verdict, provider_diagnostics = _provider_reports(
-                gate.id, gate.verification_providers, root
-            )
-            verification = {"gate": gate.id, "providers": reports}
-            diagnostics = (*diagnostics, *provider_diagnostics)
-        return ActionRunResult(
+        execution = ActionRunResult(
             action_id=node.id,
             command=node.command,
             verdict=verdict,
-            exit_code=completed.returncode if verification is None else int(verdict != "pass"),
+            exit_code=completed.returncode,
             stdout=completed.stdout,
             stderr=completed.stderr,
+            diagnostics=diagnostics,
+        )
+        verification: dict[str, object] | None = None
+        if verdict == "pass" and gate.verification_providers:
+            reports, verdict, provider_diagnostics = provider_reports(
+                gate.id,
+                gate.verification_providers,
+                root,
+                execution=NativeExecution(
+                    declared_identity=node.command,
+                    argv=command,
+                    cwd=root.resolve(),
+                    exit_code=completed.returncode,
+                    stdout=completed.stdout,
+                    stderr=completed.stderr,
+                ),
+            )
+            verification = {"gate": gate.id, "providers": reports}
+            diagnostics = (*diagnostics, *provider_diagnostics)
+        return replace(
+            execution,
+            verdict=verdict,
+            exit_code=completed.returncode if verification is None else int(verdict != "pass"),
             diagnostics=diagnostics,
             verification=verification,
         )
@@ -391,70 +405,8 @@ def _run_ready_gate(
     )
 
 
-def _provider_reports(
-    gate_id: str, references: tuple[str, ...], root: Path
-) -> tuple[list[dict[str, object]], Verdict, tuple[dict[str, Any], ...]]:
-    """Execute the same product-owned provider contract for either gate form."""
-    reports: list[dict[str, object]] = []
-    diagnostics: list[dict[str, Any]] = []
-    verdicts: list[Verdict] = []
-    for reference in references:
-        try:
-            report = _provider_report(reference, root)
-        except (
-            AttributeError,
-            ImportError,
-            OSError,
-            RuntimeError,
-            subprocess.SubprocessError,
-            TypeError,
-            ValueError,
-        ) as exc:
-            diagnostics.append(
-                {
-                    "kind": "gate_provider_error",
-                    "provider": reference,
-                    "error": f"{type(exc).__name__}: {exc}",
-                    "required_gaps": [f"gate_provider_error:{gate_id}:{reference}"],
-                }
-            )
-            continue
-        reports.append({"provider": reference, "report": dict(report)})
-        gaps = string_sequence(report.get("required_gaps"), drop_empty=True)
-        warnings = string_sequence(report.get("warnings"), drop_empty=True)
-        warning_gaps = tuple(
-            f"gate_provider_warning:{gate_id}:{reference}:{warning}" for warning in warnings
-        )
-        diagnostic_gaps = _diagnostic_gaps(
-            report.get("diagnostics"), f"gate_provider_diagnostic:{gate_id}:{reference}"
-        )
-        provider_gaps = tuple(dict.fromkeys((*gaps, *warning_gaps, *diagnostic_gaps)))
-        verdict = report_verdict(
-            {
-                **report,
-                "required_gaps": provider_gaps,
-            }
-        )
-        if verdict == "block" and not provider_gaps:
-            provider_gaps = (f"gate_provider_blocked:{gate_id}:{reference}",)
-        elif verdict == "unknown" and not provider_gaps:
-            provider_gaps = (f"gate_provider_unknown:{gate_id}:{reference}",)
-        verdicts.append(verdict)
-        if verdict != "pass":
-            diagnostics.append(
-                {
-                    "kind": "gate_provider",
-                    "provider": reference,
-                    "verdict": verdict,
-                    "required_gaps": list(provider_gaps),
-                }
-            )
-    verdict = reduce_verdicts(*verdicts) if len(reports) == len(references) else "block"
-    return reports, verdict, tuple(diagnostics)
-
-
 def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
-    reports, verdict, diagnostics = _provider_reports(gate.id, gate.providers, root)
+    reports, verdict, diagnostics = provider_reports(gate.id, gate.providers, root)
     payload = {"verdict": verdict, "gate": gate.id, "providers": reports}
     return ActionRunResult(
         action_id=node.id,
@@ -464,33 +416,6 @@ def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
         stdout=json.dumps(payload, sort_keys=True, separators=(",", ":")),
         diagnostics=diagnostics,
     )
-
-
-def _diagnostic_gaps(value: object, prefix: str) -> tuple[str, ...]:
-    if not isinstance(value, (list, tuple)):
-        return ()
-    gaps = []
-    for item in value:
-        if not isinstance(item, Mapping):
-            continue
-        severity = str(item.get("severity", "")).lower()
-        if severity not in {"warning", "error"}:
-            continue
-        message = str(item.get("message") or item.get("code") or severity)
-        gaps.append(f"{prefix}:{severity}:{message}")
-    return tuple(gaps)
-
-
-def _provider_report(reference: str, root: Path) -> Mapping[str, object]:
-    module_name, _, attribute = reference.partition(":")
-    provider = getattr(importlib.import_module(module_name), attribute)
-    parameters = inspect.signature(provider).parameters
-    kwargs = {"current_head": current_head(root)} if "current_head" in parameters else {}
-    value = provider(root, **kwargs)
-    if not isinstance(value, Mapping):
-        message = f"gate provider must return a mapping: {reference}"
-        raise TypeError(message)
-    return cast("Mapping[str, object]", value)
 
 
 def assert_provider_execution_source(root: Path, gates: tuple[Gate, ...]) -> None:

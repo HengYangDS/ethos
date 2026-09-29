@@ -459,8 +459,8 @@ Documentation follows reader purpose and semantic ownership:
 `docs/README.md` is its entrypoint, `docs/guides/quickstart.md` the first-run
 route, and a directory README explains a real boundary or navigates multiple
 substantive children. `docs/decisions/` keeps only irreducible cross-Change
-alternatives, consequences and revisit conditions. Each record has a stable
-numbered identity, semantic name, current owner and retirement condition. Evidence
+alternatives, consequences and revisit conditions. Decision names are lowercase
+and semantic; each record has an owner and retirement condition. Evidence
 survives only with a producer, consumer, exact binding and retention lifecycle.
 Attestations retain results, Git retains history, and current owners retain
 still-valid obligations.

@@ -45,6 +45,13 @@ relations: {}
 # Guide
 ```
 
+For active/canonical non-observational pages, the portable reader floor is a
+visible H1 and non-empty text outside headings and code fences, not fixed
+English `Status`, `Purpose`, or `See also` labels. An authored `Status:` claim
+must not be empty or contradict `state`. Evidence and history may omit reader
+guidance, but the commented carrier still requires its H1 first. This structural
+floor does not certify that the text is useful or understood.
+
 `ethos prove --gate docs-registry --json` is the reader-facing and machine
 quality entrypoint.
 Missing metadata is a required gap because agents need to distinguish canonical

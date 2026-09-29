@@ -15,7 +15,6 @@ from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.registry.docs.links import markdown_links
 from ethos.repository.registry.docs.registry import DEFAULT_ALLOWED_STATES
 from ethos.repository.registry.docs.registry import REQUIRED_FIELDS
-from ethos.repository.registry.docs.registry import VISIBLE_SECTION_LABELS
 from ethos.repository.registry.docs.registry import allowed_roles
 from ethos.repository.registry.docs.registry import allowed_states
 from ethos.repository.registry.docs.registry import build_docs_registry
@@ -199,41 +198,57 @@ def readme_disposition_gaps(root: Path, registry: list[dict[str, Any]]) -> list[
 
 
 def visible_section_gaps_for_registry(root: Path, registry: list[dict[str, Any]]) -> list[str]:
-    """Return missing visible-section gaps for active/canonical docs."""
+    """Require readable content without imposing ETHOS-specific prose labels."""
     gaps: list[str] = []
     for entry in registry:
-        if not requires_visible_sections(entry):
-            continue
         path = root / entry["path"]
         text = path.read_text(encoding="utf-8")
+        commented = text.startswith("<!--\n")
+        reader_guidance = requires_reader_guidance(entry)
+        if not commented and not reader_guidance:
+            continue
         body = text.split("\n---", 1)[1] if text.startswith("---\n") else text
         tokens = MarkdownIt("commonmark").parse(body)
-        if text.startswith("<!--\n") and (
+        if commented and (
             len(tokens) < 2
             or tokens[0].type != "html_block"
             or tokens[1].type != "heading_open"
             or tokens[1].tag != "h1"
         ):
             gaps.append(f"docs_title_not_first:{entry['path']}")
-        paragraphs = [token.content for token in tokens if token.type == "inline"]
-        gaps.extend(
-            f"missing_visible_section:{entry['path']}:{label[:-1].lower()}"
-            for label in VISIBLE_SECTION_LABELS
-            if not any(
-                paragraph.startswith(label) and paragraph.removeprefix(label).strip()
-                for paragraph in paragraphs
-            )
-        )
-        for paragraph in paragraphs:
-            if paragraph.startswith("Status:"):
-                visible = paragraph.removeprefix("Status:").strip().partition(" ")[0].rstrip(".;,")
-                if visible in DEFAULT_ALLOWED_STATES and visible != entry.get("state"):
-                    gaps.append(f"docs_visible_state_conflict:{entry['path']}:{visible}")
+        if not reader_guidance:
+            continue
+        if not any(token.type == "heading_open" and token.tag == "h1" for token in tokens):
+            gaps.append(f"docs_visible_title_missing:{entry['path']}")
+        paragraphs = [
+            token.content
+            for index, token in enumerate(tokens)
+            if token.type == "inline" and (index == 0 or tokens[index - 1].type != "heading_open")
+        ]
+        if not any(paragraph.strip() for paragraph in paragraphs):
+            gaps.append(f"docs_visible_guidance_missing:{entry['path']}")
+        gaps.extend(_visible_state_gaps(paragraphs, entry))
     return gaps
 
 
-def requires_visible_sections(entry: dict[str, Any]) -> bool:
-    """Return whether a registry entry must expose visible docs sections."""
+def _visible_state_gaps(paragraphs: list[str], entry: dict[str, Any]) -> list[str]:
+    """Keep an authored status claim consistent with its structured state."""
+    gaps = []
+    for paragraph in paragraphs:
+        if not paragraph.startswith("Status:"):
+            continue
+        statement = paragraph.removeprefix("Status:").strip()
+        if not statement:
+            gaps.append(f"docs_visible_status_empty:{entry['path']}")
+            continue
+        visible = statement.partition(" ")[0].rstrip(".;,")
+        if visible in DEFAULT_ALLOWED_STATES and visible != entry.get("state"):
+            gaps.append(f"docs_visible_state_conflict:{entry['path']}:{visible}")
+    return gaps
+
+
+def requires_reader_guidance(entry: dict[str, Any]) -> bool:
+    """Return whether an active document needs title and visible reader guidance."""
     return (
         entry.get("state", "") in {"canonical", "active"}
         and entry.get("role", "") not in OBSERVATIONAL_ROLES
@@ -246,7 +261,7 @@ def command_example_gaps(
     command_validator: Callable[[list[str]], str],
 ) -> list[str]:
     """Return active-doc examples absent from the live Cyclopts operation tree."""
-    active_paths = {entry["path"] for entry in registry if requires_visible_sections(entry)}
+    active_paths = {entry["path"] for entry in registry if requires_reader_guidance(entry)}
     gaps: list[str] = []
     for relative_path in sorted(active_paths):
         path = root / relative_path

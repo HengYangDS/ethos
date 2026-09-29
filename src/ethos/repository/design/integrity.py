@@ -234,12 +234,12 @@ def design_integrity_report(
     }
 
 
-def front_matter_ok(path: Path) -> bool:
+def front_matter_ok(path: Path, *, allow_html_comment: bool = False) -> bool:
     """Return whether a required governance document has the ETHOS front matter."""
     if not path.exists():
         return False
     try:
-        header = front_matter(path)
+        header = front_matter(path, allow_html_comment=allow_html_comment)
     except ValueError:
         return False
     return all(key in header for key in ("subject", "role", "state", "relations"))

@@ -75,6 +75,22 @@ def test_design_integrity_uses_supplied_tracked_documents_as_authority(
     assert "docs/rogue.md" not in report["references"]
 
 
+def test_system_axioms_do_not_inherit_docs_only_comment_syntax(tmp_path: Path) -> None:
+    """The title-first docs carrier cannot silently weaken axiom derivation."""
+    for relative in DESIGN_DOCUMENTS:
+        destination = tmp_path / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / relative, destination)
+    axiom = tmp_path / "system/axioms.md"
+    metadata, delimiter, body = axiom.read_text().partition("\n---\n")
+    assert delimiter
+    axiom.write_text(f"<!--\n{metadata}\n---\n-->{body}")
+
+    report = design_integrity_report(tmp_path, tracked_documents=DESIGN_DOCUMENTS)
+
+    assert report["required_gaps"] == ["design_axioms_derivation_metadata_invalid"]
+
+
 def test_current_change_uses_only_the_official_openspec_artifact_shape() -> None:
     changes = _active_change_carriers()
 

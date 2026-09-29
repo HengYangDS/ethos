@@ -68,18 +68,32 @@ class _UniqueSafeLoader(yaml.SafeLoader):
         return super().construct_mapping(node, deep=deep)
 
 
-def front_matter(path: Path) -> dict[str, Any]:
-    """Read native YAML metadata without flattening its structured values."""
+def front_matter(path: Path, *, allow_html_comment: bool = False) -> dict[str, Any]:
+    """Read one YAML payload; only selected docs may hide it from Markdown rendering."""
     text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
-    if not lines or lines[0] != "---":
+    if not lines:
         return {}
+    commented = allow_html_comment and lines[0] == "<!--"
+    if lines[0] != "---" and not commented:
+        return {}
+    start = 2 if commented else 1
+    if commented and lines[1:2] != ["---"]:
+        message = f"docs_metadata_invalid:{path}:syntax"
+        raise ValueError(message)
     try:
-        end = lines.index("---", 1)
-        payload = yaml.load("\n".join(lines[1:end]), Loader=_UniqueSafeLoader)
+        end = lines.index("---", start)
+        payload_text = "\n".join(lines[start:end])
+        payload = yaml.load(payload_text, Loader=_UniqueSafeLoader)
     except (ValueError, yaml.YAMLError) as exc:
         message = f"docs_metadata_invalid:{path}:syntax"
         raise ValueError(message) from exc
+    if commented and lines[end + 1 : end + 2] != ["-->"]:
+        message = f"docs_metadata_invalid:{path}:syntax"
+        raise ValueError(message)
+    if commented and any(marker in payload_text for marker in ("-->", "--!>")):
+        message = f"docs_metadata_invalid:{path}:syntax"
+        raise ValueError(message)
     if not isinstance(payload, dict) or not all(isinstance(key, str) for key in payload):
         message = f"docs_metadata_invalid:{path}:mapping"
         raise ValueError(message)
@@ -93,7 +107,7 @@ def build_docs_registry(root: Path) -> list[dict[str, Any]]:
     for path in sorted(docs_root(root).rglob("*.md")):
         relative = path.relative_to(root).as_posix()
         try:
-            metadata = front_matter(path)
+            metadata = front_matter(path, allow_html_comment=True)
         except ValueError as exc:
             message = f"docs_metadata_invalid:{relative}:syntax"
             raise ValueError(message) from exc

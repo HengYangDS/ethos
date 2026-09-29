@@ -25,6 +25,26 @@ Subject, Role, State, and Relation metadata in front matter. Skills, OpenSpec,
 system contracts, and distribution files retain their own consumers; registry
 metadata outside the selected root grants no authority.
 
+A selected page may enclose that same YAML payload in a leading HTML comment
+when its title must render first on a Forge. Both carriers enter the same parser;
+the commented form requires an H1 as its first visible block. An incomplete
+wrapper, invalid YAML, or premature HTML comment terminator blocks rather than
+becoming an empty declaration. This does not change OpenSpec, Skills, or
+system-axiom syntax:
+
+```markdown
+<!--
+---
+subject: example:guide
+role: how-to
+state: active
+relations: {}
+---
+-->
+
+# Guide
+```
+
 `ethos prove --gate docs-registry --json` is the reader-facing and machine
 quality entrypoint.
 Missing metadata is a required gap because agents need to distinguish canonical
@@ -178,9 +198,8 @@ without replacing native acceptance; see the
 Acceptance covers rendered reading, raw Markdown and agent retrieval: find the
 current rule, rationale, limitations and supported next action. Measure correct
 answers, source selection, context volume, backtracking and time, not file
-length or graph coverage alone. Current parser, relationship and visible-status
-defects remain tracked in the existing Change; this contract does not claim
-that every check already enforces these outcomes.
+length or graph coverage alone. A passing parser or report alone does not
+certify reader comprehension or remote rendering.
 
 ## Directory entrypoint rule
 

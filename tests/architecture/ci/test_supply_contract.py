@@ -5,11 +5,13 @@ from __future__ import annotations
 import hashlib
 import shlex
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
 
 from ethos.adapters.process import run_command
+from tools.ci.toolchain import fixture_supply
 
 ROOT = Path(__file__).resolve().parents[3]
 DOCKERFILE = ROOT / ".config/ci/supply/Dockerfile"
@@ -49,12 +51,66 @@ def test_hosted_bootstrap_rechecks_cached_tools_with_current_checkout_code() -> 
     source = BOOTSTRAP.read_text(encoding="utf-8")
     assert "tools/ci/toolchain/native.py --root" in source
     installation = source.index("uv sync --locked --group dev")
+    fixture_supply = source.index("tools/ci/toolchain/fixture_supply.py")
     verifier = source.index("tools/ci/toolchain/native.py --root")
-    assert installation < verifier < source.index("python_image_available()")
+    assert installation < fixture_supply < verifier < source.index("python_image_available()")
     guarded = source[installation : source.index("python_image_available()")]
+    assert "tools/ci/toolchain/fixture_supply.py" in guarded
     assert "ETHOS_CI_SUPPLY_MANIFEST" in guarded
     assert "--mise gitleaks scc syft" in guarded
     assert "${UV_PROJECT_ENVIRONMENT}/bin/python" in guarded
+
+
+def test_fixture_supply_uses_tracked_locks_and_cleans_owned_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    assert run_command(root, ("git", "init", "--quiet"), timeout=10).returncode == 0
+    tracked = root / "tests/fixtures/quality-sample"
+    ignored = root / "tests/fixtures/untracked"
+    for directory in (tracked, ignored):
+        directory.mkdir(parents=True)
+        (directory / "uv.lock").write_text("version = 1\n")
+        (directory / "pyproject.toml").write_text('[project]\nname = "sample"\n')
+    staged = run_command(root, ("git", "add", str(tracked.relative_to(root))), timeout=10)
+    assert staged.returncode == 0
+
+    calls: list[tuple[tuple[str, ...], Path, str]] = []
+
+    def observe(_root, command, **options):
+        environment = options["env"]
+        owned = Path(environment["UV_PROJECT_ENVIRONMENT"])
+        owned.mkdir(parents=True)
+        calls.append((tuple(command), owned, environment["UV_OFFLINE"]))
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setenv("UV_OFFLINE", "true")
+    monkeypatch.setattr(fixture_supply, "run_command", observe)
+    fixture_supply.provision(root)
+
+    assert len(calls) == 1
+    command, owned, offline = calls[0]
+    assert str(tracked) in command
+    assert {"--no-config", "--locked", "--no-install-project", "dev"} <= set(command)
+    assert offline == "true"
+    assert not owned.exists()
+
+    failed_owned: list[Path] = []
+
+    def reject(_root, command, **options):
+        path = Path(options["env"]["UV_PROJECT_ENVIRONMENT"])
+        path.mkdir(parents=True)
+        failed_owned.append(path)
+        return subprocess.CompletedProcess(command, 1, "", "missing coverage wheel")
+
+    monkeypatch.setattr(fixture_supply, "run_command", reject)
+    with pytest.raises(
+        RuntimeError, match=r"ci_fixture_supply_failed:tests/fixtures/quality-sample/uv\.lock"
+    ):
+        fixture_supply.provision(root)
+    assert not failed_owned[0].exists()
+    assert "missing coverage wheel" in capsys.readouterr().err
 
 
 def test_os_supply_is_pinned_in_the_image_owner() -> None:

@@ -1,4 +1,0 @@
-schema: spec-driven
-created: 2026-07-19
-goal: Keep bounded coordination aggregation deferred even when no foreign Work
-  Lane is visible

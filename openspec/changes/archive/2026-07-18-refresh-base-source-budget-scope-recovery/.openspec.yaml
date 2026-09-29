@@ -1,4 +1,0 @@
-schema: spec-driven
-created: 2026-07-18
-goal: Preserve the candidate global-compression implementation when replaying an
-  obsolete duplicate source-budget correction.

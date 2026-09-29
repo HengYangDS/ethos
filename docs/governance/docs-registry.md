@@ -79,8 +79,12 @@ Superseded documents live only as explicit `docs/history/` carriers. Current
 architecture, governance, reference, guides, and plan surfaces must not retain
 redirect or locator pages for retired concepts; they link directly to the
 historical carrier when historical context is necessary. Retirement removes
-only the redundant current-surface carrier, never immutable OpenSpec archives
-or historical evidence bytes.
+redundant current-surface carriers. Official OpenSpec archive bytes remain
+immutable at their Git revisions; their presence in the latest tree is not a
+permanent retention requirement or current authority. Retire an unconsumed
+current-tree copy only after canonical specs, exact proof bindings, incoming
+links, and Git recovery are checked. Age alone is not a retention or deletion
+rule.
 
 ## Semantic Authority And Carrier Boundaries
 

@@ -1,4 +1,0 @@
-schema: spec-driven
-created: 2026-07-13
-goal: Replace the Python type-diagnostic ratchet with fail-closed zero-tolerance
-  enforcement for every governed ETHOS package.

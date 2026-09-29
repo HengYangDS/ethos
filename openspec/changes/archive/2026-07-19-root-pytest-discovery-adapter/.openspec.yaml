@@ -1,4 +1,0 @@
-schema: spec-driven
-created: 2026-07-19
-goal: Route bare root pytest and IDE discovery cache to the semantic pytest
-  cache without duplicating test policy.

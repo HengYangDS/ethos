@@ -190,10 +190,6 @@ def test_semantic_capabilities_keep_their_existing_authority_boundaries() -> Non
         assert "Only `Attestation` persists." in (ROOT / relative).read_text(encoding="utf-8")
         assert "`Commitment` is transient" in (ROOT / relative).read_text(encoding="utf-8")
 
-    lineage_spec = ROOT / "openspec/changes/archive/2026-08-22-change-lineage-dag"
-    assert (lineage_spec / "specs/contracts/spec.md").is_file()
-    assert (lineage_spec / "specs/repository-governance/spec.md").is_file()
-
     tracked = subprocess.check_output(
         ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
         cwd=ROOT,

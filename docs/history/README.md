@@ -23,10 +23,23 @@ not a current-state ledger or another evidence store.
 
 | Need | Canonical record |
 | --- | --- |
-| Completed change carriers and their closeout material | [OpenSpec archive](../../openspec/changes/archive/) |
+| Change carriers retained in the current tree | [OpenSpec archive](../../openspec/changes/archive/) |
 | Retired fixed-path documentation topology | [Documentation Topology Contract, 2026-07-08](docs-topology-contract-20260708.md) |
-| External-adopter observation on 2026-07-14 | [Official Change archive](../../openspec/changes/archive/2026-07-14-current-candidate-head-real-adopter-evidence/) |
-| External-adopter observation on 2026-07-13 | [Official Change archive](../../openspec/changes/archive/2026-07-13-current-product-head-real-adopter-evidence/) |
+| Retired current-tree Change carriers | Recover their exact Git revision as described below; current behavior belongs to [canonical specs](../../openspec/specs/). |
+
+An archived Change is history, not a source of current requirements. The
+accepted `97196e96dd115f430e8dbb72af39f50b71d98a90` snapshot retains every
+pre-September 2026 archived carrier. Once its current-tree copy retires,
+inspect the selected object at that exact historical revision:
+
+```bash
+git ls-tree -r 97196e96dd115f430e8dbb72af39f50b71d98a90 -- openspec/changes/archive/
+git show 97196e96dd115f430e8dbb72af39f50b71d98a90:openspec/changes/archive/2026-07-13-current-product-head-real-adopter-evidence/proposal.md
+```
+
+Verify the selected commit and path before using those bytes as historical
+evidence. Current-tree retirement requires Git reachability and recovery
+checks; this route gives old tasks and deltas no current authority.
 
 ## Historical Evidence Retrieval
 

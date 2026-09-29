@@ -17,8 +17,7 @@ without creating another authority.
 
 See also: [Research Overview](../modern-engineering-foundations.md),
 [Documentation Governance](../../governance/docs-registry.md),
-[Intent And Adoption](adoption.md), and
-[Terminal Plan](../../plans/terminal-governance-product-design.md#open-knowledge-format--bounded-adoption-assessment).
+[Intent And Adoption](adoption.md).
 
 ## Question And Conclusion
 

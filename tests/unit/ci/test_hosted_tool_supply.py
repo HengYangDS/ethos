@@ -97,6 +97,8 @@ def bootstrap_tools(tmp_path_factory: pytest.TempPathFactory) -> Path:
             "  *platform.python_version*) printf '3.14.7\\n' ;;\n"
             "  '-B -I -') cat >/dev/null\n"
             '    [ "$FIXTURE_IMAGE_STATE" = available ] || [ -f ../native-image ] ;;\n'
+            '  "-B -I tools/ci/toolchain/fixture_supply.py "*) '
+            'printf "%s\\n" "$4" >../fixture.log ;;\n'
             "  *) exit 2 ;;\nesac\n"
         ),
     }
@@ -172,6 +174,7 @@ def test_python_bootstrap_supplies_platform_prerequisites(
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
+    assert (tmp_path / "fixture.log").read_text() == f"{repo}\n"
     settings = git(repo, "config", "--local", "--list")
     assert (f"gpg.ssh.allowedsignersfile={anchor}" in settings) == (anchor_state == "declared")
     if anchor_state == "material":

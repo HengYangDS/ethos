@@ -37,11 +37,16 @@ def test_current_operational_dependency_retains_exact_generation(
     """All actual reference sources preserve the referenced generation bytes."""
     repo, hooks, runtime = _tree(tmp_path)
     needed = fixture_runtime_generation(runtime, "b" * 64)
-    if relation == "process":
-        monkeypatch.setattr(retirement, "process_commands", lambda _root: needed.as_posix())
-    elif relation == "config":
+    process_observations: list[Path] = []
+
+    def process_snapshot(observed_root: Path) -> str:
+        process_observations.append(observed_root)
+        return needed.as_posix() if relation == "process" else ""
+
+    monkeypatch.setattr(retirement, "process_commands", process_snapshot)
+    if relation == "config":
         git(repo, "config", "alias.runtime", f"!{needed}/python --version")
-    else:
+    elif relation in {"environment", "interpreter"}:
         environment = repo / ".venv"
         environment.mkdir()
         if relation == "environment":
@@ -58,6 +63,8 @@ def test_current_operational_dependency_retains_exact_generation(
         assert needed.as_posix() not in result["removed"]
         assert (needed / "payload").read_bytes() == original
         assert (runtime / "selected").read_bytes() == b"selected immutable payload"
+    assert process_observations
+    assert set(process_observations) == {repo}
 
 
 def test_source_cleanup_preserves_another_repositorys_selected_runtime(tmp_path: Path) -> None:

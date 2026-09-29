@@ -11,7 +11,6 @@ from typing import Any
 
 from markdown_it import MarkdownIt
 
-from ethos.adapters.repo.git import git_files
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.policy.projections import observe_projections
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -35,6 +34,7 @@ def docs_health_report(
     root: Path,
     *,
     command_validator: Callable[[list[str]], str] | None = None,
+    tracked_documents: tuple[str, ...] = (),
 ) -> dict[str, object]:
     """Report docs metadata, structure, and live-command-example health."""
     root = root.resolve()
@@ -76,7 +76,9 @@ def docs_health_report(
         )
         unindexed_plans = plan_index_gaps(root, registry)
         readme_disposition = readme_disposition_gaps(root, registry)
-        length_gaps = current_document_length_gaps(root, registry, generated_outputs)
+        length_gaps = current_document_length_gaps(
+            root, registry, generated_outputs, tracked_documents
+        )
         required_gaps = (
             missing
             + invalid_state
@@ -140,10 +142,13 @@ def empty_docs_health_report(gap: str) -> dict[str, object]:
 
 
 def current_document_length_gaps(
-    root: Path, registry: list[dict[str, Any]], generated_outputs: frozenset[str]
+    root: Path,
+    registry: list[dict[str, Any]],
+    generated_outputs: frozenset[str],
+    tracked_documents: tuple[str, ...],
 ) -> list[str]:
     """Bound authored Markdown, not official intent or owned generated output."""
-    paths = set(git_files(root, "*.md")) | {str(entry["path"]) for entry in registry}
+    paths = set(tracked_documents) | {str(entry["path"]) for entry in registry}
     gaps: list[str] = []
     for relative in sorted(paths - generated_outputs):
         if _official_openspec_carrier(relative):

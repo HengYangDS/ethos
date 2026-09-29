@@ -51,11 +51,35 @@ def source_git_identity(root: Path, *, include_overlay: bool = True) -> tuple[st
     if not include_overlay:
         tree = _git(root, "rev-parse", f"{commit}^{{tree}}", deadline=deadline)
     else:
-        with tempfile.TemporaryDirectory(prefix="ethos-source-index-") as directory:
-            environment = {"GIT_INDEX_FILE": str(Path(directory) / "index")}
-            _git(root, "read-tree", commit, env=environment, deadline=deadline)
-            _git(root, "add", "-A", env=environment, deadline=deadline)
-            tree = _git(root, "write-tree", env=environment, deadline=deadline)
+        clean = not _git(
+            root,
+            "status",
+            "--porcelain=v1",
+            "--untracked-files=all",
+            "--ignored=no",
+            deadline=deadline,
+        )
+        flags = _git(root, "ls-files", "-v", "-z", deadline=deadline) if clean else ""
+        ordinary = all(record.startswith("H ") for record in flags.split("\0") if record)
+        tree = ""
+        if clean and ordinary:
+            committed = _git(root, "rev-parse", f"{commit}^{{tree}}", deadline=deadline)
+            still_clean = not _git(
+                root,
+                "status",
+                "--porcelain=v1",
+                "--untracked-files=all",
+                "--ignored=no",
+                deadline=deadline,
+            )
+            if still_clean and flags == _git(root, "ls-files", "-v", "-z", deadline=deadline):
+                tree = committed
+        if not tree:
+            with tempfile.TemporaryDirectory(prefix="ethos-source-index-") as directory:
+                environment = {"GIT_INDEX_FILE": str(Path(directory) / "index")}
+                _git(root, "read-tree", commit, env=environment, deadline=deadline)
+                _git(root, "add", "-A", env=environment, deadline=deadline)
+                tree = _git(root, "write-tree", env=environment, deadline=deadline)
     if not _valid_git_identity(commit) or not _valid_git_identity(tree):
         message = "build_source_identity_invalid"
         raise ValueError(message)

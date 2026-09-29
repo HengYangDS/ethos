@@ -62,6 +62,50 @@ def test_content_policy_keeps_checkout_identity_host_portable(tmp_path: Path) ->
     )
 
 
+def test_clean_source_identity_avoids_materializing_an_overlay(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An unchanged source uses its exact committed tree without a scratch index."""
+    repository = _repository(tmp_path / "source", "base")
+    observed_git = source.run_git
+    commands: list[tuple[str, ...]] = []
+
+    def observe(root: Path, *args: str, **kwargs):
+        commands.append(args)
+        return observed_git(root, *args, **kwargs)
+
+    monkeypatch.setattr(source, "run_git", observe)
+    assert source.source_git_identity(repository) == (
+        git(repository, "rev-parse", "HEAD"),
+        git(repository, "rev-parse", "HEAD^{tree}"),
+    )
+    assert ("add", "-A") not in commands
+    assert ("write-tree",) not in commands
+
+
+def test_clean_source_shortcut_rechecks_a_changed_worktree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A file changing after the first clean observation cannot inherit HEAD's tree."""
+    repository = _repository(tmp_path / "source", "base")
+    observed_git = source.run_git
+    changed = False
+
+    def change_after_clean(root: Path, *args: str, **kwargs):
+        nonlocal changed
+        result = observed_git(root, *args, **kwargs)
+        if args[:1] == ("status",) and not changed and not result.stdout:
+            (root / "tracked.txt").write_text("changed\n")
+            changed = True
+        return result
+
+    monkeypatch.setattr(source, "run_git", change_after_clean)
+    commit, tree = source.source_git_identity(repository)
+    assert changed
+    assert commit == git(repository, "rev-parse", "HEAD")
+    assert git(repository, "show", f"{tree}:tracked.txt") == "changed"
+
+
 def test_source_identity_overlay_and_failure_matrix(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -149,6 +193,7 @@ def test_source_identity_timeout_preserves_index_and_removes_owned_scratch(
 ) -> None:
     """Native timeout evidence survives without leaving the observation index behind."""
     repository = _repository(tmp_path / "source", "base")
+    (repository / "tracked.txt").write_text("dirty\n")
     index = repository / ".git/index"
     before = index.read_bytes()
     observed_process = process_adapter.run_command

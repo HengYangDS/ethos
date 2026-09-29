@@ -369,6 +369,9 @@ def test_generic_provider_uses_real_locked_python_evidence(tmp_path: Path) -> No
     fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
     for name in ("pyproject.toml", "uv.lock"):
         (repo / name).write_bytes((fixture / name).read_bytes())
+    (repo / "pytest.toml").write_text(
+        '[pytest]\naddopts = ["--strict-config"]\ncache_dir = ".cache/pytest"\n'
+    )
     source = repo / "src/sample/__init__.py"
     source.parent.mkdir(parents=True)
     source.write_text("def answer() -> int:\n    return 42\n")
@@ -381,6 +384,7 @@ def test_generic_provider_uses_real_locked_python_evidence(tmp_path: Path) -> No
 
     for report in (native_quality.behavior_report(repo), native_quality.static_report(repo)):
         assert report["verdict"] == "pass", report["required_gaps"]
+    assert not (repo / ".cache/pytest").exists()
 
 
 @pytest.mark.parametrize(

@@ -341,6 +341,7 @@ def test_frozen_transition_plan_policy_preserves_quality_subject_match() -> None
     "defect",
     [
         "none",
+        "strict-config",
         "plugin-disabled",
         "wrong-result",
         "unused-source",
@@ -359,6 +360,11 @@ def test_real_locked_python_checks_qualify_the_selected_source(
     (repo / ".gitignore").write_text(".venv/\n__pycache__/\n", encoding="utf-8")
     fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
     (repo / "pyproject.toml").write_bytes((fixture / "pyproject.toml").read_bytes())
+    if defect == "strict-config":
+        (repo / "pytest.toml").write_text(
+            '[pytest]\naddopts = ["--strict-config"]\ncache_dir = ".cache/pytest"\n',
+            encoding="utf-8",
+        )
     source = repo / "src/sample/__init__.py"
     source.parent.mkdir(parents=True)
     source.write_text(
@@ -435,10 +441,12 @@ def test_real_locked_python_checks_qualify_the_selected_source(
     )
     payload = json.loads(result.stdout)
 
-    if defect in {"none", "plugin-disabled"}:
+    if defect in {"none", "strict-config", "plugin-disabled"}:
         assert result.returncode == 0, payload["required_gaps"]
         assert payload["verdict"] == "pass"
         assert payload["required_gaps"] == []
+        if defect == "strict-config":
+            assert not (repo / ".cache/pytest").exists()
     else:
         assert result.returncode != 0
         assert payload["verdict"] == "block"

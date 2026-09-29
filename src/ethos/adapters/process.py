@@ -242,7 +242,7 @@ def process_file_identities(root: Path, *, tree: Path, index: Path) -> frozenset
             *(("+D", str(tree)) if tree_status is not None else ()),
             str(index),
         )
-        result = run_command(root, command, text=False, timeout=10, remove_env_prefixes=("GIT_",))
+        result = run_command(root, command, text=False, timeout=30, remove_env_prefixes=("GIT_",))
         # Scoped lsof exits 1 when a selected path has no open match.
         if result.returncode not in {0, 1} or result.stderr:
             _file_observation_failure(

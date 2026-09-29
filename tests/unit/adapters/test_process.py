@@ -57,7 +57,9 @@ def _file_reference_payloads():
         "empty-type": payload.replace(b"tDIR\0", b"t\0"),
         "orphan": payload.removeprefix(b"p12\0\n"),
         "negative-inode": payload.replace(b"i31\0", b"i-1\0", 1),
-        **dict.fromkeys(("valid", "status", "fatal", "stderr", "timeout", "missing"), payload),
+        **dict.fromkeys(
+            ("valid", "status", "fatal", "stderr", "timeout", "missing", "slow-scan"), payload
+        ),
         "no-match": b"",
     }
 
@@ -85,9 +87,9 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
     def capture(root, command, **kwargs):
         assert root == tmp_path
         assert command == (str(executable), "-nP", "-F0pftDin", "+D", str(root), str(executable))
-        assert kwargs["timeout"] == 10
+        assert 0 < kwargs["timeout"] <= 30
         assert kwargs["text"] is False
-        if fault == "timeout":
+        if fault == "timeout" or (fault == "slow-scan" and kwargs["timeout"] < 12):
             raise subprocess.TimeoutExpired(command, kwargs["timeout"])
         status = 2 if fault == "fatal" else 1 if fault in {"status", "no-match"} else 0
         stderr = b"permission denied" if fault == "stderr" else b""
@@ -95,7 +97,15 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
 
     monkeypatch.setattr(process_adapter, "run_command", capture)
     observe = process_adapter.process_file_identities
-    if fault in {"valid", "status", "fd-gone", "process-gone", "named-live-file", "unix-inode"}:
+    if fault in {
+        "valid",
+        "status",
+        "fd-gone",
+        "process-gone",
+        "named-live-file",
+        "unix-inode",
+        "slow-scan",
+    }:
         assert observe(tmp_path, tree=tmp_path, index=executable) == frozenset({(16, 31), (32, 31)})
     elif fault == "no-match":
         assert observe(tmp_path, tree=tmp_path, index=executable) == frozenset()

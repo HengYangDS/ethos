@@ -6,12 +6,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import ethos.repository.audit as repository_audit_module
+from ethos.adapters.repo.git import git_files
 from ethos.domain.status import product_audit
 
 if TYPE_CHECKING:
     from ethos.repository.policy.commit import CommitPolicy
 
 ROOT = Path(__file__).resolve().parents[2]
+TRACKED_DOCUMENTS = tuple(git_files(ROOT, "*.md"))
 
 
 def _passing_commit_observation(
@@ -83,7 +85,7 @@ def test_repository_audit_fails_closed_through_the_unique_commit_policy_compiler
         ROOT,
         openspec_mode="shape",
         openspec_shape={"verdict": "pass", "required_gaps": []},
-        tracked_documents=tuple(path.relative_to(ROOT).as_posix() for path in ROOT.rglob("*.md")),
+        tracked_documents=TRACKED_DOCUMENTS,
         commit_policy_observer=observe,
     )
 
@@ -108,7 +110,7 @@ def test_repository_audit_adds_no_constraint_when_commit_policy_is_absent(monkey
         ROOT,
         openspec_mode="shape",
         openspec_shape={"verdict": "pass", "required_gaps": []},
-        tracked_documents=tuple(path.relative_to(ROOT).as_posix() for path in ROOT.rglob("*.md")),
+        tracked_documents=TRACKED_DOCUMENTS,
         commit_policy_observer=_passing_commit_observation,
     )
 
@@ -163,7 +165,7 @@ def test_repository_audit_cannot_pass_when_semantic_closure_is_unknown(
         ROOT,
         openspec_mode="shape",
         openspec_shape={"verdict": "pass", "required_gaps": []},
-        tracked_documents=tuple(path.relative_to(ROOT).as_posix() for path in ROOT.rglob("*.md")),
+        tracked_documents=TRACKED_DOCUMENTS,
         commit_policy_observer=_passing_commit_observation,
     )
 
@@ -212,7 +214,7 @@ def test_repository_audit_projects_one_copy_of_a_shared_semantic_gap(monkeypatch
         ROOT,
         openspec_mode="shape",
         openspec_shape={"verdict": "pass", "required_gaps": []},
-        tracked_documents=tuple(path.relative_to(ROOT).as_posix() for path in ROOT.rglob("*.md")),
+        tracked_documents=TRACKED_DOCUMENTS,
         commit_policy_observer=_passing_commit_observation,
     )
 

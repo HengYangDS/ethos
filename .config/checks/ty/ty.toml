@@ -1,0 +1,4 @@
+# Ty owns Python selection. Unit tests with intentionally ill-typed inputs are
+# exercised at runtime; their reusable support and architecture checks are typed.
+[src]
+include = ["src", "tools", "tests/support", "tests/architecture", "noxfile.py"]

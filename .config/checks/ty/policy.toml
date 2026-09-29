@@ -1,8 +1,0 @@
-# ty type-check policy. Every governed Python package is a fail-closed
-# zero-tolerance target: an unavailable tool, indeterminate result, or positive
-# diagnostic blocks the quality gate.
-
-[zero_tolerance]
-packages = [
-  ".",
-]

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-import tomllib
 from typing import TYPE_CHECKING
 
 from ethos.adapters.process import ProcessExecutionError
@@ -17,8 +16,8 @@ if TYPE_CHECKING:
 _DIAGNOSTIC_EXCERPT_LIMIT = 12
 
 
-def _runtime_command(root: Path, package_src: str) -> list[str]:
-    """Build the source-bound command for one checkout-local type check."""
+def _runtime_command(root: Path) -> list[str]:
+    """Build one source-bound check using Ty's native carrier selection."""
     venv = root / ".venv"
     return [
         str(root / "tools/ci/scripts/with-python-runtime.sh"),
@@ -33,6 +32,10 @@ def _runtime_command(root: Path, package_src: str) -> list[str]:
         "-m",
         "ty",
         "check",
+        "--project",
+        str(root),
+        "--config-file",
+        str(root / ".config/checks/ty/ty.toml"),
         "--output-format",
         "gitlab",
         "--error-on-warning",
@@ -40,13 +43,12 @@ def _runtime_command(root: Path, package_src: str) -> list[str]:
         str(venv),
         "--extra-search-path",
         str(root / "src"),
-        package_src,
     ]
 
 
-def _diagnostic_report(root: Path, package_src: str) -> dict[str, object]:
+def _diagnostic_report(root: Path) -> dict[str, object]:
     """Interpret native findings, preserving tool failure and owned execution bounds."""
-    command = _runtime_command(root, package_src)
+    command = _runtime_command(root)
     returncode: int | str | None = None
     diagnostics: list[dict[str, object]] | None = None
     stderr = ""
@@ -94,38 +96,28 @@ def _diagnostic_excerpt(output: str) -> list[str]:
     ]
 
 
-def _package_result(root: Path, package: str) -> dict[str, object]:
-    package_src = "src" if package == "." else f"{package}/src"
-    return _diagnostic_report(root, package_src) | {"limit": 0, "tier": "zero_tolerance"}
-
-
 def ty_gate_report(root: Path) -> dict[str, object]:
-    """Run ty per governed package and enforce zero diagnostic tolerance."""
-    policy_path = root / ".config" / "checks" / "ty" / "policy.toml"
-    if not policy_path.exists():
+    """Enforce zero Ty diagnostics across its native selected Python carriers."""
+    config_path = root / ".config" / "checks" / "ty" / "ty.toml"
+    if not config_path.is_file():
         return {
             "verdict": "block",
             "state": "blocked",
-            "required_gaps": ["ty_policy_missing"],
-            "packages": {},
+            "required_gaps": ["ty_config_missing"],
+            "analysis": {},
         }
-    policy = tomllib.loads(policy_path.read_text(encoding="utf-8"))
-    zero_tolerance = [str(p) for p in policy.get("zero_tolerance", {}).get("packages", [])]
-    results: dict[str, dict[str, object]] = {}
+    result = _diagnostic_report(root)
     gaps: list[str] = []
-    for package in zero_tolerance:
-        package_result = _package_result(root, package)
-        results[package] = package_result
-        count = package_result["count"]
-        if package_result["state"] == "tool_error":
-            failure = package_result["returncode"]
-            failure_kind = str(failure) if failure is not None else "launch"
-            gaps.append(f"ty_execution_failed:{package}:{failure_kind}")
-        elif isinstance(count, int) and count > 0:
-            gaps.append(f"ty_zero_tolerance_violation:{package}:{count}")
+    count = result["count"]
+    if result["state"] == "tool_error":
+        failure = result["returncode"]
+        failure_kind = str(failure) if failure is not None else "launch"
+        gaps.append(f"ty_execution_failed:{failure_kind}")
+    elif isinstance(count, int) and count > 0:
+        gaps.append(f"ty_zero_tolerance_violation:{count}")
     return {
         "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
         "state": "clean" if not gaps else "blocked",
         "required_gaps": gaps,
-        "packages": results,
+        "analysis": result,
     }

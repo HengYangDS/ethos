@@ -72,7 +72,7 @@ def _candidate_paths(raw_paths: Iterable[str]) -> dict[str, tuple[Path, ...]]:
         raise ValueError(message)
     candidates = []
     for item in ownership["assignments"]:
-        if str(item["validation_command"]).endswith("-s config_quality"):
+        if item["validation_command"].endswith("-s config_quality"):
             candidates.append(Path(item["path"]))
         elif requested:
             message = (

@@ -43,6 +43,7 @@ def test_current_repository_audit_proves_complete_semantic_closure() -> None:
     """The accepted candidate tree has no unclassified semantic relation."""
     report = product_audit(ROOT)
     closure = report["semantic_closure"]
+    assert isinstance(closure, dict)
 
     assert closure["verdict"] == "pass"
     assert closure["summary"] == {
@@ -53,8 +54,10 @@ def test_current_repository_audit_proves_complete_semantic_closure() -> None:
         "conflict": 0,
         "unknown": 0,
     }
-    assert report["commit_policy"]["state"] == "current"
-    assert report["commit_policy"]["declaration"] == {
+    commit_policy = report["commit_policy"]
+    assert isinstance(commit_policy, dict)
+    assert commit_policy["state"] == "current"
+    assert commit_policy["declaration"] == {
         "subject_pattern": (
             "^(feat|fix|docs|test|refactor|perf|build|ci|chore|revert)"
             r"(\([a-z0-9-]+\))?: .+"
@@ -98,7 +101,9 @@ def test_repository_audit_fails_closed_through_the_unique_commit_policy_compiler
         "signature": {},
         "required_gaps": ["commit_policy_unknown_fields:identity_mode"],
     }
-    assert report["required_gaps"].count("commit_policy_unknown_fields:identity_mode") == 1
+    required_gaps = report["required_gaps"]
+    assert isinstance(required_gaps, list)
+    assert required_gaps.count("commit_policy_unknown_fields:identity_mode") == 1
     assert observed is False
 
 
@@ -218,4 +223,6 @@ def test_repository_audit_projects_one_copy_of_a_shared_semantic_gap(monkeypatch
         commit_policy_observer=_passing_commit_observation,
     )
 
-    assert report["required_gaps"].count(gap) == 1
+    required_gaps = report["required_gaps"]
+    assert isinstance(required_gaps, list)
+    assert required_gaps.count(gap) == 1

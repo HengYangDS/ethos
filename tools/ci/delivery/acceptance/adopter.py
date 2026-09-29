@@ -346,7 +346,10 @@ def prove_formation(
                 environment=environment,
             )
             if evolved_code or evolved.get("verdict") != "pass":
-                failure = evolved.get("data", {}).get("detail") or evolved_detail[-256:]
+                evolved_data = evolved.get("data")
+                failure = (
+                    evolved_data.get("detail") if isinstance(evolved_data, dict) else None
+                ) or evolved_detail[-256:]
                 message = (
                     f"installed_starter_evolution_preview_failed:exit={evolved_code}:"
                     f"gaps={evolved.get('required_gaps')}:detail={failure}"

@@ -334,7 +334,11 @@ def projection_relations(files: Mapping[str, str]) -> tuple[Projection, ...]:
     for path, (schema, source_key, output_key, kind) in PROJECTION_DECLARATIONS.items():
         if path not in files:
             continue
-        payload = tomllib.loads(files[path])
+        try:
+            payload = tomllib.loads(files[path])
+        except tomllib.TOMLDecodeError as error:
+            msg = f"projection_declaration_invalid:{path}"
+            raise ValueError(msg) from error
         if payload.get("schema") != schema or not isinstance(payload.get("projection", []), list):
             msg = f"projection_declaration_invalid:{path}"
             raise ValueError(msg)
@@ -401,7 +405,11 @@ def observe_projections(root: Path) -> tuple[Projection, ...]:
             if not path.resolve().is_relative_to(root.resolve()):
                 msg = f"projection_declaration_outside_root:{relative}"
                 raise ValueError(msg)
-            files[relative] = path.read_text(encoding="utf-8")
+            try:
+                files[relative] = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeError) as error:
+                msg = f"projection_declaration_unavailable:{relative}"
+                raise ValueError(msg) from error
     return projection_relations(files)
 
 

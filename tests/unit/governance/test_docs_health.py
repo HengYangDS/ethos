@@ -183,7 +183,8 @@ def test_docs_health_rejects_missing_document_after_registry_observation(
         "relations": {},
     }
     monkeypatch.setattr(
-        "ethos.repository.registry.docs.health.build_docs_registry", lambda _root: [entry]
+        "ethos.repository.registry.docs.health.build_docs_registry",
+        lambda _root, **_kwargs: [entry],
     )
 
     report = docs_health_report(tmp_path)
@@ -414,7 +415,7 @@ def test_docs_health_does_not_reclassify_unrelated_registry_failures(
 ) -> None:
     message = "unrelated native read failure"
 
-    def fail(_root: Path) -> list[dict[str, str]]:
+    def fail(_root: Path, **_kwargs: object) -> list[dict[str, str]]:
         raise ValueError(message)
 
     (tmp_path / "docs").mkdir()
@@ -435,13 +436,31 @@ def test_docs_health_preserves_unrelated_operating_system_failures(
         else FileNotFoundError(errno.ENOENT, "missing", str(tmp_path / relative))
     )
 
-    def fail(_root: Path) -> list[dict[str, str]]:
+    def fail(_root: Path, **_kwargs: object) -> list[dict[str, str]]:
         raise failure
 
     monkeypatch.setattr("ethos.repository.registry.docs.health.build_docs_registry", fail)
     with pytest.raises(OSError, match=r"unattributed failure|missing") as observed:
         docs_registry_report(tmp_path)
     assert observed.value is failure
+
+
+@pytest.mark.parametrize("content", ['schema = "wrong"\n', "schema = [\n", None])
+def test_invalid_generated_owner_is_a_structured_gap_for_every_docs_consumer(
+    tmp_path: Path, content: str | None
+) -> None:
+    """A broken producer declaration never becomes a traceback or authored-doc waiver."""
+    write_active_doc(tmp_path, "ethos status --json")
+    declaration = tmp_path / ".config/checks/ci/templates.toml"
+    declaration.parent.mkdir(parents=True)
+    if content is None:
+        declaration.mkdir()
+    else:
+        declaration.write_text(content)
+
+    for consumer in (docs_registry_report, design_integrity_report, repository_semantic_closure):
+        report = consumer(tmp_path)
+        assert any("projection_declaration_" in gap for gap in report["required_gaps"]), consumer
 
 
 @pytest.mark.parametrize(

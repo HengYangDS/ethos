@@ -146,13 +146,17 @@ Check the largest independently readable section and whether readers can find
 a current decision, its rationale and the next action without scanning unrelated
 history. A short but fragmented or duplicated document can still fail that test.
 
-No universal 100/200/300 effective-length ceiling is adopted. Any future length
-gate requires a named reader task, a repeatable measurement, distinct document
-roles, falsifying examples and before/after retrieval evidence. Current oversized
-mixed-responsibility documents can be reorganized without waiting for a numeric
-threshold. Imported research is settled into its topic owner with source and
-disposition preserved; copying raw reports or recording hashes alone is not
-complete semantic absorption.
+The portable hard ceiling is 500 nonblank physical lines per current authored
+Markdown document, including root entrypoints, rules, Skills and a repository's
+native documentation root. Tables, code fences and quotes count; blank-line
+padding and lifecycle relabeling do not help. Official OpenSpec artifacts,
+immutable archives and outputs with a declared producer are separate carriers.
+The docs-registry gate reports the exact overlong source; official OpenSpec and
+generated-artifact checks retain their own obligations. This ceiling prevents
+one unreadable carrier, not semantic fragmentation: split by reader question
+and responsibility, preserve context and links, and test retrieval before and
+after. Imported research is settled into its topic owner with source and
+disposition, not copied as a raw report.
 
 ## Purpose And Quality
 

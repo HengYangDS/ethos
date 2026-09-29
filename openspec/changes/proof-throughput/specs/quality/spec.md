@@ -113,17 +113,27 @@ not ETHOS-specific paths, tools or code budgets.
 
 ### Requirement: Current Markdown stays within one navigable topic
 
-Every tracked, current, hand-authored Markdown file in ETHOS or a governed
-repository SHALL contain at most 500 nonblank physical lines. Code fences,
-tables, and quoted material count. Existing carrier classification SHALL exclude
-generated output and archived records, not exempt current oversized owners.
+Every tracked, current, hand-authored Markdown documentation carrier in ETHOS
+or a governed repository SHALL contain at most 500 nonblank physical lines.
+Code fences, tables, and quoted material count. Existing carrier ownership
+SHALL distinguish documentation from official OpenSpec intent, generated
+output, and archived records; relabeling an oversized current document does
+not exempt it.
 
 #### Scenario: A current topic exceeds the ceiling
 
-- **WHEN** a tracked current authored Markdown file exceeds 500 nonblank lines
+- **WHEN** a tracked current authored Markdown document exceeds 500 nonblank lines
 - **THEN** the quality floor reports that exact source and blocks acceptance
 - **AND** adding blank lines or relabeling current content as history does not
   satisfy the requirement
+
+#### Scenario: A normative OpenSpec carrier exceeds the document ceiling
+
+- **WHEN** an accepted specification or active Change artifact exceeds 500
+  nonblank lines
+- **THEN** the documentation length rule does not block it solely for that count
+- **AND** official OpenSpec validation, warnings, and semantic capability review
+  retain their own authority
 
 #### Scenario: A complex topic needs more space
 

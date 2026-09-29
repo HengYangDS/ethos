@@ -272,7 +272,8 @@ passes; its own official Change must close the stated exit boundary.
    boundary. Move all consumers with each owner and retire its old path in the
    same bounded batch, without aliases. Reconcile documentation to one entrypoint,
    `guides/quickstart.md`, necessary READMEs, and a restored
-   `docs/decisions/` containing only irreducible, stably numbered semantic records.
+   `docs/decisions/` containing only irreducible records under the
+   [Docs Registry](../governance/docs-registry.md#directory-entrypoint-rule).
    Classify top-level evidence by real producer, consumer, binding, and
    retention; remove residue. Prove one quality owner per property, including
    docstrings, all meaningful tracked carrier formats, non-compensating

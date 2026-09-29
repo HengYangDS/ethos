@@ -207,11 +207,15 @@ def visible_section_gaps_for_registry(root: Path, registry: list[dict[str, Any]]
         path = root / entry["path"]
         text = path.read_text(encoding="utf-8")
         body = text.split("\n---", 1)[1] if text.startswith("---\n") else text
-        paragraphs = [
-            token.content
-            for token in MarkdownIt("commonmark").parse(body)
-            if token.type == "inline"
-        ]
+        tokens = MarkdownIt("commonmark").parse(body)
+        if text.startswith("<!--\n") and (
+            len(tokens) < 2
+            or tokens[0].type != "html_block"
+            or tokens[1].type != "heading_open"
+            or tokens[1].tag != "h1"
+        ):
+            gaps.append(f"docs_title_not_first:{entry['path']}")
+        paragraphs = [token.content for token in tokens if token.type == "inline"]
         gaps.extend(
             f"missing_visible_section:{entry['path']}:{label[:-1].lower()}"
             for label in VISIBLE_SECTION_LABELS

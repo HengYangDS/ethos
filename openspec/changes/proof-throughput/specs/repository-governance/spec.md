@@ -648,6 +648,13 @@ representations SHALL agree on the same declared meaning.
 - **THEN** the public docs report identifies the unavailable source and blocks
 - **AND** an earlier metadata observation cannot turn that incomplete read into a pass
 
+#### Scenario: Selected documentation renders its title before metadata
+
+- **WHEN** a profile-selected Markdown document encloses its leading YAML metadata in one complete HTML comment
+- **THEN** the same registry parser preserves its identity, role, state, and relations while the first visible rendered element is its title
+- **AND** duplicate keys, incomplete delimiters, or premature comment terminators block rather than expose metadata or fall back to missing metadata
+- **AND** the separate system-axiom derivation reader does not adopt the documentation-only carrier
+
 ### Requirement: ETHOS directory navigation uses README only
 
 Current ETHOS-authored directory navigation SHALL use a necessary README.md.

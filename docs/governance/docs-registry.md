@@ -19,8 +19,11 @@ See also: [Documentation Root](../README.md),
 and [Command Plane](../reference/command-plane.md).
 
 ETHOS documentation is governed as sedimented knowledge, not as a loose page
-pile. Every governed document declares Subject, Role, State, and Relation
-metadata in front matter.
+pile. The registry governs Markdown under the repository profile's declared
+documentation root (`docs/` for ETHOS). Each selected document declares
+Subject, Role, State, and Relation metadata in front matter. Skills, OpenSpec,
+system contracts, and distribution files retain their own consumers; registry
+metadata outside the selected root grants no authority.
 
 `ethos prove --gate docs-registry --json` is the reader-facing and machine
 quality entrypoint.

@@ -1,10 +1,3 @@
----
-subject: distributions:npm
-role: reference
-state: active
-relations: wraps Python command plane
----
-
 # npm Distribution Adapter
 
 Status: active.

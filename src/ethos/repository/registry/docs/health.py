@@ -34,11 +34,55 @@ def docs_health_report(
     command_validator: Callable[[list[str]], str] | None = None,
 ) -> dict[str, object]:
     """Report docs metadata, structure, and live-command-example health."""
+    root = root.resolve()
     try:
-        root = root.resolve()
         registry = build_docs_registry(root)
         states = allowed_states(root)
         roles = allowed_roles(root)
+        missing = [
+            entry["path"]
+            for entry in registry
+            if any(
+                field not in entry or (field != "relations" and not entry[field])
+                for field in REQUIRED_FIELDS
+            )
+        ]
+        invalid_state = [
+            f"invalid_state:{entry['path']}:{entry['state']}"
+            for entry in registry
+            if states and entry.get("state", "") and entry.get("state", "") not in states
+        ]
+        invalid_role = [
+            f"invalid_role:{entry['path']}:{entry['role']}"
+            for entry in registry
+            if roles and entry.get("role", "") and entry.get("role", "") not in roles
+        ]
+        subject_paths: dict[str, list[str]] = {}
+        for entry in registry:
+            if entry.get("subject", ""):
+                subject_paths.setdefault(entry.get("subject", ""), []).append(entry["path"])
+        duplicate_subjects = [
+            f"duplicate_subject:{subject}:{','.join(paths)}"
+            for subject, paths in sorted(subject_paths.items())
+            if len(paths) > 1
+        ]
+        visible_section_gaps = visible_section_gaps_for_registry(root, registry)
+        invalid_command_examples = (
+            command_example_gaps(root, registry, command_validator) if command_validator else []
+        )
+        unindexed_plans = plan_index_gaps(root, registry)
+        readme_disposition = readme_disposition_gaps(root, registry)
+        required_gaps = (
+            missing
+            + invalid_state
+            + invalid_role
+            + duplicate_subjects
+            + visible_section_gaps
+            + invalid_command_examples
+            + unindexed_plans
+            + readme_disposition
+            + relation_gaps(root, registry)
+        )
     except ValueError as exc:
         gap = str(exc)
         if gap != INVALID_PROFILE_ERROR and not gap.startswith(
@@ -46,50 +90,15 @@ def docs_health_report(
         ):
             raise
         return empty_docs_health_report(gap)
-    missing = [
-        entry["path"]
-        for entry in registry
-        if any(
-            field not in entry or (field != "relations" and not entry[field])
-            for field in REQUIRED_FIELDS
+    except OSError as exc:
+        if not exc.filename:
+            raise
+        source = Path(exc.filename).resolve()
+        if source.suffix != ".md" or not source.is_relative_to(docs_root(root)):
+            raise
+        return empty_docs_health_report(
+            f"docs_source_unavailable:{source.relative_to(root).as_posix()}"
         )
-    ]
-    invalid_state = [
-        f"invalid_state:{entry['path']}:{entry['state']}"
-        for entry in registry
-        if states and entry.get("state", "") and entry.get("state", "") not in states
-    ]
-    invalid_role = [
-        f"invalid_role:{entry['path']}:{entry['role']}"
-        for entry in registry
-        if roles and entry.get("role", "") and entry.get("role", "") not in roles
-    ]
-    subject_paths: dict[str, list[str]] = {}
-    for entry in registry:
-        if entry.get("subject", ""):
-            subject_paths.setdefault(entry.get("subject", ""), []).append(entry["path"])
-    duplicate_subjects = [
-        f"duplicate_subject:{subject}:{','.join(paths)}"
-        for subject, paths in sorted(subject_paths.items())
-        if len(paths) > 1
-    ]
-    visible_section_gaps = visible_section_gaps_for_registry(root, registry)
-    invalid_command_examples = (
-        command_example_gaps(root, registry, command_validator) if command_validator else []
-    )
-    unindexed_plans = plan_index_gaps(root, registry)
-    readme_disposition = readme_disposition_gaps(root, registry)
-    required_gaps = (
-        missing
-        + invalid_state
-        + invalid_role
-        + duplicate_subjects
-        + visible_section_gaps
-        + invalid_command_examples
-        + unindexed_plans
-        + readme_disposition
-        + relation_gaps(root, registry)
-    )
     return {
         "verdict": close_verdict("pass", required_gaps=tuple(required_gaps)),
         "document_count": len(registry),
@@ -196,8 +205,6 @@ def visible_section_gaps_for_registry(root: Path, registry: list[dict[str, Any]]
         if not requires_visible_sections(entry):
             continue
         path = root / entry["path"]
-        if not path.exists():
-            continue
         text = path.read_text(encoding="utf-8")
         body = text.split("\n---", 1)[1] if text.startswith("---\n") else text
         paragraphs = [

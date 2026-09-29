@@ -642,6 +642,12 @@ representations SHALL agree on the same declared meaning.
 - **THEN** public observation identifies the exact disagreement or missing target
 - **AND** literal examples cannot satisfy actual reader-guidance obligations
 
+#### Scenario: A selected documentation source disappears during observation
+
+- **WHEN** a document selected by the registry becomes missing or unreadable before downstream checks finish
+- **THEN** the public docs report identifies the unavailable source and blocks
+- **AND** an earlier metadata observation cannot turn that incomplete read into a pass
+
 ### Requirement: ETHOS directory navigation uses README only
 
 Current ETHOS-authored directory navigation SHALL use a necessary README.md.

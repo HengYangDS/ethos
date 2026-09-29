@@ -14,6 +14,7 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from tests.support.runtime_scenarios import REPOSITORY_ROOT
+from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import runtime_build
 
@@ -59,6 +60,103 @@ def test_explicit_installed_supply_is_pinned_before_repository_selection(
         )
         == pinned_python
     )
+
+
+def test_external_package_invoker_pins_shared_supply_without_an_explicit_runtime(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The selected package executable is sufficient to reuse verified host supply."""
+    source_root = tmp_path / "source"
+    source_root.mkdir()
+    source_repo, python = materialize_runtime_case(source_root, monkeypatch)
+    selected = require_selected_runtime(python.parent)
+    package = tmp_path / "package"
+    shutil.copytree(Path(git_common_dir(source_repo)) / "ethos", package / "ethos", symlinks=True)
+    supplied = require_selected_runtime(package / "ethos/runtime" / selected.digest)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user-data"))
+    monkeypatch.setattr(materialization, "selected_runtime_source", lambda _source: supplied)
+    monkeypatch.setattr(
+        materialization,
+        "resolve_runtime_wheel",
+        Mock(side_effect=AssertionError("private runtime build reached")),
+    )
+
+    pinned = []
+    for ordinal in range(2):
+        repo = tmp_path / f"adopter-{ordinal}"
+        repo.mkdir()
+        assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+        pinned.append(
+            materialization.materialize_runtime(
+                repo, Path(sys.executable), expected_build=supplied.build
+            )
+        )
+        assert not (Path(git_common_dir(repo)) / "ethos/runtime" / supplied.digest).exists()
+
+    assert pinned[0] == pinned[1]
+    store = tmp_path / "user-data/ethos/installations"
+    assert pinned[0].parent == store / supplied.digest[:16] / "runtime" / supplied.digest
+    assert require_selected_runtime(pinned[0].parent).digest == supplied.digest
+
+
+def test_missing_selector_does_not_pin_another_repository_private_runtime(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A foreign Git-private runtime cannot become shared supply by inference."""
+    source_root = tmp_path / "source"
+    source_root.mkdir()
+    _, python = materialize_runtime_case(source_root, monkeypatch)
+    private = require_selected_runtime(python.parent)
+    adopter = tmp_path / "adopter"
+    adopter.mkdir()
+    assert git_process(adopter, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    monkeypatch.setattr(materialization, "selected_runtime_source", lambda _source: private)
+    pin = Mock(side_effect=AssertionError("foreign private runtime pinned"))
+    monkeypatch.setattr(materialization, "_pin_installed_runtime", pin)
+    monkeypatch.setattr(
+        materialization,
+        "resolve_runtime_wheel",
+        Mock(side_effect=RuntimeError("private materialization retained")),
+    )
+
+    with pytest.raises(RuntimeError, match="private materialization retained"):
+        materialization.materialize_runtime(
+            adopter, Path(sys.executable), expected_build=private.build
+        )
+    pin.assert_not_called()
+
+
+def test_missing_selector_explicit_source_build_does_not_reuse_package_supply(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A requested source build cannot be satisfied by an unrelated package invocation."""
+    source_root = tmp_path / "source"
+    source_root.mkdir()
+    source_repo, python = materialize_runtime_case(source_root, monkeypatch)
+    selected = require_selected_runtime(python.parent)
+    package = tmp_path / "package"
+    shutil.copytree(Path(git_common_dir(source_repo)) / "ethos", package / "ethos", symlinks=True)
+    supplied = require_selected_runtime(package / "ethos/runtime" / selected.digest)
+    adopter = tmp_path / "adopter"
+    adopter.mkdir()
+    assert git_process(adopter, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    monkeypatch.setattr(materialization, "selected_runtime_source", lambda _source: supplied)
+    pin = Mock(side_effect=AssertionError("explicit source build reused package"))
+    monkeypatch.setattr(materialization, "_pin_installed_runtime", pin)
+    monkeypatch.setattr(
+        materialization,
+        "resolve_locked_environment_python",
+        Mock(side_effect=RuntimeError("source build selected")),
+    )
+
+    with pytest.raises(RuntimeError, match="source build selected"):
+        materialization.materialize_runtime(
+            adopter,
+            Path(sys.executable),
+            expected_build=supplied.build,
+            build_source=REPOSITORY_ROOT,
+        )
+    pin.assert_not_called()
 
 
 @pytest.mark.parametrize("lock_changed", [False, True])

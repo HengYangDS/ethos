@@ -107,6 +107,9 @@ successful activation or delete historical receipts to free their old runtimes.
 To bind an already installed immutable product, use
 `ethos hook install --runtime <absolute-runtime-path> --root <repository> --json`.
 The selected runtime must match the invoking product and its exact wheel/lock.
+Without `--runtime`, a validated immutable package runtime outside another
+repository's private Git store is pinned once for a new repository and reused;
+source checkouts and foreign private runtimes do not gain this shortcut.
 Multiple repositories can reference those same bytes while retaining independent
 selectors, hooks and mutable state. The command does not copy external runtime
 bytes or grant permission to delete the installation. Ordinary repair reuses a

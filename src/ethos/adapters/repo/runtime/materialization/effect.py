@@ -87,7 +87,9 @@ def materialize_runtime(
         _fail("hook_runtime_root_invalid")
     work = runtime_root / f".build-{uuid.uuid4().hex}"
     try:
-        if reusable := _reusable_runtime(repo, expected_build, project, invoking_source):
+        if reusable := _reusable_runtime(
+            repo, expected_build, project, invoking_source, package_only=build_source is None
+        ):
             return reusable / "python"
         dependency_python = (
             resolve_locked_environment_python(project)
@@ -260,13 +262,21 @@ def _reusable_runtime(
     expected_build: BuildIdentity,
     project: Path,
     invoking_source: Path,
+    *,
+    package_only: bool,
 ) -> Path | None:
     common = Path(git_common_dir(repo)).resolve()
     try:
         candidate = selected_runtime_path(common)
     except ValueError as error:
         if str(error) == "hook_runtime_current_missing":
-            return None
+            return (
+                _bootstrap_runtime_from_invoker(
+                    invoking_source, expected_build, project, common=common
+                )
+                if package_only
+                else None
+            )
         raise
     external = candidate.parent != common / "ethos/runtime"
     try:
@@ -275,9 +285,10 @@ def _reusable_runtime(
         if selected.build == expected_build and _runtime_supply_current(selected, project):
             return selected.root
         if selected.build != expected_build and _runtime_supply_wheel(selected) is not None:
-            return _compatible_invoking_runtime(
+            invoking = _compatible_invoking_runtime(
                 invoking_source, expected_build, project, common=common
             )
+            return invoking.root if invoking is not None else None
     except (OSError, ValueError) as error:
         if external:
             if str(error) == "hook_runtime_repository_private":
@@ -288,7 +299,7 @@ def _reusable_runtime(
                     invoking_source, expected_build, project, common=common
                 )
             ):
-                return invoking
+                return invoking.root
             condition = "unavailable" if absent else "invalid"
             _fail(f"hook_runtime_installed_supply_{condition}:{candidate}", error)
     if external:
@@ -307,9 +318,21 @@ def _target_absent(path: Path) -> bool:
     return False
 
 
-def _compatible_invoking_runtime(
+def _bootstrap_runtime_from_invoker(
     source: Path, expected_build: BuildIdentity, project: Path, *, common: Path
 ) -> Path | None:
+    """Reuse a local private runtime or pin an external immutable package once."""
+    invoking = _compatible_invoking_runtime(source, expected_build, project, common=common)
+    if invoking is None:
+        return None
+    if invoking.root.parent == common / "ethos/runtime":
+        return invoking.root
+    return _pin_installed_runtime(invoking, project)
+
+
+def _compatible_invoking_runtime(
+    source: Path, expected_build: BuildIdentity, project: Path, *, common: Path
+) -> SelectedRuntime | None:
     """Reuse only the invoking immutable package with the exact required closure."""
     try:
         invoking = selected_runtime_source(source)
@@ -319,7 +342,7 @@ def _compatible_invoking_runtime(
             and _runtime_supply_current(invoking, project)
         ):
             require_runtime_selection_scope(common, invoking)
-            return invoking.root
+            return invoking
     except (OSError, ValueError):
         pass
     return None

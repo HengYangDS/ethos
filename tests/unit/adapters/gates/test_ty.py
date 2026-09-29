@@ -49,7 +49,10 @@ def test_native_ty_scope_rejects_errors_in_each_owned_carrier(tmp_path: Path) ->
 
     assert completed.returncode == 1
     diagnostics = json.loads(completed.stdout)
-    found = {str(Path(item["location"]["path"]).relative_to(tmp_path)) for item in diagnostics}
+    found = {
+        str(Path(item["location"]["path"]).resolve().relative_to(tmp_path.resolve()))
+        for item in diagnostics
+    }
     assert found == targets
     assert {item["check_name"] for item in diagnostics} == {"invalid-assignment"}
 

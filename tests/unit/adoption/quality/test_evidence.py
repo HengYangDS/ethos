@@ -14,6 +14,7 @@ import ethos.adapters.gates.code_quality as native_quality
 import ethos.adapters.gates.python_quality as python_quality
 import ethos.adapters.toolchain.mise as native_mise
 from ethos.adapters.gates.verification import NativeExecution
+from ethos.adapters.gates.verification import provider_reports
 from ethos.repository.policy.quality_reports import lcov_covered_paths
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
@@ -380,6 +381,75 @@ def test_generic_provider_uses_real_locked_python_evidence(tmp_path: Path) -> No
 
     for report in (native_quality.behavior_report(repo), native_quality.static_report(repo)):
         assert report["verdict"] == "pass", report["required_gaps"]
+
+
+@pytest.mark.parametrize(
+    ("axis", "session", "provider", "replay_name", "selected_paths"),
+    [
+        ("behavior", "tests", "behavior_report", "python_behavior_report", ["src/app.py"]),
+        (
+            "static-analysis",
+            "quality",
+            "static_report",
+            "python_static_report",
+            ["src/app.py", "tests/test_app.py"],
+        ),
+    ],
+)
+def test_python_verified_command_does_not_replay_without_native_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    axis: str,
+    session: str,
+    provider: str,
+    replay_name: str,
+    selected_paths: list[str],
+) -> None:
+    """Text-only success cannot justify a second test or static invocation."""
+    repo = committed_source_repo(
+        tmp_path,
+        {
+            "src/app.py": "def answer() -> int:\n    return 42\n",
+            "tests/test_app.py": "def test_answer():\n    assert True\n",
+        },
+    )
+    tree = subprocess.check_output(("git", "rev-parse", "HEAD^{tree}"), cwd=repo, text=True).strip()
+    replays: list[Path] = []
+
+    def replay(root: Path) -> dict[str, object]:
+        replays.append(root)
+        return {
+            "verdict": "pass",
+            "quality_evidence": {
+                "axis": axis,
+                "source_tree": tree,
+                "selected_paths": selected_paths,
+            },
+        }
+
+    monkeypatch.setattr(native_quality, replay_name, replay)
+    command = ("nox", "-s", session)
+    execution = NativeExecution(
+        declared_identity=command,
+        argv=command,
+        cwd=repo,
+        exit_code=0,
+        stdout="55 passed in 7.52s\n" if session == "tests" else "All checks passed!\n",
+        stderr="",
+    )
+
+    reports, verdict, _ = provider_reports(
+        session,
+        (f"ethos.adapters.gates.code_quality:{provider}",),
+        repo,
+        execution=execution,
+    )
+
+    assert verdict == "block"
+    report = reports[0]["report"]
+    assert isinstance(report, dict)
+    assert report["required_gaps"] == [f"quality_{axis}_python_native_evidence_unavailable"]
+    assert replays == []
 
 
 def test_native_quality_requires_committed_python_scope(tmp_path: Path) -> None:

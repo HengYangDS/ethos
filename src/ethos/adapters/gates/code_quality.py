@@ -413,6 +413,8 @@ def _report(
     try:
         tree, subjects = _source(root)
         languages = {subject.language for subject in subjects}
+        if execution is not None and "python" in languages:
+            _invalid("python_native_evidence_unavailable")
         tool_environment = _native_environment(root) if languages & {"go", "javascript"} else {}
         native: list[dict[str, object]] = []
         for language in sorted(languages):
@@ -477,6 +479,6 @@ def behavior_report(root: Path, *, execution: NativeExecution | None = None) -> 
     return _report(root, "behavior", execution=execution)
 
 
-def static_report(root: Path) -> dict[str, object]:
+def static_report(root: Path, *, execution: NativeExecution | None = None) -> dict[str, object]:
     """Require native static diagnostics for every observed code language."""
-    return _report(root, "static-analysis")
+    return _report(root, "static-analysis", execution=execution)

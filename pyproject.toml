@@ -84,17 +84,17 @@ path = "tools/ci/openspec_runtime_hook.py"
 path = "tools/ci/openspec_runtime_hook.py"
 
 [tool.hatch.build.targets.sdist]
-include = [
-  "/src",
-  "/system",
-  "/README.md",
-  "/LICENSE",
-  "/package.json",
-  "/package-lock.json",
-  "/pyproject.toml",
-  "/uv.lock",
-  "/VERSION",
-  "/tools/ci/openspec_runtime_hook.py",
+only-include = [
+  "src",
+  "system",
+  "README.md",
+  "LICENSE",
+  "package.json",
+  "package-lock.json",
+  "pyproject.toml",
+  "uv.lock",
+  "VERSION",
+  "tools/ci/openspec_runtime_hook.py",
 ]
 
 [tool.pytest.ini_options]

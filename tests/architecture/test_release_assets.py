@@ -269,7 +269,7 @@ def test_container_bootstrap_refuses_non_entrypoint_invocation(tmp_path, argumen
 
 
 @pytest.mark.parametrize("workers", [None, 1, 8])
-@pytest.mark.parametrize(("cores", "expected_default"), [(3, 3), (18, 12)])
+@pytest.mark.parametrize(("cores", "expected_default"), [(3, 3), (18, 16)])
 def test_test_environment_freezes_locked_supply_as_absolute_paths(
     tmp_path, monkeypatch, workers, cores, expected_default
 ) -> None:

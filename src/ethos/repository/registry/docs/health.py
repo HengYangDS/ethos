@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import shlex
+from itertools import pairwise
 from pathlib import Path
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
@@ -21,6 +22,7 @@ from ethos.repository.registry.docs.registry import allowed_roles
 from ethos.repository.registry.docs.registry import allowed_states
 from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.repository.registry.docs.registry import docs_root
+from ethos.repository.release.configuration import RELEASE_HISTORY_FILE
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -28,6 +30,7 @@ if TYPE_CHECKING:
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 OBSERVATIONAL_ROLES = frozenset({"evidence", "history"})
 MAX_CURRENT_MARKDOWN_NONBLANK = 500
+_RELEASE_HEADING = re.compile(r"^\[[^\[\]\n]+\](?: - \d{4}-\d{2}-\d{2})?$")
 
 
 def docs_health_report(
@@ -158,15 +161,42 @@ def current_document_length_gaps(
             gaps.append(f"docs_source_unavailable:{relative}")
             continue
         try:
-            count = sum(
-                bool(line.strip()) for line in path.read_text(encoding="utf-8").splitlines()
-            )
+            lines = path.read_text(encoding="utf-8").splitlines()
+            count = sum(bool(line.strip()) for line in lines)
+            if relative == RELEASE_HISTORY_FILE and count > MAX_CURRENT_MARKDOWN_NONBLANK:
+                count = _release_history_max_section(lines) or count
         except (OSError, UnicodeError):
             gaps.append(f"docs_source_unavailable:{relative}")
             continue
         if count > MAX_CURRENT_MARKDOWN_NONBLANK:
             gaps.append(f"docs_length_exceeded:{relative}:{count}>{MAX_CURRENT_MARKDOWN_NONBLANK}")
     return gaps
+
+
+def _release_history_max_section(lines: list[str]) -> int | None:
+    """Bound navigable release sections without shortening history."""
+    tokens = MarkdownIt("commonmark").parse("\n".join(lines))
+    title = ""
+    sections: list[tuple[int, str]] = []
+    for index, token in enumerate(tokens):
+        if token.type != "heading_open" or token.map is None:
+            continue
+        content = tokens[index + 1].content.strip()
+        if token.tag == "h1" and not title:
+            title = content
+        elif token.tag == "h2":
+            sections.append((token.map[0], content))
+    if (
+        not title.casefold().endswith("changelog")
+        or len(sections) < 2
+        or sections[0][1].casefold() != "[unreleased]"
+        or any(not _RELEASE_HEADING.fullmatch(heading) for _, heading in sections)
+    ):
+        return None
+    boundaries = [0, *(line for line, _ in sections), len(lines)]
+    return max(
+        sum(bool(line.strip()) for line in lines[start:end]) for start, end in pairwise(boundaries)
+    )
 
 
 def _official_openspec_carrier(relative: str) -> bool:

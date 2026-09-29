@@ -17,11 +17,12 @@ if TYPE_CHECKING:
 
     from ethos.contracts.branch.roles import BranchRolePolicy
 
+RELEASE_HISTORY_FILE = "CHANGELOG.md"
 REQUIRED_RELEASE_FILES = (
     "README.md",
     "LICENSE",
     "CONTRIBUTING.md",
-    "CHANGELOG.md",
+    RELEASE_HISTORY_FILE,
     ".ethos/release.toml",
 )
 

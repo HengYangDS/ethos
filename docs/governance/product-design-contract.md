@@ -8,8 +8,6 @@ relations:
 
 # Product Design Contract
 
-Status: canonical.
-
 Purpose: own ETHOS product meaning, semantic roots, authority boundaries, and
 the invariants every implementation and projection must preserve.
 
@@ -96,45 +94,28 @@ retain the identities under which they were created.
 
 ## Semantic Kernel
 
-The semantic values are:
-
-| Root | Owns | Excludes |
+| Root | Owns | Cannot own |
 | --- | --- | --- |
-| `Commitment` | transient normalized acceptance intent with exactly `schema_version`, `id`, and `acceptance`, compiled from one exact official OpenSpec Change snapshot | persistence, a second tracked intent carrier, authoring scope, dependency graph, mutable workflow state, or reusable permission |
-| `Attestation` | verifier-bound observation, judgment, proof, or effect with predicate, bindings, validity, and evidence | an implicit authority or closed predicate taxonomy |
+| `Commitment` | transient normalized acceptance with exactly `schema_version`, `id`, `acceptance`, compiled from one exact official OpenSpec Change | persistence, paths, relation graph, workflow state or permission |
+| `Attestation` | durable verifier-bound observation, judgment, proof or effect with predicate, bindings, validity and evidence | implicit authority or a closed predicate ontology |
 
-Only `Attestation` is a durable semantic result. `Commitment`, `Facts`, and
-`TransitionPlan` are transient values bound to exact inputs.
+`Facts` and `TransitionPlan` are also transient and bound to exact inputs.
+Typed meaning, not carrier spelling, governs validity: check members,
+duplicates, references and conflicts, then normalize unordered values before
+identity. Authority-bearing JSON equality, signatures and admission share one
+kernel canonical-byte projection: closed value grammar, UTF-16 code-unit key
+order, direct UTF-8 strings and no presentation whitespace. Nested native
+Git, file, package or runtime digests keep their own byte identities; an
+unused checksum confers no authority and is removed.
 
-Semantic validity belongs to typed meaning, not carrier presentation. The kernel
-validates members, duplicates, references, and conflicts, then normalizes
-unordered collections before identity. Exact canonical-byte checks remain
-confined to readers for already content-addressed envelopes.
-
-Every JSON value used to assert semantic equality, sign an authority-bearing
-payload, or bind an admission decision uses one kernel-owned canonical byte
-projection: the closed semantic value grammar, UTF-16 code-unit object-key
-ordering, direct UTF-8 strings, and no presentation whitespace. A composed
-semantic projection may contain Git, file, wheel, runtime, or other native-byte
-digests without reinterpreting those nested identities. Conversely, a checksum
-with no comparison, lookup, signature, CAS, or validation consumer owns no
-invariant and is removed rather than retained as decorative authority.
-
-`Commitment` is a compiled value, not an ETHOS-authored file. Mutation-capable
-repositories use the official OpenSpec Change artifacts as the sole tracked
-intent, specification, design, task-progress, and archive carrier. ETHOS
-normalizes the exact official projection selected from one Git tree into a
-Commitment for planning and proof; it never asks an author to repeat that
-meaning in another tracked schema.
-
-The compiled Commitment contains only semantics that affect acceptance. It does
-not own anticipated paths, relation records, research DSLs, authority
-references, risks, or progress. Exact changed paths and Git
-coordinates are fresh `Facts` bound by a `TransitionPlan`. A dependency is an
-explicit plan input only when its satisfaction changes current admission;
-related Changes are query projections, not persisted fields. Research questions
-and procedures remain native OpenSpec design/spec/task content, while
-observations and conclusions are Attestations.
+Mutation-capable repositories use official OpenSpec Change artifacts as the
+sole tracked intent, design, spec, task-progress and archive carrier. ETHOS
+compiles their exact Git-tree projection; authors never repeat it in another
+schema. Commitment contains acceptance meaning only. Paths and Git coordinates
+are fresh Facts in a TransitionPlan; a dependency is bound only when its
+satisfaction changes admission. Related Changes are query views. Research
+procedures stay in OpenSpec; durable observations and conclusions are
+Attestations.
 
 ### Change Relations And Learning
 
@@ -189,18 +170,9 @@ each integration, publication or subsequent write still needs fresh authority.
 Changing task progress changes source identity and requires new exact evidence,
 even when the accepted meaning is unchanged.
 
-```text
-(Commitment, Facts, prior Attestations) -> TransitionPlan -> new Attestations
-```
-
-The common mechanism is:
-
-```text
-observe -> extract -> resolve -> compile -> evaluate -> CAS apply -> post-observe -> attest -> project
-```
-
-`project` may render CLI, SDK, CI, forge, documentation, or agent views. A
-projection never grants itself authority.
+ETHOS compiles `(Commitment, Facts, prior Attestations)` into a TransitionPlan,
+then freshly admits exact CAS effects, post-observes and attests them. CLI, SDK,
+CI, forge, docs and agent views project results without acquiring authority.
 
 `Continuation` is a pure, non-persistent projection from the schema-version-`2`
 result and current authoritative facts. The result preserves `state` and
@@ -264,157 +236,85 @@ changes evaluation or recovery; it is not introduced merely to label history.
 
 ## Git-Native Repository Substrate
 
-ETHOS is Git-native, not a generic VCS abstraction. Git trees, refs, exact
-heads, and compare-and-swap ref updates are the repository substrate for an
-effect. A profile may map the self-hosted integration topology as:
+ETHOS uses Git trees, refs, exact heads and compare-and-swap updates, not a
+generic VCS abstraction. Profiles map physical names to release, accepted,
+candidate, authoring and proposal roles; dirty, foreign, unknown, unbound and
+stale resources remain observe-only until freshly admitted. A Lease stores only
+lane, holder, generation and expiry. Git, index, worktree, OpenSpec, proof and
+effect facts are re-observed rather than copied into it.
 
-```text
-release_root -> accepted_root -> candidate -> work_lane
-selected trusted object -> proposal_ref (review, not acceptance)
-```
-
-This topology names Git resource roles, not semantic entities. Dirty, foreign,
-unknown, unbound, or stale resource state is observe-only until fresh facts and
-bindings admit a transition.
-
-A Lease is only the expiring compare-and-swap relationship between one lane and
-its current holder. Its authoritative state is the lane identity, holder,
-generation, and expiry. It does not persist HEAD, tree, index, worktree,
-OpenSpec identity, Commitment, path scope, handoff workflow, or effect outcome.
-Those belong to fresh Facts, transient compilation, exact effect intent,
-Attestations, and post-observation.
-
-Destructive lane retirement uses coordinated quiescence: all actual writers
-finish or stop before the selected content is reviewed, and every participant
-honors lane coordination until disposal ends. The operator verifies that
-handoff; changing a holder or observing no open files does not stop a writer.
-Current authority, exact content checks and recovery preserve the admitted
-preimage within this boundary. Unknown liveness or observed drift blocks the
-effect. Isolation from uncooperative same-UID writers is not this protocol's
-guarantee; it must never be inferred from a Lease, file lock or process scan.
+Destructive retirement first coordinates every actual writer through disposal,
+then reviews selected content and rechecks the exact preimage. A handoff, lock
+or empty process scan alone does not prove quiescence; drift or unknown liveness
+blocks. The protocol does not isolate uncooperative same-UID writers.
 
 ### Lane, Review, And Integration Roles
 
-`work/*` is the authoring role. The candidate ref and checkout are local
-integration resources. `proposal/*` is an unprotected review projection of an
-already selected Git object; it is not a second authoring lane. In the ETHOS
-repository, only `dev` and `main` are protected: `dev` is accepted integration
-and `main` is release. An adopter may map different physical ref names while
-preserving these semantic roles and protection boundaries.
+`work/*` authors; candidate integrates locally; `proposal/*` projects a trusted
+object for review without becoming another lane. ETHOS protects only accepted
+`dev` and release `main`; adopters may rename refs but preserve the roles.
+Review admits exact objects and introduced commit ranges without requiring a
+candidate checkout, completed proof or early archive. Accepted and release
+destinations keep their separate obligations. Trusted prior policy judges an
+unaccepted target; detached CI observes without local Lease or authority.
 
-Review admits an exact trusted object and its introduced commit range; it does
-not require a candidate checkout, completed Change proof or premature archive.
-Accepted and release destinations retain their proof, intent and closeout
-obligations. A mixed publication satisfies every selected destination. Exact
-prior policy classifies an unaccepted destination; proposed policy cannot
-quietly turn a protected target into review. Detached CI observes these same
-Git inputs without a host Lease, local mutation or authority issuance.
+Developers use MR/PR review when they cannot update protected refs; maintainers
+may accept the reviewed object by exact CAS. A proposal retires after its object
+is accepted into `dev` and review closes, independently of later `main` release.
+Lease loss preserves Git content. One public reconciler uses fresh facts to
+continue, transfer, reacquire, preserve, absorb or retire owned, foreign,
+expired, missing and unbound lanes. Clean equal or ancestor lanes retire by
+deletion-only CAS only after checking ref, worktree, owner and unique content;
+dirty or ambiguous work remains preserved.
 
-A developer who cannot update protected `dev` directly publishes the selected
-proposal object and uses the forge's MR or PR review path. A maintainer may apply
-the same reviewed object through an exact compare-and-swap transition. Proposal
-retirement depends on that object being accepted into `dev` and the review ref
-being closed; it does not wait for a later, independent `dev` to `main` release
-promotion.
+A separate clean topic may retire when another distinct local topic ref retains
+all its commits. An immutable receipt binds source, retained ref/OID, accepted
+OID, actor and target coordination; absent Lease need not be resurrected.
+Recovery rechecks objects within CAS. Candidate or protected refs cannot serve
+as retained topics or deletion targets. Reachability preserves history, not
+semantic acceptance; surviving unique meaning remains an obligation. This
+zero-product effect carries no Commitment or authoring authority.
 
-Lease loss does not erase Git content and does not require historical Lease
-resurrection. One public reconciler classifies owned, foreign, expired,
-dead-owner, missing, and unbound lanes from fresh facts and yields one positive
-transition: continue, hand off, reacquire, preserve, absorb, or retire. A clean
-lane whose HEAD is equal to or already an ancestor of accepted truth may be
-retired by deletion-only exact CAS after confirming the selected ref, clean
-worktree or absent registered worktree, no live owner, and no unpublished unique
-object. Dirty or ambiguous content remains preserved and observe-only.
+A zero-product Git DAG reconciliation may add a signed descendant only when
+its tree and compiled Commitment are unchanged and its additional parent is an
+observed accepted peer. Exact parents, tree, signature, actor and CAS are bound;
+no merge compatibility carrier is introduced.
 
-A clean historical topic may instead retire while all its commits remain
-reachable through another explicit, distinct local topic ref. This preserves
-history; it does not establish accepted semantic absorption. The accepted
-control checkout derives the existing immutable retirement receipt, binding the
-source, retained ref/OID, accepted OID, actor, and current target Lease. A valid
-Lease requires its holder; missing or expired coordination does not require
-resurrection. Recovery rechecks the bound objects before removal and within the
-Git CAS. Neither protected nor candidate resources may be used as the retained
-topic or deleted target. Unique semantics remain an obligation of the surviving
-history. This deletion-only effect has no product Commitment and grants no
-authoring authority over either checkout.
-
-A zero-product-change history reconciliation is a Git DAG operation, not a new
-semantic state. It may create a signed descendant whose tree and compiled
-Commitment are unchanged and whose additional parent is an explicitly observed
-accepted peer head. Admission binds the exact parents, tree, signature, actor,
-and ref CAS; no merge-specific compatibility carrier is created.
-
-Parallel Work Lanes support cooperation, competition and exploration. Cooperation
-may integrate multiple compatible contributions or a proved synthesis;
-competition may accept one alternative or none. Exploration may end with only
-negative or inconclusive findings. No mode requires a winner. Declining
-integration does not authorize destroying useful conclusions or unique results:
-necessary results are accepted into their current owner or retained as exact,
-recoverable evidence before controlled lane retirement.
-
-Agents coordinate before overlapping a semantic owner and justify duplicated
-exploration by expected evidence gain. A fixed WIP count, queue or race record
-is not part of the kernel; capacity follows current ownership, conflict, risk
-and proof cost. Retention ends when its explicit obligation is discharged, not
-merely because a lane lost a competition or because preservation is convenient.
+Cooperating lanes may integrate several contributions or a proved synthesis;
+competition may select one or none, and exploration may retain only negative
+or inconclusive evidence. All-drop never authorizes destruction of useful
+results: accept them into their owner or preserve exact recoverable evidence
+before retirement. Agents coordinate overlapping owners; exploration's gain,
+conflict, risk and proof cost govern capacity, not a fixed queue or winner rule.
 
 ### Local Object Authority And Remote Projection
 
-The local Git object database is the publication source of truth. A repository
-with zero, one, or many declared remotes is valid. Each remote is an independent
-projection target and receives the same selected commit and annotated-tag
-objects by OID. A peer never becomes the source for another peer, and publication
-never rebuilds, amends, re-signs, or replays content to satisfy a provider.
-
-A multi-peer publication is one bounded plan with deterministic ordering and an
-exact receipt. If a peer observes another peer before the same batch reaches it,
-the result is a bounded `temporal_peer_projection_pending`, not proven
-divergence; after the declared window, unequal OIDs are genuine divergence. A
-local-only result claims neither remote publication nor hosted CI.
-
-Each peer effect freshly rechecks applicable source trust, proof, target policy
-and exact old refs. A successful earlier peer is not permission for a later
-one; an earlier equality observation is not currentness. Preserve confirmed
-effects when another peer blocks, keep missing observations UNKNOWN and resume
-only from fresh admission. A request digest binds intent, not reusable authority.
+Local Git owns publication objects for zero, one or many declared peers. Each
+receives the same selected commit and annotated-tag OIDs; peers never source
+one another, and no provider may rebuild, amend or re-sign. One deterministic
+bounded plan records each effect. Before a peer mutates, recheck source trust,
+proof, target policy and old refs; prior success or equality is not fresh
+authority. Keep confirmed partial effects, UNKNOWN observations and fresh
+recovery distinct. A peer temporarily behind within the declared window is
+pending, not divergent; beyond it unequal OIDs are divergence. Local-only
+success claims no remote or hosted result.
 
 ### Binding Taxonomy
 
-A binding is explicit and exact in its authority query:
-
-1. **Product-semantic hard bindings** bind kernel inputs, subject, scope,
-   predicate, validity, and expected Git state.
-2. **Mandatory governance dependencies** bind a profile-selected operational
-   obligation whose absence blocks the operation.
-3. **Profile or adapter bindings** bind optional native carriers and external
-   capabilities; absence is a fact with an explicit reason, never a fabricated
-   default.
-
-Bindings do not transfer authority between proof planes. A fresh binding may
-establish currentness only for its declared subject, predicate, scope, plane,
-and validity boundary.
-
-Proof admission binds the compiled Commitment identity and exact repository
-Facts before mutable dependencies or conflicts are evaluated. Historical
-Attestations remain queryable, but proof for another input cannot invalidate
-candidate acceptance. Conflicts within the selected authority remain
-fail-closed.
-
-Proof selection is predicate- and binding-specific. A proof request selects the
-Attestation for the exact Commitment, source commit and tree, gate policy,
-verifier, and proof plane. An Attestation for worktree projection, transport,
-ref movement, or another Commitment cannot satisfy that query merely because it
-is newer or mentions the same path.
+Hard bindings name subject, predicate, scope, validity and expected Git state;
+mandatory bindings name profile-selected obligations; optional bindings name
+native capabilities or explicit absence. None transfers authority between
+proof planes. Admission binds exact Commitment and fresh Facts before conflicts;
+historical Attestations remain queryable without invalidating another input.
+Proof selects predicate, Commitment, commit, tree, policy, verifier and plane;
+newer transport, worktree or ref receipts cannot substitute.
 
 ### Configuration Boundaries
 
-Configuration has one owner per concern: repository source owns behavior,
-`system/` owns machine declarations, `.config/checks/<concern>/` owns an
-admitted check's local inputs, and native provider files own provider syntax.
-`system/gates.toml` owns gate identity, execution, evidence, and proof-floor
-membership; native config and supply files own tool-specific policy and
-versions. This separation implements MECE, SSOT, and DRY without a second tool
-catalog; a projection links to its owner instead of copying policy.
+Repository source owns behavior, `system/` machine contracts,
+`.config/checks/<concern>/` native inputs and provider files provider syntax.
+`system/gates.toml` owns gate execution, evidence and floor; native configs and
+locks own tool policy and versions. Projections link rather than copy.
 
 ## Isomorphic Adopter Governance
 
@@ -499,61 +399,44 @@ and returns one actionable command.
 
 ### Runtime And State Authority
 
-Product version, distribution version, source commit, source tree, package or
-wheel digest, runtime digest, accepted/candidate role, and installed runtime
-binding are separate identities. A released version is never reused for
-different bytes. Public version and status output expose these coordinates and
-the embedded OpenSpec version.
+Product and distribution versions, source commit/tree, package and runtime
+digests, repository role and installed selection are distinct identities. A
+released version never names different bytes. Public version and status expose
+the selected identities, including the embedded OpenSpec version.
 
-Runtime activation is one transaction: preflight the complete offline closure
-and state-schema compatibility; stage a public, versioned migration or safe
-reset; construct and verify a new immutable generation; atomically switch
-`CURRENT`; then rebind and verify hooks. Activation failure restores selector,
-hooks and state to their exact pre-state. Successful activation is not undone by
-later reclamation failure. Immutable generations are never modified in place.
+Runtime activation preflights the complete offline closure and state schema,
+stages a public migration or safe reset, verifies a new immutable generation,
+then switches the selector and rebinds hooks. Failure restores selector, hooks
+and state to their exact pre-state; later reclamation failure does not undo a
+successful activation. Product supply and repository toolchains remain distinct.
 
-Reclamation has one runtime owner and follows current operational dependencies:
-selection, effective repository configuration, live native process commands and
-linked interpreter bindings. Historical observations preserve provenance without
-requiring their former executable to remain installed. Operation recovery uses
-the current selected runtime, not a historical path as an executable lease.
-Before each deletion, recheck dependencies and exact owned directory identity
-under the selector fence. Unavailable observations defer deletion. Retain exact
-removed, retained and deferred outcomes; retry from fresh facts rather than
-pretend to roll back completed removals. Permission repair stays inside the
-owned generation. The selector lock coordinates runtime actors; it does not
-isolate arbitrary operating-system processes or external configuration writes.
+One runtime owner reclaims only exact owned generations after fresh selected
+runtime, configuration, native process and interpreter-binding observations.
+Each deletion rechecks dependencies and directory identity under the selector
+fence. Unknown observations defer deletion; results distinguish removed,
+retained and deferred resources. Historical provenance alone does not retain an
+executable, and recovery uses the current selected runtime rather than replaying
+a historical path. Retry starts from fresh facts; permission repair stays
+inside owned generations. The selector lock coordinates runtime actors, not
+uncooperative same-user processes or external configuration writes.
 
-Each dependency or embedded tool has one native declaration owner; exact locks
-and generated consumers project that selection, not another version registry.
-The supply chain must converge to current upstream stable releases. Check the
-publisher's release channel and lifecycle declaration as well as version
-ordering: a `latest` tag or a version without a prerelease suffix alone does not
-prove stability. A latest wrapper package does not prove its embedded binary is
-current. This applies to production, build, development, package-manager,
-interpreter, embedded-tool, CI Action, and container supplies.
+Each dependency and embedded tool has one native declaration owner; locks and
+consumers project it. Release freshness checks the publisher's stable channel,
+version and embedded bytes across production, build, development,
+package-manager, interpreter, CI Action and container supply. A `latest` label,
+non-prerelease spelling or current wrapper cannot alone establish stability.
+Observations bind source, time, selected version and immutable artifact;
+regenerated locks and hashes must agree with the resolved closure, executed
+environment, built package, installed runtime and provider projection. Proof
+never resolves floating versions or treats compatibility testing as current
+default selection.
 
-Freshness observations bind the official source, observation time, selected
-version, and immutable artifact identity. Regenerate exact locks and hashes
-after upgrade; do not resolve floating `latest` versions during proof. Recheck
-upstream freshness at the release boundary and distinguish source selection,
-resolved closure, executed environment, built package, installed runtime, and
-provider projection. Each must report its actual identity. Supported-version
-compatibility tests do not authorize a stale default runtime.
-
-A dependency conflict, unavailable stable release, or unobservable publisher is
-an open convergence gap, not implicit permission to keep an older or preview
-release. Preserve the exact upstream constraint and repair or replace its owner;
-do not force incompatible transitive versions, invent releases, or weaken gates.
-Any requested exception needs explicit user approval and a bounded exit, and
-cannot be reported as satisfying the latest-stable requirement. Keep this work
-within a cohesive Change; freshness is not permission for unbounded scope.
-
-The package lock, built runtime, `--version`, and status projections expose the
-same selected OpenSpec and toolchain identities rather than silently using
-ambient or stale versions. Acceptance requires current compatibility and
-quality evidence plus immutable installed-runtime readback, not lock agreement
-alone.
+Incompatible dependencies, absent stable releases and unobservable publishers
+remain explicit gaps. Repair or replace the owner rather than forcing a
+transitive override or retaining an older preview by default. A requested
+exception needs explicit user approval and an exit condition; it never
+satisfies the latest-stable claim. Acceptance requires compatible quality
+evidence and immutable installed readback, not lock agreement alone.
 
 ### Bounded Maintainer Recovery
 
@@ -572,63 +455,42 @@ still exact, reviewed, auditable, and Attested.
 
 ### Documentation, Evidence, And Operational Resources
 
-Documentation is organized by reader purpose and semantic owner.
-`docs/README.md` provides the documentation entrypoint, and
-`docs/guides/quickstart.md` provides the first-run guide. A directory README owns
-a meaningful boundary or navigation among multiple substantive children.
+Documentation follows reader purpose and semantic ownership:
+`docs/README.md` is its entrypoint, `docs/guides/quickstart.md` the first-run
+route, and a directory README explains a real boundary or navigates multiple
+substantive children. `docs/decisions/` keeps only irreducible cross-Change
+alternatives, consequences and revisit conditions. Decision names are lowercase
+and semantic; each record has an owner and retirement condition. Evidence
+survives only with a producer, consumer, exact binding and retention lifecycle.
+Attestations retain results, Git retains history, and current owners retain
+still-valid obligations.
 
-`docs/decisions/` preserves only irreducible cross-Change rationale that the
-current contract or source cannot express without losing alternatives,
-consequences, or a revisit condition. Decision filenames are lowercase and
-semantic; each record names its owner and retirement condition. Retained evidence
-has a current producer, consumer, exact binding and retention lifecycle.
-Attestations carry durable results, Git preserves committed history, and current
-semantic owners carry still-valid obligations.
+[Module Layout Rules](../../rules/module_layout.md) own physical source shape.
+Each quality property has one executable owner, using native tools where they
+suffice. Documentation explains contracts and reasons rather than copying
+policy. Configuration lives by concern; root placement needs a native
+integration or total-cost reason. Commands, editors, hooks and CI evaluate the
+same policy and base.
 
-Physical source layout follows [Module Layout Rules](../../rules/module_layout.md)
-rather than being restated here. Each quality property has one executable owner;
-native tools enforce the properties they support, and product-specific checks
-cover irreducible requirements. Documentation conveys contracts, reasons and
-non-obvious behavior. Configuration is organized by concern, with root placement
-justified by native integration and total maintenance cost. Direct commands,
-editors, hooks and CI resolve the same policy against the same evaluation base.
+Quality requirements precede observed results. Combined Python line-and-branch
+coverage is at least 95 percent over the declared product surface, enforced by
+default and full proof and local CI on current-HEAD evidence. Debt fails; tests
+must distinguish independently chosen outcomes rather than mirror settings.
+Formatting, lint, schema, links, security, portability and source budgets apply
+to each meaningful admitted carrier. Narrow-owner budgets cannot be offset by
+other source classes; generated outputs and archived OpenSpec records are
+reported separately from maintained generators, active intent, config and docs.
+Size constrains maintenance cost, not correctness; relabeling, cosmetic
+compression, removed necessary tests or automatic limit increases are invalid
+repairs. Supported modern Python and native macOS/Linux/Windows behavior retain
+their declared floor.
 
-Quality requirements constrain implementation and acceptance; observed results
-do not redefine them. ETHOS requires at least 95 percent combined Python
-line-and-branch coverage across the declared product surface. The existing
-coverage policy owns its executable threshold, and default proof, full proof,
-and local CI enforce the same current-HEAD evidence. Coverage debt is a failing
-requirement, not an aspiration or an acceptance exemption. Regressions must
-exercise independently chosen boundary outcomes, not only mirror configuration.
-
-Formatting, lint, schema, link, security, portability, and source-budget
-coverage apply to every admitted carrier for which the property is meaningful.
-Budgets are evaluated at the narrow owner where growth occurs; unrelated source
-classes cannot compensate for a local violation. Size is a maintenance-cost
-constraint, not a measure of correctness, productivity, or semantic quality.
-The native source-budget declaration owns the numeric limits: Python product
-and test source have independent hard ceilings; tools, other languages, and
-the heterogeneous project total are observations unless explicitly bounded.
-Generated outputs and archived OpenSpec records are reported separately, not
-charged as maintained source. Their handwritten generators, active intent,
-configuration, and documentation remain counted. Moving live authority into an
-excluded class, compressing formatting, or deleting necessary tests is not
-simplification. A size failure requires semantic consolidation while preserving
-behavior and the quality floor, not a compensating score or an automatic limit
-increase. Python implementation may use
-modern language features within the declared supported floor, while adapters
-preserve native macOS, Linux, and Windows behavior instead of assuming one
-shell, filesystem, or credential model.
-
-Every temporary, runtime, supply, test, and generated tree has one owner and a
-bounded lease or equivalent liveness fact. Normal completion uses structured
-finalization; kill or crash is recovered by a bounded scavenger that protects
-live owners and deletes only exact owned roots. Tests share read-only,
-content-addressed dependency and runtime supply instead of copying complete
-virtual environments or `node_modules` per case. Owned directory modes remain
-deletable, and cleanup acceptance budgets item count, inode count, latency, and
-host indexing pressure as well as bytes. Global monkeypatches, broad prefix
-deletion, generic retries, and longer TTLs are not cleanup correctness.
+Every temporary, runtime, supply, test and generated tree has one owner and a
+bounded liveness fact. Normal completion finalizes it; crash recovery scavenges
+only exact owned roots while protecting live users. Tests share read-only,
+content-addressed supply instead of full per-case copies. Cleanup budgets count
+items, inodes, latency and indexing pressure as well as bytes; broad deletion,
+global monkeypatches, generic retries and longer TTLs are not correctness.
 
 ### Evidence Planes And Completion Claims
 
@@ -651,64 +513,43 @@ appeal never permits a second ontology or an unverified completion claim.
 
 ## Feedback Intent Preservation
 
-Intent formation has two distinct stages. Open interpretation proposes
-questionable candidate meanings, assumptions and trade-offs. Deterministic
-compilation consumes accepted meaning and current facts to produce acceptance,
-proof obligations and plans. The compiler does not certify natural-language
-understanding. Source availability, source-constraint accounting, accepted
-interpretation, sufficient checks, observed effects and achieved goals are
-separate claims; none substitutes for another.
+Intent formation separates open, challengeable interpretation of sources,
+assumptions and trade-offs from deterministic compilation of accepted meaning
+and fresh facts into acceptance, proof duties and plans. The compiler cannot
+certify natural-language understanding. Source availability, scoped constraint
+accounting, accepted interpretation, sufficient checks, observed effects and
+achieved goals are separate claims.
 
-Every relevant constraint within the declared source scope is retained,
-explicitly excluded by an authorized decision or left unresolved. Positive and
-negative examples test candidate interpretations against original sources,
-including non-goals, exceptions, environmental assumptions and system guarantees.
-An interpretation that requires one winner contradicts a source allowing all
-candidates to be dropped, regardless of its own green tests. Accepted meaning
-remains in official OpenSpec; source maps and summaries are rebuildable views.
-A complete selected-file observation is not proof that all human constraints
-were discovered or correctly understood.
+Every relevant constraint in a declared source scope is retained, excluded by
+an authorized decision or left unresolved. Positive and negative examples
+challenge the interpretation, including non-goals, exceptions, environment
+assumptions and system guarantees. Requiring a winner contradicts an all-drop
+source even if self-authored tests pass. Official OpenSpec owns accepted intent;
+source maps are rebuildable views. Reading every selected file does not prove
+that all human constraints were found or understood.
 
-Conversation and operational feedback are source material, not authority by
-volume or repetition. Recovery preserves each distinct semantic obligation,
-not every message or wording. Source classes are adjudicated as follows:
+Conversation and feedback are inputs, not authority by repetition. Later direct
+human guidance supersedes earlier guidance only on the same subject. Delegated
+observations, inferences and remedies are judged separately. Source, tests,
+Git, runtime and hosted results establish implementation facts, never reverse-
+define intent. Transcripts, host memory, summaries, classifications and scratch
+files are non-authorizing context. Recover each distinct obligation, not every
+message, and give it exactly one disposition:
 
-- direct human guidance is design input; a later explicit instruction
-  supersedes an earlier one only on the same subject;
-- delegated material is separated into observation, inference, and proposed
-  remedy, so accepting an exact observation does not admit its diagnosis or
-  design automatically;
-- source, tests, Git history, runtime state, and hosted observations establish
-  implementation facts, but cannot reverse-define human intent; and
-- chat transcripts, host memory, agent summaries, generated classifications,
-  and temporary files remain non-authorizing context.
+- `accepted`: map to a current owner, acceptance boundary and proof path;
+- `superseded`: identify the later governing instruction on the same subject;
+- `pending verification`: name the missing fact, contradiction or model gap;
+- `rejected`: record the reason in the governing official Change.
 
-Every distinct obligation receives exactly one disposition:
-
-| Disposition | Meaning and durable outcome |
-| --- | --- |
-| `accepted` | Map the meaning to one current semantic owner, acceptance boundary, and proof path. |
-| `superseded` | Name the later governing instruction on the same subject; do not keep both as current truth. |
-| `pending verification` | Name the missing fact, contradiction, or model gap; authorize no effect by guesswork. |
-| `rejected` | Record the reason in the governing official Change, without creating a current product carrier. |
-
-Accepted meaning is placed by lifetime, not by convenience:
-
-| Meaning | Unique carrier |
-| --- | --- |
-| Current product meaning and invariants | this Product Design Contract |
-| Unfinished dependency order, exit conditions, and proof boundaries | [Terminal Governance Product Design](../plans/terminal-governance-product-design.md) |
-| One bounded change, including recovery scope and adjudication | official OpenSpec `proposal`, `specs`, `design`, and `tasks` |
-| Irreducible rationale that remains useful across Changes | one necessary semantic Decision Record |
-| Executable admission or behavior | its source, schema, native configuration, rule, and test owner |
-| Raw transcripts, extracts, classifiers, and scratch matrices | owner-scoped temporary storage, deleted after coverage proof |
-
-A refinement may change a carrier only after its invariant, owner, acceptance,
-and verifier remain traceable and the replaced carrier can retire. Repeated
-operational lessons improve the narrow existing owner: product behavior and its
-regression test, an agent rule, or an already admitted reusable skill. They do
-not justify a new feedback ledger, registry, memory-backed authority, or skill
-whose only purpose is to restate product truth.
+Place accepted meaning by lifetime: this contract owns product meaning; the
+[terminal plan](../plans/terminal-governance-product-design.md) owns unfinished
+order and exits; official OpenSpec owns bounded Change intent and progress;
+a necessary Decision Record keeps cross-Change rationale; source, schemas,
+config, rules and tests own executable behavior; raw material remains temporary
+until coverage is proven, then retires. A carrier changes only when its
+invariant, owner, acceptance and verifier remain traceable. Recurring lessons
+repair the existing product, rule or useful Skill, not a feedback ledger,
+shadow registry, memory authority or restatement Skill.
 
 ## Bounded Change Granularity
 
@@ -744,33 +585,17 @@ their rendered dashboards, indexes, and command output remain projections.
 ## Invariants
 
 1. One durable obligation has one narrow semantic owner.
-2. Every effect is compiled, evaluated, current-state checked, and CAS applied.
-3. Unknown required facts, ambiguous authority, stale bindings, and contradictions
-   fail closed.
-4. Historical bytes remain readable but do not silently authorize current work.
-5. Profiles retain native domain, layout, provider, and observation freedom;
-   complete mutation adoption uses one verified OpenSpec carrier without
-   shaping kernel semantics.
-6. OpenSpec is the sole tracked Change intent; Commitment is transient and
-   Attestation is the durable semantic result.
-7. Change relations and experiments remain derived capabilities, not new state
-   stores.
-8. Lease owns only lane-holder coordination; Git and proof facts are observed
-   anew.
-9. Local Git owns publication objects; every declared remote receives the same
-   selected OIDs or is reported separately as absent, unavailable, pending, or
-   divergent.
-10. `work/*`, candidate, `proposal/*`, `dev`, and `main` have distinct authoring,
-    integration, review, accepted, and release roles; proposal retirement follows
-    `dev` acceptance, not `main` promotion.
-11. Runtime activation, state migration, hook rebinding, and rollback form one
-    immutable transaction executed through the locked repository toolchain.
-12. Documentation, evidence, configuration, temporary resources, and physical
-    modules survive only with one semantic owner, current consumers, and a
-    provable lifecycle.
-13. Every recovered obligation is accepted, superseded, pending verification,
-    or rejected; only accepted meaning enters a current owner.
-14. Official and mature capabilities are evaluated before custom machinery;
-    declarative pure semantics stay separate from bounded effects.
-15. Compatibility residue, feedback ledgers, and memory-backed product truth do
-    not survive terminal convergence.
+2. Every effect is compiled, evaluated, freshly admitted and applied by exact CAS.
+3. Unknown required facts, ambiguous authority, stale bindings and conflicts block.
+4. Historical bytes remain recoverable without becoming current authority.
+5. Profiles retain native domains and layouts; complete mutation uses verified OpenSpec.
+6. OpenSpec owns tracked intent; Commitment is transient and Attestation durable.
+7. Change relations and experiments derive from existing carriers, not new stores.
+8. Lease owns lane-holder coordination; Git and proof facts are observed afresh.
+9. Local Git owns objects; each declared remote receives the same OIDs or reports its state.
+10. Work, candidate, proposal, dev and main stay distinct; proposal retires after dev, not main.
+11. Runtime activation, state migration, hooks and rollback form one immutable transaction.
+12. Docs, evidence, config, temporary roots and modules need owners, consumers and lifecycles.
+13. Each recovered obligation is accepted, superseded, pending verification or rejected.
+14. Official and mature capabilities precede custom machinery; pure decisions precede effects.
+15. Superseded compatibility, feedback ledgers and memory-backed product truth retire.

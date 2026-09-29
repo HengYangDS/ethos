@@ -1,7 +1,9 @@
-"""Project human-readable decisions and treat closed output pipes as terminal."""
+"""Project human-readable decisions without losing failed output delivery."""
 
 from __future__ import annotations
 
+import os
+import subprocess
 import sys
 
 import pytest
@@ -122,8 +124,8 @@ def test_human_output_keeps_distinct_messages_for_one_reason_code(capsys) -> Non
 
 
 @pytest.mark.parametrize("error", [BrokenPipeError(), BlockingIOError()])
-def test_output_pipe_failure_is_a_terminal_no_op(
-    monkeypatch: pytest.MonkeyPatch, error: OSError
+def test_output_pipe_failure_cannot_erase_a_blocked_verdict(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], error: OSError
 ) -> None:
     monkeypatch.setattr(
         sys.stdout,
@@ -131,12 +133,83 @@ def test_output_pipe_failure_is_a_terminal_no_op(
         lambda _text: (_ for _ in ()).throw(error),
     )
 
-    output.emit(
-        EthosResult(
-            command="status",
-            verdict="block",
-            state="gapped",
-            required_gaps=("repository_invalid",),
-        ),
-        json_output=False,
-    )
+    with pytest.raises(SystemExit) as exit_info:
+        output.emit(
+            EthosResult(
+                command="status",
+                verdict="block",
+                state="gapped",
+                required_gaps=("repository_invalid",),
+            ),
+            json_output=False,
+        )
+
+    assert exit_info.value.code == 1
+    expected = "output_closed" if isinstance(error, BrokenPipeError) else "output_backpressure"
+    assert expected in capsys.readouterr().err
+
+
+def test_short_json_write_is_not_a_completed_report(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(sys.stdout, "write", lambda _text: 3)
+
+    with pytest.raises(SystemExit) as exit_info:
+        output.emit(EthosResult(command="status", verdict="pass", state="done"), json_output=True)
+
+    assert exit_info.value.code == 1
+    assert "output_partial" in capsys.readouterr().err
+
+
+def test_flush_failure_after_write_is_not_reported_as_success(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    class FailingFlush:
+        def write(self, text: str) -> int:
+            return len(text)
+
+        def flush(self) -> None:
+            raise BrokenPipeError
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(sys, "stdout", FailingFlush())
+        with pytest.raises(SystemExit) as exit_info:
+            output.emit(
+                EthosResult(command="status", verdict="pass", state="done"), json_output=True
+            )
+
+    assert exit_info.value.code == 1
+    assert "output_closed" in capsys.readouterr().err
+
+
+def test_real_full_nonblocking_pipe_preserves_one_failed_exit() -> None:
+    read_fd, write_fd = os.pipe()
+    os.set_blocking(write_fd, False)
+    try:
+        try:
+            while True:
+                os.write(write_fd, b"x" * 8192)
+        except BlockingIOError:
+            pass
+        script = (
+            "from ethos.result import EthosResult; "
+            "from ethos.surface.cli.output import emit; "
+            "emit(EthosResult(command='status', verdict='block', state='gapped', "
+            "required_gaps=('probe',)), "
+            "json_output=True)"
+        )
+        process = subprocess.Popen(
+            [sys.executable, "-B", "-c", script],
+            stdout=write_fd,
+            stderr=subprocess.PIPE,
+        )
+        os.close(write_fd)
+        write_fd = -1
+        _, stderr = process.communicate(timeout=5)
+        assert process.returncode == 1
+        assert b"output_backpressure" in stderr
+        assert b"Exception ignored while flushing" not in stderr
+    finally:
+        if write_fd >= 0:
+            os.close(write_fd)
+        os.close(read_fd)

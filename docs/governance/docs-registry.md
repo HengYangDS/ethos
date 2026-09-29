@@ -75,11 +75,12 @@ observe -> shape -> canonize -> project -> retire
 Archive material may preserve old vocabulary. Canonical docs must lead with the
 single `ethos ...` command plane.
 
-Superseded documents live only as explicit `docs/history/` carriers. Current
-architecture, governance, reference, guides, and plan surfaces must not retain
-redirect or locator pages for retired concepts; they link directly to the
-historical carrier when historical context is necessary. Retirement removes
-redundant current-surface carriers. Official OpenSpec archive bytes remain
+Git retains superseded document bytes. Keep a `docs/history/` carrier only when
+its historical explanation or retrieval instructions have a current consumer;
+otherwise cite the exact Git revision. Current architecture, governance,
+reference, guides, and plan surfaces must not retain redirect or locator pages
+for retired concepts. Retirement removes redundant current-surface carriers.
+Official OpenSpec archive bytes remain
 immutable at their Git revisions; their presence in the latest tree is not a
 permanent retention requirement or current authority. Retire an unconsumed
 current-tree copy only after canonical specs, exact proof bindings, incoming

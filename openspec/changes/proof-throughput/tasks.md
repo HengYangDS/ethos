@@ -74,6 +74,7 @@
 - [x] 5.10 Share owned-output removal, preserve external referents and verify minimal permission effects.
 - [ ] 5.11 Close native bootstrap identity wiring and tool transport timeouts; retain failed output, reuse verified supply across disposable checkouts, scope offline flags to bootstrap, and qualify cold and warm hosted consumers without increasing the deadline.
 - [ ] 5.12 Reproduce ignored durable-custody loss at retirement; consume existing artifact declarations to distinguish retained, active, foreign, unknown and proved disposable resources before deletion.
+- [ ] 5.13 Qualify exact producer/consumer scratch ownership under repeated normal, crash and kill cycles; preserve live/unknown roots and shared supply, then measure source-bound 24/48-hour count, byte, inode and cleanup bounds before claiming recurrence closed.
 
 ## 6. Native Test Isolation and Shared Preparation
 
@@ -116,6 +117,9 @@
 - [x] 8.8 Reject mixed provider/source execution before all gates and qualify matching package, source and adopter paths.
 - [ ] 8.9 Reject incomplete hosted results and missing, malformed or contradictory test artifacts through the existing receipt owner.
 - [ ] 8.10 Verify one-attempt Allure 3 human/Agent reports alongside native JUnit/coverage, complete per-property reports, explicit product/test/tooling type-check scopes, cross-platform admission and warning propagation with native falsifying cases.
+- [ ] 8.11 Reject tracked-document links satisfied only by ignored/untracked host bytes; use native link syntax plus selected-tree or verified published-artifact membership and retain valid local targets.
+- [ ] 8.12 Make native source inventory failure observable and include nonignored candidate files in early size checks; reject empty Markdown selection, nested rule override and malformed system-schema report loss; replay corresponding public positive/negative cases.
+- [ ] 8.13 Verify formatter write and nonmutating check commands against actual native session discovery and effective configuration; reject missing `format` sessions, write-as-check and disabled-rule false green at the format ownership gate.
 
 ## 9. Startup and Structural Simplification
 
@@ -145,6 +149,9 @@
 - [x] 10.8 Preserve dependency-tool exit status, unavailable execution, findings and malformed-report states through the existing receipt and Nox admission.
 - [x] 10.9 Repair installed hook formatting supply: a configured check must not silently pass when its bound Ruff executable is absent; verify installed valid, invalid and missing-tool cases.
 - [x] 10.10 Preserve meaningful YAML scalar newlines while rejecting redundant structural blank lines through the native configuration owner; keep producer-owned and historical carriers unchanged.
+- [ ] 10.11 Repair reference observation and declaration ownership at their existing owner: aliases, shadowing, lexical scope, call-site values, dynamic private imports, scoped dynamic UNKNOWN, and trusted profile/release command fields. Reproduce false passes and false blocks through public repository-audit, module-layout and patch-admission consumers; replace heuristics rather than adding name exceptions, preserve legal success, and qualify exact-source proof and installed behavior.
+- [ ] 10.12 Replace fixed OpenSpec proposal/design/tasks path inference with its resolved artifact graph; preserve positive removal-only acceptance; replay renamed/optional outputs, pure/mixed removal, `skip_specs`, missing/ambiguous resolution, archive identity and exact source binding through public compilation and proof.
+- [ ] 10.13 Preserve blocked CLI exit and incomplete-report status under nonblocking backpressure and short writes; distinguish closed consumers without replaying completed effects.
 
 ## 11. Supply and Native Configuration
 

@@ -729,3 +729,106 @@ coordinates. Equal trees alone SHALL NOT establish acceptance or authority.
 - **WHEN** a peer ref is already current, absent or an ancestor of the signed source
 - **THEN** exact publication admission uses that observed relation without validating a historical repair
 - **AND** a divergent peer still requires completed repair provenance or is rejected
+
+### Requirement: Python reference observation respects binding and call site
+
+Python consumer observation SHALL resolve statically determinable executable and
+environment reads from import binding, lexical scope and values at the call.
+Parsing a carrier SHALL NOT by itself establish semantic coverage. Unsupported
+dynamic expressions SHALL report UNKNOWN for the affected obligation rather
+than a fabricated reference or an unrelated whole-repository block. Patch
+admission, repository audit and private-boundary consumers share this owner.
+
+#### Scenario: Aliases preserve a real consumer
+
+- **WHEN** `subprocess.run`, an aliased module or imported `run` invokes an undeclared executable, or aliased `os.getenv` reads an undeclared input
+- **THEN** the public repository-audit gate identifies the corresponding missing declaration
+- **AND** a spelling-only rewrite does not change the observed behavior
+
+#### Scenario: Shadowing cannot invent an effect
+
+- **WHEN** a local object named `subprocess` has a harmless `run` method
+- **THEN** no standard-library executable consumer is inferred from that call
+- **AND** the otherwise valid source remains eligible
+
+#### Scenario: The value belongs to its scope and program point
+
+- **WHEN** a global name is shadowed locally or assigned after `getenv(NAME)`
+- **THEN** the read uses only values possible at that call in its lexical scope
+- **AND** a later assignment cannot erase an earlier undeclared input
+
+#### Scenario: Dynamic semantics remain bounded unknown
+
+- **WHEN** a relevant callee or value uses unsupported dynamic lookup
+- **THEN** only the affected consumer obligation is UNKNOWN and cannot pass as evaluated
+- **AND** unrelated statically resolved files retain their valid result
+
+### Requirement: Native command declarations own their executables
+
+The common reference owner SHALL read executable ownership from the actual
+trusted gate, profile and release command fields. Filename, product name and a
+candidate's changed policy SHALL NOT supply missing prior authority. Missing,
+malformed and genuinely undeclared commands remain distinct observations.
+
+#### Scenario: A trusted command field supplies an executable
+
+- **GIVEN** a trusted repository declaration selects an executable in a gate or local publication command
+- **WHEN** maintained code references that executable
+- **THEN** reference closure recognizes its exact declaration without a filename exception
+- **AND** removing or corrupting the declaration exposes the appropriate gap
+
+#### Scenario: Candidate command text cannot self-authorize
+
+- **WHEN** a candidate adds both a new executable reference and its own command declaration
+- **THEN** trusted-prior admission still rejects an unauthorized executable
+- **AND** no broad allowlist or copied adopter declaration substitutes for that decision
+
+### Requirement: Official artifact paths determine Change acceptance
+
+ETHOS SHALL compile a selected Change from the official resolved artifact graph
+and exact configured output paths. A fixed proposal, design or task filename
+SHALL NOT override a valid project-local OpenSpec schema. Structural validation
+and advisory guidance SHALL NOT by themselves prove accepted meaning or authorize
+writes. The compiled result and proof identity SHALL bind the resolved paths and
+bytes without creating another Markdown parser or intent carrier.
+
+#### Scenario: A valid schema renames the design output
+
+- **GIVEN** official status and strict validation accept a schema whose design output is `architecture.md`
+- **WHEN** ETHOS compiles or proves the selected Change
+- **THEN** it consumes that official output instead of requiring `design.md`
+- **AND** changing the resolved path or its bytes invalidates the old binding
+
+#### Scenario: Missing or ambiguous official outputs do not fall back
+
+- **WHEN** official artifact resolution is absent, malformed, escapes the selected root or selects conflicting outputs
+- **THEN** ETHOS reports the bounded source gap and grants no Change or path authority
+- **AND** `skip_specs: true` remains a valid official no-spec case rather than an inferred omission
+
+#### Scenario: Removal-only intent still compiles acceptance
+
+- **GIVEN** official validation accepts a Change with only a `REMOVED` requirement and its reason and migration
+- **WHEN** ETHOS compiles the selected acceptance
+- **THEN** it records obligations for the resulting system instead of returning empty intent
+- **AND** it does not require the retired behavior to remain true
+- **AND** mixed add/remove, rename and valid no-spec Changes retain distinct meanings
+
+### Requirement: CLI transport failure preserves the governance verdict
+
+Result delivery SHALL distinguish a closed consumer, temporary backpressure and
+partial output. Neither a caught write exception nor a short write may turn a
+blocked governance result into process success or describe incomplete JSON as a
+completed report. Already-performed effects SHALL NOT be replayed to repair the
+output channel.
+
+#### Scenario: A blocked result meets a full nonblocking pipe
+
+- **WHEN** writing a blocked result raises `BlockingIOError`
+- **THEN** the process retains a nonzero exit and a bounded transport diagnostic
+- **AND** no additional repository effect is attempted
+
+#### Scenario: JSON output is only partly accepted
+
+- **WHEN** a stream reports a short successful write before the complete JSON frame
+- **THEN** delivery is incomplete and cannot be treated as a passing report
+- **AND** a genuinely closed consumer remains a distinct bounded failure

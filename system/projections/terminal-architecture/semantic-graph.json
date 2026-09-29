@@ -129,7 +129,7 @@
     "product_contract": {
       "path": "docs/governance/product-design-contract.md",
       "authority": "canonical product meaning and semantic kernel",
-      "sha256": "ef47ce04d5d4ee0590317af83d7df311490a26db8b2fb7819493dffbec9273e7"
+      "sha256": "ea3c231c773ec57cadc63aa23fd100b5e47ee071a4fe5b2b072e3c848c1b19b6"
     },
     "axioms": {
       "path": "system/axioms.md",
@@ -347,7 +347,7 @@
         "product_contract",
         "skills"
       ],
-      "semantics": "People and interchangeable Agents compose Skills, generators, verifiers and native tools. Evaluate official and mature capabilities before custom machinery. Stable names express responsibility; independently interpreted compatibility, migration or evidence boundaries justify versions. Contracts bind I/O, identity, permission, cancellation and failure. Pure semantics stay separate from bounded effects; capabilities grant no authority."
+      "semantics": "People and interchangeable Agents compose Skills, generators, verifiers and native tools. Evaluate official and mature capabilities before custom machinery. Stable names express responsibility; independently interpreted compatibility, migration or evidence boundaries justify versions. Contracts bind I/O, identity, permission, cancellation and failure. External generators only propose candidates, without active-worktree or Git-common mutation or publication credentials. Pure semantics stay separate from bounded effects; capabilities grant no authority."
     },
     "actor": {
       "kind": "execution",

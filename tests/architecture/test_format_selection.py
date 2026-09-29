@@ -132,3 +132,63 @@ def test_native_javascript_transport_uses_its_semantic_adapter_home(
         item["reason"] == "format outside declared carrier home: .mjs"
         for item in report["failures"]
     )
+
+
+@pytest.mark.parametrize(
+    ("declaration", "error"),
+    [
+        ("format = 7\n", ValueError),
+        ("[[format]]\nextensions = 7\n", TypeError),
+        ("[policy]\nforbid_tracked_extensions = [7]\n", TypeError),
+        ("[policy]\nunregistered_extension = 7\n", TypeError),
+    ],
+)
+def test_format_selection_rejects_malformed_native_policy(
+    tmp_path, monkeypatch, declaration: str, error: type[Exception]
+) -> None:
+    """A structurally invalid native declaration cannot be a quality pass."""
+    config = tmp_path / "selection.toml"
+    config.write_text(declaration)
+    monkeypatch.setattr(format_selection, "CONFIG_PATH", config)
+    monkeypatch.setattr(format_selection, "audit", lambda _root: {})
+
+    with pytest.raises(error):
+        format_selection.main()
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        "validation_command = 7\nsemantic_companions = []",
+        'validation_command = "ruff check"\nsemantic_companions = [7]',
+    ],
+)
+def test_carrier_assignment_rejects_malformed_owned_fields(tmp_path, fields: str) -> None:
+    """The producer, not each consumer, validates assignment field types."""
+    config = tmp_path / ".config/checks/format/selection.toml"
+    config.parent.mkdir(parents=True)
+    config.write_text(
+        '[[ownership]]\npaths = ["example.py"]\nformat_owner = "ruff"\n'
+        'format_command = "ruff format"\nformat_check = "ruff format --check"\n'
+        'validation_owner = "ruff"\n'
+        f'{fields}\nmutation_policy = "native-formatter"\n'
+    )
+
+    with pytest.raises(TypeError):
+        format_selection.audit(tmp_path, paths=("example.py",))
+
+
+def test_unused_malformed_owner_cannot_hide_behind_a_valid_fallback(tmp_path) -> None:
+    """Every declaration must be valid even when another owner covers the file."""
+    config = tmp_path / ".config/checks/format/selection.toml"
+    config.parent.mkdir(parents=True)
+    config.write_text(
+        '[[ownership]]\nid = "valid"\npaths = ["example.py"]\n'
+        'format_owner = "ruff"\nformat_command = "ruff format"\n'
+        'format_check = "ruff format --check"\nvalidation_owner = "ruff"\n'
+        'validation_command = "ruff check"\nmutation_policy = "native-formatter"\n'
+        '\n[[ownership]]\nid = "ignored-invalid"\npaths = 7\n'
+    )
+
+    with pytest.raises(TypeError):
+        format_selection.audit(tmp_path, paths=("example.py",))

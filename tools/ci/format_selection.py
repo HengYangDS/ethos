@@ -8,11 +8,107 @@ import tomllib
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
+from typing import NotRequired
+from typing import TypedDict
+from typing import TypeGuard
+from typing import cast
 
 from ethos.adapters.repo.git import current_tracked_head
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / ".config/checks/format/selection.toml"
+
+
+class OwnerDeclaration(TypedDict):
+    """One validated native format and quality ownership declaration."""
+
+    id: str
+    format_owner: str
+    format_command: str
+    format_check: str
+    validation_owner: str
+    validation_command: str
+    mutation_policy: str
+    paths: NotRequired[list[str]]
+    exclude_paths: NotRequired[list[str]]
+    extensions: NotRequired[list[str]]
+    semantic_companions: NotRequired[list[str]]
+    priority: NotRequired[int]
+
+
+class CarrierAssignment(TypedDict):
+    """Validated native quality owner for one tracked carrier."""
+
+    path: str
+    format_owner: str
+    format_command: str
+    format_check: str
+    validation_owner: str
+    validation_command: str
+    semantic_companions: list[str]
+    mutation_policy: str
+
+
+class CarrierAudit(TypedDict):
+    """Typed result consumed by carrier-quality checks and the CLI report."""
+
+    schema_version: int
+    kind: str
+    verdict: str
+    tracked_file_count: int
+    assignment_count: int
+    unowned_file_count: int
+    multiply_owned_file_count: int
+    unverified_file_count: int
+    failures: list[dict[str, str]]
+    assignments: list[CarrierAssignment]
+
+
+def _record(value: object) -> TypeGuard[dict[str, object]]:
+    return isinstance(value, dict) and all(isinstance(key, str) for key in value)
+
+
+def _records(value: object) -> TypeGuard[list[dict[str, object]]]:
+    return isinstance(value, list) and all(_record(item) for item in value)
+
+
+def _strings(value: object) -> TypeGuard[list[str]]:
+    return isinstance(value, list) and all(isinstance(item, str) for item in value)
+
+
+def _required_text(record: dict[str, object], field: str) -> str:
+    value = record.get(field)
+    if not isinstance(value, str):
+        message = f"format ownership field is not text: {field}"
+        raise TypeError(message)
+    return value
+
+
+def _ownership_declarations(value: object) -> list[OwnerDeclaration]:
+    """Reject malformed native owners before selector precedence can hide one."""
+    if not _records(value):
+        message = "format ownership declarations must be records"
+        raise TypeError(message)
+    for declaration in value:
+        owner = _required_text(declaration, "id")
+        for field in (
+            "format_owner",
+            "format_command",
+            "format_check",
+            "validation_owner",
+            "validation_command",
+            "mutation_policy",
+        ):
+            _required_text(declaration, field)
+        for field in ("paths", "exclude_paths", "extensions", "semantic_companions"):
+            if not _strings(declaration.get(field, [])):
+                message = f"format ownership selector is not a string list: {owner}:{field}"
+                raise TypeError(message)
+        priority = declaration.get("priority", 0)
+        if isinstance(priority, bool) or not isinstance(priority, int):
+            message = f"format ownership priority is not an integer: {owner}"
+            raise TypeError(message)
+    return cast("list[OwnerDeclaration]", value)
 
 
 def _tracked_files() -> list[str]:
@@ -31,19 +127,15 @@ def _matches_glob(path: str, pattern: str) -> bool:
     return fnmatch.fnmatchcase(path, pattern) or Path(path).match(pattern)
 
 
-def _matches_patterns(path: str, patterns: object) -> bool:
-    return isinstance(patterns, list) and any(
-        isinstance(pattern, str) and _matches_glob(path, pattern) for pattern in patterns
-    )
+def _matches_patterns(path: str, patterns: list[str]) -> bool:
+    return any(_matches_glob(path, pattern) for pattern in patterns)
 
 
-def _owner_matches(path: str, declaration: dict[str, object]) -> bool:
+def _owner_matches(path: str, declaration: OwnerDeclaration) -> bool:
     suffix = Path(path).suffix.lower()
     extensions = declaration.get("extensions", [])
     has_selector = bool(declaration.get("paths")) or bool(extensions)
-    selected = _matches_patterns(path, declaration.get("paths", [])) or (
-        isinstance(extensions, list) and suffix in extensions
-    )
+    selected = _matches_patterns(path, declaration.get("paths", [])) or suffix in extensions
     return (
         has_selector
         and selected
@@ -51,7 +143,7 @@ def _owner_matches(path: str, declaration: dict[str, object]) -> bool:
     )
 
 
-def _assignment(path: str, declaration: dict[str, object]) -> dict[str, object]:
+def _assignment(path: str, declaration: OwnerDeclaration) -> CarrierAssignment:
     immutable = path.startswith("openspec/changes/archive/")
     mutation_policy = "forbidden" if immutable else declaration["mutation_policy"]
     format_owner = "immutable-carrier" if immutable else declaration["format_owner"]
@@ -68,10 +160,10 @@ def _assignment(path: str, declaration: dict[str, object]) -> dict[str, object]:
     }
 
 
-def audit(root: Path = ROOT, *, paths: tuple[str, ...] | None = None) -> dict[str, object]:
+def audit(root: Path = ROOT, *, paths: tuple[str, ...] | None = None) -> CarrierAudit:
     """Compile effective quality ownership for tracked or explicitly selected carriers."""
     config = tomllib.loads((root / CONFIG_PATH.relative_to(ROOT)).read_text(encoding="utf-8"))
-    declarations = [item for item in config.get("ownership", []) if isinstance(item, dict)]
+    declarations = _ownership_declarations(config.get("ownership"))
     tracked = (
         paths
         if paths is not None
@@ -79,7 +171,7 @@ def audit(root: Path = ROOT, *, paths: tuple[str, ...] | None = None) -> dict[st
             :-1
         ]
     )
-    assignments: list[dict[str, object]] = []
+    assignments: list[CarrierAssignment] = []
     failures: list[dict[str, str]] = []
     unowned = multiply_owned = unverified = 0
     for path in tracked:
@@ -88,8 +180,8 @@ def audit(root: Path = ROOT, *, paths: tuple[str, ...] | None = None) -> dict[st
             unowned += 1
             failures.append({"path": path, "reason": "tracked carrier has no quality owner"})
             continue
-        priority = max((int(item.get("priority", 0)) for item in matches), default=0)
-        primary = [item for item in matches if int(item.get("priority", 0)) == priority]
+        priority = max((item.get("priority", 0) for item in matches), default=0)
+        primary = [item for item in matches if item.get("priority", 0) == priority]
         if len(primary) != 1:
             multiply_owned += 1
             owners = ",".join(str(item.get("id", "")) for item in primary)
@@ -139,17 +231,31 @@ def main() -> int:
     config = _load_config()
     formats = config.get("format", [])
     policy = config.get("policy", {})
-    known_exts = {
-        ext for item in formats for ext in item.get("extensions", []) if isinstance(ext, str)
-    }
+    if not _records(formats) or not _record(policy):
+        message = "format selection has an invalid format or policy record"
+        raise ValueError(message)
+    known_exts: set[str] = set()
+    for item in formats:
+        extensions = item.get("extensions", [])
+        if not _strings(extensions):
+            message = "format selection extensions must be strings"
+            raise TypeError(message)
+        known_exts.update(extensions)
     tracked = _tracked_files()
     failures: list[dict[str, str]] = []
     observations: list[dict[str, str]] = []
 
-    forbidden_exts = set(policy.get("forbid_tracked_extensions", []))
+    forbidden = policy.get("forbid_tracked_extensions", [])
     jsonl_roots = policy.get("jsonl_allowed_roots", [])
     yaml_roots = policy.get("yaml_allowed_roots", [])
     unregistered_extension = policy.get("unregistered_extension", "observe")
+    if not _strings(forbidden) or not _strings(jsonl_roots) or not _strings(yaml_roots):
+        message = "format selection policy lists must contain strings"
+        raise TypeError(message)
+    if not isinstance(unregistered_extension, str):
+        message = "format selection unregistered-extension mode must be a string"
+        raise TypeError(message)
+    forbidden_exts = set(forbidden)
 
     for rel in tracked:
         suffix = Path(rel).suffix

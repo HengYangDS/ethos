@@ -137,13 +137,12 @@ class OpenSpecLifecycle:
     def lease(self) -> dict[str, object]:
         return leases_by_branch(self.worktree)[self.branch]
 
-    def apply_archive(self, **updates: object) -> dict[str, object]:
+    def apply_archive(self) -> dict[str, object]:
         return archive_change(
             root=self.worktree,
             change="fixture-change",
             expect_head=self.head,
             apply=True,
-            **updates,
         )
 
     def stage_official_archive(self, change: str = "fixture-change") -> str:

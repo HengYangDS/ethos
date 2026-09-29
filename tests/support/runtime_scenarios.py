@@ -60,15 +60,22 @@ def install_fixture_hook_runtime(root: Path) -> HookRuntimeBinding:
     try:
         create_fixture_python(staging / "python", shared_executable=_GOVERNANCE_PYTHON)
         runtime_files = runtime_file_inventory(staging)
-        identity = {
-            "wheel_sha256": wheel_sha256,
-            "build": build,
-            "environment": environment,
-            "runtime_files": runtime_files,
-        }
-        digest = runtime_digest(**identity)
+        digest = runtime_digest(
+            wheel_sha256=wheel_sha256,
+            build=build,
+            environment=environment,
+            runtime_files=runtime_files,
+        )
         target = runtime_root / digest
-        (staging / "manifest.json").write_bytes(runtime_manifest_bytes(digest=digest, **identity))
+        (staging / "manifest.json").write_bytes(
+            runtime_manifest_bytes(
+                digest=digest,
+                wheel_sha256=wheel_sha256,
+                build=build,
+                environment=environment,
+                runtime_files=runtime_files,
+            )
+        )
         runtime_root.mkdir(parents=True, exist_ok=True)
         if target.exists():
             shutil.rmtree(staging)

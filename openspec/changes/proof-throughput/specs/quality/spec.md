@@ -71,6 +71,20 @@ Unknown required discovery SHALL NOT become empty successful coverage.
 - **AND** artifact-qualified tests remain required at their input boundary, not run early or silently dropped
 - **AND** a passing native command without per-subject evidence is insufficient, while verified evidence from that execution does not require a duplicate run
 
+### Requirement: Native Python type checking covers executable support
+
+The product quality gate SHALL use the type checker's native selection to cover
+product code, repository tools, shared test support, architecture tests and the
+root test runner. A successful check over only product source SHALL NOT claim
+type coverage for those other carriers. Intentionally ill-typed unit-test
+inputs remain subject to their runtime assertions, not a blanket static waiver.
+
+#### Scenario: An executable support carrier has an invalid type
+
+- **WHEN** a declared tool or test-support module contains a type error
+- **THEN** the native type check reports the selected file and the required quality gate blocks
+- **AND** an unavailable checker, invalid configuration or malformed diagnostic result cannot become a pass
+
 ### Requirement: Adopters share applicable quality obligations
 
 ETHOS SHALL compile a common, versioned quality floor from observed repository

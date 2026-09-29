@@ -25,10 +25,10 @@ outcomes, feedback, learning and exit.
 A proof-carrying repository change compiler and transaction protocol forms its
 small trust kernel. It compiles accepted intent and fresh observations into a
 bounded transition, rechecks preconditions at effect time, and attests what was
-observed, decided and effected. Specialist Skills, generators, verifiers and
-observers supply replaceable capabilities through explicit input, output,
-identity, version, permission, cancellation and failure boundaries. The product
-provides a usable composed path; users need not assemble competing authorities.
+observed, decided and effected. ETHOS composes replaceable Skills, generators,
+verifiers and observers with typed I/O, identity/version, permission, cancellation
+and failure bounds; users need no rival authority. External generators only
+propose candidates, without active worktree or Git-common writes or publication credentials.
 
 Its promise is preserved meaning, actionable uncertainty and recoverable results,
 not more governance. Repository formation, gradual adoption, customization,

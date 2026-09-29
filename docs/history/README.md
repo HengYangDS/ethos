@@ -69,5 +69,18 @@ git show bac03b71c9771de27206385a70ae17e85dccb4f0:docs/plans/terminal-governance
 ```
 
 Use it for dated observations and discarded schedules, not current status.
-Still-valid obligations remain in the product contract, active OpenSpec and
-the terminal plan. This reference adds no workspace history copy or task ledger.
+Audit any still-valid obligation against the product contract, official OpenSpec
+and terminal plan before treating it as transferred. Git recovery alone does
+not prove semantic coverage. This reference adds no workspace history copy or
+task ledger.
+
+The earlier pre-campaign design remains at `1137ffe46a3d7dda1a423026a6cfa5ceac78c07d`,
+blob `fc37ffce043e66c22472e05516dcf158d93e77b7`:
+
+```bash
+git show 1137ffe46a3d7dda1a423026a6cfa5ceac78c07d:docs/plans/terminal-governance-product-design.md
+```
+
+Its proposed workflow registry, capability metadata, hook envelope and physical
+layout are audit inputs, not current product instructions. Later text does not
+by itself establish that every distinct obligation was carried forward.

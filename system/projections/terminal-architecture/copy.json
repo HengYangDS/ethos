@@ -32,7 +32,7 @@
     },
     "capabilities": {
       "label": "Replaceable capabilities",
-      "text": "People and interchangeable Agents compose Skills, generators, verifiers and native tools. Prefer official and mature capabilities over custom machinery. Names express responsibility; versions distinguish real interpretation boundaries. Contracts bind I/O, identity, permission, cancellation and failure. Pure semantics stay separate from bounded effects; capabilities grant no authority.",
+      "text": "People and Agents compose replaceable Skills, generators, verifiers and native tools. Prefer official and mature capabilities. Names mark responsibility; versions mark interpretation boundaries. Typed contracts bind I/O, identity, permission, cancellation and failure. External generators only propose candidates: no active-worktree or Git-common writes or publication credentials. Pure decisions and bounded effects stay distinct; capabilities grant no authority.",
       "surface": "main-static"
     },
     "lanes": {

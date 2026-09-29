@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Annotated
+from typing import TextIO
 
 from cyclopts import Parameter
 
@@ -34,21 +36,48 @@ def emit(
         receipt_root = Path(common_dir) / "ethos" if common_dir else artifact_root / ".ethos"
         result = apply_payload_budget(result, root=receipt_root)
     stream = sys.stderr if result.command == "mcp" else sys.stdout
-    try:
-        if json_output:
-            stream.write(f"{result.to_json()}\n")
-        else:
-            stream.write(f"{result.command}: {result.state}\n")
-            for reason in _human_reasons(result):
-                stream.write(f"why: {reason}\n")
-            if result.user_decision_required:
-                stream.write("decision: human choice required\n")
-            if result.next_action:
-                stream.write(f"next: {result.next_action}\n")
-    except (BrokenPipeError, BlockingIOError):
-        return
+    if json_output:
+        frame = f"{result.to_json()}\n"
+    else:
+        lines = [f"{result.command}: {result.state}"]
+        lines.extend(f"why: {reason}" for reason in _human_reasons(result))
+        if result.user_decision_required:
+            lines.append("decision: human choice required")
+        if result.next_action:
+            lines.append(f"next: {result.next_action}")
+        frame = "\n".join(lines) + "\n"
+    _write_frame(stream, frame)
     native_failure = result.data.get("error_boundary") in {"git_execution", "process_execution"}
     if (enforce or native_failure) and result.verdict != "pass":
+        raise SystemExit(1)
+
+
+def _write_frame(stream: TextIO, frame: str) -> None:
+    """Deliver one complete result frame or fail without changing its verdict."""
+    delivery_gap = ""
+    try:
+        if stream.write(frame) != len(frame):
+            delivery_gap = "output_partial"
+        else:
+            stream.flush()
+    except BrokenPipeError:
+        delivery_gap = "output_closed"
+    except BlockingIOError:
+        delivery_gap = "output_backpressure"
+    except (OSError, ValueError):
+        delivery_gap = "output_unavailable"
+    if delivery_gap:
+        try:
+            with Path(os.devnull).open("w") as sink:
+                os.dup2(sink.fileno(), stream.fileno())
+        except (AttributeError, OSError, ValueError):
+            pass
+        if stream is not sys.stderr:
+            try:
+                sys.stderr.write(f"ethos: {delivery_gap}\n")
+                sys.stderr.flush()
+            except (OSError, ValueError):
+                pass
         raise SystemExit(1)
 
 

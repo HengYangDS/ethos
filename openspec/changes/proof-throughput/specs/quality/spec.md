@@ -49,6 +49,30 @@ and native tool selection, not extensions alone. Frozen provenance SHALL retain
 integrity obligations; generation SHALL NOT exempt actual build inputs.
 Unknown required discovery SHALL NOT become empty successful coverage.
 
+#### Scenario: Native inventory failure is not an empty repository
+
+- **WHEN** Git file discovery fails because its index or transport is unreadable
+- **THEN** size and other inventory-backed checks report unavailable input, not a passing empty set
+- **AND** a genuinely empty valid repository remains distinct and admissible
+
+#### Scenario: Early source scope includes candidate Python
+
+- **WHEN** a governed worktree adds a nonignored Python file before staging it
+- **THEN** the early size check measures that candidate instead of silently omitting it
+- **AND** staging the same bytes cannot change the size verdict
+
+#### Scenario: Markdown execution cannot silently shrink its scope or rules
+
+- **WHEN** the declared tracked Markdown set is nonempty but a native glob selects none, or a nested configuration disables the required rule
+- **THEN** the public gate reports the missing selection or effective-rule conflict instead of passing
+- **AND** valid tracked Markdown remains checked by one effective configuration
+
+#### Scenario: Declared system schema is malformed
+
+- **WHEN** a system contract selects a syntactically readable but invalid JSON Schema
+- **THEN** the public report returns a structured failed or unknown schema observation
+- **AND** a native `SchemaError` cannot escape and erase the report
+
 #### Scenario: Native discovery and explicit selection have different scopes
 
 - **WHEN** native package discovery excludes a frozen source snapshot
@@ -70,6 +94,25 @@ Unknown required discovery SHALL NOT become empty successful coverage.
 - **THEN** it executes or consumes the selected source tests in the declared locked toolchain without inventing file-name exclusions
 - **AND** artifact-qualified tests remain required at their input boundary, not run early or silently dropped
 - **AND** a passing native command without per-subject evidence is insufficient, while verified evidence from that execution does not require a duplicate run
+
+### Requirement: Formatting ownership names executable nonmutating checks
+
+Each maintained carrier's declared formatter and format check SHALL resolve to
+available native commands. The check SHALL not mutate source, and a write command
+SHALL not be accepted as its own verification. Ownership metadata alone SHALL
+not certify tool reachability or equivalent effective policy.
+
+#### Scenario: A declared formatter session is absent
+
+- **WHEN** a format owner names a Nox session that the native session list does not expose
+- **THEN** the public ownership check reports the unreachable command instead of passing
+- **AND** the valid formatter/check pair remains usable after owner repair
+
+#### Scenario: A check writes or disables its rule
+
+- **WHEN** the declared check equals a formatter write command or its effective config omits the required rule
+- **THEN** the public check rejects that declaration and preserves the source bytes
+- **AND** a genuine nonmutating check over the selected carrier passes
 
 ### Requirement: Native Python type checking covers executable support
 
@@ -299,6 +342,26 @@ executor's observed capacity; they are scheduling claims, not CPU affinity.
 - **AND** the declaration is bound into proof policy and checked with overlap and conflict cases
 - **AND** the real combined workload verifies artifact identities, source stability and cleanup
 - **AND** invocation-local coordination does not replace native cross-process locks or fresh effect admission
+
+### Requirement: Owned temporary resources converge after owner loss
+
+Test, package and runtime scratch SHALL have an exact producer, consumer and
+retention boundary. Normal finalization and bounded dead-owner recovery SHALL
+reclaim only proved-owned, unreferenced bytes; missing liveness or ownership
+SHALL remain UNKNOWN rather than authorize deletion.
+
+#### Scenario: Repeated process death does not accumulate scratch
+
+- **WHEN** normal, exceptional and killed invocations repeat with fixed inputs and concurrency
+- **THEN** successor and idle maintenance bound dead-root count, bytes, inodes and reclamation delay
+- **AND** live workers, shared uv supply and caller-owned basetemp survive
+- **AND** contention, PID reuse, path replacement, links and read-only inodes cannot cause unsafe cleanup
+
+#### Scenario: Long-running resource acceptance is independently observed
+
+- **WHEN** source-bound real workloads are observed across 24- and 48-hour windows
+- **THEN** growth, orphan age, high-water usage, cleanup latency and indexing cost remain within declared limits
+- **AND** a short green test or one manual sweep does not satisfy this observation
 
 ### Requirement: Test failure bounds pending verification work
 
@@ -674,6 +737,26 @@ reference semantics rather than certify unchanged bytes as unchanged meaning.
 - **THEN** recognition rejects that postimage before acceptance
 - **AND** native effect failure preserves the existing compensation boundary
 - **AND** repeated completed recognition performs no duplicate effect
+
+### Requirement: Governed local links resolve to deliverable targets
+
+The maintained-document link check SHALL distinguish a target present on the
+host from a target delivered with the selected Git tree or an explicitly
+declared published artifact. The native link parser owns syntax; the repository
+observation owner supplies exact membership. An ignored or untracked local file
+SHALL NOT make a tracked document's broken delivered link pass.
+
+#### Scenario: Host-only target cannot validate a tracked document
+
+- **WHEN** a tracked Markdown link resolves locally only to ignored or untracked bytes
+- **THEN** the public check reports the target as unavailable to the declared delivery
+- **AND** the same link passes when its target is tracked or has a verified published-artifact contract
+
+#### Scenario: Local link safety is preserved
+
+- **WHEN** a target is missing, escaping, linked outside the repository or changes during observation
+- **THEN** the check retains a precise failure or UNKNOWN rather than treating host existence as delivery
+- **AND** a valid in-tree target remains admissible without a second Markdown parser
 
 ### Requirement: Archive proof scope retains validated effect paths
 

@@ -28,6 +28,10 @@ or publication. Those claims require their current authoritative observations.
 Superseded execution detail remains in Git and official OpenSpec history, not
 another current plan corpus.
 
+An effect that requires an official Change's archive cannot be a prerequisite
+for archiving that same Change. Keep such delivery pending here until its own
+effect evidence is read back; neither checked tasks nor archive existence prove it.
+
 Broad semantic recovery starts by declaring a finite source boundary in one
 official OpenSpec Change. It preserves distinct obligations rather than message
 count, adjudicates each as accepted, superseded, pending verification, or
@@ -99,8 +103,9 @@ Completed incidents remain regression boundaries, not a queue to replay.
   not mutable case state. Cache pure computations under complete inputs; reread
   membership and corruption-sensitive bytes, and recheck every effect's refs,
   Lease, trust and authorization.
-- Measure cold, warm and cache-cleared equivalence, calls/bytes, critical-path
-  time and resource bounds. Do not add overlapping intervals. Include
+- Measure cold, warm and cache-cleared equivalence, time to first actionable
+  failure, change-to-accepted-runtime duration, calls/bytes, critical-path time,
+  recovery effort and resource bounds. Do not add overlapping intervals. Include
   preparation and cleanup, disclose external provisioning, and distinguish a
   microbenchmark from full proof, delivery or cold-host acceptance.
 - Follow the [accepted throughput criteria](../../openspec/changes/proof-throughput/specs/quality/spec.md#requirement-complete-verification-throughput-preserves-assurance):
@@ -135,6 +140,22 @@ complete-input evidence reuse; P6 connects delivered behavior to real-use
 benefit and revised intent; P7 qualifies interchangeable ecosystem consumers.
 The effect-owner batches below implement this route. Native tool, resource,
 documentation and platform boundaries constrain every stage.
+
+The full-chain acceptance case starts with source intent permitting cooperation,
+zero-or-one-winner competition, exploration and all-drop. Reject a mandatory
+winner or destruction-on-drop interpretation before compiling accepted meaning,
+non-goals, assumptions, capability requests and proof duties. Across worktrees,
+integrate compatible contributions and retain valuable negative results. Test
+shared-resource conflicts and a constraint set whose pairs are satisfiable but
+whose whole is not.
+Recheck changed baselines and policy, apply one exact CAS, then inject stale
+coordinates, process death and lost acknowledgement; unknown outcomes must
+recover from observation without repeated destructive effects. Preserve useful
+selected and unselected work before retirement. A different Agent must resume
+from repository evidence without a retelling. Repeat greenfield and brownfield
+formation through actual-use observation bound to deployment, baseline,
+environment and window, then qualify interchangeable capabilities against the
+same case. No individual phase's green result substitutes for this trace.
 
 The former plan mixed these duties with dated execution narratives. Their
 complete bytes remain at the [history retrieval boundary](../history/README.md#terminal-plan-observations).
@@ -177,7 +198,13 @@ through existing consumers, not another rule declaration in this plan.
    obligations; they neither copy implementation logic nor redefine the rules.
 5. Repair incomplete observation, lost UNKNOWN and invalid effect composition
    at their existing owners. Configuration deduplication alone cannot close
-   those behavioral gaps.
+   those behavioral gaps. The current Python reference observer still confuses
+   spelling with binding and file-global constants with call-site values;
+   [the public-gate repair](../../openspec/changes/proof-throughput/tasks.md#10-native-quality-rules-and-early-failure)
+   must close alias, shadow, scope, program-point and relevant dynamic UNKNOWN
+   without a second parser or repository-wide permanent block. The same
+   reference owner must also consume trusted native profile and release
+   command fields as executable declarations, not infer ownership from names.
 
 The terminal architecture declaration under
 `system/projections/terminal-architecture/` selects the complete visual
@@ -210,7 +237,12 @@ passes; its own official Change must close the stated exit boundary.
    inferred from design prose.
 2. **Close OpenSpec compilation and the shared resolver.** Make every valid
    official Change, including `skip_specs: true`, compile deterministic
-   acceptance without a duplicate carrier. Distinguish uncommitted projection,
+   acceptance without a duplicate carrier. Resolve the official artifact graph
+   and configured output paths rather than assuming proposal/design/tasks names;
+   a renamed design must preserve its accepted content while proof binds its
+   resolved path and bytes. A pure `REMOVED` delta is a positive obligation about
+   the resulting system, not empty intent or a requirement to retain old behavior.
+   Distinguish uncommitted projection,
    invalid Change, missing adoption, and archived intent; preserve proofability
    across archive; select proof Attestations by exact predicate and bindings;
    and derive Change relations and experiments without persistent graph or DSL
@@ -253,7 +285,11 @@ passes; its own official Change must close the stated exit boundary.
    independently of later `main` promotion. Publish the same local commit and
    annotated-tag OIDs to zero, one, or many independent peers through one
    deterministic batch; classify bounded in-flight parity separately from true
-   divergence. Exit when local-only, GitLab-only, GitHub-only, and dual-peer
+   divergence. A requested selected-tree commit above fresh accepted history
+   is a new signed object, not proof transfer by tree equality; admit it only
+   with exact source intent, review provenance, current policy and proof whose
+   full inputs and applicability remain valid.
+   Exit when local-only, GitLab-only, GitHub-only, and dual-peer
    cases pass without replay, rebuild, re-signing, implicit primary remote, or
    cross-peer authority.
 6. **Close semantic and physical repository structure.** Reshape the whole
@@ -293,13 +329,26 @@ passes; its own official Change must close the stated exit boundary.
    fixtures. Exit after normal exit and kill/crash tests show bounded zero or
    policy-limited residue across `/private/tmp`, Darwin user temp roots, and uv
    cache, within declared item, inode, byte, deletion-latency, and indexing-load
-   budgets. The [resource recurrence record](../history/README.md#terminal-plan-observations)
+   budgets. Source-bound 24/48-hour observations must show stable growth and
+   bounded dead-owner reclamation while preserving live and unknown consumers;
+   short green tests cannot establish that claim. The
+   [resource recurrence record](../history/README.md#terminal-plan-observations)
    supplies the confirmed crash counterexample, ownership boundaries and required
    runtime acceptance; manual cleanup does not close this batch.
 8. **Close assurance and adopter conformance.** Compile requirement coverage
    into exact proof obligations and keep author identity, Git signature,
    transport authentication, forge verification, hosted CI, release assets,
-   local proof, and installed runtime readback separate. Run product, greenfield,
+   local proof, and installed runtime readback separate. Each quality claim needs
+   an executable rule, complete applicable carrier scope, a wrong-mechanism
+   counterexample with a different observation, and enforcement at every
+   relevant public entrypoint; broad green cannot replace a missing part.
+   Unreadable native inventory is not an empty selected scope, and a partial
+   CLI write or backpressure cannot erase a blocked exit verdict. Invalid
+   declared schemas must yield structured failed reports, not escape the gate.
+   Historical identity repair needs original objects and validated native repair
+   evidence; later forward green cannot retroactively approve that transition
+   or impose a single-author rule on future genuine contributors.
+   Run product, greenfield,
    brownfield, docs/infra, package-only, local-only, single-peer, dual-peer,
    interrupted, drifted, unbound, and adversarial fixtures through the same
    kernel. Inspect authorized real adopters read-only after the package runtime
@@ -338,6 +387,13 @@ One typed application service projects the same kernel result to CLI, Python SDK
 schemas/conformance fixtures, the required stateless MCP adapter, optional A2A
 adapters, and native CI/forge carriers. A surface may adapt transport and presentation only; it cannot
 recompile policy, retain lifecycle state, or invent a second error taxonomy.
+
+Target native Git and optional host hooks project that same admission, not
+universal command interception. Report supported, configured, trusted and armed
+separately. Notifications only invalidate derived observations; missed events
+reconcile fresh inputs, and every effect rechecks admission. Conformance tests
+wrong roots, duplicate delivery, recursion, redaction, cancellation, latency,
+process loss and uninstall without giving a hook its own authority.
 
 The CLI defaults to concise human output and progressively reveals evidence;
 `--json` is stable automation output, not a separate behavior. Diagnostics carry
@@ -399,7 +455,10 @@ decisions merely because a new example uses different filenames.
    effects. Git-recoverable bytes and reproducible supplies need no duplicate
    archive. Unresolved unique content remains protected with a named consumer,
    next resolving action, and exit condition; uncertainty is not indefinite
-   retention authority. Foreign ownership requires handoff, not a new store.
+   retention authority. Retire a proved-absorbed lane through its public owner
+   without waiting for unrelated roadmap work. Foreign ownership requires
+   handoff, not a new store. Moving bytes to ignored storage preserves them;
+   it does not complete retirement.
 5. **Prove across shapes.** Product, code, and documentation adopters demonstrate
    the same input-to-verdict relation while retaining their native carriers.
 6. **One obvious safe path.** Defaults select the least-powerful useful operation;
@@ -439,6 +498,11 @@ decisions merely because a new example uses different filenames.
     and observations in receipts. A recurrence reopens the failed causal
     assumption, not an additional exception or feedback store. Measure false
     admission, false blocking, repeated effects, recovery effort and cycle cost.
+
+Reuse established facts until a new accepted head or runtime, falsifying
+execution, changed upstream supply, overlapping owner, unknown effect, or
+exceeded resource budget requires replanning. An interruption or new filename
+alone is not a reason to replay the whole design.
 
 ## Completion Boundary
 

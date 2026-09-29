@@ -50,6 +50,57 @@ def test_current_markdown_uses_physical_nonblank_limit(
     assert report["verdict"] == ("pass" if count == 500 else "block")
 
 
+def test_release_history_is_bounded_by_navigable_version_section(tmp_path: Path) -> None:
+    """An append-only changelog is not one current reader topic."""
+    root = init_git_repo(tmp_path / "repo")
+    history = "# Changelog\n\n## [Unreleased]\n\n- Pending.\n"
+    history += "".join(
+        f"\n## [{version}.0.0] - 2026-09-29\n" + "- Change.\n" * 100 for version in range(6, 0, -1)
+    )
+    assert sum(bool(line.strip()) for line in history.splitlines()) > 500
+    (root / "CHANGELOG.md").write_text(history)
+    commit_fixture(root, "sectioned release history")
+
+    result = run_ethos_raw(
+        "prove", "--host", "--execute", "--gate", "docs-registry", "--json", cwd=root
+    )
+    report = json.loads(result.stdout)
+    provider = json.loads(report["data"]["checks"][0]["stdout"])["providers"][0]["report"]
+
+    assert result.returncode == 0
+    assert report["verdict"] == "pass"
+    assert provider["required_gaps"] == []
+
+
+@pytest.mark.parametrize(
+    ("body", "count"),
+    [
+        ("# Changelog\n" + "- Undifferentiated.\n" * 500, 501),
+        (
+            "# Changelog\n## [Unreleased]\n- Pending.\n"
+            "## [1.0.0] - 2026-09-29\n" + "- Change.\n" * 500,
+            501,
+        ),
+        (
+            "# Changelog\n## [Unreleased]\n```\n## [1.0.0] - 2026-09-29\n```\n" + "- Note.\n" * 496,
+            501,
+        ),
+    ],
+    ids=("undifferentiated", "oversized-release", "fenced-heading"),
+)
+def test_changelog_name_does_not_exempt_unbounded_content(
+    tmp_path: Path, body: str, count: int
+) -> None:
+    """Missing version structure and overlong individual releases still block."""
+    root = init_git_repo(tmp_path / "repo")
+    (root / "CHANGELOG.md").write_text(body)
+    git(root, "add", "CHANGELOG.md")
+
+    report = docs_registry_report(root)
+
+    assert report["required_gaps"] == [f"docs_length_exceeded:CHANGELOG.md:{count}>500"]
+
+
 def test_official_and_owned_generated_markdown_are_not_authored_docs(tmp_path: Path) -> None:
     """The document limit never mistakes official intent or owned output for prose."""
     root = init_git_repo(tmp_path / "repo")

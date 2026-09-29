@@ -113,12 +113,16 @@ not ETHOS-specific paths, tools or code budgets.
 
 ### Requirement: Current Markdown stays within one navigable topic
 
-Every tracked, current, hand-authored Markdown documentation carrier in ETHOS
-or a governed repository SHALL contain at most 500 nonblank physical lines.
-Code fences, tables, and quoted material count. Existing carrier ownership
-SHALL distinguish documentation from official OpenSpec intent, generated
-output, and archived records; relabeling an oversized current document does
-not exempt it.
+Every tracked, current, hand-authored Markdown reader topic in ETHOS or a
+governed repository SHALL contain at most 500 nonblank physical lines. Code
+fences, tables, and quoted material count. The release contract's append-only
+changelog MAY exceed that whole-file count only when its Changelog title,
+Unreleased section and bracketed release headings make version sections
+navigable; its preamble and each section SHALL independently stay within the
+same 500-line ceiling. A filename, unstructured
+heading, or lifecycle relabeling SHALL NOT exempt an overlong current topic.
+Official OpenSpec intent, generated output, and archived records remain
+separate carriers.
 
 #### Scenario: A current topic exceeds the ceiling
 
@@ -126,6 +130,15 @@ not exempt it.
 - **THEN** the quality floor reports that exact source and blocks acceptance
 - **AND** adding blank lines or relabeling current content as history does not
   satisfy the requirement
+
+#### Scenario: Release history grows across navigable versions
+
+- **WHEN** a tracked release-contract changelog exceeds 500 nonblank lines
+  across recognized version sections, each within the ceiling
+- **THEN** the document length rule preserves that history without a whole-file
+  failure
+- **AND** an unstructured changelog or an individual overlong version section
+  remains blocked; fenced headings do not create version sections
 
 #### Scenario: A normative OpenSpec carrier exceeds the document ceiling
 

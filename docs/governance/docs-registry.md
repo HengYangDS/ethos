@@ -147,10 +147,16 @@ a current decision, its rationale and the next action without scanning unrelated
 history. A short but fragmented or duplicated document can still fail that test.
 
 The portable hard ceiling is 500 nonblank physical lines per current authored
-Markdown document, including root entrypoints, rules, Skills and a repository's
-native documentation root. Tables, code fences and quotes count; blank-line
-padding and lifecycle relabeling do not help. Official OpenSpec artifacts,
-immutable archives and outputs with a declared producer are separate carriers.
+Markdown reader topic, including root entrypoints, rules, Skills and a
+repository's native documentation root. Tables, code fences and quotes count;
+blank-line padding and lifecycle relabeling do not help. The release contract's
+changelog is an append-only history: a Changelog title, Unreleased section and
+bracketed release headings let its preamble and each release section obey the
+same ceiling independently. A filename or unstructured heading does not exempt
+an overlong topic. Official OpenSpec
+artifacts, immutable archives and outputs with a declared producer are separate
+carriers.
+
 The docs-registry gate reports the exact overlong source; official OpenSpec and
 generated-artifact checks retain their own obligations. This ceiling prevents
 one unreadable carrier, not semantic fragmentation: split by reader question

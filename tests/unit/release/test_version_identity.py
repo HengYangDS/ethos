@@ -12,8 +12,11 @@ import tomllib
 import zipfile
 from email.parser import Parser
 from pathlib import Path
+from typing import cast
 
+import hatchling.builders.plugin.interface as hatch_interface
 import pytest
+from hatchling.builders.sdist import SdistBuilder
 from packaging.version import Version
 
 from ethos.adapters.repo.runtime.materialization.node_package_supply import (
@@ -137,6 +140,22 @@ def test_release_build_requires_explicit_exact_arguments() -> None:
             pipeline.release_build_head(args)
 
 
+def test_sdist_builder_does_not_traverse_disposable_runtime_trees(monkeypatch) -> None:
+    """Native source selection must not walk concurrent install-smoke output."""
+    root = Path.cwd()
+    walked: list[Path] = []
+
+    def observe(path: str):
+        walked.append(Path(path).resolve())
+        yield path, [], []
+
+    monkeypatch.setattr(hatch_interface, "safe_walk", observe)
+    tuple(SdistBuilder(str(root)).recurse_selected_project_files())
+
+    assert root not in walked
+    assert {root / "src", root / "system"} <= set(walked)
+
+
 def test_sdist_rebuild_reuses_the_identical_node_package_supply(tmp_path: Path) -> None:
     artifacts = tmp_path / "artifacts"
     _build_wheel(Path.cwd(), artifacts, sdist=True)
@@ -237,19 +256,19 @@ def test_build_identity_loader_rejects_distribution_or_release_drift() -> None:
     payload["distribution_version"] = "0.2.0a2.dev0+wrong"
     with pytest.raises(ValueError, match="package_build_identity_invalid"):
         load_build_identity_bytes(json.dumps(payload).encode())
-    base = {
-        "product": "1.2.3",
-        "source_commit": "a" * 40,
-        "source_tree": "b" * 40,
-    }
-    for change, reason in (
-        ({"source_commit": "x"}, "build_source_identity_invalid"),
-        ({"release": "invalid"}, "release_build_flag_invalid"),
-        ({"product": "1.2.3.post1"}, "product_version_invalid"),
-    ):
-        with pytest.raises(ValueError, match=reason):
-            build_identity(**(base | change))
-    for raw in (b"{}", json.dumps(build_identity(**base).projection()).encode(), b"not-json"):
+    with pytest.raises(ValueError, match="build_source_identity_invalid"):
+        build_identity(product="1.2.3", source_commit="x", source_tree="b" * 40)
+    with pytest.raises(ValueError, match="release_build_flag_invalid"):
+        build_identity(
+            product="1.2.3",
+            source_commit="a" * 40,
+            source_tree="b" * 40,
+            release=cast("bool", "invalid"),  # Deliberate malformed runtime input.
+        )
+    with pytest.raises(ValueError, match="product_version_invalid"):
+        build_identity(product="1.2.3.post1", source_commit="a" * 40, source_tree="b" * 40)
+    valid = build_identity(product="1.2.3", source_commit="a" * 40, source_tree="b" * 40)
+    for raw in (b"{}", json.dumps(valid.projection()).encode(), b"not-json"):
         with pytest.raises(ValueError, match="package_build_identity_invalid"):
             load_build_identity_bytes(raw)
 

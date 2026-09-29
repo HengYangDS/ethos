@@ -118,6 +118,7 @@ uv --version
 if [[ ! -x "${repo_root}/node_modules/.bin/openspec" ]]; then npm ci --ignore-scripts; fi
 "${repo_root}/node_modules/.bin/openspec" --version
 uv sync --locked --group dev
+"${UV_PROJECT_ENVIRONMENT}/bin/python" -B -I tools/ci/toolchain/fixture_supply.py "${repo_root}"
 
 # Image reuse is safe only after the checkout's current verifier checks cached tool bytes.
 if [[ -n ${ETHOS_CI_SUPPLY_MANIFEST:-} ]]; then

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -16,6 +17,8 @@ from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.policy.boundary.product import product_surface_files
 from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.repository.registry.docs.registry import front_matter
+from ethos.surface.cli.application import app
+from ethos.surface.cli.application import load_command_groups
 
 ROOT = Path(__file__).resolve().parents[2]
 DESIGN_DOCUMENTS = (
@@ -165,11 +168,24 @@ def test_decision_records_preserve_complete_cross_change_rationale() -> None:
     ):
         metadata = front_matter(path)
         text = path.read_text(encoding="utf-8")
+        identity = re.fullmatch(r"dr-([0-9]{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md", path.name)
 
+        assert identity is not None, path
+        assert f"# DR-{identity[1]}:" in text, path
+        assert re.search(r"(?m)^Date: \d{4}-\d{2}-\d{2}", text), path
         assert metadata["role"] == "decision", path
         assert metadata["state"] == "canonical", path
         assert "current_owner" in metadata["relations"], path
         assert all(section in text for section in required_sections), path
+
+
+def test_command_plane_documentation_names_every_registered_root() -> None:
+    """A compressed command reference cannot call an incomplete list complete."""
+    load_command_groups([])
+    roots = {command for command in app.resolved_commands() if not command.startswith("-")}
+    reference = (ROOT / "docs/reference/command-plane.md").read_text(encoding="utf-8")
+
+    assert {root for root in roots if f"`ethos {root}" not in reference} == set()
 
 
 def test_product_meaning_and_terminal_route_are_both_required_docs() -> None:

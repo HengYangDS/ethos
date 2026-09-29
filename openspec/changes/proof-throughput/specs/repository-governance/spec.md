@@ -209,6 +209,8 @@ their native subject layout under the portable Docs Registry contract.
 ETHOS SHALL retain a decision record only when deleting it would erase
 cross-Change rationale not carried by the current semantic owner. A record
 explains why; it SHALL NOT own current product behavior or workflow state.
+Its positive four-digit number SHALL remain stable and SHALL NOT be reused for
+a different ruling. Its semantic topic MAY change with repaired links.
 
 #### Scenario: Historical decision material is evaluated
 
@@ -219,12 +221,20 @@ explains why; it SHALL NOT own current product behavior or workflow state.
 #### Scenario: Decision rationale uses the minimum physical shape
 
 - **WHEN** more than one decision rationale is retained under `docs/decisions/`
-- **THEN** lowercase semantic record filenames remain directly navigable from
+- **THEN** `dr-<four-digit-id>-<semantic-topic>.md` records remain directly navigable from
   `docs/decisions/README.md`, which explains the directory's role
 - **AND** `docs/README.md` routes readers to that entrance instead of copying
   the record list
 - **AND** the entrance is not a decision registry, runtime authority, or
   reason to add a template, schema, lifecycle directory, or duplicate catalog
+
+#### Scenario: Decision identity is missing or duplicated
+
+- **WHEN** a `role: decision` record in the selected documentation root has no
+  stable numbered filename or shares its number with another current record
+- **THEN** the Docs Registry blocks that exact source or conflicting pair
+- **AND** a historical retired number is never assigned to a different ruling;
+  current-tree uniqueness alone does not establish that historical fact
 
 #### Scenario: Current authority is resolved
 

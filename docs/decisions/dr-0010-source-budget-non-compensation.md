@@ -6,10 +6,12 @@ relations:
   current_owner: ../../.config/checks/format/selection.toml
 ---
 
-# Source Budget Non-Compensation
+# DR-0010: Source Budget Non-Compensation
 
 Status: canonical rationale. Executable thresholds are owned by quality
 configuration.
+
+Date: 2026-09-02 (record established); revised 2026-09-08.
 
 Purpose: preserve why unrelated source classes cannot compensate for one
 another and why size remains a tripwire rather than a design target.

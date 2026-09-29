@@ -113,16 +113,15 @@ not ETHOS-specific paths, tools or code budgets.
 
 ### Requirement: Current Markdown stays within one navigable topic
 
-Every tracked, current, hand-authored Markdown reader topic in ETHOS or a
-governed repository SHALL contain at most 500 nonblank physical lines. Code
-fences, tables, and quoted material count. The release contract's append-only
-changelog MAY exceed that whole-file count only when its Changelog title,
-Unreleased section and bracketed release headings make version sections
-navigable; its preamble and each section SHALL independently stay within the
-same 500-line ceiling. A filename, unstructured
-heading, or lifecycle relabeling SHALL NOT exempt an overlong current topic.
-Official OpenSpec intent, generated output, and archived records remain
-separate carriers.
+Every tracked, current, hand-authored Markdown documentation file in ETHOS or a
+governed repository SHALL contain at most 500 nonblank physical lines.
+Frontmatter, code fences, tables, and quoted material count. The release
+contract's root changelog is cumulative history and SHALL NOT be subject to
+this ceiling, either as a whole or by version section. Its format and release
+meaning remain independent release obligations. A same-named document elsewhere
+or a metadata lifecycle relabeling SHALL NOT exempt an overlong current topic.
+Official OpenSpec artifacts, their archive, and declared generated output
+remain separate carriers with their own checks.
 
 #### Scenario: A current topic exceeds the ceiling
 
@@ -131,14 +130,13 @@ separate carriers.
 - **AND** adding blank lines or relabeling current content as history does not
   satisfy the requirement
 
-#### Scenario: Release history grows across navigable versions
+#### Scenario: Release history grows without a document-length limit
 
-- **WHEN** a tracked release-contract changelog exceeds 500 nonblank lines
-  across recognized version sections, each within the ceiling
-- **THEN** the document length rule preserves that history without a whole-file
-  failure
-- **AND** an unstructured changelog or an individual overlong version section
-  remains blocked; fenced headings do not create version sections
+- **WHEN** the release-contract changelog exceeds 500 nonblank lines in total
+  or within a single version section
+- **THEN** the documentation length rule does not block that release history
+- **AND** release-format obligations remain independent; a same-named ordinary
+  document still exceeds the ceiling at 501 nonblank lines
 
 #### Scenario: A normative OpenSpec carrier exceeds the document ceiling
 
@@ -155,6 +153,9 @@ separate carriers.
   route and repaired links, while retaining the original owner relationship
 - **AND** arbitrary numbered fragments, copied paragraphs or hidden content
   do not count as progressive disclosure
+- **AND** still-live obligations from a shortened source have an identified
+  surviving canonical owner; exact Git recoverability alone does not prove
+  semantic preservation
 
 ### Requirement: Release protection projects configured branch roles
 

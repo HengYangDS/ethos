@@ -50,12 +50,12 @@ def test_current_markdown_uses_physical_nonblank_limit(
     assert report["verdict"] == ("pass" if count == 500 else "block")
 
 
-def test_release_history_is_bounded_by_navigable_version_section(tmp_path: Path) -> None:
-    """An append-only changelog is not one current reader topic."""
+def test_release_history_is_not_bounded_by_document_length(tmp_path: Path) -> None:
+    """Neither total history nor one release entry is a current document topic."""
     root = init_git_repo(tmp_path / "repo")
     history = "# Changelog\n\n## [Unreleased]\n\n- Pending.\n"
     history += "".join(
-        f"\n## [{version}.0.0] - 2026-09-29\n" + "- Change.\n" * 100 for version in range(6, 0, -1)
+        f"\n## [{version}.0.0] - 2026-09-29\n" + "- Change.\n" * 600 for version in range(2, 0, -1)
     )
     assert sum(bool(line.strip()) for line in history.splitlines()) > 500
     (root / "CHANGELOG.md").write_text(history)
@@ -73,32 +73,36 @@ def test_release_history_is_bounded_by_navigable_version_section(tmp_path: Path)
 
 
 @pytest.mark.parametrize(
-    ("body", "count"),
+    ("relative", "expected"),
     [
-        ("# Changelog\n" + "- Undifferentiated.\n" * 500, 501),
-        (
-            "# Changelog\n## [Unreleased]\n- Pending.\n"
-            "## [1.0.0] - 2026-09-29\n" + "- Change.\n" * 500,
-            501,
-        ),
-        (
-            "# Changelog\n## [Unreleased]\n```\n## [1.0.0] - 2026-09-29\n```\n" + "- Note.\n" * 496,
-            501,
-        ),
+        ("CHANGELOG.md", []),
+        ("handbook/CHANGELOG.md", ["docs_length_exceeded:handbook/CHANGELOG.md:501>500"]),
     ],
-    ids=("undifferentiated", "oversized-release", "fenced-heading"),
 )
-def test_changelog_name_does_not_exempt_unbounded_content(
-    tmp_path: Path, body: str, count: int
+def test_only_release_owned_changelog_is_exempt_from_document_length(
+    tmp_path: Path, relative: str, expected: list[str]
 ) -> None:
-    """Missing version structure and overlong individual releases still block."""
+    """A filename elsewhere does not turn authored prose into release history."""
     root = init_git_repo(tmp_path / "repo")
-    (root / "CHANGELOG.md").write_text(body)
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("# Changelog\n" + "- Undifferentiated.\n" * 500)
+    git(root, "add", "--", relative)
+
+    report = docs_registry_report(root)
+
+    assert report["required_gaps"] == expected
+
+
+def test_release_history_still_requires_readable_source(tmp_path: Path) -> None:
+    """The length exemption does not make an unreadable release carrier healthy."""
+    root = init_git_repo(tmp_path / "repo")
+    (root / "CHANGELOG.md").write_bytes(b"\xff")
     git(root, "add", "CHANGELOG.md")
 
     report = docs_registry_report(root)
 
-    assert report["required_gaps"] == [f"docs_length_exceeded:CHANGELOG.md:{count}>500"]
+    assert report["required_gaps"] == ["docs_source_unavailable:CHANGELOG.md"]
 
 
 def test_official_and_owned_generated_markdown_are_not_authored_docs(tmp_path: Path) -> None:

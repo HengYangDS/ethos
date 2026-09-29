@@ -146,16 +146,17 @@ Check the largest independently readable section and whether readers can find
 a current decision, its rationale and the next action without scanning unrelated
 history. A short but fragmented or duplicated document can still fail that test.
 
-The portable hard ceiling is 500 nonblank physical lines per current authored
-Markdown reader topic, including root entrypoints, rules, Skills and a
-repository's native documentation root. Tables, code fences and quotes count;
-blank-line padding and lifecycle relabeling do not help. The release contract's
-changelog is an append-only history: a Changelog title, Unreleased section and
-bracketed release headings let its preamble and each release section obey the
-same ceiling independently. A filename or unstructured heading does not exempt
-an overlong topic. Official OpenSpec
-artifacts, immutable archives and outputs with a declared producer are separate
-carriers.
+The portable hard ceiling is 500 nonblank physical lines per tracked, current,
+authored Markdown document, including root entrypoints, rules, Skills and a
+repository's native documentation root. Frontmatter, tables, code fences and
+quotes count; blank-line padding and a metadata state of `archived` do not
+exempt an otherwise current document. The release contract's root
+`CHANGELOG.md` is cumulative release history: neither its total nor its
+Unreleased or version sections have a document-length ceiling. Release format
+and version meaning belong to release governance, not this length check. A
+same-named document elsewhere is still ordinary authored documentation.
+Official OpenSpec artifacts and their archive, and outputs with a declared
+producer, are separate carriers with their own checks.
 
 The docs-registry gate reports the exact overlong source; official OpenSpec and
 generated-artifact checks retain their own obligations. This ceiling prevents
@@ -163,6 +164,13 @@ one unreadable carrier, not semantic fragmentation: split by reader question
 and responsibility, preserve context and links, and test retrieval before and
 after. Imported research is settled into its topic owner with source and
 disposition, not copied as a raw report.
+
+A large reduction is not presumed lossless because the old bytes remain in Git.
+Before deleting or partitioning current text, map each still-live obligation to
+its canonical owner, distinguish dated observations and explicitly retired
+claims, and repair navigation and consumers. Keep that disposition in the
+existing Change and affected documents, not a second progress ledger. If a
+live obligation has no surviving owner, the reduction is incomplete.
 
 ## Purpose And Quality
 
@@ -245,7 +253,15 @@ A Decision Record is admitted only when a choice among alternatives, its
 consequences, and its revisit or retirement condition remain useful across more
 than one Change and cannot be expressed clearly by the current contract or
 source. It is not a feedback receipt, status page, task list, or archive index.
-Its filename is lowercase and semantic rather than a numbered identity.
+Its filename is `dr-<four-digit-id>-<semantic-topic>.md`: the stable positive
+number is never reused for another ruling, while the topic stays legible. The
+Docs Registry rejects missing or duplicate current IDs without adding a
+decision database. A record states its status and date, context, decision,
+consequences and revisit condition; alternatives and evidence are included when
+they explain the choice. Its directory README navigates records but does not
+become a second decision register. Adopters need not copy ETHOS's directory
+shape; their `role: decision` records follow the same identity grammar within
+their selected documentation root.
 
 ## Markdown list structure
 

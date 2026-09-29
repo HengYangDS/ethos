@@ -16,9 +16,6 @@
 !.config/mise/
 !.config/mise/config.toml
 !.config/mise/mise.lock
-!distributions/
-!distributions/npm/
-!distributions/npm/package.json
 !tests/
 !tests/fixtures/
 !tests/fixtures/quality-sample/

@@ -38,6 +38,31 @@ if TYPE_CHECKING:
 ROOT = Path(__file__).resolve().parents[3]
 
 
+def test_ci_image_binds_locked_supply_not_mutable_project_metadata() -> None:
+    """A build-only metadata edit must not invalidate unchanged offline supply."""
+    dockerfile = (ROOT / ".config/ci/supply/Dockerfile").read_text(encoding="utf-8")
+    manifest = dockerfile.partition("&& sha256sum ")[2].partition("> input.sha256")[0]
+    assert manifest
+    inputs = set(shlex.split(manifest.replace("\\\n", " ")))
+    assert {
+        "uv.lock",
+        "package-lock.json",
+        "tests/fixtures/quality-sample/uv.lock",
+    } <= inputs
+    assert (
+        not {
+            "pyproject.toml",
+            "package.json",
+            "distributions/npm/package.json",
+            "tests/fixtures/quality-sample/pyproject.toml",
+        }
+        & inputs
+    )
+    bootstrap = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
+    assert "uv sync --locked --group dev" in bootstrap
+    assert "npm ci --ignore-scripts" in bootstrap
+
+
 @pytest.fixture(autouse=True)
 def isolated_supply_cache(monkeypatch):
     """Native fixtures never inherit either runner cache root."""

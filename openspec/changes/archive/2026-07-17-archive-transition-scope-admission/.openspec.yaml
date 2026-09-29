@@ -1,4 +1,0 @@
-schema: spec-driven
-created: 2026-07-15
-goal: Allow the official archive transition to commit its own evidence and
-  archive files through bounded product-defined scope coverage.

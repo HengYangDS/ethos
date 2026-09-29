@@ -1,5 +1,0 @@
-schema: spec-driven
-created: 2026-08-19
-goal: Use the official OpenSpec 1.9 lifecycle and lockfile as the sole package
-  authority.
-skip_specs: true

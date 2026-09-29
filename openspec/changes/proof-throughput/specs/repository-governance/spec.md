@@ -387,6 +387,15 @@ cost SHALL NOT remove valid constraints, functionality, performance or acceptanc
 - **AND** local, installed, hosted and actual-use claims remain distinct
 - **AND** measured text or token reduction alone does not prove semantic preservation
 
+#### Scenario: Completed Change history leaves the current tree
+
+- **WHEN** a completed OpenSpec archive has no remaining current-tree proof or reader consumer
+- **THEN** current behavior is read from canonical specs, not that archive
+- **AND** a reviewed deletion may retire its current-tree copy only after every byte remains reachable and recoverable from an exact Git revision
+- **AND** incoming references are moved to the current owner or exact history retrieval
+- **AND** an in-flight archive or unknown recovery path remains preserved
+- **AND** calendar age alone grants no deletion authority
+
 ### Requirement: Accepted feedback closes through demonstrated improvement
 
 ETHOS SHALL preserve each accepted feedback obligation's declared source scope,

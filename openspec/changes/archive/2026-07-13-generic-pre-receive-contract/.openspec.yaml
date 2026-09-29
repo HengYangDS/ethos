@@ -1,4 +1,0 @@
-schema: spec-driven
-created: 2026-07-12
-goal: Add a provider-local, optional pre-receive adapter without creating
-  adopter account, daemon, key, or network prerequisites.

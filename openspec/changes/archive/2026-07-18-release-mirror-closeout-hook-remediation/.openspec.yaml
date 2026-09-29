@@ -1,4 +1,0 @@
-schema: spec-driven
-created: 2026-07-18
-goal: Admit an official accepted_ff closeout atomically for its accepted and
-  release-mirror refs without weakening raw-ref protection.

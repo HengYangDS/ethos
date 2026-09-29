@@ -61,11 +61,11 @@ selected Attestations establish current implementation and proof.
 ## Terminal Plan Observations
 
 The execution narrative formerly mixed into the terminal plan's current entry
-remains in Git at `0b39a8209e3416de9fe46ee1cd1ff5c06b723c11`, blob
-`9a6f352c06c9b5813750c59e46e4c2a693b46d69`:
+remains in Git at `bac03b71c9771de27206385a70ae17e85dccb4f0`, blob
+`f2f7c6850ea75595ff2a873b79d69fd053af5ae0`:
 
 ```bash
-git show 0b39a8209e3416de9fe46ee1cd1ff5c06b723c11:docs/plans/terminal-governance-product-design.md
+git show bac03b71c9771de27206385a70ae17e85dccb4f0:docs/plans/terminal-governance-product-design.md
 ```
 
 Use it for dated observations and discarded schedules, not current status.

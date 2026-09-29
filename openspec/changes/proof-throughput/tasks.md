@@ -164,7 +164,7 @@
 ## 12. Documentation Comprehension and Research Delivery
 
 - [ ] 12.1 Organize foundation research by semantic question; verify every original argument, source and incoming link is preserved without duplicating authority.
-- [ ] 12.2 Repair native metadata parsing and typed relationships; replay quoted-scalar, duplicate-key, delimiter, dangling-owner and human/machine contradiction cases through the public report.
+- [x] 12.2 Repair native metadata parsing and typed relationships; replay quoted-scalar, duplicate-key, delimiter, dangling-owner and human/machine contradiction cases through the public report.
 - [ ] 12.3 Derive human and agent navigation from one source; verify semantic hierarchy, reader orientation, prerequisites, section links, rename closure and independently understandable topics.
   - [x] 12.3.1 Settle the terminal plan's current-entry observations into existing history retrieval; preserve open obligations and dependency order without copying task status or dropping source evidence.
 - [ ] 12.4 Enforce a 500-nonblank-line ceiling for current authored Markdown in ETHOS and governed repositories after semantic partition of existing oversize owners; exclude only generated and archived carriers by existing classification. Verify human/agent retrieval and token cost without cosmetic splitting or lost meaning.

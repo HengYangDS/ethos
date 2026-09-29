@@ -169,9 +169,10 @@ def test_docs_health_reports_missing_invalid_and_duplicate_metadata(tmp_path: Pa
     ]
 
 
-def test_docs_health_ignores_missing_visible_document_after_registry_observation(
+def test_docs_health_rejects_missing_document_after_registry_observation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """A stale registry entry cannot turn a vanished document into a green gate."""
     entry = {
         "path": "docs/reference/removed.md",
         "subject": "ethos:removed",
@@ -185,8 +186,10 @@ def test_docs_health_ignores_missing_visible_document_after_registry_observation
 
     report = docs_health_report(tmp_path)
 
-    assert report["verdict"] == "pass"
-    assert report["missing_visible_sections"] == []
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["docs_source_unavailable:docs/reference/removed.md"]
+    assert report["document_count"] == 0
+    assert docs_registry_report(tmp_path)["required_gaps"] == report["required_gaps"]
 
 
 def test_shell_command_reports_native_invocation_forms_and_malformed_quotes(

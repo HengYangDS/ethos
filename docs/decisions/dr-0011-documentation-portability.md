@@ -6,10 +6,12 @@ relations:
   current_owner: ../governance/docs-registry.md
 ---
 
-# Documentation Portability
+# DR-0011: Documentation Portability
 
 Status: canonical rationale. The Docs Registry and each repository's profile
 own current behavior.
+
+Date: 2026-09-02.
 
 Purpose: preserve why portable documentation governance standardizes meaning
 and discovery without standardizing every repository's physical tree.

@@ -10,8 +10,8 @@ relations:
 
 Status: active projection.
 
-Purpose: define the complete public ETHOS command plane and its ownership
-boundaries.
+Purpose: explain public ETHOS command behavior and ownership boundaries. The
+installed CLI command tree owns the exact root inventory.
 
 Canonical owner: [Product Design Contract](../governance/product-design-contract.md#semantic-kernel).
 
@@ -19,9 +19,9 @@ See also: [Quickstart](../guides/quickstart.md),
 [Product Design Contract](../governance/product-design-contract.md#semantic-kernel), and
 [OpenSpec Governance](../governance/openspec-governance.md).
 
-## Public Roots
+## Workflow And Transport Roots
 
-ETHOS exposes exactly these public roots:
+The daily workflow and transport operations are:
 
 | Root                                                                                                       | Purpose                                                                                                                                                    | Read or effect boundary                                                                                                                                            |
 | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -58,6 +58,13 @@ Strict tool inputs cannot replace either binding. Diagnostics stay on stderr;
 stdout is reserved for the protocol. Cancellation and deadline expiry do not
 mean rollback: reobserve before retrying an effect. Synchronous work drains
 before a queued successor executes; this is not a hard filesystem timeout.
+
+`ethos attestation query` reads exact matches from the sole Attestation set.
+`ethos attestation record --input <file>` validates or previews one canonical
+record; `--apply` unions it by exact Git CAS. Neither operation grants effect
+authority. `ethos lane` and `ethos hook` are operational roots described below,
+not extra workflow lifecycles. Use the installed `ethos --help` and each root's
+`--help` for the current command inventory; this page is its semantic guide.
 
 ## Shared SDK Operations
 

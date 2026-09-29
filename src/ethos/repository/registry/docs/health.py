@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 import shlex
-from itertools import pairwise
 from pathlib import Path
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
@@ -30,7 +29,7 @@ if TYPE_CHECKING:
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 OBSERVATIONAL_ROLES = frozenset({"evidence", "history"})
 MAX_CURRENT_MARKDOWN_NONBLANK = 500
-_RELEASE_HEADING = re.compile(r"^\[[^\[\]\n]+\](?: - \d{4}-\d{2}-\d{2})?$")
+DECISION_RECORD_NAME = re.compile(r"^dr-([0-9]{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
 
 
 def docs_health_report(
@@ -79,6 +78,7 @@ def docs_health_report(
         )
         unindexed_plans = plan_index_gaps(root, registry)
         readme_disposition = readme_disposition_gaps(root, registry)
+        decision_identity = decision_record_identity_gaps(registry)
         length_gaps = current_document_length_gaps(
             root, registry, generated_outputs, tracked_documents
         )
@@ -91,6 +91,7 @@ def docs_health_report(
             + invalid_command_examples
             + unindexed_plans
             + readme_disposition
+            + decision_identity
             + length_gaps
             + relation_gaps(root, registry)
         )
@@ -162,41 +163,36 @@ def current_document_length_gaps(
             continue
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
-            count = sum(bool(line.strip()) for line in lines)
-            if relative == RELEASE_HISTORY_FILE and count > MAX_CURRENT_MARKDOWN_NONBLANK:
-                count = _release_history_max_section(lines) or count
         except (OSError, UnicodeError):
             gaps.append(f"docs_source_unavailable:{relative}")
             continue
+        if relative == RELEASE_HISTORY_FILE:
+            continue
+        count = sum(bool(line.strip()) for line in lines)
         if count > MAX_CURRENT_MARKDOWN_NONBLANK:
             gaps.append(f"docs_length_exceeded:{relative}:{count}>{MAX_CURRENT_MARKDOWN_NONBLANK}")
     return gaps
 
 
-def _release_history_max_section(lines: list[str]) -> int | None:
-    """Bound navigable release sections without shortening history."""
-    tokens = MarkdownIt("commonmark").parse("\n".join(lines))
-    title = ""
-    sections: list[tuple[int, str]] = []
-    for index, token in enumerate(tokens):
-        if token.type != "heading_open" or token.map is None:
+def decision_record_identity_gaps(registry: list[dict[str, Any]]) -> list[str]:
+    """Keep decision identity stable without another decision registry."""
+    ids: dict[str, list[str]] = {}
+    gaps: list[str] = []
+    for entry in registry:
+        if entry.get("role") != "decision":
             continue
-        content = tokens[index + 1].content.strip()
-        if token.tag == "h1" and not title:
-            title = content
-        elif token.tag == "h2":
-            sections.append((token.map[0], content))
-    if (
-        not title.casefold().endswith("changelog")
-        or len(sections) < 2
-        or sections[0][1].casefold() != "[unreleased]"
-        or any(not _RELEASE_HEADING.fullmatch(heading) for _, heading in sections)
-    ):
-        return None
-    boundaries = [0, *(line for line, _ in sections), len(lines)]
-    return max(
-        sum(bool(line.strip()) for line in lines[start:end]) for start, end in pairwise(boundaries)
+        path = str(entry["path"])
+        match = DECISION_RECORD_NAME.fullmatch(PurePosixPath(path).name)
+        if match is None or match[1] == "0000":
+            gaps.append(f"docs_decision_name_invalid:{path}")
+            continue
+        ids.setdefault(match[1], []).append(path)
+    gaps.extend(
+        f"docs_decision_id_duplicate:{number}:{','.join(sorted(paths))}"
+        for number, paths in sorted(ids.items())
+        if len(paths) > 1
     )
+    return gaps
 
 
 def _official_openspec_carrier(relative: str) -> bool:

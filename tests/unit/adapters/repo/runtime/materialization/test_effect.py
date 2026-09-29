@@ -197,7 +197,7 @@ def test_materialization_binds_package_dependency_and_image_sources(
     patches = {
         "resolve_runtime_project": lambda _root: project,
         "resolve_locked_environment_python": lambda _root: dependency,
-        "_reusable_runtime": lambda *_args: None,
+        "_reusable_runtime": lambda *_args, **_kwargs: None,
         "is_selected_runtime_source": lambda _source: supply == "selected",
         "require_python_image_source": lambda python: record("image_source", python, facts),
         "observe_runtime_environment": lambda source, python, **kwargs: record(

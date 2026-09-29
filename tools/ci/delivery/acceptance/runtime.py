@@ -298,9 +298,7 @@ def prove_shared_supply(
     selectors, databases = [], []
     for repo in repositories:
         run_command(work, ("git", "init", "--quiet", "--initial-branch=dev", str(repo)), check=True)
-        data = _activate(
-            package_prefix, repo, environment=scoped_environment, installed_runtime=selected.root
-        )
+        data = _activate(package_prefix, repo, environment=scoped_environment)
         common = Path(git_common_dir(repo))
         selector = common / "ethos/runtime/CURRENT"
         selectors.append(selector)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 from typing import TYPE_CHECKING
 
 import pytest
@@ -297,6 +298,27 @@ def test_docs_health_does_not_reclassify_unrelated_registry_failures(
     monkeypatch.setattr(f"{module}.build_docs_registry", fail)
     with pytest.raises(ValueError, match=message):
         consumer(tmp_path)
+
+
+@pytest.mark.parametrize("relative", [None, "docs/reference/data.toml", "outside.md"])
+def test_docs_health_preserves_unrelated_operating_system_failures(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relative: str | None
+) -> None:
+    """Only unavailable selected Markdown may become a docs-source gap."""
+    (tmp_path / "docs").mkdir()
+    failure = (
+        OSError("unattributed failure")
+        if relative is None
+        else FileNotFoundError(errno.ENOENT, "missing", str(tmp_path / relative))
+    )
+
+    def fail(_root: Path) -> list[dict[str, str]]:
+        raise failure
+
+    monkeypatch.setattr("ethos.repository.registry.docs.health.build_docs_registry", fail)
+    with pytest.raises(OSError, match=r"unattributed failure|missing") as observed:
+        docs_registry_report(tmp_path)
+    assert observed.value is failure
 
 
 @pytest.mark.parametrize(

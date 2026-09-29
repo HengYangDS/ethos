@@ -655,6 +655,14 @@ representations SHALL agree on the same declared meaning.
 - **AND** duplicate keys, incomplete delimiters, or premature comment terminators block rather than expose metadata or fall back to missing metadata
 - **AND** the separate system-axiom derivation reader does not adopt the documentation-only carrier
 
+#### Scenario: Adopter-native guidance satisfies a portable reader floor
+
+- **WHEN** an active profile-selected page has a visible H1 and non-empty non-heading text outside code fences, but not ETHOS-specific `Status`, `Purpose`, or `See also` labels
+- **THEN** the docs report accepts its reader surface if metadata, relations, and navigation are valid
+- **AND** a missing title or guidance hidden entirely in a literal fence blocks
+- **AND** an authored empty or contradictory `Status:` remains a gap
+- **AND** observational roles may omit reader guidance but cannot bypass a commented carrier's title-first rule
+
 ### Requirement: ETHOS directory navigation uses README only
 
 Current ETHOS-authored directory navigation SHALL use a necessary README.md.

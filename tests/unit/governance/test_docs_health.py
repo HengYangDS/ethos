@@ -283,6 +283,51 @@ def test_docs_registry_requires_the_title_first_for_commented_metadata(
     assert "docs_title_not_first:docs/reference/example.md" in report["required_gaps"]
 
 
+@pytest.mark.parametrize("role", ["history", "evidence"])
+def test_commented_observations_still_require_a_title_first(tmp_path: Path, role: str) -> None:
+    """Observational roles waive prose labels, not the carrier's visible order."""
+    path = tmp_path / "docs/record.md"
+    path.parent.mkdir()
+    content = _comment_wrapped_document(_document("demo:record", role, "active", "Record"))
+    path.write_text(content.replace("# Record", "A visible preface.\n\n# Record", 1))
+
+    report = docs_registry_report(tmp_path)
+
+    assert report["verdict"] == "block"
+    assert report["missing_visible_sections"] == ["docs_title_not_first:docs/record.md"]
+
+
+@pytest.mark.parametrize("commented", [False, True])
+def test_docs_registry_accepts_adopter_native_reader_guidance(
+    tmp_path: Path, *, commented: bool
+) -> None:
+    """Portable quality does not require ETHOS-specific prose labels."""
+    path = tmp_path / "docs/guide.md"
+    path.parent.mkdir()
+    content = (
+        "---\nsubject: demo:guide\nrole: how-to\nstate: active\nrelations: {}\n---\n\n"
+        "# Delivery guide\n\n## When to use\n\nUse this route for a governed delivery.\n"
+    )
+    path.write_text(_comment_wrapped_document(content) if commented else content)
+
+    report = docs_registry_report(tmp_path)
+
+    assert report["verdict"] == "pass", report
+    assert report["required_gaps"] == []
+
+
+def test_docs_registry_rejects_visible_guidance_without_a_title(tmp_path: Path) -> None:
+    """Three familiar labels cannot replace a document's reader-facing title."""
+    write_active_doc(tmp_path, "ethos status --json")
+    path = tmp_path / "docs/reference/example.md"
+    path.write_text(path.read_text().replace("# Example\n\n", "", 1))
+
+    report = docs_registry_report(tmp_path)
+
+    assert report["verdict"] == "block"
+    assert "docs_visible_title_missing:docs/reference/example.md" in report["required_gaps"]
+
+
 @pytest.mark.parametrize(
     ("before", "after"),
     [
@@ -473,9 +518,7 @@ def test_metadata_retains_structures_and_excludes_literal_guidance(tmp_path: Pat
     report = docs_registry_report(tmp_path)
     assert report["verdict"] == "block"
     assert report["missing_visible_sections"] == [
-        "missing_visible_section:docs/reference/example.md:status",
-        "missing_visible_section:docs/reference/example.md:purpose",
-        "missing_visible_section:docs/reference/example.md:see also",
+        "docs_visible_guidance_missing:docs/reference/example.md"
     ]
 
 

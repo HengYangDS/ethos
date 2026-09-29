@@ -40,7 +40,6 @@ DEFAULT_ROLE_VALUES = (
 )
 
 REQUIRED_FIELDS = ("subject", "role", "state", "relations")
-VISIBLE_SECTION_LABELS = ("Status:", "Purpose:", "See also:")
 DEFAULT_ALLOWED_STATES = frozenset(DEFAULT_STATE_VALUES)
 DEFAULT_ALLOWED_ROLES = frozenset(DEFAULT_ROLE_VALUES)
 RESERVED_STATE_VALUES = frozenset({"current", "future"})

@@ -114,8 +114,7 @@ ethos:npm:
   parallel:
     matrix:
       - NODE_VERSION:
-          - 24.21.0
-          - 26.9.0
+          - 26.10.0
   image: ghcr.io/hengyangds/ethos-ci-supply@sha256:a30b980be8afd8b1f05a22e7b0744ece025e2201dd34bb890408b992acec9286
   script:
     - tools/ci/scripts/bootstrap-python.sh

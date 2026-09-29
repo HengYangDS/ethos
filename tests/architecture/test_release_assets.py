@@ -396,7 +396,7 @@ def test_node_runtime_compatibility_accepts_each_declared_version(
 
 
 def test_node_runtime_compatibility_rejects_active_version_drift(tmp_path: Path) -> None:
-    requested, active = NODE_POLICY["compatibility_versions"][:2]
+    requested, active = NODE_POLICY["default_version"], "0.0.0"
     result, npm_log = _run_node_compatibility(tmp_path, requested, active)
     assert result.returncode != 0
     assert f"Node runtime mismatch: requested {requested}, active {active}" in result.stderr

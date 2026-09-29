@@ -12,14 +12,14 @@
   },
   "dependencies": {
     "@fission-ai/openspec": "1.13.2",
-    "micromark": "4.0.2",
+    "micromark": "4.0.3",
     "micromark-util-decode-string": "2.0.1"
   },
   "devDependencies": {
     "@taplo/cli": "0.7.0",
-    "allure": "3.18.0",
-    "markdownlint-cli2": "0.23.2",
-    "prettier": "3.9.8",
+    "allure": "3.19.0",
+    "markdownlint-cli2": "0.23.3",
+    "prettier": "3.9.9",
     "svgo": "4.1.0"
   },
   "overrides": {

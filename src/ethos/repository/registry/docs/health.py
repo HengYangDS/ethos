@@ -5,12 +5,15 @@ from __future__ import annotations
 import re
 import shlex
 from pathlib import Path
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 from typing import Any
 
 from markdown_it import MarkdownIt
 
+from ethos.adapters.repo.git import git_files
 from ethos.contracts.verdict import close_verdict
+from ethos.repository.policy.projections import observe_projections
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.registry.docs.links import markdown_links
 from ethos.repository.registry.docs.registry import DEFAULT_ALLOWED_STATES
@@ -25,6 +28,7 @@ if TYPE_CHECKING:
 
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 OBSERVATIONAL_ROLES = frozenset({"evidence", "history"})
+MAX_CURRENT_MARKDOWN_NONBLANK = 500
 
 
 def docs_health_report(
@@ -35,7 +39,8 @@ def docs_health_report(
     """Report docs metadata, structure, and live-command-example health."""
     root = root.resolve()
     try:
-        registry = build_docs_registry(root)
+        generated_outputs = frozenset(item.output for item in observe_projections(root))
+        registry = build_docs_registry(root, generated_outputs=generated_outputs)
         states = allowed_states(root)
         roles = allowed_roles(root)
         missing = [
@@ -71,6 +76,7 @@ def docs_health_report(
         )
         unindexed_plans = plan_index_gaps(root, registry)
         readme_disposition = readme_disposition_gaps(root, registry)
+        length_gaps = current_document_length_gaps(root, registry, generated_outputs)
         required_gaps = (
             missing
             + invalid_state
@@ -80,12 +86,13 @@ def docs_health_report(
             + invalid_command_examples
             + unindexed_plans
             + readme_disposition
+            + length_gaps
             + relation_gaps(root, registry)
         )
     except ValueError as exc:
         gap = str(exc)
         if gap != INVALID_PROFILE_ERROR and not gap.startswith(
-            ("docs_taxonomy_invalid:", "docs_metadata_invalid:")
+            ("docs_taxonomy_invalid:", "docs_metadata_invalid:", "projection_")
         ):
             raise
         return empty_docs_health_report(gap)
@@ -130,6 +137,48 @@ def empty_docs_health_report(gap: str) -> dict[str, object]:
         "required_gaps": [gap],
         "registry": [],
     }
+
+
+def current_document_length_gaps(
+    root: Path, registry: list[dict[str, Any]], generated_outputs: frozenset[str]
+) -> list[str]:
+    """Bound authored Markdown, not official intent or owned generated output."""
+    paths = set(git_files(root, "*.md")) | {str(entry["path"]) for entry in registry}
+    gaps: list[str] = []
+    for relative in sorted(paths - generated_outputs):
+        if _official_openspec_carrier(relative):
+            continue
+        path = root / relative
+        if path.is_symlink() or not path.is_file() or not path.resolve().is_relative_to(root):
+            gaps.append(f"docs_source_unavailable:{relative}")
+            continue
+        try:
+            count = sum(
+                bool(line.strip()) for line in path.read_text(encoding="utf-8").splitlines()
+            )
+        except (OSError, UnicodeError):
+            gaps.append(f"docs_source_unavailable:{relative}")
+            continue
+        if count > MAX_CURRENT_MARKDOWN_NONBLANK:
+            gaps.append(f"docs_length_exceeded:{relative}:{count}>{MAX_CURRENT_MARKDOWN_NONBLANK}")
+    return gaps
+
+
+def _official_openspec_carrier(relative: str) -> bool:
+    """Keep the native spec-driven artifact roots outside document length policy."""
+    parts = PurePosixPath(relative).parts
+    if parts[:3] == ("openspec", "changes", "archive"):
+        return True
+    if len(parts) == 4 and parts[:2] == ("openspec", "specs"):
+        return parts[3] == "spec.md"
+    if len(parts) == 4 and parts[:2] == ("openspec", "changes"):
+        return parts[3] in {"proposal.md", "design.md", "tasks.md"}
+    return (
+        len(parts) == 6
+        and parts[:2] == ("openspec", "changes")
+        and parts[3] == "specs"
+        and parts[5] == "spec.md"
+    )
 
 
 def plan_index_gaps(root: Path, registry: list[dict[str, Any]]) -> list[str]:

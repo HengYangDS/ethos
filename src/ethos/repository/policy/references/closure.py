@@ -409,7 +409,7 @@ def _superseded_current_carriers(
     try:
         registry = build_docs_registry(root)
     except ValueError as exc:
-        if not str(exc).startswith("docs_metadata_invalid:"):
+        if not str(exc).startswith(("docs_metadata_invalid:", "projection_")):
             raise
         return [
             SemanticClosureFinding(

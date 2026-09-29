@@ -217,7 +217,7 @@ def design_integrity_report(
     try:
         registry = {entry["path"]: entry for entry in build_docs_registry(root)}
     except ValueError as exc:
-        if not str(exc).startswith("docs_metadata_invalid:"):
+        if not str(exc).startswith(("docs_metadata_invalid:", "projection_")):
             raise
         return {"verdict": "block", "references": [], "required_gaps": [str(exc)]}
     documents = _documents(root, registry, tracked_documents)

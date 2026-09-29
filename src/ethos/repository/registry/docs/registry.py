@@ -10,6 +10,7 @@ from typing import override
 import yaml
 from yaml.constructor import ConstructorError
 
+from ethos.repository.policy.projections import observe_projections
 from ethos.repository.profile import profile_root
 
 if TYPE_CHECKING:
@@ -99,12 +100,19 @@ def front_matter(path: Path, *, allow_html_comment: bool = False) -> dict[str, A
     return payload
 
 
-def build_docs_registry(root: Path) -> list[dict[str, Any]]:
+def build_docs_registry(
+    root: Path, *, generated_outputs: frozenset[str] | None = None
+) -> list[dict[str, Any]]:
     """Retain typed metadata and reject invalid native declarations."""
     root = root.resolve()
+    outputs = generated_outputs
+    if outputs is None:
+        outputs = frozenset(item.output for item in observe_projections(root))
     entries = []
     for path in sorted(docs_root(root).rglob("*.md")):
         relative = path.relative_to(root).as_posix()
+        if relative in outputs:
+            continue
         try:
             metadata = front_matter(path, allow_html_comment=True)
         except ValueError as exc:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from unittest.mock import Mock
+from unittest.mock import patch
 
 import pytest
 
@@ -348,35 +349,22 @@ def test_linked_apply_preserves_order_receipt_and_exact_effect_result(
         "next_action": "ethos status",
         "user_decision_required": False,
     }
-    monkeypatch.setattr(
+    with patch.multiple(
         linked,
-        "compile_retirement_operation",
-        lambda *_args, **_kwargs: calls.append("compile") or compiled,
-    )
-    monkeypatch.setattr(
-        linked,
-        "persist_operation",
-        lambda *_args, **_kwargs: calls.append("persist") or receipt,
-    )
-    monkeypatch.setattr(
-        linked,
-        "apply_operation",
-        lambda *_args, **_kwargs: calls.append("apply") or outcome,
-    )
-    report = retire_linked_work_lane(
-        root=tmp_path,
-        mode="landed",
-        request=LinkedRetirementRequest(
-            branch=SOURCE,
-            expect_head=SOURCE_HEAD,
-            authorize=True,
-            apply=True,
-        ),
-    )
-
-    assert calls == ["compile", "persist", "apply"]
-    assert report["receipt"] == receipt
-    assert report.items() >= outcome.items()
-    mutation = report["mutation"]
-    assert isinstance(mutation, dict)
-    assert mutation["decision"]["verdict"] == outcome["verdict"]
+        compile_retirement_operation=lambda *_args, **_kwargs: calls.append("compile") or compiled,
+        persist_operation=lambda *_args, **_kwargs: calls.append("persist") or receipt,
+        apply_operation=lambda *_args, **_kwargs: calls.append("apply") or outcome,
+    ):
+        report = retire_linked_work_lane(
+            root=tmp_path,
+            mode="landed",
+            request=LinkedRetirementRequest(
+                branch=SOURCE, expect_head=SOURCE_HEAD, authorize=True, apply=True
+            ),
+        )
+        assert calls == ["compile", "persist", "apply"]
+        assert report["receipt"] == receipt
+        assert report.items() >= outcome.items()
+        mutation = report["mutation"]
+        assert isinstance(mutation, dict)
+        assert mutation["decision"]["verdict"] == outcome["verdict"]

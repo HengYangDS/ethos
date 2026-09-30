@@ -10,7 +10,6 @@ import sys
 from typing import TYPE_CHECKING
 
 import pytest
-from filelock import FileLock
 
 import ethos.adapters.mutation.lane_retirement.operation as operation
 from ethos.adapters.process import ProcessExecutionError
@@ -20,16 +19,10 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_test_profile
 from tests.support.lane_scenarios import retirement_request
+from tests.support.subprocesses import hold_file_lock
 
 if TYPE_CHECKING:
-    from multiprocessing.synchronize import Event
     from pathlib import Path
-
-
-def _hold_retirement_lock(path: str, ready: Event, release: Event) -> None:
-    with FileLock(path):
-        ready.set()
-        release.wait(60)
 
 
 @pytest.mark.parametrize("entrypoint", ["apply", "recover"])
@@ -65,7 +58,7 @@ print(json.dumps(result))
     payload = json.dumps([request.model_dump(mode="json"), receipt, apply, entrypoint])
     context = multiprocessing.get_context("spawn")
     ready, release = context.Event(), context.Event()
-    owner = context.Process(target=_hold_retirement_lock, args=(str(lock), ready, release))
+    owner = context.Process(target=hold_file_lock, args=(str(lock), ready, release))
     owner.start()
     try:
         assert ready.wait(10), "lock owner did not become ready"

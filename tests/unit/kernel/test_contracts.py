@@ -7,9 +7,9 @@ import json
 import operator
 from datetime import UTC
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from types import MappingProxyType
-from typing import Literal
 
 import jsonschema
 import pytest
@@ -28,6 +28,7 @@ from ethos.contracts.system.contracts import load_system_contract
 from ethos.contracts.system.contracts import schema_validation_gaps
 from ethos.contracts.system.contracts import system_contracts_report
 from ethos.contracts.value import mutable_json
+from tests.support.semantic import attestation_fixture
 from tests.support.semantic import commitment_fixture
 
 _PLAN_COMMITMENT = commitment_fixture(id="change:test-plan", acceptance=("acceptance:fixture",))
@@ -58,34 +59,15 @@ _PLAN_INPUTS = {
 _ISSUED_AT = datetime(2026, 7, 25, tzinfo=UTC)
 
 
-def _attestation(
-    *,
-    payload: object,
-    verdict: Literal["pass", "block", "unknown"] = "pass",
-    advisories: tuple[str, ...] = (),
-) -> Attestation:
-    return Attestation.issue(
-        {
-            "schema_version": 2,
-            "predicate": "observation:repository",
-            "verifier": "agent:local:task:one",
-            "subject": "change:terminal-kernel",
-            "issued_at": _ISSUED_AT,
-            "valid_from": None,
-            "valid_until": None,
-            "verdict": verdict,
-            "payload": {"kind": "observation:repository", "body": payload},
-            "relations": (),
-            "advisories": advisories,
-            "evidence_refs": (),
-            "commitment_digest": "a" * 64,
-            "facts_digest": None,
-            "plan_digest": None,
-            "policy_digest": None,
-            "effect_digest": None,
-            "mints_authority": False,
-        }
-    )
+_attestation = partial(
+    attestation_fixture,
+    predicate="observation:repository",
+    verifier="agent:local:task:one",
+    subject="change:terminal-kernel",
+    issued_at=_ISSUED_AT,
+    payload_kind="observation:repository",
+    commitment_digest="a" * 64,
+)
 
 
 def test_commitment_identity_projection_is_explicit_and_schema_version_bound() -> None:
@@ -236,11 +218,11 @@ def test_facts_digest_ignores_observation_time() -> None:
 
 def test_attestation_identity_and_serialization_are_payload_addressed() -> None:
     first = _attestation(
-        payload={"z": ["one", {"two": True}], "a": {"nested": "value"}},
+        payload_body={"z": ["one", {"two": True}], "a": {"nested": "value"}},
         advisories=("non_blocking_note",),
     )
     reordered = _attestation(
-        payload={"a": {"nested": "value"}, "z": ["one", {"two": True}]},
+        payload_body={"a": {"nested": "value"}, "z": ["one", {"two": True}]},
         advisories=("non_blocking_note",),
     )
 
@@ -252,7 +234,7 @@ def test_attestation_identity_and_serialization_are_payload_addressed() -> None:
     assert first.advisories == ("non_blocking_note",)
     assert (
         _attestation(
-            payload={"z": ["one", {"two": True}], "a": {"nested": "value"}},
+            payload_body={"z": ["one", {"two": True}], "a": {"nested": "value"}},
             verdict="unknown",
             advisories=("non_blocking_note",),
         ).id
@@ -267,7 +249,7 @@ def test_attestation_identity_and_serialization_are_payload_addressed() -> None:
 
 def test_attestation_mapping_round_trip_normalizes_fractional_time() -> None:
     issued = datetime(2026, 8, 16, 9, 6, 13, 523640, tzinfo=UTC)
-    base = _attestation(payload={"state": "observed"})
+    base = _attestation(payload_body={"state": "observed"})
     attestation = Attestation.issue(
         base.model_dump(mode="python", exclude={"id"}) | {"issued_at": issued, "valid_from": issued}
     )
@@ -281,13 +263,13 @@ def test_attestation_mapping_round_trip_normalizes_fractional_time() -> None:
 
 
 def test_attestation_requires_closed_verdict_and_at_least_one_binding() -> None:
-    attestation = _attestation(payload={"required_gaps": ["proof_missing"]}, verdict="block")
+    attestation = _attestation(payload_body={"required_gaps": ["proof_missing"]}, verdict="block")
     payload = attestation.model_dump(mode="json")
     payload["verdict"] = "pass"
     with pytest.raises(ValueError, match="pass_with_required_gaps"):
         Attestation.model_validate(payload)
 
-    attestation = _attestation(payload={"state": "observed"})
+    attestation = _attestation(payload_body={"state": "observed"})
     payload = attestation.model_dump(mode="json")
     payload["facts_digest"] = "not-a-digest"
     with pytest.raises(ValidationError):
@@ -301,7 +283,7 @@ def test_attestation_requires_closed_verdict_and_at_least_one_binding() -> None:
 
 def test_semantic_values_are_immutable_and_digest_bound() -> None:
     issued_at = datetime(2026, 7, 25, tzinfo=UTC)
-    attestation = _attestation(payload={"nested": {"values": ["one", {"two": True}]}})
+    attestation = _attestation(payload_body={"nested": {"values": ["one", {"two": True}]}})
     facts = Facts(
         repository="repository:ethos",
         head="a" * 40,
@@ -332,7 +314,7 @@ def test_semantic_values_are_immutable_and_digest_bound() -> None:
 @pytest.mark.parametrize("invalid", [float("nan"), float("inf"), b"bytes"])
 def test_semantic_json_rejects_values_without_portable_json_meaning(invalid: object) -> None:
     with pytest.raises(TypeError, match="json_value_invalid"):
-        _attestation(payload={"invalid": invalid})
+        _attestation(payload_body={"invalid": invalid})
 
 
 @pytest.mark.parametrize(
@@ -341,7 +323,7 @@ def test_semantic_json_rejects_values_without_portable_json_meaning(invalid: obj
 )
 def test_semantic_json_objects_reject_non_object_or_non_string_keys(invalid: object) -> None:
     with pytest.raises(TypeError, match=r"json_object_invalid|json_object_key_invalid"):
-        _attestation(payload=invalid)
+        _attestation(payload_body=invalid)
 
 
 @pytest.mark.parametrize(
@@ -371,7 +353,7 @@ def test_semantic_json_objects_reject_non_object_or_non_string_keys(invalid: obj
             id="facts",
         ),
         pytest.param(
-            lambda value: _attestation(payload={"value": value}),
+            lambda value: _attestation(payload_body={"value": value}),
             lambda model: hashlib.sha256(
                 b"ethos.attestation.v2\0" + model.canonical_json(exclude_id=True).encode()
             ).hexdigest(),
@@ -396,7 +378,7 @@ def test_semantic_digest_matrix_binds_each_canonical_identity(factory, expected_
     ("factory", "field", "replacement", "error"),
     [
         pytest.param(
-            lambda: _attestation(payload={"state": "observed"}),
+            lambda: _attestation(payload_body={"state": "observed"}),
             "payload",
             {"kind": "observation:repository", "body": {"state": "tampered"}},
             "attestation_identity_mismatch",

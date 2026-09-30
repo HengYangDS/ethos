@@ -8,6 +8,7 @@ from functools import partial
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
@@ -256,67 +257,53 @@ def test_refresh_validates_the_complete_replay_range_before_repository_effects(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _common(monkeypatch, heads=(HEAD, REBASED, REBASED))
-    policy = CommitPolicy(
-        subject_pattern=r"^fix: .+",
-        signing_required=True,
-        signing_format="ssh",
-    )
+    policy = CommitPolicy(subject_pattern="^fix: .+", signing_required=True, signing_format="ssh")
     observed_policy: list[tuple[str, str]] = []
-    monkeypatch.setattr(
+    with patch.multiple(
         refresh,
-        "committed_file_text",
-        lambda _root, ref, path: observed_policy.append((ref, path)) or "candidate policy",
-    )
-    monkeypatch.setattr(
-        refresh,
-        "commit_policy_from_text",
-        lambda text: policy if text == "candidate policy" else None,
-    )
-    monkeypatch.setattr(
-        refresh,
-        "commit_environment",
-        lambda _root, _environment: {"SIGNED_REPLAY": "1"},
-    )
-    rebase_environments: list[object] = []
-
-    def run_git(_root: Path, *args: str, **kwargs: object) -> SimpleNamespace:
-        if args[-2:] == ("rev-parse", "HEAD"):
-            return _completed(stdout=HEAD + "\n")
-        if args[-2:] == ("rev-parse", "candidate/dev"):
-            return _completed(stdout=CANDIDATE + "\n")
-        if "rebase" in args:
-            rebase_environments.append(kwargs.get("env"))
-            assert "commit.gpgSign=false" not in args
-            return _completed()
-        return _completed()
-
-    monkeypatch.setattr(refresh, "run_git", run_git)
-    validated: list[tuple[str, str, CommitPolicy]] = []
-    monkeypatch.setattr(
-        refresh,
-        "validate_replayed_commits",
-        lambda _root, *, proposed_commit, baseline_commit, policy: (
-            validated.append((proposed_commit, baseline_commit, policy)) or []
+        committed_file_text=lambda _root, ref, path: (
+            observed_policy.append((ref, path)) or "candidate policy"
         ),
-    )
-    _stub_refresh_effect(monkeypatch)
-    monkeypatch.setattr(
-        refresh,
-        "execute_git_effect",
-        lambda *_args, **_kwargs: SimpleNamespace(model_dump=lambda **_kwargs: {}),
-    )
-    monkeypatch.setattr(
-        refresh,
-        "attach_worktree",
-        lambda *_args, **_kwargs: SimpleNamespace(model_dump=lambda **_kwargs: {}),
-    )
+        commit_policy_from_text=lambda text: policy if text == "candidate policy" else None,
+        commit_environment=lambda _root, _environment: {"SIGNED_REPLAY": "1"},
+    ):
+        rebase_environments: list[object] = []
 
-    report = _apply_refresh(root=tmp_path)
+        def run_git(_root: Path, *args: str, **kwargs: object) -> SimpleNamespace:
+            if args[-2:] == ("rev-parse", "HEAD"):
+                return _completed(stdout=HEAD + "\n")
+            if args[-2:] == ("rev-parse", "candidate/dev"):
+                return _completed(stdout=CANDIDATE + "\n")
+            if "rebase" in args:
+                rebase_environments.append(kwargs.get("env"))
+                assert "commit.gpgSign=false" not in args
+                return _completed()
+            return _completed()
 
-    assert report["state"] == "base_refreshed"
-    assert observed_policy == [(CANDIDATE, ".ethos/workspace.toml")]
-    assert rebase_environments == [{"SIGNED_REPLAY": "1"}]
-    assert validated == [(REBASED, CANDIDATE, policy)]
+        monkeypatch.setattr(refresh, "run_git", run_git)
+        validated: list[tuple[str, str, CommitPolicy]] = []
+        monkeypatch.setattr(
+            refresh,
+            "validate_replayed_commits",
+            lambda _root, *, proposed_commit, baseline_commit, policy: (
+                validated.append((proposed_commit, baseline_commit, policy)) or []
+            ),
+        )
+        _stub_refresh_effect(monkeypatch)
+        with patch.multiple(
+            refresh,
+            execute_git_effect=lambda *_args, **_kwargs: SimpleNamespace(
+                model_dump=lambda **_kwargs: {}
+            ),
+            attach_worktree=lambda *_args, **_kwargs: SimpleNamespace(
+                model_dump=lambda **_kwargs: {}
+            ),
+        ):
+            report = _apply_refresh(root=tmp_path)
+            assert report["state"] == "base_refreshed"
+            assert observed_policy == [(CANDIDATE, ".ethos/workspace.toml")]
+            assert rebase_environments == [{"SIGNED_REPLAY": "1"}]
+            assert validated == [(REBASED, CANDIDATE, policy)]
 
 
 @pytest.mark.parametrize(
@@ -328,74 +315,64 @@ def test_refresh_validates_the_complete_replay_range_before_repository_effects(
     ids=["policy-rejected", "range-unreadable"],
 )
 def test_refresh_admission_failure_restores_before_repository_effects(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, signing: bool, gap: str
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    *,
+    signing: bool,
+    gap: str,
 ) -> None:
     _common(monkeypatch, heads=(HEAD, REBASED, HEAD))
     policy = CommitPolicy(
-        subject_pattern=r"^fix: .+",
-        signing_required=signing,
-        signing_format="ssh",
+        subject_pattern="^fix: .+", signing_required=signing, signing_format="ssh"
     )
-    monkeypatch.setattr(
+    with patch.multiple(
         refresh,
-        "committed_file_text",
-        lambda _root, ref, path: (
+        committed_file_text=lambda _root, ref, path: (
             "candidate policy" if (ref, path) == (CANDIDATE, ".ethos/workspace.toml") else ""
         ),
-    )
-    monkeypatch.setattr(
-        refresh,
-        "commit_policy_from_text",
-        lambda text: policy if text == "candidate policy" else None,
-    )
-    monkeypatch.setattr(refresh, "commit_environment", lambda *_args: {})
+        commit_policy_from_text=lambda text: policy if text == "candidate policy" else None,
+        commit_environment=lambda *_args: {},
+    ):
 
-    def run_git(_root: Path, *args: str, **_kwargs: object) -> SimpleNamespace:
-        if args[-2:] == ("rev-parse", "HEAD"):
-            return _completed(stdout=HEAD + "\n")
-        if args[-2:] == ("rev-parse", "candidate/dev"):
-            return _completed(stdout=CANDIDATE + "\n")
-        return _completed()
+        def run_git(_root: Path, *args: str, **_kwargs: object) -> SimpleNamespace:
+            if args[-2:] == ("rev-parse", "HEAD"):
+                return _completed(stdout=HEAD + "\n")
+            if args[-2:] == ("rev-parse", "candidate/dev"):
+                return _completed(stdout=CANDIDATE + "\n")
+            return _completed()
 
-    monkeypatch.setattr(refresh, "run_git", run_git)
-    monkeypatch.setattr(
-        refresh,
-        "validate_replayed_commits",
-        lambda _root, *, proposed_commit, baseline_commit, policy: (
-            [gap]
-            if (proposed_commit, baseline_commit) == (REBASED, CANDIDATE) and policy is not None
-            else pytest.fail("refresh selected the wrong replay coordinates")
-        ),
-    )
-    monkeypatch.setattr(
-        refresh,
-        "issue_native_effect",
-        lambda *_args, **_kwargs: pytest.fail("invalid replay must not be attested"),
-    )
-    monkeypatch.setattr(
-        refresh,
-        "execute_git_effect",
-        lambda *_args, **_kwargs: pytest.fail("invalid replay must not update refs or Lease"),
-    )
-    compensated: list[str] = []
-    monkeypatch.setattr(
-        refresh,
-        "compensate_git_worktree",
-        lambda _root, *, head: compensated.append(head),
-    )
-    restored: list[tuple[str, str]] = []
-    monkeypatch.setattr(
-        refresh,
-        "attach_worktree",
-        lambda _root, _path, *, branch, head: restored.append((branch, head)) or SimpleNamespace(),
-    )
-
-    report = _apply_refresh(root=tmp_path)
-
-    assert report["state"] == "blocked"
-    assert report["required_gaps"] == [gap]
-    assert compensated == [HEAD]
-    assert restored == [(BRANCH, HEAD)]
+        with patch.multiple(
+            refresh,
+            run_git=run_git,
+            validate_replayed_commits=lambda _root, *, proposed_commit, baseline_commit, policy: (
+                [gap]
+                if (proposed_commit, baseline_commit) == (REBASED, CANDIDATE) and policy is not None
+                else pytest.fail("refresh selected the wrong replay coordinates")
+            ),
+            issue_native_effect=lambda *_args, **_kwargs: pytest.fail(
+                "invalid replay must not be attested"
+            ),
+            execute_git_effect=lambda *_args, **_kwargs: pytest.fail(
+                "invalid replay must not update refs or Lease"
+            ),
+        ):
+            compensated: list[str] = []
+            monkeypatch.setattr(
+                refresh, "compensate_git_worktree", lambda _root, *, head: compensated.append(head)
+            )
+            restored: list[tuple[str, str]] = []
+            monkeypatch.setattr(
+                refresh,
+                "attach_worktree",
+                lambda _root, _path, *, branch, head: (
+                    restored.append((branch, head)) or SimpleNamespace()
+                ),
+            )
+            report = _apply_refresh(root=tmp_path)
+            assert report["state"] == "blocked"
+            assert report["required_gaps"] == [gap]
+            assert compensated == [HEAD]
+            assert restored == [(BRANCH, HEAD)]
 
 
 @pytest.mark.parametrize("case", ["ambiguous", "multiple", "wrong-branch", "recovered"])

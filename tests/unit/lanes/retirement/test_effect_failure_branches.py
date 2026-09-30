@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 from typing import Literal
+from unittest.mock import patch
 
 import pytest
 
@@ -111,17 +112,14 @@ def test_archive_absorption_and_effect_admission_cover_terminal_git_facts(
     monkeypatch.setattr(effects, "_carrier_delta_paths", lambda *_args: (source,))
     monkeypatch.setattr(effects, "_archive_roots", lambda *_args: (archive,))
     monkeypatch.setattr(effects, "output", lambda *_args: "blob")
-
     mapping = effects.archived_carrier_absorption(tmp_path, head="a" * 40, accepted_head="b" * 40)
     assert mapping["paths"] == {source: {"target": f"{archive}/proposal.md", "blob": "blob"}}
-
     lane = _lane()
     authority = _lane("work/successor")
     authority["path"] = (tmp_path / "successor").as_posix()
-    monkeypatch.setattr(
+    with patch.multiple(
         effects,
-        "output",
-        lambda root, command, *_args: (
+        output=lambda root, command, *_args: (
             "dev"
             if root == tmp_path and command == "symbolic-ref"
             else "b" * 40
@@ -130,30 +128,23 @@ def test_archive_absorption_and_effect_admission_cover_terminal_git_facts(
             if command == "symbolic-ref"
             else authority["head"]
         ),
-    )
-    monkeypatch.setattr(effects, "reobservation_gaps", lambda *_args: [])
-    monkeypatch.setattr(effects, "actor_ref", lambda: "agent:test:case:holder")
-    monkeypatch.setattr(effects, "archive_absorption_gaps", lambda *_args: [])
-    monkeypatch.setattr(
-        effects,
-        "linked_retirement_plan",
-        lambda *_args, **_kwargs: (tmp_path, object()),
-    )
-    monkeypatch.setattr(
-        effects,
-        "admit_git_effect",
-        lambda *_args: (_ for _ in ()).throw(ValueError("git_effect_plan_invalid: stale")),
-    )
-
-    assert effects.effect_gaps(
-        tmp_path / "successor",
-        tmp_path,
-        mode="superseded",
-        policy=BranchRolePolicy(),
-        lane=lane,
-        authority_lane=authority,
-        accepted_head="b" * 40,
-    ) == ["git_effect_plan_invalid"]
+        reobservation_gaps=lambda *_args: [],
+        actor_ref=lambda: "agent:test:case:holder",
+        archive_absorption_gaps=lambda *_args: [],
+        linked_retirement_plan=lambda *_args, **_kwargs: (tmp_path, object()),
+        admit_git_effect=lambda *_args: (_ for _ in ()).throw(
+            ValueError("git_effect_plan_invalid: stale")
+        ),
+    ):
+        assert effects.effect_gaps(
+            tmp_path / "successor",
+            tmp_path,
+            mode="superseded",
+            policy=BranchRolePolicy(),
+            lane=lane,
+            authority_lane=authority,
+            accepted_head="b" * 40,
+        ) == ["git_effect_plan_invalid"]
 
 
 @pytest.mark.parametrize(
@@ -257,58 +248,47 @@ def test_archive_absorption_uses_only_the_exact_archived_change(
         ("holder", "foreign_work_lane_retire_authority_required"),
     ],
 )
-def test_retirement_drift_checks_stop_at_the_first_fresh_boundary(
-    tmp_path, monkeypatch, boundary, gap
-):
-    lane, authority = _lane(), _lane("work/successor")
+def test_retirement_drift_checks_stop_at_the_first_fresh_boundary(tmp_path, boundary, gap):
+    lane, authority = (_lane(), _lane("work/successor"))
     authority["path"] = str(tmp_path / "successor")
-    monkeypatch.setattr(
+    with patch.multiple(
         effects,
-        "output",
-        lambda root, command, *_a: (
+        output=lambda root, command, *_a: (
             ("dev" if root == tmp_path else "work/successor")
             if command == "symbolic-ref"
             else "stale"
             if boundary == "accepted"
             else "b" * 40
         ),
-    )
-    monkeypatch.setattr(
-        effects,
-        "reobservation_gaps",
-        lambda *_a: ["retirement_ref_stale"] if boundary == "source" else [],
-    )
-    monkeypatch.setattr(effects, "actor_ref", lambda: "agent:test:other")
-    assert effects.effect_gaps(
-        tmp_path / "successor",
-        tmp_path,
-        mode="superseded",
-        policy=BranchRolePolicy(),
-        lane=lane,
-        authority_lane=authority,
-        accepted_head="b" * 40,
-    ) == [gap]
+        reobservation_gaps=lambda *_a: ["retirement_ref_stale"] if boundary == "source" else [],
+        actor_ref=lambda: "agent:test:other",
+    ):
+        assert effects.effect_gaps(
+            tmp_path / "successor",
+            tmp_path,
+            mode="superseded",
+            policy=BranchRolePolicy(),
+            lane=lane,
+            authority_lane=authority,
+            accepted_head="b" * 40,
+        ) == [gap]
 
 
-def test_missing_retirement_path_and_carrier_delta_are_explicit(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_missing_retirement_path_and_carrier_delta_are_explicit(tmp_path: Path) -> None:
     assert effects.reobservation_gaps("work/source", "", "a" * 40) == [
         "retirement_worktree_path_unavailable"
     ]
-    monkeypatch.setattr(
+    with patch.multiple(
         effects,
-        "output",
-        lambda _repo, command, *_args: (
-            "openspec/changes/change/proposal.md\0src/product.py\0" if command == "diff" else "blob"
+        output=lambda _repo, command, *_args: (
+            "openspec/changes/change/proposal.md\x00src/product.py\x00"
+            if command == "diff"
+            else "blob"
         ),
-    )
-    monkeypatch.setattr(effects, "is_ancestor", lambda *_args: True)
-    monkeypatch.setattr(
-        effects,
-        "_archive_roots",
-        lambda *_args: ("openspec/changes/archive/2026-08-29-change",),
-    )
-    assert (
-        effects.archived_carrier_absorption(tmp_path, head="a" * 40, accepted_head="b" * 40) == {}
-    )
+        is_ancestor=lambda *_args: True,
+        _archive_roots=lambda *_args: ("openspec/changes/archive/2026-08-29-change",),
+    ):
+        assert (
+            effects.archived_carrier_absorption(tmp_path, head="a" * 40, accepted_head="b" * 40)
+            == {}
+        )

@@ -156,6 +156,34 @@ not ETHOS-specific paths, tools or code budgets.
 - **AND** a gate name, aggregate pass, or one report for only part of that scope SHALL NOT discharge the property
 - **AND** shared native execution SHALL be reused rather than repeated for each rule
 
+#### Scenario: A native command has an unavailable evidence consumer
+
+- **WHEN** the selected product verifier cannot consume the repository's native evidence
+- **THEN** its declared prerequisites SHALL reject before the native command starts
+- **AND** the result SHALL retain the reason without inventing an exit code or completed verification
+- **AND** passing prerequisites SHALL NOT replace the command result or its post-execution verification
+- **AND** unavailable, malformed, or unknown prerequisite observations SHALL NOT permit execution
+
+#### Scenario: Native discovery has observable module effects
+
+- **WHEN** a native test owner loads a repository module to select its sessions
+- **THEN** selection and execution SHALL share that native load rather than repeat module effects in a separate discovery run
+- **AND** the retained selection SHALL distinguish requested sessions from complete execution evidence
+
+#### Scenario: Failed native execution retains useful reports
+
+- **WHEN** a native command fails but emits usable test or coverage material
+- **THEN** the verifier MAY diagnose that same attempt without rerunning repository code
+- **AND** its judgment SHALL NOT compensate for the native failure or erase the original exit status and failed test identity
+- **AND** failed report preparation remains distinct from an already started process's cancellation
+
+#### Scenario: Tests execute an installed artifact
+
+- **WHEN** tests execute installed modules rather than the checkout
+- **THEN** the verifier SHALL retain native build-member correspondence and verify artifact and installed source bytes against the selected repository inputs
+- **AND** matching names or versions alone SHALL NOT prove that correspondence
+- **AND** genuine zero-statement modules remain distinct from suppressed or unexecuted source obligations
+
 #### Scenario: Applicability follows repository facts
 
 - **WHEN** a repository contains code, only documentation, or a versioned release target

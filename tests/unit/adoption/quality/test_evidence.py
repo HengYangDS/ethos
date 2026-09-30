@@ -126,9 +126,16 @@ def test_public_verified_node_behavior_consumes_its_own_reports_once(
     )
     payload = json.loads(result.stdout)
 
-    assert (result.returncode == 0) is not forged_coverage, payload["required_gaps"]
-    assert payload["verdict"] == ("block" if forged_coverage else "pass")
-    assert marker.read_text() == "x"
+    assert (result.returncode == 0) is (scenario == "honest"), payload["required_gaps"]
+    assert payload["verdict"] == ("pass" if scenario == "honest" else "block")
+    if scenario == "docs-only":
+        assert not marker.exists()
+        checks = payload["data"]["checks"]
+        behavior_check = next(check for check in checks if check["action_id"] == "behavior")
+        assert behavior_check["exit_code"] is None
+        assert "javascript_native_test_selection_invalid" in str(behavior_check["diagnostics"])
+    else:
+        assert marker.read_text() == "x"
 
 
 @pytest.mark.parametrize(
@@ -154,7 +161,7 @@ def test_verified_node_behavior_rejects_wrong_scope_or_toolchain(
     )
     if scenario == "ambient-tool":
         monkeypatch.setattr(
-            native_quality, "_native_environment", lambda _root, _scope: {"PATH": "locked"}
+            native_quality, "native_environment", lambda _root, _scope: {"PATH": "locked"}
         )
         actual_which = native_quality.shutil.which
 

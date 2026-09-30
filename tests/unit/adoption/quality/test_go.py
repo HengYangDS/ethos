@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.gates.code_quality as native_quality
+import ethos.adapters.gates.go as native_go
 from ethos.repository.policy.quality_reports import go_covered_paths
 from tests.support.governed_repository import committed_source_repo
 
@@ -236,7 +237,7 @@ def test_go_behavior_rejects_omitted_executable_file(
             'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong") } }\n',
         },
     )
-    real_command = native_quality.run_command
+    real_command = native_go.run_command
 
     def observed_command(
         root: Path,
@@ -257,7 +258,7 @@ def test_go_behavior_rejects_omitted_executable_file(
             command, 0, '{"Action":"pass","Test":"TestAnswer"}\n', ""
         )
 
-    monkeypatch.setattr(native_quality, "run_command", observed_command)
+    monkeypatch.setattr(native_go, "run_command", observed_command)
     assert native_quality.behavior_report(repo)["required_gaps"] == [
         "quality_behavior_go_coverage_source_missing"
     ]
@@ -279,8 +280,8 @@ def test_go_behavior_rejects_unproved_statementless_classification(
         },
     )
     monkeypatch.setattr(
-        native_quality,
-        "_go_package_sources",
+        native_go,
+        "_package_sources",
         lambda _root, _production, _native: {
             "example.invalid/quality/answer.go": "answer.go",
             "example.invalid/quality/empty.go": "empty.go",
@@ -305,7 +306,7 @@ def test_go_behavior_rejects_unproved_statementless_classification(
             command, 0, '{"Action":"pass","Test":"TestAnswer"}\n', ""
         )
 
-    monkeypatch.setattr(native_quality, "run_command", observed_command)
+    monkeypatch.setattr(native_go, "run_command", observed_command)
     assert native_quality.behavior_report(repo)["required_gaps"] == [
         "quality_behavior_go_coverage_applicability_unknown"
     ]
@@ -354,7 +355,7 @@ def test_go_behavior_rejects_invalid_native_discovery(
         "invalid-object": "[]",
     }.get(discovery, json.dumps(package))
     monkeypatch.setattr(
-        native_quality,
+        native_go,
         "run_command",
         lambda _root, command, **_kwargs: subprocess.CompletedProcess(
             command, 1 if discovery == "failed" else 0, output, ""
@@ -388,7 +389,7 @@ def test_go_behavior_rejects_ambiguous_native_source_identity(
         for directory in (repo, repo / "sub")
     )
     monkeypatch.setattr(
-        native_quality,
+        native_go,
         "run_command",
         lambda _root, command, **_kwargs: subprocess.CompletedProcess(command, 0, output, ""),
     )
@@ -402,6 +403,12 @@ def test_go_behavior_rejects_ambiguous_native_source_identity(
     ("returncode", "stdout", "coverage_text", "reason"),
     [
         (1, '{"Action":"fail","Test":"TestAnswer"}\n', None, "go_tests_failed"),
+        (
+            0,
+            '{"Action":"pass","Test":"TestOther"}\n{"Action":"fail","Test":"TestAnswer"}\n',
+            "mode: set\nexample.invalid/quality/answer.go:1.1,1.2 1 1\n",
+            "go_tests_failed",
+        ),
         (0, '{"Action":"pass","Test":"TestAnswer"}\n', None, "go_coverage_missing"),
         (
             0,
@@ -438,13 +445,13 @@ def test_go_behavior_rejects_failed_or_incomplete_native_result(
             Path(option.partition("=")[2]).write_text(coverage_text)
         return subprocess.CompletedProcess(command, returncode, stdout, "")
 
-    monkeypatch.setattr(native_quality, "_executable", lambda _root, name: name)
+    monkeypatch.setattr(native_go, "native_tool", lambda _root, name: name)
     monkeypatch.setattr(
-        native_quality,
-        "_go_package_sources",
+        native_go,
+        "_package_sources",
         lambda _root, _production, _native: {"example.invalid/quality/answer.go": "answer.go"},
     )
-    monkeypatch.setattr(native_quality, "run_command", observed_command)
+    monkeypatch.setattr(native_go, "run_command", observed_command)
     assert native_quality.behavior_report(repo)["required_gaps"] == [f"quality_behavior_{reason}"]
 
 
@@ -473,16 +480,16 @@ def test_go_behavior_reports_non_applicable_source_without_crediting_it(
         )
         return subprocess.CompletedProcess(command, 0, '{"Action":"pass","Test":"TestLive"}\n', "")
 
-    monkeypatch.setattr(native_quality, "_executable", lambda _root, name: name)
+    monkeypatch.setattr(native_go, "native_tool", lambda _root, name: name)
     monkeypatch.setattr(
-        native_quality,
-        "_go_package_sources",
+        native_go,
+        "_package_sources",
         lambda _root, _production, _native: {
             "example.invalid/quality/live.go": "live.go",
             "example.invalid/quality/empty.go": "empty.go",
         },
     )
-    monkeypatch.setattr(native_quality, "run_command", observed_command)
+    monkeypatch.setattr(native_go, "run_command", observed_command)
     report = native_quality.behavior_report(repo)
 
     assert report["verdict"] == "pass"

@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.gates.code_quality as native_quality
+import ethos.adapters.gates.go as native_go
 import ethos.adapters.toolchain.mise as native_mise
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
@@ -102,8 +103,10 @@ def _write_javascript_fixture(repo: Path, defect: str) -> None:
         (repo / "unused.js").write_text("export function unused() { return 0; }\n")
 
 
+@pytest.mark.parametrize("trailing_output", [0, 128])
+@pytest.mark.parametrize("malformed_prefix", ["", "not-json\n"])
 def test_failed_native_go_check_retains_actionable_process_evidence(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, trailing_output: int, malformed_prefix: str
 ) -> None:
     """A failed provider must retain the native failure, not only a generic gap."""
     repo = committed_source_repo(
@@ -115,10 +118,10 @@ def test_failed_native_go_check_retains_actionable_process_evidence(
             'if Answer() != 42 { t.Fatal("wrong answer") } }\n',
         },
     )
-    monkeypatch.setattr(native_quality, "_executable", lambda _root, name: name)
+    monkeypatch.setattr(native_go, "native_tool", lambda _root, name: name)
     monkeypatch.setattr(
-        native_quality,
-        "_go_package_sources",
+        native_go,
+        "_package_sources",
         lambda _root, _production, _native: {"example.invalid/quality/answer.go": "answer.go"},
     )
 
@@ -127,12 +130,15 @@ def test_failed_native_go_check_retains_actionable_process_evidence(
         return subprocess.CompletedProcess(
             command,
             1,
-            '{"Action":"output","Test":"TestAnswer","Output":"wrong answer\\n"}\n'
-            '{"Action":"fail","Test":"TestAnswer"}\n',
+            malformed_prefix + '{"Action":"output","Package":"example.invalid/quality",'
+            '"Test":"TestAnswer","Output":"wrong answer\\n"}\n'
+            '{"Action":"fail","Package":"example.invalid/quality","Test":"TestAnswer"}\n'
+            + '{"Action":"output","Test":"TestOther","Output":"unrelated output\\n"}\n'
+            * trailing_output,
             "go test: exit status 1",
         )
 
-    monkeypatch.setattr(native_quality, "run_command", fail_command)
+    monkeypatch.setattr(native_go, "run_command", fail_command)
     report = native_quality.behavior_report(repo)
 
     assert report["required_gaps"] == ["quality_behavior_go_tests_failed"]
@@ -143,39 +149,12 @@ def test_failed_native_go_check_retains_actionable_process_evidence(
     assert failure["cwd"] == str(repo)
     assert failure["command"][:2] == ["go", "test"]
     assert failure["observation"]["exit_code"] == 1
-    assert "wrong answer" in failure["observation"]["stdout_tail"]
+    assert ("wrong answer" in failure["observation"]["stdout_tail"]) == (trailing_output == 0)
+    assert failure["observation"]["go_test_report_valid"] == (malformed_prefix == "")
+    assert failure["observation"]["go_test_failures"] == [
+        {"package": "example.invalid/quality", "test": "TestAnswer"}
+    ]
     assert failure["cause"] == "go test: exit status 1"
-
-
-def test_public_adopter_proof_reports_native_go_test_failure(tmp_path: Path) -> None:
-    """The public gate keeps a failing Go test's command and native output."""
-    if shutil.which("go") is None:
-        pytest.skip("go is unavailable on this runner")
-    repo = init_git_repo(tmp_path / "adopter")
-    _declare_quality_profile(repo, "profile")
-    (repo / "go.mod").write_text("module example.invalid/quality\n\ngo 1.20\n")
-    (repo / "answer.go").write_text("package quality\nfunc Answer() int { return 41 }\n")
-    (repo / "answer_test.go").write_text(
-        'package quality\nimport "testing"\n'
-        'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong answer") } }\n'
-    )
-    subprocess.run(["gofmt", "-w", "answer.go", "answer_test.go"], cwd=repo, check=True)
-    head = commit_fixture(repo, "bind failing native Go test")
-
-    completed = run_ethos_raw(
-        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
-    )
-    payload = json.loads(completed.stdout)
-    checks = {check["action_id"]: check for check in payload["data"]["checks"]}
-    report = json.loads(checks["behavior"]["stdout"])["providers"][0]["report"]
-
-    assert completed.returncode != 0
-    assert payload["verdict"] == "block"
-    assert report["required_gaps"] == ["quality_behavior_go_tests_failed"]
-    failure = report["diagnostics"][0]
-    assert failure["code"] == "go_tests_failed"
-    assert failure["observation"]["exit_code"] != 0
-    assert "wrong answer" in failure["observation"]["stdout_tail"]
 
 
 @pytest.mark.parametrize(
@@ -265,7 +244,9 @@ def test_declared_mise_supply_precedes_ambient_path(
 
     monkeypatch.setattr(native_mise, "run_mise", select)
     monkeypatch.setattr(native_mise, "mise_executable", lambda: selected_mise)
-    monkeypatch.setattr(native_quality, "run_command", execute)
+    monkeypatch.setattr(
+        native_go if "go.mod" in sources else native_quality, "run_command", execute
+    )
 
     report = native_quality.static_report(repo)
 
@@ -415,11 +396,11 @@ def test_public_proof_rejects_command_authored_evidence_adapter(tmp_path: Path) 
     assert any("repository_profile_invalid" in str(gap) for gap in payload["required_gaps"])
 
 
-@pytest.mark.parametrize("defect", ["none", "unexercised", "command-failed"])
+@pytest.mark.parametrize("defect", ["none", "unexercised", "command-failed", "opaque-static"])
 def test_public_proof_conjoins_native_commands_with_product_verifiers(
     tmp_path: Path, defect: str
 ) -> None:
-    """Two existing gate IDs retain domain commands and gain real code evidence."""
+    """Native evidence qualifies the command; an unrelated pass cannot trigger substitute checks."""
     if shutil.which("node") is None:
         pytest.skip("node is unavailable on this runner")
     repo = init_git_repo(tmp_path / "adopter")
@@ -440,6 +421,12 @@ def test_public_proof_conjoins_native_commands_with_product_verifiers(
     )
     profile = repo / ".ethos/profile.toml"
     profile.parent.mkdir()
+    static_executor = (
+        'command = ["node", "-e", "console.log(\\"format check\\")"]\n'
+        'verification_providers = ["ethos.adapters.gates.code_quality:static_report"]\n'
+        if defect == "opaque-static"
+        else 'providers = ["ethos.adapters.gates.code_quality:static_report"]\n'
+    )
     profile.write_text(
         'profile_id = "composite-quality-adopter"\n\n'
         '[openspec]\nmaterial_paths = ["**"]\n\n'
@@ -449,9 +436,7 @@ def test_public_proof_conjoins_native_commands_with_product_verifiers(
         '[[proof.gates]]\nid = "behavior"\nkind = "test"\n'
         f"command = {json.dumps(behavior_command)}\n"
         'verification_providers = ["ethos.adapters.gates.code_quality:behavior_report"]\n\n'
-        '[[proof.gates]]\nid = "static"\nkind = "lint"\n'
-        'command = ["node", "-e", "console.log(\\"format check\\")"]\n'
-        'verification_providers = ["ethos.adapters.gates.code_quality:static_report"]\n',
+        '[[proof.gates]]\nid = "static"\nkind = "lint"\n' + static_executor,
         encoding="utf-8",
     )
     head = commit_fixture(repo, "bind native commands and product verification")
@@ -464,15 +449,16 @@ def test_public_proof_conjoins_native_commands_with_product_verifiers(
     if defect == "none":
         assert result.returncode == 0, payload["required_gaps"]
         assert payload["verdict"] == "pass"
-        assert all(
-            check["verification"]["providers"][0]["report"]["verdict"] == "pass"
-            for check in payload["data"]["checks"]
+        behavior = next(
+            check for check in payload["data"]["checks"] if check["action_id"] == "behavior"
         )
+        assert behavior["verification"]["providers"][0]["report"]["verdict"] == "pass"
     else:
         assert result.returncode != 0
         assert payload["verdict"] == "block"
-        assert "quality_obligation_unproven:behavior" in payload["required_gaps"]
-    assert [check["action_id"] for check in payload["data"]["checks"]] == ["behavior", "static"]
+        axis = "static-analysis" if defect == "opaque-static" else "behavior"
+        assert f"quality_obligation_unproven:{axis}" in payload["required_gaps"]
+    assert {check["action_id"] for check in payload["data"]["checks"]} == {"behavior", "static"}
 
 
 @pytest.mark.parametrize("exercise_tool", ["exercised", "unexercised"])

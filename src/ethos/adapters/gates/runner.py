@@ -8,17 +8,22 @@ import subprocess
 from concurrent.futures import FIRST_COMPLETED
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait
+from contextlib import ExitStack
 from contextvars import copy_context
 from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import replace
 from graphlib import TopologicalSorter
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from time import monotonic
 from typing import TYPE_CHECKING
 from typing import Any
 
 import ethos
+import ethos.adapters.gates.go as native_go
+import ethos.adapters.gates.python.nox as native_nox
+from ethos.adapters.gates.execution import native_environment
 from ethos.adapters.gates.verification import NativeExecution
 from ethos.adapters.gates.verification import diagnostic_gaps_for
 from ethos.adapters.gates.verification import provider_reports
@@ -28,14 +33,17 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import git_files
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.repo.worktree_postimage import observe_execution_source
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.proof.plan import execution_source_gaps
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import execution_succeeded
+from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.policy.code_subjects import observed_code_subjects
 from ethos.repository.policy.gates import PRODUCT_PROVIDER_SOURCE
 from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.policy.gates import source_paths_for_gate
@@ -133,9 +141,72 @@ class LocalGateRunner:
             )
         if gate.providers:
             return _run_providers(node, gate, root)
+        if gate.verification_providers:
+            _, readiness, diagnostics = provider_reports(
+                gate.id, gate.verification_providers, root, preflight=True, command=gate.command
+            )
+            if readiness != "pass":
+                return ActionRunResult(
+                    action_id=node.id,
+                    command=node.command,
+                    verdict=readiness,
+                    exit_code=None,
+                    diagnostics=diagnostics,
+                )
+        with ExitStack() as scope:
+            return self._run_command(node, gate, root=root, scope=scope)
+
+    def _prepare_command(self, gate: Gate, root: Path, scope: ExitStack):
+        """Own native report acquisition separately from an already started process."""
         command = gate.command
+        report_root = None
+        report_inputs = None
+        environment = None
+        if native_nox.requires_reports(root, gate.verification_providers):
+            report_root = Path(scope.enter_context(TemporaryDirectory(prefix="en-"))).resolve()
+            command, environment, report_inputs = native_nox.prepare(root, command, report_root)
+        elif (
+            "ethos.adapters.gates.code_quality:behavior_report" in gate.verification_providers
+            and any(
+                subject.language == "go"
+                for subject in observed_code_subjects(tuple(git_files(root)))
+            )
+        ):
+            report_root = Path(scope.enter_context(TemporaryDirectory(prefix="ethos-go-coverage-")))
+            command, environment, report_inputs = native_go.prepare(
+                root, command, report_root, native_environment(root, scope)
+            )
+        return command, environment, report_inputs
+
+    def _run_command(
+        self, node: PlanNode, gate: Gate, *, root: Path, scope: ExitStack
+    ) -> ActionRunResult:
+        """Keep attempt-owned reports alive through verification, then reclaim them."""
+        command = gate.command
+        report_inputs = None
         try:
-            completed = run_command(root, command)
+            command, environment, report_inputs = self._prepare_command(gate, root, scope)
+        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+            return ActionRunResult(
+                action_id=node.id,
+                command=node.command,
+                verdict="block",
+                exit_code=None,
+                diagnostics=(
+                    {
+                        "kind": "native_report_preparation_failed",
+                        "error": f"{type(error).__name__}: {error}",
+                        "required_gaps": [f"native_report_preparation_failed:{gate.id}"],
+                        **(
+                            {"evidence": error.evidence()}
+                            if isinstance(error, ProcessExecutionError)
+                            else {}
+                        ),
+                    },
+                ),
+            )
+        try:
+            completed = run_command(root, command, env=environment)
         except ProcessExecutionError as exc:
             if not isinstance(exc.__cause__, FileNotFoundError):
                 raise
@@ -169,8 +240,8 @@ class LocalGateRunner:
             diagnostics=diagnostics,
         )
         verification: dict[str, object] | None = None
-        if verdict == "pass" and gate.verification_providers:
-            reports, verdict, provider_diagnostics = provider_reports(
+        if gate.verification_providers and (verdict == "pass" or report_inputs is not None):
+            reports, provider_verdict, provider_diagnostics = provider_reports(
                 gate.id,
                 gate.verification_providers,
                 root,
@@ -181,14 +252,16 @@ class LocalGateRunner:
                     exit_code=completed.returncode,
                     stdout=completed.stdout,
                     stderr=completed.stderr,
+                    reports=report_inputs,
                 ),
             )
             verification = {"gate": gate.id, "providers": reports}
+            verdict = reduce_verdicts(verdict, provider_verdict)
             diagnostics = (*diagnostics, *provider_diagnostics)
         return replace(
             execution,
             verdict=verdict,
-            exit_code=completed.returncode if verification is None else int(verdict != "pass"),
+            exit_code=completed.returncode or int(verdict != "pass"),
             diagnostics=diagnostics,
             verification=verification,
         )

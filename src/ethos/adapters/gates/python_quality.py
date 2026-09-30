@@ -8,7 +8,9 @@ import sys
 from contextlib import ExitStack
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING
 
+import ethos.adapters.gates.python.nox as native_nox
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_tracked_head
@@ -20,6 +22,9 @@ from ethos.adapters.toolchain.mise import repository_mise_files
 from ethos.repository.policy.code_subjects import observed_code_subjects
 from ethos.repository.policy.quality_reports import coverage_report
 from ethos.repository.policy.quality_reports import junit_report
+
+if TYPE_CHECKING:
+    from ethos.adapters.gates.verification import NativeExecution
 
 
 def _source(root: Path) -> tuple[str, tuple[str, ...]]:
@@ -43,8 +48,12 @@ def _failure(axis: str, reason: str) -> dict[str, object]:
     }
 
 
-def static_report(root: Path) -> dict[str, object]:
+def static_report(
+    root: Path, *, execution: NativeExecution | None = None, preflight: bool = False
+) -> dict[str, object]:
     """Run product-pinned Ruff over every tracked Python file, not a profile argv."""
+    if preflight or execution is not None:
+        return _failure("static", "python_native_evidence_unavailable")
     try:
         tree, paths = _source(root)
     except (OSError, ValueError) as error:
@@ -70,7 +79,7 @@ def static_report(root: Path) -> dict[str, object]:
     try:
         findings = json.loads(result.stdout)
     except (TypeError, json.JSONDecodeError):
-        return _failure("static", "report_invalid")
+        findings = None
     if not isinstance(findings, list) or any(not isinstance(item, dict) for item in findings):
         return _failure("static", "report_invalid")
     if result.returncode or findings:
@@ -194,8 +203,37 @@ def _behavior_evidence(
         return counts, measured
 
 
-def behavior_report(root: Path) -> dict[str, object]:
+def behavior_report(
+    root: Path,
+    *,
+    execution: NativeExecution | None = None,
+    preflight: bool = False,
+    command: tuple[str, ...] = (),
+) -> dict[str, object]:
     """Run locked pytest and verify fresh JUnit and source coverage evidence."""
+    if preflight or execution is not None:
+        try:
+            tree, paths = _source(root)
+            subjects = observed_code_subjects(paths)
+            source = tuple(subject.path for subject in subjects if not subject.is_test)
+            if preflight:
+                native_nox.preflight(root, command)
+                return {"verdict": "pass", "state": "ready", "required_gaps": []}
+            assert execution is not None
+            measured = native_nox.evidence(root, execution, source)
+        except (OSError, TypeError, ValueError, subprocess.TimeoutExpired) as error:
+            return _failure("behavior", str(error))
+        return {
+            "verdict": "pass",
+            "state": "verified",
+            "required_gaps": [],
+            **measured,
+            "quality_evidence": {
+                "axis": "behavior",
+                "source_tree": tree,
+                "selected_paths": list(source),
+            },
+        }
     try:
         tree, paths = _source(root)
         source, tests = _behavior_scope(root, paths)

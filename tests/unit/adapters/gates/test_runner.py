@@ -114,6 +114,129 @@ def test_verified_command_conjoins_native_and_product_results(
     assert (result.verification is not None) == bool(expected_calls)
 
 
+def test_attempt_reports_cannot_rescue_a_failed_native_command(monkeypatch, tmp_path):
+    """Retaining reports permits diagnosis, never compensation for a nonzero native exit."""
+    calls = []
+
+    def report(_root, *, preflight=False):
+        if not preflight:
+            calls.append("observed")
+        return {"verdict": "pass"}
+
+    monkeypatch.setattr(gate_runner.native_nox, "requires_reports", lambda _root, _refs: True)
+    monkeypatch.setattr(
+        gate_runner.native_nox,
+        "prepare",
+        lambda _root, argv, output: (
+            argv,
+            {},
+            gate_verification.NativePythonReports(
+                root=output, source_digests=(), python_prefix=(sys.executable,)
+            ),
+        ),
+    )
+    gate = Gate(
+        id="native-failure",
+        kind="test",
+        command=(sys.executable, "-c", "raise SystemExit(7)"),
+        verification_providers=("ethos.test:report",),
+    )
+
+    result = _runner(monkeypatch, report=report).run(_node(gate), gate, root=tmp_path)
+
+    assert result.verdict == "block"
+    assert result.exit_code == 7
+    assert calls == ["observed"]
+    assert result.verification is not None
+
+
+def test_report_preparation_failure_is_precise_and_cleans_its_owned_root(monkeypatch, tmp_path):
+    """A failed prerequisite cannot start repository code or abandon its temporary output."""
+    outputs = []
+    marker = tmp_path / "native-started"
+
+    def prepare(_root, _argv, output):
+        outputs.append(output)
+        message = "native_report_supply_unavailable"
+        raise ValueError(message)
+
+    monkeypatch.setattr(gate_runner.native_nox, "requires_reports", lambda _root, _refs: True)
+    monkeypatch.setattr(gate_runner.native_nox, "prepare", prepare)
+    gate = Gate(
+        id="native-preparation",
+        kind="test",
+        command=(sys.executable, "-c", f"from pathlib import Path;Path({str(marker)!r}).touch()"),
+        verification_providers=("ethos.test:report",),
+    )
+
+    result = _runner(monkeypatch, report=lambda _root: {"verdict": "pass"}).run(
+        _node(gate), gate, root=tmp_path
+    )
+
+    assert result.verdict == "block"
+    assert result.exit_code is None
+    assert not marker.exists()
+    assert outputs
+    assert all(not output.exists() for output in outputs)
+    assert "native_report_supply_unavailable" in str(result.diagnostics)
+
+
+def test_native_execution_cancellation_is_not_reported_as_nonexecution(monkeypatch, tmp_path):
+    """A started native command's cancellation stays with the process owner."""
+    failure = gate_runner.ProcessExecutionError(
+        "process_cancelled", reason="caller_interrupted", command=("started",), cwd=str(tmp_path)
+    )
+
+    def interrupted(_root, _command, **_kwargs):
+        raise failure
+
+    monkeypatch.setattr(gate_runner, "run_command", interrupted)
+    gate = Gate(id="cancelled", kind="test", command=("started",))
+
+    with pytest.raises(gate_runner.ProcessExecutionError) as caught:
+        gate_runner.LocalGateRunner().run(_node(gate), gate, root=tmp_path)
+
+    assert caught.value is failure
+
+
+@pytest.mark.parametrize("readiness", ["pass", "block", "unknown", "malformed", "error", "absent"])
+def test_verifier_preflight_cannot_replace_or_start_native_execution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, readiness: str
+) -> None:
+    """Only readiness permits a command; it never provides post-execution proof."""
+    marker = tmp_path / "native-started"
+
+    def report(root: Path, *, preflight: bool = False) -> dict[str, str]:
+        assert root == tmp_path
+        if preflight:
+            assert not marker.exists()
+            if readiness == "error":
+                message = "unavailable native evidence consumer"
+                raise RuntimeError(message)
+            return {} if readiness == "malformed" else {"verdict": readiness}
+        assert marker.read_text() == "started"
+        return {"verdict": "block"}
+
+    gate = Gate(
+        id="native",
+        kind="test",
+        command=(
+            sys.executable,
+            "-c",
+            f"from pathlib import Path; Path({str(marker)!r}).write_text('started')",
+        ),
+        verification_providers=("ethos.test:report",),
+    )
+
+    providers = {} if readiness == "absent" else {"report": report}
+    result = _runner(monkeypatch, **providers).run(_node(gate), gate, root=tmp_path)
+
+    assert result.verdict != "pass"
+    assert marker.exists() == (readiness == "pass")
+    assert (result.verification is not None) == (readiness == "pass")
+    assert (result.exit_code is not None) == (readiness == "pass")
+
+
 def test_verified_command_passes_its_exact_execution_to_product_verifier(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -187,17 +310,22 @@ def test_verified_command_ignores_forged_provider_stdout(
         id="gate",
         kind="test",
         command=(sys.executable, "-c", f"print({payload!r})"),
-        verification_providers=("ethos.test:missing",),
+        verification_providers=("ethos.test:report",),
     )
     monkeypatch.setattr(
-        gate_verification.importlib, "import_module", lambda _name: SimpleNamespace()
+        gate_verification.importlib,
+        "import_module",
+        lambda _name: SimpleNamespace(report=lambda _root: {"verdict": "block"}),
     )
 
     result = gate_runner.LocalGateRunner().run(_node(gate), gate, root=tmp_path)
 
     assert result.verdict == "block"
     assert result.stdout.strip() == payload
-    assert result.verification == {"gate": "gate", "providers": []}
+    assert result.verification == {
+        "gate": "gate",
+        "providers": [{"provider": "ethos.test:report", "report": {"verdict": "block"}}],
+    }
 
 
 def test_verified_command_requires_selected_product_scope_not_stdout() -> None:

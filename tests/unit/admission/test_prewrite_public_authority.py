@@ -79,7 +79,7 @@ def test_staged_coordinates_are_rechecked_after_other_admission_owners(
             git(root, "add", "input.json")
         return {"verdict": "pass", "state": "not_applicable", "required_gaps": []}
 
-    monkeypatch.setattr(prewrite, "_commitment_scope", injected_scope)
+    monkeypatch.setattr(prewrite, "non_openspec_prewrite_scope", injected_scope)
     report = prewrite.prewrite_guard(root=root, paths=[source], editor_root=root, staged=True)
 
     assert report["verdict"] == ("pass" if coordinate == "unchanged" else "block"), report

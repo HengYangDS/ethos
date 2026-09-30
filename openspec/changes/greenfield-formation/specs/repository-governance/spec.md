@@ -72,3 +72,27 @@ replace authored bytes.
 - **WHEN** a generated update and an authored edit compete for the same meaning or bytes
 - **THEN** the conflict remains visible and unapplied until an authorized decision
 - **AND** no update, uninstall or withdrawal silently deletes the authored result.
+
+### Requirement: A legacy profile has one bounded repair path
+
+An invalid existing profile SHALL NOT become runtime authority. A current owned
+Work Lane MAY admit an exact patch touching only `.ethos/profile.toml` when its
+postimage passes the strict profile model and preserves the committed repository
+identity. The preview SHALL change no repository bytes.
+
+#### Scenario: A reviewed profile repair is admitted
+
+- **WHEN** a Work Lane holder supplies an exact single-profile patch from invalid bytes to a valid current binding with the same committed `profile_id`
+- **THEN** prewrite admits that patch without accepting the old envelope as policy
+- **AND** status, ordinary adoption and later repository effects retain their separate current checks.
+
+#### Scenario: A profile repair lacks a trustworthy boundary
+
+- **WHEN** the patch is absent, changes another path or identity, has an invalid postimage, or lacks Work Lane authority
+- **THEN** prewrite blocks with the invalid-profile gap and a precise repair reason
+- **AND** ETHOS does not automatically normalize or discard old fields; their meaning requires a reviewed disposition before integration.
+
+#### Scenario: Staged bytes differ from working bytes
+
+- **WHEN** the index contains an invalid profile but the working file is valid
+- **THEN** staged admission rejects the index postimage before accepting a commit.

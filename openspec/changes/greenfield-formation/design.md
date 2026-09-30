@@ -137,3 +137,11 @@ including customization and conflict. Only after fresh conformance, update
 first-hour docs and package release. Existing repositories are not retrofitted
 with generated files. Retire staging resources and any replaced guidance
 projections only after their consumers are verified.
+
+An existing invalid profile is not a second adoption mode or a reason to
+restore old schema fields. Its repair uses the existing exact-patch Work Lane
+admission: one profile path, strict valid postimage, committed identity match
+and current Lease. Other paths and uncertain identities remain blocked. The
+profile's historical fields require a reviewed disposition; ETHOS neither
+normalizes nor deletes them automatically. Staged admission validates index
+bytes even when the worktree shows a different valid profile.

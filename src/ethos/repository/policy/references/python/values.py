@@ -44,7 +44,14 @@ class Expansion:
     value: Value
 
 
-type Value = frozenset[Imported | Literal | Sequence | Unknown | Expansion]
+@dataclass(frozen=True, slots=True)
+class ExecutableLookup:
+    """A presence lookup preserves program identity without claiming path bytes."""
+
+    identity: str
+
+
+type Value = frozenset[Imported | Literal | Sequence | Unknown | Expansion | ExecutableLookup]
 
 UNKNOWN: Value = frozenset({Unknown()})
 

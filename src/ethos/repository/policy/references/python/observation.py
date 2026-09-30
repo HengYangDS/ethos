@@ -12,6 +12,7 @@ from ethos.repository.policy.references.commands import shell_executables
 from ethos.repository.policy.references.commands.invocation import ArgumentVector
 from ethos.repository.policy.references.python.binding import bind_python
 from ethos.repository.policy.references.python.values import BoundCall
+from ethos.repository.policy.references.python.values import ExecutableLookup
 from ethos.repository.policy.references.python.values import Expansion
 from ethos.repository.policy.references.python.values import Imported
 from ethos.repository.policy.references.python.values import Literal
@@ -102,7 +103,11 @@ def _arguments(
     shell_language: bool,
 ) -> None:
     for argument in arguments:
-        if isinstance(argument, Sequence) and not shell_language:
+        if isinstance(argument, ExecutableLookup) and not shell_language:
+            result.executables.update(
+                command_executables((argument.identity,), scripts, unresolved=result.unresolved)
+            )
+        elif isinstance(argument, Sequence) and not shell_language:
             tokens = _vector(argument)
             result.executables.update(
                 command_executables(
@@ -147,6 +152,9 @@ def _vector(argument: Sequence) -> ArgumentVector:
                     pending.extendleft(reversed(nested.items))
                     continue
                 return ArgumentVector(tuple(tokens), open_tail=True)
+            if isinstance(atom, ExecutableLookup) and not tokens:
+                tokens.append(atom.identity)
+                continue
             if isinstance(atom, Literal) and isinstance(atom.value, str):
                 tokens.append(atom.value)
                 continue

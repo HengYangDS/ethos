@@ -786,7 +786,8 @@ admission, repository audit and private-boundary consumers share this owner.
 
 - **WHEN** source checks for the presence or absence of an executable without invoking it
 - **THEN** the probe alone does not create a required executable dependency
-- **AND** an unresolved returned path passed to an execution API remains UNKNOWN at that execution boundary
+- **AND** an invocation through a lookup of a fixed program name retains that executable identity
+- **AND** a dynamic lookup or unrelated use of the unknown path bytes remains UNKNOWN at its dependent boundary
 
 #### Scenario: Storing an argument vector does not execute its elements
 

@@ -11,6 +11,7 @@ from functools import singledispatchmethod
 
 from ethos.repository.policy.references.python.values import UNKNOWN
 from ethos.repository.policy.references.python.values import BoundCall
+from ethos.repository.policy.references.python.values import ExecutableLookup
 from ethos.repository.policy.references.python.values import Expansion
 from ethos.repository.policy.references.python.values import Imported
 from ethos.repository.policy.references.python.values import Literal
@@ -442,6 +443,13 @@ class _Flow:
                     if isinstance(name, Literal) and isinstance(name.value, str)
                     else frozenset({Unknown(origins(owner))})
                     for name in names
+                )
+            elif target == Imported("shutil.which"):
+                values.extend(
+                    frozenset({ExecutableLookup(name.value)})
+                    if isinstance(name, Literal) and isinstance(name.value, str)
+                    else UNKNOWN
+                    for name in call.argument(0, "cmd")
                 )
             else:
                 values.append(UNKNOWN)

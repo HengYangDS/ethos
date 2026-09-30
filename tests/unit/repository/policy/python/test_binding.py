@@ -366,14 +366,14 @@ def test_executable_presence_probe_does_not_require_the_executable(
 @pytest.mark.parametrize(
     ("invocation", "verdict", "executables"),
     [
-        ("subprocess.run([located])", "unknown", set()),
+        ("subprocess.run([located])", "block", {"probe-binary"}),
         ("subprocess.run(['real-binary'])", "block", {"real-binary"}),
     ],
 )
 def test_presence_probe_does_not_erase_a_subsequent_execution(
     tmp_path: Path, invocation: str, verdict: str, executables: set[str]
 ) -> None:
-    """A returned path still needs resolution at its actual execution boundary."""
+    """A lookup result preserves executable identity only when actually invoked."""
     declare_reference_surface(tmp_path)
     declare_reference_package(tmp_path)
     source = "import shutil, subprocess\nlocated = shutil.which('probe-binary')\n" + invocation
@@ -385,6 +385,36 @@ def test_presence_probe_does_not_erase_a_subsequent_execution(
     assert report["verdict"] == verdict
     assert set(observed.sources["executable"]) == executables
     assert bool(observed.unknown_consumers) is (verdict == "unknown")
+
+
+@pytest.mark.parametrize(
+    ("source", "executables", "unknown"),
+    [
+        (
+            "import shutil, subprocess\nsubprocess.run(shutil.which('probe-binary'))",
+            {"probe-binary"},
+            False,
+        ),
+        (
+            "import shutil, subprocess\nsubprocess.run([shutil.which(dynamic_name)])",
+            set(),
+            True,
+        ),
+        (
+            "import shutil, subprocess\nsubprocess.run(['python', '-m', shutil.which('module')])",
+            {"python"},
+            True,
+        ),
+    ],
+)
+def test_lookup_paths_are_not_arbitrary_literal_argument_values(
+    source: str, executables: set[str], *, unknown: bool
+) -> None:
+    """Preserve a resolved program identity without fabricating its path text."""
+    report = reference_consumer_sources_from_files({"src/example/probe.py": source})
+
+    assert set(report.sources["executable"]) == executables
+    assert bool(report.unknown_consumers) is unknown
 
 
 @pytest.mark.parametrize(

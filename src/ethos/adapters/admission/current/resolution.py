@@ -156,6 +156,19 @@ def _intent_action(root: Path, gap: str, change: str | None) -> str:
     return f"ethos status --root {root.resolve().as_posix()} --json"
 
 
+def non_openspec_prewrite_scope(requested: tuple[str, ...]) -> JsonObject:
+    """Keep non-OpenSpec write scope distinct from accepted intent."""
+    return {
+        "verdict": "pass",
+        "state": "not_applicable",
+        "changed_paths": list(requested),
+        "material_patterns": [],
+        "material_paths": [],
+        "uncovered_paths": [],
+        "required_gaps": [],
+    }
+
+
 def _canonical_repair_action(
     root: Path,
     official: dict[str, object],

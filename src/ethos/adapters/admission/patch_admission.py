@@ -10,6 +10,9 @@ from pathlib import Path
 from ethos.adapters.projections.compiler import render_projections
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
+from ethos.adapters.repo.profile import historical_repository_identity
+from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.contracts.verdict import report_verdict
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
 from ethos.repository.policy.projections import Projection
 from ethos.repository.policy.projections import projection_effect_gaps
@@ -19,6 +22,8 @@ from ethos.repository.policy.references.closure import product_reference_gaps
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
 from ethos.repository.policy.references.observation import deleted_input_gaps
 from ethos.repository.policy.references.observation import product_references_from_files
+from ethos.repository.profile import INVALID_PROFILE_ERROR
+from ethos.repository.profile import repository_profile_from_text
 
 _UNIFIED_DIFF_HEADER_PART_COUNT = 4
 
@@ -54,16 +59,19 @@ def patch_admission(
     unknown: list[str] = []
     effects: dict[str, str] = {}
     outputs: list[str] = []
+    profile_postimage_id = ""
     if not reason:
         try:
             baseline_files = _baseline_reference_files(root, baseline_head)
             baseline_references = native_owned_references_from_files(baseline_files)
-            references, effect_gaps, unknown, effects, outputs = _patch_references(
-                root,
-                patch,
-                changes,
-                context_files=baseline_files,
-                declared_commands=baseline_references["command"],
+            references, effect_gaps, unknown, effects, outputs, profile_postimage_id = (
+                _patch_references(
+                    root,
+                    patch,
+                    changes,
+                    context_files=baseline_files,
+                    declared_commands=baseline_references["command"],
+                )
             )
             reason = effect_gaps[0] if effect_gaps else ""
         except (OSError, UnicodeError, ValueError):
@@ -82,7 +90,80 @@ def patch_admission(
         "baseline_head": baseline_head,
         "paths": patch_paths,
         "references": {key: sorted(value) for key, value in references.items() if value},
+        **({"profile_postimage_id": profile_postimage_id} if profile_postimage_id else {}),
     }
+
+
+def profile_repair_scope(
+    root: Path, *, role: str, requested_paths: tuple[str, ...], report: dict[str, object]
+) -> dict[str, object]:
+    """Admit only an exact, identity-preserving repair of an invalid profile."""
+    path = ".ethos/profile.toml"
+    candidate_id = report.get("profile_postimage_id")
+    if role != ROLE_WORK_LANE:
+        reason = "profile_repair_requires_work_lane"
+    elif requested_paths != (path,):
+        reason = "profile_repair_requires_single_profile_path"
+    elif report.get("state") == "not_requested":
+        reason = "profile_repair_exact_patch_required"
+    elif report_verdict(report) != "pass":
+        reason = str(report.get("reason") or "profile_repair_patch_unverified")
+    elif report.get("effects") != {path: "modify"} or not candidate_id:
+        reason = "profile_repair_valid_postimage_required"
+    else:
+        try:
+            prior_id = historical_repository_identity(
+                root, tree_ref=str(report.get("baseline_head") or "")
+            )
+        except (OSError, ValueError):
+            reason = "profile_repair_identity_unavailable"
+        else:
+            reason = (
+                ""
+                if prior_id == f"repository:{candidate_id}"
+                else "profile_repair_identity_changed"
+            )
+    action = (
+        f"ethos lane status --root {shlex.quote(root.as_posix())} --json"
+        if role != ROLE_WORK_LANE
+        else patch_repair_action(root, (path,), report)
+    )
+    return {
+        "verdict": "block" if reason else "pass",
+        "state": "profile_repair",
+        "reason": reason or "strict_profile_postimage_matched",
+        "evidence_boundary": "exact_patch_strict_postimage_and_committed_identity_only",
+        "changed_paths": list(requested_paths),
+        "material_paths": [path] if not reason else [],
+        "required_gaps": [INVALID_PROFILE_ERROR, reason] if reason else [],
+        "next_action": action if reason else "",
+    }
+
+
+def patch_repair_action(root: Path, requested: tuple[str, ...], report: dict[str, object]) -> str:
+    """Select a source observation or corrected exact patch, never a blind replay."""
+    reason = str(report.get("reason") or "")
+    repair_paths = set(requested)
+    if reason.startswith("projection_ownership_unknown:"):
+        repair_paths.update(path for path in PROJECTION_DECLARATIONS if path in reason)
+    if reason.startswith("deleted_input:"):
+        repair_paths.add(reason.split(":", 3)[2])
+    elif reason.startswith("deleted_input_observation_unknown:"):
+        repair_paths.add(reason.split(":", 2)[1])
+    command = shlex.join(
+        (
+            "ethos",
+            "lane",
+            "prewrite",
+            *sorted(repair_paths),
+            "--root",
+            root.as_posix(),
+            "--editor-root",
+            root.as_posix(),
+            "--require-editor-root",
+        )
+    )
+    return command + " --patch <repaired-patch-file> --json"
 
 
 def _patch_applies(root: Path, patch: str, *, check_preimage: bool = False) -> bool:
@@ -175,6 +256,9 @@ def staged_artifact_admission(root: Path, baseline: str) -> dict[str, object]:
             if path in before or path in after or effects[path] == "delete"
         }
         gaps, unknown = _effect_gaps(root, projection_relations(before), after, postimages)
+        profile_gap, _ = _profile_postimage(root, postimages)
+        if profile_gap:
+            gaps.insert(0, profile_gap)
     except (OSError, ValueError, UnicodeError) as exc:
         return {
             "verdict": "unknown",
@@ -292,7 +376,7 @@ def _patch_references(
     *,
     context_files: dict[str, str],
     declared_commands: tuple[str, ...] | frozenset[str] = (),
-) -> tuple[dict[str, set[str]], list[str], list[str], dict[str, str], list[str]]:
+) -> tuple[dict[str, set[str]], list[str], list[str], dict[str, str], list[str], str]:
     with tempfile.TemporaryDirectory(prefix="ethos-prewrite-postimage-") as temporary:
         workspace = Path(temporary)
         for change in changes:
@@ -336,6 +420,9 @@ def _patch_references(
             include_declarations=False,
         )
         gaps, unknown, outputs = _source_effect_gaps(root, context_files, postimages)
+        profile_gap, profile_id = _profile_postimage(root, postimages)
+        if profile_gap:
+            gaps.insert(0, profile_gap)
         effects = {
             str(change["path"]): "delete"
             if change["deleted"]
@@ -344,7 +431,20 @@ def _patch_references(
             else "modify"
             for change in changes
         }
-        return references, gaps, unknown, effects, outputs
+        return references, gaps, unknown, effects, outputs, profile_id
+
+
+def _profile_postimage(root: Path, postimages: dict[str, str | None]) -> tuple[str, str]:
+    """Validate only a supplied profile after-image through its sole typed owner."""
+    text = postimages.get(".ethos/profile.toml")
+    if text is None:
+        return "", ""
+    profile = repository_profile_from_text(root, exists=True, text=text)
+    return (
+        ("", profile.declaration.profile_id)
+        if profile.declaration is not None
+        else (INVALID_PROFILE_ERROR, "")
+    )
 
 
 def _source_effect_gaps(

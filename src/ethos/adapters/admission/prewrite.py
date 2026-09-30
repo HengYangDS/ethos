@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import os
-import shlex
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.admission.current.authority import observe_current_authority
+from ethos.adapters.admission.current.resolution import non_openspec_prewrite_scope
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
 from ethos.adapters.admission.patch_admission import patch_admission
+from ethos.adapters.admission.patch_admission import patch_repair_action
+from ethos.adapters.admission.patch_admission import profile_repair_scope
 from ethos.adapters.admission.patch_admission import projection_preimages
 from ethos.adapters.admission.patch_admission import revalidate_staged_admission
 from ethos.adapters.admission.patch_admission import staged_artifact_admission
@@ -32,9 +34,9 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
-from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
 from ethos.repository.policy.projections import observe_projections
 from ethos.repository.policy.projections import projection_relations
+from ethos.repository.profile import INVALID_PROFILE_ERROR
 
 if TYPE_CHECKING:
     from ethos.adapters.admission.current.authority import CurrentAuthority
@@ -80,33 +82,7 @@ def prewrite_guard(
         tracked_write_requested=tracked,
     )
     lease = current_authority.projection()
-    profile_enabled = openspec_profile_enabled(root)
-    official: dict[str, object] = {"verdict": "pass", "change": None, "required_gaps": []}
     authority = lease
-    if profile_enabled:
-        resolution = resolve_current_resolution(
-            root,
-            status={
-                "role": effective["role"],
-                "head": current_authority.current_head,
-                "changed_paths": list(requested),
-            },
-            authority=current_authority,
-            changed=False,
-            prewrite_paths=requested,
-            require_workspace=require_workspace,
-        )
-        official = resolution.openspec
-        scope = resolution.scope_report(requested)
-        if resolution.verdict != "pass":
-            scope.update(
-                verdict=resolution.verdict,
-                required_gaps=list(resolution.required_gaps),
-                next_action=resolution.next_action,
-                user_decision_required=resolution.user_decision_required,
-            )
-    else:
-        scope = _commitment_scope(root, requested, lease)
     editor = _editor_root_check(
         root=root,
         editor_root=editor_root,
@@ -128,10 +104,20 @@ def prewrite_guard(
         )
     elif origin_gap:
         patch_report.update(verdict="unknown", reason=origin_gap)
+    scope, official, profile_invalid = _prewrite_material_scope(
+        root,
+        effective=effective,
+        requested=requested,
+        current_authority=current_authority,
+        patch_report=patch_report,
+        require_workspace=require_workspace,
+    )
     patch_report = revalidate_staged_admission(root, patch_report)
     _apply_path_effects(checked, patch_report, patch_supplied=bool(patch) or staged)
     blocked = [path for path in checked if path["allowed"] is False]
     gaps = _gaps(runtime_check, authority, editor, patch_report, scope, blocked)
+    if profile_invalid and gaps:
+        gaps = list(dict.fromkeys([INVALID_PROFILE_ERROR, *gaps]))
     verdict = reduce_verdicts(
         report_verdict(runtime_check),
         "block" if blocked else "pass",
@@ -164,7 +150,7 @@ def prewrite_guard(
                 "--require-editor-root --json"
             )
         if not next_action:
-            next_action = _artifact_next_action(root, requested, patch_report)
+            next_action = patch_repair_action(root, requested, patch_report)
     return {
         "verdict": decision.verdict,
         "error": gaps[0] if gaps else "",
@@ -190,34 +176,53 @@ def prewrite_guard(
     }
 
 
-def _artifact_next_action(
+def _prewrite_material_scope(
     root: Path,
+    *,
+    effective: dict[str, str],
     requested: tuple[str, ...],
+    current_authority: CurrentAuthority,
     patch_report: dict[str, object],
-) -> str:
-    """Select a source observation or corrected exact patch, never a blind replay."""
-    reason = str(patch_report.get("reason") or "")
-    repair_paths = set(requested)
-    if reason.startswith("projection_ownership_unknown:"):
-        repair_paths.update(path for path in PROJECTION_DECLARATIONS if path in reason)
-    if reason.startswith("deleted_input:"):
-        repair_paths.add(reason.split(":", 3)[2])
-    elif reason.startswith("deleted_input_observation_unknown:"):
-        repair_paths.add(reason.split(":", 2)[1])
-    command = shlex.join(
-        (
-            "ethos",
-            "lane",
-            "prewrite",
-            *sorted(repair_paths),
-            "--root",
-            root.as_posix(),
-            "--editor-root",
-            root.as_posix(),
-            "--require-editor-root",
+    require_workspace: bool,
+) -> tuple[dict[str, object], dict[str, object], bool]:
+    """Resolve current intent or the sole bounded invalid-profile recovery."""
+    try:
+        profile_enabled = openspec_profile_enabled(root)
+    except ValueError as error:
+        if str(error) != INVALID_PROFILE_ERROR:
+            raise
+        profile_enabled = None
+    official: dict[str, object] = {"verdict": "pass", "change": None, "required_gaps": []}
+    if profile_enabled is None:
+        scope = profile_repair_scope(
+            root, role=effective["role"], requested_paths=requested, report=patch_report
         )
-    )
-    return command + " --patch <repaired-patch-file> --json"
+        official = {"verdict": "unknown", "required_gaps": [INVALID_PROFILE_ERROR]}
+    elif profile_enabled:
+        resolution = resolve_current_resolution(
+            root,
+            status={
+                "role": effective["role"],
+                "head": current_authority.current_head,
+                "changed_paths": list(requested),
+            },
+            authority=current_authority,
+            changed=False,
+            prewrite_paths=requested,
+            require_workspace=require_workspace,
+        )
+        official = resolution.openspec
+        scope = resolution.scope_report(requested)
+        if resolution.verdict != "pass":
+            scope.update(
+                verdict=resolution.verdict,
+                required_gaps=list(resolution.required_gaps),
+                next_action=resolution.next_action,
+                user_decision_required=resolution.user_decision_required,
+            )
+    else:
+        scope = non_openspec_prewrite_scope(requested)
+    return scope, official, profile_enabled is None
 
 
 def _checked_paths(
@@ -512,7 +517,12 @@ def _gaps(
         str(patch_admission["reason"]) if report_verdict(patch_admission) != "pass" else "",
         str(scope_gaps[0]) if isinstance(scope_gaps, list) and scope_gaps else "",
     )
-    return list(dict.fromkeys(error for error in checks if error))
+    repair_gaps = (
+        scope_gaps[1:]
+        if material_scope.get("state") == "profile_repair" and isinstance(scope_gaps, list)
+        else []
+    )
+    return list(dict.fromkeys(error for error in (*checks, *repair_gaps) if error))
 
 
 def _blocked_path_error(blocked_paths: list[dict[str, object]]) -> str:
@@ -525,18 +535,3 @@ def _blocked_path_error(blocked_paths: list[dict[str, object]]) -> str:
     explicit = next((gap for reason, gap in priority if reason in reasons), "")
     residual = next((reason for reason in reasons if reason != "protected_lane_tracked_write"), "")
     return explicit or residual or ("protected_lane_prewrite_blocked" if blocked_paths else "")
-
-
-def _commitment_scope(
-    _root: Path, requested: tuple[str, ...], _lease: dict[str, object]
-) -> dict[str, object]:
-    """Admit non-OpenSpec repositories without inventing a path authority."""
-    return {
-        "verdict": "pass",
-        "state": "not_applicable",
-        "changed_paths": list(requested),
-        "material_patterns": [],
-        "material_paths": [],
-        "uncovered_paths": [],
-        "required_gaps": [],
-    }

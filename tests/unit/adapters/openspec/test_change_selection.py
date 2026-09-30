@@ -24,6 +24,32 @@ from tests.support.proof import seed_executed_proof
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.contracts.semantic import Commitment
+
+
+def _assert_attested_compilation_without_current_cli(
+    root: Path,
+    change: str,
+    archived_head: str,
+    expected: Commitment,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Mock:
+    """Historical acceptance comes from the archive effect, not today's executable."""
+    projection = Mock(wraps=official.run_json_batch)
+    monkeypatch.setattr(official, "run_json_batch", projection)
+    with monkeypatch.context() as unavailable:
+        unavailable.setattr(official, "openspec_base_command", lambda: None)
+        restored = load_openspec_commitment(
+            root, change_id=change, tree_ref=archived_head, expected_digest=expected.digest()
+        )
+        assert restored == expected
+        with pytest.raises(ValueError, match="commitment_digest_mismatch"):
+            load_openspec_commitment(
+                root, change_id=change, tree_ref=archived_head, expected_digest="f" * 64
+            )
+    projection.assert_not_called()
+    return projection
+
 
 @pytest.mark.parametrize("consumer", ["compilation", "accepted-closeout"])
 @pytest.mark.parametrize("existing_capability", [False, True])
@@ -79,17 +105,9 @@ def test_same_name_archived_change_keeps_its_exact_acceptance(
     assert typed["exit_code"] != 0
 
     if consumer == "compilation":
-        projection = Mock(wraps=official.run_json_batch)
-        monkeypatch.setattr(official, "run_json_batch", projection)
-        restored = load_openspec_commitment(
-            root, change_id=change, tree_ref=archived_head, expected_digest=expected.digest()
+        projection = _assert_attested_compilation_without_current_cli(
+            root, change, archived_head, expected, monkeypatch
         )
-        assert restored == expected
-        projection.assert_not_called()
-        with pytest.raises(ValueError, match="commitment_digest_mismatch"):
-            load_openspec_commitment(
-                root, change_id=change, tree_ref=archived_head, expected_digest="f" * 64
-            )
         git(root, "checkout", head, "--", f"openspec/changes/{change}")
         reopened = commit_fixture(root, "reopen same-name Change")
         assert load_openspec_commitment(root, change_id=change, tree_ref=reopened) == expected

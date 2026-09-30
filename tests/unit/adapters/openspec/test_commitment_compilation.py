@@ -355,24 +355,26 @@ def test_load_commitment_rejects_missing_or_ambiguous_authority(
     ("command", "tree_ref"),
     [(("openspec",), "a" * 40), (("openspec",), "HEAD"), (None, "HEAD")],
 )
-def test_load_commitment_preserves_archive_fallback_and_tool_requirement(
+def test_attested_archive_reuses_accepted_intent_without_current_cli_probe(
     compilation_root: Path, monkeypatch: pytest.MonkeyPatch, command, tree_ref
 ) -> None:
     archived = commitment_fixture(id="change:archived")
     show = Mock(return_value={"exit_code": 1, "parse_error": "", "json": {}})
     monkeypatch.setattr(compilation.openspec_cli, "run_json", show)
-    monkeypatch.setattr(compilation.openspec_cli, "openspec_base_command", lambda: command)
+    resolver = Mock(return_value=command)
+    monkeypatch.setattr(compilation.openspec_cli, "openspec_base_command", resolver)
     monkeypatch.setattr(
         compilation,
         "attested_archive_transition",
         lambda *_a, **_k: (archived, {"attestation_id": "archive"}),
     )
 
-    with nullcontext() if command else pytest.raises(ValueError, match="official_cli_missing"):
-        loaded = compilation.load_openspec_commitment(
-            compilation_root,
-            change_id="archived",
-            tree_ref=tree_ref,
-        )
-        assert loaded == archived
+    loaded = compilation.load_openspec_commitment(
+        compilation_root,
+        change_id="archived",
+        tree_ref=tree_ref,
+    )
+    assert loaded == archived
     assert show.call_count == (tree_ref != "HEAD")
+    if tree_ref == "HEAD":
+        resolver.assert_not_called()

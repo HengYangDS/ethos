@@ -24,7 +24,8 @@ from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import write_test_profile
+from tests.support.proof import declare_quality_fixture
+from tests.support.proof import python_quality_files
 
 
 @pytest.mark.parametrize("native_layout", ["uv", "relocated-mise"])
@@ -32,10 +33,7 @@ def test_generic_provider_uses_real_locked_python_evidence(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_layout: str
 ) -> None:
     """The generalized provider preserves Python's existing native success path."""
-    repo = init_git_repo(tmp_path / "repo")
-    fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
-    for name in ("pyproject.toml", "uv.lock"):
-        (repo / name).write_bytes((fixture / name).read_bytes())
+    repo = committed_source_repo(tmp_path, python_quality_files())
     selected_tools: list[str] = []
     if native_layout == "relocated-mise":
         config = repo / ".config/mise/config.toml"
@@ -58,14 +56,6 @@ def test_generic_provider_uses_real_locked_python_evidence(
         monkeypatch.setattr(python_quality, "locked_tool", selected_tool, raising=False)
     (repo / "pytest.toml").write_text(
         '[pytest]\naddopts = ["--strict-config"]\ncache_dir = ".cache/pytest"\n'
-    )
-    source = repo / "src/sample/__init__.py"
-    source.parent.mkdir(parents=True)
-    source.write_text("def answer() -> int:\n    return 42\n")
-    test = repo / "tests/test_sample.py"
-    test.parent.mkdir()
-    test.write_text(
-        "from sample import answer\n\n\ndef test_answer() -> None:\n    assert answer() == 42\n"
     )
     commit_fixture(repo, "lock native Python quality")
 
@@ -223,17 +213,10 @@ def test_public_python_proof_preserves_preflight_nonexecution(tmp_path: Path, mo
         )
         for axis in ("behavior", "static")
     )
-    write_test_profile(
-        repo,
-        proof={
-            "code_correctness_gates": tuple(gate.id for gate in gates),
-            "code_correctness_map": {"behavior": "behavior", "static-analysis": "static"},
-            "gates": gates,
-        },
-    )
+    declare_quality_fixture(repo, gates=gates)
     head = commit_fixture(repo, "declare native Python evidence prerequisites")
 
-    result = run_ethos_raw(
+    completed = run_ethos_raw(
         "prove",
         "--host",
         "--execute",
@@ -244,9 +227,9 @@ def test_public_python_proof_preserves_preflight_nonexecution(tmp_path: Path, mo
         cwd=repo,
         subprocess_only=True,
     )
-    payload = json.loads(result.stdout)
+    payload = json.loads(completed.stdout)
+    assert completed.returncode != 0
 
-    assert result.returncode != 0
     assert payload["verdict"] == "block"
     assert not marker.exists()
     checks = payload["data"]["checks"]

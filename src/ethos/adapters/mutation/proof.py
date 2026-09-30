@@ -238,7 +238,7 @@ def issue_proof_attestation(
     normalized = tuple(checks_by_id[gate_id] for gate_id in execution_order)
     checks_pass = all(execution_succeeded(check) for check in normalized)
     if quality_gaps := policy.result_gaps(
-        normalized, source_tree=str(plan.facts.get("tree") or "")
+        normalized, source_tree=str(plan.facts.get("tree") or ""), require_success=verdict == "pass"
     ):
         raise ValueError(quality_gaps[0])
     if verdict == "pass" and (required_gaps or not checks_pass):
@@ -292,6 +292,7 @@ def issue_proof_attestation(
             "proof_attestation_check_not_passed",
             "trust_bearing_proof_missing",
         }
+        and not (verdict != "pass" and gap.startswith("quality_obligation_unproven:"))
     )
     if structural_gaps:
         raise ValueError(structural_gaps[0])

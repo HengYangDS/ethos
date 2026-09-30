@@ -104,13 +104,21 @@ def test_command_runner_surfaces_missing_command_and_nonzero_exit(
     ],
 )
 def test_command_runner_rejects_invalid_or_adverse_ethos_envelopes(
-    exit_code: int, stdout: str, verdict: str, gap: str
+    tmp_path: Path, exit_code: int, stdout: str, verdict: str, gap: str
 ) -> None:
     observed, diagnostics = gate_runner.classify_action_result(exit_code=exit_code, stdout=stdout)
     assert observed == verdict
     assert not gap or gap in diagnostics[0]["required_gaps"]
     if verdict == "pass" or exit_code:
         assert diagnostics == ()
+    gate = Gate(
+        id="native-result",
+        kind="test",
+        command=(sys.executable, "-c", f"print({stdout!r}); raise SystemExit({exit_code})"),
+    )
+    node = PlanNode(id=gate.id, kind="check", command=gate_runner.gate_execution_identity(gate))
+    result = gate_runner.LocalGateRunner().run(node, gate, root=tmp_path)
+    assert (result.verdict, result.exit_code) == (verdict, exit_code)
 
 
 @pytest.mark.parametrize(

@@ -365,3 +365,57 @@ def test_unavailable_index_is_not_an_empty_quality_scope(tmp_path: Path) -> None
         index.write_bytes(content)
 
     assert resolve_gate_policy(repo, tree_ref=head).projection == before
+
+
+@pytest.mark.parametrize("require_success", [False, True])
+@pytest.mark.parametrize("defect", ["missing", "duplicate", "unknown", "command", "shape"])
+def test_result_identity_remains_required_for_adverse_execution(
+    defect: str, *, require_success: bool
+) -> None:
+    """An adverse result can be retained without weakening its gate identity closure."""
+    policy = compile_gate_policy(gate_ids=("repository-audit",), repository_python="python")
+    node = policy.nodes[0]
+    check = {
+        "action_id": node.id,
+        "command": node.command,
+        "verdict": "block",
+        "exit_code": 1,
+    }
+    observed = {
+        "missing": (),
+        "duplicate": (check, check),
+        "unknown": (check | {"action_id": "undeclared"},),
+        "command": (check | {"command": ("python", "-m", "different_gate")},),
+        "shape": ({"command": node.command},),
+    }[defect]
+    expected = {
+        "missing": "gate_missing",
+        "duplicate": "gate_duplicate",
+        "unknown": "gate_unknown",
+        "command": "gate_identity_mismatch",
+        "shape": "gate_results_invalid",
+    }[defect]
+    assert any(
+        gap.startswith(expected)
+        for gap in policy.result_gaps(observed, require_success=require_success)
+    )
+
+
+def test_adverse_result_retention_does_not_supply_successful_quality_evidence(
+    tmp_path: Path,
+) -> None:
+    """Retain a valid failed attempt; a status-only success cannot prove quality axes."""
+    repo = init_git_repo(tmp_path / "repo")
+    initialize_adopted_fixture(repo)
+    declare_fixture_code_correctness(repo)
+    policy = resolve_gate_policy(repo, tree_ref=commit_fixture(repo, "declare result boundary"))
+    checks = tuple(
+        {"action_id": node.id, "command": node.command, "verdict": "block", "exit_code": 1}
+        for node in policy.nodes
+    )
+    assert policy.result_gaps(checks, require_success=False) == ()
+    gaps = policy.result_gaps(checks)
+    assert any(gap.startswith("gate_execution_not_proven:") for gap in gaps)
+    status_only = tuple(check | {"verdict": "pass", "exit_code": 0} for check in checks)
+    assert policy.result_gaps(status_only, require_success=False) == ()
+    assert set(policy.result_gaps(status_only)) == set(_MISSING_QUALITY)

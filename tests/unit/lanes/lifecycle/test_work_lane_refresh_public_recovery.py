@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC
 from datetime import datetime
+from functools import partial
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from typing import Any
@@ -27,6 +28,10 @@ CANDIDATE = "b" * 40
 REBASED = "c" * 40
 BRANCH = "work/feature"
 
+_apply_refresh = partial(
+    refresh.refresh_work_lane_base, apply=True, authorized=True, expect_head=HEAD
+)
+
 
 def _completed(*, returncode: int = 0, stdout: str = "", stderr: str = "") -> SimpleNamespace:
     return SimpleNamespace(returncode=returncode, stdout=stdout, stderr=stderr)
@@ -46,7 +51,9 @@ def _status(*, branch: str = BRANCH) -> dict[str, Any]:
     }
 
 
-def _common(monkeypatch: pytest.MonkeyPatch, *, branch: str = BRANCH) -> None:
+def _common(
+    monkeypatch: pytest.MonkeyPatch, *, branch: str = BRANCH, heads: tuple[str, ...] = ()
+) -> None:
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test")
     monkeypatch.setattr(
         refresh,
@@ -62,6 +69,12 @@ def _common(monkeypatch: pytest.MonkeyPatch, *, branch: str = BRANCH) -> None:
             stdout=(HEAD if args[-2:] == ("rev-parse", "HEAD") else CANDIDATE) + "\n"
         ),
     )
+
+    if heads:
+        ancestry = iter((False, True))
+        revisions = iter(heads)
+        monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
+        monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(revisions))
 
 
 def _recovery_plan(
@@ -163,9 +176,7 @@ def test_refresh_rejects_snapshot_drift_before_rebase(
     monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: False)
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: "drift")
 
-    report = refresh.refresh_work_lane_base(
-        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
-    )
+    report = _apply_refresh(root=tmp_path)
 
     assert report["required_gaps"] == ["refresh_base_snapshot_stale:work_lane"]
 
@@ -184,12 +195,9 @@ def test_refresh_fails_closed_on_invalid_candidate_commit_policy(
             if (ref, path) == (CANDIDATE, ".ethos/workspace.toml")
             else ""
         ),
-        raising=False,
     )
 
-    report = refresh.refresh_work_lane_base(
-        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
-    )
+    report = _apply_refresh(root=tmp_path)
 
     assert report["state"] == "blocked"
     assert report["required_gaps"] == ["commit_policy_unknown_fields:unknown"]
@@ -214,9 +222,7 @@ def test_refresh_conflict_reports_failed_restore(
         lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("attachment stale")),
     )
 
-    report = refresh.refresh_work_lane_base(
-        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
-    )
+    report = _apply_refresh(root=tmp_path)
 
     assert report["required_gaps"] == [
         "refresh_base_failed",
@@ -240,9 +246,7 @@ def test_refresh_rejects_rebase_postcondition_and_restores_branch(
         lambda _root, _path, *, branch, head: attached.append((branch, head)) or SimpleNamespace(),
     )
 
-    report = refresh.refresh_work_lane_base(
-        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
-    )
+    report = _apply_refresh(root=tmp_path)
 
     assert report["required_gaps"] == ["refresh_base_postcondition_failed"]
     assert attached == [(BRANCH, HEAD)]
@@ -251,11 +255,7 @@ def test_refresh_rejects_rebase_postcondition_and_restores_branch(
 def test_refresh_validates_the_complete_replay_range_before_repository_effects(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _common(monkeypatch)
-    ancestry = iter((False, True))
-    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
-    heads = iter((HEAD, REBASED, REBASED))
-    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
+    _common(monkeypatch, heads=(HEAD, REBASED, REBASED))
     policy = CommitPolicy(
         subject_pattern=r"^fix: .+",
         signing_required=True,
@@ -266,25 +266,16 @@ def test_refresh_validates_the_complete_replay_range_before_repository_effects(
         refresh,
         "committed_file_text",
         lambda _root, ref, path: observed_policy.append((ref, path)) or "candidate policy",
-        raising=False,
     )
     monkeypatch.setattr(
         refresh,
         "commit_policy_from_text",
         lambda text: policy if text == "candidate policy" else None,
-        raising=False,
-    )
-    monkeypatch.setattr(
-        refresh,
-        "load_commit_policy",
-        lambda _root: pytest.fail("refresh must not select policy from the source lane"),
-        raising=False,
     )
     monkeypatch.setattr(
         refresh,
         "commit_environment",
         lambda _root, _environment: {"SIGNED_REPLAY": "1"},
-        raising=False,
     )
     rebase_environments: list[object] = []
 
@@ -320,9 +311,7 @@ def test_refresh_validates_the_complete_replay_range_before_repository_effects(
         lambda *_args, **_kwargs: SimpleNamespace(model_dump=lambda **_kwargs: {}),
     )
 
-    report = refresh.refresh_work_lane_base(
-        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
-    )
+    report = _apply_refresh(root=tmp_path)
 
     assert report["state"] == "base_refreshed"
     assert observed_policy == [(CANDIDATE, ".ethos/workspace.toml")]
@@ -341,11 +330,7 @@ def test_refresh_validates_the_complete_replay_range_before_repository_effects(
 def test_refresh_admission_failure_restores_before_repository_effects(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, signing: bool, gap: str
 ) -> None:
-    _common(monkeypatch)
-    ancestry = iter((False, True))
-    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
-    heads = iter((HEAD, REBASED, HEAD))
-    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
+    _common(monkeypatch, heads=(HEAD, REBASED, HEAD))
     policy = CommitPolicy(
         subject_pattern=r"^fix: .+",
         signing_required=signing,
@@ -357,15 +342,13 @@ def test_refresh_admission_failure_restores_before_repository_effects(
         lambda _root, ref, path: (
             "candidate policy" if (ref, path) == (CANDIDATE, ".ethos/workspace.toml") else ""
         ),
-        raising=False,
     )
     monkeypatch.setattr(
         refresh,
         "commit_policy_from_text",
         lambda text: policy if text == "candidate policy" else None,
-        raising=False,
     )
-    monkeypatch.setattr(refresh, "commit_environment", lambda *_args: {}, raising=False)
+    monkeypatch.setattr(refresh, "commit_environment", lambda *_args: {})
 
     def run_git(_root: Path, *args: str, **_kwargs: object) -> SimpleNamespace:
         if args[-2:] == ("rev-parse", "HEAD"):
@@ -407,9 +390,7 @@ def test_refresh_admission_failure_restores_before_repository_effects(
         lambda _root, _path, *, branch, head: restored.append((branch, head)) or SimpleNamespace(),
     )
 
-    report = refresh.refresh_work_lane_base(
-        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
-    )
+    report = _apply_refresh(root=tmp_path)
 
     assert report["state"] == "blocked"
     assert report["required_gaps"] == [gap]
@@ -467,11 +448,7 @@ def test_detached_public_recovery_accepts_only_exact_persisted_effect(
 def test_refresh_public_effect_failure_restores_original_checkout(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _common(monkeypatch)
-    ancestry = iter((False, True))
-    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
-    heads = iter((HEAD, REBASED, HEAD))
-    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
+    _common(monkeypatch, heads=(HEAD, REBASED, HEAD))
     captured = _stub_refresh_effect(monkeypatch)
     monkeypatch.setattr(refresh, "validate_replayed_commits", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(
@@ -492,9 +469,7 @@ def test_refresh_public_effect_failure_restores_original_checkout(
         lambda _root, _path, *, branch, head: restored.append((branch, head)) or SimpleNamespace(),
     )
 
-    report = refresh.refresh_work_lane_base(
-        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
-    )
+    report = _apply_refresh(root=tmp_path)
 
     assert report["state"] == "blocked"
     assert compensated == [HEAD]
@@ -509,11 +484,7 @@ def test_refresh_public_effect_failure_restores_original_checkout(
 def test_refresh_public_attachment_failure_is_reported(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _common(monkeypatch)
-    ancestry = iter((False, True))
-    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
-    heads = iter((HEAD, REBASED, REBASED))
-    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
+    _common(monkeypatch, heads=(HEAD, REBASED, REBASED))
     _stub_refresh_effect(monkeypatch)
     monkeypatch.setattr(refresh, "validate_replayed_commits", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(refresh, "execute_git_effect", lambda *_args, **_kwargs: SimpleNamespace())
@@ -523,9 +494,7 @@ def test_refresh_public_attachment_failure_is_reported(
         lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("branch occupied")),
     )
 
-    report = refresh.refresh_work_lane_base(
-        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
-    )
+    report = _apply_refresh(root=tmp_path)
 
     assert report["required_gaps"] == ["refresh_base_worktree_attach_failed"]
     assert report["next_action"] == (

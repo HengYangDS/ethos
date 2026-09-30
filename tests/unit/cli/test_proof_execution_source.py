@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from datetime import UTC
@@ -15,6 +16,7 @@ import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
+from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.contracts.plan import compile_plan
@@ -81,6 +83,41 @@ def _execute(root: Path, head: str, *, host: bool = False):
         "--json",
         cwd=root,
     )
+
+
+@pytest.mark.parametrize("verdict", ["block", "unknown"])
+def test_nonpassing_native_gate_retains_final_result_evidence(
+    proof_repository: Path, verdict: str
+) -> None:
+    """A real native adverse command retains final diagnostics without issuing PASS."""
+    root = proof_repository
+    program = (
+        "import json,sys\nfrom pathlib import Path\n"
+        "marker = Path('build/adverse-attempts')\nmarker.parent.mkdir(exist_ok=True)\n"
+        "marker.write_text((marker.read_text() if marker.exists() else '') + 'x')\n"
+        "sys.stderr.write('native diagnostic retained\\n')\n"
+        f"print(json.dumps({{'command': 'native-check', 'verdict': {verdict!r}, "
+        "'required_gaps': ['native_failure']}))\n"
+        f"raise SystemExit({1 if verdict == 'block' else 0})\n"
+    )
+    declare_native_proof_checks(root, test=program, typecheck="print('static green')")
+    head = commit_fixture(root, "declare native adverse execution")
+    before = read_attestation_set(root)
+
+    completed = _execute(root, head)
+    payload = json.loads(completed.stdout)
+    assert completed.returncode != 0
+    assert payload["verdict"] == verdict
+    descriptor = payload["data"]["artifact_reference"]
+    content = (proof_artifact_root(root) / descriptor["path"]).read_bytes()
+    assert hashlib.sha256(content).hexdigest() == str(descriptor["sha256"]).removeprefix("sha256:")
+    assert "native diagnostic retained" in content.decode()
+    assert "native_failure" in content.decode()
+    checks = {check["action_id"]: check for check in json.loads(content)["checks"]}
+    assert checks["sample-tests"]["verdict"] == verdict
+    assert checks["sample-tests"]["exit_code"] == (1 if verdict == "block" else 0)
+    assert read_attestation_set(root) == before
+    assert (root / "build/adverse-attempts").read_text() == "x"
 
 
 @pytest.mark.parametrize("host", [False, True])

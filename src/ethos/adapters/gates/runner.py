@@ -281,7 +281,6 @@ class LocalGateRunner:
         return replace(
             execution,
             verdict=verdict,
-            exit_code=completed.returncode or int(verdict != "pass"),
             diagnostics=diagnostics,
             verification=verification,
         )

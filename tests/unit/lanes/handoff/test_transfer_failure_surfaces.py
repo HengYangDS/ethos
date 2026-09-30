@@ -67,9 +67,8 @@ def test_lease_state_gap_is_actionable(
     assert gap in report["required_gaps"]
 
 
-def test_import_reports_invalid_holder_before_effects(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def _import_package(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Bind the same verified import package; tests retain their own effect failures."""
     package = tmp_path / "package"
     package.mkdir()
     monkeypatch.setattr(transfer, "repository_root", lambda _root: tmp_path)
@@ -92,6 +91,13 @@ def test_import_reports_invalid_holder_before_effects(
             [],
         ),
     )
+    return package
+
+
+def test_import_reports_invalid_holder_before_effects(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    package = _import_package(tmp_path, monkeypatch)
     monkeypatch.setattr(
         transfer,
         "apply_handoff_import",
@@ -119,29 +125,8 @@ def test_import_wraps_effect_failure_in_public_gap(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     holder = "agent:test:case:target"
-    package = tmp_path / "package"
-    package.mkdir()
+    package = _import_package(tmp_path, monkeypatch)
     monkeypatch.setenv("ETHOS_ACTOR", holder)
-    monkeypatch.setattr(transfer, "repository_root", lambda _root: tmp_path)
-    monkeypatch.setattr(
-        transfer,
-        "workspace_status",
-        lambda _root: {"role": "accepted_root", "dirty": False},
-    )
-    monkeypatch.setattr(
-        transfer.handoff_package,
-        "verified_handoff_manifest",
-        lambda **_kwargs: (
-            {
-                "package_id": "handoff:1",
-                "source_lane_ref": "work/example",
-                "source_head": "a" * 40,
-                "source_tree": "b" * 40,
-                "target_holder_ref": holder,
-            },
-            [],
-        ),
-    )
 
     def fail_import(**_kwargs):
         message = "destination_cas_stale"

@@ -17,7 +17,7 @@ from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import write_test_profile
+from tests.support.proof import declare_quality_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -81,20 +81,7 @@ def test_public_adopter_proof_reports_native_go_test_failure(tmp_path: Path) -> 
     if shutil.which("go") is None:
         pytest.skip("go is unavailable on this runner")
     repo = init_git_repo(tmp_path / "adopter")
-    behavior = Gate(
-        id="behavior", kind="test", providers=("ethos.adapters.gates.code_quality:behavior_report",)
-    )
-    static = Gate(
-        id="static", kind="static", providers=("ethos.adapters.gates.code_quality:static_report",)
-    )
-    write_test_profile(
-        repo,
-        proof={
-            "code_correctness_gates": ("behavior", "static"),
-            "code_correctness_map": {"behavior": "behavior", "static-analysis": "static"},
-            "gates": (behavior, static),
-        },
-    )
+    declare_quality_fixture(repo)
     (repo / "go.mod").write_text("module example.invalid/quality\n\ngo 1.20\n")
     (repo / "answer.go").write_text("package quality\nfunc Answer() int { return 41 }\n")
     (repo / "answer_test.go").write_text(
@@ -118,10 +105,10 @@ def test_public_adopter_proof_reports_native_go_test_failure(tmp_path: Path) -> 
         subprocess_only=True,
     )
     payload = json.loads(completed.stdout)
+    assert completed.returncode != 0
     checks = {check["action_id"]: check for check in payload["data"]["checks"]}
     report = json.loads(checks["behavior"]["stdout"])["providers"][0]["report"]
 
-    assert completed.returncode != 0
     assert payload["verdict"] == "block"
     assert report["required_gaps"] == ["quality_behavior_go_tests_failed"]
     failure = report["diagnostics"][0]

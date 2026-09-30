@@ -7,6 +7,7 @@ import sys
 import tomllib
 from datetime import UTC
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import tomli_w
@@ -21,17 +22,123 @@ from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status_observation
+from ethos.contracts.gates import Gate
+from ethos.contracts.gates import GateProofSets
+from ethos.contracts.gates import GateRegistryDeclaration
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_active_commitment
+from tests.support.governed_repository import write_test_profile
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from ethos.contracts.plan import TransitionPlan
     from ethos.contracts.semantic import Attestation
+
+
+def declare_quality_fixture(
+    root: Path,
+    *,
+    provider: str = "code_quality",
+    gates: tuple[Gate, ...] | None = None,
+    registry: bool = False,
+    behavior_command: tuple[str, ...] = (),
+    static_command: tuple[str, ...] = (),
+) -> None:
+    """Declare a native quality fixture through the same strict models as its consumers."""
+    selected = gates or tuple(
+        Gate(
+            id=axis,
+            kind=kind,
+            command=command,
+            providers=() if command else (f"ethos.adapters.gates.{provider}:{report}_report",),
+            verification_providers=(f"ethos.adapters.gates.{provider}:{report}_report",)
+            if command
+            else (),
+            profile="repository",
+            execution_mode="provider",
+            tool_adapter="ethos",
+        )
+        for axis, kind, report, command in (
+            ("behavior", "test", "behavior", behavior_command),
+            ("static", "lint", "static", static_command),
+        )
+    )
+    names = tuple(gate.id for gate in selected)
+    if registry:
+        path = root / "system/gates.toml"
+        path.parent.mkdir(exist_ok=True)
+        declaration = GateRegistryDeclaration(
+            id="native-quality",
+            proof_sets=GateProofSets(default=names, full=names),
+            gates=selected,
+        )
+        path.write_text(tomli_w.dumps(declaration.model_dump(mode="json", exclude_none=True)))
+        proof = {"gate_registry": "system/gates.toml"}
+    else:
+        proof = {
+            "code_correctness_gates": names,
+            "gates": selected,
+            "code_correctness_map": {"behavior": names[0], "static-analysis": names[-1]},
+        }
+    write_test_profile(root, proof=proof)
+
+
+def python_quality_files(*, defect: str = "none") -> dict[str, str]:
+    """Return fresh locked Python inputs, shared by native adoption workload fixtures."""
+    source = Path(__file__).resolve().parents[1] / "fixtures/quality-sample"
+    files = {
+        "pyproject.toml": (source / "pyproject.toml").read_text(),
+        "uv.lock": (source / "uv.lock").read_text(),
+        ".gitignore": ".venv/\n__pycache__/\n",
+        "src/sample/__init__.py": "def answer() -> int:\n    return 42\n",
+        "tests/test_sample.py": (
+            "from sample import answer\n\n\ndef test_answer() -> None:\n    assert answer() == 42\n"
+        ),
+    }
+    match defect:
+        case "none" | "plugin-disabled":
+            pass
+        case "strict-config":
+            files["pytest.toml"] = (
+                '[pytest]\naddopts = ["--strict-config"]\ncache_dir = ".cache/pytest"\n'
+            )
+        case "wrong-result":
+            files["src/sample/__init__.py"] = files["src/sample/__init__.py"].replace("42", "41")
+        case "lint-error":
+            files["src/sample/__init__.py"] = "import os\n\n" + files["src/sample/__init__.py"]
+        case "unused-source":
+            files["src/sample/unused.py"] = "def never_called() -> int:\n    return 0\n"
+        case "all-skipped":
+            files["tests/test_sample.py"] = (
+                "import pytest\n\nfrom sample import answer\n\n\n"
+                "@pytest.mark.skip(reason='not executed')\n"
+                + files["tests/test_sample.py"].split("\n\n\n", 1)[1]
+            )
+        case "missing-lock":
+            files.pop("uv.lock")
+        case "lock-drift":
+            files["pyproject.toml"] = files["pyproject.toml"].replace(
+                '"pytest-cov>=7.1.0"]', '"pytest-cov>=7.1.0", "pytest-timeout>=2.4.0"]'
+            )
+        case _:
+            message = f"unknown Python quality defect: {defect}"
+            raise ValueError(message)
+    return files
+
+
+def go_quality_files(
+    overrides: dict[str, str] | None = None, *, go_version: str = "1.26"
+) -> dict[str, str]:
+    """Return fresh native Go inputs while leaving each counterexample explicit."""
+    return {
+        "go.mod": f"module example.invalid/quality\n\ngo {go_version}\n",
+        "answer.go": "package quality\nfunc Answer() int { return 42 }\n",
+        "answer_test.go": 'package quality\nimport "testing"\n'
+        'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong") } }\n',
+        **(overrides or {}),
+    }
 
 
 def issue_conformant_proof(

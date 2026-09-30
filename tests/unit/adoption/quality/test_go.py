@@ -13,6 +13,7 @@ import ethos.adapters.gates.code_quality as native_quality
 import ethos.adapters.gates.go as native_go
 from ethos.repository.policy.quality_reports import go_covered_paths
 from tests.support.governed_repository import committed_source_repo
+from tests.support.proof import go_quality_files
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -136,12 +137,13 @@ def test_go_skipped_tests_do_not_prove_behavior(tmp_path: Path) -> None:
     """A package pass with no executed test case is not behavioral proof."""
     repo = committed_source_repo(
         tmp_path,
-        {
-            "go.mod": "module example.invalid/quality\n\ngo 1.26\n",
-            "answer.go": "package quality\n\nfunc Answer() int { return 42 }\n",
-            "answer_test.go": 'package quality\n\nimport "testing"\n\n'
-            'func TestAnswer(t *testing.T) { t.Skip("not executed") }\n',
-        },
+        go_quality_files(
+            {
+                "answer.go": "package quality\n\nfunc Answer() int { return 42 }\n",
+                "answer_test.go": 'package quality\n\nimport "testing"\n\n'
+                'func TestAnswer(t *testing.T) { t.Skip("not executed") }\n',
+            }
+        ),
     )
     assert native_quality.behavior_report(repo)["required_gaps"] == [
         "quality_behavior_go_tests_unexecuted"
@@ -152,19 +154,19 @@ def test_go_behavior_uses_native_build_scope_and_cross_package_coverage(tmp_path
     """Only Go-selected statements require hits, including calls into untested packages."""
     repo = committed_source_repo(
         tmp_path,
-        {
-            "go.mod": "module example.invalid/quality\n\ngo 1.20\n",
-            "answer.go": 'package quality\nimport "example.invalid/quality/lib"\n'
-            "func Answer() int { return lib.Answer() }\n",
-            "answer_test.go": 'package quality\nimport "testing"\n'
-            'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong") } }\n',
-            "lib/lib.go": "package lib\nfunc Answer() int { return 42 }\n",
-            "empty.go": "package quality\ntype Empty struct{}\n",
-            "platform_windows.go": "package quality\ntype WindowsOnly struct{}\n",
-            "provenance/_source/snapshot.go": (
-                "package snapshot\nfunc Historical() int { return 1 }\n"
-            ),
-        },
+        go_quality_files(
+            {
+                "answer.go": 'package quality\nimport "example.invalid/quality/lib"\n'
+                "func Answer() int { return lib.Answer() }\n",
+                "lib/lib.go": "package lib\nfunc Answer() int { return 42 }\n",
+                "empty.go": "package quality\ntype Empty struct{}\n",
+                "platform_windows.go": "package quality\ntype WindowsOnly struct{}\n",
+                "provenance/_source/snapshot.go": (
+                    "package snapshot\nfunc Historical() int { return 1 }\n"
+                ),
+            },
+            go_version="1.20",
+        ),
     )
 
     report = native_quality.behavior_report(repo)
@@ -190,13 +192,9 @@ def test_go_behavior_rejects_uncovered_cross_package_statements(tmp_path: Path) 
     """Native package selection cannot make an untested dependency disappear."""
     repo = committed_source_repo(
         tmp_path,
-        {
-            "go.mod": "module example.invalid/quality\n\ngo 1.20\n",
-            "answer.go": "package quality\nfunc Answer() int { return 42 }\n",
-            "answer_test.go": 'package quality\nimport "testing"\n'
-            'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong") } }\n',
-            "lib/unused.go": "package lib\nfunc Unused() int { return 1 }\n",
-        },
+        go_quality_files(
+            {"lib/unused.go": "package lib\nfunc Unused() int { return 1 }\n"}, go_version="1.20"
+        ),
     )
 
     assert native_quality.behavior_report(repo)["required_gaps"] == [
@@ -208,14 +206,13 @@ def test_go_behavior_rejects_unlisted_nested_module(tmp_path: Path) -> None:
     """A second module is not silently excused by the root module's wildcard."""
     repo = committed_source_repo(
         tmp_path,
-        {
-            "go.mod": "module example.invalid/quality\n\ngo 1.20\n",
-            "answer.go": "package quality\nfunc Answer() int { return 42 }\n",
-            "answer_test.go": 'package quality\nimport "testing"\n'
-            'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong") } }\n',
-            "addon/go.mod": "module example.invalid/addon\n\ngo 1.20\n",
-            "addon/addon.go": "package addon\nfunc Value() int { return 1 }\n",
-        },
+        go_quality_files(
+            {
+                "addon/go.mod": "module example.invalid/addon\n\ngo 1.20\n",
+                "addon/addon.go": "package addon\nfunc Value() int { return 1 }\n",
+            },
+            go_version="1.20",
+        ),
     )
 
     assert native_quality.behavior_report(repo)["required_gaps"] == [
@@ -229,13 +226,9 @@ def test_go_behavior_rejects_omitted_executable_file(
     """Go's instrumenter, not a missing profile row, proves applicability."""
     repo = committed_source_repo(
         tmp_path,
-        {
-            "go.mod": "module example.invalid/quality\n\ngo 1.20\n",
-            "answer.go": "package quality\nfunc Answer() int { return 42 }\n",
-            "missing.go": "package quality\nfunc Missing() int { return 1 }\n",
-            "answer_test.go": 'package quality\nimport "testing"\n'
-            'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong") } }\n',
-        },
+        go_quality_files(
+            {"missing.go": "package quality\nfunc Missing() int { return 1 }\n"}, go_version="1.20"
+        ),
     )
     real_command = native_go.run_command
 
@@ -271,13 +264,7 @@ def test_go_behavior_rejects_unproved_statementless_classification(
     """An omitted build file needs a valid independent Go instrumenter result."""
     repo = committed_source_repo(
         tmp_path,
-        {
-            "go.mod": "module example.invalid/quality\n\ngo 1.20\n",
-            "answer.go": "package quality\nfunc Answer() int { return 42 }\n",
-            "empty.go": "package quality\ntype Empty struct{}\n",
-            "answer_test.go": 'package quality\nimport "testing"\n'
-            'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong") } }\n',
-        },
+        go_quality_files({"empty.go": "package quality\ntype Empty struct{}\n"}, go_version="1.20"),
     )
     monkeypatch.setattr(
         native_go,
@@ -337,12 +324,13 @@ def test_go_behavior_rejects_invalid_native_discovery(
     """Native package discovery must be complete and bound to tracked source."""
     repo = committed_source_repo(
         tmp_path,
-        {
-            "go.mod": "module example.invalid/quality\n\ngo 1.20\n",
-            "answer.go": "package quality\nfunc Answer() int { return 42 }\n",
-            "answer_test.go": 'package quality\nimport "testing"\n'
-            "func TestAnswer(t *testing.T) {}\n",
-        },
+        go_quality_files(
+            {
+                "answer_test.go": 'package quality\nimport "testing"\n'
+                "func TestAnswer(t *testing.T) {}\n"
+            },
+            go_version="1.20",
+        ),
     )
     package: dict[str, object] = {
         "Dir": str(repo if discovery != "outside-root" else tmp_path),
@@ -370,13 +358,14 @@ def test_go_behavior_rejects_ambiguous_native_source_identity(
     """Two repository files cannot claim the same native package-file identity."""
     repo = committed_source_repo(
         tmp_path,
-        {
-            "go.mod": "module example.invalid/quality\n\ngo 1.20\n",
-            "answer.go": "package quality\nfunc Answer() int { return 42 }\n",
-            "sub/answer.go": "package sub\nfunc Answer() int { return 1 }\n",
-            "answer_test.go": 'package quality\nimport "testing"\n'
-            "func TestAnswer(t *testing.T) {}\n",
-        },
+        go_quality_files(
+            {
+                "sub/answer.go": "package sub\nfunc Answer() int { return 1 }\n",
+                "answer_test.go": 'package quality\nimport "testing"\n'
+                "func TestAnswer(t *testing.T) {}\n",
+            },
+            go_version="1.20",
+        ),
     )
     output = "\n".join(
         json.dumps(
@@ -429,12 +418,13 @@ def test_go_behavior_rejects_failed_or_incomplete_native_result(
     """A successful process alone cannot substitute for tests and coverage evidence."""
     repo = committed_source_repo(
         tmp_path,
-        {
-            "go.mod": "module example.invalid/quality\n\ngo 1.26\n",
-            "answer.go": "package quality\n\nfunc Answer() int { return 42 }\n",
-            "answer_test.go": 'package quality\n\nimport "testing"\n\n'
-            'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong") } }\n',
-        },
+        go_quality_files(
+            {
+                "answer.go": "package quality\n\nfunc Answer() int { return 42 }\n",
+                "answer_test.go": 'package quality\n\nimport "testing"\n\n'
+                'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong") } }\n',
+            }
+        ),
     )
 
     def observed_command(root: Path, command: tuple[str, ...], **_kwargs: object):

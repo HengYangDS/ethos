@@ -93,13 +93,12 @@ class ProofPolicy(_ProfileModel):
         if len(gate_ids) != len(set(gate_ids)) or set(gate_ids) != set(self.code_correctness_gates):
             msg = "proof gate descriptors must match the proof floor exactly"
             raise ValueError(msg)
-        mapped = tuple(self.code_correctness_map.values())
+        mapped = set(self.code_correctness_map.values())
         if self.code_correctness_gates and (
             set(self.code_correctness_map) != {"behavior", "static-analysis"}
-            or len(mapped) != len(set(mapped))
-            or not set(mapped) <= set(self.code_correctness_gates)
+            or not mapped <= set(self.code_correctness_gates)
         ):
-            msg = "proof code axes must map distinct required gates"
+            msg = "proof code axes must map required gates"
             raise ValueError(msg)
         return self
 

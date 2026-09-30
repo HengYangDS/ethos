@@ -250,7 +250,7 @@ def _quality_provider_refs(gate: Mapping[str, object], axis: str) -> tuple[str, 
     if gate.get("execution_mode") == "provider":
         identity = gate.get("execution_identity")
         if isinstance(identity, (list, tuple)) and len(identity) > 1 and identity[0] == "provider":
-            return tuple(item for item in identity[1:] if isinstance(item, str))
+            return tuple(item for item in identity[1:] if item in _QUALITY_PROVIDERS.get(axis, ()))
     if gate.get("execution_mode") == "verified-command":
         providers = gate.get("verification_providers")
         if isinstance(providers, (list, tuple)):

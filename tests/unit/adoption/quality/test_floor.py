@@ -16,6 +16,8 @@ from ethos.contracts.semantic import Facts
 from ethos.repository.policy.gates import quality_obligation_gaps
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import committed_source_repo
+from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
 
@@ -453,3 +455,53 @@ def test_real_locked_python_checks_qualify_the_selected_source(
         axis = "static-analysis" if defect == "lint-error" else "behavior"
         assert f"quality_obligation_unproven:{axis}" in payload["required_gaps"]
     assert payload["summary"]["proof_attestation_issued"] is False
+
+
+@pytest.mark.parametrize("evidence_case", ["missing", "complete"])
+def test_one_gate_can_supply_both_code_axes(tmp_path: Path, evidence_case: str) -> None:
+    """One native gate may supply both axes; a missing axis remains blocked."""
+    fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
+    providers = ["ethos.adapters.gates.python_quality:behavior_report"]
+    if evidence_case == "complete":
+        providers.append("ethos.adapters.gates.python_quality:static_report")
+    profile = (
+        'profile_id = "combined-quality"\n\n[openspec]\nmaterial_paths = ["**"]\n\n'
+        '[proof]\ncode_correctness_gates = ["quality"]\n\n'
+        '[proof.code_correctness_map]\nbehavior = "quality"\n'
+        'static-analysis = "quality"\n\n'
+        '[[proof.gates]]\nid = "quality"\nkind = "test"\n'
+        f"providers = {json.dumps(providers)}\n"
+    )
+    repo = committed_source_repo(
+        tmp_path,
+        {
+            ".gitignore": ".venv/\n__pycache__/\n",
+            ".ethos/profile.toml": profile,
+            "pyproject.toml": (fixture / "pyproject.toml").read_text(),
+            "uv.lock": (fixture / "uv.lock").read_text(),
+            "src/sample/__init__.py": "def answer() -> int:\n    return 42\n",
+            "tests/test_sample.py": (
+                "from sample import answer\n\n\ndef test_answer() -> None:\n"
+                "    assert answer() == 42\n"
+            ),
+        },
+    )
+    result = run_ethos_raw(
+        "prove",
+        "--host",
+        "--execute",
+        "--full",
+        "--expect-head",
+        git(repo, "rev-parse", "HEAD"),
+        "--json",
+        cwd=repo,
+    )
+    payload = json.loads(result.stdout)
+    if evidence_case == "complete":
+        assert result.returncode == 0, payload["required_gaps"]
+        assert payload["verdict"] == "pass"
+        assert len(payload["data"]["checks"]) == 1
+    else:
+        assert result.returncode != 0
+        assert "quality_gate_verifier_missing:static-analysis:quality" in payload["required_gaps"]
+        assert payload["data"]["checks"] == []

@@ -275,8 +275,10 @@ def test_archive_reference_destinations_preserve_other_bytes(
         (archived / "note.txt").unlink()
     if fault == "content_changed":
         (archived / "note.txt").write_bytes(b"unrelated edit")
+    resolver = Mock(wraps=relocation.openspec_base_command)
+    monkeypatch.setattr(relocation, "openspec_base_command", resolver)
     if fault == "missing_cli":
-        monkeypatch.setattr(relocation, "openspec_base_command", lambda: None)
+        monkeypatch.setattr(relocation, "openspec_base_command", lambda **_kwargs: None)
         fault = "openspec_official_cli_missing"
     if body == "transport":
         bridge = (
@@ -297,4 +299,8 @@ def test_archive_reference_destinations_preserve_other_bytes(
         for _ in range(2):
             refresh_archive_projections(root, source_head=head)
             assert (archived / "design.md").read_bytes() == (expected or body).encode()
+    assert all(
+        not observed.args and observed.kwargs == {"execution_probe": False}
+        for observed in resolver.call_args_list
+    )
     assert git(root, "rev-parse", "HEAD") == head

@@ -295,13 +295,14 @@ def load_openspec_commitment(
         require_absent=True,
         attestations=attestations,
     )
-    if (archived is not None or official_projection is not None) and (
-        command := command or openspec_cli.openspec_base_command()
-    ) is None:
-        msg = "openspec_official_cli_missing"
-        raise ValueError(msg)
     if archived is not None:
         return archived
+    if (
+        official_projection is not None
+        and (command := command or openspec_cli.openspec_base_command()) is None
+    ):
+        msg = "openspec_official_cli_missing"
+        raise ValueError(msg)
     with _openspec_projection(repo, tree_ref) as projection:
         if change_id is None:
             (listed,) = openspec_cli.run_json_batch(projection, command, (("list", "--json"),))

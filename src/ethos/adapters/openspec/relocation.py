@@ -247,7 +247,7 @@ def _canonical_inputs(
 
 
 def _observe(root: Path, inputs: dict[str, object]) -> dict[str, object]:
-    command = openspec_base_command()
+    command = openspec_base_command(execution_probe=False)
     if command is None:
         message = "openspec_official_cli_missing"
         raise ValueError(message)

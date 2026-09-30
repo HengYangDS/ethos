@@ -151,7 +151,7 @@ def test_native_session_report_rejects_incomplete_or_malformed_scope(
     if fault != "missing":
         (tmp_path / "nox.json").write_text(json.dumps(report))
     (tmp_path / "selection.json").write_text(
-        json.dumps({"names": ["tests"], "signatures": ["tests"]})
+        json.dumps({"names": ["tests"], "signatures": ["tests"], "orchestrators": []})
     )
     inputs = NativePythonReports(root=tmp_path, source_digests=(), python_prefix=(sys.executable,))
     execution = NativeExecution(
@@ -166,3 +166,121 @@ def test_native_session_report_rejects_incomplete_or_malformed_scope(
 
     with pytest.raises(ValueError, match="python_nox_session_"):
         native_nox.evidence(tmp_path, execution, ())
+
+
+@pytest.mark.parametrize("fault", ["none", "unmeasured-session", "parameterized"])
+def test_nox_sessions_keep_distinct_native_execution_evidence(tmp_path: Path, fault: str) -> None:
+    """One measured session cannot conceal another session's unproved source execution."""
+    root = committed_source_repo(
+        tmp_path,
+        {
+            "product.py": "def answer():\n    return 42\n",
+            "tests/test_product.py": (
+                "import sys\nfrom pathlib import Path\n"
+                "sys.path.insert(0, str(Path(__file__).resolve().parents[1]))\n"
+                "from product import answer\n\ndef test_answer():\n    assert answer() == 42\n"
+            ),
+            "tests/test_constant.py": "def test_constant():\n    assert 1 == 1\n",
+            "pyproject.toml": '[project]\nname = "sample"\nversion = "1"\n',
+            "uv.lock": "version = 1\n",
+            "noxfile.py": _session_fixture(fault),
+        },
+    )
+    gate = Gate(
+        id="session-tests",
+        kind="test",
+        command=(sys.executable, "-m", "nox"),
+        verification_providers=("ethos.adapters.gates.code_quality:behavior_report",),
+    )
+    node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
+
+    result = LocalGateRunner().run(node, gate, root=root)
+
+    assert result.verdict == ("block" if fault == "unmeasured-session" else "pass"), (
+        result.diagnostics,
+        result.stderr,
+    )
+    assert (root / "attempt-count").read_text() == "xx"
+    if fault != "unmeasured-session":
+        assert result.verification is not None
+        providers = result.verification["providers"]
+        assert isinstance(providers, list)
+        native = providers[0]["report"]["native"][0]["report"]
+        assert len(native["coverage"]["sessions"]) == 2
+        assert all("product.py" in item["covered_paths"] for item in native["coverage"]["sessions"])
+
+
+def test_nox_partitioned_sessions_preserve_distinct_and_combined_scope(tmp_path: Path) -> None:
+    """A legitimate test partition need not exercise every product file in each session."""
+    root = committed_source_repo(
+        tmp_path,
+        {
+            "first.py": "def answer():\n    return 42\n",
+            "second.py": "def answer():\n    return 7\n",
+            "tests/test_first.py": (
+                "from first import answer\n\ndef test_answer():\n    assert answer() == 42\n"
+            ),
+            "tests/test_second.py": (
+                "from second import answer\n\ndef test_answer():\n    assert answer() == 7\n"
+            ),
+            "pyproject.toml": '[project]\nname = "sample"\nversion = "1"\n',
+            "uv.lock": "version = 1\n",
+            "noxfile.py": (
+                "import nox\n\n"
+                "@nox.session(python=False)\ndef first(session):\n"
+                f"    session.run({sys.executable!r}, '-m', 'pytest', '-q', "
+                "'tests/test_first.py')\n\n"
+                "@nox.session(python=False)\ndef second(session):\n"
+                f"    session.run({sys.executable!r}, '-m', 'pytest', '-q', "
+                "'tests/test_second.py')\n"
+            ),
+        },
+    )
+    gate = Gate(
+        id="partitioned-tests",
+        kind="test",
+        command=(sys.executable, "-m", "nox"),
+        verification_providers=("ethos.adapters.gates.code_quality:behavior_report",),
+    )
+    node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
+
+    result = LocalGateRunner().run(node, gate, root=root)
+
+    assert result.verdict == "pass", result.diagnostics
+    assert result.verification is not None
+    providers = result.verification["providers"]
+    assert isinstance(providers, list)
+    coverage = providers[0]["report"]["native"][0]["report"]["coverage"]
+    sessions = {session["id"]: set(session["covered_paths"]) for session in coverage["sessions"]}
+    assert "first.py" in sessions["first"]
+    assert "second.py" not in sessions["first"]
+    assert "second.py" in sessions["second"]
+    assert "first.py" not in sessions["second"]
+
+
+def _session_fixture(fault: str) -> str:
+    """Produce two real native sessions with distinct identities and owned attempt markers."""
+    header = "from pathlib import Path\nimport nox\n\n"
+    marker = (
+        "    marker = Path('attempt-count')\n"
+        "    marker.write_text((marker.read_text() if marker.exists() else '') + 'x')\n"
+    )
+    command = f"    session.run({sys.executable!r}, '-m', 'pytest', '-q', "
+    if fault == "parameterized":
+        return (
+            header + "@nox.session(python=False)\n@nox.parametrize('variant', [0, 1])\n"
+            "def tests(session, variant):\n" + marker + command + "'tests/test_product.py')\n"
+        )
+    second = "tests/test_constant.py" if fault == "unmeasured-session" else "tests/test_product.py"
+    return (
+        header
+        + "@nox.session(python=False)\ndef first(session):\n"
+        + marker
+        + command
+        + "'tests/test_product.py')\n\n"
+        "@nox.session(python=False)\ndef second(session):\n"
+        + marker
+        + command
+        + repr(second)
+        + ")\n"
+    )

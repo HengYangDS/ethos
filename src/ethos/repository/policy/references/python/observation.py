@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import TYPE_CHECKING
 
-from ethos.repository.policy.references.commands import command_executables
-from ethos.repository.policy.references.commands import shell_executables
 from ethos.repository.policy.references.commands.invocation import ArgumentVector
+from ethos.repository.policy.references.commands.observation import command_executables
+from ethos.repository.policy.references.commands.observation import shell_executables
 from ethos.repository.policy.references.python.binding import bind_python
 from ethos.repository.policy.references.python.values import BoundCall
 from ethos.repository.policy.references.python.values import ExecutableLookup

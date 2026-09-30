@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
@@ -16,6 +18,50 @@ if TYPE_CHECKING:
 
 def _invalid(code: str, error: Exception | None = None) -> NoReturn:
     raise ValueError(code) from error
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class GoTestFailure:
+    """A failed Go package or test identity from one native execution."""
+
+    package: str
+    test: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class GoTestReport:
+    """Reduce native events without retaining unrelated output or hiding malformed lines."""
+
+    passed: int
+    failures: tuple[GoTestFailure, ...]
+    valid: bool
+
+
+def go_test_report(text: str) -> GoTestReport:
+    """Preserve same-run failure identities even when later output dominates the tail."""
+    passed = 0
+    failures: list[GoTestFailure] = []
+    valid = True
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            valid = False
+            continue
+        if not isinstance(event, dict):
+            valid = False
+            continue
+        action, package, test = event.get("Action"), event.get("Package", ""), event.get("Test", "")
+        if not isinstance(action, str) or not isinstance(package, str) or not isinstance(test, str):
+            valid = False
+            continue
+        if action == "pass" and test:
+            passed += 1
+        elif action == "fail":
+            failures.append(GoTestFailure(package=package, test=test))
+    return GoTestReport(passed=passed, failures=tuple(failures), valid=valid)
 
 
 def junit_report(paths: Iterable[Path]) -> tuple[dict[str, int], bool]:

@@ -11,5 +11,8 @@
 offline = true
 no_progress = true
 
+# A present file does not make a missing section a valid reader destination.
+include_fragments = "anchor-only"
+
 # Only Markdown docs carry governed cross-references.
 include_verbatim = false

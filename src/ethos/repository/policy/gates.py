@@ -424,16 +424,27 @@ def _gate_declaration(
     return declaration, profile
 
 
-def source_paths_for_gate(gate: Gate) -> tuple[str, ...]:
+def provider_source_bindings_for_gate(gate: Gate) -> tuple[tuple[str, str], ...]:
+    """Keep provider identities related to their source even when paths are shared."""
     provider_root = (
         PRODUCT_PROVIDER_SOURCE
         if gate.profile == "repository" and gate.tool_adapter == "ethos"
         else "src/ethos/"
     )
-    providers = tuple(
-        provider_root + reference.partition(":")[0].removeprefix("ethos.").replace(".", "/") + ".py"
+    return tuple(
+        (
+            reference,
+            provider_root
+            + reference.partition(":")[0].removeprefix("ethos.").replace(".", "/")
+            + ".py",
+        )
         for reference in (*gate.providers, *gate.verification_providers)
     )
+
+
+def source_paths_for_gate(gate: Gate) -> tuple[str, ...]:
+    """Derive unique source inputs without discarding provider-to-source relationships."""
+    providers = tuple(path for _, path in provider_source_bindings_for_gate(gate))
     command = canonical_gate_command(gate.command)
     noxfile = (
         ("noxfile.py", "pyproject.toml", "uv.lock")
@@ -450,7 +461,7 @@ def source_paths_for_gate(gate: Gate) -> tuple[str, ...]:
         and ".." not in Path(command[0]).parts
         else ()
     )
-    return (*providers, *noxfile, *script)
+    return tuple(dict.fromkeys((*providers, *noxfile, *script, *gate.source_inputs)))
 
 
 def source_paths_for_gates(gates: tuple[Gate, ...]) -> tuple[str, ...]:

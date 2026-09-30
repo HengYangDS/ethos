@@ -29,6 +29,7 @@ binds it to a linked worktree, and records a local lease. `ethos lane status`
 exposes linked worktrees and foreign Work Lanes from the accepted root without
 entering those foreign worktrees. `ethos lane prewrite` rejects tracked writes
 from protected roles and requires the editor root to match the owned Work Lane.
+
 The write boundary is deliberately ordered: target path, repository root,
 context refresh, status, prewrite, write, then post-write audit. This order keeps
 mutation bound to repository truth instead of a shell cwd, editor tab, or agent
@@ -39,21 +40,28 @@ linked worktree. `ethos lane candidate --apply` bootstraps that worktree from a
 clean accepted root with an expected HEAD. New Work Lanes start from the
 candidate branch instead of the accepted root, and `ethos land --apply` from an
 admitted Work Lane fast-forwards the candidate worktree without advancing the
-accepted root. `ethos land --json` checks the same ancestry before mutation; if
+accepted root.
+
+`ethos land --json` checks the same ancestry before mutation; if
 the candidate train has advanced since the Work Lane started, it reports
 `candidate_base_stale` and points to `ethos lane refresh-base` instead of
-waiting for apply mode to discover the stale base. If the candidate train and
+waiting for apply mode to discover the stale base.
+
+If the candidate train and
 accepted root diverge before accepted-root closeout, closeout reports
 `candidate_diverged_from_accepted` and points to
 `ethos lane candidate --refresh-from-accepted --apply --authorize --expect-head <head> --json`
 so the train can be reset deliberately before the Work Lane is replayed.
+
 Status output reports configured `role_policy` and role-policy
 `branch_bindings` in semantic order:
 release_root -> accepted_root -> candidate -> work_lane. A `proposal/*` ref is a governed remote review projection, not a local authoring role.
+
 Existing linked worktrees report `worktree_binding = "linked"` as product
 state; host-specific navigation labels are adapter projections, not workspace
 semantics. Adapters derive presentation from `worktree_binding`; they do not
 own branch role, lane, or mutation semantics.
+
 Foreign Work Lanes appear once in `foreign_work_lanes`; unbound refs appear in
 `unbound_work_lane_refs`, and derived contention appears in `coordination_gaps`.
 No coordination package persists duplicate counts or lifecycle state. Presence
@@ -64,25 +72,33 @@ unknown scope and same-file/ancestor-scope overlap are surfaced as advisory
 `coordination_gap:*` contention, leaving Git's fast-forward land as the final
 mutation arbiter without serializing unrelated agents that merely share a
 directory.
+
 `ethos lane start --apply --json` returns the newly created Work Lane under
 `data.worktree` with the same binding vocabulary. Start admission also rejects a
 dirty candidate worktree with `candidate_worktree_dirty`, so a new Work Lane
-cannot be created from ambiguous local candidate state. When a Work Lane lands
+cannot be created from ambiguous local candidate state.
+
+When a Work Lane lands
 to the candidate train, ETHOS carries the already verified HEAD-bound executed
 proof record into the candidate worktree's local proof state. This carry-forward
 is not a new proof minting path: the source record must verify before copying,
 and the target copy is re-verified after writing. This projection is internal;
 the public mutation result returns the Git-effect attestation rather than a
-second proof-carry receipt. The projection exposes
+second proof-carry receipt.
+
+The projection exposes
 `truth_boundary = "local-proof-state-projection"`,
 `mints_proof = false`, `same_head_only = true`, and source/target verification
 flags. It simply keeps Evidence with the same promoted HEAD so accepted-root
 closeout can prove the candidate head without requiring a redundant runner pass.
+
 The standard Work Lane lifecycle starts from an official OpenSpec Change and a
 fresh Git observation. ETHOS compiles the official projection into the
 three-field Commitment and records only the four-field Lease relation. It then
 derives exact source and target ref intent; missing, ambiguous, stale, or
-conflicting facts block before any ref, worktree, or SQLite effect. `ethos lane
+conflicting facts block before any ref, worktree, or SQLite effect.
+
+`ethos lane
 refresh-base` replays a stale lane onto the configured candidate
 branch. It creates ordinary new local commits when Git requires them; it never
 reconstructs an existing product object merely to change identity or signature.
@@ -91,11 +107,14 @@ operation-aware preview, continue and preserved abort are described in the
 [command reference](../reference/command-plane.md#native-merge-continuation).
 Native parent provenance selects lane intent without consuming another Change's
 progress. A pending merge is not a dirty-rebase recovery instruction.
+
 `ethos land` advances the configured candidate branch, and `ethos lane retire landed`
 removes only an explicitly named clean landed Work Lane at the expected Work
 Lane HEAD. `ethos lane retire superseded` may retire one clean ownerless source
 whose exact HEAD is already absorbed by the current owned lane; the transaction
-preserves the integration ref and current Lease. Prewrite, TransitionPlan,
+preserves the integration ref and current Lease.
+
+Prewrite, TransitionPlan,
 proof, ref advance, handoff, closeout, retirement, and status consume the same
 Lease observation plus fresh Git facts. Cross-host source revocation is likewise
 an exact live-Lease CAS: a missing Lease blocks and never masquerades as replay.
@@ -106,6 +125,7 @@ same-holder Lease and proof for the pre-archive HEAD, runs official OpenSpec
 from the package-bound supply, admits only its exact rename/spec delta, commits through ordinary
 hooks, and attests the post-state. The archived HEAD remains plan/proof/land
 capable because acceptance is compiled from its exact official projection.
+
 Unbound Work Lane refs are observations only. Status preserves their exact ref,
 HEAD, Lease observation, and accepted-relation facts, but no lifecycle
 command deletes them.
@@ -131,26 +151,33 @@ The command audits the configured candidate worktree first, requires executed
 proof for the candidate head being promoted, and only then fast-forwards the
 accepted branch from the candidate branch. The accepted root's `--expect-head`
 remains a substrate freshness guard; it is not the semantic proof target of the
-closeout change. The `closeout_bootstrap` package in
+closeout change.
+
+The `closeout_bootstrap` package in
 `ethos land --closeout --json` records the accepted root, audit root, configured
 branches, heads, `proof_target`, blocking gaps, exact command, and
 `runner_binding` package so the handoff is product state rather than a host UI,
 assistant runtime, or shell convention. The runner binding exposes the current
 runner module path, package path, source root, and whether that source root
 matches the accepted or audit root; mismatches are advisory signals, not a
-second truth store. Repository-family execution instead selects one immutable
+second truth store.
+
+Repository-family execution instead selects one immutable
 package runtime through `<git-common-dir>/ethos/runtime/CURRENT`. Hook launchers
 and executable remediation resolve that same selector; historical launcher
 bytes and ambient `PATH` are not alternate authorities. Runtime activation
 validates the candidate before selection, post-observes the shared binding, and
 restores the exact prior selector plus Git configuration on failure.
+
 For a source checkout, `uv.lock` owns dependency resolution while that exact
 checkout's root lock-current `.venv` supplies build tooling and installed
 dependency bytes; an older invoking runtime only coordinates activation.
 Installation verifies the complete target environment before a non-isolated
 wheel build, copies it, strictly prunes the copy to the hash-bound production
 closure, and installs the exact wheel. The uv cache remains a disposable
-acceleration layer, never a prerequisite or authority. A selected package-only
+acceleration layer, never a prerequisite or authority.
+
+A selected package-only
 runtime derives successors from its validated production closure and the exact
 wheel in the same Git-common `ethos/packages/<sha256>/` store. An
 installer-created `direct_url.json` may record an installation source path, but that path
@@ -194,12 +221,15 @@ topology. All targets share one object/request/executor contract; the target
 role selects proof obligations. Review requires source trust and introduced-range
 policy but no fabricated Commitment or product proof. Accepted branches, release
 branches and annotated release tags retain their stronger proof and closeout.
+
 The dry-run observes every declared peer with live `ls-remote`, compiles one
 content-addressed request, and performs no push. The guarded apply form consumes
 that request internally; the explicit receipt form provides restartable
 execution. Both recheck the exact local object and signature trust, request
 digest, repository common directory, push admission, and every target ref
-before the first effect. Immediately before each peer transaction, they recheck
+before the first effect.
+
+Immediately before each peer transaction, they recheck
 source trust, required proof, declared targets and that peer's exact current
 refs. An earlier matching peer observation cannot stand in for this recheck.
 

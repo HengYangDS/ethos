@@ -8,11 +8,14 @@ from importlib import metadata
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Literal
+from typing import NotRequired
 from typing import TypedDict
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
+from ethos.contracts.gates import Gate
 from ethos.contracts.skill.activation import normalize_skill_activation
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import close_verdict
@@ -28,6 +31,26 @@ if TYPE_CHECKING:
 class SchemaInstanceValidation(TypedDict):
     verdict: Verdict
     required_gaps: list[str]
+
+
+class SchemaObservation(TypedDict):
+    """One native schema's syntax and source-contract observation."""
+
+    verdict: Verdict
+    error: NotRequired[str]
+    title: NotRequired[str]
+
+
+class SchemaValidationReport(TypedDict):
+    """The existing schema gate's exact structured result."""
+
+    verdict: Verdict
+    mode: Literal["product"]
+    schema_source: str
+    schema_count: int
+    required_gaps: list[str]
+    schemas: dict[str, SchemaObservation]
+    instances: dict[str, Mapping[str, object]]
 
 
 def _repo_root() -> Path:
@@ -59,10 +82,10 @@ def load_schema(name: str, *, root: Path | None = None) -> dict[str, Any]:
     return json.loads((schema_source_root() / "kernel" / name).read_text(encoding="utf-8"))
 
 
-def schema_validation_report(root: Path | None = None) -> dict[str, object]:
+def schema_validation_report(root: Path | None = None) -> SchemaValidationReport:
     repo = root or _repo_root()
     gaps: list[str] = []
-    schemas: dict[str, dict[str, object]] = {}
+    schemas: dict[str, SchemaObservation] = {}
     local_schema_dir = _schema_dir(repo)
     schema_dir = schema_source_root()
     retired_schema = local_schema_dir / "capability-profile.schema.json"
@@ -82,7 +105,11 @@ def schema_validation_report(root: Path | None = None) -> dict[str, object]:
             gaps.append(f"{path.name}:{exc.__class__.__name__}")
             schemas[path.name] = {"verdict": "block", "error": str(exc)}
         else:
-            schemas[path.name] = {"verdict": "pass", "title": schema.get("title", "")}
+            if path.name == "gate.schema.json" and schema != Gate.public_schema():
+                gaps.append("schema_contract_drift:gate.schema.json")
+                schemas[path.name] = {"verdict": "block", "error": "native contract drift"}
+            else:
+                schemas[path.name] = {"verdict": "pass", "title": schema.get("title", "")}
     instances = _instance_validation_report(repo)
     for name, instance in instances.items():
         if report_verdict(instance) != "pass":

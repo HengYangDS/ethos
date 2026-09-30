@@ -7,18 +7,26 @@ import inspect
 import subprocess
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
+import ethos
+from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import current_head
+from ethos.adapters.repo.git import current_tracked_head
+from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.policy.gates import PRODUCT_PROVIDER_SOURCE
+from ethos.repository.policy.gates import provider_source_bindings_for_gate
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    from ethos.contracts.gates import Gate
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +60,7 @@ class NativeGoReports(NativeReportInputs):
 
     command: tuple[str, ...]
     source_paths: tuple[tuple[str, str], ...]
+    coverage_path: str = "coverage.out"
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +84,7 @@ def provider_reports(
     execution: NativeExecution | None = None,
     preflight: bool = False,
     command: tuple[str, ...] = (),
+    gate: Gate | None = None,
 ) -> tuple[list[dict[str, object]], Verdict, tuple[dict[str, Any], ...]]:
     """Execute the same product-owned provider contract for either gate form."""
     if preflight and execution is not None:
@@ -86,7 +96,12 @@ def provider_reports(
     for reference in references:
         try:
             report = _provider_report(
-                reference, root, execution=execution, preflight=preflight, command=command
+                reference,
+                root,
+                execution=execution,
+                preflight=preflight,
+                command=command,
+                gate=gate,
             )
         except (
             AttributeError,
@@ -159,6 +174,7 @@ def _provider_report(
     execution: NativeExecution | None = None,
     preflight: bool = False,
     command: tuple[str, ...] = (),
+    gate: Gate | None = None,
 ) -> Mapping[str, object]:
     module_name, _, attribute = reference.partition(":")
     provider = getattr(importlib.import_module(module_name), attribute)
@@ -172,6 +188,8 @@ def _provider_report(
             kwargs["command"] = command
     if "current_head" in parameters:
         kwargs["current_head"] = current_head(root)
+    if "gate" in parameters:
+        kwargs["gate"] = gate
     if execution is not None and "execution" in parameters:
         kwargs["execution"] = execution
     value = provider(root, **kwargs)
@@ -179,3 +197,35 @@ def _provider_report(
         message = f"gate provider must return a mapping: {reference}"
         raise TypeError(message)
     return cast("Mapping[str, object]", value)
+
+
+def assert_provider_execution_source(root: Path, gates: tuple[Gate, ...]) -> None:
+    """Reject candidate-bound checks running from a different implementation before effects."""
+    bound = tuple(
+        (gate.id, reference)
+        for gate in gates
+        for reference, relative in provider_source_bindings_for_gate(gate)
+        if not relative.startswith(PRODUCT_PROVIDER_SOURCE) and (root / relative).is_file()
+    )
+    package = Path(ethos.__file__).resolve()
+    if not bound or package == (root / "src/ethos/__init__.py").resolve():
+        return
+    try:
+        identity = invoking_build_identity()
+        head = current_tracked_head(root)
+        if head == identity.source_commit and current_tree(root, head) == identity.source_tree:
+            return
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
+        pass
+    gate_id, reference = bound[0]
+    message = f"gate_provider_source_mismatch:{gate_id}:{reference}"
+    raise ProcessExecutionError(
+        message,
+        reason="candidate_provider_execution_requires_matching_source",
+        cwd=str(root),
+        observation={
+            "runner_module_path": str(package),
+            "required_gaps": [f"gate_provider_source_mismatch:{name}:{ref}" for name, ref in bound],
+            "next_action": "run proof from the admitted checkout's locked Python environment",
+        },
+    )

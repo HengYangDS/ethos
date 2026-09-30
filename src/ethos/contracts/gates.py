@@ -4,13 +4,17 @@ import re
 import tomllib
 from importlib import resources
 from pathlib import Path
+from typing import Annotated
 from typing import Literal
 from typing import Self
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import GetJsonSchemaHandler
 from pydantic import model_validator
+from pydantic.json_schema import JsonSchemaValue
+from pydantic_core import CoreSchema
 
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
@@ -28,6 +32,43 @@ _UNKNOWN_PROOF_GATE = "unknown proof gate"
 _DUPLICATE_PROOF_GATE = "duplicate proof gate"
 _GATE_RESOURCES_INVALID = "gate resources invalid"
 _RESOURCE_NAME = re.compile(r"^(?:\*|[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*)$")
+_NATIVE_PATH = re.compile(
+    r"^(?![A-Za-z]:)(?!(?:[\s\S]*/)?\.{1,2}(?:/|$))[^/\\\x00]+(?:/[^/\\\x00]+)*$"
+)
+NativePath = Annotated[str, Field(pattern=_NATIVE_PATH)]
+
+
+class NativeReportSource(BaseModel):
+    """One standard native report delivered by the gate's sole execution owner."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    format: Literal["go-test-json", "go-coverage", "junit", "lcov", "sarif"]
+    channel: Literal["stdout", "stderr", "file"]
+    path: NativePath | None = Field(default=None, exclude_if=lambda value: value is None)
+
+    @model_validator(mode="after")
+    def validate_destination(self) -> Self:
+        """Files live below the attempt root; captured streams have no file path."""
+        if (self.channel == "file") != (self.path is not None):
+            message = "native report destination invalid"
+            raise ValueError(message)
+        return self
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        """Project the same channel-to-file relation into the public descriptor."""
+        schema = super().__get_pydantic_json_schema__(core_schema, handler)
+        schema["allOf"] = [
+            {
+                "if": {"properties": {"channel": {"const": "file"}}, "required": ["channel"]},
+                "then": {"required": ["path"], "properties": {"path": {"type": "string"}}},
+                "else": {"properties": {"path": {"type": "null"}}},
+            }
+        ]
+        return schema
 
 
 def bind_gate_command(command: tuple[str, ...], python_executable: str) -> tuple[str, ...]:
@@ -38,13 +79,19 @@ def bind_gate_command(command: tuple[str, ...], python_executable: str) -> tuple
 class Gate(BaseModel):
     """One immutable gate declaration and executable projection."""
 
-    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+    model_config = ConfigDict(
+        frozen=True, strict=True, extra="forbid", json_schema_serialization_defaults_required=True
+    )
 
     id: str = Field(min_length=1)
     kind: str = Field(min_length=1)
     command: FrozenTuple[str] = ()
     providers: FrozenTuple[str] = ()
     verification_providers: FrozenTuple[str] = ()
+    source_inputs: FrozenTuple[NativePath] = Field(default=(), exclude_if=lambda values: not values)
+    native_reports: FrozenTuple[NativeReportSource] = Field(
+        default=(), exclude_if=lambda values: not values
+    )
     policy: str = "required"
     profile: str = "product"
     toolchain: str = "quality-adapter"
@@ -87,7 +134,77 @@ class Gate(BaseModel):
             or (self.writes_files and "exclusive" not in self.resource_locks.values())
         ):
             raise ValueError(_GATE_RESOURCES_INVALID)
+        if len(self.source_inputs) != len(set(self.source_inputs)):
+            message = "native gate source inputs repeated"
+            raise ValueError(message)
+        if self.native_reports and (
+            not self.command
+            or not self.verification_providers
+            or not self.source_inputs
+            or len({report.format for report in self.native_reports}) != len(self.native_reports)
+        ):
+            message = "native gate report contract invalid"
+            raise ValueError(message)
         return self
+
+    @classmethod
+    def public_schema(cls) -> JsonSchemaValue:
+        """Derive the serialized public descriptor without a second contract owner."""
+        schema = cls.model_json_schema(mode="serialization")
+        schema.update(
+            {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "$id": "https://ethos.local/schemas/gate.schema.json",
+                "title": "ETHOS Gate",
+            }
+        )
+        optional = {
+            "command",
+            "providers",
+            "verification_providers",
+            "source_inputs",
+            "native_reports",
+            "cpu_reservation",
+            "resource_locks",
+        }
+        schema["required"] = [name for name in schema["required"] if name not in optional]
+        schema["oneOf"] = [
+            {"required": [selected], "not": {"required": [other]}}
+            for selected, other in (("command", "providers"), ("providers", "command"))
+        ]
+        for name in (
+            "command",
+            "providers",
+            "verification_providers",
+            "source_inputs",
+            "native_reports",
+        ):
+            schema["properties"][name]["minItems"] = 1
+        for name in ("providers", "verification_providers"):
+            schema["properties"][name].update(
+                {
+                    "uniqueItems": True,
+                    "items": {"type": "string", "pattern": r"^ethos\.[^:]+:[^:]+$"},
+                }
+            )
+        schema["properties"]["source_inputs"]["uniqueItems"] = True
+        formats = schema["$defs"]["NativeReportSource"]["properties"]["format"]["enum"]
+        schema["properties"]["native_reports"]["allOf"] = [
+            {
+                "contains": {"properties": {"format": {"const": value}}, "required": ["format"]},
+                "minContains": 0,
+                "maxContains": 1,
+            }
+            for value in formats
+        ]
+        schema["allOf"] = [
+            {"if": {"required": ["verification_providers"]}, "then": {"required": ["command"]}},
+            {
+                "if": {"required": ["native_reports"]},
+                "then": {"required": ["command", "verification_providers", "source_inputs"]},
+            },
+        ]
+        return schema
 
     def conflicts_with(self, other: Self) -> bool:
         """Compare complete exclusion domains; unknown writers retain global exclusion."""

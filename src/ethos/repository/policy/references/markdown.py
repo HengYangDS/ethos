@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from markdown_it import MarkdownIt
 
-import ethos.repository.policy.references.commands as command_references
+import ethos.repository.policy.references.commands.observation as command_references
 
 if TYPE_CHECKING:
     from collections.abc import Callable

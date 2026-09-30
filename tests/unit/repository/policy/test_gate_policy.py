@@ -326,3 +326,42 @@ def test_carrier_role_projection_reads_selected_git_tree(tmp_path: Path) -> None
     git(repo, "add", ".gitattributes")
     with pytest.raises(ValueError, match=r"quality_carrier_role_invalid:main\.ts"):
         resolve_gate_policy(repo)
+
+
+@pytest.mark.parametrize("suffix", ["py", "go", "mjs", "rs", "domain"])
+@pytest.mark.parametrize("role", ["code", "tooling", "test"])
+def test_explicit_code_roles_survive_language_and_location_changes(
+    tmp_path: Path, suffix: str, role: str
+) -> None:
+    """Native role facts, not test-like names, select behavioral obligations."""
+    repo = init_git_repo(tmp_path / "repo")
+    write_script_gate_policy(repo)
+    relative = f"tests/test_engine.{suffix}" if role != "test" else f"engine.{suffix}"
+    source = repo / relative
+    source.parent.mkdir(exist_ok=True)
+    source.write_text("source carrier\n", encoding="utf-8")
+    (repo / ".gitattributes").write_text(f"{relative} ethos-role={role}\n", encoding="utf-8")
+    head = commit_fixture(repo, "bind semantic carrier role")
+
+    subjects = resolve_gate_policy(repo, tree_ref=head).projection["owner"]["quality_subjects"]
+
+    assert relative in subjects["static-analysis"]
+    assert (relative in subjects["behavior"]) is (role != "test")
+
+
+def test_unavailable_index_is_not_an_empty_quality_scope(tmp_path: Path) -> None:
+    """A failed native inventory cannot erase all code obligations."""
+    repo = init_git_repo(tmp_path / "repo")
+    write_script_gate_policy(repo)
+    head = commit_fixture(repo, "bind valid quality inventory")
+    before = resolve_gate_policy(repo, tree_ref=head).projection
+    index = repo / git(repo, "rev-parse", "--git-path", "index")
+    content = index.read_bytes()
+    try:
+        index.write_bytes(b"invalid index\n")
+        with pytest.raises(ValueError, match="quality_subject_inventory_unknown"):
+            resolve_gate_policy(repo)
+    finally:
+        index.write_bytes(content)
+
+    assert resolve_gate_policy(repo, tree_ref=head).projection == before

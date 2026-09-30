@@ -14,14 +14,14 @@ from typing import TYPE_CHECKING
 
 import yaml
 
-import ethos.repository.policy.references.commands as command_references
+import ethos.repository.policy.references.commands.observation as command_references
 import ethos.repository.policy.references.markdown as markdown_observation
 import ethos.repository.policy.references.python_syntax as python_references
 from ethos.repository.policy.boundary.product import product_surface_files
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import reference_carrier
 from ethos.repository.policy.references.carriers import reference_paths
-from ethos.repository.policy.references.commands import normalize_command
+from ethos.repository.policy.references.commands.observation import normalize_command
 from ethos.repository.policy.references.python.observation import observe_python
 
 if TYPE_CHECKING:

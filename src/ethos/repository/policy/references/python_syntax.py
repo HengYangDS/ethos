@@ -6,7 +6,7 @@ import ast
 import warnings
 from typing import TYPE_CHECKING
 
-from ethos.repository.policy.references.commands import normalize_command
+from ethos.repository.policy.references.commands.observation import normalize_command
 
 if TYPE_CHECKING:
     from collections.abc import Mapping

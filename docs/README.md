@@ -51,7 +51,9 @@ and [Command Plane](reference/command-plane.md).
 Additional routes: [Governance](governance/README.md),
 [Reference](reference/README.md), [History](history/README.md), and
 [Documentation Metadata](_meta/README.md).
-The sole terminal plan is linked directly above; it needs no intermediate index.
+The sole terminal plan is linked directly above. Its [planning entrance](plans/README.md)
+also routes readers to implementation detail and supporting research; it owns no
+separate roadmap or progress state.
 
 Truth state is document metadata, not path topology. Use the explicit
 front matter vocabulary (`state: canonical`, `state: active`, `state: planned`,

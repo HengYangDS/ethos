@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from typing import Never
 
 import ethos.adapters.gates.go as native_go
+import ethos.adapters.gates.reports as native_reports
 from ethos.adapters.gates.execution import native_environment
 from ethos.adapters.gates.execution import native_tool
 from ethos.adapters.gates.python_quality import behavior_report as python_behavior_report
@@ -30,6 +31,7 @@ from ethos.repository.policy.quality_reports import lcov_stream_covered_paths
 
 if TYPE_CHECKING:
     from ethos.adapters.gates.verification import NativeExecution
+    from ethos.contracts.gates import Gate
 
 
 def _invalid(reason: str) -> Never:
@@ -208,10 +210,17 @@ def _python_quality(
 
 
 def _preflight(
-    root: Path, axis: str, subjects: tuple[CodeSubject, ...], command: tuple[str, ...]
+    root: Path,
+    axis: str,
+    subjects: tuple[CodeSubject, ...],
+    command: tuple[str, ...],
+    gate: Gate | None,
 ) -> dict[str, object]:
     """Check every applicable native language before a declared command starts."""
     gaps: list[str] = []
+    if gate is not None and gate.native_reports:
+        native_reports.preflight(root, gate, {subject.language for subject in subjects}, axis)
+        return {"verdict": "pass", "state": "ready", "required_gaps": []}
     for language in sorted({subject.language for subject in subjects}):
         if language == "python":
             report = (
@@ -249,12 +258,13 @@ def _report(
     execution: NativeExecution | None = None,
     preflight: bool = False,
     command: tuple[str, ...] = (),
+    gate: Gate | None = None,
 ) -> dict[str, object]:
     try:
         tree, subjects = _source(root)
         languages = {subject.language for subject in subjects}
         if preflight:
-            return _preflight(root, axis, subjects, command)
+            return _preflight(root, axis, subjects, command, gate)
         if execution is not None and axis != "behavior" and languages & {"go", "javascript"}:
             _invalid("native_static_evidence_unavailable")
         with ExitStack() as scope:
@@ -274,7 +284,12 @@ def _report(
                     native.append({"language": language, "report": report})
                 elif language == "go":
                     native.append(
-                        native_go.behavior(root, language_subjects, tool_environment, execution)
+                        native_go.behavior(
+                            root,
+                            language_subjects,
+                            tool_environment,
+                            execution,
+                        )
                         if axis == "behavior"
                         else native_go.static_report(root, paths, tool_environment)
                     )
@@ -311,9 +326,12 @@ def behavior_report(
     execution: NativeExecution | None = None,
     preflight: bool = False,
     command: tuple[str, ...] = (),
+    gate: Gate | None = None,
 ) -> dict[str, object]:
     """Require non-vacuous native tests for every observed code language."""
-    return _report(root, "behavior", execution=execution, preflight=preflight, command=command)
+    return _report(
+        root, "behavior", execution=execution, preflight=preflight, command=command, gate=gate
+    )
 
 
 def static_report(

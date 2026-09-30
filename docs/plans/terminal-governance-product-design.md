@@ -124,6 +124,21 @@ Completed incidents remain regression boundaries, not a queue to replay.
   and effectiveness; remove duplicate explanations and references to stale
   state. Dense formatting, hidden content and omitted acceptance are not savings.
 
+### Whole-Implementation Convergence
+
+The [implementation strategy](terminal-governance-product-design/implementation.md#convergence-principles) expands this plan's decisions, replacement cuts, acceptance and execution principles. This entry owns dependency order; existing Changes own progress.
+
+| Ordered cut | Required outcome and existing progress owner |
+| --- | --- |
+| A. Correct meaning and recoverability | Repair binding/coverage, official artifact resolution and typed continuations; close active adopter blockers and audit compressed-document meaning. `proof-throughput` 3, 8, 10, 12. |
+| B. One usable installed journey | Complete shared operations, CLI/SDK/MCP/Skills, greenfield/brownfield first acceptance, handoff and exit. `installed-product` 1–3; `greenfield-formation` 2.3. |
+| C. Complete and cheaper assurance | Consolidate observations and native execution evidence; qualify input-complete Pants partitions, test isolation, Allure/telemetry and both Forge projections, including real native targets. `proof-throughput` 1–2, 5–8, 11. |
+| D. Deep implementations and finite framework decisions | Replace wide payloads, duplicated interpreters/supervisors and needless facades; decide Dagger and native build closure using the same package workload before release construction. `proof-throughput` 9, 12.6; `installed-product` 3.4. |
+| E. Deliver, migrate and retire | Qualify macOS/Linux and declared Windows support, SemVer/changelog, signing, Homebrew, selector/state migration, independent remote publication and resource custody. `installed-product` 3–4; `proof-throughput` 4–5, 7, 13.4. |
+| F. Demonstrate full-product learning and ecosystem value | Execute collaboration/competition/exploration/all-drop, two adopter journeys, real benefit observation, feedback/model promotion and interchangeable capability conformance through the P0–P7 route. `proof-throughput` 13 and the accepted product obligations below. |
+
+Use [dependency-driven execution](terminal-governance-product-design/implementation.md#convergence-principles) to advance independent work alongside the sole writer and finish each admitted cut before expanding it.
+
 ### Remaining Dependencies And Delivery Order
 
 This is one dependency route, not a progress ledger. The official
@@ -144,15 +159,17 @@ documentation and platform boundaries constrain every stage.
 The full-chain acceptance case starts with source intent permitting cooperation,
 zero-or-one-winner competition, exploration and all-drop. Reject a mandatory
 winner or destruction-on-drop interpretation before compiling accepted meaning,
-non-goals, assumptions, capability requests and proof duties. Across worktrees,
-integrate compatible contributions and retain valuable negative results. Test
-shared-resource conflicts and a constraint set whose pairs are satisfiable but
-whose whole is not.
+non-goals, assumptions, capability requests and proof duties.
+
+Across worktrees, integrate compatible contributions and retain valuable negative results.
+Test shared-resource conflicts and a constraint set whose pairs are satisfiable but whose whole is not.
+
 Recheck changed baselines and policy, apply one exact CAS, then inject stale
 coordinates, process death and lost acknowledgement; unknown outcomes must
 recover from observation without repeated destructive effects. Preserve useful
-selected and unselected work before retirement. A different Agent must resume
-from repository evidence without a retelling. Repeat greenfield and brownfield
+selected and unselected work before retirement.
+
+A different Agent must resume from repository evidence without a retelling. Repeat greenfield and brownfield
 formation through actual-use observation bound to deployment, baseline,
 environment and window, then qualify interchangeable capabilities against the
 same case. No individual phase's green result substitutes for this trace.
@@ -242,11 +259,14 @@ passes; its own official Change must close the stated exit boundary.
    a renamed design must preserve its accepted content while proof binds its
    resolved path and bytes. A pure `REMOVED` delta is a positive obligation about
    the resulting system, not empty intent or a requirement to retain old behavior.
+
    Distinguish uncommitted projection,
    invalid Change, missing adoption, and archived intent; preserve proofability
    across archive; select proof Attestations by exact predicate and bindings;
    and derive Change relations and experiments without persistent graph or DSL
-   state. Converge status, plan, prewrite, hooks, prove, archive, and closeout on
+   state.
+
+   Converge status, plan, prewrite, hooks, prove, archive, and closeout on
    one resolver and typed continuation. Exit when their verdict, root cause, and
    sole next action agree for active, uncommitted, archived, reopened, no-spec,
    and malformed Changes, and active runtime contains no tracked Commitment,
@@ -267,12 +287,15 @@ passes; its own official Change must close the stated exit boundary.
    preflight the complete offline closure and state schema; migrate or safely
    reset through one public versioned operation; build a new immutable
    generation; atomically switch `CURRENT`, hooks, and state; verify; roll back
-   exactly; and reclaim only unreferenced generations. Run repository gates once
-   inside the declared locked toolchain. Exit when fresh and legacy adopters can
+   exactly; and reclaim only unreferenced generations.
+
+   Run repository gates once inside the declared locked toolchain.
+   Exit when fresh and legacy adopters can
    self-heal without SQLite edits, ambient `PATH`, in-place runtime writes,
    password prompts, or residual refs/worktrees, and every failure preserves
-   exact execution facts plus a typed non-replaying continuation. Converge every
-   dependency and embedded tool through one locked supply-chain source to the
+   exact execution facts plus a typed non-replaying continuation.
+
+   Converge every dependency and embedded tool through one locked supply-chain source to the
    current upstream stable release. A hold remains an open gap, not satisfaction
    of the requirement; any exception requires explicit user approval. Prove
    that package/runtime/version output reports the selected OpenSpec and
@@ -280,8 +303,9 @@ passes; its own official Change must close the stated exit boundary.
 5. **Close integration and publication topology.** Enforce `work/*` authoring,
    local candidate integration, unprotected `proposal/*` review, protected `dev`
    acceptance, and protected `main` release. Developer delivery uses MR/PR;
-   maintainer delivery uses reviewed exact CAS or bounded break-glass. Retire a
-   proposal after its selected object enters `dev` and its review ref closes,
+   maintainer delivery uses reviewed exact CAS or bounded break-glass.
+
+   Retire a proposal after its selected object enters `dev` and its review ref closes,
    independently of later `main` promotion. Publish the same local commit and
    annotated-tag OIDs to zero, one, or many independent peers through one
    deterministic batch; classify bounded in-flight parity separately from true
@@ -289,6 +313,7 @@ passes; its own official Change must close the stated exit boundary.
    is a new signed object, not proof transfer by tree equality; admit it only
    with exact source intent, review provenance, current policy and proof whose
    full inputs and applicability remain valid.
+
    Exit when local-only, GitLab-only, GitHub-only, and dual-peer
    cases pass without replay, rebuild, re-signing, implicit primary remote, or
    cross-peer authority.
@@ -299,24 +324,34 @@ passes; its own official Change must close the stated exit boundary.
    skills, CI, and renderers. Establish responsibility, invariant, consumers,
    dependency direction, and reason to change before selecting a physical path.
    Group cohesive capabilities into semantic subpackages; prohibit suffix-flat
-   sprawl, misplaced owners, and arbitrary nesting. Review complete capabilities
-   and caller knowledge: absorb exposed internal sequences and duplicate
+   sprawl, misplaced owners, and arbitrary nesting.
+
+   Review complete capabilities and caller knowledge: absorb exposed internal sequences and duplicate
    decisions into their existing owners while retaining necessary authority
    inputs and genuine transport boundaries. Neither directory width nor depth
-   proves good structure. Delete empty shells, unnecessary one-module packages,
+   proves good structure.
+
+   Delete empty shells, unnecessary one-module packages,
    facades, and stale imports; retain a small namespace only for a demonstrated
    boundary. Move all consumers with each owner and retire its old path in the
-   same bounded batch, without aliases. Reconcile documentation to one entrypoint,
+   same bounded batch, without aliases.
+
+   Reconcile documentation to one entrypoint,
    `guides/quickstart.md`, necessary READMEs, and a restored
    `docs/decisions/` containing only irreducible records under the
    [Docs Registry](../governance/docs-registry.md#directory-entrypoint-rule).
+
    Classify top-level evidence by real producer, consumer, binding, and
    retention; remove residue. Prove one quality owner per property, including
    docstrings, all meaningful tracked carrier formats, non-compensating
    per-owner budgets, modern Python within the supported floor, and native
-   configuration placement. Verify that architecture and brand projections are
+   configuration placement.
+
+   Verify that architecture and brand projections are
    faithful, accessible, navigable `信、达、雅` views rather than parallel
-   ontology. Exit only after whole-repository ownership and dependency review,
+   ontology.
+
+   Exit only after whole-repository ownership and dependency review,
    executable import/resource/link checks, behavior preservation, and projection
    readback find no missing, duplicate, orphan, superseded-active, conflicting,
    or misplaced owner. A clean file-count report is not semantic verification.
@@ -326,10 +361,14 @@ passes; its own official Change must close the stated exit boundary.
    exact owned trees deletable even when their contents are read-only. Replace
    per-test copies of full Python runtimes, virtual environments, and
    `node_modules` with shared read-only content-addressed supply and minimal
-   fixtures. Exit after normal exit and kill/crash tests show bounded zero or
+   fixtures.
+
+   Exit after normal exit and kill/crash tests show bounded zero or
    policy-limited residue across `/private/tmp`, Darwin user temp roots, and uv
    cache, within declared item, inode, byte, deletion-latency, and indexing-load
-   budgets. Source-bound 24/48-hour observations must show stable growth and
+   budgets.
+
+   Source-bound 24/48-hour observations must show stable growth and
    bounded dead-owner reclamation while preserving live and unknown consumers;
    short green tests cannot establish that claim. The
    [resource recurrence record](../history/README.md#terminal-plan-observations)
@@ -345,14 +384,17 @@ passes; its own official Change must close the stated exit boundary.
    Unreadable native inventory is not an empty selected scope, and a partial
    CLI write or backpressure cannot erase a blocked exit verdict. Invalid
    declared schemas must yield structured failed reports, not escape the gate.
+
    Historical identity repair needs original objects and validated native repair
    evidence; later forward green cannot retroactively approve that transition
    or impose a single-author rule on future genuine contributors.
+
    Run product, greenfield,
    brownfield, docs/infra, package-only, local-only, single-peer, dual-peer,
    interrupted, drifted, unbound, and adversarial fixtures through the same
    kernel. Inspect authorized real adopters read-only after the package runtime
    is accepted; select them by the capabilities under test, not project name.
+
    Exercise the declared Python floor and current supported versions
    plus native macOS, Linux, and Windows adapters. Exit when every requested
    plane has fresh evidence and no adopter compatibility carrier or copied state
@@ -455,7 +497,9 @@ decisions merely because a new example uses different filenames.
    effects. Git-recoverable bytes and reproducible supplies need no duplicate
    archive. Unresolved unique content remains protected with a named consumer,
    next resolving action, and exit condition; uncertainty is not indefinite
-   retention authority. Retire a proved-absorbed lane through its public owner
+   retention authority.
+
+   Retire a proved-absorbed lane through its public owner
    without waiting for unrelated roadmap work. Foreign ownership requires
    handoff, not a new store. Moving bytes to ignored storage preserves them;
    it does not complete retirement.

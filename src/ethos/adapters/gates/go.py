@@ -24,6 +24,7 @@ from ethos.repository.policy.quality_reports import go_covered_paths
 from ethos.repository.policy.quality_reports import go_test_report
 
 if TYPE_CHECKING:
+    from ethos.contracts.gates import NativeReportSource
     from ethos.repository.policy.code_subjects import CodeSubject
 
 
@@ -182,9 +183,34 @@ def _test_frame(command: tuple[str, ...]) -> tuple[tuple[str, ...], tuple[str, .
     return command[: offset + 1], selected[2:]
 
 
-def preflight(root: Path, command: tuple[str, ...]) -> None:
+def preflight(
+    root: Path, command: tuple[str, ...], *, reports: tuple[NativeReportSource, ...] = ()
+) -> None:
     """Reject unbound tools and unsupported producers before the native test starts."""
+    declared_command = command
+    if reports:
+        sources = {source.format: source for source in reports}
+        events, coverage = sources.get("go-test-json"), sources.get("go-coverage")
+        if (
+            events is None
+            or events.channel != "stdout"
+            or coverage is None
+            or coverage.channel != "file"
+            or coverage.path is None
+        ):
+            _invalid("go_native_report_channel_unsupported")
+        profile = f"-coverprofile={{reports}}/{coverage.path}"
+        command = tuple(
+            argument for argument in command if argument not in {profile, "-coverpkg=./..."}
+        )
     prefix, _ = _test_frame(command)
+    if reports and (
+        declared_command.count(profile) != 1
+        or declared_command.count("-coverpkg=./...") != 1
+        or "-json" not in declared_command
+        or "-count=1" not in declared_command
+    ):
+        _invalid("go_native_report_command_incomplete")
     actual = shutil.which(prefix[-1])
     expected = native_tool(root, "go")
     if actual is None or Path(actual).resolve() != Path(expected).resolve():
@@ -192,10 +218,33 @@ def preflight(root: Path, command: tuple[str, ...]) -> None:
 
 
 def prepare(
-    root: Path, command: tuple[str, ...], output: Path, native: dict[str, str]
+    root: Path,
+    command: tuple[str, ...],
+    output: Path,
+    native: dict[str, str],
+    *,
+    reports: tuple[NativeReportSource, ...] = (),
+    source_inputs: tuple[str, ...] = (),
 ) -> tuple[tuple[str, ...], dict[str, str], NativeGoReports]:
     """Bind native package scope and instrument the declared single attempt."""
-    prefix, arguments = _test_frame(command)
+    coverage_path = "coverage.out"
+    if reports:
+        coverage = next(source for source in reports if source.format == "go-coverage")
+        if coverage.path is None:
+            _invalid("go_native_report_channel_unsupported")
+        coverage_path = coverage.path
+        argv = tuple(argument.replace("{reports}", str(output)) for argument in command)
+    else:
+        prefix, arguments = _test_frame(command)
+        argv = (
+            *prefix,
+            "test",
+            "-json",
+            "-coverpkg=./...",
+            f"-coverprofile={output / coverage_path}",
+            "-count=1",
+            *arguments,
+        )
     production = tuple(
         subject.path
         for subject in observed_code_subjects(tuple(git_files(root)))
@@ -203,19 +252,12 @@ def prepare(
     )
     source_paths = _package_sources(root, production, native)
     output.mkdir(exist_ok=True)
-    argv = (
-        *prefix,
-        "test",
-        "-json",
-        "-coverpkg=./...",
-        f"-coverprofile={output / 'coverage.out'}",
-        "-count=1",
-        *arguments,
-    )
+    (output / coverage_path).parent.mkdir(parents=True, exist_ok=True)
     paths = tuple(git_files(root, "*.go"))
     paths += tuple(
         path for path in ("go.mod", "go.sum", "go.work", "go.work.sum") if (root / path).is_file()
     )
+    paths = tuple(dict.fromkeys((*paths, *source_inputs)))
     return (
         argv,
         _environment(native),
@@ -226,27 +268,24 @@ def prepare(
             ),
             command=argv,
             source_paths=tuple(source_paths.items()),
+            coverage_path=coverage_path,
         ),
     )
 
 
-def _evidence(
-    root: Path, production: tuple[str, ...], native: dict[str, str], execution: NativeExecution
+def _coverage_result(
+    root: Path,
+    production: tuple[str, ...],
+    native: dict[str, str],
+    execution: NativeExecution,
+    *,
+    output: Path,
+    source_paths: dict[str, str],
+    events: str,
+    profile: list[str],
 ) -> dict[str, object]:
-    """Consume held test output and coverage; the verifier never replays the attempt."""
-    inputs = execution.reports
-    if not isinstance(inputs, NativeGoReports):
-        _invalid("go_native_evidence_unavailable")
-    if execution.cwd != root.resolve() or execution.argv != inputs.command:
-        _invalid("go_native_execution_frame_invalid")
-    if inputs.root.is_symlink() or not inputs.root.is_dir():
-        _invalid("go_native_report_root_invalid")
-    if any(
-        hashlib.sha256((root / path).read_bytes()).hexdigest() != digest
-        for path, digest in inputs.source_digests
-    ):
-        _invalid("go_native_source_inputs_changed")
-    tests = go_test_report(execution.stdout)
+    """Judge original test events and native coverage through one shared observation."""
+    tests = go_test_report(events)
     if execution.exit_code or tests.failures:
         message = "go_tests_failed"
         raise ProcessExecutionError(
@@ -262,21 +301,18 @@ def _evidence(
                 "go_test_failures": [asdict(failure) for failure in tests.failures],
             },
         )
-    coverage = inputs.root / "coverage.out"
-    if coverage.is_symlink() or not coverage.is_file():
-        _invalid("go_coverage_missing")
     if not tests.valid:
         _invalid("go_test_report_invalid")
     if tests.passed == 0:
         _invalid("go_tests_unexecuted")
-    source_paths = dict(inputs.source_paths)
-    profile = coverage.read_text(encoding="utf-8").splitlines()
+    if not profile:
+        _invalid("go_coverage_missing")
     observed_sources = {line.partition(":")[0] for line in profile[1:]}
     missing = [path for source, path in source_paths.items() if source not in observed_sources]
     zero_statement_paths = frozenset(
         path
         for index, path in enumerate(missing)
-        if _zero_statement_source(root, path, inputs.root / f"scope-{index}.go", native)
+        if _zero_statement_source(root, path, output / f"scope-{index}.go", native)
     )
     covered = go_covered_paths(
         profile, production, source_paths, zero_statement_paths=zero_statement_paths
@@ -287,6 +323,46 @@ def _evidence(
         "covered_paths": covered,
         "non_applicable_paths": [path for path in production if path not in covered],
     }
+
+
+def _evidence(
+    root: Path, production: tuple[str, ...], native: dict[str, str], execution: NativeExecution
+) -> dict[str, object]:
+    """Validate the held native attempt and consume its original reports once."""
+    inputs = execution.reports
+    if not isinstance(inputs, NativeGoReports):
+        _invalid("go_native_evidence_unavailable")
+    if execution.cwd != root.resolve() or execution.argv != inputs.command:
+        _invalid("go_native_execution_frame_invalid")
+    if inputs.root.is_symlink() or not inputs.root.is_dir():
+        _invalid("go_native_report_root_invalid")
+    if any(
+        (root / path).is_symlink()
+        or not (root / path).is_file()
+        or hashlib.sha256((root / path).read_bytes()).hexdigest() != digest
+        for path, digest in inputs.source_digests
+    ):
+        _invalid("go_native_source_inputs_changed")
+    coverage = inputs.root / inputs.coverage_path
+    profile = (
+        coverage.read_text(encoding="utf-8").splitlines()
+        if coverage.is_file()
+        and not coverage.is_symlink()
+        and not any(
+            parent.is_symlink() for parent in coverage.parents if parent.is_relative_to(inputs.root)
+        )
+        else []
+    )
+    return _coverage_result(
+        root,
+        production,
+        native,
+        execution,
+        output=inputs.root,
+        source_paths=dict(inputs.source_paths),
+        events=execution.stdout,
+        profile=profile,
+    )
 
 
 def behavior(

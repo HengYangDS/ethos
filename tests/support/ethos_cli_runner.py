@@ -111,11 +111,11 @@ def _reject_implicit_apply_against_repository_checkout(
     raise ImplicitApplyCheckoutError
 
 
-def run_ethos_raw(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+def run_ethos_raw(
+    *args: str, cwd: Path | None = None, subprocess_only: bool = False
+) -> subprocess.CompletedProcess[str]:
     _reject_implicit_apply_against_repository_checkout(args, cwd=cwd)
-    if "--help" in args or "--version" in args:
-        return _run_subprocess(*args, cwd=cwd)
-    if "--json" not in args:
+    if subprocess_only or "--help" in args or "--version" in args or "--json" not in args:
         return _run_subprocess(*args, cwd=cwd)
     return _run_inprocess(*args, cwd=cwd)
 

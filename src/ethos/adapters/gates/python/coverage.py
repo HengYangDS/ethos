@@ -143,6 +143,20 @@ def observe(inputs):
     report.clear_exclude('exclude')
     report.clear_exclude('partial')
     report.get_data().update(data, map_path=lambda path: paths.get(path, path))
+    session_reports = []
+    for session in inputs['sessions']:
+        report.get_data().set_query_context(session)
+        exercised = []
+        for source in inputs['source']:
+            absolute = str(root / source)
+            if not report.analysis2(absolute)[1]:
+                continue
+            if report.get_data().lines(absolute):
+                exercised.append(source)
+        if not set(exercised) - set(inputs['orchestrators']):
+            invalid('session_source_execution_missing:' + session)
+        session_reports.append({'id': session, 'covered_paths': exercised})
+    report.get_data().set_query_contexts(None)
     non_applicable = []
     for source in inputs['source']:
         absolute = str(root / source)
@@ -165,6 +179,7 @@ def observe(inputs):
         'branch_coverage': result['meta']['branch_coverage'],
         'selected_paths': inputs['source'], 'non_applicable_paths': non_applicable,
         'artifacts': list(artifacts.values()), 'files': result['files'],
+        'sessions': session_reports,
     }
 
 
@@ -251,13 +266,22 @@ def artifact_sources(root: Path, python_prefix: tuple[str, ...]) -> NativePackag
     )
 
 
-def observe(root: Path, inputs: NativePythonReports, source: tuple[str, ...]) -> dict[str, object]:
+def observe(
+    root: Path,
+    inputs: NativePythonReports,
+    source: tuple[str, ...],
+    *,
+    sessions: tuple[str, ...] = (),
+    orchestrators: tuple[str, ...] = (),
+) -> dict[str, object]:
     """Account for executed source identities, including native installed artifacts."""
     payload = json.dumps(
         {
             "root": str(root),
             "output": str(inputs.root),
             "source": source,
+            "sessions": sessions,
+            "orchestrators": orchestrators,
             "source_digests": inputs.source_digests,
             "packaged_sources": (
                 asdict(inputs.packaged_sources) if inputs.packaged_sources is not None else None

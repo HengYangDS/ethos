@@ -17,6 +17,7 @@ See also: [Research Overview](../README.md) and
 
 | Question | Read |
 | --- | --- |
+| How should data, functions and modules be designed to remove complexity? | [Code design and implementation](code-design.md) |
 | Who selects tools, locks dependencies, and prepares environments? | [Toolchain and supply](toolchain.md) |
 | What should run natively or in containers, and what may be reused? | [Execution and reuse](execution.md) |
 | What do state machines, hooks, and durable engines guarantee? | [Effects and recovery](effects.md) |

@@ -9,7 +9,9 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+import ethos.repository.policy.schema as schema_owner
 from ethos.contracts.gates import Gate
+from ethos.contracts.gates import NativeReportSource
 from ethos.repository.audit import REQUIRED_SCHEMAS
 from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.repository.policy.schema import load_schema
@@ -166,6 +168,86 @@ def test_gate_schema_matches_positive_cpu_reservation_contract() -> None:
     assert validate_schema_instance("gate.schema.json", payload)["verdict"] == "block"
 
 
+def test_gate_schema_comes_from_the_serialized_native_contract() -> None:
+    """The public descriptor schema is a projection, not another gate authority."""
+    assert load_schema("gate.schema.json") == Gate.public_schema()
+
+
+def test_schema_gate_rejects_a_valid_but_divergent_projection(tmp_path, monkeypatch) -> None:
+    """A valid JSON Schema cannot silently replace the native contract it projects."""
+    source = tmp_path / "schemas"
+    shutil.copytree(ROOT / "system/schemas", source)
+    path = source / "kernel/gate.schema.json"
+    schema = json.loads(path.read_text())
+    schema["properties"]["source_inputs"]["items"] = {"type": "string"}
+    path.write_text(json.dumps(schema))
+    monkeypatch.setattr(schema_owner, "schema_source_root", lambda: source)
+
+    report = schema_validation_report(ROOT)
+
+    assert report["verdict"] == "block"
+    assert "schema_contract_drift:gate.schema.json" in report["required_gaps"]
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "none",
+        "source-escape",
+        "drive-path",
+        "missing-file-path",
+        "stream-path",
+        "missing-input",
+        "duplicate-format",
+    ],
+)
+def test_gate_schema_preserves_native_report_relations(fault: str) -> None:
+    """Shape, file ownership and producer inputs agree in the model and public schema."""
+    gate = Gate(
+        id="native-test",
+        kind="test",
+        command=(
+            "go",
+            "test",
+            "-json",
+            "-count=1",
+            "-coverpkg=./...",
+            "-coverprofile={reports}/coverage.out",
+            "./...",
+        ),
+        verification_providers=("ethos.adapters.gates.code_quality:behavior_report",),
+        source_inputs=("go.mod", "config with spaces/模块.toml"),
+        native_reports=(
+            NativeReportSource(format="go-test-json", channel="stdout"),
+            NativeReportSource(format="go-coverage", channel="file", path="coverage.out"),
+        ),
+    )
+    payload = gate.to_dict()
+    reports = payload["native_reports"]
+    assert isinstance(reports, list)
+    if fault == "source-escape":
+        payload["source_inputs"] = ["../outside"]
+    elif fault == "drive-path":
+        payload["source_inputs"] = ["C:/outside"]
+    elif fault == "missing-file-path":
+        del reports[1]["path"]
+    elif fault == "stream-path":
+        reports[0]["path"] = "coverage.out"
+    elif fault == "missing-input":
+        payload["source_inputs"] = []
+    elif fault == "duplicate-format":
+        reports.append({"format": "go-test-json", "channel": "stderr"})
+
+    assert validate_schema_instance("gate.schema.json", payload)["verdict"] == (
+        "pass" if fault == "none" else "block"
+    )
+    if fault == "none":
+        assert Gate.model_validate(payload).to_dict() == payload
+    else:
+        with pytest.raises(ValidationError):
+            Gate.model_validate(payload)
+
+
 @pytest.mark.parametrize("scope", ["activation", "packages"])
 def test_schema_report_rejects_malformed_live_skill_inputs(tmp_path, scope) -> None:
     """Actual native declarations and package metadata fail at the same report boundary."""
@@ -192,6 +274,8 @@ def test_schema_report_rejects_malformed_live_skill_inputs(tmp_path, scope) -> N
         assert report["instances"][name]["required_gaps"]
     if scope == "packages":
         gaps = report["instances"]["live-skill-package-manifests"]["required_gaps"]
+        assert isinstance(gaps, list)
+        assert all(isinstance(gap, str) for gap in gaps)
         assert len(gaps) >= 2
         for name in ("malformed", "invalid"):
             assert any(gap.startswith(f".agents/skills/{name}/package.toml:") for gap in gaps)

@@ -67,7 +67,7 @@ class NativeSupply:
         target = (
             f"{'macos' if system == 'Darwin' else 'linux'}-{'x64' if arch == 'x86_64' else arch}"
         )
-        if len(records) != 1 or locked.get("lockfile_version") != 2:
+        if len(records) != 1 or locked.get("lockfile_version") not in {2, 3}:
             msg = f"native_tool_lock_mismatch:{name}"
             raise ValueError(msg)
         material = records[0][f"platforms.{target}"]
@@ -168,7 +168,9 @@ def _immutable_hosted_supply() -> bool:
 
 def render_mise_installer(root: Path) -> str:
     """Project the native installer with one semantics-preserving lint normalization."""
-    version = tomllib.loads((root / MISE_CONFIG).read_text())["min_version"]
+    version = tomllib.loads((root / ".config/checks/ci/templates.toml").read_text())["bootstrap"][
+        "version"
+    ]
     generated = run_command(
         root,
         (str(mise_executable()), "generate", "install-script", "--version", version),
@@ -191,12 +193,14 @@ def validate_mise_installer(root: Path) -> bytes:
         version = tomllib.loads((root / MISE_CONFIG).read_text())["min_version"]
         record = tomllib.loads((root / ".config/checks/ci/templates.toml").read_text())["bootstrap"]
         content = target.read_bytes()
+        selected, minimum = Version(record["version"]), Version(version)
     except (OSError, KeyError, TypeError, ValueError) as error:
         raise ValueError(message) from error
     if (
         not isinstance(record, dict)
         or record.keys() != {"version", "sha256"}
-        or record["version"] != version
+        or selected.is_prerelease
+        or selected < minimum
         or record["sha256"] != hashlib.sha256(content).hexdigest()
     ):
         raise ValueError(message)
@@ -206,9 +210,9 @@ def validate_mise_installer(root: Path) -> bytes:
 def prepare_mise(root: Path) -> Path:
     """Reuse operator supply or stage the native installer before atomic publication."""
     root = root.resolve(strict=True)
-    version = tomllib.loads((root / MISE_CONFIG).read_text())["min_version"]
+    minimum = tomllib.loads((root / MISE_CONFIG).read_text())["min_version"]
 
-    def verify(executable: Path, *, exact: bool = True) -> None:
+    def verify(executable: Path, version: str, *, exact: bool = True) -> None:
         observed = run_command(
             root,
             (str(executable), "--version"),
@@ -229,9 +233,12 @@ def prepare_mise(root: Path) -> Path:
 
     if installed := shutil.which("mise"):
         executable = Path(installed)
-        verify(executable, exact=False)
+        verify(executable, minimum, exact=False)
         return executable
     content = validate_mise_installer(root)
+    version = tomllib.loads((root / ".config/checks/ci/templates.toml").read_text())["bootstrap"][
+        "version"
+    ]
     home = (
         _cache_root(root) / "mise" / version / f"{platform.system()}_{platform.machine()}" / "bin"
     )
@@ -239,7 +246,7 @@ def prepare_mise(root: Path) -> Path:
     executable = home / "mise"
     with FileLock(home / ".bootstrap.lock", timeout=30):
         if executable.is_file() and not executable.is_symlink() and os.access(executable, os.X_OK):
-            verify(executable)
+            verify(executable, version)
             return executable
         if _immutable_hosted_supply():
             message = "native_tool_offline_cache_missing:mise"
@@ -266,7 +273,7 @@ def prepare_mise(root: Path) -> Path:
             )
             sys.stderr.write(result.stdout + result.stderr)
             result.check_returncode()
-            verify(candidate)
+            verify(candidate, version)
             candidate.replace(executable)
     return executable
 

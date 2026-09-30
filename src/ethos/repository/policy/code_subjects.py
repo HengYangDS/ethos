@@ -54,7 +54,8 @@ def observed_code_subjects(
             continue
         is_test = (
             role == "test"
-            or path.startswith(("tests/", "test/"))
+            if role in {"code", "tooling", "test"}
+            else path.startswith(("tests/", "test/"))
             or name.startswith("test_")
             or name.endswith(("_test.go", ".test.js", ".test.mjs", ".test.cjs"))
         )

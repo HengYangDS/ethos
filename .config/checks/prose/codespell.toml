@@ -9,3 +9,7 @@ paths = [
   "rules",
   "openspec/specs",
 ]
+
+[tool.codespell]
+# Verified library name used by the semantic-inference evaluation, not a typo.
+ignore-words-list = "astroid"

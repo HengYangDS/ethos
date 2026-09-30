@@ -51,7 +51,9 @@ CUE 0.17.1 and actionlint 1.7.12 locks for macOS arm64/x64, Linux arm64/x64 and
 Windows x64. Two native lock refreshes preserved every lock byte. They still
 re-downloaded actionlint artifacts for provenance verification and took about
 9 seconds each; lock refresh belongs to supply updates, not every proof.
+
 A warm locked-install preview took 0.016 seconds and installed nothing.
+
 A later empty-cache isolated install took 7.359 seconds; its warm repeat took
 0.017 seconds, installed nothing, and preserved the lock bytes. Both tools ran
 successfully from that supply and the owned temporary installation was removed.
@@ -117,17 +119,43 @@ cold/warm result equality. Do not substitute the candidate launcher for its own
 reference, remove signature verification, invent a second installer template, or
 raise the deadline as the root fix. Bound concurrent population and owned cleanup;
 cold, warm, offline and interrupted consumers need distinguishing regressions.
+
 The implementation now reuses the already committed wrapper as supply: the
 existing CI declaration binds acquisition version and exact bytes, while the
 native generator remains the authenticated update path. It needs no extra
 persistent cache or template. Validation is offline; installation executes a
-temporary copy of validated bytes. Joint lock/material edits remain reviewed
+temporary copy of validated bytes.
+
+Joint lock/material edits remain reviewed
 supply changes, not independent upstream verification. See the existing
 [Change decision](../../../openspec/changes/proof-throughput/design.md#authenticated-bootstrap-supply-and-offline-checking)
 for the trust boundary, measured consumers and outstanding delivery.
+
 The existing `mise-generation-baseline.json`,
 `mise-offline-cold-warm-concurrent.json` and
 `package-environment-full-proof.json` receipts retain the execution evidence.
+
+### Native Stable Reader And Lock Upgrade
+
+On October 1, the [official Mise 2026.9.18 release][mise-stable] identified a
+trust bypass involving inline tool options and credential forwarding. The
+existing bootstrap and native compatibility minimum now select that stable
+release; the authenticated upstream generator and shfmt produced its bound
+installer bytes. No independent installer template was introduced.
+
+Native `mise lock --upgrade` changed format 2 to 3 while preserving all 30
+selected platform payloads, tool versions, backends, URLs and checksums. The
+same supply reader accepts the two proven formats and rejects unknown ones.
+`build/evidence/quality/validation-results/mise-lock-format-conservation.json`
+retains exact conservation evidence. Source regressions and script validation
+are not installed ETHOS or hosted supply qualification.
+
+The version update does not alone fix ETHOS's trust boundary: native
+`MISE_SAFE=1` bypasses config trust, so admitted input scope, credential handling
+and unchanged source binding remain independent obligations. Historical
+experimental versions above describe their executions, not current selection.
+
+[mise-stable]: https://github.com/jdx/mise/releases/tag/v2026.9.18
 
 ## Sources
 

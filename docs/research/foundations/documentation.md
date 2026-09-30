@@ -76,11 +76,16 @@ instead of silently treating foreign review as local verification.
 The smallest useful trial belongs to the existing P1/P7 context and ecosystem
 work after the current quality closeout. Select one actual external consumer
 and a bounded set covering a canonical definition, a decision and a guide;
-compare native consumption against export/import. Verify source/Subject binding,
+compare native consumption against export/import.
+
+Verify source/Subject binding,
 unchanged meaning and typed relations, explicit unresolved or lossy mappings,
 unknown-field preservation, rename behavior and no inherited trust or execution.
+
 Do not flatten document purpose into one template. No index or duplicated
-knowledge store is required. Measure reduction in consumer-specific glue and
+knowledge store is required.
+
+Measure reduction in consumer-specific glue and
 manual continuation effort before retaining an adapter. If there is no real
 consumer or no net reduction in complexity, retain the findings, not an unused
 implementation. This trial and conformance are not yet executed.

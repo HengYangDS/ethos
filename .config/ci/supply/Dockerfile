@@ -1,5 +1,5 @@
 # Linux ARM64 execution supply only; source and policy are read from the CI checkout.
-FROM ghcr.io/astral-sh/uv:0.12.20-python3.14-trixie-slim@sha256:6ee77524d145f48dcdede4d64411334bb426a0ad9835009215a69ff17e4d0e7e
+FROM ghcr.io/astral-sh/uv:0.12.21-python3.14-trixie-slim@sha256:8f4ab6a0f2cc074290ba6a136eb016350b2b6b93a2108e07b72724901ad1914f
 
 ENV UV_CACHE_DIR=/opt/ethos-supply/uv-cache \
     NPM_CONFIG_CACHE=/opt/ethos-supply/npm-cache \

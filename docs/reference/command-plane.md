@@ -103,6 +103,7 @@ repair operation. It activates one immutable generation in repository-common
 Git config, removes owned worktree-local activation overrides, post-observes
 every linked worktree, and reports exact checked, repaired, retained, and
 removed paths. Unknown consumers block cleanup rather than being guessed away.
+
 When activation succeeded but reclamation is incomplete, the result is
 `installed_cleanup_deferred`: `data.current` and `summary.wired` retain
 the successful activation observation, while `generation_cleanup` reports the
@@ -114,17 +115,23 @@ successful activation or delete historical receipts to free their old runtimes.
 To bind an already installed immutable product, use
 `ethos hook install --runtime <absolute-runtime-path> --root <repository> --json`.
 The selected runtime must match the invoking product and its exact wheel/lock.
+
 Without `--runtime`, a validated immutable package runtime outside another
 repository's private Git store is pinned once for a new repository and reused;
 source checkouts and foreign private runtimes do not gain this shortcut.
+
 Multiple repositories can reference those same bytes while retaining independent
 selectors, hooks and mutable state. The command does not copy external runtime
-bytes or grant permission to delete the installation. Ordinary repair reuses a
+bytes or grant permission to delete the installation.
+
+Ordinary repair reuses a
 build-matching complete selection. A complete predecessor remains valid even
 when accepted source or its lock advances: installation validates its bytes,
 then uses a compatible invoking package or builds a new source-bound generation
 before changing the selector. An explicit `--runtime` must match the requested
-build. Missing or damaged external supply never triggers an implicit rebuild;
+build.
+
+Missing or damaged external supply never triggers an implicit rebuild;
 restore the installation or explicitly rebind. A damaged selector also requires
 explicit selection. Package-manager upgrade/uninstall qualification is separate.
 

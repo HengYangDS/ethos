@@ -99,6 +99,7 @@ def run_mise(
             (str(executable or mise_executable()), *arguments),
             timeout=timeout,
             remove_env_prefixes=("MISE_",),
+            remove_env=("GITHUB_TOKEN", "GH_TOKEN") if offline else (),
             env=_mise_environment(isolated, offline=offline),
         )
 

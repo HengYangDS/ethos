@@ -23,24 +23,45 @@ if TYPE_CHECKING:
 
 
 _NATIVE_ATTEMPT = """
-import json,runpy,sys
+import inspect,json,runpy,sys
 from pathlib import Path
+import coverage
 from nox import tasks
+from nox.sessions import SessionRunner
 
 selection = Path(sys.argv.pop(1))
 native_run_manifest = tasks.run_manifest
+native_execute = SessionRunner.execute
+
+
+def measure_session(session):
+    collector = coverage.Coverage.current()
+    previous = collector.switch_context(session.friendly_name) if collector is not None else None
+    try:
+        return native_execute(session)
+    finally:
+        if collector is not None:
+            collector.switch_context(previous or '')
 
 
 def retain_scope(manifest, global_config):
     selected = [session for session, included in manifest.list_all_sessions() if included]
+    root = Path.cwd().resolve()
+    origins = [global_config.noxfile, *(inspect.getsourcefile(inspect.unwrap(session.func))
+                for session in selected)]
+    orchestrators = sorted({str(Path(origin).resolve().relative_to(root))
+                           for origin in origins
+                           if origin and Path(origin).resolve().is_relative_to(root)})
     selection.write_text(json.dumps({
-        'names': [session.name for session in selected],
+        'names': [session.friendly_name for session in selected],
         'signatures': [signature for session in selected for signature in session.signatures],
+        'orchestrators': orchestrators,
     }))
     return native_run_manifest(manifest, global_config=global_config)
 
 
 tasks.run_manifest = retain_scope
+SessionRunner.execute = measure_session
 runpy.run_module('nox', run_name='__main__')
 """
 
@@ -49,7 +70,7 @@ _NATIVE_PREREQUISITES = """
 import json,sys
 import nox,coverage
 from nox._options import options
-from coverage.patch import _patch_subprocess
+from coverage.tracer import CTracer
 try:
     config = options.parse_args(sys.argv[1:])
     provenance = config.provenance('envdir')
@@ -148,7 +169,8 @@ def prepare(
     attempt.write_text(_NATIVE_ATTEMPT, encoding="utf-8")
     config = output / "coverage.toml"
     config.write_text(
-        "[tool.coverage.run]\nbranch = true\nparallel = true\npatch = ['subprocess']\n"
+        "[tool.coverage.run]\nbranch = true\nparallel = true\n"
+        "core = 'ctrace'\ncontext = '${NOX_CURRENT_SESSION-}'\n"
         f"data_file = {json.dumps(str(output / '.coverage'))}\n",
         encoding="utf-8",
     )
@@ -157,16 +179,12 @@ def prepare(
         "PYTEST_ADDOPTS": f"{os.environ.get('PYTEST_ADDOPTS', '')} {report_argument}".strip(),
         "COVERAGE_FILE": str(output / ".coverage"),
         "COVERAGE_RCFILE": str(config),
+        "COVERAGE_PROCESS_START": str(config),
     }
     return (
         (
             *prefix,
             "-B",
-            "-m",
-            "coverage",
-            "run",
-            "--rcfile",
-            str(config),
             str(attempt),
             str(output / "selection.json"),
             "--envdir",
@@ -212,7 +230,12 @@ def _session_evidence(
     ):
         _invalid("python_nox_session_report_invalid")
     actual = [signature for values in signatures for signature in values]
-    if len(actual) != len(set(actual)) or sorted(actual) != sorted(expected):
+    identities = [values[0] for values in signatures]
+    if (
+        len(identities) != len(set(identities))
+        or sorted(actual) != sorted(expected)
+        or (names and sorted(identities) != sorted(names))
+    ):
         _invalid("python_nox_session_scope_incomplete")
     if any(item.get("result") != "success" for item in sessions) or exit_code:
         _invalid("python_nox_session_failed")
@@ -229,7 +252,7 @@ def _session_evidence(
     return {"tests": counts, "sessions": actual}
 
 
-def _selection(output: Path) -> tuple[tuple[str, ...], tuple[str, ...]]:
+def _selection(output: Path) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
     """Read the native selected manifest retained in the same process before execution."""
     path = output / "selection.json"
     if path.is_symlink() or not path.is_file():
@@ -244,12 +267,20 @@ def _selection(output: Path) -> tuple[tuple[str, ...], tuple[str, ...]]:
             not isinstance(values, list)
             or not values
             or any(not isinstance(value, str) or not value for value in values)
-            or len(values) != len(set(values))
+            or (key == "names" and len(values) != len(set(values)))
             or any(value in {".", ".."} or any(c in value for c in "/\\\x00") for value in values)
         ):
             _invalid("python_nox_session_selection_invalid")
         result.append(tuple(values))
-    return result[0], result[1]
+    orchestrators = selection.get("orchestrators")
+    if not isinstance(orchestrators, list) or any(
+        not isinstance(path, str)
+        or Path(path).is_absolute()
+        or any(part in {"", ".", ".."} for part in path.split("/"))
+        for path in orchestrators
+    ):
+        _invalid("python_nox_session_selection_invalid")
+    return result[0], result[1], tuple(orchestrators)
 
 
 def evidence(root: Path, execution: NativeExecution, source: tuple[str, ...]) -> dict[str, object]:
@@ -262,9 +293,11 @@ def evidence(root: Path, execution: NativeExecution, source: tuple[str, ...]) ->
         _invalid("python_nox_report_root_invalid")
     if execution.argv[: len(inputs.python_prefix)] != inputs.python_prefix:
         _invalid("python_nox_execution_frame_invalid")
-    expected, names = _selection(output)
+    expected, names, orchestrators = _selection(output)
     sessions = _session_evidence(output, expected, execution.exit_code, names=names)
-    coverage = native_coverage.observe(root, inputs, source)
+    coverage = native_coverage.observe(
+        root, inputs, source, sessions=names, orchestrators=orchestrators
+    )
     source_digests = dict(inputs.source_digests)
     return {
         **sessions,

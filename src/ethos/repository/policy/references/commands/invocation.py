@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Literal
 from typing import overload
 
-from ethos.repository.policy.references.commands import syntax
+import ethos.repository.policy.references.commands.syntax as syntax
 
 
 @dataclass(frozen=True, slots=True)

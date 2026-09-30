@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import tomllib
+from operator import setitem
 from typing import TYPE_CHECKING
+from typing import cast
 
 import pytest
 from pydantic import ValidationError
@@ -13,14 +15,17 @@ from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.repository.policy.gates import gate_policy_fields
+from ethos.repository.policy.gates import provider_source_bindings_for_gate
 from ethos.repository.policy.gates import source_paths_for_gate
 
 if TYPE_CHECKING:
+    from collections.abc import MutableMapping
     from pathlib import Path
+    from typing import Literal
 
 
 def _gate(gate_id: str, **attributes: object) -> Gate:
-    return Gate(id=gate_id, kind="test", command=(gate_id,), **attributes)
+    return Gate.model_validate({"id": gate_id, "kind": "test", "command": (gate_id,), **attributes})
 
 
 def _declaration(
@@ -107,6 +112,67 @@ def test_verified_command_keeps_one_gate_and_binds_product_source() -> None:
     assert "@ethos/adapters/gates/code_quality.py" in source_paths_for_gate(gate)
 
 
+def test_native_report_contract_binds_original_inputs_and_changes_policy_identity() -> None:
+    """Explicit native IO cannot certify a command without the source inputs that produced it."""
+    reference = "ethos.adapters.gates.code_quality:behavior_report"
+    gate = Gate.model_validate(
+        {
+            "id": "native-coverage",
+            "kind": "test",
+            "command": (
+                "go",
+                "run",
+                "./tools/coverage",
+                "--profile-output",
+                "{reports}/coverage.out",
+            ),
+            "verification_providers": (reference,),
+            "source_inputs": ("go.mod", "go.sum", "tools/coverage/main.go", "package.json"),
+            "native_reports": (
+                {"format": "go-test-json", "channel": "stdout"},
+                {"format": "go-coverage", "channel": "file", "path": "coverage.out"},
+            ),
+        }
+    )
+
+    assert set(gate.source_inputs) <= set(source_paths_for_gate(gate))
+    fields = gate_policy_fields(gate)
+    native_reports = fields["native_reports"]
+    assert isinstance(native_reports, list)
+    assert native_reports[1]["path"] == "coverage.out"
+    assert fields != gate_policy_fields(gate.model_copy(update={"source_inputs": ("go.mod",)}))
+
+
+def test_shared_provider_source_does_not_merge_distinct_judgments() -> None:
+    """Two quality axes may share code without becoming one provider identity."""
+    references = tuple(
+        "ethos.adapters.gates.python_quality:" + axis + "_report" for axis in ("behavior", "static")
+    )
+    gate = Gate(id="combined", kind="test", providers=references)
+    source = "src/ethos/adapters/gates/python_quality.py"
+
+    assert provider_source_bindings_for_gate(gate) == tuple(
+        (reference, source) for reference in references
+    )
+    assert source_paths_for_gate(gate) == (source,)
+
+
+@pytest.mark.parametrize("path", ["../outside", "/outside", "nested/../outside", "a\\b", "a//b"])
+def test_native_report_contract_rejects_uncontrolled_paths(path: str) -> None:
+    """Declared report roots and inputs cannot escape or ambiguously address their owner."""
+    with pytest.raises(ValidationError):
+        Gate.model_validate(
+            {
+                "id": "unsafe-output",
+                "kind": "test",
+                "command": ("native",),
+                "verification_providers": ("ethos.adapters.gates.code_quality:behavior_report",),
+                "source_inputs": ("go.mod",),
+                "native_reports": ({"format": "go-coverage", "channel": "file", "path": path},),
+            }
+        )
+
+
 @pytest.mark.parametrize(
     ("locks", "writer", "valid"),
     [
@@ -140,9 +206,15 @@ def test_resource_claims_are_validated_frozen_and_symmetric(locks, writer, valid
             _gate("supply-writer", writes_files=True, resource_locks={"supply": "exclusive"})
         )
     locks["changed"] = "shared"
+    assert gate.resource_locks is not None
     assert "changed" not in gate.resource_locks
     with pytest.raises(TypeError):
-        gate.resource_locks["changed"] = "shared"
+        # Deliberately test an untyped caller's write; the cast grants no runtime mutability.
+        setitem(
+            cast('MutableMapping[str, Literal["shared", "exclusive"]]', gate.resource_locks),
+            "changed",
+            "shared",
+        )
 
 
 @pytest.mark.parametrize(

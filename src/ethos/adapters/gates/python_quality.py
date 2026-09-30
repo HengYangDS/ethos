@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from contextlib import ExitStack
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -104,7 +105,7 @@ def _behavior_evidence(
     root: Path, source: tuple[str, ...], tests: tuple[str, ...]
 ) -> tuple[dict[str, int], dict[str, object]]:
     """Observe one locked native test run and its fresh reports."""
-    with TemporaryDirectory(prefix="ethos-python-quality-") as temporary:
+    with TemporaryDirectory(prefix="ethos-python-quality-") as temporary, ExitStack() as scope:
         output = Path(temporary)
         junit = output / "junit.xml"
         coverage = output / "coverage.xml"
@@ -115,7 +116,10 @@ def _behavior_evidence(
             "UV_PROJECT_ENVIRONMENT": str(output / "venv"),
         }
         if mise_files is not None:
-            environment = {**locked_environment(root, mise_files), **environment}
+            environment = {
+                **scope.enter_context(locked_environment(root, mise_files)),
+                **environment,
+            }
             prefix = (
                 str(locked_tool(root, "uv", files=mise_files)),
                 "run",
@@ -150,6 +154,7 @@ def _behavior_evidence(
             timeout=600,
             env=environment,
             remove_env=removed,
+            remove_env_prefixes=("MISE_",),
         )
         if not junit.is_file():
             message = "test_command_failed" if result.returncode else "test_report_missing"
@@ -160,6 +165,7 @@ def _behavior_evidence(
             timeout=60,
             env=environment,
             remove_env=removed,
+            remove_env_prefixes=("MISE_",),
         )
         if report.returncode or not coverage.is_file():
             message = "test_command_failed" if result.returncode else "coverage_report_missing"

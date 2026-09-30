@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -42,7 +43,10 @@ def test_generic_provider_uses_real_locked_python_evidence(
             return Path(sys.executable if name == "python" else uv_executable)
 
         monkeypatch.setattr(
-            python_quality, "locked_environment", lambda _root, _files: {}, raising=False
+            python_quality,
+            "locked_environment",
+            lambda _root, _files: nullcontext({}),
+            raising=False,
         )
         monkeypatch.setattr(python_quality, "locked_tool", selected_tool, raising=False)
     (repo / "pytest.toml").write_text(
@@ -207,7 +211,7 @@ def test_python_behavior_preserves_selected_locked_environment(
         monkeypatch.setattr(
             python_quality,
             "locked_environment",
-            lambda _root, _files: {"UV_PROJECT_ENVIRONMENT": str(tmp_path / ".venv")},
+            lambda _root, _files: nullcontext({"UV_PROJECT_ENVIRONMENT": str(tmp_path / ".venv")}),
         )
         monkeypatch.setattr(
             python_quality,

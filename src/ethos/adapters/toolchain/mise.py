@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
@@ -13,11 +14,32 @@ from ethos.adapters.process import run_command
 
 if TYPE_CHECKING:
     import subprocess
+    from collections.abc import Iterator
     from collections.abc import Mapping
 
 
 MISE_CONFIG = ".config/mise/config.toml"
 MISE_LOCK = ".config/mise/mise.lock"
+
+
+def _mise_environment(isolated: Path, *, offline: bool) -> dict[str, str]:
+    """Bind native safe-mode and storage inputs without ambient Mise policy."""
+    environment = {
+        key: value
+        for key, value in os.environ.items()
+        if key in {"MISE_DATA_DIR", "MISE_CACHE_DIR", "MISE_INSTALLS_DIR"}
+    } | {
+        "MISE_SAFE": "1",
+        "MISE_DISABLE_UPDATE_WARNING": "1",
+        "MISE_LOCKED": "1",
+        "MISE_NOT_FOUND_SYSTEM_FALLBACK": "0",
+        "MISE_YES": "0",
+        "MISE_GLOBAL_CONFIG_FILE": str(isolated / "absent-global.toml"),
+        "MISE_SYSTEM_CONFIG_DIR": str(isolated / "absent-system"),
+    }
+    if offline:
+        environment.update(MISE_AUTO_INSTALL="0", MISE_OFFLINE="1")
+    return environment
 
 
 def repository_mise_files(root: Path) -> dict[str, str] | None:
@@ -72,27 +94,12 @@ def run_mise(
             target = isolated / path
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(materials[path], encoding="utf-8")
-        environment = {
-            key: value
-            for key, value in os.environ.items()
-            if key in {"MISE_DATA_DIR", "MISE_CACHE_DIR", "MISE_INSTALLS_DIR"}
-        } | {
-            "MISE_SAFE": "1",
-            "MISE_DISABLE_UPDATE_WARNING": "1",
-            "MISE_LOCKED": "1",
-            "MISE_NOT_FOUND_SYSTEM_FALLBACK": "0",
-            "MISE_YES": "0",
-            "MISE_GLOBAL_CONFIG_FILE": str(isolated / "absent-global.toml"),
-            "MISE_SYSTEM_CONFIG_DIR": str(isolated / "absent-system"),
-        }
-        if offline:
-            environment.update(MISE_AUTO_INSTALL="0", MISE_OFFLINE="1")
         return run_command(
             isolated,
             (str(executable or mise_executable()), *arguments),
             timeout=timeout,
             remove_env_prefixes=("MISE_",),
-            env=environment,
+            env=_mise_environment(isolated, offline=offline),
         )
 
 
@@ -109,9 +116,11 @@ def locked_tool(root: Path, name: str, files: Mapping[str, str] | None = None) -
     return executable
 
 
-def locked_environment(root: Path, files: Mapping[str, str]) -> dict[str, str]:
-    """Expose all installed locked tools without inheriting ambient tool paths."""
-    selected = run_mise(root, ("env", "--json"), files=files, offline=True)
+@contextmanager
+def locked_environment(root: Path, files: Mapping[str, str]) -> Iterator[dict[str, str]]:
+    """Expose locked tools and the selected mise only for the child lifetime."""
+    executable = mise_executable()
+    selected = run_mise(root, ("env", "--json"), files=files, executable=executable, offline=True)
     if selected.returncode or selected.stderr:
         message = f"mise_environment_unavailable:{selected.stderr.strip()[:512]}"
         raise ValueError(message)
@@ -125,7 +134,7 @@ def locked_environment(root: Path, files: Mapping[str, str]) -> dict[str, str]:
     ):
         message = "mise_environment_invalid"
         raise ValueError(message)
-    listed = run_mise(root, ("bin-paths",), files=files, offline=True)
+    listed = run_mise(root, ("bin-paths",), files=files, executable=executable, offline=True)
     if listed.returncode or listed.stderr:
         message = f"mise_bin_paths_unavailable:{listed.stderr.strip()[:512]}"
         raise ValueError(message)
@@ -133,4 +142,24 @@ def locked_environment(root: Path, files: Mapping[str, str]) -> dict[str, str]:
     if not paths or any(not path.is_absolute() or not path.is_dir() for path in paths):
         message = "mise_bin_paths_invalid"
         raise ValueError(message)
-    return {**environment, "PATH": os.pathsep.join((*(str(path) for path in paths), os.defpath))}
+    with TemporaryDirectory(prefix="ethos-mise-bin-") as directory:
+        suffix = executable.suffix.lower()
+        alias_name = "mise"
+        if os.name == "nt":
+            alias_name += suffix if suffix in {".exe", ".cmd", ".bat"} else ".exe"
+        alias = Path(directory) / alias_name
+        try:
+            alias.symlink_to(executable)
+        except OSError:
+            try:
+                os.link(executable, alias)
+            except OSError:
+                shutil.copy2(executable, alias)
+        if not alias.is_file():
+            message = "mise_executable_unavailable"
+            raise ValueError(message)
+        yield {
+            **environment,
+            **_mise_environment(Path(directory), offline=True),
+            "PATH": os.pathsep.join((directory, *(str(path) for path in paths), os.defpath)),
+        }

@@ -264,8 +264,14 @@ def test_gate_policy_identity_binds_profile_semantics_and_python_command(tmp_pat
             'static-analysis = "sample-tests"',
         )
     )
-    with pytest.raises(ValueError, match="repository_profile_invalid"):
-        resolve_gate_policy(repo, tree_ref=commit_fixture(repo, "invalidate map"))
+    shared_gate = resolve_gate_policy(repo, tree_ref=commit_fixture(repo, "share gate"))
+    assert shared_gate.digest != changed.digest
+    owner = shared_gate.projection["owner"]
+    assert isinstance(owner, dict)
+    assert owner["code_correctness_map"] == {
+        "behavior": "sample-tests",
+        "static-analysis": "sample-tests",
+    }
 
     assert canonical_gate_command(("/one/bin/python3.14", "-m", "tool")) == (
         "python",

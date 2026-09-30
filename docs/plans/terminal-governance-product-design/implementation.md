@@ -119,8 +119,9 @@ eliminates duplicates. Keep deliberately open payloads only at a documented exte
 boundary; an `object` or `Any` crossing into domain decisions needs parsing and narrowing.
 Do not replace every small value with Pydantic or add a result-wrapper hierarchy.
 
-Use LibCST for Python lexical identities and assignment/access relationships, with
-one bounded value/effect observation layer. Remove spelling-based subprocess/env
+Use Python compiler symbol tables for lexical identities, with one bounded
+value/effect observation layer. The [executed comparison](../../research/foundations/code-design.md#scoped-inference-comparison)
+reserves LibCST for a demonstrated syntax or editing need. Remove spelling-based subprocess/env
 recognition, global constant tables and suffix-based inference of executable intent.
 Distinguish syntax failure, resolved absence, known consumer, conditional alternatives
 and relevant UNKNOWN. Calls through unsupported values do not inherit the names
@@ -236,6 +237,12 @@ Use pluggy only for actual multi-provider hook composition where it replaces cus
 dispatch. Pre-tool hooks can route, warn or request admission, but native effect owners
 enforce repository safety when a host bypasses a hook. Observational plugins cannot
 change standards or acquire write authority; plugin failure follows its declared role.
+
+Apply the [hook contract](../../../rules/hooks.md) at mediated write capabilities:
+bind current root and exact paths before mutation, then detect unexpected writes.
+An unavailable interception boundary is degraded control, not proved protection.
+Git/CI fallback and a loaded Skill cannot certify direct-write prevention or isolate
+uncooperative same-user writers.
 
 Acceptance: installed discovery, denied/unknown/success results and reconnect agree
 across CLI/SDK/MCP; context is sufficient for a new Agent; extension removal works;

@@ -36,11 +36,19 @@ def test_image_manifest_binds_supply_declarations_not_build_only_product_code() 
         ".config/mise/mise.lock",
         ".config/ci/supply/Dockerfile",
         ".config/ci/supply/Dockerfile.dockerignore",
-        "pyproject.toml",
         "uv.lock",
-        "package.json",
         "package-lock.json",
+        "tests/fixtures/quality-sample/uv.lock",
     } <= inputs
+    assert (
+        not {
+            "pyproject.toml",
+            "package.json",
+            "distributions/npm/package.json",
+            "tests/fixtures/quality-sample/pyproject.toml",
+        }
+        & inputs
+    )
     assert all((ROOT / path).is_file() for path in inputs)
     assert not any(path.startswith("src/ethos/") for path in inputs)
     assert "tools/ci/toolchain/native.py" not in inputs
@@ -49,6 +57,7 @@ def test_image_manifest_binds_supply_declarations_not_build_only_product_code() 
 def test_hosted_bootstrap_rechecks_cached_tools_with_current_checkout_code() -> None:
     """Removing source hashes requires an offline payload check before quality gates."""
     source = BOOTSTRAP.read_text(encoding="utf-8")
+    assert "npm ci --ignore-scripts" in source
     assert "tools/ci/toolchain/native.py --root" in source
     installation = source.index("uv sync --locked --group dev")
     fixture_supply = source.index("tools/ci/toolchain/fixture_supply.py")

@@ -18,31 +18,6 @@ from tests.support.governed_repository import init_git_repo
 ROOT = Path(__file__).resolve().parents[3]
 
 
-def test_ci_image_binds_locked_supply_not_mutable_project_metadata() -> None:
-    """A build-only metadata edit must not invalidate unchanged offline supply."""
-    dockerfile = (ROOT / ".config/ci/supply/Dockerfile").read_text(encoding="utf-8")
-    manifest = dockerfile.partition("&& sha256sum ")[2].partition("> input.sha256")[0]
-    assert manifest
-    inputs = set(shlex.split(manifest.replace("\\\n", " ")))
-    assert {
-        "uv.lock",
-        "package-lock.json",
-        "tests/fixtures/quality-sample/uv.lock",
-    } <= inputs
-    assert (
-        not {
-            "pyproject.toml",
-            "package.json",
-            "distributions/npm/package.json",
-            "tests/fixtures/quality-sample/pyproject.toml",
-        }
-        & inputs
-    )
-    bootstrap = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
-    assert "uv sync --locked --group dev" in bootstrap
-    assert "npm ci --ignore-scripts" in bootstrap
-
-
 @pytest.mark.parametrize("case", ["valid", "inside", "unprotected", "missing"])
 def test_ci_trust_projects_only_operator_supplied_protected_anchor(tmp_path, case):
     repo = init_git_repo(tmp_path / "repo")

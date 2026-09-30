@@ -13,7 +13,9 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import git_files
-from ethos.adapters.toolchain.mise import mise_executable
+from ethos.adapters.toolchain.mise import locked_environment
+from ethos.adapters.toolchain.mise import locked_tool
+from ethos.adapters.toolchain.mise import repository_mise_files
 from ethos.repository.policy.code_subjects import observed_code_subjects
 from ethos.repository.policy.quality_reports import coverage_report
 from ethos.repository.policy.quality_reports import junit_report
@@ -107,34 +109,23 @@ def _behavior_evidence(
         junit = output / "junit.xml"
         coverage = output / "coverage.xml"
         targets = tuple(sorted({path.partition("/")[0] for path in tests}))
-        native_mise = (root / "mise.toml").is_file()
-        if native_mise and not (root / "mise.lock").is_file():
-            message = "locked_toolchain_missing"
-            raise ValueError(message)
-        environment = {"COVERAGE_FILE": str(output / ".coverage")}
-        if native_mise:
+        mise_files = repository_mise_files(root)
+        environment = {
+            "COVERAGE_FILE": str(output / ".coverage"),
+            "UV_PROJECT_ENVIRONMENT": str(output / "venv"),
+        }
+        if mise_files is not None:
+            environment = {**locked_environment(root, mise_files), **environment}
             prefix = (
-                str(mise_executable()),
-                "exec",
-                "--locked",
-                "--",
-                "uv",
+                str(locked_tool(root, "uv", files=mise_files)),
                 "run",
                 "--locked",
                 "--offline",
-                "--no-sync",
-            )
-            environment.update(
-                MISE_SAFE="1",
-                MISE_LOCKED="1",
-                MISE_YES="0",
-                MISE_NOT_FOUND_SYSTEM_FALLBACK="0",
-                MISE_AUTO_INSTALL="0",
-                MISE_OFFLINE="1",
+                "--python",
+                str(locked_tool(root, "python", files=mise_files)),
             )
         else:
             prefix = (sys.executable, "-m", "uv", "run", "--locked", "--offline")
-            environment["UV_PROJECT_ENVIRONMENT"] = str(output / "venv")
         command = (
             *prefix,
             "python",

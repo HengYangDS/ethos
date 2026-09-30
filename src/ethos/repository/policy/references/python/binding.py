@@ -8,13 +8,17 @@ from collections import deque
 from dataclasses import dataclass
 from dataclasses import field
 from functools import singledispatchmethod
+from typing import TYPE_CHECKING
 
+from ethos.repository.policy.references.python.functions import call_arguments
+from ethos.repository.policy.references.python.functions import function_signature
+from ethos.repository.policy.references.python.native import native_call
 from ethos.repository.policy.references.python.values import UNKNOWN
 from ethos.repository.policy.references.python.values import BoundCall
-from ethos.repository.policy.references.python.values import ExecutableLookup
 from ethos.repository.policy.references.python.values import Expansion
 from ethos.repository.policy.references.python.values import Imported
 from ethos.repository.policy.references.python.values import Literal
+from ethos.repository.policy.references.python.values import LocalFunction
 from ethos.repository.policy.references.python.values import Sequence
 from ethos.repository.policy.references.python.values import Unknown
 from ethos.repository.policy.references.python.values import Value
@@ -22,6 +26,9 @@ from ethos.repository.policy.references.python.values import attribute
 from ethos.repository.policy.references.python.values import iteration_values
 from ethos.repository.policy.references.python.values import join
 from ethos.repository.policy.references.python.values import origins
+
+if TYPE_CHECKING:
+    from inspect import Signature
 
 
 @dataclass(slots=True)
@@ -39,7 +46,9 @@ class _Scope:
         if self.iteration_names is not None and self.parent is not None:
             return UNKNOWN if name in self.iteration_names else self.parent.lookup(name)
         if self.parent is None:
-            return frozenset({Imported(f"builtins.{name}")}) if name == "getattr" else UNKNOWN
+            return (
+                frozenset({Imported(f"builtins.{name}")}) if name in {"getattr", "str"} else UNKNOWN
+            )
         if symbol is not None and symbol.is_local():
             return UNKNOWN
         parent = self.parent
@@ -112,6 +121,12 @@ class _Flow:
                 self.tables[current.get_name(), current.get_lineno()] = current
             pending.extend(current.get_children())
         self.calls: list[BoundCall] = []
+        self.functions: dict[
+            LocalFunction, tuple[ast.FunctionDef | ast.AsyncFunctionDef, _Scope, Signature]
+        ] = {}
+        self.active: set[LocalFunction] = set()
+        self.local_attempts = 0
+        self.returns: list[list[Value]] = []
         self.deferred: deque[tuple[ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda, _Scope]] = (
             deque()
         )
@@ -166,12 +181,24 @@ class _Flow:
     ) -> bool:
         match node:
             case ast.FunctionDef() | ast.AsyncFunctionDef():
-                for value in (*node.decorator_list, *node.args.defaults, *node.args.kw_defaults):
-                    if value is not None:
-                        self.expression(value, scope)
-                scope.store(node.name, UNKNOWN)
+                for decorator in node.decorator_list:
+                    self.expression(decorator, scope)
+                defaults = tuple(self.expression(value, scope) for value in node.args.defaults)
+                keyword_defaults = tuple(
+                    self.expression(value, scope) if value is not None else None
+                    for value in node.args.kw_defaults
+                )
                 table = self.tables.get((node.name, node.lineno))
                 if table is not None:
+                    identity = LocalFunction(node.name, node.lineno)
+                    self.functions[identity] = (
+                        node,
+                        scope,
+                        function_signature(node.args, defaults, keyword_defaults),
+                    )
+                    scope.store(
+                        node.name, frozenset({identity}) if not node.decorator_list else UNKNOWN
+                    )
                     self.deferred.append((node, _Scope(table, scope)))
             case ast.ClassDef():
                 for value in (*node.bases, *node.decorator_list):
@@ -226,8 +253,13 @@ class _Flow:
     ) -> bool:
         match node:
             case ast.Return(value=value) | ast.Raise(exc=value):
-                if value is not None:
+                result = (
                     self.expression(value, scope)
+                    if value is not None
+                    else frozenset({Literal(None)})
+                )
+                if isinstance(node, ast.Return) and self.returns:
+                    self.returns[-1].append(result)
                 return False
             case ast.Expr(value=value):
                 self.expression(value, scope)
@@ -393,7 +425,32 @@ class _Flow:
             tuple((item.arg, self.expression(item.value, scope)) for item in node.keywords),
         )
         self.calls.append(call)
-        return self.call_value(call)
+        return join(
+            self.local_call(target, call)
+            if isinstance(target, LocalFunction)
+            else native_call(BoundCall(call.line, frozenset({target}), call.args, call.keywords))
+            for target in call.targets
+        )
+
+    def local_call(self, identity: LocalFunction, call: BoundCall) -> Value:
+        """Observe one bounded concrete invocation without executing source code."""
+        if identity in self.active or len(self.active) >= 32 or self.local_attempts >= 1024:
+            return UNKNOWN
+        self.local_attempts += 1
+        node, parent, signature = self.functions[identity]
+        scope = _Scope(self.tables[(node.name, node.lineno)], parent)
+        scope.values.update(call_arguments(signature, call))
+        self.active.add(identity)
+        self.returns.append([])
+        try:
+            falls_through = self.block(node.body, scope)
+            values = self.returns[-1]
+            if falls_through:
+                values.append(frozenset({Literal(None)}))
+            return join(values) or UNKNOWN
+        finally:
+            self.returns.pop()
+            self.active.remove(identity)
 
     @expression.register
     def _expansion(self, node: ast.Starred, scope: _Scope) -> Value:
@@ -431,29 +488,6 @@ class _Flow:
         else:
             self.expression(node.elt, inner)
         return UNKNOWN
-
-    @staticmethod
-    def call_value(call: BoundCall) -> Value:
-        values: list[Value] = []
-        for target in call.targets:
-            if target == Imported("builtins.getattr"):
-                owner, names = call.argument(0, "object"), call.argument(1, "name")
-                values.extend(
-                    attribute(owner, name.value)
-                    if isinstance(name, Literal) and isinstance(name.value, str)
-                    else frozenset({Unknown(origins(owner))})
-                    for name in names
-                )
-            elif target == Imported("shutil.which"):
-                values.extend(
-                    frozenset({ExecutableLookup(name.value)})
-                    if isinstance(name, Literal) and isinstance(name.value, str)
-                    else UNKNOWN
-                    for name in call.argument(0, "cmd")
-                )
-            else:
-                values.append(UNKNOWN)
-        return join(values)
 
     @staticmethod
     def add(left: Value, right: Value) -> Value:

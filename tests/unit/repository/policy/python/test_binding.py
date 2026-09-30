@@ -418,6 +418,121 @@ def test_lookup_paths_are_not_arbitrary_literal_argument_values(
 
 
 @pytest.mark.parametrize(
+    ("transform", "executables", "unknown"),
+    [
+        ("str(Path(located).resolve())", {"probe-binary"}, False),
+        ("Path(located).absolute().as_posix()", {"probe-binary"}, False),
+        ("Path(located).with_name('replacement')", set(), True),
+        ("Path(located).parent", set(), True),
+    ],
+)
+def test_native_path_conversion_preserves_only_the_same_executable(
+    transform: str, executables: set[str], *, unknown: bool
+) -> None:
+    """Native identity-preserving conversions differ from changing the target."""
+    source = (
+        "import shutil, subprocess\nfrom pathlib import Path\n"
+        "located = shutil.which('probe-binary')\n"
+        f"subprocess.run([{transform}])"
+    )
+
+    report = reference_consumer_sources_from_files({"src/example/probe.py": source})
+
+    assert set(report.sources["executable"]) == executables
+    assert bool(report.unknown_consumers) is unknown
+
+
+@pytest.mark.parametrize(
+    ("definition", "invocation", "executables", "inputs"),
+    [
+        (
+            "def launch(command):\n subprocess.run(command)\n",
+            "launch(['probe-binary'])",
+            {"probe-binary"},
+            set(),
+        ),
+        (
+            "def read(name='DEFAULT', *, other='SECOND'):\n os.getenv(name)\n os.getenv(other)\n",
+            "read(other='OVERRIDE')",
+            set(),
+            {"DEFAULT", "OVERRIDE"},
+        ),
+        (
+            "def make(name, /, *flags):\n return [name, *flags]\n",
+            "subprocess.run(make('probe-binary', '--version'))",
+            {"probe-binary"},
+            set(),
+        ),
+        (
+            "def apply(callback, command):\n callback(command)\n",
+            "apply(subprocess.run, ['probe-binary'])",
+            {"probe-binary"},
+            set(),
+        ),
+    ],
+)
+def test_local_calls_preserve_argument_default_callback_and_return_relations(
+    definition: str, invocation: str, executables: set[str], inputs: set[str]
+) -> None:
+    """Known call sites add concrete evidence without erasing open-call uncertainty."""
+    source = "import os, subprocess\n" + definition + invocation
+
+    report = reference_consumer_sources_from_files({"src/example/probe.py": source})
+
+    assert set(report.sources["executable"]) == executables
+    assert set(report.sources["value"]) == inputs
+
+
+def test_recursive_local_call_retains_unknown_without_unbounded_expansion() -> None:
+    """A recursive result cannot become a guessed executable or infinite analysis."""
+    source = (
+        "import subprocess\ndef recurse(value):\n return recurse(value)\n"
+        "subprocess.run(recurse(['probe-binary']))"
+    )
+
+    report = reference_consumer_sources_from_files({"src/example/probe.py": source})
+
+    assert report.sources["executable"] == {}
+    assert "executable" in report.unknown_consumers
+
+
+def test_local_bare_return_cannot_erase_an_invalid_execution_argument() -> None:
+    """Returning None is a value, not an empty analysis set that silently passes."""
+    source = "import subprocess\ndef empty():\n return\nsubprocess.run(empty())"
+
+    report = reference_consumer_sources_from_files({"src/example/probe.py": source})
+
+    assert report.sources["executable"] == {}
+    assert "executable" in report.unknown_consumers
+
+
+def test_nested_definition_does_not_return_from_its_enclosing_call() -> None:
+    """Deferred child analysis must not add child returns to a parent's result."""
+    source = (
+        "import subprocess\ndef outer():\n"
+        " def child():\n  return ['not-the-result']\n"
+        " return ['actual-result']\nsubprocess.run(outer())"
+    )
+
+    report = reference_consumer_sources_from_files({"src/example/probe.py": source})
+
+    assert set(report.sources["executable"]) == {"actual-result"}
+
+
+def test_decorated_function_does_not_acquire_undecorated_return_identity() -> None:
+    """An unknown decorator can replace the callable before any invocation."""
+    source = (
+        "import subprocess\n@replacement\ndef make():\n return ['not-proven']\n"
+        "subprocess.run(make())"
+    )
+
+    report = reference_consumer_sources_from_files({"src/example/probe.py": source})
+
+    assert report.sources["executable"] == {}
+    assert "executable" in report.unknown_consumers
+
+
+@pytest.mark.parametrize(
     ("module", "unknown"),
     [
         ("shutil", {"executable"}),

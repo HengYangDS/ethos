@@ -795,6 +795,14 @@ admission, repository audit and private-boundary consumers share this owner.
 - **THEN** both forms retain non-executing storage semantics
 - **AND** an actual resolved command invocation remains a distinct consumer observation
 
+#### Scenario: A local invocation preserves its argument and result relations
+
+- **WHEN** a source-defined function receives known positional, keyword, default or variadic arguments
+- **THEN** its native calls and return values retain those invocation-specific relations
+- **AND** a callback retains its bound identity without using its parameter spelling
+- **AND** recursive, decorated, escaped or otherwise unresolved invocations preserve the dependent UNKNOWN obligation
+- **AND** an empty return does not erase a dependent invalid execution argument
+
 ### Requirement: Native command declarations own their executables
 
 The common reference owner SHALL read executable ownership from the actual

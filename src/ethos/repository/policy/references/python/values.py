@@ -49,9 +49,35 @@ class ExecutableLookup:
     """A presence lookup preserves program identity without claiming path bytes."""
 
     identity: str
+    is_path: bool = False
 
 
-type Value = frozenset[Imported | Literal | Sequence | Unknown | Expansion | ExecutableLookup]
+@dataclass(frozen=True, slots=True)
+class PathMethod:
+    """A native pathlib method bound to the observed executable path."""
+
+    identity: str
+    name: str
+
+
+@dataclass(frozen=True, slots=True)
+class LocalFunction:
+    """One source-defined function identity; spelling alone cannot identify it."""
+
+    name: str
+    line: int
+
+
+type Value = frozenset[
+    Imported
+    | Literal
+    | Sequence
+    | Unknown
+    | Expansion
+    | ExecutableLookup
+    | PathMethod
+    | LocalFunction
+]
 
 UNKNOWN: Value = frozenset({Unknown()})
 
@@ -88,6 +114,10 @@ def attribute(value: Value, name: str) -> Value:
     return join(
         frozenset({Imported(f"{atom.name}.{name}")})
         if isinstance(atom, Imported)
+        else frozenset({PathMethod(atom.identity, name)})
+        if isinstance(atom, ExecutableLookup)
+        and atom.is_path
+        and name in {"resolve", "absolute", "as_posix", "__fspath__"}
         else frozenset({atom})
         if isinstance(atom, Unknown)
         else UNKNOWN

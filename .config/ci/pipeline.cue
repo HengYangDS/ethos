@@ -21,7 +21,7 @@ let gitlabView = gitlab
 let githubSourceSHA = "${{ github.event.pull_request.head.sha || github.sha }}"
 let sourceCLI = "uv run --frozen --offline python -B -I -m ethos.cli"
 let externalLinkCommand = "tools/ci/scripts/with-python-runtime.sh -- \(sourceCLI) prove --host --execute --gate external-links --expect-head \"$(git rev-parse HEAD)\" --json"
-let gitlabImage = "ghcr.io/hengyangds/ethos-ci-supply@sha256:2eca3ff8386056cc980d0b38d62a8890460f93101b4c9e2001fc195888df30b5"
+let gitlabImage = "ghcr.io/hengyangds/ethos-ci-supply@sha256:e66721fa93a216afd6bfec1784e123fb17ae72b9a9a449f04ea13d62f02ee59c"
 let githubPythonBootstrap = [{
 	uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 	with: {

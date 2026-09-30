@@ -220,6 +220,12 @@ def test_declared_mise_supply_precedes_ambient_path(
         executable = binary / name
         executable.write_text("locked tool\n")
         executable.chmod(0o755)
+    operator = tmp_path / "operator"
+    operator.mkdir()
+    suffix = ".exe" if os.name == "nt" else ""
+    selected_mise = operator / f"selected-mise{suffix}"
+    selected_mise.write_bytes(b"selected mise")
+    selected_mise.chmod(0o755)
     selected: list[str] = []
     executed: list[tuple[str, ...]] = []
 
@@ -229,6 +235,8 @@ def test_declared_mise_supply_precedes_ambient_path(
             native_mise.MISE_CONFIG: config,
             native_mise.MISE_LOCK: "lockfile_version = 2\n",
         }
+        if arguments in {("env", "--json"), ("bin-paths",)}:
+            assert kwargs["executable"] == selected_mise
         if arguments == ("env", "--json"):
             selected.append("env")
             return subprocess.CompletedProcess(arguments, 0, json.dumps({"PATH": str(binary)}), "")
@@ -243,13 +251,20 @@ def test_declared_mise_supply_precedes_ambient_path(
         assert isinstance(environment, dict)
         path = environment["PATH"]
         assert isinstance(path, str)
-        assert path.split(os.pathsep)[0] == str(binary)
+        entries = path.split(os.pathsep)
+        assert entries[1] == str(binary)
+        alias = shutil.which("mise", path=path)
+        assert alias is not None
+        assert Path(alias).read_bytes() == selected_mise.read_bytes()
+        assert str(operator) not in entries
+        assert kwargs["remove_env_prefixes"] == ("MISE_",)
         assert shutil.which("cue", path=path) == str(binary / "cue")
         assert shutil.which("rcodesign", path=path) == str(binary / "rcodesign")
         executed.append(command)
         return subprocess.CompletedProcess(command, 0, "", "")
 
     monkeypatch.setattr(native_mise, "run_mise", select)
+    monkeypatch.setattr(native_mise, "mise_executable", lambda: selected_mise)
     monkeypatch.setattr(native_quality, "run_command", execute)
 
     report = native_quality.static_report(repo)

@@ -6,6 +6,7 @@ import json
 import re
 import shutil
 import subprocess
+from contextlib import ExitStack
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
@@ -68,10 +69,10 @@ def _executable(root: Path, name: str) -> str:
     return str(Path(path).resolve())
 
 
-def _native_environment(root: Path) -> dict[str, str]:
+def _native_environment(root: Path, scope: ExitStack) -> dict[str, str]:
     """Enter the repository's complete locked native tool graph once per gate."""
     files = repository_mise_files(root)
-    return locked_environment(root, files) if files is not None else {}
+    return scope.enter_context(locked_environment(root, files)) if files is not None else {}
 
 
 def _go_environment(native: dict[str, str]) -> dict[str, str]:
@@ -92,6 +93,7 @@ def _go_packages(root: Path, native: dict[str, str]) -> list[dict[str, object]]:
         (_executable(root, "go"), "list", "-json", "./..."),
         timeout=120,
         env=_go_environment(native),
+        remove_env_prefixes=("MISE_",),
     )
     if result.returncode:
         _invalid("go_package_scope_unavailable")
@@ -184,6 +186,7 @@ def _go_zero_statement_source(root: Path, path: str, output: Path, native: dict[
         ),
         timeout=60,
         env=_go_environment(native),
+        remove_env_prefixes=("MISE_",),
     )
     if result.returncode or not output.is_file():
         _invalid("go_coverage_applicability_unknown")
@@ -225,6 +228,7 @@ def _go_behavior(
             command,
             timeout=300,
             env=_go_environment(native),
+            remove_env_prefixes=("MISE_",),
         )
         if result.returncode:
             message = "go_tests_failed"
@@ -276,7 +280,11 @@ def _go_static(root: Path, paths: tuple[str, ...], native: dict[str, str]) -> di
     if not (root / "go.mod").is_file():
         _invalid("go_module_missing")
     formatted = run_command(
-        root, (_executable(root, "gofmt"), "-l", *paths), timeout=60, env=native
+        root,
+        (_executable(root, "gofmt"), "-l", *paths),
+        timeout=60,
+        env=native,
+        remove_env_prefixes=("MISE_",),
     )
     if formatted.returncode or formatted.stdout.strip():
         _invalid("go_format_diagnostics")
@@ -285,6 +293,7 @@ def _go_static(root: Path, paths: tuple[str, ...], native: dict[str, str]) -> di
         (_executable(root, "go"), "vet", "./..."),
         timeout=300,
         env=_go_environment(native),
+        remove_env_prefixes=("MISE_",),
     )
     if vetted.returncode:
         _invalid("go_vet_diagnostics")
@@ -380,6 +389,7 @@ def _javascript_behavior(
                 timeout=300,
                 env=native,
                 remove_env=("NODE_OPTIONS", "NODE_V8_COVERAGE"),
+                remove_env_prefixes=("MISE_",),
             )
             if result.returncode:
                 _invalid("javascript_tests_failed")
@@ -401,7 +411,13 @@ def _javascript_static(
         _invalid("javascript_package_missing")
     node = _executable(root, "node")
     for path in paths:
-        result = run_command(root, (node, "--check", path), timeout=60, env=native)
+        result = run_command(
+            root,
+            (node, "--check", path),
+            timeout=60,
+            env=native,
+            remove_env_prefixes=("MISE_",),
+        )
         if result.returncode:
             _invalid("javascript_syntax_diagnostics")
     return {"language": "javascript", "checked_paths": len(paths)}
@@ -415,46 +431,50 @@ def _report(
         languages = {subject.language for subject in subjects}
         if execution is not None and "python" in languages:
             _invalid("python_native_evidence_unavailable")
-        tool_environment = _native_environment(root) if languages & {"go", "javascript"} else {}
-        native: list[dict[str, object]] = []
-        for language in sorted(languages):
-            language_subjects = tuple(
-                subject for subject in subjects if subject.language == language
+        with ExitStack() as scope:
+            tool_environment = (
+                _native_environment(root, scope) if languages & {"go", "javascript"} else {}
             )
-            paths = tuple(subject.path for subject in language_subjects)
-            if language == "python":
-                report = (
-                    python_behavior_report(root)
-                    if axis == "behavior"
-                    else python_static_report(root)
+            native: list[dict[str, object]] = []
+            for language in sorted(languages):
+                language_subjects = tuple(
+                    subject for subject in subjects if subject.language == language
                 )
-                selected = report.get("quality_evidence")
-                expected = [
-                    subject.path
-                    for subject in subjects
-                    if subject.language == language and (axis != "behavior" or not subject.is_test)
-                ]
-                if (
-                    report.get("verdict") != "pass"
-                    or not isinstance(selected, dict)
-                    or selected.get("selected_paths") != expected
-                ):
-                    _invalid("python_quality_unproven")
-                native.append({"language": language, "report": report})
-            elif language == "go":
-                native.append(
-                    _go_behavior(root, language_subjects, tool_environment)
-                    if axis == "behavior"
-                    else _go_static(root, paths, tool_environment)
-                )
-            elif language == "javascript":
-                native.append(
-                    _javascript_behavior(root, language_subjects, tool_environment, execution)
-                    if axis == "behavior"
-                    else _javascript_static(root, paths, tool_environment)
-                )
-            else:
-                _invalid(f"native_language_unsupported:{language}")
+                paths = tuple(subject.path for subject in language_subjects)
+                if language == "python":
+                    report = (
+                        python_behavior_report(root)
+                        if axis == "behavior"
+                        else python_static_report(root)
+                    )
+                    selected = report.get("quality_evidence")
+                    expected = [
+                        subject.path
+                        for subject in subjects
+                        if subject.language == language
+                        and (axis != "behavior" or not subject.is_test)
+                    ]
+                    if (
+                        report.get("verdict") != "pass"
+                        or not isinstance(selected, dict)
+                        or selected.get("selected_paths") != expected
+                    ):
+                        _invalid("python_quality_unproven")
+                    native.append({"language": language, "report": report})
+                elif language == "go":
+                    native.append(
+                        _go_behavior(root, language_subjects, tool_environment)
+                        if axis == "behavior"
+                        else _go_static(root, paths, tool_environment)
+                    )
+                elif language == "javascript":
+                    native.append(
+                        _javascript_behavior(root, language_subjects, tool_environment, execution)
+                        if axis == "behavior"
+                        else _javascript_static(root, paths, tool_environment)
+                    )
+                else:
+                    _invalid(f"native_language_unsupported:{language}")
     except ProcessExecutionError as error:
         return {**_failure(axis, error.code), "diagnostics": [error.evidence()]}
     except (OSError, TypeError, ValueError, subprocess.TimeoutExpired) as error:

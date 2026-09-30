@@ -153,7 +153,9 @@ def test_verified_node_behavior_rejects_wrong_scope_or_toolchain(
         },
     )
     if scenario == "ambient-tool":
-        monkeypatch.setattr(native_quality, "_native_environment", lambda _root: {"PATH": "locked"})
+        monkeypatch.setattr(
+            native_quality, "_native_environment", lambda _root, _scope: {"PATH": "locked"}
+        )
         actual_which = native_quality.shutil.which
 
         def selected_tool(name: str, path: str | None = None) -> str | None:

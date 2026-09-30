@@ -310,6 +310,8 @@ def test_owned_lane_can_admit_exact_legacy_profile_repair_without_applying_it(
         "extra_path",
         "accepted_root",
         "missing_actor",
+        "delete_profile",
+        "identity_unavailable",
     ],
 )
 def test_invalid_profile_repair_cannot_bypass_exact_owned_scope(
@@ -319,7 +321,13 @@ def test_invalid_profile_repair_cannot_bypass_exact_owned_scope(
     root = fixture.repository if case == "accepted_root" else fixture.worktree
     profile = root / ".ethos/profile.toml"
     valid = profile.read_text(encoding="utf-8")
-    invalid = "schema_version = 1\n" + valid
+    invalid = "schema_version = 1\n" + (
+        "".join(
+            line for line in valid.splitlines(keepends=True) if not line.startswith("profile_id = ")
+        )
+        if case == "identity_unavailable"
+        else valid
+    )
     profile.write_text(invalid, encoding="utf-8")
     commit_fixture(root, "record former profile envelope")
     candidate = (
@@ -329,7 +337,10 @@ def test_invalid_profile_repair_cannot_bypass_exact_owned_scope(
         if case == "changed_identity"
         else valid
     )
-    profile.write_text(candidate, encoding="utf-8")
+    if case == "delete_profile":
+        profile.unlink()
+    else:
+        profile.write_text(candidate, encoding="utf-8")
     paths = [".ethos/profile.toml"]
     other = root / "README.md"
     original = other.read_text(encoding="utf-8")
@@ -365,6 +376,8 @@ def test_invalid_profile_repair_cannot_bypass_exact_owned_scope(
             "changed_identity": "profile_repair_identity_changed",
             "extra_path": "profile_repair_requires_single_profile_path",
             "accepted_root": "profile_repair_requires_work_lane",
+            "delete_profile": "profile_repair_valid_postimage_required",
+            "identity_unavailable": "profile_repair_identity_unavailable",
         }[case]
         assert reason in gaps, report
     assert profile.read_text(encoding="utf-8") == invalid

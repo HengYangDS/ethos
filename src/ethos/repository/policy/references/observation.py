@@ -9,6 +9,7 @@ import sys
 import tomllib
 from collections import defaultdict
 from dataclasses import dataclass
+from dataclasses import field
 from typing import TYPE_CHECKING
 
 import yaml
@@ -21,6 +22,7 @@ from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import reference_carrier
 from ethos.repository.policy.references.carriers import reference_paths
 from ethos.repository.policy.references.commands import normalize_command
+from ethos.repository.policy.references.python.observation import observe_python
 
 if TYPE_CHECKING:
     from ast import AST
@@ -39,10 +41,11 @@ class RepositoryReferenceObservation:
 
 @dataclass(frozen=True, slots=True)
 class ReferenceConsumption:
-    """Current consumer relation plus carriers whose syntax was not observable."""
+    """Known consumers, unreadable syntax and unresolved semantics stay distinct."""
 
     sources: dict[str, dict[str, frozenset[str]]]
     unknown_paths: tuple[str, ...]
+    unknown_consumers: dict[str, tuple[str, ...]] = field(default_factory=dict)
 
 
 def observe_repository_references(root: Path) -> RepositoryReferenceObservation:
@@ -110,6 +113,7 @@ def reference_consumer_sources_from_files(
     npm_scripts = npm_script_commands(files)
     consumers = {kind: defaultdict(set) for kind in REFERENCE_KINDS}
     unknown_paths: list[str] = []
+    unknown_consumers: dict[str, set[str]] = {}
     for path, text in files.items():
         observed = {kind: set() for kind in REFERENCE_KINDS}
         parsed = _file_references(
@@ -122,6 +126,7 @@ def reference_consumer_sources_from_files(
             include_declarations=False,
             require_complete=True,
             parsed_files=parsed_files,
+            unknown_consumers=unknown_consumers,
         )
         if not parsed:
             unknown_paths.append(path)
@@ -138,6 +143,7 @@ def reference_consumer_sources_from_files(
             for kind in REFERENCE_KINDS
         },
         unknown_paths=tuple(sorted(unknown_paths)),
+        unknown_consumers={kind: tuple(sorted(paths)) for kind, paths in unknown_consumers.items()},
     )
 
 
@@ -152,6 +158,7 @@ def _file_references(
     include_declarations: bool,
     require_complete: bool = False,
     parsed_files: Mapping[str, AST | None] | None = None,
+    unknown_consumers: dict[str, set[str]] | None = None,
 ) -> bool:
     carrier = reference_carrier(path).name
     if carrier == "python":
@@ -164,6 +171,7 @@ def _file_references(
             include_declarations=include_declarations,
             require_complete=require_complete,
             parsed_files=parsed_files,
+            unknown_consumers=unknown_consumers,
         )
     if carrier == "pyproject":
         return _pyproject_carrier_references(
@@ -207,6 +215,7 @@ def _python_carrier_references(
     include_declarations: bool,
     require_complete: bool,
     parsed_files: Mapping[str, AST | None] | None,
+    unknown_consumers: dict[str, set[str]] | None,
 ) -> bool:
     tree = (
         parsed_files.get(path)
@@ -217,7 +226,7 @@ def _python_carrier_references(
     )
     if require_complete and tree is None:
         return False
-    _python_file_references(
+    unresolved = _python_file_references(
         path,
         text,
         prefixes,
@@ -226,6 +235,9 @@ def _python_carrier_references(
         include_declarations=include_declarations,
         trees=(tree,) if tree is not None else None,
     )
+    if unknown_consumers is not None:
+        for kind in unresolved:
+            unknown_consumers.setdefault(kind, set()).add(path)
     return True
 
 
@@ -300,18 +312,21 @@ def _python_file_references(
     *,
     include_declarations: bool,
     trees: tuple[AST, ...] | None = None,
-) -> None:
+) -> frozenset[str]:
+    unresolved: set[str] = set()
     for tree in trees or python_references.python_trees(text):
-        imports, executables, inputs = python_references.python_references(tree, npm_scripts)
-        observed["import"].update(imports)
+        references = observe_python(tree, text, npm_scripts)
+        observed["import"].update(references.imports)
         if path.startswith("tests/"):
             continue
-        observed["executable"].update(executables)
-        observed["value"].update(inputs)
+        observed["executable"].update(references.executables)
+        observed["value"].update(references.inputs)
+        unresolved.update(references.unresolved)
         if include_declarations:
             observed["command"].update(
                 python_references.cyclopts_command_owners(path, tree, prefixes)
             )
+    return frozenset(unresolved)
 
 
 def pyproject_references(text: str, observed: dict[str, set[str]]) -> None:
@@ -395,13 +410,13 @@ def package_json_references(
 def _package_json_declarations(payload: dict[str, object], observed: dict[str, set[str]]) -> None:
     if payload.get("private") is not True and isinstance(name := payload.get("name"), str):
         observed["distribution"].add(name.lower())
-    for field in (
+    for field_name in (
         "dependencies",
         "devDependencies",
         "optionalDependencies",
         "peerDependencies",
     ):
-        values = payload.get(field, {})
+        values = payload.get(field_name, {})
         if isinstance(values, dict):
             observed["distribution"].update(str(name).lower() for name in values)
     if isinstance(manager := payload.get("packageManager"), str):

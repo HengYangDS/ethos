@@ -117,6 +117,7 @@ app.command(lane_app)
     observed = product_references_from_files(
         {
             "src/ethos/commands.py": """import external_sdk
+import subprocess
 @lane_app.command(name="start")
 def start() -> None:
     subprocess.run(["external-runner"], check=True)

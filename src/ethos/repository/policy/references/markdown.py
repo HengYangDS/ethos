@@ -190,8 +190,8 @@ def _record_inline_command(
     ):
         observed["command"].add(command)
         observed["executable"].update(
-            command_references.command_executables(
-                tokens, npm_scripts, module_imports=observed["import"]
+            command_references.shell_executables(
+                inline, npm_scripts, module_imports=observed["import"]
             )
         )
 

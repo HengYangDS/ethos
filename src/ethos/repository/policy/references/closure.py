@@ -24,6 +24,8 @@ from ethos.repository.policy.references.python_syntax import module_name
 from ethos.repository.registry.docs.registry import build_docs_registry
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from collections.abc import Set
     from pathlib import Path
 
 SemanticCategory = Literal[
@@ -72,7 +74,7 @@ class SemanticClosureFinding:
 
 def product_reference_gaps(
     allowed: dict[str, frozenset[str]],
-    observed: dict[str, set[str]],
+    observed: Mapping[str, Set[str]],
 ) -> list[str]:
     """Reject machine references outside one declared product closure."""
     gaps = []
@@ -114,6 +116,17 @@ def repository_semantic_closure(
         *_superseded_current_carriers(root, files),
         *_declaration_findings(contract_report),
         *_unknown_carriers((*observation.unreadable_paths, *consumption.unknown_paths)),
+        *(
+            SemanticClosureFinding(
+                category="unknown",
+                relation="consumer",
+                kind=kind,
+                identity=path,
+                sources=(path,),
+            )
+            for kind, paths in consumption.unknown_consumers.items()
+            for path in paths
+        ),
     ]
     findings.sort(
         key=lambda item: (

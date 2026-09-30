@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC
 from datetime import datetime
+from functools import partial
 
 import pytest
 
@@ -16,18 +17,19 @@ from ethos.contracts.publication import publication_effect_from_plan
 from ethos.contracts.semantic import Facts
 from ethos.contracts.semantic import canonical_json_digest
 
+_update = partial(
+    PublicationUpdate,
+    target_ref="refs/heads/dev",
+    expected="0" * 40,
+    desired="1" * 40,
+)
+
 
 def test_publication_effect_owns_exact_full_ref_cas() -> None:
     target = PublicationTarget(
         id="gitlab",
         remote="origin",
-        updates=(
-            PublicationUpdate(
-                target_ref="refs/tags/v1.2.3",
-                expected="0" * 40,
-                desired="1" * 40,
-            ),
-        ),
+        updates=(_update(target_ref="refs/tags/v1.2.3"),),
     )
 
     effect = PublicationEffect.compile(
@@ -77,10 +79,8 @@ def test_publication_effect_represents_retirement_without_a_second_transaction(w
     source = _publication_source().model_copy(
         update={"object_oid": "1" * width, "peeled_commit": "1" * width, "tree_oid": "3" * width}
     )
-    update = PublicationUpdate(
-        target_ref="refs/heads/proposal/finished",
-        expected="2" * width,
-        desired="0" * width,
+    update = _update(
+        target_ref="refs/heads/proposal/finished", expected="2" * width, desired="0" * width
     )
     effect = PublicationEffect.compile(
         repository_common_dir="/repo/.git",
@@ -93,119 +93,88 @@ def test_publication_effect_represents_retirement_without_a_second_transaction(w
     assert effect.targets[0].updates[0].deletion is True
 
 
-def test_publication_effect_does_not_mix_retirement_and_projection() -> None:
-    """Different authority obligations cannot hide behind one source projection."""
-    with pytest.raises(ValueError, match="publication_mixed_retirement_projection"):
-        PublicationEffect.compile(
-            repository_common_dir="/repo/.git",
-            source=_publication_source(),
-            targets=(
-                PublicationTarget(
-                    id="peer",
-                    remote="origin",
-                    updates=(
-                        PublicationUpdate(
-                            target_ref="refs/heads/proposal/finished",
-                            expected="2" * 40,
-                            desired="0" * 40,
-                        ),
-                        PublicationUpdate(
-                            target_ref="refs/heads/dev", expected="2" * 40, desired="1" * 40
-                        ),
-                    ),
-                ),
-            ),
-        )
-
-
 @pytest.mark.parametrize(
-    ("kind", "updates", "error"),
+    ("method", "target_id", "updates", "raw_target", "target_count", "error"),
     [
-        (
-            "commit",
+        pytest.param(
+            "compile",
+            "peer",
             (
-                PublicationUpdate(
-                    target_ref="refs/heads/dev",
-                    expected="0" * 40,
-                    desired="1" * 40,
+                _update(
+                    target_ref="refs/heads/proposal/finished", expected="2" * 40, desired="0" * 40
                 ),
-                PublicationUpdate(
-                    target_ref="refs/heads/dev",
-                    expected="0" * 40,
-                    desired="1" * 40,
-                ),
+                _update(expected="2" * 40),
             ),
+            False,
+            1,
+            "publication_mixed_retirement_projection",
+            id="mixed-retirement-projection",
+        ),
+        pytest.param(
+            "construct",
+            "peer",
+            (_update(), _update()),
+            True,
+            1,
             "publication_target_ref_duplicate",
+            id="duplicate-target-ref",
         ),
-        (
-            "commit",
-            (
-                PublicationUpdate(
-                    target_ref="refs/heads/dev",
-                    expected="0" * 40,
-                    desired="2" * 40,
-                ),
-            ),
+        pytest.param(
+            "construct",
+            "peer",
+            (_update(desired="2" * 40),),
+            True,
+            1,
             "publication_target_source_mismatch",
+            id="source-object-mismatch",
         ),
-        (
-            "commit",
-            (
-                PublicationUpdate(
-                    target_ref="refs/tags/v1.0.0",
-                    expected="0" * 40,
-                    desired="1" * 40,
-                ),
-            ),
+        pytest.param(
+            "construct",
+            "peer",
+            (_update(target_ref="refs/tags/v1.0.0"),),
+            True,
+            1,
             "publication_target_source_kind_mismatch",
+            id="source-kind-mismatch",
+        ),
+        pytest.param(
+            "construct",
+            "peer",
+            (_update(),),
+            False,
+            2,
+            "publication_target_duplicate",
+            id="duplicate-peer",
+        ),
+        pytest.param(
+            "compile",
+            "mixed",
+            (_update(), _update(target_ref="refs/tags/v1.0.0")),
+            False,
+            1,
+            "publication_target_ref_kind_mismatch",
+            id="mixed-ref-kinds",
         ),
     ],
 )
-def test_publication_effect_rejects_duplicate_or_source_inconsistent_updates(
-    kind: str,
+def test_publication_effect_rejects_inconsistent_target_relations(
+    method: str,
+    target_id: str,
     updates: tuple[PublicationUpdate, ...],
+    *,
+    raw_target: bool,
+    target_count: int,
     error: str,
 ) -> None:
-    target = PublicationTarget.model_construct(id="peer", remote="origin", updates=updates)
+    """Source, target, peer and retirement relations share one refusal law."""
+    target_factory = PublicationTarget.model_construct if raw_target else PublicationTarget
+    target = target_factory(id=target_id, remote="origin", updates=updates)
+    effect_factory = PublicationEffect.compile if method == "compile" else PublicationEffect
     with pytest.raises(ValueError, match=error):
-        PublicationEffect(
-            repository_common_dir="/repo/.git",
-            source=_publication_source(kind),
-            targets=(target,),
-        )
-
-
-def test_publication_effect_rejects_duplicate_peer_and_mixed_ref_kinds() -> None:
-    update = PublicationUpdate(
-        target_ref="refs/heads/dev",
-        expected="0" * 40,
-        desired="1" * 40,
-    )
-    target = PublicationTarget(id="peer", remote="origin", updates=(update,))
-    with pytest.raises(ValueError, match="publication_target_duplicate"):
-        PublicationEffect(
+        effect_factory(
             repository_common_dir="/repo/.git",
             source=_publication_source(),
-            targets=(target, target),
-        )
-    with pytest.raises(ValueError, match="publication_target_ref_kind_mismatch"):
-        PublicationEffect.compile(
-            repository_common_dir="/repo/.git",
-            source=_publication_source(),
-            targets=(
-                PublicationTarget(
-                    id="mixed",
-                    remote="origin",
-                    updates=(
-                        update,
-                        PublicationUpdate(
-                            target_ref="refs/tags/v1.0.0",
-                            expected="0" * 40,
-                            desired="1" * 40,
-                        ),
-                    ),
-                ),
-            ),
+            targets=(target,) * target_count,
         )
 
 
@@ -217,13 +186,7 @@ def test_publication_plan_round_trips_and_rejects_nonadmitted_or_drifted_effect(
             PublicationTarget(
                 id="peer",
                 remote="origin",
-                updates=(
-                    PublicationUpdate(
-                        target_ref="refs/heads/dev",
-                        expected="0" * 40,
-                        desired="1" * 40,
-                    ),
-                ),
+                updates=(_update(),),
             ),
         ),
     )

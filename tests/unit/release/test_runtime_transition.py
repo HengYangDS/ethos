@@ -56,7 +56,9 @@ def test_runtime_install_uses_a_durable_content_addressed_package_wheel(
         "run_runtime_tool",
         record_runtime_tool,
     )
-    monkeypatch.setattr(dependency_supply, "project_dependency_supply", lambda *_args: None)
+    monkeypatch.setattr(
+        dependency_supply, "project_dependency_supply", lambda *_args, **_kwargs: None
+    )
     materialize = partial(
         identity_transition.materialize_package_wheel,
         repo,
@@ -66,7 +68,7 @@ def test_runtime_install_uses_a_durable_content_addressed_package_wheel(
     )
     artifact = materialize()
 
-    requirements = tmp_path / "work/locked-requirements.txt"
+    requirements = tmp_path / "work/pylock.toml"
     requirements.parent.mkdir()
     requirements.write_text("locked\n", encoding="utf-8")
     dependency_supply.install_locked_runtime(

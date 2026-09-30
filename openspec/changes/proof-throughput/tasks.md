@@ -72,7 +72,7 @@
 - [x] 5.8 Verify retained native downloads across executable failure without weakening activation.
 - [x] 5.9 Route native executable verification through the process owner and reproduce descendant cleanup at the supply boundary.
 - [x] 5.10 Share owned-output removal, preserve external referents and verify minimal permission effects.
-- [ ] 5.11 Close native bootstrap identity wiring and tool transport timeouts; retain failed output, reuse verified supply across disposable checkouts, scope offline flags to bootstrap, and qualify cold and warm hosted consumers without increasing the deadline.
+- [ ] 5.11 Close native bootstrap identity wiring and tool transport timeouts; retain failed output, select the production dependency closure before byte projection, reuse verified supply across disposable checkouts, scope offline flags to bootstrap, and qualify cold and warm hosted consumers without increasing the deadline.
 - [ ] 5.12 Reproduce ignored durable-custody loss at retirement; consume existing artifact declarations to distinguish retained, active, foreign, unknown and proved disposable resources before deletion.
 - [ ] 5.13 Qualify exact producer/consumer scratch ownership under repeated normal, crash and kill cycles; preserve live/unknown roots and shared supply, then measure source-bound 24/48-hour count, byte, inode and cleanup bounds before claiming recurrence closed.
 
@@ -116,7 +116,7 @@
 - [x] 8.7 Close contradictory proof results through shared execution-success semantics and real issuance regressions.
 - [x] 8.8 Reject mixed provider/source execution before all gates and qualify matching package, source and adopter paths.
 - [ ] 8.9 Reject incomplete hosted results and missing, malformed or contradictory test artifacts through the existing receipt owner.
-- [ ] 8.10 Verify one-attempt Allure 3 human/Agent reports alongside native JUnit/coverage, complete per-property reports, explicit product/test/tooling type-check scopes, cross-platform admission and warning propagation with native falsifying cases.
+- [ ] 8.10 Verify one-attempt Allure 3 human/Agent reports alongside native JUnit/coverage, complete per-property reports, explicit product/test/tooling type-check scopes, cross-platform admission and warning propagation with native falsifying cases. Close report discovery and conservation beyond lane retirement; qualify useful metadata/history capabilities without fabricating evidence or rerunning tests to rebuild views.
 - [ ] 8.11 Reject tracked-document links satisfied only by ignored/untracked host bytes; use native link syntax plus selected-tree or verified published-artifact membership and retain valid local targets.
 - [ ] 8.12 Make native source inventory failure observable and include nonignored candidate files in early size checks; reject empty Markdown selection, nested rule override and malformed system-schema report loss; replay corresponding public positive/negative cases.
 - [ ] 8.13 Verify formatter write and nonmutating check commands against actual native session discovery and effective configuration; reject missing `format` sessions, write-as-check and disabled-rule false green at the format ownership gate.
@@ -149,7 +149,7 @@
 - [x] 10.8 Preserve dependency-tool exit status, unavailable execution, findings and malformed-report states through the existing receipt and Nox admission.
 - [x] 10.9 Repair installed hook formatting supply: a configured check must not silently pass when its bound Ruff executable is absent; verify installed valid, invalid and missing-tool cases.
 - [x] 10.10 Preserve meaningful YAML scalar newlines while rejecting redundant structural blank lines through the native configuration owner; keep producer-owned and historical carriers unchanged.
-- [ ] 10.11 Repair reference observation and declaration ownership at their existing owner: aliases, shadowing, lexical scope, call-site values, dynamic private imports, scoped dynamic UNKNOWN, and trusted profile/release command fields. Reproduce false passes and false blocks through public repository-audit, module-layout and patch-admission consumers; replace heuristics rather than adding name exceptions, preserve legal success, and qualify exact-source proof and installed behavior.
+- [ ] 10.11 Repair reference observation and declaration ownership at their existing owner: aliases, shadowing, lexical scope, call-site values, availability versus execution, dynamic private imports, scoped dynamic UNKNOWN, and trusted profile/release command fields. Reproduce false passes and false blocks through public repository-audit, product-boundary, module-layout and patch-admission consumers; replace heuristics rather than adding name exceptions, preserve legal success, and qualify exact-source proof and installed behavior.
 - [ ] 10.12 Replace fixed OpenSpec proposal/design/tasks path inference with its resolved artifact graph; preserve positive removal-only acceptance; replay renamed/optional outputs, pure/mixed removal, `skip_specs`, missing/ambiguous resolution, archive identity and exact source binding through public compilation and proof.
 - [ ] 10.13 Preserve blocked CLI exit and incomplete-report status under nonblocking backpressure and short writes; distinguish closed consumers without replaying completed effects.
 
@@ -157,7 +157,7 @@
 
 - [x] 11.1 Qualify the official stable SBOM supply after observed host-version drift.
 - [x] 11.2 Refresh compatible stable supply and exact CI projections with the Python support line intact.
-- [ ] 11.3 Qualify supported latest-stable supply or an obligation-preserving constrained-owner replacement.
+- [ ] 11.3 Qualify supported latest-stable supply or an obligation-preserving constrained-owner replacement. Resolve direct and transitive locks, native tools, Actions and container inputs from official releases; retain exact upstream constraints and native bootstrap failures as explicit gaps rather than force incompatible versions or claim an old image is refreshed.
 - [ ] 11.4 Migrate native developer/CI tool supply to mise locks and retire replaced installers.
 - [x] 11.5 Verify native import-linter and coverage TOML option equivalence; replace their INI owners and consumers without adding a converter.
 - [x] 11.6 Repair pytest configuration-relative paths and qualify native TOML through real plugin consumers.
@@ -166,6 +166,7 @@
 - [ ] 11.9 Verify declaration-to-consumer wiring with disconnected, misbound and unavailable-capability cases through public entrypoints; preserve adverse results through receipt and admission.
   - [ ] 11.9.1 Qualify carrier-role and native-discovery applicability, including frozen provenance, generated build inputs, explicit selection, missing discovery and unauthorized relabeling; preserve integrity obligations without language or directory-name exceptions.
   - [ ] 11.9.2 Compile the common quality floor through the existing rule, profile and gate owners; verify empty and false evidence, conjunctive per-subject native evidence without duplicate execution, source versus artifact-qualified test inputs, code/document/release applicability and trusted-prior preservation at public adopter and installed boundaries.
+    - [ ] 11.9.2.1 Qualify verifier prerequisites before native execution through exact-source proof and installed replay; preserve nonexecution, unknown/error diagnostics, actual post-execution evidence and provider-only behavior. Native Python configuration, selection and same-run evidence qualification remain required under 11.9.2.
 - [x] 11.10 Verify native TOML and mise migrations through focused native checks, exact-source full proof and installed runtime.
 
 ## 12. Documentation Comprehension and Research Delivery
@@ -174,6 +175,7 @@
 - [x] 12.2 Repair native metadata parsing and typed relationships; replay quoted-scalar, duplicate-key, delimiter, dangling-owner, human/machine contradiction, title-first commented metadata and adopter-native reader-guidance cases through the public report without widening system-axiom parsing.
 - [ ] 12.3 Derive human and agent navigation from one source; verify semantic hierarchy, reader orientation, prerequisites, section links, rename closure and independently understandable topics. Retire redundant current-tree OpenSpec archive copies only after canonical-spec, proof-consumer, incoming-reference and exact Git-recovery checks.
   - [x] 12.3.1 Settle the terminal plan's current-entry observations into existing history retrieval; preserve open obligations and dependency order without copying task status or dropping source evidence.
+  - [x] 12.3.2 Repair the current docs entrance, unreachable topics and context return routes; group dense comparisons, add relevant section/source links, and verify visible-link reachability, destinations, fragment targets and preserved meaning. Keep reader-comprehension and installed/adopter qualification distinct from source checks.
 - [ ] 12.4 Enforce a 500-nonblank-line ceiling for current authored Markdown documentation in ETHOS and governed repositories. Keep release history, official OpenSpec artifacts and their archive, and declared generated output under their own owners. Verify human/agent retrieval and token cost without cosmetic splitting or lost meaning.
   - [ ] Audit the 17 first-parent reductions whose Markdown preimage exceeded 500 nonblank lines (eight docs, eight live OpenSpec carriers, one archived Change). Map each still-live claim to its current owner or explicitly retire it; recover missing semantics, especially from the terminal plan's 6011-to-420 reduction. Git recoverability alone is insufficient. The decision-record identity and command-root drift found in this audit require exact proof and delivery before this task can close.
 - [ ] 12.5 Qualify a bounded OKF consumer when needed; preserve identity, scope, unknown fields and declared loss without inherited authority or a parallel knowledge store.

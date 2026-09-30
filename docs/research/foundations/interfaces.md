@@ -97,6 +97,49 @@ The current AIGW source and installed OpenSpec package illustrate different
 delivery mechanics; neither is authority for ETHOS design or proof of a current
 hosted release.
 
+### Measured Runtime Cost And Retirement Boundary
+
+September 30 inspection of accepted source `ebe828d31aacca56f82b9a1dabc77e829989c328`
+found two repository-local generations totaling approximately 863 MiB. The current
+generation is approximately 432 MiB: Node supply is 199 MiB, the CEL native extension
+39 MiB and the ETHOS package 23 MiB; Python and remaining tools/dependencies account
+for the rest. These are allocated-size observations, not download sizes or proof
+that every byte is independently reclaimable.
+
+The Node package includes 62 MiB of development headers and 17 MiB of npm/Corepack.
+Their necessity for the shipped product workload is unproven. Bundling an
+interpreter can provide useful environment independence; copying a complete SDK
+and retaining every historical package does not follow from that requirement.
+Do not trim an active immutable generation in place or select a new packager
+solely because its executable looks smaller.
+
+The existing [installed-product decision](../../../openspec/changes/installed-product/design.md)
+owns a minimal qualified dependency closure, native Homebrew delivery, host-shared
+immutable versions and repository-local selection. Its common workload must verify
+CLI/MCP/SDK, hooks, official OpenSpec, offline behavior, upgrade, rollback and
+retirement before replacing the current bundle. Keep package caches, recovery
+inputs, generated reports and live runtimes distinct; their owners and retention
+conditions differ. Current repository-private installation is not the terminal
+product form.
+
+The candidate now selects installed dependency bytes from uv's native PEP 751
+`pylock.toml` export before hashing or copying. The export remains a transient
+projection of `uv.lock`; packaging supplies marker evaluation, normalized names
+and version comparison. Missing, mismatched and duplicate packages or invalid
+markers refuse construction. The locked uv explicitly opts into its pylock
+consumer, whose current implementation still marks this format experimental.
+This does not change the stable-release policy or qualify other uv versions.
+
+One native measurement reduced the observed dependency files from 10,620 to
+8,401 and their logical bytes from 519,195,951 to 349,985,840. Observation took
+1.88 seconds before selection and 0.67 seconds after; this single macOS sample
+does not establish full-proof latency. A real target environment contained the
+72 applicable production distributions, passed uv's exact locked check and
+dependency compatibility check, and imported FastMCP and Node supply. Its owned
+temporary root was removed. The 206 adjacent runtime/installation regressions
+passed; additional native lock fault cases also pass. Complete wheel delivery,
+native platforms and runtime activation remain open under the existing tasks.
+
 ## MCP Framework Selection Evidence
 
 September 21, 2026, Asia/Shanghai: the standalone FastMCP 4.0.5 comparison used
@@ -172,9 +215,7 @@ marketing claims were not used as evidence of comparative performance.
 [rust]: https://github.com/rust-lang/rust/blob/9c99d05505bccb67912d68e05fe7fc7c58afcb41/README.md
 [go]: https://github.com/golang/go/blob/fdcd66bb544d230a7eb0c2512e9e7a6ab191388b/README.md
 [rich]: https://github.com/Textualize/rich/blob/9d8f9a372cc5916fd4781fec207ced7ddac2f08f/README.md
-
 [brew-python]: https://docs.brew.sh/Language-Specific-Formulae
 [uv-tools]: https://docs.astral.sh/uv/concepts/tools/
 [frozen-runtime]: https://pyinstaller.org/en/stable/runtime-information.html
-
 [fastmcp-tools]: https://gofastmcp.com/servers/tools

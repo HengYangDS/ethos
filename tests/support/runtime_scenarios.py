@@ -236,8 +236,11 @@ def materialize_runtime_case(
 
     identity = package_identity or runtime_build_identity(REPOSITORY_ROOT)
     monkeypatch.setattr(identity_transition, "wheel_build_identity", lambda *_args: identity)
-    locked_requirements = tmp_path / "locked-requirements.txt"
-    locked_requirements.write_text("fixture==1\n", encoding="utf-8")
+    locked_requirements = tmp_path / "pylock.toml"
+    locked_requirements.write_text(
+        'lock-version = "1.0"\n[[packages]]\nname = "fixture"\nversion = "1"\n',
+        encoding="utf-8",
+    )
 
     def prepare_requirements(project: Path, *_args: object, **_kwargs: object) -> Path:
         assert project == REPOSITORY_ROOT
@@ -254,7 +257,7 @@ def materialize_runtime_case(
         locked_requirements: Path | None,
     ) -> None:
         assert python_facts is not None
-        assert locked_requirements == tmp_path / "locked-requirements.txt"
+        assert locked_requirements == tmp_path / "pylock.toml"
         assert dependency_python is not None
         assert dependency_python.samefile(source_python)
         create_fixture_python(target)

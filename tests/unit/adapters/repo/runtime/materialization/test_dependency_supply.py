@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import subprocess
+import sys
+import venv
 from pathlib import Path
 
+import packaging
 import pytest
 
 import ethos.adapters.repo.runtime.materialization.dependency_supply as supply
@@ -33,7 +37,9 @@ def _supply_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     identities = {
         prefix / "bin/python": facts | {"prefix": prefix.as_posix()} for prefix in (source, target)
     }
-    monkeypatch.setattr(supply, "observe_dependency_supply", lambda _python: (source, tuple(files)))
+    monkeypatch.setattr(
+        supply, "observe_dependency_supply", lambda _python, **_kwargs: (source, tuple(files))
+    )
     monkeypatch.setattr(supply, "observe_python_facts", identities.__getitem__)
     return source, target, files, identities
 
@@ -56,7 +62,10 @@ def test_lock_current_environment_supplies_runtime_without_cache_authority(
         assert "--offline" in command
         assert "--cache-dir" not in command
         if command[0] == "export":
-            Path(command[-1]).write_text("package==1 --hash=sha256:abc\n", encoding="utf-8")
+            Path(command[-1]).write_text(
+                'lock-version = "1.0"\n[[packages]]\nname = "package"\nversion = "1"\n',
+                encoding="utf-8",
+            )
         if command[:2] == ("pip", "sync"):
             assert all(
                 (target / relative).read_bytes() == (source / relative).read_bytes()
@@ -69,7 +78,7 @@ def test_lock_current_environment_supplies_runtime_without_cache_authority(
         source, work, source_python, require_build_tools=build_tools
     )
     supply.install_locked_runtime(source, source_python, target_python, wheel, requirements)
-    assert requirements == work / "locked-requirements.txt"
+    assert requirements == work / "pylock.toml"
     assert [command[:2] for command in commands] == [
         ("sync", "--locked"),
         ("export", "--locked"),
@@ -79,6 +88,7 @@ def test_lock_current_environment_supplies_runtime_without_cache_authority(
     assert ("--no-dev" in commands[0]) is not build_tools
     assert "--no-dev" in commands[1]
     assert {"--require-hashes", "--strict", target_python.as_posix()} <= set(commands[2])
+    assert commands[2][3:5] == ("--preview-features", "pylock")
     assert not any("venv" in command for command in commands)
     assert commands[1][-2:] == ("--output-file", str(requirements))
     assert commands[2][-1] == str(requirements)
@@ -213,3 +223,70 @@ def test_locked_requirements_require_the_exported_file(
     with pytest.raises(ValueError, match="hook_runtime_locked_requirements_missing"):
         supply.prepare_locked_requirements(tmp_path, tmp_path, tmp_path / "python")
     assert len(calls) == 2
+
+
+@pytest.mark.parametrize(
+    "fault",
+    ["none", "development-link", "missing", "version", "duplicate", "format", "marker"],
+)
+def test_native_production_lock_selects_only_required_installed_bytes(
+    tmp_path: Path, fault: str
+) -> None:
+    """Unused development files are neither read nor copied into the product."""
+    environment = tmp_path / "environment"
+    venv.EnvBuilder(with_pip=False).create(environment)
+    python = environment / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+    purelib = Path(
+        subprocess.check_output(
+            (
+                str(python),
+                "-B",
+                "-I",
+                "-c",
+                "import sysconfig; print(sysconfig.get_path('purelib'))",
+            ),
+            text=True,
+        ).strip()
+    )
+    shutil.copytree(Path(packaging.__file__).parent, purelib / "packaging")
+    for name in ("product", "development"):
+        module = purelib / f"{name}.py"
+        module.write_text(f"VALUE = {name!r}\n")
+        metadata = purelib / f"{name}-1.0.dist-info"
+        metadata.mkdir()
+        (metadata / "METADATA").write_text(f"Metadata-Version: 2.1\nName: {name}\nVersion: 1.0\n")
+        (metadata / "RECORD").write_text(
+            f"{name}.py,,\n{name}-1.0.dist-info/METADATA,,\n{name}-1.0.dist-info/RECORD,,\n"
+        )
+    if fault == "development-link":
+        (purelib / "development.py").unlink()
+        (purelib / "development.py").symlink_to(purelib / "product.py")
+    lock = tmp_path / "pylock.toml"
+    declaration = (
+        'lock-version = "1.0"\n[[packages]]\nname = "product"\nversion = "1.0"\n'
+        '[[packages]]\nname = "foreign"\nversion = "1.0"\nmarker = "python_version < \'0\'"\n'
+    )
+    if fault == "missing":
+        declaration = declaration.replace('name = "product"', 'name = "missing"')
+    elif fault == "version":
+        declaration = declaration.replace('version = "1.0"', 'version = "2.0"')
+    elif fault == "duplicate":
+        declaration += '[[packages]]\nname = "product"\nversion = "1.0"\n'
+    elif fault == "format":
+        declaration = declaration.replace('lock-version = "1.0"', 'lock-version = "2.0"')
+    elif fault == "marker":
+        declaration = declaration.replace("python_version < '0'", "unknown_variable")
+    lock.write_text(declaration)
+
+    if fault not in {"none", "development-link"}:
+        with pytest.raises(ValueError, match="hook_runtime_dependency_supply_invalid"):
+            supply.observe_dependency_supply(python, requirements=lock)
+        return
+
+    prefix, files = supply.observe_dependency_supply(python, requirements=lock)
+
+    assert prefix == environment.resolve()
+    assert files
+    assert all("development" not in str(path) for path, _digest in files)
+    assert any(path.name == "product.py" for path, _digest in files)
+    assert (purelib / "development.py").exists()

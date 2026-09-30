@@ -19,12 +19,41 @@ import hashlib
 import json
 import os
 import sys
+import tomllib
+from importlib.metadata import distribution as installed_distribution
 from importlib.metadata import distributions
 from pathlib import Path
 
 prefix = Path(sys.prefix).resolve()
 files = {}
-for distribution in distributions():
+available = tuple(distributions())
+if len(sys.argv) > 1:
+    from packaging.markers import Marker
+    from packaging.utils import canonicalize_name
+    from packaging.version import Version
+
+    payload = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+    if payload.get("lock-version") != "1.0" or not isinstance(payload.get("packages"), list):
+        raise ValueError("production_lock_invalid")
+    selected = {}
+    for package in payload["packages"]:
+        name, version = package["name"], package["version"]
+        if not isinstance(name, str) or not name or not isinstance(version, str):
+            raise ValueError("production_lock_package_invalid")
+        if package.get("marker") and not Marker(package["marker"]).evaluate():
+            continue
+        name = canonicalize_name(name)
+        if name in selected:
+            raise ValueError("production_lock_package_duplicate")
+        selected[name] = Version(version)
+    retained = []
+    for name, version in selected.items():
+        distribution = installed_distribution(name)
+        if Version(distribution.version) != version:
+            raise ValueError("production_dependency_version_mismatch:" + name)
+        retained.append(distribution)
+    available = tuple(retained)
+for distribution in available:
     for entry in distribution.files or ():
         path = Path(os.path.abspath(distribution.locate_file(entry)))
         if path.is_symlink() or not path.is_file():
@@ -63,7 +92,7 @@ def prepare_locked_requirements(
         *sync_arguments,
         python=source_python,
     )
-    requirements = work / "locked-requirements.txt"
+    requirements = work / "pylock.toml"
     run_runtime_tool(
         source,
         "export",
@@ -72,7 +101,7 @@ def prepare_locked_requirements(
         "--no-dev",
         "--no-emit-project",
         "--format",
-        "requirements-txt",
+        "pylock.toml",
         "--output-file",
         requirements.as_posix(),
         python=source_python,
@@ -89,13 +118,15 @@ def install_locked_runtime(
     wheel: Path,
     requirements: Path,
 ) -> None:
-    """Project verified dependency bytes, prune them, then install the exact wheel."""
-    project_dependency_supply(source_python, target_python)
+    """Project the exact production dependency closure, then install the wheel."""
+    project_dependency_supply(source_python, target_python, requirements=requirements)
     commands = (
         (
             "pip",
             "sync",
             "--offline",
+            "--preview-features",
+            "pylock",
             "--break-system-packages",
             "--require-hashes",
             "--strict",
@@ -118,9 +149,15 @@ def install_locked_runtime(
         run_runtime_tool(source, *command, python=source_python)
 
 
-def project_dependency_supply(source_python: Path, target_python: Path) -> None:
+def project_dependency_supply(
+    source_python: Path, target_python: Path, *, requirements: Path | None = None
+) -> None:
     """Copy only installed-distribution bytes between congruent Python prefixes."""
-    source_prefix, files = observe_dependency_supply(source_python)
+    source_prefix, files = (
+        observe_dependency_supply(source_python)
+        if requirements is None
+        else observe_dependency_supply(source_python, requirements=requirements)
+    )
     source_facts = observe_python_facts(source_python)
     target_facts = observe_python_facts(target_python)
     target_prefix = Path(target_facts["prefix"]).resolve()
@@ -151,10 +188,19 @@ def project_dependency_supply(source_python: Path, target_python: Path) -> None:
             _fail("hook_runtime_dependency_supply_invalid")
 
 
-def observe_dependency_supply(python: Path) -> tuple[Path, tuple[tuple[Path, str], ...]]:
-    """Observe one Python prefix and every file owned by its installed distributions."""
+def observe_dependency_supply(
+    python: Path, *, requirements: Path | None = None
+) -> tuple[Path, tuple[tuple[Path, str], ...]]:
+    """Observe the native installed closure selected by the production lock."""
     completed = subprocess.run(
-        (python.as_posix(), "-B", "-I", "-c", _SUPPLY_OBSERVATION),
+        (
+            python.as_posix(),
+            "-B",
+            "-I",
+            "-c",
+            _SUPPLY_OBSERVATION,
+            *((requirements.as_posix(),) if requirements is not None else ()),
+        ),
         capture_output=True,
         check=False,
         text=True,
@@ -166,7 +212,8 @@ def observe_dependency_supply(python: Path) -> tuple[Path, tuple[tuple[Path, str
             (Path(relative), sha256) for relative, sha256 in sorted(payload["files"].items())
         )
     except (KeyError, TypeError, ValueError) as error:
-        _fail("hook_runtime_dependency_supply_invalid", error)
+        detail = completed.stderr.strip() or completed.stdout.strip()
+        _fail(f"hook_runtime_dependency_supply_invalid:{detail}", error)
     if (
         completed.returncode
         or not prefix.is_absolute()

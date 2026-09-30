@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -363,12 +364,32 @@ def test_javascript_skipped_tests_do_not_prove_behavior(tmp_path: Path) -> None:
     ]
 
 
-def test_generic_provider_uses_real_locked_python_evidence(tmp_path: Path) -> None:
+@pytest.mark.parametrize("native_layout", ["uv", "relocated-mise"])
+def test_generic_provider_uses_real_locked_python_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_layout: str
+) -> None:
     """The generalized provider preserves Python's existing native success path."""
     repo = init_git_repo(tmp_path / "repo")
     fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
     for name in ("pyproject.toml", "uv.lock"):
         (repo / name).write_bytes((fixture / name).read_bytes())
+    selected_tools: list[str] = []
+    if native_layout == "relocated-mise":
+        config = repo / ".config/mise/config.toml"
+        config.parent.mkdir(parents=True)
+        config.write_text('[tools]\npython = "3.14.7"\nuv = "0.12.20"\n')
+        (config.parent / "mise.lock").write_text("")
+        uv_executable = shutil.which("uv")
+        assert uv_executable is not None
+
+        def selected_tool(_root: Path, name: str, **_kwargs: object) -> Path:
+            selected_tools.append(name)
+            return Path(sys.executable if name == "python" else uv_executable)
+
+        monkeypatch.setattr(
+            python_quality, "locked_environment", lambda _root, _files: {}, raising=False
+        )
+        monkeypatch.setattr(python_quality, "locked_tool", selected_tool, raising=False)
     (repo / "pytest.toml").write_text(
         '[pytest]\naddopts = ["--strict-config"]\ncache_dir = ".cache/pytest"\n'
     )
@@ -385,6 +406,9 @@ def test_generic_provider_uses_real_locked_python_evidence(tmp_path: Path) -> No
     for report in (native_quality.behavior_report(repo), native_quality.static_report(repo)):
         assert report["verdict"] == "pass", report["required_gaps"]
     assert not (repo / ".cache/pytest").exists()
+    if native_layout == "relocated-mise":
+        assert set(selected_tools) == {"python", "uv"}
+        assert not (repo / ".venv").exists()
 
 
 @pytest.mark.parametrize(
@@ -520,11 +544,21 @@ def test_native_static_adapter_distinguishes_report_from_diagnostics(
 def test_python_behavior_preserves_selected_locked_environment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, toolchain: str
 ) -> None:
-    """Native mise never syncs; product uv uses an isolated environment."""
+    """Either locked entrypoint installs into one owned disposable environment."""
     native_mise = toolchain == "mise"
     if native_mise:
         (tmp_path / "mise.toml").write_text('[tools]\nuv = "0.12.18"\n', encoding="utf-8")
         (tmp_path / "mise.lock").write_text("[tools]\n", encoding="utf-8")
+        monkeypatch.setattr(
+            python_quality,
+            "locked_environment",
+            lambda _root, _files: {"UV_PROJECT_ENVIRONMENT": str(tmp_path / ".venv")},
+        )
+        monkeypatch.setattr(
+            python_quality,
+            "locked_tool",
+            lambda _root, name, **_kwargs: Path(f"/native/{name}"),
+        )
 
     def observe(_root: Path, command: tuple[str, ...], **options: object) -> None:
         removed = options["remove_env"]
@@ -532,21 +566,22 @@ def test_python_behavior_preserves_selected_locked_environment(
         assert "UV_PROJECT_ENVIRONMENT" in removed
         environment = options["env"]
         assert isinstance(environment, dict)
+        selected = environment["UV_PROJECT_ENVIRONMENT"]
+        assert isinstance(selected, str)
+        assert not Path(selected).is_relative_to(tmp_path)
         if native_mise:
-            assert command[:4] == ("/native/mise", "exec", "--locked", "--")
-            assert "--no-sync" in command
-            assert environment["MISE_AUTO_INSTALL"] == "0"
-            assert environment["MISE_OFFLINE"] == "1"
-        else:
-            selected = environment["UV_PROJECT_ENVIRONMENT"]
-            assert isinstance(selected, str)
-            assert not Path(selected).is_relative_to(tmp_path)
+            assert command[:6] == (
+                "/native/uv",
+                "run",
+                "--locked",
+                "--offline",
+                "--python",
+                "/native/python",
+            )
+            assert "--no-sync" not in command
         message = "observed"
         raise ValueError(message)
 
-    monkeypatch.setattr(
-        python_quality, "mise_executable", lambda: Path("/native/mise"), raising=False
-    )
     monkeypatch.setattr(python_quality, "_source", lambda _root: ("a" * 40, ("src/app.py",)))
     monkeypatch.setattr(
         python_quality,

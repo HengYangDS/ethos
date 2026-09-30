@@ -107,6 +107,12 @@ for the rest. These are allocated-size observations, not download sizes or proof
 that every byte is independently reclaimable.
 
 The Node package includes 62 MiB of development headers and 17 MiB of npm/Corepack.
+The installed executable is Node 24.19.0. PyPI's current non-yanked stable
+`nodejs-wheel-binaries` release is also 24.19.0, with macOS, Linux and Windows
+architecture wheels. Upgrading that wrapper alone cannot deliver Node 26.
+Replacing its underlying official Node supply requires the existing product
+packaging owner and native qualification; host Node 26 does not update embedded
+bytes.
 Their necessity for the shipped product workload is unproven. Bundling an
 interpreter can provide useful environment independence; copying a complete SDK
 and retaining every historical package does not follow from that requirement.
@@ -139,6 +145,12 @@ dependency compatibility check, and imported FastMCP and Node supply. Its owned
 temporary root was removed. The 206 adjacent runtime/installation regressions
 passed; additional native lock fault cases also pass. Complete wheel delivery,
 native platforms and runtime activation remain open under the existing tasks.
+
+The candidate constructor also installed the exact accepted predecessor wheel
+into an isolated target in 8.10 seconds. Outside the checkout, its CLI version,
+help and dependency compatibility checks passed; all 73 installed distributions
+were compatible. This qualifies that constructor transition with a predecessor
+wheel, not the delivery of the candidate wheel or an activated successor.
 
 ## MCP Framework Selection Evidence
 

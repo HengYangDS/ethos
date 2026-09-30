@@ -126,6 +126,62 @@ Its complete wrapper takes 1,689.755 seconds, plus a separately disclosed
 acceptance accounts for 169.032 seconds. Neither staged performance target is
 achieved. `throughput-boundaries-breakdown.json` retains exact phases and hashes.
 
+### Native Verifier Prerequisites
+
+The global boundary review is in [Code Design And Implementation](../../../docs/research/foundations/code-design.md#global-product-boundary-audit).
+It distinguishes universal obligations, native-format interpretation, optional
+generators and self-host supply. Current metadata derivation and exact-set
+aggregation are retained. Role precedence and unavailable inventory have native
+Git counterexamples and a passing 25-case policy suite; native scope/input
+qualification and same-run Python evidence remain open under 11.9.1/11.9.2.
+
+The Python adopter counterexample has two distinct defects: the verified-command
+contract cannot consume native Python evidence, and that incompatibility was only
+checked after the expensive command. Removing the refusal would invent proof;
+substituting isolated Ruff or another pytest run would discard native policy or
+repeat execution. Configuration, markers, matrix membership and same-run report
+admission remain open under task 11.9.2.
+
+The existing provider protocol now permits a read-only `preflight` invocation.
+The same result reducer handles missing providers, errors, warnings and unknown
+results before the command starts. Providers without such prerequisites retain
+their existing execution behavior. A successful preflight carries no quality
+evidence and is never stored as completed verification. A refusal has no command
+exit code; real command and post-execution verification remain conjunctive.
+
+The real LocalGateRunner counterexample writes a native-start marker before its
+old Python refusal. The repaired generic and direct Python consumers refuse with
+the same evidence gap without creating the marker or replaying another checker.
+The forged-stdout case retains an actual rejecting verifier, so it still tests
+post-execution evidence rather than relying on a missing provider's late failure.
+Focused tests do not establish installed/adopter delivery or native Python report
+support; both remain unverified until their existing acceptance is completed.
+
+### Same-Attempt Go Failure Identity
+
+The normal proof progress projection also discarded `ActionRunResult.verification`
+on a failed verified command. It emitted only the outer command output and reduced
+provider gaps, hiding the actual inner failure from live logs. A distinguishing
+RED case now passes: block/unknown events retain the exact existing verification
+payload; successful progress remains compact. The 175-case runner/progress family
+passes in 21.73 seconds. No second diagnostic interpretation or execution is added.
+
+The Go provider raised on a nonzero exit before interpreting native JSON,
+retaining only the last 4096 characters. A failed test followed by unrelated
+output therefore lost its identity. A green diagnostic from another attempt,
+even at the same HEAD, cannot repair that missing evidence.
+
+The existing native-report owner now reduces the same captured Go JSON once to
+typed pass/failure identities and report validity. Failure evidence retains each
+package/test identity alongside the existing command, exit code and output tail.
+Malformed lines invalidate success without discarding identifiable failures;
+a reported failure cannot be rescued by a zero exit. The success path reuses the
+same reduction instead of constructing another complete event collection.
+
+The public subprocess fixture uses a real failing Go test followed by long
+native test output. This proves diagnostic preservation, not remediation of an
+adopter's underlying test, execution environment or missing artifact input.
+
 ### Native Observation Boundary
 
 Fresh exclusive command timing of one unchanged closeout case distinguishes
@@ -1667,6 +1723,73 @@ coverage or relaxing the 95-percent threshold.
 
 ## Quality Transport And Supply Review
 
+### September 30 Resource Disposition
+
+Read-only inventory found approximately 7.7 GiB under the ETHOS Git common state
+root and 2.0 GiB under accepted-root build output. Two runtime generations account
+for 863 MiB; 749 historical package directories account for approximately 3 GiB.
+Age and a digest-shaped name do not establish that an object is disposable.
+
+Native uv 0.12.21 `cache prune --offline` removed 29,292 dangling files
+(248.2 MiB) from the accepted-root build cache and 24 files (7.7 MiB) from the
+common-dir uv cache, without `--force`. The retired Alpha.2 `test-runtime-cache`
+had no current source consumer, no reference in the inspected 91 project/worktree
+roots or five runtime selectors, and no open file. The accepted immutable
+runtime's existing removal owner deleted its 9,007 files (298,108 allocated KiB).
+Current runtime selection, accepted HEAD and the Git Attestation root were retained.
+The empty retired `.claude/.cc-writes` directory was removed with atomic `rmdir`.
+
+Preservation bundles, old package bytes, unknown legacy generations, recoverable
+operations and required proof artifacts were not indiscriminately removed.
+The current generation still includes approximately 199 MiB of Node supply,
+including 62 MiB of headers and 17 MiB of npm/Corepack; required runtime use of
+those development payloads is unproven. Packaging closure and host-shared
+installation belong to the existing installed-product work. This cleanup proves
+only the named removals, not bounded long-term growth or complete residue closure.
+
+### September 30 Stable-Supply Refresh
+
+Official metadata covered 126 locked PyPI packages, eight direct npm packages,
+294 distinct locked npm packages, six native tools, five Actions and the declared
+Node/Go and Debian supply. Native resolvers selected seven Python upgrades and
+35 changed npm lock entries, including Allure 3.19.1, allure-pytest 2.16.2,
+Cyclopts 5.1.0, filelock 4.0.7, platformdirs 4.12.2 and uv 0.12.21.
+OpenSpec 1.13.2, Node 26.10.0, Go 1.27.1, CUE 0.17.1, scc 4.1.0,
+actionlint 1.7.12, gitleaks 8.30.1 and Syft 1.52.0 were already current.
+The uv base image selection now binds official OCI index
+`8f4ab6a0f2cc074290ba6a136eb016350b2b6b93a2108e07b72724901ad1914f`.
+The setup-uv v10.2.0 Action binds commit
+`c18668ad3cf93ea998bef934396af7bb5c839dc7`. A selected base is not a rebuilt,
+published or qualified ETHOS CI image; that delivery remains open.
+
+Pydantic 2.13.5 requires pydantic-core exactly 2.46.5 despite core 2.49.0 being
+available. Fifty-four npm package instances remain below their independent
+latest releases under upstream pins or major-version ranges. For example,
+markdownlint-cli2 pins js-yaml 5.4.1 and markdown-it 15.0.1. Do not force arbitrary
+transitive upgrades or call the whole supply current. The quality fixture lock
+must be generated with its native `--no-config` boundary: inheriting the parent
+prerelease mode made a relocated frozen fixture reject its lock before tests.
+
+Mise 2026.9.17 is official stable, but Homebrew currently supplies 2026.9.15.
+Both the installed generator and a SHA-256-verified official 2026.9.17 binary
+fail `generate install-script --version 2026.9.17` at upstream
+`src/cli/generate/install_script.rs:140`: the signed installer no longer matches
+the generator's version-extraction expression. No handwritten installer or host
+replacement was introduced. The last verified bootstrap remains selected.
+Bootstrap identity and the compatible operator minimum are now independent
+within the existing declarations, with 76 focused supplier cases passing before
+the dependency refresh. After native fixture provisioning, 393 combined quality,
+gate, semantic-binding, Allure and supplier cases pass in 192.96 seconds on the
+upgraded candidate. Ruff, scoped Ty, lock consistency and strict official Change
+validation pass. This is not exact-source full proof, installation or publication;
+latest bootstrap and rebuilt-image delivery remain open.
+
+Allure report generation is not missing at accepted HEAD `ebe828d31`. The
+source-bound GitHub artifact contains complete human and Agent views for 5,165
+cases; [verification research](../../../docs/research/foundations/verification.md)
+records the exact run and integrity check. Report discovery and preservation
+beyond local lane retirement remain separate delivery obligations under 8.10.
+
 Five independent read-only agent reviews and a cross-examination round evaluated
 architecture, supply, assurance, performance and ecosystem compatibility against
 source 7f81088fe65768d56390eaca36dbc7426034ac57. Raw reports and source bindings are
@@ -3134,3 +3257,62 @@ owned JavaScript scratch domain. Omitting that declaration would make the
 conservative wildcard reader conflict with every named exclusive output and
 serialize the subsecond check behind the full Python suite. An exclusive supply
 writer still conflicts; independent test, build and evidence outputs do not.
+
+### Visible Documentation Navigation And Native Link Checks
+
+The documentation owner now distinguishes visual expression, navigation roles
+and validation limits. Its native OpenSpec scenario rejects the inference that
+valid outgoing links imply a reachable topic. No second sitemap or ontology is
+introduced. Governance README routes by reader question, the sole plan retains
+direct access, and its implementation detail links the relevant source owners.
+
+A read-only MarkdownIt visible-link graph over all 60 candidate `docs/**/*.md`
+pages initially reached 54 from `docs/README.md`; six were isolated from that
+entrance and Skills had no outgoing docs route. After repair, all 60 are
+reachable and can return to the entrance. Maximum shortest entrance distance
+is three links. Metadata-only relations and external links are not graph edges.
+The 14 implementation-method and 18 framework-decision rows were preserved
+byte-for-byte while regrouping their tables by semantic responsibility.
+
+Native Lychee previously accepted both an existing heading and a missing heading
+in an isolated three-file fixture. Its sole TOML owner now enables anchor checks:
+the valid heading still exits zero; the missing heading exits two with
+`Cannot find fragment`. The current tracked-file gate passes, as does explicit
+selection of all 60 docs including new pages: 350 successful observations,
+108 offline exclusions and zero errors. Exclusions are not external validation.
+The docs registry passes and official Change validation reports no issues.
+
+A local Markdown rendering exposed the documentation-to-governance route and
+its readable question tables. This is not Forge rendering or a full human/Agent
+comprehension trial. Reachability remains a scoped observation, not a new hard
+gate. Source/index inequality correctly blocked the host proof attempt before
+execution; focused owner checks do not constitute a repository Attestation.
+Semantic-observation task 10.11 and complete delivery remain open.
+
+### Python Consumer Binding And Coverage Candidate
+
+The old observer selected the final string assignment in an entire syntax tree,
+matched owner spellings and treated inert command-shaped literals as executable
+consumers. The candidate removes those four heuristic functions. Compiler scope
+facts and ordered typed alternatives now feed one native-call interpretation;
+syntax failure and unresolved consumer kinds no longer share a completeness flag.
+Known consumers survive unresolved siblings in the same file.
+
+Thirty-five source counterexamples and 119 adjacent tests pass, including the
+eight cases that disproved the first green draft. Native dispatch replaced a
+large transfer switch; no forwarding loop method remains. An existing fixture
+needed a real import to establish the native identity it purported to test.
+The changed owner passes Ruff and Ty. The detailed [library comparison](../../../docs/research/foundations/code-design.md#scoped-inference-comparison)
+records why Astroid was not adopted as the resolver and why compiler metadata
+is not a complete effect analysis.
+
+The original full repository draft reported 33 unresolved consumer-kind/path
+pairs. After `2d752e955` and `104f43886`, public `product-boundary` reports 20
+unresolved consumer-kind/path pairs and zero orphan findings. Availability probes
+and shell array storage no longer invent execution; fixed program lookups retain
+identity at their execution boundary. The provider remains nonpassing, without
+source or runtime proof. Next, narrow interpretation to facts that
+can change the claimed reference and resolve generic runtime-boundary duties
+through their existing contracts. Blind path exclusions and unresolved values
+reported as complete are not admissible repairs. Task 10.11 remains open; no
+full proof, integration, runtime activation or adopter mutation was attempted.

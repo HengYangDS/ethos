@@ -28,12 +28,12 @@ A registry entry or trace can show selection without proving the intended check
 ran. Derive obligations from existing gate contracts and inspect their actual
 consumer chain; do not add a second wiring inventory as an authority.
 
-| Mechanism | Use and limit |
-| --- | --- |
-| [Pydantic strict mode](https://pydantic.dev/docs/validation/latest/concepts/strict_mode/) and [extra-field refusal](https://pydantic.dev/docs/validation/latest/api/pydantic/config/) | Replace repetitive Python shape checks at the existing contract owner. A valid structure does not prove a consumer used its values. Derive required schemas from that owner rather than maintaining a second editable definition. |
-| [Hypothesis stateful testing](https://hypothesis.readthedocs.io/en/latest/stateful.html) | Generate interacting operation sequences and check invariants against an independent small model. Retain concrete regression traces and real effect-boundary tests; generated examples do not prove unbounded correctness. |
-| [pluggy validation](https://pluggy.readthedocs.io/en/stable/index.html) | Candidate replacement for actual multi-provider hook composition. Its pending-hook check rejects implementations without matching specifications; it does not prove every required specification has an implementation or that an implementation ran. No new plugin registry is justified for a single-owner call. |
-| [OpenTelemetry traces](https://opentelemetry.io/docs/concepts/signals/traces/) | Candidate replacement for bespoke execution tracing, projecting existing operation identities. Correlation exposes invocation paths; trace presence, sampling or export success cannot certify authorization, policy coverage or durable effects. |
+| Mechanism                                                                                                                                                                             | Use and limit                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [Pydantic strict mode](https://pydantic.dev/docs/validation/latest/concepts/strict_mode/) and [extra-field refusal](https://pydantic.dev/docs/validation/latest/api/pydantic/config/) | Replace repetitive Python shape checks at the existing contract owner. A valid structure does not prove a consumer used its values. Derive required schemas from that owner rather than maintaining a second editable definition.                                                                                  |
+| [Hypothesis stateful testing](https://hypothesis.readthedocs.io/en/latest/stateful.html)                                                                                              | Generate interacting operation sequences and check invariants against an independent small model. Retain concrete regression traces and real effect-boundary tests; generated examples do not prove unbounded correctness.                                                                                         |
+| [pluggy validation](https://pluggy.readthedocs.io/en/stable/index.html)                                                                                                               | Candidate replacement for actual multi-provider hook composition. Its pending-hook check rejects implementations without matching specifications; it does not prove every required specification has an implementation or that an implementation ran. No new plugin registry is justified for a single-owner call. |
+| [OpenTelemetry traces](https://opentelemetry.io/docs/concepts/signals/traces/)                                                                                                        | Candidate replacement for bespoke execution tracing, projecting existing operation identities. Correlation exposes invocation paths; trace presence, sampling or export success cannot certify authorization, policy coverage or durable effects.                                                                  |
 
 The current bounded implementation uses the already installed Pydantic dependency
 for the dependency-policy contract and native Deptry arguments for execution.
@@ -49,12 +49,27 @@ sensitivity. Keep semantic scope separate from resource cost. A pure rule test
 should not install a full runtime; a ref/process/lock boundary needs the real
 resource. Shared fixture code and copied assertions are not independent evidence.
 
-[Allure 3][allure3] deserves a report-only prototype against existing results,
-not rejection as decoration. Its inspected release has a TypeScript implementation,
-modular report plugins and human/agent-oriented views. Evaluate useful dimensions:
-requirements/scenarios, steps, attachments, environments, attempts, failure
-classification, history and partial execution. Allure TestOps would introduce a
-separate service and management concern; it is not required to produce reports.
+[Allure 3][allure3] now renders the same pytest attempt into human and Agent
+views. The September 30 accepted-source [GitHub run](https://github.com/HengYangDS/ethos/actions/runs/36683093555)
+retains a generated Awesome report in `ethos-proof-receipt` artifact `11083347537`.
+Its exact HEAD is `ebe828d31aacca56f82b9a1dabc77e829989c328`; Allure and JUnit both
+contain 5,165 cases: 5,163 passed and two skipped. The downloaded archive matches
+its provider SHA-256 `af93e74902818cfd47005e86e4bd7a47089414fc7828af3e587e12537adcd300`.
+The former local execution lane no longer exists: generation passed, but a
+discoverable report entrance and retained local handoff did not close with it.
+
+| Capability                                            | Current evidence and remaining obligation                                                                                   |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| One-attempt results, HTML and Agent inspection        | Executed on the accepted source; report recovery does not rerun tests.                                                      |
+| JUnit and coverage exchange                           | Retain their native Forge consumers and source identity.                                                                    |
+| Source and population completeness                    | Compare exact report HEAD, JUnit cases and native manifests; report success is not proof authority.                         |
+| Requirements, steps and attachments                   | Add meaningful producer-owned metadata where it improves diagnosis; do not manufacture steps or labels to meet a counter.   |
+| Environment, attempts, history and failure categories | Qualify same-subject comparison, bounded retention and redaction before claiming useful trends or flake detection.          |
+| Report delivery                                       | Surface a clear artifact/report entry and preserve the result beyond lane retirement; an upload path alone is insufficient. |
+
+Allure TestOps introduces a separate service and management concern; it is not
+required to produce reports. Tool adoption means selected capabilities work for
+their consumers, not that every plugin or paid service must be enabled.
 
 Keep JUnit and coverage interchange for native Forge consumers. Generate Allure
 from the same actual execution results, not a second test run or a manually
@@ -132,14 +147,14 @@ second quality-policy or feedback database.
 These conclusions come from the current work-lane failures and bounded replays,
 not a claim that the complete product or every verifier is qualified.
 
-| Mistaken assumption | Required correction at the existing owner | Observed limit |
-| --- | --- | --- |
-| A curated child environment excludes ambient context | Explicit replacement semantics for isolated processes; verify absent and supplied actor/Change values through a real child | The isolation repair and focused package replay passed; the current full proof remains blocked elsewhere. |
-| The selected changed files contain enough meaning for command admission | Resolve bindings against the exact postimage, including unchanged definitions and excluding deleted inputs | Public counterexamples distinguish valid aliases, new commands, changed prefixes and deleted owners; installed acceptance is pending. |
-| Flattened metadata or parser success proves preserved meaning | Retain typed mappings/lists and reject duplicate or malformed headers; make consumers propagate required relation failures | Local target existence is checked; fragment correctness, external freshness and complete retrieval quality remain unproved. |
-| More green tests or a faster failed run proves delivery | Bind source, complete proof, package, installed behavior and hosted publication separately; distinguish failed gates from dependency-blocked consumers | The latest 608.491-second attempt blocked; it is not a successful proof below the performance threshold. |
-| Writing a rule prevents recurrence | Connect the rule to the existing gate and a falsifying consumer test | README-only navigation is implemented with tracked/untracked cases, but not yet accepted or installed. |
-| A familiar formatter is the repository format owner | Read the native ownership declaration before invocation; do not reinterpret another tool's warnings as repository failures | An inappropriate Prettier run changed historical table formatting; those edits were removed and the declared Markdownlint owner passed all 1,849 selected files. |
+| Mistaken assumption                                                     | Required correction at the existing owner                                                                                                              | Observed limit                                                                                                                                                   |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A curated child environment excludes ambient context                    | Explicit replacement semantics for isolated processes; verify absent and supplied actor/Change values through a real child                             | The isolation repair and focused package replay passed; the current full proof remains blocked elsewhere.                                                        |
+| The selected changed files contain enough meaning for command admission | Resolve bindings against the exact postimage, including unchanged definitions and excluding deleted inputs                                             | Public counterexamples distinguish valid aliases, new commands, changed prefixes and deleted owners; installed acceptance is pending.                            |
+| Flattened metadata or parser success proves preserved meaning           | Retain typed mappings/lists and reject duplicate or malformed headers; make consumers propagate required relation failures                             | Local target existence is checked; fragment correctness, external freshness and complete retrieval quality remain unproved.                                      |
+| More green tests or a faster failed run proves delivery                 | Bind source, complete proof, package, installed behavior and hosted publication separately; distinguish failed gates from dependency-blocked consumers | The latest 608.491-second attempt blocked; it is not a successful proof below the performance threshold.                                                         |
+| Writing a rule prevents recurrence                                      | Connect the rule to the existing gate and a falsifying consumer test                                                                                   | README-only navigation is implemented with tracked/untracked cases, but not yet accepted or installed.                                                           |
+| A familiar formatter is the repository format owner                     | Read the native ownership declaration before invocation; do not reinterpret another tool's warnings as repository failures                             | An inappropriate Prettier run changed historical table formatting; those edits were removed and the declared Markdownlint owner passed all 1,849 selected files. |
 
 Run the smallest affected public boundary before the expensive suite. Freeze all
 identity-bearing inputs during native fixture and package execution. Reuse execution
@@ -147,6 +162,30 @@ material only while its complete inputs and applicability remain valid; never re
 effect authorization. A failed repair must improve the causal model or be removed,
 not trigger an unchanged full-suite retry. Keep progress in official Change tasks,
 measured evidence in existing receipts, and reusable conclusions in their topic.
+
+## Native Nox Report Composition
+
+A September 30 isolated probe used the installed Nox and pytest, without adding
+a plugin or changing an adopter. Two parameterized sessions produced distinct
+JUnit files through inherited `PYTEST_ADDOPTS` and pytest's native environment
+expansion of `${NOX_CURRENT_SESSION}` in the output path. One session passed and
+one failed; both reports survived, and the native Nox session report preserved
+their separate results. The caller-owned temporary tree was removed afterward.
+
+Nox's `Session.run` merges the outer environment by default. Passing a partial
+`env` mapping is not equivalent to `include_outer_env=False`, and the absence of
+`session.posargs` forwarding does not establish that native reports are
+unavailable. Use Nox's session signatures and explicit result names; its report
+status numbers are not process exit codes.
+
+This falsifies the need for a private pytest plugin merely to obtain per-session
+JUnit. It does not qualify arbitrary Nox projects, multiple interpreters, static
+analysis or source coverage. A verifier must still bind the expected sessions,
+fresh attempt-owned paths, test selection and source versus installed-artifact
+identity. Reject missing, overwritten, escaped or contradictory reports; a
+nonempty JUnit report alone cannot prove that the selected product code ran.
+Keep these obligations in the existing native-evidence owner and Change task
+11.9.2, rather than adding a second runner or replaying the suite.
 
 ## Sources
 

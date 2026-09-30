@@ -48,7 +48,9 @@ def test_runtime_install_uses_a_durable_content_addressed_package_wheel(
         operation: str,
         *args: str,
         python: Path,
+        use_cache: bool = False,
     ) -> None:
+        assert use_cache is ("sync" in args)
         calls.append((operation, args, python))
 
     monkeypatch.setattr(
@@ -57,7 +59,15 @@ def test_runtime_install_uses_a_durable_content_addressed_package_wheel(
         record_runtime_tool,
     )
     monkeypatch.setattr(
-        dependency_supply, "project_dependency_supply", lambda *_args, **_kwargs: None
+        dependency_supply,
+        "observe_python_facts",
+        lambda python: {
+            "prefix": str(python.parent),
+            "python_abi": "cpython-test",
+            "python_version": "3.12.0",
+            "python_implementation": "cpython",
+            "architecture": "test",
+        },
     )
     materialize = partial(
         identity_transition.materialize_package_wheel,
@@ -73,8 +83,8 @@ def test_runtime_install_uses_a_durable_content_addressed_package_wheel(
     requirements.write_text("locked\n", encoding="utf-8")
     dependency_supply.install_locked_runtime(
         source,
-        tmp_path / "source-python",
-        tmp_path / "python",
+        tmp_path / "source/bin/python",
+        tmp_path / "target/bin/python",
         artifact.path,
         requirements,
     )
@@ -86,8 +96,8 @@ def test_runtime_install_uses_a_durable_content_addressed_package_wheel(
     assert {"install", "--offline", "--break-system-packages", "--no-deps"} < set(calls[1][1])
     assert Path(calls[1][1][-1]) == durable
     assert [python for _operation, _args, python in calls] == [
-        tmp_path / "source-python",
-        tmp_path / "source-python",
+        tmp_path / "source/bin/python",
+        tmp_path / "source/bin/python",
     ]
     assert durable.read_bytes() == b"wheel"
     durable.write_bytes(b"different")

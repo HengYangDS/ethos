@@ -137,6 +137,7 @@ def run_runtime_tool(
     source: Path,
     *args: str,
     python: Path | None = None,
+    use_cache: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     """Run locked uv through the current authenticated Python interpreter."""
     executable = python or Path(sys.executable)
@@ -146,16 +147,18 @@ def run_runtime_tool(
         else Path(observe_python_facts(executable)["prefix"])
     )
     environment: dict[str, str] = {
-        **os.environ,
+        **{key: value for key, value in os.environ.items() if not key.startswith("UV_")},
         "PYTHONDONTWRITEBYTECODE": "1",
         "UV_LINK_MODE": "copy",
-        "UV_NO_CACHE": "1",
+        "UV_NO_CACHE": "0" if use_cache else "1",
         "UV_OFFLINE": "1",
+        "UV_PYTHON_DOWNLOADS": "never",
         "UV_PYTHON": executable.as_posix(),
         "VIRTUAL_ENV": prefix.as_posix(),
     }
     environment.pop("ETHOS_UV_CACHE_DIR", None)
-    environment.pop("UV_CACHE_DIR", None)
+    if use_cache and (cache := os.environ.get("UV_CACHE_DIR")):
+        environment["UV_CACHE_DIR"] = cache
     if (source / "package-lock.json").is_file():
         environment["ETHOS_NODE_PACKAGE_SUPPLY"] = resolve_node_package_supply(source).as_posix()
     completed = subprocess.run(

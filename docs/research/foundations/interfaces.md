@@ -128,7 +128,7 @@ inputs, generated reports and live runtimes distinct; their owners and retention
 conditions differ. Current repository-private installation is not the terminal
 product form.
 
-The candidate now selects installed dependency bytes from uv's native PEP 751
+The earlier candidate selected installed dependency bytes from uv's native PEP 751
 `pylock.toml` export before hashing or copying. The export remains a transient
 projection of `uv.lock`; packaging supplies marker evaluation, normalized names
 and version comparison. Missing, mismatched and duplicate packages or invalid
@@ -151,6 +151,79 @@ into an isolated target in 8.10 seconds. Outside the checkout, its CLI version,
 help and dependency compatibility checks passed; all 73 installed distributions
 were compatible. This qualifies that constructor transition with a predecessor
 wheel, not the delivery of the candidate wheel or an activated successor.
+
+### Packaging Reassessment: Artifact Installation Is Not Environment Copying
+
+September 30, 2026: candidate `15d2fbbcef97f5eef0f3b35956e4606291ba8c26`
+retains a standard wheel, a platform runtime archive and a separate npm launcher.
+These carriers have different acceptance obligations; none proves the others.
+
+| Observation | Consequence |
+| --- | --- |
+| Exact npm launcher bytes, outside the checkout with Node but no Python or uv, exit 127 even for `--version`. The package contains no ETHOS implementation payload. | This is a development launcher, not source-independent product installation. Its source/PATH fallbacks and placeholder publication metadata must not be presented as delivered distribution. |
+| Native uv installs the same 72 production dependencies into an empty venv offline in 2.72 seconds using available cache artifacts, without projecting installed files first. Dependency checking passes. An empty owned cache fails explicitly. | Native artifact installation is viable. A prepared artifact closure is a prerequisite for cold offline builds; ambient cache availability is not a release guarantee. This timing is not total build or installed-lifecycle latency. |
+| An isolated dependency wheel is installed, its module bytes are changed without changing package identity, and the current projection copies those changed bytes. Subsequent uv `--require-hashes --strict` synchronization passes and retains the changes. | Hashing copied installed files preserves observed bytes, not their correspondence to locked artifacts. A no-op package synchronization does not revalidate every installed file. Neither the sample module nor an external effect is executed; this does not prove a full-proof or publication bypass. |
+| The Cask uses `command_wrapper` to invoke ETHOS's existing console script. That script locates Python relative to `$0`, so directly linking it would select the link directory instead. | The wrapper currently has a relocation purpose, not a new semantic authority. Reconsider the launcher boundary before removing it; official `binary` linking alone is not a safe replacement. |
+| The installation owner copies runtime and wheel from the package carrier into a shared generation. Package-manager removal and safe generation retirement are still separate open tasks. | Shared version pinning can be justified by live consumers, but another full copy and lifecycle require demonstrated necessity, bounded retention and native upgrade/uninstall acceptance. |
+
+The raw experiments are retained under the existing
+`build/evidence/quality/validation-results/` owner:
+
+- `packaging-npm-source-independent-probe.json`
+- `packaging-native-install-comparison.json`: failed isolation attempt; disabling
+  native configuration also changed the effective prerelease policy.
+- `packaging-native-install-comparison-explicit-policy.json`: replay with the
+  accepted prerelease policy explicit, production inputs unchanged.
+- `packaging-installed-byte-integrity-counterexample.json`
+
+Every disposable target was removed. No accepted runtime, adopter, shared cache
+entry or guest service was edited. These are local experiments, not a new release.
+
+Prefer native locked-artifact installation into a fresh build target, followed
+by platform relocation/signing, sealing and installed acceptance. Cache supplies
+reusable computation, not authorization or independent artifact authenticity.
+Keep the wheel as the Python/SDK carrier and assess a relocatable directory bundle
+for ordinary CLI delivery; one-file extraction is not a product requirement.
+Remove the npm product claim unless it gains a qualified installable payload.
+Keep native Homebrew installation separate from the packager choice. A prior
+formula changing dylib bytes invalidates a pre-relocation manifest; it does not
+prove formula/bottle delivery inherently unsuitable. Do not claim a selected
+optimal builder before the common lifecycle passes.
+
+The candidate implementation now removes lock-based installed-file selection.
+uv performs production artifact synchronization with hashes, strict dependency
+checking, wheel-only installation and explicit reinstallation. Only this operation
+uses the native reusable cache; ambient uv policy is excluded and the cache path
+remains an explicit supply location. The interpreter copy excludes site-packages;
+already sealed runtime migration retains its separately validated byte projection.
+Fresh targets and same-version altered targets use artifacts, not installed names.
+
+The local regression family passed 251 tests before the additional interpreter
+copy correction; the final affected family passed 75 tests, with Ruff and Ty
+clean. These overlapping results are not independent evidence totals.
+The first complete image revealed a carried pip outside the production lock.
+After excluding interpreter site-packages, construction took 6.24 seconds and
+installed exactly 72 production dependencies plus ETHOS, with no unexpected
+distribution. CLI version/help and dependency checking passed. This is a warm
+single-host predecessor-wheel experiment, not a cold-host release or a full
+installed-product journey. Retained receipts:
+
+- `native-artifact-product-image.json`: initial image with the unexpected pip.
+- `native-artifact-product-image-clean-interpreter.json`: exact clean closure.
+- `native-artifact-public-boundary.json`: public product gate remains BLOCK on
+  dynamic semantic observations and the unfinished native Nox evidence input.
+
+This finding maps to existing installed-product tasks 3.2--3.5 and
+proof-throughput task 5.11. Cold runner supply, exact-source proof, accepted
+activation, complete native quality evidence and public installation remain open;
+no packaged candidate is promoted by these experiments alone.
+
+Official sources were read on September 30 through direct public HTTPS after
+the configured Exa reader returned HTTP 429: [Homebrew formula guidance][brew-python],
+[Cask command wrappers][brew-cask], [uv tool installation][uv-tools],
+[uv cache safety][uv-cache] and [PyInstaller bundle modes][frozen-modes].
+PyInstaller's documented one-file startup extraction and platform-specific output
+are tradeoffs, not evidence that another packager has passed ETHOS acceptance.
 
 ## MCP Framework Selection Evidence
 
@@ -230,4 +303,7 @@ marketing claims were not used as evidence of comparative performance.
 [brew-python]: https://docs.brew.sh/Language-Specific-Formulae
 [uv-tools]: https://docs.astral.sh/uv/concepts/tools/
 [frozen-runtime]: https://pyinstaller.org/en/stable/runtime-information.html
+[brew-cask]: https://docs.brew.sh/Cask-Cookbook#stanza-command_wrapper
+[uv-cache]: https://docs.astral.sh/uv/concepts/cache/
+[frozen-modes]: https://pyinstaller.org/en/stable/operating-mode.html
 [fastmcp-tools]: https://gofastmcp.com/servers/tools

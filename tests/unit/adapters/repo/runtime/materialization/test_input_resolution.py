@@ -148,7 +148,9 @@ def test_managed_runtime_requires_one_exact_wheel(tmp_path, monkeypatch, content
     """Resolve the package by verified content identity, not directory presence."""
     source, package_root = _managed_runtime_case(monkeypatch, tmp_path)
     assert runtime_inputs.is_selected_runtime_source(source) is True
-    assert runtime_inputs.selected_runtime_source(source).root == source.parents[3]
+    selected = runtime_inputs.selected_runtime_source(source)
+    assert selected is not None
+    assert selected.root == source.parents[3]
     if contents:
         package_root.mkdir(parents=True)
         for index, content in enumerate(contents):
@@ -163,7 +165,10 @@ def test_managed_runtime_requires_one_exact_wheel(tmp_path, monkeypatch, content
 
 
 @pytest.mark.parametrize("layout", ["bin/python", "python/python.exe"])
-def test_runtime_tool_preserves_interpreter_supply_and_environment(tmp_path, monkeypatch, layout):
+@pytest.mark.parametrize("use_cache", [False, True])
+def test_runtime_tool_preserves_interpreter_supply_and_environment(
+    tmp_path, monkeypatch, layout, *, use_cache
+):
     """Keep native argv and all isolation obligations in one invocation fixture."""
     source, python = tmp_path / "source", tmp_path / layout
     source.mkdir()
@@ -183,6 +188,8 @@ def test_runtime_tool_preserves_interpreter_supply_and_environment(tmp_path, mon
         "UV_PYTHON": "/unrelated/interpreter",
         "UV_CACHE_DIR": str(tmp_path / "ambient-cache"),
         "ETHOS_UV_CACHE_DIR": str(tmp_path / "legacy-cache"),
+        "UV_NO_VERIFY_HASHES": "1",
+        "UV_KEYRING_PROVIDER": "subprocess",
     }.items():
         monkeypatch.setenv(key, value)
     observed = []
@@ -192,16 +199,22 @@ def test_runtime_tool_preserves_interpreter_supply_and_environment(tmp_path, mon
         return _completed(0)
 
     monkeypatch.setattr(runtime_inputs.subprocess, "run", run)
-    runtime_inputs.run_runtime_tool(source, "pip", "install", "package.whl")
+    runtime_inputs.run_runtime_tool(source, "pip", "install", "package.whl", use_cache=use_cache)
     assert len(observed) == 1
     command, env = observed[0]
     assert command == (str(python), "-B", "-I", "-m", "uv", "pip", "install", "package.whl")
     assert {key: env[key] for key in ("UV_LINK_MODE", "UV_NO_CACHE", "UV_PYTHON")} == {
         "UV_LINK_MODE": "copy",
-        "UV_NO_CACHE": "1",
+        "UV_NO_CACHE": "0" if use_cache else "1",
         "UV_PYTHON": str(python),
     }
-    assert not {"UV_CACHE_DIR", "ETHOS_UV_CACHE_DIR"} & env.keys()
+    assert "ETHOS_UV_CACHE_DIR" not in env
+    if use_cache:
+        assert env["UV_CACHE_DIR"] == str(tmp_path / "ambient-cache")
+    else:
+        assert "UV_CACHE_DIR" not in env
+    assert not {"UV_NO_VERIFY_HASHES", "UV_KEYRING_PROVIDER"} & env.keys()
+    assert env["UV_PYTHON_DOWNLOADS"] == "never"
     assert env["ETHOS_NODE_PACKAGE_SUPPLY"] == str(supply)
 
 

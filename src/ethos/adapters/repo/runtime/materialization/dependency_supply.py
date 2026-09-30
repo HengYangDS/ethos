@@ -19,41 +19,12 @@ import hashlib
 import json
 import os
 import sys
-import tomllib
-from importlib.metadata import distribution as installed_distribution
 from importlib.metadata import distributions
 from pathlib import Path
 
 prefix = Path(sys.prefix).resolve()
 files = {}
-available = tuple(distributions())
-if len(sys.argv) > 1:
-    from packaging.markers import Marker
-    from packaging.utils import canonicalize_name
-    from packaging.version import Version
-
-    payload = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-    if payload.get("lock-version") != "1.0" or not isinstance(payload.get("packages"), list):
-        raise ValueError("production_lock_invalid")
-    selected = {}
-    for package in payload["packages"]:
-        name, version = package["name"], package["version"]
-        if not isinstance(name, str) or not name or not isinstance(version, str):
-            raise ValueError("production_lock_package_invalid")
-        if package.get("marker") and not Marker(package["marker"]).evaluate():
-            continue
-        name = canonicalize_name(name)
-        if name in selected:
-            raise ValueError("production_lock_package_duplicate")
-        selected[name] = Version(version)
-    retained = []
-    for name, version in selected.items():
-        distribution = installed_distribution(name)
-        if Version(distribution.version) != version:
-            raise ValueError("production_dependency_version_mismatch:" + name)
-        retained.append(distribution)
-    available = tuple(retained)
-for distribution in available:
+for distribution in distributions():
     for entry in distribution.files or ():
         path = Path(os.path.abspath(distribution.locate_file(entry)))
         if path.is_symlink() or not path.is_file():
@@ -118,18 +89,26 @@ def install_locked_runtime(
     wheel: Path,
     requirements: Path,
 ) -> None:
-    """Project the exact production dependency closure, then install the wheel."""
-    project_dependency_supply(source_python, target_python, requirements=requirements)
+    """Install locked artifacts natively, never infer them from installed names."""
+    source_facts = observe_python_facts(source_python)
+    target_facts = observe_python_facts(target_python)
+    if same_python_path(source_facts["prefix"], target_facts["prefix"]):
+        _fail("hook_runtime_dependency_supply_alias")
+    if not same_python_identity(source_facts, target_facts):
+        _fail("hook_runtime_dependency_supply_incompatible")
     commands = (
         (
             "pip",
             "sync",
             "--offline",
+            "--no-config",
             "--preview-features",
             "pylock",
             "--break-system-packages",
             "--require-hashes",
             "--strict",
+            "--reinstall",
+            "--no-build",
             "--python",
             target_python.as_posix(),
             requirements.as_posix(),
@@ -138,26 +117,22 @@ def install_locked_runtime(
             "pip",
             "install",
             "--offline",
+            "--no-config",
             "--break-system-packages",
             "--no-deps",
+            "--reinstall",
             "--python",
             target_python.as_posix(),
             wheel.as_posix(),
         ),
     )
-    for command in commands:
-        run_runtime_tool(source, *command, python=source_python)
+    run_runtime_tool(source, *commands[0], python=source_python, use_cache=True)
+    run_runtime_tool(source, *commands[1], python=source_python)
 
 
-def project_dependency_supply(
-    source_python: Path, target_python: Path, *, requirements: Path | None = None
-) -> None:
-    """Copy only installed-distribution bytes between congruent Python prefixes."""
-    source_prefix, files = (
-        observe_dependency_supply(source_python)
-        if requirements is None
-        else observe_dependency_supply(source_python, requirements=requirements)
-    )
+def project_dependency_supply(source_python: Path, target_python: Path) -> None:
+    """Copy a validated sealed runtime's closure between congruent prefixes."""
+    source_prefix, files = observe_dependency_supply(source_python)
     source_facts = observe_python_facts(source_python)
     target_facts = observe_python_facts(target_python)
     target_prefix = Path(target_facts["prefix"]).resolve()
@@ -188,10 +163,8 @@ def project_dependency_supply(
             _fail("hook_runtime_dependency_supply_invalid")
 
 
-def observe_dependency_supply(
-    python: Path, *, requirements: Path | None = None
-) -> tuple[Path, tuple[tuple[Path, str], ...]]:
-    """Observe the native installed closure selected by the production lock."""
+def observe_dependency_supply(python: Path) -> tuple[Path, tuple[tuple[Path, str], ...]]:
+    """Observe already validated runtime bytes without claiming artifact origin."""
     completed = subprocess.run(
         (
             python.as_posix(),
@@ -199,7 +172,6 @@ def observe_dependency_supply(
             "-I",
             "-c",
             _SUPPLY_OBSERVATION,
-            *((requirements.as_posix(),) if requirements is not None else ()),
         ),
         capture_output=True,
         check=False,

@@ -178,7 +178,9 @@ class LocalGateRunner:
             )
         elif native_nox.requires_reports(root, gate.verification_providers):
             report_root = Path(scope.enter_context(TemporaryDirectory(prefix="en-"))).resolve()
-            command, environment, report_inputs = native_nox.prepare(root, command, report_root)
+            command, environment, report_inputs = native_nox.prepare(
+                root, command, report_root, references=gate.verification_providers
+            )
         elif (
             "ethos.adapters.gates.code_quality:behavior_report" in gate.verification_providers
             and any(

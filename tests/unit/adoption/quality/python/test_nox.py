@@ -22,6 +22,108 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.parametrize(
+    "fault",
+    [
+        "none",
+        "no-check",
+        "excluded-source",
+        "hidden-failure",
+        "disabled-rules",
+        "source-changed",
+        "hidden-process-failure",
+        "forged-report",
+        "warning",
+        "config-changed",
+        "native-fix-config",
+    ],
+)
+def test_nox_static_preserves_real_native_configuration_and_one_attempt(
+    tmp_path: Path, fault: str
+) -> None:
+    """A successful session needs native scope and diagnostics, not success-shaped prose."""
+    policy = {
+        "disabled-rules": "[lint]\nselect = []\n",
+        "excluded-source": "exclude = ['src/app.py']\nforce-exclude = true\n[lint]\nselect=['F']\n",
+        "warning": "select = ['F']\n",
+        "native-fix-config": "fix = true\n[lint]\nselect = ['F']\n",
+    }.get(fault, "[lint]\nselect = ['F']\n")
+    check = (
+        f"    session.run({sys.executable!r}, '-m', 'ruff', 'check', '--no-cache', "
+        "'--config', '.config/checks/ruff.toml', '.')\n"
+    )
+    if fault == "no-check":
+        check = "    print('All checks passed!')\n"
+    elif fault == "hidden-failure":
+        check = check.replace("'.')", "'.', success_codes=[0, 1])")
+    elif fault == "source-changed":
+        check += "    Path('src/app.py').write_text('CHANGED = True\\n')\n"
+    elif fault == "config-changed":
+        check += "    Path('.config/checks/ruff.toml').write_text('[lint]\\nselect=[]\\n')\n"
+    elif fault == "hidden-process-failure":
+        check += (
+            f"    session.run({sys.executable!r}, '-c', 'raise SystemExit(7)', "
+            "success_codes=[0, 7])\n"
+        )
+    elif fault == "forged-report":
+        check = check.replace("'.')", "'.', success_codes=[0, 1])")
+        check += (
+            "    Path(__import__('os').environ['COVERAGE_FILE']).parent"
+            ".joinpath('ruff-0.json').write_text('[]')\n"
+        )
+    files = {
+        "src/app.py": "import os\n"
+        if fault in {"hidden-failure", "forged-report", "native-fix-config"}
+        else "ANSWER = 42\n",
+        "tests/test_app.py": "def test_answer():\n    assert 42 == 42\n",
+        ".config/checks/ruff.toml": policy,
+        "pyproject.toml": '[project]\nname = "sample"\nversion = "1"\n',
+        "uv.lock": "version = 1\n",
+        "noxfile.py": (
+            "from pathlib import Path\nimport nox\n\n"
+            "loaded = Path('module-load-count')\n"
+            "loaded.write_text((loaded.read_text() if loaded.exists() else '') + 'x')\n\n"
+            "@nox.session(python=False)\ndef quality(session):\n"
+            "    marker = Path('attempt-count')\n"
+            "    marker.write_text((marker.read_text() if marker.exists() else '') + 'x')\n" + check
+        ),
+    }
+    root = committed_source_repo(tmp_path, files)
+    gate = Gate(
+        id="python-quality",
+        kind="static",
+        command=(sys.executable, "-m", "nox", "-s", "quality"),
+        verification_providers=("ethos.adapters.gates.code_quality:static_report",),
+    )
+    node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
+
+    result = LocalGateRunner().run(node, gate, root=root)
+
+    assert result.verdict == ("pass" if fault == "none" else "block"), (
+        result.diagnostics,
+        result.verification,
+        result.stderr[-1500:],
+    )
+    assert (root / "attempt-count").read_text() == "x"
+    assert (root / "module-load-count").read_text() == "x"
+    assert result.verification is not None
+    assert result.command == gate_execution_identity(gate)
+    if fault != "none":
+        reasons = {
+            "no-check": "python_static_evidence_missing",
+            "excluded-source": "python_static_scope_incomplete",
+            "hidden-failure": "python_static_native_command_failed",
+            "disabled-rules": "python_static_rules_disabled",
+            "source-changed": "python_static_source_changed",
+            "hidden-process-failure": "python_static_native_command_failed",
+            "forged-report": "python_static_native_command_failed",
+            "warning": "python_static_native_warning",
+            "config-changed": "python_static_source_changed",
+            "native-fix-config": "python_nox_session_failed",
+        }
+        assert reasons[fault] in json.dumps(result.diagnostics), result.diagnostics
+
+
+@pytest.mark.parametrize(
     "fault", ["none", "unexercised", "all-skipped", "test-failed", "source-changed"]
 )
 def test_nox_behavior_uses_one_native_attempt_with_real_source_evidence(

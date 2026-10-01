@@ -157,6 +157,38 @@ post-execution evidence rather than relying on a missing provider's late failure
 Focused tests do not establish installed/adopter delivery or native Python report
 support; both remain unverified until their existing acceptance is completed.
 
+### Same-Attempt Python Static Evidence
+
+The current adopter failure reaches a real Nox quality command but its selected
+Python static verifier has no completed-execution consumer. The candidate now
+forwards the exact command through generic preflight and uses the existing Nox
+attempt owner for selected sessions, actual child return codes, native Ruff JSON,
+effective rules and native file selection. It does not replace repository
+configuration with isolated product rules or rerun the lint workload. The two
+extra Ruff invocations only observe files and settings; their cost is explicit.
+
+The source-side adapter preserves native Nox success semantics but admission also
+checks actual child exit codes. Hidden failures, disabled rules, omitted sources,
+changed source/configuration, changed report bytes and native warnings refuse.
+Native auto-fix defaults cannot mutate the check's source. Missing static evidence
+prevents dependent behavior execution. Nested Nox parallel execution remains
+unsupported by this capture contract and fails preflight rather than losing
+unobserved child evidence; it does not constrain independent gate parallelism.
+
+`native-static-final-law.json` retains 251 passing adopter-quality, report and
+host-result siblings. The actual public CLI replay in
+`native-static-public-closure.json` conserves every tracked fixture hash: the
+valid test/static pair passes with one attempt each; a prose-only static session
+blocks without starting its dependent tests. Both results are host observations,
+not repository proof, accepted runtime, public distribution or adopter acceptance.
+
+This implements the existing Nox/Ruff contract, not arbitrary Python commands,
+Ty evidence, mixed-language quality or cryptographic producer isolation. Capture
+and reports execute under the same cooperative UID; hashes detect observed
+report drift, not a malicious writer replacing the complete observation chain.
+The current source budgets are still nonpassing. Preserve original producer
+failures and installed selections until exact proof and consumer replay succeed.
+
 ### Same-Attempt Go Failure Identity
 
 The normal proof progress projection also discarded `ActionRunResult.verification`

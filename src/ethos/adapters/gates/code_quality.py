@@ -226,7 +226,7 @@ def _preflight(
             report = (
                 python_behavior_report(root, preflight=True, command=command)
                 if axis == "behavior"
-                else python_static_report(root, preflight=True)
+                else python_static_report(root, preflight=True, command=command)
             )
             gaps.extend(string_sequence(report.get("required_gaps"), drop_empty=True))
         elif axis != "behavior":
@@ -335,7 +335,13 @@ def behavior_report(
 
 
 def static_report(
-    root: Path, *, execution: NativeExecution | None = None, preflight: bool = False
+    root: Path,
+    *,
+    execution: NativeExecution | None = None,
+    preflight: bool = False,
+    command: tuple[str, ...] = (),
 ) -> dict[str, object]:
     """Require native static diagnostics for every observed code language."""
-    return _report(root, "static-analysis", execution=execution, preflight=preflight)
+    return _report(
+        root, "static-analysis", execution=execution, preflight=preflight, command=command
+    )

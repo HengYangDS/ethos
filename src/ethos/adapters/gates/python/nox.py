@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from typing import Never
 
 import ethos.adapters.gates.python.coverage as native_coverage
+from ethos.adapters.gates.python.static import prepare_capture
 from ethos.adapters.gates.verification import NativePythonReports
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_files
@@ -27,11 +28,24 @@ import inspect,json,runpy,sys
 from pathlib import Path
 import coverage
 from nox import tasks
+from nox import command as native_command
 from nox.sessions import SessionRunner
 
 selection = Path(sys.argv.pop(1))
+capture_static = sys.argv.pop(1) == 'static'
 native_run_manifest = tasks.run_manifest
 native_execute = SessionRunner.execute
+native_popen = native_command.popen
+command_records = []
+
+
+def capture_command(args, **kwargs):
+    code, output = native_popen(args, **kwargs)
+    command_records.append({'argv': list(args), 'cwd': str(Path.cwd().resolve()),
+                            'session': kwargs.get('env', {}).get('NOX_CURRENT_SESSION', ''),
+                            'exit_code': code})
+    (selection.parent / 'commands.json').write_text(json.dumps(command_records))
+    return code, output
 
 
 def measure_session(session):
@@ -62,6 +76,11 @@ def retain_scope(manifest, global_config):
 
 tasks.run_manifest = retain_scope
 SessionRunner.execute = measure_session
+if capture_static:
+    native_command.popen = capture_command
+    import runpy as native_runpy
+    static = native_runpy.run_path(str(selection.parent / 'static-adapter.py'))
+    native_command.run = static['capture_run'](native_command.run, selection.parent)
 runpy.run_module('nox', run_name='__main__')
 """
 
@@ -76,7 +95,7 @@ try:
     provenance = config.provenance('envdir')
     conflict = (config.report is not None or provenance != type(provenance).DEFAULT
                 or config.install_only or config.list_sessions or config.usage
-                or config.help or config.version)
+                or config.help or config.version or (config.parallel or 1) > 1)
     print(json.dumps({'conflict': bool(conflict), 'coverage': coverage.__version__}))
 except SystemExit:
     print(json.dumps({'invalid': True}))
@@ -95,6 +114,8 @@ def requires_reports(root: Path, references: tuple[str, ...]) -> bool:
         & {
             "ethos.adapters.gates.python_quality:behavior_report",
             "ethos.adapters.gates.code_quality:behavior_report",
+            "ethos.adapters.gates.python_quality:static_report",
+            "ethos.adapters.gates.code_quality:static_report",
         }
     ) and any(
         subject.language == "python" for subject in observed_code_subjects(tuple(git_files(root)))
@@ -160,7 +181,7 @@ def preflight(root: Path, command: tuple[str, ...]) -> None:
 
 
 def prepare(
-    root: Path, command: tuple[str, ...], output: Path
+    root: Path, command: tuple[str, ...], output: Path, *, references: tuple[str, ...] = ()
 ) -> tuple[tuple[str, ...], dict[str, str], NativePythonReports]:
     """Use native Nox session and Coverage process mechanisms in one owned root."""
     prefix, arguments = _prefix(command)
@@ -181,12 +202,16 @@ def prepare(
         "COVERAGE_RCFILE": str(config),
         "COVERAGE_PROCESS_START": str(config),
     }
+    capture_static = any(reference.endswith(":static_report") for reference in references)
+    if capture_static:
+        prepare_capture(output)
     return (
         (
             *prefix,
             "-B",
             str(attempt),
             str(output / "selection.json"),
+            "static" if capture_static else "behavior",
             "--envdir",
             str(output / "environments"),
             "--report",
@@ -198,7 +223,8 @@ def prepare(
             root=output,
             source_digests=tuple(
                 (path, hashlib.sha256((root / path).read_bytes()).hexdigest())
-                for path in git_files(root, "*.py")
+                for path in git_files(root)
+                if capture_static or path.endswith(".py")
             ),
             python_prefix=prefix,
             packaged_sources=native_coverage.artifact_sources(root, prefix),
@@ -206,8 +232,13 @@ def prepare(
     )
 
 
-def _session_evidence(
-    output: Path, expected: tuple[str, ...], exit_code: int, *, names: tuple[str, ...] = ()
+def session_evidence(
+    output: Path,
+    expected: tuple[str, ...],
+    exit_code: int,
+    *,
+    names: tuple[str, ...] = (),
+    require_tests: bool = True,
 ) -> dict[str, object]:
     """Reduce each native session and JUnit once without replaying test commands."""
     native_report = output / "nox.json"
@@ -239,7 +270,14 @@ def _session_evidence(
         _invalid("python_nox_session_scope_incomplete")
     if any(item.get("result") != "success" for item in sessions) or exit_code:
         _invalid("python_nox_session_failed")
-    junit = tuple(output / f"{name}.xml" for name in names or expected)
+    if not require_tests:
+        return {"sessions": actual}
+    return {"tests": _test_counts(output, names or expected), "sessions": actual}
+
+
+def _test_counts(output: Path, names: tuple[str, ...]) -> dict[str, int]:
+    """Observe complete native test-session reports after session identity admission."""
+    junit = tuple(output / f"{name}.xml" for name in names)
     if any(not path.is_file() or path.is_symlink() for path in junit):
         _invalid("python_nox_junit_missing")
     counts: dict[str, int] = {}
@@ -249,10 +287,10 @@ def _session_evidence(
             _invalid("python_nox_tests_failed")
         for key, value in session_counts.items():
             counts[key] = counts.get(key, 0) + value
-    return {"tests": counts, "sessions": actual}
+    return counts
 
 
-def _selection(output: Path) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
+def selection(output: Path) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
     """Read the native selected manifest retained in the same process before execution."""
     path = output / "selection.json"
     if path.is_symlink() or not path.is_file():
@@ -293,8 +331,8 @@ def evidence(root: Path, execution: NativeExecution, source: tuple[str, ...]) ->
         _invalid("python_nox_report_root_invalid")
     if execution.argv[: len(inputs.python_prefix)] != inputs.python_prefix:
         _invalid("python_nox_execution_frame_invalid")
-    expected, names, orchestrators = _selection(output)
-    sessions = _session_evidence(output, expected, execution.exit_code, names=names)
+    expected, names, orchestrators = selection(output)
+    sessions = session_evidence(output, expected, execution.exit_code, names=names)
     coverage = native_coverage.observe(
         root, inputs, source, sessions=names, orchestrators=orchestrators
     )

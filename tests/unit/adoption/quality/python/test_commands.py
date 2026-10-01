@@ -42,7 +42,9 @@ def test_nox_preflight_rejects_option_values_masquerading_as_the_command(
     assert observed == []
 
 
-@pytest.mark.parametrize("option", ["--report=foreign.json", "--envdir=foreign", "--usage=tests"])
+@pytest.mark.parametrize(
+    "option", ["--report=foreign.json", "--envdir=foreign", "--usage=tests", "--parallel=2"]
+)
 def test_nox_preflight_rejects_output_and_nonexecution_mode_overrides(
     tmp_path: Path, option: str
 ) -> None:

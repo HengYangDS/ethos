@@ -185,11 +185,7 @@ def test_python_verified_command_refuses_before_native_execution(
     assert result.exit_code is None
     assert result.verification is None
     name = axis
-    reason = (
-        "python_nox_command_unsupported"
-        if axis == "behavior"
-        else "python_native_evidence_unavailable"
-    )
+    reason = "python_nox_command_unsupported"
     assert any(
         f"quality_{name}_{reason}" in item.get("required_gaps", ()) for item in result.diagnostics
     )
@@ -238,12 +234,7 @@ def test_public_python_proof_preserves_preflight_nonexecution(tmp_path: Path, mo
         assert check["exit_code"] is None
         assert check.get("verification") is None
         assert any(
-            (
-                "python_nox_command_unsupported"
-                if check["action_id"] == "behavior"
-                else "python_native_evidence_unavailable"
-            )
-            in gap
+            "python_nox_command_unsupported" in gap
             for diagnostic in check["diagnostics"]
             for gap in diagnostic.get("required_gaps", ())
         )

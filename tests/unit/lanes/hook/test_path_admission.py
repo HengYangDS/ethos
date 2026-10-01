@@ -12,6 +12,7 @@ import ethos.adapters.admission.prewrite as admission_prewrite
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.contracts.admission import HookAdmissionRequest
+from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import git
@@ -151,6 +152,7 @@ def test_owned_lane_bootstraps_only_official_change_artifacts(worktree: Path) ->
 
     root_intent = _guard(worktree, (change_root,))
     initial = _guard(worktree, (metadata,))
+    batch = _guard(worktree, (metadata, f"{change_root}/README.md", f"{change_root}/proposal.md"))
 
     assert root_intent["verdict"] == "block"
     assert root_intent["error"] == ("openspec_change_metadata_prewrite_required:bootstrap-test")
@@ -163,6 +165,29 @@ def test_owned_lane_bootstraps_only_official_change_artifacts(worktree: Path) ->
         cast("dict[str, object]", initial["material_scope"])["state"] == "official_change_bootstrap"
     )
     assert initial["next_action"] == "openspec new change bootstrap-test --json"
+    assert batch["verdict"] == "block"
+    assert batch["error"] == root_intent["error"]
+    assert batch["next_action"] == root_intent["next_action"]
+    assert not (worktree / change_root).exists()
+    current = run_ethos("status", "--root", str(worktree), "--json", cwd=worktree)
+    assert current["verdict"] == "block"
+    assert current["next_action"] == "openspec new change --help"
+    public = run_ethos_blocked(
+        "lane",
+        "prewrite",
+        metadata,
+        f"{change_root}/README.md",
+        f"{change_root}/proposal.md",
+        "--root",
+        str(worktree),
+        "--editor-root",
+        str(worktree),
+        "--require-editor-root",
+        "--json",
+        cwd=worktree,
+    )
+    assert public["next_action"] == batch["next_action"]
+    assert not (worktree / change_root).exists()
 
     command = openspec_cli.openspec_base_command()
     assert command is not None
@@ -272,7 +297,7 @@ E_IMPORT = "product_reference_not_admitted_at_baseline:import:external_sdk"
 E_EXEC = "product_reference_not_admitted_at_baseline:executable:external-runner"
 E_COMMAND = "product_reference_not_admitted_at_baseline:command:ethos external-operation"
 P_IMPORT = _patch(*M, "import external_sdk")
-P_EXEC = _patch(*M, 'COMMAND = ["external-runner"]')
+P_EXEC = _patch(*M, 'import subprocess; subprocess.run(["external-runner"])')
 C = ("src/commands.py",)
 P_COMMAND = _patch(
     *C,

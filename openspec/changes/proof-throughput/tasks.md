@@ -40,6 +40,7 @@
 - [x] 3.11 Route unprobed publication peers to exact remote observation without repeating local verification or treating cached tracking as live evidence.
 - [x] 3.12 Bind landed-retirement continuation to the observed target HEAD; execute the returned public command and preserve stale, dirty, foreign and locked refusal.
 - [x] 3.13 Qualify and deliver the retirement-continuation repair through exact proof and installed-runtime replay.
+- [ ] 3.14 Qualify first-Change discovery and batched-artifact refusal through exact proof and installed replay. `bootstrap-batch-status-final-closure.json` retains native metadata-only creation, official proposal instructions and strict nonartifact refusal; a missing Change no longer repeats status, and a mixed absent-artifact request stays blocked with exact metadata prewrite continuation. Source/host evidence is not accepted runtime activation.
 
 ## 4. Archive and Integration Integrity
 

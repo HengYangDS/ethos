@@ -95,15 +95,18 @@ def _new_change_metadata_artifact(
 
 
 def new_change_root_intent(root: Path, official: dict[str, object], paths: tuple[str, ...]) -> str:
-    """Direct an exact absent root to its metadata prewrite, even with peers."""
+    """Direct one absent Change's requested carriers to metadata-only prewrite."""
     names = _listed_change_names(official)
-    if names is None or len(paths) != 1:
+    if names is None or not paths:
         return ""
-    parts = paths[0].rstrip("/").split("/")
-    if len(parts) != 3 or parts[:2] != ["openspec", "changes"]:
+    parts = tuple(path.rstrip("/").split("/") for path in paths)
+    if any(len(part) < 3 or part[:2] != ["openspec", "changes"] for part in parts):
         return ""
-    change = parts[2]
-    target = root / paths[0]
+    changes = {part[2] for part in parts}
+    if len(changes) != 1 or (len(paths) == 1 and len(parts[0]) != 3):
+        return ""
+    change = next(iter(changes))
+    target = root / active_change_root(change)
     if (
         change == "archive"
         or logical_change_identifier_issue(change)

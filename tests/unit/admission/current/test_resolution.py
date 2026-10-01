@@ -282,9 +282,11 @@ def test_new_change_bootstrap_coexists_with_other_active_changes(tmp_path, monke
     change = "openspec/changes/fresh"
     if target == "existing-root":
         (tmp_path / change).mkdir(parents=True)
-    report = official_report(gaps=("openspec_active_change_ambiguous:first,second",))
-    report["commands"]["list"]["json"] = {"changes": [{"name": "first"}, {"name": "second"}]}
-    report["lifecycle"]["changes"] = [{"name": "first"}, {"name": "second"}]
+    report = official_report(
+        gaps=("openspec_active_change_ambiguous:first,second",),
+        listed_rows=[{"name": "first"}, {"name": "second"}],
+        lifecycle_rows=[{"name": "first"}, {"name": "second"}],
+    )
 
     resolution = resolve_report(
         monkeypatch,
@@ -308,8 +310,10 @@ def test_new_change_bootstrap_does_not_override_an_explicit_other_change(
 ) -> None:
     """An explicit current Change cannot silently authorize a different new Change."""
     monkeypatch.setenv("ETHOS_CHANGE", "first")
-    report = official_report(gaps=("openspec_active_change_ambiguous:first,second",))
-    report["commands"]["list"]["json"] = {"changes": [{"name": "first"}, {"name": "second"}]}
+    report = official_report(
+        gaps=("openspec_active_change_ambiguous:first,second",),
+        listed_rows=[{"name": "first"}, {"name": "second"}],
+    )
 
     resolution = resolve_report(
         monkeypatch,
@@ -351,8 +355,9 @@ def test_new_change_bootstrap_rejects_existing_or_invalid_official_rows(
     monkeypatch, tmp_path, rows
 ) -> None:
     """Absent paths do not make malformed or already-listed identities new."""
-    report = official_report(gaps=("openspec_active_change_ambiguous:first,second",))
-    report["commands"]["list"]["json"] = {"changes": rows}
+    report = official_report(
+        gaps=("openspec_active_change_ambiguous:first,second",), listed_rows=rows
+    )
 
     resolution = resolve_report(
         monkeypatch,
@@ -388,18 +393,65 @@ def test_current_resolution_admits_remaining_official_artifact_after_partial_com
     assert resolution.next_action == f"openspec instructions tasks --change {change} --json"
 
 
+def test_absent_change_artifact_batch_returns_metadata_only_continuation(tmp_path, monkeypatch):
+    """A refused multi-artifact request must lead to the existing lawful bootstrap."""
+    change = "openspec/changes/example"
+    paths = tuple(f"{change}/{name}" for name in (".openspec.yaml", "README.md", "proposal.md"))
+    resolution = resolve_report(
+        monkeypatch,
+        official_report(gaps=("openspec_active_change_missing",)),
+        root=tmp_path,
+        paths=paths,
+    )
+
+    assert resolution.verdict == "block"
+    assert resolution.required_gaps == ("openspec_change_metadata_prewrite_required:example",)
+    assert resolution.next_action == (
+        f"ethos lane prewrite --paths {change}/.openspec.yaml "
+        f"--editor-root {tmp_path} --require-editor-root --root {tmp_path} --json"
+    )
+    assert not resolution.scope.material_scope.get("authorized_paths")
+    assert not (tmp_path / change).exists()
+
+
+def test_missing_change_status_does_not_repeat_its_own_reader(tmp_path, monkeypatch):
+    """Without an accepted name, route to native guidance rather than inventing intent."""
+    resolution = resolve_report(
+        monkeypatch,
+        official_report(gaps=("openspec_active_change_missing",)),
+        root=tmp_path,
+    )
+
+    assert resolution.verdict == "block"
+    assert resolution.required_gaps == ("openspec_active_change_missing",)
+    assert resolution.next_action == "openspec new change --help"
+    assert not resolution.scope.material_scope.get("authorized_paths")
+
+
 @pytest.mark.parametrize(
-    "paths",
+    ("paths", "gap"),
     [
-        ("openspec/changes/example/.openspec.yaml", "openspec/changes/example/proposal.md"),
-        ("openspec/changes/Invalid/.openspec.yaml",),
-        ("openspec/changes/archive/.openspec.yaml",),
-        ("other/example/.openspec.yaml",),
+        (
+            ("openspec/changes/example/.openspec.yaml", "openspec/changes/example/proposal.md"),
+            "openspec_change_metadata_prewrite_required:example",
+        ),
+        (("openspec/changes/Invalid/.openspec.yaml",), "openspec_active_change_missing"),
+        (("openspec/changes/archive/.openspec.yaml",), "openspec_active_change_missing"),
+        (("other/example/.openspec.yaml",), "openspec_active_change_missing"),
+        (
+            ("openspec/changes/example/.openspec.yaml", "openspec/changes/other/proposal.md"),
+            "openspec_active_change_missing",
+        ),
+        (
+            ("openspec/changes/example/.openspec.yaml", "src/product.py"),
+            "openspec_active_change_missing",
+        ),
     ],
 )
 def test_current_resolution_rejects_ambiguous_or_invalid_new_change_bootstrap(
     monkeypatch,
     paths: tuple[str, ...],
+    gap: str,
 ) -> None:
     resolution = resolve_report(
         monkeypatch,
@@ -407,7 +459,7 @@ def test_current_resolution_rejects_ambiguous_or_invalid_new_change_bootstrap(
         paths=paths,
     )
     assert resolution.verdict == "block"
-    assert resolution.required_gaps == ("openspec_active_change_missing",)
+    assert resolution.required_gaps == (gap,)
 
 
 @pytest.mark.parametrize(

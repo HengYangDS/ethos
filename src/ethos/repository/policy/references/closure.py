@@ -5,6 +5,7 @@ from __future__ import annotations
 import posixpath
 import re
 import subprocess
+from dataclasses import asdict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Literal
@@ -153,7 +154,10 @@ def repository_semantic_closure(
         "verdict": close_verdict(verdict, required_gaps=tuple(required_gaps)),
         "coverage": "unknown"
         if any(item.category == "unknown" for item in findings)
+        else "conditional"
+        if consumption.requests
         else "evaluated",
+        "requests": [asdict(request) for request in consumption.requests],
         "summary": {
             category: sum(finding.category == category for finding in findings)
             for category in categories

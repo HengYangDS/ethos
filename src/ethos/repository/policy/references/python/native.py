@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import subprocess
+from inspect import signature
+
 from ethos.repository.policy.references.python.values import UNKNOWN
 from ethos.repository.policy.references.python.values import BoundCall
 from ethos.repository.policy.references.python.values import ExecutableLookup
@@ -20,13 +23,27 @@ PROCESS_TARGETS = frozenset(
     Imported(f"subprocess.{name}")
     for name in ("run", "Popen", "call", "check_call", "check_output")
 )
+ENVIRONMENT_TARGETS = frozenset(
+    Imported(name) for name in ("os.getenv", "os.environ.get", "os.environ.__getitem__")
+)
+PROCESS_SIGNATURE = signature(subprocess.Popen)
+PROCESS_PARAMETERS = tuple(PROCESS_SIGNATURE.parameters)
+PROCESS_WRAPPER_KEYWORDS = {
+    Imported(f"subprocess.{name}"): frozenset(signature(getattr(subprocess, name)).parameters)
+    - {"popenargs", "kwargs"}
+    for name in ("run", "call", "check_call", "check_output")
+}
+PROCESS_WRAPPER_KEYWORDS[Imported("subprocess.check_output")] |= {"input"}
 
 
 def read_only_native_call(call: BoundCall) -> bool:
     """Only modeled native readers can preserve the mutable arguments they receive."""
     return bool(call.targets) and all(
         (isinstance(target, MappingMethod) and target.name in {"get", "copy", "__getitem__"})
-        or target in PROCESS_TARGETS | {Imported("builtins.getattr"), Imported("shutil.which")}
+        or target
+        in PROCESS_TARGETS
+        | ENVIRONMENT_TARGETS
+        | {Imported("builtins.getattr"), Imported("shutil.which")}
         or target in {Imported("builtins.dict"), Imported("os.environ.copy")}
         for target in call.targets
     )

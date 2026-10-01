@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from collections.abc import Mapping
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,6 +173,17 @@ class LocalFunction:
 
     name: str
     line: int
+    path: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class FormalInput:
+    """An unbound source-defined input, not unknown behavior or a concrete value."""
+
+    scope: str
+    line: int
+    name: str
+    path: str = ""
 
 
 type Value = frozenset[
@@ -184,6 +197,7 @@ type Value = frozenset[
     | ExecutableLookup
     | PathMethod
     | LocalFunction
+    | FormalInput
 ]
 
 UNKNOWN: Value = frozenset({Unknown()})
@@ -236,17 +250,63 @@ def reachable_values(value: Value) -> Value:
     return frozenset(found)
 
 
-def mutable_reachability(value: Value) -> frozenset[MappingValue | Sequence]:
+def mutable_reachability(value: Value) -> frozenset[MappingValue | Sequence | FormalInput]:
     """Find native mutable containers without treating immutable tuples as writers."""
     return frozenset(
         atom
         for atom in reachable_values(value)
-        if isinstance(atom, MappingValue) or (isinstance(atom, Sequence) and atom.site is not None)
+        if isinstance(atom, MappingValue | FormalInput)
+        or (isinstance(atom, Sequence) and atom.site is not None)
     )
 
 
+def substitute_inputs(value: Value, bindings: Mapping[FormalInput, Value]) -> Value:
+    """Substitute retained formal relations; unknown computation never becomes a literal."""
+    outputs = []
+    for atom in value:
+        if isinstance(atom, FormalInput):
+            outputs.append(bindings.get(atom, frozenset({atom})))
+        elif isinstance(atom, Sequence):
+            outputs.append(
+                frozenset(
+                    {
+                        replace(
+                            atom,
+                            items=tuple(substitute_inputs(item, bindings) for item in atom.items),
+                        )
+                    }
+                )
+            )
+        elif isinstance(atom, MappingValue):
+            outputs.append(
+                frozenset(
+                    {
+                        replace(
+                            atom,
+                            items=tuple(
+                                (key, substitute_inputs(item, bindings)) for key, item in atom.items
+                            ),
+                            remainder=substitute_inputs(atom.remainder, bindings),
+                        )
+                    }
+                )
+            )
+        elif isinstance(atom, Expansion):
+            outputs.append(frozenset({Expansion(substitute_inputs(atom.value, bindings))}))
+        elif isinstance(atom, MappingMethod):
+            outputs.append(
+                attribute(substitute_inputs(frozenset({atom.owner}), bindings), atom.name)
+            )
+        else:
+            outputs.append(frozenset({atom}))
+    return join(outputs)
+
+
 def widen_mutated(
-    value: Value, invalidated: frozenset[MappingValue | Sequence], *, preserve_shape: bool = False
+    value: Value,
+    invalidated: frozenset[MappingValue | Sequence | FormalInput],
+    *,
+    preserve_shape: bool = False,
 ) -> Value:
     """Earlier bound values are snapshots; newly used aliases cannot reuse stale shape."""
     return join(
@@ -294,8 +354,12 @@ class BoundCall:
     targets: Value
     args: tuple[Value, ...]
     keywords: tuple[tuple[str | None, Value], ...]
+    path: str = ""
+    owner: LocalFunction | None = None
 
-    def at_invocation(self, invalidated: frozenset[MappingValue | Sequence]) -> BoundCall:
+    def at_invocation(
+        self, invalidated: frozenset[MappingValue | Sequence | FormalInput]
+    ) -> BoundCall:
         """Unpacked keyword shape is copied; mutable values survive later argument effects."""
         return BoundCall(
             self.line,
@@ -305,6 +369,8 @@ class BoundCall:
                 (key, widen_mutated(value, invalidated, preserve_shape=key is None))
                 for key, value in self.keywords
             ),
+            self.path,
+            self.owner,
         )
 
     def exposed_values(self) -> Value:
@@ -326,7 +392,9 @@ class BoundCall:
             if isinstance(target, MappingMethod) and target.name != "get"
         )
 
-    def keyword_bindings(self) -> tuple[dict[str, Value] | None, ...]:
+    def keyword_bindings(
+        self, *, retain_formals: bool = False
+    ) -> tuple[dict[str, Value] | None, ...]:
         """Expand finite alternatives; unknown shape and duplicate keys stay unknown."""
         bindings: list[dict[str, Value] | None] = [{}]
         for key, value in self.keywords:
@@ -335,7 +403,16 @@ class BoundCall:
                 if key is not None
                 else [
                     dict(atom.items)
-                    if isinstance(atom, MappingValue) and not atom.remainder
+                    if isinstance(atom, MappingValue)
+                    and (
+                        not atom.remainder
+                        or (
+                            retain_formals
+                            and all(isinstance(item, FormalInput) for item in atom.remainder)
+                        )
+                    )
+                    else {}
+                    if retain_formals and isinstance(atom, FormalInput)
                     else None
                     for atom in value
                 ]

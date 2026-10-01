@@ -10,6 +10,7 @@ import tomllib
 from collections import defaultdict
 from dataclasses import dataclass
 from dataclasses import field
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 import yaml
@@ -23,12 +24,16 @@ from ethos.repository.policy.references.carriers import reference_carrier
 from ethos.repository.policy.references.carriers import reference_paths
 from ethos.repository.policy.references.commands.observation import normalize_command
 from ethos.repository.policy.references.python.observation import observe_python
+from ethos.repository.policy.references.python.program import PythonBindings
+from ethos.repository.policy.references.python.program import bind_repository_python
 
 if TYPE_CHECKING:
     from ast import AST
     from collections.abc import Iterable
     from collections.abc import Mapping
     from pathlib import Path
+
+    from ethos.repository.policy.references.python.requests import NativeReferenceRequest
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +51,7 @@ class ReferenceConsumption:
     sources: dict[str, dict[str, frozenset[str]]]
     unknown_paths: tuple[str, ...]
     unknown_consumers: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    requests: tuple[NativeReferenceRequest, ...] = ()
 
 
 def observe_repository_references(root: Path) -> RepositoryReferenceObservation:
@@ -75,6 +81,7 @@ def product_references_from_files(
     declared_commands = tuple(declared_commands)
     command_sources = dict(context_files or {})
     command_sources.update(files)
+    bindings = bind_repository_python(command_sources, selected=files)
     prefixes = python_references.cyclopts_prefixes(command_sources)
     known_commands = {
         normalize_command(command) for command in declared_commands if command.strip()
@@ -94,6 +101,7 @@ def product_references_from_files(
             npm_scripts,
             observed,
             include_declarations=include_declarations,
+            python_bindings=bindings,
         )
     observed["import"].difference_update(sys.stdlib_module_names)
     return observed
@@ -114,6 +122,8 @@ def reference_consumer_sources_from_files(
     consumers = {kind: defaultdict(set) for kind in REFERENCE_KINDS}
     unknown_paths: list[str] = []
     unknown_consumers: dict[str, set[str]] = {}
+    requests: list[NativeReferenceRequest] = []
+    bindings = bind_repository_python(files, parsed_files=parsed_files)
     for path, text in files.items():
         observed = {kind: set() for kind in REFERENCE_KINDS}
         parsed = _file_references(
@@ -127,6 +137,8 @@ def reference_consumer_sources_from_files(
             require_complete=True,
             parsed_files=parsed_files,
             unknown_consumers=unknown_consumers,
+            requests=requests,
+            python_bindings=bindings,
         )
         if not parsed:
             unknown_paths.append(path)
@@ -144,6 +156,7 @@ def reference_consumer_sources_from_files(
         },
         unknown_paths=tuple(sorted(unknown_paths)),
         unknown_consumers={kind: tuple(sorted(paths)) for kind, paths in unknown_consumers.items()},
+        requests=tuple(dict.fromkeys(requests)),
     )
 
 
@@ -159,6 +172,8 @@ def _file_references(
     require_complete: bool = False,
     parsed_files: Mapping[str, AST | None] | None = None,
     unknown_consumers: dict[str, set[str]] | None = None,
+    requests: list[NativeReferenceRequest] | None = None,
+    python_bindings: Mapping[str, PythonBindings] | None = None,
 ) -> bool:
     carrier = reference_carrier(path).name
     if carrier == "python":
@@ -172,6 +187,8 @@ def _file_references(
             require_complete=require_complete,
             parsed_files=parsed_files,
             unknown_consumers=unknown_consumers,
+            requests=requests,
+            python_bindings=python_bindings,
         )
     if carrier == "pyproject":
         return _pyproject_carrier_references(
@@ -216,6 +233,8 @@ def _python_carrier_references(
     require_complete: bool,
     parsed_files: Mapping[str, AST | None] | None,
     unknown_consumers: dict[str, set[str]] | None,
+    requests: list[NativeReferenceRequest] | None,
+    python_bindings: Mapping[str, PythonBindings] | None,
 ) -> bool:
     tree = (
         parsed_files.get(path)
@@ -234,6 +253,8 @@ def _python_carrier_references(
         observed,
         include_declarations=include_declarations,
         trees=(tree,) if tree is not None else None,
+        requests=requests,
+        binding=python_bindings.get(path) if python_bindings is not None else None,
     )
     if unknown_consumers is not None:
         for kind in unresolved:
@@ -312,16 +333,20 @@ def _python_file_references(
     *,
     include_declarations: bool,
     trees: tuple[AST, ...] | None = None,
+    requests: list[NativeReferenceRequest] | None = None,
+    binding: PythonBindings | None = None,
 ) -> frozenset[str]:
     unresolved: set[str] = set()
     for tree in trees or python_references.python_trees(text):
-        references = observe_python(tree, text, npm_scripts)
+        references = observe_python(tree, text, npm_scripts, binding=binding)
         observed["import"].update(references.imports)
         if path.startswith("tests/"):
             continue
         observed["executable"].update(references.executables)
         observed["value"].update(references.inputs)
         unresolved.update(references.unresolved)
+        if requests is not None:
+            requests.extend(replace(request, path=path) for request in references.requests)
         if include_declarations:
             observed["command"].update(
                 python_references.cyclopts_command_owners(path, tree, prefixes)

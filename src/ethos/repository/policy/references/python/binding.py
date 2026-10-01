@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import ast
-import symtable
 from collections import deque
-from dataclasses import dataclass
 from functools import singledispatchmethod
 from typing import TYPE_CHECKING
 
-from ethos.repository.policy.references.python.functions import call_arguments
 from ethos.repository.policy.references.python.functions import function_signature
+from ethos.repository.policy.references.python.functions import function_tables
+from ethos.repository.policy.references.python.functions import local_call
 from ethos.repository.policy.references.python.native import native_call
 from ethos.repository.policy.references.python.native import read_only_native_call
 from ethos.repository.policy.references.python.scope import Scope
@@ -28,63 +27,43 @@ from ethos.repository.policy.references.python.values import attribute
 from ethos.repository.policy.references.python.values import iteration_values
 from ethos.repository.policy.references.python.values import join
 from ethos.repository.policy.references.python.values import origins
+from ethos.repository.policy.references.python.values import reachable_values
 from ethos.repository.policy.references.python.values import widen_mutated
 
 if TYPE_CHECKING:
+    import symtable
+    from collections.abc import Callable
     from inspect import Signature
 
 
-@dataclass(frozen=True, slots=True)
-class PythonBindings:
-    """Static imports and scoped call sites; source code is never executed."""
+class PythonFlow:
+    """Interpret lexical program points; repository binding supplies cross-module relations."""
 
-    imports: frozenset[str]
-    calls: tuple[BoundCall, ...]
-    compiler_valid: bool
-
-
-def bind_python(tree: ast.AST, text: str) -> PythonBindings:
-    """Bind native syntax with the running supported Python compiler's scopes."""
-    imports = frozenset(
-        name.split(".")[0]
-        for node in ast.walk(tree)
-        for name in (
-            tuple(alias.name for alias in node.names)
-            if isinstance(node, ast.Import)
-            else (node.module,)
-            if isinstance(node, ast.ImportFrom) and node.module
-            else ()
-        )
-    )
-    try:
-        table = symtable.symtable(text, "<reference-observation>", "exec")
-    except (SyntaxError, ValueError):
-        return PythonBindings(imports, (), compiler_valid=False)
-    flow = _Flow(table)
-    flow.block(list(tree.body) if isinstance(tree, ast.Module) else [], Scope(table))
-    while flow.deferred:
-        node, scope = flow.deferred.popleft()
-        if isinstance(node, ast.Lambda):
-            flow.expression(node.body, scope)
-        else:
-            flow.block(node.body, scope)
-    return PythonBindings(imports, tuple(flow.calls), compiler_valid=True)
-
-
-class _Flow:
-    def __init__(self, table: symtable.SymbolTable) -> None:
-        self.tables: dict[tuple[str, int], symtable.SymbolTable] = {}
-        pending = [table]
-        while pending:
-            current = pending.pop()
-            if current.get_type() in {"function", "class"}:
-                self.tables[current.get_name(), current.get_lineno()] = current
-            pending.extend(current.get_children())
+    def __init__(
+        self,
+        table: symtable.SymbolTable,
+        *,
+        path: str = "",
+        resolve: Callable[[str], Value] | None = None,
+        normalize: Callable[[Value], Value] | None = None,
+        invoke: Callable[[LocalFunction, BoundCall, Scope | None], Value] | None = None,
+        write_member: Callable[[str, Value], None] | None = None,
+    ) -> None:
+        self.path = path
+        self.current: LocalFunction | None = None
+        self.definition_only = False
+        self.resolve = resolve
+        self.normalize = normalize
+        self.invoke = invoke
+        self.write_member = write_member
+        self.tables = function_tables(table)
         self.calls: list[BoundCall] = []
         self.functions: dict[
             LocalFunction, tuple[ast.FunctionDef | ast.AsyncFunctionDef, Scope, Signature]
         ] = {}
         self.active: set[LocalFunction] = set()
+        self.incomplete: set[LocalFunction] = set()
+        self.unresolved: set[str] = set()
         self.local_attempts = 0
         self.returns: list[list[Value]] = []
         self.deferred: deque[tuple[ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda, Scope]] = (
@@ -106,13 +85,22 @@ class _Flow:
             case ast.Import(names=names):
                 for alias in names:
                     name = alias.name if alias.asname else alias.name.partition(".")[0]
+                    if self.resolve is not None:
+                        self.resolve(alias.name)
                     scope.store(alias.asname or name, frozenset({Imported(name)}))
             case ast.ImportFrom(module=module, names=names, level=level):
                 prefix = "." * level + (f"{module}." if module else "")
                 for alias in names:
                     name = f"{prefix}{alias.name}"
+                    if alias.name == "*":
+                        self.unresolved.update(origins(self.resolve(name)) if self.resolve else ())
+                        self.unresolved.add(module or "")
                     scope.store(
-                        alias.asname or alias.name, scope.member(name, frozenset({Imported(name)}))
+                        alias.asname or alias.name,
+                        scope.member(
+                            name,
+                            self.resolve(name) if self.resolve else frozenset({Imported(name)}),
+                        ),
                     )
         return True
 
@@ -150,15 +138,13 @@ class _Flow:
                 )
                 table = self.tables.get((node.name, node.lineno))
                 if table is not None:
-                    identity = LocalFunction(node.name, node.lineno)
+                    identity = LocalFunction(node.name, node.lineno, self.path)
                     self.functions[identity] = (
                         node,
                         scope,
                         function_signature(node.args, defaults, keyword_defaults),
                     )
-                    scope.store(
-                        node.name, frozenset({identity}) if not node.decorator_list else UNKNOWN
-                    )
+                    scope.store(node.name, frozenset({identity}))
                     self.deferred.append((node, Scope(table, scope)))
             case ast.ClassDef():
                 for value in (*node.bases, *node.decorator_list):
@@ -293,6 +279,8 @@ class _Flow:
                 for atom in self.expression(owner, scope):
                     if isinstance(atom, Imported):
                         scope.store(f"{atom.name}.{name}", value)
+                        if self.write_member is not None:
+                            self.write_member(f"{atom.name}.{name}", value)
             case ast.Subscript(value=owner):
                 scope.invalidate(self.expression(owner, scope))
                 if isinstance(owner, ast.Name):
@@ -331,7 +319,9 @@ class _Flow:
             case ast.Attribute(value=value, attr=name):
                 bound = attribute(self.expression(value, scope), name)
                 return join(
-                    scope.member(atom.name, frozenset({atom}))
+                    scope.member(
+                        atom.name, self.resolve(atom.name) if self.resolve else frozenset({atom})
+                    )
                     if isinstance(atom, Imported)
                     else frozenset({atom})
                     for atom in bound
@@ -392,7 +382,14 @@ class _Flow:
             case ast.Subscript(value=value, slice=key):
                 owner, index = self.expression(value, scope), self.expression(key, scope)
                 self.calls.append(
-                    BoundCall(node.lineno, attribute(owner, "__getitem__"), (index,), ())
+                    BoundCall(
+                        node.lineno,
+                        attribute(owner, "__getitem__"),
+                        (index,),
+                        (),
+                        self.path,
+                        self.current,
+                    )
                 )
                 return join(
                     atom.items[item.value]
@@ -417,11 +414,17 @@ class _Flow:
             self.expression(node.func, scope),
             tuple(self.expression(arg, scope) for arg in node.args),
             tuple((item.arg, self.expression(item.value, scope)) for item in node.keywords),
+            self.path,
+            self.current,
         )
         call = call.at_invocation(scope.invalidated)
         self.calls.append(call)
         result = join(
-            self.local_call(target, call)
+            (
+                self.invoke(target, call, scope)
+                if self.invoke
+                else local_call(self, target, call, scope)
+            )
             if isinstance(target, LocalFunction)
             else native_call(
                 BoundCall(call.line, frozenset({target}), call.args, call.keywords),
@@ -429,32 +432,25 @@ class _Flow:
             )
             for target in call.targets
         )
+        result = self.normalize(result) if self.normalize is not None else result
         if not read_only_native_call(call) and (
             any(not isinstance(target, LocalFunction) for target in call.targets)
             or any(isinstance(atom, Unknown) for atom in result)
         ):
+            for value in reachable_values(call.exposed_values()):
+                if isinstance(value, LocalFunction):
+                    # Unmodeled consumers may invoke an escaped callable with arbitrary inputs.
+                    (
+                        self.invoke
+                        if self.invoke is not None
+                        else lambda target, call, caller: local_call(self, target, call, caller)
+                    )(
+                        value,
+                        BoundCall(call.line, frozenset({value}), (), ((None, UNKNOWN),), self.path),
+                        None,
+                    )
             scope.invalidate(call.exposed_values())
         return widen_mutated(result, scope.invalidated)
-
-    def local_call(self, identity: LocalFunction, call: BoundCall) -> Value:
-        """Observe one bounded concrete invocation without executing source code."""
-        if identity in self.active or len(self.active) >= 32 or self.local_attempts >= 1024:
-            return UNKNOWN
-        self.local_attempts += 1
-        node, parent, signature = self.functions[identity]
-        scope = Scope(self.tables[(node.name, node.lineno)], parent)
-        scope.values.update(call_arguments(signature, call))
-        self.active.add(identity)
-        self.returns.append([])
-        try:
-            falls_through = self.block(node.body, scope)
-            values = self.returns[-1]
-            if falls_through:
-                values.append(frozenset({Literal(None)}))
-            return join(values) or UNKNOWN
-        finally:
-            self.returns.pop()
-            self.active.remove(identity)
 
     @expression.register
     def _expansion(self, node: ast.Starred, scope: Scope) -> Value:

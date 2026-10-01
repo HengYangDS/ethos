@@ -143,9 +143,11 @@ def test_unknown_semantics_preserve_resolved_sibling_observations(
     assert report["verdict"] == "unknown"
     assert report["coverage"] == "unknown"
     assert report["orphan"] == []
-    assert report["unknown"]
-    assert all(item["relation"] == "consumer" for item in report["unknown"])
-    assert all(item["sources"] == ["src/example/probe.py"] for item in report["unknown"])
+    unknown = report["unknown"]
+    assert isinstance(unknown, list)
+    assert unknown
+    assert all(item["relation"] == "consumer" for item in unknown)
+    assert all(item["sources"] == ["src/example/probe.py"] for item in unknown)
 
 
 @pytest.mark.parametrize(
@@ -192,7 +194,9 @@ def test_call_semantics_preserve_objects_and_unresolved_alternatives(
 
     report = repository_semantic_closure(tmp_path)
 
-    assert {item["identity"] for item in report["orphan"]} == expected
+    orphan = report["orphan"]
+    assert isinstance(orphan, list)
+    assert {item["identity"] for item in orphan} == expected
     assert bool(report["unknown"]) is unresolved
     assert report["coverage"] == ("unknown" if unresolved else "evaluated")
 
@@ -211,8 +215,11 @@ def test_unresolved_value_does_not_discard_known_consumers_in_the_same_file(
 
     report = repository_semantic_closure(tmp_path)
 
-    assert {item["identity"] for item in report["orphan"]} == {"probe-binary"}
-    assert {item["kind"] for item in report["unknown"]} == {"value"}
+    orphan, unknown = report["orphan"], report["unknown"]
+    assert isinstance(orphan, list)
+    assert isinstance(unknown, list)
+    assert {item["identity"] for item in orphan} == {"probe-binary"}
+    assert {item["kind"] for item in unknown} == {"value"}
 
 
 @pytest.mark.parametrize(
@@ -455,7 +462,7 @@ def test_native_path_conversion_preserves_only_the_same_executable(
             "def read(name='DEFAULT', *, other='SECOND'):\n os.getenv(name)\n os.getenv(other)\n",
             "read(other='OVERRIDE')",
             set(),
-            {"DEFAULT", "OVERRIDE"},
+            {"DEFAULT", "OVERRIDE", "SECOND"},
         ),
         (
             "def make(name, /, *flags):\n return [name, *flags]\n",

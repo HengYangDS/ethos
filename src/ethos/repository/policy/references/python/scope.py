@@ -7,6 +7,7 @@ from dataclasses import field
 from typing import TYPE_CHECKING
 
 from ethos.repository.policy.references.python.values import UNKNOWN
+from ethos.repository.policy.references.python.values import FormalInput
 from ethos.repository.policy.references.python.values import Imported
 from ethos.repository.policy.references.python.values import MappingValue
 from ethos.repository.policy.references.python.values import Sequence
@@ -28,7 +29,18 @@ class Scope:
     values: dict[str, Value] = field(default_factory=dict)
     history: dict[str, Value] = field(default_factory=dict)
     iteration_names: frozenset[str] | None = None
-    invalidated: frozenset[MappingValue | Sequence] = frozenset()
+    invalidated: frozenset[MappingValue | Sequence | FormalInput] = frozenset()
+
+    def snapshot(self) -> Scope:
+        """Hypothetical body observations cannot mutate shared enclosing program points."""
+        return Scope(
+            self.table,
+            self.parent.snapshot() if self.parent is not None else None,
+            dict(self.values),
+            dict(self.history),
+            self.iteration_names,
+            self.invalidated,
+        )
 
     def lookup(self, name: str) -> Value:
         symbol = self.table.lookup(name) if name in self.table.get_identifiers() else None

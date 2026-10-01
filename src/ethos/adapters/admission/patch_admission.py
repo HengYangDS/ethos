@@ -5,11 +5,7 @@ from __future__ import annotations
 import shlex
 import shutil
 import tempfile
-from dataclasses import dataclass
-from dataclasses import field
 from pathlib import Path
-from types import MappingProxyType
-from typing import TYPE_CHECKING
 
 from ethos.adapters.projections.compiler import render_projections
 from ethos.adapters.repo.git import run_git
@@ -29,22 +25,7 @@ from ethos.repository.policy.references.observation import product_references_fr
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import repository_profile_from_text
 
-if TYPE_CHECKING:
-    from collections.abc import Mapping
-
 _UNIFIED_DIFF_HEADER_PART_COUNT = 4
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class _PatchObservation:
-    """One patch's observed facts, kept typed until the public JSON projection."""
-
-    references: Mapping[str, frozenset[str]] = field(default_factory=lambda: MappingProxyType({}))
-    gaps: tuple[str, ...] = ()
-    unknown: tuple[str, ...] = ()
-    effects: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
-    outputs: tuple[str, ...] = ()
-    profile_id: str = ""
 
 
 def patch_admission(
@@ -74,38 +55,42 @@ def patch_admission(
         reason = "prewrite_patch_baseline_missing"
     if not reason and not _patch_applies(root, patch, check_preimage=True):
         reason = "prewrite_patch_preimage_mismatch"
-    observation = _PatchObservation()
+    references: dict[str, set[str]] = {}
+    unknown: list[str] = []
+    effects: dict[str, str] = {}
+    outputs: list[str] = []
+    profile_postimage_id = ""
     if not reason:
         try:
             baseline_files = _baseline_reference_files(root, baseline_head)
             baseline_references = native_owned_references_from_files(baseline_files)
-            observation = _patch_references(
-                root,
-                patch,
-                changes,
-                context_files=baseline_files,
-                declared_commands=baseline_references["command"],
+            references, effect_gaps, unknown, effects, outputs, profile_postimage_id = (
+                _patch_references(
+                    root,
+                    patch,
+                    changes,
+                    context_files=baseline_files,
+                    declared_commands=baseline_references["command"],
+                )
             )
-            reason = observation.gaps[0] if observation.gaps else ""
+            reason = effect_gaps[0] if effect_gaps else ""
         except (OSError, UnicodeError, ValueError):
             reason = "prewrite_patch_postimage_failed"
     if not reason:
-        gaps = product_reference_gaps(baseline_references, observation.references)
+        gaps = product_reference_gaps(baseline_references, references)
         reason = gaps[0] if gaps else ""
     return {
-        "verdict": "block" if reason else "unknown" if observation.unknown else "pass",
-        "state": "blocked" if reason else "unknown" if observation.unknown else "admitted",
-        "reason": reason or next(iter(observation.unknown), "baseline_product_closure_matched"),
-        "effects": dict(observation.effects),
-        "origin_outputs": list(observation.outputs),
-        "unknown_inputs": list(observation.unknown),
+        "verdict": "block" if reason else "unknown" if unknown else "pass",
+        "state": "blocked" if reason else "unknown" if unknown else "admitted",
+        "reason": reason or (unknown[0] if unknown else "baseline_product_closure_matched"),
+        "effects": effects,
+        "origin_outputs": outputs,
+        "unknown_inputs": unknown,
         "coverage": "changed_references_and_explicit_native_inputs",
         "baseline_head": baseline_head,
         "paths": patch_paths,
-        "references": {
-            key: sorted(value) for key, value in observation.references.items() if value
-        },
-        **({"profile_postimage_id": observation.profile_id} if observation.profile_id else {}),
+        "references": {key: sorted(value) for key, value in references.items() if value},
+        **({"profile_postimage_id": profile_postimage_id} if profile_postimage_id else {}),
     }
 
 
@@ -303,9 +288,9 @@ def revalidate_staged_admission(root: Path, report: dict[str, object]) -> dict[s
         ("tree", "index_tree", ("write-tree",)),
         ("head", "baseline_head", ("rev-parse", "--verify", "HEAD")),
     )
-    for name, field_name, args in coordinates:
+    for name, field, args in coordinates:
         observed = run_git(root, *args, check=False)
-        if observed.returncode or observed.stdout.strip() != report[field_name]:
+        if observed.returncode or observed.stdout.strip() != report[field]:
             gap = f"staged_{name}_changed_during_admission"
             previous = report.get("required_gaps", [])
             gaps = list(previous) if isinstance(previous, list) else []
@@ -391,7 +376,7 @@ def _patch_references(
     *,
     context_files: dict[str, str],
     declared_commands: tuple[str, ...] | frozenset[str] = (),
-) -> _PatchObservation:
+) -> tuple[dict[str, set[str]], list[str], list[str], dict[str, str], list[str], str]:
     with tempfile.TemporaryDirectory(prefix="ethos-prewrite-postimage-") as temporary:
         workspace = Path(temporary)
         for change in changes:
@@ -446,16 +431,7 @@ def _patch_references(
             else "modify"
             for change in changes
         }
-        return _PatchObservation(
-            references=MappingProxyType(
-                {kind: frozenset(values) for kind, values in references.items()}
-            ),
-            gaps=tuple(gaps),
-            unknown=tuple(unknown),
-            effects=MappingProxyType(effects),
-            outputs=tuple(outputs),
-            profile_id=profile_id,
-        )
+        return references, gaps, unknown, effects, outputs, profile_id
 
 
 def _profile_postimage(root: Path, postimages: dict[str, str | None]) -> tuple[str, str]:

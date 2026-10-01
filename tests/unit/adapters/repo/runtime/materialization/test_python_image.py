@@ -178,7 +178,6 @@ def test_materialized_image_preserves_exact_source_and_requires_package_authorit
     ):
         _file(home / relative)
     _file(home / "lib/python3.14/site-packages/_yaml/__init__.py").chmod(0o444)
-    _file(home / "lib/python3.14/site-packages/foreign_without_metadata.py")
     library = _file(home / "lib/libpython3.14.1.dylib", b"library")
     (home / "lib/libpython3.14.dylib").symlink_to(library.name)
     (home / "lib/libpython3.14-directory").mkdir()
@@ -214,16 +213,14 @@ def test_materialized_image_preserves_exact_source_and_requires_package_authorit
             wheel,
             lock,
         )
-        assert not (target / "lib/python3.14/site-packages").exists()
-        _installed_image_fixture(target, entries)
+        for name in entries:
+            _file(python.parent / name, f"#!{target}/staging-python\n".encode())
+        _file(target / "lib/python3.14/site-packages/_yaml/__init__.py", b"installed")
+        _file(target / "lib/python3.14/site-packages/ethos/__pycache__/module.pyc")
+        _file(target / "lib/python3.14/obsolete.pyc")
 
     monkeypatch.setattr(python_image, "install_locked_runtime", install)
-
-    def project_validated_supply(_source, _target):
-        assert not (target / "lib/python3.14/site-packages").exists()
-        _file(target / "lib/python3.14/site-packages/_yaml/__init__.py")
-
-    project = Mock(side_effect=project_validated_supply)
+    project = Mock()
     monkeypatch.setattr(python_image, "project_dependency_supply", project)
 
     def materialize(requirements):
@@ -258,20 +255,10 @@ def test_materialized_image_preserves_exact_source_and_requires_package_authorit
         assert not target.exists()
 
 
-def _installed_image_fixture(target: Path, entries: dict[str, str]) -> None:
-    """Model native installation outputs separately from interpreter-copy inputs."""
-    for name in entries:
-        _file(target / "bin" / name, f"#!{target}/staging-python\n".encode())
-    _file(target / "lib/python3.14/site-packages/_yaml/__init__.py", b"installed")
-    _file(target / "lib/python3.14/site-packages/ethos/__pycache__/module.pyc")
-    _file(target / "lib/python3.14/obsolete.pyc")
-
-
 def _assert_materialized_image(target, fault, project):
     assert (target / "lib/python3.14/site-packages/_yaml/__init__.py").read_bytes() == (
         b"installed" if fault == "none" else b"x"
     )
-    assert not (target / "lib/python3.14/site-packages/foreign_without_metadata.py").exists()
     assert not tuple(target.rglob("__pycache__")) + tuple(target.rglob("*.pyc"))
     assert (target / "bin/ethos").is_file()
     expected = call(target.parent / "original/python/bin/python", target / "bin/python")

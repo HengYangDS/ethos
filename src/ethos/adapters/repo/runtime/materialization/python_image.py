@@ -129,7 +129,6 @@ def _copy_runtime_tree(source: Path, target: Path) -> None:
         target,
         symlinks=True,
         ignore=shutil.ignore_patterns(
-            "site-packages",
             "__pycache__",
             "*.pyc",
             "ensurepip",

@@ -64,8 +64,6 @@ def official_report(
     scope_binding: dict[str, object] | None = None,
     status_payload: dict[str, object] | None = None,
     validate_payload: dict[str, object] | None = None,
-    listed_rows: list[dict[str, str]] | None = None,
-    lifecycle_rows: list[dict[str, str]] | None = None,
 ) -> dict[str, object]:
     selected = []
     if change is not None:
@@ -77,17 +75,7 @@ def official_report(
         if change_path is not None:
             row["path"] = change_path
         selected.append(row)
-    commands = {
-        "list": receipt(
-            {
-                "changes": listed_rows
-                if listed_rows is not None
-                else []
-                if change is None
-                else [{"name": change}]
-            }
-        )
-    }
+    commands = {"list": receipt({"changes": [] if change is None else [{"name": change}]})}
     if status_payload is not None:
         commands["status"] = receipt(status_payload)
     if validate_payload is not None:
@@ -96,10 +84,7 @@ def official_report(
         "verdict": "block",
         "official_cli": {"available": True},
         "required_gaps": list(gaps),
-        "lifecycle": {
-            "scope_binding": scope_binding or {},
-            "changes": selected if lifecycle_rows is None else lifecycle_rows,
-        },
+        "lifecycle": {"scope_binding": scope_binding or {}, "changes": selected},
         "commands": commands,
     }
     if change is not None:

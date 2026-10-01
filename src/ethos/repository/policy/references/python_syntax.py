@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import ast
+import re
+import shlex
 import warnings
 from typing import TYPE_CHECKING
 
-from ethos.repository.policy.references.commands.observation import normalize_command
+from ethos.repository.policy.references.commands import command_executables
+from ethos.repository.policy.references.commands import normalize_command
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+_SUBPROCESS_CALLS = {"run", "Popen", "check_call", "check_output"}
 
 
 def python_trees(text: str) -> tuple[ast.AST, ...]:
@@ -42,6 +47,103 @@ def _parse_without_syntax_warnings(text: str) -> ast.AST:
     with warnings.catch_warnings():
         warnings.simplefilter("error", SyntaxWarning)
         return ast.parse(text)
+
+
+def python_references(
+    tree: ast.AST,
+    npm_scripts: dict[str, set[str]],
+) -> tuple[set[str], set[str], set[str]]:
+    """Extract imports, executables, and runtime inputs in one AST traversal."""
+    imports: set[str] = set()
+    executables: set[str] = set()
+    inputs: set[str] = set()
+    constants = {
+        target.id: value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance((target := node.targets[0]), ast.Name)
+        and (value := _string(node.value))
+    }
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imports.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imports.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call):
+            executables.update(_call_executables(node, npm_scripts, imports))
+            owner = node.func.value if isinstance(node.func, ast.Attribute) else None
+            name = node.func.attr if isinstance(node.func, ast.Attribute) else ""
+            value = _string(node.args[0]) if node.args else ""
+            if not value and node.args and isinstance(node.args[0], ast.Name):
+                value = constants.get(node.args[0].id, "")
+            if value and _is_environment_read(owner, name):
+                inputs.add(value)
+        elif isinstance(node, ast.Assign) and len(node.targets) == 1:
+            target = node.targets[0]
+            if (
+                isinstance(target, ast.Name)
+                and re.search(r"(?:COMMAND|CMD|EXECUTABLE|BINARY|CLI|TOOL)$", target.id)
+                and isinstance(node.value, ast.List | ast.Tuple)
+            ):
+                executables.update(
+                    command_executables(
+                        _literal_command_tokens(node.value), npm_scripts, module_imports=imports
+                    )
+                )
+    return imports, executables, inputs
+
+
+def _is_environment_read(owner: ast.AST | None, name: str) -> bool:
+    return (isinstance(owner, ast.Name) and owner.id == "os" and name == "getenv") or (
+        isinstance(owner, ast.Attribute)
+        and isinstance(owner.value, ast.Name)
+        and owner.value.id == "os"
+        and owner.attr == "environ"
+        and name == "get"
+    )
+
+
+def _call_executables(
+    node: ast.Call, npm_scripts: dict[str, set[str]], module_imports: set[str]
+) -> set[str]:
+    name = node.func.id if isinstance(node.func, ast.Name) else ""
+    attribute = node.func.attr if isinstance(node.func, ast.Attribute) else ""
+    owner = (
+        node.func.value.id
+        if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
+        else ""
+    )
+    if node.args and (owner == "subprocess" and attribute in _SUBPROCESS_CALLS):
+        return command_executables(
+            _literal_command_tokens(node.args[0]), npm_scripts, module_imports=module_imports
+        )
+    if node.args and owner == "shutil" and attribute == "which":
+        return {_string(node.args[0])} - {""}
+    if (
+        name == "Path"
+        and node.args
+        and (value := _string(node.args[0]))
+        and value.startswith(("/bin/", "/usr/bin/", "/usr/local/bin/"))
+    ):
+        return {value.rsplit("/", maxsplit=1)[-1]}
+    return set()
+
+
+def _literal_command_tokens(node: ast.AST) -> tuple[str, ...]:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        try:
+            return tuple(shlex.split(node.value))
+        except ValueError:
+            return ()
+    if isinstance(node, ast.List | ast.Tuple):
+        values = []
+        for item in node.elts:
+            if not (value := _string(item)):
+                break
+            values.append(value)
+        return tuple(values)
+    return ()
 
 
 def _string(node: ast.AST) -> str:

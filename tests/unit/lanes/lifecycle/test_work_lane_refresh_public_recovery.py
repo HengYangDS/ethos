@@ -4,11 +4,9 @@ from __future__ import annotations
 
 from datetime import UTC
 from datetime import datetime
-from functools import partial
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from typing import Any
-from unittest.mock import patch
 
 import pytest
 
@@ -29,10 +27,6 @@ CANDIDATE = "b" * 40
 REBASED = "c" * 40
 BRANCH = "work/feature"
 
-_apply_refresh = partial(
-    refresh.refresh_work_lane_base, apply=True, authorized=True, expect_head=HEAD
-)
-
 
 def _completed(*, returncode: int = 0, stdout: str = "", stderr: str = "") -> SimpleNamespace:
     return SimpleNamespace(returncode=returncode, stdout=stdout, stderr=stderr)
@@ -52,9 +46,7 @@ def _status(*, branch: str = BRANCH) -> dict[str, Any]:
     }
 
 
-def _common(
-    monkeypatch: pytest.MonkeyPatch, *, branch: str = BRANCH, heads: tuple[str, ...] = ()
-) -> None:
+def _common(monkeypatch: pytest.MonkeyPatch, *, branch: str = BRANCH) -> None:
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test")
     monkeypatch.setattr(
         refresh,
@@ -70,12 +62,6 @@ def _common(
             stdout=(HEAD if args[-2:] == ("rev-parse", "HEAD") else CANDIDATE) + "\n"
         ),
     )
-
-    if heads:
-        ancestry = iter((False, True))
-        revisions = iter(heads)
-        monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
-        monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(revisions))
 
 
 def _recovery_plan(
@@ -177,7 +163,9 @@ def test_refresh_rejects_snapshot_drift_before_rebase(
     monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: False)
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: "drift")
 
-    report = _apply_refresh(root=tmp_path)
+    report = refresh.refresh_work_lane_base(
+        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
+    )
 
     assert report["required_gaps"] == ["refresh_base_snapshot_stale:work_lane"]
 
@@ -196,9 +184,12 @@ def test_refresh_fails_closed_on_invalid_candidate_commit_policy(
             if (ref, path) == (CANDIDATE, ".ethos/workspace.toml")
             else ""
         ),
+        raising=False,
     )
 
-    report = _apply_refresh(root=tmp_path)
+    report = refresh.refresh_work_lane_base(
+        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
+    )
 
     assert report["state"] == "blocked"
     assert report["required_gaps"] == ["commit_policy_unknown_fields:unknown"]
@@ -223,7 +214,9 @@ def test_refresh_conflict_reports_failed_restore(
         lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("attachment stale")),
     )
 
-    report = _apply_refresh(root=tmp_path)
+    report = refresh.refresh_work_lane_base(
+        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
+    )
 
     assert report["required_gaps"] == [
         "refresh_base_failed",
@@ -247,7 +240,9 @@ def test_refresh_rejects_rebase_postcondition_and_restores_branch(
         lambda _root, _path, *, branch, head: attached.append((branch, head)) or SimpleNamespace(),
     )
 
-    report = _apply_refresh(root=tmp_path)
+    report = refresh.refresh_work_lane_base(
+        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
+    )
 
     assert report["required_gaps"] == ["refresh_base_postcondition_failed"]
     assert attached == [(BRANCH, HEAD)]
@@ -256,54 +251,83 @@ def test_refresh_rejects_rebase_postcondition_and_restores_branch(
 def test_refresh_validates_the_complete_replay_range_before_repository_effects(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _common(monkeypatch, heads=(HEAD, REBASED, REBASED))
-    policy = CommitPolicy(subject_pattern="^fix: .+", signing_required=True, signing_format="ssh")
+    _common(monkeypatch)
+    ancestry = iter((False, True))
+    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
+    heads = iter((HEAD, REBASED, REBASED))
+    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
+    policy = CommitPolicy(
+        subject_pattern=r"^fix: .+",
+        signing_required=True,
+        signing_format="ssh",
+    )
     observed_policy: list[tuple[str, str]] = []
-    with patch.multiple(
+    monkeypatch.setattr(
         refresh,
-        committed_file_text=lambda _root, ref, path: (
-            observed_policy.append((ref, path)) or "candidate policy"
-        ),
-        commit_policy_from_text=lambda text: policy if text == "candidate policy" else None,
-        commit_environment=lambda _root, _environment: {"SIGNED_REPLAY": "1"},
-    ):
-        rebase_environments: list[object] = []
+        "committed_file_text",
+        lambda _root, ref, path: observed_policy.append((ref, path)) or "candidate policy",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        refresh,
+        "commit_policy_from_text",
+        lambda text: policy if text == "candidate policy" else None,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        refresh,
+        "load_commit_policy",
+        lambda _root: pytest.fail("refresh must not select policy from the source lane"),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        refresh,
+        "commit_environment",
+        lambda _root, _environment: {"SIGNED_REPLAY": "1"},
+        raising=False,
+    )
+    rebase_environments: list[object] = []
 
-        def run_git(_root: Path, *args: str, **kwargs: object) -> SimpleNamespace:
-            if args[-2:] == ("rev-parse", "HEAD"):
-                return _completed(stdout=HEAD + "\n")
-            if args[-2:] == ("rev-parse", "candidate/dev"):
-                return _completed(stdout=CANDIDATE + "\n")
-            if "rebase" in args:
-                rebase_environments.append(kwargs.get("env"))
-                assert "commit.gpgSign=false" not in args
-                return _completed()
+    def run_git(_root: Path, *args: str, **kwargs: object) -> SimpleNamespace:
+        if args[-2:] == ("rev-parse", "HEAD"):
+            return _completed(stdout=HEAD + "\n")
+        if args[-2:] == ("rev-parse", "candidate/dev"):
+            return _completed(stdout=CANDIDATE + "\n")
+        if "rebase" in args:
+            rebase_environments.append(kwargs.get("env"))
+            assert "commit.gpgSign=false" not in args
             return _completed()
+        return _completed()
 
-        monkeypatch.setattr(refresh, "run_git", run_git)
-        validated: list[tuple[str, str, CommitPolicy]] = []
-        monkeypatch.setattr(
-            refresh,
-            "validate_replayed_commits",
-            lambda _root, *, proposed_commit, baseline_commit, policy: (
-                validated.append((proposed_commit, baseline_commit, policy)) or []
-            ),
-        )
-        _stub_refresh_effect(monkeypatch)
-        with patch.multiple(
-            refresh,
-            execute_git_effect=lambda *_args, **_kwargs: SimpleNamespace(
-                model_dump=lambda **_kwargs: {}
-            ),
-            attach_worktree=lambda *_args, **_kwargs: SimpleNamespace(
-                model_dump=lambda **_kwargs: {}
-            ),
-        ):
-            report = _apply_refresh(root=tmp_path)
-            assert report["state"] == "base_refreshed"
-            assert observed_policy == [(CANDIDATE, ".ethos/workspace.toml")]
-            assert rebase_environments == [{"SIGNED_REPLAY": "1"}]
-            assert validated == [(REBASED, CANDIDATE, policy)]
+    monkeypatch.setattr(refresh, "run_git", run_git)
+    validated: list[tuple[str, str, CommitPolicy]] = []
+    monkeypatch.setattr(
+        refresh,
+        "validate_replayed_commits",
+        lambda _root, *, proposed_commit, baseline_commit, policy: (
+            validated.append((proposed_commit, baseline_commit, policy)) or []
+        ),
+    )
+    _stub_refresh_effect(monkeypatch)
+    monkeypatch.setattr(
+        refresh,
+        "execute_git_effect",
+        lambda *_args, **_kwargs: SimpleNamespace(model_dump=lambda **_kwargs: {}),
+    )
+    monkeypatch.setattr(
+        refresh,
+        "attach_worktree",
+        lambda *_args, **_kwargs: SimpleNamespace(model_dump=lambda **_kwargs: {}),
+    )
+
+    report = refresh.refresh_work_lane_base(
+        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
+    )
+
+    assert report["state"] == "base_refreshed"
+    assert observed_policy == [(CANDIDATE, ".ethos/workspace.toml")]
+    assert rebase_environments == [{"SIGNED_REPLAY": "1"}]
+    assert validated == [(REBASED, CANDIDATE, policy)]
 
 
 @pytest.mark.parametrize(
@@ -315,64 +339,82 @@ def test_refresh_validates_the_complete_replay_range_before_repository_effects(
     ids=["policy-rejected", "range-unreadable"],
 )
 def test_refresh_admission_failure_restores_before_repository_effects(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    *,
-    signing: bool,
-    gap: str,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, signing: bool, gap: str
 ) -> None:
-    _common(monkeypatch, heads=(HEAD, REBASED, HEAD))
+    _common(monkeypatch)
+    ancestry = iter((False, True))
+    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
+    heads = iter((HEAD, REBASED, HEAD))
+    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
     policy = CommitPolicy(
-        subject_pattern="^fix: .+", signing_required=signing, signing_format="ssh"
+        subject_pattern=r"^fix: .+",
+        signing_required=signing,
+        signing_format="ssh",
     )
-    with patch.multiple(
+    monkeypatch.setattr(
         refresh,
-        committed_file_text=lambda _root, ref, path: (
+        "committed_file_text",
+        lambda _root, ref, path: (
             "candidate policy" if (ref, path) == (CANDIDATE, ".ethos/workspace.toml") else ""
         ),
-        commit_policy_from_text=lambda text: policy if text == "candidate policy" else None,
-        commit_environment=lambda *_args: {},
-    ):
+        raising=False,
+    )
+    monkeypatch.setattr(
+        refresh,
+        "commit_policy_from_text",
+        lambda text: policy if text == "candidate policy" else None,
+        raising=False,
+    )
+    monkeypatch.setattr(refresh, "commit_environment", lambda *_args: {}, raising=False)
 
-        def run_git(_root: Path, *args: str, **_kwargs: object) -> SimpleNamespace:
-            if args[-2:] == ("rev-parse", "HEAD"):
-                return _completed(stdout=HEAD + "\n")
-            if args[-2:] == ("rev-parse", "candidate/dev"):
-                return _completed(stdout=CANDIDATE + "\n")
-            return _completed()
+    def run_git(_root: Path, *args: str, **_kwargs: object) -> SimpleNamespace:
+        if args[-2:] == ("rev-parse", "HEAD"):
+            return _completed(stdout=HEAD + "\n")
+        if args[-2:] == ("rev-parse", "candidate/dev"):
+            return _completed(stdout=CANDIDATE + "\n")
+        return _completed()
 
-        with patch.multiple(
-            refresh,
-            run_git=run_git,
-            validate_replayed_commits=lambda _root, *, proposed_commit, baseline_commit, policy: (
-                [gap]
-                if (proposed_commit, baseline_commit) == (REBASED, CANDIDATE) and policy is not None
-                else pytest.fail("refresh selected the wrong replay coordinates")
-            ),
-            issue_native_effect=lambda *_args, **_kwargs: pytest.fail(
-                "invalid replay must not be attested"
-            ),
-            execute_git_effect=lambda *_args, **_kwargs: pytest.fail(
-                "invalid replay must not update refs or Lease"
-            ),
-        ):
-            compensated: list[str] = []
-            monkeypatch.setattr(
-                refresh, "compensate_git_worktree", lambda _root, *, head: compensated.append(head)
-            )
-            restored: list[tuple[str, str]] = []
-            monkeypatch.setattr(
-                refresh,
-                "attach_worktree",
-                lambda _root, _path, *, branch, head: (
-                    restored.append((branch, head)) or SimpleNamespace()
-                ),
-            )
-            report = _apply_refresh(root=tmp_path)
-            assert report["state"] == "blocked"
-            assert report["required_gaps"] == [gap]
-            assert compensated == [HEAD]
-            assert restored == [(BRANCH, HEAD)]
+    monkeypatch.setattr(refresh, "run_git", run_git)
+    monkeypatch.setattr(
+        refresh,
+        "validate_replayed_commits",
+        lambda _root, *, proposed_commit, baseline_commit, policy: (
+            [gap]
+            if (proposed_commit, baseline_commit) == (REBASED, CANDIDATE) and policy is not None
+            else pytest.fail("refresh selected the wrong replay coordinates")
+        ),
+    )
+    monkeypatch.setattr(
+        refresh,
+        "issue_native_effect",
+        lambda *_args, **_kwargs: pytest.fail("invalid replay must not be attested"),
+    )
+    monkeypatch.setattr(
+        refresh,
+        "execute_git_effect",
+        lambda *_args, **_kwargs: pytest.fail("invalid replay must not update refs or Lease"),
+    )
+    compensated: list[str] = []
+    monkeypatch.setattr(
+        refresh,
+        "compensate_git_worktree",
+        lambda _root, *, head: compensated.append(head),
+    )
+    restored: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        refresh,
+        "attach_worktree",
+        lambda _root, _path, *, branch, head: restored.append((branch, head)) or SimpleNamespace(),
+    )
+
+    report = refresh.refresh_work_lane_base(
+        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
+    )
+
+    assert report["state"] == "blocked"
+    assert report["required_gaps"] == [gap]
+    assert compensated == [HEAD]
+    assert restored == [(BRANCH, HEAD)]
 
 
 @pytest.mark.parametrize("case", ["ambiguous", "multiple", "wrong-branch", "recovered"])
@@ -425,7 +467,11 @@ def test_detached_public_recovery_accepts_only_exact_persisted_effect(
 def test_refresh_public_effect_failure_restores_original_checkout(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _common(monkeypatch, heads=(HEAD, REBASED, HEAD))
+    _common(monkeypatch)
+    ancestry = iter((False, True))
+    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
+    heads = iter((HEAD, REBASED, HEAD))
+    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
     captured = _stub_refresh_effect(monkeypatch)
     monkeypatch.setattr(refresh, "validate_replayed_commits", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(
@@ -446,7 +492,9 @@ def test_refresh_public_effect_failure_restores_original_checkout(
         lambda _root, _path, *, branch, head: restored.append((branch, head)) or SimpleNamespace(),
     )
 
-    report = _apply_refresh(root=tmp_path)
+    report = refresh.refresh_work_lane_base(
+        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
+    )
 
     assert report["state"] == "blocked"
     assert compensated == [HEAD]
@@ -461,7 +509,11 @@ def test_refresh_public_effect_failure_restores_original_checkout(
 def test_refresh_public_attachment_failure_is_reported(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _common(monkeypatch, heads=(HEAD, REBASED, REBASED))
+    _common(monkeypatch)
+    ancestry = iter((False, True))
+    monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
+    heads = iter((HEAD, REBASED, REBASED))
+    monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
     _stub_refresh_effect(monkeypatch)
     monkeypatch.setattr(refresh, "validate_replayed_commits", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(refresh, "execute_git_effect", lambda *_args, **_kwargs: SimpleNamespace())
@@ -471,7 +523,9 @@ def test_refresh_public_attachment_failure_is_reported(
         lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("branch occupied")),
     )
 
-    report = _apply_refresh(root=tmp_path)
+    report = refresh.refresh_work_lane_base(
+        root=tmp_path, apply=True, authorized=True, expect_head=HEAD
+    )
 
     assert report["required_gaps"] == ["refresh_base_worktree_attach_failed"]
     assert report["next_action"] == (

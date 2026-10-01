@@ -7,7 +7,6 @@ from datetime import datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
-from unittest.mock import patch
 
 import pytest
 
@@ -88,24 +87,51 @@ def test_archive_plan_rejects_parent_and_postimage_drift(
         )
 
 
-def test_archive_plan_uses_the_resolved_commitment_without_reloading_intent(tmp_path: Path) -> None:
+def test_archive_plan_uses_the_resolved_commitment_without_reloading_intent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     commitment = commitment_fixture(id="change:change")
-    with patch.multiple(
+    monkeypatch.setattr(
         archive_effect,
-        git_stdout=lambda _root, command, *_args: (
+        "load_profile_commitment",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("archive effect planning must not reload Commitment")
+        ),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        archive_effect,
+        "git_stdout",
+        lambda _root, command, *_args: (
             "a" * 40 if command == "rev-parse" else "openspec/changes/archive/change/proposal.md"
         ),
-        current_tree=lambda *_args: "c" * 40,
-        archive_postimage_scope_report=lambda *_args, **_kwargs: {
+    )
+    monkeypatch.setattr(archive_effect, "current_tree", lambda *_args: "c" * 40)
+    monkeypatch.setattr(
+        archive_effect,
+        "archive_postimage_scope_report",
+        lambda *_args, **_kwargs: {
             "verdict": "pass",
             "archive_path": "openspec/changes/archive/change",
         },
-        compile_observed_git_effect=lambda _root, selected, *_args, **_kwargs: selected,
-    ):
-        selected = archive_effect.compile_archive_plan(
-            tmp_path, "work/change", "change", "a" * 40, "b" * 40, {}, commitment=commitment
-        )
-        assert selected is commitment
+    )
+    monkeypatch.setattr(
+        archive_effect,
+        "compile_observed_git_effect",
+        lambda _root, selected, *_args, **_kwargs: selected,
+    )
+
+    selected = archive_effect.compile_archive_plan(
+        tmp_path,
+        "work/change",
+        "change",
+        "a" * 40,
+        "b" * 40,
+        {},
+        commitment=commitment,
+    )
+
+    assert selected is commitment
 
 
 def test_archive_effect_owns_postimage_commit_and_reuses_resolved_intent(
@@ -146,39 +172,42 @@ def test_archive_effect_owns_postimage_commit_and_reuses_resolved_intent(
         observed["commitment"] = kwargs["commitment"]
         return plan
 
-    with patch.multiple(
+    monkeypatch.setattr(archive_effect, "compile_archive_plan", compile_plan)
+    monkeypatch.setattr(
+        archive_effect, "openspec_validation_report", lambda _root: {"required_gaps": []}
+    )
+    monkeypatch.setattr(
         archive_effect,
-        compile_archive_plan=compile_plan,
-        openspec_validation_report=lambda _root: {"required_gaps": []},
-        complete_archive=lambda *_args, **kwargs: (
-            observed.update(completion=kwargs) or {"state": "archived"}
-        ),
-    ):
-        report = archive_effect.commit_archive_postimage(
-            tmp_path,
-            "work/change",
-            "change",
-            "a" * 40,
-            {
-                "archive_path": archive_path,
-                "changed_paths": (changed_path,),
-                "tree": "archive-tree",
-            },
-            commitment=commitment,
-            lease={"holder_ref": "agent:test"},
-            owned_mutation=True,
-            compensation_path=archive_path,
-            subject="chore(openspec): archive change",
-        )
-        assert report == {"state": "archived"}
-        assert observed["staged_from"] == "a" * 40
-        assert observed["commitment"] is commitment
-        assert observed["commit"] == {
+        "complete_archive",
+        lambda *_args, **kwargs: observed.update(completion=kwargs) or {"state": "archived"},
+    )
+
+    report = archive_effect.commit_archive_postimage(
+        tmp_path,
+        "work/change",
+        "change",
+        "a" * 40,
+        {
+            "archive_path": archive_path,
+            "changed_paths": (changed_path,),
             "tree": "archive-tree",
-            "parent": "a" * 40,
-            "message": "chore(openspec): archive change",
-        }
-        assert observed["completion"] == {"apply": True, "result": None}
+        },
+        commitment=commitment,
+        lease={"holder_ref": "agent:test"},
+        owned_mutation=True,
+        compensation_path=archive_path,
+        subject="chore(openspec): archive change",
+    )
+
+    assert report == {"state": "archived"}
+    assert observed["staged_from"] == "a" * 40
+    assert observed["commitment"] is commitment
+    assert observed["commit"] == {
+        "tree": "archive-tree",
+        "parent": "a" * 40,
+        "message": "chore(openspec): archive change",
+    }
+    assert observed["completion"] == {"apply": True, "result": None}
 
 
 @pytest.mark.parametrize(
@@ -224,89 +253,112 @@ def test_unrepairable_native_postimage_compensates_without_inventing_repair(
 
 @pytest.mark.parametrize("failure", ["missing", "pending", "index-drift", "concurrent-content"])
 def test_archive_projection_completion_rejects_drift_and_preserves_caller_bytes(
-    tmp_path: Path, failure: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
 ) -> None:
     """Finalization cannot commit an unverified rendering or erase a later writer."""
     projection = tmp_path / "projection.json"
     projection.write_bytes(b"before")
     trees = iter(("prior-index", "native-tree", "different-tree"))
     observed: list[str] = []
-    with patch.multiple(
+    monkeypatch.setattr(
         archive_effect,
-        git_stdout=lambda _root, *args: (
-            next(trees) if args == ("write-tree",) else "archive/tasks.md"
-        ),
-        stage_git_worktree=lambda *_args, **_kwargs: None,
-        restore_git_index=lambda _root, *, tree: observed.append(tree),
-        archive_projection_updates=lambda *_args, **_kwargs: {"projection.json": b"after"},
-        refresh_archive_projections=lambda *_args, **_kwargs: projection.write_bytes(
+        "git_stdout",
+        lambda _root, *args: next(trees) if args == ("write-tree",) else "archive/tasks.md",
+    )
+    monkeypatch.setattr(archive_effect, "stage_git_worktree", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        archive_effect,
+        "restore_git_index",
+        lambda _root, *, tree: observed.append(tree),
+    )
+    monkeypatch.setattr(
+        archive_effect,
+        "archive_projection_updates",
+        lambda *_args, **_kwargs: {"projection.json": b"after"},
+    )
+    monkeypatch.setattr(
+        archive_effect,
+        "refresh_archive_projections",
+        lambda *_args, **_kwargs: projection.write_bytes(
             b"other writer" if failure == "concurrent-content" else b"after"
         ),
-    ):
-        scope = {"tree": "completed-tree"}
-        if failure == "pending":
-            scope["pending_projection_paths"] = ["projection.json"]
-        with patch.multiple(
-            archive_effect,
-            archive_postimage=lambda *_args, **_kwargs: (
-                None
-                if failure in {"missing", "concurrent-content"}
-                else SimpleNamespace(scope=scope)
-            ),
-            create_git_commit=lambda *_args, **_kwargs: pytest.fail(
-                "unverified postimage reached commit"
-            ),
-        ):
-            gap = (
-                "archive_projection_compensation_conflict"
-                if failure == "concurrent-content"
-                else "openspec_archive_delta_changed"
-                if failure == "index-drift"
-                else "archive_projection_completion_invalid"
-            )
-            with pytest.raises(ValueError, match=gap):
-                archive_effect.commit_archive_postimage(
-                    tmp_path,
-                    "work/change",
-                    "change",
-                    "a" * 40,
-                    {
-                        "tree": "native-tree",
-                        "changed_paths": ["archive/tasks.md"],
-                        "pending_projection_paths": ["projection.json"],
-                    },
-                    commitment=commitment_fixture(id="change:change"),
-                    lease={},
-                    owned_mutation=False,
-                    compensation_path="archive",
-                    subject="chore(openspec): archive change",
-                )
-            assert observed == ["prior-index"]
-            assert projection.read_bytes() == (
-                b"other writer" if failure == "concurrent-content" else b"before"
-            )
+    )
+    scope = {"tree": "completed-tree"}
+    if failure == "pending":
+        scope["pending_projection_paths"] = ["projection.json"]
+    monkeypatch.setattr(
+        archive_effect,
+        "archive_postimage",
+        lambda *_args, **_kwargs: (
+            None if failure in {"missing", "concurrent-content"} else SimpleNamespace(scope=scope)
+        ),
+    )
+    monkeypatch.setattr(
+        archive_effect,
+        "create_git_commit",
+        lambda *_args, **_kwargs: pytest.fail("unverified postimage reached commit"),
+    )
+    gap = (
+        "archive_projection_compensation_conflict"
+        if failure == "concurrent-content"
+        else "openspec_archive_delta_changed"
+        if failure == "index-drift"
+        else "archive_projection_completion_invalid"
+    )
+    with pytest.raises(ValueError, match=gap):
+        archive_effect.commit_archive_postimage(
+            tmp_path,
+            "work/change",
+            "change",
+            "a" * 40,
+            {
+                "tree": "native-tree",
+                "changed_paths": ["archive/tasks.md"],
+                "pending_projection_paths": ["projection.json"],
+            },
+            commitment=commitment_fixture(id="change:change"),
+            lease={},
+            owned_mutation=False,
+            compensation_path="archive",
+            subject="chore(openspec): archive change",
+        )
+    assert observed == ["prior-index"]
+    assert projection.read_bytes() == (
+        b"other writer" if failure == "concurrent-content" else b"before"
+    )
 
 
-def test_archive_effect_owns_durable_recovery_selection(tmp_path: Path) -> None:
+def test_archive_effect_owns_durable_recovery_selection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     plan = _plan()
     observed: dict[str, object] = {}
-    with patch.multiple(
+    monkeypatch.setattr(
         archive_effect,
-        recover_plan=lambda _root, **kwargs: observed.update(recovery=kwargs) or plan,
-        complete_archive=lambda *_args, **kwargs: (
-            observed.update(completion=kwargs) or {"state": "recognized"}
-        ),
-    ):
-        report = archive_effect.recover_archive_effect(
-            tmp_path, branch="work/change", head="b" * 40, change="change", apply=True
-        )
-        assert report == {"state": "recognized"}
-        assert observed["recovery"] == {
-            "operation": "openspec.archive",
-            "desired": "b" * 40,
-            "ref_name": "refs/heads/work/change",
-        }
-        assert observed["completion"] == {"apply": True}
+        "recover_plan",
+        lambda _root, **kwargs: observed.update(recovery=kwargs) or plan,
+    )
+    monkeypatch.setattr(
+        archive_effect,
+        "complete_archive",
+        lambda *_args, **kwargs: observed.update(completion=kwargs) or {"state": "recognized"},
+    )
+
+    report = archive_effect.recover_archive_effect(
+        tmp_path,
+        branch="work/change",
+        head="b" * 40,
+        change="change",
+        apply=True,
+    )
+
+    assert report == {"state": "recognized"}
+    assert observed["recovery"] == {
+        "operation": "openspec.archive",
+        "desired": "b" * 40,
+        "ref_name": "refs/heads/work/change",
+    }
+    assert observed["completion"] == {"apply": True}
 
 
 @pytest.mark.parametrize("fault", ["identity", "facts"])
@@ -325,25 +377,34 @@ def test_archive_completion_reports_recovery_and_governance_failure(
     plan = _plan()
     monkeypatch.setattr(archive_effect, "leases_by_branch", lambda _root: {})
     monkeypatch.setattr(archive_effect, "current_tracked_head", lambda _root: "a" * 40)
+
     ready = archive_effect.complete_archive(
         tmp_path, "work/change", "change", plan, "b" * 40, apply=False
     )
     assert ready["state"] == "ready_to_recover"
-    with patch.multiple(
+
+    monkeypatch.setattr(
         archive_effect,
-        execute_git_effect=lambda *_args, **_kwargs: SimpleNamespace(
+        "execute_git_effect",
+        lambda *_args, **_kwargs: SimpleNamespace(
             model_dump=lambda **_kwargs: {"predicate": "effect:git-ref-update"}
         ),
-        openspec_governance_report=lambda *_args, **_kwargs: {
-            "required_gaps": [gap] if gap == "openspec_invalid" else []
-        },
-    ):
-        proof = Mock(return_value=[gap])
-        monkeypatch.setattr(archive_effect, "proof_gaps", proof, raising=False)
-        blocked = archive_effect.complete_archive(
-            tmp_path, "work/change", "change", plan, "b" * 40, apply=True
-        )
-        assert (blocked["state"], blocked["required_gaps"]) == ("repair_required", [gap])
-        if gap == "proof_not_proven":
-            proof.assert_called_once_with(tmp_path, "b" * 40, change_id="change")
-            assert f"--expect-head {'b' * 40}" in blocked["next_action"]
+    )
+    monkeypatch.setattr(
+        archive_effect,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {"required_gaps": [gap] if gap == "openspec_invalid" else []},
+    )
+    proof = Mock(return_value=[gap])
+    monkeypatch.setattr(archive_effect, "proof_gaps", proof, raising=False)
+
+    blocked = archive_effect.complete_archive(
+        tmp_path, "work/change", "change", plan, "b" * 40, apply=True
+    )
+    assert (blocked["state"], blocked["required_gaps"]) == (
+        "repair_required",
+        [gap],
+    )
+    if gap == "proof_not_proven":
+        proof.assert_called_once_with(tmp_path, "b" * 40, change_id="change")
+        assert f"--expect-head {'b' * 40}" in blocked["next_action"]

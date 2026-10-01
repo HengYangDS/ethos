@@ -19,7 +19,7 @@ def attestation_fixture(
     subject: str,
     issued_at: datetime,
     payload_kind: str,
-    payload_body: object,
+    payload_body: dict[str, Any],
     valid_from: datetime | None = None,
     valid_until: datetime | None = None,
     verdict: str = "pass",
@@ -33,7 +33,7 @@ def attestation_fixture(
     effect_digest: str | None = None,
     **invalid: object,
 ) -> Attestation:
-    """Issue an envelope, leaving raw payload validation to the semantic owner."""
+    """Issue one complete Attestation v2 without preserving v1 fields."""
     return Attestation.issue(
         {
             "schema_version": 2,

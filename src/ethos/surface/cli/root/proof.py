@@ -149,8 +149,6 @@ def _gate_progress(
         )
         if result.verdict != "pass":
             event.update(stdout=result.stdout, stderr=result.stderr)
-            if result.verification is not None:
-                event["verification"] = result.verification
     sys.stderr.write(json.dumps(event, sort_keys=True, default=str) + "\n")
     sys.stderr.flush()
 

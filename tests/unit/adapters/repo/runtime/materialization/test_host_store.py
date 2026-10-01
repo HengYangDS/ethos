@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import shutil
 import sys
-from functools import partial
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -12,7 +11,6 @@ import pytest
 
 import ethos.adapters.repo.runtime.materialization.effect as materialization
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from tests.support.runtime_scenarios import REPOSITORY_ROOT
@@ -20,38 +18,24 @@ from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import runtime_build
 
-type HostImport = tuple[Path, SelectedRuntime, partial[Path]]
-
-
-@pytest.fixture
-def host_import(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> HostImport:
-    """Bind one native fixture supply and isolated installation location per case."""
-    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
-    selected = require_selected_runtime(python.parent)
-    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user-data"))
-    return (
-        repo,
-        selected,
-        partial(
-            materialization.materialize_runtime,
-            repo,
-            Path(sys.executable),
-            expected_build=selected.build,
-            installed_runtime=selected.root,
-        ),
-    )
-
 
 def test_explicit_installed_supply_is_pinned_before_repository_selection(
-    tmp_path: Path, host_import: HostImport
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Removing the package carrier cannot delete a repository's selected bytes."""
-    repo, selected, import_supply = host_import
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = require_selected_runtime(python.parent)
     package = tmp_path / "package"
     shutil.copytree(Path(git_common_dir(repo)) / "ethos", package / "ethos", symlinks=True)
     supplied = package / "ethos/runtime" / selected.digest
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user-data"))
 
-    pinned_python = import_supply(installed_runtime=supplied)
+    pinned_python = materialization.materialize_runtime(
+        repo,
+        Path(sys.executable),
+        expected_build=selected.build,
+        installed_runtime=supplied,
+    )
     expected = (
         tmp_path
         / "user-data/ethos/installations"
@@ -67,7 +51,15 @@ def test_explicit_installed_supply_is_pinned_before_repository_selection(
     }
     materialization.remove_generated_tree(package)
     assert require_selected_runtime(expected).digest == selected.digest
-    assert import_supply(installed_runtime=expected) == pinned_python
+    assert (
+        materialization.materialize_runtime(
+            repo,
+            Path(sys.executable),
+            expected_build=selected.build,
+            installed_runtime=expected,
+        )
+        == pinned_python
+    )
 
 
 def test_external_package_invoker_pins_shared_supply_without_an_explicit_runtime(
@@ -246,24 +238,32 @@ def test_valid_external_predecessor_rebuilds_instead_of_reusing_private_invoker(
 
 
 def test_pinned_runtime_path_leaves_room_for_native_windows_dependencies(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, host_import: HostImport
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The installed path must not repeat a full digest before loading native modules."""
-    _repo, selected, import_supply = host_import
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = require_selected_runtime(python.parent)
     home = tmp_path / "user-data"
     monkeypatch.setenv("XDG_DATA_HOME", str(home))
 
-    pinned = import_supply()
+    pinned = materialization.materialize_runtime(
+        repo,
+        Path(sys.executable),
+        expected_build=selected.build,
+        installed_runtime=selected.root,
+    )
     relative = pinned.relative_to(home).as_posix()
     assert len(relative) <= 128, relative
     assert relative.count(selected.digest) == 1
 
 
 def test_host_store_recovery_preserves_unowned_directory_with_a_valid_looking_marker(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, host_import: HostImport
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A marker alone cannot make an arbitrary directory safe to delete."""
-    _repo, _selected, import_supply = host_import
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = require_selected_runtime(python.parent)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user-data"))
     monkeypatch.setattr(materialization, "_runtime_supply_current", lambda *_args: True)
     store = tmp_path / "user-data/ethos/installations"
     foreign = store / ".pin-foreign"
@@ -272,16 +272,23 @@ def test_host_store_recovery_preserves_unowned_directory_with_a_valid_looking_ma
     marker.write_text("a" * 64 + "\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="hook_runtime_host_store_residue_unreviewed"):
-        import_supply()
+        materialization.materialize_runtime(
+            repo,
+            Path(sys.executable),
+            expected_build=selected.build,
+            installed_runtime=selected.root,
+        )
     assert foreign.is_dir()
     assert marker.is_file()
 
 
 def test_interrupted_owned_import_is_recovered_before_new_selection(
-    tmp_path: Path, host_import: HostImport
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A released host lock permits exact cleanup of only its marked staging."""
-    _repo, selected, import_supply = host_import
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = require_selected_runtime(python.parent)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user-data"))
     store = tmp_path / "user-data/ethos/installations"
     staging = store / (".pin-" + "a" * 32)
     staging.mkdir(parents=True)
@@ -290,7 +297,12 @@ def test_interrupted_owned_import_is_recovered_before_new_selection(
     marker = staging.with_name(staging.name + ".owner")
     marker.write_text(selected.digest + "\n", encoding="utf-8")
 
-    pinned = import_supply()
+    pinned = materialization.materialize_runtime(
+        repo,
+        Path(sys.executable),
+        expected_build=selected.build,
+        installed_runtime=selected.root,
+    )
     assert not staging.exists()
     assert not marker.exists()
     assert require_selected_runtime(pinned.parent).digest == selected.digest
@@ -298,10 +310,12 @@ def test_interrupted_owned_import_is_recovered_before_new_selection(
 
 @pytest.mark.parametrize("fault", ["invalid_owner", "missing_runtime", "prefix_collision"])
 def test_occupied_installation_does_not_replace_unknown_content(
-    tmp_path: Path, host_import: HostImport, fault: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str
 ) -> None:
     """A matching name and owner marker cannot authorize damaged installed bytes."""
-    _repo, selected, import_supply = host_import
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = require_selected_runtime(python.parent)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user-data"))
     installation = tmp_path / "user-data/ethos/installations" / selected.digest[:16]
     installation.mkdir(parents=True)
     marker = installation / "OWNER"
@@ -315,17 +329,24 @@ def test_occupied_installation_does_not_replace_unknown_content(
     marker.write_text(owner, encoding="utf-8")
 
     with pytest.raises(ValueError, match="hook_runtime_host_store_conflict"):
-        import_supply()
+        materialization.materialize_runtime(
+            repo,
+            Path(sys.executable),
+            expected_build=selected.build,
+            installed_runtime=selected.root,
+        )
     assert marker.read_text(encoding="utf-8") == owner
     assert sorted(item.name for item in installation.iterdir()) == ["OWNER"]
 
 
 def test_source_wheel_disappearing_after_admission_fails_without_partial_installation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, host_import: HostImport
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """An input race must not become an unhandled iterator error or selected supply."""
-    repo, selected, import_supply = host_import
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = require_selected_runtime(python.parent)
     wheel = Path(git_common_dir(repo)) / "ethos/packages" / selected.wheel_sha256 / "ethos-test.whl"
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user-data"))
 
     def remove_after_observation(runtime, project):
         assert runtime.root == selected.root
@@ -335,17 +356,23 @@ def test_source_wheel_disappearing_after_admission_fails_without_partial_install
 
     monkeypatch.setattr(materialization, "_runtime_supply_current", remove_after_observation)
     with pytest.raises(ValueError, match="hook_runtime_installed_supply_invalid"):
-        import_supply()
+        materialization.materialize_runtime(
+            repo,
+            Path(sys.executable),
+            expected_build=selected.build,
+            installed_runtime=selected.root,
+        )
     store = tmp_path / "user-data/ethos/installations"
     assert not any(path.is_dir() for path in store.iterdir())
 
 
 @pytest.mark.parametrize("mode", ["relative", "native", "symlink"])
 def test_host_store_location_is_explicit_and_does_not_follow_an_unsafe_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, host_import: HostImport, mode: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str
 ) -> None:
     """A native user location works; relative or redirected declarations do not."""
-    _repo, _selected, import_supply = host_import
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = require_selected_runtime(python.parent)
     if mode == "relative":
         monkeypatch.setenv("XDG_DATA_HOME", "relative-data")
     elif mode == "native":
@@ -362,38 +389,67 @@ def test_host_store_location_is_explicit_and_does_not_follow_an_unsafe_root(
         store.symlink_to(foreign, target_is_directory=True)
 
     if mode == "native":
-        pinned = import_supply()
+        pinned = materialization.materialize_runtime(
+            repo,
+            Path(sys.executable),
+            expected_build=selected.build,
+            installed_runtime=selected.root,
+        )
         assert pinned.parent.is_relative_to(tmp_path / "native-data/installations")
         return
     with pytest.raises(ValueError, match="hook_runtime_host_store_invalid"):
-        import_supply()
+        materialization.materialize_runtime(
+            repo,
+            Path(sys.executable),
+            expected_build=selected.build,
+            installed_runtime=selected.root,
+        )
     if mode == "symlink":
         assert store.is_symlink()
         assert not tuple(foreign.iterdir())
 
 
 def test_existing_host_installation_reuses_valid_bytes_and_rejects_damaged_wheel(
-    host_import: HostImport,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A second import reuses one generation, but wheel drift cannot pass as reuse."""
-    _repo, selected, import_supply = host_import
-    first = import_supply()
-    second = import_supply()
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = require_selected_runtime(python.parent)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user-data"))
+    first = materialization.materialize_runtime(
+        repo,
+        Path(sys.executable),
+        expected_build=selected.build,
+        installed_runtime=selected.root,
+    )
+    second = materialization.materialize_runtime(
+        repo,
+        Path(sys.executable),
+        expected_build=selected.build,
+        installed_runtime=selected.root,
+    )
     assert second == first
     installation = first.parent.parents[1]
     wheel = next((installation / "packages" / selected.wheel_sha256).glob("ethos-*.whl"))
     wheel.write_bytes(b"tampered wheel")
     with pytest.raises(ValueError, match="hook_runtime_host_store_conflict"):
-        import_supply()
+        materialization.materialize_runtime(
+            repo,
+            Path(sys.executable),
+            expected_build=selected.build,
+            installed_runtime=selected.root,
+        )
     assert wheel.read_bytes() == b"tampered wheel"
 
 
 @pytest.mark.parametrize("fault", ["copy", "postcopy"])
 def test_failed_host_import_cleans_only_its_own_staging(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, host_import: HostImport, fault: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str
 ) -> None:
     """A failed copy or verification leaves no selected or half-installed generation."""
-    _repo, selected, import_supply = host_import
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = require_selected_runtime(python.parent)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user-data"))
     if fault == "copy":
         copyfile = materialization.shutil.copyfile
 
@@ -413,7 +469,12 @@ def test_failed_host_import_cleans_only_its_own_staging(
         )
         reason = "hook_runtime_host_store_copy_invalid"
     with pytest.raises(ValueError, match=reason):
-        import_supply()
+        materialization.materialize_runtime(
+            repo,
+            Path(sys.executable),
+            expected_build=selected.build,
+            installed_runtime=selected.root,
+        )
     store = tmp_path / "user-data/ethos/installations"
     assert not any(path.is_dir() for path in store.iterdir())
     assert not list(store.glob(".pin-*"))
@@ -421,10 +482,12 @@ def test_failed_host_import_cleans_only_its_own_staging(
 
 @pytest.mark.parametrize("paired", [False, True])
 def test_malformed_interrupted_import_is_preserved_for_review(
-    tmp_path: Path, host_import: HostImport, *, paired: bool
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, paired: bool
 ) -> None:
     """An invalid ownership marker never authorizes deletion or installation."""
-    _repo, _selected, import_supply = host_import
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = require_selected_runtime(python.parent)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user-data"))
     store = tmp_path / "user-data/ethos/installations"
     store.mkdir(parents=True)
     staging = store / (".pin-" + "b" * 32)
@@ -434,23 +497,35 @@ def test_malformed_interrupted_import_is_preserved_for_review(
     marker = staging.with_name(staging.name + ".owner")
     marker.write_text("invalid\n", encoding="utf-8")
     with pytest.raises(ValueError, match="hook_runtime_host_store_residue_unreviewed"):
-        import_supply()
+        materialization.materialize_runtime(
+            repo,
+            Path(sys.executable),
+            expected_build=selected.build,
+            installed_runtime=selected.root,
+        )
     assert marker.read_bytes() == b"invalid\n"
     assert staging.exists() is paired
 
 
 def test_orphaned_valid_marker_is_recovered_without_touching_other_content(
-    tmp_path: Path, host_import: HostImport
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A crash after atomic exposure leaves only an owned marker to remove."""
-    _repo, selected, import_supply = host_import
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = require_selected_runtime(python.parent)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "user-data"))
     store = tmp_path / "user-data/ethos/installations"
     store.mkdir(parents=True)
     marker = store / (".pin-" + "c" * 32 + ".owner")
     marker.write_text(selected.digest + "\n", encoding="utf-8")
     foreign = store / "user-owned.txt"
     foreign.write_text("preserve", encoding="utf-8")
-    pinned = import_supply()
+    pinned = materialization.materialize_runtime(
+        repo,
+        Path(sys.executable),
+        expected_build=selected.build,
+        installed_runtime=selected.root,
+    )
     assert not marker.exists()
     assert foreign.read_text(encoding="utf-8") == "preserve"
     assert require_selected_runtime(pinned.parent).digest == selected.digest

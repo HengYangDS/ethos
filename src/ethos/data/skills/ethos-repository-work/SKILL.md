@@ -17,15 +17,10 @@ repository policy, authorization, proof, or an Agent-specific command channel.
    `governance_context.official_openspec.base_command` with official OpenSpec
    arguments from the target worktree. Do not assume an ambient `openspec`
    executable or import ETHOS's source-tree instructions into an adopter.
-3. If no Change exists, choose its semantic name, then request `ethos lane
-   prewrite` for only `openspec/changes/<name>/.openspec.yaml` in the owned Lane.
-   A passing result names the official creation command. Run it through the
-   bound OpenSpec command, then obtain fresh admission for its resolved artifacts.
-   A batched proposal/README request grants no bootstrap or implementation authority.
-4. For a tracked edit, obtain a passing `ethos lane prewrite` for the exact
+3. For a tracked edit, obtain a passing `ethos lane prewrite` for the exact
    worktree and paths immediately before writing. A Skill, lease, or status
    observation alone grants no mutation authority.
-5. After an effect, re-observe through the installed CLI. Treat timeout,
+4. After an effect, re-observe through the installed CLI. Treat timeout,
    cancellation, and a lost reply as unknown until the actual effect is checked;
    do not blindly repeat it. Preserve another holder's lane and unreviewed work.
 

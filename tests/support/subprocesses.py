@@ -12,11 +12,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
-from filelock import FileLock
-
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from multiprocessing.synchronize import Event
 
 
 def completed(
@@ -24,13 +21,6 @@ def completed(
 ) -> subprocess.CompletedProcess[str]:
     """Build a text-mode completed process with a stable synthetic command."""
     return subprocess.CompletedProcess([command], returncode, stdout, stderr)
-
-
-def hold_file_lock(path: str, ready: Event, release: Event) -> None:
-    """Hold a real lock from an importable target on spawn-based platforms."""
-    with FileLock(path):
-        ready.set()
-        release.wait(60)
 
 
 @contextmanager

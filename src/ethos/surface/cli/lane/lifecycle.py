@@ -131,7 +131,6 @@ def project_lane_result(
     diagnostics: tuple[dict[str, object], ...] = (),
     data: dict[str, object] | None = None,
     enforce: bool = False,
-    artifact_root: Path | None = None,
     json_output: bool,
 ) -> None:
     verdict = report_verdict(report)
@@ -147,7 +146,7 @@ def project_lane_result(
         user_decision_required=bool(report.get("user_decision_required", False)),
         data=report if data is None else data,
     )
-    emit(result, json_output=json_output, enforce=enforce, artifact_root=artifact_root)
+    emit(result, json_output=json_output, enforce=enforce)
 
 
 @lane_app.command(name="status")
@@ -279,9 +278,7 @@ def prewrite(
         **report,
         "path_count": len(resolved_paths),
     }
-    project_lane_result(
-        "lane prewrite", report, enforce=True, json_output=json_output, artifact_root=repo
-    )
+    project_lane_result("lane prewrite", report, enforce=True, json_output=json_output)
 
 
 @lane_app.command

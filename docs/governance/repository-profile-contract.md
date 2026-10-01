@@ -140,11 +140,9 @@ Repository-native proof gates use the same typed descriptor vocabulary as a
 declared gate registry. The `[proof] code_correctness_gates` list names the gates
 required for promotion; each profile-native id must also have one `[[proof.gates]]`
 descriptor with at least `id`, `kind`, and a list-form executable `command`.
-
 `[proof.code_correctness_map]` explicitly maps the required `behavior` and
 `static-analysis` axes to distinct gate IDs. Missing axes, reused gates, undeclared
 IDs, and waivers are invalid declarations rather than runtime vocabulary guesses.
-
 Optional descriptor fields such as `depends_on`, `evidence_class`,
 `trust_bearing`, and `network_policy` retain the shared gate semantics. ETHOS
 compiles these descriptors as the profile's sole native gate owner: they

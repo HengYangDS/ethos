@@ -129,7 +129,7 @@
     "product_contract": {
       "path": "docs/governance/product-design-contract.md",
       "authority": "canonical product meaning and semantic kernel",
-      "sha256": "d81f018b3a22651135fa49a106a5ee8e5ca461998bb90a013a078fa4682d8c05"
+      "sha256": "ea3c231c773ec57cadc63aa23fd100b5e47ee071a4fe5b2b072e3c848c1b19b6"
     },
     "axioms": {
       "path": "system/axioms.md",
@@ -144,12 +144,12 @@
     "runner_mutation": {
       "path": "docs/architecture/runner-and-mutation.md",
       "authority": "current runner, Work Lane, closeout, verifier and peer mutation boundaries",
-      "sha256": "f6afb60d575e5df5e2c3cb9fde48c75da585b01967aa46019c52c8c293cf58eb"
+      "sha256": "9fae87e7f9abca884224af3c97f962e16f4cfe4eb86263e587958d04e1b10034"
     },
     "local_state": {
       "path": "docs/architecture/local-state.md",
       "authority": "current host-local coordination boundary",
-      "sha256": "f7ce3c616111bfc6329a9d19f61b36371bb87a30c0d391ddd4b8217e6940ab5b"
+      "sha256": "01f656fa725e64e9c044bda3d08a7439d24daa36343a14de3edcb3b2f3e4299d"
     },
     "adoption": {
       "path": "docs/architecture/adoption-profiles.md",
@@ -164,7 +164,7 @@
     "skills": {
       "path": "docs/governance/skills.md",
       "authority": "current skill projection boundary",
-      "sha256": "410c53b6916e8691fcd7769568adb922be8a2dc3764587e4e1e5d462e3d01cd2"
+      "sha256": "0803b9b8cbe1d0c49268f400f9407a7eb6a7d6d40b0d6fb375020fa21eb8d77c"
     },
     "independent_verification": {
       "path": "docs/governance/independent-verification-adoption.md",

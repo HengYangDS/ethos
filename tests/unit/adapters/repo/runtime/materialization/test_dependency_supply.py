@@ -5,14 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
-import sys
-import tomllib
-import venv
-import zipfile
 from pathlib import Path
 
 import pytest
-import tomli_w
 
 import ethos.adapters.repo.runtime.materialization.dependency_supply as supply
 
@@ -38,15 +33,13 @@ def _supply_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     identities = {
         prefix / "bin/python": facts | {"prefix": prefix.as_posix()} for prefix in (source, target)
     }
-    monkeypatch.setattr(
-        supply, "observe_dependency_supply", lambda _python, **_kwargs: (source, tuple(files))
-    )
+    monkeypatch.setattr(supply, "observe_dependency_supply", lambda _python: (source, tuple(files)))
     monkeypatch.setattr(supply, "observe_python_facts", identities.__getitem__)
     return source, target, files, identities
 
 
 @pytest.mark.parametrize("build_tools", [True, False])
-def test_lock_current_environment_supplies_native_artifact_installation(
+def test_lock_current_environment_supplies_runtime_without_cache_authority(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, build_tools: bool
 ) -> None:
     source, target, files, _identities = _supply_case(tmp_path, monkeypatch)
@@ -56,22 +49,19 @@ def test_lock_current_environment_supplies_native_artifact_installation(
     work.mkdir()
     commands = []
 
-    def run(project, *command, python, use_cache=False):
+    def run(project, *command, python):
         assert project == source
         assert python == source_python
         commands.append(command)
         assert "--offline" in command
         assert "--cache-dir" not in command
         if command[0] == "export":
-            Path(command[-1]).write_text(
-                'lock-version = "1.0"\n[[packages]]\nname = "package"\nversion = "1"\n',
-                encoding="utf-8",
-            )
+            Path(command[-1]).write_text("package==1 --hash=sha256:abc\n", encoding="utf-8")
         if command[:2] == ("pip", "sync"):
-            assert use_cache
-            assert not any((target / relative).exists() for relative, _ in files)
-        else:
-            assert not use_cache
+            assert all(
+                (target / relative).read_bytes() == (source / relative).read_bytes()
+                for relative, _ in files
+            )
         return subprocess.CompletedProcess(command, 0, "", "")
 
     monkeypatch.setattr(supply, "run_runtime_tool", run)
@@ -79,7 +69,7 @@ def test_lock_current_environment_supplies_native_artifact_installation(
         source, work, source_python, require_build_tools=build_tools
     )
     supply.install_locked_runtime(source, source_python, target_python, wheel, requirements)
-    assert requirements == work / "pylock.toml"
+    assert requirements == work / "locked-requirements.txt"
     assert [command[:2] for command in commands] == [
         ("sync", "--locked"),
         ("export", "--locked"),
@@ -88,17 +78,17 @@ def test_lock_current_environment_supplies_native_artifact_installation(
     ]
     assert ("--no-dev" in commands[0]) is not build_tools
     assert "--no-dev" in commands[1]
-    assert {"--require-hashes", "--strict", "--reinstall", "--no-build"} <= set(commands[2])
-    assert commands[2][4:6] == ("--preview-features", "pylock")
+    assert {"--require-hashes", "--strict", target_python.as_posix()} <= set(commands[2])
     assert not any("venv" in command for command in commands)
     assert commands[1][-2:] == ("--output-file", str(requirements))
     assert commands[2][-1] == str(requirements)
     assert "--no-deps" in commands[3]
     assert commands[3][-1] == wheel.as_posix()
     assert all(
-        hashlib.sha256((source / path).read_bytes()).hexdigest() == digest for path, digest in files
+        hashlib.sha256((prefix / path).read_bytes()).hexdigest() == digest
+        for prefix in (source, target)
+        for path, digest in files
     )
-    assert not any((target / path).exists() for path, _ in files)
 
 
 @pytest.mark.parametrize(
@@ -157,31 +147,6 @@ def test_dependency_supply_preserves_identity_and_complete_manifest_before_copy(
         for path, payload in source_bytes.items()
         if not path.is_symlink()
     )
-
-
-@pytest.mark.parametrize("fault", ["alias", "incompatible"])
-def test_locked_install_rejects_unsafe_target_before_native_effect(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str
-) -> None:
-    """Changing the supply mechanism cannot permit source mutation or ABI drift."""
-    source, target, _files, facts = _supply_case(tmp_path, monkeypatch)
-    source_python, target_python = source / "bin/python", target / "bin/python"
-    if fault == "alias":
-        facts[target_python]["prefix"] = source.as_posix()
-    else:
-        facts[target_python]["python_abi"] = "different"
-    calls = []
-    monkeypatch.setattr(
-        supply, "run_runtime_tool", lambda *args, **kwargs: calls.append((args, kwargs))
-    )
-
-    expected = "alias" if fault == "alias" else "incompatible"
-    with pytest.raises(ValueError, match=f"dependency_supply_{expected}"):
-        supply.install_locked_runtime(
-            tmp_path, source_python, target_python, tmp_path / "wheel", tmp_path / "pylock.toml"
-        )
-
-    assert not calls
 
 
 @pytest.mark.parametrize(
@@ -248,101 +213,3 @@ def test_locked_requirements_require_the_exported_file(
     with pytest.raises(ValueError, match="hook_runtime_locked_requirements_missing"):
         supply.prepare_locked_requirements(tmp_path, tmp_path, tmp_path / "python")
     assert len(calls) == 2
-
-
-def _artifact_wheel(root: Path, name: str, value: str) -> Path:
-    """Create a local immutable-input wheel without running its module."""
-    wheel = root / f"{name}-1.0-py3-none-any.whl"
-    metadata = f"{name}-1.0.dist-info"
-    files = {
-        f"{name}.py": f"VALUE = {value!r}\n",
-        f"{metadata}/METADATA": f"Metadata-Version: 2.4\nName: {name}\nVersion: 1.0\n\n",
-        f"{metadata}/WHEEL": ("Wheel-Version: 1.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n"),
-    }
-    files[f"{metadata}/RECORD"] = "".join(f"{path},,\n" for path in files)
-    with zipfile.ZipFile(wheel, "w") as archive:
-        for path, data in files.items():
-            archive.writestr(path, data)
-    return wheel
-
-
-@pytest.mark.parametrize(
-    "fault",
-    ["none", "altered-target", "missing", "altered-artifact", "marker", "format", "version"],
-)
-def test_native_locked_install_uses_artifacts_not_installed_package_identity(
-    tmp_path: Path, fault: str
-) -> None:
-    """Native installation ignores installed source bytes and repairs stale targets."""
-    wheel = _artifact_wheel(tmp_path, "dependency", "locked")
-    product = _artifact_wheel(tmp_path, "product", "product")
-    lock = tmp_path / "pylock.toml"
-    lock.write_text(
-        tomli_w.dumps(
-            {
-                "lock-version": "1.0",
-                "created-by": "ethos-test",
-                "requires-python": ">=3.12",
-                "packages": [
-                    {
-                        "name": "dependency",
-                        "version": "1.0",
-                        "wheels": [
-                            {
-                                "url": wheel.as_uri(),
-                                "hashes": {
-                                    "sha256": hashlib.sha256(wheel.read_bytes()).hexdigest()
-                                },
-                            }
-                        ],
-                    }
-                ],
-            }
-        )
-    )
-    environment = tmp_path / "target"
-    venv.EnvBuilder(with_pip=False).create(environment)
-    python = environment / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
-    purelib = Path(
-        subprocess.check_output(
-            (
-                str(python),
-                "-B",
-                "-I",
-                "-c",
-                "import sysconfig; print(sysconfig.get_path('purelib'))",
-            ),
-            text=True,
-            timeout=15,
-        ).strip()
-    )
-    if fault in {"marker", "format", "version"}:
-        payload = tomllib.loads(lock.read_text())
-        if fault == "marker":
-            payload["packages"][0]["marker"] = "unknown_variable"
-        elif fault == "format":
-            payload["lock-version"] = "2.0"
-        else:
-            payload["packages"][0]["version"] = "2.0"
-        lock.write_text(tomli_w.dumps(payload))
-    elif fault == "altered-target":
-        with zipfile.ZipFile(wheel) as archive:
-            archive.extractall(purelib)
-        (purelib / "dependency.py").write_text("VALUE = 'altered-installed-bytes'\n")
-    elif fault == "missing":
-        wheel.unlink()
-    elif fault == "altered-artifact":
-        _artifact_wheel(tmp_path, "dependency", "altered-artifact")
-
-    if fault not in {"none", "altered-target"}:
-        with pytest.raises(ValueError, match="error:"):
-            supply.install_locked_runtime(tmp_path, Path(sys.executable), python, product, lock)
-        assert not (purelib / "product.py").exists()
-        return
-
-    supply.install_locked_runtime(tmp_path, Path(sys.executable), python, product, lock)
-
-    assert (purelib / "dependency.py").read_text() == "VALUE = 'locked'\n"
-    assert (purelib / "product.py").read_text() == "VALUE = 'product'\n"
-    assert not (purelib / "dependency.py").is_symlink()
-    assert not (purelib / "product.py").is_symlink()

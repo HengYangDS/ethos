@@ -29,6 +29,7 @@ from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.proof import declare_native_proof_checks
@@ -166,17 +167,12 @@ def _archive_verification_lane(tmp_path):
     baseline = commit_fixture(repo, "configure archive verification baseline")
     git(candidate, "reset", "--hard", baseline)
     root = tmp_path / "repo-work-feature"
-    run_ethos(
-        "lane",
-        "start",
-        "feature",
-        "--path",
-        str(root),
-        "--holder-ref",
-        "agent:test:case:agent-test",
-        "--apply",
-        "--json",
-        cwd=repo,
+    create_change_source_lane(
+        repo,
+        root,
+        branch="work/feature",
+        holder_ref="agent:test:case:agent-test",
+        base_ref="candidate/dev",
     )
     commit_active_change(root)
     return repo, root

@@ -15,8 +15,6 @@ portfolio and keep skill procedures below repository truth.
 
 See also: [Skill Rules](../../rules/skills.md) and
 [Repo-local Skills](../../.agents/skills/README.md).
-For the surrounding authority and extension contracts, return to
-[Governance](README.md#knowledge-and-extensions).
 
 Skills route agents to current owner scripts, proof gates, rules, docs, and
 repository facts. They do not create a task system, command plane, lifecycle

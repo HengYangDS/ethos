@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import shutil
 import subprocess
 import sys
@@ -14,18 +13,11 @@ import pytest
 
 import ethos.adapters.gates.code_quality as native_quality
 import ethos.adapters.gates.python_quality as python_quality
-from ethos.adapters.gates.runner import LocalGateRunner
 from ethos.adapters.gates.verification import NativeExecution
 from ethos.adapters.gates.verification import provider_reports
-from ethos.contracts.gates import Gate
-from ethos.contracts.plan import PlanNode
-from ethos.repository.policy.gates import gate_execution_identity
-from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import init_git_repo
-from tests.support.proof import declare_quality_fixture
-from tests.support.proof import python_quality_files
 
 
 @pytest.mark.parametrize("native_layout", ["uv", "relocated-mise"])
@@ -33,7 +25,10 @@ def test_generic_provider_uses_real_locked_python_evidence(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_layout: str
 ) -> None:
     """The generalized provider preserves Python's existing native success path."""
-    repo = committed_source_repo(tmp_path, python_quality_files())
+    repo = init_git_repo(tmp_path / "repo")
+    fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
+    for name in ("pyproject.toml", "uv.lock"):
+        (repo / name).write_bytes((fixture / name).read_bytes())
     selected_tools: list[str] = []
     if native_layout == "relocated-mise":
         config = repo / ".config/mise/config.toml"
@@ -56,6 +51,14 @@ def test_generic_provider_uses_real_locked_python_evidence(
         monkeypatch.setattr(python_quality, "locked_tool", selected_tool, raising=False)
     (repo / "pytest.toml").write_text(
         '[pytest]\naddopts = ["--strict-config"]\ncache_dir = ".cache/pytest"\n'
+    )
+    source = repo / "src/sample/__init__.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("def answer() -> int:\n    return 42\n")
+    test = repo / "tests/test_sample.py"
+    test.parent.mkdir()
+    test.write_text(
+        "from sample import answer\n\n\ndef test_answer() -> None:\n    assert answer() == 42\n"
     )
     commit_fixture(repo, "lock native Python quality")
 
@@ -134,110 +137,6 @@ def test_python_verified_command_does_not_replay_without_native_evidence(
     assert isinstance(report, dict)
     assert report["required_gaps"] == [f"quality_{axis}_python_native_evidence_unavailable"]
     assert replays == []
-
-
-@pytest.mark.parametrize("verdict", ["block", "unknown"])
-def test_python_subject_mapping_cannot_override_native_verifier_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, verdict: str
-) -> None:
-    """Correct path coverage does not convert an adverse verifier judgment to PASS."""
-    repo = committed_source_repo(tmp_path, {"src/app.py": "answer = 42\n"})
-    monkeypatch.setattr(
-        native_quality,
-        "python_behavior_report",
-        lambda *_args, **_kwargs: {
-            "verdict": verdict,
-            "required_gaps": ["native_failure"],
-            "quality_evidence": {"selected_paths": ["src/app.py"]},
-        },
-    )
-
-    report = native_quality.behavior_report(repo)
-
-    assert report["verdict"] == verdict
-    assert report["required_gaps"] == ["native_failure"]
-
-
-@pytest.mark.parametrize("axis", ["behavior", "static"])
-@pytest.mark.parametrize("module", ["code_quality", "python_quality"])
-def test_python_verified_command_refuses_before_native_execution(
-    tmp_path: Path, axis: str, module: str
-) -> None:
-    """An unsupported evidence contract must not run its expensive native command."""
-    repo = committed_source_repo(tmp_path, {"src/app.py": "answer = 42\n"})
-    marker = tmp_path / "native-started"
-    gate = Gate(
-        id="native-python",
-        kind="test",
-        command=(
-            sys.executable,
-            "-c",
-            f"from pathlib import Path; Path({str(marker)!r}).write_text('started')",
-        ),
-        verification_providers=(f"ethos.adapters.gates.{module}:{axis}_report",),
-    )
-    node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
-
-    result = LocalGateRunner().run(node, gate, root=repo)
-
-    assert result.verdict == "block"
-    assert not marker.exists()
-    assert result.exit_code is None
-    assert result.verification is None
-    name = axis
-    reason = "python_nox_command_unsupported"
-    assert any(
-        f"quality_{name}_{reason}" in item.get("required_gaps", ()) for item in result.diagnostics
-    )
-
-
-@pytest.mark.parametrize("module", ["code_quality", "python_quality"])
-def test_public_python_proof_preserves_preflight_nonexecution(tmp_path: Path, module: str) -> None:
-    """Public proof reports the actual prerequisite failure without starting either command."""
-    repo = committed_source_repo(tmp_path, {"src/app.py": "answer = 42\n"})
-    marker = tmp_path / "native-started"
-    gates = tuple(
-        Gate(
-            id=axis,
-            kind="test",
-            command=(
-                sys.executable,
-                "-c",
-                f"from pathlib import Path; Path({str(marker)!r}).write_text({axis!r})",
-            ),
-            verification_providers=(f"ethos.adapters.gates.{module}:{axis}_report",),
-        )
-        for axis in ("behavior", "static")
-    )
-    declare_quality_fixture(repo, gates=gates)
-    head = commit_fixture(repo, "declare native Python evidence prerequisites")
-
-    completed = run_ethos_raw(
-        "prove",
-        "--host",
-        "--execute",
-        "--full",
-        "--expect-head",
-        head,
-        "--json",
-        cwd=repo,
-        subprocess_only=True,
-    )
-    payload = json.loads(completed.stdout)
-    assert completed.returncode != 0
-
-    assert payload["verdict"] == "block"
-    assert not marker.exists()
-    checks = payload["data"]["checks"]
-    assert {check["action_id"] for check in checks} == {"behavior", "static"}
-    for check in checks:
-        assert check["exit_code"] is None
-        assert check.get("verification") is None
-        assert any(
-            "python_nox_command_unsupported" in gap
-            for diagnostic in check["diagnostics"]
-            for gap in diagnostic.get("required_gaps", ())
-        )
 
 
 def test_native_quality_requires_committed_python_scope(tmp_path: Path) -> None:

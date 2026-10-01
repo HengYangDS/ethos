@@ -63,7 +63,7 @@ def prepare_locked_requirements(
         *sync_arguments,
         python=source_python,
     )
-    requirements = work / "pylock.toml"
+    requirements = work / "locked-requirements.txt"
     run_runtime_tool(
         source,
         "export",
@@ -72,7 +72,7 @@ def prepare_locked_requirements(
         "--no-dev",
         "--no-emit-project",
         "--format",
-        "pylock.toml",
+        "requirements-txt",
         "--output-file",
         requirements.as_posix(),
         python=source_python,
@@ -89,26 +89,16 @@ def install_locked_runtime(
     wheel: Path,
     requirements: Path,
 ) -> None:
-    """Install locked artifacts natively, never infer them from installed names."""
-    source_facts = observe_python_facts(source_python)
-    target_facts = observe_python_facts(target_python)
-    if same_python_path(source_facts["prefix"], target_facts["prefix"]):
-        _fail("hook_runtime_dependency_supply_alias")
-    if not same_python_identity(source_facts, target_facts):
-        _fail("hook_runtime_dependency_supply_incompatible")
+    """Project verified dependency bytes, prune them, then install the exact wheel."""
+    project_dependency_supply(source_python, target_python)
     commands = (
         (
             "pip",
             "sync",
             "--offline",
-            "--no-config",
-            "--preview-features",
-            "pylock",
             "--break-system-packages",
             "--require-hashes",
             "--strict",
-            "--reinstall",
-            "--no-build",
             "--python",
             target_python.as_posix(),
             requirements.as_posix(),
@@ -117,21 +107,19 @@ def install_locked_runtime(
             "pip",
             "install",
             "--offline",
-            "--no-config",
             "--break-system-packages",
             "--no-deps",
-            "--reinstall",
             "--python",
             target_python.as_posix(),
             wheel.as_posix(),
         ),
     )
-    run_runtime_tool(source, *commands[0], python=source_python, use_cache=True)
-    run_runtime_tool(source, *commands[1], python=source_python)
+    for command in commands:
+        run_runtime_tool(source, *command, python=source_python)
 
 
 def project_dependency_supply(source_python: Path, target_python: Path) -> None:
-    """Copy a validated sealed runtime's closure between congruent prefixes."""
+    """Copy only installed-distribution bytes between congruent Python prefixes."""
     source_prefix, files = observe_dependency_supply(source_python)
     source_facts = observe_python_facts(source_python)
     target_facts = observe_python_facts(target_python)
@@ -164,15 +152,9 @@ def project_dependency_supply(source_python: Path, target_python: Path) -> None:
 
 
 def observe_dependency_supply(python: Path) -> tuple[Path, tuple[tuple[Path, str], ...]]:
-    """Observe already validated runtime bytes without claiming artifact origin."""
+    """Observe one Python prefix and every file owned by its installed distributions."""
     completed = subprocess.run(
-        (
-            python.as_posix(),
-            "-B",
-            "-I",
-            "-c",
-            _SUPPLY_OBSERVATION,
-        ),
+        (python.as_posix(), "-B", "-I", "-c", _SUPPLY_OBSERVATION),
         capture_output=True,
         check=False,
         text=True,
@@ -184,8 +166,7 @@ def observe_dependency_supply(python: Path) -> tuple[Path, tuple[tuple[Path, str
             (Path(relative), sha256) for relative, sha256 in sorted(payload["files"].items())
         )
     except (KeyError, TypeError, ValueError) as error:
-        detail = completed.stderr.strip() or completed.stdout.strip()
-        _fail(f"hook_runtime_dependency_supply_invalid:{detail}", error)
+        _fail("hook_runtime_dependency_supply_invalid", error)
     if (
         completed.returncode
         or not prefix.is_absolute()

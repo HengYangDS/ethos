@@ -60,9 +60,7 @@ Native `cue def jsonschema+strict:` imported that schema without a handwritten
 CUE copy, using the [official JSON Schema integration][cue-json-schema]. Native
 export exercised twelve cases: the three actual rules, missing
 owner, empty paths, unknown field, invalid severity, Boolean/string/float version,
-numeric owner and omitted default version.
-
-All three consumers agreed except
+numeric owner and omitted default version. All three consumers agreed except
 for `version: 1.0`: JSON Schema accepted it; the strict Python model and imported
 CUE definition rejected it. JSON Schema [defines integral numeric values][json-numeric]
 independently of decimal spelling. This is a real carrier/representation distinction,
@@ -95,12 +93,11 @@ effect observation, recovery or accepted OpenSpec intent.
 
 ### Program Meaning Is Not Spelling
 
-The accepted baseline's `python_syntax.py` constructed a whole-tree string table
-and recognized certain calls by owner spelling. Earlier independent public-gate
-probes demonstrated alias, shadowing and program-point counterexamples. The
-candidate replaces that path through the [scoped inference comparison](code-design.md#scoped-inference-comparison).
-Focused observations are not exact-source full proof, installed acceptance or
-evidence of a publication bypass.
+The current `python_syntax.py` still constructs a whole-tree string table and
+recognizes certain calls by owner spelling. Earlier independent public-gate
+probes demonstrated alias, shadowing and program-point counterexamples. This
+review re-observed the mechanism, but did not replay that public workload at the
+current dirty source; it does not assert full proof or publication bypass.
 
 [LibCST's scope implementation][libcst-mechanism] handles names, assignments and
 access relationships. It is a candidate to replace spelling-based binding

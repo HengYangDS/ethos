@@ -80,7 +80,6 @@ its historical explanation or retrieval instructions have a current consumer;
 otherwise cite the exact Git revision. Current architecture, governance,
 reference, guides, and plan surfaces must not retain redirect or locator pages
 for retired concepts. Retirement removes redundant current-surface carriers.
-
 Official OpenSpec archive bytes remain
 immutable at their Git revisions; their presence in the latest tree is not a
 permanent retention requirement or current authority. Retire an unconsumed
@@ -152,14 +151,11 @@ The portable hard ceiling is 500 nonblank physical lines per tracked, current,
 authored Markdown document, including root entrypoints, rules, Skills and a
 repository's native documentation root. Frontmatter, tables, code fences and
 quotes count; blank-line padding and a metadata state of `archived` do not
-exempt an otherwise current document.
-
-The release contract's root
+exempt an otherwise current document. The release contract's root
 `CHANGELOG.md` is cumulative release history: neither its total nor its
 Unreleased or version sections have a document-length ceiling. Release format
 and version meaning belong to release governance, not this length check. A
 same-named document elsewhere is still ordinary authored documentation.
-
 Official OpenSpec artifacts and their archive, and outputs with a declared
 producer, are separate carriers with their own checks.
 
@@ -206,62 +202,15 @@ interaction, and agent retrieval cannot drop conditions to fit a context budget.
   instead of copying them, without forcing a chain of tiny pages for one rule.
 - Directory depth expresses real subject containment. Cross-cutting questions
   use meaningful links, not copied pages or mirrored trees.
-
-### Visual Expression
-
-Choose the form that makes the relationship easiest to understand; do not turn
-every paragraph into a table or require a quota of diagrams. Keep examples and
-captions beside the explanation they support.
-
-| Reader needs to understand | Prefer | Preserve |
-| --- | --- | --- |
-| Alternatives across the same dimensions | A compact comparison table | Decision criteria, tradeoffs and applicability; split unrelated comparisons. |
-| Conditions, obligations or unordered choices | A list | Each item's scope and exceptions. |
-| A procedure or dependency order | Numbered steps | Prerequisites, failure behavior and observable completion. |
-| Relationships, transitions or flow | A labeled diagram | Direction, boundaries, legend and a concise textual equivalent. |
-| Exact syntax, data shape or an invocation | A language-labeled code block | Valid syntax, inputs, expected result and whether the example is executable. |
-| A consequential limitation | A short, clearly labeled note | The limitation in plain Markdown, not only color, hover or collapsed content. |
-
-Break prose at distinct claims. Use descriptive headings, short paragraphs and
-selective emphasis rather than dense paragraphs or long bold passages. Wide
-tables need semantic grouping, not smaller text. Figures need useful alternative
-text and nearby explanation; generated images and diagrams cite their source.
-Visual shorthand must not erase qualifications or imply implemented capability.
-
-### Navigation And Link Coverage
-
-The documentation root README routes readers by question. Branch READMEs expose
-their meaningful children; current topics must be reachable through visible
-links, with a relevant route back to their context. Multi-question pages provide
-local section links when scanning headings alone is insufficient.
-
-| Link role | Target and placement |
-| --- | --- |
-| Orientation | The containing subject or directory README near the opening. |
-| Prerequisite | The necessary concept or setup before the dependent instruction. |
-| Authority | The exact contract, specification or implementation that owns a claim. |
-| Rationale and evidence | The relevant decision, comparison or scoped observation beside the supported claim. |
-| Related question or next action | A useful adjacent topic or procedure at the point of transition. |
-
-Apply the roles relevant to the page, not a mandatory list of decorative links.
-Cover dependencies and substantive cross-topic references; do not hyperlink every
-repeated noun or connect unrelated pages just to increase density. Labels name the
-target question or obligation, not "here". Prefer stable sections over a distant
-document root and preserve enough local context to avoid compulsory browsing.
-
-Keep one authored source for each relationship. Derive breadcrumbs, backlinks
-and machine views when useful; do not maintain another sitemap or ontology.
-Metadata-only relations, hidden IDs and search availability do not establish
-visible navigation. Navigation cycles can be useful; a prerequisite cycle may
-be a defect. Connectivity does not confer authority or prove comprehension.
-
-Moves repair incoming links and anchors as well as outgoing links. Deleted pages
-must not strand a live obligation, rationale or reader route. Validate both link
-destinations and reachability from the entrypoint: valid links alone cannot
-detect an isolated page. External-source availability is a separate observation,
-not something an offline link check certifies.
-
-### Metadata And Reading Verification
+- Link labels identify the target question or obligation. Prefer a relevant
+  stable section. Orientation, prerequisites, related concepts and evidence are
+  distinct navigation roles.
+- Keep one authored relation source. Derive breadcrumbs, backlinks and machine
+  indexes when useful; do not manually maintain a second sitemap or ontology.
+  Prohibited cycles depend on relation meaning, not merely graph shape.
+- Moves update incoming links and anchors while preserving subject identity and
+  necessary historical references. Deletion cannot strand a requirement or its
+  only rationale.
 
 Metadata is a typed contract: stable subject, document purpose, lifecycle and
 meaningful relations. Provenance and applicability depend on the claim.
@@ -275,11 +224,6 @@ subjects, external sources and descriptive scopes rather than guessing.
 Preserve unknown imported fields as inert data. OKF maps these distinctions
 without replacing native acceptance; see the
 [source-backed assessment](../research/foundations/documentation.md).
-
-The existing `markdown-links` gate uses [native Lychee policy](../../.config/checks/lychee/lychee.toml)
-for local destinations and section anchors. Visible topic reachability and
-reader comprehension require separate checks; neither follows from that gate
-or metadata validation. Offline execution does not certify external availability.
 
 Acceptance covers rendered reading, raw Markdown and agent retrieval: find the
 current rule, rationale, limitations and supported next action. Measure correct
@@ -298,15 +242,11 @@ internals and external conventions do not establish current entrypoints.
 `README.md` is retained only when it is the actual index, navigation entrypoint,
 or semantic boundary for its directory. A directory with one substantive child
 does not receive a README merely because the directory exists; an empty
-directory and a marker-only README are removed.
-
-A directory with at least two
+directory and a marker-only README are removed. A directory with at least two
 immediate navigable children needs a README with a local route into its content;
 this applies to a profile-selected adopter documentation root as well as ETHOS.
 Document and documentation-metadata files count as content; generated diagrams
-do not.
-
-If a README contains the only
+do not. If a README contains the only
 unique navigation or boundary meaning, absorb that meaning into the owning
 document before deleting it.
 
@@ -314,13 +254,10 @@ A Decision Record is admitted only when a choice among alternatives, its
 consequences, and its revisit or retirement condition remain useful across more
 than one Change and cannot be expressed clearly by the current contract or
 source. It is not a feedback receipt, status page, task list, or archive index.
-
 Its filename is `dr-<four-digit-id>-<semantic-topic>.md`: the stable positive
 number is never reused for another ruling, while the topic stays legible. The
 Docs Registry rejects missing or duplicate current IDs without adding a
-decision database.
-
-A record states its status and date, context, decision,
+decision database. A record states its status and date, context, decision,
 consequences and revisit condition; alternatives and evidence are included when
 they explain the choice. Its directory README navigates records but does not
 become a second decision register. Adopters need not copy ETHOS's directory

@@ -405,7 +405,7 @@ def _offline_generation(root, command, **kwargs):
         ("unformatted", "model", 'name: "ETHOS CI"', 'name:    "ETHOS CI"'),
         ("bootstrap", "bootstrap", None, "#!/bin/sh\nexit 0\n"),
         ("missing-output", "output", None, None),
-        ("bootstrap-version", "mise", "min_version", "9999.0.0"),
+        ("bootstrap-version", "mise", "2026.9.11", "0.0.0"),
         ("bootstrap-lock", "declaration", "sha256 =", "unsupported ="),
         ("bootstrap-missing", "bootstrap", None, None),
         ("bootstrap-link", "bootstrap", "", ""),
@@ -430,11 +430,6 @@ def test_cue_owner_requires_native_semantics_without_parallel_templates(
         files.pop(relative)
     elif fault == "byte-drift":
         files[relative] += new
-    elif fault == "bootstrap-version":
-        selected = tomllib.loads(files[relative])["min_version"]
-        original = files[relative]
-        files[relative] = original.replace(f'"{selected}"', f'"{new}"')
-        assert files[relative] != original
     else:
         files[relative] = files[relative].replace(old, new) if old is not None else new
     if fault == "self-certified":

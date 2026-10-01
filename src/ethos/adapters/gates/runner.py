@@ -8,24 +8,18 @@ import subprocess
 from concurrent.futures import FIRST_COMPLETED
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait
-from contextlib import ExitStack
 from contextvars import copy_context
 from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import replace
 from graphlib import TopologicalSorter
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from time import monotonic
 from typing import TYPE_CHECKING
 from typing import Any
 
-import ethos.adapters.gates.go as native_go
-import ethos.adapters.gates.python.nox as native_nox
-from ethos.adapters.gates.execution import native_environment
+import ethos
 from ethos.adapters.gates.verification import NativeExecution
-from ethos.adapters.gates.verification import NativePythonReports
-from ethos.adapters.gates.verification import assert_provider_execution_source
 from ethos.adapters.gates.verification import diagnostic_gaps_for
 from ethos.adapters.gates.verification import provider_reports
 from ethos.adapters.process import ProcessExecutionError
@@ -34,17 +28,17 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
-from ethos.adapters.repo.git import git_files
+from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.repo.worktree_postimage import observe_execution_source
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.proof.plan import execution_source_gaps
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import execution_succeeded
-from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
-from ethos.repository.policy.code_subjects import observed_code_subjects
+from ethos.repository.policy.gates import PRODUCT_PROVIDER_SOURCE
 from ethos.repository.policy.gates import gate_execution_identity
+from ethos.repository.policy.gates import source_paths_for_gate
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -139,95 +133,9 @@ class LocalGateRunner:
             )
         if gate.providers:
             return _run_providers(node, gate, root)
-        if gate.verification_providers:
-            _, readiness, diagnostics = provider_reports(
-                gate.id,
-                gate.verification_providers,
-                root,
-                preflight=True,
-                command=gate.command,
-                gate=gate,
-            )
-            if readiness != "pass":
-                return ActionRunResult(
-                    action_id=node.id,
-                    command=node.command,
-                    verdict=readiness,
-                    exit_code=None,
-                    diagnostics=diagnostics,
-                )
-        with ExitStack() as scope:
-            return self._run_command(node, gate, root=root, scope=scope)
-
-    def _prepare_command(self, gate: Gate, root: Path, scope: ExitStack):
-        """Own native report acquisition separately from an already started process."""
         command = gate.command
-        report_inputs = None
-        environment = None
-        if gate.native_reports:
-            report_root = Path(
-                scope.enter_context(TemporaryDirectory(prefix="ethos-native-reports-"))
-            )
-            command, environment, report_inputs = native_go.prepare(
-                root,
-                gate.command,
-                report_root,
-                native_environment(root, scope),
-                reports=tuple(gate.native_reports),
-                source_inputs=tuple(gate.source_inputs),
-            )
-        elif native_nox.requires_reports(root, gate.verification_providers):
-            report_root = Path(scope.enter_context(TemporaryDirectory(prefix="en-"))).resolve()
-            command, environment, report_inputs = native_nox.prepare(
-                root, command, report_root, references=gate.verification_providers
-            )
-        elif (
-            "ethos.adapters.gates.code_quality:behavior_report" in gate.verification_providers
-            and any(
-                subject.language == "go"
-                for subject in observed_code_subjects(tuple(git_files(root)))
-            )
-        ):
-            report_root = Path(scope.enter_context(TemporaryDirectory(prefix="ethos-go-coverage-")))
-            command, environment, report_inputs = native_go.prepare(
-                root, command, report_root, native_environment(root, scope)
-            )
-        return command, environment, report_inputs
-
-    def _run_command(
-        self, node: PlanNode, gate: Gate, *, root: Path, scope: ExitStack
-    ) -> ActionRunResult:
-        """Keep attempt-owned reports alive through verification, then reclaim them."""
         try:
-            command, environment, report_inputs = self._prepare_command(gate, root, scope)
-        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
-            return ActionRunResult(
-                action_id=node.id,
-                command=node.command,
-                verdict="block",
-                exit_code=None,
-                diagnostics=(
-                    {
-                        "kind": "native_report_preparation_failed",
-                        "error": f"{type(error).__name__}: {error}",
-                        "required_gaps": [f"native_report_preparation_failed:{gate.id}"],
-                        **(
-                            {"evidence": error.evidence()}
-                            if isinstance(error, ProcessExecutionError)
-                            else {}
-                        ),
-                    },
-                ),
-            )
-        try:
-            completed = run_command(
-                root,
-                command,
-                env=environment,
-                remove_env=("COVERAGE_PROCESS_CONFIG",)
-                if isinstance(report_inputs, NativePythonReports)
-                else (),
-            )
+            completed = run_command(root, command)
         except ProcessExecutionError as exc:
             if not isinstance(exc.__cause__, FileNotFoundError):
                 raise
@@ -261,8 +169,8 @@ class LocalGateRunner:
             diagnostics=diagnostics,
         )
         verification: dict[str, object] | None = None
-        if gate.verification_providers and (verdict == "pass" or report_inputs is not None):
-            reports, provider_verdict, provider_diagnostics = provider_reports(
+        if verdict == "pass" and gate.verification_providers:
+            reports, verdict, provider_diagnostics = provider_reports(
                 gate.id,
                 gate.verification_providers,
                 root,
@@ -273,16 +181,14 @@ class LocalGateRunner:
                     exit_code=completed.returncode,
                     stdout=completed.stdout,
                     stderr=completed.stderr,
-                    reports=report_inputs,
                 ),
-                gate=gate,
             )
             verification = {"gate": gate.id, "providers": reports}
-            verdict = reduce_verdicts(verdict, provider_verdict)
             diagnostics = (*diagnostics, *provider_diagnostics)
         return replace(
             execution,
             verdict=verdict,
+            exit_code=completed.returncode if verification is None else int(verdict != "pass"),
             diagnostics=diagnostics,
             verification=verification,
         )
@@ -509,4 +415,37 @@ def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
         exit_code=0 if verdict == "pass" else 1,
         stdout=json.dumps(payload, sort_keys=True, separators=(",", ":")),
         diagnostics=diagnostics,
+    )
+
+
+def assert_provider_execution_source(root: Path, gates: tuple[Gate, ...]) -> None:
+    """Reject candidate-bound checks running from a different implementation before effects."""
+    bound = tuple(
+        (gate.id, reference)
+        for gate in gates
+        if gate.providers
+        for reference, relative in zip(gate.providers, source_paths_for_gate(gate), strict=True)
+        if not relative.startswith(PRODUCT_PROVIDER_SOURCE) and (root / relative).is_file()
+    )
+    package = Path(ethos.__file__).resolve()
+    if not bound or package == (root / "src/ethos/__init__.py").resolve():
+        return
+    try:
+        identity = invoking_build_identity()
+        head = current_tracked_head(root)
+        if head == identity.source_commit and current_tree(root, head) == identity.source_tree:
+            return
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
+        pass
+    gate_id, reference = bound[0]
+    message = f"gate_provider_source_mismatch:{gate_id}:{reference}"
+    raise ProcessExecutionError(
+        message,
+        reason="candidate_provider_execution_requires_matching_source",
+        cwd=str(root),
+        observation={
+            "runner_module_path": str(package),
+            "required_gaps": [f"gate_provider_source_mismatch:{name}:{ref}" for name, ref in bound],
+            "next_action": "run proof from the admitted checkout's locked Python environment",
+        },
     )

@@ -16,20 +16,16 @@ coordination state.
 See also: [Runner And Mutation](runner-and-mutation.md) and
 [Command Plane](../reference/command-plane.md).
 
-Repository-local coordination and generated diagnostic state use
-`<git-common-dir>/ethos/`, shared by linked worktrees. The `state.sqlite` lease database and
-temporary command payloads have their own lifetimes; directory presence does not
-establish current proof. Attestations are selected through the Git-native
-`refs/ethos/attestations-set`, not the historical local `attestations/` or `proof/`
-directories. See [Provenance And Attestation](../governance/provenance-and-attestation.md)
-for evidence authority and supporting-object retention.
+ETHOS stores host-local runtime state under `<git-common-dir>/ethos/`, shared by
+every linked worktree without materializing files in any checkout. The current
+database is `<git-common-dir>/ethos/state.sqlite`; content-addressed local proof
+receipts are under `<git-common-dir>/ethos/attestations/`. This state is a
+projection over current repository facts, not a source of truth or a substitute
+for Git, OpenSpec, or tracked records.
 
-Current repository-private runtimes may remain under
-`<git-common-dir>/ethos/runtime/<digest>/`; this is not the terminal installation
-location. Host-scoped immutable product supply is separate from each repository's
-version selection, as defined by the [installation boundary](../governance/adopter-boundary-and-retirement.md).
-Generated launchers remain under `<git-common-dir>/ethos/hooks/<digest>/`.
-Repository-common Git config owns the
+Immutable hook runtimes and generated launchers are also common-dir projections:
+`<git-common-dir>/ethos/runtime/<digest>/` and
+`<git-common-dir>/ethos/hooks/<digest>/`. Repository-common Git config owns the
 single effective `core.hooksPath` and `gc.packRefs=false` activation. Linked
 worktrees inherit that activation; worktree-local values for those keys are
 invalid parallel owners and `ethos hook install` removes them.
@@ -40,14 +36,6 @@ references and linked `.venv` interpreter bindings. An operation or diagnostic
 record naming a former generation is historical observation, not a dependency
 on that executable; recovery uses the current selected runtime. Retirement
 neither edits nor deletes those records.
-
-Cleanup follows ownership and live references, not age, size or a generated-looking
-name. Native cache owners reclaim disposable entries; unresolved operations,
-rollback inputs, unique preservation bundles and required proof artifacts remain
-protected until their dependencies are settled. A historical mention is not an
-executable dependency, but a preservation bundle is not disposable merely because
-its producing lane has retired. A completed report must remain accessible beyond
-that lane, with exact source and artifact identity, before its local copy retires.
 
 Each removal re-observes dependencies and the exact generated directory under
 the bounded native selector lock. Unknown observations, contention or stale

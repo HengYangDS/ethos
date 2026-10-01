@@ -304,7 +304,9 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         "current_tracked_head": lambda _root: "a" * 40,
         "wheel_build_identity": lambda _wheel: build,
         "_run": lambda *_command, **_kwargs: "",
-        "prepare_locked_requirements": lambda _root, work, _python: work / "pylock.toml",
+        "prepare_locked_requirements": lambda _root, work, _python: (
+            work / "locked-requirements.txt"
+        ),
         "install_locked_runtime": lambda *args: observed.update(supply=args),
         "observe_runtime_lifecycle": lambda **kwargs: observed.update(kwargs) or lifecycle,
     }.items():
@@ -415,7 +417,7 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
             tmp_path / "project-python",
             work / "venv/bin/python",
             selected,
-            work / "pylock.toml",
+            work / "locked-requirements.txt",
         )
         assert case.observed["environment"]["UV_OFFLINE"] == "1"
         assert case.observed["environment"]["UV_PYTHON_INSTALL_DIR"] == str(

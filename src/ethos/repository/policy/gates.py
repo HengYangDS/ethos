@@ -75,10 +75,8 @@ class ResolvedGatePolicy:
             )
         )
 
-    def result_gaps(
-        self, checks: object, *, source_tree: str = "", require_success: bool = True
-    ) -> tuple[str, ...]:
-        """Validate exact result identity separately from a successful quality claim."""
+    def result_gaps(self, checks: object, *, source_tree: str = "") -> tuple[str, ...]:
+        """Require one successful, identity-matching result per declared obligation."""
         if not isinstance(checks, (list, tuple)) or any(
             not isinstance(check, Mapping) or not isinstance(check.get("action_id"), str)
             for check in checks
@@ -95,13 +93,9 @@ class ResolvedGatePolicy:
                 not isinstance(command, (list, tuple)) or tuple(command) != expected[name]
             ):
                 gaps.append(f"gate_identity_mismatch:{name}")
-            if require_success and not execution_succeeded(check):
+            if not execution_succeeded(check):
                 gaps.append(f"gate_execution_not_proven:{name}")
-        gaps.extend(
-            quality_obligation_gaps(self.projection, checks, source_tree=source_tree)
-            if require_success
-            else ()
-        )
+        gaps.extend(quality_obligation_gaps(self.projection, checks, source_tree=source_tree))
         return tuple(gaps) if checks else ("gate_results_empty", *gaps)
 
     @property
@@ -379,23 +373,24 @@ def _profile_declaration(profile: RepositoryProfile) -> GateRegistryDeclaration:
     return GateRegistryDeclaration(
         id=f"profile:{declaration.profile_id}",
         proof_sets=GateProofSets(
-            **dict.fromkeys(("default", "full"), proof.code_correctness_gates)
+            default=proof.code_correctness_gates,
+            full=proof.code_correctness_gates,
         ),
         gates=tuple(
             gate.model_copy(
                 update={
                     "profile": "repository",
+                    "toolchain": "ethos"
+                    if gate.providers or gate.verification_providers
+                    else "repository-native",
                     "execution_mode": "verified-command"
                     if gate.verification_providers
                     else "provider"
                     if gate.providers
                     else "subprocess",
-                    **dict.fromkeys(
-                        ("toolchain", "tool_adapter"),
-                        "ethos"
-                        if gate.providers or gate.verification_providers
-                        else "repository-native",
-                    ),
+                    "tool_adapter": "ethos"
+                    if gate.providers or gate.verification_providers
+                    else "repository-native",
                 }
             )
             for gate in proof.gates
@@ -429,27 +424,16 @@ def _gate_declaration(
     return declaration, profile
 
 
-def provider_source_bindings_for_gate(gate: Gate) -> tuple[tuple[str, str], ...]:
-    """Keep provider identities related to their source even when paths are shared."""
+def source_paths_for_gate(gate: Gate) -> tuple[str, ...]:
     provider_root = (
         PRODUCT_PROVIDER_SOURCE
         if gate.profile == "repository" and gate.tool_adapter == "ethos"
         else "src/ethos/"
     )
-    return tuple(
-        (
-            reference,
-            provider_root
-            + reference.partition(":")[0].removeprefix("ethos.").replace(".", "/")
-            + ".py",
-        )
+    providers = tuple(
+        provider_root + reference.partition(":")[0].removeprefix("ethos.").replace(".", "/") + ".py"
         for reference in (*gate.providers, *gate.verification_providers)
     )
-
-
-def source_paths_for_gate(gate: Gate) -> tuple[str, ...]:
-    """Derive unique source inputs without discarding provider-to-source relationships."""
-    providers = tuple(path for _, path in provider_source_bindings_for_gate(gate))
     command = canonical_gate_command(gate.command)
     noxfile = (
         ("noxfile.py", "pyproject.toml", "uv.lock")
@@ -466,7 +450,7 @@ def source_paths_for_gate(gate: Gate) -> tuple[str, ...]:
         and ".." not in Path(command[0]).parts
         else ()
     )
-    return tuple(dict.fromkeys((*providers, *noxfile, *script, *gate.source_inputs)))
+    return (*providers, *noxfile, *script)
 
 
 def source_paths_for_gates(gates: tuple[Gate, ...]) -> tuple[str, ...]:
@@ -505,7 +489,10 @@ def resolve_gate_policy(
     gate_ids: tuple[str, ...] = (),
     full: bool = False,
 ) -> ResolvedGatePolicy:
-    declaration, profile = _gate_declaration(profile, gate_registry_source=gate_registry_source)
+    declaration, profile = _gate_declaration(
+        profile,
+        gate_registry_source=gate_registry_source,
+    )
     if gate_ids:
         requested = set(gate_ids)
         owned = declaration.registry().keys()
@@ -513,7 +500,11 @@ def resolve_gate_policy(
         if requested.isdisjoint(owned) and requested <= packaged:
             declaration, profile = _PACKAGED_GATE_DECLARATION, None
     python_executable = repository_python or sys.executable
-    gates = declaration.proof_gates(gate_ids, full=full, python_executable=python_executable)
+    gates = declaration.proof_gates(
+        gate_ids,
+        full=full,
+        python_executable=python_executable,
+    )
     sources, gaps = (
         bind_gate_source_digests(gates, source_materials or {})
         if profile is not None and profile.declaration is not None

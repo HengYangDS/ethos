@@ -151,8 +151,6 @@ def _intent_action(root: Path, gap: str, change: str | None) -> str:
         return "npm ci --ignore-scripts --no-audit --no-fund"
     if gap.startswith("openspec_active_change_ambiguous:"):
         return "openspec list --json"
-    if gap == "openspec_active_change_missing":
-        return "openspec new change --help"
     if change:
         return f"openspec status --change {change} --json"
     return f"ethos status --root {root.resolve().as_posix()} --json"

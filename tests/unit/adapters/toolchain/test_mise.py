@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import subprocess
-import sys
 from contextlib import nullcontext
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -168,32 +166,6 @@ def test_locked_tool_requires_an_installed_absolute_executable(
 
     with pytest.raises(ValueError, match=gap):
         mise.locked_tool(tmp_path, "node", files=files)
-
-
-def test_offline_mise_observation_does_not_forward_forge_credentials(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """An offline input observation has no Forge API credential consumer."""
-    executable = tmp_path / "mise"
-    executable.write_text(
-        f"#!{sys.executable}\nimport os,json\n"
-        "print(json.dumps({'credential_present': any(name in os.environ "
-        "for name in ('GH_TOKEN','GITHUB_TOKEN'))}))\n"
-    )
-    executable.chmod(0o755)
-    monkeypatch.setenv("GH_TOKEN", "nonsecret-test-sentinel")
-    monkeypatch.setenv("GITHUB_TOKEN", "nonsecret-test-sentinel")
-
-    result = mise.run_mise(
-        tmp_path,
-        ("env", "--json"),
-        files={mise.MISE_CONFIG: "[tools]\n", mise.MISE_LOCK: "lockfile_version = 3\n"},
-        executable=executable,
-        offline=True,
-    )
-
-    assert result.returncode == 0, result.stderr
-    assert json.loads(result.stdout) == {"credential_present": False}
 
 
 def test_mise_executable_does_not_invent_a_host_fallback(

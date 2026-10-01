@@ -185,25 +185,6 @@ their native subject layout under the portable Docs Registry contract.
 - **AND** the registry SHALL report every broken link, stale stable path,
   unindexed document, duplicate subject, and invalid README disposition
 
-#### Scenario: Link validity does not hide an unreachable topic
-
-- **WHEN** current documentation is reviewed from its root README
-- **THEN** every current navigable topic has a visible route from that entrance
-- **AND** the topic offers relevant context, prerequisite, authority and next-action
-  links without requiring every role on every page or unrelated cross-linking
-- **AND** valid outgoing links, metadata-only relations and search availability
-  do not excuse an isolated page
-- **AND** moves and deletion preserve incoming routes, section targets and live meaning
-
-#### Scenario: Visual structure preserves meaning for both readers
-
-- **WHEN** a document uses prose, lists, tables, diagrams or code examples
-- **THEN** the form expresses the actual relationship, comparison or procedure
-- **AND** scope, exceptions and required meaning remain understandable in plain
-  Markdown and the rendered view without relying on hover, color or hidden content
-- **AND** reading verification distinguishes navigation and comprehension from
-  link counts, parser success and offline external-link observations
-
 #### Scenario: `current`/`future` roots do not become truth lanes
 
 - **WHEN** ETHOS audits docs topology or scaffolds an adopted repository
@@ -781,27 +762,6 @@ admission, repository audit and private-boundary consumers share this owner.
 - **WHEN** a relevant callee or value uses unsupported dynamic lookup
 - **THEN** only the affected consumer obligation is UNKNOWN and cannot pass as evaluated
 - **AND** unrelated statically resolved files retain their valid result
-
-#### Scenario: An availability probe does not require the probed executable
-
-- **WHEN** source checks for the presence or absence of an executable without invoking it
-- **THEN** the probe alone does not create a required executable dependency
-- **AND** an invocation through a lookup of a fixed program name retains that executable identity
-- **AND** a dynamic lookup or unrelated use of the unknown path bytes remains UNKNOWN at its dependent boundary
-
-#### Scenario: Storing an argument vector does not execute its elements
-
-- **WHEN** shell source assigns or appends literal elements to an argument array
-- **THEN** both forms retain non-executing storage semantics
-- **AND** an actual resolved command invocation remains a distinct consumer observation
-
-#### Scenario: A local invocation preserves its argument and result relations
-
-- **WHEN** a source-defined function receives known positional, keyword, default or variadic arguments
-- **THEN** its native calls and return values retain those invocation-specific relations
-- **AND** a callback retains its bound identity without using its parameter spelling
-- **AND** recursive, decorated, escaped or otherwise unresolved invocations preserve the dependent UNKNOWN obligation
-- **AND** an empty return does not erase a dependent invalid execution argument
 
 ### Requirement: Native command declarations own their executables
 

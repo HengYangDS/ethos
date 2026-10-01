@@ -95,8 +95,7 @@ def _repository_paths(root: Path, tree_ref: str | None) -> tuple[str, ...]:
     arguments = ("ls-tree", "-r", "--name-only", "-z", tree_ref) if tree_ref else ("ls-files", "-z")
     completed = run_git(root, *arguments, check=tree_ref is not None, text=False, observation=True)
     if completed.returncode:
-        message = "quality_subject_inventory_unknown"
-        raise ValueError(message)
+        return ()
     try:
         return tuple(path.decode("utf-8") for path in completed.stdout.split(b"\0") if path)
     except UnicodeDecodeError as error:

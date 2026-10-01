@@ -283,7 +283,9 @@ def schemas(session) -> None:
     report = import_module("ethos.repository.policy.schema").schema_validation_report(ROOT)
     session.log(json.dumps(report, sort_keys=True))
     if report["verdict"] != "pass":
-        session.error("schema validation failed: " + ", ".join(report["required_gaps"]))
+        session.error(
+            "schema validation failed: " + ", ".join(cast("list[str]", report["required_gaps"]))
+        )
 
 
 def local_ci(session) -> None:

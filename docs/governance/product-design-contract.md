@@ -367,23 +367,19 @@ UX and DX are kernel properties, not documentation polish. A normal path asks
 only for facts that change the next action; advanced detail is available without
 hiding a gap. Every block names what happened, why it blocks, its evidence or
 missing fact, the one safe next action, and whether a human decision is required.
-
 Human and JSON views preserve the same verdict and semantic identifiers. Local
-operation is deterministic and offline after bootstrap.
-
-An explicitly selected installed product supplies ETHOS; the target repository supplies its intent,
+operation is deterministic and offline after bootstrap. An explicitly selected
+installed product supplies ETHOS; the target repository supplies its intent,
 policy, source and project toolchain. Product identity, repository selection and
-project environments are distinct. No adopter needs an ETHOS checkout or developer environment.
-
-Native macOS and Linux are required supported platforms; Windows
+project environments are distinct. No adopter needs an ETHOS checkout or developer
+environment. Native macOS and Linux are required supported platforms; Windows
 support is desirable and claimed only after native qualification. Homebrew is a
 supported installation channel; packaging internals do not dictate repository
-semantics.
-
-CLI, SDK, MCP and Skills expose the same current
+semantics. CLI, SDK, MCP and Skills expose the same current
 context, available capabilities, gaps and safe continuation. Adoption
 is previewable, idempotent, minimally invasive, reversible before first governed
-effect, and cleanly uninstallable without leaving hooks, generated truth, or a second control plane.
+effect, and cleanly uninstallable without leaving hooks, generated truth, or a
+second control plane.
 
 Continuation coordinates are typed by route: an execution session, execution
 cell, and thread operation are not interchangeable. A long mutation writes its
@@ -480,12 +476,10 @@ Quality requirements precede observed results. Combined Python line-and-branch
 coverage is at least 95 percent over the declared product surface, enforced by
 default and full proof and local CI on current-HEAD evidence. Debt fails; tests
 must distinguish independently chosen outcomes rather than mirror settings.
-
 Formatting, lint, schema, links, security, portability and source budgets apply
 to each meaningful admitted carrier. Narrow-owner budgets cannot be offset by
 other source classes; generated outputs and archived OpenSpec records are
 reported separately from maintained generators, active intent, config and docs.
-
 Size constrains maintenance cost, not correctness; relabeling, cosmetic
 compression, removed necessary tests or automatic limit increases are invalid
 repairs. Supported modern Python and native macOS/Linux/Windows behavior retain

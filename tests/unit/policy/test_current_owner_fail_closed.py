@@ -11,9 +11,9 @@ import pytest
 import ethos.domain.source_budget.measurement as source_budget
 from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos.repository.policy.references.closure import product_reference_gaps
-from ethos.repository.policy.references.commands.observation import command_executables
-from ethos.repository.policy.references.commands.observation import shebang_executable
-from ethos.repository.policy.references.commands.observation import shell_executables
+from ethos.repository.policy.references.commands import command_executables
+from ethos.repository.policy.references.commands import shebang_executable
+from ethos.repository.policy.references.commands import shell_executables
 from ethos.repository.policy.references.observation import product_references_from_files
 from tests.support.governed_repository import git
 

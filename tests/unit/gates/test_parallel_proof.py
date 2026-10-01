@@ -161,52 +161,6 @@ def test_run_plan_checks_executes_ready_checks_concurrently_in_plan_order(
         assert check["duration_seconds"] >= 0
 
 
-@pytest.mark.parametrize("verdict", ["pass", "block", "unknown"])
-def test_failed_gate_progress_preserves_same_attempt_verification(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys, verdict: str
-) -> None:
-    """Live diagnostics retain the failed verifier, not only the outer command."""
-    repo = init_git_repo(tmp_path / "repo")
-    nodes, registry = _graph({"native": ()})
-    plan = _proof_plan(repo, nodes)
-    verification = {
-        "gate": "native",
-        "providers": [
-            {
-                "provider": "ethos.test:report",
-                "report": {"verdict": verdict, "diagnostics": [{"cause": "inner failure"}]},
-            }
-        ],
-    }
-
-    class Runner:
-        def run(self, node, _gate, **_context):
-            return ActionRunResult(
-                node.id,
-                node.command,
-                verdict,
-                int(verdict != "pass"),
-                stdout="outer command output",
-                verification=verification,
-            )
-
-    monkeypatch.setattr(
-        proof_cli, "resolve_gate_policy", lambda *_a, **_k: SimpleNamespace(registry=registry)
-    )
-    monkeypatch.setattr(proof_cli, "LocalGateRunner", Runner)
-    checks, _ = proof_cli.run_plan_checks(repo=repo, plan=plan, execute=True, capacity=1)
-    events = [json.loads(line) for line in capsys.readouterr().err.splitlines()]
-    completed = next(event for event in events if event["event"] == "gate_completed")
-
-    assert checks[0]["verification"] == verification
-    assert completed["satisfies_repository_proof"] is False
-    if verdict == "pass":
-        assert "verification" not in completed
-    else:
-        assert completed["verification"] == verification
-        assert completed["stdout"] == "outer command output"
-
-
 @pytest.mark.parametrize("domain", [False, "output", None, "source/child", "source"])
 @pytest.mark.parametrize(
     ("parallel", "capacity"), [(False, 1), (False, 4), (True, 1), (True, 2), (True, 4)]

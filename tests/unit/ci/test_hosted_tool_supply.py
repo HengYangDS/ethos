@@ -201,27 +201,6 @@ def test_native_supply_converges_concurrently_reuses_identity_and_repairs_damage
     assert not list(executable.parent.glob(".prepare-*"))
 
 
-@pytest.mark.parametrize("lock_format", [2, 3, 99])
-def test_native_supply_reads_modern_lock_without_changing_payload_identity(
-    tmp_path, lock_format
-) -> None:
-    """The native format upgrade preserves tool payloads; unknown formats cannot authorize."""
-    _native_supply(tmp_path, "scc")
-    root = tmp_path / "repo"
-    lock = root / ".config/mise/mise.lock"
-    lock.write_text(
-        lock.read_text().replace("lockfile_version = 2", f"lockfile_version = {lock_format}")
-    )
-    if lock_format == 99:
-        with pytest.raises(ValueError, match="native_tool_lock_mismatch"):
-            NativeSupply.read(root, "scc")
-    else:
-        supply = NativeSupply.read(root, "scc")
-        assert supply.version == "4.1.0"
-        assert supply.archive == "fixture.tar.gz"
-    assert not list(root.rglob(".prepare-*"))
-
-
 @pytest.mark.parametrize(("system", "machine"), [("Windows", "AMD64"), ("Linux", "unknown")])
 def test_native_supply_rejects_unsupported_targets_before_creating_cache(
     tmp_path, monkeypatch, system, machine
@@ -414,29 +393,3 @@ def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(
     assert not list(target.parent.glob(".bootstrap-*"))
 
     assert not (tmp_path / "UNAPPROVED").exists()
-
-
-@pytest.mark.parametrize("operator", [False, True])
-def test_selected_mise_bootstrap_does_not_raise_operator_compatibility_floor(
-    tmp_path, monkeypatch, operator
-):
-    """A newer exact bootstrap is distinct from a compatible operator minimum."""
-    minimum, selected = "2026.9.11", "2026.9.17"
-    body = f"#!/bin/sh\necho {selected}\n"
-    _bootstrap_source(
-        tmp_path,
-        'mkdir -p "$(dirname "$MISE_INSTALL_PATH")"\n'
-        f'printf %s {shlex.quote(body)} >"$MISE_INSTALL_PATH"\n'
-        'chmod +x "$MISE_INSTALL_PATH"\n',
-        selected,
-    )
-    write_reference_source(tmp_path, ".config/mise/config.toml", f'min_version = "{minimum}"')
-    installed = tmp_path / "operator-mise"
-    installed.write_text(f"#!/bin/sh\necho {minimum}\n")
-    installed.chmod(0o700)
-    monkeypatch.setattr(native.shutil, "which", lambda _name: str(installed) if operator else None)
-
-    executable = native.prepare_mise(tmp_path)
-
-    assert executable == installed if operator else selected in executable.parts
-    assert native.validate_mise_installer(tmp_path)

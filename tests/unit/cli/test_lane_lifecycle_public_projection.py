@@ -163,25 +163,6 @@ def test_public_projection_accepts_explicit_and_computed_actions(
     assert results[0].next_action == "apply exact owner plan"
 
 
-def test_prewrite_projection_binds_payload_storage_to_the_requested_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Default admission output uses the existing bounded-result owner at its exact root."""
-    captured = {}
-    monkeypatch.setattr(lifecycle, "resolve_root", lambda _root: tmp_path)
-    monkeypatch.setattr(
-        lifecycle, "prewrite_guard", lambda **_kwargs: {"verdict": "pass", "role": "work_lane"}
-    )
-    monkeypatch.setattr(
-        lifecycle, "emit", lambda result, **kwargs: captured.update(result=result, **kwargs)
-    )
-
-    lifecycle.prewrite(("candidate.py",), root=tmp_path, json_output=True)
-
-    assert captured["artifact_root"] == tmp_path
-    assert captured["result"].command == "lane prewrite"
-
-
 def test_public_prewrite_command_preserves_invalid_tokens_and_patch_input(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

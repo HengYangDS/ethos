@@ -75,13 +75,10 @@ CI files are profile surfaces declared under `.ethos/release.toml`. The
 publication topology always contains local verification/install and may declare
 zero or more remote peers. Local-only, either one of GitLab or GitHub, and both
 remotes are first-class topologies. No absent provider is inferred or required.
-
 The `[publication]` table declares the local repository-native commands;
 `[[publication.peers]]` tables declare each peer's ID, provider, role, Git
 remote, capabilities, optional API repository URL (`forge_repository`), and CI
-surface.
-
-The API URL preserves its actual HTTP scheme and port independently
+surface. The API URL preserves its actual HTTP scheme and port independently
 of SSH aliases or transport ports. It contains no credentials. A CI surface is required only
 when that peer declares `ci_cd`. ETHOS validates that declared paths remain
 regular files inside the repository and that local commands are executable; it
@@ -128,22 +125,16 @@ The local installation owner builds the workspace wheels under
 `build/runtime/work/local-install-smoke/`, installs the frozen production
 dependency closure there once, installs the wheel into that same environment
 without resolving dependencies again, and executes the package lifecycle
-exactly once with network access disabled.
-
-The installed entrypoint activates a
+exactly once with network access disabled. The installed entrypoint activates a
 Git-common runtime; that runtime activates its successor, proves immutable
 wheel/source/runtime identity, excludes development dependencies, survives
 bootstrap-environment removal, repairs a stale hook projection, starts and
-retires a first Work Lane, and recovers a partially completed retirement.
-
-The
+retires a first Work Lane, and recovers a partially completed retirement. The
 same run emits the sole HEAD-bound receipt at
 `build/evidence/local-install/smoke.json` only after its exact owned transient
 root has been removed successfully. Installed runtime and lane commands share
 one result-observation boundary that validates the public result and preserves
-the exit code and stderr without owning policy.
-
-Unit and architecture tests
+the exit code and stderr without owning policy. Unit and architecture tests
 verify declarations and pure contracts but do not repeat this lifecycle. The
 local receipt does not assert registry delivery, remote publication, or hosted
 runner success.

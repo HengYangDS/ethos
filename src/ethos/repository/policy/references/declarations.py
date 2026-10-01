@@ -7,7 +7,7 @@ import re
 import tomllib
 from typing import TYPE_CHECKING
 
-import ethos.repository.policy.references.commands.observation as command_references
+import ethos.repository.policy.references.commands as command_references
 import ethos.repository.policy.references.python_syntax as python_references
 from ethos.contracts.gates import bind_gate_command
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS

@@ -36,6 +36,256 @@ def _observed() -> dict[str, set[str]]:
     }
 
 
+@pytest.mark.parametrize(
+    ("source", "executables", "inputs", "unknown"),
+    [
+        ("subprocess.run(['probe-binary'], **{})", {"probe-binary"}, set(), set()),
+        (
+            "options={'cwd': root, 'check': False}\nsubprocess.run(['probe-binary'], **options)",
+            {"probe-binary"},
+            set(),
+            set(),
+        ),
+        ("subprocess.run(**{'args': ['probe-binary']})", {"probe-binary"}, set(), set()),
+        (
+            "subprocess.run('probe-binary --version', **{'shell': True})",
+            {"probe-binary"},
+            set(),
+            set(),
+        ),
+        (
+            (
+                "options={'shell': False, 'shell': True}\n"
+                "subprocess.run('probe-binary --version', **options)"
+            ),
+            {"probe-binary"},
+            set(),
+            set(),
+        ),
+        (
+            (
+                "base={'shell': False}\noptions={**base, 'args': ['probe-binary']}\n"
+                "subprocess.run(**options)"
+            ),
+            {"probe-binary"},
+            set(),
+            set(),
+        ),
+        (
+            (
+                "options={'cwd': root} if condition else {'check': False}\n"
+                "subprocess.run(['probe-binary'], **options)"
+            ),
+            {"probe-binary"},
+            set(),
+            set(),
+        ),
+        (
+            "subprocess.run(['not-executed'], **{'executable': 'replacement'})",
+            {"replacement"},
+            set(),
+            set(),
+        ),
+        (
+            (
+                "def make(**options):\n return options['command']\n"
+                "subprocess.run(make(command=['probe-binary']))"
+            ),
+            {"probe-binary"},
+            set(),
+            set(),
+        ),
+        (
+            (
+                "def make(command):\n return command\n"
+                "subprocess.run(make(**{'command': ['probe-binary']}))"
+            ),
+            {"probe-binary"},
+            set(),
+            set(),
+        ),
+        (
+            "targets={'launch': subprocess.run}\ntargets['launch'](['probe-binary'])",
+            {"probe-binary"},
+            set(),
+            set(),
+        ),
+        (
+            ("options={'command': ['probe-binary']}\nsubprocess.run(options.get('command'))"),
+            {"probe-binary"},
+            set(),
+            set(),
+        ),
+        ("os.getenv(**{'key': 'PROBE_INPUT'})", set(), {"PROBE_INPUT"}, set()),
+        (
+            (
+                "values=os.environ if condition else {'PROBE_INPUT': 'local'}\n"
+                "values.get('PROBE_INPUT')"
+            ),
+            set(),
+            {"PROBE_INPUT"},
+            set(),
+        ),
+        (
+            (
+                "options={'cwd': root}\nsubprocess.run(['probe-binary'], **options)\n"
+                "options={'args': ['later-binary']}\nsubprocess.run(**options)"
+            ),
+            {"probe-binary", "later-binary"},
+            set(),
+            set(),
+        ),
+        (
+            "subprocess.run(['probe-binary'], **options)",
+            {"probe-binary"},
+            set(),
+            {"executable"},
+        ),
+        (
+            "subprocess.run(['probe-binary'], **{'shell': mode})",
+            set(),
+            set(),
+            {"executable"},
+        ),
+        (
+            "subprocess.run(['probe-binary'], **{key: value})",
+            {"probe-binary"},
+            set(),
+            {"executable"},
+        ),
+        (
+            "subprocess.run(['probe-binary'], **{1: 'invalid-key'})",
+            {"probe-binary"},
+            set(),
+            {"executable"},
+        ),
+        (
+            "subprocess.run(args=['probe-binary'], **{'args': ['duplicate']})",
+            set(),
+            set(),
+            {"executable"},
+        ),
+        (
+            (
+                "options={'args': ['probe-binary']}\nalias=options\n"
+                "alias['args']=['unproven']\nsubprocess.run(**options)"
+            ),
+            set(),
+            set(),
+            {"executable"},
+        ),
+        (
+            "options={'args': ['probe-binary']}\nmutate(options)\nsubprocess.run(**options)",
+            set(),
+            set(),
+            {"executable"},
+        ),
+        (
+            (
+                "options={'args': ['probe-binary']}\nholder=[options]\n"
+                "mutate(holder)\nsubprocess.run(**options)"
+            ),
+            set(),
+            set(),
+            {"executable"},
+        ),
+        (
+            (
+                "options={'args': ['probe-binary']}\nupdate=options.update\n"
+                "update(args=['unproven'])\nsubprocess.run(**options)"
+            ),
+            set(),
+            set(),
+            {"executable"},
+        ),
+        (
+            (
+                "options={'args': ['probe-binary']}\nsubprocess.run(**options)\n"
+                "options['args']=['later-unexecuted']"
+            ),
+            {"probe-binary"},
+            set(),
+            set(),
+        ),
+        (
+            (
+                "options={'args': ['probe-binary']}\n"
+                "holder={'nested': options, 'later': mutate(options)}\n"
+                "subprocess.run(**holder['nested'])"
+            ),
+            set(),
+            set(),
+            {"executable"},
+        ),
+        (
+            (
+                "options={'args': ['probe-binary']}\nmutate(options['args'])\n"
+                "subprocess.run(**options)"
+            ),
+            set(),
+            set(),
+            {"executable"},
+        ),
+        (
+            (
+                "targets={'launch': subprocess.run}\nmutate(targets)\n"
+                "targets['launch'](['probe-binary'])"
+            ),
+            set(),
+            set(),
+            {"executable"},
+        ),
+        (
+            (
+                "options={'args':['probe-binary']}\ngetattr(options, 'get')('args')\n"
+                "subprocess.run(**options)"
+            ),
+            {"probe-binary"},
+            set(),
+            set(),
+        ),
+        (
+            "arguments=['probe-binary']\nsubprocess.run(arguments)\nsubprocess.run(arguments)",
+            {"probe-binary"},
+            set(),
+            set(),
+        ),
+        (
+            "options={'args':['probe-binary']}\nsubprocess.run(**options)\nsubprocess.run(**options)",
+            {"probe-binary"},
+            set(),
+            set(),
+        ),
+        (
+            (
+                "options={'shell':True, 'args':'git --version'} if flag else "
+                "{'shell':False, 'args':['echo']}\nsubprocess.run(**options)"
+            ),
+            {"git", "echo"},
+            set(),
+            set(),
+        ),
+        (
+            ("a={'args':['only-a']}\nb={'args':['only-b']}\nmutate(a)\nsubprocess.run(**b)"),
+            {"only-b"},
+            set(),
+            set(),
+        ),
+    ],
+)
+def test_finite_mapping_binding_preserves_consumers_and_scoped_unknown(
+    source: str, executables: set[str], inputs: set[str], unknown: set[str]
+) -> None:
+    """Keyword shape, call-site identity and mutation govern coverage, not spelling."""
+    report = reference_consumer_sources_from_files(
+        {"src/example/probe.py": "import os, subprocess\n" + source}
+    )
+
+    assert set(report.sources["executable"]) == executables
+    assert set(report.sources["value"]) == inputs
+    assert set(report.unknown_consumers) == unknown
+
+
 def test_repository_public_observation_skips_unreadable_reference_carriers(tmp_path: Path) -> None:
     skill = tmp_path / ".agents/skills/sample"
     skill.mkdir(parents=True)

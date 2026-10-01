@@ -8,7 +8,9 @@ from typing import TYPE_CHECKING
 
 from ethos.repository.policy.references.python.values import UNKNOWN
 from ethos.repository.policy.references.python.values import Expansion
+from ethos.repository.policy.references.python.values import MappingValue
 from ethos.repository.policy.references.python.values import Sequence
+from ethos.repository.policy.references.python.values import join
 
 if TYPE_CHECKING:
     import ast
@@ -52,22 +54,30 @@ def function_signature(
 
 def call_arguments(signature: Signature, call: BoundCall) -> dict[str, Value]:
     """Preserve supported native binding; expansions and invalid calls stay unknown."""
-    if any(key is None for key, _ in call.keywords) or any(
-        isinstance(atom, Expansion) for value in call.args for atom in value
-    ):
+    if any(isinstance(atom, Expansion) for value in call.args for atom in value):
         return dict.fromkeys(signature.parameters, UNKNOWN)
-    try:
-        bound = signature.bind(
-            *call.args, **{key: value for key, value in call.keywords if key is not None}
+    alternatives: list[dict[str, Value]] = []
+    for keywords in call.keyword_bindings():
+        if keywords is None:
+            alternatives.append(dict.fromkeys(signature.parameters, UNKNOWN))
+            continue
+        try:
+            bound = signature.bind(*call.args, **keywords)
+        except TypeError:
+            alternatives.append(dict.fromkeys(signature.parameters, UNKNOWN))
+            continue
+        bound.apply_defaults()
+        alternatives.append(
+            {
+                name: frozenset({Sequence(value)})
+                if signature.parameters[name].kind == Parameter.VAR_POSITIONAL
+                else frozenset({MappingValue((call.line, -1), tuple(value.items()))})
+                if signature.parameters[name].kind == Parameter.VAR_KEYWORD
+                else value
+                for name, value in bound.arguments.items()
+            }
         )
-    except TypeError:
-        return dict.fromkeys(signature.parameters, UNKNOWN)
-    bound.apply_defaults()
     return {
-        name: frozenset({Sequence(value)})
-        if signature.parameters[name].kind == Parameter.VAR_POSITIONAL
-        else UNKNOWN
-        if signature.parameters[name].kind == Parameter.VAR_KEYWORD
-        else value
-        for name, value in bound.arguments.items()
+        name: join(alternative.get(name, UNKNOWN) for alternative in alternatives)
+        for name in signature.parameters
     }

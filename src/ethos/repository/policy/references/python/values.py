@@ -28,6 +28,55 @@ class Sequence:
     """An ordered argument vector, possibly containing unresolved elements."""
 
     items: tuple[Value, ...]
+    site: tuple[int, int] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class MappingValue:
+    """A finite string-keyed mapping, identified by its source construction site."""
+
+    site: tuple[int, int]
+    items: tuple[tuple[str, Value], ...]
+
+    @classmethod
+    def construct(
+        cls, site: tuple[int, int], entries: tuple[tuple[Value | None, Value], ...]
+    ) -> Value:
+        """Construct finite alternatives with Python's last-value-wins semantics."""
+        bindings: list[dict[str, Value] | None] = [{}]
+        dependencies = origins(join(value for key, value in entries))
+        for key, value in entries:
+            additions = (
+                [dict(atom.items) if isinstance(atom, MappingValue) else None for atom in value]
+                if key is None
+                else [
+                    {atom.value: value}
+                    if isinstance(atom, Literal) and isinstance(atom.value, str)
+                    else None
+                    for atom in key
+                ]
+            )
+            bindings = [
+                {**bound, **added} if bound is not None and added is not None else None
+                for bound in bindings
+                for added in additions
+            ]
+            if len(bindings) > 64:
+                return frozenset({Unknown(dependencies)})
+        return join(
+            frozenset({cls(site, tuple(bound.items()))})
+            if bound is not None
+            else frozenset({Unknown(dependencies)})
+            for bound in bindings
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class MappingMethod:
+    """A method belongs to a known native mapping, not an environment lookup."""
+
+    owner: MappingValue
+    name: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,6 +121,8 @@ type Value = frozenset[
     Imported
     | Literal
     | Sequence
+    | MappingValue
+    | MappingMethod
     | Unknown
     | Expansion
     | ExecutableLookup
@@ -86,7 +137,7 @@ def origins(value: Value) -> frozenset[str]:
     """Return imported dependencies without inventing a resolved target."""
     return frozenset(
         name
-        for atom in value
+        for atom in reachable_values(value)
         for name in (
             (atom.name,)
             if isinstance(atom, Imported)
@@ -109,11 +160,51 @@ def iteration_values(value: Value) -> Value:
     return join(join(atom.items) if isinstance(atom, Sequence) else UNKNOWN for atom in value)
 
 
+def reachable_values(value: Value) -> Value:
+    """Traverse the finite value graph shared by origin and alias observations."""
+    pending, found = list(value), set()
+    while pending:
+        atom = pending.pop()
+        if atom in found:
+            continue
+        found.add(atom)
+        if isinstance(atom, MappingValue):
+            pending.extend(item for _, values in atom.items for item in values)
+        elif isinstance(atom, Sequence):
+            pending.extend(item for values in atom.items for item in values)
+        elif isinstance(atom, Expansion):
+            pending.extend(atom.value)
+        elif isinstance(atom, MappingMethod):
+            pending.append(atom.owner)
+    return frozenset(found)
+
+
+def mutable_reachability(value: Value) -> frozenset[MappingValue | Sequence]:
+    """Find native mutable containers without treating immutable tuples as writers."""
+    return frozenset(
+        atom
+        for atom in reachable_values(value)
+        if isinstance(atom, MappingValue) or (isinstance(atom, Sequence) and atom.site is not None)
+    )
+
+
+def widen_mutated(value: Value, invalidated: frozenset[MappingValue | Sequence]) -> Value:
+    """Earlier bound values are snapshots; newly used aliases cannot reuse stale shape."""
+    return join(
+        frozenset({Unknown(origins(frozenset({atom})))})
+        if mutable_reachability(frozenset({atom})) & invalidated
+        else frozenset({atom})
+        for atom in value
+    )
+
+
 def attribute(value: Value, name: str) -> Value:
     """Resolve an imported attribute or preserve the unresolved alternative."""
     return join(
         frozenset({Imported(f"{atom.name}.{name}")})
         if isinstance(atom, Imported)
+        else frozenset({MappingMethod(atom, name)})
+        if isinstance(atom, MappingValue)
         else frozenset({PathMethod(atom.identity, name)})
         if isinstance(atom, ExecutableLookup)
         and atom.is_path
@@ -134,14 +225,56 @@ class BoundCall:
     args: tuple[Value, ...]
     keywords: tuple[tuple[str | None, Value], ...]
 
+    def exposed_values(self) -> Value:
+        """Argument unpacking copies the outer container, not its reachable values."""
+        values = join(
+            iteration_values(atom.value) if isinstance(atom, Expansion) else frozenset({atom})
+            for value in self.args
+            for atom in value
+        ) | join(
+            join(value for _, value in atom.items)
+            if key is None and isinstance(atom, MappingValue)
+            else frozenset({atom})
+            for key, value in self.keywords
+            for atom in value
+        )
+        return values | frozenset(
+            target.owner
+            for target in self.targets
+            if isinstance(target, MappingMethod) and target.name != "get"
+        )
+
+    def keyword_bindings(self) -> tuple[dict[str, Value] | None, ...]:
+        """Expand finite alternatives; unknown shape and duplicate keys stay unknown."""
+        bindings: list[dict[str, Value] | None] = [{}]
+        for key, value in self.keywords:
+            additions = (
+                [{key: value}]
+                if key is not None
+                else [
+                    dict(atom.items) if isinstance(atom, MappingValue) else None for atom in value
+                ]
+            )
+            bindings = [
+                {**bound, **added}
+                if bound is not None and added is not None and bound.keys().isdisjoint(added)
+                else None
+                for bound in bindings
+                for added in additions
+            ]
+            if len(bindings) > 64:
+                return (None,)
+        return tuple(bindings)
+
     def argument(self, index: int, name: str, default: Value = UNKNOWN) -> Value:
-        """Read a positional or keyword argument without ignoring expansion."""
-        expanded = any(key is None for key, _ in self.keywords)
-        expanded |= any(
+        """Keep only uncertainty that can change this argument or invalidate its call."""
+        expanded = any(
             isinstance(atom, Expansion) for value in self.args[: index + 1] for atom in value
         )
-        if index < len(self.args):
-            value = self.args[index]
-        else:
-            value = next((value for key, value in self.keywords if key == name), default)
-        return value | UNKNOWN if expanded else value
+        values = []
+        for keywords in self.keyword_bindings():
+            positional = index < len(self.args)
+            value = self.args[index] if positional else (keywords or {}).get(name, default)
+            invalid = keywords is None or (positional and name in keywords)
+            values.append(value | UNKNOWN if expanded or invalid else value)
+        return join(values)

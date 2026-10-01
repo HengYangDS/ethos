@@ -6,19 +6,21 @@ import ast
 import symtable
 from collections import deque
 from dataclasses import dataclass
-from dataclasses import field
 from functools import singledispatchmethod
 from typing import TYPE_CHECKING
 
 from ethos.repository.policy.references.python.functions import call_arguments
 from ethos.repository.policy.references.python.functions import function_signature
 from ethos.repository.policy.references.python.native import native_call
+from ethos.repository.policy.references.python.native import read_only_native_call
+from ethos.repository.policy.references.python.scope import Scope
 from ethos.repository.policy.references.python.values import UNKNOWN
 from ethos.repository.policy.references.python.values import BoundCall
 from ethos.repository.policy.references.python.values import Expansion
 from ethos.repository.policy.references.python.values import Imported
 from ethos.repository.policy.references.python.values import Literal
 from ethos.repository.policy.references.python.values import LocalFunction
+from ethos.repository.policy.references.python.values import MappingValue
 from ethos.repository.policy.references.python.values import Sequence
 from ethos.repository.policy.references.python.values import Unknown
 from ethos.repository.policy.references.python.values import Value
@@ -26,52 +28,10 @@ from ethos.repository.policy.references.python.values import attribute
 from ethos.repository.policy.references.python.values import iteration_values
 from ethos.repository.policy.references.python.values import join
 from ethos.repository.policy.references.python.values import origins
+from ethos.repository.policy.references.python.values import widen_mutated
 
 if TYPE_CHECKING:
     from inspect import Signature
-
-
-@dataclass(slots=True)
-class _Scope:
-    table: symtable.SymbolTable
-    parent: _Scope | None = None
-    values: dict[str, Value] = field(default_factory=dict)
-    history: dict[str, Value] = field(default_factory=dict)
-    iteration_names: frozenset[str] | None = None
-
-    def lookup(self, name: str) -> Value:
-        symbol = self.table.lookup(name) if name in self.table.get_identifiers() else None
-        if name in self.values:
-            return self.values[name]
-        if self.iteration_names is not None and self.parent is not None:
-            return UNKNOWN if name in self.iteration_names else self.parent.lookup(name)
-        if self.parent is None:
-            return (
-                frozenset({Imported(f"builtins.{name}")}) if name in {"getattr", "str"} else UNKNOWN
-            )
-        if symbol is not None and symbol.is_local():
-            return UNKNOWN
-        parent = self.parent
-        if symbol is not None and symbol.is_global():
-            while parent.parent is not None:
-                parent = parent.parent
-            possible = parent.history.get(name, parent.lookup(name))
-            if possible != parent.lookup(name):
-                return frozenset({Unknown(origins(possible))})
-        return parent.lookup(name)
-
-    def store(self, name: str, value: Value) -> None:
-        # Deferred bodies must not mutate the shared enclosing analysis state.
-        if self.iteration_names is not None and name not in self.iteration_names and self.parent:
-            self.parent.store(name, value)
-            return
-        self.values[name] = value
-        self.history[name] = self.history.get(name, frozenset()) | value
-
-    def member(self, identity: str, fallback: Value) -> Value:
-        if identity in self.values:
-            return self.values[identity]
-        return self.parent.member(identity, fallback) if self.parent is not None else fallback
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,7 +61,7 @@ def bind_python(tree: ast.AST, text: str) -> PythonBindings:
     except (SyntaxError, ValueError):
         return PythonBindings(imports, (), compiler_valid=False)
     flow = _Flow(table)
-    flow.block(list(tree.body) if isinstance(tree, ast.Module) else [], _Scope(table))
+    flow.block(list(tree.body) if isinstance(tree, ast.Module) else [], Scope(table))
     while flow.deferred:
         node, scope = flow.deferred.popleft()
         if isinstance(node, ast.Lambda):
@@ -122,26 +82,26 @@ class _Flow:
             pending.extend(current.get_children())
         self.calls: list[BoundCall] = []
         self.functions: dict[
-            LocalFunction, tuple[ast.FunctionDef | ast.AsyncFunctionDef, _Scope, Signature]
+            LocalFunction, tuple[ast.FunctionDef | ast.AsyncFunctionDef, Scope, Signature]
         ] = {}
         self.active: set[LocalFunction] = set()
         self.local_attempts = 0
         self.returns: list[list[Value]] = []
-        self.deferred: deque[tuple[ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda, _Scope]] = (
+        self.deferred: deque[tuple[ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda, Scope]] = (
             deque()
         )
 
-    def block(self, statements: list[ast.stmt], scope: _Scope) -> bool:
+    def block(self, statements: list[ast.stmt], scope: Scope) -> bool:
         """Observe statements in order; a return does not reach later statements."""
         return all(self.statement(node, scope) for node in statements)
 
     @singledispatchmethod
-    def statement(self, _node: ast.stmt, _scope: _Scope) -> bool:
+    def statement(self, _node: ast.stmt, _scope: Scope) -> bool:
         """Native AST dispatch keeps each transfer rule local to its statement kind."""
         return True
 
     @statement.register
-    def _imports(self, node: ast.Import | ast.ImportFrom, scope: _Scope) -> bool:
+    def _imports(self, node: ast.Import | ast.ImportFrom, scope: Scope) -> bool:
         match node:
             case ast.Import(names=names):
                 for alias in names:
@@ -158,7 +118,7 @@ class _Flow:
 
     @statement.register
     def _assignments(
-        self, node: ast.Assign | ast.AnnAssign | ast.AugAssign | ast.Delete, scope: _Scope
+        self, node: ast.Assign | ast.AnnAssign | ast.AugAssign | ast.Delete, scope: Scope
     ) -> bool:
         match node:
             case ast.Assign(targets=targets, value=value):
@@ -177,7 +137,7 @@ class _Flow:
 
     @statement.register
     def _definitions(
-        self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef, scope: _Scope
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef, scope: Scope
     ) -> bool:
         match node:
             case ast.FunctionDef() | ast.AsyncFunctionDef():
@@ -199,18 +159,18 @@ class _Flow:
                     scope.store(
                         node.name, frozenset({identity}) if not node.decorator_list else UNKNOWN
                     )
-                    self.deferred.append((node, _Scope(table, scope)))
+                    self.deferred.append((node, Scope(table, scope)))
             case ast.ClassDef():
                 for value in (*node.bases, *node.decorator_list):
                     self.expression(value, scope)
                 table = self.tables.get((node.name, node.lineno))
                 if table is not None:
-                    self.block(node.body, _Scope(table, scope))
+                    self.block(node.body, Scope(table, scope))
                 scope.store(node.name, UNKNOWN)
         return True
 
     @statement.register
-    def _conditional(self, node: ast.If, scope: _Scope) -> bool:
+    def _conditional(self, node: ast.If, scope: Scope) -> bool:
         match node:
             case ast.If(test=test, body=body, orelse=orelse):
                 truth = self.truth(self.expression(test, scope))
@@ -221,7 +181,7 @@ class _Flow:
         return True
 
     @statement.register
-    def _context(self, node: ast.With | ast.AsyncWith, scope: _Scope) -> bool:
+    def _context(self, node: ast.With | ast.AsyncWith, scope: Scope) -> bool:
         for item in node.items:
             self.expression(item.context_expr, scope)
             if item.optional_vars is not None:
@@ -229,12 +189,12 @@ class _Flow:
         return self.block(node.body, scope)
 
     @statement.register
-    def _exceptions(self, node: ast.Try | ast.TryStar, scope: _Scope) -> bool:
+    def _exceptions(self, node: ast.Try | ast.TryStar, scope: Scope) -> bool:
         outputs = [dict(scope.values)]
         self.block(node.body + node.orelse, scope)
         outputs.append(dict(scope.values))
         for handler in node.handlers:
-            branch = _Scope(scope.table, scope.parent, dict(outputs[0]))
+            branch = Scope(scope.table, scope.parent, dict(outputs[0]))
             if handler.name is not None:
                 branch.store(handler.name, UNKNOWN)
             self.block(handler.body, branch)
@@ -249,7 +209,7 @@ class _Flow:
     def _evaluation(
         self,
         node: ast.Return | ast.Raise | ast.Expr | ast.Assert | ast.Break | ast.Continue,
-        scope: _Scope,
+        scope: Scope,
     ) -> bool:
         match node:
             case ast.Return(value=value) | ast.Raise(exc=value):
@@ -270,17 +230,17 @@ class _Flow:
         return True
 
     @statement.register
-    def _matching(self, node: ast.Match, scope: _Scope) -> bool:
+    def _matching(self, node: ast.Match, scope: Scope) -> bool:
         match node:
             case ast.Match(subject=subject, cases=cases):
                 self.expression(subject, scope)
                 self.branches([[], *(case.body for case in cases)], scope)
         return True
 
-    def branches(self, branches: list[list[ast.stmt]], scope: _Scope) -> bool:
+    def branches(self, branches: list[list[ast.stmt]], scope: Scope) -> bool:
         outputs = []
         for statements in branches:
-            branch = _Scope(scope.table, scope.parent, dict(scope.values))
+            branch = Scope(scope.table, scope.parent, dict(scope.values))
             if self.block(statements, branch):
                 outputs.append(branch.values)
         if not outputs:
@@ -294,7 +254,7 @@ class _Flow:
         return True
 
     @statement.register
-    def _iteration(self, node: ast.For | ast.AsyncFor | ast.While, scope: _Scope) -> bool:
+    def _iteration(self, node: ast.For | ast.AsyncFor | ast.While, scope: Scope) -> bool:
         """Widen loop-carried writes before observing a possible iteration."""
         initial = dict(scope.values)
         pending: list[ast.AST] = list(node.body)
@@ -325,7 +285,7 @@ class _Flow:
         self.block(node.orelse, scope)
         return True
 
-    def assign(self, target: ast.expr, value: Value, scope: _Scope) -> None:
+    def assign(self, target: ast.expr, value: Value, scope: Scope) -> None:
         match target:
             case ast.Name(id=name):
                 scope.store(name, value)
@@ -334,6 +294,7 @@ class _Flow:
                     if isinstance(atom, Imported):
                         scope.store(f"{atom.name}.{name}", value)
             case ast.Subscript(value=owner):
+                scope.invalidate(self.expression(owner, scope))
                 if isinstance(owner, ast.Name):
                     scope.store(owner.id, UNKNOWN)
             case ast.Tuple(elts=elts) | ast.List(elts=elts):
@@ -350,7 +311,7 @@ class _Flow:
                     )
 
     @singledispatchmethod
-    def expression(self, node: ast.expr, scope: _Scope) -> Value:
+    def expression(self, node: ast.expr, scope: Scope) -> Value:
         child_values = [
             self.expression(child, scope)
             for child in ast.iter_child_nodes(node)
@@ -360,7 +321,7 @@ class _Flow:
 
     @expression.register
     def _values(
-        self, node: ast.Constant | ast.Name | ast.Attribute | ast.List | ast.Tuple, scope: _Scope
+        self, node: ast.Constant | ast.Name | ast.Attribute | ast.List | ast.Tuple, scope: Scope
     ) -> Value:
         match node:
             case ast.Constant(value=value) if isinstance(value, str | bool | int) or value is None:
@@ -376,11 +337,23 @@ class _Flow:
                     for atom in bound
                 )
             case ast.List(elts=elts) | ast.Tuple(elts=elts):
-                return frozenset({Sequence(tuple(self.expression(item, scope) for item in elts))})
+                return widen_mutated(
+                    frozenset(
+                        {
+                            Sequence(
+                                tuple(self.expression(item, scope) for item in elts),
+                                (node.lineno, node.col_offset)
+                                if isinstance(node, ast.List)
+                                else None,
+                            )
+                        }
+                    ),
+                    scope.invalidated,
+                )
         return UNKNOWN
 
     @expression.register
-    def _operations(self, node: ast.BinOp | ast.IfExp | ast.NamedExpr, scope: _Scope) -> Value:
+    def _operations(self, node: ast.BinOp | ast.IfExp | ast.NamedExpr, scope: Scope) -> Value:
         match node:
             case ast.BinOp(left=left, op=ast.Add(), right=right):
                 return self.add(self.expression(left, scope), self.expression(right, scope))
@@ -397,7 +370,24 @@ class _Flow:
         return UNKNOWN
 
     @expression.register
-    def _subscript(self, node: ast.Subscript, scope: _Scope) -> Value:
+    def _mapping(self, node: ast.Dict, scope: Scope) -> Value:
+        """Evaluate each key before its value, then delegate native mapping semantics."""
+        return widen_mutated(
+            MappingValue.construct(
+                (node.lineno, node.col_offset),
+                tuple(
+                    (
+                        self.expression(key, scope) if key is not None else None,
+                        self.expression(value, scope),
+                    )
+                    for key, value in zip(node.keys, node.values, strict=True)
+                ),
+            ),
+            scope.invalidated,
+        )
+
+    @expression.register
+    def _subscript(self, node: ast.Subscript, scope: Scope) -> Value:
         match node:
             case ast.Subscript(value=value, slice=key):
                 owner, index = self.expression(value, scope), self.expression(key, scope)
@@ -410,6 +400,10 @@ class _Flow:
                     and isinstance(item, Literal)
                     and isinstance(item.value, int)
                     and -len(atom.items) <= item.value < len(atom.items)
+                    else dict(atom.items).get(item.value, UNKNOWN)
+                    if isinstance(atom, MappingValue)
+                    and isinstance(item, Literal)
+                    and isinstance(item.value, str)
                     else UNKNOWN
                     for atom in owner
                     for item in index
@@ -417,7 +411,7 @@ class _Flow:
         return UNKNOWN
 
     @expression.register
-    def _call(self, node: ast.Call, scope: _Scope) -> Value:
+    def _call(self, node: ast.Call, scope: Scope) -> Value:
         call = BoundCall(
             node.lineno,
             self.expression(node.func, scope),
@@ -425,12 +419,18 @@ class _Flow:
             tuple((item.arg, self.expression(item.value, scope)) for item in node.keywords),
         )
         self.calls.append(call)
-        return join(
+        result = join(
             self.local_call(target, call)
             if isinstance(target, LocalFunction)
             else native_call(BoundCall(call.line, frozenset({target}), call.args, call.keywords))
             for target in call.targets
         )
+        if not read_only_native_call(call) and (
+            any(not isinstance(target, LocalFunction) for target in call.targets)
+            or any(isinstance(atom, Unknown) for atom in result)
+        ):
+            scope.invalidate(call.exposed_values())
+        return widen_mutated(result, scope.invalidated)
 
     def local_call(self, identity: LocalFunction, call: BoundCall) -> Value:
         """Observe one bounded concrete invocation without executing source code."""
@@ -438,7 +438,7 @@ class _Flow:
             return UNKNOWN
         self.local_attempts += 1
         node, parent, signature = self.functions[identity]
-        scope = _Scope(self.tables[(node.name, node.lineno)], parent)
+        scope = Scope(self.tables[(node.name, node.lineno)], parent)
         scope.values.update(call_arguments(signature, call))
         self.active.add(identity)
         self.returns.append([])
@@ -453,19 +453,19 @@ class _Flow:
             self.active.remove(identity)
 
     @expression.register
-    def _expansion(self, node: ast.Starred, scope: _Scope) -> Value:
+    def _expansion(self, node: ast.Starred, scope: Scope) -> Value:
         return frozenset({Expansion(self.expression(node.value, scope))})
 
     @expression.register
-    def _lambda(self, node: ast.Lambda, scope: _Scope) -> Value:
+    def _lambda(self, node: ast.Lambda, scope: Scope) -> Value:
         table = self.tables.get(("lambda", node.lineno))
         if table is not None:
-            self.deferred.append((node, _Scope(table, scope)))
+            self.deferred.append((node, Scope(table, scope)))
         return UNKNOWN
 
     @expression.register
     def _comprehension(
-        self, node: ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp, scope: _Scope
+        self, node: ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp, scope: Scope
     ) -> Value:
         iteration_names = frozenset(
             item.id
@@ -473,7 +473,7 @@ class _Flow:
             for item in ast.walk(generator.target)
             if isinstance(item, ast.Name)
         )
-        inner = _Scope(scope.table, scope, iteration_names=iteration_names)
+        inner = Scope(scope.table, scope, iteration_names=iteration_names)
         for index, generator in enumerate(node.generators):
             iterable = self.expression(generator.iter, scope if index == 0 else inner)
             values = iteration_values(iterable)

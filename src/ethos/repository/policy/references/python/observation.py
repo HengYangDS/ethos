@@ -11,6 +11,7 @@ from ethos.repository.policy.references.commands.invocation import ArgumentVecto
 from ethos.repository.policy.references.commands.observation import command_executables
 from ethos.repository.policy.references.commands.observation import shell_executables
 from ethos.repository.policy.references.python.binding import bind_python
+from ethos.repository.policy.references.python.native import PROCESS_TARGETS
 from ethos.repository.policy.references.python.values import BoundCall
 from ethos.repository.policy.references.python.values import ExecutableLookup
 from ethos.repository.policy.references.python.values import Expansion
@@ -23,9 +24,6 @@ from ethos.repository.policy.references.python.values import Value
 if TYPE_CHECKING:
     from ast import AST
 
-_PROCESS = frozenset(
-    f"subprocess.{name}" for name in ("run", "Popen", "call", "check_call", "check_output")
-)
 _ENVIRONMENT = frozenset({"os.getenv", "os.environ.get", "os.environ.__getitem__"})
 
 
@@ -49,7 +47,7 @@ def observe_python(tree: AST, text: str, npm_scripts: dict[str, set[str]]) -> Py
         kinds: set[str] = set()
         for target in call.targets:
             if isinstance(target, Imported):
-                if target.name in _PROCESS:
+                if target in PROCESS_TARGETS:
                     kinds.add("executable")
                     _process(call, npm_scripts, result)
                 elif target.name in _ENVIRONMENT:
@@ -80,6 +78,22 @@ def _strings(value: Value, into: set[str], unresolved: set[str], kind: str) -> N
 
 
 def _process(call: BoundCall, scripts: dict[str, set[str]], result: PythonReferences) -> None:
+    """Interpret one keyword alternative at a time without crossing its branch facts."""
+    for keywords in call.keyword_bindings():
+        bound = BoundCall(
+            call.line,
+            call.targets,
+            call.args,
+            tuple(keywords.items())
+            if keywords is not None
+            else ((None, call.argument(0, "args")),),
+        )
+        _process_arguments(bound, scripts, result)
+
+
+def _process_arguments(
+    call: BoundCall, scripts: dict[str, set[str]], result: PythonReferences
+) -> None:
     shell = call.argument(8, "shell", frozenset({Literal(value=False)}))
     executable = call.argument(2, "executable", frozenset({Literal(None)}))
     for mode in shell:

@@ -7,6 +7,7 @@ from ethos.repository.policy.references.python.values import BoundCall
 from ethos.repository.policy.references.python.values import ExecutableLookup
 from ethos.repository.policy.references.python.values import Imported
 from ethos.repository.policy.references.python.values import Literal
+from ethos.repository.policy.references.python.values import MappingMethod
 from ethos.repository.policy.references.python.values import PathMethod
 from ethos.repository.policy.references.python.values import Unknown
 from ethos.repository.policy.references.python.values import Value
@@ -14,12 +15,33 @@ from ethos.repository.policy.references.python.values import attribute
 from ethos.repository.policy.references.python.values import join
 from ethos.repository.policy.references.python.values import origins
 
+PROCESS_TARGETS = frozenset(
+    Imported(f"subprocess.{name}")
+    for name in ("run", "Popen", "call", "check_call", "check_output")
+)
+
+
+def read_only_native_call(call: BoundCall) -> bool:
+    """Only modeled native readers can preserve the mutable arguments they receive."""
+    return bool(call.targets) and all(
+        (isinstance(target, MappingMethod) and target.name == "get")
+        or target in PROCESS_TARGETS | {Imported("builtins.getattr"), Imported("shutil.which")}
+        for target in call.targets
+    )
+
 
 def native_call(call: BoundCall) -> Value:
     """Retain only identities justified by the native callee's value contract."""
     values: list[Value] = []
     for target in call.targets:
-        if target == Imported("builtins.getattr"):
+        if isinstance(target, MappingMethod) and target.name == "get":
+            values.extend(
+                dict(target.owner.items).get(key.value, call.argument(1, "default"))
+                if isinstance(key, Literal) and isinstance(key.value, str)
+                else UNKNOWN
+                for key in call.argument(0, "key")
+            )
+        elif target == Imported("builtins.getattr"):
             owner, names = call.argument(0, "object"), call.argument(1, "name")
             values.extend(
                 attribute(owner, name.value)

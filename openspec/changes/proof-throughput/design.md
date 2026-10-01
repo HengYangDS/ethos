@@ -3317,6 +3317,44 @@ through their existing contracts. Blind path exclusions and unresolved values
 reported as complete are not admissible repairs. Task 10.11 remains open; no
 full proof, integration, runtime activation or adopter mutation was attempted.
 
+### Finite Keyword And Mutable-Alias Observation
+
+The next distinguishing counterexample is `subprocess.run(['probe-binary'], **{})`:
+the prior observer retains the executable but falsely marks its reference
+unknown. An explicit mapping containing `args` loses that executable altogether;
+an explicit `shell=True` mapping invents the command string as the executable.
+Unknown keyword shape and known irrelevant values are different facts.
+
+Finite mapping values now preserve source identity, keyword alternatives and
+native last-value-wins construction. Python's `inspect.Signature` remains the
+local argument-binding owner. Process observation evaluates each keyword
+alternative separately, preserving correlated `shell`, `executable` and `args`.
+An unresolved expansion, invalid key, duplicate call keyword or unknown shell
+remains UNKNOWN; parsed syntax alone cannot establish semantic completeness.
+
+Mutation falsifiers require one further distinction: mutable allocation-site
+identity is separate from immutable value shape. Reaching aliases, nested
+containers and values captured during construction lose their current shape
+after an unmodeled mutation. Earlier observations remain unchanged; unrelated
+containers and modeled native readers retain their values. Compiler lexical
+lookup moved intact into its one `scope` owner; no private cross-module alias,
+forwarder, dependency or parallel resolver was added.
+
+`finite-mapping-correlated-closure.json` records 279 passing policy, host-result
+and formatting consumers. All original test function/decorator ASTs remain
+unchanged. `finite-mapping-public-replay.json` records real CLI/LocalGateRunner
+PASS, BLOCK and UNKNOWN observations through a fixture-declared canonical
+semantic-closure provider. That host-only fixture has no exact-source repository
+proof or standard product-audit qualification. Every owned scratch root is absent.
+
+Current whole-source closure still has nineteen unresolved consumer-kind/path
+pairs. This repair does not waive generic external dispatch, infer unknown
+environment keys, skip open function bodies or declare those obligations
+complete. Tests are 60,790 against 60,000; exact proof, accepted activation and
+installed consumer replay remain open. The next cut must qualify runtime-bound
+consumer obligations at their existing contract and effect owner rather than
+add spelling exceptions or claim a shrinking UNKNOWN count as the objective.
+
 ## Terminal Source Disposition
 
 This review settles meaning from the complete pre-campaign terminal source at

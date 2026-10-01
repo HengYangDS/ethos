@@ -33,41 +33,97 @@ class Sequence:
 
 @dataclass(frozen=True, slots=True)
 class MappingValue:
-    """A finite string-keyed mapping, identified by its source construction site."""
+    """A native dictionary keeps known entries apart from its unknown remainder."""
 
     site: tuple[int, int]
     items: tuple[tuple[str, Value], ...]
+    remainder: Value = frozenset()
+    environment_entries: frozenset[str | None] = frozenset()
 
     @classmethod
     def construct(
         cls, site: tuple[int, int], entries: tuple[tuple[Value | None, Value], ...]
     ) -> Value:
-        """Construct finite alternatives with Python's last-value-wins semantics."""
-        bindings: list[dict[str, Value] | None] = [{}]
-        dependencies = origins(join(value for key, value in entries))
+        """Retain dictionary identity and ordered overrides even when entries are open."""
+        bindings = [cls(site, ())]
         for key, value in entries:
             additions = (
-                [dict(atom.items) if isinstance(atom, MappingValue) else None for atom in value]
+                [
+                    atom
+                    if isinstance(atom, cls)
+                    else cls(
+                        site,
+                        (),
+                        frozenset({atom}),
+                        frozenset({None}) if atom == Imported("os.environ") else frozenset(),
+                    )
+                    for atom in value
+                ]
                 if key is None
                 else [
-                    {atom.value: value}
+                    cls(site, ((atom.value, value),))
                     if isinstance(atom, Literal) and isinstance(atom.value, str)
-                    else None
+                    else cls(site, (), UNKNOWN)
                     for atom in key
                 ]
             )
             bindings = [
-                {**bound, **added} if bound is not None and added is not None else None
+                cls(
+                    site,
+                    tuple(
+                        {
+                            **{
+                                name: item | frozenset({Unknown(origins(added.remainder))})
+                                if added.remainder
+                                else item
+                                for name, item in bound.items
+                            },
+                            **dict(added.items),
+                        }.items()
+                    ),
+                    bound.remainder | added.remainder,
+                    (
+                        bound.environment_entries
+                        | added.environment_entries
+                        | frozenset(
+                            name for name, _ in bound.items if None in added.environment_entries
+                        )
+                    )
+                    - frozenset(
+                        name for name, _ in added.items if name not in added.environment_entries
+                    ),
+                )
                 for bound in bindings
                 for added in additions
             ]
             if len(bindings) > 64:
-                return frozenset({Unknown(dependencies)})
+                return frozenset(
+                    {cls(site, (), frozenset({Unknown(origins(frozenset(bindings)))}))}
+                )
+        return frozenset(bindings)
+
+    def read(self, key: Value, default: Value | None = None) -> Value:
+        """Read exact entries before consulting an open remainder or a missing-key default."""
+        fallback = UNKNOWN if default is None else default
         return join(
-            frozenset({cls(site, tuple(bound.items()))})
-            if bound is not None
-            else frozenset({Unknown(dependencies)})
-            for bound in bindings
+            dict(self.items).get(
+                atom.value,
+                fallback | frozenset({Unknown(origins(self.remainder))})
+                if self.remainder
+                else fallback,
+            )
+            if isinstance(atom, Literal) and isinstance(atom.value, str)
+            else frozenset({Unknown(origins(frozenset({self})))})
+            for atom in key
+        )
+
+    def environment_read(self, key: Value) -> bool:
+        """A snapshot entry retains input provenance without retaining live-map identity."""
+        return any(
+            (atom.value if atom.value in dict(self.items) else None) in self.environment_entries
+            if isinstance(atom, Literal) and isinstance(atom.value, str)
+            else bool(self.environment_entries)
+            for atom in key
         )
 
 
@@ -170,6 +226,7 @@ def reachable_values(value: Value) -> Value:
         found.add(atom)
         if isinstance(atom, MappingValue):
             pending.extend(item for _, values in atom.items for item in values)
+            pending.extend(atom.remainder)
         elif isinstance(atom, Sequence):
             pending.extend(item for values in atom.items for item in values)
         elif isinstance(atom, Expansion):
@@ -198,6 +255,8 @@ def widen_mutated(
                 MappingValue(
                     atom.site,
                     tuple((key, widen_mutated(item, invalidated)) for key, item in atom.items),
+                    atom.remainder,
+                    atom.environment_entries,
                 )
             }
         )
@@ -275,7 +334,10 @@ class BoundCall:
                 [{key: value}]
                 if key is not None
                 else [
-                    dict(atom.items) if isinstance(atom, MappingValue) else None for atom in value
+                    dict(atom.items)
+                    if isinstance(atom, MappingValue) and not atom.remainder
+                    else None
+                    for atom in value
                 ]
             )
             bindings = [

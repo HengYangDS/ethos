@@ -400,7 +400,7 @@ class _Flow:
                     and isinstance(item, Literal)
                     and isinstance(item.value, int)
                     and -len(atom.items) <= item.value < len(atom.items)
-                    else dict(atom.items).get(item.value, UNKNOWN)
+                    else atom.read(frozenset({item}))
                     if isinstance(atom, MappingValue)
                     and isinstance(item, Literal)
                     and isinstance(item.value, str)
@@ -423,7 +423,10 @@ class _Flow:
         result = join(
             self.local_call(target, call)
             if isinstance(target, LocalFunction)
-            else native_call(BoundCall(call.line, frozenset({target}), call.args, call.keywords))
+            else native_call(
+                BoundCall(call.line, frozenset({target}), call.args, call.keywords),
+                site=(node.lineno, node.col_offset),
+            )
             for target in call.targets
         )
         if not read_only_native_call(call) and (

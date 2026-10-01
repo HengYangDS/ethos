@@ -38,7 +38,9 @@ class Scope:
             return UNKNOWN if name in self.iteration_names else self.parent.lookup(name)
         if self.parent is None:
             return (
-                frozenset({Imported(f"builtins.{name}")}) if name in {"getattr", "str"} else UNKNOWN
+                frozenset({Imported(f"builtins.{name}")})
+                if name in {"dict", "getattr", "str"}
+                else UNKNOWN
             )
         if symbol is not None and symbol.is_local():
             return UNKNOWN

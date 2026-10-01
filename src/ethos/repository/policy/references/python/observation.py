@@ -17,6 +17,7 @@ from ethos.repository.policy.references.python.values import ExecutableLookup
 from ethos.repository.policy.references.python.values import Expansion
 from ethos.repository.policy.references.python.values import Imported
 from ethos.repository.policy.references.python.values import Literal
+from ethos.repository.policy.references.python.values import MappingMethod
 from ethos.repository.policy.references.python.values import Sequence
 from ethos.repository.policy.references.python.values import Unknown
 from ethos.repository.policy.references.python.values import Value
@@ -55,9 +56,22 @@ def observe_python(tree: AST, text: str, npm_scripts: dict[str, set[str]]) -> Py
                     _strings(call.argument(0, "key"), result.inputs, result.unresolved, "value")
             elif isinstance(target, Unknown):
                 result.unresolved.update(_unknown_target_kinds(target.origins))
+            elif isinstance(target, MappingMethod) and target.name in {"get", "__getitem__"}:
+                _mapping_inputs(call, target, result)
         if any(isinstance(target, Unknown) for target in call.targets):
             result.unresolved.update(kinds)
     return result
+
+
+def _mapping_inputs(call: BoundCall, target: MappingMethod, result: PythonReferences) -> None:
+    """Copied entries retain input provenance, not the identity of values they contain."""
+    key = call.argument(0, "key")
+    if target.owner.environment_read(key):
+        _strings(key, result.inputs, result.unresolved, "value")
+    else:
+        for remainder in target.owner.remainder:
+            if isinstance(remainder, Unknown):
+                result.unresolved.update(_unknown_target_kinds(remainder.origins))
 
 
 def _unknown_target_kinds(identities: frozenset[str]) -> set[str]:

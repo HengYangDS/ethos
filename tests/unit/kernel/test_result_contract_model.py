@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -9,6 +10,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
+from ethos.result import PAYLOAD_BUDGETS
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
 from tests.support.literal_cases import literal_case
@@ -253,3 +255,30 @@ def test_payload_budget_preserves_deep_immutability(tmp_path) -> None:
     with pytest.raises(TypeError):
         bounded.data["artifact_reference"]["path"] = "changed"
     assert Path(bounded.data["artifact_reference"]["path"]).is_file()
+
+
+@pytest.mark.parametrize("verdict", ["pass", "block", "unknown"])
+def test_prewrite_detail_is_bounded_without_losing_control_or_evidence(tmp_path, verdict) -> None:
+    """Nested admission detail is expandable; current decision fields remain immediate."""
+    original = _result(
+        command="lane prewrite",
+        verdict=verdict,
+        state="admitted" if verdict == "pass" else "gapped",
+        summary={"path_count": 2, "role": "work_lane"},
+        required_gaps=() if verdict == "pass" else ("exact_state_unavailable",),
+        next_action="" if verdict == "pass" else "ethos status --json",
+        data={"observation": "x" * 100_000, "authorization": "current_observation_only"},
+    )
+
+    bounded = apply_payload_budget(original, root=tmp_path)
+
+    assert len(bounded.to_json().encode()) <= 16 * 1024
+    assert PAYLOAD_BUDGETS[original.command] == 16 * 1024
+    assert {key: value for key, value in bounded.to_dict().items() if key != "data"} == {
+        key: value for key, value in original.to_dict().items() if key != "data"
+    }
+    reference = bounded.data["artifact_reference"]
+    raw = Path(reference["path"]).read_bytes()
+    assert raw == original.to_json().encode()
+    assert reference["sha256"] == f"sha256:{hashlib.sha256(raw).hexdigest()}"
+    assert reference["size_bytes"] == len(raw)

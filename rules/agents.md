@@ -60,6 +60,11 @@ Purpose: define how agents load repository truth and avoid stale context.
 - Optimize verified semantic transitions rather than command count. Reuse fresh
   evidence until its inputs change, stop repeated broad scans, and run heavy
   proof only at a frozen atomic boundary.
+  Select needed result fields before reading large artifacts; retain raw evidence
+  once and navigate its owner. Apply the [whole-delivery constraints](../docs/plans/terminal-governance-product-design/implementation.md#convergence-principles)
+  to context, design, implementation, review and cleanup as well as verification.
+  Lower token cost must preserve meaning; faster execution must not increase
+  recovery, manual assembly or the internal concepts exposed to consumers.
 - External method packs and execution runtimes may consume OpenSpec and ETHOS
   contracts, but may not create repository-local plan, task, progress, report,
   or lifecycle authority. OpenSpec alone owns Change intent, design,

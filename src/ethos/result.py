@@ -20,7 +20,7 @@ from ethos.contracts.value import JsonObject
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import require_closed_verdict
 
-PAYLOAD_BUDGETS = {"status": 16 * 1024, "plan": 32 * 1024}
+PAYLOAD_BUDGETS = {"status": 16 * 1024, "plan": 32 * 1024, "lane prewrite": 16 * 1024}
 _ARTIFACT_HOME = Path("payloads")
 _UNKNOWN_WITHOUT_GAPS = "unknown_without_required_gaps"
 _BLOCK_WITHOUT_REASON = "block_without_reason"

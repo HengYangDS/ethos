@@ -1,5 +1,75 @@
 ## ADDED Requirements
 
+### Requirement: Budget adjustment preserves necessary behavior
+
+Product and test source ceilings MAY increase independently by 5,000 ELOC per
+adjustment when measured, required behavior cannot fit after removing avoidable
+complexity. The native numeric declaration SHALL remain their sole owner.
+Evidence SHALL compare semantic owners, retained obligations, rejected or applied
+simplifications and measured costs. Exceeding a limit alone SHALL NOT justify
+raising it; source reduction SHALL NOT discard necessary meaning or verification.
+
+#### Scenario: Necessary complexity exceeds one coordinate
+
+- **WHEN** verified required behavior cannot fit after feasible simplification
+- **THEN** the affected ceiling may increase by one authorized increment
+- **AND** other coordinates, file limits and quality requirements remain unchanged
+- **AND** the change retains its justification and fresh measurement
+
+#### Scenario: Redundant implementation causes the excess
+
+- **WHEN** duplicate ownership or replaceable machinery explains the excess
+- **THEN** the responsible owner is simplified instead of hiding it with a higher ceiling
+- **AND** relabeling source, deleting useful assertions or shrinking formatting is not remediation
+
+### Requirement: Delivery efficiency includes context and interface burden
+
+Optimization SHALL cover the complete path from intent to accepted installed
+behavior, including context acquisition, design, review, preparation, execution,
+integration and cleanup. Token cost, latency, resource use, rework and human or
+Agent cognitive burden SHALL constrain the result alongside semantic and quality
+requirements. Unsupported measurements SHALL remain unknown.
+
+#### Scenario: A faster local step increases total delivery cost
+
+- **WHEN** an optimization moves repeated work or internal concepts into another step or consumer
+- **THEN** its acceptance compares the complete workload and preserved behavior
+- **AND** local speed, cache hits or fewer words alone cannot establish improvement
+
+#### Scenario: Exact reusable computation and fresh mutable facts
+
+- **WHEN** a consumer can reuse complete, still-applicable immutable inputs
+- **THEN** repeated computation and report construction use that material
+- **AND** changed inputs invalidate reuse and current admission is reobserved
+- **AND** cheaper actionable failures precede dependent expensive execution
+
+### Requirement: Reference observation distinguishes formal inputs from unresolved behavior
+
+Static native-reference observation SHALL retain a deferred function's formal
+input and known native consumption as a conditional request, not a fabricated
+executable identity or an actual invocation. Closed references, conditional
+requests and unresolved behavior SHALL remain distinct. Requests SHALL name
+their source scope, call site, native consumer and input dependency. They SHALL
+NOT establish execution, current applicability or effect authorization.
+
+#### Scenario: A native consumer receives a formal input
+
+- **WHEN** a deferred function passes its formal argv or key to a resolved native consumer
+- **THEN** observation retains the input-to-consumer request without inventing a fixed identity
+- **AND** static closure reports its conditional coverage and outstanding requests
+
+#### Scenario: A concrete invocation supplies an unresolved value
+
+- **WHEN** that function is called with an unmodeled computation or invalid binding
+- **THEN** the invocation retains UNKNOWN even if the deferred function request is represented
+- **AND** known sibling identities and their ownership checks remain visible
+
+#### Scenario: An unsupported transformation or callee uses a formal input
+
+- **WHEN** resolving the consumed value requires unmodeled behavior
+- **THEN** syntax success and the presence of a formal parameter cannot certify its semantics
+- **AND** the affected obligation remains UNKNOWN rather than gaining a path exemption
+
 ### Requirement: Object coordinates share one typed native observation
 
 ETHOS SHALL derive object identity and type from the same validated native batch

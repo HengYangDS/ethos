@@ -43,6 +43,16 @@ and iteration cost together. Each cut must remove its replaced machinery.
 Historical completion and budget snapshots do not override current accepted policy
 or fresh evidence.
 
+Token efficiency, iteration speed, UX and DX constrain every cut, not only proof.
+Compare cost per accepted outcome: task-relevant context, repeated interpretation
+and execution, preparation, review, rework, recovery and consumer decisions.
+Progressive disclosure must conserve obligations; optimization must remove work or
+concepts rather than transfer them to users. Missing measurements remain unknown.
+The [quality Change](../../../openspec/changes/proof-throughput/specs/quality/spec.md#requirement-budget-adjustment-preserves-necessary-behavior)
+permits an independent 5,000-ELOC ceiling adjustment only after evidence identifies
+necessary complexity and evaluates feasible simplification. Numeric limits remain
+in the native source-budget declaration; file and quality limits do not move with them.
+
 Dependencies select execution. Measured critical-path repairs may advance the
 canonical plan's assurance cut while meaning and installed-journey work remain active.
 Independent read-only comparisons proceed alongside the sole writer.

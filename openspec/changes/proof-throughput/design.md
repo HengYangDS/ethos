@@ -3393,6 +3393,46 @@ installed consumer replay remain open. The next cut must qualify runtime-bound
 consumer obligations at their existing contract and effect owner rather than
 add spelling exceptions or claim a shrinking UNKNOWN count as the objective.
 
+### Delivery Efficiency And Current First-Party Boundary
+
+The current instruction makes token efficiency, end-to-end iteration speed, UX
+and DX constraints on every cut. Measure cost per accepted outcome across
+context, design, execution, review, recovery and cleanup; local samples are not
+complete-cycle acceptance. Numeric source limits remain in the native declaration.
+An independent 5,000-ELOC adjustment requires evidence of necessary complexity,
+retained obligations and evaluated simplification. No automatic increase is applied.
+
+The binding draft follows first-party import and caller relations through the
+existing compiler-scoped interpreter, not a second CLI checker. Known native
+consumers, formal input requests and unmodeled behavior remain distinct. Calls
+use native signature binding; source-owned module writes affect later consumers,
+not prior observations. Patch reference observation now consumes the same binding.
+Selected patch context interprets its real import closure rather than all context
+modules. `formal-selected-context-work.json` preserves an equal selected binding
+while reducing interpreted modules from 252 to two in a synthetic comparison.
+The real repository comparison is not equivalent: global analysis truncation
+changes that binding. `formal-selected-real-context-work.json` preserves this
+failure; full-source equivalence and sound reusable summaries remain unproved.
+
+Three computation-reuse trials were rejected. Pure-value LRU and immutable leaf
+invocation reuse did not demonstrate a full-source reduction; global context and
+mutation-footprint reuse exceeded its 120-second owned deadline. Their temporary
+patches are removed. `formal-invocation-reuse-comparison.json` and
+`formal-context-and-footprint-trial-rejection.json` retain the adverse outcomes.
+The complete current observation still has 346 UNKNOWN pairs; no full proof,
+installed successor, public rebind or performance completion follows from its
+focused tests. Recursive and dynamic call support remains bounded.
+
+Write-admission output previously serialized about 806 KB, largely repeated
+OpenSpec context and acceptance. The existing result-budget owner now externalizes
+that exact detail, preserving all control fields. Source CLI emits 684 bytes and
+its referenced 803,684-byte original passes digest/size readback; installed runtime
+still emits 806,684 bytes. `prewrite-payload-source-public.json` and
+`prewrite-payload-installed-public.json` bind both observations. This demonstrates
+wire reduction and evidence conservation, not measured token counts, general Agent
+comprehension or complete-cycle speed. Ordinary payload custody and current admission
+remain separate; no artifact reference grants permission.
+
 ## Terminal Source Disposition
 
 This review settles meaning from the complete pre-campaign terminal source at

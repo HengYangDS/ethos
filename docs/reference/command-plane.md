@@ -261,13 +261,16 @@ A successful result gives the exact replacement-bound `ethos prove` command.
 It does not prove the replacement, activate a runtime or publish anything.
 For historical corrections, supply `--corrections <json> --reason <text>
 --backup <absolute-bundle-path>`. Each exact old OID selects expected and replacement
-author/committer fields, or `resign: true`. Readiness derives affected descendants;
+author/committer fields, `resign: true`, or `remove_attribution_trailers` containing
+exact owner-confirmed false `Co-authored-by: Name <email>` trailer lines. Native
+Git determines trailer semantics; missing, duplicate or non-attribution selections
+reject, and real contributors remain unchanged. Readiness derives affected descendants;
 apply also requires the returned `--corrections-sha256`. Duplicate request fields,
 symlinked backups and changed requests reject. Recovery validation extracts the
 self-contained bundle into an isolated native repository and checks its complete
 object closure. Header validation alone does not establish recoverability.
 
-History replacement preserves trees, messages, times, unselected identities and
+History replacement preserves trees, all unselected message bytes, times, identities and
 ordered parent relationships. New signatures attest the repair, not original
 authorship. Already-valid same-key re-signing without another change is rejected
 before object creation. Interrupted history signing can re-enter the same request:

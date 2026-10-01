@@ -67,10 +67,26 @@ def _correction(value: object) -> Mapping[str, object]:
     _require(isinstance(value, Mapping) and value, "history_repair_correction_invalid")
     assert isinstance(value, Mapping)
     _require(
-        not set(value) - {"author", "committer", "resign"}, "history_repair_correction_invalid"
+        not set(value) - {"author", "committer", "resign", "remove_attribution_trailers"},
+        "history_repair_correction_invalid",
     )
     if "resign" in value:
         _require(value["resign"] is True, "history_repair_correction_invalid")
+    if "remove_attribution_trailers" in value:
+        trailers = value["remove_attribution_trailers"]
+        _require(
+            isinstance(trailers, list)
+            and bool(trailers)
+            and all(
+                isinstance(trailer, str)
+                and trailer.startswith("Co-authored-by: ")
+                and trailer.strip() == trailer
+                and not any(character in trailer for character in "\r\n\x00")
+                for trailer in trailers
+            )
+            and len(set(trailers)) == len(trailers),
+            "history_repair_attribution_selection_invalid",
+        )
     for role in ("author", "committer"):
         if role not in value:
             continue
@@ -97,7 +113,11 @@ def _correction(value: object) -> Mapping[str, object]:
 
 
 def replacement_payload(
-    payload: bytes, *, parents: tuple[str, ...], correction: Mapping[str, object] | None
+    root: Path,
+    payload: bytes,
+    *,
+    parents: tuple[str, ...],
+    correction: Mapping[str, object] | None,
 ) -> bytes:
     """Allow only explicit attribution fields and position-preserving parent replacement."""
     blocks, message = _headers(payload)
@@ -119,7 +139,34 @@ def replacement_payload(
             assert isinstance(new, Mapping)
             block = f"{key} {new['name']} <{new['email']}> ".encode() + timestamp
         output.append(block)
+    trailers = selected.get("remove_attribution_trailers")
+    if isinstance(trailers, list):
+        message = _remove_attribution_trailers(root, message, trailers)
     return b"\n".join(output) + b"\n\n" + message
+
+
+def _remove_attribution_trailers(root: Path, message: bytes, trailers: list[str]) -> bytes:
+    """Select native trailer semantics, then remove only exact authorized original lines."""
+    observed = run_git(
+        root,
+        "interpret-trailers",
+        "--only-trailers",
+        "--only-input",
+        "--no-divider",
+        stdin=message,
+        text=False,
+    ).stdout.splitlines()
+    selected = tuple(trailer.encode("utf-8") for trailer in trailers)
+    _require(
+        all(observed.count(trailer) == 1 for trailer in selected),
+        "history_repair_attribution_trailer_mismatch",
+    )
+    lines = message.splitlines(keepends=True)
+    _require(
+        all(sum(line.rstrip(b"\r\n") == trailer for line in lines) == 1 for trailer in selected),
+        "history_repair_attribution_trailer_ambiguous",
+    )
+    return b"".join(line for line in lines if line.rstrip(b"\r\n") not in selected)
 
 
 def history_repair_scope(
@@ -137,7 +184,7 @@ def history_repair_scope(
         inherited = any(parent in affected for parent in parents)
         if oid in corrections:
             selected = _correction(corrections[oid])
-            replacement = replacement_payload(payload, parents=parents, correction=selected)
+            replacement = replacement_payload(root, payload, parents=parents, correction=selected)
             if replacement == payload and not inherited:
                 _require(selected.get("resign") is True, "history_repair_no_effect")
                 trust = verify_git_object_trust(root, oid, "commit")
@@ -162,6 +209,7 @@ def prepare_history_repair(
     for oid, raw in zip(affected, payloads, strict=True):
         payload = unsigned_commit_payload(raw)
         replacement = replacement_payload(
+            root,
             payload,
             parents=tuple(mapping.get(parent, parent) for parent in _parents(payload)),
             correction=_correction(corrections[oid]) if oid in corrections else None,
@@ -230,6 +278,7 @@ def validate_history_repair(
         parents, replacements = _parents(payload), _parents(actual)
         _require(len(parents) == len(replacements), "history_repair_parent_count_changed")
         expected = replacement_payload(
+            root,
             payload,
             parents=replacements,
             correction=_correction(corrections[previous]) if previous in corrections else None,

@@ -13,6 +13,7 @@ from ethos.adapters.repo.commit.creation import create_signed_payload
 from ethos.adapters.repo.commit.history import history_repair_coordinates
 from ethos.adapters.repo.commit.history import history_repair_scope
 from ethos.adapters.repo.commit.history import prepare_history_repair
+from ethos.adapters.repo.commit.history import replacement_payload
 from ethos.adapters.repo.commit.history import validate_history_repair
 from ethos.adapters.repo.commit.signature import repaired_peer_ref_provenance
 from ethos.adapters.repo.commit.signature import repaired_ref_provenance
@@ -53,6 +54,107 @@ def _history(tmp_path):
         }
     }
     return repo, old, selected, before, corrections
+
+
+@pytest.mark.parametrize("ending", [b"\n", b"\r\n"])
+def test_attribution_trailer_removal_preserves_every_other_message_byte(tmp_path, ending):
+    """Only the exact authorized coauthor trailer may change, never surrounding prose."""
+    repo, old, _selected, _before, _corrections = _history(tmp_path)
+    raw = unsigned_commit_payload(run_git(repo, "cat-file", "commit", old, text=False).stdout)
+    header = raw.partition(b"\n\n")[0]
+    trailer = b"Co-authored-by: Example Agent <agent@example.invalid>"
+    body = ending.join(
+        (
+            b"fix: preserve all prose",
+            b"",
+            b"The same identity in prose: Example Agent <agent@example.invalid>.",
+            b"",
+            trailer,
+            b"Co-authored-by: Real Contributor <real@example.invalid>",
+            b"Signed-off-by: Real Contributor <real@example.invalid>",
+            b"",
+        )
+    )
+    payload = header + b"\n\n" + body
+    parents = tuple(
+        line.split(b" ", 1)[1].decode()
+        for line in header.splitlines()
+        if line.startswith(b"parent ")
+    )
+    corrected = replacement_payload(
+        repo,
+        payload,
+        parents=parents,
+        correction={"remove_attribution_trailers": [trailer.decode()]},
+    )
+    assert corrected == header + b"\n\n" + body.replace(trailer + ending, b"", 1)
+
+
+@pytest.mark.parametrize(
+    "trailer",
+    [
+        "Co-authored-by: Missing <missing@example.invalid>",
+        "Signed-off-by: Real <real@example.invalid>",
+        "not a trailer",
+        "Co-authored-by: Bad\nInjected",
+    ],
+)
+def test_attribution_trailer_removal_rejects_unselected_message_edits(tmp_path, trailer):
+    """Missing attribution or unrelated message fields cannot become repair authority."""
+    repo, old, _selected, _before, _corrections = _history(tmp_path)
+    payload = unsigned_commit_payload(run_git(repo, "cat-file", "commit", old, text=False).stdout)
+    parents = tuple(
+        line.split(b" ", 1)[1].decode()
+        for line in payload.partition(b"\n\n")[0].splitlines()
+        if line.startswith(b"parent ")
+    )
+    with pytest.raises(ValueError, match="history_repair_"):
+        replacement_payload(
+            repo, payload, parents=parents, correction={"remove_attribution_trailers": [trailer]}
+        )
+
+
+def test_public_history_repair_removes_only_authorized_false_coauthor(tmp_path):
+    """History repair preserves a real contributor while correcting false attribution."""
+    repo, _initial, _candidate = signature_repository(tmp_path, coupled=True)
+    message = (
+        "fix: correct attribution\n\n"
+        "Keep this explanation unchanged.\n\n"
+        "Co-authored-by: Example Agent <agent@example.invalid>\n"
+        "Co-authored-by: Real Contributor <real@example.invalid>\n"
+    )
+    head = git(
+        repo, "commit-tree", git(repo, "rev-parse", "HEAD^{tree}"), "-p", "HEAD", "-m", message
+    )
+    for branch in ("dev", "candidate/dev", "main"):
+        git(repo, "update-ref", f"refs/heads/{branch}", head)
+    backup = tmp_path / "original.bundle"
+    git(repo, "bundle", "create", str(backup), "refs/heads/dev")
+    result = repair.repair_signature(
+        root=repo,
+        expect_head=head,
+        corrections={
+            head: {
+                "remove_attribution_trailers": [
+                    "Co-authored-by: Example Agent <agent@example.invalid>"
+                ]
+            }
+        },
+        reason="Correct owner-confirmed false coauthor, preserve true contributor",
+        backup=backup,
+        apply=True,
+        authorized=True,
+    )
+    assert result["verdict"] == "pass", result
+    repaired_head = result["head"]
+    assert isinstance(repaired_head, str)
+    corrected = git(repo, "show", "-s", "--format=%B", repaired_head)
+    assert (
+        corrected
+        == message.replace("Co-authored-by: Example Agent <agent@example.invalid>\n", "").strip()
+    )
+    assert git(repo, "rev-parse", f"{head}^{{tree}}") == git(repo, "rev-parse", "HEAD^{tree}")
+    assert "Co-authored-by: Example Agent" in git(repo, "show", "-s", "--format=%B", head)
 
 
 @pytest.mark.parametrize("case", ["valid", "subject", "unsigned"])

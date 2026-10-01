@@ -418,6 +418,7 @@ class _Flow:
             tuple(self.expression(arg, scope) for arg in node.args),
             tuple((item.arg, self.expression(item.value, scope)) for item in node.keywords),
         )
+        call = call.at_invocation(scope.invalidated)
         self.calls.append(call)
         result = join(
             self.local_call(target, call)

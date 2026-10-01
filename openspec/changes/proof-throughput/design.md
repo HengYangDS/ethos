@@ -3332,6 +3332,12 @@ alternative separately, preserving correlated `shell`, `executable` and `args`.
 An unresolved expansion, invalid key, duplicate call keyword or unknown shell
 remains UNKNOWN; parsed syntax alone cannot establish semantic completeness.
 
+The call-evaluation follow-up rejects a stale mutable argument captured before
+a later keyword expression mutates it. Outer keyword unpacking copies shape,
+not its nested mutable values. `finite-call-evaluation-red.json` and
+`finite-call-evaluation-green.json` record the distinguishing failures and 281
+passing sibling cases; static interpretation never executes those expressions.
+
 Mutation falsifiers require one further distinction: mutable allocation-site
 identity is separate from immutable value shape. Reaching aliases, nested
 containers and values captured during construction lose their current shape

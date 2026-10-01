@@ -271,6 +271,21 @@ def _observed() -> dict[str, set[str]]:
             set(),
             set(),
         ),
+        (
+            "command=['old-binary']\nsubprocess.run(command, cwd=mutate(command))",
+            set(),
+            set(),
+            {"executable"},
+        ),
+        (
+            (
+                "options={'args':['old-binary']}\n"
+                "subprocess.run(**options, cwd=mutate(options['args']))"
+            ),
+            set(),
+            set(),
+            {"executable"},
+        ),
     ],
 )
 def test_finite_mapping_binding_preserves_consumers_and_scoped_unknown(

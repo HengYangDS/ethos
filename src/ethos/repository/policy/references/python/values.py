@@ -188,10 +188,21 @@ def mutable_reachability(value: Value) -> frozenset[MappingValue | Sequence]:
     )
 
 
-def widen_mutated(value: Value, invalidated: frozenset[MappingValue | Sequence]) -> Value:
+def widen_mutated(
+    value: Value, invalidated: frozenset[MappingValue | Sequence], *, preserve_shape: bool = False
+) -> Value:
     """Earlier bound values are snapshots; newly used aliases cannot reuse stale shape."""
     return join(
-        frozenset({Unknown(origins(frozenset({atom})))})
+        frozenset(
+            {
+                MappingValue(
+                    atom.site,
+                    tuple((key, widen_mutated(item, invalidated)) for key, item in atom.items),
+                )
+            }
+        )
+        if preserve_shape and isinstance(atom, MappingValue)
+        else frozenset({Unknown(origins(frozenset({atom})))})
         if mutable_reachability(frozenset({atom})) & invalidated
         else frozenset({atom})
         for atom in value
@@ -224,6 +235,18 @@ class BoundCall:
     targets: Value
     args: tuple[Value, ...]
     keywords: tuple[tuple[str | None, Value], ...]
+
+    def at_invocation(self, invalidated: frozenset[MappingValue | Sequence]) -> BoundCall:
+        """Unpacked keyword shape is copied; mutable values survive later argument effects."""
+        return BoundCall(
+            self.line,
+            self.targets,
+            tuple(widen_mutated(value, invalidated) for value in self.args),
+            tuple(
+                (key, widen_mutated(value, invalidated, preserve_shape=key is None))
+                for key, value in self.keywords
+            ),
+        )
 
     def exposed_values(self) -> Value:
         """Argument unpacking copies the outer container, not its reachable values."""

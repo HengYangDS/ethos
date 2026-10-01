@@ -137,6 +137,9 @@ def sync_worktree(
         root, previous, environment=environment
     ):
         _fail("worktree_effect_binding_stale")
+    refreshed = runner(target, "update-index", "--refresh", check=False, env=environment)
+    if refreshed.returncode:
+        raise ValueError(refreshed.stderr.strip() or "worktree_effect_preimage_dirty")
     completed = runner(
         target,
         "read-tree",

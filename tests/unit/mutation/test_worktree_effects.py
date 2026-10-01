@@ -210,6 +210,38 @@ def test_sync_worktree_attests_exact_index_and_terminal_recognition(tmp_path) ->
     assert recognized.payload.body["freshness"]["head"] == head
 
 
+@pytest.mark.parametrize("dirty", [False, True], ids=["restored", "changed"])
+def test_sync_worktree_refreshes_only_native_index_stat_cache(tmp_path, dirty) -> None:
+    """A clean byte preimage must sync despite stale stats; real edits must survive."""
+    repo = init_git_repo(tmp_path / "repo")
+    previous = adopt_and_commit(repo)
+    material = repo / "README.md"
+    original = material.read_bytes()
+    material.write_text("# accepted replacement\n", encoding="utf-8")
+    git(repo, "add", "README.md")
+    head = git(repo, "commit-tree", git(repo, "write-tree"), "-p", previous, "-m", "fix: sync")
+    git(repo, "read-tree", previous)
+    material.write_bytes(b"unaccepted user content\n" if dirty else original)
+    index_before = git(repo, "write-tree")
+    assert index_before == git(repo, "rev-parse", f"{previous}^{{tree}}")
+    assert run_git(repo, "diff-files", "--quiet", check=False).returncode == 1
+    assert worktree_sync_gap(repo, (repo,), "dev", previous, previous, head) == (
+        "worktree_dirty" if dirty else ""
+    )
+    git(repo, "update-ref", "refs/heads/dev", head, previous)
+
+    if dirty:
+        with pytest.raises(ValueError, match=r"not uptodate|worktree_effect_preimage_dirty"):
+            sync_worktree(repo, repo, branch="dev", previous=previous, head=head)
+        assert material.read_bytes() == b"unaccepted user content\n"
+        assert git(repo, "write-tree") == index_before
+    else:
+        applied = sync_worktree(repo, repo, branch="dev", previous=previous, head=head)
+        assert applied.payload.body["result"]["state"] == "applied"
+        assert material.read_text() == "# accepted replacement\n"
+        assert git(repo, "write-tree") == git(repo, "rev-parse", f"{head}^{{tree}}")
+
+
 def test_local_config_attests_apply_and_terminal_recognition(tmp_path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)

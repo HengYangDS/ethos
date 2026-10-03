@@ -185,6 +185,7 @@ def test_process_failure_preserves_its_actual_boundary(tmp_path, monkeypatch, ph
     if phase != "spawn":
         assert caught.value is failure
     else:
+        assert isinstance(caught.value, process_adapter.ProcessExecutionError)
         assert caught.value.evidence() == {
             "code": "process_creation_failed",
             "reason": "operating_system_rejected_process_creation",
@@ -195,13 +196,16 @@ def test_process_failure_preserves_its_actual_boundary(tmp_path, monkeypatch, ph
 
 
 @pytest.mark.parametrize("mode", ["key", "prefix", "isolated"])
+@pytest.mark.timeout(5)
 def test_command_environment_and_native_io(tmp_path, monkeypatch, mode):
     """Native children consume exactly the selected environment and input."""
     environment = {"PSModulePath": "pwsh", "ETHOS_PRESERVED": "inherited", "GIT_PRESERVED": "git"}
     for key, value in environment.items():
         monkeypatch.setenv(key, value)
     body = (
-        "import json,os,sys; print(json.dumps(dict(os.environ))); "
+        "import json,os,stat,sys; print(json.dumps(dict(os.environ))); "
+        "assert stat.S_ISREG(os.fstat(0).st_mode) or not sys.argv[1] == '0'; "
+        "sys.stderr.write('output'*16384); sys.stderr.flush(); "
         "sys.stderr.write(sys.stdin.read()); sys.exit(int(sys.argv[1]))"
     )
     textual = mode != "prefix"
@@ -215,10 +219,11 @@ def test_command_environment_and_native_io(tmp_path, monkeypatch, mode):
         inherit_environment=mode != "isolated",
         remove_env=("psmodulepath",) if mode == "key" else (),
         remove_env_prefixes=("git_",) if mode == "prefix" else (),
-        stdin="input" if textual else b"input",
+        stdin="input" * 16384 if textual else b"input" * 16384,
     )
     observed = json.loads(result.stdout)
-    assert result.stderr == ("input" if textual else b"input")
+    expected_output = "output" * 16384 + "input" * 16384
+    assert result.stderr == (expected_output if textual else expected_output.encode())
     expected = {} if mode == "isolated" else environment.copy()
     if mode != "isolated":
         del expected["PSModulePath" if mode == "key" else "GIT_PRESERVED"]
@@ -227,7 +232,7 @@ def test_command_environment_and_native_io(tmp_path, monkeypatch, mode):
     with pytest.raises(subprocess.CalledProcessError) as failure:
         process_adapter.run_command(tmp_path, (sys.executable, "-c", body, "7"), check=True)
     assert failure.value.returncode == 7
-    assert failure.value.stderr == ""
+    assert failure.value.stderr == "output" * 16384
     assert json.loads(failure.value.stdout)["ETHOS_PRESERVED"] == "inherited"
 
 
@@ -294,6 +299,7 @@ def test_command_failure_closes_owned_descendants(
         with pytest.raises(error) as raised, ExitStack() as interrupts:
             execute()
         if failure == "timeout":
+            assert isinstance(raised.value, subprocess.TimeoutExpired)
             assert raised.value.output == b"started\n"
         assert closed()
         assert not fallback, "caller cancellation waited for external rescue"

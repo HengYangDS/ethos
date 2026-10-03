@@ -9,10 +9,12 @@ import signal
 import stat
 import subprocess
 import sys
+from contextlib import ExitStack
 from contextlib import contextmanager
 from contextlib import suppress
 from contextvars import ContextVar
 from pathlib import Path
+from tempfile import TemporaryFile
 from threading import Lock
 from typing import TYPE_CHECKING
 from typing import Any
@@ -310,39 +312,47 @@ def _execute_command(
     """Separate creation failures from communication and owned-process cleanup."""
     stdin = kwargs.pop("input")
     scope = _COMMAND_SCOPE.get()
-    try:
-        process = (scope.start if scope is not None else subprocess.Popen)(
-            command,
-            stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            **({"process_group": 0} if os.name == "posix" else {}),
-            **kwargs,
-        )
-    except OSError as error:
-        raise ProcessExecutionError(
-            PROCESS_CREATION_FAILED,
-            reason="operating_system_rejected_process_creation",
-            command=command,
-            cwd=kwargs["cwd"].as_posix(),
-            cause=f"{error.__class__.__name__}: {error}",
-        ) from error
-    with process:
+    with ExitStack() as resources:
+        finite_input = None
+        if stdin is not None:
+            finite_input = resources.enter_context(
+                TemporaryFile(mode="w+" if kwargs["text"] else "w+b")
+            )
+            finite_input.write(stdin)
+            finite_input.seek(0)
         try:
-            stdout, stderr = process.communicate(stdin, timeout=timeout)
-        except BaseException as error:
-            (scope.terminate if scope is not None else _terminate_command)(process)
-            if os.name == "nt" and isinstance(error, subprocess.TimeoutExpired):
-                error.stdout, error.stderr = process.communicate()
-            process.wait()
-            raise
-        finally:
-            if scope is not None and process.returncode is not None:
-                scope.discard(process)
-        result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
-        if check:
-            result.check_returncode()
-        return result
+            process = (scope.start if scope is not None else subprocess.Popen)(
+                command,
+                stdin=finite_input if finite_input is not None else subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                **({"process_group": 0} if os.name == "posix" else {}),
+                **kwargs,
+            )
+        except OSError as error:
+            raise ProcessExecutionError(
+                PROCESS_CREATION_FAILED,
+                reason="operating_system_rejected_process_creation",
+                command=command,
+                cwd=kwargs["cwd"].as_posix(),
+                cause=f"{error.__class__.__name__}: {error}",
+            ) from error
+        with process:
+            try:
+                stdout, stderr = process.communicate(timeout=timeout)
+            except BaseException as error:
+                (scope.terminate if scope is not None else _terminate_command)(process)
+                if os.name == "nt" and isinstance(error, subprocess.TimeoutExpired):
+                    error.stdout, error.stderr = process.communicate()
+                process.wait()
+                raise
+            finally:
+                if scope is not None and process.returncode is not None:
+                    scope.discard(process)
+            result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+            if check:
+                result.check_returncode()
+            return result
 
 
 def _terminate_command(process: subprocess.Popen[Any]) -> None:

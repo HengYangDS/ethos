@@ -21,7 +21,7 @@
   },
   "devDependencies": {
     "@taplo/cli": "0.7.0",
-    "allure": "3.19.0",
+    "allure": "3.20.0",
     "markdownlint-cli2": "0.23.3",
     "prettier": "3.9.9",
     "svgo": "4.1.0"

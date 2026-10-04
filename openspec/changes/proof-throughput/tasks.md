@@ -166,6 +166,10 @@
 - [x] 10.5 Reject invalid and non-Boolean CEL predicates at declaration loading and qualify existing consumers.
 - [ ] 10.6 Enforce unapproved-warning rejection at native command adapters without treating informational output as failure. Direct Node checks retain native typed events, diagnostics and terminal coverage from one execution; npm/c8 and Python same-attempt adaptation remain open.
   - [ ] 10.6.1 Bind Allure 3 global process logs and native exit to the same test attempt; preserve focused report scope, retain rejected attempts and avoid replay solely to fill report metadata.
+        Native Allure 3.20 renders all 77 original passed results; browser inspection
+        exposes an absent optional `widgets/metrics.json` (also absent before the upgrade).
+        Zero-console-error report acceptance remains open; no synthetic metric was added.
+        Evidence: `allure320-browser.result.json`.
 - [ ] 10.7 Restore whole-module docstring enforcement at the native quality owner and remove the narrowed coverage substitute.
 - [x] 10.8 Preserve dependency-tool exit status, unavailable execution, findings and malformed-report states through the existing receipt and Nox admission.
 - [x] 10.9 Repair installed hook formatting supply: a configured check must not silently pass when its bound Ruff executable is absent; verify installed valid, invalid and missing-tool cases.
@@ -180,6 +184,11 @@
 - [x] 11.1 Qualify the official stable SBOM supply after observed host-version drift.
 - [x] 11.2 Refresh compatible stable supply and exact CI projections with the Python support line intact.
 - [ ] 11.3 Qualify supported latest-stable supply or an obligation-preserving constrained-owner replacement. OpenSpec 1.14.0 is repository-locked: 134 focused tests and all 14 official strict validations pass; 168 native apply tasks retain source locations. Lock entries remain 378 with no new advisories (`openspec114-{resolution,native-verification-corrected,strict}-result` evidence). The existing braces advisory still blocks production/full-proof delivery; reviewed development acceptance does not waive that boundary.
+  Allure is locked to official stable 3.20.0 after isolated native resolution: 409→408
+  lock entries, no added packages or install scripts. Original 77/5 result sets retain
+  exact input hashes and report name/status parity without test replay. Native audit
+  still reports the existing braces advisory; full proof and installed delivery remain
+  open. Evidence: `allure320-experiment.result.json` and `allure320-lock-delta.json`.
   - [ ] 11.3.1 Close the adopter-reproduced actionlint child-start-before-input deadlock at the existing native workflow-check owner. Verify bounded finite input, EOF and cancellation on the actual large workflow without a timeout increase, wrapper/fork or reduced validation. Source and native focused closure are implemented, including the direct Python gate, selected module/package source bindings and retired shell launcher; exact proof and installed delivery remain pending.
 - [ ] 11.4 Migrate native developer/CI tool supply to mise locks and retire replaced installers.
 - [x] 11.5 Verify native import-linter and coverage TOML option equivalence; replace their INI owners and consumers without adding a converter.

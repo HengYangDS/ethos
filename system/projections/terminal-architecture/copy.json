@@ -92,7 +92,7 @@
     },
     "norms": {
       "label": "Agentic-native repositories",
-      "text": "Agentic-native source, tests, specs, docs, rules and Skills follow one semantic owner per obligation and executable quality. Each module, config, document and temporary resource needs a current consumer and bounded lifecycle. Profiles retain native domain, layout, provider and observation freedom; governed mutation uses verified OpenSpec.",
+      "text": "Source, tests, specs, docs, rules and Skills follow one semantic owner per obligation. Shared rules define applicable duties; replaceable Skills supply methods; native evidence verifies duties. Product-bound context carries source references, not proof of Agent adherence. Each module, config, document and temporary resource needs a current consumer and bounded lifecycle. Profiles retain business meaning, native layout and tools; governed mutation uses verified OpenSpec.",
       "surface": "main-static"
     },
     "greenfield": {

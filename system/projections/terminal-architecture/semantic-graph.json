@@ -129,7 +129,7 @@
     "product_contract": {
       "path": "docs/governance/product-design-contract.md",
       "authority": "canonical product meaning and semantic kernel",
-      "sha256": "ea3c231c773ec57cadc63aa23fd100b5e47ee071a4fe5b2b072e3c848c1b19b6"
+      "sha256": "3e88e11f497020bae427226bdbfd1a87f5e4ecc464ddcf4b10420b9adb213a9e"
     },
     "axioms": {
       "path": "system/axioms.md",
@@ -1538,7 +1538,7 @@
       "evidence": [
         "product_contract"
       ],
-      "semantics": "Agentic-native source, tests, specs, docs, rules and Skills follow one semantic owner per obligation and executable quality. Each module, config, document and temporary resource needs a current consumer and bounded lifecycle. Profiles retain native domain, layout, provider and observation freedom; governed mutation uses verified OpenSpec."
+      "semantics": "Agentic-native source, tests, specs, docs, rules and Skills follow one semantic owner per obligation and executable quality. Shared principles apply across repositories: rules define applicable duties, Skills provide replaceable methods, and native evidence verifies the duties. Product-bound context supplies source references without user retelling; availability and hashes do not prove Agent adherence. Each module, config, document and temporary resource needs a current consumer and bounded lifecycle. Profiles retain native domain, layout, provider and observation freedom; governed mutation uses verified OpenSpec."
     },
     "capability_contract": {
       "kind": "conformance",

@@ -76,7 +76,7 @@ def test_hook_binding_tracks_exact_generation_and_expected_build(tmp_path: Path)
     )
     assert stale["required_gaps"] == ["write_admission_not_armed:runtime_build_stale"]
     assert stale["next_action"].endswith(f"hook install --root {repo} --json")
-    assert Path(stale["next_action"].split()[0]).resolve() == Path(sys.executable).resolve()
+    assert Path(shlex.split(stale["next_action"])[0]).resolve() == Path(sys.executable).resolve()
 
 
 @pytest.mark.parametrize("condition", ["commit-msg", "pre-push", "stale-runtime"])

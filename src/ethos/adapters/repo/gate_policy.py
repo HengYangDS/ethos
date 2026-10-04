@@ -238,7 +238,12 @@ def observe_quality_subjects(
     if not head:
         message = "source_head_missing"
         raise ValueError(message)
-    subjects = observed_code_subjects(_repository_paths(root, head))
+    paths = _repository_paths(root, head)
+    subjects = observed_code_subjects(
+        paths,
+        script_paths=_repository_script_paths(root, head, paths),
+        roles=dict(_repository_carrier_roles(root, head, paths)),
+    )
     if language:
         subjects = tuple(subject for subject in subjects if subject.language == language)
         if not subjects:

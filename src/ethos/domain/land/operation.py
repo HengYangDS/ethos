@@ -5,6 +5,7 @@ from typing import cast
 
 import ethos.adapters.repo.git as git
 from ethos.adapters.admission.control.replacement import control_replacement_report
+from ethos.adapters.mutation.accepted.admission import candidate_to_accepted
 from ethos.adapters.mutation.accepted.promotion import current_acceptance
 from ethos.adapters.mutation.accepted.release import promote_release
 from ethos.adapters.mutation.decision import admission_decision
@@ -12,7 +13,6 @@ from ethos.adapters.mutation.decision import evaluate_closeout_mutation
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.landing import apply_land_to_candidate
-from ethos.adapters.mutation.landing import candidate_to_accepted
 from ethos.adapters.mutation.landing import candidate_transition_readiness
 from ethos.adapters.openspec.profile import active_change_progress_report
 from ethos.adapters.repo.status.workspace import integration_coordinates

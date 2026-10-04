@@ -17,6 +17,14 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 
+GO_QUALITY_FILES = {
+    "go.mod": "module example.invalid/quality\n\ngo 1.20\n",
+    "answer.go": "package quality\nfunc Answer() int { return 42 }\n",
+    "answer_test.go": 'package quality\nimport "testing"\n'
+    'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong") } }\n',
+}
+
+
 @pytest.mark.parametrize(
     ("profile", "reason"),
     [
@@ -152,11 +160,9 @@ def test_go_behavior_uses_native_build_scope_and_cross_package_coverage(tmp_path
     repo = committed_source_repo(
         tmp_path,
         {
-            "go.mod": "module example.invalid/quality\n\ngo 1.20\n",
+            **GO_QUALITY_FILES,
             "answer.go": 'package quality\nimport "example.invalid/quality/lib"\n'
             "func Answer() int { return lib.Answer() }\n",
-            "answer_test.go": 'package quality\nimport "testing"\n'
-            'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong") } }\n',
             "lib/lib.go": "package lib\nfunc Answer() int { return 42 }\n",
             "empty.go": "package quality\ntype Empty struct{}\n",
             "platform_windows.go": "package quality\ntype WindowsOnly struct{}\n",
@@ -190,10 +196,7 @@ def test_go_behavior_rejects_uncovered_cross_package_statements(tmp_path: Path) 
     repo = committed_source_repo(
         tmp_path,
         {
-            "go.mod": "module example.invalid/quality\n\ngo 1.20\n",
-            "answer.go": "package quality\nfunc Answer() int { return 42 }\n",
-            "answer_test.go": 'package quality\nimport "testing"\n'
-            'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong") } }\n',
+            **GO_QUALITY_FILES,
             "lib/unused.go": "package lib\nfunc Unused() int { return 1 }\n",
         },
     )
@@ -208,10 +211,7 @@ def test_go_behavior_rejects_unlisted_nested_module(tmp_path: Path) -> None:
     repo = committed_source_repo(
         tmp_path,
         {
-            "go.mod": "module example.invalid/quality\n\ngo 1.20\n",
-            "answer.go": "package quality\nfunc Answer() int { return 42 }\n",
-            "answer_test.go": 'package quality\nimport "testing"\n'
-            'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong") } }\n',
+            **GO_QUALITY_FILES,
             "addon/go.mod": "module example.invalid/addon\n\ngo 1.20\n",
             "addon/addon.go": "package addon\nfunc Value() int { return 1 }\n",
         },
@@ -229,11 +229,8 @@ def test_go_behavior_rejects_omitted_executable_file(
     repo = committed_source_repo(
         tmp_path,
         {
-            "go.mod": "module example.invalid/quality\n\ngo 1.20\n",
-            "answer.go": "package quality\nfunc Answer() int { return 42 }\n",
+            **GO_QUALITY_FILES,
             "missing.go": "package quality\nfunc Missing() int { return 1 }\n",
-            "answer_test.go": 'package quality\nimport "testing"\n'
-            'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong") } }\n',
         },
     )
     real_command = native_quality.run_command
@@ -271,11 +268,8 @@ def test_go_behavior_rejects_unproved_statementless_classification(
     repo = committed_source_repo(
         tmp_path,
         {
-            "go.mod": "module example.invalid/quality\n\ngo 1.20\n",
-            "answer.go": "package quality\nfunc Answer() int { return 42 }\n",
+            **GO_QUALITY_FILES,
             "empty.go": "package quality\ntype Empty struct{}\n",
-            "answer_test.go": 'package quality\nimport "testing"\n'
-            'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong") } }\n',
         },
     )
     monkeypatch.setattr(
@@ -337,8 +331,7 @@ def test_go_behavior_rejects_invalid_native_discovery(
     repo = committed_source_repo(
         tmp_path,
         {
-            "go.mod": "module example.invalid/quality\n\ngo 1.20\n",
-            "answer.go": "package quality\nfunc Answer() int { return 42 }\n",
+            **GO_QUALITY_FILES,
             "answer_test.go": 'package quality\nimport "testing"\n'
             "func TestAnswer(t *testing.T) {}\n",
         },
@@ -370,8 +363,7 @@ def test_go_behavior_rejects_ambiguous_native_source_identity(
     repo = committed_source_repo(
         tmp_path,
         {
-            "go.mod": "module example.invalid/quality\n\ngo 1.20\n",
-            "answer.go": "package quality\nfunc Answer() int { return 42 }\n",
+            **GO_QUALITY_FILES,
             "sub/answer.go": "package sub\nfunc Answer() int { return 1 }\n",
             "answer_test.go": 'package quality\nimport "testing"\n'
             "func TestAnswer(t *testing.T) {}\n",

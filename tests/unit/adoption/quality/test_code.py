@@ -20,6 +20,7 @@ from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import init_git_repo
 from tests.support.proof import declare_quality_profile
+from tests.support.proof import run_quality_proof
 
 
 def _write_go_fixture(repo: Path, defect: str) -> None:
@@ -295,9 +296,7 @@ def test_native_code_provider_checks_real_sources(
         _write_javascript_fixture(repo, defect)
     head = commit_fixture(repo, "declare native code quality")
 
-    result = run_ethos_raw(
-        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
-    )
+    result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
 
     assert payload["summary"]["proof_attestation_issued"] is False
@@ -333,9 +332,7 @@ def test_javascript_test_directory_uses_native_test_identity(tmp_path: Path) -> 
     )
     head = commit_fixture(repo, "declare directory-owned native test")
 
-    result = run_ethos_raw(
-        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
-    )
+    result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
 
     assert result.returncode == 0, payload["required_gaps"]
@@ -365,9 +362,7 @@ def test_public_proof_rejects_test_forged_v8_coverage(tmp_path: Path) -> None:
     )
     head = commit_fixture(repo, "declare forged coverage test")
 
-    result = run_ethos_raw(
-        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
-    )
+    result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
 
     assert result.returncode != 0
@@ -394,9 +389,7 @@ def test_public_proof_rejects_command_authored_evidence_adapter(tmp_path: Path) 
     (repo / "fake.mjs").write_text("process.exit(0);\n")
     head = commit_fixture(repo, "claim command-authored native evidence")
 
-    result = run_ethos_raw(
-        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
-    )
+    result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
 
     assert result.returncode != 0
@@ -430,9 +423,7 @@ def test_public_proof_conjoins_native_commands_with_product_verifiers(
     gate["command"] = command
     profile.write_text(tomli_w.dumps(declaration))
     head = commit_fixture(repo, "bind outer native command and product verification")
-    result = run_ethos_raw(
-        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
-    )
+    result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
     assert result.returncode != 0
     assert payload["verdict"] == "block"
@@ -483,9 +474,7 @@ def test_public_python_quality_covers_repository_tool_sources(
     sentinel.write_bytes(b"retain exactly")
     head = commit_fixture(repo, "bind product and repository-tool quality")
 
-    result = run_ethos_raw(
-        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
-    )
+    result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
     checks = {check["action_id"]: check for check in payload["data"]["checks"]}
 

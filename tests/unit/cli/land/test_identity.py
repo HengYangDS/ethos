@@ -218,12 +218,22 @@ def _exercise_transition(
             checkout or root,
             TransitionPlan.model_validate(detail["transition_plan"]),
         )
-    applied = run_ethos(*effect_args, cwd=root)
+    with pytest.MonkeyPatch.context() as recovery:
+        if interrupt and key == "candidate_update":
+
+            def reject_ref_replay(*_args, **_kwargs):
+                pytest.fail("Materialization must consume the original plan without another CAS.")
+
+            recovery.setattr(landing, "compile_observed_git_effect", reject_ref_replay)
+            recovery.setattr(landing, "_candidate_cas", reject_ref_replay)
+        applied = run_ethos(*effect_args, cwd=root)
     assert applied["verdict"] == "pass", applied["required_gaps"]
     assert {ref: git(root, "rev-parse", ref) for ref in before} == dict.fromkeys(before, head)
     statement = applied["data"].get(key, applied["data"])["attestation"]
     if interrupt:
         assert statement["id"] == original_id
+        if key == "candidate_update":
+            assert applied["data"][key]["cas_attempts"] == 0
     _assert_identity_statement(root, statement, before, head)
     if verify_controls:
         repeated = run_ethos(*effect_args, cwd=root)

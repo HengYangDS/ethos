@@ -334,8 +334,12 @@ def _owner_projection(
         owner["quality_floor_version"] = 2
         owner["code_correctness_map"] = {axis: axes.get(axis, "") for axis in _QUALITY_PROVIDERS}
         owner["quality_subjects"] = {
-            "behavior": [subject.path for subject in code_subjects if not subject.is_test],
+            "behavior": [subject.path for subject in code_subjects if subject.requires_behavior],
             "static-analysis": [subject.path for subject in code_subjects],
+        }
+        owner["quality_carrier_roles"] = {
+            subject.path: subject.role or ("test" if subject.is_test else "code")
+            for subject in code_subjects
         }
     return owner
 

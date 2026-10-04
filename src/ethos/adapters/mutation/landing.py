@@ -7,19 +7,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-import ethos.adapters.mutation.accepted.promotion as accepted
 import ethos.adapters.mutation.remediation.guidance as remediation
-from ethos.adapters.mutation.decision import evaluate_closeout_mutation
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof_admission import predecessor_policy_gaps
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.process import ProcessExecutionError
-from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_effect_attestation import validated_plan_attestation
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import admit_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
@@ -31,10 +29,10 @@ from ethos.adapters.repo.status.workspace import integration_coordinates
 from ethos.adapters.repo.worktree_effects import sync_worktree
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.verdict import report_verdict
 
 if TYPE_CHECKING:
@@ -84,13 +82,12 @@ def apply_land_to_candidate(
         )
     if blocked:
         return blocked
-    policy, _base_report, candidate_path, candidate_head, plan = transition
+    policy, _base_report, candidate_path, candidate_head, plan, attestation = transition
     failure: tuple[str, str] | None = None
-    attestation: Attestation | None = None
     observed_candidate_head = ""
     cas_attempts = 0
     extra: dict[str, object] = {}
-    if plan is not None:
+    if plan is not None and attestation is None:
         try:
             attestation, failure, observed_candidate_head, cas_attempts = _candidate_cas(
                 root=root,
@@ -181,7 +178,7 @@ def candidate_transition_readiness(
         )
     if blocked:
         return blocked
-    policy, base_report, candidate_path, _candidate_head, plan = transition
+    policy, base_report, candidate_path, _candidate_head, plan, _attestation = transition
     if plan is None:
         return {
             **base_report,
@@ -276,10 +273,22 @@ def _candidate_plan(
     if proof.commitment_digest != authority.digest():
         message = "proof_attestation_authority_binding_mismatch"
         raise ValueError(message)
-    plan = (
-        None
-        if candidate_head == current_head
-        else compile_observed_git_effect(
+    recovering = base_report.get("state") == "candidate_materialization_pending"
+    plan, attestation = (
+        _candidate_materialization_plan(
+            root,
+            policy=policy,
+            branch=branch,
+            head=current_head,
+            previous=candidate_head,
+            decision=admitted_decision,
+            commitment_digest=proof.commitment_digest,
+        )
+        if recovering
+        else (None, None)
+    )
+    plan = plan or (
+        compile_observed_git_effect(
             root,
             authority,
             _candidate_effect(
@@ -300,8 +309,45 @@ def _candidate_plan(
             },
             identity_transition=identity_transition,
         )
+        if candidate_head != current_head and not recovering
+        else None
     )
-    return None, (policy, base_report, candidate_path, candidate_head, plan)
+    return None, (policy, base_report, candidate_path, candidate_head, plan, attestation)
+
+
+def _candidate_materialization_plan(
+    root: Path,
+    *,
+    policy: BranchRolePolicy,
+    branch: str,
+    head: str,
+    previous: str,
+    decision: AdmissionDecision | None,
+    commitment_digest: str | None,
+) -> tuple[TransitionPlan, Attestation]:
+    """Consume exact original effect evidence and re-admit its current materialization."""
+    digest = decision.subject.expected_state.get("candidate_recovery_plan") if decision else None
+    issuer = os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
+    original = validated_plan_attestation(root, str(digest), issuer=issuer) if digest else None
+    if original is None:
+        message = "candidate_recovery_plan_unproven"
+        raise ValueError(message)
+    plan, attestation = original
+    if (
+        plan.policy.get("transition") != "candidate.integrate"
+        or plan.inputs.commitment != commitment_digest
+        or git_effect_from_plan(plan)
+        != _candidate_effect(
+            policy=policy,
+            branch=branch,
+            current_head=head,
+            candidate_head=previous,
+        )
+    ):
+        message = "candidate_recovery_plan_binding_mismatch"
+        raise ValueError(message)
+    admit_git_effect(root, plan)
+    return plan, attestation
 
 
 def _candidate_cas(
@@ -313,7 +359,7 @@ def _candidate_cas(
 ) -> tuple[Attestation | None, tuple[str, str] | None, str, int]:
     issuer = os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
     try:
-        return execute_candidate_plan(root, plan, issuer=issuer), None, "", 1
+        return execute_git_effect(root, plan, issuer=issuer), None, "", 1
     except ProcessExecutionError:
         raise
     except ValueError as error:
@@ -323,7 +369,7 @@ def _candidate_cas(
         if observed != candidate_head:
             return None, ("candidate_cas_stale", str(error)), observed, 1
         try:
-            return execute_candidate_plan(root, plan, issuer=issuer), None, observed, 2
+            return execute_git_effect(root, plan, issuer=issuer), None, observed, 2
         except ProcessExecutionError:
             raise
         except ValueError as retry_error:
@@ -371,10 +417,6 @@ def _candidate_admission_gap(error: Exception) -> str:
     )
 
 
-def execute_candidate_plan(root: Path, plan: TransitionPlan, *, issuer: str) -> Attestation:
-    return execute_git_effect(root, plan, issuer=issuer)
-
-
 def _blocked(policy, head, gaps, *, state="blocked", verdict="block", **extra):
     return dict(
         verdict=verdict,
@@ -384,104 +426,6 @@ def _blocked(policy, head, gaps, *, state="blocked", verdict="block", **extra):
         required_gaps=gaps,
         **extra,
     )
-
-
-def candidate_to_accepted(
-    *,
-    root: Path,
-    authorized: bool,
-    expect_head: str | None,
-    candidate_head: str | None = None,
-    control_replacement_receipt: dict[str, object] | None = None,
-    apply: bool = True,
-    identity_transition: bool = False,
-    completed_effect: Attestation | None = None,
-) -> dict[str, object]:
-    current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
-    try:
-        policy = accepted_transition_policy(root, current_head)
-    except (TypeError, ValueError):
-        return {
-            "verdict": "block",
-            "state": "blocked",
-            "branch": "",
-            "head": current_head,
-            "required_gaps": ["accepted_policy_unavailable"],
-        }
-    decision = evaluate_closeout_mutation(
-        apply=apply,
-        authorized=authorized,
-        expect_head=expect_head,
-        root=root,
-        current_head=current_head,
-        completed_effect=completed_effect,
-    )
-    if decision.verdict != "pass":
-        return {
-            **accepted.accepted_payload(policy, current_head),
-            "state": "blocked",
-            "required_gaps": list(decision.required_gaps),
-            "remediation": remediation.remediation_for_gaps(decision.required_gaps),
-        }
-    status = integration_coordinates(root, policy=policy)
-    candidate = cast("dict[str, object]", status["candidate"])
-    observed_candidate_head = str(candidate["head"])
-    if candidate_head is not None and observed_candidate_head != candidate_head:
-        gaps = ["candidate_head_changed_after_control_replacement_check"]
-        return {
-            **accepted.accepted_payload(policy, current_head),
-            "candidate_head": observed_candidate_head,
-            "verified_candidate_head": candidate_head,
-            "required_gaps": gaps,
-            "remediation": remediation.remediation_for_gaps(gaps),
-        }
-    candidate_head = candidate_head or observed_candidate_head
-    if current := accepted.current_acceptance(
-        root=root,
-        policy=policy,
-        current_head=current_head,
-        candidate_head=candidate_head,
-        status=status,
-        expected_head=expect_head,
-    ):
-        if apply and current.get("state") == "accepted_materialization_pending":
-            return accepted.recover_current_acceptance(
-                root=root,
-                policy=policy,
-                current_head=current_head,
-                status=status,
-                current=current,
-            )
-        return current
-    return accepted.promote_candidate(
-        root=root,
-        policy=policy,
-        current_head=current_head,
-        candidate_head=candidate_head,
-        status=status,
-        control_replacement_receipt=control_replacement_receipt,
-        apply=apply,
-        identity_transition=identity_transition,
-    )
-
-
-def accepted_transition_policy(root: Path, head: str) -> BranchRolePolicy:
-    """Read the incumbent policy; use defaults only for a provably absent carrier."""
-    if workspace := committed_file_text(root, head, ".ethos/workspace.toml"):
-        return strict_branch_role_policy_from_text(workspace, allow_legacy_sibling_default=True)
-    present = run_git(
-        root,
-        "ls-tree",
-        "--name-only",
-        head,
-        "--",
-        ".ethos/workspace.toml",
-        check=False,
-    )
-    if present.returncode or present.stdout.strip():
-        message = "accepted transition policy is unreadable"
-        raise ValueError(message)
-    return BranchRolePolicy()
 
 
 def candidate_base_report(*, root: Path, status=None) -> dict[str, object]:

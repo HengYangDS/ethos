@@ -9,6 +9,7 @@ import subprocess
 import sys
 import threading
 from contextlib import ExitStack
+from time import monotonic
 from unittest.mock import Mock
 
 import pytest
@@ -20,6 +21,21 @@ from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_execution_identity
 from tests.support.subprocesses import ready_descendant
+
+
+def test_command_scope_conserves_one_deadline_across_native_calls(tmp_path) -> None:
+    """A later or nested command cannot renew a caller's finite execution budget."""
+    command = (sys.executable, "-c", "import time; time.sleep(0.2)")
+    started = monotonic()
+    with process_adapter.command_scope(timeout_seconds=0.3):
+        process_adapter.run_command(tmp_path, command, timeout=10)
+        with (
+            process_adapter.command_scope(timeout_seconds=10),
+            pytest.raises(subprocess.TimeoutExpired),
+        ):
+            process_adapter.run_command(tmp_path, command, timeout=10)
+    assert monotonic() - started < 1
+    assert process_adapter.run_command(tmp_path, (sys.executable, "-c", "pass")).returncode == 0
 
 
 def _file_reference_payloads():
@@ -251,7 +267,9 @@ def test_command_failure_closes_owned_descendants(
 
     def after_ready(process, _options):
         if parent_exited:
-            os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT)
+            waitid = getattr(os, "waitid", None)
+            assert callable(waitid)
+            waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT)
         if failure == "gate-overlap":
             monkeypatch.setattr(subprocess.Popen, "wait", Mock(side_effect=KeyboardInterrupt))
             raise subprocess.TimeoutExpired(process.args, 1)

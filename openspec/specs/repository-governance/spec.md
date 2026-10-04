@@ -1759,10 +1759,12 @@ depend on paths outside its source distribution.
 #### Scenario: The Python wheel is built from its source distribution
 
 - **WHEN** the `ethos` source distribution is unpacked for a wheel build
-- **THEN** each packaged declaration is read from the sdist-local
-  `src/ethos/data/` projection
-- **AND** the wheel contains the corresponding `ethos/data/` resource
-- **AND** the build does not require checkout-relative `system/` paths.
+- **THEN** each packaged declaration is read from its sdist-local canonical
+  source named by the native package declaration
+- **AND** the wheel contains byte-identical inputs under
+  `ethos/resources/<canonical-source-relative-path>` without renamed source hierarchy
+- **AND** package-owned guidance and build identity use the same resource namespace
+- **AND** the build does not require the original checkout or adopter-owned inputs.
 
 ### Requirement: External-adopter profile evidence has a bounded durable record
 

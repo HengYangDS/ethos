@@ -11,6 +11,7 @@ from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.repository.policy.commit import commit_policy_from_text
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
 
     from ethos.repository.policy.commit import CommitPolicy
@@ -18,7 +19,9 @@ if TYPE_CHECKING:
 _POLICY_PATH = ".ethos/workspace.toml"
 
 
-def _indexed_commit_policy(root: Path) -> CommitPolicy | None:
+def _indexed_commit_policy(
+    root: Path, *, index_env: Mapping[str, str] | None = None
+) -> CommitPolicy | None:
     """Compile commit policy from the exact prospective Git index tree."""
     listed = run_git(
         root,
@@ -28,7 +31,8 @@ def _indexed_commit_policy(root: Path) -> CommitPolicy | None:
         "--",
         _POLICY_PATH,
         check=False,
-        observation=True,
+        observation=index_env is None,
+        env=index_env,
         text=False,
     )
     if listed.returncode != 0:
@@ -57,14 +61,16 @@ def _indexed_commit_policy(root: Path) -> CommitPolicy | None:
     )
 
 
-def commit_message_report(root: Path, message_file: Path) -> dict[str, object]:
+def commit_message_report(
+    root: Path, message_file: Path, *, index_env: Mapping[str, str] | None = None
+) -> dict[str, object]:
     """Validate the final commit subject against the prospective index policy."""
     path = message_file if message_file.is_absolute() else root / message_file
     try:
         subject = path.read_text(encoding="utf-8").partition("\n")[0]
     except (OSError, UnicodeError):
         return _blocked("commit_message_unreadable")
-    candidate = _indexed_commit_policy(root)
+    candidate = _indexed_commit_policy(root, index_env=index_env)
     head = peel_commit(root, "HEAD")
     incumbent = commit_policy_for_revision(root, head) if head else None
     policies = tuple(dict.fromkeys(policy for policy in (candidate, incumbent) if policy))

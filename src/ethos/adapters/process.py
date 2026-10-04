@@ -16,6 +16,7 @@ from contextvars import ContextVar
 from pathlib import Path
 from tempfile import TemporaryFile
 from threading import Lock
+from time import monotonic
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -113,19 +114,26 @@ class CommandScope:
 
 
 _COMMAND_SCOPE: ContextVar[CommandScope | None] = ContextVar("command_scope", default=None)
+_COMMAND_DEADLINE: ContextVar[float | None] = ContextVar("command_deadline", default=None)
 
 
 @contextmanager
-def command_scope() -> Iterator[CommandScope]:
+def command_scope(*, timeout_seconds: float | None = None) -> Iterator[CommandScope]:
     """Propagate caller interruption through one transient native command owner."""
     scope = _COMMAND_SCOPE.get() or CommandScope()
     token = _COMMAND_SCOPE.set(scope)
+    deadline = _COMMAND_DEADLINE.get()
+    if timeout_seconds is not None:
+        proposed = monotonic() + timeout_seconds
+        deadline = min(deadline, proposed) if deadline is not None else proposed
+    deadline_token = _COMMAND_DEADLINE.set(deadline)
     try:
         yield scope
     except BaseException:
         scope.cancel()
         raise
     finally:
+        _COMMAND_DEADLINE.reset(deadline_token)
         _COMMAND_SCOPE.reset(token)
 
 
@@ -310,6 +318,12 @@ def _execute_command(
     command: tuple[str, ...], *, check: bool, timeout: float | None, **kwargs: Any
 ) -> subprocess.CompletedProcess[Any]:
     """Separate creation failures from communication and owned-process cleanup."""
+    deadline = _COMMAND_DEADLINE.get()
+    if deadline is not None:
+        remaining = max(0, deadline - monotonic())
+        timeout = remaining if timeout is None else min(timeout, remaining)
+        if timeout <= 0:
+            raise subprocess.TimeoutExpired(command, timeout)
     stdin = kwargs.pop("input")
     scope = _COMMAND_SCOPE.get()
     with ExitStack() as resources:

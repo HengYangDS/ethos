@@ -12,15 +12,89 @@ import pytest
 
 import ethos.adapters.gates.code_quality as native_quality
 import ethos.adapters.gates.javascript.analysis as analysis
+import ethos.adapters.gates.javascript.behavior as javascript_behavior
 import ethos.adapters.toolchain.mise as native_mise
 from ethos.adapters.gates.verification import NativeExecution
+from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.repository.policy.quality_reports import istanbul_coverage_report
-from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import init_git_repo
 from tests.support.proof import declare_quality_profile
+from tests.support.proof import run_quality_proof
+
+
+@pytest.mark.parametrize("role", ["code", "tooling", "snapshot", "config", "generated"])
+def test_native_c8_selection_is_not_overridden_and_unselected_authored_source_stays_unproved(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, role: str
+) -> None:
+    """Native includes select coverage, not authority to omit authored obligations."""
+    monkeypatch.delenv("ETHOS_CHANGE", raising=False)
+    repo = committed_source_repo(
+        tmp_path,
+        {
+            ".gitattributes": f"omitted.js ethos-role={role}\n",
+            "package.json": json.dumps(
+                {
+                    "type": "module",
+                    "scripts": {
+                        "test": "node --test answer.test.js",
+                        "test:coverage": "c8 --config .config/coverage.json npm test",
+                    },
+                }
+            ),
+            ".config/coverage.json": json.dumps({"all": True, "include": ["answer.js"]}),
+            "answer.js": "export function answer() { return 42; }\n",
+            "omitted.js": "export function unproved() { return 0; }\n",
+            "answer.test.js": 'import test from "node:test"; import {answer} from "./answer.js";\n'
+            'test("answer", () => { if (answer() !== 42) throw Error("wrong"); });\n',
+        },
+    )
+    _, subjects = observe_quality_subjects(repo)
+    node = shutil.which("node")
+    assert node is not None
+    report = javascript_behavior.behavior_observation(repo, subjects, None, node, {})
+    assert isinstance(report["coverage_execution"], dict)
+    argv = report["coverage_execution"]["argv"]
+    assert not any(value.startswith(("--include=", "--exclude=")) for value in argv)
+    assert "--all" not in argv
+    assert "--exclude-node-modules=false" not in argv
+    assert report["verdict"] == ("block" if role in {"code", "generated"} else "pass")
+    assert isinstance(report["native_selection"], dict)
+    assert report["native_selection"]["selected_paths"] == ["answer.js"]
+    assert report["unselected_paths"] == ["omitted.js"]
+
+
+def test_generated_runtime_input_requires_execution_not_only_a_role(tmp_path: Path) -> None:
+    """A generated input excluded by c8 still needs the same native execution witness."""
+    repo = committed_source_repo(
+        tmp_path,
+        {
+            ".gitattributes": "generated.js ethos-role=generated\n",
+            "package.json": json.dumps(
+                {
+                    "type": "module",
+                    "scripts": {
+                        "test": "node --test answer.test.js",
+                        "test:coverage": "c8 --include answer.js npm test",
+                    },
+                }
+            ),
+            "generated.js": "export const generated = 42;\n",
+            "answer.js": 'import {generated} from "./generated.js";\n'
+            "export function answer() { return generated; }\n",
+            "answer.test.js": 'import test from "node:test"; import {answer} from "./answer.js";\n'
+            'test("answer", () => { if (answer() !== 42) throw Error("wrong"); });\n',
+        },
+    )
+    _, subjects = observe_quality_subjects(repo)
+    node = shutil.which("node")
+    assert node is not None
+    report = javascript_behavior.behavior_observation(repo, subjects, None, node, {})
+    assert report["verdict"] == "pass", report["required_gaps"]
+    assert isinstance(report["executed_generated_paths"], list)
+    assert "generated.js" in report["executed_generated_paths"]
 
 
 @pytest.mark.parametrize("defect", ["none", "missing", "alias", "counter", "scope"])
@@ -78,6 +152,7 @@ def test_verified_node_behavior_rejects_wrong_scope_or_toolchain(
         "quality_behavior_javascript_native_coverage_custody_unavailable"
     ]
     assert not (repo / "replayed").exists()
+    assert isinstance(report["native"], list)
     assert report["native"][0]["stderr"] == "retained native diagnostic"
 
 
@@ -105,7 +180,7 @@ def test_provider_only_javascript_does_not_credit_a_failed_native_test(
                 }
             ),
             ".config/coverage.json": json.dumps(
-                {"lines": 95, "statements": 95, "branches": 95, "functions": 95}
+                {"all": True, "lines": 95, "statements": 95, "branches": 95, "functions": 95}
             ),
             "preload.mjs": "globalThis.expectedAnswer = 42;\n",
             "answer.js": "export function answer() { return 42; }\n",
@@ -130,9 +205,7 @@ def test_provider_only_javascript_does_not_credit_a_failed_native_test(
         commit_fixture(repo, "include uncovered subject")
     declare_quality_profile(repo)
     head = commit_fixture(repo, "bind one native attempt to public quality")
-    result = run_ethos_raw(
-        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
-    )
+    result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
     assert result.returncode == int(outcome != "pass"), payload["required_gaps"]
     assert payload["verdict"] == ("pass" if outcome == "pass" else "block"), payload
@@ -180,6 +253,7 @@ def test_native_node_custody_does_not_follow_rejected_symlink(
     )
     report = native_quality.behavior_report(repo)
     assert report["required_gaps"] == ["quality_behavior_javascript_native_coverage_input_invalid"]
+    assert isinstance(report["native"], list)
     with ZipFile(report["native"][0]["artifact"]["path"]) as archive:
         assert "raw/link" not in archive.namelist()
     assert sentinel.read_bytes() == b"unrelated bytes must not be read"
@@ -210,6 +284,28 @@ def test_native_provider_rejects_deleted_committed_source(tmp_path: Path) -> Non
     assert native_quality.behavior_report(repo)["required_gaps"] == [
         "quality_behavior_code_source_unavailable"
     ]
+
+
+@pytest.mark.parametrize(
+    ("source", "verdict"),
+    [
+        ("printf '%s\\n' 'ready'\n", "pass"),
+        ("if true; then\n", "block"),
+        ("echo $value\n", "block"),
+    ],
+)
+def test_native_script_static_checks_without_executing_tooling(
+    tmp_path: Path, source: str, verdict: str
+) -> None:
+    """A native script role requires lexical evidence, never running the build tool."""
+    repo = committed_source_repo(
+        tmp_path,
+        {".gitattributes": "build.sh ethos-role=tooling\n", "build.sh": f"#!/bin/sh\n{source}"},
+    )
+    report = native_quality.static_report(repo)
+    assert report["verdict"] == verdict, report
+    assert isinstance(report["native"], list)
+    assert report["native"][0]["tool"] == "shellcheck"
 
 
 @pytest.mark.parametrize(
@@ -248,6 +344,20 @@ def test_native_provider_requires_native_project_context(
             "behavior",
             "javascript_tests_or_sources_missing",
         ),
+        (
+            {"package.json": '{"type":"module"}\n', "answer.test.js": "export {};\n"},
+            "behavior",
+            "javascript_tests_or_sources_missing",
+        ),
+        ({"test_answer.py": "def test_answer(): pass\n"}, "behavior", "scope_unrecognized"),
+        (
+            {
+                "answer.js": "export const answer = 42;\n",
+                ".gitattributes": "answer.js ethos-role=snapshot\n",
+            },
+            "behavior",
+            "applicable_code_sources_missing",
+        ),
     ],
 )
 def test_native_provider_requires_executable_scope(
@@ -260,6 +370,8 @@ def test_native_provider_requires_executable_scope(
         if axis == "behavior"
         else native_quality.static_report(repo)
     )
+    assert report["verdict"] == "block", report
+    assert "quality_evidence" not in report
     assert report["required_gaps"] == [f"quality_{axis}_{reason}"]
 
 
@@ -342,7 +454,9 @@ def test_javascript_skipped_tests_do_not_prove_behavior(tmp_path: Path) -> None:
     )
     report = native_quality.behavior_report(repo)
     assert report["verdict"] == "block"
+    assert isinstance(report["required_gaps"], list)
     assert "quality_behavior_javascript_tests_failed" in report["required_gaps"]
+    assert isinstance(report["native"], list)
     assert report["native"][0]["tests"]["passed"] == 0
 
 
@@ -358,15 +472,18 @@ def test_javascript_skipped_tests_do_not_prove_behavior(tmp_path: Path) -> None:
         ("export function answer() { return 42; }\n", "pass"),
     ],
 )
+@pytest.mark.parametrize("role", ["code", "snapshot"])
 def test_javascript_static_quality_preserves_lexical_bindings(
     tmp_path: Path,
     source: str,
     verdict: str,
+    role: str,
 ) -> None:
     """Syntax success cannot certify declared lexical correctness or suppress its diagnostics."""
     repo = init_git_repo(tmp_path / "adopter")
     (repo / "package.json").write_text('{"type":"module"}\n')
     (repo / "answer.js").write_text(source)
+    (repo / ".gitattributes").write_text(f"answer.js ethos-role={role}\n")
     commit_fixture(repo, "lexical quality source")
     report = native_quality.static_report(repo)
     assert report["verdict"] == verdict, report
@@ -398,6 +515,7 @@ def test_native_node_behavior_retains_same_attempt_diagnostics(
     assert report["verdict"] == ("block" if diagnostic else "pass"), report
     assert marker.read_text() == "run\n"
     assert "native" in report
+    assert isinstance(report["native"], list)
     assert "stdout" in report["native"][0]
     if diagnostic:
         assert "reported warning" in report["native"][0]["stdout"]

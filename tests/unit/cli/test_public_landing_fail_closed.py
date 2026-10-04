@@ -16,6 +16,9 @@ import ethos.adapters.mutation.proof_admission as proof_admission
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.process import ProcessExecutionError
+from ethos.contracts.admission import AdmissionDecision
+from ethos.contracts.admission import DecisionBasis
+from ethos.contracts.admission import MutationSubject
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Commitment
@@ -30,13 +33,23 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _pass_decision() -> SimpleNamespace:
-    return SimpleNamespace(verdict="pass", required_gaps=())
+def _pass_decision() -> AdmissionDecision:
+    return AdmissionDecision(
+        verdict="pass",
+        subject=MutationSubject(action="candidate.integrate", resource="candidate/dev"),
+        basis=DecisionBasis(
+            enforcement_boundary="test_fixture",
+            identity_basis="test_fixture",
+            evidence_boundary="test_fixture",
+            verifier_provenance="test_fixture",
+            time_basis="test_fixture",
+        ),
+    )
 
 
 def _candidate_plan(monkeypatch, root, current, previous):
     """Share the exact plan shape while each failure owns its effect boundary."""
-    transition = (BranchRolePolicy(), {"head": current}, root, previous, object())
+    transition = (BranchRolePolicy(), {"head": current}, root, previous, object(), None)
     monkeypatch.setattr(landing, "_candidate_plan", Mock(return_value=(None, transition)))
 
 
@@ -164,7 +177,7 @@ def test_candidate_apply_never_overwrites_observed_ref_drift(
     )
     if observed == "retry-native":
         execute.side_effect = [ValueError("git_effect_cas_mismatch"), native_failure]
-    monkeypatch.setattr(landing, "execute_candidate_plan", execute)
+    monkeypatch.setattr(landing, "execute_git_effect", execute)
     monkeypatch.setattr(
         landing,
         "run_git",

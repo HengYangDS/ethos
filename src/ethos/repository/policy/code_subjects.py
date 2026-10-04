@@ -30,6 +30,12 @@ class CodeSubject:
     path: str
     language: str
     is_test: bool
+    role: str = ""
+
+    @property
+    def requires_behavior(self) -> bool:
+        """Require runtime evidence for authored code and generated runtime inputs."""
+        return not self.is_test and self.role in {"", "code", "generated"}
 
 
 def observed_code_subjects(
@@ -54,9 +60,12 @@ def observed_code_subjects(
             continue
         is_test = (
             role == "test"
-            or path.startswith(("tests/", "test/"))
-            or name.startswith("test_")
-            or name.endswith(("_test.go", ".test.js", ".test.mjs", ".test.cjs"))
+            if role
+            else (
+                path.startswith(("tests/", "test/"))
+                or name.startswith("test_")
+                or name.endswith(("_test.go", ".test.js", ".test.mjs", ".test.cjs"))
+            )
         )
-        subjects.append(CodeSubject(path, language, is_test))
+        subjects.append(CodeSubject(path, language, is_test, role or ""))
     return tuple(sorted(subjects, key=lambda subject: subject.path))

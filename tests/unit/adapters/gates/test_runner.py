@@ -35,6 +35,40 @@ def _runner(monkeypatch, **providers: object) -> gate_runner.LocalGateRunner:
     return gate_runner.LocalGateRunner()
 
 
+@pytest.mark.parametrize("verified", [False, True])
+def test_runner_transports_one_deadline_to_native_and_provider_execution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, verified: bool
+) -> None:
+    """The same declared budget reaches a command and its optional native verifier."""
+    budgets: list[float | None] = []
+
+    def provider(root: Path, *, timeout_seconds: float | None = None) -> dict[str, object]:
+        assert root == tmp_path
+        budgets.append(timeout_seconds)
+        return {"verdict": "pass"}
+
+    def command(_root: Path, argv: tuple[str, ...], *, timeout: float | None = None):
+        budgets.append(timeout)
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setattr(gate_runner, "run_command", command)
+    runner = _runner(monkeypatch, report=provider)
+    attributes = (
+        {
+            "command": (sys.executable, "-c", "pass"),
+            "verification_providers": ("ethos.test:report",),
+        }
+        if verified
+        else {"providers": ("ethos.test:report",)}
+    )
+    gate = Gate.model_validate(
+        {"id": "bounded", "kind": "test", "timeout_seconds": 30, **attributes}
+    )
+    assert runner.run(_node(gate), gate, root=tmp_path).verdict == "pass"
+    assert len(budgets) == (2 if verified else 1)
+    assert all(budget is not None and 0 < budget <= 30 for budget in budgets)
+
+
 @pytest.mark.parametrize(
     ("payload", "verdict", "gap"),
     [
@@ -47,6 +81,9 @@ def _runner(monkeypatch, **providers: object) -> gate_runner.LocalGateRunner:
             "gate_provider_warning:gate:ethos.test:report:deprecated",
         ),
         ({"verdict": "pass", "diagnostics": [{"severity": "info", "message": "note"}]}, "pass", ""),
+        ({"verdict": "pass", "required_gaps": "unproved"}, "block", ""),
+        ({"verdict": "pass", "warnings": "deprecated"}, "block", ""),
+        ({"verdict": "pass", "diagnostics": {"severity": "error", "message": "bad"}}, "block", ""),
     ],
 )
 def test_provider_report_preserves_verdict_and_root(monkeypatch, tmp_path, payload, verdict, gap):

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 import tomli_w
 
+from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.gate_policy import resolve_proof_policies
 from ethos.contracts.gates import Gate
@@ -378,3 +379,20 @@ def test_carrier_role_projection_reads_selected_git_tree(tmp_path: Path) -> None
     git(repo, "add", ".gitattributes")
     with pytest.raises(ValueError, match=r"quality_carrier_role_invalid:main\.ts"):
         resolve_gate_policy(repo)
+
+
+def test_quality_observation_retains_committed_roles_and_explicit_test_identity(
+    tmp_path: Path,
+) -> None:
+    """Policy compilation and native observation share the same committed roles."""
+    repo = init_git_repo(tmp_path / "repo")
+    (repo / "test_entry.js").write_text("export const answer = 42;\n")
+    (repo / ".gitattributes").write_text("test_entry.js ethos-role=code\n")
+    head = commit_fixture(repo, "declare production subject")
+    tree, (subject,) = observe_quality_subjects(repo, language="javascript")
+    assert tree == git(repo, "rev-parse", f"{head}^{{tree}}")
+    assert subject.role == "code"
+    assert not subject.is_test
+    assert subject.requires_behavior
+    (repo / ".gitattributes").write_text("test_entry.js ethos-role=test\n")
+    assert observe_quality_subjects(repo)[1] == (subject,)

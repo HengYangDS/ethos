@@ -9,6 +9,7 @@ import sys
 from contextlib import ExitStack
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING
 from typing import cast
 
 from uv import find_uv_bin
@@ -20,9 +21,11 @@ from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.toolchain.mise import locked_environment
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.adapters.toolchain.mise import repository_mise_files
-from ethos.repository.policy.code_subjects import observed_code_subjects
 from ethos.repository.policy.quality_reports import coverage_report
 from ethos.repository.policy.quality_reports import junit_report
+
+if TYPE_CHECKING:
+    from ethos.repository.policy.code_subjects import CodeSubject
 
 
 def _failure(axis: str, reason: str) -> dict[str, object]:
@@ -131,12 +134,13 @@ def static_report(root: Path, *, execution: NativeExecution | None = None) -> di
     }
 
 
-def _behavior_scope(root: Path, paths: tuple[str, ...]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+def _behavior_scope(
+    root: Path, subjects: tuple[CodeSubject, ...]
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
     """Select production and test subjects from the common code classifier."""
-    subjects = observed_code_subjects(paths)
-    source = tuple(subject.path for subject in subjects if not subject.is_test)
+    source = tuple(subject.path for subject in subjects if subject.requires_behavior)
     tests = tuple(subject.path for subject in subjects if subject.is_test)
-    if not source or not tests or len(subjects) != len(paths):
+    if not source or not tests:
         message = "scope_unrecognized"
         raise ValueError(message)
     if not (root / "pyproject.toml").is_file() or not (root / "uv.lock").is_file():
@@ -191,7 +195,13 @@ def _behavior_evidence(
             f"--cov-report=xml:{coverage}",
             *targets,
         )
-        removed = ("VIRTUAL_ENV", "UV_PROJECT_ENVIRONMENT", "PYTHONPATH", "PYTEST_ADDOPTS")
+        removed = (
+            "VIRTUAL_ENV",
+            "UV_PROJECT_ENVIRONMENT",
+            "PYTHONPATH",
+            "PYTEST_ADDOPTS",
+            "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+        )
         result = run_command(
             root,
             command,
@@ -251,8 +261,7 @@ def behavior_report(root: Path, *, execution: NativeExecution | None = None) -> 
     evidence: dict[str, object] = {}
     try:
         tree, subjects = observe_quality_subjects(root, language="python")
-        paths = tuple(subject.path for subject in subjects)
-        source, tests = _behavior_scope(root, paths)
+        source, tests = _behavior_scope(root, subjects)
         evidence = _behavior_evidence(root, source, tests)
         observe_quality_subjects(root, language="python", expected_tree=tree)
     except ProcessExecutionError as error:

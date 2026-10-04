@@ -17,6 +17,7 @@ from ethos.adapters.gates.javascript.behavior import behavior_observation
 from ethos.adapters.gates.python_quality import behavior_report as python_behavior_report
 from ethos.adapters.gates.python_quality import static_report as python_static_report
 from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.process import command_scope
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.toolchain.mise import locked_environment
@@ -283,17 +284,81 @@ def _go_static(root: Path, paths: tuple[str, ...], native: dict[str, str]) -> di
     return {"language": "go", "checked_paths": len(paths)}
 
 
+def _script_static(root: Path, paths: tuple[str, ...], native: dict[str, str]) -> dict[str, object]:
+    """Observe supported script dialects with native ShellCheck, without running source."""
+    command = (_executable(root, "shellcheck"), "--norc", "--format=json1", "--", *paths)
+    result = run_command(root, command, timeout=60, env=native)
+    document = json.loads(result.stdout)
+    if not isinstance(document, dict) or not isinstance(document.get("comments"), list):
+        _invalid("script_static_report_invalid")
+    findings = document["comments"]
+    if any(
+        not isinstance(finding, dict)
+        or finding.get("file") not in paths
+        or not isinstance(finding.get("code"), int)
+        or not isinstance(finding.get("message"), str)
+        for finding in findings
+    ):
+        _invalid("script_static_report_invalid")
+    return {
+        "language": "script",
+        "tool": "shellcheck",
+        "verdict": "block" if result.returncode or result.stderr or findings else "pass",
+        "checked_paths": list(paths),
+        "argv": list(command),
+        "cwd": str(root),
+        "findings": findings,
+        "stdout": result.stdout,
+        "stderr": result.stderr,
+        "exit_code": result.returncode,
+    }
+
+
+def _python_observation(
+    root: Path,
+    subjects: tuple[CodeSubject, ...],
+    axis: str,
+    execution: NativeExecution | None,
+) -> dict[str, object]:
+    """Bind a native Python result to the exact scope selected by the common classifier."""
+    report = (
+        python_behavior_report(root, execution=execution)
+        if axis == "behavior"
+        else python_static_report(root, execution=execution)
+    )
+    expected = [
+        subject.path for subject in subjects if axis != "behavior" or subject.requires_behavior
+    ]
+    selected = report.get("quality_evidence")
+    if report.get("verdict") == "pass" and (
+        not isinstance(selected, dict) or selected.get("selected_paths") != expected
+    ):
+        _invalid("python_quality_unproven")
+    return {"language": "python", **report}
+
+
 def _report(
-    root: Path, axis: str, *, execution: NativeExecution | None = None
+    root: Path,
+    axis: str,
+    *,
+    execution: NativeExecution | None = None,
+    timeout_seconds: float | None = None,
 ) -> dict[str, object]:
     try:
         tree, subjects = observe_quality_subjects(root)
-        if not subjects:
-            _invalid("code_sources_missing")
-        languages = {subject.language for subject in subjects}
+        languages = {
+            subject.language
+            for subject in subjects
+            if axis != "behavior" or subject.requires_behavior or subject.is_test
+        }
+        if not languages:
+            _invalid("applicable_code_sources_missing" if subjects else "code_sources_missing")
         with ExitStack() as scope:
+            scope.enter_context(command_scope(timeout_seconds=timeout_seconds))
             tool_environment = (
-                _native_environment(root, scope) if languages & {"go", "javascript"} else {}
+                _native_environment(root, scope)
+                if languages & {"go", "javascript", "script"}
+                else {}
             )
             native: list[dict[str, object]] = []
             for language in sorted(languages):
@@ -302,23 +367,7 @@ def _report(
                 )
                 paths = tuple(subject.path for subject in language_subjects)
                 if language == "python":
-                    report = (
-                        python_behavior_report(root, execution=execution)
-                        if axis == "behavior"
-                        else python_static_report(root, execution=execution)
-                    )
-                    selected = report.get("quality_evidence")
-                    expected = [
-                        subject.path
-                        for subject in subjects
-                        if subject.language == language
-                        and (axis != "behavior" or not subject.is_test)
-                    ]
-                    if report.get("verdict") == "pass" and (
-                        not isinstance(selected, dict) or selected.get("selected_paths") != expected
-                    ):
-                        _invalid("python_quality_unproven")
-                    native.append({"language": language, **report})
+                    native.append(_python_observation(root, language_subjects, axis, execution))
                 elif language == "go":
                     native.append(
                         _go_behavior(root, language_subjects, tool_environment)
@@ -333,12 +382,18 @@ def _report(
                             execution,
                             _executable(root, "node"),
                             tool_environment,
+                            timeout_seconds=timeout_seconds,
                         )
                         if axis == "behavior"
                         else static_observation(
-                            root, paths, node=_executable(root, "node"), native=tool_environment
+                            root,
+                            paths,
+                            node=_executable(root, "node"),
+                            native=tool_environment,
                         )
                     )
+                elif language == "script" and axis == "static-analysis":
+                    native.append(_script_static(root, paths, tool_environment))
                 else:
                     _invalid(f"native_language_unsupported:{language}")
             observe_quality_subjects(root, expected_tree=tree)
@@ -346,7 +401,7 @@ def _report(
         return {**_failure(axis, error.code), "diagnostics": [error.evidence()]}
     except (OSError, TypeError, ValueError, subprocess.TimeoutExpired) as error:
         return _failure(axis, str(error) if isinstance(error, ValueError) else type(error).__name__)
-    if any(report.get("verdict") == "block" for report in native):
+    if any(report.get("verdict") in {"block", "unknown"} for report in native):
         gaps = tuple(
             gap for report in native for gap in string_sequence(report.get("required_gaps"))
         )
@@ -370,15 +425,19 @@ def _report(
             "axis": axis,
             "source_tree": tree,
             "selected_paths": [
-                subject.path for subject in subjects if axis != "behavior" or not subject.is_test
+                subject.path
+                for subject in subjects
+                if axis != "behavior" or subject.requires_behavior
             ],
         },
     }
 
 
-def behavior_report(root: Path, *, execution: NativeExecution | None = None) -> dict[str, object]:
+def behavior_report(
+    root: Path, *, execution: NativeExecution | None = None, timeout_seconds: float | None = None
+) -> dict[str, object]:
     """Require non-vacuous native tests for every observed code language."""
-    return _report(root, "behavior", execution=execution)
+    return _report(root, "behavior", execution=execution, timeout_seconds=timeout_seconds)
 
 
 def static_report(root: Path, *, execution: NativeExecution | None = None) -> dict[str, object]:

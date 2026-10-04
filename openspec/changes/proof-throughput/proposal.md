@@ -3,9 +3,10 @@
 The complete 35-gate proof at `26405d4d8` passed in 2,171.66 seconds with two
 workers. Pytest consumed 1,925.09 seconds. One representative release case made
 1,610 subprocess calls and rebuilt source identity twenty times. The user
-requests a staged complete-verification target: first below 1,200 seconds,
-then evaluate the 600-second direction from measured bottlenecks. Neither target
-can be met through cached verdicts alone or narrower assurance.
+sets 900 seconds as the temporary complete-proof acceptance threshold,
+with 600 seconds remaining the measured optimization direction. Include
+preparation, every required gate and cleanup; cached verdicts or narrower
+assurance cannot satisfy either target.
 
 ## What Changes
 

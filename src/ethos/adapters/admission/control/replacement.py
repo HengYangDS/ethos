@@ -141,6 +141,15 @@ def _changed_obligations(
             for axis, gate in old_axes.items()
             if gate and (not isinstance(new_axes, Mapping) or new_axes.get(axis) != gate)
         )
+    for field in ("quality_subjects", "quality_carrier_roles"):
+        previous = before.get(field) if isinstance(before, Mapping) else None
+        current = after.get(field) if isinstance(after, Mapping) else None
+        if isinstance(previous, Mapping):
+            changed.extend(
+                f"{field}:{key}"
+                for key, value in previous.items()
+                if not isinstance(current, Mapping) or current.get(key) != value
+            )
     return tuple(changed)
 
 
@@ -161,7 +170,9 @@ def _changed_paths(root: Path, accepted_head: str, candidate_head: str) -> tuple
 
 
 def _is_control_path(path: str) -> bool:
-    return any(path == prefix or path.startswith(prefix) for prefix in _CONTROL_PREFIXES)
+    return path == ".gitattributes" or any(
+        path == prefix or path.startswith(prefix) for prefix in _CONTROL_PREFIXES
+    )
 
 
 def _verification_subject(

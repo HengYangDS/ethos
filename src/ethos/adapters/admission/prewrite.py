@@ -39,6 +39,8 @@ from ethos.repository.policy.projections import projection_relations
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from ethos.adapters.admission.current.authority import CurrentAuthority
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
 
@@ -57,6 +59,7 @@ def prewrite_guard(
     require_editor_root: bool = False,
     patch: str = "",
     staged: bool = False,
+    index_env: Mapping[str, str] | None = None,
     selected_runtime: SelectedRuntime | None = None,
     require_workspace: bool = False,
 ) -> dict[str, object]:
@@ -65,7 +68,9 @@ def prewrite_guard(
     effective = _effective_write_context(root=root, role=status_role, branch=status_branch)
     runtime_check = runtime_binding_check(status)
     staged_report = (
-        staged_artifact_admission(root, git_stdout(root, "rev-parse", "HEAD")) if staged else None
+        staged_artifact_admission(root, git_stdout(root, "rev-parse", "HEAD"), index_env=index_env)
+        if staged
+        else None
     )
     checked, origin_gap = _checked_paths(
         root, paths, effective["role"], effect_report=staged_report
@@ -112,7 +117,7 @@ def prewrite_guard(
         patch_report=patch_report,
         require_workspace=require_workspace,
     )
-    patch_report = revalidate_staged_admission(root, patch_report)
+    patch_report = revalidate_staged_admission(root, patch_report, index_env=index_env)
     _apply_path_effects(checked, patch_report, patch_supplied=bool(patch) or staged)
     blocked = [path for path in checked if path["allowed"] is False]
     gaps = _gaps(runtime_check, authority, editor, patch_report, scope, blocked)

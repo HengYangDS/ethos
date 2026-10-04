@@ -170,8 +170,11 @@ def test_control_subject_and_request_bind_exact_signed_git_state(tmp_path: Path)
 
 @pytest.mark.parametrize(
     ("mode", "verdict", "state", "gaps"),
-    literal_case(
-        "admission.test_control_replacement:parametrize:test_control_policy_modes_fail_closed:0"
+    cast(
+        "list[tuple[str, str, str, list[str]]]",
+        literal_case(
+            "admission.test_control_replacement:parametrize:test_control_policy_modes_fail_closed:0"
+        ),
     ),
 )
 def test_control_policy_modes_fail_closed(
@@ -238,8 +241,11 @@ def test_receipt_and_proof_negative_matrix_fails_closed(tmp_path: Path) -> None:
     "path",
     [
         "README.md",
-        *literal_case(
-            "admission.test_control_replacement:parametrize:test_control_path_matrix_requires_independent_verification:1"
+        *cast(
+            "list[str]",
+            literal_case(
+                "admission.test_control_replacement:parametrize:test_control_path_matrix_requires_independent_verification:1"
+            ),
         ),
         "src/ethos/adapters/repo/runtime/selection.py",
         "src/ethos/adapters/repo/hook/protocol.py",
@@ -474,3 +480,16 @@ def test_axis_remapping_changes_the_floor_without_changing_gate_commands(
     unchanged_subject = unchanged["subject"]
     assert isinstance(unchanged_subject, dict)
     assert "verification_floor" not in unchanged_subject
+    roles = ResolvedGatePolicy(
+        declaration=prior.declaration,
+        profile=prior.profile,
+        gates=prior.gates,
+        repository_paths=("src/app.py",),
+        carrier_roles=(("src/app.py", "snapshot"),),
+    )
+    changed_roles = report(roles)
+    assert isinstance(changed_roles["subject"], dict)
+    assert (
+        "quality_carrier_roles:src/app.py"
+        in changed_roles["subject"]["verification_floor"]["changed_obligations"]
+    )

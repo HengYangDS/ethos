@@ -21,6 +21,7 @@ from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.workspace import workspace_status_observation
+from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
@@ -30,6 +31,7 @@ from tests.support.governed_repository import write_test_profile
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from subprocess import CompletedProcess
 
     from ethos.contracts.plan import TransitionPlan
     from ethos.contracts.semantic import Attestation
@@ -253,3 +255,10 @@ def declare_quality_profile(root: Path, gate_owner: str = "profile") -> None:
         )
         proof = {"gate_registry": "system/gates.toml"}
     write_test_profile(root, profile_id="native-quality-adopter", proof=proof)
+
+
+def run_quality_proof(root: Path, head: str) -> CompletedProcess[str]:
+    """Observe one full host proof without discarding native process diagnostics."""
+    return run_ethos_raw(
+        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=root
+    )

@@ -72,6 +72,55 @@ filesystem writers or turn an artifact class into proof of durable custody.
 
 ## Resource-Aware Execution
 
+### Native Carrier And Recovery Closure
+
+The October 4, 15:43 UTC execution review retains the complete product objective.
+Native role declarations select applicability; they do not establish artifact
+provenance or authorize omitted obligations. The snapshot-only lexical suppression
+was falsified and removed. Script tooling now receives native ShellCheck without
+running its build effects; this proves static inspection, not portable execution
+or frozen artifact rebuild. Publisher's clean-source observation exposes actual
+JavaScript findings instead of reporting a label-based PASS. Its native integrity
+owners still require source-bound composition; no filename exception is admitted.
+
+The original candidate ref effect can finish before checkout materialization.
+The recovery counterexample reached the public CLI and proved recompilation after
+that effect; it did not prove a second native CAS occurred. Recovery consumes the
+admitted original plan and Attestation, rechecks the current source/refs/Lease and
+retains the existing OLD-to-NEW worktree effect. It must not recompile or call the
+candidate CAS again. The existing interrupted journey now asserts zero such calls
+and receipt preservation. Qualification and installed delivery remain separate.
+
+The affected 211-case suite passed in 111.88 seconds, and the new 11-case native
+obligation slice passed in 3.63 seconds. The candidate recovery slice passed in
+40.26 seconds before its subsequent structural refinement. The final 19-case
+run then failed candidate-sync-loss: 18 passed, one failed in 302.95 seconds;
+read-only readiness returned `candidate_update_failed` instead of the pending
+materialization state. Its `original-materialization-final` log and JUnit remain
+in the existing native-carrier applicability evidence home. Earlier narrow GREEN
+does not supersede this failure. No complete proof, accepted update or installed
+successor follows from those runs. The measured test
+ELOC was 60,239 against the repository's 60,000 limit. The user's latest instruction
+supersedes the stale goal-text ceiling: necessary complexity may justify a 5,000
+increment after reuse and consolidation are assessed. Product remains 55,000;
+test may rise to 65,000 only with an evidence-backed disposition in this Change
+and the existing source-budget owner. Do not remove necessary assertions, weaken
+coverage, change accounting roles or compress source cosmetically to fit. Refresh
+the count at source freeze; preserve failed receipts and do not run a full proof
+while a known source defect remains.
+
+The October 5 goal reconciliation retains the full product contract and existing
+terminal plan; the three active Changes remain the progress owners. AIGW reports
+a separate native `git commit -S -- <task-path>` hook failure,
+`staged_tree_unavailable`, despite passing prewrite and ordinary `git write-tree`.
+Git temporary-index locking is a hypothesis, not a verified cause. Diagnose the
+existing Git/admission owner; neither a path exception nor a CAS replay is a fix.
+DDWG's records-layout feedback belongs to the existing carrier/resource owners:
+native digest-bound evidence must not be copied into a family sidecar merely for
+layout symmetry. Require actual consumers, exact binding, retention and exit;
+preserve native configuration and repository business boundaries. Both reports
+remain unresolved; no adopter mutation or second layout authority is implied.
+
 The shared Gate contract carries optional `resource_locks`: complete named
 exclusion domains with shared or exclusive access. Hierarchical overlap conflicts
 when either side is exclusive; `*` denotes global access. Omission retains the
@@ -3264,4 +3313,3 @@ all supported platforms or the whole quality foundation. Existing Task11.9.2
 retains Nox/pytest and npm/c8 same-attempt composition, native behavior failure
 custody and mixed-language scope. Caller termination and first-use foundation
 observations remain with their existing lifecycle and adoption owners.
-

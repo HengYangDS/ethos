@@ -10,7 +10,10 @@ import subprocess
 from pathlib import Path
 from stat import S_ISREG
 from tempfile import TemporaryDirectory
+from time import monotonic
 from typing import TYPE_CHECKING
+from urllib.parse import unquote
+from urllib.parse import urlparse
 from zipfile import ZIP_DEFLATED
 from zipfile import ZipFile
 
@@ -131,12 +134,13 @@ def _observe_test(
     environment: dict[str, str],
     removed: tuple[str, ...],
     observed: dict[str, object],
+    timeout: float = 600,
 ) -> list[str]:
     """Retain one native journal and its diagnostics independently of coverage success."""
     tested = run_command(
         root,
         command,
-        timeout=600,
+        timeout=timeout,
         env={**environment, "NODE_V8_COVERAGE": str(raw)},
         remove_env=removed,
         remove_env_prefixes=("MISE_",),
@@ -165,19 +169,58 @@ def _observe_coverage(
     node: str,
     c8: Path,
     coverage_arguments: tuple[str, ...],
-    production: tuple[str, ...],
-    tests: tuple[str, ...],
+    subjects: tuple[CodeSubject, ...],
     output: Path,
     environment: dict[str, str],
     removed: tuple[str, ...],
     observed: dict[str, object],
+    timeout: float = 120,
 ) -> list[str]:
     """Report exactly the test-owned raw files without starting another collector."""
+    production = tuple(subject.path for subject in subjects if not subject.is_test)
     raw, reports = output / "raw", output / "reports"
+    selection = run_command(
+        root,
+        (node, str(Path(__file__).with_name("selection.mjs")), str(c8), *coverage_arguments),
+        stdin=json.dumps(production),
+        timeout=timeout,
+        env=environment,
+        remove_env=removed,
+        remove_env_prefixes=("MISE_",),
+    )
+    if selection.returncode or selection.stderr:
+        return ["javascript_native_selection_unknown"]
+    selected = json.loads(selection.stdout)
+    if (
+        not isinstance(selected, dict)
+        or not isinstance(selected.get("selected_paths"), list)
+        or any(path not in production for path in selected["selected_paths"])
+        or len(set(selected["selected_paths"])) != len(selected["selected_paths"])
+    ):
+        return ["javascript_native_selection_invalid"]
+    expected = tuple(selected["selected_paths"])
+    observed.update(
+        native_selection=selected, unselected_paths=sorted(set(production) - set(expected))
+    )
     try:
         before = _raw_identity(raw, validate=True)
     except ValueError as error:
         return [str(error)]
+    executed = {
+        Path(unquote(urlparse(script["url"]).path)).resolve()
+        for name in before
+        for script in json.loads((raw / name).read_bytes())["result"]
+        if urlparse(script["url"]).scheme == "file"
+        and any(
+            item["count"] > 0 for function in script["functions"] for item in function["ranges"]
+        )
+    }
+    generated = {
+        subject.path
+        for subject in subjects
+        if subject.role == "generated" and (root / subject.path).resolve() in executed
+    }
+    observed["executed_generated_paths"] = sorted(generated)
     measured = run_command(
         root,
         (
@@ -185,17 +228,13 @@ def _observe_coverage(
             str(c8),
             "report",
             *coverage_arguments,
-            "--all",
-            *(f"--exclude={path}" for path in tests),
-            "--exclude-node-modules=false",
-            *(f"--include={path}" for path in production),
             "--reporter=json-summary",
             "--reporter=json",
             "--check-coverage",
             f"--temp-directory={raw}",
             f"--reports-dir={reports}",
         ),
-        timeout=120,
+        timeout=timeout,
         env=environment,
         remove_env=removed,
         remove_env_prefixes=("MISE_",),
@@ -208,7 +247,18 @@ def _observe_coverage(
         raw_identity=before,
         raw_identity_preserved=preserved,
     )
-    gaps = []
+    gaps = [
+        f"javascript_coverage_subject_unselected:{subject.path}"
+        for subject in subjects
+        if subject.requires_behavior
+        and subject.path not in expected
+        and subject.path not in generated
+    ]
+    gaps.extend(
+        f"javascript_generated_input_unexecuted:{subject.path}"
+        for subject in subjects
+        if subject.role == "generated" and subject.path not in generated
+    )
     if not preserved:
         gaps.append(
             "javascript_native_coverage_input_changed" if before else "javascript_coverage_missing"
@@ -217,10 +267,10 @@ def _observe_coverage(
         gaps.append("javascript_coverage_failed")
     try:
         coverage, covered = istanbul_coverage_report(
-            root, reports / "coverage-summary.json", production
+            root, reports / "coverage-summary.json", expected
         )
         observed.update(coverage=coverage, covered_paths=sorted(covered))
-        if covered != set(production):
+        if covered != set(expected):
             gaps.append("javascript_source_unexercised")
     except (OSError, ValueError) as error:
         gaps.append(str(error) if isinstance(error, ValueError) else "javascript_coverage_missing")
@@ -233,10 +283,13 @@ def behavior_observation(
     execution: NativeExecution | None,
     node: str,
     native: dict[str, str],
+    *,
+    timeout_seconds: float | None = None,
 ) -> dict[str, object]:
     """Test once, measure that raw attempt once, then conserve evidence and retire scratch."""
+    deadline = monotonic() + timeout_seconds if timeout_seconds is not None else None
     tests = tuple(subject.path for subject in subjects if subject.is_test)
-    production = tuple(subject.path for subject in subjects if not subject.is_test)
+    production = tuple(subject.path for subject in subjects if subject.requires_behavior)
     if not (root / "package.json").is_file():
         message = "javascript_package_missing"
         raise ValueError(message)
@@ -269,19 +322,30 @@ def behavior_observation(
         }
         gaps: list[str] = []
         try:
-            gaps.extend(_observe_test(root, command, tests, raw, environment, removed, observed))
+            gaps.extend(
+                _observe_test(
+                    root,
+                    command,
+                    tests,
+                    raw,
+                    environment,
+                    removed,
+                    observed,
+                    timeout=max(0, deadline - monotonic()) if deadline else 600,
+                )
+            )
             gaps.extend(
                 _observe_coverage(
                     root,
                     node,
                     c8,
                     coverage_arguments,
-                    production,
-                    tests,
+                    subjects,
                     output,
                     environment,
                     removed,
                     observed,
+                    timeout=max(0, deadline - monotonic()) if deadline else 120,
                 )
             )
         except ProcessExecutionError as error:

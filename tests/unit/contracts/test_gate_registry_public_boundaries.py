@@ -5,7 +5,9 @@ from __future__ import annotations
 import hashlib
 import sys
 import tomllib
+from operator import setitem
 from typing import TYPE_CHECKING
+from typing import cast
 
 import pytest
 from pydantic import ValidationError
@@ -21,11 +23,12 @@ from ethos.repository.policy.gates import source_paths_for_gate
 from ethos.repository.policy.references.commands import python_module
 
 if TYPE_CHECKING:
+    from collections.abc import MutableMapping
     from pathlib import Path
 
 
 def _gate(gate_id: str, **attributes: object) -> Gate:
-    return Gate(id=gate_id, kind="test", command=(gate_id,), **attributes)
+    return Gate.model_validate({"id": gate_id, "kind": "test", "command": (gate_id,), **attributes})
 
 
 def _declaration(
@@ -63,6 +66,17 @@ def test_gate_cpu_reservation_is_positive_and_only_explicit_values_bind_policy()
     packaged = load_gate_registry_declaration().registry()
     assert packaged["unit-architecture"].cpu_reservation == 2
     assert packaged["local-install-smoke"].cpu_reservation == 2
+
+
+def test_gate_deadline_is_finite_positive_and_bound_to_policy() -> None:
+    """A native execution budget is an explicit contract, not an adapter constant."""
+    for invalid in (0, -1, True, float("inf")):
+        with pytest.raises(ValidationError):
+            _gate("bounded", timeout_seconds=invalid)
+    bounded = _gate("bounded", timeout_seconds=1800)
+    assert bounded.to_dict()["timeout_seconds"] == 1800
+    assert gate_policy_fields(bounded)["timeout_seconds"] == 1800
+    assert "timeout_seconds" not in _gate("default").to_dict()
 
 
 @pytest.mark.parametrize(
@@ -145,9 +159,10 @@ def test_resource_claims_are_validated_frozen_and_symmetric(locks, writer, valid
             _gate("supply-writer", writes_files=True, resource_locks={"supply": "exclusive"})
         )
     locks["changed"] = "shared"
+    assert gate.resource_locks is not None
     assert "changed" not in gate.resource_locks
     with pytest.raises(TypeError):
-        gate.resource_locks["changed"] = "shared"
+        setitem(cast("MutableMapping[str, str]", gate.resource_locks), "changed", "shared")
 
 
 @pytest.mark.parametrize(

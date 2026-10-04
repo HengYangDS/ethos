@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from pathlib import Path
 from typing import cast
 
 import pytest
+from ruff import find_ruff_bin
 
 from ethos.adapters.repo.commit.admission import commit_message_report
 from ethos.adapters.repo.commit.creation import create_git_commit
@@ -14,18 +15,17 @@ from ethos.adapters.repo.commit.integration import commit_range_admission_report
 from ethos.adapters.repo.commit.integration import validate_replayed_commits
 from ethos.adapters.repo.git import run_git
 from ethos.repository.policy.commit import commit_policy_from_text
+from tests.support.architecture import architecture_projection_fixture
 from tests.support.ethos_cli_runner import run_ethos_raw
+from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import prepared_work_lane
 from tests.support.governed_repository import render_branch_policy
 from tests.support.governed_repository import write_publication_topology
 from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 from tests.support.signature import configure_signer
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
 
 _POLICY = (
     '[commit_policy]\nsubject_pattern = "^fix: .+"\n'
@@ -46,6 +46,35 @@ def _repository(tmp_path: Path) -> tuple[Path, str, str]:
     tree = git(repo, "write-tree")
     baseline = git(repo, "commit-tree", tree, "-m", "fix: baseline")
     return repo, baseline, tree
+
+
+@pytest.mark.parametrize("select_policy", [False, True])
+def test_signed_pathspec_commit_reads_only_the_selected_policy(
+    tmp_path: Path, *, select_policy: bool
+) -> None:
+    """An unselected staged policy cannot veto or authorize the signed commit."""
+    root = prepared_work_lane(tmp_path).worktree
+    policy = root / ".ethos/workspace.toml"
+    policy.write_text(policy.read_text() + "\n" + _POLICY)
+    commit_fixture(root, "fix: declare commit policy")
+    configure_signer(root, tmp_path)
+    note = root / "NOTES.md"
+    note.write_text("Selected authored note.\n")
+    policy.write_text(policy.read_text().replace("^fix: .+", "^docs: .+"))
+    git(root, "add", ".ethos/workspace.toml", note.name)
+    head, index = git(root, "rev-parse", "HEAD"), git(root, "write-tree")
+    selected = ".ethos/workspace.toml" if select_policy else note.name
+    result = git_process(root, "commit", "-S", "-m", "fix: selected policy", "--", selected)
+    assert result.returncode == int(select_policy), result.stderr
+    assert git(root, "write-tree") == index
+    assert "^docs: .+" in git(root, "show", ":.ethos/workspace.toml")
+    assert "^fix: .+" in git(root, "show", "HEAD:.ethos/workspace.toml")
+    if select_policy:
+        assert "commit_subject_invalid" in result.stderr
+        assert git(root, "rev-parse", "HEAD") == head
+    else:
+        assert git(root, "rev-parse", "HEAD") != head
+        assert git_process(root, "verify-commit", "HEAD").returncode == 0
 
 
 @pytest.mark.parametrize(
@@ -282,3 +311,117 @@ def test_replayed_commits_cannot_waive_trusted_baseline_signatures(tmp_path):
     assert validate_replayed_commits(
         repo, baseline_commit=baseline, proposed_commit=revision, policy=None
     ) == [f"commit_signature_missing:{revision}"]
+
+
+@pytest.mark.parametrize("selected_valid", [True, False])
+@pytest.mark.parametrize("checked_owner", ["projection", "formatter", "secrets"])
+def test_signed_pathspec_commit_admits_only_its_selected_index(
+    tmp_path: Path, *, selected_valid: bool, checked_owner: str
+) -> None:
+    """Selected index bytes govern every check without consuming unrelated staged work."""
+    root = prepared_work_lane(tmp_path).worktree
+    if checked_owner == "projection":
+        _declaration, _model, output = architecture_projection_fixture(root, "Before")
+        invalid, gap = "wrong staged output\n", "generated_projection_drift:diagram.mmd"
+    else:
+        output = root / ("unselected.py" if checked_owner == "formatter" else "unselected.txt")
+        output.write_text("VALUE = 1\n")
+        if checked_owner == "formatter":
+            (root / "ruff.toml").write_text("line-length = 100\n")
+            install_fixture_hook_runtime(root, native_executables={"ruff": Path(find_ruff_bin())})
+            invalid, gap = "VALUE=1\n", "pre_commit_python_format_failed"
+        else:
+            (root / ".gitleaks.toml").write_text(
+                '[[rules]]\nid = "test-selection"\nregex = "AUTHORIZATION_[0-9]+"\n'
+            )
+            invalid, gap = "AUTHORIZATION_123456789\n", "staged_secret_scan_failed"
+    before = output.read_text()
+    commit_fixture(root, "declare exact checks")
+    configure_signer(root, tmp_path)
+    note = root / ("selected.py" if checked_owner == "formatter" else "NOTES.md")
+    note.write_text("VALUE = 1\n")
+    output.write_text(invalid)
+    git(root, "add", note.name, output.name)
+    head, index = git(root, "rev-parse", "HEAD"), git(root, "write-tree")
+
+    selected = note.name if selected_valid else output.name
+    completed = git_process(root, "commit", "-S", "-m", "test: selected index", "--", selected)
+
+    assert completed.returncode == (0 if selected_valid else 1), completed.stderr
+    assert git(root, "write-tree") == index
+    assert git(root, "show", f":{output.name}") == invalid.rstrip()
+    assert output.read_text() == invalid
+    assert git(root, "show", f"HEAD:{output.name}") == before.rstrip()
+    if selected_valid:
+        assert git(root, "rev-parse", "HEAD") != head
+        assert git_process(root, "verify-commit", "HEAD").returncode == 0
+        assert git(root, "diff", "--cached", "--name-only") == output.name
+        assert git(root, "show", f"HEAD:{note.name}") == note.read_text().rstrip()
+    else:
+        assert gap in completed.stderr
+        assert git(root, "rev-parse", "HEAD") == head
+
+
+@pytest.mark.parametrize(
+    ("checked_owner", "policy_state"),
+    [
+        (owner, state)
+        for owner in ("formatter", "secrets")
+        for state in ("root-deleted", "root-replaced", "extension-deleted", "extension-replaced")
+    ]
+    + [("secrets", "ignore-replaced")],
+)
+def test_signed_commit_preserves_incumbent_native_policy(
+    tmp_path: Path, *, checked_owner: str, policy_state: str
+) -> None:
+    """Unstaged policy mutations cannot waive an incumbent selected-index obligation."""
+    root = prepared_work_lane(tmp_path).worktree
+    extension = root / ".config" / "native-policy.toml"
+    extension.parent.mkdir(exist_ok=True)
+    if checked_owner == "formatter":
+        policy = root / "ruff.toml"
+        policy.write_text('extend = ".config/native-policy.toml"\n')
+        extension.write_text("line-length = 100\n")
+        weakened = "line-length = 1000\n"
+        output = root / "selected.py"
+        before = "VALUE = 1\n"
+        invalid = "VALUE = [" + ", ".join(str(value) for value in range(40)) + "]\n"
+        gap = "pre_commit_python_format_failed"
+        install_fixture_hook_runtime(root, native_executables={"ruff": Path(find_ruff_bin())})
+    else:
+        policy = root / ".gitleaks.toml"
+        policy.write_text('[extend]\npath = ".config/native-policy.toml"\n')
+        extension.write_text('[[rules]]\nid = "test-selection"\nregex = "AUTHORIZATION_[0-9]+"\n')
+        weakened = '[[rules]]\nid = "unrelated"\nregex = "UNRELATED_[0-9]+"\n'
+        output = root / "selected.txt"
+        before, invalid = "safe content\n", "AUTHORIZATION_123456789\n"
+        gap = "staged_secret_scan_failed"
+    output.write_text(before)
+    ignore = root / ".gitleaksignore"
+    if policy_state == "ignore-replaced":
+        ignore.write_text("unrelated.txt:test-selection:1\n")
+        weakened = "selected.txt:test-selection:1\n"
+    commit_fixture(root, "declare incumbent native configuration")
+    configure_signer(root, tmp_path)
+    output.write_text(invalid)
+    git(root, "add", output.name)
+    head, index = git(root, "rev-parse", "HEAD"), git(root, "write-tree")
+    mutable = policy if policy_state.startswith("root-") else extension
+    if policy_state == "ignore-replaced":
+        mutable = ignore
+    if policy_state.endswith("deleted"):
+        mutable.unlink()
+    else:
+        mutable.write_text(weakened)
+
+    completed = git_process(
+        root, "commit", "-S", "-m", "test: incumbent native policy", "--", output.name
+    )
+
+    assert completed.returncode == 1, completed.stderr
+    assert gap in completed.stderr
+    assert git(root, "rev-parse", "HEAD") == head
+    assert git(root, "write-tree") == index
+    assert git(root, "show", f":{output.name}") == invalid.rstrip()
+    assert output.read_text() == invalid
+    assert git(root, "show", f"HEAD:{output.name}") == before.rstrip()

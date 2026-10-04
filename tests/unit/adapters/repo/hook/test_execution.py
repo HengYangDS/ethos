@@ -335,9 +335,11 @@ def test_pre_commit_requires_only_selected_capabilities_to_prove_clean(
     )
     if capability == "secrets":
         (repo / ".gitleaks.toml").write_text("title = 'policy'\n")
+        assert git_process(repo, "add", ".gitleaks.toml").returncode == 0
         monkeypatch.setattr(hook_runtime, "shutil", SimpleNamespace(which=lambda _name: None))
     elif capability != "absent":
         (repo / "ruff.toml").write_text("line-length = 100\n")
+        assert git_process(repo, "add", "ruff.toml").returncode == 0
         if capability == "missing-formatter":
             monkeypatch.setattr(hook_runtime, "sys", SimpleNamespace(prefix=str(repo)))
         elif capability == "timeout":

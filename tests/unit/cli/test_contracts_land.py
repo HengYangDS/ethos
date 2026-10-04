@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.mutation.accepted.admission as accepted_admission
 import ethos.adapters.mutation.landing as landing_mutation
 from ethos.adapters.mutation.proof import proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
@@ -401,7 +402,7 @@ def _assert_first_cas_uses_accepted_policy(fixture, monkeypatch: pytest.MonkeyPa
     landed = _land(worktree, head)
     assert landed["verdict"] == "pass", landed
     assert git(candidate, "rev-parse", "HEAD") == head
-    report = landing_mutation.candidate_to_accepted(
+    report = accepted_admission.candidate_to_accepted(
         root=repo, authorized=True, expect_head=accepted
     )
     assert report["verdict"] == "pass", report
@@ -429,7 +430,7 @@ def _assert_declared_closeout_policy(
         git(repo, "commit", "-m", "record incomplete branch roles")
         accepted = git(repo, "rev-parse", "HEAD")
         git(candidate, "reset", "--hard", accepted)
-        report = landing_mutation.candidate_to_accepted(
+        report = accepted_admission.candidate_to_accepted(
             root=repo, authorized=True, expect_head=accepted
         )
         assert report["verdict"] == "block"
@@ -464,7 +465,7 @@ def _assert_declared_closeout_policy(
     landed = _land(worktree, head)
     assert landed["verdict"] == "pass", landed
     assert git(candidate, "rev-parse", "HEAD") == head
-    report = landing_mutation.candidate_to_accepted(
+    report = accepted_admission.candidate_to_accepted(
         root=repo, authorized=True, expect_head=accepted
     )
     assert report["verdict"] == "pass", report
@@ -492,7 +493,7 @@ def test_candidate_cas_claim_matrix(
     claim: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     fixture, head = _proved_lane(tmp_path, monkeypatch)
-    original = landing_mutation.execute_candidate_plan
+    original = landing_mutation.execute_git_effect
     attempts = 0
     plans: list[int] = []
     if claim == CAS_CASES[1]:
@@ -514,7 +515,7 @@ def test_candidate_cas_claim_matrix(
                 raise ValueError(msg)
             return original(*args, **kwargs)
 
-    monkeypatch.setattr(landing_mutation, "execute_candidate_plan", effect)
+    monkeypatch.setattr(landing_mutation, "execute_git_effect", effect)
     payload = _land(fixture.worktree, head, blocked=claim in CAS_CASES[2:])
     update = payload["data"]["candidate_update"]
     if claim == CAS_CASES[0]:

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.mutation.accepted.admission as accepted_admission
 import ethos.adapters.mutation.landing as landing
 from ethos.contracts.branch.roles import BranchRolePolicy
 from tests.support.ethos_cli_runner import run_ethos
@@ -111,7 +112,7 @@ def test_apply_reports_candidate_effect_failure_coordinates(
     def execute(*_args: object, **_kwargs: object) -> object:
         raise failure
 
-    monkeypatch.setattr(landing, "execute_candidate_plan", execute)
+    monkeypatch.setattr(landing, "execute_git_effect", execute)
 
     report = landing.apply_land_to_candidate(root=tmp_path, authorized=True, expect_head=HEAD)
 
@@ -142,27 +143,33 @@ def test_candidate_to_accepted_stops_at_decision_and_reobservation_drift(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     blocked_decision = SimpleNamespace(verdict="block", required_gaps=("authorization_required",))
-    monkeypatch.setattr(landing, "run_git", lambda *_args, **_kwargs: _git("head"))
-    monkeypatch.setattr(landing, "accepted_transition_policy", lambda *_args: BranchRolePolicy())
-    monkeypatch.setattr(landing, "evaluate_closeout_mutation", lambda **_kwargs: blocked_decision)
-    monkeypatch.setattr(landing, "accepted", SimpleNamespace(accepted_payload=lambda *_args: {}))
+    monkeypatch.setattr(accepted_admission, "run_git", lambda *_args, **_kwargs: _git("head"))
+    monkeypatch.setattr(
+        accepted_admission, "accepted_transition_policy", lambda *_args: BranchRolePolicy()
+    )
+    monkeypatch.setattr(
+        accepted_admission, "evaluate_closeout_mutation", lambda **_kwargs: blocked_decision
+    )
+    monkeypatch.setattr(
+        accepted_admission, "accepted", SimpleNamespace(accepted_payload=lambda *_args: {})
+    )
 
-    report = landing.candidate_to_accepted(
+    report = accepted_admission.candidate_to_accepted(
         root=tmp_path, authorized=False, expect_head="head", candidate_head="candidate"
     )
     assert report["required_gaps"] == ["authorization_required"]
 
     monkeypatch.setattr(
-        landing,
+        accepted_admission,
         "evaluate_closeout_mutation",
         lambda **_kwargs: SimpleNamespace(verdict="pass", required_gaps=()),
     )
     monkeypatch.setattr(
-        landing,
+        accepted_admission,
         "integration_coordinates",
         lambda *_args, **_kwargs: {"candidate": {"head": "changed"}},
     )
-    report = landing.candidate_to_accepted(
+    report = accepted_admission.candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="head", candidate_head="candidate"
     )
     assert report["required_gaps"] == ["candidate_head_changed_after_control_replacement_check"]
@@ -179,12 +186,12 @@ def test_default_accepted_policy_rejects_unreadable_or_changed_carrier(
     stdout: str,
 ) -> None:
     monkeypatch.setattr(
-        landing,
+        accepted_admission,
         "run_git",
         lambda *_args, **_kwargs: _git(stdout, returncode),
     )
 
-    report = landing.candidate_to_accepted(
+    report = accepted_admission.candidate_to_accepted(
         root=tmp_path,
         authorized=True,
         expect_head="head",
@@ -226,7 +233,9 @@ def test_closeout_accepts_exact_previous_policy_schema(
         == "pass"
     )
 
-    report = landing.candidate_to_accepted(root=repo, authorized=True, expect_head=accepted)
+    report = accepted_admission.candidate_to_accepted(
+        root=repo, authorized=True, expect_head=accepted
+    )
     assert report["verdict"] == "pass", report
     assert git(repo, "rev-parse", "dev") == head
     assert git(repo, "show", f"{accepted}:.ethos/workspace.toml") == previous.rstrip("\n")

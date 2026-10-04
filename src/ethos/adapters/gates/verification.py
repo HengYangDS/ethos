@@ -7,10 +7,12 @@ import inspect
 import subprocess
 from collections.abc import Mapping
 from dataclasses import dataclass
+from time import monotonic
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
+from ethos.adapters.process import command_scope
 from ethos.adapters.repo.git import current_head
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
@@ -41,14 +43,24 @@ def provider_reports(
     root: Path,
     *,
     execution: NativeExecution | None = None,
+    timeout_seconds: float | None = None,
 ) -> tuple[list[dict[str, object]], Verdict, tuple[dict[str, Any], ...]]:
     """Execute the same product-owned provider contract for either gate form."""
     reports: list[dict[str, object]] = []
     diagnostics: list[dict[str, Any]] = []
     verdicts: list[Verdict] = []
+    deadline = monotonic() + timeout_seconds if timeout_seconds is not None else None
     for reference in references:
         try:
-            report = _provider_report(reference, root, execution=execution)
+            remaining = max(0, deadline - monotonic()) if deadline is not None else None
+            if remaining is not None and remaining <= 0:
+                raise subprocess.TimeoutExpired(reference, remaining)
+            with command_scope(timeout_seconds=remaining):
+                report = _provider_report(
+                    reference, root, execution=execution, timeout_seconds=remaining
+                )
+            if deadline is not None and monotonic() >= deadline:
+                raise subprocess.TimeoutExpired(reference, timeout_seconds or 0)
         except (
             AttributeError,
             ImportError,
@@ -77,7 +89,9 @@ def provider_reports(
             report.get("diagnostics"), f"gate_provider_diagnostic:{gate_id}:{reference}"
         )
         provider_gaps = tuple(dict.fromkeys((*gaps, *warning_gaps, *diagnostic_gaps)))
-        verdict = report_verdict({**report, "required_gaps": provider_gaps})
+        verdict = reduce_verdicts(
+            report_verdict(report), report_verdict({**report, "required_gaps": provider_gaps})
+        )
         if verdict == "block" and not provider_gaps:
             provider_gaps = (f"gate_provider_blocked:{gate_id}:{reference}",)
         elif verdict == "unknown" and not provider_gaps:
@@ -98,6 +112,8 @@ def provider_reports(
 
 def diagnostic_gaps_for(value: object, prefix: str) -> tuple[str, ...]:
     """Promote adverse provider diagnostics without treating notes as failures."""
+    if isinstance(value, Mapping):
+        value = (value,)
     if not isinstance(value, (list, tuple)):
         return ()
     gaps = []
@@ -113,7 +129,11 @@ def diagnostic_gaps_for(value: object, prefix: str) -> tuple[str, ...]:
 
 
 def _provider_report(
-    reference: str, root: Path, *, execution: NativeExecution | None = None
+    reference: str,
+    root: Path,
+    *,
+    execution: NativeExecution | None = None,
+    timeout_seconds: float | None = None,
 ) -> Mapping[str, object]:
     module_name, _, attribute = reference.partition(":")
     provider = getattr(importlib.import_module(module_name), attribute)
@@ -123,6 +143,8 @@ def _provider_report(
         kwargs["current_head"] = current_head(root)
     if execution is not None and "execution" in parameters:
         kwargs["execution"] = execution
+    if timeout_seconds is not None and "timeout_seconds" in parameters:
+        kwargs["timeout_seconds"] = timeout_seconds
     value = provider(root, **kwargs)
     if not isinstance(value, Mapping):
         message = f"gate provider must return a mapping: {reference}"

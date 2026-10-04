@@ -8,7 +8,7 @@
 - [x] 1.6 Compare identical native boundary cases at two, four and eight workers without retries.
 - [x] 1.7 Measure consolidated full proof and repair merge intent diagnostic precedence.
 - [x] 1.8 Verify the consolidated proof, release and integration regressions with unchanged quality budgets.
-- [ ] 1.9 Restore and requalify complete proof within the temporary 900-second threshold; preserve completed-gate diagnostics on timeout, eliminate measured repeated work, and retain unchanged quality budgets. The latest 900.174-second timeout reopens current acceptance.
+- [ ] 1.9 Restore complete proof within 900 seconds without weakening assurance; preserve completed-gate diagnostics and eliminate repeated work. Aggregate budgets may rise by 5,000 per class only after measured reuse/deletion establishes necessary complexity; retain per-file and coverage limits. The latest 900.174-second timeout leaves acceptance open.
 - [ ] 1.10 Evaluate the nonblocking 600-second optimization direction from the measured remaining critical path.
 
 ## 2. Invocation-Scoped Facts and Proof Reuse
@@ -174,6 +174,12 @@
 - [ ] 11.8 Converge root configuration placement with native discovery, hook and CI consumer evidence; remove replaced declarations and stale documentation.
 - [ ] 11.9 Verify declaration-to-consumer wiring with disconnected, misbound and unavailable-capability cases through public entrypoints; preserve adverse results through receipt and admission.
   - [ ] 11.9.1 Qualify carrier-role and native-discovery applicability, including frozen provenance, generated build inputs, explicit selection, missing discovery and unauthorized relabeling; preserve integrity obligations without language or directory-name exceptions.
+        Native snapshot-label RED (2 failed) and script-owner RED (3 failed) now have
+        11 focused GREEN cases; the unsupported script is checked with actual
+        ShellCheck without execution. Snapshot-only lexical suppression was removed.
+        Publisher clean-source observation checks 399 JavaScript and one script:
+        script PASS, lexical diagnostics BLOCK. Appropriate artifact-integrity
+        composition and installed acceptance remain open; labels are not provenance.
   - [ ] 11.9.2 Compile the common quality floor through existing rule, profile
         and gate owners: reject empty/false evidence; conjoin exact per-subject native
         observations without replay; distinguish source and artifact-qualified inputs;
@@ -189,7 +195,40 @@
         history. Retired LCOV has no consumer; 36 ended scratch/cache roots retired
         after verified custody. Structural validity does not authenticate a same-user
         producer. Nox composition, subject applicability, outer-launcher diagnostics,
-        full proof and exact installed acceptance remain open.
+        full proof and exact installed acceptance remain open. The original 361-case
+        native-owner suite stopped after 169 passes and one failure in 135.50 seconds:
+        a tests-only subject set received verified behavior evidence with no native
+        execution. Non-vacuous applicability is source-repaired at the observation
+        owner without a language-name exception. The distinguishing matrix produced
+        four RED cases; the complete 176-case quality-consumer suite now passes in
+        250.70 seconds. Remaining cross-owner consumers, exact proof and installed
+        delivery are open. Evidence: `native-carrier-applicability-e34/`
+        `{native-owner-closure,applicability-red,applicability-green}.{log,junit.xml,exit}`.
+        Native signed pathspec commits exposed discarded prospective-index selection
+        (seven failed, one passed). Explicit selection now reaches the unique staged
+        owners and both revalidation fences; Git environment sanitization is unchanged.
+        Eight distinguishing cases and 166 related consumers pass in 30.37 and 109.01
+        seconds. The latter attempt's Allure 3 human report matches all 166 JUnit cases;
+        owned temporary roots were retired. Evidence: `native-carrier-applicability-e34/`
+        `{index-native-matrix-red,index-native-matrix-green-r2,index-owner-closure}.*`
+        and `index-owner-closure-report/manifest/human-report.json`. No successor is
+        committed or installed. Final projection-owner cases pass (47); matched
+        reads are 10→3 and 227→34 with equal observations and external-owner
+        refusal. Same-attempt Allure 3, Ruff, format, Ty and selected layout pass;
+        evidence is `repowise-optimization-9wli7wjw/`. Tests measure 60,373:
+        committed source already had 60,068, and reviewed fixture reuse saved
+        34 lines without deleting assertions. One explicitly authorized 5,000-line
+        step raises only tests to 65,000; product stays 55,000, per-file 500 and
+        coverage floors remain. Whole-corpus irreducibility is not claimed.
+        The inert Ruff `max-args` setting is removed; native argument-count
+        findings need semantic disposition, not automatic DTO creation.
+        Incumbent native policy now binds the selected Git index and configuration
+        include closure; mutable working-tree waivers cannot replace them. Gitleaks
+        also reads the scan-root ignore file, so native Git selection stays bound to
+        the original repository while the scan root is owned incumbent configuration.
+        The full 93-case hook/commit matrix passes in 65.97 seconds with same-attempt
+        Allure 3 (`repowise-optimization-9wli7wjw/native-ignore-green*`). Original failed
+        receipts remain retained; exact-source proof and installed acceptance stay open.
 - [x] 11.10 Verify native TOML and mise migrations through focused native checks, exact-source full proof and installed runtime.
 
 ## 12. Documentation Comprehension and Research Delivery
@@ -202,6 +241,14 @@
   - [ ] Audit the 17 first-parent reductions whose Markdown preimage exceeded 500 nonblank lines (eight docs, eight live OpenSpec carriers, one archived Change). Map each still-live claim to its current owner or explicitly retire it; recover missing semantics, especially from the terminal plan's 6011-to-420 reduction. Git recoverability alone is insufficient. The decision-record identity and command-root drift found in this audit require exact proof and delivery before this task can close.
 - [ ] 12.5 Qualify a bounded OKF consumer when needed; preserve identity, scope, unknown fields and declared loss without inherited authority or a parallel knowledge store.
 - [ ] 12.6 Settle source research into its topic owner and execute the existing framework comparisons; report adoption or rejection from actual replacement evidence.
+      [RepoWise disposition](../../../docs/research/foundations/semantics.md#repowise-navigation-without-imported-authority)
+      retains completed health, pinned mechanism review and the useful unique-input
+      repair. Promote successfully accepted navigation/quality capabilities through
+      existing host/adopter owners; do not freeze disposition at trial-only. Borrow
+      batch context and analyzer-bound invalidation; reject heuristic scores as proof,
+      deletion or unqualified test-selection authority. Actual Agent/token/iteration
+      benefit, live project/MCP rollout and document drift remain unqualified and
+      do not delay the existing bounded source successor.
 
 ## 13. Feedback-Driven Improvement Closure
 
@@ -209,7 +256,7 @@
 - [ ] 13.2 Enforce declared feedback closure through existing acceptance and verification owners.
   - [ ] 13.2.1 Reject note-only, missing, stale and contradictory closure evidence while preserving independently admissible source work.
   - [ ] 13.2.2 Exercise model-gap escalation, dependent migration, superseded-path retirement and correction of ineffective feedback safeguards.
-  - [ ] 13.2.3 Qualify self-hosting and distinct adopted business domains without sharing their goals, metrics or authority.
+  - [ ] 13.2.3 Qualify self-hosting and distinct adopted business domains without sharing their goals, metrics or authority; bind actual-use observation and revised intent to the same complete acceptance trace used by greenfield-formation 2.3 and the canonical terminal plan.
 - [ ] 13.3 Wire feedback planning to canonical skill context; verify package integrity, trigger/non-trigger behavior and compiled pre-reads while keeping host loading and changed agent behavior distinct. Source joins selected dependency observations to registry/package identities and preserves the active section floor in one validator; invalid activation emits no Skills or context, without blocking unrelated optional packages. Signed source `7a8a6b04`: 49 tests, the public skills gate and 14 isolated installed-wheel observations pass; 29 fixture/cache roots and the isolated test installation retired after verified custody (`selected-skills-{source,installed,housekeeping}-result.json`). Publisher's retained signed fixture independently closes the installed defect through native hook/Lease and 14 public observations: `north-star-skills-successor-public-cases.json`, SHA256 `6a779029811928ca873b3860734ed7db3849a1e89d7bc7d48c580dc62828344a`. Host loading, behavior and accepted-runtime delivery remain open; old counterexamples remain history, not current defects.
       Current common-foundation scope is global, not Decision Record naming alone.
       The four self-maintenance Skills' declared-subject PASS does not cover the
@@ -238,5 +285,12 @@
         previews; remove that repetition before exact retirement. Current adopters
         were notified; four historical families still lack acknowledged owner routing.
   - [ ] 13.4.4 Deliver native stat-cache refresh at the worktree-sync owner; preserve real dirty bytes and qualify public closeout, exact proof and installed behavior. Current focused native owner tests are evidence, not accepted delivery.
+    - [ ] 13.4.4.1 Recover materialization from the admitted original plan and Attestation without recompilation or CAS replay; preserve the receipt and qualify the public journey, exact proof and installed replay.
+          The original 19-case run failed candidate-sync-loss. The transition/primitive
+          operation mismatch is now source-corrected; the original public regression
+          passes in 44.47 seconds with no recompilation or CAS replay. The stale tuple
+          consumer was reproduced RED and migrated; 166 related native consumers now
+          pass in 109.01 seconds. Exact proof and installed replay remain open. Evidence:
+          `native-carrier-applicability-e34/original-readiness-green.{log,junit.xml,exit}`.
   - [ ] 13.4.5 Deliver exact false-coauthor selection at the existing history owner; preserve every unselected message byte, true contributors, timestamps and ordered parents. Native trailer and signed history tests pass; runtime activation, actual repair and GitHub Commit.authors readback remain open.
   - [ ] 13.4.6 Resume the conserved full-product candidate after attribution closure. Signed checkpoint `6c4584cb6998d0307ef1a08db09c520fb620e74f` retains tree `701996186a5ad660b417004f58fe18523bbd97e3`; `exact-before-refresh.bundle` and the recorded admitted inverse patch preserve every unrelated source, test, contract and canonical-plan change. Isolation is not semantic retirement or completion of those obligations.

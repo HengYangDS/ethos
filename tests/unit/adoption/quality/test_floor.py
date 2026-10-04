@@ -14,11 +14,11 @@ from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Facts
 from ethos.repository.policy.gates import quality_obligation_gaps
-from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.proof import run_quality_proof
 
 
 def test_success_only_commands_do_not_qualify_broken_code(tmp_path: Path) -> None:
@@ -48,9 +48,7 @@ def test_success_only_commands_do_not_qualify_broken_code(tmp_path: Path) -> Non
     (repo / "tests/test_app.py").write_text('raise AssertionError("not run")\n', encoding="utf-8")
     head = commit_fixture(repo, "declare native checks")
 
-    result = run_ethos_raw(
-        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
-    )
+    result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
 
     assert result.returncode != 0
@@ -97,9 +95,7 @@ def test_non_python_source_cannot_pass_on_success_only_commands(
     (repo / source_path).write_text(broken_source, encoding="utf-8")
     head = commit_fixture(repo, "declare native checks")
 
-    result = run_ethos_raw(
-        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
-    )
+    result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
 
     assert result.returncode != 0
@@ -161,9 +157,7 @@ def test_registry_cannot_omit_common_code_obligations(
         )
     head = commit_fixture(repo, "claim quality without execution")
 
-    result = run_ethos_raw(
-        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
-    )
+    result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
 
     assert result.returncode != 0
@@ -438,9 +432,7 @@ def test_real_locked_python_checks_qualify_the_selected_source(
     if defect == "plugin-disabled":
         monkeypatch.setenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
 
-    result = run_ethos_raw(
-        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
-    )
+    result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
 
     if defect in {"none", "strict-config", "plugin-disabled"}:
@@ -486,16 +478,7 @@ def test_one_gate_can_supply_both_code_axes(tmp_path: Path, evidence_case: str) 
             ),
         },
     )
-    result = run_ethos_raw(
-        "prove",
-        "--host",
-        "--execute",
-        "--full",
-        "--expect-head",
-        git(repo, "rev-parse", "HEAD"),
-        "--json",
-        cwd=repo,
-    )
+    result = run_quality_proof(repo, git(repo, "rev-parse", "HEAD"))
     payload = json.loads(result.stdout)
     if evidence_case == "complete":
         assert result.returncode == 0, payload["required_gaps"]

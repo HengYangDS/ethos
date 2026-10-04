@@ -6,6 +6,7 @@ import shlex
 import shutil
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ethos.adapters.projections.compiler import render_projections
 from ethos.adapters.repo.git import run_git
@@ -24,6 +25,9 @@ from ethos.repository.policy.references.observation import deleted_input_gaps
 from ethos.repository.policy.references.observation import product_references_from_files
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import repository_profile_from_text
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 _UNIFIED_DIFF_HEADER_PART_COUNT = 4
 
@@ -235,11 +239,22 @@ def _read_text_objects(root: Path, entries: dict[str, str]) -> dict[str, str]:
     )
 
 
-def staged_artifact_admission(root: Path, baseline: str) -> dict[str, object]:
+def staged_artifact_admission(
+    root: Path, baseline: str, *, index_env: Mapping[str, str] | None = None
+) -> dict[str, object]:
     """Observe the prospective index tree; working files never substitute for staged bytes."""
-    selected = run_git(root, "write-tree", check=False)
+    selected = run_git(root, "write-tree", check=False, env=index_env)
     if selected.returncode:
-        return {"verdict": "unknown", "reason": "staged_tree_unavailable", "effects": {}}
+        return {
+            "verdict": "unknown",
+            "reason": "staged_tree_unavailable",
+            "effects": {},
+            "observation": {
+                "command": list(selected.args),
+                "exit_code": selected.returncode,
+                "stderr": selected.stderr,
+            },
+        }
     tree = selected.stdout.strip()
     try:
         before = _object_files(root, baseline)
@@ -247,7 +262,7 @@ def staged_artifact_admission(root: Path, baseline: str) -> dict[str, object]:
             path for item in projection_relations(before) for path in item.materials
         )
         after = _object_files(root, tree, prior_paths)
-        effects = _indexed_effects(root)
+        effects = _indexed_effects(root, index_env=index_env)
         postimages = {path: after.get(path) for path in effects}
         # Non-carrier changes have no text observation, but are not deletions.
         postimages = {
@@ -277,10 +292,12 @@ def staged_artifact_admission(root: Path, baseline: str) -> dict[str, object]:
         ),
         "required_gaps": [*gaps, *unknown],
     }
-    return revalidate_staged_admission(root, report)
+    return revalidate_staged_admission(root, report, index_env=index_env)
 
 
-def revalidate_staged_admission(root: Path, report: dict[str, object]) -> dict[str, object]:
+def revalidate_staged_admission(
+    root: Path, report: dict[str, object], *, index_env: Mapping[str, str] | None = None
+) -> dict[str, object]:
     """Fence an observed index result at its consuming admission boundary."""
     if not report.get("index_tree"):
         return report
@@ -289,7 +306,7 @@ def revalidate_staged_admission(root: Path, report: dict[str, object]) -> dict[s
         ("head", "baseline_head", ("rev-parse", "--verify", "HEAD")),
     )
     for name, field, args in coordinates:
-        observed = run_git(root, *args, check=False)
+        observed = run_git(root, *args, check=False, env=index_env)
         if observed.returncode or observed.stdout.strip() != report[field]:
             gap = f"staged_{name}_changed_during_admission"
             previous = report.get("required_gaps", [])
@@ -299,13 +316,21 @@ def revalidate_staged_admission(root: Path, report: dict[str, object]) -> dict[s
                 "verdict": "block",
                 "reason": gap,
                 "required_gaps": list(dict.fromkeys([gap, *gaps])),
+                "observation": {
+                    "command": list(observed.args),
+                    "exit_code": observed.returncode,
+                    "stdout": observed.stdout,
+                    "stderr": observed.stderr,
+                },
             }
     return report
 
 
-def _indexed_effects(root: Path) -> dict[str, str]:
+def _indexed_effects(root: Path, *, index_env: Mapping[str, str] | None = None) -> dict[str, str]:
     """Read exact index effects without rename heuristics or working-tree postimages."""
-    statuses = run_git(root, "diff", "--cached", "--name-status", "--no-renames", "-z", check=False)
+    statuses = run_git(
+        root, "diff", "--cached", "--name-status", "--no-renames", "-z", check=False, env=index_env
+    )
     if statuses.returncode:
         message = "staged_diff_unavailable"
         raise ValueError(message)
@@ -452,29 +477,33 @@ def _source_effect_gaps(
     context_files: dict[str, str],
     postimages: dict[str, str | None],
 ) -> tuple[list[str], list[str], list[str]]:
-    """Resolve effective native inputs from current files and exact patch postimages."""
+    """Read each effective input once per invocation, then overlay exact postimages."""
     effective = {
         path: (root / path).read_text(encoding="utf-8")
         for path in context_files
         if (root / path).is_file() and (root / path).resolve().is_relative_to(root.resolve())
     }
-    for path in PROJECTION_DECLARATIONS:
-        if (root / path).is_file():
-            effective[path] = (root / path).read_text(encoding="utf-8")
+    for path in PROJECTION_DECLARATIONS.keys() - effective.keys():
+        source = root / path
+        if source.is_file():
+            if not source.resolve().is_relative_to(root.resolve()):
+                msg = f"projection_input_outside_root:{path}"
+                raise ValueError(msg)
+            effective[path] = source.read_text(encoding="utf-8")
     before = _prior_projection_relations(context_files, effective, postimages)
     effective.update({path: text for path, text in postimages.items() if text is not None})
     deleted = frozenset(path for path, text in postimages.items() if text is None)
     for path in deleted:
         effective.pop(path, None)
     after = projection_relations(effective)
-    for relation in (*before, *after):
-        for path in relation.materials:
-            source = root / path
-            if path not in postimages and source.is_file():
-                if not source.resolve().is_relative_to(root.resolve()):
-                    msg = f"projection_input_outside_root:{path}"
-                    raise ValueError(msg)
-                effective[path] = source.read_text(encoding="utf-8")
+    materials = {path for relation in (*before, *after) for path in relation.materials}
+    for path in sorted(materials - effective.keys() - postimages.keys()):
+        source = root / path
+        if source.is_file():
+            if not source.resolve().is_relative_to(root.resolve()):
+                msg = f"projection_input_outside_root:{path}"
+                raise ValueError(msg)
+            effective[path] = source.read_text(encoding="utf-8")
     gaps, unknown = _effect_gaps(root, before, effective, postimages)
     return gaps, unknown, sorted({item.output for item in (*before, *after)})
 

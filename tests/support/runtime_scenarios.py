@@ -39,6 +39,8 @@ from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     import pytest
 
     from ethos.adapters.repo.hook.observation import HookRuntimeBinding
@@ -47,7 +49,9 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _GOVERNANCE_PYTHON: Path | None = None
 
 
-def install_fixture_hook_runtime(root: Path) -> HookRuntimeBinding:
+def install_fixture_hook_runtime(
+    root: Path, *, native_executables: Mapping[str, Path] | None = None
+) -> HookRuntimeBinding:
     """Install a small valid runtime for non-runtime governance fixtures."""
     common = Path(git_common_dir(root))
     runtime_root = common / "ethos/runtime"
@@ -58,7 +62,11 @@ def install_fixture_hook_runtime(root: Path) -> HookRuntimeBinding:
     build = expected_runtime_build(root).identity
     environment = observe_runtime_environment(REPOSITORY_ROOT, Path(sys.executable))
     try:
-        create_fixture_python(staging / "python", shared_executable=_GOVERNANCE_PYTHON)
+        create_fixture_python(
+            staging / "python",
+            shared_executable=_GOVERNANCE_PYTHON,
+            native_executables=native_executables,
+        )
         runtime_files = runtime_file_inventory(staging)
         digest = runtime_digest(
             wheel_sha256=wheel_sha256,
@@ -102,7 +110,12 @@ def install_fixture_hook_runtime(root: Path) -> HookRuntimeBinding:
         shutil.rmtree(staging, ignore_errors=True)
 
 
-def create_fixture_python(target: Path, *, shared_executable: Path | None = None) -> None:
+def create_fixture_python(
+    target: Path,
+    *,
+    shared_executable: Path | None = None,
+    native_executables: Mapping[str, Path] | None = None,
+) -> None:
     """Bind fixture children to the invoking candidate and shared dependencies."""
     scripts = target / ("Scripts" if os.name == "nt" else "bin")
     scripts.mkdir(parents=True)
@@ -120,6 +133,10 @@ def create_fixture_python(target: Path, *, shared_executable: Path | None = None
             message = "shared fixture executable must be read-only"
             raise ValueError(message)
         os.link(shared_executable, fixture_python)
+    for name, source in (native_executables or {}).items():
+        executable = runtime_executable(target, name)
+        shutil.copy2(source, executable)
+        executable.chmod(0o555)
     home = Path(sys.base_prefix) if os.name == "nt" else source_python.resolve().parent
     target.joinpath("pyvenv.cfg").write_text(
         f"home = {home.as_posix()}\n"

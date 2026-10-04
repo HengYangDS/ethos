@@ -119,6 +119,7 @@ class LocalGateRunner:
     """Execute a declared provider directly or an external adapter command."""
 
     def run(self, node: PlanNode, gate: Gate, *, root: Path) -> ActionRunResult:
+        deadline = monotonic() + gate.timeout_seconds if gate.timeout_seconds else None
         if node.command != gate_execution_identity(gate):
             return ActionRunResult(
                 action_id=node.id,
@@ -146,7 +147,31 @@ class LocalGateRunner:
             (str(Path(executable).absolute()), *command[1:]) if executable else command
         )
         try:
-            completed = run_command(root, execution_command)
+            completed = run_command(
+                root,
+                execution_command,
+                **({"timeout": max(0, deadline - monotonic())} if deadline else {}),
+            )
+        except subprocess.TimeoutExpired as exc:
+            return ActionRunResult(
+                action_id=node.id,
+                command=node.command,
+                verdict="unknown",
+                exit_code=124,
+                stdout=exc.stdout.decode(errors="replace")
+                if isinstance(exc.stdout, bytes)
+                else exc.stdout or "",
+                stderr=exc.stderr.decode(errors="replace")
+                if isinstance(exc.stderr, bytes)
+                else exc.stderr or "",
+                diagnostics=(
+                    {
+                        "kind": "gate_timeout",
+                        "timeout_seconds": exc.timeout,
+                        "required_gaps": [f"gate_timeout:{node.id}"],
+                    },
+                ),
+            )
         except ProcessExecutionError as exc:
             if not isinstance(exc.__cause__, FileNotFoundError):
                 raise
@@ -185,6 +210,7 @@ class LocalGateRunner:
                 gate.id,
                 gate.verification_providers,
                 root,
+                timeout_seconds=max(0, deadline - monotonic()) if deadline else None,
                 execution=NativeExecution(
                     declared_identity=node.command,
                     argv=command,
@@ -418,7 +444,9 @@ def _run_ready_gate(
 
 
 def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
-    reports, verdict, diagnostics = provider_reports(gate.id, gate.providers, root)
+    reports, verdict, diagnostics = provider_reports(
+        gate.id, gate.providers, root, timeout_seconds=gate.timeout_seconds
+    )
     payload = {"verdict": verdict, "gate": gate.id, "providers": reports}
     return ActionRunResult(
         action_id=node.id,

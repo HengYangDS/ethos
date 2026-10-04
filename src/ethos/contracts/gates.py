@@ -55,6 +55,7 @@ class Gate(BaseModel):
     trust_bearing: bool = False
     tool_adapter: str = "ethos"
     writes_files: bool = False
+    timeout_seconds: int | None = Field(default=None, ge=1, exclude_if=lambda value: value is None)
     cpu_reservation: int = Field(default=1, ge=1, exclude_if=lambda value: value == 1)
     resource_locks: FrozenMapping[Literal["shared", "exclusive"]] | None = Field(
         default=None,

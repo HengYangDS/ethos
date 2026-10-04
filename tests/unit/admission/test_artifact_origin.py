@@ -13,6 +13,7 @@ from ethos.adapters.admission.patch_admission import patch_admission
 from ethos.adapters.admission.patch_admission import staged_artifact_admission
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from ethos.repository.policy.references.observation import deleted_input_gaps
+from tests.support.architecture import architecture_projection_fixture
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import commit_fixture
@@ -36,23 +37,6 @@ def _prewrite(root: Path, paths: tuple[str, ...], patch: Path | None = None):
         cwd=root,
     )
     return json.loads(completed.stdout)
-
-
-def _architecture_projection(root: Path, title: str = "Example") -> tuple[Path, Path, Path]:
-    """Declare a literal source/output pair without using the production renderer."""
-    declaration = root / ".config/checks/architecture/projection.toml"
-    declaration.parent.mkdir(parents=True, exist_ok=True)
-    declaration.write_text(
-        'schema = "ethos-architecture-projection-v1"\n[[projection]]\n'
-        'id = "view"\nsource = "model.c4"\noutput = "diagram.mmd"\n'
-        'kind = "likec4-to-mermaid"\n',
-    )
-    model, output = root / "model.c4", root / "diagram.mmd"
-    model.write_text(f'system Example "{title}"\n')
-    output.write_text(
-        f'%% Generated from model.c4. Do not edit by hand.\nflowchart LR\n  Example["{title}"]\n',
-    )
-    return declaration, model, output
 
 
 @pytest.mark.parametrize("suffix", ["json", "xml", "html"])
@@ -121,7 +105,7 @@ def test_authored_deletion_checks_surviving_native_input(
 def test_declared_output_requires_patch_but_its_source_does_not(tmp_path: Path) -> None:
     fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
-    _declaration, _model, output = _architecture_projection(root)
+    _declaration, _model, output = architecture_projection_fixture(root)
     output.unlink()
     result = _prewrite(root, ("diagram.mmd",))
     assert result["verdict"] == "block", result
@@ -195,19 +179,23 @@ def test_public_projection_admission_reads_committed_native_owner(
         ("retire", "pass", ""),
         ("disguise", "block", "generated_projection_owner_removed"),
         ("predelete-owner", "block", "generated_projection_owner_removed"),
+        ("external-owner", "block", "prewrite_patch_postimage_failed"),
     ],
 )
 def test_projection_effect_uses_producer_before_and_after(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
     effect: str,
     verdict: str,
     gap: str,
 ) -> None:
 
     root = init_git_repo(tmp_path / "repo")
-    paths = _architecture_projection(root)
+    paths = architecture_projection_fixture(root)
     declaration, source, output = (path.relative_to(root).as_posix() for path in paths)
     files = {path.relative_to(root).as_posix(): path.read_text() for path in paths}
+    if effect == "external-owner":
+        (root / declaration).unlink()
     commit_active_change(root)
     head = git(root, "rev-parse", "HEAD")
     mutations: dict[str, dict[str, str | None]] = {
@@ -222,7 +210,7 @@ def test_projection_effect_uses_producer_before_and_after(
         "retire": {declaration: None, output: None},
         "disguise": {declaration: None, output: "authored now\n"},
     }
-    changed = mutations[effect]
+    changed = mutations["regenerate" if effect == "external-owner" else effect]
     for path, text in changed.items():
         if text is None:
             (root / path).unlink()
@@ -233,9 +221,23 @@ def test_projection_effect_uses_producer_before_and_after(
         (root / path).write_text(files[path])
     if effect == "predelete-owner":
         (root / declaration).unlink()
+    elif effect == "external-owner":
+        external = tmp_path / "outside-owner.toml"
+        external.write_text(files[declaration])
+        (root / declaration).symlink_to(external)
+    reads = dict.fromkeys(paths, 0)
+    read_text = Path.read_text
+
+    def observe_read(path: Path, encoding: str | None = None, errors: str | None = None) -> str:
+        if path in reads:
+            reads[path] += 1
+        return read_text(path, encoding=encoding, errors=errors)
+
+    monkeypatch.setattr(Path, "read_text", observe_read)
     result = patch_admission(
         root=root, requested_paths=tuple(changed), baseline_head=head, patch=patch
     )
+    assert all(count <= 1 for count in reads.values()), reads
     assert result["verdict"] == verdict, result
     if gap:
         assert gap in str(result["reason"]), result
@@ -276,7 +278,7 @@ def test_deleted_input_observation_distinguishes_effects(
 def test_path_only_admission_cannot_erase_a_committed_producer(tmp_path: Path) -> None:
     fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
-    declaration, _model, output = _architecture_projection(root)
+    declaration, _model, output = architecture_projection_fixture(root)
     output.write_text("old output\n")
     commit_fixture(root, "declare producer")
     declaration.unlink()
@@ -379,7 +381,7 @@ def test_precommit_validates_index_projection_not_working_copy(
 ) -> None:
     fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
-    _declaration, model, output = _architecture_projection(root, "Before")
+    _declaration, model, output = architecture_projection_fixture(root, "Before")
     before = output.read_text()
     commit_fixture(root, "declare exact producer")
     model.write_text('system Example "After"\n')
@@ -404,7 +406,7 @@ def test_precommit_validates_index_projection_not_working_copy(
 @pytest.mark.parametrize("effect", ["disguise", "retire", "unlink-source", "symlink-output"])
 def test_staged_retirement_preserves_exact_output_existence(tmp_path: Path, effect: str) -> None:
     root = init_git_repo(tmp_path / "repo")
-    declaration, _model, output = _architecture_projection(root)
+    declaration, _model, output = architecture_projection_fixture(root)
     commit_active_change(root)
     baseline = git(root, "rev-parse", "HEAD")
     if effect in {"disguise", "retire"}:

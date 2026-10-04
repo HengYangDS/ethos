@@ -1,9 +1,15 @@
-# system/schemas/
+# Public Contract Schemas
 
-JSON Schema and TOML schema contracts — the Contract layer's machine-checkable
-shapes. The terminal design moves the legacy `schemas/` root here.
+Purpose: define machine-readable public contract shapes. These schemas validate
+structure; they do not establish effect permission or proof validity.
 
-Authority: docs/plans/terminal-governance-product-design.md (§`system/`).
-Migration state (Phase A): directory created; relocation of `system/schemas/kernel/*`
-(37 files) here is a separate, independently-revertible step, coordinated with
-updating the ~6 py files that reference `schemas/ethos`.
+| Contract | Schema |
+| --- | --- |
+| Evidence boundaries | [Decision, truth and boundary](evidence-boundaries.schema.json) |
+| Output formats | [Formats](formats.schema.json) |
+| Capability routing | [Routing](routing.schema.json) |
+| Public surfaces | [Surfaces](surfaces.schema.json) |
+
+Meaning belongs to the [Product Design Contract](../../../docs/governance/product-design-contract.md).
+Distinct kernel record schemas remain in [kernel](../kernel/); neither directory
+is an unfinished relocation of the other.

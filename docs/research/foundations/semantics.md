@@ -122,6 +122,85 @@ conditional import, unresolved dynamic call and legitimate negative cases.
 Unsupported dynamic behavior produces relevant UNKNOWN, not a global permanent
 block. Code semantics must not narrow the full product chain.
 
+### RepoWise: Navigation Without Imported Authority
+
+Disposition: introduce the unmodified external tool for derived navigation and
+reviewed quality leads. After successful consumer acceptance, promote it across
+ETHOS and governed repositories through existing capability and adoption owners;
+do not leave it permanently trial-only. It is not a product dependency, mandatory
+score gate, intent owner, deletion authority or unqualified test selector.
+
+The fixed October 4 trial used RepoWise 0.55.0, upstream
+`e829775bfd18f22ff2f9522d514d3b94c1fde2b6`, against ETHOS source
+`e34b3a286510d43eb622b401dbc3f228446c6509`. Its original fast run and completed
+health run did not assess subsequent dirty candidate bytes.
+
+| Capability | Actual observation | Limit |
+| --- | --- | --- |
+| Index and symbol context | Init 34.083 seconds; queries 2–6 seconds | Derived structural navigation, not behavior completeness |
+| Dead-code candidates | Two exports received `safe_to_delete=true` | Dynamic/external consumers remain unclosed; neither was deleted |
+| Impacted tests | 809 inferred entries, five unknown files, `run_all=true` | No coverage map or justified test reduction |
+| Health | Completed in 44.842 seconds: 671 metric rows, 1,817 findings, 1,165 product findings | Supersedes the first 35-second timeout; coverage is null, findings are hypotheses |
+| Installed tool | Official independent UV installation and structural index/query/update accepted | Live project and Agent MCP rollout, model answers and byte-current health remain unaccepted |
+
+#### Mechanism Decisions
+
+| Mechanism | Decision and reason |
+| --- | --- |
+| [Graph construction][repowise-graph] | Introduce derived symbol/import/call navigation. Explicit imports help; unique-name fallback and confidence filters do not prove runtime callees, ownership or absent consumers. |
+| [Parse reuse][repowise-parse-cache] and [edge persistence][repowise-persist] | Borrow content-bound reuse and parser-fingerprint invalidation. A parser change widens reconciliation to unchanged files; a warm update still reads and resolves source. Watch alone does not prove freshness. |
+| [Batched context][repowise-context] and [index identity][repowise-index-state] | Borrow bounded owner/caller selection and reusable immutable computation. Bind project/store, source snapshot, analyzer and configuration; preserve omitted/unknown scope and never cache current authorization. |
+| [I/O markers][repowise-io] | Adapt as performance leads, not redundant-work verdicts. They recognize sinks inside supported loop bodies, not repeated input identities or a measured execution cost. |
+| [Clone markers][repowise-dry] | Borrow refactoring candidates, not semantic equivalence. Cross-file token clones and co-change cannot establish shared responsibility; same-file clones are not this marker's scope. |
+| [Primitive signatures][repowise-primitive] | Borrow model-review leads. File size, parameter counts and lexical type names do not prove an absent domain model or require a dataclass. |
+| [Scoring][repowise-score] | Reject as acceptance or deletion authority. Ranking prioritizes investigation; a zero result can mean unsupported syntax or no extracted signal. |
+
+The October 5 native in-memory probe did not execute sample code or index a
+Lane. The committed projection reader produced one I/O marker; the repaired
+reader produced two, although equal observations required 227 versus 34 actual
+text reads. Both unique and repeated `Path(...).read_text()` comprehension
+samples produced no marker. Malformed syntax likewise produced no marker.
+The direct `loop_key_unused` identifier-overlap test does not track a loop key
+through a derived local. These observations reject score/count reduction as a
+substitute for behavioral verification.
+
+#### ETHOS Repair And Gate Coverage
+
+The unique patch-admission observation owner now reads each effective projection
+input at most once per invocation, then overlays exact postimages. Equal-result
+fixtures measured 10→3 and 227→34 reads; shared source and declaration each
+fell to one. No persistent cache or authority reuse was introduced. Public
+admission retains regeneration, tamper, deletion, retirement and external-owner
+refusal. Forty-seven final cases, native lint/format/type and module layout pass;
+Allure 3 was generated from that same attempt without another test run. This is
+candidate evidence, not an accepted or installed successor.
+
+Native Ruff already enabled `PERF`, but the repeated-reader baseline passed:
+those rules do not assert exact-input cardinality. The owner regression now
+asserts that property. Separately, `max-args=7` was inert because `PLR0913` was
+not selected. An eight-argument native probe passed active configuration and was
+rejected when that rule was selected. Remove the misleading setting rather than
+pretend a count alone proves good domain design. Explicit analysis identified
+77 signatures for review, not 77 established model defects. Mechanical coverage,
+semantic review and actual cost retain distinct acceptance predicates.
+
+Keep the tool isolated: the trial resolved 135 packages and its MCP requirement
+conflicts with ETHOS's floor. The official wheel is AGPL-3.0-or-later; external
+unmodified use is distinct from code copying, library linkage or redistribution.
+No integration-specific legal conclusion or reduced dependency closure is claimed.
+Retain grammar/network and stdout-framing warnings. Do not run default editor,
+hook, prompt or MCP bootstrap against a protected or active Lane.
+
+Evidence remains in the existing custody: `repowise-trial-cu1e3d91/results/`
+(first trial), `repowise-quality-completion-xql_swxp/results/` (completed health),
+and `repowise-optimization-9wli7wjw/` (exact source bindings, native mechanism
+probes, final matched reads, public RED/GREEN, Allure and owned cleanup).
+The host installation receipt is
+`repowise-official-installation-acceptance-20261005.json`, SHA-256
+`39be6853501b3a42bee4e3e603b48e5f4c2db9d3358cef5f7a655141258c9314`.
+Matched Agent quality, token savings, complete iteration speed, live watch and
+fleet conformance remain unqualified; each affected owner keeps those obligations.
+
 ## Sources
 
 Links identify inspected documents, not blanket endorsements. Source-level and
@@ -142,3 +221,12 @@ marketing claims were not used as evidence of comparative performance.
 [scip]: https://github.com/sourcegraph/scip/blob/a279febaad96d05c8bc303c1bcaa11ebf348a82b/README.md
 [codeql]: https://github.com/github/codeql/blob/cfc358e846dc1b26f4be2d1d2854c0d983c12ce8/README.md
 [networkx]: https://github.com/networkx/networkx/blob/4e74880b0da01977da79915167c64e5c2af38b47/README.rst
+[repowise-graph]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/core/src/repowise/core/ingestion/graph/builder.py
+[repowise-parse-cache]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/core/src/repowise/core/ingestion/parse_cache.py
+[repowise-persist]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/core/src/repowise/core/pipeline/persist.py
+[repowise-context]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/core/src/repowise/server/mcp_server/tool_context/context.py
+[repowise-index-state]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/core/src/repowise/server/mcp_server/_index_state.py
+[repowise-io]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/core/src/repowise/core/analysis/health/biomarkers/io_in_loop.py
+[repowise-dry]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/core/src/repowise/core/analysis/health/biomarkers/dry_violation.py
+[repowise-primitive]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/core/src/repowise/core/analysis/health/biomarkers/primitive_obsession.py
+[repowise-score]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/core/src/repowise/core/analysis/health/scoring.py

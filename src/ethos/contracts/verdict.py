@@ -10,15 +10,13 @@ _VERDICTS: dict[object, Verdict] = {"pass": "pass", "block": "block", "unknown":
 
 
 def _items(value: object) -> tuple[object, ...]:
-    return tuple(value) if isinstance(value, (list, tuple)) else ()
+    return tuple(value) if isinstance(value, (list, tuple)) else (value,) if value else ()
 
 
 def _has_adverse_diagnostic(value: object) -> bool:
-    if not isinstance(value, (list, tuple)):
-        return False
     return any(
         isinstance(item, Mapping) and str(item.get("severity", "")).lower() in {"warning", "error"}
-        for item in value
+        for item in _items(value)
     )
 
 

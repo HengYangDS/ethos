@@ -357,7 +357,7 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "github-workflow-syntax"
 kind = "config"
-command = ["tools/ci/scripts/run-actionlint.sh"]
+command = ["{python}", "-m", "tools.ci.ci_projection"]
 policy = "required"
 profile = "product"
 toolchain = "quality-adapter"
@@ -368,8 +368,8 @@ execution_mode = "adapter"
 evidence_class = "diagnostic"
 trust_bearing = true
 tool_adapter = "actionlint"
-writes_files = true
-network_policy = "required"
+writes_files = false
+network_policy = "offline"
 version_source = "locked-toolchain"
 
 [[gates]]

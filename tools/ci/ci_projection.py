@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 import sys
+import time
 import tomllib
+from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 
 import yaml
@@ -18,7 +22,11 @@ from ethos.adapters.process import run_command
 from ethos.adapters.projections.cue import compile_projections
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.repository.policy.projections import observe_projections
+from tools.ci.toolchain.environment import ProjectRuntime
 from tools.ci.toolchain.native import validate_mise_installer
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_RELATIVE_PATH = ".config/checks/ci/templates.toml"
@@ -41,20 +49,164 @@ def _sha256(path: Path) -> str:
 
 
 def check_workflow(root: Path = ROOT) -> int:
-    """Run native workflow validation with the repository's selected locked tool."""
+    """Keep native Actions and shell validation under one finite-input deadline."""
     try:
-        executable = locked_tool(root, "actionlint")
-        result = run_command(
-            root,
-            (str(executable), ".github/workflows/ci.yml"),
-            timeout=60,
-        )
-    except (OSError, ValueError, subprocess.SubprocessError) as error:
-        sys.stderr.write(f"workflow_tool_unavailable:{error}\n")
+        return _validate_workflows(root, time.monotonic() + 60)
+    except (
+        OSError,
+        ValueError,
+        TypeError,
+        RuntimeError,
+        yaml.YAMLError,
+        subprocess.SubprocessError,
+    ) as error:
+        sys.stderr.write(f"workflow_validation_failed:{error}\n")
         return 1
+
+
+def _validate_workflows(root: Path, deadline: float) -> int:
+    """Execute both native checks once and reject incomplete or changed inputs."""
+    sources = tuple(
+        sorted(
+            path
+            for suffix in ("*.yml", "*.yaml")
+            for path in (root / ".github/workflows").glob(suffix)
+        )
+    )
+    if not sources:
+        message = "workflow_sources_missing"
+        raise ValueError(message)
+    contents = {path: path.read_bytes() for path in sources}
+    executable = locked_tool(root, "actionlint")
+    result = run_command(
+        root,
+        (str(executable), "-shellcheck=", *(str(path) for path in sources)),
+        timeout=max(0.001, deadline - time.monotonic()),
+    )
     sys.stdout.write(result.stdout)
     sys.stderr.write(result.stderr)
-    return result.returncode
+    if result.returncode or result.stderr:
+        return result.returncode or 1
+    scripts = tuple(
+        script for path, content in contents.items() for script in _workflow_runs(path, content)
+    )
+    if any(path.read_bytes() != content for path, content in contents.items()):
+        message = "workflow_source_changed"
+        raise ValueError(message)
+    shellcheck = (
+        ProjectRuntime.discover(root).script("shellcheck")
+        if any(script.shell in {"bash", "sh"} for script in scripts)
+        else ""
+    )
+    for script in scripts:
+        if script.shell not in {"bash", "sh"}:
+            sys.stdout.write(
+                json.dumps(
+                    {
+                        "workflow": str(script.path.relative_to(root)),
+                        "job": script.job,
+                        "step": script.step,
+                        "shell": script.shell,
+                        "state": "not_applicable",
+                        "reason": "shellcheck_unsupported_shell",
+                    }
+                )
+                + "\n"
+            )
+            continue
+        # Preserve Actionlint's native projection policy, not arbitrary lint exemptions.
+        command = (
+            shellcheck,
+            "--norc",
+            "-f",
+            "json",
+            "-x",
+            "--shell",
+            script.shell,
+            "-e",
+            "SC1091,SC2194,SC2050,SC2153,SC2154,SC2157,SC2043",
+            "-",
+        )
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(command, 60)
+        result = run_command(root, command, stdin=script.input, timeout=remaining)
+        findings = json.loads(result.stdout)
+        if not isinstance(findings, list):
+            message = "workflow_shell_diagnostics_invalid"
+            raise TypeError(message)
+        sys.stdout.write(
+            json.dumps(
+                {
+                    "workflow": str(script.path.relative_to(root)),
+                    "job": script.job,
+                    "step": script.step,
+                    "shell": script.shell,
+                    "exit_code": result.returncode,
+                    "diagnostics": findings,
+                }
+            )
+            + "\n"
+        )
+        sys.stderr.write(result.stderr)
+        if result.returncode or findings or result.stderr:
+            return result.returncode or 1
+    if any(path.read_bytes() != content for path, content in contents.items()):
+        message = "workflow_source_changed"
+        raise ValueError(message)
+    return 0
+
+
+@dataclass(frozen=True, slots=True)
+class _WorkflowRun:
+    """Bind one native run step to its workflow, shell and finite static input."""
+
+    path: Path
+    job: str
+    step: int
+    shell: str
+    input: str
+
+
+def _workflow_runs(path: Path, content: bytes) -> Iterator[_WorkflowRun]:
+    """Use native YAML and Actions default-shell precedence; never execute source."""
+    workflow = yaml.safe_load(content)
+    workflow_shell = workflow.get("defaults", {}).get("run", {}).get("shell", "")
+    for name, job in workflow["jobs"].items():
+        job_shell = job.get("defaults", {}).get("run", {}).get("shell", "")
+        labels = job.get("runs-on", ())
+        labels = [labels] if isinstance(labels, str) else labels
+        runner_shell = (
+            "pwsh"
+            if any(
+                isinstance(label, str)
+                and (label.lower() == "windows" or label.lower().startswith("windows-"))
+                for label in labels
+            )
+            else "bash"
+        )
+        for index, step in enumerate(job.get("steps", ())):
+            source = step.get("run")
+            if source is None:
+                continue
+            shell = step.get("shell") or job_shell or workflow_shell or runner_shell
+            if not isinstance(source, str) or not isinstance(shell, str):
+                message = "workflow_run_invalid"
+                raise TypeError(message)
+            parts = shell.split()
+            if not parts:
+                message = "workflow_shell_unresolved"
+                raise ValueError(message)
+            shell = parts[0]
+            # Native Actionlint validates expressions; this preserves its shell projection.
+            input_source = re.sub(
+                r"\$\{\{.*?\}\}",
+                lambda match: "_" * len(match[0].encode("utf-8")),
+                source,
+                flags=re.DOTALL,
+            )
+            setup = "set -eo pipefail" if shell == "bash" else "set -e"
+            yield _WorkflowRun(path, str(name), index, shell, setup + "\n" + input_source + "\n")
 
 
 def compile_providers(
@@ -268,3 +420,7 @@ def check_templates(*, json_output: bool) -> int:
         for failure in failures:
             sys.stderr.write(f"{failure['provider']}: {failure['reason']}\n")
     return 0 if evidence["verdict"] == "pass" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(check_workflow())

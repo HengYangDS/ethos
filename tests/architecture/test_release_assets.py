@@ -89,8 +89,6 @@ def test_downloaded_tool_installers_bind_one_native_supply_policy() -> None:
     locked = tomllib.loads((ROOT / ".config/mise/mise.lock").read_text())["tools"]
     for name, version in mise["tools"].items():
         assert any(item["version"] == version for item in locked[name])
-    actionlint = (ROOT / "tools/ci/scripts/run-actionlint.sh").read_text()
-    assert not any(command in actionlint for command in ("curl", "tar ", "apt-get", "--tool"))
 
     assert declared_policies == {".config/checks/node/runtime.toml"}
 

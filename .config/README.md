@@ -67,10 +67,10 @@ configuration plane, not a truth center.
 - `.config/checks/ci/templates.toml` declares provider emulator selection,
   events, jobs, images and time limits. `tools/ci/ci_projection.py` consumes
   that declaration; emulator output is local evidence, not hosted CI status.
-- `.config/checks/github/actionlint.toml` owns GitHub workflow syntax policy;
-  `tools/ci/scripts/run-actionlint.sh` executes the provider syntax gate and
-  resolves the exact installed tool through `.config/mise/config.toml` and `.config/mise/mise.lock`; missing
-  supply is an explicit failure, never an ambient PATH fallback.
+- `python -m tools.ci.ci_projection` validates GitHub workflows through locked
+  Actionlint and finite-input ShellCheck, without a shell launcher. Native policy
+  and supply remain under `.config/mise/config.toml`, `.config/mise/mise.lock`
+  and the bound Python environment; missing supply fails without PATH fallback.
 - `.config/checks/lychee/lychee.toml` owns link-check behavior. Its supply
   declaration maps the executable to the official `lychee-bin` wheel; the
   development dependency and `uv.lock` own version and artifact identity.

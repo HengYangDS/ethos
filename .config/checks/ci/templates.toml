@@ -9,7 +9,6 @@ emulator_event = "workflow_dispatch"
 emulator_job = "quality"
 emulator_image = "ghcr.io/catthehacker/ubuntu@sha256:62d572b92f9f32d3427b6d220ad1f9dca9c7b6ffad37d295425037dbff78abaf"
 emulator_timeout_seconds = 1800
-provider_specific_owner_scripts = { "tools/ci/scripts/run-actionlint.sh" = "GitHub workflow syntax is a GitHub-native property." }
 forbidden_log_patterns = [
   "(?:^|[ >])DeprecationWarning:",
   "(?:^|[ >])WARNING:",
@@ -21,7 +20,6 @@ required_owner_scripts = [
   "tools/ci/repository_hygiene.py",
   "tools/ci/scripts/run-secrets-scan.sh",
   "tools/ci/scripts/run-head-bound-proof.sh",
-  "tools/ci/scripts/run-actionlint.sh",
 ]
 [[projection]]
 provider = "gitlab"

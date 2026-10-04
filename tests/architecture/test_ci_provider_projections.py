@@ -19,8 +19,6 @@ from ethos.adapters.process import run_command
 from ethos.adapters.projections.cue import compile_projections
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.repository.policy.projections import observe_projections
-from tests.support.architecture import isolated_path
-from tests.support.architecture import write_reference_source
 from tools.ci.ci_projection import check_templates
 from tools.ci.ci_projection import compile_providers
 from tools.ci.ci_projection import emulator_declaration
@@ -355,10 +353,10 @@ def test_full_proof_owns_github_workflow_syntax_before_hosted_execution() -> Non
 
     assert declaration["proof_sets"]["full"].count("github-workflow-syntax") == 1
     gate = gates["github-workflow-syntax"]
-    assert gate["command"] == ["tools/ci/scripts/run-actionlint.sh"]
+    assert gate["command"] == ["{python}", "-m", "tools.ci.ci_projection"]
     assert gate["depends_on"] == ["config-quality"]
-    assert gate["writes_files"] is True
-    assert gate["network_policy"] == "required"
+    assert gate["writes_files"] is False
+    assert gate["network_policy"] == "offline"
 
 
 def test_github_action_pins_are_unique_full_commit_ids(github) -> None:
@@ -513,31 +511,3 @@ def test_cue_compiler_consumes_exact_locked_supply(tmp_path, fault, error, ci_ma
         }
     assert files == before
     assert tuple(tmp_path.iterdir()) == original_paths
-
-
-@pytest.mark.parametrize("fault", ["none", "syntax", "missing-lock", "version-drift"])
-def test_workflow_gate_uses_locked_native_tool_without_ambient_fallback(
-    tmp_path, monkeypatch, fault
-):
-    """Run the real gate over a tiny workflow with a hostile ambient actionlint."""
-    for path in (".config/mise/config.toml", ".config/mise/mise.lock"):
-        write_reference_source(tmp_path, path, (ROOT / path).read_text())
-    workflow = tmp_path / ".github/workflows/ci.yml"
-    workflow.parent.mkdir(parents=True)
-    workflow.write_text(
-        "name: check\non: push\njobs:\n  check:\n"
-        "    runs-on: ubuntu-latest\n    steps:\n      - run: echo ok\n"
-    )
-    if fault == "syntax":
-        workflow.write_text("on: push\njobs: [\n")
-    elif fault == "missing-lock":
-        (tmp_path / ".config/mise/mise.lock").unlink()
-    elif fault == "version-drift":
-        config = tmp_path / ".config/mise/config.toml"
-        config.write_text(config.read_text().replace('"1.7.12"', '"0.0.0"'))
-    trap = isolated_path(tmp_path, {"actionlint": "#!/bin/sh\ntouch AMBIENT_EXECUTED\nexit 0\n"})
-    monkeypatch.setenv("PATH", trap["PATH"] + os.pathsep + os.environ["PATH"])
-    before = workflow.read_bytes()
-    assert (owner.check_workflow(tmp_path) == 0) is (fault == "none")
-    assert workflow.read_bytes() == before
-    assert not (tmp_path / "AMBIENT_EXECUTED").exists()

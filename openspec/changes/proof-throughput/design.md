@@ -3163,3 +3163,21 @@ current selector still equals this operation's desired bytes; a different or
 unreadable selection is preserved as a failed compensation. A CAS rejection
 before replacement never starts compensation. The caller handles only later
 hook/state failures after the selector owner returns a verified selection.
+
+
+### Native Workflow Input And Portable Entry
+
+The selected Actionlint 1.7.12 stalled on the actual 9,175-byte ETHOS workflow
+for its full 60-second deadline. Its upstream `process.go` writes ShellCheck
+input before starting the child. A 150-KiB native shell fixture reproduced this
+through `check_workflow` under a bounded five-second observation.
+
+The same owner retains native Actions syntax, expressions and Python integration,
+while the existing process executor supplies finite ShellCheck input. Native
+shell precedence, expression projection and justified upstream diagnostic rules
+remain intact; malformed diagnostics, warnings, source drift and timeouts reject.
+`python -m tools.ci.ci_projection` is the offline, read-only gate entry; the
+pass-through `run-actionlint.sh` and its consumers are retired. Non-ShellCheck
+shells are explicitly inapplicable, not silently certified. No new tool supply,
+second gate, fork, process controller or wider deadline is introduced. Focused
+native acceptance is not exact-source proof or installed-product qualification.

@@ -200,6 +200,7 @@ def _retirement_observations(
         }
     if peer["state"] != "present" or (
         old != zero
+        and not is_ancestor(root, old, str(peer["object_oid"]))
         and not is_ancestor(root, str(contribution["replacement"]), str(peer["object_oid"]))
     ):
         return {

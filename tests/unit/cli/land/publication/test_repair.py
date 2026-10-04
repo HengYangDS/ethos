@@ -29,7 +29,10 @@ from tests.unit.cli.land.publication.support import configure_signature_publicat
 from tests.unit.cli.land.publication.support import publication_peers
 
 
-def test_completed_history_repair_resolves_proposal_objects_without_ref_rewrite(tmp_path: Path):
+@pytest.mark.parametrize("peer_history", ["original", "repaired"])
+def test_completed_history_repair_resolves_proposal_objects_without_ref_rewrite(
+    tmp_path: Path, peer_history: str
+):
     """An unchanged proposal ref can still name a verified accepted contribution."""
     repo, old, _candidate = signature_repository(tmp_path, coupled=True)
     git(repo, "branch", "proposal/old-signature", old)
@@ -39,7 +42,9 @@ def test_completed_history_repair_resolves_proposal_objects_without_ref_rewrite(
     assert git(repo, "rev-parse", "proposal/old-signature") == old
     relation = signature_observation.repaired_object_provenance(repo, old=old, new=replacement)
     assert relation is not None
-    assert relation["mapping"][old] == replacement
+    mapping = relation["mapping"]
+    assert isinstance(mapping, dict)
+    assert mapping[old] == replacement
     assert relation["attestation_id"]
 
     previous, records = read_attestation_set(repo)
@@ -48,12 +53,14 @@ def test_completed_history_repair_resolves_proposal_objects_without_ref_rewrite(
         repo,
         tuple(item for item in records if item.predicate != "effect:commit-signature"),
     )
+    changed_root = changed["root"]
+    assert isinstance(changed_root, str)
     try:
         assert (
             signature_observation.repaired_object_provenance(repo, old=old, new=replacement) is None
         )
     finally:
-        git(repo, "update-ref", ATTESTATION_SET_REF, previous, changed["root"])
+        git(repo, "update-ref", ATTESTATION_SET_REF, previous, changed_root)
 
     write_publication_topology(repo)
     release = repo / ".ethos/release.toml"
@@ -65,10 +72,12 @@ def test_completed_history_repair_resolves_proposal_objects_without_ref_rewrite(
     git(repo, "add", "-A")
     git(repo, "commit", "-S", "-m", "fix: declare Git publication")
     accepted = git(repo, "rev-parse", "HEAD")
+    peer_accepted = old if peer_history == "original" else accepted
     peers = publication_peers(
-        repo, tmp_path, "HEAD:refs/heads/dev", f"{old}:{PROPOSAL_REF}"
+        repo, tmp_path, f"{peer_accepted}:refs/heads/dev", f"{old}:{PROPOSAL_REF}"
     ).values()
     preview = branch_publication(repo, accepted, "--retire")
+    assert preview["verdict"] == "pass", preview
     assert {
         report["contribution"]["state"] for report in preview["data"]["push_admission"].values()
     } == {"repaired"}
@@ -86,7 +95,9 @@ def test_completed_history_repair_resolves_proposal_objects_without_ref_rewrite(
         confirm_irreversible=True,
     )
     assert local["state"] == "retired_absorbed_ref"
-    assert local["contribution"]["state"] == "repaired"
+    contribution = local["contribution"]
+    assert isinstance(contribution, dict)
+    assert contribution["state"] == "repaired"
     assert not git(repo, "branch", "--list", "proposal/old-signature")
 
 
@@ -242,6 +253,7 @@ def test_historical_peer_prefix_uses_verified_replacement_tip(
         remote_head=peer_old,
         remote_name="origin",
     )["commit_policy_admission"]
+    assert isinstance(bad_range, dict)
     assert bad_range["integration_baseline"] == replacement
     assert {item["commit"] for item in bad_range["violations"]} == {bad}
     preview = run_ethos(

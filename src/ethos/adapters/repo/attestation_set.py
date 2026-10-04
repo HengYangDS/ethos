@@ -131,7 +131,6 @@ def _validated_members(repo: Path, root: str) -> tuple[dict[str, bytes], tuple[A
     )
     tree = tree_bytes.decode("ascii")
     _require_entry(valid=raw_root == _root_payload(tree))
-    _require_entry(valid=root == _root_identity(repo, tree, write=False))
     members: dict[str, bytes] = {}
     attestations: list[Attestation] = []
     for (_object_id, path), raw in zip(files, raw_members, strict=True):
@@ -212,15 +211,15 @@ def _root_payload(tree: str) -> bytes:
     ).encode()
 
 
-def _root_identity(repo: Path, tree: str, *, write: bool) -> str:
-    arguments = ["hash-object", "-t", "commit"]
-    if write:
-        arguments.append("-w")
-    arguments.append("--stdin")
+def _root_identity(repo: Path, tree: str) -> str:
     return (
         run_git(
             repo,
-            *arguments,
+            "hash-object",
+            "-t",
+            "commit",
+            "-w",
+            "--stdin",
             stdin=_root_payload(tree),
             text=False,
         )
@@ -276,9 +275,7 @@ def record_attestations(
         if not added:
             return {"root": observed, "added": ()}
         new_members = {identity: incoming[identity] for identity in added}
-        desired = _root_identity(
-            repo, _write_tree(repo, new_members, observed=observed), write=True
-        )
+        desired = _root_identity(repo, _write_tree(repo, new_members, observed=observed))
         if _compare_and_swap_root(repo, desired=desired, observed=observed):
             return {"root": desired, "added": added}
     message = "attestation_set_cas_retry_exhausted"
@@ -301,7 +298,7 @@ def record_attestation_once(repo: Path, attestation: Attestation) -> Attestation
         if matches:
             return matches[0]
         incoming = _canonical_inputs((attestation,))
-        desired = _root_identity(repo, _write_tree(repo, incoming, observed=observed), write=True)
+        desired = _root_identity(repo, _write_tree(repo, incoming, observed=observed))
         if _compare_and_swap_root(repo, desired=desired, observed=observed):
             return attestation
     message = "attestation_set_cas_retry_exhausted"

@@ -108,8 +108,29 @@ def test_attestation_set_read_uses_constant_git_processes(
         "show-ref",
         "ls-tree",
         "cat-file",
-        "hash-object",
     ]
+
+
+@pytest.mark.parametrize("object_format", ["sha1", "sha256"])
+def test_git_object_batch_binds_native_id_to_current_content(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, object_format: str
+) -> None:
+    """A valid typed frame cannot substitute different bytes under the same object ID."""
+    repo = init_git_repo(tmp_path / "repo", object_format=object_format)
+    content = b"native exact bytes\n"
+    created = run_git(repo, "hash-object", "-w", "--stdin", stdin=content, text=False)
+    identity = created.stdout.decode().strip()
+    assert git_object.read_objects(repo, (identity,)) == (content,)
+    original = git_object.run_git
+
+    def observe(root, *args, **kwargs):
+        result = original(root, *args, **kwargs)
+        output = result.stdout.replace(content, b"native false bytes\n", 1)
+        return CompletedProcess(result.args, result.returncode, stdout=output, stderr=result.stderr)
+
+    monkeypatch.setattr(git_object, "run_git", observe)
+    with pytest.raises(ValueError, match="git_object_batch_invalid"):
+        git_object.read_objects(repo, (identity,))
 
 
 def test_attestation_set_ignores_workspace_history_and_needs_no_directory(tmp_path: Path) -> None:

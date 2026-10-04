@@ -25,6 +25,7 @@
 - [x] 2.10 Batch effect revision observation and remove duplicate immutable validation while preserving missing-object distinctions.
 - [x] 2.11 Close invocation-local product-write and exact-proof selection across native consumers.
 - [ ] 2.12 Share exact-source intent compilation within each proof query; retain fresh queries, archive withdrawal, contradictory evidence and per-effect admission, then measure the native release consumer before delivery.
+- [ ] 2.13 Bind native typed object frames to current content at the Git object owner; remove redundant root hashing and verify unchanged set, fresh membership, faults and native release cost before delivery.
 
 ## 3. OpenSpec Compilation and Continuation
 

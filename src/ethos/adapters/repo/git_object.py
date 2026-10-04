@@ -425,6 +425,15 @@ def read_objects(
             ):
                 break
             blobs.append(payload[content_start:content_end])
+            content = blobs[-1]
+            algorithm = {40: "sha1", 64: "sha256"}.get(len(expected))
+            if algorithm is None:
+                break
+            digest = hashlib.new(algorithm, usedforsecurity=False)
+            digest.update(f"{expected_kind} {len(content)}\0".encode("ascii"))
+            digest.update(content)
+            if digest.hexdigest() != expected:
+                break
             offset = content_end + 1
     except (UnicodeError, ValueError) as error:
         raise ValueError(gap) from error

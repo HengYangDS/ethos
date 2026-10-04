@@ -7,6 +7,7 @@ import subprocess
 from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
+from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -38,6 +39,8 @@ from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import string_sequence
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from ethos.contracts.semantic import Attestation
     from ethos.repository.policy.gates import ResolvedGatePolicy
 
@@ -175,6 +178,14 @@ def _admitted_proofs(
     if gaps:
         return (), gaps
     canonical_policies = resolve_proof_policies(root, tree_ref=head)
+
+    @cache
+    def source_intent(change: str) -> Commitment:
+        """Share exact-source interpretation only inside this fresh proof query."""
+        return load_openspec_commitment(
+            root, tree_ref=head, change_id=change, attestations=attestations
+        )
+
     evaluated = tuple(
         (
             item,
@@ -186,6 +197,7 @@ def _admitted_proofs(
                 canonical_policies=canonical_policies,
                 repository_transition=repository_transition,
                 attestations=attestations,
+                source_intent=source_intent,
             ),
         )
         for item in matching
@@ -194,7 +206,7 @@ def _admitted_proofs(
     if integrity:
         return (), integrity
     evaluated, gaps = _intent_candidates(
-        root, head, evaluated, attestations, attestation_id, change_id=change_id
+        root, head, evaluated, attestation_id, change_id=change_id, source_intent=source_intent
     )
     if gaps:
         return (), gaps
@@ -239,10 +251,10 @@ def _intent_candidates(
     root: Path,
     head: str,
     evaluated: tuple[tuple[Attestation, str, list[str]], ...],
-    attestations: tuple[Attestation, ...],
     attestation_id: str,
     *,
     change_id: str | None,
+    source_intent: Callable[[str], Commitment],
 ) -> tuple[tuple[tuple[Attestation, str, list[str]], ...], list[str]]:
     """Select an intent query without hiding malformed evidence or same-intent conflicts."""
     intent_digest = None
@@ -256,9 +268,7 @@ def _intent_candidates(
     change = change_id if attestation_id else requested_change(change_id)
     if change is not None and openspec_profile_enabled(root, tree_ref=head):
         try:
-            requested_digest = load_openspec_commitment(
-                root, tree_ref=head, change_id=change, attestations=attestations
-            ).digest()
+            requested_digest = source_intent(change).digest()
         except (TypeError, ValueError) as error:
             return (), [f"proof_source_intent_unavailable:{error}"]
         if intent_digest is not None and intent_digest != requested_digest:
@@ -340,11 +350,15 @@ def _bindings(attestation: Attestation, *, repository_transition: bool) -> tuple
 
 
 def _source_intent_gaps(
-    root: Path, head: str, attestation: Attestation, attestations: tuple[Attestation, ...]
+    root: Path,
+    head: str,
+    plan: TransitionPlan,
+    attestations: tuple[Attestation, ...],
+    *,
+    source_intent: Callable[[str], Commitment],
 ) -> list[str]:
     """Match carried acceptance to official meaning at the exact source object."""
     try:
-        plan = plan_from_statement(attestation)
         if not openspec_profile_enabled(root, tree_ref=head):
             return [] if plan.commitment is None else ["proof_source_intent_mismatch"]
         if plan.commitment is None:
@@ -357,12 +371,7 @@ def _source_intent_gaps(
             )
             return ["proof_source_intent_mismatch"] if intent_present else []
         carried = Commitment.model_validate(mutable_json(plan.commitment))
-        source = load_openspec_commitment(
-            root,
-            tree_ref=head,
-            change_id=carried.id.removeprefix("change:"),
-            attestations=attestations,
-        )
+        source = source_intent(carried.id.removeprefix("change:"))
     except (TypeError, ValueError) as error:
         return [f"proof_source_intent_unavailable:{error}"]
     return [] if source == carried else ["proof_source_intent_mismatch"]
@@ -410,6 +419,7 @@ def _candidate_evaluation(
     canonical_policies: tuple[tuple[str, ResolvedGatePolicy], ...],
     repository_transition: bool,
     attestations: tuple[Attestation, ...],
+    source_intent: Callable[[str], Commitment],
 ) -> tuple[str, list[str]]:
     if attestation.subject != f"git:commit:{head}":
         return "", ["proof_attestation_head_mismatch"]
@@ -436,7 +446,7 @@ def _candidate_evaluation(
     if checks is not None and not gaps:
         gaps = proof_statement_gaps(attestation, checks)
     if not gaps and checks is not None and repository_transition:
-        gaps = _source_intent_gaps(root, head, attestation, attestations)
+        gaps = _source_intent_gaps(root, head, plan, attestations, source_intent=source_intent)
     if gaps or checks is None:
         return "", gaps
     floor = next(

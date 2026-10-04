@@ -359,7 +359,12 @@ def test_equivalent_proofs_supersede_deterministically_but_conflicts_block(
     persist_proof_attestation(repo, first)
     later = reissue_attestation(first, issued_at=first.issued_at + timedelta(seconds=1))
     persist_proof_attestation(repo, later)
+    compiled = Mock(wraps=proof_admission.load_openspec_commitment)
+    monkeypatch.setattr(proof_admission, "load_openspec_commitment", compiled)
     assert query() == (min((first, later), key=lambda record: record.id), [])
+    assert compiled.call_count == 1
+    assert query() == (min((first, later), key=lambda record: record.id), [])
+    assert compiled.call_count == 2
     assert proof_gaps(repo, head) == []
     monkeypatch.setenv("ETHOS_CHANGE", "missing")
     assert query()[1][0].startswith("proof_source_intent_unavailable:")

@@ -150,8 +150,20 @@ def activate_runtime(
         if expected_current is not _UNSPECIFIED and current != expected_current:
             raise ValueError(_CURRENT_STALE)
         _require_release_runtime_closure_unique(common_root, selected)
-        _replace_selector(runtime_root / _SELECTOR, desired)
-        return current_runtime(common_root, expected_build=selected.build)
+        selector = runtime_root / _SELECTOR
+        try:
+            _replace_selector(selector, desired)
+            return current_runtime(common_root, expected_build=selected.build)
+        except BaseException as error:
+            try:
+                observed = _selector_bytes(selector)
+                if observed != current:
+                    _restore_selector(selector, current, expected_current=desired)
+            except (OSError, ValueError) as compensation:
+                reason = str(compensation) or type(compensation).__name__
+                message = f"hook_runtime_selection_compensation_failed:{reason}"
+                raise ValueError(message) from error
+            raise
 
 
 def restore_runtime_selection(
@@ -164,9 +176,16 @@ def restore_runtime_selection(
     common_root = common.resolve()
     selector = common_root / "ethos" / "runtime" / _SELECTOR
     with _selection_lock(common_root):
-        if expected_current is not _UNSPECIFIED and _selector_bytes(selector) != expected_current:
-            raise ValueError(_CURRENT_STALE)
-        _replace_selector(selector, previous)
+        _restore_selector(selector, previous, expected_current=expected_current)
+
+
+def _restore_selector(
+    selector: Path, previous: bytes | None, *, expected_current: bytes | object | None
+) -> None:
+    """Restore only an exactly owned selector under the caller's native lock."""
+    if expected_current is not _UNSPECIFIED and _selector_bytes(selector) != expected_current:
+        raise ValueError(_CURRENT_STALE)
+    _replace_selector(selector, previous)
 
 
 @contextmanager

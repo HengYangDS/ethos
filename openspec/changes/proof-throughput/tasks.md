@@ -8,7 +8,7 @@
 - [x] 1.6 Compare identical native boundary cases at two, four and eight workers without retries.
 - [x] 1.7 Measure consolidated full proof and repair merge intent diagnostic precedence.
 - [x] 1.8 Verify the consolidated proof, release and integration regressions with unchanged quality budgets.
-- [x] 1.9 Restore and requalify complete proof within the temporary 900-second threshold; preserve completed-gate diagnostics on timeout, eliminate measured repeated work, and retain unchanged quality budgets.
+- [ ] 1.9 Restore and requalify complete proof within the temporary 900-second threshold; preserve completed-gate diagnostics on timeout, eliminate measured repeated work, and retain unchanged quality budgets. The latest 900.174-second timeout reopens current acceptance.
 - [ ] 1.10 Evaluate the nonblocking 600-second optimization direction from the measured remaining critical path.
 
 ## 2. Invocation-Scoped Facts and Proof Reuse
@@ -77,6 +77,7 @@
 - [x] 5.10 Share owned-output removal, preserve external referents and verify minimal permission effects.
 - [ ] 5.11 Close native bootstrap identity wiring and tool transport timeouts; retain failed output, reuse verified supply across disposable checkouts, scope offline flags to bootstrap, and qualify cold and warm hosted consumers without increasing the deadline.
 - [ ] 5.12 Reproduce ignored durable-custody loss at retirement; consume existing artifact declarations to distinguish retained, active, foreign, unknown and proved disposable resources before deletion.
+  - [ ] 5.12.1 Preserve exact predecessor runtime and wheel through the existing shared-installation owner before local reclamation; bind cutover to the original selector CAS, verify failure/no-op/concurrency boundaries, then qualify package and real-adopter rollback custody.
 - [ ] 5.13 Qualify exact producer/consumer scratch ownership under repeated normal, crash and kill cycles; preserve live/unknown roots and shared supply, then measure source-bound 24/48-hour count, byte, inode and cleanup bounds before claiming recurrence closed.
 
 ## 6. Native Test Isolation and Shared Preparation
@@ -148,6 +149,7 @@
 - [ ] 10.4 Restore effective JavaScript semantic quality and native launcher behavior.
 - [x] 10.5 Reject invalid and non-Boolean CEL predicates at declaration loading and qualify existing consumers.
 - [ ] 10.6 Enforce unapproved-warning rejection at native command adapters without treating informational output as failure.
+  - [ ] 10.6.1 Bind Allure 3 global process logs and native exit to the same test attempt; preserve focused report scope, retain rejected attempts and avoid replay solely to fill report metadata.
 - [ ] 10.7 Restore whole-module docstring enforcement at the native quality owner and remove the narrowed coverage substitute.
 - [x] 10.8 Preserve dependency-tool exit status, unavailable execution, findings and malformed-report states through the existing receipt and Nox admission.
 - [x] 10.9 Repair installed hook formatting supply: a configured check must not silently pass when its bound Ruff executable is absent; verify installed valid, invalid and missing-tool cases.
@@ -161,6 +163,7 @@
 - [x] 11.1 Qualify the official stable SBOM supply after observed host-version drift.
 - [x] 11.2 Refresh compatible stable supply and exact CI projections with the Python support line intact.
 - [ ] 11.3 Qualify supported latest-stable supply or an obligation-preserving constrained-owner replacement.
+  - [ ] 11.3.1 Close the adopter-reproduced actionlint child-start-before-input deadlock at the existing native workflow-check owner. Verify bounded finite input, EOF and cancellation on the actual large workflow without a timeout increase, wrapper/fork or reduced validation.
 - [ ] 11.4 Migrate native developer/CI tool supply to mise locks and retire replaced installers.
 - [x] 11.5 Verify native import-linter and coverage TOML option equivalence; replace their INI owners and consumers without adding a converter.
 - [x] 11.6 Repair pytest configuration-relative paths and qualify native TOML through real plugin consumers.
@@ -193,6 +196,7 @@
 - [ ] 13.4 Close publication provenance and post-history-repair delivery through its existing owner.
   - [x] 13.4.1 Preserve original acceptance through validated repair relations; exercise native repair, new-source proof and release, plus fresh membership and bounded decoding counterexamples.
   - [ ] 13.4.2 Qualify and install the exact candidate, observe complete publication performance, and obtain the adopter-owned consumer result; keep these separate from source and focused-test success.
+    - [x] 13.4.2.1 Deliver the isolated signed finite-input repair through the native wheel/runtime owner; qualify public admission, independent byte custody and the original AIGW implicit hook and DDWG proof consumers. This closes their hang, not full-proof, release or whole-product acceptance.
   - [ ] 13.4.3 Close owner-confirmed historical attribution and peer readback through exact corrections and recoverable originals. Current author-header repair is accepted and installed; the three platform committer records are retained after exact original GitHub web-flow signature verification. Evidence: `~/.local/share/ethos/recovery/identity-repair-20261001/historical-human-attribution-disposition.json`. The false Junie coauthor, exact proof, peer publication and old PR-reference disposition remain open; future genuine contributors are not constrained.
   - [ ] 13.4.4 Deliver native stat-cache refresh at the worktree-sync owner; preserve real dirty bytes and qualify public closeout, exact proof and installed behavior. Current focused native owner tests are evidence, not accepted delivery.
   - [ ] 13.4.5 Deliver exact false-coauthor selection at the existing history owner; preserve every unselected message byte, true contributors, timestamps and ordered parents. Native trailer and signed history tests pass; runtime activation, actual repair and GitHub Commit.authors readback remain open.

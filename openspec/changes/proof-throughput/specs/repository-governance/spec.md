@@ -832,3 +832,42 @@ output channel.
 - **WHEN** a stream reports a short successful write before the complete JSON frame
 - **THEN** delivery is incomplete and cannot be treated as a passing report
 - **AND** a genuinely closed consumer remains a distinct bounded failure
+
+### Requirement: Cutover preserves exact predecessor supply
+
+Before reclaiming a valid selected predecessor, installation SHALL preserve its
+exact immutable runtime and wheel through the existing shared-installation
+owner. Activation SHALL compare the originally captured selector bytes at its
+effect boundary and report retained supply separately from activation and
+reclamation. Historical provenance alone SHALL NOT pin local executables.
+
+#### Scenario: A successful upgrade retires a local predecessor
+
+- **WHEN** a valid selected predecessor is replaced by admitted shared supply
+- **THEN** exact predecessor manifest, inventory and wheel remain available outside the repository before any local deletion
+- **AND** the result identifies that retained supply without creating another selector
+- **AND** repeated installation reuses identical bytes without adding generations
+
+#### Scenario: Preservation or cutover fails
+
+- **WHEN** predecessor preservation conflicts with unowned content or fails admission
+- **THEN** original selector, hooks and state remain unchanged and no predecessor is reclaimed
+- **AND** a later cutover failure restores the original activation without deleting retained supply
+
+#### Scenario: Another installation changes selection
+
+- **WHEN** selector bytes change after preparation and before cutover
+- **THEN** native CAS rejects the stale operation without overwriting the peer or attempting compensation for an activation that did not occur
+- **AND** preserved original and peer supply remain intact
+
+#### Scenario: A local predecessor is already invalid
+
+- **WHEN** independently admitted successor supply repairs an invalid local selected generation
+- **THEN** installation reports unavailable rollback supply rather than claiming the damaged predecessor is preserved or valid
+- **AND** uncertain predecessor bytes remain untouched under the existing reclamation owner
+
+#### Scenario: Observation fails after selector replacement
+
+- **WHEN** selector replacement occurred but its write acknowledgement or post-observation fails
+- **THEN** the selector owner restores original bytes under its existing lock only when this operation still owns the desired selection
+- **AND** a changed or unreadable peer selection remains intact with explicit compensation failure rather than false rollback success

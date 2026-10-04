@@ -112,7 +112,7 @@ def test_missing_selector_does_not_pin_another_repository_private_runtime(
     assert git_process(adopter, "init", "--quiet", "--initial-branch=dev").returncode == 0
     monkeypatch.setattr(materialization, "selected_runtime_source", lambda _source: private)
     pin = Mock(side_effect=AssertionError("foreign private runtime pinned"))
-    monkeypatch.setattr(materialization, "_pin_installed_runtime", pin)
+    monkeypatch.setattr(materialization, "pin_installed_runtime", pin)
     monkeypatch.setattr(
         materialization,
         "resolve_runtime_wheel",
@@ -142,7 +142,7 @@ def test_missing_selector_explicit_source_build_does_not_reuse_package_supply(
     assert git_process(adopter, "init", "--quiet", "--initial-branch=dev").returncode == 0
     monkeypatch.setattr(materialization, "selected_runtime_source", lambda _source: supplied)
     pin = Mock(side_effect=AssertionError("explicit source build reused package"))
-    monkeypatch.setattr(materialization, "_pin_installed_runtime", pin)
+    monkeypatch.setattr(materialization, "pin_installed_runtime", pin)
     monkeypatch.setattr(
         materialization,
         "resolve_locked_environment_python",
@@ -363,7 +363,7 @@ def test_source_wheel_disappearing_after_admission_fails_without_partial_install
             installed_runtime=selected.root,
         )
     store = tmp_path / "user-data/ethos/installations"
-    assert not any(path.is_dir() for path in store.iterdir())
+    assert not store.exists() or not any(path.is_dir() for path in store.iterdir())
 
 
 @pytest.mark.parametrize("mode", ["relative", "native", "symlink"])
@@ -462,11 +462,15 @@ def test_failed_host_import_cleans_only_its_own_staging(
         monkeypatch.setattr(materialization.shutil, "copyfile", fail_copy)
         reason = "hook_runtime_installed_supply_invalid"
     else:
-        monkeypatch.setattr(
-            materialization,
-            "_runtime_supply_current",
-            lambda runtime, _project: runtime.root == selected.root,
-        )
+        copyfile = materialization.shutil.copyfile
+
+        def damage_copy(source, target, *, follow_symlinks=True):
+            result = copyfile(source, target, follow_symlinks=follow_symlinks)
+            if Path(source).suffix == ".whl":
+                Path(target).write_bytes(b"damaged copied wheel")
+            return result
+
+        monkeypatch.setattr(materialization.shutil, "copyfile", damage_copy)
         reason = "hook_runtime_host_store_copy_invalid"
     with pytest.raises(ValueError, match=reason):
         materialization.materialize_runtime(

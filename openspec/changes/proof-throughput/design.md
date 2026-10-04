@@ -3134,3 +3134,32 @@ owned JavaScript scratch domain. Omitting that declaration would make the
 conservative wildcard reader conflict with every named exclusive output and
 serialize the subsecond check behind the full Python suite. An exclusive supply
 writer still conflicts; independent test, build and evidence outputs do not.
+
+## Predecessor Supply Preservation Before Reclamation
+
+An upgrade's successful selector switch is not evidence that its predecessor
+may lose its only runtime and wheel. Before cutover, use the existing native
+shared-installation pin capability to retain that exact supply outside the
+repository. Pinning checks the predecessor's own manifest, inventory and wheel;
+it must not compare the predecessor with the successor's dependency lock.
+Successor admission keeps that exact lock check at its existing owner.
+
+Capture selector bytes before materialization and use those bytes at the native
+activation CAS. Failed preservation changes neither selector, hooks nor state;
+failed CAS does not start activation compensation against a peer's selection.
+Successful activation returns exact rollback-supply coordinates. Later local
+reclamation preserves its existing fresh consumer and directory-identity fences.
+Historical receipts do not pin executable directories or create another
+selector. Repeated installation reuses identical shared bytes, not a new copy.
+
+This is bounded byte custody, not proof that state downgrades, public rollback,
+host-store reclamation or every platform is qualified. Those remain under the
+existing installed-product acceptance. No new retention database or deadline
+that guesses live-consumer safety is introduced.
+
+The selector owner compensates post-replacement write or observation failure
+while retaining its native lock. It restores original bytes only when the
+current selector still equals this operation's desired bytes; a different or
+unreadable selection is preserved as a failed compensation. A CAS rejection
+before replacement never starts compensation. The caller handles only later
+hook/state failures after the selector owner returns a verified selection.

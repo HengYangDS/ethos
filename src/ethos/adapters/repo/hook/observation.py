@@ -59,6 +59,7 @@ class HookRuntimeBinding(TypedDict):
     legacy_runtime_locator: NotRequired[dict[str, object]]
     linked_worktrees: NotRequired[list[dict[str, str]]]
     state_transition: NotRequired[dict[str, object]]
+    rollback_supply: NotRequired[dict[str, str]]
     contract_observation: NotRequired[dict[str, object]]
 
 

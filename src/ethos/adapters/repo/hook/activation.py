@@ -22,12 +22,15 @@ from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
 from ethos.adapters.repo.runtime.retirement import retire_generations
 from ethos.adapters.repo.runtime.selection import activate_runtime
+from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import restore_runtime_selection
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from ethos.adapters.repo.runtime.selection import selected_runtime_path
 from ethos.adapters.store.state.schema import prepare_state_transition
 from ethos.adapters.store.state.schema import state_database
 
 if TYPE_CHECKING:
+    from ethos.adapters.repo.runtime.selection import SelectedRuntime
     from ethos.repository.release.identity import BuildIdentity
 
 _ACTIVATION_KEYS = ("extensions.worktreeConfig", "gc.packRefs", "core.hooksPath")
@@ -63,6 +66,8 @@ def install_hook_launchers(
         _fail("hook_runtime_python_invalid")
     expected = expected_runtime_build(repo)
     expected_build, build_source = expected.identity, expected.source
+    common = Path(git_common_dir(repo))
+    current_before = _runtime_selection_bytes(common)
     runtime = runtime_materialization.materialize_runtime(
         repo,
         source_python,
@@ -70,7 +75,30 @@ def install_hook_launchers(
         build_source=build_source,
         installed_runtime=installed_runtime,
     )
-    common = Path(git_common_dir(repo))
+    rollback_supply: dict[str, str] = {}
+    if current_before is not None:
+        try:
+            previous = current_runtime(common)
+        except (OSError, ValueError) as error:
+            previous_root = selected_runtime_path(common)
+            if previous_root.parent != common / "ethos/runtime":
+                raise
+            rollback_supply = {
+                "state": "unavailable",
+                "runtime": previous_root.as_posix(),
+                "reason": str(error) or type(error).__name__,
+            }
+        else:
+            if previous.root != runtime.parent:
+                preserved = runtime_materialization.pin_installed_runtime(previous)
+                rollback_supply = {
+                    "state": "preserved",
+                    "runtime": preserved.as_posix(),
+                    "runtime_digest": previous.digest,
+                    "wheel_sha256": previous.wheel_sha256,
+                    "source_commit": previous.build.source_commit,
+                    "source_tree": previous.build.source_tree,
+                }
     hooks = materialize_hook_launchers(common / "ethos" / "hooks")
     linked = _linked_worktree_paths(repo)
     common_before = config_effects.config_values(repo, _ACTIVATION_KEYS, scope="local")
@@ -81,11 +109,13 @@ def install_hook_launchers(
         hooks,
         linked,
         common_before=common_before,
-        current_before=_runtime_selection_bytes(common),
+        current_before=current_before,
         reset_state=reset_state,
         expected_build=expected_build,
     )
     binding["state_transition"] = state_transition
+    if rollback_supply:
+        binding["rollback_supply"] = rollback_supply
     binding["legacy_runtime_locator"] = _retire_legacy_locator(common)
     binding["linked_worktrees"] = [
         {
@@ -132,15 +162,15 @@ def _activate_with_state(
         with closing(sqlite3.connect(database)) as connection:
             connection.execute("begin immediate")
             state_transition = prepare_state_transition(connection, reset=reset_state)
+            selected = activate_runtime(common, runtime, expected_current=current_before)
             activated = True
             binding = _activate_common_runtime(
                 repo,
-                common,
-                runtime,
                 hooks,
                 linked,
                 worktrees_before,
                 expected_build=expected_build,
+                selected_runtime=selected,
             )
             connection.commit()
     except (OSError, RuntimeError, sqlite3.Error, ValueError) as error:
@@ -227,16 +257,14 @@ def materialize_hook_launchers(generations: Path) -> Path:
 
 def _activate_common_runtime(
     repo: Path,
-    common: Path,
-    runtime: Path,
     hooks: Path,
     linked: tuple[Path, ...],
     worktrees_before: dict[Path, dict[str, tuple[str, ...]]],
     *,
     expected_build: BuildIdentity,
+    selected_runtime: SelectedRuntime,
 ) -> HookRuntimeBinding:
     """Select and post-observe one common runtime/hook activation."""
-    selected = activate_runtime(common, runtime, expected_current=_runtime_selection_bytes(common))
     config_effects.set_common_config(repo, {"extensions.worktreeConfig": "true"})
     worktrees_before.update(
         {
@@ -253,7 +281,9 @@ def _activate_common_runtime(
     for worktree in linked:
         config_effects.unset_worktree_config(worktree, _WORKTREE_ACTIVATION_KEYS)
     _require_common_activation(repo, linked, hooks)
-    binding = hook_runtime_binding(repo, expected_build=expected_build, selected_runtime=selected)
+    binding = hook_runtime_binding(
+        repo, expected_build=expected_build, selected_runtime=selected_runtime
+    )
     if binding["hooks_path"] != hooks.as_posix():
         _fail("hook_runtime_activation_drift")
     if binding["required_gaps"]:

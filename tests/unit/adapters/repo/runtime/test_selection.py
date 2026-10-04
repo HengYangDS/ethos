@@ -142,6 +142,84 @@ def test_runtime_selection_compensation_is_exact_cas(tmp_path, obstruction):
     restore_runtime_selection(common, None, expected_current=None)
 
 
+@pytest.mark.parametrize("prior_selection", [False, True])
+@pytest.mark.parametrize("failure", ["postread", "replace"])
+def test_activation_failure_after_selector_effect_restores_exact_prestate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: str,
+    *,
+    prior_selection: bool,
+) -> None:
+    """Post-replacement failure cannot strand a selector whose caller saw no success."""
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    common = Path(git_common_dir(repo))
+    previous = activate_runtime(common, python.parent) if prior_selection else None
+    selector = common / "ethos/runtime/CURRENT"
+    before = selector.read_bytes() if prior_selection else None
+    external = tmp_path / "installed" / python.parent.name
+    external.parent.mkdir()
+    shutil.copytree(python.parent, external)
+    desired = runtime_selection.runtime_selection_bytes(common, external)
+
+    def fail_read(*_args: object, **_kwargs: object) -> None:
+        assert selector.read_bytes() == desired
+        message = "injected post-selection observation failure"
+        raise ValueError(message)
+
+    replace = Path.replace
+
+    def fail_after_replace(path: Path, target: Path) -> Path:
+        result = replace(path, target)
+        if target == selector and selector.read_bytes() == desired:
+            message = "injected selector write acknowledgement failure"
+            raise OSError(message)
+        return result
+
+    if failure == "postread":
+        monkeypatch.setattr(runtime_selection, "current_runtime", fail_read)
+    else:
+        monkeypatch.setattr(Path, "replace", fail_after_replace)
+    with pytest.raises((ValueError, OSError), match="injected"):
+        activate_runtime(common, external, expected_current=before)
+
+    assert (selector.read_bytes() if selector.exists() else None) == before
+    assert runtime_selection.require_selected_runtime(external).root == external
+    if previous is not None:
+        assert runtime_selection.require_selected_runtime(previous.root) == previous
+
+
+@pytest.mark.parametrize("obstruction", ["peer", "unreadable"])
+def test_postselection_compensation_preserves_unowned_or_unreadable_selection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, obstruction: str
+) -> None:
+    """Failed post-observation cannot authorize overwriting an unknown selector."""
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    common = Path(git_common_dir(repo))
+    activate_runtime(common, python.parent)
+    selector = common / "ethos/runtime/CURRENT"
+    concurrent = b"f" * 64 + b"\n"
+
+    def fail_read(*_args: object, **_kwargs: object) -> None:
+        if obstruction == "peer":
+            selector.write_bytes(concurrent)
+        else:
+            selector.unlink()
+            selector.mkdir()
+        message = "injected post-selection observation failure"
+        raise ValueError(message)
+
+    monkeypatch.setattr(runtime_selection, "current_runtime", fail_read)
+    reason = "current_stale" if obstruction == "peer" else "current_invalid"
+    with pytest.raises(
+        ValueError, match=f"selection_compensation_failed:hook_runtime_{reason}"
+    ) as failure:
+        activate_runtime(common, python.parent)
+
+    assert str(failure.value.__cause__) == "injected post-selection observation failure"
+    assert selector.read_bytes() == concurrent if obstruction == "peer" else selector.is_dir()
+
+
 @pytest.mark.parametrize("relative", ["ethos", "ethos/runtime", "ethos/runtime/CURRENT"])
 def test_current_runtime_rejects_symlinked_selection_components(tmp_path, relative):
     common = tmp_path / "common"
@@ -229,18 +307,27 @@ def test_release_runtime_identity_rejects_a_second_closure_for_the_same_release(
     environment = manifest.environment
     if changed_source in {"source", "wheel", "target"}:
         environment = environment._replace(python_abi="cpython-313")
-    closure = {
-        "wheel_sha256": "d" * 64 if changed_source == "wheel" else manifest.wheel_sha256,
-        "build": identity,
-        "environment": environment,
-        "runtime_files": runtime_file_inventory(second_staging),
-    }
-    digest = runtime_digest(**closure)
+    wheel_sha256 = "d" * 64 if changed_source == "wheel" else manifest.wheel_sha256
+    runtime_files = runtime_file_inventory(second_staging)
+    digest = runtime_digest(
+        wheel_sha256=wheel_sha256,
+        build=identity,
+        environment=environment,
+        runtime_files=runtime_files,
+    )
     second = common / "ethos/runtime" / digest
     shutil.move(second_staging, second)
     manifest = second / "manifest.json"
     manifest.chmod(0o644)
-    manifest.write_bytes(runtime_manifest_bytes(digest=digest, **closure))
+    manifest.write_bytes(
+        runtime_manifest_bytes(
+            digest=digest,
+            wheel_sha256=wheel_sha256,
+            build=identity,
+            environment=environment,
+            runtime_files=runtime_files,
+        )
+    )
 
     if changed_source in {"target", "rollback"}:
         assert activate_runtime(common, second).root == second

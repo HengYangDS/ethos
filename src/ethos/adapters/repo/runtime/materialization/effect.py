@@ -81,7 +81,7 @@ def materialize_runtime(
         require_runtime_selection_scope(common, selected)
         if not _runtime_supply_current(selected, project):
             _fail("hook_runtime_installed_supply_invalid")
-        return _pin_installed_runtime(selected, project) / "python"
+        return pin_installed_runtime(selected) / "python"
     runtime_root = Path(git_common_dir(repo)) / "ethos" / "runtime"
     if runtime_root.parent.is_symlink() or runtime_root.is_symlink():
         _fail("hook_runtime_root_invalid")
@@ -150,14 +150,14 @@ def _host_runtime_store() -> Path:
     return user_data_path("ethos", appauthor=False).resolve() / "installations"
 
 
-def _pin_installed_runtime(selected: SelectedRuntime, project: Path) -> Path:
+def pin_installed_runtime(selected: SelectedRuntime) -> Path:
     """Pin the runtime and its exact wheel as one reusable installation."""
     store = _host_runtime_store()
     # Abbreviate only the directory index; OWNER and the runtime retain full identity.
     installation = store / selected.digest[:16]
     target = installation / "runtime" / selected.digest
-    if selected.root.resolve() == target.resolve():
-        return selected.root
+    if _runtime_supply_wheel(selected) is None:
+        _fail("hook_runtime_installed_supply_invalid")
     if store.is_symlink() or installation.is_symlink():
         _fail("hook_runtime_host_store_invalid")
     store.mkdir(parents=True, mode=0o700, exist_ok=True)
@@ -175,7 +175,7 @@ def _pin_installed_runtime(selected: SelectedRuntime, project: Path) -> Path:
                 _fail("hook_runtime_host_store_conflict")
             try:
                 pinned = require_selected_runtime(target, expected_build=selected.build)
-                complete = _runtime_supply_current(pinned, project)
+                complete = _runtime_supply_wheel(pinned) is not None
             except (OSError, ValueError) as error:
                 _fail("hook_runtime_host_store_conflict", error)
             if not complete:
@@ -202,7 +202,7 @@ def _pin_installed_runtime(selected: SelectedRuntime, project: Path) -> Path:
             pinned = require_selected_runtime(
                 staged_runtime, expected_root=target, expected_build=selected.build
             )
-            if not _runtime_supply_current(pinned, project):
+            if _runtime_supply_wheel(pinned) is None:
                 _fail("hook_runtime_host_store_copy_invalid")
             staging.rename(installation)
             return require_selected_runtime(target, expected_build=selected.build).root
@@ -327,7 +327,7 @@ def _bootstrap_runtime_from_invoker(
         return None
     if invoking.root.parent == common / "ethos/runtime":
         return invoking.root
-    return _pin_installed_runtime(invoking, project)
+    return pin_installed_runtime(invoking)
 
 
 def _compatible_invoking_runtime(

@@ -76,6 +76,8 @@ packages = ["src/ethos"]
 "uv.lock" = "ethos/data/runtime-project/uv.lock"
 "VERSION" = "ethos/data/runtime-project/VERSION"
 "system/schemas" = "ethos/data/schemas"
+"docs/governance/product-design-contract.md" = "ethos/data/governance/docs/governance/product-design-contract.md"
+"rules" = "ethos/data/governance/rules"
 
 [tool.hatch.build.targets.wheel.hooks.custom]
 path = "tools/ci/openspec_runtime_hook.py"
@@ -87,6 +89,8 @@ path = "tools/ci/openspec_runtime_hook.py"
 only-include = [
   "src",
   "system",
+  "docs/governance/product-design-contract.md",
+  "rules",
   "README.md",
   "LICENSE",
   "package.json",

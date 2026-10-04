@@ -24,5 +24,33 @@ repository policy, authorization, proof, or an Agent-specific command channel.
    cancellation, and a lost reply as unknown until the actual effect is checked;
    do not blindly repeat it. Preserve another holder's lane and unreviewed work.
 
+## Common Principles And Task Methods
+
+Use `governance_context.agent_guidance.sources` from the current product result
+for common principles and rule references. Open its selected sections first,
+then follow only the rule owner needed for the task. These exact references
+travel with the installed product; users need not repeat them per repository.
+The selection is not a complete ETHOS checkout or a transitive reference bundle.
+Use the target's declared profile and rule owners for native implementations;
+ETHOS-specific source links do not impose its toolchain on an adopter. A needed
+unavailable reference or evidence remains unproved, not implicitly satisfied.
+
+Before design, use the product-meaning source to review SSOT, DRY, MECE, SOLID,
+semantic preservation, deep interfaces and necessity. Before effects, use the
+rule reference to resolve the applicable trigger, owner, action, evidence and
+stop condition. A matched Skill supplies methods and native tool routing; it
+cannot redefine a rule, weaken acceptance or create another progress store.
+Repository business intent and authored local guidance retain their owners.
+
+For parallel work, read the accepted intent's allowed combinations and retention
+conditions before choosing contributions. Separate selection from preservation:
+check retained results and handoff evidence before retiring a declined lane through
+the current lifecycle command. A preserved result need not keep its worktree alive.
+
+On upgrade, target change or Agent handoff, rediscover current references and
+continuation. File availability and matching hashes establish source access,
+not that an Agent loaded, understood or followed the guidance. Exercise the
+accepted task journey before making that behavioral claim.
+
 Follow the current result rather than a memorized command sequence. A proposed
 next action is not proof that its prerequisites have already been satisfied.

@@ -64,11 +64,11 @@ a demonstrated gap in existing owners or mature alternatives, a bounded semantic
 responsibility and an explicit net benefit. A selected replacement removes the
 equivalent custom path; wrapping both indefinitely is not convergence.
 
-Declarative inputs flow through pure extraction, normalization, compilation and
-evaluation into explicit effect adapters. Each invariant has one semantic owner,
-organized by its reason to change. Commands, hooks, CI, SDKs, documentation and
-skills consume or project that owner's decisions. Distinct authority, lifetime
-and failure boundaries remain explicit.
+Declarative inputs use pure extraction, normalization, compilation and evaluation,
+then explicit effect adapters. SSOT gives each invariant one owner and change reason;
+DRY shares its implementation; MECE separates complete duties; SOLID preserves
+substitution and dependency direction. Commands, hooks, CI, SDKs, docs and Skills
+project those decisions, retaining distinct authority, lifetime and failure bounds.
 
 Deep modules provide complete capabilities through small, stable interfaces.
 They encapsulate algorithms, policy evaluation and recovery while exposing
@@ -81,8 +81,8 @@ Evolution preserves required product capabilities and unique evidence while
 consolidating their implementations. Verified live state migrates into its
 current owner, and superseded mechanisms retire in the same bounded sequence.
 A required external compatibility contract has an explicit owner and tested
-exit condition. These principles apply across the product; individual Changes
-provide independently reviewable and provable increments of that evolution.
+exit condition. These principles apply to ETHOS and every adopter, whose business
+meaning stays local; Changes provide independently reviewable, provable increments.
 
 Names identify semantic responsibilities, not development generations. Version
 metadata exists only at an independently interpreted compatibility, migration or

@@ -16,8 +16,11 @@ Each durable rule states exactly:
 | Evidence | The command, artifact, or verifier that proves compliance. |
 | Stop | The condition that blocks an effect, retirement, or closeout. |
 
-Delete or demote prose that cannot supply this record. A rule may describe a
-profile-selected carrier but cannot make that carrier globally mandatory.
+Delete or demote prose that cannot supply this record. Common semantic principles
+apply to ETHOS and every governed repository. A rule may describe a profile-selected
+carrier or native tool without making that implementation globally mandatory.
+The repository supplies applicable native evidence, not a copied ETHOS toolchain.
+Rules state duties; Skills route methods and cannot waive those duties.
 
 ## Entry Points
 

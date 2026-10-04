@@ -9,7 +9,6 @@ from typing import cast
 
 from ethos.assistants.skills.capabilities import capability_command_strings
 from ethos.assistants.skills.packages import DEFAULT_REQUIRED_SECTIONS
-from ethos.assistants.skills.packages import validate_skill_markdown
 from ethos.assistants.skills.packages import validate_skill_package_manifest
 from ethos.contracts.skill.activation import normalize_skill_activation
 from ethos.contracts.verdict import close_verdict
@@ -88,6 +87,7 @@ def skill_portfolio_report(root: Path) -> dict[str, object]:
         "skills": [skill["id"] for skill in records],
         "records": records,
         "registry": registry,
+        "registry_required_gaps": [*profile_required_gaps(profile), *missing],
         "coverage": _coverage(records),
         "portfolio_coverage": portfolio_coverage_report,
         "portfolio_design": portfolio_design_report,
@@ -116,26 +116,19 @@ def _collect_skill_records(
         skill_id = record["id"]
         skill_id_text = str(skill_id)
         path_gaps = _record_path_gaps(root, skill_id_text, str(record["path"]))
-        if path_gaps:
-            record_gaps.extend(path_gaps)
-        elif not (root / str(record["path"])).exists():
-            record_gaps.append(f"skill_missing_file:{skill_id_text}")
-        if not path_gaps:
-            quality = validate_skill_markdown(
-                root,
-                str(record["path"]),
-                skill_id_text,
-                DEFAULT_REQUIRED_SECTIONS,
-            )
-            record_gaps.extend(str(gap) for gap in quality["required_gaps"])
+        gaps = list(path_gaps)
+        if not path_gaps and not (root / str(record["path"])).exists():
+            gaps.append(f"skill_missing_file:{skill_id_text}")
         manifest_path = str(record["package_manifest"])
-        package_report = validate_skill_package_manifest(root, manifest_path)
+        package_report = validate_skill_package_manifest(
+            root, manifest_path, minimum_sections=DEFAULT_REQUIRED_SECTIONS
+        )
         package_reports.append(package_report)
         package_capabilities.extend(package_report["capabilities"])
-        record_gaps.extend(str(gap) for gap in package_report["required_gaps"])
+        gaps.extend(str(gap) for gap in package_report["required_gaps"])
         if not capability_command_strings(package_report["capabilities"]):
-            record_gaps.append(f"skill_missing_commands:{record['id']}")
-        record_gaps.extend(
+            gaps.append(f"skill_missing_commands:{record['id']}")
+        gaps.extend(
             _package_entrypoint_gaps(
                 root,
                 skill_id_text,
@@ -144,6 +137,8 @@ def _collect_skill_records(
             )
         )
         skill_record = _skill_record(record, package_report)
+        skill_record["required_gaps"] = list(dict.fromkeys(gaps))
+        record_gaps.extend(gaps)
         records.append(skill_record)
     return {
         "records": records,
@@ -189,6 +184,8 @@ def _package_entrypoint_gaps(
     activation_path: str,
     package_report: dict[str, Any],
 ) -> list[str]:
+    if package_report.get("id") != skill_id:
+        return [f"skill_package_identity_mismatch:{skill_id}"]
     entrypoint = str(package_report.get("entrypoint") or "")
     manifest = str(package_report.get("manifest") or "")
     if not entrypoint or not manifest:

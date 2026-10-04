@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from typing import Any
 
 from pydantic import BaseModel
@@ -12,6 +13,9 @@ from ethos.contracts.value import FrozenTuple
 from ethos.contracts.verdict import Verdict
 from ethos.normalization.coercion import repository_path_matches
 from ethos.normalization.coercion import string_list
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 class _ActivationModel(BaseModel):
@@ -57,6 +61,8 @@ def normalize_skill_activation(
 def compile_skill_activation(
     registry: dict[str, Any],
     *,
+    observed_records: tuple[Mapping[str, object], ...],
+    registry_gaps: tuple[str, ...],
     operation: str,
     subjects: tuple[str, ...] = (),
     changed_paths: tuple[str, ...] = (),
@@ -77,8 +83,24 @@ def compile_skill_activation(
             changed_paths=changed_paths,
         )
     }
-    gaps = _requirement_closure(selected, records)
+    gaps = [*registry_gaps, *_requirement_closure(selected, records)]
     gaps.extend(_exclusion_gaps(selected, records))
+    for skill_id in sorted(selected):
+        matches = [
+            observed
+            for observed in observed_records
+            if all(
+                observed.get(key) == records[skill_id][key]
+                for key in ("id", "path", "package_manifest")
+            )
+        ]
+        observed_gaps = matches[0].get("required_gaps") if len(matches) == 1 else None
+        if not isinstance(observed_gaps, list | tuple) or not all(
+            isinstance(gap, str) and gap for gap in observed_gaps
+        ):
+            gaps.append(f"skill_activation_observation_unavailable:{skill_id}")
+        else:
+            gaps.extend(observed_gaps)
     graph = {
         skill_id: tuple(
             sorted(
@@ -93,7 +115,7 @@ def compile_skill_activation(
     if ordered is None:
         gaps.append("skill_activation_dependency_cycle")
         ordered = ()
-    skills = [records[skill_id] for skill_id in ordered]
+    skills = [records[skill_id] for skill_id in ordered] if not gaps else []
     return SkillActivation(
         verdict="pass" if not gaps else "block",
         skills=tuple(

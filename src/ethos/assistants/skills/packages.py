@@ -52,7 +52,9 @@ def compute_skill_package_digest(package_dir: Path, include: list[str]) -> str:
     return f"sha256:{digest.hexdigest()}"
 
 
-def validate_skill_package_manifest(root: Path, manifest_path: str) -> dict[str, Any]:
+def validate_skill_package_manifest(
+    root: Path, manifest_path: str, *, minimum_sections: tuple[str, ...] = ()
+) -> dict[str, Any]:
     relative_manifest = Path(manifest_path)
     root = root.resolve()
     skill_id = relative_manifest.parent.name or relative_manifest.stem
@@ -112,7 +114,7 @@ def validate_skill_package_manifest(root: Path, manifest_path: str) -> dict[str,
             root,
             (package_dir / entrypoint).relative_to(root),
             skill_id,
-            required_sections,
+            tuple(dict.fromkeys((*minimum_sections, *required_sections))),
             placeholder_allowed=bool(quality_policy.get("placeholder_allowed", True)),
         )
         gaps.extend(quality["required_gaps"])

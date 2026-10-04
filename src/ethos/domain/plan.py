@@ -159,6 +159,10 @@ def plan_repository(root: Path, *, changed: bool = False, change: str | None = N
         operation="plan",
         subjects=(commitment.id,),
         changed_paths=paths,
+        observed_records=tuple(
+            string_mapping(record) for record in object_sequence(portfolio.get("records"))
+        ),
+        registry_gaps=tuple(string_sequence(portfolio["registry_required_gaps"])),
     )
     required_gaps = tuple(
         dict.fromkeys(
@@ -195,6 +199,8 @@ def plan_repository(root: Path, *, changed: bool = False, change: str | None = N
             if ok
             else "repair .ethos/rules.toml and rerun ethos plan --json"
             if rule_validation_gaps
+            else "repair the selected Skill packages and rerun ethos plan --json"
+            if skill_activation.required_gaps
             else "repair or select the official OpenSpec Change"
         ),
         data={

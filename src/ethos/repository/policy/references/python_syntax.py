@@ -6,6 +6,7 @@ import ast
 import re
 import shlex
 import warnings
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
 from ethos.repository.policy.references.commands import command_executables
@@ -284,6 +285,22 @@ def module_name(path: str) -> str:
     if parts[-1] == "__init__":
         parts.pop()
     return ".".join(parts)
+
+
+def module_source_paths(module: str, paths: tuple[str, ...]) -> tuple[str, ...]:
+    """Bind observed module entry candidates and importing packages without executing them."""
+    stem = module.replace(".", "/")
+    candidates = {
+        f"{prefix}{stem}{ending}" for prefix in ("", "src/") for ending in (".py", "/__main__.py")
+    }
+    entries = tuple(path for path in paths if path in candidates)
+    packages = tuple(
+        parent.as_posix() + "/__init__.py"
+        for entry in entries
+        for parent in PurePosixPath(entry).parents
+        if parent != PurePosixPath() and parent.as_posix() + "/__init__.py" in paths
+    )
+    return tuple(dict.fromkeys((*entries, *packages))) if entries else (stem + ".py",)
 
 
 def import_module(path: str, node: ast.ImportFrom) -> str:

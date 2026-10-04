@@ -166,7 +166,7 @@
 - [x] 11.1 Qualify the official stable SBOM supply after observed host-version drift.
 - [x] 11.2 Refresh compatible stable supply and exact CI projections with the Python support line intact.
 - [ ] 11.3 Qualify supported latest-stable supply or an obligation-preserving constrained-owner replacement.
-  - [ ] 11.3.1 Close the adopter-reproduced actionlint child-start-before-input deadlock at the existing native workflow-check owner. Verify bounded finite input, EOF and cancellation on the actual large workflow without a timeout increase, wrapper/fork or reduced validation. Source and native focused closure are implemented, including the direct Python gate and retired shell launcher; exact proof and installed delivery remain pending.
+  - [ ] 11.3.1 Close the adopter-reproduced actionlint child-start-before-input deadlock at the existing native workflow-check owner. Verify bounded finite input, EOF and cancellation on the actual large workflow without a timeout increase, wrapper/fork or reduced validation. Source and native focused closure are implemented, including the direct Python gate, selected module/package source bindings and retired shell launcher; exact proof and installed delivery remain pending.
 - [ ] 11.4 Migrate native developer/CI tool supply to mise locks and retire replaced installers.
 - [x] 11.5 Verify native import-linter and coverage TOML option equivalence; replace their INI owners and consumers without adding a converter.
 - [x] 11.6 Repair pytest configuration-relative paths and qualify native TOML through real plugin consumers.

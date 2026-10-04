@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import sys
 import tomllib
 from typing import TYPE_CHECKING
 
@@ -12,8 +14,11 @@ from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import load_gate_registry_declaration
+from ethos.repository.policy.gates import bind_gate_source_digests
+from ethos.repository.policy.gates import canonical_gate_command
 from ethos.repository.policy.gates import gate_policy_fields
 from ethos.repository.policy.gates import source_paths_for_gate
+from ethos.repository.policy.references.commands import python_module
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -197,6 +202,46 @@ def test_native_nox_gates_share_the_bound_interpreter() -> None:
     gates = load_gate_registry_declaration().registry(python_executable=python)
     nox_gates = [gate for gate in gates.values() if "nox" in gate.command]
     assert {gate.command[:3] for gate in nox_gates} == {(python, "-m", "nox")}
+
+
+@pytest.mark.parametrize("options", [("-m",), ("-B", "-I", "-m"), ("-mtools.ci.ci_projection",)])
+def test_resolved_python_module_gate_binds_exact_source(options: tuple[str, ...]) -> None:
+    """A direct module check cannot certify success without its selected source."""
+    gate = load_gate_registry_declaration().registry(python_executable=sys.executable)[
+        "github-workflow-syntax"
+    ]
+    command = (sys.executable, *options)
+    if options[-1] == "-m":
+        command = (*command, "tools.ci.ci_projection")
+    gate = gate.model_copy(update={"command": command})
+    path = "tools/ci/ci_projection.py"
+    assert source_paths_for_gate(gate) == (path,)
+    sources, gaps = bind_gate_source_digests((gate,), {path: b"first"})
+    assert sources == ((gate.id, ((path, hashlib.sha256(b"first").hexdigest()),)),)
+    assert gaps == ()
+    changed, _ = bind_gate_source_digests((gate,), {path: b"second"})
+    assert changed != sources
+    assert bind_gate_source_digests((gate,), {})[1] == (
+        f"gate_policy_source_missing:{gate.id}:{path}",
+    )
+
+
+@pytest.mark.parametrize("interpreter", ["python.exe", r"C:\runtime\python.exe", "/runtime/python"])
+def test_python_module_binding_is_portable(interpreter: str) -> None:
+    """The executable identity is identical for source binding and runtime admission."""
+    gate = Gate(id="portable", kind="test", command=(interpreter, "-B", "-m", "tools.check"))
+    assert source_paths_for_gate(gate) == ("tools/check.py",)
+    command = canonical_gate_command(gate.command)
+    assert python_module(command) == "tools.check"
+
+
+@pytest.mark.parametrize("options", [("-m", "nox"), ("-B", "-I", "-mnox")])
+def test_python_module_options_preserve_native_nox_source_binding(
+    options: tuple[str, ...],
+) -> None:
+    """Interpreter flags do not change the source owner of a native Nox session."""
+    gate = Gate(id="nox-check", kind="test", command=(sys.executable, *options, "-s", "lint"))
+    assert source_paths_for_gate(gate) == ("noxfile.py", "pyproject.toml", "uv.lock")
 
 
 @pytest.mark.parametrize("version", ["0", "2", "999", "true", "1.0", '"1"'])

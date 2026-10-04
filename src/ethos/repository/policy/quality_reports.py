@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from pathlib import Path
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
@@ -11,7 +12,6 @@ from xml.etree import ElementTree
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from collections.abc import Mapping
 
 
 def _invalid(code: str, error: Exception | None = None) -> NoReturn:
@@ -235,3 +235,24 @@ def lcov_stream_covered_paths(root: Path, text: str, production: tuple[str, ...]
     if observed != set(production):
         _invalid("javascript_source_unexercised")
     return observed
+
+
+def quality_evidence_paths(report: object, axis: str, source_tree: str) -> tuple[str, ...]:
+    """Return only successful, exact-tree, axis-matching native subject evidence."""
+    if not isinstance(report, Mapping) or report.get("verdict") != "pass":
+        return ()
+    evidence = report.get("quality_evidence")
+    selected = evidence.get("selected_paths") if isinstance(evidence, Mapping) else None
+    return (
+        tuple(selected)
+        if (
+            isinstance(evidence, Mapping)
+            and evidence.get("axis") == axis
+            and evidence.get("source_tree") == source_tree
+            and isinstance(selected, (list, tuple))
+            and bool(selected)
+            and all(isinstance(path, str) and path for path in selected)
+            and len(set(selected)) == len(selected)
+        )
+        else ()
+    )

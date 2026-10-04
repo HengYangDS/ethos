@@ -238,6 +238,58 @@ def test_nox_gate_binds_repository_sources_and_requires_runtime(tmp_path: Path) 
     }
 
 
+@pytest.mark.parametrize(
+    ("entry", "package_source"),
+    [
+        ("tools/check.py", ""),
+        ("src/tools/check.py", "raise RuntimeError()\n"),
+        ("src/tools/check/__main__.py", "raise RuntimeError()\n"),
+    ],
+)
+def test_python_module_policy_binds_committed_entry_and_parent_packages(
+    tmp_path: Path,
+    entry: str,
+    package_source: str,
+) -> None:
+    """Module resolution consumes observed Git paths, never imports mutable candidate code."""
+    repo = init_git_repo(tmp_path / "repo")
+    write_script_gate_policy(repo)
+    registry = repo / "system/gates.toml"
+    registry.write_text(
+        registry.read_text().replace(
+            '["tools/check.sh"]',
+            '["{python}", "-B", "-m", "tools.check"]',
+        )
+    )
+    source = repo / entry
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_text("raise RuntimeError('must not execute')\n")
+    prefix = "src/" if entry.startswith("src/") else ""
+    package = repo / f"{prefix}tools/__init__.py"
+    package.write_text(package_source)
+    missing = commit_fixture(repo, "module without runtime")
+    assert (
+        "gate_runtime_missing:repository-python" in resolve_gate_policy(repo, tree_ref=missing).gaps
+    )
+    interpreter = repo / ".venv/bin/python"
+    interpreter.parent.mkdir(parents=True)
+    interpreter.write_text("")
+    bound = resolve_gate_policy(repo, tree_ref=missing)
+    assert bound.gaps == _MISSING_QUALITY
+    assert {path for path, _digest in bound.sources[0][1]} == {entry, f"{prefix}tools/__init__.py"}
+    source.write_text("uncommitted mutable replacement\n")
+    assert resolve_gate_policy(repo, tree_ref=missing).digest == bound.digest
+    changed = resolve_gate_policy(repo, tree_ref=commit_fixture(repo, "module changed"))
+    assert changed.digest != bound.digest
+    source.unlink()
+    deleted = commit_fixture(repo, "module deleted")
+    source.write_text("untracked replacement\n")
+    assert any(
+        gap.startswith("gate_policy_source_missing:check:")
+        for gap in resolve_gate_policy(repo, tree_ref=deleted).gaps
+    )
+
+
 def test_gate_policy_identity_binds_profile_semantics_and_python_command(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     initialize_adopted_fixture(repo)

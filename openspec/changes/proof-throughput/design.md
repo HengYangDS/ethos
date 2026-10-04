@@ -3181,3 +3181,20 @@ pass-through `run-actionlint.sh` and its consumers are retired. Non-ShellCheck
 shells are explicitly inapplicable, not silently certified. No new tool supply,
 second gate, fork, process controller or wider deadline is introduced. Focused
 native acceptance is not exact-source proof or installed-product qualification.
+
+### Direct Module Source Binding
+
+The resolved direct Python workflow gate had no source digest while the native
+Nox gates retained their own bindings. The existing command parser now supplies
+module identity to the single source-binding owner. The already-observed Git
+inventory selects root/src module or package-main entries and their importing
+package sources; candidate modules are never loaded. Missing source remains a
+required gap, empty committed bytes remain valid input, and each Python-module
+command requires its bound interpreter. Current-source edits, deleted entries
+and mutable replacement files cannot substitute for selected committed bytes.
+Native quality-evidence interpretation now belongs to the existing report owner;
+the former local implementation is deleted, without a forwarding facade.
+
+Source regressions and native static checks qualify this bounded correction;
+exact-source proof and installed delivery remain prerequisites of Task11.3.1.
+

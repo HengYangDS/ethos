@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import ethos
-from ethos.adapters.repo.git import committed_file_bytes
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.repository.policy.code_subjects import CARRIER_ROLES
@@ -71,7 +70,8 @@ def _resolve_policies(
     materials = {
         relative: _material(root, tree_ref, relative)
         for relative in source_paths_for_gates(
-            tuple(gate for policy in initial for gate in policy.gates)
+            tuple(gate for policy in initial for gate in policy.gates),
+            repository_paths=repository_paths,
         )
     }
     return tuple(
@@ -203,8 +203,10 @@ def _material(root: Path, tree_ref: str | None, relative: str) -> bytes | None:
         path = package / relative.removeprefix(PRODUCT_PROVIDER_SOURCE)
         return path.read_bytes() if path.is_file() and not path.is_symlink() else None
     if tree_ref is not None:
-        source = committed_file_bytes(root, tree_ref, relative)
-        return source or None
+        observed = run_git(
+            root, "show", f"{tree_ref}:{relative}", check=False, text=False, observation=True
+        )
+        return observed.stdout if observed.returncode == 0 else None
     path = root / relative
     if path.is_symlink():
         return None

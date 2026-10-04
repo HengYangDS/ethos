@@ -22,6 +22,9 @@ from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.verdict import execution_succeeded
 from ethos.repository.policy.code_subjects import observed_code_subjects
+from ethos.repository.policy.quality_reports import quality_evidence_paths
+from ethos.repository.policy.references.commands import python_module
+from ethos.repository.policy.references.python_syntax import module_source_paths
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import RepositoryProfile
 
@@ -232,7 +235,7 @@ def _qualified_quality_paths(
         if not isinstance(item, Mapping) or item.get("provider") not in required:
             continue
         provider = item["provider"]
-        paths = _quality_evidence_paths(item.get("report"), axis, source_tree)
+        paths = quality_evidence_paths(item.get("report"), axis, source_tree)
         if not isinstance(provider, str) or provider in measured or not paths:
             return ()
         measured[provider] = paths
@@ -281,26 +284,6 @@ def _quality_provider_payload(
     ):
         return check.get("verification"), tuple(providers)
     return None, ()
-
-
-def _quality_evidence_paths(report: object, axis: str, source_tree: str) -> tuple[str, ...]:
-    if not isinstance(report, Mapping) or report.get("verdict") != "pass":
-        return ()
-    evidence = report.get("quality_evidence")
-    selected = evidence.get("selected_paths") if isinstance(evidence, Mapping) else None
-    return (
-        tuple(selected)
-        if (
-            isinstance(evidence, Mapping)
-            and evidence.get("axis") == axis
-            and evidence.get("source_tree") == source_tree
-            and isinstance(selected, (list, tuple))
-            and bool(selected)
-            and all(isinstance(path, str) and path for path in selected)
-            and len(set(selected)) == len(selected)
-        )
-        else ()
-    )
 
 
 def _owner_projection(
@@ -424,7 +407,11 @@ def _gate_declaration(
     return declaration, profile
 
 
-def source_paths_for_gate(gate: Gate) -> tuple[str, ...]:
+def source_paths_for_gate(
+    gate: Gate,
+    *,
+    repository_paths: tuple[str, ...] = (),
+) -> tuple[str, ...]:
     provider_root = (
         PRODUCT_PROVIDER_SOURCE
         if gate.profile == "repository" and gate.tool_adapter == "ethos"
@@ -435,11 +422,8 @@ def source_paths_for_gate(gate: Gate) -> tuple[str, ...]:
         for reference in (*gate.providers, *gate.verification_providers)
     )
     command = canonical_gate_command(gate.command)
-    noxfile = (
-        ("noxfile.py", "pyproject.toml", "uv.lock")
-        if len(command) >= 3 and command[0] == "python" and command[1:3] == ("-m", "nox")
-        else ()
-    )
+    module = python_module(command)
+    noxfile = ("noxfile.py", "pyproject.toml", "uv.lock") if module == "nox" else ()
     script = (
         (command[0],)
         if command
@@ -450,24 +434,37 @@ def source_paths_for_gate(gate: Gate) -> tuple[str, ...]:
         and ".." not in Path(command[0]).parts
         else ()
     )
-    return (*providers, *noxfile, *script)
+    module_sources = module_source_paths(module, repository_paths) if module and not noxfile else ()
+    return (*providers, *noxfile, *module_sources, *script)
 
 
-def source_paths_for_gates(gates: tuple[Gate, ...]) -> tuple[str, ...]:
+def source_paths_for_gates(
+    gates: tuple[Gate, ...],
+    *,
+    repository_paths: tuple[str, ...] = (),
+) -> tuple[str, ...]:
     """Return the unique repository materials needed by a gate closure."""
-    return tuple(dict.fromkeys(path for gate in gates for path in source_paths_for_gate(gate)))
+    return tuple(
+        dict.fromkeys(
+            path
+            for gate in gates
+            for path in source_paths_for_gate(gate, repository_paths=repository_paths)
+        )
+    )
 
 
 def bind_gate_source_digests(
     gates: tuple[Gate, ...],
     materials: dict[str, bytes | None],
+    *,
+    repository_paths: tuple[str, ...] = (),
 ) -> tuple[tuple[tuple[str, tuple[tuple[str, str], ...]], ...], tuple[str, ...]]:
     """Bind gate sources from already-observed repository materials."""
     bound: list[tuple[str, tuple[tuple[str, str], ...]]] = []
     gaps: list[str] = []
     for gate in gates:
         sources: list[tuple[str, str]] = []
-        for relative in source_paths_for_gate(gate):
+        for relative in source_paths_for_gate(gate, repository_paths=repository_paths):
             source = materials.get(relative)
             if source is None:
                 gaps.append(f"gate_policy_source_missing:{gate.id}:{relative}")
@@ -506,14 +503,16 @@ def resolve_gate_policy(
         python_executable=python_executable,
     )
     sources, gaps = (
-        bind_gate_source_digests(gates, source_materials or {})
+        bind_gate_source_digests(gates, source_materials or {}, repository_paths=repository_paths)
         if profile is not None and profile.declaration is not None
         else ((), ())
     )
     if (
         profile is not None
         and repository_python is None
-        and any(canonical_gate_command(gate.command)[1:3] == ("-m", "nox") for gate in gates)
+        and any(
+            python_module(canonical_gate_command(gate.command)) for gate in gates if gate.command
+        )
     ):
         gaps = (*gaps, "gate_runtime_missing:repository-python")
     if profile is not None and profile.declaration is not None and not gates:

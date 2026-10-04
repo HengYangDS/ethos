@@ -151,7 +151,7 @@ def command_executables(
     if not command or not (executable := _executable_identity(command[0])):
         return set()
     executables = {executable}
-    if (module := _python_module(command, executable)) and module_imports is not None:
+    if (module := python_module(command)) and module_imports is not None:
         module_imports.add(module.partition(".")[0])
     child = _wrapped_command_tokens(command, executable)
     if child:
@@ -214,8 +214,10 @@ def _env_command_start(tokens: tuple[str, ...], index: int) -> int:
     return index
 
 
-def _python_module(tokens: tuple[str, ...], executable: str) -> str:
-    if not re.fullmatch(r"python(?:\d+(?:\.\d+)*)?", executable):
+def python_module(tokens: tuple[str, ...]) -> str:
+    """Resolve the interpreter-selected module without loading candidate code."""
+    executable = tokens[0].replace("\\", "/").rsplit("/", maxsplit=1)[-1] if tokens else ""
+    if not re.fullmatch(r"python(?:\d+(?:\.\d+)*)?(?:\.exe)?", executable):
         return ""
     index = 1
     while index < len(tokens):

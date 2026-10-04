@@ -143,6 +143,18 @@
   - [x] 9.9.2 Reject conflicting active rule identities at the typed contract, compiler and plan-selection boundary without choosing a winner or emitting partial executable policy.
   - [x] 9.9.3 Unify native object identity/type observation, remove scalar duplicate readers, and qualify moved-ref, malformed/missing-object and SHA-1/SHA-256 consumers through reduced-work evidence, exact proof and installed runtime.
   - [ ] 9.9.4 Admit the Publisher Provider contract and migrate through one manifest; preserve ETHOS source authority, authored Claim Models/Editions and renderer-neutral intent. Verify conformance, parity or a reviewed semantic successor, relocated empty-config execution and rollback before retiring replaced mechanics; close package/API references, exact proof and publication readback.
+        Exact-source preflight at `4c4bfa31` exposed three stale projection bindings
+        (local state, Skills and repository governance). Existing graph/copy now
+        distinguish durable Attestations from recovery receipts, self-maintenance
+        from adopter methods, and host installation from repository selection;
+        source/package hierarchy is preserved. All 113 nodes, 164 relations,
+        43 invariants and 27 static assertions retain their existing view mapping.
+        All 67 existing source/export cases pass with native JSON policy and
+        same-attempt Allure 3/JUnit (`resources-projection-green*`). The first
+        60-pass/one-failure run caught a dropped locked-toolchain phrase; restored
+        source obligations keep that adverse receipt. Committed export/gate,
+        accepted delivery, Provider migration and actual rendered visibility stay
+        open; no renderer or diagram repository changed.
 
 ## 10. Native Quality Rules and Early Failure
 

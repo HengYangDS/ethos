@@ -149,7 +149,7 @@
     "local_state": {
       "path": "docs/architecture/local-state.md",
       "authority": "current host-local coordination boundary",
-      "sha256": "01f656fa725e64e9c044bda3d08a7439d24daa36343a14de3edcb3b2f3e4299d"
+      "sha256": "61fc0c9e0fd301fc0b1453192302af72e9207bd60684bfbc767a151c7da29fbc"
     },
     "adoption": {
       "path": "docs/architecture/adoption-profiles.md",
@@ -164,7 +164,7 @@
     "skills": {
       "path": "docs/governance/skills.md",
       "authority": "current skill projection boundary",
-      "sha256": "0803b9b8cbe1d0c49268f400f9407a7eb6a7d6d40b0d6fb375020fa21eb8d77c"
+      "sha256": "e8e8d6246d7144050549bde4e54549f05f98f285ea3bfe943ee1111611034e32"
     },
     "independent_verification": {
       "path": "docs/governance/independent-verification-adoption.md",
@@ -179,7 +179,7 @@
     "repository_governance": {
       "path": "openspec/specs/repository-governance/spec.md",
       "authority": "current repository lifecycle, proof, publication, and cleanup semantics",
-      "sha256": "491c8538cb59d6b30e0bd8f7f986b948691ec7286dd98a49ec1a65d8ac2a3e20"
+      "sha256": "bee11d580c1ffe6d2c50261758deb46762354d0bc414867c287b617e65225292"
     },
     "command_plane": {
       "path": "openspec/specs/command-plane/spec.md",
@@ -335,7 +335,7 @@
         "product_contract",
         "skills"
       ],
-      "semantics": "Replaceable domain capabilities make the full research-to-outcome path usable. One portfolio owner validates original activation, packages, routing, composition and retirement before projection. Skills never own acceptance, authority, progress or lifecycle state. Installed, version-matched guidance discovers current target context without requiring the ETHOS checkout or duplicating lifecycle decisions. Package integrity and routing do not prove host loading, correct agent behavior or improved outcomes; these require distinct observations."
+      "semantics": "Replaceable domain capabilities make the full research-to-outcome path usable. One portfolio owner validates original activation, packages, routing, composition and retirement before projection. Skills never own acceptance, authority, progress or lifecycle state. Installed, version-matched guidance discovers current target context without requiring the ETHOS checkout or duplicating lifecycle decisions. Package integrity and routing do not prove host loading, correct agent behavior or improved outcomes; these require distinct observations. ETHOS self-maintenance procedures are distinct from adopter task guidance. Completeness follows accepted product duties and real consumers, not the portfolio's own declared topics; native obligations, methods and business meaning keep separate owners."
     },
     "owner_native_tools": {
       "kind": "capability",
@@ -428,7 +428,7 @@
         "repository_governance",
         "command_plane"
       ],
-      "semantics": "Shared Lease, transaction, receipt and runtime projection below one Git common directory; it coordinates a repository family but owns no semantic truth."
+      "semantics": "Repository-family Lease, transaction, operation receipts and selected runtime references coordinate below one Git common directory without owning semantic truth. Durable Attestations are selected by refs/ethos/attestations-set, not an alternative local receipt store. Host product installation, repository version selection and mutable coordination have distinct owners and lifetimes."
     },
     "git_common_activation": {
       "kind": "coordination",
@@ -449,7 +449,7 @@
         "gc.packRefs"
       ],
       "worktree_local_owner_allowed": false,
-      "semantics": "One Git-common activation, no per-worktree authority. Preview adoption; use the locked toolchain for immutable runtime activation, state migration, hook rebinding and activation rollback. After activation, reclaim unused generations from fresh operational dependencies; deferred reclamation preserves successful activation and exact partial outcomes."
+      "semantics": "One repository-common activation selects version-matched immutable supply and hooks; it is not a per-worktree authority or the host product installation. Preview adoption; use the locked toolchain for state migration, hook rebinding and activation rollback. After activation, reclaim unused generations from fresh operational dependencies; deferred reclamation preserves successful activation and exact partial outcomes."
     },
     "runtime_generation_retirement": {
       "kind": "coordination",
@@ -1000,9 +1000,10 @@
       "required_visible": true,
       "evidence": [
         "product_contract",
-        "runner_mutation"
+        "runner_mutation",
+        "local_state"
       ],
-      "semantics": "Content-addressed evidence and receipts remain inspectable after transient execution disappears.",
+      "semantics": "Content-addressed Attestations remain inspectable through refs/ethos/attestations-set after transient execution disappears. Local operation receipts have their own recovery lifetime, not a second Attestation authority; neither kind grants permission.",
       "reality_boundary": "ethos_repo"
     },
     "rebuildable_outputs": {

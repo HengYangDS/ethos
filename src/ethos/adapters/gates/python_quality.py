@@ -9,6 +9,7 @@ import sys
 from contextlib import ExitStack
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import cast
 
 from ethos.adapters.gates.verification import NativeExecution
 from ethos.adapters.process import ProcessExecutionError
@@ -144,7 +145,7 @@ def _behavior_scope(root: Path, paths: tuple[str, ...]) -> tuple[tuple[str, ...]
 
 def _behavior_evidence(
     root: Path, source: tuple[str, ...], tests: tuple[str, ...]
-) -> tuple[dict[str, int], dict[str, object]]:
+) -> dict[str, object]:
     """Observe one locked native test run and its fresh reports."""
     with TemporaryDirectory(prefix="ethos-python-quality-") as temporary, ExitStack() as scope:
         output = Path(temporary)
@@ -175,17 +176,17 @@ def _behavior_evidence(
             *prefix,
             "python",
             "-m",
-            "coverage",
-            "run",
-            "--branch",
-            "--source=.",
-            "-m",
             "pytest",
             "-q",
+            "-W",
+            "error",
             "-o",
             f"cache_dir={output / 'pytest-cache'}",
             f"--basetemp={output / 'pytest'}",
             f"--junitxml={junit}",
+            "--cov=.",
+            "--cov-branch",
+            f"--cov-report=xml:{coverage}",
             *targets,
         )
         removed = ("VIRTUAL_ENV", "UV_PROJECT_ENVIRONMENT", "PYTHONPATH", "PYTEST_ADDOPTS")
@@ -197,42 +198,45 @@ def _behavior_evidence(
             remove_env=removed,
             remove_env_prefixes=("MISE_",),
         )
-        if not junit.is_file():
-            message = "test_command_failed" if result.returncode else "test_report_missing"
-            raise ValueError(message)
-        report = run_command(
-            root,
-            (*prefix, "python", "-m", "coverage", "xml", "-o", str(coverage)),
-            timeout=60,
-            env=environment,
-            remove_env=removed,
-            remove_env_prefixes=("MISE_",),
-        )
-        if report.returncode or not coverage.is_file():
-            message = "test_command_failed" if result.returncode else "coverage_report_missing"
-            raise ValueError(message)
-        counts, failed = junit_report((junit,))
-        measured = coverage_report(coverage, include_files=True)
-        files = measured["files"]
-        if not isinstance(files, dict):
-            message = "coverage_scope_invalid"
-            raise TypeError(message)
-        selected = source
-        if any(name not in files for name in selected):
-            message = "coverage_scope_incomplete"
-            raise ValueError(message)
-        if any(
-            isinstance(files[name], dict)
-            and files[name]["lines"] > 0
-            and files[name]["hit_lines"] == 0
-            for name in selected
-        ):
-            message = "source_unexercised"
-            raise ValueError(message)
-        if result.returncode or failed or measured["covered"] == 0:
-            message = "tests_failed"
-            raise ValueError(message)
-        return counts, measured
+        evidence: dict[str, object] = {
+            "native": _native_fields(
+                NativeExecution(
+                    command,
+                    command,
+                    root,
+                    result.returncode,
+                    result.stdout,
+                    result.stderr,
+                    executable=command[0],
+                )
+            )
+        }
+        try:
+            if not junit.is_file():
+                reason = "test_command_failed" if result.returncode else "test_report_missing"
+                return {**evidence, **_failure("behavior", reason)}
+            counts, failed = junit_report((junit,))
+            evidence["tests"] = counts
+            if not coverage.is_file():
+                reason = "test_command_failed" if result.returncode else "coverage_report_missing"
+                return {**evidence, **_failure("behavior", reason)}
+            measured = coverage_report(coverage, include_files=True)
+            evidence["coverage"] = {key: value for key, value in measured.items() if key != "files"}
+            files = cast("dict[str, dict[str, int]]", measured["files"])
+            if any(name not in files for name in source):
+                reason = "coverage_scope_incomplete"
+            elif any(files[name]["lines"] > 0 and files[name]["hit_lines"] == 0 for name in source):
+                reason = "source_unexercised"
+            elif result.returncode or failed or measured["covered"] == 0:
+                reason = "tests_failed"
+            else:
+                reason = ""
+            if reason:
+                return {**evidence, **_failure("behavior", reason)}
+        except (OSError, TypeError, ValueError, subprocess.TimeoutExpired) as error:
+            reason = str(error) if isinstance(error, ValueError) else type(error).__name__
+            return {**evidence, **_failure("behavior", reason)}
+        return {**evidence, "verdict": "pass", "state": "verified", "required_gaps": []}
 
 
 def behavior_report(root: Path, *, execution: NativeExecution | None = None) -> dict[str, object]:
@@ -242,28 +246,27 @@ def behavior_report(root: Path, *, execution: NativeExecution | None = None) -> 
             **_failure("behavior", "python_native_evidence_unavailable"),
             "native": _native_fields(execution),
         }
+    evidence: dict[str, object] = {}
     try:
         tree, subjects = observe_quality_subjects(root, language="python")
         paths = tuple(subject.path for subject in subjects)
         source, tests = _behavior_scope(root, paths)
-        counts, measured = _behavior_evidence(root, source, tests)
+        evidence = _behavior_evidence(root, source, tests)
         observe_quality_subjects(root, language="python", expected_tree=tree)
+    except ProcessExecutionError as error:
+        return {**evidence, **_failure("behavior", error.code), "diagnostics": [error.evidence()]}
     except (
         OSError,
         TypeError,
         ValueError,
-        ProcessExecutionError,
         subprocess.TimeoutExpired,
     ) as error:
-        return _failure(
-            "behavior", str(error) if isinstance(error, ValueError) else type(error).__name__
-        )
+        reason = str(error) if isinstance(error, ValueError) else type(error).__name__
+        return {**evidence, **_failure("behavior", reason)}
+    if evidence["verdict"] != "pass":
+        return evidence
     return {
-        "verdict": "pass",
-        "state": "verified",
-        "required_gaps": [],
-        "tests": counts,
-        "coverage": {key: value for key, value in measured.items() if key != "files"},
+        **evidence,
         "quality_evidence": {
             "axis": "behavior",
             "source_tree": tree,

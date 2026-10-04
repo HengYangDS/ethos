@@ -8,6 +8,7 @@ import sys
 from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 
@@ -15,28 +16,45 @@ import ethos.adapters.gates.code_quality as native_quality
 import ethos.adapters.gates.python_quality as python_quality
 from ethos.adapters.gates.verification import NativeExecution
 from ethos.adapters.gates.verification import provider_reports
-from ethos.repository.policy.code_subjects import CodeSubject
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import init_git_repo
 
 
-@pytest.mark.parametrize("native_layout", ["uv", "relocated-mise"])
+@pytest.mark.parametrize(
+    ("native_layout", "outcome"),
+    [("uv", "pass"), ("relocated-mise", "pass"), ("uv", "failure"), ("uv", "warning")],
+)
 def test_generic_provider_uses_real_locked_python_evidence(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_layout: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_layout: str, outcome: str
 ) -> None:
-    """The generalized provider preserves Python's existing native success path."""
-    repo = init_git_repo(tmp_path / "repo")
+    """Preserve one locked native attempt, its diagnostics and clean owned output."""
     fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
-    for name in ("pyproject.toml", "uv.lock"):
-        (repo / name).write_bytes((fixture / name).read_bytes())
+    files = {
+        **{name: (fixture / name).read_text() for name in ("pyproject.toml", "uv.lock")},
+        "pytest.toml": '[pytest]\naddopts = ["--strict-config"]\ncache_dir = ".cache/pytest"\n',
+        "src/sample/__init__.py": "def answer() -> int:\n    return 42\n",
+        "tests/test_sample.py": "from pathlib import Path\n"
+        + ("from warnings import warn\n" if outcome == "warning" else "")
+        + "\nfrom sample import answer\n\n\ndef test_answer() -> None:\n"
+        "    with (Path(__file__).parents[2] / 'runs').open('a') as output:\n"
+        "        output.write('x')\n"
+        "    print('native test diagnostic')\n"
+        + (
+            "    warn('native test warning', UserWarning, stacklevel=2)\n"
+            if outcome == "warning"
+            else ""
+        )
+        + f"    assert answer() == {43 if outcome == 'failure' else 42}\n",
+    }
     selected_tools: list[str] = []
-    monkeypatch.setenv("UV_PROJECT_ENVIRONMENT", str(repo / ".venv"))
     if native_layout == "relocated-mise":
-        config = repo / ".config/mise/config.toml"
-        config.parent.mkdir(parents=True)
-        config.write_text('[tools]\npython = "3.14.7"\nuv = "0.12.20"\n')
-        (config.parent / "mise.lock").write_text("")
+        files.update(
+            {
+                ".config/mise/config.toml": '[tools]\npython = "3.14.7"\nuv = "0.12.20"\n',
+                ".config/mise/mise.lock": "",
+            }
+        )
         uv_executable = shutil.which("uv")
         assert uv_executable is not None
 
@@ -48,24 +66,22 @@ def test_generic_provider_uses_real_locked_python_evidence(
             python_quality,
             "locked_environment",
             lambda _root, _files: nullcontext({"UV_PROJECT_ENVIRONMENT": str(repo / ".venv")}),
-            raising=False,
         )
-        monkeypatch.setattr(python_quality, "locked_tool", selected_tool, raising=False)
-    (repo / "pytest.toml").write_text(
-        '[pytest]\naddopts = ["--strict-config"]\ncache_dir = ".cache/pytest"\n'
-    )
-    source = repo / "src/sample/__init__.py"
-    source.parent.mkdir(parents=True)
-    source.write_text("def answer() -> int:\n    return 42\n")
-    test = repo / "tests/test_sample.py"
-    test.parent.mkdir()
-    test.write_text(
-        "from sample import answer\n\n\ndef test_answer() -> None:\n    assert answer() == 42\n"
-    )
-    commit_fixture(repo, "lock native Python quality")
-
-    for report in (native_quality.behavior_report(repo), native_quality.static_report(repo)):
-        assert report["verdict"] == "pass", report["required_gaps"]
+        monkeypatch.setattr(python_quality, "locked_tool", selected_tool)
+    repo = committed_source_repo(tmp_path, files)
+    monkeypatch.setenv("UV_PROJECT_ENVIRONMENT", str(repo / ".venv"))
+    with patch.object(python_quality, "run_command", wraps=python_quality.run_command) as run:
+        report = native_quality.behavior_report(repo)
+        assert run.call_count == 1
+    assert report["verdict"] == ("pass" if outcome == "pass" else "block"), report
+    retained = report["native"][0]
+    assert retained["tests"]["total"] == 1
+    assert retained["native"]["exit_code"] == (0 if outcome == "pass" else 1)
+    assert retained["native"]["cwd"] == str(repo)
+    if outcome != "pass":
+        assert "native test diagnostic" in retained["native"]["stdout"]
+    assert (tmp_path / "runs").read_text() == "x"
+    assert native_quality.static_report(repo)["verdict"] == "pass"
     assert not (repo / ".cache/pytest").exists()
     assert not (repo / ".venv").exists()
     if native_layout == "relocated-mise":
@@ -163,12 +179,14 @@ def test_native_behavior_requires_source_tests_and_a_lock(tmp_path: Path) -> Non
 
 
 @pytest.mark.parametrize(
-    ("stdout", "returncode", "gap"),
+    ("stdout", "returncode", "stderr", "gap"),
     [
-        ("{", 0, "quality_static_report_invalid"),
-        ("{}", 0, "quality_static_report_invalid"),
-        ("[]", 1, "quality_static_diagnostics"),
-        ('[{"code":"E999"}]', 1, "quality_static_diagnostics"),
+        ("{", 0, "", "quality_static_report_invalid"),
+        ("{}", 0, "", "quality_static_report_invalid"),
+        ("[]", 1, "", "quality_static_diagnostics"),
+        ('[{"code":"E999"}]', 1, "", "quality_static_diagnostics"),
+        ("[]", 0, "native warning\n", "quality_static_diagnostics"),
+        ("{", 0, "native warning\n", "quality_static_report_invalid"),
     ],
 )
 def test_native_static_adapter_distinguishes_report_from_diagnostics(
@@ -176,20 +194,22 @@ def test_native_static_adapter_distinguishes_report_from_diagnostics(
     monkeypatch: pytest.MonkeyPatch,
     stdout: str,
     returncode: int,
+    stderr: str,
     gap: str,
 ) -> None:
     """A malformed tool report differs from a valid report containing findings."""
-    monkeypatch.setattr(
-        python_quality,
-        "observe_quality_subjects",
-        lambda _root, **_kwargs: ("a" * 40, (CodeSubject("src/app.py", "python", is_test=False),)),
-    )
+    repo = committed_source_repo(tmp_path, {"src/app.py": "answer = 42\n"})
     monkeypatch.setattr(
         python_quality,
         "run_command",
-        lambda *_args, **_kwargs: SimpleNamespace(stdout=stdout, stderr="", returncode=returncode),
+        lambda *_args, **_kwargs: SimpleNamespace(
+            stdout=stdout, stderr=stderr, returncode=returncode
+        ),
     )
-    assert python_quality.static_report(tmp_path)["required_gaps"] == [gap]
+    report = python_quality.static_report(repo)
+    assert report["required_gaps"] == [gap]
+    assert report["native"]["stdout"] == stdout
+    assert report["native"]["stderr"] == stderr
 
 
 @pytest.mark.parametrize(
@@ -202,21 +222,24 @@ def test_python_behavior_distinguishes_command_failure_from_missing_report(
     monkeypatch.setattr(
         python_quality,
         "run_command",
-        lambda *_args, **_kwargs: SimpleNamespace(returncode=exit_code, stdout="", stderr=""),
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=exit_code, stdout="native result\n", stderr="native diagnostic\n"
+        ),
     )
-    monkeypatch.setattr(
-        python_quality,
-        "observe_quality_subjects",
-        lambda _root, **_kwargs: ("a" * 40, (CodeSubject("src/app.py", "python", is_test=False),)),
+    repo = committed_source_repo(
+        tmp_path,
+        {
+            "src/app.py": "answer = 42\n",
+            "tests/test_app.py": "def test_answer(): assert True\n",
+            "pyproject.toml": "[project]\nname = 'sample'\nversion = '0.1.0'\n",
+            "uv.lock": "version = 1\n",
+        },
     )
-    monkeypatch.setattr(
-        python_quality,
-        "_behavior_scope",
-        lambda _root, _paths: (("src/app.py",), ("tests/test_app.py",)),
-    )
-    assert python_quality.behavior_report(tmp_path)["required_gaps"] == [
-        f"quality_behavior_{reason}"
-    ]
+    report = python_quality.behavior_report(repo)
+    assert report["required_gaps"] == [f"quality_behavior_{reason}"]
+    assert report["native"]["stdout"] == "native result\n"
+    assert report["native"]["stderr"] == "native diagnostic\n"
+    assert report["native"]["exit_code"] == exit_code
 
 
 @pytest.mark.parametrize("identity", ["exact", "base-binary"])
@@ -280,27 +303,6 @@ def test_python_static_cannot_waive_product_rules_with_inline_noqa(tmp_path: Pat
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["quality_static_diagnostics"]
     assert "F821" in report["native"]["stdout"]
-
-
-@pytest.mark.parametrize("stdout", ["[]", "{"])
-def test_python_static_preserves_native_warning_and_invalid_output(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stdout: str
-) -> None:
-    """A zero native exit cannot hide stderr or discard an invalid diagnostic stream."""
-    repo = committed_source_repo(tmp_path, {"src/app.py": "answer = 42\n"})
-    monkeypatch.setattr(
-        python_quality,
-        "run_command",
-        lambda *_args, **_kwargs: SimpleNamespace(
-            stdout=stdout,
-            stderr="native warning\n",
-            returncode=0,
-        ),
-    )
-    report = python_quality.static_report(repo)
-    assert report["verdict"] == "block"
-    assert report["native"]["stdout"] == stdout
-    assert report["native"]["stderr"] == "native warning\n"
 
 
 @pytest.mark.parametrize("changed_at", ["before", "after"])

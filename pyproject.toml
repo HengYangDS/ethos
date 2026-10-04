@@ -77,6 +77,11 @@ packages = ["src/ethos"]
 "VERSION" = "ethos/data/runtime-project/VERSION"
 "system/schemas" = "ethos/data/schemas"
 "docs/governance/product-design-contract.md" = "ethos/data/governance/docs/governance/product-design-contract.md"
+"docs/governance/docs-registry.md" = "ethos/data/governance/docs/governance/docs-registry.md"
+"docs/governance/repository-profile-contract.md" = "ethos/data/governance/docs/governance/repository-profile-contract.md"
+"docs/governance/release-governance.md" = "ethos/data/governance/docs/governance/release-governance.md"
+"docs/governance/adopter-boundary-and-retirement.md" = "ethos/data/governance/docs/governance/adopter-boundary-and-retirement.md"
+"docs/reference/command-plane.md" = "ethos/data/governance/docs/reference/command-plane.md"
 "rules" = "ethos/data/governance/rules"
 
 [tool.hatch.build.targets.wheel.hooks.custom]
@@ -90,6 +95,11 @@ only-include = [
   "src",
   "system",
   "docs/governance/product-design-contract.md",
+  "docs/governance/docs-registry.md",
+  "docs/governance/repository-profile-contract.md",
+  "docs/governance/release-governance.md",
+  "docs/governance/adopter-boundary-and-retirement.md",
+  "docs/reference/command-plane.md",
   "rules",
   "README.md",
   "LICENSE",

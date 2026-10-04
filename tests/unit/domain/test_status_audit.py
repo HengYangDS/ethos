@@ -1,10 +1,13 @@
 """Status audit composition tests."""
 
+import json
 from pathlib import Path
 
 import pytest
 
 import ethos.domain.status as status
+from tests.support.ethos_cli_runner import run_ethos_raw
+from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
 
 
@@ -84,10 +87,16 @@ def test_common_adopter_audit_is_representation_independent(
     report = status.audit_for_root(repo, openspec=observation)
     valid = condition in {"valid", "derived"}
     assert report["verdict"] == ("pass" if valid else "block"), report
-    assert "docs" not in report
+    docs = report["docs"]
+    assert isinstance(docs, dict)
+    assert docs["document_count"] == 0
     assert "schemas" not in report
     if valid:
-        assert report["release_policy"]["protected_refs"]["branches"] == ["main", "dev"]
+        release = report["release_policy"]
+        assert isinstance(release, dict)
+        protected = release["protected_refs"]
+        assert isinstance(protected, dict)
+        assert protected["branches"] == ["main", "dev"]
     else:
         fragment = {
             "role": "protected_branches_policy_missing",
@@ -95,7 +104,9 @@ def test_common_adopter_audit_is_representation_independent(
             "openspec": "openspec_config_invalid",
             "commit": "commit_policy",
         }[condition]
-        assert any(fragment in gap for gap in report["required_gaps"])
+        gaps = report["required_gaps"]
+        assert isinstance(gaps, list)
+        assert any(fragment in gap for gap in gaps)
 
 
 def test_common_audit_does_not_require_optional_product_capabilities(tmp_path: Path) -> None:
@@ -104,6 +115,78 @@ def test_common_audit_does_not_require_optional_product_capabilities(tmp_path: P
     (repo / ".ethos/profile.toml").write_text('profile_id = "minimal"\n', encoding="utf-8")
     report = status.audit_for_root(repo)
     assert report["verdict"] == "pass", report
-    assert report["release_policy"]["declaration"] == {}
-    assert report["release_policy"]["protected_refs"] == {"branches": ["main", "dev"], "tags": []}
-    assert report["openspec"]["state"] == "not_applicable"
+    release = report["release_policy"]
+    assert isinstance(release, dict)
+    assert release["declaration"] == {}
+    assert release["protected_refs"] == {"branches": ["main", "dev"], "tags": []}
+    openspec = report["openspec"]
+    assert isinstance(openspec, dict)
+    assert openspec["state"] == "not_applicable"
+
+
+@pytest.mark.parametrize("registry", [False, True])
+def test_common_audit_enforces_the_selected_documentation_owner(
+    tmp_path: Path, *, registry: bool
+) -> None:
+    """A native docs root retains shared identity and navigation obligations."""
+    repo = _adopter(tmp_path / "native-docs", registry=registry)
+    profile = repo / ".ethos/profile.toml"
+    profile.write_text(profile.read_text() + '\n[roots]\ndocs = "handbook"\n')
+    handbook = repo / "handbook/rulings"
+    handbook.mkdir(parents=True)
+    decision = handbook / "dr-0006-supply-choice.md"
+    decision.write_text(_document("sample:supply-choice", "decision", "Supply Choice"))
+    report = status.audit_for_root(repo)
+    assert report["verdict"] == "pass", report
+
+    decision.rename(handbook / "supply-choice.md")
+    report = status.audit_for_root(repo)
+    assert report["verdict"] == "block", report
+    gaps = report["required_gaps"]
+    assert isinstance(gaps, list)
+    assert "docs_decision_name_invalid:handbook/rulings/supply-choice.md" in gaps
+    docs = report["docs"]
+    assert isinstance(docs, dict)
+    assert docs["document_count"] == 1
+
+    (handbook / "supply-choice.md").rename(decision)
+    (handbook / "explanation.md").write_text(_document("sample:supply", "explanation", "Supply"))
+    report = status.audit_for_root(repo)
+    gaps = report["required_gaps"]
+    assert isinstance(gaps, list)
+    assert report["verdict"] == "block", report
+    assert "docs_readme_missing:handbook/rulings/README.md" in gaps
+    (handbook / "README.md").write_text(
+        _document("sample:rulings", "index", "Rulings")
+        + "\nRead [the choice](dr-0006-supply-choice.md) and [explanation](explanation.md).\n"
+    )
+    assert status.audit_for_root(repo)["verdict"] == "pass"
+
+
+def test_public_common_gate_cannot_omit_documentation_identity(tmp_path: Path) -> None:
+    """Default governance refuses a docs defect without a separately selected docs gate."""
+    repo = _adopter(tmp_path / "public-docs", registry=False)
+    decision = repo / "docs/rulings/choice.md"
+    decision.parent.mkdir(parents=True)
+    decision.write_text(_document("sample:choice", "decision", "Choice"))
+    commit_fixture(repo, "docs: preserve a decision choice")
+
+    observed = run_ethos_raw(
+        "prove", "--host", "--execute", "--gate", "repository-audit", "--json", cwd=repo
+    )
+    report = json.loads(observed.stdout)
+
+    assert observed.returncode != 0
+    assert report["verdict"] == "block", report
+    assert report["summary"]["proof_attestation_issued"] is False
+    payload = json.loads(report["data"]["checks"][0]["stdout"])
+    audit = payload["providers"][0]["report"]
+    assert "docs_decision_name_invalid:docs/rulings/choice.md" in audit["required_gaps"]
+
+
+def _document(subject: str, role: str, title: str) -> str:
+    """Supply a complete native metadata and visible reading fixture."""
+    return (
+        f"---\nsubject: {subject}\nrole: {role}\nstate: canonical\nrelations: {{}}\n"
+        f"---\n\n# {title}\n\nStatus: canonical.\n\nPurpose: explain one choice.\n"
+    )

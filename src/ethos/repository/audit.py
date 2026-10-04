@@ -19,6 +19,7 @@ from ethos.repository.policy.commit import CommitPolicy
 from ethos.repository.policy.commit import load_commit_policy
 from ethos.repository.policy.references.closure import repository_semantic_closure
 from ethos.repository.policy.schema import schema_validation_report
+from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.release.configuration import REQUIRED_RELEASE_FILES as PRODUCT_RELEASE_FILES
 from ethos.repository.release.configuration import release_role_policy_report
 
@@ -155,6 +156,7 @@ def governance_audit(
     *,
     openspec: dict[str, object],
     commit_policy_observer: CommitPolicyObserver,
+    tracked_documents: tuple[str, ...] = (),
 ) -> dict[str, object]:
     """Compose applicable repository obligations without product-layout requirements."""
     reports = {
@@ -162,6 +164,7 @@ def governance_audit(
         "openspec": openspec,
         "commit_policy": _commit_policy_report(root, commit_policy_observer),
         "release_policy": release_role_policy_report(root),
+        "docs": docs_health_report(root, tracked_documents=tracked_documents),
     }
     gaps = list(
         dict.fromkeys(

@@ -24,9 +24,52 @@ def repository_context(root: Path) -> dict[str, object]:
         (
             "docs/governance/product-design-contract.md",
             "product-meaning",
-            ("Construction And Evolution Discipline", "Evidence Planes And Completion Claims"),
+            (
+                "Product",
+                "Construction And Evolution Discipline",
+                "Isomorphic Adopter Governance",
+                "Feedback Intent Preservation",
+                "Recursive Domain Feedback",
+                "Evidence Planes And Completion Claims",
+            ),
         ),
         ("rules/README.md", "rules", ("Rule Record", "Upstream Enforcement")),
+        ("rules/agents.md", "agent-method", ("Rules", "Feedback Closure")),
+        (
+            "docs/governance/docs-registry.md",
+            "documentation",
+            (
+                "Semantic Authority And Carrier Boundaries",
+                "Human And Agent Reading Contract",
+                "Directory entrypoint rule",
+                "Portability Boundary",
+            ),
+        ),
+        (
+            "docs/governance/repository-profile-contract.md",
+            "adoption",
+            ("Responsibilities", "Adapter Command Contract", "Product Boundary"),
+        ),
+        (
+            "docs/governance/release-governance.md",
+            "release",
+            ("Semantic Versioning and Changelog", "Release Surfaces and Evidence"),
+        ),
+        (
+            "docs/governance/adopter-boundary-and-retirement.md",
+            "recovery",
+            ("Product And Adopter Ownership", "Exact Effects And Recovery", "Retirement Judgment"),
+        ),
+        (
+            "docs/reference/command-plane.md",
+            "commands",
+            (
+                "Workflow And Transport Roots",
+                "Runtime Selection and Recovery",
+                "Proof Depth",
+                "Assurance And Evidence Boundary",
+            ),
+        ),
     ):
         path = (documents / relative).resolve(strict=True)
         sources.append(

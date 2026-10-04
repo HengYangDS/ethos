@@ -80,3 +80,28 @@ superseded instructions and retire overlap only after consumer review. A new
 skill is justified by an otherwise uncovered reusable procedure, not by the
 arrival of another feedback message. Host loading and installed projection
 qualification remain distinct from source-side package validation.
+
+## Product Use And Product Maintenance
+
+The four repository-local governance Skills maintain ETHOS's own authority
+surfaces. Their declared-subject coverage is not a partition of the complete
+product journey. The installed `ethos-repository-work` entry routes adopter
+work to exact package-owned sources and the target's native owners; it does not
+require those four self-maintenance procedures in every adopted repository.
+Official OpenSpec Skills retain their own artifact lifecycle methods.
+
+MECE applies to responsibilities, not disjoint words or one Skill per command.
+Each distinct obligation has one rule or implementation owner; methods may
+compose through explicit requirements. Assess completeness from accepted
+product tasks and actual consumers, not from the topics the portfolio itself
+declares. Separate missing guidance, missing native capability, disconnected
+enforcement and unproved Agent behavior. Repair the responsible owner, adding a
+focused Skill only when a distinct reusable method is otherwise unavailable.
+
+The common floor covers applicable repository structure and documentation,
+configuration and release, code and evidence quality, change admission and
+delivery, recovery and feedback. Adoption must preserve that floor through native
+profile and gate owners while leaving business meaning and toolchains local.
+Binding, a generated entrypoint or a structural Skills PASS proves none of those
+obligations effective. Qualification must exercise a useful task and its relevant
+failure or unknown boundary through the installed product without user retelling.

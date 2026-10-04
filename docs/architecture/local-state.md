@@ -18,8 +18,10 @@ See also: [Runner And Mutation](runner-and-mutation.md) and
 
 ETHOS stores host-local runtime state under `<git-common-dir>/ethos/`, shared by
 every linked worktree without materializing files in any checkout. The current
-database is `<git-common-dir>/ethos/state.sqlite`; content-addressed local proof
-receipts are under `<git-common-dir>/ethos/attestations/`. This state is a
+database is `<git-common-dir>/ethos/state.sqlite`. Durable Attestations are selected
+by `refs/ethos/attestations-set`; local requests and operation receipts remain
+under `<git-common-dir>/ethos/requests/` and `receipts/`. These are distinct
+owners and lifetimes, not an alternative local Attestation store. This state is a
 projection over current repository facts, not a source of truth or a substitute
 for Git, OpenSpec, or tracked records.
 

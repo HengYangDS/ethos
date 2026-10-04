@@ -33,6 +33,7 @@ def audit_for_root(
         root,
         openspec=openspec,
         commit_policy_observer=commit_policy_report,
+        tracked_documents=tuple(git_files(root, "*.md")),
     )
 
 

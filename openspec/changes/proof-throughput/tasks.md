@@ -175,21 +175,21 @@
 - [ ] 11.9 Verify declaration-to-consumer wiring with disconnected, misbound and unavailable-capability cases through public entrypoints; preserve adverse results through receipt and admission.
   - [ ] 11.9.1 Qualify carrier-role and native-discovery applicability, including frozen provenance, generated build inputs, explicit selection, missing discovery and unauthorized relabeling; preserve integrity obligations without language or directory-name exceptions.
   - [ ] 11.9.2 Compile the common quality floor through existing rule, profile
-    and gate owners: reject empty/false evidence; conjoin exact per-subject native
-    observations without replay; distinguish source and artifact-qualified inputs;
-    preserve code/document/release applicability and trusted-prior floors. Product
-    context supplies principles without user retelling: rules own obligations,
-    Skills route methods, and actual Agent adherence requires separate evidence.
-    Native Ruff, exact-HEAD subjects, invocation identity, pytest-cov and native uv
-    selection are source-implemented; prior installed observations are independently
-    corroborated, not accepted delivery. Node+c8 now retains one test, explicit
-    configuration and separate outcomes; 117 related tests and five config/custody
-    cases pass (`native-c8-{final,config-green}.junit.xml`). Typed native V8 rejects
-    the original malformed forgery; `native-c8-focused4.junit.xml` remains adverse
-    history. Retired LCOV has no consumer; 36 ended scratch/cache roots retired
-    after verified custody. Structural validity does not authenticate a same-user
-    producer. Nox composition, subject applicability, outer-launcher diagnostics,
-    full proof and exact installed acceptance remain open.
+        and gate owners: reject empty/false evidence; conjoin exact per-subject native
+        observations without replay; distinguish source and artifact-qualified inputs;
+        preserve code/document/release applicability and trusted-prior floors. Product
+        context supplies principles without user retelling: rules own obligations,
+        Skills route methods, and actual Agent adherence requires separate evidence.
+        Native Ruff, exact-HEAD subjects, invocation identity, pytest-cov and native uv
+        selection are source-implemented; prior installed observations are independently
+        corroborated, not accepted delivery. Node+c8 now retains one test, explicit
+        configuration and separate outcomes; 117 related tests and five config/custody
+        cases pass (`native-c8-{final,config-green}.junit.xml`). Typed native V8 rejects
+        the original malformed forgery; `native-c8-focused4.junit.xml` remains adverse
+        history. Retired LCOV has no consumer; 36 ended scratch/cache roots retired
+        after verified custody. Structural validity does not authenticate a same-user
+        producer. Nox composition, subject applicability, outer-launcher diagnostics,
+        full proof and exact installed acceptance remain open.
 - [x] 11.10 Verify native TOML and mise migrations through focused native checks, exact-source full proof and installed runtime.
 
 ## 12. Documentation Comprehension and Research Delivery
@@ -211,11 +211,32 @@
   - [ ] 13.2.2 Exercise model-gap escalation, dependent migration, superseded-path retirement and correction of ineffective feedback safeguards.
   - [ ] 13.2.3 Qualify self-hosting and distinct adopted business domains without sharing their goals, metrics or authority.
 - [ ] 13.3 Wire feedback planning to canonical skill context; verify package integrity, trigger/non-trigger behavior and compiled pre-reads while keeping host loading and changed agent behavior distinct. Source joins selected dependency observations to registry/package identities and preserves the active section floor in one validator; invalid activation emits no Skills or context, without blocking unrelated optional packages. Signed source `7a8a6b04`: 49 tests, the public skills gate and 14 isolated installed-wheel observations pass; 29 fixture/cache roots and the isolated test installation retired after verified custody (`selected-skills-{source,installed,housekeeping}-result.json`). Publisher's retained signed fixture independently closes the installed defect through native hook/Lease and 14 public observations: `north-star-skills-successor-public-cases.json`, SHA256 `6a779029811928ca873b3860734ed7db3849a1e89d7bc7d48c580dc62828344a`. Host loading, behavior and accepted-runtime delivery remain open; old counterexamples remain history, not current defects.
+      Current common-foundation scope is global, not Decision Record naming alone.
+      The four self-maintenance Skills' declared-subject PASS does not cover the
+      product journey. Installed source-access RED (missing documentation owner)
+      now has three focused GREEN cases; exact package delivery, independent adopter
+      wiring and actual Agent behavior remain open. Native common obligations,
+      task methods, capability gaps and business ownership stay distinct.
+      Public common-audit RED accepted an unnamed decision that the docs owner
+      rejected. The shared docs owner is now composed once into generic governance;
+      35 native cases pass across inline/registry profiles and selected native roots.
+      Five-adopter source audit found copied document checks, missing verifier
+      selection and stale active-Change guidance; those owner handoffs are not fixes.
+      Source checks and 45 related Skill cases pass; exact proof and delivery remain
+      open. Independent read-only reviews found no required source defect.
 - [ ] 13.4 Close publication provenance and post-history-repair delivery through its existing owner.
   - [x] 13.4.1 Preserve original acceptance through validated repair relations; exercise native repair, new-source proof and release, plus fresh membership and bounded decoding counterexamples.
   - [ ] 13.4.2 Qualify and install the exact candidate, observe complete publication performance, and obtain the adopter-owned consumer result; keep these separate from source and focused-test success.
     - [x] 13.4.2.1 Deliver the isolated signed finite-input repair through the native wheel/runtime owner; qualify public admission, independent byte custody and the original AIGW implicit hook and DDWG proof consumers. This closes their hang, not full-proof, release or whole-product acceptance.
   - [ ] 13.4.3 Close owner-confirmed historical attribution and peer readback through exact corrections and recoverable originals. Current author-header repair is accepted and installed; the three platform committer records are retained after exact original GitHub web-flow signature verification. Evidence: `~/.local/share/ethos/recovery/identity-repair-20261001/historical-human-attribution-disposition.json`. The false Junie coauthor, exact proof, peer publication and old PR-reference disposition remain open; future genuine contributors are not constrained.
+        Remote-retirement checkpoint, 2026-10-04 11:51 UTC: live GitLab/GitHub retain
+        three/four proposal refs with no open reviews. Original/repaired peer history
+        now passes 51 native retirement/review tests after a reproduced false block;
+        source remains unaccepted and no remote ref was removed. Existing-owner
+        evidence is `proposal-retirement-{test-red,test-green,attestation-cost}`.
+        The 120-MB selected set and repeated repair validation exceed bounded
+        previews; remove that repetition before exact retirement. Current adopters
+        were notified; four historical families still lack acknowledged owner routing.
   - [ ] 13.4.4 Deliver native stat-cache refresh at the worktree-sync owner; preserve real dirty bytes and qualify public closeout, exact proof and installed behavior. Current focused native owner tests are evidence, not accepted delivery.
   - [ ] 13.4.5 Deliver exact false-coauthor selection at the existing history owner; preserve every unselected message byte, true contributors, timestamps and ordered parents. Native trailer and signed history tests pass; runtime activation, actual repair and GitHub Commit.authors readback remain open.
   - [ ] 13.4.6 Resume the conserved full-product candidate after attribution closure. Signed checkpoint `6c4584cb6998d0307ef1a08db09c520fb620e74f` retains tree `701996186a5ad660b417004f58fe18523bbd97e3`; `exact-before-refresh.bundle` and the recorded admitted inverse patch preserve every unrelated source, test, contract and canonical-plan change. Isolation is not semantic retirement or completion of those obligations.

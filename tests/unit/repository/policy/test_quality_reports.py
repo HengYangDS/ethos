@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import json
+from pathlib import Path
 
 import pytest
 
 from ethos.repository.policy.quality_reports import coverage_report
 from ethos.repository.policy.quality_reports import junit_report
-
-if TYPE_CHECKING:
-    from pathlib import Path
+from ethos.repository.policy.quality_reports import node_event_report
 
 
 @pytest.mark.parametrize(
@@ -130,3 +129,64 @@ def test_coverage_rejects_untrustworthy_source_scope(
     )
     with pytest.raises(ValueError, match=f"^{gap}$"):
         coverage_report(path, include_files=True)
+
+
+@pytest.mark.parametrize(
+    "defect",
+    [
+        "none",
+        "missing-terminal",
+        "duplicate-terminal",
+        "duplicate-file",
+        "out-of-scope",
+        "extra-test",
+        "alias-file",
+        "bad-counter",
+    ],
+)
+def test_native_node_events_require_conserved_scope_and_terminal(
+    tmp_path: Path,
+    defect: str,
+) -> None:
+    """Successful typed events cannot replace missing or contradictory native evidence."""
+    file = str((tmp_path / "answer.js").resolve())
+    test = str((tmp_path / "answer.test.js").resolve())
+    counts = {"tests": 1, "passed": 1, "failed": 0, "cancelled": 0, "skipped": 0, "todo": 0}
+    coverage = {
+        "workingDirectory": str(tmp_path.resolve()),
+        "files": [
+            {"path": file, "coveredLineCount": 1, "totalLineCount": 1},
+        ],
+    }
+    events = [
+        {"type": "test:enqueue", "data": {"file": test}},
+        {"type": "test:coverage", "data": {"summary": coverage}},
+        {"type": "test:summary", "data": {"success": True, "counts": counts}},
+    ]
+    if defect == "missing-terminal":
+        events.pop()
+    if defect == "duplicate-terminal":
+        events.append(events[-1])
+    if defect == "duplicate-file":
+        coverage["files"].append(coverage["files"][0])
+    if defect == "out-of-scope":
+        events[0]["data"]["file"] = str(tmp_path / "other.test.js")
+    if defect == "extra-test":
+        events.insert(
+            1, {"type": "test:enqueue", "data": {"file": str(tmp_path / "other.test.js")}}
+        )
+    if defect == "alias-file":
+        alias = str(tmp_path) + "/./answer.js"
+        assert alias != file
+        assert Path(alias).resolve() == Path(file)
+        coverage["files"].append({"path": alias, "coveredLineCount": 1, "totalLineCount": 1})
+    if defect == "bad-counter":
+        coverage["files"][0]["coveredLineCount"] = 2
+    payload = "\n".join(map(json.dumps, events))
+    if defect == "none":
+        assert node_event_report(tmp_path, payload, ("answer.test.js",), ("answer.js",))[1] == {
+            "answer.js"
+        }
+    else:
+        with pytest.raises(ValueError, match="javascript_"):
+            node_event_report(tmp_path, payload, ("answer.test.js",), ("answer.js",))

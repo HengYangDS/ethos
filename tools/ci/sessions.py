@@ -314,6 +314,10 @@ def javascript_tests(session) -> None:
 def javascript_lint(session) -> None:
     paths = _paths("*.js", "*.mjs", "*.cjs")
     if paths:
+        analyzer = import_module("ethos.adapters.gates.javascript.analysis")
+        observation = analyzer.static_observation(ROOT, paths)
+        if observation["verdict"] != "pass":
+            session.error(json.dumps(observation))
         node = RUNTIME.node_executable()
         prettier = RUNTIME.node_package_supply() / "prettier/bin/prettier.cjs"
         session.run(

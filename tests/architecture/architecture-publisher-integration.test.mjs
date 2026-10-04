@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
@@ -12,10 +11,6 @@ const INTEGRATION = join(ROOT, "integrations", "architecture-publisher");
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
-}
-
-function sha256(path) {
-  return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
 function moduleFiles(root) {

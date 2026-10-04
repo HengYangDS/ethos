@@ -25,7 +25,7 @@ const projectDelta = (change) => ({
     .map((id) => id.slice(13)),
 });
 
-function completeDependencies(value, model, name) {
+function completeDependencies(value, model) {
   const nodes = new Set(value.nodes),
     relations = new Set(value.relations),
     claims = new Set(value.claims);
@@ -182,7 +182,7 @@ function dependencies(value, model, name) {
     (Object.hasOwn(value, "authoredInputSha256") && !isDigest(value.authoredInputSha256))
   )
     throw Error("Explicit ETHOS scene dependencies required: " + name);
-  return completeDependencies(value, model, name);
+  return completeDependencies(value, model);
 }
 
 function sceneGroups(value, model) {
@@ -261,8 +261,7 @@ export function createEthosEdition(projection, sourceManifestSha256, selection) 
   if (selection.narrative.some((id) => !pages.has(id)) || selection.narrative[0] !== "overview")
     throw Error("Complete ETHOS Edition narrative required");
   const staticSelection = dependencies(selection.static, model, "static"),
-    requiredClaims = [...staticSelection.claims],
-    overview = pages.get("overview");
+    requiredClaims = [...staticSelection.claims];
   const edition = {
     schema: "architecture.edition/v1",
     id: "ethos-architecture",

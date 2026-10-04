@@ -18,29 +18,29 @@ function removeTemplateDecorations(template) {
   const seams = [
     [
       "editorial plate",
-      /^    html\[data-preset="editorial"\] \.diagram-container::after \{[^}]*\}\n    html\[data-embed="true"\]\[data-preset="editorial"\] \.diagram-container::after \{ display: none; \}\n/gm,
+      /^ {4}html\[data-preset="editorial"\] \.diagram-container::after \{[^}]*\}\n {4}html\[data-embed="true"\]\[data-preset="editorial"\] \.diagram-container::after \{ display: none; \}\n/gm,
       1,
     ],
     [
       "style headings",
-      /^    html\[data-preset="(?:signal-flow|blueprint|editorial)"\] \.header-row::after \{[^}]*\}\n/gm,
+      /^ {4}html\[data-preset="(?:signal-flow|blueprint|editorial)"\] \.header-row::after \{[^}]*\}\n/gm,
       3,
     ],
     [
       "blueprint corners",
-      /^    html\[data-preset="blueprint"\] \.diagram-container::after \{[^}]*\}\n/gm,
+      /^ {4}html\[data-preset="blueprint"\] \.diagram-container::after \{[^}]*\}\n/gm,
       1,
     ],
     [
       "ambient scan",
-      /^    html\[data-motion-capable="true"\]\[data-preset="signal-flow"\]\[data-ambient-motion="running"\] \.diagram-container::before \{[^}]*\}\n/gm,
+      /^ {4}html\[data-motion-capable="true"\]\[data-preset="signal-flow"\]\[data-ambient-motion="running"\] \.diagram-container::before \{[^}]*\}\n/gm,
       1,
     ],
     ["badge attributes", /\n +data-preset-badge-[a-z-]+="[^"]*"/g, 4],
-    ["heading ornament", /^        <div class="pulse-dot"><\/div>\n/gm, 1],
+    ["heading ornament", /^ {8}<div class="pulse-dot"><\/div>\n/gm, 1],
     [
       "card accent stripes",
-      /^    html\[data-preset="(?:editorial|blueprint)"\] \.card::before \{[^}]*\}\n/gm,
+      /^ {4}html\[data-preset="(?:editorial|blueprint)"\] \.card::before \{[^}]*\}\n/gm,
       2,
     ],
   ];
@@ -190,12 +190,12 @@ function clarifyAtlasReader(template) {
     throw Error("Unsupported native relationship caption seam");
   template = template.replace(caption, "step.edgeLabels.join(' · ')");
   const handoff =
-    /          var node = findNode\(anchor\);\n          var nodeLabel = node \? \(node.getAttribute\('data-node-label'\) \|\| anchor\) : anchor;\n          handoffReceipt.textContent = viewerText\('viewer.guided.handoff', \{[\s\S]*?          handoffReceipt.hidden = false;\n/g;
+    / {10}var node = findNode\(anchor\);\n {10}var nodeLabel = node \? \(node.getAttribute\('data-node-label'\) \|\| anchor\) : anchor;\n {10}handoffReceipt.textContent = viewerText\('viewer.guided.handoff', \{[\s\S]*? {10}handoffReceipt.hidden = false;\n/g;
   if ([...template.matchAll(handoff)].length !== 1)
     throw Error("Unsupported native handoff receipt seam");
   template = template.replace(handoff, "");
   const guideOrdinals =
-    /            <span class="diagram-guide-index" aria-hidden="true">0[1-6]<\/span>\n/g;
+    / {12}<span class="diagram-guide-index" aria-hidden="true">0[1-6]<\/span>\n/g;
   if ([...template.matchAll(guideOrdinals)].length !== 6)
     throw Error("Unsupported native guide ordinal seams");
   template = template.replace(guideOrdinals, "");

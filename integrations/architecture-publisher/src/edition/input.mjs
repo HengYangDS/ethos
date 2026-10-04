@@ -41,7 +41,9 @@ export async function readEthosAtlasOutputInput(file) {
   return {
     status: "verified",
     ...result,
-    members: result.members.map(({ content, ...member }) => member),
+    members: result.members.map((member) =>
+      Object.fromEntries(Object.entries(member).filter(([key]) => key !== "content")),
+    ),
   };
 }
 

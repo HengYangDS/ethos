@@ -89,7 +89,7 @@ test("accepted ETHOS source is an explicit semantic successor of the packaged Ed
       "utf8",
     ),
   );
-  const { project, coreRoot, integrationRoot, sourceApi, adapter, edition, importPublic } =
+  const { project, integrationRoot, sourceApi, adapter, edition, importPublic } =
     await installPackages(t);
   const svgApi = await importPublic("architecture-publisher/renderers/svg");
   const qualificationApi = await importPublic("architecture-publisher/qualification");

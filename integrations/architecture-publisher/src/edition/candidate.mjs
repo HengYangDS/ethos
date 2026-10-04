@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { readSourceBundle } from "architecture-publisher/source";
 import { writeSourceBundle } from "architecture-publisher/source";
-import { readEthosSource, sha256, stableStringify } from "../adapter/projection.mjs";
+import { readEthosSource, sha256 } from "../adapter/projection.mjs";
 import { readEthosAtlasSelection } from "./atlas.mjs";
 import { checkBindings } from "./bindings.mjs";
 import {

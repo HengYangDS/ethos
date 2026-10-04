@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Mapping
 from pathlib import Path
@@ -256,3 +257,115 @@ def quality_evidence_paths(report: object, axis: str, source_tree: str) -> tuple
         )
         else ()
     )
+
+
+def node_event_report(
+    root: Path,
+    payload: str,
+    tests: tuple[str, ...],
+    production: tuple[str, ...],
+) -> tuple[dict[str, int], set[str], tuple[str, ...]]:
+    """Validate original Node events, terminal scope, coverage and adverse diagnostics."""
+    try:
+        events = tuple(json.loads(line) for line in payload.splitlines() if line)
+    except json.JSONDecodeError as error:
+        _invalid("javascript_native_events_invalid", error)
+    if not events or any(
+        not isinstance(event, dict)
+        or not isinstance(event.get("type"), str)
+        or not isinstance(event.get("data"), dict)
+        for event in events
+    ):
+        _invalid("javascript_native_events_invalid")
+    terminal = events[-1]
+    if terminal["type"] != "test:summary" or "file" in terminal["data"]:
+        _invalid("javascript_native_events_incomplete")
+    if (
+        sum(event["type"] == "test:summary" and "file" not in event["data"] for event in events)
+        != 1
+    ):
+        _invalid("javascript_native_events_incomplete")
+    summary = terminal["data"]
+    counts = summary.get("counts")
+    if not isinstance(counts, dict) or any(
+        type(counts.get(key)) is not int or counts[key] < 0
+        for key in ("tests", "passed", "failed", "cancelled", "skipped", "todo")
+    ):
+        _invalid("javascript_native_summary_invalid")
+    if summary.get("success") is not True or counts["failed"] or counts["cancelled"]:
+        _invalid("javascript_tests_failed")
+    if counts["passed"] <= 0:
+        _invalid("javascript_tests_failed")
+    if counts["tests"] != sum(
+        counts[key] for key in ("passed", "failed", "cancelled", "skipped", "todo")
+    ):
+        _invalid("javascript_native_summary_invalid")
+    _node_test_scope(root, events, tests)
+    coverage = [
+        event["data"].get("summary") for event in events if event["type"] == "test:coverage"
+    ]
+    if len(coverage) != 1 or not isinstance(coverage[0], dict):
+        _invalid("javascript_coverage_missing")
+    observed = _node_covered_paths(root, coverage[0], production)
+    diagnostics = tuple(
+        str(event["data"].get("message", ""))
+        for event in events
+        if event["type"] == "test:stderr"
+        or (
+            event["type"] == "test:diagnostic"
+            and event["data"].get("level") not in {"info", "debug"}
+        )
+    )
+    return (
+        {"total": counts["tests"], "skipped": counts["skipped"], "failures": 0, "errors": 0},
+        observed,
+        diagnostics,
+    )
+
+
+def _node_covered_paths(
+    root: Path,
+    observed_coverage: dict[str, object],
+    production: tuple[str, ...],
+) -> set[str]:
+    """Bind native Node coverage to the working directory and exact source paths."""
+    if Path(str(observed_coverage.get("workingDirectory"))).resolve() != root.resolve():
+        _invalid("javascript_coverage_scope_invalid")
+    files = observed_coverage.get("files")
+    if not isinstance(files, list) or any(
+        not isinstance(file, dict)
+        or not isinstance(file.get("path"), str)
+        or type(file.get("coveredLineCount")) is not int
+        for file in files
+    ):
+        _invalid("javascript_coverage_invalid")
+    if len({Path(file["path"]).resolve() for file in files}) != len(files) or any(
+        type(file.get("totalLineCount")) is not int
+        or not 0 <= file["coveredLineCount"] <= file["totalLineCount"]
+        for file in files
+    ):
+        _invalid("javascript_coverage_invalid")
+    hits = {Path(file["path"]).resolve() for file in files if file["coveredLineCount"] > 0}
+    observed = {path for path in production if (root / path).resolve() in hits}
+    if observed != set(production):
+        _invalid("javascript_source_unexercised")
+    return observed
+
+
+def _node_test_scope(
+    root: Path, events: tuple[dict[str, object], ...], tests: tuple[str, ...]
+) -> None:
+    """Require each selected native test file to appear in the original event stream."""
+    entered: set[Path] = set()
+    for event in events:
+        data = event.get("data")
+        if (
+            event.get("type") == "test:enqueue"
+            and isinstance(data, dict)
+            and "entryFile" not in data
+        ):
+            file = data.get("file")
+            if isinstance(file, str):
+                entered.add(Path(file).resolve())
+    if {(root / path).resolve() for path in tests} != entered:
+        _invalid("javascript_native_test_scope_incomplete")

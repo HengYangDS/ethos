@@ -1,4 +1,3 @@
-import fs from "node:fs/promises";
 import path from "node:path";
 import { fail, isDigest } from "architecture-publisher/source";
 import { readFileEnvelope } from "architecture-publisher/source";

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 from concurrent.futures import FIRST_COMPLETED
 from concurrent.futures import ThreadPoolExecutor
@@ -134,8 +135,12 @@ class LocalGateRunner:
         if gate.providers:
             return _run_providers(node, gate, root)
         command = gate.command
+        executable = shutil.which(command[0])
+        execution_command = (
+            (str(Path(executable).resolve()), *command[1:]) if executable else command
+        )
         try:
-            completed = run_command(root, command)
+            completed = run_command(root, execution_command)
         except ProcessExecutionError as exc:
             if not isinstance(exc.__cause__, FileNotFoundError):
                 raise
@@ -181,6 +186,7 @@ class LocalGateRunner:
                     exit_code=completed.returncode,
                     stdout=completed.stdout,
                     stderr=completed.stderr,
+                    executable=execution_command[0] if executable else "",
                 ),
             )
             verification = {"gate": gate.id, "providers": reports}

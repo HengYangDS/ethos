@@ -3198,3 +3198,35 @@ the former local implementation is deleted, without a forwarding facade.
 Source regressions and native static checks qualify this bounded correction;
 exact-source proof and installed delivery remain prerequisites of Task11.3.1.
 
+### Shared Native JavaScript Quality Closure
+
+The isolated native tool comparison selected ESLint 10.12.0 over Oxlint 1.86.0
+for this floor: both distinguished undefined names from legal lexical shadowing,
+but the tested Oxlint call accepted inline disable directives. ESLint's native
+configuration isolation and no-inline-config behavior rejected the same inputs.
+The pinned production npm closure is consumed by the existing package hook; no
+adopter tool implementation or configuration execution is required. Nox and the
+adopter provider use the same native analysis owner. Unused local/import bindings
+and an unconsumed old static compositor are retired; live effect-row derivation
+remains. Existing literal regexes use native equivalent quantifiers. Browser
+code receives its native capabilities explicitly rather than a filename waiver.
+
+Direct Node behavior now emits the standard native test-event stream from one
+product-shipped async-generator reporter. Native cases, coverage, diagnostics,
+Error fields and the root terminal summary survive in the original receipt.
+Malformed or incomplete reports, duplicate terminal/source identities, extra
+selected test files, unexecuted sources and adverse diagnostics remain rejected.
+NativeExecution binds the actual executable before launch. A wrapper whose
+child instance is unobserved is explicitly unproved, not accepted from current
+PATH and never re-executed for report convenience. Selected committed source
+must match the working bytes before and after product-provider inspection;
+standalone source-side diagnostics do not grant exact-tree proof authority.
+
+The isolated incremental lock adds 66 package nodes without changing incumbent
+versions and has no new ESLint advisory. The native full lock audit reports six
+existing high advisory nodes rooted at braces 3.0.3; no stable patch was available
+in the registry readback. This remains a supply acceptance gap, not a green audit,
+a downgrade, or a reason to remove diagnostics. Unsupported npm/c8 and Python
+execution/report contracts stay in Task11.9.2. Focused source tests do not close
+Task10.4/10.6, the independent CLI product, or whole-adopter acceptance.
+

@@ -29,7 +29,7 @@ export async function applyNativeFonts(toolRoot, supply, expected) {
     if (sha(before[key]) !== expected[key]) throw Error("Font adapter digest mismatch: " + key);
   let template = before.template,
     renderer = before.renderer;
-  const block = /  <!-- Async font load:[\s\S]*?<\/noscript>\n/;
+  const block = / {2}<!-- Async font load:[\s\S]*?<\/noscript>\n/;
   if ((template.match(block) ?? []).length !== 1) throw Error("Pinned font import seam mismatch");
   const css = fontFaceCss(supply);
   template = template.replace(
@@ -37,7 +37,7 @@ export async function applyNativeFonts(toolRoot, supply, expected) {
     `  <style id="ethos-font-supply">${css}</style>\n  <style>body{font-kerning:none;font-variant-ligatures:none}</style>\n`,
   );
   const local =
-    /        \/\/ Prepend a local\(\)-only @font-face block[\s\S]*?        \}\)\.join\('\\n'\);/;
+    / {8}\/\/ Prepend a local\(\)-only @font-face block[\s\S]*? {8}\}\)\.join\('\\n'\);/;
   if ((template.match(local) ?? []).length !== 1) throw Error("Pinned export font seam mismatch");
   template = template.replace(
     local,

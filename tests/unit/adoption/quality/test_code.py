@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.gates.code_quality as native_quality
+import ethos.adapters.gates.javascript.analysis as native_analysis
 import ethos.adapters.toolchain.mise as native_mise
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
@@ -261,11 +262,29 @@ def test_declared_mise_supply_precedes_ambient_path(
         assert shutil.which("cue", path=path) == str(binary / "cue")
         assert shutil.which("rcodesign", path=path) == str(binary / "rcodesign")
         executed.append(command)
+        if names == ("node",):
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                json.dumps(
+                    [
+                        {
+                            "filePath": str(repo / item["path"]),
+                            "messages": [],
+                            "errorCount": 0,
+                            "warningCount": 0,
+                        }
+                        for item in json.loads(str(kwargs["stdin"]))
+                    ]
+                ),
+                "",
+            )
         return subprocess.CompletedProcess(command, 0, "", "")
 
     monkeypatch.setattr(native_mise, "run_mise", select)
     monkeypatch.setattr(native_mise, "mise_executable", lambda: selected_mise)
     monkeypatch.setattr(native_quality, "run_command", execute)
+    monkeypatch.setattr(native_analysis, "run_command", execute)
 
     report = native_quality.static_report(repo)
 
@@ -431,10 +450,8 @@ def test_public_proof_conjoins_native_commands_with_product_verifiers(
             "node",
             "--test",
             "--experimental-test-coverage",
-            "--test-reporter=junit",
+            f"--test-reporter={Path(native_quality.__file__).parent / 'javascript/reporter.mjs'}",
             "--test-reporter-destination=stdout",
-            "--test-reporter=lcov",
-            "--test-reporter-destination=stderr",
             "answer.test.js",
         ]
     )

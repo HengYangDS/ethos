@@ -149,9 +149,9 @@
 - [x] 10.1 Replace Ty prose parsing and execute both declared native shell checks.
 - [x] 10.2 Schedule selected source-side readiness before behavior and delivery without expanding offline selection or rewriting proof policy; qualify public failure propagation and preserve transitive post-execution checks.
 - [x] 10.3 Restore native configuration discovery and reject missing or delegated explicit targets.
-- [ ] 10.4 Restore effective JavaScript semantic quality and native launcher behavior.
+- [ ] 10.4 Restore effective JavaScript semantic quality and native launcher behavior. Product-pinned ESLint now replaces syntax-only inspection and is shared with Nox; exact proof and installed delivery remain pending.
 - [x] 10.5 Reject invalid and non-Boolean CEL predicates at declaration loading and qualify existing consumers.
-- [ ] 10.6 Enforce unapproved-warning rejection at native command adapters without treating informational output as failure.
+- [ ] 10.6 Enforce unapproved-warning rejection at native command adapters without treating informational output as failure. Direct Node checks retain native typed events, diagnostics and terminal coverage from one execution; npm/c8 and Python same-attempt adaptation remain open.
   - [ ] 10.6.1 Bind Allure 3 global process logs and native exit to the same test attempt; preserve focused report scope, retain rejected attempts and avoid replay solely to fill report metadata.
 - [ ] 10.7 Restore whole-module docstring enforcement at the native quality owner and remove the narrowed coverage substitute.
 - [x] 10.8 Preserve dependency-tool exit status, unavailable execution, findings and malformed-report states through the existing receipt and Nox admission.

@@ -63,12 +63,13 @@ export function composeStandaloneAtlas(selected) {
     "\\u003c",
   );
   return `<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ETHOS · 问道 — Architecture</title><style>html,body{margin:0;width:100%;height:100%;background:#f5f3ed}#atlas{display:block;width:100%;height:100%;border:0}#error{padding:32px;font:16px/1.6 system-ui;color:#302e29}#error[hidden],#atlas[hidden]{display:none}</style></head><body><p id="error" hidden></p><noscript>This interactive atlas requires JavaScript. All pages and resources are contained in this file.</noscript><iframe id="atlas" title="ETHOS architecture atlas" allow="fullscreen; clipboard-write" allowfullscreen></iframe><script id="atlas-data" type="application/json">${data}</script><script>(${standaloneReader.toString()})();</script></body></html>\n`;
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ETHOS · 问道 — Architecture</title><style>html,body{margin:0;width:100%;height:100%;background:#f5f3ed}#atlas{display:block;width:100%;height:100%;border:0}#error{padding:32px;font:16px/1.6 system-ui;color:#302e29}#error[hidden],#atlas[hidden]{display:none}</style></head><body><p id="error" hidden></p><noscript>This interactive atlas requires JavaScript. All pages and resources are contained in this file.</noscript><iframe id="atlas" title="ETHOS architecture atlas" allow="fullscreen; clipboard-write" allowfullscreen></iframe><script id="atlas-data" type="application/json">${data}</script><script>(${standaloneReader.toString()})(globalThis);</script></body></html>\n`;
 }
 
 // prettier-ignore
-function standaloneReader() {
+function standaloneReader(browser) {
   'use strict';
+  const {document, location, history, window, DOMParser, Event, URL, URLSearchParams, addEventListener} = browser;
   const data=JSON.parse(document.getElementById('atlas-data').textContent);
   const frame=document.getElementById('atlas'),error=document.getElementById('error');
   let active=null;
@@ -79,11 +80,11 @@ function standaloneReader() {
     const page=url.searchParams.get('page')||'index.html';url.searchParams.delete('page');return{page,query:url.search||'?theme=light',hash:url.hash};
   }
   function virtualUrl(){const state=select(),url=new URL(location.href);url.search=state.query;url.searchParams.set('page',state.page);url.hash=state.hash;return url;}
-  function writeState(state,replace){const url=new URL(location.href);url.hash='atlas='+new URLSearchParams(state).toString();try{history[replace?'replaceState':'pushState'](null,'',url);}catch(_){if(replace)location.replace(url.hash);else location.hash=url.hash;}}
+  function writeState(state,replace){const url=new URL(location.href);url.hash='atlas='+new URLSearchParams(state).toString();try{history[replace?'replaceState':'pushState'](null,'',url);}catch{if(replace)location.replace(url.hash);else location.hash=url.hash;}}
   window.__atlasLocation={};
   for(const key of ['href','pathname','search','hash','origin'])Object.defineProperty(window.__atlasLocation,key,{get:()=>virtualUrl()[key]});
   window.__atlasHistory=function(url,replace){const target=new URL(url,virtualUrl());const page=target.searchParams.get('page')||select().page;target.searchParams.delete('page');writeState({page,query:target.search,hash:target.hash},replace);};
-  function bridge(){
+  function bridge({document,window}){
     const parentWindow=window.parent;
     window.__atlasLocation={};
     for(const key of ['href','pathname','search','hash','origin'])Object.defineProperty(window.__atlasLocation,key,{get:()=>parentWindow.__atlasLocation[key]});
@@ -112,7 +113,7 @@ function standaloneReader() {
       const source=script.textContent.replace('var Archify = {};','var Archify = window.Archify = {};');
       script.textContent='(function(location,history){\n'+source.replace(/window\.location\b/g,'window.__atlasLocation')+'\n}).call(window,window.__atlasLocation,window.__atlasHistory);';
     }
-    const start=doc.createElement('script');start.textContent='('+bridge.toString()+')();';doc.head.prepend(start);
+    const start=doc.createElement('script');start.textContent='('+bridge.toString()+')(globalThis);';doc.head.prepend(start);
     return '<!DOCTYPE html>\n'+doc.documentElement.outerHTML;
   }
   function render(){
@@ -122,7 +123,7 @@ function standaloneReader() {
     active=page;frame.srcdoc=hydrate(page);
   }
   window.__atlasNavigate=function(page,search,hash){if(!hasPage(page))return;writeState({page,query:search||'?theme=light',hash:hash||''},false);if(page===active)active=null;render();};
-  frame.addEventListener('load',()=>{try{document.title=frame.contentDocument.title;frame.title=frame.contentDocument.title;}catch(_){}});
+  frame.addEventListener('load',()=>{try{document.title=frame.contentDocument.title;frame.title=frame.contentDocument.title;}catch{/* The child may be unavailable during frame navigation. */}});
   addEventListener('popstate',render);addEventListener('hashchange',render);
   try{render();}catch(e){error.hidden=false;error.textContent='The embedded atlas could not open: '+e.message;frame.hidden=true;}
 }

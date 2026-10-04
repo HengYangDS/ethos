@@ -31,6 +31,7 @@ class NativeExecution:
     exit_code: int
     stdout: str
     stderr: str
+    executable: str = ""
 
 
 def provider_reports(

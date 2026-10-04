@@ -16,6 +16,25 @@ def resolve_node_package_supply(source: Path) -> Path:
     return _validate_complete_supply(source, supply)
 
 
+def product_node_module(name: str) -> Path:
+    """Resolve a product-shipped production module without consulting adopter dependencies."""
+    package = Path(__file__).resolve().parents[4]
+    source = package.parent.parent
+    if (source / "package-lock.json").is_file():
+        supply = resolve_node_package_supply(source)
+        lock = source / "package-lock.json"
+    else:
+        supply = package / "data/openspec-runtime/node_modules"
+        lock = package / "data/supply-chain/package-lock.json"
+    key = _LOCK_PREFIX + name
+    metadata = _locked_node_modules(lock).get(key)
+    if not isinstance(metadata, dict) or metadata.get("dev"):
+        _fail("product_node_module_undeclared")
+    path = supply / name
+    _validate_package(path, key, str(metadata.get("version") or ""))
+    return path
+
+
 def _select_supply(source: Path) -> tuple[Path, Path, bool]:
     source = source.resolve()
     configured = os.environ.get("ETHOS_NODE_PACKAGE_SUPPLY")

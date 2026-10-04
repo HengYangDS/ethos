@@ -26,6 +26,13 @@ historical bindings are governed by [Release Governance](docs/governance/release
   matrix on verified stable releases.
 - Shortened the content-addressed host installation path while retaining
   full-digest ownership, so native Windows runtime modules can load reliably.
+- Composed one declared Node test attempt with official c8 coverage reporting,
+  retaining preload, concurrency, coverage configuration, failures and warnings.
+  Invalid raw evidence is rejected; custody excludes symbolic-link targets.
+
+### Removed
+
+- Retired the experimental Node coverage collector and unused LCOV interpretation.
 
 ## [0.2.0-alpha.2] - 2026-08-30
 

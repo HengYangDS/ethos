@@ -6,6 +6,7 @@ import json
 import shutil
 import subprocess
 from pathlib import Path
+from zipfile import ZipFile
 
 import pytest
 
@@ -13,214 +14,175 @@ import ethos.adapters.gates.code_quality as native_quality
 import ethos.adapters.gates.javascript.analysis as analysis
 import ethos.adapters.toolchain.mise as native_mise
 from ethos.adapters.gates.verification import NativeExecution
-from ethos.repository.policy.quality_reports import lcov_covered_paths
+from ethos.adapters.store.state.schema import local_state_root
+from ethos.repository.policy.quality_reports import istanbul_coverage_report
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import init_git_repo
+from tests.support.proof import declare_quality_profile
 
 
-@pytest.mark.parametrize(
-    ("evidence", "reason"),
-    [
-        (None, "javascript_coverage_missing"),
-        ("not-lcov", "javascript_coverage_invalid"),
-        ("SF:answer.js\nDA:1,1\n", "javascript_coverage_invalid"),
-        ("SF:\nDA:1,1\nend_of_record\n", "javascript_coverage_invalid"),
-        ("SF:answer.js\nDA:1,-1\nend_of_record\n", "javascript_coverage_invalid"),
-        ("SF:answer.js\nDA:1,0\nend_of_record\n", "javascript_source_unexercised"),
-        ("SF:other.js\nDA:1,1\nend_of_record\n", "javascript_source_unexercised"),
-        ("SF:sub/answer.js\nDA:1,1\nend_of_record\n", "javascript_source_unexercised"),
-    ],
-)
-def test_javascript_coverage_rejects_unproved_module(
-    tmp_path: Path, evidence: str | None, reason: str
-) -> None:
-    """Only positive LCOV line counters for the selected file qualify it."""
-    root = tmp_path / "repo"
-    root.mkdir()
-    source = root / "answer.js"
-    source.write_text("export const answer = 42;\n")
-    coverage = tmp_path / "coverage.lcov"
-    if evidence is not None:
-        coverage.write_text(evidence)
-    with pytest.raises(ValueError, match=reason):
-        lcov_covered_paths(root, coverage, ("answer.js",))
-
-
-def test_javascript_coverage_accepts_exact_executed_module(tmp_path: Path) -> None:
-    """A native LCOV record with a positive line hit has a reachable success path."""
-    root = tmp_path / "repo"
-    root.mkdir()
-    source = root / "answer.js"
-    source.write_text("export const answer = 42;\n")
-    coverage = tmp_path / "coverage.lcov"
-    coverage.write_text("TN:\nSF:answer.js\nDA:1,1\nend_of_record\n")
-    assert lcov_covered_paths(root, coverage, ("answer.js",)) == {"answer.js"}
-
-
-@pytest.mark.parametrize("scenario", ["honest", "forged", "docs-only"])
-def test_public_verified_node_behavior_consumes_its_own_reports_once(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, scenario: str
-) -> None:
-    """A native test runs once, and test-authored output cannot forge coverage."""
-    forged_coverage = scenario == "forged"
-    if shutil.which("node") is None:
-        pytest.skip("node is unavailable on this runner")
-    repo = init_git_repo(tmp_path / "adopter")
-    marker = tmp_path / "runs"
-    monkeypatch.setenv("ETHOS_TEST_RUN_MARKER", str(marker))
-    profile = repo / ".ethos/profile.toml"
-    profile.parent.mkdir()
-    behavior_command = (
-        ["node", "-e", 'console.log("docs checked")']
-        if scenario == "docs-only"
-        else [
-            "node",
-            "--test",
-            "--experimental-test-coverage",
-            f"--test-reporter={Path(native_quality.__file__).parent / 'javascript/reporter.mjs'}",
-            "--test-reporter-destination=stdout",
-            "answer.test.js",
-        ]
-    )
-    profile.write_text(
-        'profile_id = "native-reuse-adopter"\n\n'
-        '[openspec]\nmaterial_paths = ["**"]\n\n'
-        '[proof]\ncode_correctness_gates = ["behavior", "static"]\n\n'
-        '[proof.code_correctness_map]\nbehavior = "behavior"\n'
-        'static-analysis = "static"\n\n'
-        '[[proof.gates]]\nid = "behavior"\nkind = "test"\n'
-        f"command = {json.dumps(behavior_command)}\n"
-        'verification_providers = ["ethos.adapters.gates.code_quality:behavior_report"]\n\n'
-        '[[proof.gates]]\nid = "static"\nkind = "lint"\n'
-        'providers = ["ethos.adapters.gates.code_quality:static_report"]\n',
-        encoding="utf-8",
-    )
-    (repo / "package.json").write_text('{"name":"quality","type":"module"}\n')
-    (repo / "answer.js").write_text("export function answer() { return 42; }\n")
-    imported = 'import { answer } from "./answer.js";\n' if not forged_coverage else ""
-    behavior = (
-        'process.stderr.write("TN:\\nSF:answer.js\\nDA:1,1\\nend_of_record\\n");'
-        if forged_coverage
-        else "assert.equal(answer(), 42);"
-    )
-    (repo / "answer.test.js").write_text(
-        'import test from "node:test";\n'
-        + ('import assert from "node:assert/strict";\n' if not forged_coverage else "")
-        + 'import { appendFileSync } from "node:fs";\n'
-        + imported
-        + 'test("answer", () => {\n'
-        + '  appendFileSync(process.env.ETHOS_TEST_RUN_MARKER, "x");\n'
-        + f"  {behavior}\n"
-        + "});\n"
-    )
-    head = commit_fixture(repo, "bind native Node test reports")
-
-    result = run_ethos_raw(
-        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
-    )
-    payload = json.loads(result.stdout)
-
-    expected_pass = scenario == "honest"
-    assert (result.returncode == 0) is expected_pass, payload["required_gaps"]
-    assert payload["verdict"] == ("pass" if expected_pass else "block")
-    if scenario == "docs-only":
-        assert not marker.exists()
+@pytest.mark.parametrize("defect", ["none", "missing", "alias", "counter", "scope"])
+def test_javascript_coverage_conserves_native_subjects(tmp_path: Path, defect: str) -> None:
+    """Only complete native counts on exact selected paths qualify the observation."""
+    axes = {
+        key: {"total": 1, "covered": 1, "skipped": 0}
+        for key in ("lines", "branches", "functions", "statements")
+    }
+    source = str(tmp_path / "answer.js")
+    document = {"total": axes, source: axes}
+    if defect == "missing":
+        document = {}
+    elif defect == "alias":
+        document[str(tmp_path) + "/./answer.js"] = axes
+    elif defect == "counter":
+        axes["branches"]["covered"] = 2
+    elif defect == "scope":
+        document[str(tmp_path / "other.js")] = document.pop(source)
+    report = tmp_path / "coverage-summary.json"
+    report.write_text(json.dumps(document))
+    if defect == "none":
+        assert istanbul_coverage_report(tmp_path, report, ("answer.js",))[1] == {"answer.js"}
     else:
-        assert marker.read_text() == "x"
+        with pytest.raises(ValueError, match="javascript_coverage_"):
+            istanbul_coverage_report(tmp_path, report, ("answer.js",))
 
 
-@pytest.mark.parametrize(
-    ("scenario", "gap"),
-    [
-        ("wrong-test", "javascript_native_test_selection_invalid"),
-        ("ambient-tool", "javascript_native_toolchain_unbound"),
-        ("all-skipped", "javascript_tests_failed"),
-        ("invalid-events", "javascript_native_events_invalid"),
-    ],
-)
+@pytest.mark.parametrize("launcher", ["node", "npm", "mise"])
 def test_verified_node_behavior_rejects_wrong_scope_or_toolchain(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, scenario: str, gap: str
+    tmp_path: Path, launcher: str
 ) -> None:
-    """A valid-looking report cannot replace test selection or locked supply."""
+    """An outer attempt without owned V8 custody remains unproved and is never replayed."""
     repo = committed_source_repo(
         tmp_path,
         {
-            "package.json": '{"name":"quality","type":"module"}\n',
+            "package.json": '{"type":"module"}\n',
             "answer.js": "export function answer() { return 42; }\n",
-            "answer.test.js": 'import test from "node:test";\n',
+            "answer.test.js": 'import test from "node:test";\n'
+            'import {writeFileSync} from "node:fs";\n'
+            'test("must not replay", () => writeFileSync("replayed", "bad"));\n',
         },
     )
-    if scenario == "ambient-tool":
-        monkeypatch.setattr(
-            native_quality, "_native_environment", lambda _root, _scope: {"PATH": "locked"}
-        )
-        actual_which = native_quality.shutil.which
-
-        def selected_tool(name: str, path: str | None = None) -> str | None:
-            if name == "node":
-                return str(tmp_path / ("locked-node" if path else "ambient-node"))
-            return actual_which(name, path=path)
-
-        monkeypatch.setattr(native_quality.shutil, "which", selected_tool)
-    events = [
-        {
-            "type": "test:summary",
-            "data": {
-                "success": True,
-                "counts": {
-                    "tests": 1,
-                    "passed": 0 if scenario == "all-skipped" else 1,
-                    "failed": 0,
-                    "cancelled": 0,
-                    "skipped": 1 if scenario == "all-skipped" else 0,
-                    "todo": 0,
-                },
-            },
-        },
-    ]
-    stdout = "not-events" if scenario == "invalid-events" else "\n".join(map(json.dumps, events))
     execution = NativeExecution(
-        declared_identity=("node", "--test"),
-        argv=(
-            "node",
-            "--test",
-            "--experimental-test-coverage",
-            f"--test-reporter={Path(native_quality.__file__).parent / 'javascript/reporter.mjs'}",
-            "--test-reporter-destination=stdout",
-            "other.test.js" if scenario == "wrong-test" else "answer.test.js",
-        ),
-        cwd=repo.resolve(),
-        exit_code=0,
-        stdout=stdout,
-        stderr="TN:\nSF:answer.js\nDA:1,1\nend_of_record\n",
+        (launcher, "test"),
+        (launcher, "test"),
+        repo.resolve(),
+        0,
+        "outer native output",
+        "retained native diagnostic",
         executable=shutil.which("node") or "",
     )
-
-    assert native_quality.behavior_report(repo, execution=execution)["required_gaps"] == [
-        f"quality_behavior_{gap}"
+    report = native_quality.behavior_report(repo, execution=execution)
+    assert report["required_gaps"] == [
+        "quality_behavior_javascript_native_coverage_custody_unavailable"
     ]
+    assert not (repo / "replayed").exists()
+    assert report["native"][0]["stderr"] == "retained native diagnostic"
 
 
-def test_provider_only_javascript_does_not_credit_a_failed_native_test(tmp_path: Path) -> None:
-    """A product-owned test run must retain its own nonzero native result."""
+@pytest.mark.parametrize("outcome", ["pass", "test-failure", "coverage-failure", "warning"])
+def test_provider_only_javascript_does_not_credit_a_failed_native_test(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, outcome: str
+) -> None:
+    """One native test and its same-attempt c8 report preserve independent outcomes."""
+    monkeypatch.delenv("ETHOS_CHANGE", raising=False)
     if shutil.which("node") is None:
         pytest.skip("node is unavailable on this runner")
     repo = committed_source_repo(
         tmp_path,
         {
-            "package.json": '{"name":"quality","type":"module"}\n',
+            ".gitignore": "runs\n",
+            "package.json": json.dumps(
+                {
+                    "name": "quality",
+                    "type": "module",
+                    "scripts": {
+                        "test": "node --import=./preload.mjs --test "
+                        "--test-concurrency=2 answer.test.js",
+                        "test:coverage": "c8 --config .config/coverage.json npm test",
+                    },
+                }
+            ),
+            ".config/coverage.json": json.dumps(
+                {"lines": 95, "statements": 95, "branches": 95, "functions": 95}
+            ),
+            "preload.mjs": "globalThis.expectedAnswer = 42;\n",
             "answer.js": "export function answer() { return 42; }\n",
             "answer.test.js": (
-                'import test from "node:test";\ntest("failure", () => { throw Error(); });\n'
+                'import test from "node:test";\nimport {appendFileSync} from "node:fs";\n'
+                'import {answer} from "./answer.js";\n'
+                'test("answer", () => { appendFileSync("runs", "x"); '
+                + ('process.emitWarning("native warning");' if outcome == "warning" else "")
+                + (
+                    'answer(); throw Error("native failure");'
+                    if outcome == "test-failure"
+                    else "if (answer() !== globalThis.expectedAnswer) "
+                    'throw Error("preload missing");'
+                )
+                + " });\n"
             ),
         },
     )
 
-    assert native_quality.behavior_report(repo)["required_gaps"] == [
-        "quality_behavior_javascript_tests_failed"
-    ]
+    if outcome == "coverage-failure":
+        (repo / "unused.js").write_text("export const neverUsed = 1;\n")
+        commit_fixture(repo, "include uncovered subject")
+    declare_quality_profile(repo)
+    head = commit_fixture(repo, "bind one native attempt to public quality")
+    result = run_ethos_raw(
+        "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
+    )
+    payload = json.loads(result.stdout)
+    assert result.returncode == int(outcome != "pass"), payload["required_gaps"]
+    assert payload["verdict"] == ("pass" if outcome == "pass" else "block"), payload
+    assert (repo / "runs").read_text() == "x"
+    (artifact,) = (local_state_root(repo) / "artifacts").glob("*.zip")
+    with ZipFile(artifact) as archive:
+        observed = json.loads(archive.read("observation.json"))
+    assert "--import=./preload.mjs" in observed["test_execution"]["argv"]
+    assert "--test-concurrency=2" in observed["test_execution"]["argv"]
+    assert not any(
+        "experimental-test-coverage" in value for value in observed["test_execution"]["argv"]
+    )
+    assert observed["test_execution"]["exit_code"] == int(outcome == "test-failure")
+    assert observed["coverage_execution"]["exit_code"] == int(outcome == "coverage-failure")
+    assert "--config" in observed["coverage_execution"]["argv"]
+    assert observed["raw_identity_preserved"]
+    assert not Path(observed["raw_directory"]).exists()
+
+
+def test_native_node_custody_does_not_follow_rejected_symlink(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Rejected raw links never copy unrelated target bytes into retained evidence."""
+    sentinel = tmp_path / "foreign"
+    sentinel.write_bytes(b"unrelated bytes must not be read")
+    link = tmp_path / "capability"
+    try:
+        link.symlink_to(sentinel)
+    except OSError:
+        pytest.skip("native symlink creation is unavailable")
+    link.unlink()
+    monkeypatch.setenv("ETHOS_CUSTODY_SENTINEL", str(sentinel))
+    repo = committed_source_repo(
+        tmp_path,
+        {
+            "package.json": '{"type":"module"}\n',
+            "answer.js": "export const answer = 42;\n",
+            "answer.test.js": 'import test from "node:test";\n'
+            'import {symlinkSync} from "node:fs"; import {join} from "node:path";\n'
+            'import {answer} from "./answer.js";\n'
+            'test("custody", () => { if (answer !== 42) throw Error(); '
+            "symlinkSync(process.env.ETHOS_CUSTODY_SENTINEL, "
+            'join(process.env.NODE_V8_COVERAGE, "link")); });\n',
+        },
+    )
+    report = native_quality.behavior_report(repo)
+    assert report["required_gaps"] == ["quality_behavior_javascript_native_coverage_input_invalid"]
+    with ZipFile(report["native"][0]["artifact"]["path"]) as archive:
+        assert "raw/link" not in archive.namelist()
+    assert sentinel.read_bytes() == b"unrelated bytes must not be read"
 
 
 def test_native_provider_rejects_missing_repository_and_code(tmp_path: Path) -> None:
@@ -378,9 +340,10 @@ def test_javascript_skipped_tests_do_not_prove_behavior(tmp_path: Path) -> None:
             'test.skip("not executed", () => {});\n',
         },
     )
-    assert native_quality.behavior_report(repo)["required_gaps"] == [
-        "quality_behavior_javascript_tests_failed"
-    ]
+    report = native_quality.behavior_report(repo)
+    assert report["verdict"] == "block"
+    assert "quality_behavior_javascript_tests_failed" in report["required_gaps"]
+    assert report["native"][0]["tests"]["passed"] == 0
 
 
 @pytest.mark.parametrize(

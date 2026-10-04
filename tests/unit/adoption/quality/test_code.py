@@ -6,9 +6,11 @@ import json
 import os
 import shutil
 import subprocess
+import tomllib
 from pathlib import Path
 
 import pytest
+import tomli_w
 
 import ethos.adapters.gates.code_quality as native_quality
 import ethos.adapters.gates.javascript.analysis as native_analysis
@@ -17,41 +19,7 @@ from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import init_git_repo
-
-
-def _declare_quality_profile(repo: Path, gate_owner: str) -> None:
-    profile = repo / ".ethos/profile.toml"
-    profile.parent.mkdir()
-    header = 'profile_id = "native-quality-adopter"\n\n[openspec]\nmaterial_paths = ["**"]\n\n'
-    if gate_owner == "profile":
-        profile.write_text(
-            header + '[proof]\ncode_correctness_gates = ["behavior", "static"]\n\n'
-            '[proof.code_correctness_map]\nbehavior = "behavior"\n'
-            'static-analysis = "static"\n\n'
-            '[[proof.gates]]\nid = "behavior"\nkind = "test"\n'
-            'providers = ["ethos.adapters.gates.code_quality:behavior_report"]\n\n'
-            '[[proof.gates]]\nid = "static"\nkind = "lint"\n'
-            'providers = ["ethos.adapters.gates.code_quality:static_report"]\n',
-            encoding="utf-8",
-        )
-        return
-    profile.write_text(header + '[proof]\ngate_registry = "system/gates.toml"\n', encoding="utf-8")
-    registry = repo / "system/gates.toml"
-    registry.parent.mkdir()
-    registry.write_text(
-        'schema_version = 1\nid = "native-quality"\n\n'
-        '[proof_sets]\ndefault = ["behavior", "static"]\n'
-        'full = ["behavior", "static"]\n\n'
-        '[[gates]]\nid = "behavior"\nkind = "test"\n'
-        'profile = "repository"\nexecution_mode = "provider"\n'
-        'tool_adapter = "ethos"\n'
-        'providers = ["ethos.adapters.gates.code_quality:behavior_report"]\n\n'
-        '[[gates]]\nid = "static"\nkind = "lint"\n'
-        'profile = "repository"\nexecution_mode = "provider"\n'
-        'tool_adapter = "ethos"\n'
-        'providers = ["ethos.adapters.gates.code_quality:static_report"]\n',
-        encoding="utf-8",
-    )
+from tests.support.proof import declare_quality_profile
 
 
 def _write_go_fixture(repo: Path, defect: str) -> None:
@@ -153,7 +121,7 @@ def test_public_adopter_proof_reports_native_go_test_failure(tmp_path: Path) -> 
     if shutil.which("go") is None:
         pytest.skip("go is unavailable on this runner")
     repo = init_git_repo(tmp_path / "adopter")
-    _declare_quality_profile(repo, "profile")
+    declare_quality_profile(repo, "profile")
     (repo / "go.mod").write_text("module example.invalid/quality\n\ngo 1.20\n")
     (repo / "answer.go").write_text("package quality\nfunc Answer() int { return 41 }\n")
     (repo / "answer_test.go").write_text(
@@ -320,7 +288,7 @@ def test_native_code_provider_checks_real_sources(
     if shutil.which(executable) is None:
         pytest.skip(f"{executable} is unavailable on this runner")
     repo = init_git_repo(tmp_path / "adopter")
-    _declare_quality_profile(repo, gate_owner)
+    declare_quality_profile(repo, gate_owner)
     if language == "go":
         _write_go_fixture(repo, defect)
     else:
@@ -352,7 +320,7 @@ def test_javascript_test_directory_uses_native_test_identity(tmp_path: Path) -> 
     if shutil.which("node") is None:
         pytest.skip("node is unavailable on this runner")
     repo = init_git_repo(tmp_path / "adopter")
-    _declare_quality_profile(repo, "profile")
+    declare_quality_profile(repo, "profile")
     (repo / "package.json").write_text('{"name":"quality","type":"module"}\n')
     (repo / "answer.js").write_text("export function answer() { return 42; }\n")
     tests = repo / "tests"
@@ -375,11 +343,11 @@ def test_javascript_test_directory_uses_native_test_identity(tmp_path: Path) -> 
 
 
 def test_public_proof_rejects_test_forged_v8_coverage(tmp_path: Path) -> None:
-    """A passing test cannot fabricate execution of an untouched source module."""
+    """A passing test's malformed coverage file cannot qualify an untouched module."""
     if shutil.which("node") is None:
         pytest.skip("node is unavailable on this runner")
     repo = init_git_repo(tmp_path / "adopter")
-    _declare_quality_profile(repo, "profile")
+    declare_quality_profile(repo, "profile")
     (repo / "package.json").write_text('{"name":"quality","type":"module"}\n')
     (repo / "answer.js").write_text("export function answer() { return 42; }\n")
     (repo / "answer.test.js").write_text(
@@ -410,14 +378,16 @@ def test_public_proof_rejects_test_forged_v8_coverage(tmp_path: Path) -> None:
 def test_public_proof_rejects_command_authored_evidence_adapter(tmp_path: Path) -> None:
     """An arbitrary repository command cannot mint a product-quality report."""
     repo = init_git_repo(tmp_path / "adopter")
-    _declare_quality_profile(repo, "profile")
+    declare_quality_profile(repo, "profile")
     profile = repo / ".ethos/profile.toml"
-    declaration = profile.read_text(encoding="utf-8").replace(
-        'providers = ["ethos.adapters.gates.code_quality:behavior_report"]',
-        'command = ["node", "fake.mjs"]\n'
-        'evidence_adapters = ["ethos.adapters.gates.native_evidence:javascript_behavior"]',
+    declaration = tomllib.loads(profile.read_text())
+    gate = declaration["proof"]["gates"][0]
+    del gate["providers"]
+    gate.update(
+        command=["node", "fake.mjs"],
+        evidence_adapters=["ethos.adapters.gates.native_evidence:javascript_behavior"],
     )
-    profile.write_text(declaration, encoding="utf-8")
+    profile.write_text(tomli_w.dumps(declaration), encoding="utf-8")
     (repo / "package.json").write_text('{"name":"quality","type":"module"}\n')
     (repo / "answer.js").write_text("export function answer() { return 42; }\n")
     (repo / "answer.test.js").write_text('throw new Error("never run");\n')
@@ -434,62 +404,42 @@ def test_public_proof_rejects_command_authored_evidence_adapter(tmp_path: Path) 
     assert any("repository_profile_invalid" in str(gap) for gap in payload["required_gaps"])
 
 
-@pytest.mark.parametrize("defect", ["none", "unexercised", "command-failed"])
+@pytest.mark.parametrize(
+    "command", [["node", "--test", "answer.test.js"], ["node", "-e", "process.exit(3)"]]
+)
 def test_public_proof_conjoins_native_commands_with_product_verifiers(
-    tmp_path: Path, defect: str
+    tmp_path: Path, command: list[str]
 ) -> None:
-    """Two existing gate IDs retain domain commands and gain real code evidence."""
-    if shutil.which("node") is None:
-        pytest.skip("node is unavailable on this runner")
+    """An outer command without owned coverage custody cannot pass or trigger a replay."""
     repo = init_git_repo(tmp_path / "adopter")
-    _write_javascript_fixture(repo, defect)
-    behavior_command = (
-        ["node", "-e", "process.exit(3)"]
-        if defect == "command-failed"
-        else [
-            "node",
-            "--test",
-            "--experimental-test-coverage",
-            f"--test-reporter={Path(native_quality.__file__).parent / 'javascript/reporter.mjs'}",
-            "--test-reporter-destination=stdout",
-            "answer.test.js",
-        ]
+    declare_quality_profile(repo)
+    _write_javascript_fixture(repo, "none")
+    test = repo / "answer.test.js"
+    test.write_text(
+        'import {appendFileSync} from "node:fs";\n'
+        + test.read_text().replace(
+            "assert.equal(answer(), 42)",
+            '(appendFileSync("runs", "x"), assert.equal(answer(), 42))',
+        )
     )
+    (repo / ".gitignore").write_text("runs\n")
     profile = repo / ".ethos/profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
-        'profile_id = "composite-quality-adopter"\n\n'
-        '[openspec]\nmaterial_paths = ["**"]\n\n'
-        '[proof]\ncode_correctness_gates = ["behavior", "static"]\n\n'
-        '[proof.code_correctness_map]\nbehavior = "behavior"\n'
-        'static-analysis = "static"\n\n'
-        '[[proof.gates]]\nid = "behavior"\nkind = "test"\n'
-        f"command = {json.dumps(behavior_command)}\n"
-        'verification_providers = ["ethos.adapters.gates.code_quality:behavior_report"]\n\n'
-        '[[proof.gates]]\nid = "static"\nkind = "lint"\n'
-        'command = ["node", "-e", "console.log(\\"format check\\")"]\n'
-        'verification_providers = ["ethos.adapters.gates.code_quality:static_report"]\n',
-        encoding="utf-8",
-    )
-    head = commit_fixture(repo, "bind native commands and product verification")
-
+    declaration = tomllib.loads(profile.read_text())
+    gate = declaration["proof"]["gates"][0]
+    gate["verification_providers"] = gate.pop("providers")
+    gate["command"] = command
+    profile.write_text(tomli_w.dumps(declaration))
+    head = commit_fixture(repo, "bind outer native command and product verification")
     result = run_ethos_raw(
         "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
     )
     payload = json.loads(result.stdout)
-
-    if defect == "none":
-        assert result.returncode == 0, payload["required_gaps"]
-        assert payload["verdict"] == "pass"
-        assert all(
-            check["verification"]["providers"][0]["report"]["verdict"] == "pass"
-            for check in payload["data"]["checks"]
-        )
-    else:
-        assert result.returncode != 0
-        assert payload["verdict"] == "block"
-        assert "quality_obligation_unproven:behavior" in payload["required_gaps"]
-    assert [check["action_id"] for check in payload["data"]["checks"]] == ["behavior", "static"]
+    assert result.returncode != 0
+    assert payload["verdict"] == "block"
+    assert "quality_obligation_unproven:behavior" in payload["required_gaps"]
+    assert (
+        (repo / "runs").read_text() == "x" if "--test" in command else not (repo / "runs").exists()
+    )
 
 
 @pytest.mark.parametrize("exercise_tool", ["exercised", "unexercised"])
@@ -500,7 +450,7 @@ def test_public_python_quality_covers_repository_tool_sources(
     """One native run must cover tools as code, not reject or relabel them as tests."""
     repo = init_git_repo(tmp_path / "adopter")
     (repo / ".gitignore").write_text(".venv/\n__pycache__/\n", encoding="utf-8")
-    _declare_quality_profile(repo, "profile")
+    declare_quality_profile(repo, "profile")
     fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
     (repo / "pyproject.toml").write_bytes((fixture / "pyproject.toml").read_bytes())
     (repo / "uv.lock").write_bytes((fixture / "uv.lock").read_bytes())

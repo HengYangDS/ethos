@@ -174,7 +174,22 @@
 - [ ] 11.8 Converge root configuration placement with native discovery, hook and CI consumer evidence; remove replaced declarations and stale documentation.
 - [ ] 11.9 Verify declaration-to-consumer wiring with disconnected, misbound and unavailable-capability cases through public entrypoints; preserve adverse results through receipt and admission.
   - [ ] 11.9.1 Qualify carrier-role and native-discovery applicability, including frozen provenance, generated build inputs, explicit selection, missing discovery and unauthorized relabeling; preserve integrity obligations without language or directory-name exceptions.
-  - [ ] 11.9.2 Compile the common quality floor through the existing rule, profile and gate owners; verify empty and false evidence, conjunctive per-subject native evidence without duplicate execution, source versus artifact-qualified test inputs, code/document/release applicability and trusted-prior preservation at public adopter and installed boundaries. Supply common principles through product-bound context without user retelling: rules express applicable obligations, Skills route methods, and actual Agent adherence needs its own evidence. Native Ruff, exact-HEAD subjects and invocation paths are source-implemented. Locked pytest-cov replaces the second coverage exporter and preserves failure measurements. Native uv binary selection removes the Python module launcher's conflicting environment injection; four source cases pass. Prior direct-provider wheel/host evidence is independently corroborated, not accepted-runtime or full-proof delivery. Nox composition, npm/c8, other outer-launcher diagnostics and current exact installed acceptance remain unproved.
+  - [ ] 11.9.2 Compile the common quality floor through existing rule, profile
+    and gate owners: reject empty/false evidence; conjoin exact per-subject native
+    observations without replay; distinguish source and artifact-qualified inputs;
+    preserve code/document/release applicability and trusted-prior floors. Product
+    context supplies principles without user retelling: rules own obligations,
+    Skills route methods, and actual Agent adherence requires separate evidence.
+    Native Ruff, exact-HEAD subjects, invocation identity, pytest-cov and native uv
+    selection are source-implemented; prior installed observations are independently
+    corroborated, not accepted delivery. Node+c8 now retains one test, explicit
+    configuration and separate outcomes; 117 related tests and five config/custody
+    cases pass (`native-c8-{final,config-green}.junit.xml`). Typed native V8 rejects
+    the original malformed forgery; `native-c8-focused4.junit.xml` remains adverse
+    history. Retired LCOV has no consumer; 36 ended scratch/cache roots retired
+    after verified custody. Structural validity does not authenticate a same-user
+    producer. Nox composition, subject applicability, outer-launcher diagnostics,
+    full proof and exact installed acceptance remain open.
 - [x] 11.10 Verify native TOML and mise migrations through focused native checks, exact-source full proof and installed runtime.
 
 ## 12. Documentation Comprehension and Research Delivery

@@ -8,11 +8,71 @@ from collections.abc import Mapping
 from pathlib import Path
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
+from typing import Annotated
 from typing import NoReturn
 from xml.etree import ElementTree
 
+from pydantic import Field
+from pydantic import StrictBool
+from pydantic import StrictStr
+from pydantic import TypeAdapter
+from pydantic import ValidationError
+from typing_extensions import TypedDict
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+_NativeCount = Annotated[int, Field(strict=True, ge=0)]
+
+
+class _V8Range(TypedDict):
+    """One native execution counter over a JavaScript source range."""
+
+    startOffset: _NativeCount
+    endOffset: _NativeCount
+    count: _NativeCount
+
+
+class _V8Function(TypedDict):
+    """Native function identity, granularity and source counters."""
+
+    functionName: StrictStr
+    isBlockCoverage: StrictBool
+    ranges: Annotated[list[_V8Range], Field(min_length=1)]
+
+
+class _V8Script(TypedDict):
+    """One script identity and its observed function coverage."""
+
+    scriptId: StrictStr
+    url: StrictStr
+    functions: list[_V8Function]
+
+
+class _V8Process(TypedDict):
+    """One original precise-coverage observation, not an authenticated producer."""
+
+    result: Annotated[list[_V8Script], Field(min_length=1)]
+    timestamp: Annotated[float, Field(strict=True, ge=0)]
+
+
+_V8_ADAPTER = TypeAdapter(_V8Process)
+
+
+def validate_native_v8_report(payload: bytes) -> None:
+    """Validate native V8 structure, never mistake valid shape for producer authentication."""
+    try:
+        report = _V8_ADAPTER.validate_json(payload)
+    except ValidationError as error:
+        _invalid("javascript_native_coverage_invalid", error)
+    scripts = report["result"]
+    if len({script["scriptId"] for script in scripts}) != len(scripts) or any(
+        item["startOffset"] > item["endOffset"]
+        for script in scripts
+        for function in script["functions"]
+        for item in function["ranges"]
+    ):
+        _invalid("javascript_native_coverage_invalid")
 
 
 def _invalid(code: str, error: Exception | None = None) -> NoReturn:
@@ -195,49 +255,6 @@ def go_covered_paths(
     return [path for path in production if path in applicable]
 
 
-def _lcov_hit_count(line: str) -> int:
-    """Read only the line counter needed for positive source execution."""
-    fields = line[3:].split(",")
-    try:
-        number, count = int(fields[0]), int(fields[1])
-    except (IndexError, ValueError) as error:
-        _invalid("javascript_coverage_invalid", error)
-    if len(fields) not in {2, 3} or number < 1 or count < 0:
-        _invalid("javascript_coverage_invalid")
-    return count
-
-
-def lcov_covered_paths(root: Path, report: Path, production: tuple[str, ...]) -> set[str]:
-    """Bind the Node test runner's LCOV report to exact production modules."""
-    if not report.is_file():
-        _invalid("javascript_coverage_missing")
-    return lcov_stream_covered_paths(root, report.read_text(encoding="utf-8"), production)
-
-
-def lcov_stream_covered_paths(root: Path, text: str, production: tuple[str, ...]) -> set[str]:
-    """Bind same-execution LCOV output to exact production modules."""
-    if not text.strip().endswith("end_of_record"):
-        _invalid("javascript_coverage_invalid")
-    expected = {(root / path).resolve(): path for path in production}
-    observed: set[str] = set()
-    for block in text.split("end_of_record"):
-        if not block.strip():
-            continue
-        lines = block.splitlines()
-        sources = [line[3:] for line in lines if line.startswith("SF:")]
-        if len(sources) != 1 or not sources[0]:
-            _invalid("javascript_coverage_invalid")
-        source = Path(sources[0])
-        path = (source if source.is_absolute() else root / source).resolve()
-        if path in expected and any(
-            _lcov_hit_count(line) > 0 for line in lines if line.startswith("DA:")
-        ):
-            observed.add(expected[path])
-    if observed != set(production):
-        _invalid("javascript_source_unexercised")
-    return observed
-
-
 def quality_evidence_paths(report: object, axis: str, source_tree: str) -> tuple[str, ...]:
     """Return only successful, exact-tree, axis-matching native subject evidence."""
     if not isinstance(report, Mapping) or report.get("verdict") != "pass":
@@ -263,9 +280,8 @@ def node_event_report(
     root: Path,
     payload: str,
     tests: tuple[str, ...],
-    production: tuple[str, ...],
-) -> tuple[dict[str, int], set[str], tuple[str, ...]]:
-    """Validate original Node events, terminal scope, coverage and adverse diagnostics."""
+) -> tuple[dict[str, int], tuple[str, ...]]:
+    """Validate the original test journal without substituting a coverage collector."""
     try:
         events = tuple(json.loads(line) for line in payload.splitlines() if line)
     except json.JSONDecodeError as error:
@@ -287,26 +303,16 @@ def node_event_report(
         _invalid("javascript_native_events_incomplete")
     summary = terminal["data"]
     counts = summary.get("counts")
-    if not isinstance(counts, dict) or any(
-        type(counts.get(key)) is not int or counts[key] < 0
-        for key in ("tests", "passed", "failed", "cancelled", "skipped", "todo")
-    ):
-        _invalid("javascript_native_summary_invalid")
-    if summary.get("success") is not True or counts["failed"] or counts["cancelled"]:
-        _invalid("javascript_tests_failed")
-    if counts["passed"] <= 0:
-        _invalid("javascript_tests_failed")
-    if counts["tests"] != sum(
-        counts[key] for key in ("passed", "failed", "cancelled", "skipped", "todo")
+    names = ("tests", "passed", "failed", "cancelled", "skipped", "todo")
+    if (
+        not isinstance(counts, dict)
+        or type(summary.get("success")) is not bool
+        or any(type(counts.get(key)) is not int or counts[key] < 0 for key in names)
+        or counts["tests"] != sum(counts[key] for key in names[1:])
+        or summary["success"] != (not counts["failed"] and not counts["cancelled"])
     ):
         _invalid("javascript_native_summary_invalid")
     _node_test_scope(root, events, tests)
-    coverage = [
-        event["data"].get("summary") for event in events if event["type"] == "test:coverage"
-    ]
-    if len(coverage) != 1 or not isinstance(coverage[0], dict):
-        _invalid("javascript_coverage_missing")
-    observed = _node_covered_paths(root, coverage[0], production)
     diagnostics = tuple(
         str(event["data"].get("message", ""))
         for event in events
@@ -317,39 +323,60 @@ def node_event_report(
         )
     )
     return (
-        {"total": counts["tests"], "skipped": counts["skipped"], "failures": 0, "errors": 0},
-        observed,
+        {
+            "total": counts["tests"],
+            "passed": counts["passed"],
+            "skipped": counts["skipped"],
+            "failures": counts["failed"],
+            "errors": counts["cancelled"],
+        },
         diagnostics,
     )
 
 
-def _node_covered_paths(
-    root: Path,
-    observed_coverage: dict[str, object],
-    production: tuple[str, ...],
-) -> set[str]:
-    """Bind native Node coverage to the working directory and exact source paths."""
-    if Path(str(observed_coverage.get("workingDirectory"))).resolve() != root.resolve():
-        _invalid("javascript_coverage_scope_invalid")
-    files = observed_coverage.get("files")
-    if not isinstance(files, list) or any(
-        not isinstance(file, dict)
-        or not isinstance(file.get("path"), str)
-        or type(file.get("coveredLineCount")) is not int
-        for file in files
-    ):
+def istanbul_coverage_report(
+    root: Path, report: Path, production: tuple[str, ...]
+) -> tuple[dict[str, object], set[str]]:
+    """Conserve native four-axis counts and exact subjects without reimplementing c8 policy."""
+    try:
+        document = json.loads(report.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        _invalid("javascript_coverage_invalid", error)
+    if not isinstance(document, dict) or not isinstance(document.get("total"), dict):
         _invalid("javascript_coverage_invalid")
-    if len({Path(file["path"]).resolve() for file in files}) != len(files) or any(
-        type(file.get("totalLineCount")) is not int
-        or not 0 <= file["coveredLineCount"] <= file["totalLineCount"]
-        for file in files
+    expected = {(root / path).resolve(): path for path in production}
+    files = {Path(path).resolve(): values for path, values in document.items() if path != "total"}
+    if len(files) != len(document) - 1 or set(files) != set(expected):
+        _invalid("javascript_coverage_scope_incomplete")
+    axes = ("lines", "branches", "functions", "statements")
+    for summary in document.values():
+        if not isinstance(summary, dict):
+            _invalid("javascript_coverage_invalid")
+        for axis in axes:
+            counts = summary.get(axis)
+            if (
+                not isinstance(counts, dict)
+                or any(type(counts.get(key)) is not int for key in ("total", "covered", "skipped"))
+                or not 0 <= counts["covered"] <= counts["total"]
+                or not 0 <= counts["skipped"] <= counts["total"]
+            ):
+                _invalid("javascript_coverage_invalid")
+    totals = document["total"]
+    if any(
+        totals[axis][key] != sum(summary[axis][key] for summary in files.values())
+        for axis in axes
+        for key in ("total", "covered", "skipped")
     ):
-        _invalid("javascript_coverage_invalid")
-    hits = {Path(file["path"]).resolve() for file in files if file["coveredLineCount"] > 0}
-    observed = {path for path in production if (root / path).resolve() in hits}
-    if observed != set(production):
-        _invalid("javascript_source_unexercised")
-    return observed
+        _invalid("javascript_coverage_count_invalid")
+    if not totals["statements"]["total"]:
+        _invalid("javascript_coverage_empty")
+    covered = {
+        expected[path]
+        for path, summary in files.items()
+        if any(summary[axis]["covered"] > 0 for axis in axes)
+        or all(summary[axis]["total"] == 0 for axis in axes)
+    }
+    return totals, covered
 
 
 def _node_test_scope(

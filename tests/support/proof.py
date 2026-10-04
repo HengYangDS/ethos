@@ -26,6 +26,7 @@ from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_active_commitment
+from tests.support.governed_repository import write_test_profile
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -206,3 +207,49 @@ def declare_native_proof_checks(root: Path, *, test: str, typecheck: str) -> Non
         ),
         encoding="utf-8",
     )
+
+
+def declare_quality_profile(root: Path, gate_owner: str = "profile") -> None:
+    """Bind complete native-quality intent to one profile or repository gate registry."""
+    write_active_commitment(root)
+    gates = [
+        {
+            "id": identity,
+            "kind": kind,
+            "providers": [f"ethos.adapters.gates.code_quality:{provider}_report"],
+            "execution_mode": "provider",
+            "profile": "repository",
+            "tool_adapter": "ethos",
+            "evidence_class": "proof",
+            "trust_bearing": True,
+        }
+        for identity, kind, provider in (
+            ("behavior", "test", "behavior"),
+            ("static", "lint", "static"),
+        )
+    ]
+    proof = {
+        "code_correctness_gates": ["behavior", "static"],
+        "code_correctness_map": {"behavior": "behavior", "static-analysis": "static"},
+    }
+    if gate_owner == "profile":
+        proof["gates"] = gates
+    else:
+        registry = root / "system/gates.toml"
+        registry.parent.mkdir(parents=True, exist_ok=True)
+        registry.write_text(
+            tomli_w.dumps(
+                {
+                    "schema_version": 1,
+                    "id": "native-quality",
+                    "proof_sets": {
+                        "default": ["behavior", "static"],
+                        "full": ["behavior", "static"],
+                    },
+                    "gates": gates,
+                }
+            ),
+            encoding="utf-8",
+        )
+        proof = {"gate_registry": "system/gates.toml"}
+    write_test_profile(root, profile_id="native-quality-adopter", proof=proof)

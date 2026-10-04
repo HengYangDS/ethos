@@ -10,6 +10,7 @@ from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import NoReturn
+from typing import TypedDict
 from xml.etree import ElementTree
 
 from pydantic import Field
@@ -17,7 +18,6 @@ from pydantic import StrictBool
 from pydantic import StrictStr
 from pydantic import TypeAdapter
 from pydantic import ValidationError
-from typing_extensions import TypedDict
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

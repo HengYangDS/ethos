@@ -234,7 +234,7 @@ def repository_audit(
         }
     else:
         openspec = openspec_reporter(root)
-    schema_gaps = [str(gap) for gap in cast("list[str]", schema_report["required_gaps"])]
+    schema_gaps = [str(gap) for gap in schema_report["required_gaps"]]
     design_integrity_gaps = [
         str(gap) for gap in cast("list[str]", design_integrity["required_gaps"])
     ]

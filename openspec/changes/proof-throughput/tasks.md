@@ -78,6 +78,8 @@
 - [ ] 5.11 Close native bootstrap identity wiring and tool transport timeouts; retain failed output, reuse verified supply across disposable checkouts, scope offline flags to bootstrap, and qualify cold and warm hosted consumers without increasing the deadline.
 - [ ] 5.12 Reproduce ignored durable-custody loss at retirement; consume existing artifact declarations to distinguish retained, active, foreign, unknown and proved disposable resources before deletion.
   - [ ] 5.12.1 Preserve exact predecessor runtime and wheel through the existing shared-installation owner before local reclamation; bind cutover to the original selector CAS, verify failure/no-op/concurrency boundaries, then qualify package and real-adopter rollback custody.
+    - [x] 5.12.1.1 Close predecessor custody, post-selector failure and exact-CAS compensation at the existing owners; qualify the signed minimal wheel, immutable runtime and isolated public upgrade/rollback/no-op with independent byte review. Live-adopter adoption and full-source proof remain open.
+    - [x] 5.12.1.2 Deliver the qualified minimal package through the Publisher owner's public activation; verify exact prior-runtime/wheel custody and the original implicit prewrite without user retelling. Keep whole-source proof, release and host-store reclamation distinct.
 - [ ] 5.13 Qualify exact producer/consumer scratch ownership under repeated normal, crash and kill cycles; preserve live/unknown roots and shared supply, then measure source-bound 24/48-hour count, byte, inode and cleanup bounds before claiming recurrence closed.
 
 ## 6. Native Test Isolation and Shared Preparation
@@ -90,6 +92,7 @@
 - [x] 6.6 Share immutable bootstrap and scanner fixture code while isolating case state and qualifying identical two/four/eight-worker consumers.
 - [x] 6.7 Reuse immutable hosted preparation code with isolated case data and exact invocation observations.
 - [x] 6.8 Publish complete interruption markers atomically through one shared helper and preserve actual kill/recovery assertions across native consumers.
+- [x] 6.9 Separate immutable byte-reuse tests from mutable Attestation-set membership under one semantic directory; reuse the existing occurrence-fixture owner, preserve every test body and parameter, and close the 500-line gate without deleting behavior or raising budgets.
 
 ## 7. Hosted Execution and Publication
 

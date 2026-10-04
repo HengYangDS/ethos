@@ -2,14 +2,31 @@
 
 from __future__ import annotations
 
+from datetime import UTC
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 
 if TYPE_CHECKING:
-    from datetime import datetime
     from typing import Any
+
+
+def occurrence_attestation(ordinal: int, *, payload_bytes: int = 0) -> Attestation:
+    """Create one deterministic occurrence without coupling test modules together."""
+    occurrence = {"ordinal": ordinal, "source": "test"}
+    if payload_bytes:
+        occurrence["text"] = "x" * payload_bytes
+    return attestation_fixture(
+        predicate="observation:repository",
+        verifier="agent:test:attestation-set",
+        subject=f"input:occurrence:{ordinal}",
+        issued_at=datetime(2026, 8, 14, tzinfo=UTC),
+        payload_kind="input:feedback",
+        payload_body={"occurrence": occurrence},
+        evidence_refs=(f"evidence:test:{ordinal}",),
+    )
 
 
 def attestation_fixture(

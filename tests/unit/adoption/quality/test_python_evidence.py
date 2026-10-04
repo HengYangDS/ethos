@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+from uv import find_uv_bin
 
 import ethos.adapters.gates.code_quality as native_quality
 import ethos.adapters.gates.python_quality as python_quality
@@ -75,6 +76,8 @@ def test_generic_provider_uses_real_locked_python_evidence(
         assert run.call_count == 1
     assert report["verdict"] == ("pass" if outcome == "pass" else "block"), report
     retained = report["native"][0]
+    assert native_layout != "uv" or retained["native"]["command"][0] == find_uv_bin()
+    assert "VIRTUAL_ENV" not in retained["native"]["stderr"]
     assert retained["tests"]["total"] == 1
     assert retained["native"]["exit_code"] == (0 if outcome == "pass" else 1)
     assert retained["native"]["cwd"] == str(repo)
@@ -82,8 +85,7 @@ def test_generic_provider_uses_real_locked_python_evidence(
         assert "native test diagnostic" in retained["native"]["stdout"]
     assert (tmp_path / "runs").read_text() == "x"
     assert native_quality.static_report(repo)["verdict"] == "pass"
-    assert not (repo / ".cache/pytest").exists()
-    assert not (repo / ".venv").exists()
+    assert not any((repo / path).exists() for path in (".cache/pytest", ".venv"))
     if native_layout == "relocated-mise":
         assert set(selected_tools) == {"python", "uv"}
 

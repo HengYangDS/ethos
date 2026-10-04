@@ -11,6 +11,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import cast
 
+from uv import find_uv_bin
+
 from ethos.adapters.gates.verification import NativeExecution
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
@@ -171,7 +173,7 @@ def _behavior_evidence(
                 str(locked_tool(root, "python", files=mise_files)),
             )
         else:
-            prefix = (sys.executable, "-m", "uv", "run", "--locked", "--offline")
+            prefix = (find_uv_bin(), "run", "--locked", "--offline", "--python", sys.executable)
         command = (
             *prefix,
             "python",

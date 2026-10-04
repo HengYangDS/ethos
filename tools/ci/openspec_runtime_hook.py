@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import sys
 import tempfile
+from contextlib import contextmanager
 from importlib import import_module
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
-_BUILD_IDENTITY_PATH = Path("src/ethos/data/build/identity.json")
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from types import ModuleType
 
 
 class OpenSpecRuntimeHook(BuildHookInterface):
@@ -37,18 +41,21 @@ class OpenSpecRuntimeHook(BuildHookInterface):
         try:
             identity_file = Path(owned.name) / "identity.json"
             identity_file.write_bytes(identity_bytes)
-            destination = (
-                _BUILD_IDENTITY_PATH.as_posix()
-                if self.target_name == "sdist"
-                else "ethos/data/build/identity.json"
-            )
+            with _source_module(root, "ethos.repository.release.resources") as layout:
+                resource_root = (
+                    layout.SDIST_RESOURCE_ROOT
+                    if self.target_name == "sdist"
+                    else layout.WHEEL_RESOURCE_ROOT
+                )
+                destination = (resource_root / layout.BUILD_IDENTITY_RESOURCE).as_posix()
+                modules = (
+                    Path("node_modules")
+                    if self.target_name == "sdist"
+                    else Path(layout.WHEEL_RESOURCE_ROOT) / "node_modules"
+                )
             build_data["force_include"][str(identity_file)] = destination
             for relative in production_roots:
-                target = (
-                    Path("node_modules") / relative
-                    if self.target_name == "sdist"
-                    else Path("ethos/data/openspec-runtime/node_modules") / relative
-                )
+                target = modules / relative
                 build_data["force_include"][str(supply / relative)] = target.as_posix()
         except BaseException as error:
             try:
@@ -67,20 +74,28 @@ def get_build_hook() -> type[OpenSpecRuntimeHook]:
     return OpenSpecRuntimeHook
 
 
-def _prepared_projection(root: Path) -> tuple[Path, tuple[Path, ...]]:
+@contextmanager
+def _source_module(root: Path, name: str) -> Iterator[ModuleType]:
+    """Scope import lookup in a fresh build process and restore it afterward."""
     source_path = (root / "src").as_posix()
     inserted = source_path not in sys.path
     if inserted:
         sys.path.insert(0, source_path)
     try:
-        owner = import_module("ethos.adapters.repo.runtime.materialization.node_package_supply")
+        yield import_module(name)
+    finally:
+        if inserted:
+            sys.path.remove(source_path)
+
+
+def _prepared_projection(root: Path) -> tuple[Path, tuple[Path, ...]]:
+    with _source_module(
+        root, "ethos.adapters.repo.runtime.materialization.node_package_supply"
+    ) as owner:
         try:
             return owner.resolve_node_package_projection(root)
         except ValueError as error:
             raise RuntimeError(str(error)) from error
-    finally:
-        if inserted:
-            sys.path.remove(source_path)
 
 
 def _distribution_identity_mismatch() -> None:
@@ -90,16 +105,7 @@ def _distribution_identity_mismatch() -> None:
 
 def _build_identity_payload(root: Path) -> tuple[bytes, str]:
     """Load the single identity owner from source without requiring ETHOS installed."""
-    source_root = root / "src"
-    source_path = source_root.as_posix()
-    inserted = source_path not in sys.path
-    if inserted:
-        sys.path.insert(0, source_path)
-    try:
-        source = import_module("ethos.adapters.repo.runtime.source")
+    with _source_module(root, "ethos.adapters.repo.runtime.source") as source:
         identity = source.build_input_identity(root)
-        codec = import_module("ethos.repository.release.identity")
+    with _source_module(root, "ethos.repository.release.identity") as codec:
         return codec.build_identity_bytes(identity), identity.distribution_version
-    finally:
-        if inserted:
-            sys.path.remove(source_path)

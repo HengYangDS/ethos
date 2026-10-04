@@ -7,7 +7,6 @@ import json
 import os
 import shutil
 from importlib import metadata
-from importlib.resources import files
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -24,6 +23,8 @@ from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.starter.generation import compose_starter
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.release.resources import GUIDANCE_RESOURCE
+from ethos.repository.release.resources import packaged_resource
 
 _AGENT_ENTRY = """# Agent Entry
 
@@ -72,7 +73,7 @@ def formation_plan(
     )
     if gap:
         return _unavailable(target, gap)
-    guide = files("ethos").joinpath("data/skills/ethos-repository-work/SKILL.md")
+    guide = packaged_resource(GUIDANCE_RESOURCE)
     try:
         guidance_digest = hashlib.sha256(guide.read_bytes()).hexdigest()
         with TemporaryDirectory(prefix=".ethos-preview-", dir=parent) as temporary:

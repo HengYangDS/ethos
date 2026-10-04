@@ -2,7 +2,6 @@
 
 import re
 import tomllib
-from importlib import resources
 from pathlib import Path
 from typing import Literal
 from typing import Self
@@ -16,9 +15,9 @@ from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.value import FrozenMapping
 from ethos.contracts.value import FrozenTuple
+from ethos.repository.release.resources import canonical_resource
 
 DECLARATION_PATH = Path("system/gates.toml")
-_DECLARATION_RESOURCE = "data/gates.toml"
 _DUPLICATE_GATE_ID = "duplicate gate id"
 _DUPLICATE_GATE_COMMAND = "duplicate gate command"
 _GATE_EXECUTOR_INVALID = "gate executor invalid"
@@ -238,12 +237,5 @@ def load_gate_registry_declaration(
     if path is not None:
         text = Path(path).read_text(encoding="utf-8")
     else:
-        source = Path(__file__).resolve().parents[3] / DECLARATION_PATH
-        text = (
-            source.read_text(encoding="utf-8")
-            if source.is_file()
-            else resources.files("ethos")
-            .joinpath(_DECLARATION_RESOURCE)
-            .read_text(encoding="utf-8")
-        )
+        text = canonical_resource(DECLARATION_PATH.as_posix()).read_text(encoding="utf-8")
     return GateRegistryDeclaration.model_validate(tomllib.loads(text))

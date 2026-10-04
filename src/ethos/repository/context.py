@@ -1,11 +1,13 @@
 """Derive repository context from the selected explicit adoption profile."""
 
 import hashlib
-from importlib.resources import files
 from pathlib import Path
 
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
+from ethos.repository.release.resources import GUIDANCE_RESOURCE
+from ethos.repository.release.resources import canonical_resource
+from ethos.repository.release.resources import packaged_resource
 
 
 def repository_context(root: Path) -> dict[str, object]:
@@ -13,12 +15,8 @@ def repository_context(root: Path) -> dict[str, object]:
     profile = load_repository_profile(root)
     if profile.state == "invalid":
         raise ValueError(INVALID_PROFILE_ERROR)
-    guidance_resource = files("ethos").joinpath("data/skills/ethos-repository-work/SKILL.md")
-    guidance_path = Path(str(guidance_resource)).resolve(strict=True)
+    guidance_path = packaged_resource(GUIDANCE_RESOURCE).resolve(strict=True)
     guidance = guidance_path.read_bytes()
-    package = Path(str(files("ethos"))).resolve(strict=True)
-    source = Path(__file__).resolve().parents[3]
-    documents = source if package == source / "src/ethos" else package / "data/governance"
     sources = []
     for relative, role, sections in (
         (
@@ -71,7 +69,7 @@ def repository_context(root: Path) -> dict[str, object]:
             ),
         ),
     ):
-        path = (documents / relative).resolve(strict=True)
+        path = canonical_resource(relative).resolve(strict=True)
         sources.append(
             {
                 "origin": "product",

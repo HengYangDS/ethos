@@ -24,6 +24,8 @@ from ethos.adapters.repo.runtime.transition import materialize_package_wheel
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
 from ethos.repository.release.identity import build_identity_bytes
+from ethos.repository.release.resources import BUILD_IDENTITY_RESOURCE
+from ethos.repository.release.resources import SDIST_RESOURCE_ROOT
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -220,7 +222,7 @@ def release_build_source(repo: Path, work: Path, *, head: str) -> Iterator[Path]
         archive = run_git(repo, "archive", "--format=tar", head, text=False, timeout=30).stdout
         with tarfile.open(fileobj=io.BytesIO(archive)) as packed:
             packed.extractall(prepared, filter="data")
-        carried = prepared / "src/ethos/data/build/identity.json"
+        carried = prepared / SDIST_RESOURCE_ROOT / BUILD_IDENTITY_RESOURCE
         carried.parent.mkdir(parents=True, exist_ok=True)
         carried.write_bytes(build_identity_bytes(identity))
         yield prepared

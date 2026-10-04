@@ -12,8 +12,10 @@ from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
 from ethos.repository.release.identity import load_build_identity_bytes
 from ethos.repository.release.identity import product_version
+from ethos.repository.release.resources import BUILD_IDENTITY_RESOURCE
+from ethos.repository.release.resources import SDIST_RESOURCE_ROOT
 
-_SOURCE_BUILD_IDENTITY = Path("src/ethos/data/build/identity.json")
+_SOURCE_BUILD_IDENTITY = SDIST_RESOURCE_ROOT / BUILD_IDENTITY_RESOURCE
 _HEX = frozenset("0123456789abcdef")
 _SOURCE_OBSERVATION_SECONDS = 30.0
 

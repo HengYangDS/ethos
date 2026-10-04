@@ -6,7 +6,6 @@ import json
 import os
 import subprocess
 from contextlib import suppress
-from importlib import resources
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +19,7 @@ from ethos.adapters.repo.runtime.materialization.node_package_supply import (
 )
 from ethos.repository.openspec.identifiers import archived_change_root_matches
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
+from ethos.repository.release.resources import packaged_resource
 
 OFFICIAL_PACKAGE = "@fission-ai/openspec"
 OPENSPEC_COMMAND_TIMEOUT_SECONDS = 60
@@ -27,15 +27,9 @@ _SOURCE_COMMAND_LENGTH = 2
 
 _SOURCE_ROOT = Path(__file__).resolve().parents[4]
 _SOURCE_DECLARATION = _SOURCE_ROOT / "package.json"
-_DISTRIBUTION_DECLARATION = Path(
-    str(resources.files("ethos").joinpath("data", "supply-chain", "package.json"))
-)
-_DISTRIBUTION_LOCK = Path(
-    str(resources.files("ethos").joinpath("data", "supply-chain", "package-lock.json"))
-)
-_DISTRIBUTION_MODULES = Path(
-    str(resources.files("ethos").joinpath("data", "openspec-runtime", "node_modules"))
-)
+_DISTRIBUTION_DECLARATION = packaged_resource("package.json")
+_DISTRIBUTION_LOCK = packaged_resource("package-lock.json")
+_DISTRIBUTION_MODULES = packaged_resource("node_modules")
 _DISTRIBUTION_PACKAGE = _DISTRIBUTION_MODULES / "@fission-ai" / "openspec" / "package.json"
 _DISTRIBUTION_ENTRY = _DISTRIBUTION_PACKAGE.parent / "bin" / "openspec.js"
 _LOCK = _SOURCE_ROOT / "package-lock.json"

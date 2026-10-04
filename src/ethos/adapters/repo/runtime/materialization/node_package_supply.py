@@ -7,6 +7,9 @@ import os
 from pathlib import Path
 from typing import NoReturn
 
+from ethos.repository.release.resources import canonical_resource
+from ethos.repository.release.resources import packaged_resource
+
 _LOCK_PREFIX = "node_modules/"
 
 
@@ -18,14 +21,12 @@ def resolve_node_package_supply(source: Path) -> Path:
 
 def product_node_module(name: str) -> Path:
     """Resolve a product-shipped production module without consulting adopter dependencies."""
-    package = Path(__file__).resolve().parents[4]
-    source = package.parent.parent
-    if (source / "package-lock.json").is_file():
-        supply = resolve_node_package_supply(source)
-        lock = source / "package-lock.json"
-    else:
-        supply = package / "data/openspec-runtime/node_modules"
-        lock = package / "data/supply-chain/package-lock.json"
+    lock = canonical_resource("package-lock.json")
+    supply = (
+        packaged_resource("node_modules")
+        if lock.parent == packaged_resource()
+        else resolve_node_package_supply(lock.parent)
+    )
     key = _LOCK_PREFIX + name
     metadata = _locked_node_modules(lock).get(key)
     if not isinstance(metadata, dict) or metadata.get("dev"):

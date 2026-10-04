@@ -148,7 +148,9 @@ def test_managed_runtime_requires_one_exact_wheel(tmp_path, monkeypatch, content
     """Resolve the package by verified content identity, not directory presence."""
     source, package_root = _managed_runtime_case(monkeypatch, tmp_path)
     assert runtime_inputs.is_selected_runtime_source(source) is True
-    assert runtime_inputs.selected_runtime_source(source).root == source.parents[3]
+    selected = runtime_inputs.selected_runtime_source(source)
+    assert selected is not None
+    assert selected.root == source.parents[3]
     if contents:
         package_root.mkdir(parents=True)
         for index, content in enumerate(contents):
@@ -163,7 +165,12 @@ def test_managed_runtime_requires_one_exact_wheel(tmp_path, monkeypatch, content
 
 
 @pytest.mark.parametrize("layout", ["bin/python", "python/python.exe"])
-def test_runtime_tool_preserves_interpreter_supply_and_environment(tmp_path, monkeypatch, layout):
+@pytest.mark.parametrize(
+    "operation", [("export",), ("sync",), ("pip", "install", "package.whl"), ("build",)]
+)
+def test_runtime_tool_preserves_interpreter_supply_and_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, layout: str, operation: tuple[str, ...]
+) -> None:
     """Keep native argv and all isolation obligations in one invocation fixture."""
     source, python = tmp_path / "source", tmp_path / layout
     source.mkdir()
@@ -173,9 +180,13 @@ def test_runtime_tool_preserves_interpreter_supply_and_environment(tmp_path, mon
     supply = source / "node_modules"
     supply.mkdir()
     packages = {"node_modules/tool": {"version": "1.0.0"}}
-    for path, entries in ((source, {"": {}, **packages}), (supply, packages)):
-        (path / (".package-lock.json" if path == supply else "package-lock.json")).write_text(
-            json.dumps({"lockfileVersion": 3, "packages": entries})
+    (source / "package-lock.json").write_text(
+        json.dumps({"lockfileVersion": 3, "packages": {"": {}, **packages}})
+    )
+    building = operation == ("build",)
+    if building:
+        (supply / ".package-lock.json").write_text(
+            json.dumps({"lockfileVersion": 3, "packages": packages})
         )
     monkeypatch.delenv("ETHOS_NODE_PACKAGE_SUPPLY", raising=False)
     for key, value in {
@@ -192,20 +203,20 @@ def test_runtime_tool_preserves_interpreter_supply_and_environment(tmp_path, mon
         return _completed(0)
 
     monkeypatch.setattr(runtime_inputs.subprocess, "run", run)
-    runtime_inputs.run_runtime_tool(source, "pip", "install", "package.whl")
+    runtime_inputs.run_runtime_tool(source, *operation)
     assert len(observed) == 1
     command, env = observed[0]
-    assert command == (str(python), "-B", "-I", "-m", "uv", "pip", "install", "package.whl")
+    assert command == (str(python), "-B", "-I", "-m", "uv", *operation)
     assert {key: env[key] for key in ("UV_LINK_MODE", "UV_NO_CACHE", "UV_PYTHON")} == {
         "UV_LINK_MODE": "copy",
         "UV_NO_CACHE": "1",
         "UV_PYTHON": str(python),
     }
     assert not {"UV_CACHE_DIR", "ETHOS_UV_CACHE_DIR"} & env.keys()
-    assert env["ETHOS_NODE_PACKAGE_SUPPLY"] == str(supply)
+    assert env.get("ETHOS_NODE_PACKAGE_SUPPLY") == (str(supply) if building else None)
 
 
-def test_runtime_project_selects_complete_source_or_complete_packaged_data(
+def test_runtime_project_selects_complete_source_or_complete_packaged_resources(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     source = tmp_path / "source"
@@ -214,14 +225,14 @@ def test_runtime_project_selects_complete_source_or_complete_packaged_data(
         (source / name).write_text("x\n", encoding="utf-8")
     assert runtime_inputs.resolve_runtime_project(source) == source
 
-    packaged = tmp_path / "package/ethos/data/runtime-project"
+    packaged = tmp_path / "package/ethos/resources"
     packaged.mkdir(parents=True)
     for name in ("pyproject.toml", "uv.lock", "VERSION"):
         (packaged / name).write_text("x\n", encoding="utf-8")
     monkeypatch.setattr(
         runtime_inputs,
-        "__file__",
-        packaged.parents[1] / "a/b/c/d/input_resolution.py",
+        "packaged_resource",
+        lambda: packaged,
     )
     incomplete = tmp_path / "incomplete"
     incomplete.mkdir()

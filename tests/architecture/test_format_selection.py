@@ -22,7 +22,7 @@ def test_packaged_agent_guidance_is_selected_by_native_markdown_lint() -> None:
     config = yaml.safe_load(
         (ROOT / ".config/checks/markdown/.markdownlint-cli2.yaml").read_text(encoding="utf-8")
     )
-    path = ROOT / "src/ethos/data/skills/ethos-repository-work/SKILL.md"
+    path = ROOT / "src/ethos/resources/skills/ethos-repository-work/SKILL.md"
     assert any(path in ROOT.glob(pattern) for pattern in config["globs"])
 
 

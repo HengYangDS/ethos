@@ -55,7 +55,7 @@ def test_source_and_release_builds_preserve_exact_metadata(tmp_path: Path, monke
     repo = _build_repository(root, tmp_path / "repo")
     first = _build_wheel(repo, tmp_path / "first")
     with zipfile.ZipFile(next((tmp_path / "first").glob("*.whl"))) as archive:
-        assert "ethos/data/skills/ethos-repository-work/SKILL.md" in archive.namelist()
+        _assert_complete_resources(repo, archive, tmp_path / "installed")
 
     readme = repo / "README.md"
     readme.write_text(readme.read_text(encoding="utf-8") + "\n", encoding="utf-8")
@@ -271,6 +271,53 @@ def test_build_identity_loader_rejects_distribution_or_release_drift() -> None:
     for raw in (b"{}", json.dumps(valid.projection()).encode(), b"not-json"):
         with pytest.raises(ValueError, match="package_build_identity_invalid"):
             load_build_identity_bytes(raw)
+
+
+def _assert_complete_resources(repo: Path, archive: zipfile.ZipFile, installed: Path) -> None:
+    """Require byte parity and native lock consumption from the current built wheel."""
+    members = set(archive.namelist())
+    assert "ethos/resources/skills/ethos-repository-work/SKILL.md" in members
+    assert not any(name.startswith("ethos/data/") for name in members)
+    declaration = tomllib.loads((repo / "pyproject.toml").read_text())
+    mappings = declaration["tool"]["hatch"]["build"]["targets"]["wheel"]["force-include"]
+    for relative, target in mappings.items():
+        assert target == f"ethos/resources/{relative}"
+        original = repo / relative
+        files = original.rglob("*") if original.is_dir() else (original,)
+        for file in files:
+            if file.is_file():
+                member = f"ethos/resources/{file.relative_to(repo).as_posix()}"
+                assert archive.read(member) == file.read_bytes()
+    archive.extractall(installed)
+    project = installed / "ethos/resources"
+    assert (project / "package-lock.json").is_file()
+    assert not (project / "node_modules/.package-lock.json").exists()
+    requirements = installed.parent / "installed-requirements.txt"
+    environment = os.environ.copy()
+    environment.pop("ETHOS_NODE_PACKAGE_SUPPLY", None)
+    subprocess.run(
+        (
+            sys.executable,
+            "-B",
+            "-I",
+            "-c",
+            (
+                "import sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); "
+                "from ethos.adapters.repo.runtime.materialization.input_resolution "
+                "import resolve_runtime_project, run_runtime_tool; "
+                "project = resolve_runtime_project(Path(sys.argv[1]) / 'ethos'); "
+                "run_runtime_tool(project, 'export', '--locked', '--offline', '--no-dev', "
+                "'--no-emit-project', '--format', 'requirements-txt', '--output-file', sys.argv[2])"
+            ),
+            str(installed),
+            str(requirements),
+        ),
+        cwd=installed.parent,
+        env=environment,
+        check=True,
+        timeout=30,
+    )
+    assert requirements.is_file()
 
 
 def _build_wheel(

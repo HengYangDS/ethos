@@ -86,12 +86,12 @@ def test_installed_formation_observation_binds_the_effect_head(tmp_path: Path) -
     guide.write_text("Use the installed product.\n", encoding="utf-8")
     digest = hashlib.sha256(guide.read_bytes()).hexdigest()
     head = "a" * 40
-    plan = {
+    plan: dict[str, object] = {
         "write_plan": [
             {"path": "AGENTS.md", "content_sha256": hashlib.sha256(entry.read_bytes()).hexdigest()}
         ]
     }
-    status = {
+    status: dict[str, object] = {
         "verdict": "pass",
         "data": {
             "head": head,
@@ -235,7 +235,7 @@ def test_installed_observation_runs_shared_isolated_conformance(
     smoke, adopter = tmp_path / "venv", tmp_path / "adopter"
     adopter.mkdir()
     package = smoke / "site-packages/ethos"
-    guide = package / "data/skills/ethos-repository-work/SKILL.md"
+    guide = package / "resources/skills/ethos-repository-work/SKILL.md"
     guide.parent.mkdir(parents=True)
     guide.write_text("Run ethos status.\n", encoding="utf-8")
     (package / "__init__.py").write_text("", encoding="utf-8")
@@ -293,7 +293,7 @@ def test_installed_observation_runs_shared_isolated_conformance(
 def test_installed_guidance_must_match_the_package_that_served_status(tmp_path: Path) -> None:
     """An installed CLI cannot point an Agent at source or altered guidance."""
     package = tmp_path / "venv/site-packages/ethos"
-    guide = package / "data/skills/ethos-repository-work/SKILL.md"
+    guide = package / "resources/skills/ethos-repository-work/SKILL.md"
     guide.parent.mkdir(parents=True)
     guide.write_text("Run ethos status and follow next_action.\n", encoding="utf-8")
     origin = package / "__init__.py"

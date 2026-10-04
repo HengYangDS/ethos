@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import zipfile
 from collections.abc import Mapping
-from importlib import resources
 from typing import TYPE_CHECKING
 from typing import NamedTuple
 from typing import NoReturn
@@ -17,7 +16,10 @@ from packaging.version import Version
 if TYPE_CHECKING:
     from pathlib import Path
 
-_BUILD_RESOURCE = "data/build/identity.json"
+from ethos.repository.release.resources import BUILD_IDENTITY_RESOURCE
+from ethos.repository.release.resources import WHEEL_RESOURCE_ROOT
+from ethos.repository.release.resources import packaged_resource
+
 _HEX = frozenset("0123456789abcdef")
 _BUILD_SOURCE_INVALID = "build_source_identity_invalid"
 _PACKAGE_BUILD_INVALID = "package_build_identity_invalid"
@@ -123,7 +125,7 @@ def is_release_build(identity: BuildIdentity) -> bool:
 def packaged_build_identity() -> BuildIdentity:
     """Read the immutable identity carried by an installed wheel."""
     try:
-        raw = resources.files("ethos").joinpath(_BUILD_RESOURCE).read_bytes()
+        raw = packaged_resource(BUILD_IDENTITY_RESOURCE).read_bytes()
     except (FileNotFoundError, OSError) as error:
         raise ValueError(_PACKAGE_BUILD_MISSING) from error
     return load_build_identity_bytes(raw)
@@ -133,7 +135,9 @@ def wheel_build_identity(wheel: Path) -> BuildIdentity:
     """Read the complete immutable build identity carried by one wheel."""
     try:
         with zipfile.ZipFile(wheel) as archive:
-            return load_build_identity_bytes(archive.read(f"ethos/{_BUILD_RESOURCE}"))
+            return load_build_identity_bytes(
+                archive.read((WHEEL_RESOURCE_ROOT / BUILD_IDENTITY_RESOURCE).as_posix())
+            )
     except (KeyError, OSError, ValueError, zipfile.BadZipFile) as error:
         _fail("hook_runtime_wheel_build_identity_invalid", error)
 

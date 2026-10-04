@@ -10,6 +10,7 @@ from typing import cast
 
 import pytest
 
+import ethos.repository.release.resources as resource_layout
 import tools.ci.openspec_runtime_hook as subject
 
 if TYPE_CHECKING:
@@ -78,6 +79,9 @@ def test_build_hook_loads_the_single_source_supply_owner_without_installed_ethos
             return supply, (Path("direct"),)
 
     def import_owner(name: str) -> object:
+        if name == "ethos.repository.release.resources":
+            assert source_path in subject.sys.path
+            return resource_layout
         assert name == ("ethos.adapters.repo.runtime.materialization.node_package_supply")
         assert source_path in subject.sys.path
         return SupplyOwner
@@ -97,9 +101,7 @@ def test_build_hook_loads_the_single_source_supply_owner_without_installed_ethos
 
     assert observed == [("resolve", tmp_path)]
     assert source_path not in subject.sys.path
-    assert data["force_include"][str(supply / "direct")] == (
-        "ethos/data/openspec-runtime/node_modules/direct"
-    )
+    assert data["force_include"][str(supply / "direct")] == ("ethos/resources/node_modules/direct")
 
 
 def test_build_hook_projects_prepared_production_supply_without_npm_or_temp_tree(
@@ -125,9 +127,7 @@ def test_build_hook_projects_prepared_production_supply_without_npm_or_temp_tree
     hook.finalize("standard", data, "artifact")
 
     force_include = data["force_include"]
-    assert force_include[str(supply / "direct")] == (
-        "ethos/data/openspec-runtime/node_modules/direct"
-    )
+    assert force_include[str(supply / "direct")] == ("ethos/resources/node_modules/direct")
     assert not any("nested" in source for source in force_include)
     assert not any("dev-only" in source for source in force_include)
     assert not list(tmp_path.glob("ethos-openspec-supply-*"))

@@ -331,7 +331,7 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
             ),
         ),
         (effect, "observe_independent_command_plane", {"external_governance_available": False}),
-        (effect, "_verify_resources", ["ethos/data/gates.toml"]),
+        (effect, "_verify_resources", ["ethos/resources/system/gates.toml"]),
     ):
         monkeypatch.setattr(owner, method, Mock(return_value=value))
     monkeypatch.setattr(

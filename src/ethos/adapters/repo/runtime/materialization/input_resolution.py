@@ -25,6 +25,7 @@ from ethos.adapters.repo.runtime.materialization.python_environment import obser
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from ethos.repository.release.resources import packaged_resource
 
 
 def _fail(reason: str, cause: Exception | None = None) -> NoReturn:
@@ -100,11 +101,11 @@ def resolve_runtime_wheel(
 
 
 def resolve_runtime_project(package_source: Path) -> Path:
-    """Resolve the dependency-lock project carried by source or installed data."""
+    """Resolve the complete source project or its shipped lock-bound inputs."""
     required = ("pyproject.toml", "uv.lock", "VERSION")
     if all((package_source / name).is_file() for name in required):
         return package_source
-    project = Path(__file__).resolve().parents[4] / "data" / "runtime-project"
+    project = packaged_resource()
     if not all((project / name).is_file() for name in required):
         _fail("hook_runtime_packaged_project_missing")
     return project
@@ -138,7 +139,7 @@ def run_runtime_tool(
     *args: str,
     python: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    """Run locked uv through the current authenticated Python interpreter."""
+    """Run locked uv; only a source build requires full native Node supply."""
     executable = python or Path(sys.executable)
     prefix = (
         Path(sys.prefix)
@@ -156,7 +157,7 @@ def run_runtime_tool(
     }
     environment.pop("ETHOS_UV_CACHE_DIR", None)
     environment.pop("UV_CACHE_DIR", None)
-    if (source / "package-lock.json").is_file():
+    if args[:1] == ("build",) and (source / "package-lock.json").is_file():
         environment["ETHOS_NODE_PACKAGE_SUPPLY"] = resolve_node_package_supply(source).as_posix()
     completed = subprocess.run(
         _uv_module_command(executable, *args),

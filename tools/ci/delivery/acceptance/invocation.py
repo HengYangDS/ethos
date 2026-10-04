@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
+from ethos.repository.release.resources import GUIDANCE_RESOURCE
+from ethos.repository.release.resources import packaged_resource
 from ethos.result import EthosResult
 
 if TYPE_CHECKING:
@@ -21,7 +23,7 @@ def require_installed_guidance(status_json: str, origin: str) -> None:
         payload = json.loads(status_json)
         guidance = payload["governance_context"]["agent_guidance"]
         package = Path(origin).resolve(strict=True).parent
-        expected = (package / "data/skills/ethos-repository-work/SKILL.md").resolve(strict=True)
+        expected = packaged_resource(GUIDANCE_RESOURCE, package=package).resolve(strict=True)
         observed = Path(guidance["path"]).resolve(strict=True)
         valid = (
             guidance["authority"] == "product_projection"

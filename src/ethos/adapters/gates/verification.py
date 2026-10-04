@@ -31,6 +31,7 @@ class NativeExecution:
     exit_code: int
     stdout: str
     stderr: str
+    # Preserve the invocation path: dereferencing Python changes virtual-environment semantics.
     executable: str = ""
 
 

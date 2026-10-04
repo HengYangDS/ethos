@@ -135,9 +135,15 @@ class LocalGateRunner:
         if gate.providers:
             return _run_providers(node, gate, root)
         command = gate.command
-        executable = shutil.which(command[0])
+        invoked = Path(command[0])
+        executable = (
+            str(invoked if invoked.is_absolute() else root / invoked)
+            if invoked.is_absolute()
+            or any(separator and separator in command[0] for separator in (os.sep, os.altsep))
+            else shutil.which(command[0])
+        )
         execution_command = (
-            (str(Path(executable).resolve()), *command[1:]) if executable else command
+            (str(Path(executable).absolute()), *command[1:]) if executable else command
         )
         try:
             completed = run_command(root, execution_command)

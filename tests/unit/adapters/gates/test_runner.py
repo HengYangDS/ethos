@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
+from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING
 
 import pytest
 
@@ -17,9 +18,6 @@ from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_policy_fields
 from ethos.repository.policy.gates import quality_obligation_gaps
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def _gate(*providers: str) -> Gate:
@@ -379,3 +377,38 @@ def test_provider_exception_becomes_failed_result(monkeypatch, tmp_path: Path, n
         else "RuntimeError: boom"
     )
     assert result.diagnostics[0]["error"] == expected
+
+
+@pytest.mark.parametrize("selection", ["absolute", "relative", "path", "dot-relative"])
+def test_runner_preserves_python_virtual_environment_invocation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    selection: str,
+) -> None:
+    """Following the executable symlink must not change the selected Python prefix."""
+    environment = tmp_path / "selected-environment"
+    if selection == "dot-relative":
+        environment = tmp_path
+    subprocess.run(
+        [sys.executable, "-I", "-m", "venv", "--without-pip", str(environment)],
+        check=True,
+        capture_output=True,
+        timeout=30,
+    )
+    python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    if selection == "path":
+        monkeypatch.setenv("PATH", str(python.parent) + os.pathsep + os.environ["PATH"])
+        invocation = python.name
+    else:
+        invocation = str(python if selection == "absolute" else python.relative_to(tmp_path))
+    if selection == "dot-relative":
+        root = python.parent
+        invocation = "./" + python.name
+        monkeypatch.chdir(Path(sys.executable).parent)
+    else:
+        root = tmp_path
+    command = (invocation, "-I", "-c", "import sys; print(sys.prefix)")
+    gate = Gate(id="prefix", kind="test", command=command)
+    result = gate_runner.LocalGateRunner().run(_node(gate), gate, root=root)
+    assert result.verdict == "pass", result.stderr
+    assert Path(result.stdout.strip()).resolve() == environment.resolve()

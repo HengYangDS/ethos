@@ -3230,3 +3230,38 @@ a downgrade, or a reason to remove diagnostics. Unsupported npm/c8 and Python
 execution/report contracts stay in Task11.9.2. Focused source tests do not close
 Task10.4/10.6, the independent CLI product, or whole-adopter acceptance.
 
+### Same-Attempt Python Static Evidence And Invocation Identity
+
+The existing Python quality owner consumes an exact product-pinned Ruff attempt
+without replay. Native isolated configuration and `--ignore-noqa` preserve the
+prior rule set; native stdout, stderr and exit survive both rejection and success.
+Malformed output, adverse diagnostics and a different invocation remain unproved.
+Ruff evidence proves its static property, not Ty, formatting, behavior or an
+aggregate Nox session. Native Nox `--report` carries session scheduling, not
+child executable identity, per-tool diagnostics or test scope; logs cannot fill
+that missing contract. Python behavior therefore still rejects supplied aggregate
+execution without silently running another test attempt.
+
+Committed quality subjects now have one repository gate-policy observation
+owner. The original Git-tree reader selects HEAD subjects; staged deletion cannot
+shrink that set. Direct and general providers share selected-source freshness
+checks before and after native inspection. General results preserve one native
+row shape, so a failed Python report cannot hide behind an inner verdict.
+
+A callable program path and its underlying file object are distinct facts.
+LocalGateRunner retains the absolute invocation path and resolves explicit
+relative paths against the gate root, not the caller's directory. Dereferencing
+Python's final symlink changes virtual-environment module lookup; shared inodes
+or base binaries do not identify the same runtime instance. Native Python static
+reuse binds the invocation, while native Node may compare its underlying binary
+only for its own declared contract. This fixes dispatch without a wrapper,
+controller, compatibility alias, new inventory or language-name exception.
+
+Focused source regressions include real virtual environments, caller-relative
+programs, deleted committed subjects, warning/invalid streams and rejected
+aggregate replay. They do not qualify an installed product, source full proof,
+all supported platforms or the whole quality foundation. Existing Task11.9.2
+retains Nox/pytest and npm/c8 same-attempt composition, native behavior failure
+custody and mixed-language scope. Caller termination and first-use foundation
+observations remain with their existing lifecycle and adoption owners.
+

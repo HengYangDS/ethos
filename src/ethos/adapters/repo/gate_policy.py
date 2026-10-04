@@ -3,16 +3,23 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import ethos
+from ethos.adapters.repo.git import current_tracked_head
+from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.repository.policy.code_subjects import CARRIER_ROLES
+from ethos.repository.policy.code_subjects import observed_code_subjects
 from ethos.repository.policy.gates import PRODUCT_PROVIDER_SOURCE
 from ethos.repository.policy.gates import ResolvedGatePolicy
 from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
 from ethos.repository.policy.gates import source_paths_for_gates
 from ethos.repository.profile import load_repository_profile
+
+if TYPE_CHECKING:
+    from ethos.repository.policy.code_subjects import CodeSubject
 
 
 def resolve_gate_policy(
@@ -221,3 +228,41 @@ def _material(root: Path, tree_ref: str | None, relative: str) -> bytes | None:
 def _repository_python(root: Path) -> str | None:
     candidates = (root / ".venv/bin/python", root / ".venv/Scripts/python.exe")
     return next((path.as_posix() for path in candidates if path.is_file()), None)
+
+
+def observe_quality_subjects(
+    root: Path, *, expected_tree: str = "", language: str = ""
+) -> tuple[str, tuple[CodeSubject, ...]]:
+    """Bind observed code subjects to the exact committed source tree."""
+    head = current_tracked_head(root)
+    if not head:
+        message = "source_head_missing"
+        raise ValueError(message)
+    subjects = observed_code_subjects(_repository_paths(root, head))
+    if language:
+        subjects = tuple(subject for subject in subjects if subject.language == language)
+        if not subjects:
+            message = f"{language}_sources_missing"
+            raise ValueError(message)
+    if any(not (root / subject.path).is_file() for subject in subjects):
+        message = "code_source_unavailable"
+        raise ValueError(message)
+    if (
+        subjects
+        and run_git(
+            root,
+            "diff",
+            "--quiet",
+            head,
+            "--",
+            *(subject.path for subject in subjects),
+            check=False,
+        ).returncode
+    ):
+        message = "code_source_changed"
+        raise ValueError(message)
+    tree = current_tree(root, head)
+    if expected_tree and expected_tree != tree:
+        message = "code_source_changed"
+        raise ValueError(message)
+    return tree, subjects

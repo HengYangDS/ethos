@@ -18,45 +18,21 @@ from ethos.adapters.gates.python_quality import behavior_report as python_behavi
 from ethos.adapters.gates.python_quality import static_report as python_static_report
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
-from ethos.adapters.repo.git import current_tracked_head
-from ethos.adapters.repo.git import current_tree
-from ethos.adapters.repo.git import git_files
-from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.toolchain.mise import locked_environment
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.adapters.toolchain.mise import repository_mise_files
 from ethos.normalization.coercion import string_sequence
-from ethos.repository.policy.code_subjects import CodeSubject
-from ethos.repository.policy.code_subjects import observed_code_subjects
 from ethos.repository.policy.quality_reports import go_covered_paths
 
 if TYPE_CHECKING:
     from ethos.adapters.gates.verification import NativeExecution
+    from ethos.repository.policy.code_subjects import CodeSubject
 
 
 def _invalid(reason: str) -> Never:
     """Reject an unproved native quality observation."""
     raise ValueError(reason)
-
-
-def _source(root: Path, *, expected_tree: str = "") -> tuple[str, tuple[CodeSubject, ...]]:
-    """Bind observed code subjects to the exact committed source tree."""
-    head = current_tracked_head(root)
-    if not head:
-        _invalid("source_head_missing")
-    subjects = observed_code_subjects(tuple(git_files(root)))
-    if not subjects:
-        _invalid("code_sources_missing")
-    if any(not (root / subject.path).is_file() for subject in subjects):
-        _invalid("code_source_unavailable")
-    if run_git(
-        root, "diff", "--quiet", head, "--", *(subject.path for subject in subjects), check=False
-    ).returncode:
-        _invalid("code_source_changed")
-    tree = current_tree(root, head)
-    if expected_tree and expected_tree != tree:
-        _invalid("code_source_changed")
-    return tree, subjects
 
 
 def _failure(axis: str, reason: str) -> dict[str, object]:
@@ -311,10 +287,10 @@ def _report(
     root: Path, axis: str, *, execution: NativeExecution | None = None
 ) -> dict[str, object]:
     try:
-        tree, subjects = _source(root)
+        tree, subjects = observe_quality_subjects(root)
+        if not subjects:
+            _invalid("code_sources_missing")
         languages = {subject.language for subject in subjects}
-        if execution is not None and "python" in languages:
-            _invalid("python_native_evidence_unavailable")
         with ExitStack() as scope:
             tool_environment = (
                 _native_environment(root, scope) if languages & {"go", "javascript"} else {}
@@ -327,9 +303,9 @@ def _report(
                 paths = tuple(subject.path for subject in language_subjects)
                 if language == "python":
                     report = (
-                        python_behavior_report(root)
+                        python_behavior_report(root, execution=execution)
                         if axis == "behavior"
-                        else python_static_report(root)
+                        else python_static_report(root, execution=execution)
                     )
                     selected = report.get("quality_evidence")
                     expected = [
@@ -338,13 +314,11 @@ def _report(
                         if subject.language == language
                         and (axis != "behavior" or not subject.is_test)
                     ]
-                    if (
-                        report.get("verdict") != "pass"
-                        or not isinstance(selected, dict)
-                        or selected.get("selected_paths") != expected
+                    if report.get("verdict") == "pass" and (
+                        not isinstance(selected, dict) or selected.get("selected_paths") != expected
                     ):
                         _invalid("python_quality_unproven")
-                    native.append({"language": language, "report": report})
+                    native.append({"language": language, **report})
                 elif language == "go":
                     native.append(
                         _go_behavior(root, language_subjects, tool_environment)
@@ -367,7 +341,7 @@ def _report(
                     )
                 else:
                     _invalid(f"native_language_unsupported:{language}")
-            _source(root, expected_tree=tree)
+            observe_quality_subjects(root, expected_tree=tree)
     except ProcessExecutionError as error:
         return {**_failure(axis, error.code), "diagnostics": [error.evidence()]}
     except (OSError, TypeError, ValueError, subprocess.TimeoutExpired) as error:
@@ -376,8 +350,17 @@ def _report(
         gaps = tuple(
             gap for report in native for gap in string_sequence(report.get("required_gaps"))
         )
-        failure = _failure(axis, str(gaps[0]) if gaps else "javascript_native_diagnostics")
-        return {**failure, "native": native}
+        return {
+            "verdict": "block",
+            "state": "unproven",
+            "required_gaps": list(
+                dict.fromkeys(
+                    gap if gap.startswith("quality_") else f"quality_{axis}_{gap}" for gap in gaps
+                )
+            )
+            or [f"quality_{axis}_native_diagnostics"],
+            "native": native,
+        }
     return {
         "verdict": "pass",
         "state": "verified",

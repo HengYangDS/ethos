@@ -7,6 +7,7 @@ import os
 import shlex
 import shutil
 import subprocess
+from contextlib import nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -191,13 +192,6 @@ def _validate_request_plan(selection: _Selection, plan: TransitionPlan) -> None:
 
 
 def _existing_plan(selection: _Selection) -> TransitionPlan | None:
-    require_release(
-        all(
-            not path.is_symlink()
-            for path in (selection.stored, selection.stored.parent, selection.stored.parent.parent)
-        ),
-        "release_request_unsafe",
-    )
     if not selection.stored.exists():
         return None
     payload = json.loads(selection.stored.read_text())
@@ -310,35 +304,44 @@ def promote_release(
     )
     data: dict[str, object] = {"source": head, "previous": previous, "tag": tag}
     try:
-        plan = _existing_plan(selection)
-        accepted, proof, observed, paths, version, preview = _observe(
-            selection, apply=apply, authorized=authorized, plan=plan
-        )
-        data.update(
-            accepted=accepted, version=version, release_ref=selection.ref, observed=observed
-        )
-        if preview is not None:
-            data.update(
-                transition_plan=preview.model_dump(mode="json"),
-                preview_scope="branch-and-existing-effects" if plan else "branch-only",
-            )
         require_release(
-            plan is not None or observed != head or previous == head,
-            "release_effect_evidence_missing",
-        )
-        require_release(
-            plan is not None or not tag or not ref_head(root, f"refs/tags/{tag}"),
-            "release_tag_already_exists",
-        )
-        if apply and (tag or previous != head):
-            assert proof is not None
-            lock = selection.stored.parent / ".lock"
-            lock.parent.mkdir(parents=True, exist_ok=True)
-            with FileLock(lock, timeout=0, mode=0o600, preserve_lock_file=True):
-                plan = _existing_plan(selection)
-                accepted, proof, _, paths, _, _ = _observe(
-                    selection, apply=True, authorized=True, plan=plan
+            all(
+                not path.is_symlink()
+                for path in (
+                    selection.stored,
+                    selection.stored.parent,
+                    selection.stored.parent.parent,
                 )
+            ),
+            "release_request_unsafe",
+        )
+        lock = nullcontext()
+        if apply and authorized and (tag or previous != head):
+            lock_path = selection.stored.parent / ".lock"
+            lock_path.parent.mkdir(parents=True, exist_ok=True)
+            lock = FileLock(lock_path, timeout=0, mode=0o600, preserve_lock_file=True)
+        with lock:
+            plan = _existing_plan(selection)
+            accepted, proof, observed, paths, version, preview = _observe(
+                selection, apply=apply, authorized=authorized, plan=plan
+            )
+            data.update(
+                accepted=accepted, version=version, release_ref=selection.ref, observed=observed
+            )
+            if preview is not None:
+                data.update(
+                    transition_plan=preview.model_dump(mode="json"),
+                    preview_scope="branch-and-existing-effects" if plan else "branch-only",
+                )
+            require_release(
+                plan is not None or observed != head or previous == head,
+                "release_effect_evidence_missing",
+            )
+            require_release(
+                plan is not None or not tag or not ref_head(root, f"refs/tags/{tag}"),
+                "release_tag_already_exists",
+            )
+            if apply and (tag or previous != head):
                 assert proof is not None
                 plan = plan or _prepare_plan(selection, accepted, proof)
                 data.update(_execute(selection, plan, paths, accepted, proof))

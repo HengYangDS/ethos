@@ -26,6 +26,7 @@
 - [x] 2.11 Close invocation-local product-write and exact-proof selection across native consumers.
 - [ ] 2.12 Share exact-source intent compilation within each proof query; retain fresh queries, archive withdrawal, contradictory evidence and per-effect admission, then measure the native release consumer before delivery.
 - [ ] 2.13 Bind native typed object frames and exact set selection at their owners; remove redundant root hashing and ref probes, then verify unchanged set, fresh membership, faults and native release cost before delivery.
+- [ ] 2.14 Observe release application once under its existing operation lock; preserve effect-time checks, lock contention, drift, refusal and interruption recovery, then measure the native release journey before delivery.
 
 ## 3. OpenSpec Compilation and Continuation
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 from contextlib import redirect_stderr
+from functools import partial
 from io import StringIO
 from pathlib import Path
 from unittest.mock import Mock
@@ -186,7 +187,11 @@ def test_signed_tag_alternates_survive_windows_text_newline_translation(
 )
 @pytest.mark.parametrize("release_mirror", ["independent", "accepted_ff"])
 def test_public_release_preserves_native_package_and_signed_tag(
-    tmp_path: Path, object_format: str, native_version: str, release_mirror: str
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    object_format: str,
+    native_version: str,
+    release_mirror: str,
 ) -> None:
     repo, main, old, head = accepted_release_fixture(
         tmp_path,
@@ -216,9 +221,12 @@ def test_public_release_preserves_native_package_and_signed_tag(
     assert git(repo, "show-ref") == refs
     store = Path(git_common_dir(repo)) / "ethos/requests/release"
     store.mkdir(parents=True, exist_ok=True)
+    observed = Mock(wraps=release_owner.accepted_release_source)
+    monkeypatch.setattr(release_owner, "accepted_release_source", observed)
     with FileLock(store / ".lock", timeout=0, preserve_lock_file=True):
         blocked = release_cli(repo, head, previous, "--apply", "--authorize", blocked=True)
     assert (blocked["state"], blocked["required_gaps"]) == ("waiting", ["release_in_progress"])
+    assert observed.call_count == 0
     assert not list(store.glob("*.signing"))
     assert git(repo, "show-ref") == refs
     staged = signing_owner.create_signed_tag(
@@ -233,6 +241,7 @@ def test_public_release_preserves_native_package_and_signed_tag(
     assert "--tag v1.2.3" in rejected["next_action"]
     applied = release_cli(repo, head, previous, "--apply", "--authorize")
     assert applied["verdict"] == "pass", applied
+    assert observed.call_count == 1
     assert git(repo, "rev-parse", "main") == head
     assert git(main, "status", "--porcelain") == ""
     tag = git(repo, "rev-parse", "refs/tags/v1.2.3")
@@ -241,6 +250,7 @@ def test_public_release_preserves_native_package_and_signed_tag(
     assert (repo / "VERSION").exists() == (native_version == "VERSION")
     repeated = release_cli(repo, head, previous, "--apply", "--authorize")
     assert repeated["verdict"] == "pass", repeated
+    assert observed.call_count == 2
     assert git(repo, "rev-parse", "refs/tags/v1.2.3") == tag
 
     peers = publication_peers(repo, tmp_path, f"{old}:refs/heads/main", object_format=object_format)
@@ -287,14 +297,15 @@ def test_release_faults_preserve_objects_and_recover_once(
 ) -> None:
     """Real effects, compensation and actor fences share one recoverable request."""
     repo, main, old, head = accepted_release_fixture(tmp_path, release_mirror=release_mirror)
-    request = {
-        "root": repo,
-        "head": head,
-        "previous": head if release_mirror == "accepted_ff" else old,
-        "tag": "" if boundary == "before-cas" and release_mirror == "independent" else "v1.2.3",
-        "apply": True,
-        "authorized": True,
-    }
+    request = partial(
+        release_owner.promote_release,
+        root=repo,
+        head=head,
+        previous=head if release_mirror == "accepted_ff" else old,
+        tag="" if boundary == "before-cas" and release_mirror == "independent" else "v1.2.3",
+        apply=True,
+        authorized=True,
+    )
     refs, attempted = git(repo, "show-ref"), []
     signing = Mock(wraps=signing_owner.run_git)
     monkeypatch.setattr(signing_owner, "run_git", signing)
@@ -322,10 +333,12 @@ def test_release_faults_preserve_objects_and_recover_once(
 
     with monkeypatch.context() as scope:
         scope.setattr(owner, name, lose_ack)
-        interrupted = release_owner.promote_release(**request)
+        interrupted = request()
     assert interrupted["verdict"] == ("block" if boundary == "hook" else "unknown"), interrupted
+    data = interrupted["data"]
+    assert isinstance(data, dict)
     if owner is git_effects:
-        failure = interrupted["data"]["process_failure"]
+        failure = data["process_failure"]
         assert failure["code"] == "git_effect_cas_rejected"
         assert failure["cwd"] == str(repo)
         assert "refused-proof" in failure["observation"]["stderr"]
@@ -339,19 +352,19 @@ def test_release_faults_preserve_objects_and_recover_once(
     if boundary == "before-cas":
         with monkeypatch.context() as scope:
             scope.setenv("ETHOS_ACTOR", "agent:test:case:another")
-            rejected = release_owner.promote_release(**request)
+            rejected = request()
         assert rejected["verdict"] == "block", rejected
         assert rejected["required_gaps"] == ["release_request_actor_mismatch"]
         assert git(repo, "show-ref") == refs
-    stored = Path(interrupted["data"]["request"])
+    stored = Path(data["request"])
     original_request = stored.read_bytes() if stored.is_file() else None
     seed_executed_proof(repo, head)
-    restored = release_owner.promote_release(**request)
+    restored = request()
     assert restored["verdict"] == "pass", restored
     if original_request is not None:
         assert stored.read_bytes() == original_request
     assert sum(call.args[1:3] == ("tag", "-s") for call in signing.call_args_list) == bool(
-        request["tag"]
+        request.keywords["tag"]
     )
     assert git(repo, "rev-parse", "main") == head
     assert git(main, "status", "--porcelain") == ""
@@ -394,7 +407,9 @@ print(release.promote_release(root=Path(repo),head=head,previous=old,tag='v1.2.3
     assert not list((Path(git_common_dir(repo)) / "ethos/requests/release").glob("*.signing"))
 
 
-@pytest.mark.parametrize("gap", ["authorization", "dirty", "source", "main", "tag", "proof"])
+@pytest.mark.parametrize(
+    "gap", ["authorization", "dirty", "source", "main", "tag", "proof", "path"]
+)
 @pytest.mark.parametrize("release_mirror", ["independent", "accepted_ff"])
 def test_release_public_rejection_preserves_all_refs(
     tmp_path: Path, gap: str, release_mirror: str
@@ -414,6 +429,15 @@ def test_release_public_rejection_preserves_all_refs(
         (main / "untracked").write_text("preserve me")
     if gap == "main":
         previous = old if release_mirror == "accepted_ff" else "1" * 40
+    if gap == "path":
+        external = tmp_path / "outside-request-owner"
+        external.mkdir()
+        request_root = Path(git_common_dir(repo)) / "ethos/requests/release"
+        request_root.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            request_root.symlink_to(external, target_is_directory=True)
+        except OSError:
+            pytest.skip("native symlink creation unavailable")
     result = release_cli(
         repo,
         old if gap == "source" else head,
@@ -424,6 +448,9 @@ def test_release_public_rejection_preserves_all_refs(
         blocked=True,
     )
     assert result["required_gaps"], result
+    if gap == "path":
+        assert result["required_gaps"] == ["release_request_unsafe"]
+        assert not tuple(external.iterdir())
     if gap == "main" and release_mirror == "accepted_ff":
         assert result["required_gaps"] == ["release_mirror_requires_accepted_closeout"]
         assert "land --closeout" in result["next_action"]

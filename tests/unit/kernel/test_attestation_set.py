@@ -104,8 +104,7 @@ def test_attestation_set_read_uses_constant_git_processes(
         sorted(attestations, key=lambda item: item.id)
     )
     assert [call.args[1] for call in counted_run_git.call_args_list] == [
-        "symbolic-ref",
-        "show-ref",
+        "for-each-ref",
         "ls-tree",
         "cat-file",
     ]
@@ -229,8 +228,8 @@ def test_attestation_set_empty_and_invalid_ref_observations_fail_closed(
     original = attestation_set.run_git
     existing = str(attestation_set.record_attestations(repo, (_attestation(15),))["root"])
     cases = (
-        (("symbolic-ref", "--quiet"), 2, "attestation_set_ref_invalid"),
-        (("show-ref", "--verify"), 1, "attestation_set_ref_invalid"),
+        (("for-each-ref",), 2, "attestation_set_ref_invalid"),
+        (("for-each-ref",), 0, "attestation_set_ref_invalid"),
     )
     for prefix, returncode, gap in cases:
 
@@ -250,6 +249,10 @@ def test_attestation_set_empty_and_invalid_ref_observations_fail_closed(
             attestation_set.read_attestation_set(repo)
         monkeypatch.setattr(attestation_set, "run_git", original)
     assert git(repo, "rev-parse", attestation_set.ATTESTATION_SET_REF) == existing
+    dangling = init_git_repo(tmp_path / "dangling")
+    git(dangling, "symbolic-ref", attestation_set.ATTESTATION_SET_REF, "refs/heads/absent")
+    with pytest.raises(ValueError, match="attestation_set_ref_symbolic"):
+        attestation_set.read_attestation_set(dangling)
 
 
 @pytest.mark.parametrize("warm", [False, True])

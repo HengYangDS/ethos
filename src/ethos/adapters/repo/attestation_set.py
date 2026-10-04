@@ -37,18 +37,15 @@ def _attestation_member_path(identity: str) -> str:
 
 
 def _selected_root(repo: Path) -> str:
-    symbolic = run_git(
+    observed = run_git(
         repo,
-        "symbolic-ref",
-        "--quiet",
+        "for-each-ref",
+        "--format=%(refname)%00%(objectname)%00%(symref)",
         ATTESTATION_SET_REF,
         check=False,
         observation=True,
     )
-    if symbolic.returncode == 0:
-        message = "attestation_set_ref_symbolic"
-        raise ValueError(message)
-    if symbolic.returncode != 1:
+    if observed.returncode:
         repository = run_git(repo, "rev-parse", "--git-dir", check=False, observation=True)
         message = (
             "attestation_set_repository_invalid"
@@ -56,23 +53,38 @@ def _selected_root(repo: Path) -> str:
             else "attestation_set_ref_invalid"
         )
         raise ValueError(message)
-    observed = run_git(
-        repo,
-        "show-ref",
-        "--verify",
-        "--hash",
-        ATTESTATION_SET_REF,
-        check=False,
-        observation=True,
-    )
-    if observed.returncode == 0:
-        return observed.stdout.strip()
+    message = "attestation_set_ref_invalid"
+    if observed.stderr:
+        raise ValueError(message)
+    try:
+        selected = [
+            (identity, symbolic)
+            for row in observed.stdout.splitlines()
+            for name, identity, symbolic in (row.split("\0"),)
+            if name == ATTESTATION_SET_REF
+        ]
+    except ValueError as error:
+        raise ValueError(message) from error
+    if len(selected) == 1:
+        identity, symbolic = selected[0]
+        if symbolic:
+            message = "attestation_set_ref_symbolic"
+            raise ValueError(message)
+        if len(identity) not in {40, 64} or set(identity) - set("0123456789abcdef"):
+            raise ValueError(message)
+        return identity
+    if selected:
+        raise ValueError(message)
     existence = run_git(
         repo, "show-ref", "--exists", ATTESTATION_SET_REF, check=False, observation=True
     )
     if existence.returncode == 2:
         return ""
-    message = "attestation_set_ref_invalid"
+    symbolic = run_git(
+        repo, "symbolic-ref", "--quiet", ATTESTATION_SET_REF, check=False, observation=True
+    )
+    if existence.returncode == 0 and symbolic.returncode == 0:
+        message = "attestation_set_ref_symbolic"
     raise ValueError(message)
 
 

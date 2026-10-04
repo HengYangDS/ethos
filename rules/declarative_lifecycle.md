@@ -3,15 +3,20 @@
 Purpose: keep ETHOS declaration-first, functional, and small without replacing
 repository truth with framework state.
 
-| Field | Rule |
-| --- | --- |
-| Authority | [Product Design Contract](../docs/governance/product-design-contract.md), [Declarative Governance Compiler](../docs/architecture/declarative-governance-compiler.md), [TransitionPlan](../docs/architecture/transition-plan.md) |
-| Trigger | Adding or changing contracts, facts, rules, plans, commands, effects, projections, or protocol payloads. |
-| Action | Select one typed declaration or mature native mechanism before writing procedural Python. |
-| Evidence | Contract/schema checks, deterministic and property tests, projection drift checks, focused command JSON, and HEAD-bound proof. |
-| Stop | A new implementation duplicates an existing semantic owner or adds a wrapper without distinct meaning and measured net benefit. |
+| Field     | Rule                                                                                                                            |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Authority | [Product Design Contract](../docs/governance/product-design-contract.md), [Command Plane](../docs/reference/command-plane.md)   |
+| Trigger   | Adding or changing contracts, facts, rules, plans, commands, effects, projections, or protocol payloads.                        |
+| Action    | Select one typed declaration or mature native mechanism before writing procedural Python.                                       |
+| Evidence  | Contract/schema checks, deterministic and property tests, projection drift checks, focused command JSON, and HEAD-bound proof.  |
+| Stop      | A new implementation duplicates an existing semantic owner or adds a wrapper without distinct meaning and measured net benefit. |
 
 ## Rules
+
+[ETHOS source compiler](../docs/architecture/declarative-governance-compiler.md "source-only")
+and [source TransitionPlan](../docs/architecture/transition-plan.md "source-only")
+explain its implementation. They do not impose ETHOS's implementation toolchain
+on adopter business code; common effect and projection obligations still apply.
 
 - Persisted and external contracts use strict frozen Pydantic v2 models. Small
   transient values use frozen standard-library types; do not introduce a second

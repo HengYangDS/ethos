@@ -13,9 +13,9 @@ Status: canonical.
 Purpose: define one mechanically checkable documentation structure and the
 placement rules that keep each current meaning under one owner.
 
-See also: [Documentation Root](../README.md),
+See also: [ETHOS source Documentation Root](../README.md "source-only"),
 [Product Design Contract](product-design-contract.md),
-[Terminal Governance Product Design](../plans/terminal-governance-product-design.md),
+[ETHOS source Terminal Governance Product Design](../plans/terminal-governance-product-design.md "source-only"),
 and [Command Plane](../reference/command-plane.md).
 
 ETHOS documentation is governed as sedimented knowledge, not as a loose page
@@ -94,17 +94,17 @@ Authoritative instructions and accepted decisions establish intended meaning;
 observed execution establishes scoped facts. Select the owner by responsibility
 and reason to change, not by filename or storage location.
 
-| Meaning | Unique owner | Other carriers |
-| --- | --- | --- |
-| Product mission and foundational invariants | Product Design Contract | Explain and reference rather than independently redefine. |
-| Accepted observable capability requirements | Official OpenSpec capability specifications | Docs explain and navigate the requirement, not a second editable contract. |
-| Proposed change, alternatives, experiment procedure and migration | Selected Change proposal, delta specs and design | Research supplies attributed findings, not undeclared approved scope. |
-| Bounded task progress | Official Change tasks | The terminal plan orders dependencies and exits without copying checkbox state. |
-| Executable behavior and policy | Existing implementation, schema or native configuration | Adapters and generated views consume the owner. |
-| Observed execution, proof and effects | Exact evidence and necessary Attestations | Reports cite facts; acceptance, installation and publication remain separate. |
-| Reusable explanation, guidance and sourced synthesis | Relevant docs topic | Link supporting authorities; do not create another workflow or proof store. |
-| Irreducible cross-Change rationale | One necessary decision record | Name the current owner; history does not grant permission. |
-| Directory orientation | A necessary README.md | Derive navigation views; no index.md directory entrypoint. |
+| Meaning                                                           | Unique owner                                            | Other carriers                                                                  |
+| ----------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Product mission and foundational invariants                       | Product Design Contract                                 | Explain and reference rather than independently redefine.                       |
+| Accepted observable capability requirements                       | Official OpenSpec capability specifications             | Docs explain and navigate the requirement, not a second editable contract.      |
+| Proposed change, alternatives, experiment procedure and migration | Selected Change proposal, delta specs and design        | Research supplies attributed findings, not undeclared approved scope.           |
+| Bounded task progress                                             | Official Change tasks                                   | The terminal plan orders dependencies and exits without copying checkbox state. |
+| Executable behavior and policy                                    | Existing implementation, schema or native configuration | Adapters and generated views consume the owner.                                 |
+| Observed execution, proof and effects                             | Exact evidence and necessary Attestations               | Reports cite facts; acceptance, installation and publication remain separate.   |
+| Reusable explanation, guidance and sourced synthesis              | Relevant docs topic                                     | Link supporting authorities; do not create another workflow or proof store.     |
+| Irreducible cross-Change rationale                                | One necessary decision record                           | Name the current owner; history does not grant permission.                      |
+| Directory orientation                                             | A necessary README.md                                   | Derive navigation views; no index.md directory entrypoint.                      |
 
 SSOT means one editable owner per proposition, not one file for everything.
 MECE separates responsibilities and covers in-scope obligations without denying
@@ -223,7 +223,7 @@ and relationship resolution. Required targets resolve; distinguish paths,
 subjects, external sources and descriptive scopes rather than guessing.
 Preserve unknown imported fields as inert data. OKF maps these distinctions
 without replacing native acceptance; see the
-[source-backed assessment](../research/foundations/documentation.md).
+[optional source-backed assessment](../research/foundations/documentation.md "source-only").
 
 Acceptance covers rendered reading, raw Markdown and agent retrieval: find the
 current rule, rationale, limitations and supported next action. Measure correct
@@ -298,3 +298,10 @@ ETHOS's own physical documentation shape is a product self-audit concern. It is
 not an adopter contract and is not exposed as a second topology gate. An
 adopter may organize its documentation by its native subject domains while
 retaining the same metadata and authority semantics.
+
+Installed product navigation retains required links inside the version-matched
+package. A Markdown link titled `source-only` is optional ETHOS development or
+research context, not an installed prerequisite. Its visible label identifies
+that scope. Do not label a required authority, method or acceptance dependency
+optional merely to hide a missing resource; repair its source owner or include
+the required input. Source-only references remain valid in the source checkout.

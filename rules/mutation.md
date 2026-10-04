@@ -2,15 +2,18 @@
 
 Purpose: define tracked write admission and Work Lane discipline.
 
-| Field | Rule |
-| --- | --- |
-| Authority | `ethos status --json`, `ethos lane prewrite --json`, [Runner And Mutation](../docs/architecture/runner-and-mutation.md) |
-| Trigger | Any tracked file write, generated tracked output, or command with tracked mutation potential. |
-| Action | Resolve the worktree, actor, branch role, Lease, fresh Git facts, and exact ref intent before mutation. |
-| Evidence | `ethos lane prewrite <paths> --editor-root <worktree> --require-editor-root --json` returns `verdict=pass`. |
-| Stop | Protected root, candidate checkout, detached checkout, stale editor root, root-binding mismatch, or path outside target root. |
+| Field     | Rule                                                                                                                                                                  |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Authority | `ethos status --json`, `ethos lane prewrite --json`, [Git-Native Repository Substrate](../docs/governance/product-design-contract.md#git-native-repository-substrate) |
+| Trigger   | Any tracked file write, generated tracked output, or command with tracked mutation potential.                                                                         |
+| Action    | Resolve the worktree, actor, branch role, Lease, fresh Git facts, and exact ref intent before mutation.                                                               |
+| Evidence  | `ethos lane prewrite <paths> --editor-root <worktree> --require-editor-root --json` returns `verdict=pass`.                                                           |
+| Stop      | Protected root, candidate checkout, detached checkout, stale editor root, root-binding mismatch, or path outside target root.                                         |
 
 ## Rules
+
+[ETHOS source runner](../docs/architecture/runner-and-mutation.md "source-only")
+explains implementation; the installed commands and common contract own admission.
 
 - Public mutation authorization is the closed `verdict` union `pass | block | unknown`; only `verdict=pass` authorizes an effect. Missing or unverifiable required facts produce `unknown`; conflicts, explicit failures, and warnings produce `block`.
 - Normal tracked mutation belongs only in an owned `work/*` Work Lane.

@@ -2,15 +2,20 @@
 
 Purpose: define the canonical skill system and projection boundary.
 
-| Field | Rule |
-| --- | --- |
-| Authority | [Skills](../.agents/skills/README.md), [Skill Activation](../.agents/skills/activation.toml), [Agent Projections](../docs/architecture/agent-projections.md) |
-| Trigger | Creating, updating, routing, projecting, or invoking repo-local skills. |
-| Action | Keep the canonical repo-local skill portfolio under `.agents/skills/` and treat host-native copies as projections. |
-| Evidence | Activation entry, skill manifest, and post-check commands. |
-| Stop | Skill duplicates docs, conflicts with rules, or creates host-specific truth. |
+| Field     | Rule                                                                                                                           |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Authority | [Product Projection Contract](../docs/governance/product-design-contract.md#projection-homomorphism), [Agent Rules](agents.md) |
+| Trigger   | Creating, updating, routing, projecting, or invoking repo-local skills.                                                        |
+| Action    | Keep the canonical repo-local skill portfolio under `.agents/skills/` and treat host-native copies as projections.             |
+| Evidence  | Activation entry, skill manifest, and post-check commands.                                                                     |
+| Stop      | Skill duplicates docs, conflicts with rules, or creates host-specific truth.                                                   |
 
 ## Rules
+
+[ETHOS source portfolio](../.agents/skills/README.md "source-only"),
+[source activation](../.agents/skills/activation.toml "source-only"), and
+[source Agent projections](../docs/architecture/agent-projections.md "source-only")
+describe ETHOS self-maintenance, not an adopter's required Skill inventory.
 
 - Add a skill only when repeated repository-specific procedure would otherwise
   be missed by a general agent.

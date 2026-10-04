@@ -38,6 +38,7 @@ def test_repository_context_exposes_portable_installed_guidance(tmp_path: Path) 
         "release",
         "recovery",
         "commands",
+        "resources",
     }
     assert all(source["origin"] == "product" for source in sources)
     assert all(
@@ -161,3 +162,30 @@ def _installed_package(tmp_path: Path) -> Path:
         else:
             shutil.copyfile(root / source, destination)
     return package
+
+
+def test_installed_navigation_preserves_required_links_without_source_checkout(
+    tmp_path: Path,
+) -> None:
+    """Required document edges resolve; labelled source references stay optional."""
+    resources = _installed_package(tmp_path) / "resources"
+    unresolved = []
+    for path in sorted(resources.rglob("*.md")):
+        tokens = markdown_tokens(path.read_text(encoding="utf-8"))
+        assert tokens is not None
+        for block in tokens:
+            children = block.children or ()
+            for index, token in enumerate(children):
+                if token.type != "link_open":
+                    continue
+                if token.attrGet("title") == "source-only":
+                    assert "source" in children[index + 1].content.casefold()
+                    continue
+                href = token.attrGet("href") or ""
+                assert isinstance(href, str)
+                if not href or href.startswith(("#", "https:", "http:", "mailto:")):
+                    continue
+                target = (path.parent / href.split("#", 1)[0]).resolve()
+                if not target.is_relative_to(resources.resolve()) or not target.exists():
+                    unresolved.append(f"{path.relative_to(resources)} -> {href}")
+    assert not unresolved, "Unresolved required installed navigation: " + "; ".join(unresolved)

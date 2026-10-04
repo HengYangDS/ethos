@@ -148,7 +148,7 @@ Status: see front matter.
 
 Purpose: explain the repository truth represented by this ETHOS document.
 
-See also: [Documentation Root](../README.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).
+See also: [ETHOS source Documentation Root](../README.md "source-only"), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).
 
 ## Publication Boundary
 

@@ -303,6 +303,12 @@ def _assert_complete_resources(repo: Path, archive: zipfile.ZipFile, installed: 
             "-c",
             (
                 "import sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); "
+                "from ethos.repository.context import repository_context; "
+                "context = repository_context(Path(sys.argv[1])); "
+                "resources = next(source for source in context['agent_guidance']['sources'] "
+                "if source['role'] == 'resources'); "
+                "assert Path(resources['path']).is_relative_to(Path(sys.argv[1])); "
+                "assert Path(resources['path']).is_file(); "
                 "from ethos.adapters.repo.runtime.materialization.input_resolution "
                 "import resolve_runtime_project, run_runtime_tool; "
                 "project = resolve_runtime_project(Path(sys.argv[1]) / 'ethos'); "

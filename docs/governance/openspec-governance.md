@@ -14,7 +14,7 @@ Purpose: define the boundary between official OpenSpec lifecycle ownership and
 ETHOS lifecycle consumption.
 
 See also: [Command Plane](../reference/command-plane.md) and
-[Terminal Governance Product Design](../plans/terminal-governance-product-design.md).
+[ETHOS source Terminal Governance Product Design](../plans/terminal-governance-product-design.md "source-only").
 
 OpenSpec is the official repository carrier for change proposals, deltas,
 validation, and archive operations. The official CLI owns that lifecycle:

@@ -34,6 +34,11 @@ def repository_context(root: Path) -> dict[str, object]:
         ("rules/README.md", "rules", ("Rule Record", "Upstream Enforcement")),
         ("rules/agents.md", "agent-method", ("Rules", "Feedback Closure")),
         (
+            "system/README.md",
+            "resources",
+            ("Definitions And Boundaries", "Source And Installed Resources"),
+        ),
+        (
             "docs/governance/docs-registry.md",
             "documentation",
             (

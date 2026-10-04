@@ -8,13 +8,13 @@ carrier model are owned by the [Product Design Contract](../docs/governance/prod
 
 Each durable rule states exactly:
 
-| Field | Requirement |
-| --- | --- |
-| Trigger | The observable event that activates it. |
-| Owner | The narrow native carrier, command, schema, or test that owns its fact. |
-| Required action | The imperative action or prohibition. |
-| Evidence | The command, artifact, or verifier that proves compliance. |
-| Stop | The condition that blocks an effect, retirement, or closeout. |
+| Field           | Requirement                                                             |
+| --------------- | ----------------------------------------------------------------------- |
+| Trigger         | The observable event that activates it.                                 |
+| Owner           | The narrow native carrier, command, schema, or test that owns its fact. |
+| Required action | The imperative action or prohibition.                                   |
+| Evidence        | The command, artifact, or verifier that proves compliance.              |
+| Stop            | The condition that blocks an effect, retirement, or closeout.           |
 
 Delete or demote prose that cannot supply this record. Common semantic principles
 apply to ETHOS and every governed repository. A rule may describe a profile-selected
@@ -24,15 +24,15 @@ Rules state duties; Skills route methods and cannot waive those duties.
 
 ## Entry Points
 
-| Concern | Rule surface |
-| --- | --- |
-| Agent behaviour | [Agent Rules](agents.md) |
-| Mutation and lanes | [Mutation Rules](mutation.md), [Hook Rules](hooks.md) |
-| Module ownership | [Module Layout Rules](module_layout.md) |
-| Evidence and attestations | [Evidence Rules](evidence.md) |
-| Release and provider projections | [Release Rules](release.md) |
-| Declarative compilation | [Declarative Lifecycle Rules](declarative_lifecycle.md) |
-| Optional skill adapters | [Skill Rules](skills.md) and [Skills](../.agents/skills/README.md) |
+| Concern                          | Rule surface                                                                                  |
+| -------------------------------- | --------------------------------------------------------------------------------------------- |
+| Agent behaviour                  | [Agent Rules](agents.md)                                                                      |
+| Mutation and lanes               | [Mutation Rules](mutation.md), [Hook Rules](hooks.md)                                         |
+| Module ownership                 | [Module Layout Rules](module_layout.md)                                                       |
+| Evidence and attestations        | [Evidence Rules](evidence.md)                                                                 |
+| Release and provider projections | [Release Rules](release.md)                                                                   |
+| Declarative compilation          | [Declarative Lifecycle Rules](declarative_lifecycle.md)                                       |
+| Optional skill adapters          | [Skill Rules](skills.md); [ETHOS source portfolio](../.agents/skills/README.md "source-only") |
 
 ## Placement
 

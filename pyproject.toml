@@ -69,6 +69,8 @@ search-paths = ["src"]
 packages = ["src/ethos"]
 
 [tool.hatch.build.targets.wheel.force-include]
+"system/README.md" = "ethos/resources/system/README.md"
+"system/axioms.md" = "ethos/resources/system/axioms.md"
 "system/gates.toml" = "ethos/resources/system/gates.toml"
 "package.json" = "ethos/resources/package.json"
 "package-lock.json" = "ethos/resources/package-lock.json"
@@ -81,7 +83,12 @@ packages = ["src/ethos"]
 "docs/governance/repository-profile-contract.md" = "ethos/resources/docs/governance/repository-profile-contract.md"
 "docs/governance/release-governance.md" = "ethos/resources/docs/governance/release-governance.md"
 "docs/governance/adopter-boundary-and-retirement.md" = "ethos/resources/docs/governance/adopter-boundary-and-retirement.md"
+"docs/governance/config-boundary-model.md" = "ethos/resources/docs/governance/config-boundary-model.md"
+"docs/governance/openspec-governance.md" = "ethos/resources/docs/governance/openspec-governance.md"
+"docs/concepts/kernel-model.md" = "ethos/resources/docs/concepts/kernel-model.md"
+"docs/reference/glossary.md" = "ethos/resources/docs/reference/glossary.md"
 "docs/reference/command-plane.md" = "ethos/resources/docs/reference/command-plane.md"
+"docs/guides/quickstart.md" = "ethos/resources/docs/guides/quickstart.md"
 "rules" = "ethos/resources/rules"
 
 [tool.hatch.build.targets.wheel.hooks.custom]
@@ -99,7 +106,12 @@ only-include = [
   "docs/governance/repository-profile-contract.md",
   "docs/governance/release-governance.md",
   "docs/governance/adopter-boundary-and-retirement.md",
+  "docs/governance/config-boundary-model.md",
+  "docs/governance/openspec-governance.md",
+  "docs/concepts/kernel-model.md",
+  "docs/reference/glossary.md",
   "docs/reference/command-plane.md",
+  "docs/guides/quickstart.md",
   "rules",
   "README.md",
   "LICENSE",

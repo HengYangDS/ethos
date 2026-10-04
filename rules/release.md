@@ -2,15 +2,18 @@
 
 Purpose: define release and version-bump discipline.
 
-| Field     | Rule                                                                                                                                                      |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Authority | [Release Governance](../docs/governance/release-governance.md), [Terminal Governance Product Design](../docs/plans/terminal-governance-product-design.md) |
-| Trigger   | Version bump, changelog update, tag plan, distribution change, or publish readiness claim.                                                                |
-| Action    | Update all declared version and release carriers through the release workflow.                                                                            |
-| Evidence  | Release evidence manifest, docs-code consistency checks, SBOM or attestation when in scope.                                                               |
-| Stop      | Version, changelog, docs examples, package metadata, or release evidence disagree.                                                                        |
+| Field     | Rule                                                                                                                |
+| --------- | ------------------------------------------------------------------------------------------------------------------- |
+| Authority | [Release Governance](../docs/governance/release-governance.md), [Command Plane](../docs/reference/command-plane.md) |
+| Trigger   | Version bump, changelog update, tag plan, distribution change, or publish readiness claim.                          |
+| Action    | Update all declared version and release carriers through the release workflow.                                      |
+| Evidence  | Release evidence manifest, docs-code consistency checks, SBOM or attestation when in scope.                         |
+| Stop      | Version, changelog, docs examples, package metadata, or release evidence disagree.                                  |
 
 ## Rules
+
+[ETHOS source convergence plan](../docs/plans/terminal-governance-product-design.md "source-only")
+owns ETHOS's unfinished release work; it does not own an adopter release.
 
 - Release is a governed workflow, not a shell alias.
 - Derive version carriers from `VERSION`; apply the compatibility and curated

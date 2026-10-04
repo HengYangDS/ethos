@@ -13,16 +13,16 @@ and machine contracts. No single directory owns every governance fact.
 
 ## Placement Matrix
 
-| Surface | Role | Owns | Does Not Own |
-| --- | --- | --- | --- |
-| `.ethos/` | ETHOS binding layer | tracked repository profile | change intent, tool-native config, domain truth, durable evidence, mutable runtime state |
-| `<git-common-dir>/ethos/` | host-local runtime layer | leases, Attestation staging/cache, and transaction state shared by worktrees | current Attestation selection, tracked repository truth, or portable configuration |
-| `.config/` | execution/config layer | tool configuration, reusable gate policy, CI scripts, boundary configs, worktree configs | ETHOS ontology, evidence truth, user decisions |
-| `rules/` | governance rule layer | human and agent rules, domain contracts, projection policies | tool implementation details, generated state |
-| `docs/` | explanation layer | canonical docs, decisions, reference material | local runtime state, durable evidence ownership |
-| `system/` | optional machine-contract layer | machine-readable product or system contracts | adopter-only domain truth when absent |
-| `openspec/` | specification projection | official OpenSpec changes and specs | promoted runtime truth by itself |
-| `.agents/` | repo-local agent projection | skills and activation projections | independent truth store |
+| Surface                   | Role                              | Owns                                                                                   | Does Not Own                                                                                                             |
+| ------------------------- | --------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `.ethos/`                 | ETHOS binding layer               | tracked repository profile                                                             | change intent, tool-native config, domain truth, durable evidence, mutable runtime state                                 |
+| `<git-common-dir>/ethos/` | repository-local coordination     | leases, bounded requests, operation receipts and transaction state shared by worktrees | durable Attestation selection, product meaning, portable configuration or a required per-repository product installation |
+| `.config/`                | tool-native configuration         | declared tool policy, boundary configuration and configuration references              | business scripts, tool implementation, ETHOS ontology, evidence truth or user decisions                                  |
+| `rules/`                  | governance rule layer             | human and agent rules, domain contracts, projection policies                           | tool implementation details, generated state                                                                             |
+| `docs/`                   | explanation layer                 | canonical docs, decisions, reference material                                          | local runtime state, durable evidence ownership                                                                          |
+| `system/`                 | optional machine-contract layer   | machine-readable product or system contracts                                           | adopter-only domain truth when absent                                                                                    |
+| `openspec/`               | accepted intent and specification | official OpenSpec Changes, accepted specs and native lifecycle                         | execution authority, runtime state or proof by itself                                                                    |
+| `.agents/`                | repo-local agent projection       | skills and activation projections                                                      | independent truth store                                                                                                  |
 
 ## `.ethos/` And `.config/`
 
@@ -32,6 +32,12 @@ and machine contracts. No single directory owns every governance fact.
 may point to `.config/checks/`, `.config/boundaries/`, `.config/interfaces/`,
 `.config/worktree/`, or `.config/ci/`, but the profile must not copy their
 contents or make their physical layout universal.
+
+CLI, SDK, MCP and hook consumers select one installed product; repository-local
+coordination is not a mandatory product copy. Read-only selected inputs retain
+their canonical hierarchy and owners under the package resource boundary.
+Durable Attestations remain selected by `refs/ethos/attestations-set`; local
+operation receipts have separate bounded recovery lifetimes.
 
 ## `system/` Optionality
 
@@ -58,4 +64,4 @@ repositories with different shapes and toolchains.
 
 See also: [Repository Profile Contract](repository-profile-contract.md),
 [Product Design Contract](product-design-contract.md), and
-[Terminal Governance Product Design](../plans/terminal-governance-product-design.md).
+[ETHOS source Terminal Governance Product Design](../plans/terminal-governance-product-design.md "source-only").

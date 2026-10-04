@@ -11,7 +11,7 @@ relations:
 Purpose: own ETHOS product meaning, semantic roots, authority boundaries, and
 the invariants every implementation and projection must preserve.
 
-See also: [Kernel Model](../concepts/kernel-model.md), [Terminal Governance Product Design](../plans/terminal-governance-product-design.md), and [Command Plane](../reference/command-plane.md).
+See also: [Kernel Model](../concepts/kernel-model.md), [ETHOS source Terminal Governance Product Design](../plans/terminal-governance-product-design.md "source-only"), and [Command Plane](../reference/command-plane.md).
 
 ## Product
 
@@ -94,10 +94,10 @@ retain the identities under which they were created.
 
 ## Semantic Kernel
 
-| Root | Owns | Cannot own |
-| --- | --- | --- |
-| `Commitment` | transient normalized acceptance with exactly `schema_version`, `id`, `acceptance`, compiled from one exact official OpenSpec Change | persistence, paths, relation graph, workflow state or permission |
-| `Attestation` | durable verifier-bound observation, judgment, proof or effect with predicate, bindings, validity and evidence | implicit authority or a closed predicate ontology |
+| Root          | Owns                                                                                                                                | Cannot own                                                       |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `Commitment`  | transient normalized acceptance with exactly `schema_version`, `id`, `acceptance`, compiled from one exact official OpenSpec Change | persistence, paths, relation graph, workflow state or permission |
+| `Attestation` | durable verifier-bound observation, judgment, proof or effect with predicate, bindings, validity and evidence                       | implicit authority or a closed predicate ontology                |
 
 `Facts` and `TransitionPlan` are also transient and bound to exact inputs.
 Typed meaning, not carrier spelling, governs validity: check members,
@@ -353,15 +353,15 @@ a parallel lifecycle. Hidden lane and hook operations support admission only.
 
 The public product surface is deliberately small and capability-complete:
 
-| Surface | Role |
-| --- | --- |
-| CLI | Human-readable progressive disclosure and stable machine JSON over the same result. |
-| Python SDK | Typed in-process access to kernel compilation, observation, evaluation, and projection without shell parsing. |
-| Schemas and conformance kit | Language-neutral contracts, fixtures, and expected verdicts for independent clients. |
-| MCP | Delivered, discoverable protocol access to the same application operations; activation is optional and protocol sessions own no repository truth. |
-| Skills | Version-matched, portable guidance and capability discovery, derived from current repository context rather than a second lifecycle. |
-| A2A adapter | Optional interoperability over explicit capability contracts, without another task or authority store. |
-| CI and forge projections | Native provider syntax that invokes the same declared proof capabilities and preserves proof-plane identity. |
+| Surface                     | Role                                                                                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CLI                         | Human-readable progressive disclosure and stable machine JSON over the same result.                                                               |
+| Python SDK                  | Typed in-process access to kernel compilation, observation, evaluation, and projection without shell parsing.                                     |
+| Schemas and conformance kit | Language-neutral contracts, fixtures, and expected verdicts for independent clients.                                                              |
+| MCP                         | Delivered, discoverable protocol access to the same application operations; activation is optional and protocol sessions own no repository truth. |
+| Skills                      | Version-matched, portable guidance and capability discovery, derived from current repository context rather than a second lifecycle.              |
+| A2A adapter                 | Optional interoperability over explicit capability contracts, without another task or authority store.                                            |
+| CI and forge projections    | Native provider syntax that invokes the same declared proof capabilities and preserves proof-plane identity.                                      |
 
 UX and DX are kernel properties, not documentation polish. A normal path asks
 only for facts that change the next action; advanced detail is available without
@@ -542,7 +542,7 @@ message, and give it exactly one disposition:
 - `rejected`: record the reason in the governing official Change.
 
 Place accepted meaning by lifetime: this contract owns product meaning; the
-[terminal plan](../plans/terminal-governance-product-design.md) owns unfinished
+[ETHOS source terminal plan](../plans/terminal-governance-product-design.md "source-only") owns unfinished
 order and exits; official OpenSpec owns bounded Change intent and progress;
 a necessary Decision Record keeps cross-Change rationale; source, schemas,
 config, rules and tests own executable behavior; raw material remains temporary

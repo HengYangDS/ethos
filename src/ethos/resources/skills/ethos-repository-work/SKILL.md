@@ -35,6 +35,9 @@ The selection is not a complete ETHOS checkout or a transitive reference bundle.
 Use the target's declared profile and rule owners for native implementations;
 ETHOS-specific source links do not impose its toolchain on an adopter. A needed
 unavailable reference or evidence remains unproved, not implicitly satisfied.
+The `resources` source defines package inputs and ownership boundaries. Links
+labelled `source-only` are ETHOS-maintenance context, not installed prerequisites;
+unlabelled required links must resolve inside the selected product.
 
 Select the relevant source by its `role` in that result; open the advertised
 absolute path and selected sections. The package supplies the common contract,

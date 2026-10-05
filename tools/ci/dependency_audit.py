@@ -4,24 +4,28 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import platform
 import subprocess
 import tomllib
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Literal
 
-import nodejs_wheel
 from filelock import FileLock
 from filelock import Timeout
+from pydantic import AwareDatetime
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import field_validator
 
+import ethos.adapters.repo.runtime.materialization.input_resolution as input_resolution
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_tracked_head
-from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_executable
 from ethos.contracts.verdict import reduce_verdicts
 from tools.ci.toolchain.environment import ProjectRuntime
 
@@ -36,6 +40,53 @@ EVIDENCE = "build/evidence/quality/security"
 INPUTS = ("pyproject.toml", "uv.lock", "package.json", "package-lock.json", POLICY)
 
 
+class AuditDisposition(BaseModel):
+    """Bind human-authorized local use to one exact advisory and locked artifact."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+    ecosystem: Literal["npm"]
+    advisory_url: str = Field(pattern=r"^https://[^\s]+$")
+    package: str = Field(min_length=1)
+    version: str = Field(min_length=1)
+    integrity: str = Field(min_length=1)
+    nodes: list[str] = Field(min_length=1)
+    lock_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    scope: Literal["local-development"]
+    host: str = Field(min_length=1)
+    owner: str = Field(min_length=1)
+    approval_ref: str = Field(min_length=1)
+    rationale: str = Field(min_length=1)
+    expires_at: AwareDatetime
+
+    @field_validator(
+        "owner", "approval_ref", "rationale", "package", "version", "integrity", "host"
+    )
+    @classmethod
+    def nonblank(cls, value: str) -> str:
+        if not value.strip() or value != value.strip():
+            message = "disposition identity and authorization must be nonblank and exact"
+            raise ValueError(message)
+        return value
+
+    @field_validator("nodes")
+    @classmethod
+    def unique_nodes(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)) or not all(value):
+            message = "disposition nodes must be nonempty and unique"
+            raise ValueError(message)
+        return value
+
+    def subject(self) -> tuple:
+        """Return the exact native finding identity; authorization is evaluated separately."""
+        return (
+            self.advisory_url,
+            self.package,
+            self.version,
+            self.integrity,
+            tuple(sorted(self.nodes)),
+        )
+
+
 class AuditPolicy(BaseModel):
     """Declare native audit execution without accepting silent policy typos."""
 
@@ -44,6 +95,165 @@ class AuditPolicy(BaseModel):
     summary: str
     runner: str
     timeout_seconds: int = Field(gt=0)
+    dispositions: list[AuditDisposition] = Field(default_factory=list)
+
+
+def requested_scope(arguments: tuple[str, ...]) -> str:
+    """Accept explicit local iteration only; no ambient setting relaxes the gate."""
+    if not arguments:
+        return "production-release"
+    if arguments in (("--scope", "local-development"), ("--scope", "production-release")):
+        return arguments[1]
+    message = "dependency_audit_scope_invalid"
+    raise ValueError(message)
+
+
+def _npm_roots(raw: dict) -> dict[str, set[tuple[str, str]]]:
+    """Resolve npm package aggregates to concrete advisories without counting strings as IDs."""
+    aggregates = raw["vulnerabilities"]
+    references, direct = {}, {}
+    for name, finding in aggregates.items():
+        if finding["name"] != name or not isinstance(finding["via"], list) or not finding["via"]:
+            message = "invalid npm aggregate identity"
+            raise ValueError(message)
+        references[name], direct[name] = set(), set()
+        for via in finding["via"]:
+            if isinstance(via, str) and via in aggregates:
+                references[name].add(via)
+            elif isinstance(via, dict):
+                url, dependency = via["url"], via["dependency"]
+                if not isinstance(url, str) or not url.startswith("https://") or dependency != name:
+                    message = "invalid npm advisory identity"
+                    raise ValueError(message)
+                direct[name].add((url, dependency))
+            else:
+                message = "unresolved npm aggregate reference"
+                raise ValueError(message)
+    resolved: dict[str, set[tuple[str, str]]] = {}
+    pending = set(aggregates)
+    while pending:
+        ready = {name for name in pending if references[name] <= resolved.keys()}
+        if not ready:
+            message = "cyclic npm aggregate references"
+            raise ValueError(message)
+        for name in ready:
+            resolved[name] = direct[name].union(*(resolved[item] for item in references[name]))
+        pending -= ready
+    return resolved
+
+
+def _locked_artifact_integrity(node: str, packages: dict) -> str:
+    """Bind inBundle bytes to their containing lock artifact, never a fabricated child hash."""
+    locked = packages[node]
+    integrity = locked.get("integrity")
+    if integrity is not None:
+        if not isinstance(integrity, str) or not integrity.strip():
+            message = "npm locked artifact integrity unavailable"
+            raise ValueError(message)
+        return integrity
+    if locked.get("inBundle") is not True or "/node_modules/" not in node:
+        message = "npm locked artifact identity unavailable"
+        raise ValueError(message)
+    return _locked_artifact_integrity(node.rsplit("/node_modules/", 1)[0], packages)
+
+
+def _locked_instances(name: str, finding: dict, packages: dict) -> dict:
+    """Bind every native aggregate node to its exact package-lock artifact identity."""
+    nodes = finding["nodes"]
+    if not isinstance(nodes, list) or not nodes:
+        message = "npm aggregate nodes missing"
+        raise ValueError(message)
+    instances: dict[tuple[str, str], set[str]] = {}
+    for node in nodes:
+        if (
+            not isinstance(node, str)
+            or "\\" in node
+            or any(part in {"", ".", ".."} for part in node.split("/"))
+            or not (node == "node_modules/" + name or node.endswith("/node_modules/" + name))
+        ):
+            message = "invalid npm lock node"
+            raise ValueError(message)
+        locked = packages[node]
+        identity = locked["version"], _locked_artifact_integrity(node, packages)
+        if not all(isinstance(value, str) and value.strip() for value in identity):
+            message = "npm locked artifact identity unavailable"
+            raise ValueError(message)
+        instances.setdefault(identity, set()).add(node)
+    return instances
+
+
+def _npm_subjects(root: Path, check: dict) -> tuple[set[tuple], int]:
+    """Derive exact advisory subjects while retaining native aggregate counts unchanged."""
+    raw = json.loads(check["stdout"])
+    roots = _npm_roots(raw)
+    packages = json.loads((root / "package-lock.json").read_bytes())["packages"]
+    instances = {
+        name: _locked_instances(name, finding, packages)
+        for name, finding in raw["vulnerabilities"].items()
+    }
+    subjects = {
+        (url, package, version, integrity, tuple(sorted(nodes)))
+        for url, package in set().union(*roots.values())
+        for (version, integrity), nodes in instances[package].items()
+    }
+    if not subjects or any(not values for values in roots.values()):
+        message = "npm advisory roots unavailable"
+        raise ValueError(message)
+    return subjects, len(roots)
+
+
+def _local_decision(root: Path, policy: AuditPolicy, payload: dict, scope: str) -> dict:
+    """Separate exact local permission from the unchanged strict native verdict."""
+    decision = {"scope": scope, "verdict": payload["verdict"], "reason": "strict_native_result"}
+    if scope == "local-development" and os.environ.get("CI"):
+        return {**decision, "verdict": "block", "reason": "local_development_context_required"}
+    if scope != "local-development" or payload["verdict"] == "pass":
+        return decision
+    checks = payload["checks"]
+    if (
+        payload["state"] != "finished"
+        or "dependency_audit_inputs_changed" in payload["required_gaps"]
+        or len(checks) != 2
+        or checks[0]["verdict"] != "pass"
+        or checks[1]["verdict"] != "block"
+    ):
+        return decision
+    if checks[1]["exit_code"] not in (0, 1):
+        return {**decision, "verdict": "unknown", "reason": "native_execution_failed"}
+    try:
+        subjects, aggregates = _npm_subjects(root, checks[1])
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+        return {
+            **decision,
+            "verdict": "unknown",
+            "reason": "finding_identity_unavailable",
+            "detail": str(error),
+        }
+    now = datetime.now(UTC)
+    matching = [
+        record
+        for record in policy.dispositions
+        if record.lock_sha256 == payload["inputs"]["package-lock.json"]
+        and record.host == platform.node()
+        and record.subject() in subjects
+    ]
+    active = [record for record in matching if now < record.expires_at]
+    covered = {record.subject() for record in active}
+    authorized = subjects <= covered
+    return {
+        "scope": scope,
+        "verdict": "pass" if authorized else "block",
+        "reason": "authorized_findings" if authorized else "unapproved_or_expired_findings",
+        "evaluated_at": now.isoformat(),
+        "host": platform.node(),
+        "advisory_count": len({subject[0] for subject in subjects}),
+        "covered_package_count": aggregates if authorized else 0,
+        "approvals": [record.model_dump(mode="json") for record in active],
+        "expired_approvals": [
+            record.approval_ref for record in matching if now >= record.expires_at
+        ],
+        "unapproved_subjects": sorted(subjects - covered),
+    }
 
 
 def _count(value: object) -> bool:
@@ -122,7 +332,9 @@ def _workspace_manifests(name: str, data: bytes) -> tuple[str, ...]:
     return ()
 
 
-def _inputs(root: Path) -> tuple[dict[str, str | None], dict[str, list[str]]]:
+def _inputs(
+    root: Path, *, policy_bytes: bytes | None = None
+) -> tuple[dict[str, str | None], dict[str, list[str]]]:
     """Observe each native scope independently, including missing input identities."""
     hashes: dict[str, str | None] = {}
     errors: dict[str, list[str]] = {"python": [], "npm": []}
@@ -137,7 +349,11 @@ def _inputs(root: Path) -> tuple[dict[str, str | None], dict[str, list[str]]]:
         ):
             message = f"audit input escapes repository: {name}"
             raise ValueError(message)
-        data = (root / path).read_bytes()
+        data = (
+            policy_bytes
+            if name == POLICY and policy_bytes is not None
+            else (root / path).read_bytes()
+        )
         hashes[name] = hashlib.sha256(data).hexdigest()
         return data
 
@@ -168,12 +384,10 @@ def _command(ecosystem: str, root: Path) -> tuple[str, ...]:
             "--output-format",
             "json",
         )
-    npm = Path(nodejs_wheel.__file__).parent / "lib/node_modules/npm/bin/npm-cli.js"
-    if not npm.is_file():
-        raise FileNotFoundError(npm)
+    runtime = input_resolution.resolve_node_runtime()
     return (
-        str(resolve_node_executable()),
-        str(npm),
+        str(runtime.executable),
+        str(runtime.npm),
         "audit",
         "--package-lock-only",
         "--ignore-scripts",
@@ -192,7 +406,13 @@ def _observe(root: Path, ecosystem: str, timeout: int) -> dict:
         completed = run_command(root, command, timeout=timeout, remove_env_prefixes=("GIT_",))
         verdict, reason, details = _interpret(ecosystem, completed.stdout, completed.returncode)
 
-    except (OSError, RuntimeError, ProcessExecutionError, subprocess.TimeoutExpired) as error:
+    except (
+        OSError,
+        ValueError,
+        RuntimeError,
+        ProcessExecutionError,
+        subprocess.TimeoutExpired,
+    ) as error:
 
         def text(value: str | bytes | None) -> str:
             return value.decode(errors="replace") if isinstance(value, bytes) else value or ""
@@ -239,19 +459,19 @@ def _require_head(head: str) -> None:
         raise ValueError(message)
 
 
-def run(session: nox.Session, *, root: Path = ROOT) -> None:
+def run(session: nox.Session, *, root: Path = ROOT, scope: str = "production-release") -> None:
     """Own one bounded audit attempt; contention never overwrites active evidence."""
     root = root.resolve()
     evidence = root / EVIDENCE
     evidence.mkdir(parents=True, exist_ok=True)
     try:
         with FileLock(evidence / ".dependency-audit.lock", timeout=0):
-            _run(session, root=root)
+            _run(session, root=root, scope=scope)
     except Timeout:
         session.error("dependency_audit_in_use: " + str(evidence))
 
 
-def _run(session: nox.Session, *, root: Path = ROOT) -> None:
+def _run(session: nox.Session, *, root: Path = ROOT, scope: str = "production-release") -> None:
     """Observe both native ecosystems and reject incomplete or changed inputs."""
     root = root.resolve()
     evidence = root / EVIDENCE
@@ -265,14 +485,15 @@ def _run(session: nox.Session, *, root: Path = ROOT) -> None:
         "checks": [],
         "required_gaps": ["dependency_audit_incomplete"],
         "not_claimed": ["hosted CI", "image scanning", "remote publication"],
+        "decision": {"scope": scope, "verdict": "unknown", "reason": "dependency_audit_incomplete"},
     }
     _write(summary, payload)
     try:
-        policy = AuditPolicy.model_validate(
-            tomllib.loads((root / POLICY).read_text(encoding="utf-8"))
-        )
+        requested_scope(("--scope", scope))
+        policy_bytes = (root / POLICY).read_bytes()
+        policy = AuditPolicy.model_validate(tomllib.loads(policy_bytes.decode("utf-8")))
         timeout = policy.timeout_seconds
-        head, before = current_tracked_head(root), _inputs(root)
+        head, before = current_tracked_head(root), _inputs(root, policy_bytes=policy_bytes)
         _require_head(head)
         payload.update(head=head, inputs=before[0], timeout_seconds=timeout)
         checks = payload["checks"]
@@ -300,13 +521,20 @@ def _run(session: nox.Session, *, root: Path = ROOT) -> None:
             if check["verdict"] != "pass"
         ]
         verdict = reduce_verdicts(*(check["verdict"] for check in checks))
-        if head != current_tracked_head(root) or before != _inputs(root):
-            verdict = "block"
-            gaps.append("dependency_audit_inputs_changed")
         payload.update(verdict=verdict, state="finished", required_gaps=gaps)
+        payload["decision"] = _local_decision(root, policy, payload, scope)
+        if head != current_tracked_head(root) or before != _inputs(root):
+            payload["verdict"] = "block"
+            gaps.append("dependency_audit_inputs_changed")
+            payload["decision"] = {
+                "scope": scope,
+                "verdict": "block",
+                "reason": "dependency_audit_inputs_changed",
+            }
     except (OSError, ValueError, KeyError, TypeError) as error:
         payload.update(verdict="unknown", state="unavailable", required_gaps=[str(error)])
+        payload["decision"] = {"scope": scope, "verdict": "unknown", "reason": "audit_unavailable"}
     _write(summary, payload)
     session.log(json.dumps(payload, sort_keys=True))
-    if payload["verdict"] != "pass":
+    if payload["decision"]["verdict"] != "pass":
         session.error("Dependency audit did not pass; inspect " + str(summary))

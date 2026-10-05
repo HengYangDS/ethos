@@ -111,12 +111,10 @@ ethos:external-links:
       - build/evidence/quality/external-links/report.json
 ethos:npm:
   stage: verify
-  parallel:
-    matrix:
-      - NODE_VERSION:
-          - 26.10.0
+  variables:
+    NODE_VERSION: 26.10.0
   image: ghcr.io/hengyangds/ethos-ci-supply@sha256:e66721fa93a216afd6bfec1784e123fb17ae72b9a9a449f04ea13d62f02ee59c
   script:
     - tools/ci/scripts/bootstrap-python.sh
-    - tools/ci/scripts/install-node.sh
-    - tools/ci/scripts/run-node-compatibility.sh
+    - uv run --no-sync python -B -c 'import os, subprocess, sys; from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime; runtime = resolve_node_runtime(); subprocess.run([str(runtime.executable), str(runtime.npm), *sys.argv[1:]], env=dict(os.environ, PATH=str(runtime.executable.parent) + os.pathsep + os.environ["PATH"], npm_config_engine_strict="true", npm_config_audit="false", npm_config_fund="false", npm_config_update_notifier="false"), stdin=subprocess.DEVNULL, timeout=120, check=True)' run ethos -- --version
+    - uv run --frozen --offline python -m nox -s javascript_tests

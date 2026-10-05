@@ -1,5 +1,43 @@
 ## ADDED Requirements
 
+### Requirement: Exact audit dispositions preserve strict delivery
+
+The existing dependency-audit owner MAY admit explicitly selected local
+development against a human-authorized disposition for the exact advisory,
+locked package artifact, nodes, dependency snapshot and explicitly approved host.
+Native `inBundle` nodes lacking independent integrity SHALL bind the containing
+independently locked artifact through the package-lock ownership chain, retaining
+the exact component version and node paths. Missing bundle ownership or artifact
+integrity SHALL remain unavailable, not an invented child identity.
+Each disposition SHALL
+name its accountable owner, approval reference, rationale and finite offset-aware
+expiry. Native findings, counts, exit status and raw evidence SHALL remain
+unchanged. Default proof, security and build gates and explicit release build or
+install calls SHALL retain the same owner's strict production-release decision.
+CI and distribution SHALL NOT inherit controlled local-development permission;
+a declared CI execution SHALL refuse the local-development selector.
+An absent disposition SHALL grant no permission.
+
+#### Scenario: One advisory affects multiple npm package aggregates
+
+- **WHEN** a complete native npm report refers transitively to one approved advisory
+- **THEN** the owner resolves every aggregate reference to its concrete advisory roots
+- **AND** exact active coverage may permit local development without changing the native blocked verdict
+- **AND** production and release remain blocked without separate evaluators or package-name exclusions
+
+#### Scenario: Authorization or observation cannot establish local permission
+
+- **WHEN** approval expires, an advisory or locked identity changes, aggregate resolution fails, or required observation is unavailable
+- **THEN** the local decision cannot pass and preserves the distinct expiry, identity or observation boundary
+- **AND** a fresh attempt cannot renew approval through an earlier receipt timestamp
+- **AND** changed source inputs, adverse Python evidence and interrupted attempts remain nonpassing
+
+#### Scenario: Direct native release does not inherit local permission
+
+- **WHEN** an explicit release build or install is requested through Nox
+- **THEN** the same audit owner evaluates strict production-release scope before the release effect
+- **AND** a local-development permission cannot authorize that effect
+
 ### Requirement: Object coordinates share one typed native observation
 
 ETHOS SHALL derive object identity and type from the same validated native batch

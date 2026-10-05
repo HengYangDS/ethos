@@ -15,6 +15,7 @@ import pytest
 
 import tools.ci.toolchain.native as native
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -54,7 +55,7 @@ def test_linked_worktrees_reuse_one_locked_native_download(
     config.mkdir(parents=True)
     (config / "config.toml").write_text(f'[tools]\n"{backend}" = "{version}"\n', encoding="utf-8")
     (config / "mise.lock").write_text(
-        f'lockfile_version = 2\n[[tools."{backend}"]]\nversion = "{version}"\n'
+        f'lockfile_version = 3\n[[tools."{backend}"]]\nversion = "{version}"\n'
         f'[tools."{backend}"."platforms.{target}"]\n'
         f'checksum = "sha256:{checksum}"\n'
         f'url = "https://github.com/fixture/gitleaks/releases/download/v{version}/{package.name}"\n',
@@ -95,3 +96,93 @@ def test_linked_worktrees_reuse_one_locked_native_download(
     assert not (linked / "build/runtime/tool-cache/ci-tools").exists()
     if cache_selector is not None:
         assert not (Path(git_common_dir(repo)) / "ethos/tool-cache/ci-tools").exists()
+
+
+@pytest.fixture
+def linked_node_supply(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> tuple[Path, Path, Path, bytes]:
+    """Declare one exact archive shared by two independent Git worktrees."""
+    for name in ("ETHOS_CI_TOOL_CACHE_DIR", "ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR"):
+        monkeypatch.delenv(name, raising=False)
+    repo = init_git_repo(tmp_path / "repo")
+    version = "26.10.0"
+    arch = "arm64" if platform.machine() in {"arm64", "aarch64"} else "x64"
+    family = "macos" if platform.system() == "Darwin" else "linux"
+    upstream = "darwin" if family == "macos" else family
+    prefix = f"node-v{version}-{upstream}-{arch}"
+    package = tmp_path / f"{prefix}.tar.gz"
+    body = f"#!/bin/sh\nprintf 'v{version}\\n'\n".encode()
+    members = {
+        "bin/node": (body, 0o755),
+        "lib/node_modules/npm/bin/npm-cli.js": (b"// bundled npm\n", 0o644),
+        "LICENSE": (b"Node license\n", 0o644),
+        "include/unused.h": (b"unused SDK\n", 0o644),
+    }
+    with tarfile.open(package, "w:gz") as archive:
+        for path, (content, mode) in members.items():
+            member = tarfile.TarInfo(f"{prefix}/{path}")
+            member.size, member.mode = len(content), mode
+            archive.addfile(member, io.BytesIO(content))
+    checksum = hashlib.sha256(package.read_bytes()).hexdigest()
+    config = repo / ".config/mise"
+    config.mkdir(parents=True)
+    (config / "config.toml").write_text(f'[tools]\nnode = "{version}"\n')
+    (config / "mise.lock").write_text(
+        f'lockfile_version = 3\n[[tools.node]]\nversion = "{version}"\n'
+        f'[tools.node."platforms.{family}-{arch}"]\n'
+        f'checksum = "sha256:{checksum}"\n'
+        f'url = "https://nodejs.org/dist/v{version}/{package.name}"\n'
+    )
+    commit_fixture(repo, "lock native Node supply")
+    linked = tmp_path / "linked"
+    git(repo, "worktree", "add", "--detach", str(linked), "HEAD")
+    return repo, linked, package, body
+
+
+@pytest.mark.skipif(platform.system() not in {"Darwin", "Linux"}, reason="native supply target")
+def test_linked_worktrees_prepare_one_complete_node_runtime(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    linked_node_supply: tuple[Path, Path, Path, bytes],
+) -> None:
+    """One verified cache serves both roots and refuses drift before execution."""
+    repo, linked, package, body = linked_node_supply
+    calls: list[tuple[str, ...]] = []
+
+    def download(command: tuple[str, ...], *, root: Path, timeout: float = 180) -> None:
+        del timeout
+        calls.append(command)
+        target = root / "data/downloads" / package.name
+        target.parent.mkdir(parents=True)
+        shutil.copyfile(package, target)
+
+    monkeypatch.setattr(native, "download", download)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        paths = tuple(
+            pool.map(
+                lambda root: native.prepare(root, "node", mise=tmp_path / "mise"),
+                (repo, linked),
+            )
+        )
+    supply = NodeSupply.read(repo)
+    runtime = supply.cache(repo) / "runtime"
+    assert paths == (runtime / "bin", runtime / "bin")
+    assert len(calls) == 1
+    assert (runtime / "bin/node").read_bytes() == body
+    assert (runtime / "lib/node_modules/npm/bin/npm-cli.js").is_file()
+    assert not (runtime / "include").exists()
+    assert supply.installed_root(repo) == runtime
+    assert not list(supply.cache(repo).glob(".prepare-*"))
+    monkeypatch.setenv("ETHOS_CI_SUPPLY_MANIFEST", str(tmp_path / "immutable-inputs"))
+    assert native.prepare(repo, "node") == runtime / "bin"
+    assert len(calls) == 1
+    npm = runtime / "lib/node_modules/npm/bin/npm-cli.js"
+    npm.write_bytes(b"untrusted npm bytes\n")
+    monkeypatch.setattr(
+        native, "run_command", lambda *_args, **_kwargs: pytest.fail("unverified runtime executed")
+    )
+    with pytest.raises(ValueError, match="native_node_cached_runtime_invalid"):
+        native.prepare(repo, "node")
+    assert npm.read_bytes() == b"untrusted npm bytes\n"
+    assert not list(supply.cache(repo).glob(".prepare-*"))

@@ -8,20 +8,19 @@ dependencies = [
   "anyio>=4.15.1",
   "cachetools>=7.2.0",
   "cel-expr-python>=0.1.3",
-  "cyclopts>=5.0.0",
-  "fastmcp>=4.0.10",
-  "filelock>=4.0.6",
+  "cyclopts>=5.1.1",
+  "fastmcp>=4.0.11",
+  "filelock>=4.0.11",
   "jsonschema>=4.26.0",
   "markdown-it-py>=4.2.0",
-  "mcp>=2.2.0",
-  "nodejs-wheel-binaries>=24.19.0",
+  "mcp>=2.3.0",
   "packaging>=26.3",
-  "platformdirs>=4.12.1",
+  "platformdirs>=4.12.3",
   "pydantic>=2.13.5",
   "pyyaml>=6.0.3",
-  "ruff>=0.16.9",
+  "ruff>=0.16.10",
   "tomli-w>=1.2.0",
-  "uv>=0.12.20",
+  "uv>=0.12.23",
 ]
 
 [project.scripts]
@@ -32,7 +31,7 @@ prerelease = "disallow"
 
 [dependency-groups]
 dev = [
-  "allure-pytest>=2.16.1",
+  "allure-pytest>=2.16.2",
   "codespell>=2.4.3",
   "deptry>=0.25.1",
   "editables>=0.6",
@@ -51,7 +50,7 @@ dev = [
   "shellcheck-py>=0.11.0.1",
   "shfmt-py>=4.2.0",
   "ty>=0.0.84",
-  "uv>=0.12.20",
+  "uv>=0.12.23",
   "yamllint>=1.38.0",
 ]
 
@@ -76,6 +75,8 @@ packages = ["src/ethos"]
 "package-lock.json" = "ethos/resources/package-lock.json"
 "pyproject.toml" = "ethos/resources/pyproject.toml"
 "uv.lock" = "ethos/resources/uv.lock"
+".config/mise/config.toml" = "ethos/resources/.config/mise/config.toml"
+".config/mise/mise.lock" = "ethos/resources/.config/mise/mise.lock"
 "VERSION" = "ethos/resources/VERSION"
 "system/schemas" = "ethos/resources/system/schemas"
 "docs/governance/product-design-contract.md" = "ethos/resources/docs/governance/product-design-contract.md"
@@ -119,6 +120,8 @@ only-include = [
   "package-lock.json",
   "pyproject.toml",
   "uv.lock",
+  ".config/mise/config.toml",
+  ".config/mise/mise.lock",
   "VERSION",
   "tools/ci/openspec_runtime_hook.py",
 ]

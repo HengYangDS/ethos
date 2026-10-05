@@ -183,16 +183,34 @@
 
 - [x] 11.1 Qualify the official stable SBOM supply after observed host-version drift.
 - [x] 11.2 Refresh compatible stable supply and exact CI projections with the Python support line intact.
-- [ ] 11.3 Qualify supported latest-stable supply or an obligation-preserving constrained-owner replacement. OpenSpec 1.14.0 is repository-locked: 134 focused tests and all 14 official strict validations pass; 168 native apply tasks retain source locations. Lock entries remain 378 with no new advisories (`openspec114-{resolution,native-verification-corrected,strict}-result` evidence). The existing braces advisory still blocks production/full-proof delivery; reviewed development acceptance does not waive that boundary.
+- [ ] 11.3 Qualify supported latest-stable supply or an obligation-preserving constrained-owner replacement. OpenSpec 1.14.0 is repository-locked: 134 focused tests and all 14 official strict validations pass; 168 native apply tasks retain source locations. Lock entries remain 378 with no new advisories (`openspec114-{resolution,native-verification-corrected,strict}-result` evidence). The approved braces exception permits continued development; it is not a fixed advisory or a production-release waiver. Exact scope and expiry remain with the native audit owner.
   DDWG reports its accepted installed OpenSpec 1.13.2 while its repository locks
   1.14.0. This is a consumer migration obligation, not a reason to downgrade the
   repository lock; the exact accepted source/tree/wheel/runtime handoff remains open.
   Allure is locked to official stable 3.20.0 after isolated native resolution: 409→408
   lock entries, no added packages or install scripts. Original 77/5 result sets retain
-  exact input hashes and report name/status parity without test replay. Native audit
-  still reports the existing braces advisory; full proof and installed delivery remain
-  open. Evidence: `allure320-experiment.result.json` and `allure320-lock-delta.json`.
+  exact input hashes and report name/status parity without test replay. Those observations
+  predate the npm 12.2.0 addition; current lock and audit identity are stated below.
+  Exact proof and installed delivery remain open. Evidence: `allure320-experiment.result.json` and `allure320-lock-delta.json`.
   - [ ] 11.3.1 Close the adopter-reproduced actionlint child-start-before-input deadlock at the existing native workflow-check owner. Verify bounded finite input, EOF and cancellation on the actual large workflow without a timeout increase, wrapper/fork or reduced validation. Source and native focused closure are implemented, including the direct Python gate, selected module/package source bindings and retired shell launcher; exact proof and installed delivery remain pending.
+  - [ ] 11.3.2 Deliver the 2026-10-05 official-stable supply refresh through native manifests, locks, CI projections and accepted runtime. The isolated rehearsal upgrades 18 Python lock entries and 17 distinct npm package identities; two native dependency placements change, with no new package names or install-script paths; Python audit covers 126 packages with no findings. Preserve Python 3.12.15 support. Pydantic 2.13.5 requires pydantic-core 2.46.5 exactly; do not force the independently newer core. Syft 1.54.0, uv 0.12.23 and setup-uv v10.2.0 are source-bound. Mise 2026.10.2 is pending: immutable-runtime patch admission misreads the new official installer's quoted awk body as shell executables; fix the existing reference owner rather than whitelist those spellings or alter the vendor installer. The source candidate replaces nodejs-wheel-binaries 24.19.0 with official Node 26.10.0 archives bound by the existing Mise config/lock and native download/cache owner. Source consumers resolve verified cache; wheels emit Node-only resources. The existing product package lock uniquely selects npm 12.2.0; archive-bundled npm is a verified build-only first-install seed, not installed product authority. Source CI projections retire the duplicate Node policy and shell installers while retaining native JavaScript and platform qualification. Cold Windows Mise preparation, image publication, exact full proof and accepted installed delivery remain unqualified. Evidence: `stable-supply-{official-metadata-20261005,native-rehearsal,native-audit,actions-metadata}`.
+  Current package-lock SHA-256 is
+  `1165276f8d9fd23e8ce02c515f44ff83179f414e4ca9f9b138217ae596f424ae`.
+  On 2026-10-05, 127 combined audit/CI focused tests passed with the supplied
+  npm 12.2.0 and native Node 26.10.0. Native audit retains 10 affected aggregates
+  (nine high, one moderate), 12 advisory URLs and its strict blocked verdict;
+  Python audit is clean and native stderr is empty. The existing audit policy
+  contains one unchanged braces subject rebound to this lock and 11 exact npm
+  bundled-component advisory records. Bundle integrity comes from the containing
+  npm lock artifact through native `inBundle` ownership, not invented child hashes.
+  Separate direct human approvals authorize only this host's controlled local
+  development through 2026-10-18, exclusive expiry 2026-10-19T00:00:00+08:00.
+  Current local-development audit exits zero while default strict and declared-CI
+  local selection exit one; CI, production, public release and distribution remain
+  blocked. No accepted installed successor or whole-source proof is claimed.
+  Evidence: `audit-npm-disposition-sidecar-20261005T0615/{qualification-summary.json,native-local.dependency-audit.json,native-strict.dependency-audit.json,native-ci-local.dependency-audit.json}`
+  and `ci-node-ssot-sidecar-20261005T051804Z/ci-node-ssot-generated.patch`.
+
 - [ ] 11.4 Migrate native developer/CI tool supply to mise locks and retire replaced installers.
 - [x] 11.5 Verify native import-linter and coverage TOML option equivalence; replace their INI owners and consumers without adding a converter.
 - [x] 11.6 Repair pytest configuration-relative paths and qualify native TOML through real plugin consumers.
@@ -310,6 +328,13 @@
       deletion or unqualified test-selection authority. Actual Agent/token/iteration
       benefit, live project/MCP rollout and document drift remain unqualified and
       do not delay the existing bounded source successor.
+      [Code-quality comparison](../../../docs/research/foundations/verification.md#code-quality-and-review-tools)
+      now has frozen-source/control, clone, mutation, architecture, secret and
+      workflow experiments. Two scoped audit defects have distinguishing RED
+      regressions and 55 focused GREEN tests; the corrections remain candidate
+      source, not accepted/runtime/adopter closure. Selected methods, parser and
+      license limits, and explicit platform non-adoption live in that topic;
+      broader framework, rollout and semantic-owner obligations remain open.
 
 ## 13. Feedback-Driven Improvement Closure
 

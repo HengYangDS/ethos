@@ -9,8 +9,6 @@ from dataclasses import field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import nodejs_wheel
-
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import command_scope
 from ethos.adapters.process import run_command
@@ -19,7 +17,7 @@ from ethos.adapters.repo.content.observation import read_regular_bytes
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_executable
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.repository.policy.quality.sources import generated_relations
 from ethos.repository.policy.quality.sources import locked_archive
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -272,12 +270,8 @@ def _upstream(snapshot: _SourceTree, contracts: tuple[SourceContract, ...]) -> N
             archives[reference].members[artifact] = _ArchiveMember(member, snapshot.read(artifact))
     if not archives:
         return
-    package = Path(str(nodejs_wheel.__file__)).resolve().parent
-    npm = package / "lib/node_modules/npm/bin/npm-cli.js"
-    if not npm.is_file():
-        message = "source_upstream_native_npm_unavailable"
-        raise ValueError(message)
-    node = resolve_node_executable()
+    runtime = resolve_node_runtime()
+    node, npm = runtime.executable, runtime.npm
     _read_archive_cache(snapshot, node, npm, archives)
     if (
         sum(entry.raw_size for entry in archives.values()) > _ARCHIVE_LIMITS["raw_bytes"]

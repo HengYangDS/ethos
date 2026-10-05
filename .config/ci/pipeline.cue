@@ -12,7 +12,7 @@ _inputs: {
 		proof_sets: full: [string, ...string]
 		...
 	}
-	node: {default_version: string, compatibility_versions: [string, ...string], ...}
+	node: {tools: {node: string, ...}, ...}
 }
 #Gate: {id: string, depends_on: *[] | [...string], ...}
 _gateIDs: [for gate in _inputs.gate_registry.gates {gate.id}]
@@ -21,6 +21,10 @@ let gitlabView = gitlab
 let githubSourceSHA = "${{ github.event.pull_request.head.sha || github.sha }}"
 let sourceCLI = "uv run --frozen --offline python -B -I -m ethos.cli"
 let externalLinkCommand = "tools/ci/scripts/with-python-runtime.sh -- \(sourceCLI) prove --host --execute --gate external-links --expect-head \"$(git rev-parse HEAD)\" --json"
+
+// Native subprocess glue consumes the source cache owner, including its selected npm CLI.
+let nativeNpm = "uv run --no-sync python -B -c 'import os, subprocess, sys; from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime; runtime = resolve_node_runtime(); subprocess.run([str(runtime.executable), str(runtime.npm), *sys.argv[1:]], env=dict(os.environ, PATH=str(runtime.executable.parent) + os.pathsep + os.environ[\"PATH\"], npm_config_engine_strict=\"true\", npm_config_audit=\"false\", npm_config_fund=\"false\", npm_config_update_notifier=\"false\"), stdin=subprocess.DEVNULL, timeout=120, check=True)'"
+let nativeNpmSeed = "uv run --no-sync python -B -c 'import os, subprocess, sys; from pathlib import Path; from ethos.adapters.repo.runtime.materialization.node.supply import NodeRuntime, NodeSupply; root = Path.cwd(); runtime = NodeRuntime.read(NodeSupply.read(root).installed_root(root), windows=os.name == \"nt\"); subprocess.run([str(runtime.executable), str(runtime.npm), *sys.argv[1:]], env=dict(os.environ, PATH=str(runtime.executable.parent) + os.pathsep + os.environ[\"PATH\"], npm_config_engine_strict=\"true\", npm_config_audit=\"false\", npm_config_fund=\"false\", npm_config_update_notifier=\"false\"), stdin=subprocess.DEVNULL, timeout=120, check=True)'"
 let gitlabImage = "ghcr.io/hengyangds/ethos-ci-supply@sha256:e66721fa93a216afd6bfec1784e123fb17ae72b9a9a449f04ea13d62f02ee59c"
 let githubPythonBootstrap = [{
 	uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
@@ -32,8 +36,8 @@ let githubPythonBootstrap = [{
 	uses: "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
 	with: "python-version": "3.14"
 }, {
-	uses: "astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4"
-	with: version: "0.12.20"
+	uses: "astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7"
+	with: version: "0.12.23"
 }, {
 	name: "Bootstrap Python and OpenSpec"
 	run:  "tools/ci/scripts/bootstrap-python.sh"
@@ -132,7 +136,7 @@ github: {
 			}]
 		}
 		"host-conformance": {
-			name:      "${{ matrix.os }} / Python ${{ matrix.python }}"
+			name:      "${{ matrix.os }} / Python ${{ matrix.python }} / Node \(_inputs.node.tools.node)"
 			"runs-on": "${{ matrix.os }}"
 			if:        "${{ !inputs.supply_image }}"
 			env: UV_PYTHON_INSTALL_DIR: "${{ github.workspace }}/build/runtime/python"
@@ -150,29 +154,37 @@ github: {
 					ref:           githubSourceSHA
 				}
 			}, {
-				uses: "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020"
+				uses: "astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7"
 				with: {
-					"node-version": _inputs.node.default_version
-					cache:          "npm"
-				}
-			}, {
-				uses: "astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4"
-				with: {
-					version:          "0.12.20"
+					version:          "0.12.23"
 					"python-version": "${{ matrix.python }}"
 				}
 			}, {
 				name: "Provision native Python image supply"
 				run:  "uv python install --no-bin ${{ matrix.python }}"
 			}, {
-				name: "Install locked runtimes"
-				run:  "npm ci --ignore-scripts"
+				name: "Synchronize build-only Python dependencies"
+				run:  "uv sync --locked --no-install-project --group dev"
+			}, {
+				name: "Prepare locked native Node supply"
+				env: PYTHONPATH: "src"
+				run: "uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise"
+			}, {
+				name: "Install locked npm packages"
+				env: PYTHONPATH: "src"
+				run: "\(nativeNpmSeed) ci --ignore-scripts"
 			}, {
 				name: "Synchronize locked Python environment"
 				run:  "uv sync --locked --group dev"
 			}, {
 				name: "Execute wheel conformance"
 				run:  "uv run --frozen python -m nox -s host_conformance"
+			}, {
+				name: "Execute npm launcher"
+				run:  "\(nativeNpm) run ethos -- --version"
+			}, {
+				name: "Execute native npm package tests"
+				run:  "uv run --frozen python -m nox -s javascript_tests"
 			}, {
 				name: "Upload host conformance receipt"
 				if:   "always()"
@@ -428,16 +440,13 @@ gitlab: {
 	}
 	"ethos:npm": {
 		stage: "verify"
-		parallel: matrix: [{
-			NODE_VERSION: _inputs.node.compatibility_versions
-		}]
-		// Runs on python:3.14 with exact Node
-		// releases installed from nodejs.org; see the runtime policy and installer.
+		variables: NODE_VERSION: _inputs.node.tools.node
+		// The shared cache preparer owns Node; Nox owns package test execution.
 		image: gitlabImage
 		script: [
 			"tools/ci/scripts/bootstrap-python.sh",
-			"tools/ci/scripts/install-node.sh",
-			"tools/ci/scripts/run-node-compatibility.sh",
+			"\(nativeNpm) run ethos -- --version",
+			"uv run --frozen --offline python -m nox -s javascript_tests",
 		]
 	}
 }

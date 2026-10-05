@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from ethos.adapters.process import run_command
-from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_executable
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 
 
@@ -52,7 +52,7 @@ def static_observation(
     result = run_command(
         root,
         (
-            node or str(resolve_node_executable()),
+            node or str(resolve_node_runtime().executable),
             str(Path(__file__).with_suffix(".mjs")),
             str(supply / "package.json"),
         ),

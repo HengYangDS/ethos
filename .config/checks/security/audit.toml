@@ -2,3 +2,192 @@ owner = "ethos-quality-gate-governance"
 summary = "Native uv and npm audits cover both declared dependency locks."
 runner = "uv run --frozen --offline python -m nox -s vulnerabilities"
 timeout_seconds = 120
+
+# Optional [[dispositions]] authorize exact local-development findings, never release.
+# Identity fields: ecosystem (npm), advisory_url, package, version, integrity, nodes,
+# lock_sha256. Authorization fields: scope (local-development), owner, approval_ref,
+# host (exact native hostname), rationale, expires_at (native TOML offset datetime).
+# For inBundle nodes without a child integrity, integrity binds the containing
+# independently locked artifact reached through native inBundle ownership.
+# These approvals permit controlled local development only on the named host.
+# CI, public release and distribution remain blocked; no aggregate-name exclusions.
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm"
+package = "braces"
+version = "3.0.3"
+integrity = "sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA=="
+nodes = ["node_modules/braces"]
+lock_sha256 = "1165276f8d9fd23e8ce02c515f44ff83179f414e4ca9f9b138217ae596f424ae"
+scope = "local-development"
+host = "yheng-macbook-pro.local"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-05:controlled-local-development-through-2026-10-18"
+rationale = "Human-approved controlled local development on this host through 2026-10-18; OpenSpec carries the production braces DoS finding. Production and public release remain blocked."
+expires_at = 2026-10-19T00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-qhr7-859c-m2p7"
+package = "brace-expansion"
+version = "5.0.9"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = ["node_modules/npm/node_modules/brace-expansion"]
+lock_sha256 = "1165276f8d9fd23e8ce02c515f44ff83179f414e4ca9f9b138217ae596f424ae"
+scope = "local-development"
+host = "yheng-macbook-pro.local"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
+rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
+expires_at = 2026-10-19T00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p"
+package = "brace-expansion"
+version = "5.0.9"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = ["node_modules/npm/node_modules/brace-expansion"]
+lock_sha256 = "1165276f8d9fd23e8ce02c515f44ff83179f414e4ca9f9b138217ae596f424ae"
+scope = "local-development"
+host = "yheng-macbook-pro.local"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
+rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
+expires_at = 2026-10-19T00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr"
+package = "brace-expansion"
+version = "5.0.9"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = ["node_modules/npm/node_modules/brace-expansion"]
+lock_sha256 = "1165276f8d9fd23e8ce02c515f44ff83179f414e4ca9f9b138217ae596f424ae"
+scope = "local-development"
+host = "yheng-macbook-pro.local"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
+rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
+expires_at = 2026-10-19T00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-ch52-4w7c-c8xp"
+package = "http-cache-semantics"
+version = "4.2.0"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = ["node_modules/npm/node_modules/http-cache-semantics"]
+lock_sha256 = "1165276f8d9fd23e8ce02c515f44ff83179f414e4ca9f9b138217ae596f424ae"
+scope = "local-development"
+host = "yheng-macbook-pro.local"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
+rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
+expires_at = 2026-10-19T00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-rpw4-54j3-4h4q"
+package = "ip-address"
+version = "10.5.0"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = ["node_modules/npm/node_modules/ip-address"]
+lock_sha256 = "1165276f8d9fd23e8ce02c515f44ff83179f414e4ca9f9b138217ae596f424ae"
+scope = "local-development"
+host = "yheng-macbook-pro.local"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
+rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
+expires_at = 2026-10-19T00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-2vr4-cq9g-pvrc"
+package = "ip-address"
+version = "10.5.0"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = ["node_modules/npm/node_modules/ip-address"]
+lock_sha256 = "1165276f8d9fd23e8ce02c515f44ff83179f414e4ca9f9b138217ae596f424ae"
+scope = "local-development"
+host = "yheng-macbook-pro.local"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
+rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
+expires_at = 2026-10-19T00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-j6r3-76f7-8jcv"
+package = "ip-address"
+version = "10.5.0"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = ["node_modules/npm/node_modules/ip-address"]
+lock_sha256 = "1165276f8d9fd23e8ce02c515f44ff83179f414e4ca9f9b138217ae596f424ae"
+scope = "local-development"
+host = "yheng-macbook-pro.local"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
+rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
+expires_at = 2026-10-19T00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-h3mg-xc3c-68pw"
+package = "ip-address"
+version = "10.5.0"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = ["node_modules/npm/node_modules/ip-address"]
+lock_sha256 = "1165276f8d9fd23e8ce02c515f44ff83179f414e4ca9f9b138217ae596f424ae"
+scope = "local-development"
+host = "yheng-macbook-pro.local"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
+rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
+expires_at = 2026-10-19T00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-3wwx-pv8p-q78v"
+package = "undici"
+version = "6.28.0"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = ["node_modules/npm/node_modules/undici"]
+lock_sha256 = "1165276f8d9fd23e8ce02c515f44ff83179f414e4ca9f9b138217ae596f424ae"
+scope = "local-development"
+host = "yheng-macbook-pro.local"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
+rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
+expires_at = 2026-10-19T00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-r53p-7pc4-xj5r"
+package = "undici"
+version = "6.28.0"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = ["node_modules/npm/node_modules/undici"]
+lock_sha256 = "1165276f8d9fd23e8ce02c515f44ff83179f414e4ca9f9b138217ae596f424ae"
+scope = "local-development"
+host = "yheng-macbook-pro.local"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
+rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
+expires_at = 2026-10-19T00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-rfgv-xxqx-mfg5"
+package = "undici"
+version = "6.28.0"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = ["node_modules/npm/node_modules/undici"]
+lock_sha256 = "1165276f8d9fd23e8ce02c515f44ff83179f414e4ca9f9b138217ae596f424ae"
+scope = "local-development"
+host = "yheng-macbook-pro.local"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
+rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
+expires_at = 2026-10-19T00:00:00+08:00

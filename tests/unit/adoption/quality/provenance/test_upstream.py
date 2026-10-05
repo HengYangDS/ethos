@@ -12,13 +12,13 @@ import subprocess
 import tarfile
 from pathlib import Path
 
-import nodejs_wheel
 import pytest
 import tomli_w
 
 import ethos.adapters.gates.provenance.observation as source_observation
 import ethos.adapters.repo.content.observation as content_observation
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.repository.policy.quality.sources import locked_archive
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
@@ -153,11 +153,11 @@ def _framing_mutation(original: bytes, defect: str) -> bytes:
 def _cache_metadata(
     root: Path, archive: Path, raw: bytes, integrity: str, monkeypatch: pytest.MonkeyPatch
 ) -> dict[str, str]:
-    native = Path(str(nodejs_wheel.__file__)).resolve().parent
+    native = resolve_node_runtime()
     cache = root / "npm-cache"
     monkeypatch.setenv("npm_config_cache", str(cache))
     command = [
-        str(native / "bin/node"),
+        str(native.executable),
         "-e",
         (
             "const r=require('node:module').createRequire(process.argv[1]);"
@@ -165,7 +165,7 @@ def _cache_metadata(
             "require('node:fs').readFileSync(process.argv[3]))"
             ".then(()=>{},e=>{console.error(e.message);process.exitCode=1})"
         ),
-        str(native / "lib/node_modules/npm/bin/npm-cli.js"),
+        str(native.npm),
         str(cache / "_cacache"),
         str(archive),
     ]

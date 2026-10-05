@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 from contextlib import contextmanager
+from importlib import import_module
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
@@ -20,6 +21,22 @@ if TYPE_CHECKING:
 
 MISE_CONFIG = ".config/mise/config.toml"
 MISE_LOCK = ".config/mise/mise.lock"
+
+
+def native_tool_cache(root: Path) -> Path:
+    """Share native supply across linked worktrees, honoring explicit CI roots."""
+    selected = os.environ.get("ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR") or os.environ.get(
+        "ETHOS_CI_TOOL_CACHE_DIR"
+    )
+    if selected:
+        home = Path(selected)
+        return home if home.is_absolute() else root / home
+    common = import_module("ethos.adapters.repo.git").git_common_dir(root)
+    return (
+        Path(common) / "ethos/tool-cache/ci-tools"
+        if common
+        else root / "build/runtime/tool-cache/ci-tools"
+    )
 
 
 def _mise_environment(isolated: Path, *, offline: bool) -> dict[str, str]:

@@ -55,6 +55,26 @@ scanner \\
     assert command_identity(("uv", "run", "pytest", "-q"), {"pytest"}) == "pytest"
 
 
+@pytest.mark.parametrize("quote", ["'", '"'])
+def test_reference_commands_preserve_multiline_quoted_arguments(quote: str) -> None:
+    """Quoted program text stays data while adjacent commands remain observable."""
+    program = "\nNF != 2 { next }\nEND { print selected }\n"
+    command = f"awk {quote}{program}{quote}; scanner --scan .\ncollector input\n"
+    flattened = (
+        f"awk {quote}{program.replace(chr(10), ' ')}{quote}; scanner --scan .\ncollector input\n"
+    )
+    expected = {"awk", "scanner", "collector"}
+
+    assert shell_executables(command, {}) == shell_executables(flattened, {}) == expected
+    assert shell_commands(command, expected) == expected
+    assert product_references_from_files({"tools/example.sh": command})["executable"] == expected
+
+
+def test_reference_commands_do_not_resume_inside_unterminated_quoted_data() -> None:
+    """A malformed quoted argument cannot invent executables from its body."""
+    assert shell_executables("awk '\nNF { next }\nEND { print selected }", {}) == set()
+
+
 def test_reference_commands_malformed_public_inputs_fail_closed() -> None:
     assert normalize_command("  'unterminated  ") == "'unterminated"
     assert shell_executables("echo 'unterminated", {}) == set()

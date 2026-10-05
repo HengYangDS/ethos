@@ -12,13 +12,16 @@ import tomllib
 import zipfile
 from email.parser import Parser
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
+from unittest.mock import Mock
 
 import hatchling.builders.plugin.interface as hatch_interface
 import pytest
 from hatchling.builders.sdist import SdistBuilder
 from packaging.version import Version
 
+from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
 from ethos.adapters.repo.runtime.materialization.node_package_supply import (
     resolve_node_package_supply,
 )
@@ -50,6 +53,21 @@ def test_version_file_is_the_single_product_owner_and_manifests_are_projections(
     assert "0.1.0a2" not in (root / "pyproject.toml").read_text(encoding="utf-8")
 
 
+@pytest.fixture
+def _native_build_supply(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bind one verified test-owned archive without embedding or downloading it."""
+    root = Path.cwd()
+    supply = NodeSupply.read(root)
+    cache = tmp_path / "native-supply"
+    selected = cache / "node" / supply.version / supply.target
+    selected.mkdir(parents=True)
+    archive = supply.cache(root) / supply.archive
+    supply.verify_archive(archive)
+    shutil.copyfile(archive, selected / supply.archive)
+    monkeypatch.setenv("ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR", str(cache))
+
+
+@pytest.mark.usefixtures("_native_build_supply")
 def test_source_and_release_builds_preserve_exact_metadata(tmp_path: Path, monkeypatch) -> None:
     root = Path.cwd()
     repo = _build_repository(root, tmp_path / "repo")
@@ -81,6 +99,7 @@ def test_source_and_release_builds_preserve_exact_metadata(tmp_path: Path, monke
             subprocess.run(command, cwd=repo, env={**os.environ, **env}, check=True, timeout=90)
 
     monkeypatch.setattr(sessions, "RUNTIME", ProjectRuntime.discover(repo))
+    monkeypatch.setattr("tools.ci.dependency_audit.run", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         ProjectRuntime, "node_package_supply", lambda _: resolve_node_package_supply(root)
     )
@@ -156,6 +175,7 @@ def test_sdist_builder_does_not_traverse_disposable_runtime_trees(monkeypatch) -
     assert {root / "src", root / "system"} <= set(walked)
 
 
+@pytest.mark.usefixtures("_native_build_supply")
 def test_sdist_rebuild_reuses_the_identical_node_package_supply(tmp_path: Path) -> None:
     artifacts = tmp_path / "artifacts"
     _build_wheel(Path.cwd(), artifacts, sdist=True)
@@ -288,13 +308,30 @@ def _assert_complete_resources(repo: Path, archive: zipfile.ZipFile, installed: 
             if file.is_file():
                 member = f"ethos/resources/{file.relative_to(repo).as_posix()}"
                 assert archive.read(member) == file.read_bytes()
-    archive.extractall(installed)
+    assert archive.filename is not None
+    subprocess.run(
+        (
+            str(Path(sys.executable).with_name("uv")),
+            "pip",
+            "install",
+            "--offline",
+            "--no-deps",
+            "--python",
+            sys.executable,
+            "--target",
+            str(installed),
+            str(archive.filename),
+        ),
+        check=True,
+        timeout=30,
+    )
     project = installed / "ethos/resources"
     assert (project / "package-lock.json").is_file()
     assert not (project / "node_modules/.package-lock.json").exists()
     requirements = installed.parent / "installed-requirements.txt"
     environment = os.environ.copy()
     environment.pop("ETHOS_NODE_PACKAGE_SUPPLY", None)
+    environment["PATH"] = ""
     subprocess.run(
         (
             sys.executable,
@@ -310,8 +347,19 @@ def _assert_complete_resources(repo: Path, archive: zipfile.ZipFile, installed: 
                 "assert Path(resources['path']).is_relative_to(Path(sys.argv[1])); "
                 "assert Path(resources['path']).is_file(); "
                 "from ethos.adapters.repo.runtime.materialization.input_resolution "
-                "import resolve_runtime_project, run_runtime_tool; "
+                "import resolve_node_runtime, resolve_runtime_project, run_runtime_tool; "
                 "project = resolve_runtime_project(Path(sys.argv[1]) / 'ethos'); "
+                "import json, subprocess; node = resolve_node_runtime(); "
+                "assert node.executable.is_relative_to(Path(sys.argv[1])); "
+                "assert node.npm.is_relative_to(Path(sys.argv[1])); "
+                "assert 'resources/node_modules/npm/bin/npm-cli.js' in node.npm.as_posix(); "
+                "assert not (node.executable.parent / 'npm').exists(); "
+                "assert not (node.executable.parent.parent / 'lib').exists(); "
+                "actual = subprocess.run([str(node.executable), str(node.npm), '--version'], "
+                "capture_output=True, text=True, check=True, timeout=15); "
+                "lock = json.loads((project / 'package-lock.json').read_text()); "
+                "assert not actual.stderr; "
+                "assert actual.stdout.strip() == lock['packages']['node_modules/npm']['version']; "
                 "run_runtime_tool(project, 'export', '--locked', '--offline', '--no-dev', "
                 "'--no-emit-project', '--format', 'requirements-txt', '--output-file', sys.argv[2])"
             ),
@@ -390,3 +438,32 @@ def _build_repository(root: Path, repo: Path) -> Path:
     _git(repo, "add", "-A")
     _git(repo, "commit", "--quiet", "-m", "first source")
     return repo
+
+
+@pytest.mark.parametrize("operation", ["build", "install_smoke"])
+def test_direct_release_requires_same_strict_audit_before_effect(tmp_path, monkeypatch, operation):
+    """Direct Nox release cannot promote local-development audit permission."""
+    pipeline = Mock()
+    delivery = Mock()
+    delivery.release_build_head.return_value = "a" * 40
+    delivery.DeliveryPipeline.from_runtime.return_value = pipeline
+    security = Mock()
+    sequence = []
+    security.run.side_effect = lambda *_args, **_kwargs: sequence.append("strict-audit")
+    effect = pipeline.build if operation == "build" else pipeline.prove_install
+    effect.side_effect = lambda *_args, **_kwargs: sequence.append("effect")
+    monkeypatch.setattr(sessions, "RUNTIME", SimpleNamespace(root=tmp_path))
+    monkeypatch.setattr(
+        sessions,
+        "import_module",
+        lambda name: security if name == "tools.ci.dependency_audit" else delivery,
+    )
+    session = Mock(posargs=["--release", "--expect-head", "a" * 40])
+    getattr(sessions, operation)(session)
+    security.run.assert_called_once_with(session, root=tmp_path, scope="production-release")
+    assert sequence == ["strict-audit", "effect"]
+    effect.reset_mock()
+    security.run.side_effect = ValueError("strict audit blocked")
+    with pytest.raises(ValueError, match="strict audit blocked"):
+        getattr(sessions, operation)(session)
+    effect.assert_not_called()

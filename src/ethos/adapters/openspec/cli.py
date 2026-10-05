@@ -13,7 +13,7 @@ import yaml
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_stdout
-from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_executable
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import (
     resolve_node_package_supply,
 )
@@ -58,7 +58,7 @@ OFFICIAL_PACKAGE_SPEC = f"{OFFICIAL_PACKAGE}@{OFFICIAL_VERSION}"
 def _packaged_node() -> str | None:
     """Resolve the platform Node payload installed with the Python distribution."""
     try:
-        executable = resolve_node_executable()
+        executable = resolve_node_runtime().executable
     except ValueError:
         return None
     return executable.as_posix()

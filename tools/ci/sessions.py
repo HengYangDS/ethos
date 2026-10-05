@@ -140,12 +140,20 @@ def coverage_floor(session) -> None:
 def build(session) -> None:
     owner = import_module("tools.ci.delivery.pipeline")
     head = owner.release_build_head(tuple(session.posargs))
+    if head:
+        import_module("tools.ci.dependency_audit").run(
+            session, root=RUNTIME.root, scope="production-release"
+        )
     owner.DeliveryPipeline.from_runtime(RUNTIME).build(session, release_head=head)
 
 
 def install_smoke(session) -> None:
     owner = import_module("tools.ci.delivery.pipeline")
     head = owner.release_build_head(tuple(session.posargs))
+    if head:
+        import_module("tools.ci.dependency_audit").run(
+            session, root=RUNTIME.root, scope="production-release"
+        )
     owner.DeliveryPipeline.from_runtime(RUNTIME).prove_install(session, release_head=head)
 
 
@@ -160,7 +168,8 @@ def dependencies(session) -> None:
 
 
 def vulnerabilities(session) -> None:
-    import_module("tools.ci.dependency_audit").run(session)
+    owner = import_module("tools.ci.dependency_audit")
+    owner.run(session, root=RUNTIME.root, scope=owner.requested_scope(tuple(session.posargs)))
 
 
 def supply_chain(session) -> None:

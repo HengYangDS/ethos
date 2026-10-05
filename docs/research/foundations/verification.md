@@ -148,6 +148,108 @@ effect authorization. A failed repair must improve the causal model or be remove
 not trigger an unchanged full-suite retry. Keep progress in official Change tasks,
 measured evidence in existing receipts, and reusable conclusions in their topic.
 
+## Code-Quality And Review Tools
+
+Measured on October 5, 2026, for proof-throughput task 12.6. The question was
+which existing or additional tools expose real defects with less repeated work,
+without becoming a second semantic owner or mandatory heavyweight platform.
+
+### Measurement Boundary
+
+The frozen working-tree sample contains 362 present Python carriers below
+`src` and `tools`, including untracked candidate files. Base commit:
+`4428220db4990e3484b4275e86b6bd8596262361`; committed tree:
+`99d3f68437f57b6b3c1b5fc5a61f3acc96a615e6`.
+The source-manifest digest is
+`ead084822e8ac62a753078d62f993e8471e151c010a6aa5ffe49d8d38695cbaf`.
+This snapshot precedes the review corrections below; it is not their identity
+or accepted/installed proof.
+
+Nineteen static controls comprise seventeen determinate audit signals and two
+dynamic/conditional uncertainty cases. Selected rules have different contracts:
+a suspicious-call audit is not taint analysis. Findings and durations below are
+sample-specific, not population precision, recall or guaranteed speedups.
+Static probes were read, not executed. Mutation executed only an extracted pure
+verdict owner and synthetic tests. No private-source upload, external AI review,
+repository dependency change or host installation occurred.
+
+Retained run: `quality-tool-comparison-2f8yn77j`. Its
+`results/source-manifest.json`, `sample-manifest.json`, command receipts,
+raw outputs, pinned sources and artifact hashes identify the exact inputs.
+They remain external recovery evidence, not a runtime dependency or task ledger.
+
+### Executed Comparison
+
+| Tool and tested version | Actual result | Disposition and limit |
+| --- | --- | --- |
+| Ruff 0.16.10 | S102/S307/S602 comparison: 0.021 s on the product sample; tested import aliases and local shadowing distinguished | Retain the native owner. Its intentional exact-tree-loader `exec` finding needs contextual review, not automatic removal. These three rules were not globally enabled. |
+| Semgrep CE 1.179.0 | Three pinned official rules: controls 1.885/1.613 s, product 3.265 s; subprocess aliases found, local/shadowed calls falsely flagged, builtin-eval alias missed | Use bounded security review only. The specific taint rule missed the interprocedural trace even when the separate call-audit rule flagged its sink. No resolver replacement. |
+| ast-grep 0.45.3 | Research structural rules: controls 0.039/0.011 s, product 0.070 s | Select for structural navigation and review candidates. Pattern matching does not establish binding, value flow, effects or complete parse coverage. No additional gate authority. |
+| jscpd 5.4.0 | Product 0.071/0.075 s: 98 exact and 1,471 identifier-normalized clone candidates; 280/362 carriers pass the minimum-token filter | Select bounded clone review, not an ELOC deletion estimate. Overlapping toy clones produce 120% reported duplication; clone sums are not unique removable lines or behavior equivalence. |
+| Vulture 2.16 | Product: confidence 100 gives zero findings in 0.606 s; confidence 60 gives 285 candidates in 0.661 s, including valid hooks and public entrypoints | Do not add a hard deletion gate. An unreachable-code control is detected, but call/registration ownership must establish whether product candidates are dead. |
+| mutmut 3.8.0 | Same extracted verdict owner, both variants 100% line coverage: weak assertions kill 2/31 mutants, semantic assertions 31/31; 1.668/1.613 s | Adopt targeted mutation as a test-design/review method. This qualifies this pure owner only, not all ETHOS tests or a global mutation score. |
+| RepoWise 0.55.0 | Offline production code-shape health: 362 metrics and 1,330 heuristic findings in 9.350 s | Reuse prioritization and batch context; no proof or automatic deletion. Tests were not copied, so `has_test_file=false` cannot establish missing tests. |
+| OCR 1.12.11 and Ponytail | Native delegate preview/rubric plus five hash-bound files; unchanged reviewed runtime bytes reused; two real audit defects found | Retain scoped review. No external LLM was called; no actionable Ponytail cut was identified. This does not benchmark proprietary reviewer accuracy. |
+| import-linter 2.15 | Indirect forbidden dependency RED 0.154 s; same TOML contract after repair GREEN 0.122 s | Retain the existing architecture owner. A second architecture registry is not justified by this result. |
+| Gitleaks 8.30.1 | Nonfunctional secret-shaped control detected with a redacted report in 0.074 s | Retain native secret scanning; no real credential inspection or general detection claim. |
+| actionlint 1.7.12 | Invalid `needs` relationship BLOCK 0.020 s; repaired control PASS 0.006 s | Retain native workflow semantics. Subprocess linters were disabled for this narrow test, not for product policy. |
+
+SCC independently counted the same frozen carriers in 0.073 s. Its code/comment
+classification supplies a measurement, not proof that counted complexity is
+necessary or removable.
+
+### Parser, License And Ownership Conclusions
+
+Semgrep returned exit zero and no parser error for an irrelevant malformed file
+that its rule prefilter did not inspect. A relevant malformed file reported
+`PartialParsing` but still exited zero. ast-grep recovered structural matches;
+Ruff rejected invalid syntax. Scanner success and zero findings therefore cannot
+certify complete syntax or semantic coverage. Missing applicable observations
+remain UNKNOWN through the existing observation owner.
+
+The tested Semgrep rules are pinned to
+`a84ff9cc2453ca91d581380de4b8b3f272f6f4be`.
+Their separate [Semgrep Rules License][semgrep-rules-license] allows internal use,
+not redistribution or offering the rules as a service. Do not bundle them in
+ETHOS or adopter packages; the engine license does not grant rule rights.
+Vulture and jscpd artifact licenses and hashes are retained separately.
+
+CodeQL 2.27.1, Semgrep Pro, Sonar, Qodana and QLTY received official-source,
+license, platform and operational review, not comparative analyzer execution.
+Current decision: do not add these platforms to the core. CodeQL/Pro require a
+measured cross-file-flow gap plus entitled, offline and target-platform
+qualification; Sonar/Qodana require unique inspection value after service/engine
+cost; QLTY does not justify another installer/evaluator over existing owners.
+Reconsider only against those triggers, not an indefinite pending tool list.
+CrossHair, Tach and Radon are metadata candidates, not tested effectiveness.
+
+Native source extraction separately reproduced alias, shadow, cross-scope and
+program-point gaps in this working tree. This pass did not execute their public
+repository-audit gate or qualify the installed reader. Keep that existing
+semantic-observation obligation at its unique owner; adding spelling rules or
+substituting a structural scanner would not close it.
+
+### Real Review Closure
+
+The independent scoped review identified two defects in the existing
+`tools/ci/dependency_audit.py` owner:
+
+- Parsed policy and its recorded hash came from different reads. Revocation
+  between them could leave stale local authorization. The correction parses and
+  hashes the same bytes, then freshly checks disk inputs before finalization.
+- Node resolver `ValueError` skipped npm's observation. The correction emits
+  npm UNKNOWN/native-execution-unavailable and preserves the complete ecosystem
+  result rather than losing the receipt.
+
+The distinguishing regressions failed before the correction. The final focused
+run passed 55 tests in 2.34 s (2.785 s process wall time), with no test warnings;
+Ruff checks, formatting and Ty warning-as-error checks passed. The strict release
+consumer remains exercised; its existing test moved to the release owner rather
+than weakening the per-file budget. See retained
+`review-findings-reproduction.json`, `review-regressions-red.*` and
+`review-owner-green.*`. These are candidate-source results, not a signed
+checkpoint, accepted runtime, full proof, hosted CI or adopter acceptance.
+
 ## Sources
 
 Links identify inspected documents, not blanket endorsements. Source-level and
@@ -158,3 +260,4 @@ marketing claims were not used as evidence of comparative performance.
 [allure3]: https://github.com/allure-framework/allure3/blob/e3bd84f644e1c58276a673f9d0ec546d2aba5855/README.md
 [opentelemetry-mechanism]: https://github.com/open-telemetry/opentelemetry-specification/blob/5507eb587b3b3500ccd681e816e7c26729f38aa0/specification/overview.md
 [cloudevents]: https://github.com/cloudevents/spec/blob/2ed3806b4ad8fda35813263cfefb2d73098b7655/cloudevents/spec.md
+[semgrep-rules-license]: https://semgrep.dev/legal/rules-license

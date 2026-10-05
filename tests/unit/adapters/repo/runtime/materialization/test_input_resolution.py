@@ -13,7 +13,7 @@ from types import SimpleNamespace
 import pytest
 
 import ethos.adapters.repo.runtime.materialization.input_resolution as runtime_inputs
-from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_executable
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 
 
 def _completed(code: int, stdout: str = "", stderr: str = ""):
@@ -30,18 +30,82 @@ def test_node_runtime_resolves_the_installed_platform_layout(
     executable = tmp_path / node_relative
     executable.parent.mkdir(parents=True, exist_ok=True)
     executable.touch(mode=0o755)
+    npm = tmp_path / (
+        "node_modules/npm/bin/npm-cli.js"
+        if platform_name == "nt"
+        else "lib/node_modules/npm/bin/npm-cli.js"
+    )
+    npm.parent.mkdir(parents=True)
+    npm.write_text("// Native npm entrypoint.\n")
 
-    node = resolve_node_executable(
+    node = resolve_node_runtime(
         package_root=tmp_path,
         platform_name=platform_name,
     )
 
-    assert node == tmp_path / node_relative
+    assert node.executable == tmp_path / node_relative
+    assert node.npm == npm
 
 
 def test_node_runtime_fails_before_build_for_an_incomplete_supply(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="package-local Node executable is unavailable"):
-        resolve_node_executable(package_root=tmp_path, platform_name="nt")
+        resolve_node_runtime(package_root=tmp_path, platform_name="nt")
+
+
+def test_node_runtime_rejects_an_executable_without_its_native_npm(tmp_path: Path) -> None:
+    """A Node-only platform package cannot satisfy the complete runtime closure."""
+    executable = tmp_path / "bin/node"
+    executable.parent.mkdir()
+    executable.touch(mode=0o755)
+
+    with pytest.raises(ValueError, match="package-local npm CLI is unavailable"):
+        resolve_node_runtime(package_root=tmp_path, platform_name="posix")
+
+
+def test_runtime_inputs_cannot_escape_the_selected_root(tmp_path: Path) -> None:
+    root = tmp_path / "native"
+    node = root / "bin/node"
+    node.parent.mkdir(parents=True)
+    node.write_bytes(b"selected native bytes")
+    node.chmod(0o755)
+    npm = root / "lib/node_modules/npm/bin/npm-cli.js"
+    npm.parent.mkdir(parents=True)
+    outside = tmp_path / "foreign-npm.js"
+    outside.write_text("// foreign executable\n")
+    npm.symlink_to(outside)
+    with pytest.raises(ValueError, match="native_node_runtime_path_invalid"):
+        resolve_node_runtime(package_root=root, platform_name="posix")
+
+
+def test_source_runtime_uses_the_locked_product_npm_not_the_bootstrap_bundle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A native Node archive does not own the product package-manager version."""
+    native = tmp_path / "native"
+    executable = native / "bin/node"
+    executable.parent.mkdir(parents=True)
+    executable.touch(mode=0o755)
+    bootstrap = native / "lib/node_modules/npm/bin/npm-cli.js"
+    bootstrap.parent.mkdir(parents=True)
+    bootstrap.write_text("// Bootstrap-only npm.\n")
+    product = tmp_path / "product/node_modules/npm"
+    npm = product / "bin/npm-cli.js"
+    npm.parent.mkdir(parents=True)
+    npm.write_text("// Lock-owned product npm.\n")
+    monkeypatch.setattr(runtime_inputs, "canonical_resource", lambda _: tmp_path / "pyproject.toml")
+    monkeypatch.setattr(runtime_inputs, "packaged_resource", lambda *_: tmp_path / "installed")
+    monkeypatch.setattr(
+        runtime_inputs.NodeSupply,
+        "read",
+        lambda _: SimpleNamespace(installed_root=lambda _: native),
+    )
+    monkeypatch.setattr(runtime_inputs, "product_node_module", lambda _: product, raising=False)
+
+    runtime = resolve_node_runtime()
+
+    assert runtime.executable == executable
+    assert runtime.npm == npm
+    assert runtime.npm != bootstrap
 
 
 def _managed_runtime_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple[Path, Path]:

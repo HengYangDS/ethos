@@ -14,7 +14,6 @@ import sys
 import tarfile
 import tomllib
 from dataclasses import dataclass
-from importlib import import_module
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit
@@ -24,9 +23,13 @@ from filelock import Timeout
 from packaging.version import Version
 
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
+from ethos.adapters.repo.runtime.materialization.node.supply import NodeRuntime
+from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
 from ethos.adapters.toolchain.mise import MISE_CONFIG
 from ethos.adapters.toolchain.mise import MISE_LOCK
 from ethos.adapters.toolchain.mise import mise_executable
+from ethos.adapters.toolchain.mise import native_tool_cache
 from ethos.adapters.toolchain.mise import run_mise
 
 
@@ -67,7 +70,7 @@ class NativeSupply:
         target = (
             f"{'macos' if system == 'Darwin' else 'linux'}-{'x64' if arch == 'x86_64' else arch}"
         )
-        if len(records) != 1 or locked.get("lockfile_version") != 2:
+        if len(records) != 1 or locked.get("lockfile_version") != 3:
             msg = f"native_tool_lock_mismatch:{name}"
             raise ValueError(msg)
         material = records[0][f"platforms.{target}"]
@@ -145,22 +148,6 @@ def _directory(path: Path) -> None:
         component.mkdir(exist_ok=True)
 
 
-def _cache_root(root: Path) -> Path:
-    """Share default native supply across linked worktrees, honoring explicit CI roots."""
-    selected = os.environ.get("ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR") or os.environ.get(
-        "ETHOS_CI_TOOL_CACHE_DIR"
-    )
-    if selected:
-        home = Path(selected)
-        return home if home.is_absolute() else root / home
-    common = import_module("ethos.adapters.repo.git").git_common_dir(root)
-    return (
-        Path(common) / "ethos/tool-cache/ci-tools"
-        if common
-        else root / "build/runtime/tool-cache/ci-tools"
-    )
-
-
 def _immutable_hosted_supply() -> bool:
     """Hosted image jobs may verify cached tools but never download replacements."""
     return bool(os.environ.get("ETHOS_CI_SUPPLY_MANIFEST"))
@@ -233,7 +220,11 @@ def prepare_mise(root: Path) -> Path:
         return executable
     content = validate_mise_installer(root)
     home = (
-        _cache_root(root) / "mise" / version / f"{platform.system()}_{platform.machine()}" / "bin"
+        native_tool_cache(root)
+        / "mise"
+        / version
+        / f"{platform.system()}_{platform.machine()}"
+        / "bin"
     )
     _directory(home)
     executable = home / "mise"
@@ -297,8 +288,12 @@ def download(command: tuple[str, ...], *, root: Path, timeout: float = 180) -> N
 def prepare(root: Path, name: str, *, lock_timeout: float = 30, mise: Path | None = None) -> Path:
     """Converge one declared identity without privileged writes or duplicate effects."""
     root = root.resolve(strict=True)
-    supply = NativeSupply.read(root, name)
-    cache = _cache_root(root) / name / supply.version / supply.platform
+    supply = NodeSupply.read(root) if name == "node" else NativeSupply.read(root, name)
+    cache = (
+        supply.cache(root)
+        if isinstance(supply, NodeSupply)
+        else native_tool_cache(root) / name / supply.version / supply.platform
+    )
     _directory(cache)
     lock = cache / ".prepare.lock"
     if lock.is_symlink() or (lock.exists() and not lock.is_file()):
@@ -311,7 +306,7 @@ def prepare(root: Path, name: str, *, lock_timeout: float = 30, mise: Path | Non
             selected = archive
             if not archive.exists() and not archive.is_symlink():
                 if _immutable_hosted_supply():
-                    message = f"native_tool_offline_cache_missing:{supply.name}"
+                    message = f"native_tool_offline_cache_missing:{name}"
                     raise ValueError(message)
                 isolated = Path(scratch)
                 for source in (MISE_CONFIG, MISE_LOCK):
@@ -319,14 +314,21 @@ def prepare(root: Path, name: str, *, lock_timeout: float = 30, mise: Path | Non
                     target_config.parent.mkdir(parents=True, exist_ok=True)
                     target_config.write_bytes((root / source).read_bytes())
                 download(
-                    (str(mise or mise_executable()), "install", "--locked", supply.backend),
+                    (
+                        str(mise or mise_executable()),
+                        "install",
+                        "--locked",
+                        "node" if isinstance(supply, NodeSupply) else supply.backend,
+                    ),
                     root=isolated,
                 )
                 candidates = list((isolated / "data/downloads").rglob(supply.archive))
                 if len(candidates) != 1:
-                    msg = f"native_tool_download_unresolved:{supply.name}"
+                    msg = f"native_tool_download_unresolved:{name}"
                     raise ValueError(msg)
                 selected = candidates[0]
+            if isinstance(supply, NodeSupply):
+                return _prepare_node(supply, selected, cache, Path(scratch))
             expected = supply.executable_bytes(selected)
             if selected != archive:
                 selected.replace(archive)
@@ -344,6 +346,30 @@ def prepare(root: Path, name: str, *, lock_timeout: float = 30, mise: Path | Non
                 supply.verify(prepared)
                 prepared.replace(target)
     return cache
+
+
+def _prepare_node(supply: NodeSupply, archive: Path, cache: Path, scratch: Path) -> Path:
+    """Compare complete retained bytes before native execution and atomic publication."""
+    prepared = supply.project(archive, scratch / "native")
+    expected_archive = cache / supply.archive
+    if archive != expected_archive:
+        archive.replace(expected_archive)
+    runtime = cache / "runtime"
+    if runtime.is_symlink() or runtime.is_junction():
+        message = f"native_tool_cache_path_unsafe:{runtime}"
+        raise ValueError(message)
+    if runtime.exists():
+        if runtime_file_inventory(runtime) != runtime_file_inventory(prepared):
+            message = "native_node_cached_runtime_invalid"
+            raise ValueError(message)
+    else:
+        prepared.replace(runtime)
+    executable = NodeRuntime.read(runtime, windows=supply.target.startswith("windows-")).executable
+    observed = run_command(scratch, (str(executable), "--version"), timeout=15)
+    if observed.returncode or observed.stderr or observed.stdout.strip() != f"v{supply.version}":
+        message = "native_node_cached_runtime_invalid"
+        raise ValueError(message)
+    return executable.parent
 
 
 def declared_go_version(root: Path) -> str | None:
@@ -417,7 +443,8 @@ def mise_tool_paths(root: Path, mise: Path) -> list[Path]:
         )
         sys.stderr.write(result.stdout + result.stderr)
         result.check_returncode()
-    return [locked_go_bin(root, mise, go_version)] if go_version is not None else []
+    node = prepare(root, "node", mise=mise)
+    return [node] + ([locked_go_bin(root, mise, go_version)] if go_version is not None else [])
 
 
 def main() -> int:
@@ -426,7 +453,7 @@ def main() -> int:
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--mise", action="store_true")
     parser.add_argument("--render-installer", action="store_true")
-    parser.add_argument("tools", nargs="*", choices=("scc", "gitleaks", "syft"))
+    parser.add_argument("tools", nargs="*", choices=("scc", "gitleaks", "syft", "node"))
     arguments = parser.parse_args()
     try:
         if arguments.render_installer:

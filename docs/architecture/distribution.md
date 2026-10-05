@@ -44,28 +44,39 @@ ETHOS command plane.
 
 ## Node Runtime Compatibility
 
-Node runtime ownership remains layered rather than mechanically unified:
+`.config/mise/config.toml` selects the exact Node release; its native lock owns
+platform archive URLs and SHA-256 digests. CI versions are compiled projections
+of that declaration, not another compatibility or checksum policy.
 
-- A maintainer host runtime is owned by host software
-  supply chain, not by this repository.
-- `.config/checks/node/runtime.toml` owns the exact releases used to prove the
-  npm launcher and the pinned Linux archive SHA-256 values. The declared set
-  contains the selected current LTS and stable release lines.
-- The Python distribution declares one platform Node payload solely to execute
-  its bundled OpenSpec package without a global Node or PATH fallback. That
-  payload owns no repository Node matrix, package workflow, or policy.
-- `tools/ci/scripts/install-node.sh` verifies the selected official archive
-  against that policy before extraction.
-- Hosted npm compatibility jobs select one exact declared release and execute
-  `tools/ci/scripts/run-node-compatibility.sh`.
-- Hosted packaging uses the policy default; the matrix separately proves every
-  declared compatibility release without preserving a future-promotion state.
-- IDE-, desktop-, and application-managed Node runtimes remain owned by those
-  applications and are not repository mutation targets.
+- `tools/ci/toolchain/native.py --mise` prepares and verifies the official archive
+  through the existing Mise download, cache, lock and scratch owners. Source
+  execution consumes only that verified cache, never ambient Node or npm.
+- The Python wheel carries the qualified Node-only runtime under `resources/node`.
+  The existing `package.json` and `package-lock.json` uniquely select the product
+  npm module, shipped with the other locked product modules. Installed execution
+  uses that module with the shipped Node executable, without adopter source,
+  global installation or PATH fallback. Package builds consume prepared supply
+  and never download it.
+- Hosted bootstrap synchronizes build-only Python dependencies, prepares native
+  supply, installs locked npm packages with `NodeRuntime.executable` and `.npm`,
+  then synchronizes the project. The Linux supply image copies the complete
+  source import closure only during construction and removes it before shipping;
+  checkout-owned verification rechecks cached bytes before execution.
+- Native Nox `javascript_tests` executes package behavior on the selected supply.
+  Host conformance retains Linux, macOS and Windows qualification; compilation
+  alone does not prove a hosted job, built image or installed successor.
+- Official GNU/Linux archives require glibc 2.28 or newer; they are not musl
+  support or manylinux certification. Platform wheel tags and runtime acceptance
+  remain obligations of the native supply and packaging owners.
+- Host-, IDE-, desktop- and application-managed runtimes retain their own
+  installation owners and are not repository mutation targets.
 
-The exact Node proof uses the npm bundled with each official Node archive. The
-declared matrix therefore proves Node and its bundled npm as one official
-runtime identity rather than declaring a second independently provisioned npm.
+The native Node archive retains bundled npm only as a verified build-only seed
+for the first script-disabled locked install. It is excluded from the emitted
+wheel and is not the product npm authority. Subsequent commands resolve the
+package-lock-owned npm module through the existing runtime resolver; CI has no
+separate npm version selector or installer. Local audit disposition never
+permits CI, public release or distribution.
 
 Published package scope is intentionally narrower than repository history.
 Distribution manifests must use explicit allowlists for neutral launcher assets

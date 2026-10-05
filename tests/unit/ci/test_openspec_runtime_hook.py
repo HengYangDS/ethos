@@ -78,10 +78,37 @@ def test_build_hook_loads_the_single_source_supply_owner_without_installed_ethos
             observed.append(("resolve", root))
             return supply, (Path("direct"),)
 
+    class NativeSupply:
+        archive = "official.tar.gz"
+        tag = "py3-none-macosx_14_0_arm64"
+
+        @classmethod
+        def read(cls, root: Path) -> type[NativeSupply]:
+            assert root == tmp_path
+            observed.append(("node", root))
+            return cls
+
+        @staticmethod
+        def cache(root: Path) -> Path:
+            return root / "native-cache"
+
+        @staticmethod
+        def project(archive: Path, destination: Path, *, bootstrap_npm: bool = True) -> Path:
+            assert archive == tmp_path / "native-cache/official.tar.gz"
+            assert bootstrap_npm is False
+            destination.mkdir()
+            return destination
+
+    class NodeOwner:
+        NodeSupply = NativeSupply
+
     def import_owner(name: str) -> object:
         if name == "ethos.repository.release.resources":
             assert source_path in subject.sys.path
             return resource_layout
+        if name == "ethos.adapters.repo.runtime.materialization.node.supply":
+            assert source_path in subject.sys.path
+            return NodeOwner
         assert name == ("ethos.adapters.repo.runtime.materialization.node_package_supply")
         assert source_path in subject.sys.path
         return SupplyOwner
@@ -99,7 +126,7 @@ def test_build_hook_loads_the_single_source_supply_owner_without_installed_ethos
     hook.initialize("standard", data)
     hook.finalize("standard", data, "artifact")
 
-    assert observed == [("resolve", tmp_path)]
+    assert observed == [("resolve", tmp_path), ("node", tmp_path)]
     assert source_path not in subject.sys.path
     assert data["force_include"][str(supply / "direct")] == ("ethos/resources/node_modules/direct")
 
@@ -110,6 +137,11 @@ def test_build_hook_projects_prepared_production_supply_without_npm_or_temp_tree
 ) -> None:
     supply = _prepared_supply(tmp_path)
     monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", str(supply))
+    native = tmp_path / "complete-node"
+    native.mkdir()
+    monkeypatch.setattr(
+        subject, "_node_projection", lambda _root, _directory: (native, "py3-none-linux_x86_64")
+    )
     monkeypatch.setattr(
         subject,
         "_build_identity_payload",
@@ -198,3 +230,33 @@ def test_sdist_carries_the_same_prepared_production_supply(
     hook.finalize("standard", data, "artifact")
 
     assert data["force_include"][str(supply / "direct")] == "node_modules/direct"
+
+
+def test_wheel_projects_the_complete_native_runtime_with_a_platform_tag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Pure Python metadata must not misrepresent a wheel carrying native Node."""
+    supply = _prepared_supply(tmp_path)
+    native = tmp_path / "native-node"
+    native.mkdir()
+    monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", str(supply))
+    monkeypatch.setattr(
+        subject,
+        "_build_identity_payload",
+        lambda _: (b'{"schema_version":2}\n', "0.2.0a3.dev0+gaaaaaaaaaaaa.tbbbbbbbbbbbb"),
+    )
+    monkeypatch.setattr(
+        subject,
+        "_node_projection",
+        lambda _root, _directory: (native, "py3-none-linux_x86_64"),
+        raising=False,
+    )
+    data: dict = {"force_include": {}}
+    hook = _hook(tmp_path)
+    try:
+        hook.initialize("standard", data)
+        assert data["force_include"][str(native)] == "ethos/resources/node"
+        assert data["pure_python"] is False
+        assert data["tag"] == "py3-none-linux_x86_64"
+    finally:
+        hook.finalize("standard", data, "artifact")

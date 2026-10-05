@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import sys
 import tomllib
 from pathlib import Path
@@ -130,17 +131,23 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_pa
     copy_sources = {
         source
         for line in dockerfile.replace("\\\n", " ").splitlines()
-        if line.startswith("COPY ")
+        if line.startswith("COPY ") and not line.startswith("COPY --from=")
         for source in shlex.split(line)[1:-1]
     }
     manifest_inputs = set(manifest.group("inputs").replace("\\\n", " ").split())
     # Build-only implementation is copied for provisioning, then removed and revalidated at use.
     assert manifest_inputs <= copy_sources
+    assert "src/ethos" in copy_sources
+    assert "rm -rf .venv node_modules src/ethos" in dockerfile
+    final_stage = dockerfile.rsplit("FROM base\n", 1)[1]
+    assert "COPY --from=prepare --chown=65534:65534 /opt/ethos-supply" in final_stage
+    assert "src/ethos" not in final_stage
     # Dependency supply does not build the project wheel or consume its prose/version.
     assert {"README.md", "VERSION"}.isdisjoint(manifest_inputs)
     for path in copy_sources:
-        assert (ROOT / path).is_file()
-        assert f"!{path}" in context_rules
+        assert (ROOT / path).exists()
+        allow = f"!{path}/**" if (ROOT / path).is_dir() else f"!{path}"
+        assert allow in context_rules
         for parent in Path(path).parents:
             if parent != Path():
                 assert f"!{parent.as_posix()}/" in context_rules
@@ -158,7 +165,10 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_pa
     for relative in copy_sources:
         target = tmp_path / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes((ROOT / relative).read_bytes())
+        if (ROOT / relative).is_dir():
+            shutil.copytree(ROOT / relative, target)
+        else:
+            target.write_bytes((ROOT / relative).read_bytes())
     environment = {
         "PYTHONPATH": str(tmp_path / "src"),
         "ETHOS_CI_TOOL_CACHE_DIR": str(tmp_path / "tool-cache"),
@@ -178,8 +188,8 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_pa
             "-c",
             (
                 "from pathlib import Path\n"
-                "from tools.ci.toolchain.native import _cache_root\n"
-                "print(_cache_root(Path.cwd()))\n"
+                "from ethos.adapters.toolchain.mise import native_tool_cache\n"
+                "print(native_tool_cache(Path.cwd()))\n"
             ),
         ),
         env=environment,
@@ -284,24 +294,24 @@ def test_integration_events_transport_exact_commit_range_coordinates(github, git
 
 def test_hosted_runtime_versions_are_checked_projections_of_native_owners(github, gitlab):
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())
-    node = tomllib.loads((ROOT / ".config/checks/node/runtime.toml").read_text())
+    mise = tomllib.loads((ROOT / ".config/mise/config.toml").read_text())
+    declaration = tomllib.loads((ROOT / owner.CONFIG_RELATIVE_PATH).read_text())
+    assert declaration["compiler"]["inputs"]["node"] == ".config/mise/config.toml"
     uv_version = next(
         item.removeprefix("uv>=")
         for item in project["dependency-groups"]["dev"]
         if item.startswith("uv>=")
     )
     steps = [step for job in github["jobs"].values() for step in job["steps"]]
-    for tool, field, expected in (
-        ("astral-sh/setup-uv@", "version", uv_version),
-        ("actions/setup-node@", "node-version", node["default_version"]),
-    ):
-        assert {step["with"][field] for step in steps if step.get("uses", "").startswith(tool)} == {
-            expected
-        }
-    assert (
-        gitlab["ethos:npm"]["parallel"]["matrix"][0]["NODE_VERSION"]
-        == node["compatibility_versions"]
-    )
+    assert {
+        step["with"]["version"]
+        for step in steps
+        if step.get("uses", "").startswith("astral-sh/setup-uv@")
+    } == {uv_version}
+    assert mise["tools"]["node"] in github["jobs"]["host-conformance"]["name"]
+    npm_job = gitlab["ethos:npm"]
+    assert npm_job["variables"]["NODE_VERSION"] == mise["tools"]["node"]
+    assert npm_job["script"][-1] == "uv run --frozen --offline python -m nox -s javascript_tests"
     images = {
         job["image"]
         for job in gitlab.values()
@@ -329,10 +339,18 @@ def test_host_conformance_receives_native_python_supply_before_activation(github
     assert setup_uv["with"]["python-version"] == "${{ matrix.python }}"
     preparation = [
         "uv python install --no-bin ${{ matrix.python }}",
+        "uv sync --locked --no-install-project --group dev",
+        "uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise",
         "uv sync --locked --group dev",
         "uv run --frozen python -m nox -s host_conformance",
+        "uv run --frozen python -m nox -s javascript_tests",
     ]
     assert [command for command in commands if command in preparation] == preparation
+    npm_sync = next(command for command in commands if "ci --ignore-scripts" in command)
+    assert (
+        commands.index(preparation[1]) < commands.index(preparation[2]) < commands.index(npm_sync)
+    )
+    assert commands.index(npm_sync) < commands.index(preparation[3])
 
     gitlab_job = gitlab["ethos:host-conformance"]
     assert gitlab_job["stage"] == "verify"

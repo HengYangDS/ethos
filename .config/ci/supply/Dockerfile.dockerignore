@@ -5,8 +5,6 @@
 !package-lock.json
 !.config/
 !.config/checks/
-!.config/checks/node/
-!.config/checks/node/runtime.toml
 !.config/checks/ci/
 !.config/checks/ci/templates.toml
 !.config/ci/
@@ -24,7 +22,6 @@
 !tools/
 !tools/ci/
 !tools/ci/scripts/
-!tools/ci/scripts/install-node.sh
 !tools/ci/scripts/download-file.sh
 !tools/ci/scripts/with-python-runtime.sh
 !tools/ci/scripts/mise-install.sh
@@ -32,10 +29,6 @@
 !tools/ci/toolchain/native.py
 !src/
 !src/ethos/
-!src/ethos/__init__.py
-!src/ethos/adapters/
-!src/ethos/adapters/__init__.py
-!src/ethos/adapters/process.py
-!src/ethos/adapters/toolchain/
-!src/ethos/adapters/toolchain/__init__.py
-!src/ethos/adapters/toolchain/mise.py
+!src/ethos/**
+**/__pycache__/
+**/*.pyc

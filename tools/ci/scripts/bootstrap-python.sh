@@ -107,23 +107,54 @@ if [[ "${actual_uv}" != "${required_uv}" ]]; then
 	exit 1
 fi
 
-# The OpenSpec shim execs npx. Hosted Python images do not supply Node, and
-# this runner's Debian mirror can stall during apt installation. Reuse the
-# checksum-pinned Node archive installer so every hosted job has node/npm/npx
-# without a Debian package dependency.
-if ! command -v npx >/dev/null 2>&1; then
-	"${script_dir}/install-node.sh"
-fi
+# Build-only dependencies make the current source verifier available before Hatch runs.
 uv --version
-if [[ ! -x "${repo_root}/node_modules/.bin/openspec" ]]; then npm ci --ignore-scripts; fi
-"${repo_root}/node_modules/.bin/openspec" --version
+uv sync --locked --no-install-project --group dev
+native_tools=(--mise)
+if [[ -n ${ETHOS_CI_SUPPLY_MANIFEST:-} ]]; then native_tools+=(gitleaks scc syft); fi
+native_paths="$(
+	PYTHONPATH="${repo_root}/src" "${UV_PROJECT_ENVIRONMENT}/bin/python" -B \
+		"${repo_root}/tools/ci/toolchain/native.py" --root "${repo_root}" "${native_tools[@]}"
+)"
+export PATH="${native_paths}:${PATH}"
+
+# Archive npm is a verified first-install seed, not the product npm authority.
+PYTHONPATH="${repo_root}/src" "${UV_PROJECT_ENVIRONMENT}/bin/python" -B - "${repo_root}" <<'PY_NPM'
+import os
+import sys
+from pathlib import Path
+
+from ethos.adapters.process import run_command
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
+from ethos.adapters.repo.runtime.materialization.node.supply import NodeRuntime, NodeSupply
+
+root = Path(sys.argv[1])
+runtime = NodeRuntime.read(NodeSupply.read(root).installed_root(root), windows=os.name == "nt")
+environment = {
+    "PATH": os.pathsep.join((str(runtime.executable.parent), os.environ["PATH"])),
+    "npm_config_engine_strict": "true",
+    "npm_config_audit": "false",
+    "npm_config_fund": "false",
+    "npm_config_update_notifier": "false",
+}
+observed = run_command(
+    root, (str(runtime.executable), str(runtime.npm), "ci", "--ignore-scripts"),
+    env=environment, timeout=120, check=True,
+)
+sys.stdout.write(observed.stdout)
+sys.stderr.write(observed.stderr)
+# Product commands now resolve the package-lock-owned npm, never the archive seed.
+runtime = resolve_node_runtime()
+for command in (
+    (str(runtime.executable), str(runtime.npm), "--version"),
+    (str(runtime.executable), str(root / "node_modules/@fission-ai/openspec/bin/openspec.js"), "--version"),
+):
+    observed = run_command(root, command, env=environment, timeout=120, check=True)
+    sys.stdout.write(observed.stdout)
+    sys.stderr.write(observed.stderr)
+PY_NPM
 uv sync --locked --group dev
 "${UV_PROJECT_ENVIRONMENT}/bin/python" -B -I tools/ci/toolchain/fixture_supply.py "${repo_root}"
-
-# Image reuse is safe only after the checkout's current verifier checks cached tool bytes.
-if [[ -n ${ETHOS_CI_SUPPLY_MANIFEST:-} ]]; then
-	"${UV_PROJECT_ENVIRONMENT}/bin/python" -B tools/ci/toolchain/native.py --root "${repo_root}" --mise gitleaks scc syft >/dev/null
-fi
 
 # The runner/operator supplies this protected public anchor outside the checkout.
 # No candidate key discovery, signer generation or user identity mutation occurs.

@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import stat
 import subprocess
 import tomllib
 from dataclasses import replace
@@ -22,6 +21,9 @@ import tools.ci.local_ci as local_ci
 import tools.ci.python_test_gate as python_test_gate
 import tools.ci.sessions as ci_sessions
 from ethos.adapters.gates.runner import ActionRunResult
+from ethos.adapters.process import run_command
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
+from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
 from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos.contracts.artifacts.topology import path_policy_from_declaration
 from ethos.repository.policy.references.observation import reference_consumer_sources_from_files
@@ -35,66 +37,35 @@ if TYPE_CHECKING:
     import nox
 
 ROOT = Path(__file__).resolve().parents[2]
-NODE_POLICY = tomllib.loads((ROOT / ".config/checks/node/runtime.toml").read_text(encoding="utf-8"))
 
 
-def test_node_policy_checksum_and_executable_state() -> None:
-    checksums = NODE_POLICY["archive_sha256"]
-    assert all(set(values) == {"linux_arm64", "linux_x64"} for values in checksums.values())
-    assert all(
-        re.fullmatch(r"[a-f0-9]{64}", digest)
-        for values in checksums.values()
-        for digest in values.values()
-    )
-    runner = ROOT / "tools/ci/scripts/run-node-compatibility.sh"
-    assert runner.stat().st_mode & stat.S_IXUSR
-    installer = (ROOT / "tools/ci/scripts/install-node.sh").read_text(encoding="utf-8")
-    assert 'version="${NODE_VERSION:-}"' in installer
-    assert installer.index('version="${NODE_VERSION:-}"') < installer.index("command -v node")
-    assert NODE_POLICY["default_version"] not in installer
-    assert ".config/checks/node/runtime.toml" in installer
+def test_native_node_identity_uses_the_mise_declaration_and_lock() -> None:
+    """CI and source builds select one platform archive, not an ambient Node."""
+    declaration = tomllib.loads((ROOT / ".config/mise/config.toml").read_text())
+    locked = tomllib.loads((ROOT / ".config/mise/mise.lock").read_text())
+    supply = NodeSupply.read(ROOT)
+    (record,) = [row for row in locked["tools"]["node"] if row["version"] == supply.version]
+    material = record[f"platforms.{supply.target}"]
+
+    assert supply.version == declaration["tools"]["node"]
+    assert material["url"] == supply.url
+    assert material["checksum"] == f"sha256:{supply.sha256}"
+    assert supply.installed_root(ROOT) == supply.cache(ROOT) / "runtime"
 
 
-def _nested_values(value: object) -> list[str]:
-    if isinstance(value, dict):
-        return [item for child in value.values() for item in _nested_values(child)]
-    return [str(value)]
-
-
-def test_downloaded_tool_installers_bind_one_native_supply_policy() -> None:
-    retired = ("system/tools.toml", "src/ethos/quality")
-    assert all(not (ROOT / path).exists() for path in retired)
-    installers = sorted((ROOT / "tools/ci/scripts").glob("install-*.sh"))
-    declared_policies = set()
-    for installer_path in installers:
-        installer = installer_path.read_text(encoding="utf-8")
-        policy_paths = set(re.findall(r"\.config/[A-Za-z0-9_./-]+\.toml", installer))
-        (policy_path,) = policy_paths
-        declared_policies.add(policy_path)
-        policy = tomllib.loads((ROOT / policy_path).read_text(encoding="utf-8"))
-        digests = [
-            value for value in _nested_values(policy) if re.fullmatch(r"[a-f0-9]{64}", value)
-        ]
-        assert digests
-        versions = [
-            value for value in _nested_values(policy) if re.fullmatch(r"\d+\.\d+\.\d+", value)
-        ]
-        assert versions
-        assert all(version not in installer for version in versions)
-
-    assert not (ROOT / "tools/ci/scripts/install-syft.sh").exists()
-    assert not (ROOT / ".config/checks/secrets/supply.toml").exists()
-
+def test_native_tool_declarations_have_one_locked_supply_identity() -> None:
+    """Native tool identities and archive digests share the Mise lock owner."""
     mise = tomllib.loads((ROOT / ".config/mise/config.toml").read_text())
-    locked = tomllib.loads((ROOT / ".config/mise/mise.lock").read_text())["tools"]
+    locked = tomllib.loads((ROOT / ".config/mise/mise.lock").read_text())
+    assert locked["lockfile_version"] == 3
     for name, version in mise["tools"].items():
-        assert any(item["version"] == version for item in locked[name])
-
-    assert declared_policies == {".config/checks/node/runtime.toml"}
+        (record,) = [row for row in locked["tools"][name] if row["version"] == version]
+        materials = [value for key, value in record.items() if key.startswith("platforms.")]
+        assert materials
+        assert all(re.fullmatch(r"sha256:[a-f0-9]{64}", value["checksum"]) for value in materials)
 
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())
     assert any(item.startswith("lychee-bin>=") for item in project["dependency-groups"]["dev"])
-    assert not (ROOT / "tools/ci/scripts/install-lychee.sh").exists()
 
 
 def test_python_bootstrap_supplies_the_declared_linux_signing_tool() -> None:
@@ -337,65 +308,28 @@ def test_config_quality_consumes_source_bound_node_package_supply(tmp_path, monk
     )
 
 
-def _run_node_compatibility(
-    tmp_path: Path,
-    requested_version: str,
-    active_version: str,
-    *,
-    supplied: bool = False,
-):
-    npm_log = tmp_path / "npm.log"
-    env = isolated_path(
-        tmp_path,
-        {
-            "node": "#!/bin/sh\nprintf 'v%s\\n' \"${FAKE_NODE_VERSION}\"\n",
-            "npm": '#!/bin/sh\nprintf \'%s|engine=%s\\n\' "$*" "${npm_config_engine_strict:-}" '
-            '>> "${FAKE_NPM_LOG}"\n',
-        },
-    ) | {
-        "NODE_VERSION": requested_version,
-        "FAKE_NODE_VERSION": active_version,
-        "FAKE_NPM_LOG": str(npm_log),
-    }
-    env.pop("ETHOS_CI_SUPPLY_MANIFEST", None)
-    if supplied:
-        env["ETHOS_CI_SUPPLY_MANIFEST"] = str(tmp_path / "supply.sha256")
-    bin_path, *_ = env["PATH"].split(os.pathsep)
-    env["PATH"] = os.pathsep.join((bin_path, os.environ["PATH"]))
-    result = subprocess.run(
-        ["/bin/bash", "tools/ci/scripts/run-node-compatibility.sh"],
-        cwd=ROOT,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return result, npm_log
-
-
-@pytest.mark.parametrize("version", NODE_POLICY["compatibility_versions"])
-@pytest.mark.parametrize("supplied", [False, True])
-def test_node_runtime_compatibility_accepts_each_declared_version(
-    tmp_path: Path,
-    version: str,
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    supplied: bool,
+def test_javascript_tests_execute_supplied_node_and_npm_with_shadowed_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("ETHOS_CI_SUPPLY_MANIFEST", "/ambient-runner-supply")
-    result, npm_log = _run_node_compatibility(tmp_path, version, version, supplied=supplied)
-    assert result.returncode == 0, result.stderr
-    assert npm_log.read_text(encoding="utf-8").splitlines() == [
-        "--version|engine=",
-        f"ci --ignore-scripts{' --offline' if supplied else ''}|engine=true",
-        "run ethos -- --version|engine=true",
-        "run test:npm|engine=true",
-    ]
+    """Real package tests keep the native child Node and remove their owned npm cache."""
+    shadow = isolated_path(
+        tmp_path,
+        {"node": "#!/bin/sh\nexit 83\n", "npm": "#!/bin/sh\nexit 84\n"},
+    )
+    monkeypatch.setenv("PATH", shadow["PATH"] + os.pathsep + os.environ["PATH"])
+    runtime = resolve_node_runtime()
+    observations = []
 
+    def execute(*command, env):
+        result = run_command(ROOT, tuple(command), env=env, timeout=60)
+        observations.append((command, env, result))
+        assert result.returncode == 0, result.stdout + result.stderr
 
-def test_node_runtime_compatibility_rejects_active_version_drift(tmp_path: Path) -> None:
-    requested, active = NODE_POLICY["default_version"], "0.0.0"
-    result, npm_log = _run_node_compatibility(tmp_path, requested, active)
-    assert result.returncode != 0
-    assert f"Node runtime mismatch: requested {requested}, active {active}" in result.stderr
-    assert not npm_log.exists()
+    ci_sessions.javascript_tests(SimpleNamespace(run=execute))
+
+    ((command, environment, result),) = observations
+    assert command == (str(runtime.executable), str(runtime.npm), "run", "test:npm")
+    assert environment["PATH"].split(os.pathsep)[0] == str(runtime.executable.parent)
+    assert environment["npm_config_offline"] == "true"
+    assert not Path(environment["npm_config_cache"]).exists()
+    assert "test:npm" in result.stdout + result.stderr

@@ -54,6 +54,10 @@ class OpenSpecRuntimeHook(BuildHookInterface):
                     else Path(layout.WHEEL_RESOURCE_ROOT) / "node_modules"
                 )
             build_data["force_include"][str(identity_file)] = destination
+            if self.target_name == "wheel":
+                native, tag = _node_projection(root, Path(owned.name) / "native")
+                build_data["force_include"][str(native)] = (Path(resource_root) / "node").as_posix()
+                build_data.update(pure_python=False, tag=tag)
             for relative in production_roots:
                 target = modules / relative
                 build_data["force_include"][str(supply / relative)] = target.as_posix()
@@ -96,6 +100,14 @@ def _prepared_projection(root: Path) -> tuple[Path, tuple[Path, ...]]:
             return owner.resolve_node_package_projection(root)
         except ValueError as error:
             raise RuntimeError(str(error)) from error
+
+
+def _node_projection(root: Path, directory: Path) -> tuple[Path, str]:
+    """Project verified cached native bytes; artifact builds never download supply."""
+    with _source_module(root, "ethos.adapters.repo.runtime.materialization.node.supply") as owner:
+        supply = owner.NodeSupply.read(root)
+        native = supply.project(supply.cache(root) / supply.archive, directory, bootstrap_npm=False)
+        return native, supply.tag
 
 
 def _distribution_identity_mismatch() -> None:

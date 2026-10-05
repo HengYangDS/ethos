@@ -4,9 +4,10 @@ locked = true
 not_found_system_fallback = false
 idiomatic_version_file_enable_tools = []
 [tools]
+node = "26.10.0"
 cue = "0.17.1"
 go = "1.27.1"
 "github:rhysd/actionlint" = "1.7.12"
 "github:boyter/scc" = "4.1.0"
 "github:gitleaks/gitleaks" = "8.30.1"
-"github:anchore/syft" = "1.52.0"
+"github:anchore/syft" = "1.54.0"

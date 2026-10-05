@@ -394,7 +394,7 @@ def test_native_tool_absence_does_not_become_quality_success(tmp_path: Path, mon
         message = "native_tool_unavailable:node"
         raise ValueError(message)
 
-    monkeypatch.setattr(analysis, "resolve_node_executable", unavailable)
+    monkeypatch.setattr(analysis, "resolve_node_runtime", unavailable)
     assert native_quality.static_report(repo)["required_gaps"] == [
         "quality_static-analysis_native_tool_unavailable:node"
     ]

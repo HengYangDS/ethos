@@ -77,7 +77,7 @@ def _native_supply(
     (repo / ".config/mise/config.toml").write_text(f'[tools]\n"{backend}" = "{version}"\n')
     checksum = "0" * 64 if fault == "digest" else digest
     (repo / ".config/mise/mise.lock").write_text(
-        f'lockfile_version = 2\n[[tools."{backend}"]]\nversion = "{version}"\n'
+        f'lockfile_version = 3\n[[tools."{backend}"]]\nversion = "{version}"\n'
         f'[tools."{backend}"."platforms.{target}"]\nchecksum = "sha256:{checksum}"\n'
         f'url = "https://github.com/fixture/{tool}/releases/download/v{version}/fixture.tar.gz"\n'
     )
@@ -387,7 +387,11 @@ def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(
     monkeypatch.setattr(native, "prepare", prepared)
     monkeypatch.setattr(sys, "argv", ["native", "--root", str(tmp_path), "--mise", "scc"])
     assert native.main() == (0 if accepted else 1)
-    expected = [call(tmp_path, "scc", mise=target)] if accepted else []
+    expected = (
+        [call(tmp_path, "node", mise=target), call(tmp_path, "scc", mise=target)]
+        if accepted
+        else []
+    )
     assert prepared.call_args_list == expected
     assert target.read_bytes() == (body.encode() if accepted else before)
     assert not list(target.parent.glob(".bootstrap-*"))

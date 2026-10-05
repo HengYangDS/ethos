@@ -78,7 +78,7 @@ def _shell_candidate_lines(text: str) -> list[str]:
     array_depth = 0
     continued = ""
     for raw in text.splitlines():
-        line = continued + raw.strip()
+        line = continued + raw if continued else raw.strip()
         continued = ""
 
         if heredoc:
@@ -87,8 +87,12 @@ def _shell_candidate_lines(text: str) -> list[str]:
         if array_depth:
             array_depth += line.count("(") - line.count(")")
             continue
-        if len(line) - len(line.rstrip("\\")) & 1:
-            continued = line[:-1] + " "
+        lexer = shlex.shlex(line, posix=True, punctuation_chars=";&|()")
+        lexer.whitespace_split, lexer.commenters = True, "#"
+        try:
+            list(lexer)
+        except ValueError:
+            continued = line[:-1] + " " if lexer.state == "\\" else line + "\n"
             continue
         if re.match(r"[A-Za-z_]\w*=\(", line):
             array_depth = line.count("(") - line.count(")")

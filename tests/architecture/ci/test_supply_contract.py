@@ -30,7 +30,6 @@ def test_image_manifest_binds_supply_declarations_not_build_only_product_code() 
     inputs = set(_image_input_paths())
 
     assert {
-        ".config/checks/node/runtime.toml",
         ".config/checks/ci/templates.toml",
         ".config/mise/config.toml",
         ".config/mise/mise.lock",
@@ -57,17 +56,21 @@ def test_image_manifest_binds_supply_declarations_not_build_only_product_code() 
 def test_hosted_bootstrap_rechecks_cached_tools_with_current_checkout_code() -> None:
     """Removing source hashes requires an offline payload check before quality gates."""
     source = BOOTSTRAP.read_text(encoding="utf-8")
-    assert "npm ci --ignore-scripts" in source
-    assert "tools/ci/toolchain/native.py --root" in source
+    dependencies = source.index("uv sync --locked --no-install-project --group dev")
+    verifier = source.index("tools/ci/toolchain/native.py")
+    npm_sync = source.index("resolve_node_runtime")
     installation = source.index("uv sync --locked --group dev")
     fixture_supply = source.index("tools/ci/toolchain/fixture_supply.py")
-    verifier = source.index("tools/ci/toolchain/native.py --root")
-    assert installation < fixture_supply < verifier < source.index("python_image_available()")
-    guarded = source[installation : source.index("python_image_available()")]
-    assert "tools/ci/toolchain/fixture_supply.py" in guarded
-    assert "ETHOS_CI_SUPPLY_MANIFEST" in guarded
-    assert "--mise gitleaks scc syft" in guarded
-    assert "${UV_PROJECT_ENVIRONMENT}/bin/python" in guarded
+    assert dependencies < verifier < npm_sync < installation < fixture_supply
+    assert fixture_supply < source.index("python_image_available()")
+    preparation = source[dependencies:installation]
+    assert "--mise" in preparation
+    assert "gitleaks scc syft" in preparation
+    assert "ETHOS_CI_SUPPLY_MANIFEST" in preparation
+    assert "${UV_PROJECT_ENVIRONMENT}/bin/python" in preparation
+    assert '"ci", "--ignore-scripts"' in preparation
+    assert "runtime.executable" in preparation
+    assert "runtime.npm" in preparation
 
 
 def test_fixture_supply_uses_tracked_locks_and_cleans_owned_environment(

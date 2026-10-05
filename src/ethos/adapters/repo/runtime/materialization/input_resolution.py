@@ -15,8 +15,9 @@ from pathlib import Path
 from typing import NoReturn
 from urllib.parse import urlparse
 
-import nodejs_wheel
-
+from ethos.adapters.repo.runtime.materialization.node.supply import NodeRuntime
+from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
+from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.adapters.repo.runtime.materialization.node_package_supply import (
     resolve_node_package_supply,
 )
@@ -25,6 +26,7 @@ from ethos.adapters.repo.runtime.materialization.python_environment import obser
 from ethos.adapters.repo.runtime.materialization.python_environment import same_python_path
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from ethos.repository.release.resources import canonical_resource
 from ethos.repository.release.resources import packaged_resource
 
 
@@ -39,18 +41,24 @@ def require_runtime_wheel_provenance() -> None:
         resolve_runtime_wheel(source, Path())
 
 
-def resolve_node_executable(
+def resolve_node_runtime(
     *,
     package_root: Path | None = None,
     platform_name: str | None = None,
-) -> Path:
-    """Return the validated Node executable from the locked package supply."""
-    root = package_root or Path(str(nodejs_wheel.__file__)).resolve().parent
+) -> NodeRuntime:
+    """Select source build supply or shipped runtime, never adopter or ambient Node."""
     platform = platform_name or os.name
-    node = root / "node.exe" if platform == "nt" else root / "bin/node"
-    if not node.is_file() or (platform != "nt" and not os.access(node, os.X_OK)):
-        _fail(f"package-local Node executable is unavailable: {node}")
-    return node
+    root = package_root
+    npm_root = None
+    if root is None:
+        project = canonical_resource("pyproject.toml").parent
+        root = (
+            packaged_resource("node")
+            if project == packaged_resource()
+            else NodeSupply.read(project).installed_root(project)
+        )
+        npm_root = product_node_module("npm")
+    return NodeRuntime.read(root, windows=platform == "nt", npm_root=npm_root)
 
 
 def resolve_runtime_wheel(

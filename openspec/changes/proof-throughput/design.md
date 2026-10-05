@@ -1,7 +1,14 @@
 ## Context
 
-Raw baseline, JUnit, cProfile and native Git Trace2 observations live in the
-existing ignored `build/evidence/quality/commit-integrity/` evidence root.
+Raw baseline, JUnit, cProfile and native Git Trace2 observations originated in
+the ignored `build/evidence/quality/commit-integrity/` evidence root. That former
+path is not a current retrieval guarantee after native custody migration.
+The two source-integrity receipts selected by session-independent recovery are
+preserved byte-for-byte in Attestation
+`0b5ced85312259fd8b373d6e45a3efa499417fbbef1289de666e7f0542f5391f`.
+Read it through `ethos attestation query --id 0b5ced85312259fd8b373d6e45a3efa499417fbbef1289de666e7f0542f5391f --json`.
+This non-authorizing record establishes preservation, not current proof or
+installed acceptance; other cited historical receipts retain their own custody.
 The canonical terminal plan owns the wider convergence sequence. This Change
 closes measured throughput, assurance and documentation-owner gaps through
 existing native owners.

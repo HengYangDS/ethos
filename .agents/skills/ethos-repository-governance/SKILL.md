@@ -36,6 +36,11 @@ Work Lanes, OpenSpec consumption, adoption profiles, or feedback-driven improvem
    Preserve global scope while closing bounded work. Select the failed owner,
    distinguish real improvement from a note or checkbox, remove superseded
    guidance, and keep unverified obligations open in the existing Change.
+   On session loss or handoff, follow the canonical plan's referenced tasks and
+   recover the causal invariant, owner, replaced remedy, evidence and open
+   acceptance from repository sources, not chat. Reuse unchanged evidence;
+   fresh native decisions select the next action. Use the bundled map to choose
+   the durable carrier before writing.
 
 ## Evidence
 

@@ -101,6 +101,9 @@ and reason to change, not by filename or storage location.
 | Proposed change, alternatives, experiment procedure and migration | Selected Change proposal, delta specs and design        | Research supplies attributed findings, not undeclared approved scope.           |
 | Bounded task progress                                             | Official Change tasks                                   | The terminal plan orders dependencies and exits without copying checkbox state. |
 | Executable behavior and policy                                    | Existing implementation, schema or native configuration | Adapters and generated views consume the owner.                                 |
+| Stable operational boundaries                                    | Applicable rule owner                                   | Skills route methods; native checks enforce decidable constraints.              |
+| Reusable task methods                                            | One applicable Skill and its selected references        | Consume native owners; do not duplicate policy, acceptance or progress.          |
+| Reproducible failure and distinguishing expectation                | Regression at the responsible behavior owner            | Check accepted meaning, valid controls and relevant unknown/recovery paths.     |
 | Observed execution, proof and effects                             | Exact evidence and necessary Attestations               | Reports cite facts; acceptance, installation and publication remain separate.   |
 | Reusable explanation, guidance and sourced synthesis              | Relevant docs topic                                     | Link supporting authorities; do not create another workflow or proof store.     |
 | Irreducible cross-Change rationale                                | One necessary decision record                           | Name the current owner; history does not grant permission.                      |
@@ -124,6 +127,16 @@ OpenSpec artifacts retain their own schema, not mandatory docs frontmatter.
 Use official context, rules, instructions, status, validation and archive; extend
 the artifact schema only for a proven artifact or dependency gap. OKF exchange
 is a consumer, not another source of accepted intent.
+
+Preserve useful knowledge where its next reader can act on it, not as a copy of
+the conversation. A lesson can require an owner correction and a regression;
+that relationship is not duplicated policy. Add rationale or a procedure only
+when it changes a later decision. Keep conditions, exceptions, evidence scope
+and the replaced remedy recoverable through that owner and Git history.
+Raw transcripts and machine memory support retrieval, never current authority.
+Open obligations remain in the existing Change; a handoff derives them rather
+than creating a second ledger. See [ETHOS source Learning And Change Relations](evolution-campaign.md "source-only")
+for repository-first continuation and domain transfer.
 
 ## Semantic Organization And Progressive Disclosure
 

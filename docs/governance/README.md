@@ -31,3 +31,4 @@ belongs under `docs/plans/` with `state: planned` until promoted.
 - [Optional Independent Verification Adoption](independent-verification-adoption.md)
 - [Config Boundary Model](config-boundary-model.md)
 - [Standards Adoption Policy](standards-adoption-policy.md)
+- [Learning And Change Relations](evolution-campaign.md)

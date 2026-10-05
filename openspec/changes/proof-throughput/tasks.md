@@ -320,6 +320,7 @@
   - [ ] Audit the 17 first-parent reductions whose Markdown preimage exceeded 500 nonblank lines (eight docs, eight live OpenSpec carriers, one archived Change). Map each still-live claim to its current owner or explicitly retire it; recover missing semantics, especially from the terminal plan's 6011-to-420 reduction. Git recoverability alone is insufficient. The decision-record identity and command-root drift found in this audit require exact proof and delivery before this task can close.
 - [ ] 12.5 Qualify a bounded OKF consumer when needed; preserve identity, scope, unknown fields and declared loss without inherited authority or a parallel knowledge store.
 - [ ] 12.6 Settle source research into its topic owner and execute the existing framework comparisons; report adoption or rejection from actual replacement evidence.
+      Native Claude/Astra review and deterministic comparisons are recorded in [verification research](../../../docs/research/foundations/verification.md#code-quality-and-review-tools); reproduced observation defects remain under 10.11, not accepted or installed fixes.
       [RepoWise disposition](../../../docs/research/foundations/semantics.md#repowise-navigation-without-imported-authority)
       retains completed health, pinned mechanism review and the useful unique-input
       repair. Promote successfully accepted navigation/quality capabilities through
@@ -344,11 +345,23 @@
 
 - [x] 13.1 Define source scope, disposition, unique ownership and evidence boundaries in the existing rules and official acceptance specification; remove contradictory guidance without a second feedback ledger.
 - [ ] 13.2 Enforce declared feedback closure through existing acceptance and verification owners.
+      Repository-wide carrier allocation and recursive learning remain explained
+      by [Learning And Change Relations](../../../docs/governance/evolution-campaign.md);
+      executable note-only/stale evidence refusal and domain outcomes remain open.
   - [ ] 13.2.1 Reject note-only, missing, stale and contradictory closure evidence while preserving independently admissible source work.
   - [ ] 13.2.2 Exercise model-gap escalation, dependent migration, superseded-path retirement and correction of ineffective feedback safeguards.
   - [ ] 13.2.3 Qualify self-hosting and distinct adopted business domains without sharing their goals, metrics or authority; bind actual-use observation and revised intent to the same complete acceptance trace used by greenfield-formation 2.3 and the canonical terminal plan.
 - [ ] 13.3 Wire feedback planning to canonical skill context; verify package integrity, trigger/non-trigger behavior and compiled pre-reads while keeping host loading and changed agent behavior distinct. Source joins selected dependency observations to registry/package identities and preserves the active section floor in one validator; invalid activation emits no Skills or context, without blocking unrelated optional packages. Signed source `7a8a6b04`: 49 tests, the public skills gate and 14 isolated installed-wheel observations pass; 29 fixture/cache roots and the isolated test installation retired after verified custody (`selected-skills-{source,installed,housekeeping}-result.json`). Publisher's retained signed fixture independently closes the installed defect through native hook/Lease and 14 public observations: `north-star-skills-successor-public-cases.json`, SHA256 `6a779029811928ca873b3860734ed7db3849a1e89d7bc7d48c580dc62828344a`. Host loading, behavior and accepted-runtime delivery remain open; old counterexamples remain history, not current defects.
       Current common-foundation scope is global, not Decision Record naming alone.
+      Two no-history read-only Agent observations locate canonical product and
+      progress owners and recover selected historical receipts. One exposes a
+      broken old evidence locator; its two
+      exact receipts now survive in non-authorizing Attestation
+      `0b5ced85312259fd8b373d6e45a3efa499417fbbef1289de666e7f0542f5391f`.
+      Native source/installed-resource fixtures and public owner checks pass
+      90 cases in 1.04 seconds; owned scratch is absent.
+      Retrieval alone does not close actual handoff, host loading, adopted-domain
+      behavior or accepted-runtime delivery; those obligations remain unchecked.
       The four self-maintenance Skills' declared-subject PASS does not cover the
       product journey. Installed source-access RED (missing documentation owner)
       now has three focused GREEN cases; exact package delivery, independent adopter

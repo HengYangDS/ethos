@@ -189,7 +189,7 @@ They remain external recovery evidence, not a runtime dependency or task ledger.
 | Vulture 2.16 | Product: confidence 100 gives zero findings in 0.606 s; confidence 60 gives 285 candidates in 0.661 s, including valid hooks and public entrypoints | Do not add a hard deletion gate. An unreachable-code control is detected, but call/registration ownership must establish whether product candidates are dead. |
 | mutmut 3.8.0 | Same extracted verdict owner, both variants 100% line coverage: weak assertions kill 2/31 mutants, semantic assertions 31/31; 1.668/1.613 s | Adopt targeted mutation as a test-design/review method. This qualifies this pure owner only, not all ETHOS tests or a global mutation score. |
 | RepoWise 0.55.0 | Offline production code-shape health: 362 metrics and 1,330 heuristic findings in 9.350 s | Reuse prioritization and batch context; no proof or automatic deletion. Tests were not copied, so `has_test_file=false` cannot establish missing tests. |
-| OCR 1.12.11 and Ponytail | Native delegate preview/rubric plus five hash-bound files; two real audit defects found. A later authorized model review failed at endpoint resolution | Retain scoped review. No external LLM was called; no actionable Ponytail cut was identified. This does not benchmark proprietary reviewer accuracy. |
+| OCR 1.12.11 and Ponytail | Delegate review found two real audit defects; subsequent native Claude and Astra calls reviewed the semantic owner and regression | Retain scoped review; distinguish completed model batches below. No actionable Ponytail cut or comparative reviewer-accuracy benchmark was established. |
 | import-linter 2.15 | Indirect forbidden dependency RED 0.154 s; same TOML contract after repair GREEN 0.122 s | Retain the existing architecture owner. A second architecture registry is not justified by this result. |
 | Gitleaks 8.30.1 | Nonfunctional secret-shaped control detected with a redacted report in 0.074 s | Retain native secret scanning; no real credential inspection or general detection claim. |
 | actionlint 1.7.12 | Invalid `needs` relationship BLOCK 0.020 s; repaired control PASS 0.006 s | Retain native workflow semantics. Subprocess linters were disabled for this narrow test, not for product policy. |
@@ -240,9 +240,58 @@ OCR client. No credentials, client selections or session models were changed.
 
 Evidence: `ocr-model-current-{scope,preview,disposition}.json` and
 `ocr-model-current.{receipt.json,stderr}` in the retained comparison results.
-Resume only with a selected native OCR provider/profile, explicitly preview test
-inclusion, and bind any findings to current source before correction. This
-configuration failure establishes neither reviewer effectiveness nor code quality.
+That initial configuration failure establishes neither reviewer effectiveness
+nor code quality. It is historical, not the current connection status.
+
+Native OCR configuration subsequently added UCloud Claude Opus 5.5 and GPT-6
+Astra through official setters. Both use existing AIGW credential-helper pipes;
+no token was copied, session model changed, or AIGW OCR Adapter claimed. Claude
+remains the default. Astra is an invocation-scoped `ucloud-astra` provider using
+`openai-responses` and `gpt-6-astra`. Configuration mode remains `0600` and all
+preexisting values are preserved. Credential projection identity is Account and
+endpoint metadata, not authorization or automatic route synchronization.
+
+At source `5fee868249ff640310e54346f095db3e0c9ce7e5`, independent native model
+reviews covered the same three hash-bound observation/regression carriers:
+
+| Model | Observed execution | Coverage boundary |
+| --- | --- | --- |
+| Claude Opus 5.5 | Connection and tool round trip PASS; three files, seven finding candidates, 54.557 s, 48,352 tokens | Native test inclusion was explicitly previewed; source bytes unchanged. |
+| GPT-6 Astra | Responses and tool turns observed; observation batch completed, then Python owner and test completed in 35.959 s with 38,303 tokens | Initial 59.702 s attempt exhausted its aggregate budget and excluded tests by default. Only incomplete scope was rerun with explicit inclusion; final batch succeeded without warnings. |
+
+These executions have different contexts and budgets; times and finding counts
+are not an accuracy or speed comparison. Both models identify lexical-binding,
+scope, statement-order and false-completeness gaps. Independently executed static
+probes also confirm malformed `package.json` scripts crashing observation,
+TOML string scripts inventing executable characters, malformed build-system
+shapes crashing, and recursive YAML exceeding a two-second deadline. No probe's
+subprocess or environment-read behavior was executed. Astra additionally reports
+registration-only Cyclopts wiring being omitted; that candidate is unverified.
+
+Evidence remains in the existing comparison results: `ocr-native-config.*`,
+`ocr-native-model-test.*`, `ocr-semantic-model.*`, `ocr-astra-config.*`,
+`ocr-astra-semantic.*`, `ocr-astra-semantic-completion.*`, preservation receipts
+and `ocr-findings-reproduction.json`. Findings do not establish a repair, accepted
+runtime or adopter delivery; task 10.11 retains those obligations.
+
+### Stronger Complementary Mechanisms
+
+The October 5 official-source refresh distinguishes analysis mechanisms, not a
+single universal reviewer ranking. See `advanced-quality-official-docs.*` in the
+same comparison evidence.
+
+| Mechanism | Suitable defect boundary | Decision and evidence limit |
+| --- | --- | --- |
+| [CodeQL data flow][codeql-data-flow] / [Semgrep advanced analysis][semgrep-advanced] | Cross-function/file value flow, taint and resource-use paths | Select an entitled bounded experiment for a demonstrated flow gap; do not add a core platform or pretend CE equivalence. Global flow costs more, library/dynamic models are incomplete, and Semgrep may fall back to single-file analysis. Record actual coverage. |
+| Hypothesis / targeted mutmut | Generated state sequences, invariant counterexamples and weak assertions | Reuse property tests and the measured mutation method: both test variants had full line coverage, but weak assertions killed 2/31 mutants versus 31/31 for semantic assertions. That result applies only to the extracted pure owner. |
+| [CrossHair contracts][crosshair-contracts] | Counterexamples to pure-function pre/postconditions through symbolic execution | A bounded experiment candidate, not measured effectiveness here. Only reachable contracted entrypoints are analyzed; time limits and unsupported effects do not become proof. |
+| Ruff / Ty / import-linter | Native syntax, type and dependency contracts with fast fail-left feedback | Retain existing owners; tighten applicability and semantic assertions instead of creating another architecture registry. Broad types still require design and review. |
+| Sonar / Qodana | Additional inspections and longitudinal quality presentation | Do not add to the core without unique measured findings that justify engine, service and policy-maintenance costs. Source review is not comparative execution. |
+
+RepoWise, SCC, ast-grep and clone/dead-code tools remain navigation, measurement
+and candidate sources. They neither certify behavior nor authorize deletion.
+AI review complements these layers; disagreement selects a falsifying test,
+not majority voting or repeated whole-repository model calls.
 
 ### Real Review Closure
 
@@ -265,6 +314,33 @@ than weakening the per-file budget. See retained
 `review-owner-green.*`. These are candidate-source results, not a signed
 checkpoint, accepted runtime, full proof, hosted CI or adopter acceptance.
 
+### Applying Findings And Recovering Evidence
+
+The follow-up selected 644 present candidate Python carriers from native Git
+inventory. Ruff with suppressions ignored, Ruff formatting, Ty with warnings as
+errors and import-boundary checks passed; SCC measured one command-observation
+owner at 535 ELOC, which remains a real open simplification obligation rather
+than a reason to relax its ceiling. The affected public semantic consumers passed
+217 cases. These are bounded candidate observations, not complete semantic
+closure, product acceptance or evidence of whole-loop speedup.
+
+The durable method is to challenge a review finding at its public consumer,
+change the unique owner and preserve valid behavior and scoped uncertainty.
+Syntax success is not semantic completeness; a heuristic or model report is not
+deletion authority. Review disagreement selects a falsifying example, not a
+vote. The [ETHOS source quality Skill](../../../.agents/skills/ethos-quality-gate-governance/SKILL.md "source-only")
+routes that procedure; the implementation and regression own behavior.
+
+Two fresh Agents without the former session could recover product meaning and
+open progress. One could not open source-integrity receipts through their old
+build path. The bytes were retained in native recovery custody, not lost.
+Their exact contents and hashes are now in non-authorizing Attestation
+`0b5ced85312259fd8b373d6e45a3efa499417fbbef1289de666e7f0542f5391f`;
+native query readback verifies both. Its bounded observation summary retains
+the source inventory digest and selected command receipts. This proves
+preservation and retrieval, not historical-proof currentness or deployed uptake.
+The existing feedback tasks retain actual-use and accepted delivery obligations.
+
 ## Sources
 
 Links identify inspected documents, not blanket endorsements. Source-level and
@@ -276,3 +352,6 @@ marketing claims were not used as evidence of comparative performance.
 [opentelemetry-mechanism]: https://github.com/open-telemetry/opentelemetry-specification/blob/5507eb587b3b3500ccd681e816e7c26729f38aa0/specification/overview.md
 [cloudevents]: https://github.com/cloudevents/spec/blob/2ed3806b4ad8fda35813263cfefb2d73098b7655/cloudevents/spec.md
 [semgrep-rules-license]: https://semgrep.dev/legal/rules-license
+[codeql-data-flow]: https://codeql.github.com/docs/writing-codeql-queries/about-data-flow-analysis/
+[semgrep-advanced]: https://semgrep.dev/docs/semgrep-code/semgrep-pro-engine-intro
+[crosshair-contracts]: https://crosshair.readthedocs.io/en/latest/contracts.html

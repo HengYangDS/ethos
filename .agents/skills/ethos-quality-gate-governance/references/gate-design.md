@@ -108,6 +108,22 @@ the canonical plan for unresolved work, and exact receipts for results. Add a
 Decision Record only for irreducible cross-Change rationale; do not add a feedback
 ledger, lesson catalog, alternate rule registry or a copied adopter gate.
 
+When a claim crosses a public boundary, test that consumer as well as the
+necessary internal logic. Parser success, tool completion, importability and
+model-review findings do not establish complete semantic coverage. Inspect the
+actual emitted contract rather than inventing a payload field in the test.
+Keep relevant unresolved provenance UNKNOWN; names, annotations or known
+argument fragments cannot discharge it. Preserve valid controls so conservative
+analysis does not earn safety by blocking everything.
+
+Resolve disputed review findings with a falsifying example against the owning
+contract. Confirm that mutation changes the intended input before judging
+assertion strength. A heuristic tool proposes a hypothesis, not deletion or
+quality authority. Apply justified findings to the unique owner, then verify
+the real consumer; retain unresolved scope rather than declaring the repository
+clean from one tool. A new tool needs demonstrated net benefit, not merely
+another report; retire equivalent machinery when replacing it.
+
 Select focused verification from the changed semantic owner and every consumer
 of its inputs, outputs and invariants, not just touched files or similarly named
 test directories. Pair symbol references with scoped literal searches for dynamic

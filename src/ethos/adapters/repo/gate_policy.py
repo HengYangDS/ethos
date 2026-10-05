@@ -16,6 +16,7 @@ from ethos.repository.policy.gates import PRODUCT_PROVIDER_SOURCE
 from ethos.repository.policy.gates import ResolvedGatePolicy
 from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
 from ethos.repository.policy.gates import source_paths_for_gates
+from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
@@ -74,13 +75,27 @@ def _resolve_policies(
         )
         for full in floors
     )
+    contracts = profile.declaration.proof.source_contracts if profile.declaration else ()
+    selected = tuple(gate for policy in initial for gate in policy.gates)
+    material_modes = _repository_material_modes(root, tree_ref) if contracts else None
     materials = {
-        relative: _material(root, tree_ref, relative)
+        relative: _material(root, tree_ref, relative, material_modes=material_modes)
         for relative in source_paths_for_gates(
-            tuple(gate for policy in initial for gate in policy.gates),
-            repository_paths=repository_paths,
+            selected, repository_paths=repository_paths, source_contracts=contracts
         )
     }
+    try:
+        expanded = source_paths_for_gates(
+            selected,
+            repository_paths=repository_paths,
+            source_contracts=contracts,
+            source_materials=materials,
+        )
+    except (ValueError, UnicodeError):
+        expanded = ()  # Final native binding reports the invalid source relationship.
+    for relative in expanded:
+        if relative not in materials:
+            materials[relative] = _material(root, tree_ref, relative, material_modes=material_modes)
     return tuple(
         compile_gate_policy(
             profile=profile,
@@ -204,11 +219,29 @@ def _repository_carrier_roles(
     return tuple(roles)
 
 
-def _material(root: Path, tree_ref: str | None, relative: str) -> bytes | None:
+def _repository_material_modes(root: Path, tree_ref: str | None) -> dict[str, str]:
+    """Read regular-file identity once from the same selected tree or native index."""
+    arguments = ("ls-tree", "-r", "-z", tree_ref) if tree_ref else ("ls-files", "--stage", "-z")
+    result = run_git(root, *arguments, check=True, text=False, observation=True)
+    modes: dict[str, str] = {}
+    for record in result.stdout.split(b"\0"):
+        if record:
+            metadata, path = record.split(b"\t", 1)
+            mode, _middle, last = metadata.split()
+            if tree_ref is not None or last == b"0":
+                modes[path.decode("utf-8")] = mode.decode("ascii")
+    return modes
+
+
+def _material(
+    root: Path, tree_ref: str | None, relative: str, *, material_modes: dict[str, str] | None = None
+) -> bytes | None:
     if relative.startswith(PRODUCT_PROVIDER_SOURCE):
         package = Path(ethos.__file__).resolve().parent
         path = package / relative.removeprefix(PRODUCT_PROVIDER_SOURCE)
         return path.read_bytes() if path.is_file() and not path.is_symlink() else None
+    if material_modes is not None and material_modes.get(relative) not in {"100644", "100755"}:
+        return None
     if tree_ref is not None:
         observed = run_git(
             root, "show", f"{tree_ref}:{relative}", check=False, text=False, observation=True
@@ -239,10 +272,15 @@ def observe_quality_subjects(
         message = "source_head_missing"
         raise ValueError(message)
     paths = _repository_paths(root, head)
+    profile = load_committed_repository_profile(root, head)
+    if profile.state == "invalid":
+        raise ValueError(INVALID_PROFILE_ERROR)
+    source_kinds = profile.declaration.proof.source_kinds if profile.declaration else {}
     subjects = observed_code_subjects(
         paths,
         script_paths=_repository_script_paths(root, head, paths),
         roles=dict(_repository_carrier_roles(root, head, paths)),
+        source_kinds=source_kinds,
     )
     if language:
         subjects = tuple(subject for subject in subjects if subject.language == language)

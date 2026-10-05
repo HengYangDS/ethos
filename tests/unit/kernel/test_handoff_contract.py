@@ -11,6 +11,7 @@ from pydantic import ValidationError
 
 import ethos.adapters.mutation.lane_lifecycle.handoff.destination_import as destination_import
 import ethos.adapters.mutation.lane_lifecycle.handoff.package as handoff_package
+import ethos.adapters.repo.content.observation as content_observation
 import ethos.adapters.repo.dirty.change_provenance as change_provenance
 from ethos.adapters.store.state.lease.projection import LeaseObservation
 from ethos.contracts.coordination import CrossHostHandoff
@@ -222,7 +223,7 @@ def _drifting_git(case: str):
 
 
 def _replace_on_second_regular_fstat(file, outside):
-    original, calls = change_provenance.os.fstat, [0]
+    original, calls = content_observation.os.fstat, [0]
 
     def fstat(descriptor: int):
         observed = original(descriptor)
@@ -260,7 +261,7 @@ def test_dirty_content_digest_negative_matrix(
         file, outside = tmp_path / "file", tmp_path / "outside"
         _mock_dirty_git(monkeypatch, b"file\0")
         monkeypatch.setattr(
-            change_provenance.os, "fstat", _replace_on_second_regular_fstat(file, outside)
+            content_observation.os, "fstat", _replace_on_second_regular_fstat(file, outside)
         )
     with pytest.raises(ValueError, match=gap):
         change_provenance.dirty_content_sha256(target)
@@ -271,12 +272,12 @@ def test_dirty_content_digest_opens_special_files_nonblocking(
 ) -> None:
     os.mkfifo(tmp_path / "fifo")
     _mock_dirty_git(monkeypatch, b"fifo\0")
-    original = change_provenance.os.open
+    original = content_observation.os.open
 
     def open_(path, flags, *args, **kwargs):
         assert path != "fifo" or flags & os.O_NONBLOCK
         return original(path, flags, *args, **kwargs)
 
-    monkeypatch.setattr(change_provenance.os, "open", open_)
+    monkeypatch.setattr(content_observation.os, "open", open_)
     with pytest.raises(ValueError, match="dirty_content_unsafe_path:fifo"):
         change_provenance.dirty_content_sha256(tmp_path)

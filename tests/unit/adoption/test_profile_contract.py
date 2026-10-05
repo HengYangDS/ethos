@@ -157,7 +157,7 @@ def test_profile_contract_rejects_incomplete_or_undeclared_shape(tmp_path: Path,
 
 
 def test_profile_contract_rejects_non_string_paths() -> None:
-    with pytest.raises(TypeError, match="repository path must be a string"):
+    with pytest.raises(ValidationError, match="valid string"):
         RepositoryProfileDeclaration.model_validate(
             {
                 "profile_id": "sample",

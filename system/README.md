@@ -17,6 +17,10 @@ This directory is not another product definition or runtime state store.
 | `.config/`                   | Tool-native configuration                                                                                   | Business scripts or another implementation layer                |
 | `build/`                     | Bounded, reproducible derived output                                                                        | Accepted meaning or indefinite evidence custody                 |
 
+Runtime state, leases, caches and effect receipts belong to their declared native
+state/evidence stores, never the immutable resource closure. A path is a carrier:
+classify what it holds before treating it as source, projection, supply or state.
+
 A source owner is the single maintained definition consumed by its dependants;
 a carrier is its physical location. Neither a directory name nor inclusion in a
 package creates authority. Product meaning, accepted Change intent, executable

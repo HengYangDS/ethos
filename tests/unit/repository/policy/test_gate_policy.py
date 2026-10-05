@@ -16,8 +16,8 @@ from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.repository.policy.gates import ResolvedGatePolicy
 from ethos.repository.policy.gates import canonical_gate_command
-from ethos.repository.policy.gates import quality_obligation_gaps
 from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
+from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import RepositoryProfileDeclaration

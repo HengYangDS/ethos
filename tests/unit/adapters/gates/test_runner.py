@@ -17,7 +17,7 @@ import ethos.adapters.gates.verification as gate_verification
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_policy_fields
-from ethos.repository.policy.gates import quality_obligation_gaps
+from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 
 
 def _gate(*providers: str) -> Gate:

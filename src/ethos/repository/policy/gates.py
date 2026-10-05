@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import sys
 import tomllib
 from collections import Counter
@@ -22,24 +21,20 @@ from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.verdict import execution_succeeded
 from ethos.repository.policy.code_subjects import observed_code_subjects
-from ethos.repository.policy.quality_reports import quality_evidence_paths
+from ethos.repository.policy.quality.obligations import INTEGRITY_PROVIDER
+from ethos.repository.policy.quality.obligations import QUALITY_PROVIDERS
+from ethos.repository.policy.quality.obligations import quality_obligation_gaps
+from ethos.repository.policy.quality.obligations import quality_verifier_gaps
+from ethos.repository.policy.quality.obligations import source_verifier_gaps
+from ethos.repository.policy.quality.sources import source_contract_paths
 from ethos.repository.policy.references.commands import python_module
 from ethos.repository.policy.references.python_syntax import module_source_paths
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import RepositoryProfile
+from ethos.repository.profile import SourceContract
 
 _PACKAGED_GATE_DECLARATION = load_gate_registry_declaration()
 PRODUCT_PROVIDER_SOURCE = "@ethos/"
-_QUALITY_PROVIDERS = {
-    "behavior": (
-        "ethos.adapters.gates.python_quality:behavior_report",
-        "ethos.adapters.gates.code_quality:behavior_report",
-    ),
-    "static-analysis": (
-        "ethos.adapters.gates.python_quality:static_report",
-        "ethos.adapters.gates.code_quality:static_report",
-    ),
-}
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,170 +117,6 @@ class ResolvedGatePolicy:
         return canonical_json_digest(self.projection)
 
 
-def quality_obligation_gaps(
-    policy: Mapping[str, object], checks: object, *, source_tree: str
-) -> tuple[str, ...]:
-    """Keep execution success distinct from evidence for observed code axes."""
-    owner = policy.get("owner")
-    if not isinstance(owner, Mapping):
-        return ()
-    version = owner.get("quality_floor_version")
-    if version is None:
-        return ()
-    if version not in (1, 2):
-        return (f"quality_floor_version_unsupported:{version}",)
-    axes = owner.get("code_correctness_map")
-    if not isinstance(axes, Mapping) or not axes:
-        return ()
-    gates = policy.get("gates")
-    if not isinstance(gates, (list, tuple)) or not isinstance(checks, (list, tuple)):
-        return tuple(f"quality_obligation_unproven:{axis}" for axis in axes)
-    by_check = {
-        check.get("action_id"): check
-        for check in checks
-        if isinstance(check, Mapping) and check.get("action_id")
-    }
-    subjects = owner.get("quality_subjects")
-    gaps: list[str] = []
-    for axis, gate_id in axes.items():
-        expected = subjects.get(axis) if isinstance(subjects, Mapping) else None
-        valid_expected = (
-            isinstance(expected, (list, tuple))
-            and bool(expected)
-            and all(isinstance(path, str) and path for path in expected)
-            and len(set(expected)) == len(expected)
-        )
-        if (
-            not isinstance(axis, str)
-            or not isinstance(gate_id, str)
-            or (version == 2 and not valid_expected)
-            or (expected is not None and not valid_expected)
-        ):
-            gaps.append(f"quality_obligation_unproven:{axis}")
-            continue
-        selected = _quality_axis_gates(gates, axis, gate_id)
-        observations = [
-            _qualified_quality_paths(gate, by_check.get(gate.get("id")), axis, source_tree)
-            for gate in selected
-        ]
-        observed = {path for paths in observations for path in paths}
-        if (
-            not any(gate.get("id") == gate_id for gate in selected)
-            or any(not paths for paths in observations)
-            or (valid_expected and observed != set(expected))
-        ):
-            gaps.append(f"quality_obligation_unproven:{axis}")
-    return tuple(gaps)
-
-
-def _quality_axis_gates(
-    gates: list[object] | tuple[object, ...], axis: str, primary: str
-) -> tuple[Mapping[str, object], ...]:
-    """Select the mapped gate and every declared contributor to the same axis."""
-    return tuple(
-        gate
-        for gate in gates
-        if isinstance(gate, Mapping)
-        and (
-            gate.get("id") == primary
-            or (isinstance(gate.get("dimensions"), (list, tuple)) and axis in gate["dimensions"])
-        )
-    )
-
-
-def _quality_verifier_gaps(owner: Mapping[str, object], gates: tuple[Gate, ...]) -> tuple[str, ...]:
-    """Reject a missing verifier before native check execution starts."""
-    axes = owner.get("code_correctness_map")
-    if not isinstance(axes, Mapping):
-        return ()
-    selected = tuple(gate_policy_fields(gate) for gate in gates)
-    gaps: list[str] = []
-    for axis, gate_id in axes.items():
-        applicable = _quality_axis_gates(selected, axis, gate_id)
-        if not any(gate.get("id") == gate_id for gate in applicable):
-            gaps.append(f"quality_obligation_unproven:{axis}")
-            continue
-        gaps.extend(
-            f"quality_gate_verifier_missing:{axis}:{gate['id']}"
-            for gate in applicable
-            if not _quality_provider_refs(gate, axis)
-        )
-    return tuple(gaps)
-
-
-def _qualified_quality_paths(
-    gate: object, check: object, axis: str, source_tree: str
-) -> tuple[str, ...]:
-    """Read scoped paths only from the selected product-owned verifier."""
-    if not isinstance(gate, Mapping) or not isinstance(check, Mapping) or not source_tree:
-        return ()
-    identity = gate.get("execution_identity")
-    eligible = _quality_provider_refs(gate, axis)
-    if not eligible or not isinstance(identity, (list, tuple)):
-        return ()
-    payload, providers = _quality_provider_payload(gate, check, identity)
-    if not isinstance(payload, Mapping) or payload.get("gate") != gate.get("id"):
-        return ()
-    observations = payload.get("providers")
-    if not isinstance(observations, list):
-        return ()
-    required = set(providers) & set(eligible)
-    measured: dict[str, tuple[str, ...]] = {}
-    for item in observations:
-        if not isinstance(item, Mapping) or item.get("provider") not in required:
-            continue
-        provider = item["provider"]
-        paths = quality_evidence_paths(item.get("report"), axis, source_tree)
-        if not isinstance(provider, str) or provider in measured or not paths:
-            return ()
-        measured[provider] = paths
-    return (
-        tuple(path for paths in measured.values() for path in paths)
-        if required and measured.keys() == required
-        else ()
-    )
-
-
-def _quality_provider_refs(gate: Mapping[str, object], axis: str) -> tuple[str, ...]:
-    """Identify a selected product verifier before spending time on a gate."""
-    if gate.get("tool_adapter") != "ethos":
-        return ()
-    if gate.get("execution_mode") == "provider":
-        identity = gate.get("execution_identity")
-        if isinstance(identity, (list, tuple)) and len(identity) > 1 and identity[0] == "provider":
-            return tuple(item for item in identity[1:] if item in _QUALITY_PROVIDERS.get(axis, ()))
-    if gate.get("execution_mode") == "verified-command":
-        providers = gate.get("verification_providers")
-        if isinstance(providers, (list, tuple)):
-            return tuple(item for item in providers if item in _QUALITY_PROVIDERS.get(axis, ()))
-    return ()
-
-
-def _quality_provider_payload(
-    gate: Mapping[str, object], check: Mapping[str, object], identity: list[str] | tuple[str, ...]
-) -> tuple[object, tuple[str, ...]]:
-    """Keep command output distinct from product-owned verifier output."""
-    if (
-        gate.get("execution_mode") == "provider"
-        and len(identity) >= 2
-        and identity[0] == "provider"
-    ):
-        try:
-            return json.loads(str(check.get("stdout") or "")), tuple(identity[1:])
-        except json.JSONDecodeError:
-            return None, ()
-    command = check.get("command")
-    providers = gate.get("verification_providers")
-    if (
-        gate.get("execution_mode") == "verified-command"
-        and isinstance(command, (list, tuple))
-        and tuple(command) == tuple(identity)
-        and isinstance(providers, (list, tuple))
-    ):
-        return check.get("verification"), tuple(providers)
-    return None, ()
-
-
 def _owner_projection(
     declaration: GateRegistryDeclaration,
     profile: RepositoryProfile | None,
@@ -301,8 +132,11 @@ def _owner_projection(
     if profile is None or profile.declaration is None:
         return {"kind": "packaged", **identity}
     proof = profile.declaration.proof
+    contracts = [contract.model_dump(mode="json") for contract in proof.source_contracts]
     if proof.gate_registry:
         owner: dict[str, object] = {"kind": "registry", "path": proof.gate_registry, **identity}
+        if contracts:
+            owner["source_contracts"] = contracts
         if _same_packaged_quality_floor(declaration):
             return owner
         axes = {
@@ -317,7 +151,7 @@ def _owner_projection(
                 ),
                 "",
             )
-            for axis, providers in _QUALITY_PROVIDERS.items()
+            for axis, providers in QUALITY_PROVIDERS.items()
         }
     else:
         owner = {
@@ -326,13 +160,18 @@ def _owner_projection(
             **identity,
         }
         axes = dict(proof.code_correctness_map)
+    if contracts:
+        owner["source_contracts"] = contracts
     code_subjects = observed_code_subjects(
-        repository_paths, script_paths=script_paths, roles=dict(carrier_roles)
+        repository_paths,
+        script_paths=script_paths,
+        roles=dict(carrier_roles),
+        source_kinds=proof.source_kinds,
     )
     # A declared code obligation survives incomplete carrier discovery.
     if code_subjects or any(axes.values()):
         owner["quality_floor_version"] = 2
-        owner["code_correctness_map"] = {axis: axes.get(axis, "") for axis in _QUALITY_PROVIDERS}
+        owner["code_correctness_map"] = {axis: axes.get(axis, "") for axis in QUALITY_PROVIDERS}
         owner["quality_subjects"] = {
             "behavior": [subject.path for subject in code_subjects if subject.requires_behavior],
             "static-analysis": [subject.path for subject in code_subjects],
@@ -411,20 +250,42 @@ def _gate_declaration(
     return declaration, profile
 
 
-def source_paths_for_gate(
-    gate: Gate,
-    *,
-    repository_paths: tuple[str, ...] = (),
-) -> tuple[str, ...]:
+def provider_module_sources(gate: Gate) -> tuple[tuple[str, str], ...]:
+    """Pair each invoked provider with its implementation source, not all gate materials."""
     provider_root = (
         PRODUCT_PROVIDER_SOURCE
         if gate.profile == "repository" and gate.tool_adapter == "ethos"
         else "src/ethos/"
     )
-    providers = tuple(
-        provider_root + reference.partition(":")[0].removeprefix("ethos.").replace(".", "/") + ".py"
+    return tuple(
+        (
+            reference,
+            provider_root
+            + reference.partition(":")[0].removeprefix("ethos.").replace(".", "/")
+            + ".py",
+        )
         for reference in (*gate.providers, *gate.verification_providers)
     )
+
+
+def source_paths_for_gate(
+    gate: Gate,
+    *,
+    repository_paths: tuple[str, ...] = (),
+    source_contracts: tuple[SourceContract, ...] = (),
+    source_materials: Mapping[str, bytes | None] | None = None,
+) -> tuple[str, ...]:
+    providers = provider_module_sources(gate)
+    artifacts: tuple[str, ...] = ()
+    for reference, source in providers:
+        if reference == INTEGRITY_PROVIDER:
+            prefix = source.removesuffix("adapters/gates/provenance/observation.py")
+            artifacts = (
+                prefix + "adapters/gates/provenance/archive.mjs",
+                prefix + "adapters/repo/content/observation.py",
+                prefix + "repository/policy/quality/sources.py",
+                *source_contract_paths(source_contracts, source_materials or {}),
+            )
     command = canonical_gate_command(gate.command)
     module = python_module(command)
     noxfile = ("noxfile.py", "pyproject.toml", "uv.lock") if module == "nox" else ()
@@ -439,36 +300,66 @@ def source_paths_for_gate(
         else ()
     )
     module_sources = module_source_paths(module, repository_paths) if module and not noxfile else ()
-    return (*providers, *noxfile, *module_sources, *script)
+    return tuple(
+        dict.fromkeys(
+            (
+                *[path for _reference, path in providers],
+                *artifacts,
+                *noxfile,
+                *module_sources,
+                *script,
+            )
+        )
+    )
 
 
 def source_paths_for_gates(
     gates: tuple[Gate, ...],
     *,
     repository_paths: tuple[str, ...] = (),
+    source_contracts: tuple[SourceContract, ...] = (),
+    source_materials: Mapping[str, bytes | None] | None = None,
 ) -> tuple[str, ...]:
     """Return the unique repository materials needed by a gate closure."""
     return tuple(
         dict.fromkeys(
             path
             for gate in gates
-            for path in source_paths_for_gate(gate, repository_paths=repository_paths)
+            for path in source_paths_for_gate(
+                gate,
+                repository_paths=repository_paths,
+                source_contracts=source_contracts,
+                source_materials=source_materials,
+            )
         )
     )
 
 
 def bind_gate_source_digests(
     gates: tuple[Gate, ...],
-    materials: dict[str, bytes | None],
+    materials: Mapping[str, bytes | None],
     *,
     repository_paths: tuple[str, ...] = (),
+    source_contracts: tuple[SourceContract, ...] = (),
 ) -> tuple[tuple[tuple[str, tuple[tuple[str, str], ...]], ...], tuple[str, ...]]:
     """Bind gate sources from already-observed repository materials."""
     bound: list[tuple[str, tuple[tuple[str, str], ...]]] = []
     gaps: list[str] = []
     for gate in gates:
         sources: list[tuple[str, str]] = []
-        for relative in source_paths_for_gate(gate, repository_paths=repository_paths):
+        try:
+            paths = source_paths_for_gate(
+                gate,
+                repository_paths=repository_paths,
+                source_contracts=source_contracts,
+                source_materials=materials,
+            )
+        except (ValueError, UnicodeError) as error:
+            gaps.append(f"gate_policy_source_invalid:{gate.id}:{error}")
+            paths = source_paths_for_gate(
+                gate, repository_paths=repository_paths, source_contracts=source_contracts
+            )
+        for relative in paths:
             source = materials.get(relative)
             if source is None:
                 gaps.append(f"gate_policy_source_missing:{gate.id}:{relative}")
@@ -482,7 +373,7 @@ def resolve_gate_policy(
     *,
     profile: RepositoryProfile | None = None,
     gate_registry_source: bytes | None = None,
-    source_materials: dict[str, bytes | None] | None = None,
+    source_materials: Mapping[str, bytes | None] | None = None,
     repository_python: str | None = None,
     repository_paths: tuple[str, ...] = (),
     script_paths: tuple[str, ...] = (),
@@ -507,7 +398,12 @@ def resolve_gate_policy(
         python_executable=python_executable,
     )
     sources, gaps = (
-        bind_gate_source_digests(gates, source_materials or {}, repository_paths=repository_paths)
+        bind_gate_source_digests(
+            gates,
+            source_materials or {},
+            repository_paths=repository_paths,
+            source_contracts=profile.declaration.proof.source_contracts,
+        )
         if profile is not None and profile.declaration is not None
         else ((), ())
     )
@@ -525,7 +421,11 @@ def resolve_gate_policy(
         owner = _owner_projection(
             declaration, profile, repository_paths, script_paths, carrier_roles
         )
-        gaps = (*gaps, *_quality_verifier_gaps(owner, gates))
+        gaps = (
+            *gaps,
+            *quality_verifier_gaps(owner, tuple(gate_policy_fields(gate) for gate in gates)),
+            *source_verifier_gaps(owner, gates),
+        )
     return ResolvedGatePolicy(
         declaration,
         profile,

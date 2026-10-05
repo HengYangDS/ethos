@@ -49,6 +49,27 @@ and native tool selection, not extensions alone. Frozen provenance SHALL retain
 integrity obligations; generation SHALL NOT exempt actual build inputs.
 Unknown required discovery SHALL NOT become empty successful coverage.
 
+#### Scenario: Artifact provenance changes verification, not authority
+
+- **WHEN** the native profile relates authored, generated and locked upstream code to its actual source owners
+- **THEN** applicable behavior obligations remain and exact generated or upstream bytes require the existing product integrity provider
+- **AND** labels, versions, filenames, or producer success alone cannot supply authenticity
+- **AND** one gate may report both code axes without duplicating execution
+
+#### Scenario: Native source observation is incomplete or over budget
+
+- **WHEN** a declared source is missing, changed, oversized, or outside the supported observation boundary
+- **THEN** the public result retains an explicit source-integrity gap and no Attestation is selected
+- **AND** allocation and archive framing, metadata, count, and expansion limits apply to the complete invocation
+- **AND** native parser termination, cache availability, or partial member equality cannot certify the unobserved remainder
+
+#### Scenario: A local lock reference and a native cache digest are valid
+
+- **WHEN** an npm lock uses an in-root normalized parent reference or multiple supported SRI digests
+- **THEN** the product preserves native lock-relative and strongest-available digest semantics
+- **AND** one descriptor-bound reader observes the selected bytes without following repository-relative links or executing candidate configuration
+- **AND** invalid member types remain typed validation failures through policy and public consumers
+
 #### Scenario: Native inventory failure is not an empty repository
 
 - **WHEN** Git file discovery fails because its index or transport is unreadable

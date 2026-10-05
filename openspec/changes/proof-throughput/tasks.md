@@ -184,6 +184,9 @@
 - [x] 11.1 Qualify the official stable SBOM supply after observed host-version drift.
 - [x] 11.2 Refresh compatible stable supply and exact CI projections with the Python support line intact.
 - [ ] 11.3 Qualify supported latest-stable supply or an obligation-preserving constrained-owner replacement. OpenSpec 1.14.0 is repository-locked: 134 focused tests and all 14 official strict validations pass; 168 native apply tasks retain source locations. Lock entries remain 378 with no new advisories (`openspec114-{resolution,native-verification-corrected,strict}-result` evidence). The existing braces advisory still blocks production/full-proof delivery; reviewed development acceptance does not waive that boundary.
+  DDWG reports its accepted installed OpenSpec 1.13.2 while its repository locks
+  1.14.0. This is a consumer migration obligation, not a reason to downgrade the
+  repository lock; the exact accepted source/tree/wheel/runtime handoff remains open.
   Allure is locked to official stable 3.20.0 after isolated native resolution: 409→408
   lock entries, no added packages or install scripts. Original 77/5 result sets retain
   exact input hashes and report name/status parity without test replay. Native audit
@@ -203,6 +206,41 @@
         Publisher clean-source observation checks 399 JavaScript and one script:
         script PASS, lexical diagnostics BLOCK. Appropriate artifact-integrity
         composition and installed acceptance remain open; labels are not provenance.
+        Source provenance now uses typed native profile relationships, complete
+        producer output groups and exact locked upstream members. Public quality
+        and proof diagnostics retain originating failed/skipped checks; source
+        integrity does not remove behavior obligations. Descriptor-bound reads,
+        native SRI/cache selection and complete bounded archive framing replace
+        pathname rereads. Focused source evidence: `source-reader-contract-green`
+        (98 cases), `source-archive-cache-focused-green` (35 cases), and preserved
+        `source-reader-contract-red`, `source-archive-{framing,budget}-red` receipts.
+        Final public-boundary qualification: 242 cases pass in 159.643 seconds,
+        with unchanged complete input hashes and owned scratch absent
+        (`source-integrity-public-boundary-final.result.json`). Native layout
+        first rejected two private test imports that the prior OCR/Ponytail review
+        missed. Expanded Ty then exposed mutable-material invariance and unchecked
+        result shapes in new tests; read-only Mapping inputs and shape assertions
+        replace those defects without casts or suppressions; all six new provenance
+        test modules pass explicit Ty and all changed Python passes native Ruff.
+        The 34 affected public/native cases pass in 16.15 seconds with unchanged
+        inputs and scratch absent (`source-integrity-readonly-native.result.json`).
+        Inherited intentional
+        invalid-input tests retain their separate native typing applicability.
+        Tests now use public integrity and command boundaries without
+        promoting private APIs, dropping assertions or weakening policy. The
+        distinguishing seven-case run, native layout and Ruff/Ty pass. Same-attempt
+        Allure 3 matches all 242 JUnit outcomes without replay
+        (`source-integrity-public-boundary-final-report.result.json`). Earlier
+        source-drift, budget and private-import failures remain retained.
+        Publisher reports generated/snapshot roles already declared yet installed
+        authored-style inspection still runs on those inputs. Validate the source
+        relationship and quality-predicate join through its existing declarations;
+        do not add exclusions, copy manifests or claim this candidate is delivered.
+        Dirty-source host checks refuse before executing. Exact committed-source
+        proof, coverage, packaging, installed migration, Python 3.12, browser
+        report acceptance and actual adopter enforcement remain open. Resource
+        definitions stay in `system/README.md`; old installed `data` consumers
+        still require verified migration.
   - [ ] 11.9.2 Compile the common quality floor through existing rule, profile
         and gate owners: reject empty/false evidence; conjoin exact per-subject native
         observations without replay; distinguish source and artifact-qualified inputs;

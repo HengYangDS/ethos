@@ -244,14 +244,16 @@ def _proof_next_action(
 
 def _emit_proof_gap(error: ValueError, *, json_output: bool) -> None:
     """Project one proof failure with its original diagnostics and no second claim."""
+    observation = error.observation if isinstance(error, ProcessExecutionError) else {}
+    gaps = tuple(string_sequence(observation.get("required_gaps"))) or (str(error),)
     emit(
         EthosResult(
             command="prove",
             verdict="block",
             state="gapped",
-            required_gaps=(str(error),),
+            required_gaps=gaps,
             next_action="ethos plan --changed --json",
-            data=error.observation if isinstance(error, ProcessExecutionError) else {},
+            data=observation,
         ),
         json_output=json_output,
     )

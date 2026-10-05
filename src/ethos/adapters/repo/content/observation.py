@@ -1,0 +1,128 @@
+"""Read bounded regular content through one stable no-follow descriptor chain."""
+
+from __future__ import annotations
+
+import os
+import stat
+from dataclasses import dataclass
+from pathlib import PurePosixPath
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+@dataclass(frozen=True, slots=True)
+class _ReadSnapshot:
+    root: Path
+    directories: tuple[int, ...]
+    components: tuple[str, ...]
+    before: os.stat_result
+    after: os.stat_result
+    content_length: int
+
+
+def read_regular_bytes(
+    root: Path,
+    relative: str,
+    *,
+    unsafe_gap: str,
+    unstable_gap: str,
+    size_gap: str,
+    max_bytes: int = 64 * 1024 * 1024,
+) -> bytes:
+    """Observe one stable regular input, refusing unsupported native guarantees.
+
+    The caller cap and first descriptor size are checked before allocation.
+    Growth never expands that bound. This observes content
+    and directory identity, not authorization or a persistent filesystem snapshot.
+    Native aliases above the selected root resolve once; its canonical descriptor
+    chain and repository-relative components are opened without following links.
+    """
+    path = PurePosixPath(relative)
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    directory = getattr(os, "O_DIRECTORY", 0)
+    nonblock = getattr(os, "O_NONBLOCK", 0)
+    if (
+        not all((nofollow, directory, nonblock))
+        or path.is_absolute()
+        or not path.parts
+        or ".." in path.parts
+        or "\\" in relative
+        or "\0" in relative
+        or root.is_symlink()
+    ):
+        raise ValueError(unsafe_gap)
+    directories: list[int] = []
+    file_descriptor: int | None = None
+    try:
+        canonical = root.resolve(strict=True)
+        components = (*canonical.parts[1:], *path.parts)
+        directories.append(os.open(canonical.anchor, os.O_RDONLY | directory | nofollow))
+        for component in components[:-1]:
+            directories.append(
+                os.open(component, os.O_RDONLY | directory | nofollow, dir_fd=directories[-1])
+            )
+        file_descriptor = os.open(
+            components[-1], os.O_RDONLY | nofollow | nonblock, dir_fd=directories[-1]
+        )
+        before = os.fstat(file_descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            raise ValueError(unsafe_gap)
+        limit = min(before.st_size, max_bytes)
+        if before.st_size > max_bytes:
+            raise ValueError(size_gap)
+        with os.fdopen(file_descriptor, "rb", closefd=True) as source:
+            file_descriptor = None
+            content = source.read(limit + 1)
+            after = os.fstat(source.fileno())
+        if len(content) > limit:
+            raise ValueError(size_gap)
+        _validate_snapshot(
+            _ReadSnapshot(root, tuple(directories), components, before, after, len(content)),
+            unstable_gap,
+            canonical,
+        )
+    except (OSError, NotImplementedError) as error:
+        raise ValueError(unsafe_gap) from error
+    else:
+        return content
+    finally:
+        if file_descriptor is not None:
+            os.close(file_descriptor)
+        for descriptor in reversed(directories):
+            os.close(descriptor)
+
+
+def _validate_snapshot(snapshot: _ReadSnapshot, gap: str, canonical: Path) -> None:
+    before, after = snapshot.before, snapshot.after
+    if _identity(before) != _identity(after) or snapshot.content_length != after.st_size:
+        raise ValueError(gap)
+    try:
+        for parent, component, child in zip(
+            snapshot.directories, snapshot.components, snapshot.directories[1:], strict=False
+        ):
+            current = os.stat(component, dir_fd=parent, follow_symlinks=False)
+            if (
+                not stat.S_ISDIR(current.st_mode)
+                or _identity(current)[:2] != _identity(os.fstat(child))[:2]
+            ):
+                raise ValueError(gap)
+        current = os.stat(
+            snapshot.components[-1], dir_fd=snapshot.directories[-1], follow_symlinks=False
+        )
+        root_current = snapshot.root.stat(follow_symlinks=False)
+        root_descriptor = snapshot.directories[len(canonical.parts) - 1]
+        if (
+            not stat.S_ISREG(current.st_mode)
+            or _identity(current) != _identity(after)
+            or not stat.S_ISDIR(root_current.st_mode)
+            or _identity(root_current)[:2] != _identity(os.fstat(root_descriptor))[:2]
+        ):
+            raise ValueError(gap)
+    except (OSError, NotImplementedError) as error:
+        raise ValueError(gap) from error
+
+
+def _identity(value: os.stat_result) -> tuple[int, int, int, int, int]:
+    return value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns

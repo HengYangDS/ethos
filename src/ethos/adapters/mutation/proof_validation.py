@@ -16,7 +16,7 @@ from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
-from ethos.repository.policy.gates import quality_obligation_gaps
+from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 
 if TYPE_CHECKING:
     from ethos.contracts.semantic import Attestation

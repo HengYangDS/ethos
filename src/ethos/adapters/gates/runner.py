@@ -39,7 +39,7 @@ from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.gates import PRODUCT_PROVIDER_SOURCE
 from ethos.repository.policy.gates import gate_execution_identity
-from ethos.repository.policy.gates import source_paths_for_gate
+from ethos.repository.policy.gates import provider_module_sources
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -463,8 +463,7 @@ def assert_provider_execution_source(root: Path, gates: tuple[Gate, ...]) -> Non
     bound = tuple(
         (gate.id, reference)
         for gate in gates
-        if gate.providers
-        for reference, relative in zip(gate.providers, source_paths_for_gate(gate), strict=True)
+        for reference, relative in provider_module_sources(gate)
         if not relative.startswith(PRODUCT_PROVIDER_SOURCE) and (root / relative).is_file()
     )
     package = Path(ethos.__file__).resolve()

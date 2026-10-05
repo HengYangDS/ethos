@@ -346,13 +346,17 @@ def _report(
 ) -> dict[str, object]:
     try:
         tree, subjects = observe_quality_subjects(root)
-        languages = {
-            subject.language
-            for subject in subjects
-            if axis != "behavior" or subject.requires_behavior or subject.is_test
-        }
-        if not languages:
-            _invalid("applicable_code_sources_missing" if subjects else "code_sources_missing")
+        languages = (
+            {
+                subject.language
+                for subject in subjects
+                if subject.requires_behavior or subject.is_test
+            }
+            if axis == "behavior"
+            else {subject.language for subject in subjects if subject.requires_authored_analysis}
+        )
+        if not subjects:
+            _invalid("code_sources_missing")
         with ExitStack() as scope:
             scope.enter_context(command_scope(timeout_seconds=timeout_seconds))
             tool_environment = (
@@ -365,14 +369,18 @@ def _report(
                 language_subjects = tuple(
                     subject for subject in subjects if subject.language == language
                 )
-                paths = tuple(subject.path for subject in language_subjects)
+                authored = tuple(
+                    subject.path
+                    for subject in language_subjects
+                    if subject.requires_authored_analysis
+                )
                 if language == "python":
                     native.append(_python_observation(root, language_subjects, axis, execution))
                 elif language == "go":
                     native.append(
                         _go_behavior(root, language_subjects, tool_environment)
                         if axis == "behavior"
-                        else _go_static(root, paths, tool_environment)
+                        else _go_static(root, authored, tool_environment)
                     )
                 elif language == "javascript":
                     native.append(
@@ -387,13 +395,13 @@ def _report(
                         if axis == "behavior"
                         else static_observation(
                             root,
-                            paths,
+                            authored,
                             node=_executable(root, "node"),
                             native=tool_environment,
                         )
                     )
                 elif language == "script" and axis == "static-analysis":
-                    native.append(_script_static(root, paths, tool_environment))
+                    native.append(_script_static(root, authored, tool_environment))
                 else:
                     _invalid(f"native_language_unsupported:{language}")
             observe_quality_subjects(root, expected_tree=tree)
@@ -429,6 +437,21 @@ def _report(
                 for subject in subjects
                 if axis != "behavior" or subject.requires_behavior
             ],
+            **(
+                {
+                    "authored_paths": [
+                        subject.path for subject in subjects if subject.requires_authored_analysis
+                    ],
+                    "artifact_paths": [
+                        subject.path
+                        for subject in subjects
+                        if not subject.requires_authored_analysis
+                    ],
+                }
+                if axis == "static-analysis"
+                and any(not subject.requires_authored_analysis for subject in subjects)
+                else {}
+            ),
         },
     }
 

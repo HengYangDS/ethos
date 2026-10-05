@@ -110,10 +110,18 @@ def static_report(root: Path, *, execution: NativeExecution | None = None) -> di
     try:
         tree, subjects = observe_quality_subjects(root, language="python")
         paths = tuple(subject.path for subject in subjects)
-        execution = _static_execution(root, paths, execution)
-        native = _native_fields(execution)
+        authored = tuple(subject.path for subject in subjects if subject.requires_authored_analysis)
+        artifacts = tuple(
+            subject.path for subject in subjects if not subject.requires_authored_analysis
+        )
+        if authored:
+            execution = _static_execution(root, authored, execution)
+            native = _native_fields(execution)
+        elif execution is not None:
+            return {**_failure("static", "python_native_selection_invalid"), "native": native}
         observe_quality_subjects(root, language="python", expected_tree=tree)
-        _static_diagnostics(execution)
+        if execution is not None:
+            _static_diagnostics(execution)
     except (OSError, ValueError, ProcessExecutionError, subprocess.TimeoutExpired) as error:
         reason = (
             str(error)
@@ -130,6 +138,11 @@ def static_report(root: Path, *, execution: NativeExecution | None = None) -> di
             "axis": "static-analysis",
             "source_tree": tree,
             "selected_paths": list(paths),
+            **(
+                {"authored_paths": list(authored), "artifact_paths": list(artifacts)}
+                if artifacts
+                else {}
+            ),
         },
     }
 

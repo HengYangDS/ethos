@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
+from typing import Literal
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -31,11 +32,19 @@ class CodeSubject:
     language: str
     is_test: bool
     role: str = ""
+    source_kind: Literal["authored", "generated", "upstream"] = "authored"
+
+    @property
+    def requires_authored_analysis(self) -> bool:
+        """Artifact authenticity is an independent obligation, not authored style."""
+        return self.source_kind == "authored"
 
     @property
     def requires_behavior(self) -> bool:
         """Require runtime evidence for authored code and generated runtime inputs."""
-        return not self.is_test and self.role in {"", "code", "generated"}
+        return not self.is_test and (
+            self.source_kind == "generated" or self.role in {"", "code", "generated"}
+        )
 
 
 def observed_code_subjects(
@@ -43,6 +52,7 @@ def observed_code_subjects(
     *,
     script_paths: tuple[str, ...] = (),
     roles: Mapping[str, str] | None = None,
+    source_kinds: Mapping[str, Literal["generated", "upstream"]] | None = None,
 ) -> tuple[CodeSubject, ...]:
     """Flag known code carriers without treating a suffix as quality evidence."""
     subjects = []
@@ -67,5 +77,9 @@ def observed_code_subjects(
                 or name.endswith(("_test.go", ".test.js", ".test.mjs", ".test.cjs"))
             )
         )
-        subjects.append(CodeSubject(path, language, is_test, role or ""))
+        subjects.append(
+            CodeSubject(
+                path, language, is_test, role or "", (source_kinds or {}).get(path, "authored")
+            )
+        )
     return tuple(sorted(subjects, key=lambda subject: subject.path))

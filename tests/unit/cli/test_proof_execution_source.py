@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import json
 import subprocess
+import tomllib
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 
 import pytest
+import tomli_w
 
 import ethos.adapters.repo.worktree_postimage as source_owner
 import ethos.surface.cli.root.proof as proof_cli
+import tests
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_gaps
@@ -29,6 +32,7 @@ from tests.support.governed_repository import init_git_repo
 from tests.support.proof import conformant_proof_checks
 from tests.support.proof import current_proof_plan
 from tests.support.proof import declare_native_proof_checks
+from tests.support.proof import declare_quality_profile
 from tests.support.proof import issue_conformant_proof
 
 _PROGRAM = """
@@ -268,3 +272,57 @@ def test_public_proof_preserves_source_drift_between_issuance_and_selection(
     assert len(attempts) == 1
     assert read_attestation_set(root) == before
     assert (root / "README.md").read_text() == "# changed at selection\n"
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_public_proof_preserves_native_failure_and_skipped_dependants(
+    tmp_path: Path, *, failure: bool
+) -> None:
+    """A failed native prerequisite retains its evidence; skipped work is not a pass."""
+    repo = init_git_repo(tmp_path / "adopter")
+    adopt_and_commit(repo)
+    declare_quality_profile(repo)
+    fixture = Path(tests.__file__).resolve().parent / "fixtures" / "quality-sample"
+    for name in ("pyproject.toml", "uv.lock"):
+        (repo / name).write_bytes((fixture / name).read_bytes())
+    (repo / ".gitignore").write_text(".venv/\n__pycache__/\nbuild/\n")
+    source = repo / "src/sample/__init__.py"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        ("import math\n\n\n" if failure else "") + "def answer() -> int:\n    return 42\n"
+    )
+    test = repo / "tests/test_sample.py"
+    test.parent.mkdir()
+    test.write_text(
+        "from sample import answer\n\n\ndef test_answer() -> None:\n    assert answer() == 42\n"
+    )
+    profile = repo / ".ethos/profile.toml"
+    declaration = tomllib.loads(profile.read_text())
+    declaration["proof"]["gates"][0]["depends_on"] = ["static"]
+    profile.write_text(tomli_w.dumps(declaration))
+    head = commit_fixture(repo, "declare a native quality dependency")
+    before = read_attestation_set(repo)
+
+    completed = _execute(repo, head)
+    payload = json.loads(completed.stdout)
+    if not failure:
+        assert payload["verdict"] == "pass", payload
+        assert payload["required_gaps"] == []
+        return
+    assert payload["verdict"] == "block", payload
+    assert "gate_failed:static" in payload["required_gaps"], payload
+    descriptor = payload["data"]["artifact_reference"]
+    store = Path(git(repo, "rev-parse", "--git-common-dir"))
+    store = store if store.is_absolute() else repo / store
+    evidence = json.loads((store / "ethos" / descriptor["path"]).read_text())
+    assert evidence["head"] == head
+    checks = {check["action_id"]: check for check in evidence["checks"]}
+    assert checks["static"]["verdict"] == "block"
+    static = json.loads(checks["static"]["stdout"])["providers"][0]["report"]
+    assert static["verdict"] == "block"
+    assert "quality_static_diagnostics" in static["required_gaps"]
+    assert "F401" in json.dumps(static)
+    assert checks["behavior"]["exit_code"] is None
+    assert "dependency" in json.dumps(checks["behavior"]["diagnostics"])
+    assert payload["data"]["proof_attestation_selected"] is False
+    assert read_attestation_set(repo) == before

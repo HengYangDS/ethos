@@ -240,7 +240,17 @@ def issue_proof_attestation(
     if quality_gaps := policy.result_gaps(
         normalized, source_tree=str(plan.facts.get("tree") or "")
     ):
-        raise ValueError(quality_gaps[0])
+        artifact = write_proof_artifact(proof_artifact_root(root), head, normalized)
+        raise ProcessExecutionError(
+            quality_gaps[0],
+            reason="proof_quality_observation_failed",
+            cwd=str(root),
+            observation={
+                "required_gaps": list(dict.fromkeys((*required_gaps, *quality_gaps))),
+                "artifact_reference": artifact,
+                "proof_attestation_selected": False,
+            },
+        )
     if verdict == "pass" and (required_gaps or not checks_pass):
         msg = "proof_attestation_verdict_mismatch"
         raise ValueError(msg)

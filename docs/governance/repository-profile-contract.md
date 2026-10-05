@@ -139,10 +139,13 @@ or Python layout. Those are adopter implementation choices.
 Repository-native proof gates use the same typed descriptor vocabulary as a
 declared gate registry. The `[proof] code_correctness_gates` list names the gates
 required for promotion; each profile-native id must also have one `[[proof.gates]]`
-descriptor with at least `id`, `kind`, and a list-form executable `command`.
-`[proof.code_correctness_map]` explicitly maps the required `behavior` and
-`static-analysis` axes to distinct gate IDs. Missing axes, reused gates, undeclared
-IDs, and waivers are invalid declarations rather than runtime vocabulary guesses.
+descriptor with `id`, `kind`, and exactly one execution owner: a list-form native
+`command` or declared product `providers`. A native command reports its own
+execution; applicable `verification_providers` report independent product-owned
+observations. `[proof.code_correctness_map]` maps the required `behavior` and
+`static-analysis` axes to resolved gates. One gate may provide both axes when
+its actual observations cover both. Missing axes, undeclared IDs, unsupported
+providers, and waivers are invalid; sharing execution is not an exemption.
 Optional descriptor fields such as `depends_on`, `evidence_class`,
 `trust_bearing`, and `network_policy` retain the shared gate semantics. ETHOS
 compiles these descriptors as the profile's sole native gate owner: they
@@ -205,6 +208,43 @@ Purpose: define the stable adopter profile entrypoint and validation contract.
 See also: [Product Design Contract](product-design-contract.md),
 [Config Boundary Model](config-boundary-model.md), and
 [Adopter Boundary And Retirement](adopter-boundary-and-retirement.md).
+
+## Artifact Source Contracts
+
+`[[proof.source_contracts]]` relates an artifact to an existing native owner;
+it is an obligation declaration, not evidence of authenticity. Its fields are
+`kind` (`generated` or `upstream`), distinct `input_refs`, exact
+`members` (`artifact = [input_ref, native_member]`), and one resolved
+`integrity_gate`. The gate must invoke the product source-integrity provider;
+a trusted-looking name, version, directory or successful command is insufficient.
+
+| Kind | Existing owner | Required observation |
+| --- | --- | --- |
+| Generated | Native projection declaration, including all declared outputs and compiler inputs | Reproduce exact expected bytes from the same committed input group |
+| Upstream | Exact npm lock `#packages/node_modules/...` member and locked SRI | Match authentic archive and selected member bytes without executing or extracting them |
+| Authored | Repository's own maintained code or configuration | Applicable native static and behavior checks; no artifact exemption |
+
+An exact source relationship can remove inappropriate authored-style inspection,
+not applicable behavior, build-input or integrity obligations. Authored policy
+cannot acquire an exemption merely by deleting a consumer or assigning a role.
+Missing, changed, unsupported or incompletely observed sources remain explicit
+`unknown` obligations. Invalid typed declarations are validation errors, not
+uncaught interpreter errors. See [system source and package boundaries](../../system/README.md).
+
+The product source-integrity adapter reads committed and live inputs under one
+bounded observation and rechecks their bindings. It delegates SRI, cache digest
+selection and TAR interpretation to its selected native npm libraries. A framing
+adapter accounts for complete headers, metadata, body padding, EOF and trailing
+bytes that the native Parser does not expose. It is not a general-purpose strict
+TAR/PAX validator or a guarantee against a same-user malicious producer. Native
+PAX tolerance and unsupported descriptor guarantees retain those explicit limits.
+
+Allocation, member/count, metadata and expansion budgets cover the whole invocation;
+partitioning artifacts or nesting compression cannot reset them. Native cache
+availability is only a source candidate. The exact selected digest is checked
+against descriptor-bound bytes and locked SRI, without executing adopter config
+or reading credential-bearing npm files. Missing supply does not authorize a
+network download, weaker digest fallback or another policy interpreter.
 
 ## OpenSpec Lifecycle
 

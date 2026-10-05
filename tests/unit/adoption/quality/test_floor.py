@@ -13,7 +13,7 @@ import pytest
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Facts
-from ethos.repository.policy.gates import quality_obligation_gaps
+from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import git

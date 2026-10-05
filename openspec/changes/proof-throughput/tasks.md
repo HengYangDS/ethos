@@ -335,6 +335,10 @@
       source, not accepted/runtime/adopter closure. Selected methods, parser and
       license limits, and explicit platform non-adoption live in that topic;
       broader framework, rollout and semantic-owner obligations remain open.
+      Authorized OCR model review now has exact-source preview and a retained
+      endpoint-resolution failure: no model was called. Resolve the selected
+      native provider and explicitly include tests before claiming model review;
+      see the topic's [native review boundary](../../../docs/research/foundations/verification.md#native-model-review-boundary).
 
 ## 13. Feedback-Driven Improvement Closure
 

@@ -189,7 +189,7 @@ They remain external recovery evidence, not a runtime dependency or task ledger.
 | Vulture 2.16 | Product: confidence 100 gives zero findings in 0.606 s; confidence 60 gives 285 candidates in 0.661 s, including valid hooks and public entrypoints | Do not add a hard deletion gate. An unreachable-code control is detected, but call/registration ownership must establish whether product candidates are dead. |
 | mutmut 3.8.0 | Same extracted verdict owner, both variants 100% line coverage: weak assertions kill 2/31 mutants, semantic assertions 31/31; 1.668/1.613 s | Adopt targeted mutation as a test-design/review method. This qualifies this pure owner only, not all ETHOS tests or a global mutation score. |
 | RepoWise 0.55.0 | Offline production code-shape health: 362 metrics and 1,330 heuristic findings in 9.350 s | Reuse prioritization and batch context; no proof or automatic deletion. Tests were not copied, so `has_test_file=false` cannot establish missing tests. |
-| OCR 1.12.11 and Ponytail | Native delegate preview/rubric plus five hash-bound files; unchanged reviewed runtime bytes reused; two real audit defects found | Retain scoped review. No external LLM was called; no actionable Ponytail cut was identified. This does not benchmark proprietary reviewer accuracy. |
+| OCR 1.12.11 and Ponytail | Native delegate preview/rubric plus five hash-bound files; two real audit defects found. A later authorized model review failed at endpoint resolution | Retain scoped review. No external LLM was called; no actionable Ponytail cut was identified. This does not benchmark proprietary reviewer accuracy. |
 | import-linter 2.15 | Indirect forbidden dependency RED 0.154 s; same TOML contract after repair GREEN 0.122 s | Retain the existing architecture owner. A second architecture registry is not justified by this result. |
 | Gitleaks 8.30.1 | Nonfunctional secret-shaped control detected with a redacted report in 0.074 s | Retain native secret scanning; no real credential inspection or general detection claim. |
 | actionlint 1.7.12 | Invalid `needs` relationship BLOCK 0.020 s; repaired control PASS 0.006 s | Retain native workflow semantics. Subprocess linters were disabled for this narrow test, not for product policy. |
@@ -228,6 +228,21 @@ program-point gaps in this working tree. This pass did not execute their public
 repository-audit gate or qualify the installed reader. Keep that existing
 semantic-observation obligation at its unique owner; adding spelling rules or
 substituting a structural scanner would not close it.
+
+### Native Model Review Boundary
+
+On October 5, the user authorized OCR model calls. Native preview selected the
+three supply/audit source owners from signed checkpoint `5fd0a60c`; OCR's default
+path filter omitted both requested test files. The actual bounded invocation
+exited 1 in 0.130 s before inference: no native model endpoint was configured.
+`~/.opencodereview/config.json` was absent, and AIGW's native status declared no
+OCR client. No credentials, client selections or session models were changed.
+
+Evidence: `ocr-model-current-{scope,preview,disposition}.json` and
+`ocr-model-current.{receipt.json,stderr}` in the retained comparison results.
+Resume only with a selected native OCR provider/profile, explicitly preview test
+inclusion, and bind any findings to current source before correction. This
+configuration failure establishes neither reviewer effectiveness nor code quality.
 
 ### Real Review Closure
 

@@ -325,11 +325,11 @@
         committed or installed. Final projection-owner cases pass (47); matched
         reads are 10→3 and 227→34 with equal observations and external-owner
         refusal. Same-attempt Allure 3, Ruff, format, Ty and selected layout pass;
-        evidence is `repowise-optimization-9wli7wjw/`. Tests measure 60,373:
-        committed source already had 60,068, and reviewed fixture reuse saved
-        34 lines without deleting assertions. One explicitly authorized 5,000-line
-        step raises only tests to 65,000; product stays 55,000, per-file 500 and
-        coverage floors remain. Whole-corpus irreducibility is not claimed.
+        evidence is `repowise-optimization-9wli7wjw/`. That prior slice measured
+        60,373 test ELOC after fixture reuse saved 34 lines without deleting
+        assertions. Its historical 55,000/65,000 limits are superseded by task 1.2's
+        reviewed 60,000/70,000 ceilings; per-file 500 and coverage floors remain.
+        Whole-corpus irreducibility is not claimed.
         The inert Ruff `max-args` setting is removed; native argument-count
         findings need semantic disposition, not automatic DTO creation.
         Incumbent native policy now binds the selected Git index and configuration
@@ -339,6 +339,18 @@
         The full 93-case hook/commit matrix passes in 65.97 seconds with same-attempt
         Allure 3 (`repowise-optimization-9wli7wjw/native-ignore-green*`). Original failed
         receipts remain retained; exact-source proof and installed acceptance stay open.
+        DDWG's native task-artifact refusal is source-repaired without treating
+        `apply.requires` as ownership: only the resolved schema/tracking binding
+        admits repair of the exact selected existing artifact. Original real-source
+        RED (9 failures) and owner GREEN are retained. Related public OpenSpec and
+        Skill consumers pass (133 in 81.55 seconds); final typed read-failure control
+        passes separately. Same-attempt Allure 3 matches all 133 JUnit cases and
+        owned scratch is absent. Evidence: `quality-tool-comparison-2f8yn77j/results/`
+        `ddwg-real-source-native-red-20261006-0953.*`,
+        `ddwg-native-public-related-final-20261006-1751.*` and its `-report/manifest/`,
+        `ddwg-final-type-boundary-green-20261006-1748.*`.
+        Exact-source proof, accepted integration, package/runtime activation and
+        adopter readback remain open; native Nox requires the signed source freeze.
 - [x] 11.10 Verify native TOML and mise migrations through focused native checks, exact-source full proof and installed runtime.
 
 ## 12. Documentation Comprehension and Research Delivery
@@ -384,6 +396,14 @@
   - [ ] 13.2.2 Exercise model-gap escalation, dependent migration, superseded-path retirement and correction of ineffective feedback safeguards.
   - [ ] 13.2.3 Qualify self-hosting and distinct adopted business domains without sharing their goals, metrics or authority; bind actual-use observation and revised intent to the same complete acceptance trace used by greenfield-formation 2.3 and the canonical terminal plan.
 - [ ] 13.3 Wire feedback planning to canonical skill context; verify package integrity, trigger/non-trigger behavior and compiled pre-reads while keeping host loading and changed agent behavior distinct. Source joins selected dependency observations to registry/package identities and preserves the active section floor in one validator; invalid activation emits no Skills or context, without blocking unrelated optional packages. Signed source `7a8a6b04`: 49 tests, the public skills gate and 14 isolated installed-wheel observations pass; 29 fixture/cache roots and the isolated test installation retired after verified custody (`selected-skills-{source,installed,housekeeping}-result.json`). Publisher's retained signed fixture independently closes the installed defect through native hook/Lease and 14 public observations: `north-star-skills-successor-public-cases.json`, SHA256 `6a779029811928ca873b3860734ed7db3849a1e89d7bc7d48c580dc62828344a`. Host loading, behavior and accepted-runtime delivery remain open; old counterexamples remain history, not current defects.
+      Planning now derives portfolio applicability from the resolved provider
+      dependency closure, not a gate name or root location. Only positively
+      observed optional absence compiles empty activation. Root, README and read
+      failures remain unconditional registry gaps; record/package obligations stay
+      scoped to selected Skills. Required default validation is unchanged. Public
+      presence/loading controls and the Python 3.12 structural-error compatibility
+      regression pass within 11.9.2's related evidence; native platform and installed
+      acceptance remain distinct. No dummy registry or parallel validator is added.
       Current common-foundation scope is global, not Decision Record naming alone.
       Two no-history read-only Agent observations locate canonical product and
       progress owners and recover selected historical receipts. One exposes a

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
+from stat import S_ISDIR
 from typing import Any
 from typing import cast
 
@@ -23,19 +24,37 @@ INTENT_TOKEN_OWNER_LIMIT = 2
 
 
 def _load_activation(path: Path) -> tuple[dict[str, Any], list[str]]:
-    if not path.exists():
-        return {}, [".agents/skills/activation.toml"]
     try:
         payload = tomllib.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}, [".agents/skills/activation.toml"]
     except tomllib.TOMLDecodeError:
         return {}, [".agents/skills/activation.toml:invalid_toml"]
+    except (OSError, UnicodeError):
+        return {}, [".agents/skills/activation.toml:unreadable"]
     validation = validate_schema_instance("skill-activation.schema.json", payload)
     if validation["verdict"] != "pass":
         return {}, [f"skill_activation_invalid:{path}:{gap}" for gap in validation["required_gaps"]]
     return payload, []
 
 
-def skill_portfolio_report(root: Path) -> dict[str, object]:
+def _portfolio_absent(root: Path, relative_path: str) -> bool:
+    """Certify missing native state without following dangling or unknown ancestors."""
+    path = root
+    for part in Path(relative_path).parts:
+        path /= part
+        try:
+            mode = path.lstat().st_mode
+        except FileNotFoundError:
+            return True
+        except OSError:
+            return False
+        if not S_ISDIR(mode):
+            return False
+    return False
+
+
+def skill_portfolio_report(root: Path, *, required: bool = True) -> dict[str, object]:
     """Validate the native portfolio and project its sole current interpretation."""
     profile = load_repository_profile(root)
     skills_root_relative = (
@@ -44,9 +63,10 @@ def skill_portfolio_report(root: Path) -> dict[str, object]:
         else DEFAULT_ROOTS["agent_skills"]
     )
     skills_root = profile.root / skills_root_relative
-    payload, missing = _load_activation(skills_root / "activation.toml")
+    absent = not required and _portfolio_absent(profile.root, skills_root_relative)
+    payload, missing = ({}, []) if absent else _load_activation(skills_root / "activation.toml")
     registry = normalize_skill_activation(payload, source=".agents/skills/activation.toml")
-    required_gaps = [*profile_required_gaps(profile), *missing]
+    registry_gaps = [*profile_required_gaps(profile), *missing]
     advisory_gaps: list[str] = []
     collected = _collect_skill_records(
         root,
@@ -68,11 +88,15 @@ def skill_portfolio_report(root: Path) -> dict[str, object]:
     record_gaps.extend(
         str(gap) for gap in cast("list[object]", portfolio_retirement_report["required_gaps"])
     )
-    if skills_root.exists() and not (skills_root / "README.md").exists():
-        required_gaps.append(".agents/skills/README.md")
-    if not skills_root.exists():
-        required_gaps.append(".agents/skills")
-    required_gaps.extend(dict.fromkeys(record_gaps))
+    if not absent:
+        try:
+            if skills_root.exists() and not (skills_root / "README.md").is_file():
+                registry_gaps.append(".agents/skills/README.md")
+            if not skills_root.is_dir():
+                registry_gaps.append(".agents/skills")
+        except OSError:
+            registry_gaps.append(".agents/skills:unreadable")
+    required_gaps = [*registry_gaps, *dict.fromkeys(record_gaps)]
     package_quality_gaps = list(
         dict.fromkeys(
             str(gap)
@@ -87,7 +111,7 @@ def skill_portfolio_report(root: Path) -> dict[str, object]:
         "skills": [skill["id"] for skill in records],
         "records": records,
         "registry": registry,
-        "registry_required_gaps": [*profile_required_gaps(profile), *missing],
+        "registry_required_gaps": registry_gaps,
         "coverage": _coverage(records),
         "portfolio_coverage": portfolio_coverage_report,
         "portfolio_design": portfolio_design_report,

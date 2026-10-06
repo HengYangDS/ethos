@@ -200,6 +200,8 @@ def _change_report(
     ]
     if logical_change_identifier_issue(name):
         gaps.append(f"openspec_active_change_identifier_invalid:{name}")
+    if apply.get("state") == "blocked":
+        gaps.append(f"openspec_apply_blocked:{name}")
     return {
         "name": name,
         "path": str(status.get("changeRoot") or f"openspec/changes/{name}"),

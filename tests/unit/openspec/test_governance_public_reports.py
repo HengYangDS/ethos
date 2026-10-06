@@ -6,21 +6,21 @@ import json
 import os
 import shutil
 import subprocess
-from typing import TYPE_CHECKING
+from copy import deepcopy
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+import yaml
 
 import ethos.adapters.openspec.cli as cli
 import ethos.adapters.openspec.governance as governance
+import ethos.adapters.openspec.lifecycle.scope as lifecycle_scope
 import ethos.adapters.openspec.lifecycle.validation as lifecycle_validation
 import ethos.adapters.openspec.selection as selection
 import tests.support.governed_repository as fixture
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def _repo(tmp_path: Path) -> Path:
@@ -418,3 +418,121 @@ def test_governance_reports_invalid_commitment_and_artifact_paths(monkeypatch, t
     assert governance.artifact_output_paths(root, status) == (
         "openspec/changes/active/specs/capability/spec.md",
     )
+
+
+def _select_native_task_fixture(root: Path, command: tuple[str, ...], mode: str) -> Path:
+    change = root / "openspec/changes/fixture-change"
+    task = change / "tasks.md"
+    schema_dir = root / "openspec/schemas/fixture-schema"
+    shutil.copytree(Path(command[1]).resolve().parent.parent / "schemas/spec-driven", schema_dir)
+    schema = yaml.safe_load((schema_dir / "schema.yaml").read_text())
+    schema["name"] = "fixture-schema"
+    if mode == "no-tracking":
+        schema["apply"]["tracks"] = None
+    else:
+        artifact = next(row for row in schema["artifacts"] if row["id"] == "tasks")
+        artifact.update(id="work-items", generates="work/*.md")
+        schema["apply"].update(
+            requires=["proposal" if mode == "independent-prerequisite" else "work-items"],
+            tracks="work/*.md",
+        )
+        task.unlink()
+        task = change / "work/one.md"
+        task.parent.mkdir()
+    (schema_dir / "schema.yaml").write_text(yaml.safe_dump(schema, sort_keys=False))
+    (change / ".openspec.yaml").write_text("schema: fixture-schema\n")
+    return task
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "pending",
+        "done",
+        "empty",
+        "blank-description",
+        "nested-pending",
+        "nested-empty",
+        "independent-prerequisite",
+        "no-tracking",
+    ],
+)
+def test_governance_obeys_native_apply_readiness_for_selected_task_artifacts(
+    tmp_path: Path, mode: str
+) -> None:
+    root = fixture.prepared_work_lane(tmp_path).worktree
+    command = cli.openspec_base_command(execution_probe=False)
+    assert command is not None
+    change = root / "openspec/changes/fixture-change"
+    task = change / "tasks.md"
+    renamed = mode.startswith("nested-") or mode == "independent-prerequisite"
+    if renamed or mode == "no-tracking":
+        task = _select_native_task_fixture(root, command, mode)
+    blocked = mode in {"empty", "blank-description", "nested-empty", "independent-prerequisite"}
+    content = "- [ ]\n" if mode == "blank-description" else "No executable checklist.\n"
+    if not blocked and mode != "no-tracking":
+        marker = "x" if mode == "done" else " "
+        content = f"- [{marker}] 1.1 Exercise the fixture and verify its report.\n"
+    task.write_text("# Tasks\n\n## 1. Fixture\n\n" + content)
+    fixture.commit_fixture(root, "test: preserve selected task evidence")
+    report = governance.openspec_governance_report(root, change="fixture-change", lifecycle=True)
+    status = report["commands"]["status"]["json"]
+    apply = report["commands"]["apply"]["json"]
+    assert status["isComplete"] is True
+    assert apply["taskTrackingConfigured"] is (mode != "no-tracking")
+    assert apply["state"] == ("blocked" if blocked else "all_done" if mode == "done" else "ready")
+    role = "work-items" if renamed else "tasks"
+    if mode == "independent-prerequisite":
+        assert status["applyRequires"] == ["proposal"]
+    assert status["artifactPaths"][role]["existingOutputPaths"] == [str(task)]
+    assert apply["contextFiles"][role] == [str(task)]
+    gap = "openspec_apply_blocked:fixture-change"
+    assert report["verdict"] == ("block" if blocked else "pass"), report["required_gaps"]
+    assert (gap in report["required_gaps"]) is blocked
+    plan = run_ethos("plan", "--change", "fixture-change", "--json", cwd=root)
+    assert plan["verdict"] == ("block" if blocked else "pass"), plan["required_gaps"]
+    assert (gap in plan["required_gaps"]) is blocked
+    if blocked:
+        proof = run_ethos_raw("prove", "--change", "fixture-change", "--json", cwd=root)
+        assert proof.returncode == 1
+        assert gap in json.loads(proof.stdout)["required_gaps"], proof.stdout
+        args = ("--editor-root", str(root), "--require-editor-root", "--json")
+        for forbidden in ("README.md", "openspec/changes/fixture-change/proposal.md"):
+            denied = run_ethos_raw("lane", "prewrite", "--paths", forbidden, *args, cwd=root)
+            assert denied.returncode == 1, denied.stdout
+        repair = run_ethos(
+            "lane", "prewrite", "--paths", task.relative_to(root).as_posix(), *args, cwd=root
+        )
+        assert repair["verdict"] == "pass", repair
+        scope = repair["data"]["material_scope"]
+        assert scope["authorized_paths"] == [task.relative_to(root).as_posix()]
+        assert (
+            repair["next_action"] == f"openspec instructions {role} --change fixture-change --json"
+        )
+
+
+def test_task_repair_requires_the_matching_native_tracking_binding(tmp_path: Path) -> None:
+    root = fixture.prepared_work_lane(tmp_path).worktree
+    path = "openspec/changes/fixture-change/tasks.md"
+    (root / path).write_text("# Tasks\n\nNo executable checklist.\n", encoding="utf-8")
+    official = governance.openspec_governance_report(root, change="fixture-change", lifecycle=True)
+    status = official["commands"]["status"]
+    binding = status["task_tracking"]
+    assert binding["artifactId"] == "tasks"
+    assert binding["outputPaths"] == [str(root / path)]
+    scope = lifecycle_scope.official_change_bootstrap_scope_report(
+        root=root, official=official, requested_paths=(path,)
+    )
+    assert scope["authorized_paths"] == [path]
+    assert scope["verdict"] == "pass"
+    for replacement in (None, binding | {"schemaName": "another-selected-schema"}):
+        unbound = deepcopy(official)
+        status = unbound["commands"]["status"]
+        if replacement is None:
+            status.pop("task_tracking")
+        else:
+            status["task_tracking"] = replacement
+        refused = lifecycle_scope.official_change_bootstrap_scope_report(
+            root=root, official=unbound, requested_paths=(path,)
+        )
+        assert refused.get("authorized_paths", []) == []

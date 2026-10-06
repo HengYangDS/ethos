@@ -153,7 +153,14 @@ def plan_repository(root: Path, *, changed: bool = False, change: str | None = N
             dict.fromkeys((*generation_scope.gaps, *rule_validation_gaps, *policy.gaps))
         ),
     )
-    portfolio = skill_portfolio_report(repo)
+    portfolio_provider = f"{skill_portfolio_report.__module__}:{skill_portfolio_report.__name__}"
+    portfolio = skill_portfolio_report(
+        repo,
+        required=any(
+            portfolio_provider in (*gate.providers, *gate.verification_providers)
+            for gate in policy.gates
+        ),
+    )
     skill_activation = compile_skill_activation(
         cast("dict[str, object]", portfolio.get("registry") or {}),
         operation="plan",

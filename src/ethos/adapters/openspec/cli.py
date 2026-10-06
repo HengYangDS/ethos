@@ -345,7 +345,9 @@ def _batch_rows(output: str, commands: tuple[tuple[str, ...], ...]) -> list[dict
     rows = [json.loads(line) for line in output.splitlines()]
     if len(rows) > len(commands) or any(
         not isinstance(row, dict)
-        or set(row) != {"index", "args", "exit_code", "stdout", "stderr"}
+        or not {"index", "args", "exit_code", "stdout", "stderr"} <= set(row)
+        or set(row) - {"index", "args", "exit_code", "stdout", "stderr", "task_tracking"}
+        or ("task_tracking" in row and not isinstance(row["task_tracking"], dict))
         or type(row["index"]) is not int
         or row["index"] != index
         or row["args"] != list(commands[index])
@@ -427,6 +429,11 @@ def run_json_batch(
         )
         results.append(
             result
+            | (
+                {"task_tracking": rows[index]["task_tracking"]}
+                if index < len(rows) and "task_tracking" in rows[index]
+                else {}
+            )
             | {
                 "transport": {
                     "command": list(transport),

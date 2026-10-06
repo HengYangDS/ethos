@@ -17,6 +17,7 @@ from ethos.assistants.skills.packages import validate_skill_package_manifest
 from ethos.assistants.skills.portfolio import portfolio_coverage
 from ethos.assistants.skills.portfolio import portfolio_design
 from ethos.assistants.skills.portfolio import portfolio_retirement
+from ethos.assistants.skills.portfolio import skill_portfolio_report
 from ethos.contracts.skill.activation import compile_skill_activation
 from ethos.contracts.skill.activation import normalize_skill_activation
 from ethos.repository.policy.schema import validate_schema_instance
@@ -435,3 +436,104 @@ def test_eval_metadata_remains_evidence_and_never_progress_state(
         assert not {"done", "progress", "status", "tasks"} & result["eval"].keys()
     else:
         assert "skill_package_eval_invalid:sample-skill" in result["required_gaps"]
+
+
+def _write_portfolio_state(skills: Path, state: str) -> None:
+    """Build native portfolio presence states without supplying missing governance."""
+    if state in {"dangling", "dangling_root"}:
+        target = skills.parent if state == "dangling" else skills
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.symlink_to("missing-portfolio", target_is_directory=True)
+        return
+    if state in {"absent", "required_absent"}:
+        return
+    skills.mkdir(parents=True, exist_ok=True)
+    if state != "missing_readme":
+        (skills / "README.md").write_text("# Skills\n")
+    if state in {"empty", "missing_readme"}:
+        registry = _registry()
+        (skills / "activation.toml").write_text(
+            tomli_w.dumps({"meta": registry["meta"], "coverage": registry["coverage"], "skill": []})
+        )
+    elif state == "unbound":
+        write_skill_package(skills, "read-source")
+    elif state == "malformed":
+        (skills / "activation.toml").write_text("invalid [\n")
+    elif state == "invalid_encoding":
+        (skills / "activation.toml").write_bytes(b"\xff")
+    elif state == "non_file":
+        (skills / "activation.toml").mkdir()
+
+
+def test_portfolio_structural_read_failure_remains_a_gap(tmp_path: Path, monkeypatch) -> None:
+    """Filesystem errors also remain fail-closed on the Python 3.12 boundary."""
+    repo = init_git_repo(tmp_path / "repo")
+    initialize_adopted_fixture(repo)
+    skills = repo / ".agents/skills"
+    _write_portfolio_state(skills, "empty")
+    native_exists = Path.exists
+
+    def observed_exists(path: Path) -> bool:
+        if path == skills:
+            raise PermissionError(path)
+        return native_exists(path)
+
+    monkeypatch.setattr(Path, "exists", observed_exists)
+    report = skill_portfolio_report(repo, required=False)
+    assert report["verdict"] == "block"
+    gaps = report["registry_required_gaps"]
+    assert isinstance(gaps, list)
+    assert ".agents/skills:unreadable" in gaps
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        "absent",
+        "empty",
+        "unbound",
+        "malformed",
+        "missing_readme",
+        "required_absent",
+        "dangling",
+        "dangling_root",
+        "invalid_encoding",
+        "non_file",
+    ],
+)
+def test_plan_optional_portfolio_requires_positive_absence(tmp_path: Path, state: str) -> None:
+    """Absent optional projections never block; present invalid state cannot disappear."""
+    repo = init_git_repo(tmp_path / "repo")
+    initialize_adopted_fixture(repo)
+    declare_fixture_documentation_proof(repo)
+    write_active_commitment(repo, change_id="optional-skills")
+    if state == "required_absent":
+        gate_path = repo / "system/gates.toml"
+        gates = tomllib.loads(gate_path.read_text())
+        gates["gates"][0]["depends_on"] = ["portfolio-contract"]
+        gates["gates"].append(
+            {
+                "id": "portfolio-contract",
+                "kind": "governance",
+                "providers": [
+                    f"{skill_portfolio_report.__module__}:{skill_portfolio_report.__name__}"
+                ],
+                "execution_mode": "provider",
+            }
+        )
+        gate_path.write_text(tomli_w.dumps(gates))
+    _write_portfolio_state(repo / ".agents/skills", state)
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "declare optional portfolio")
+    result = run_ethos_raw("plan", "--json", cwd=repo)
+    report = json.loads(result.stdout)
+    accepted = state in {"absent", "empty"}
+    assert report["verdict"] == ("pass" if accepted else "block"), report["required_gaps"]
+    assert bool(report["required_gaps"]) is not accepted
+    if state == "required_absent":
+        assert ".agents/skills/activation.toml" in report["required_gaps"]
+        assert {"openspec-baseline", "portfolio-contract"} <= {
+            node["id"] for node in report["data"]["transition_plan"]["nodes"]
+        }
+    if state == "missing_readme":
+        assert ".agents/skills/README.md" in report["required_gaps"]

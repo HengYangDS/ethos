@@ -34,6 +34,13 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 - Retired the experimental Node coverage collector and unused LCOV interpretation.
 
+### Fixed
+
+- Preserved official OpenSpec apply refusal while admitting repair of its exact
+  selected existing task artifact from native schema and tracking observations.
+- Allowed planning without an unselected, observably absent local Skill portfolio;
+  required, incomplete, dangling and unreadable portfolio state remains blocking.
+
 ## [0.2.0-alpha.2] - 2026-08-30
 
 ### Changed

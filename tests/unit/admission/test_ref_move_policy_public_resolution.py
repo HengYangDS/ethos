@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from ethos.adapters.admission.ref_intent import write_ref_intent
+from ethos.adapters.admission.ref_move_policy import candidate_destination_gaps
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.plan import GitRefUpdate
@@ -106,3 +107,26 @@ def test_absorbed_legacy_ref_fails_closed_without_exact_current_authority(
 
     with pytest.raises(ValueError, match="ref_move_policy_unavailable"):
         resolve_ref_move_policy(repo, ref_name, legacy, _ZERO)
+
+
+@pytest.mark.parametrize("candidate", ["other", "candidate/dev"])
+def test_candidate_destination_uses_resolved_strict_policy(tmp_path: Path, candidate: str) -> None:
+    """Uncommitted role/ancestry edits cannot change exact hook destination admission."""
+    repo = init_git_repo(tmp_path / "repo")
+    write_role_policy(repo, candidate_branch="candidate/dev")
+    head = git(repo, "rev-parse", "HEAD")
+    ref = "refs/heads/candidate/dev"
+    roles = resolve_ref_move_policy(repo, ref, head, head)
+    path = repo / ".ethos/workspace.toml"
+    original = path.read_text()
+    changed = original.replace(
+        'candidate_branch = "candidate/dev"', f'candidate_branch = "{candidate}"'
+    )
+    changed = changed.replace('accepted_branch = "dev"', 'accepted_branch = "missing-accepted"')
+    path.write_text(changed)
+    assert (
+        candidate_destination_gaps(
+            repo, ref, GitRefUpdate(expected=head, desired=head), policy=roles
+        )
+        == []
+    )

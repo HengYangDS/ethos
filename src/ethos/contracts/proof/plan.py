@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
+from typing import Literal
+from typing import cast
 
 from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import string_sequence
@@ -15,6 +17,7 @@ if TYPE_CHECKING:
     from ethos.contracts.semantic import Facts
 
 _FACT_FIELDS = {
+    "acceptance_purpose",
     "change_id",
     "changed_paths",
     "gate_ids",
@@ -23,6 +26,17 @@ _FACT_FIELDS = {
     "path_attributions",
     "selected_carrier",
 }
+
+AcceptancePurpose = Literal["repository", "local-source"]
+
+
+def proof_acceptance_purpose(policy: Mapping[str, object]) -> AcceptancePurpose:
+    """Read one bound purpose; no consumer may infer a weaker acceptance context."""
+    purpose = policy.get("acceptance_purpose", "repository")
+    if purpose not in ("repository", "local-source"):
+        message = "proof_acceptance_purpose_invalid"
+        raise ValueError(message)
+    return cast("AcceptancePurpose", purpose)
 
 
 def execution_source_gaps(facts: Mapping[str, object]) -> tuple[str, ...]:
@@ -118,10 +132,17 @@ def validate_proof_plan(
         message = "transition_plan_semantics_mismatch"
         raise ValueError(message)
     policy = mutable_json(plan.policy)
-    gates = policy.get("gates") if isinstance(policy, dict) else None
+    if not isinstance(policy, dict):
+        message = "transition_plan_policy_invalid"
+        raise TypeError(message)
+    gates = policy.get("gates")
     fact_gate_ids = facts.values.get("gate_ids")
     if fact_gate_ids is None:
         return
+    purpose = proof_acceptance_purpose(policy)
+    if facts.values.get("acceptance_purpose", "repository") != purpose:
+        message = "transition_plan_acceptance_purpose_mismatch"
+        raise ValueError(message)
     effect = mutable_json(plan.effect)
     expected_effect = {
         "operation": "proof.execute",
@@ -137,7 +158,7 @@ def validate_proof_plan(
     if any(gap not in plan.required_gaps for gap in semantic_gaps):
         message = "transition_plan_semantics_mismatch"
         raise ValueError(message)
-    policy_gaps = policy.get("gaps") if isinstance(policy, dict) else None
+    policy_gaps = policy.get("gaps")
     if not isinstance(gates, list) or not isinstance(policy_gaps, list):
         message = "transition_plan_policy_invalid"
         raise TypeError(message)

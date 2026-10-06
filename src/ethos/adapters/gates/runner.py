@@ -26,6 +26,7 @@ from ethos.adapters.gates.verification import provider_reports
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import command_scope
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.dependency_acceptance import captured_dependency_acceptance
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
@@ -39,6 +40,7 @@ from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.gates import PRODUCT_PROVIDER_SOURCE
 from ethos.repository.policy.gates import gate_execution_identity
+from ethos.repository.policy.gates import native_dependency_audit_scope
 from ethos.repository.policy.gates import provider_module_sources
 
 if TYPE_CHECKING:
@@ -191,10 +193,26 @@ class LocalGateRunner:
                     },
                 ),
             )
-        verdict, diagnostics = classify_action_result(
-            exit_code=completed.returncode,
-            stdout=completed.stdout,
-        )
+        if scope := native_dependency_audit_scope(gate.model_dump(mode="python")):
+            decision = captured_dependency_acceptance(
+                completed.stdout,
+                head=current_tracked_head(root),
+                source=lambda name: (root / name).read_bytes(),
+                scope=scope,
+            )
+            verdict = "block" if completed.returncode != 0 else decision["verdict"]
+            diagnostics = (
+                {
+                    "kind": "dependency_acceptance",
+                    "verdict": verdict,
+                    "required_gaps": [] if verdict == "pass" else [decision["reason"]],
+                },
+            )
+        else:
+            verdict, diagnostics = classify_action_result(
+                exit_code=completed.returncode,
+                stdout=completed.stdout,
+            )
         execution = ActionRunResult(
             action_id=node.id,
             command=node.command,

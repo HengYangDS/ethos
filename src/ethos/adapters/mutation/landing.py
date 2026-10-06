@@ -9,9 +9,9 @@ from typing import cast
 
 import ethos.adapters.mutation.remediation.guidance as remediation
 from ethos.adapters.mutation.decision import evaluate_mutation
-from ethos.adapters.mutation.proof import proof_attestation
-from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.mutation.proof_admission import predecessor_policy_gaps
+from ethos.adapters.mutation.proof_admission import proof_attestation
+from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import current_branch
@@ -29,10 +29,9 @@ from ethos.adapters.repo.status.workspace import integration_coordinates
 from ethos.adapters.repo.worktree_effects import sync_worktree
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.plan import GitEffect
-from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
+from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.contracts.verdict import report_verdict
 
 if TYPE_CHECKING:
@@ -252,13 +251,21 @@ def _candidate_plan(
             message = "repository_identity_transition_target_head_changed"
             raise ValueError(message)
         candidate_head = expected_candidate_head
-    proof = proof_attestation(candidate_path, current_head)
+    purpose = proof_acceptance_purpose(
+        admitted_decision.subject.expected_state if admitted_decision is not None else {}
+    )
+    proof, proof_required = proof_attestation(
+        root,
+        current_head,
+        store=proof_artifact_root(root),
+        acceptance_purpose=purpose,
+    )
     if proof is None:
         return (
             _blocked(
                 policy,
                 current_head,
-                proof_gaps(candidate_path, current_head),
+                proof_required,
                 path=candidate_path.as_posix(),
             ),
             None,
@@ -291,8 +298,7 @@ def _candidate_plan(
         compile_observed_git_effect(
             root,
             authority,
-            _candidate_effect(
-                policy=policy,
+            policy.candidate_effect(
                 branch=branch,
                 current_head=current_head,
                 candidate_head=candidate_head,
@@ -302,6 +308,7 @@ def _candidate_plan(
             policy={
                 "operation": "candidate.integrate",
                 "candidate_branch": policy.candidate_branch,
+                "acceptance_purpose": purpose,
             },
             values={
                 "operation": "candidate.integrate",
@@ -337,8 +344,7 @@ def _candidate_materialization_plan(
         plan.policy.get("transition") != "candidate.integrate"
         or plan.inputs.commitment != commitment_digest
         or git_effect_from_plan(plan)
-        != _candidate_effect(
-            policy=policy,
+        != policy.candidate_effect(
             branch=branch,
             current_head=head,
             candidate_head=previous,
@@ -379,24 +385,6 @@ def _candidate_cas(
                 ).stdout.strip()
                 return None, ("candidate_cas_retry_exhausted", str(retry_error)), current, 2
             raise
-
-
-def _candidate_effect(
-    *,
-    policy: BranchRolePolicy,
-    branch: str,
-    current_head: str,
-    candidate_head: str,
-) -> GitEffect:
-    return GitEffect(
-        updates={
-            f"refs/heads/{policy.candidate_branch}": GitRefUpdate(
-                expected=candidate_head,
-                desired=current_head,
-            )
-        },
-        assertions={f"refs/heads/{branch}": current_head},
-    )
 
 
 def _candidate_admission_gap(error: Exception) -> str:

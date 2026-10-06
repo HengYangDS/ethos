@@ -20,6 +20,8 @@ from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.proof.plan import AcceptancePurpose
+from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
@@ -318,6 +320,7 @@ def _candidate_land_result(
     current_head: str,
     identity_transition: bool = False,
     candidate_head: str | None = None,
+    acceptance_purpose: AcceptancePurpose = "repository",
 ) -> EthosResult:
     """Evaluate work-lane integration into the configured candidate role."""
     governance = repository_context(repo)
@@ -331,6 +334,7 @@ def _candidate_land_result(
         root=repo,
         current_head=current_head,
         status=None if apply else status_payload,
+        acceptance_purpose=acceptance_purpose,
     )
     audit = repository_audit_after_admission(repo, decision)
     lifecycle = active_change_progress_report(repo)
@@ -443,9 +447,19 @@ def land_repository(
     release_head: str = "",
     tag: str = "",
     independent_verification_receipt: Path | None = None,
+    acceptance_purpose: AcceptancePurpose = "repository",
 ) -> EthosResult:
     """Preview or apply exact candidate, accepted or release integration under current policy."""
     repo = root.resolve()
+    acceptance_purpose = proof_acceptance_purpose({"acceptance_purpose": acceptance_purpose})
+    if acceptance_purpose == "local-source" and (closeout or release):
+        return EthosResult(
+            command="land",
+            verdict="block",
+            state="blocked",
+            required_gaps=("local_source_acceptance_effect_forbidden",),
+            next_action="produce strict repository proof before accepted or release integration",
+        )
     if load_repository_profile(repo).state == "invalid":
         return profile_failure_result("land")
     if release:
@@ -500,5 +514,6 @@ def land_repository(
             current_head=current_head,
             identity_transition=identity_transition,
             candidate_head=candidate_head,
+            acceptance_purpose=acceptance_purpose,
         )
     )

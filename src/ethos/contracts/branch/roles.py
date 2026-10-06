@@ -7,6 +7,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.contracts.plan import GitEffect
+from ethos.contracts.plan import GitRefUpdate
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -80,6 +83,17 @@ class BranchRolePolicy:
         if not self.work_branch_prefix or not branch.startswith(self.work_branch_prefix):
             return ""
         return f"{self.proposal_branch_prefix}{branch.removeprefix(self.work_branch_prefix)}"
+
+    def candidate_effect(self, *, branch: str, current_head: str, candidate_head: str) -> GitEffect:
+        """Compile the unique role-bound candidate CAS; publication is a different effect."""
+        return GitEffect(
+            updates={
+                f"refs/heads/{self.candidate_branch}": GitRefUpdate(
+                    expected=candidate_head, desired=current_head
+                )
+            },
+            assertions={f"refs/heads/{branch}": current_head},
+        )
 
     @property
     def protected_branches(self) -> tuple[str, ...]:

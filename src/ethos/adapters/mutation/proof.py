@@ -18,6 +18,7 @@ from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.attestation_set import record_attestations
+from ethos.adapters.repo.dependency_acceptance import dependency_acceptance_gaps
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tracked_head
@@ -31,7 +32,9 @@ from ethos.adapters.repo.worktree_postimage import observe_execution_source
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.plan import proof_effect_digest
+from ethos.contracts.proof.plan import AcceptancePurpose
 from ethos.contracts.proof.plan import execution_source_gaps
+from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
@@ -81,10 +84,8 @@ def _proof_issue_values(
         or not isinstance(scope, str)
         or not isinstance(boundary, str)
         or not isinstance(objective, str)
+        or not all((issuer, scope, boundary, objective))
     ):
-        msg = "proof_attestation_payload_invalid"
-        raise TypeError(msg)
-    if not issuer or not scope or not boundary or not objective:
         msg = "proof_attestation_payload_invalid"
         raise TypeError(msg)
     if verdict not in {"pass", "block", "unknown"}:
@@ -214,6 +215,7 @@ def issue_proof_attestation(
         root,
         tree_ref=head,
         gate_ids=tuple(node.id for node in plan.nodes),
+        acceptance_purpose=proof_acceptance_purpose(plan.policy),
     )
     if (
         not head
@@ -236,6 +238,14 @@ def issue_proof_attestation(
         msg = "proof_attestation_check_plan_mismatch"
         raise ValueError(msg)
     normalized = tuple(checks_by_id[gate_id] for gate_id in execution_order)
+    if gaps := dependency_acceptance_gaps(
+        root,
+        head,
+        plan.policy,
+        normalized,
+        acceptance_purpose=proof_acceptance_purpose(plan.policy),
+    ):
+        raise ValueError(gaps[0])
     checks_pass = all(execution_succeeded(check) for check in normalized)
     if quality_gaps := policy.result_gaps(
         normalized, source_tree=str(plan.facts.get("tree") or "")
@@ -351,6 +361,7 @@ def proof_plan(
     gate_ids: tuple[str, ...] = (),
     full: bool = False,
     execution_root: Path | None = None,
+    acceptance_purpose: AcceptancePurpose = "repository",
 ) -> TransitionPlan:
     """Compile one plan solely from a passing frozen current resolution."""
     if resolution.verdict != "pass":
@@ -362,11 +373,10 @@ def proof_plan(
         raise ValueError(message)
     head = authority.current_head
     work_lane = authority.required
-    commitment = resolution.commitment
     repository = repository_identity(root, tree_ref=head)
-    selected_change_id = resolution.change_id
-    policy = resolve_gate_policy(root, tree_ref=head, gate_ids=gate_ids, full=full)
-    nodes = policy.nodes
+    policy = resolve_gate_policy(
+        root, tree_ref=head, gate_ids=gate_ids, full=full, acceptance_purpose=acceptance_purpose
+    )
     observed_scope = resolution.scope
     effective_paths = observed_scope.paths
     facts = Facts(
@@ -376,8 +386,13 @@ def proof_plan(
         observed_at=datetime.now().astimezone(),
         values={
             "changed_paths": effective_paths,
-            "change_id": selected_change_id,
-            "gate_ids": tuple(node.id for node in nodes),
+            "change_id": resolution.change_id,
+            "gate_ids": tuple(node.id for node in policy.nodes),
+            **(
+                {"acceptance_purpose": acceptance_purpose}
+                if acceptance_purpose != "repository"
+                else {}
+            ),
             "execution_source": observe_execution_source(
                 execution_root or root, head, authority.current_tree
             ),
@@ -400,9 +415,9 @@ def proof_plan(
     archive_authority = observed_scope.archive_authority if effective_paths else {}
     prior_attestations = {"openspec_archive": archive_authority} if archive_authority else {}
     return compile_plan(
-        commitment,
+        resolution.commitment,
         facts,
-        nodes,
+        policy.nodes,
         policy=policy.projection,
         prior_attestations=prior_attestations,
         required_gaps=tuple(dict.fromkeys((*policy.gaps, *observed_scope.gaps))),
@@ -433,7 +448,13 @@ def proof_for_repository_transition(
     )
 
 
-def proof_gaps(root: Path, head: str, *, change_id: str | None = None) -> list[str]:
+def proof_gaps(
+    root: Path,
+    head: str,
+    *,
+    change_id: str | None = None,
+    acceptance_purpose: AcceptancePurpose = "repository",
+) -> list[str]:
     """Return fail-closed proof Attestation gaps for one exact HEAD."""
     try:
         store = proof_artifact_root(root)
@@ -442,7 +463,7 @@ def proof_gaps(root: Path, head: str, *, change_id: str | None = None) -> list[s
             return ["attestation_set_repository_invalid"]
         raise
     _attestation, gaps = ethos.adapters.mutation.proof_admission.proof_attestation(
-        root, head, store=store, change_id=change_id
+        root, head, store=store, change_id=change_id, acceptance_purpose=acceptance_purpose
     )
     return gaps
 

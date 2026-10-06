@@ -30,6 +30,8 @@ from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.proof_execution_carrier import ProofExecutionCarrier
 from ethos.adapters.repo.status.workspace import workspace_status_observation
+from ethos.contracts.proof.plan import AcceptancePurpose
+from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.contracts.verdict import execution_succeeded
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
@@ -64,6 +66,9 @@ class _ProofOptions:
     execution_root: Annotated[str | None, Parameter(name="--execution-root")] = None
     host: bool = False
     probe: bool = False
+    acceptance_purpose: Annotated[AcceptancePurpose, Parameter(name="--acceptance-purpose")] = (
+        "repository"
+    )
 
 
 _DEFAULT_PROOF_OPTIONS = _ProofOptions()
@@ -72,6 +77,17 @@ _DEFAULT_PROOF_OPTIONS = _ProofOptions()
 def _emit_proof_preflight(*, repo: Path, options: _ProofOptions, json_output: bool) -> bool:
     """Admit one proof mode before any governed repository observation."""
     execution_root = getattr(options, "execution_root", None)
+    if getattr(options, "acceptance_purpose", "repository") == "local-source" and (
+        options.host
+        or options.probe
+        or options.scope != "repository"
+        or options.gate
+        or not options.full
+    ):
+        _emit_proof_gap(
+            ValueError("local_source_proof_requires_full_repository"), json_output=json_output
+        )
+        return True
     if execution_root and (
         not options.execute
         or not options.full
@@ -172,6 +188,7 @@ def run_plan_checks(
         repo,
         tree_ref=plan_head,
         gate_ids=tuple(node.id for node in plan.nodes),
+        acceptance_purpose=proof_acceptance_purpose(plan.policy),
     )
     if carrier is not None and gates_by_id.digest != plan.inputs.policy:
         message = "proof_execution_environment_mismatch"
@@ -364,6 +381,7 @@ def prove(
             resolution=resolution,
             gate_ids=options.gate,
             full=options.full,
+            acceptance_purpose=getattr(options, "acceptance_purpose", "repository"),
             execution_root=carrier.execution if carrier is not None else None,
         )
     except ValueError as exc:

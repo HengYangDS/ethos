@@ -11,6 +11,7 @@ from typing import cast
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import committed_ref_intent
 from ethos.adapters.admission.ref_move_policy import accepted_advance_gaps
+from ethos.adapters.admission.ref_move_policy import candidate_destination_gaps
 from ethos.adapters.admission.ref_move_policy import prepared_ref_intent_gaps
 from ethos.adapters.admission.ref_move_policy import ref_transition_operation
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
@@ -18,7 +19,6 @@ from ethos.adapters.admission.ref_move_policy import signature_repair_ref_report
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.mutation.proof import proof_for_repository_transition
-from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.release import declared_release_tag
@@ -27,6 +27,7 @@ from ethos.adapters.repo.release import release_selection_command
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
+from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.verdict import Verdict
@@ -208,9 +209,7 @@ def ref_move_admission_report(
             else "accepted_ref_move_bypasses_candidate_train"
         )
     elif branch == policy.candidate_branch:
-        gaps = _candidate_move_gaps(
-            repo, ref_name, old_value, new_value, operation, policy.accepted_branch
-        )
+        gaps = _candidate_move_gaps(repo, ref_name, old_value, new_value, operation, policy)
         reason = "protected_ref_move_not_proven"
     elif operation == "lane.retire":
         gaps = prepared_ref_intent_gaps(
@@ -399,13 +398,18 @@ def _ref_result(base: dict[str, object], reason: str, gaps: list[str]) -> dict[s
 
 
 def _candidate_move_gaps(
-    repo: Path, ref: str, old: str, new: str, operation: str, accepted: str
+    repo: Path, ref: str, old: str, new: str, operation: str, policy: BranchRolePolicy
 ) -> list[str]:
-    gaps = [] if is_ancestor(repo, new, accepted) else proof_gaps(repo, new)
-    return gaps or prepared_ref_intent_gaps(
-        repo=repo,
+    intent = claim_ref_intent(
+        root=repo,
         ref_name=ref,
         update=GitRefUpdate(expected=old, desired=new),
         operation=operation,
-        missing_gap="candidate_ref_move_no_ref_intent",
+        phase="prepared",
+    )
+    gap = str(intent["gap"] or "")
+    if gap:
+        return ["candidate_ref_move_no_ref_intent" if gap == "ref_intent_missing" else gap]
+    return candidate_destination_gaps(
+        repo, ref, GitRefUpdate(expected=old, desired=new), policy=policy
     )

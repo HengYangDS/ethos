@@ -19,13 +19,17 @@ from tests.support.semantic import commitment_fixture
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.contracts.proof.plan import AcceptancePurpose
+
 
 ZERO = "0" * 40
 ACTOR = "agent:test:case:owner"
 
 
+@pytest.mark.parametrize("purpose", ["repository", "local-source"])
 def test_observed_effect_compiler_promotes_semantic_policy_to_exact_cas_authority(
     tmp_path: Path,
+    purpose: AcceptancePurpose,
 ) -> None:
     root = init_git_repo(tmp_path / "repo")
     write_test_profile(root)
@@ -34,21 +38,28 @@ def test_observed_effect_compiler_promotes_semantic_policy_to_exact_cas_authorit
     head = git(root, "rev-parse", "HEAD")
     effect = GitEffect(updates={"refs/heads/dev": GitRefUpdate(expected=head, desired=head)})
     authority = commitment_fixture(id=f"repository:{root.name}", acceptance=("acceptance:fixture",))
+    policy = {
+        "operation": "candidate.integrate" if purpose == "local-source" else "lane.refresh",
+        "execution_branch": "work/example",
+        **({"acceptance_purpose": purpose} if purpose == "local-source" else {}),
+    }
 
     carried = compile_observed_git_effect(
         root,
         authority,
         effect,
         head=head,
-        policy={"operation": "lane.refresh", "execution_branch": "work/example"},
+        policy=policy,
     )
 
     assert carried.policy == {
         "operation": "git.ref.compare-and-swap",
-        "transition": "lane.refresh",
+        "transition": policy["operation"],
         "effect_digest": effect.digest(),
         "execution_branch": "work/example",
+        **({"acceptance_purpose": purpose} if purpose == "local-source" else {}),
     }
+    assert "acceptance_purpose" not in carried.facts["values"]
     admission.require_effect_permission(effect, carried)
 
 

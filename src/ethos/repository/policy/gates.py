@@ -9,15 +9,19 @@ from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
+from ethos.contracts.gates import bind_gate_command
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.proof.plan import AcceptancePurpose
+from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.verdict import execution_succeeded
 from ethos.repository.policy.code_subjects import observed_code_subjects
@@ -33,6 +37,9 @@ from ethos.repository.policy.references.python.syntax import module_source_paths
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import SourceContract
+
+if TYPE_CHECKING:
+    from ethos.repository.policy.quality.dependency_acceptance import AuditScope
 
 _PACKAGED_GATE_DECLARATION = load_gate_registry_declaration()
 PRODUCT_PROVIDER_SOURCE = "@ethos/"
@@ -51,6 +58,7 @@ class ResolvedGatePolicy:
     repository_paths: tuple[str, ...] = ()
     script_paths: tuple[str, ...] = ()
     carrier_roles: tuple[tuple[str, str], ...] = ()
+    acceptance_purpose: AcceptancePurpose = "repository"
 
     @property
     def registry(self) -> dict[str, Gate]:
@@ -111,6 +119,11 @@ class ResolvedGatePolicy:
             ),
             "gates": [gate_policy_fields(gate, sources.get(gate.id, ())) for gate in self.gates],
             "gaps": list(self.gaps),
+            **(
+                {"acceptance_purpose": self.acceptance_purpose}
+                if self.acceptance_purpose != "repository"
+                else {}
+            ),
         }
 
     @property
@@ -386,7 +399,9 @@ def resolve_gate_policy(
     carrier_roles: tuple[tuple[str, str], ...] = (),
     gate_ids: tuple[str, ...] = (),
     full: bool = False,
+    acceptance_purpose: AcceptancePurpose = "repository",
 ) -> ResolvedGatePolicy:
+    acceptance_purpose = proof_acceptance_purpose({"acceptance_purpose": acceptance_purpose})
     declaration, profile = _gate_declaration(
         profile,
         gate_registry_source=gate_registry_source,
@@ -397,6 +412,20 @@ def resolve_gate_policy(
         packaged = _PACKAGED_GATE_DECLARATION.registry().keys()
         if requested.isdisjoint(owned) and requested <= packaged:
             declaration, profile = _PACKAGED_GATE_DECLARATION, None
+    if acceptance_purpose == "local-source":
+        declaration = declaration.model_copy(
+            update={
+                "gates": tuple(
+                    gate.model_copy(
+                        update={"command": (*gate.command, "--", "--scope", "local-development")}
+                    )
+                    if native_dependency_audit_scope(gate.model_dump(mode="python"))
+                    == "production-release"
+                    else gate
+                    for gate in declaration.gates
+                )
+            }
+        )
     python_executable = repository_python or sys.executable
     gates = declaration.proof_gates(
         gate_ids,
@@ -442,6 +471,7 @@ def resolve_gate_policy(
         repository_paths,
         script_paths,
         carrier_roles,
+        acceptance_purpose,
     )
 
 
@@ -452,6 +482,20 @@ def canonical_gate_command(command: tuple[str, ...]) -> tuple[str, ...]:
     head, *rest = command
     name = Path(head).name
     return ("python", *rest) if Path(head).is_absolute() and name.startswith("python") else command
+
+
+def native_dependency_audit_scope(gate: Mapping[str, object]) -> AuditScope | None:
+    """Select only the canonical audit owner and its explicit execution scope."""
+    command = gate.get("execution_identity", gate.get("command"))
+    if gate.get("tool_adapter") != "vulnerabilities" or not isinstance(command, tuple | list):
+        return None
+    identity = canonical_gate_command(bind_gate_command(tuple(command), sys.executable))
+    native = ("python", "-m", "nox", "-s", "vulnerabilities")
+    if identity in (native, (*native, "--", "--scope", "production-release")):
+        return "production-release"
+    return (
+        "local-development" if identity == (*native, "--", "--scope", "local-development") else None
+    )
 
 
 def gate_execution_identity(gate: Gate) -> tuple[str, ...]:

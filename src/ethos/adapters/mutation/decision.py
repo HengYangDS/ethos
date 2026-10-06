@@ -28,6 +28,7 @@ from ethos.normalization.coercion import string_mapping
 
 if TYPE_CHECKING:
     from ethos.contracts.branch.roles import BranchRolePolicy
+    from ethos.contracts.proof.plan import AcceptancePurpose
     from ethos.contracts.semantic import Attestation
     from ethos.contracts.verdict import Verdict
 
@@ -132,6 +133,7 @@ def evaluate_mutation(
     root: Path,
     current_head: str,
     status: dict[str, object] | None = None,
+    acceptance_purpose: AcceptancePurpose = "repository",
 ) -> AdmissionDecision:
     """Admit land or publish from current facts."""
     action = "candidate.integrate" if command == "land" else "remote.publish"
@@ -141,6 +143,7 @@ def evaluate_mutation(
         "apply": apply,
         "confirmation_present": authorized,
         "expect_head": expect_head or "",
+        "acceptance_purpose": acceptance_purpose,
     }
     if not apply and command != "land":
         return _local_process_decision(
@@ -158,6 +161,8 @@ def evaluate_mutation(
         expect_head=expect_head,
         current_head=current_head,
     )
+    if acceptance_purpose == "local-source" and command != "land":
+        gaps.append("local_source_acceptance_effect_forbidden")
     role = str(status["role"])
     gaps.extend(
         ["protected_root_mutation"]
@@ -178,7 +183,7 @@ def evaluate_mutation(
                 closeout_gaps.remove("candidate_worktree_dirty")
     gaps.extend(closeout_gaps)
     if apply:
-        gaps.extend(proof_gaps(root, current_head))
+        gaps.extend(proof_gaps(root, current_head, acceptance_purpose=acceptance_purpose))
     required_gaps = tuple(dict.fromkeys(gaps))
     expected_state = {**base_state, "role": role, "dirty": bool(status["dirty"])}
     resource = root.resolve().as_posix()

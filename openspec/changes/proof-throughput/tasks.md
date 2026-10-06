@@ -286,10 +286,19 @@
   Mise 2026.10.3 remains blocked by unchanged installer patch admission at the
   older shell observer; relocated official sidecar bytes are retained. No
   accepted runtime, installed successor or whole-source proof is claimed.
-  Human-approved local source-acceptance applicability remains unimplemented;
-  retain all tests, exact host/risk/expiry and actual-effect consumption. CI,
-  installation delivery, accepted/release promotion and distribution remain
-  strict; do not relabel an audit PASS as source admission.
+  Local-source acceptance now uses the unique purpose-bound policy owner through
+  public prove/land and strict Git hooks; product-policy drift blocks CAS and sync.
+  The exact braces 3.0.3 advisory GHSA-vfj7-8cjw-p6xm is user-approved across
+  downstream boundaries, not declared clean. Portable production approvals ship
+  once with canonical resources; npm/parser approvals remain host/expiry-bound.
+  Native focused tests pass 237 cases in 96.41 seconds, including strict incumbent
+  roles, inverse candidate admission, retained original-plan recovery without CAS,
+  and public interrupted-sync recovery. Caller-held plan recovery is not automatic
+  public recovery from an intent digest. Evidence:
+  `native-source-policy-inverse-qualified-20261007.receipt.json`,
+  `native-product-policy-isolated-build-20261006.receipt.json`.
+  Signed source recovery, accepted successor activation, full exact proof,
+  install/upgrade/adopter readback and release qualification remain open.
   Evidence: `audit-npm-disposition-sidecar-20261005T0615/{qualification-summary.json,native-local.dependency-audit.json,native-strict.dependency-audit.json,native-ci-local.dependency-audit.json}`
   and `ci-node-ssot-sidecar-20261005T051804Z/ci-node-ssot-generated.patch`.
 

@@ -7,6 +7,7 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
+from ethos.contracts.proof.plan import AcceptancePurpose
 from ethos.domain.land.operation import land_repository
 from ethos.surface.cli.application import app
 from ethos.surface.cli.output import JsonFlag
@@ -31,6 +32,9 @@ class _LandOptions:
     independent_verification_receipt: Annotated[
         Path | None, Parameter(name="--independent-verification-receipt")
     ] = None
+    acceptance_purpose: Annotated[AcceptancePurpose, Parameter(name="--acceptance-purpose")] = (
+        "repository"
+    )
 
 
 _DEFAULT_LAND_OPTIONS = _LandOptions()

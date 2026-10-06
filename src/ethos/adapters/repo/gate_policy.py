@@ -21,6 +21,7 @@ from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
+    from ethos.contracts.proof.plan import AcceptancePurpose
     from ethos.repository.policy.code_subjects import CodeSubject
 
 
@@ -30,26 +31,38 @@ def resolve_gate_policy(
     tree_ref: str | None = None,
     gate_ids: tuple[str, ...] = (),
     full: bool = False,
+    acceptance_purpose: AcceptancePurpose = "repository",
 ) -> ResolvedGatePolicy:
     """Observe repository materials and compile one content-bound gate policy."""
-    return _resolve_policies(root, tree_ref, gate_ids, (full,))[0]
+    return _resolve_policies(root, tree_ref, gate_ids, (full,), acceptance_purpose)[0]
 
 
 def resolve_proof_policies(
-    root: Path, *, tree_ref: str
+    root: Path, *, tree_ref: str, acceptance_purpose: AcceptancePurpose = "repository"
 ) -> tuple[tuple[str, ResolvedGatePolicy], ...]:
     """Compile both proof floors from one fresh observation of their combined inputs."""
     return tuple(
-        zip(("full", "default"), _resolve_policies(root, tree_ref, (), (True, False)), strict=True)
+        zip(
+            ("full", "default"),
+            _resolve_policies(root, tree_ref, (), (True, False), acceptance_purpose),
+            strict=True,
+        )
     )
 
 
 def _resolve_policies(
-    root: Path | None, tree_ref: str | None, gate_ids: tuple[str, ...], floors: tuple[bool, ...]
+    root: Path | None,
+    tree_ref: str | None,
+    gate_ids: tuple[str, ...],
+    floors: tuple[bool, ...],
+    acceptance_purpose: AcceptancePurpose,
 ) -> tuple[ResolvedGatePolicy, ...]:
     """Share material observation only within this requested policy compilation."""
     if root is None:
-        return tuple(compile_gate_policy(gate_ids=gate_ids, full=full) for full in floors)
+        return tuple(
+            compile_gate_policy(gate_ids=gate_ids, full=full, acceptance_purpose=acceptance_purpose)
+            for full in floors
+        )
     profile = (
         load_committed_repository_profile(root, tree_ref)
         if tree_ref is not None
@@ -73,6 +86,7 @@ def _resolve_policies(
             carrier_roles=carrier_roles,
             gate_ids=gate_ids,
             full=full,
+            acceptance_purpose=acceptance_purpose,
         )
         for full in floors
     )
@@ -108,6 +122,7 @@ def _resolve_policies(
             carrier_roles=carrier_roles,
             gate_ids=gate_ids,
             full=full,
+            acceptance_purpose=acceptance_purpose,
         )
         for full in floors
     )

@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.mutation.proof_admission import proof_attestation
 from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.repo.git import current_tracked_head
@@ -16,7 +17,9 @@ from ethos.adapters.repo.git_effect_observation import observe_git_effect
 from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.plan import git_effect_from_plan
+from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.value import mutable_json
 
@@ -54,7 +57,7 @@ def admit_git_effect_state(
         raise ValueError(message)
     if recovering:
         require_lease_generation(root, plan, detached_branch=detached_branch)
-        _require_identity_proof(root, plan)
+        require_effect_proof(root, plan)
         repository = (
             resolve_git_effect_repository(
                 root, effect, observed, environment=environment, plan=plan
@@ -64,7 +67,7 @@ def admit_git_effect_state(
         )
         return observed, True, repository
     require_plan_prestate(root, plan, effect, detached_branch=detached_branch)
-    _require_identity_proof(root, plan)
+    require_effect_proof(root, plan)
     repository = resolve_git_effect_repository(
         root,
         effect,
@@ -79,20 +82,51 @@ def admit_git_effect_state(
     return observed, False, repository
 
 
-def _require_identity_proof(root: Path, plan: TransitionPlan) -> None:
+def require_effect_proof(root: Path, plan: TransitionPlan) -> None:
     """Keep fresh transition authorization separate from immutable result validation."""
-    if "repository_identity_transitions" not in plan.policy:
+    purpose = proof_acceptance_purpose(plan.policy)
+    if (
+        "repository_identity_transitions" not in plan.policy
+        and purpose == "repository"
+        and plan.policy.get("transition") != "candidate.integrate"
+    ):
         return
     proof = Attestation.model_validate(mutable_json(plan.prior_attestations.get("proof")))
-    head = str(proof.payload.body["plan"]["facts"]["head"])
+    head = proof.subject.removeprefix("git:commit:")
+    if not head or proof.subject != f"git:commit:{head}":
+        message = "repository_identity_transition_proof_invalid"
+        raise ValueError(message)
+    if purpose == "local-source":
+        effect = git_effect_from_plan(plan)
+        target, update = next(iter(effect.updates.items()))
+        policy = resolve_ref_move_policy(root, target, update.expected, update.desired)
+        branch_refs = tuple(effect.assertions)
+        ref = f"refs/heads/{policy.candidate_branch}"
+        branch = branch_refs[0].removeprefix("refs/heads/") if len(branch_refs) == 1 else ""
+        if (
+            plan.policy.get("transition") != "candidate.integrate"
+            or set(effect.updates) != {ref}
+            or policy.role_for_branch(branch) != ROLE_WORK_LANE
+            or effect
+            != policy.candidate_effect(
+                branch=branch,
+                current_head=head,
+                candidate_head=effect.updates[ref].expected,
+            )
+        ):
+            message = "local_source_acceptance_effect_forbidden"
+            raise ValueError(message)
     admitted, gaps = proof_attestation(
         root,
         head,
         repository_transition=True,
         store=proof_artifact_root(root),
         attestation_id=proof.id,
+        acceptance_purpose=purpose,
     )
-    if admitted is None or gaps or admitted.canonical_json() != proof.canonical_json():
+    if gaps:
+        raise ValueError(gaps[0])
+    if admitted is None or admitted.canonical_json() != proof.canonical_json():
         message = "repository_identity_transition_proof_invalid"
         raise ValueError(message)
 

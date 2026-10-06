@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import json
 import subprocess
+import tomllib
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
 import pytest
+import tomli_w
 
+import ethos.repository.policy.quality.dependency_acceptance as audit_owner
 import ethos.repository.release.resources as resource_layout
 import tools.ci.openspec_runtime_hook as subject
 
@@ -19,6 +22,14 @@ if TYPE_CHECKING:
 
 
 def _hook(root: Path, target: str = "wheel") -> subject.OpenSpecRuntimeHook:
+    policy = root / audit_owner.AUDIT_POLICY_PATH
+    if not policy.exists():
+        policy.parent.mkdir(parents=True, exist_ok=True)
+        policy.write_bytes(
+            audit_owner.product_audit_projection(
+                (Path(__file__).resolve().parents[3] / audit_owner.AUDIT_POLICY_PATH).read_bytes()
+            )
+        )
     return subject.OpenSpecRuntimeHook(
         str(root),
         {},
@@ -103,6 +114,9 @@ def test_build_hook_loads_the_single_source_supply_owner_without_installed_ethos
         NodeSupply = NativeSupply
 
     def import_owner(name: str) -> object:
+        if name == "ethos.repository.policy.quality.dependency_acceptance":
+            assert source_path in subject.sys.path
+            return audit_owner
         if name == "ethos.repository.release.resources":
             assert source_path in subject.sys.path
             return resource_layout
@@ -163,6 +177,61 @@ def test_build_hook_projects_prepared_production_supply_without_npm_or_temp_tree
     assert not any("nested" in source for source in force_include)
     assert not any("dev-only" in source for source in force_include)
     assert not list(tmp_path.glob("ethos-openspec-supply-*"))
+
+
+@pytest.mark.parametrize("target", ["sdist", "wheel"])
+def test_build_policy_projection_retains_release_authority_and_cleans_rejection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, target: str
+) -> None:
+    """The real policy projector never ships host approvals or leaks failed staging."""
+    supply = _prepared_supply(tmp_path)
+    monkeypatch.setenv("ETHOS_NODE_PACKAGE_SUPPLY", str(supply))
+    native = tmp_path / "native"
+    native.mkdir()
+    monkeypatch.setattr(
+        subject, "_node_projection", lambda *_args: (native, "py3-none-linux_x86_64")
+    )
+    monkeypatch.setattr(subject, "_build_identity_payload", lambda _: (b"{}", "0.0.0"))
+    hook = _hook(tmp_path, target)
+    policy = tmp_path / audit_owner.AUDIT_POLICY_PATH
+    source = Path(__file__).resolve().parents[3] / audit_owner.AUDIT_POLICY_PATH
+    policy.write_bytes(source.read_bytes())
+    data = {"force_include": {}}
+    hook.initialize("standard", data)
+    projected = next(
+        Path(path)
+        for path, destination in data["force_include"].items()
+        if destination.endswith(audit_owner.AUDIT_POLICY_PATH)
+    )
+    records = tomllib.loads(projected.read_text())["dispositions"]
+    assert records
+    assert all(
+        record["scope"] == "production-release" and "host" not in record for record in records
+    )
+    assert projected.read_bytes() == audit_owner.product_audit_projection(source.read_bytes())
+    staging = projected.parent
+    hook.finalize("standard", data, "fixture")
+    assert not staging.exists()
+
+    changed = tomllib.loads(source.read_text())
+    release = next(
+        record for record in changed["dispositions"] if record["scope"] == "production-release"
+    )
+    release["host"] = "fixture:host-bound-release"
+    policy.write_text(tomli_w.dumps(changed))
+    created = []
+    temporary = subject.tempfile.TemporaryDirectory
+
+    def owned_directory(*args, **kwargs):
+        owned = temporary(*args, **kwargs)
+        created.append(Path(owned.name))
+        return owned
+
+    monkeypatch.setattr(subject.tempfile, "TemporaryDirectory", owned_directory)
+    with pytest.raises(ValueError, match="product_audit_policy_host_bound"):
+        hook.initialize("standard", {"force_include": {}})
+    assert created
+    assert all(not path.exists() for path in created)
 
 
 @pytest.mark.parametrize(

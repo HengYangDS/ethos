@@ -21,6 +21,7 @@ from ethos.adapters.openspec.observation import active_change_names_in_ref
 from ethos.adapters.openspec.selection import requested_change
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.dependency_acceptance import dependency_acceptance_gaps
 from ethos.adapters.repo.gate_policy import resolve_proof_policies
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tree
@@ -33,6 +34,7 @@ from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.proof.plan import archive_scope_gaps
+from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.value import mutable_json
@@ -41,6 +43,7 @@ from ethos.normalization.coercion import string_sequence
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from ethos.contracts.proof.plan import AcceptancePurpose
     from ethos.contracts.semantic import Attestation
     from ethos.repository.policy.gates import ResolvedGatePolicy
 
@@ -77,6 +80,9 @@ def predecessor_policy_gaps(root: Path, head: str, proof: Attestation) -> list[s
         root.as_posix(),
         "--json",
     ]
+    purpose = proof_acceptance_purpose(candidate.policy)
+    if purpose != "repository":
+        command.extend(("--acceptance-purpose", purpose))
     change = (
         str(candidate.commitment.get("id") or "").removeprefix("change:")
         if isinstance(candidate.commitment, Mapping)
@@ -143,6 +149,7 @@ def proof_attestation(
     store: Path,
     attestation_id: str = "",
     change_id: str | None = None,
+    acceptance_purpose: AcceptancePurpose = "repository",
 ) -> tuple[Attestation | None, list[str]]:
     """Return one deterministic member of the current exact proof set."""
     admitted, gaps = _admitted_proofs(
@@ -152,6 +159,7 @@ def proof_attestation(
         store=store,
         attestation_id=attestation_id,
         change_id=change_id,
+        acceptance_purpose=acceptance_purpose,
     )
     if not admitted:
         return None, gaps
@@ -159,6 +167,57 @@ def proof_attestation(
         selected = next((item for item in admitted if item.id == attestation_id), None)
         return selected, [] if selected else ["proof_attestation_selection_missing"]
     return min(admitted, key=lambda item: item.id), []
+
+
+def _purpose_candidates(
+    matching: tuple[Attestation, ...],
+    purpose: AcceptancePurpose,
+    attestation_id: str,
+) -> tuple[tuple[Attestation, ...], list[str]]:
+    """Select one proof purpose without obscuring a genuinely missing explicit ID."""
+    try:
+        selected = tuple(
+            item
+            for item in matching
+            if proof_acceptance_purpose(plan_from_statement(item).policy) == purpose
+        )
+    except (TypeError, ValueError) as error:
+        return (), [str(error)]
+    wrong_id = (
+        attestation_id
+        and any(item.id == attestation_id for item in matching)
+        and all(item.id != attestation_id for item in selected)
+    )
+    return (
+        ((), ["proof_acceptance_purpose_mismatch"]) if not selected or wrong_id else (selected, [])
+    )
+
+
+def _floor_candidates(
+    evaluated: tuple[tuple[Attestation, str, list[str]], ...], *, full_required: bool
+) -> tuple[tuple[Attestation, ...], list[str]]:
+    """Select the required canonical proof floor and explain its absence."""
+    valid_by_floor = {
+        floor: tuple(
+            item
+            for item, item_floor, item_gaps in evaluated
+            if item_floor == floor and not item_gaps
+        )
+        for floor in ("full", "default")
+    }
+    valid = (
+        valid_by_floor["full"]
+        if full_required
+        else next((items for items in valid_by_floor.values() if items), ())
+    )
+    if valid:
+        return valid, []
+    gaps = (
+        ["full_proof_required"]
+        if full_required and valid_by_floor["default"]
+        else list(dict.fromkeys(gap for _item, _floor, item_gaps in evaluated for gap in item_gaps))
+    )
+    return (), gaps
 
 
 def _admitted_proofs(
@@ -169,6 +228,7 @@ def _admitted_proofs(
     store: Path,
     attestation_id: str,
     change_id: str | None,
+    acceptance_purpose: AcceptancePurpose,
 ) -> tuple[tuple[Attestation, ...], list[str]]:
     try:
         _selected_root, attestations = read_attestation_set(root)
@@ -177,7 +237,12 @@ def _admitted_proofs(
     matching, gaps = _selected_candidates(head, attestations)
     if gaps:
         return (), gaps
-    canonical_policies = resolve_proof_policies(root, tree_ref=head)
+    matching, gaps = _purpose_candidates(matching, acceptance_purpose, attestation_id)
+    if gaps:
+        return (), gaps
+    canonical_policies = resolve_proof_policies(
+        root, tree_ref=head, acceptance_purpose=acceptance_purpose
+    )
 
     @cache
     def source_intent(change: str) -> Commitment:
@@ -210,34 +275,13 @@ def _admitted_proofs(
     )
     if gaps:
         return (), gaps
-    valid_by_floor = {
-        floor: tuple(
-            item
-            for item, item_floor, item_gaps in evaluated
-            if item_floor == floor and not item_gaps
-        )
-        for floor in ("full", "default")
-    }
-    full_required = canonical_policies[0][1].digest != canonical_policies[1][1].digest
-    valid = (
-        valid_by_floor["full"]
-        if full_required
-        else next((items for items in valid_by_floor.values() if items), ())
+    valid, set_gaps = _floor_candidates(
+        evaluated, full_required=canonical_policies[0][1].digest != canonical_policies[1][1].digest
     )
-    if not valid:
-        set_gaps = (
-            ["full_proof_required"]
-            if full_required and valid_by_floor["default"]
-            else list(
-                dict.fromkeys(gap for _item, _floor, item_gaps in evaluated for gap in item_gaps)
-            )
-        )
-    elif len({_bindings(item, repository_transition=repository_transition) for item in valid}) > 1:
+    if len({_bindings(item, repository_transition=repository_transition) for item in valid}) > 1:
         set_gaps = ["stale_binding"]
     elif len({_assertion_digest(item) for item in valid}) > 1:
         set_gaps = ["contradiction"]
-    else:
-        set_gaps = []
     if not set_gaps and attestation_id:
         selected_gaps = next(
             (item_gaps for item, _floor, item_gaps in evaluated if item.id == attestation_id),
@@ -437,9 +481,8 @@ def _candidate_evaluation(
     gaps = [gap for gap in gaps if gap]
     if not repository_transition:
         gaps.extend(_lane_proof_gaps(root, plan.facts))
-    if gaps:
-        return "", gaps
-    gaps.extend(archive_scope_gaps(plan.facts, plan.prior_attestations))
+    if not gaps:
+        gaps.extend(archive_scope_gaps(plan.facts, plan.prior_attestations))
     if gaps:
         return "", gaps
     checks, gaps = artifact_checks(store, attestation)
@@ -448,6 +491,15 @@ def _candidate_evaluation(
     if not gaps and checks is not None and repository_transition:
         gaps = _source_intent_gaps(root, head, plan, attestations, source_intent=source_intent)
     if gaps or checks is None:
+        return "", gaps
+    gaps = dependency_acceptance_gaps(
+        root,
+        head,
+        plan.policy,
+        checks,
+        acceptance_purpose=proof_acceptance_purpose(plan.policy),
+    )
+    if gaps:
         return "", gaps
     floor = next(
         (

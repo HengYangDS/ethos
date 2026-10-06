@@ -15,6 +15,9 @@ import ethos.adapters.repo.git_effect_attestation
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import clear_ref_intent
 from ethos.adapters.admission.ref_intent import write_ref_intent
+from ethos.adapters.admission.ref_move_policy import candidate_destination_gaps
+from ethos.adapters.admission.ref_move_policy import ref_transition_operation
+from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import current_tracked_head
@@ -22,6 +25,7 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_admission import admit_git_effect_state
 from ethos.adapters.repo.git_effect_admission import require_effect_permission
+from ethos.adapters.repo.git_effect_admission import require_effect_proof
 from ethos.adapters.repo.git_effect_admission import require_lease_generation
 from ethos.adapters.repo.git_effect_observation import observe_git_effect
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
@@ -198,6 +202,7 @@ def execute_git_effect(
         root, plan, environment=environment
     )
     if attestation := next(iter(recorded), None):
+        require_effect_proof(root, plan)
         ethos.adapters.repo.git_effect_attestation.validate(
             root, effect, attestation, issuer=issuer, plan=plan, environment=environment
         )
@@ -362,7 +367,7 @@ def _claim_effect_intents(
     claimed: list[dict[str, object]] = []
     try:
         for ref_name, update in effect.updates.items():
-            operation = _ref_operation(plan, ref_name, update)
+            operation = _ref_operation(root, plan, ref_name, update)
             if phase == "prepared":
                 claimed.append(
                     write_ref_intent(
@@ -441,6 +446,12 @@ def _compensate_git_effect(
         },
         assertions=effect.assertions,
     )
+    if plan.policy.get("transition") == "candidate.integrate":
+        ref, update = next(iter(reverse.updates.items()))
+        policy = resolve_ref_move_policy(root, ref, update.expected, update.desired)
+        gaps = candidate_destination_gaps(root, ref, update, policy=policy)
+        if gaps:
+            raise ValueError(gaps[0]) from cause
     reverse_intents = _claim_effect_intents(root, plan, reverse, phase="prepared")
     completed = _run_effect_program(root, plan, reverse, environment=environment)
     restored = observe_git_effect(root, reverse, environment=environment)
@@ -460,8 +471,16 @@ def _compensate_git_effect(
     _clear_claimed_intents(root, [*intents, *reverse_intents])
 
 
-def _ref_operation(plan: TransitionPlan, ref_name: str, update: GitRefUpdate) -> str:
+def _ref_operation(root: Path, plan: TransitionPlan, ref_name: str, update: GitRefUpdate) -> str:
     operation = str(plan.policy.get("transition") or plan.policy.get("operation") or "")
+    if operation == "candidate.integrate":
+        return ref_transition_operation(
+            root,
+            resolve_ref_move_policy(root, ref_name, update.expected, update.desired),
+            ref_name,
+            update.expected,
+            update.desired,
+        )
     release_ref = f"refs/heads/{plan.policy.get('release_branch') or ''}"
     return (
         "release.tag"

@@ -37,6 +37,26 @@ _MISSING_QUALITY = (
 )
 
 
+def test_source_acceptance_preserves_floors_and_binds_native_audit() -> None:
+    """One explicit purpose changes the audit command, never the required gate set."""
+    strict = compile_gate_policy(full=True)
+    source = compile_gate_policy(full=True, acceptance_purpose="local-source")
+    assert source.gate_ids == strict.gate_ids
+    assert source.digest != strict.digest
+    assert source.projection["acceptance_purpose"] == "local-source"
+    for gate in strict.gates:
+        selected = source.registry[gate.id]
+        if gate.tool_adapter == "vulnerabilities":
+            assert selected.command == (*gate.command, "--", "--scope", "local-development")
+            assert source.nodes[source.gate_ids.index(gate.id)].command != (
+                strict.nodes[strict.gate_ids.index(gate.id)].command
+            )
+        else:
+            assert selected == gate
+    with pytest.raises(ValueError, match="proof_acceptance_purpose_invalid"):
+        compile_gate_policy(full=True, acceptance_purpose="publishing")
+
+
 def test_quality_axis_conjoins_scoped_evidence_from_distinct_gates() -> None:
     """Neither one green check nor an out-of-scope report covers every subject."""
     tree = "a" * 40

@@ -8,6 +8,8 @@ from typing import Literal
 from typing import cast
 
 from ethos.adapters.admission.ref_intent import claim_ref_intent
+from ethos.adapters.mutation.proof_admission import proof_attestation
+from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.commit.conservation import accepted_contribution
 from ethos.adapters.repo.commit.signature import validate_signature_result
@@ -114,6 +116,34 @@ def ref_transition_operation(
         if branch.startswith(policy.work_branch_prefix) and old_value in _ZERO_OIDS
         else ""
     )
+
+
+def candidate_destination_gaps(
+    repo: Path, ref: str, update: GitRefUpdate, *, policy: BranchRolePolicy
+) -> list[str]:
+    """Admit the exact candidate destination, including a mechanically reversed CAS."""
+    if ref != f"refs/heads/{policy.candidate_branch}":
+        return ["candidate_ref_role_mismatch"]
+    if is_ancestor(repo, update.desired, policy.accepted_branch):
+        return []
+    operation = ref_transition_operation(repo, policy, ref, update.expected, update.desired)
+    if operation != "candidate.integrate":
+        return ["candidate_ref_operation_mismatch"]
+    _proof, gaps = proof_attestation(
+        repo,
+        update.desired,
+        repository_transition=True,
+        store=proof_artifact_root(repo),
+    )
+    if gaps == ["proof_acceptance_purpose_mismatch"]:
+        _proof, gaps = proof_attestation(
+            repo,
+            update.desired,
+            repository_transition=True,
+            store=proof_artifact_root(repo),
+            acceptance_purpose="local-source",
+        )
+    return gaps
 
 
 def accepted_advance_gaps(

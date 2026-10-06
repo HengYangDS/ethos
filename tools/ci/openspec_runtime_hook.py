@@ -54,6 +54,19 @@ class OpenSpecRuntimeHook(BuildHookInterface):
                     else Path(layout.WHEEL_RESOURCE_ROOT) / "node_modules"
                 )
             build_data["force_include"][str(identity_file)] = destination
+            with _source_module(
+                root, "ethos.repository.policy.quality.dependency_acceptance"
+            ) as audit:
+                audit_file = Path(owned.name) / "audit.toml"
+                audit_file.write_bytes(
+                    audit.product_audit_projection((root / audit.AUDIT_POLICY_PATH).read_bytes())
+                )
+                audit_target = (
+                    Path(audit.AUDIT_POLICY_PATH)
+                    if self.target_name == "sdist"
+                    else Path(resource_root) / audit.AUDIT_POLICY_PATH
+                )
+            build_data["force_include"][str(audit_file)] = audit_target.as_posix()
             if self.target_name == "wheel":
                 native, tag = _node_projection(root, Path(owned.name) / "native")
                 build_data["force_include"][str(native)] = (Path(resource_root) / "node").as_posix()

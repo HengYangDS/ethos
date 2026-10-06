@@ -55,7 +55,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["editables>=0.6", "hatchling>=1.32.4"]
+requires = ["editables>=0.6", "hatchling>=1.32.4", "pydantic>=2.13.5", "tomli-w>=1.2.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]

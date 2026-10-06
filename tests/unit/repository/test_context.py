@@ -8,8 +8,12 @@ from pathlib import Path
 import pytest
 
 import ethos.repository.release.resources as resource_owner
+from ethos.adapters.repo.dependency_acceptance import product_audit_snapshot
 from ethos.repository.context import repository_context
+from ethos.repository.policy.quality.dependency_acceptance import AUDIT_POLICY_PATH
+from ethos.repository.policy.quality.dependency_acceptance import product_audit_projection
 from ethos.repository.policy.references.markdown import markdown_tokens
+from ethos.repository.release.identity import build_identity
 
 
 def test_repository_context_exposes_portable_installed_guidance(tmp_path: Path) -> None:
@@ -99,14 +103,14 @@ def test_installed_context_exposes_the_documentation_owner_without_source_checko
 
 
 @pytest.mark.parametrize("installed", [False, True])
+@pytest.mark.parametrize("relative", ["system/schemas/contract.json", AUDIT_POLICY_PATH])
 def test_resource_locator_uses_loaded_product_not_caller(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, installed: bool
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, relative: str, *, installed: bool
 ) -> None:
     """Source and installed readers retain their selected owner when cwd changes."""
     product = tmp_path / "product"
     package = product / ("installed/ethos" if installed else "src/ethos")
     resources = package / "resources"
-    relative = "system/schemas/contract.json"
     canonical = (resources if installed else product) / relative
     canonical.parent.mkdir(parents=True)
     canonical.write_bytes(b"selected product input\n")
@@ -124,6 +128,32 @@ def test_resource_locator_uses_loaded_product_not_caller(
     canonical.unlink()
     assert resource_owner.canonical_resource(relative) == canonical
     assert not resource_owner.canonical_resource(relative).exists()
+
+
+@pytest.mark.parametrize("fault", ["missing", "noncanonical"])
+def test_installed_product_policy_refuses_missing_or_local_authority(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str
+) -> None:
+    """An installed product never substitutes caller policy or host-local approvals."""
+    package = tmp_path / "selected/ethos"
+    product = package / "resources" / AUDIT_POLICY_PATH
+    product.parent.mkdir(parents=True)
+    source = Path(__file__).resolve().parents[3] / AUDIT_POLICY_PATH
+    raw = source.read_bytes()
+    product.write_bytes(product_audit_projection(raw))
+    monkeypatch.setattr(resource_owner, "files", lambda _name: package)
+    build = build_identity(product="0.0.0", source_commit="a" * 40, source_tree="b" * 40)
+    selected, _binding = product_audit_snapshot(build=build)
+    assert all(record.scope == "production-release" for record in selected.dispositions)
+    if fault == "missing":
+        product.unlink()
+        with pytest.raises(FileNotFoundError):
+            product_audit_snapshot(build=build)
+    else:
+        product.write_bytes(raw)
+        with pytest.raises(ValueError, match="dependency_audit_product_policy_noncanonical"):
+            product_audit_snapshot(build=build)
+    assert source.read_bytes() == raw
 
 
 def test_packaged_resource_requires_a_contained_relative_input(tmp_path: Path) -> None:

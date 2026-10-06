@@ -3,14 +3,15 @@ summary = "Native uv and npm audits cover both declared dependency locks."
 runner = "uv run --frozen --offline python -m nox -s vulnerabilities"
 timeout_seconds = 120
 
-# Optional [[dispositions]] authorize exact local-development findings, never release.
+# Optional [[dispositions]] accept exact advisory/artifact risk, not clean audits.
 # Identity fields: ecosystem (npm), advisory_url, package, version, integrity, nodes,
-# lock_sha256. Authorization fields: scope (local-development), owner, approval_ref,
+# lock_sha256. Authorization fields: scope, owner, approval_ref,
 # host (exact native hostname), rationale, expires_at (native TOML offset datetime).
 # For inBundle nodes without a child integrity, integrity binds the containing
 # independently locked artifact reached through native inBundle ownership.
-# These approvals permit controlled local development only on the named host.
-# CI, public release and distribution remain blocked; no aggregate-name exclusions.
+# Local-development requires exact host, lock, nodes and expiry; it never covers CI.
+# Production-release can authorize the exact artifact across hosts and lock placements.
+# Native adverse findings remain visible; no aggregate-name exclusions.
 
 [[dispositions]]
 ecosystem = "npm"
@@ -33,14 +34,10 @@ advisory_url = "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm"
 package = "braces"
 version = "3.0.3"
 integrity = "sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA=="
-nodes = ["node_modules/braces"]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:controlled-local-development-through-2026-10-18"
-rationale = "Human-approved controlled local development on this host through 2026-10-18; OpenSpec carries the production braces DoS finding. Production and public release remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-06:braces-GHSA-vfj7-8cjw-p6xm-all-downstream-boundaries"
+rationale = "The user explicitly accepts this exact braces 3.0.3 artifact risk for ETHOS and downstream development, CI, installation, release and distribution. Retain native adverse evidence and replace this disposition when an official stable fix removes the finding. Other advisories are not authorized."
 
 [[dispositions]]
 ecosystem = "npm"

@@ -449,3 +449,33 @@ def test_runner_preserves_python_virtual_environment_invocation(
     result = gate_runner.LocalGateRunner().run(_node(gate), gate, root=root)
     assert result.verdict == "pass", result.stderr
     assert Path(result.stdout.strip()).resolve() == environment.resolve()
+
+
+def test_canonical_dependency_audit_uses_fresh_release_acceptance(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """Release risk permission is read through the native audit, not raw-result relabeling."""
+    observed = []
+
+    def accepted(stdout, *, scope, **_options):
+        observed.append((stdout, scope))
+        return {"verdict": "pass", "reason": "authorized_findings"}
+
+    monkeypatch.setattr(gate_runner, "captured_dependency_acceptance", accepted)
+    monkeypatch.setattr(gate_runner, "current_tracked_head", lambda _root: "a" * 40)
+    monkeypatch.setattr(
+        gate_runner,
+        "run_command",
+        lambda *_args, **_options: subprocess.CompletedProcess(
+            [], 0, '{"command":"dependency-audit","verdict":"block"}', ""
+        ),
+    )
+    gate = Gate(
+        id="audit",
+        kind="quality",
+        tool_adapter="vulnerabilities",
+        command=(sys.executable, "-m", "nox", "-s", "vulnerabilities"),
+    )
+    result = gate_runner.LocalGateRunner().run(_node(gate), gate, root=tmp_path)
+    assert result.verdict == "pass"
+    assert observed == [('{"command":"dependency-audit","verdict":"block"}', "production-release")]

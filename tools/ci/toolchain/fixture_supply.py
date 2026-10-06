@@ -34,6 +34,7 @@ def provision(root: Path) -> None:
                 "UV_PROJECT_ENVIRONMENT": str(Path(temporary) / str(index)),
                 "UV_LINK_MODE": "copy",
             }
+            environment.pop("VIRTUAL_ENV", None)
             result = run_command(
                 root,
                 (
@@ -43,7 +44,6 @@ def provision(root: Path) -> None:
                     "--directory",
                     str(lock.parent),
                     "sync",
-                    "--no-config",
                     "--locked",
                     "--no-install-project",
                     "--group",

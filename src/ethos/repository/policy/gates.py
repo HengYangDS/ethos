@@ -21,6 +21,7 @@ from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.verdict import execution_succeeded
 from ethos.repository.policy.code_subjects import observed_code_subjects
+from ethos.repository.policy.code_subjects import source_binding_gaps
 from ethos.repository.policy.quality.obligations import INTEGRITY_PROVIDER
 from ethos.repository.policy.quality.obligations import QUALITY_PROVIDERS
 from ethos.repository.policy.quality.obligations import quality_obligation_gaps
@@ -133,10 +134,19 @@ def _owner_projection(
         return {"kind": "packaged", **identity}
     proof = profile.declaration.proof
     contracts = [contract.model_dump(mode="json") for contract in proof.source_contracts]
+    code_subjects = observed_code_subjects(
+        repository_paths,
+        script_paths=script_paths,
+        roles=dict(carrier_roles),
+        source_kinds=proof.source_kinds,
+    )
+    prerequisites = source_binding_gaps(code_subjects)
     if proof.gate_registry:
         owner: dict[str, object] = {"kind": "registry", "path": proof.gate_registry, **identity}
         if contracts:
             owner["source_contracts"] = contracts
+        if prerequisites:
+            owner["source_binding_gaps"] = list(prerequisites)
         if _same_packaged_quality_floor(declaration):
             return owner
         axes = {
@@ -162,12 +172,8 @@ def _owner_projection(
         axes = dict(proof.code_correctness_map)
     if contracts:
         owner["source_contracts"] = contracts
-    code_subjects = observed_code_subjects(
-        repository_paths,
-        script_paths=script_paths,
-        roles=dict(carrier_roles),
-        source_kinds=proof.source_kinds,
-    )
+    if prerequisites:
+        owner["source_binding_gaps"] = list(prerequisites)
     # A declared code obligation survives incomplete carrier discovery.
     if code_subjects or any(axes.values()):
         owner["quality_floor_version"] = 2

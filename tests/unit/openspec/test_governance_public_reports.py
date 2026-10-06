@@ -194,8 +194,8 @@ def test_public_plan_batches_fresh_intent_and_preserves_native_failure(
     ) in projected["required_gaps"]
 
 
-@pytest.mark.parametrize("mode", ["empty", "info", "canonical-info", "mixed"])
-def test_locked_native_validation_preserves_empty_and_informational_results(
+@pytest.mark.parametrize("mode", ["empty", "info", "canonical-warning", "mixed"])
+def test_locked_native_validation_preserves_empty_information_and_warnings(
     tmp_path: Path, mode: str, monkeypatch
 ) -> None:
     """The registered gate uses locked native supply even without ambient OpenSpec."""
@@ -205,12 +205,12 @@ def test_locked_native_validation_preserves_empty_and_informational_results(
         change = root / "openspec/changes/fixture-change"
         shutil.rmtree(change / "specs")
         (change / ".openspec.yaml").write_text("schema: spec-driven\nskip_specs: true\n")
-        if mode == "canonical-info":
+        if mode == "canonical-warning":
             long_spec = root / "openspec/specs/long/spec.md"
             long_spec.parent.mkdir()
             long_spec.write_text(
                 "# Long Specification\n\n## Purpose\n\n"
-                "Check that informational findings in current canonical requirements "
+                "Check that warnings in current canonical requirements "
                 "remain visible to the repository quality gate.\n\n"
                 "## Requirements\n\n### Requirement: Long content\n\n"
                 + "The system SHALL retain the complete observable meaning of this requirement. "
@@ -228,24 +228,32 @@ def test_locked_native_validation_preserves_empty_and_informational_results(
     observed = run_ethos_raw(
         "prove", "--host", "--execute", "--gate", "openspec", "--json", cwd=root
     )
-    assert observed.returncode == (1 if mode in {"canonical-info", "mixed"} else 0), observed.stdout
+    failed = mode in {"canonical-warning", "mixed"}
+    assert observed.returncode == (1 if failed else 0), observed.stdout
     checks = json.loads(observed.stdout)["data"]["checks"]
     check = next(item for item in checks if item["action_id"] == "openspec")
     result = json.loads(check["stdout"])["providers"][0]["report"]["validation"]
     items = result["json"]["items"]
     assert result["parse_error"] == ""
-    assert result["exit_code"] == (1 if mode == "mixed" else 0)
+    assert result["exit_code"] == (1 if failed else 0)
     if mode == "empty":
         assert items == []
     else:
         info = next(item for item in items if item["id"] == "fixture-change")
         assert info["valid"] is True
         assert any(issue["level"] == "INFO" for issue in info["issues"])
+    if mode == "canonical-warning":
+        warning = next(item for item in items if item["id"] == "long")
+        assert warning["valid"] is False
+        assert any(
+            issue["level"] == "WARNING" and issue["path"] == "requirements[0]"
+            for issue in warning["issues"]
+        )
     expected = (
         ["openspec_validation_failed:spec:invalid"]
         if mode == "mixed"
-        else ["openspec_validation_issue:INFO:spec:long:requirements[0]"]
-        if mode == "canonical-info"
+        else ["openspec_validation_failed:spec:long"]
+        if mode == "canonical-warning"
         else []
     )
     assert lifecycle_validation.validation_failures(result["json"]) == expected

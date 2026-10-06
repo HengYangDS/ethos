@@ -5,18 +5,33 @@
 The existing dependency-audit owner MAY admit explicitly selected local
 development against a human-authorized disposition for the exact advisory,
 locked package artifact, nodes, dependency snapshot and explicitly approved host.
-Native `inBundle` nodes lacking independent integrity SHALL bind the containing
-independently locked artifact through the package-lock ownership chain, retaining
-the exact component version and node paths. Missing bundle ownership or artifact
-integrity SHALL remain unavailable, not an invented child identity.
-Each disposition SHALL
-name its accountable owner, approval reference, rationale and finite offset-aware
-expiry. Native findings, counts, exit status and raw evidence SHALL remain
-unchanged. Default proof, security and build gates and explicit release build or
-install calls SHALL retain the same owner's strict production-release decision.
-CI and distribution SHALL NOT inherit controlled local-development permission;
-a declared CI execution SHALL refuse the local-development selector.
-An absent disposition SHALL grant no permission.
+Native observations SHALL remain unchanged; unselected development, CI, release,
+installation and distribution SHALL retain the strict decision.
+
+#### Scenario: A bundled component has no independent integrity
+
+- **WHEN** native `inBundle` ownership identifies a component without child integrity
+- **THEN** the disposition binds the containing independently locked artifact
+  through the package-lock ownership chain and retains exact component version
+  and node paths
+- **AND** missing bundle ownership or artifact integrity remains unavailable,
+  never an invented child identity
+
+#### Scenario: Local permission has an accountable finite boundary
+
+- **WHEN** the existing owner evaluates an explicitly selected local-development disposition
+- **THEN** it requires an accountable owner, approval reference, rationale,
+  approved host and finite offset-aware expiry
+- **AND** native findings, counts, exit status and raw evidence remain unchanged
+- **AND** an absent disposition grants no permission
+
+#### Scenario: Unselected and delivery consumers remain strict
+
+- **WHEN** default proof, security or build gates, CI, installation or distribution
+  evaluate the source without an explicitly authorized local-development selection
+- **THEN** they retain the same owner's strict production-release decision
+- **AND** declared CI refuses the local-development selector rather than
+  inheriting a host-local approval
 
 #### Scenario: One advisory affects multiple npm package aggregates
 
@@ -100,6 +115,13 @@ Unknown required discovery SHALL NOT become empty successful coverage.
 - **THEN** the public result retains an explicit source-integrity gap and no Attestation is selected
 - **AND** allocation and archive framing, metadata, count, and expansion limits apply to the complete invocation
 - **AND** native parser termination, cache availability, or partial member equality cannot certify the unobserved remainder
+
+#### Scenario: An artifact claim has no native source relationship
+
+- **WHEN** a tracked code carrier claims a generated or snapshot role without a valid native source-contract member
+- **THEN** the common subject owner reports its exact missing source relationship before native quality execution
+- **AND** lint-clean bytes, labels and authored diagnostics cannot replace that prerequisite or supply an analysis exemption
+- **AND** valid generated and upstream relationships retain authenticity and applicable runtime obligations
 
 #### Scenario: A local lock reference and a native cache digest are valid
 
@@ -231,18 +253,15 @@ not ETHOS-specific paths, tools or code budgets.
 
 Every tracked, current, hand-authored Markdown documentation file in ETHOS or a
 governed repository SHALL contain at most 500 nonblank physical lines.
-Frontmatter, code fences, tables, and quoted material count. The release
-contract's root changelog is cumulative history and SHALL NOT be subject to
-this ceiling, either as a whole or by version section. Its format and release
-meaning remain independent release obligations. A same-named document elsewhere
-or a metadata lifecycle relabeling SHALL NOT exempt an overlong current topic.
-Official OpenSpec artifacts, their archive, and declared generated output
-remain separate carriers with their own checks.
+The release-contract changelog, official OpenSpec artifacts and archive, and
+declared generated output SHALL retain their own carrier-specific checks rather
+than inherit this documentation ceiling.
 
 #### Scenario: A current topic exceeds the ceiling
 
 - **WHEN** a tracked current authored Markdown document exceeds 500 nonblank lines
 - **THEN** the quality floor reports that exact source and blocks acceptance
+- **AND** frontmatter, code fences, tables and quoted material count
 - **AND** adding blank lines or relabeling current content as history does not
   satisfy the requirement
 

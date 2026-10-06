@@ -15,8 +15,8 @@ import ethos.adapters.gates.javascript.analysis as analysis
 import ethos.adapters.gates.javascript.behavior as javascript_behavior
 import ethos.adapters.toolchain.mise as native_mise
 from ethos.adapters.gates.verification import NativeExecution
-from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.store.state.schema import local_state_root
+from ethos.repository.policy.code_subjects import observed_code_subjects
 from ethos.repository.policy.quality_reports import istanbul_coverage_report
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
@@ -51,7 +51,9 @@ def test_native_c8_selection_is_not_overridden_and_unselected_authored_source_st
             'test("answer", () => { if (answer() !== 42) throw Error("wrong"); });\n',
         },
     )
-    _, subjects = observe_quality_subjects(repo)
+    subjects = observed_code_subjects(
+        ("answer.js", "answer.test.js", "omitted.js"), roles={"omitted.js": role}
+    )
     node = shutil.which("node")
     assert node is not None
     report = javascript_behavior.behavior_observation(repo, subjects, None, node, {})
@@ -88,7 +90,9 @@ def test_generated_role_cannot_replace_authored_coverage(tmp_path: Path) -> None
             'test("answer", () => { if (answer() !== 42) throw Error("wrong"); });\n',
         },
     )
-    _, subjects = observe_quality_subjects(repo)
+    subjects = observed_code_subjects(
+        ("answer.js", "answer.test.js", "generated.js"), roles={"generated.js": "generated"}
+    )
     node = shutil.which("node")
     assert node is not None
     report = javascript_behavior.behavior_observation(repo, subjects, None, node, {})
@@ -358,7 +362,7 @@ def test_native_provider_requires_native_project_context(
                 ".gitattributes": "answer.js ethos-role=snapshot\n",
             },
             "behavior",
-            "applicable_code_sources_missing",
+            "source_contract_missing:answer.js",
         ),
     ],
 )
@@ -488,8 +492,13 @@ def test_javascript_static_quality_preserves_lexical_bindings(
     (repo / ".gitattributes").write_text(f"answer.js ethos-role={role}\n")
     commit_fixture(repo, "lexical quality source")
     report = native_quality.static_report(repo)
-    assert report["verdict"] == verdict, report
-    if verdict == "block":
+    assert report["verdict"] == ("block" if role == "snapshot" else verdict), report
+    if role == "snapshot":
+        assert report["required_gaps"] == [
+            "quality_static-analysis_source_contract_missing:answer.js"
+        ]
+        assert "native" not in report
+    elif verdict == "block":
         assert report["required_gaps"]
 
 

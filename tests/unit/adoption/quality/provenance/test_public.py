@@ -271,8 +271,6 @@ def _javascript_supply_repository(tmp_path: Path, *, kind: str, role: str, enter
     ("kind", "role", "entered", "verdict"),
     [
         ("authored", "code", True, "block"),
-        ("authored", "snapshot", True, "pass"),
-        ("authored", "generated", True, "block"),
         ("generated", "snapshot", True, "pass"),
         ("generated", "snapshot", False, "block"),
         ("upstream", "snapshot", False, "pass"),
@@ -327,7 +325,8 @@ def test_javascript_lint_session_uses_native_authored_partition(
     monkeypatch.setattr(ci_sessions, "ROOT", repo)
     session = _JavaScriptLintSession(repo)
     if kind == "authored":
-        with pytest.raises(ValueError, match="no-unused-vars"):
+        reason = "source_contract_missing:supply.js" if role == "snapshot" else "no-unused-vars"
+        with pytest.raises(ValueError, match=reason):
             ci_sessions.javascript_lint(session)
         assert session.commands == []
     else:
@@ -335,6 +334,44 @@ def test_javascript_lint_session_uses_native_authored_partition(
         assert len(session.commands) == 1
         assert session.commands[0][-2:] == ("answer.js", "answer.test.js")
         assert "supply.js" not in session.commands[0]
+
+
+@pytest.mark.parametrize("role", ["snapshot", "generated"])
+@pytest.mark.parametrize("floor", ["profile", "packaged"])
+def test_public_quality_requires_source_binding_before_native_dispatch(
+    tmp_path: Path, role: str, floor: str
+) -> None:
+    """A lint-clean artifact claim needs provenance, not an authored-style exemption."""
+    repo = _javascript_supply_repository(tmp_path, kind="authored", role=role, entered=False)
+    (repo / "supply.js").write_text("export const supplied = 42;\n")
+    if floor == "packaged":
+        source = Path(tests.__file__).resolve().parent.parent
+        registry = repo / "system/gates.toml"
+        registry.parent.mkdir()
+        registry.write_bytes((source / "system/gates.toml").read_bytes())
+        profile_path = repo / ".ethos/profile.toml"
+        profile = tomllib.loads(profile_path.read_text())
+        profile["proof"] = {"gate_registry": "system/gates.toml"}
+        profile_path.write_text(tomli_w.dumps(profile))
+    head = commit_fixture(repo, "record clean artifact bytes without a source relationship")
+    gap = "source_contract_missing:supply.js"
+    policy = resolve_gate_policy(repo, tree_ref=head, full=True)
+    assert gap in policy.gaps
+    result = run_quality_proof(repo, head)
+    report = json.loads(result.stdout)
+    assert result.returncode != 0, report
+    assert report["verdict"] == "block", report
+    assert gap in report["required_gaps"], report
+    assert report["summary"]["proof_attestation_issued"] is False
+    with pytest.raises(ValueError, match=gap):
+        observe_quality_subjects(repo)
+    for axis, report in (
+        ("static-analysis", static_report(repo)),
+        ("behavior", behavior_report(repo, timeout_seconds=60)),
+    ):
+        assert report["verdict"] == "block", report
+        assert report["required_gaps"] == [f"quality_{axis}_{gap}"]
+        assert "native" not in report
 
 
 @pytest.mark.parametrize("kind", ["generated", "upstream"])

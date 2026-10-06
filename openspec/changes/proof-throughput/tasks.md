@@ -250,20 +250,46 @@
   Exact proof and installed delivery remain open. Evidence: `allure320-experiment.result.json` and `allure320-lock-delta.json`.
   - [ ] 11.3.1 Close the adopter-reproduced actionlint child-start-before-input deadlock at the existing native workflow-check owner. Verify bounded finite input, EOF and cancellation on the actual large workflow without a timeout increase, wrapper/fork or reduced validation. Source and native focused closure are implemented, including the direct Python gate, selected module/package source bindings and retired shell launcher; exact proof and installed delivery remain pending.
   - [ ] 11.3.2 Deliver the 2026-10-05 official-stable supply refresh through native manifests, locks, CI projections and accepted runtime. The isolated rehearsal upgrades 18 Python lock entries and 17 distinct npm package identities; two native dependency placements change, with no new package names or install-script paths; Python audit covers 126 packages with no findings. Preserve Python 3.12.15 support. Pydantic 2.13.5 requires pydantic-core 2.46.5 exactly; do not force the independently newer core. Syft 1.54.0, uv 0.12.23 and setup-uv v10.2.0 are source-bound. Mise 2026.10.2 is pending: immutable-runtime patch admission misreads the new official installer's quoted awk body as shell executables; fix the existing reference owner rather than whitelist those spellings or alter the vendor installer. The source candidate replaces nodejs-wheel-binaries 24.19.0 with official Node 26.10.0 archives bound by the existing Mise config/lock and native download/cache owner. Source consumers resolve verified cache; wheels emit Node-only resources. The existing product package lock uniquely selects npm 12.2.0; archive-bundled npm is a verified build-only first-install seed, not installed product authority. Source CI projections retire the duplicate Node policy and shell installers while retaining native JavaScript and platform qualification. Cold Windows Mise preparation, image publication, exact full proof and accepted installed delivery remain unqualified. Evidence: `stable-supply-{official-metadata-20261005,native-rehearsal,native-audit,actions-metadata}`.
-  Current package-lock SHA-256 is
-  `1165276f8d9fd23e8ce02c515f44ff83179f414e4ca9f9b138217ae596f424ae`.
-  On 2026-10-05, 127 combined audit/CI focused tests passed with the supplied
-  npm 12.2.0 and native Node 26.10.0. Native audit retains 10 affected aggregates
-  (nine high, one moderate), 12 advisory URLs and its strict blocked verdict;
-  Python audit is clean and native stderr is empty. The existing audit policy
-  contains one unchanged braces subject rebound to this lock and 11 exact npm
-  bundled-component advisory records. Bundle integrity comes from the containing
-  npm lock artifact through native `inBundle` ownership, not invented child hashes.
-  Separate direct human approvals authorize only this host's controlled local
-  development through 2026-10-18, exclusive expiry 2026-10-19T00:00:00+08:00.
-  Current local-development audit exits zero while default strict and declared-CI
-  local selection exit one; CI, production, public release and distribution remain
-  blocked. No accepted installed successor or whole-source proof is claimed.
+  Current 2026-10-06 package-lock SHA-256:
+  `f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085`.
+  Native complete supply preparation took 1.584 seconds; all 198 selected
+  production roots match the lock, without lifecycle scripts. OpenSpec 1.14.1,
+  smol-toml 1.9.0 and KaTeX 0.19.0 remove the remediable new findings; scoped
+  commander 15.0.0 retains parent constraints. cachetools 7.2.1, filelock 4.0.12,
+  hypothesis 6.168.5 and griffelib 2.3.2 are source/lock-bound upgrades.
+  The fresh native audit took 3.545 seconds: Python clean; npm remains blocked
+  with 11 affected aggregates and 13 advisory roots. Exact bundle/lock/host
+  approvals permit only controlled local development through 2026-10-18,
+  exclusive expiry 2026-10-19T00:00:00+08:00. The separately approved parser
+  7.1.4 advisory binds the containing npm 12.2.0 integrity via native `inBundle`
+  ownership; npm's native audit fix cannot replace that child. Local decision
+  passes; strict and declared-CI decisions block. Evidence:
+  `native-npm-stable-complete-supply-20261006.receipt.json`,
+  `native-npm-approved-local-audit-native-20261006.receipt.json` and
+  `native-parser-approval-boundary-replay-20261006.json`.
+  Associated quality/audit tests pass 144 cases; the source-prerequisite
+  refinement separately passes four public profile/packaged-floor cases.
+  Bootstrap passes all 15 cases, including one seed-failure stop regression;
+  its real script and inline Python remain unchanged. OpenSpec strict validation
+  passes all 14 current items without actionable warnings; warning semantics
+  separately pass four public cases. Same-attempt Allure/JUnit and required
+  failed receipts remain in native evidence custody; all test scratch is absent.
+  Final policy/proof/provenance/OpenSpec/report consumers pass 98 cases in
+  136.40 seconds. Allure 3.20.0 renders their original results and the 15-case
+  bootstrap attempt in 0.746/0.624 seconds, with native JUnit totals and raw-byte
+  parity; reports remain focused source evidence, not full-proof acceptance.
+  Current Ruff, format and Ty pass. Evidence:
+  `native-upgraded-quality-associated-20261006.receipt.json`,
+  `native-packaged-floor-prerequisite-green-20261006.receipt.json`,
+  `native-bootstrap-stop-contract-final-green-20261006.receipt.json` and
+  `native-openspec1141-current-warning-green-20261006.receipt.json`.
+  Mise 2026.10.3 remains blocked by unchanged installer patch admission at the
+  older shell observer; relocated official sidecar bytes are retained. No
+  accepted runtime, installed successor or whole-source proof is claimed.
+  Human-approved local source-acceptance applicability remains unimplemented;
+  retain all tests, exact host/risk/expiry and actual-effect consumption. CI,
+  installation delivery, accepted/release promotion and distribution remain
+  strict; do not relabel an audit PASS as source admission.
   Evidence: `audit-npm-disposition-sidecar-20261005T0615/{qualification-summary.json,native-local.dependency-audit.json,native-strict.dependency-audit.json,native-ci-local.dependency-audit.json}`
   and `ci-node-ssot-sidecar-20261005T051804Z/ci-node-ssot-generated.patch`.
 

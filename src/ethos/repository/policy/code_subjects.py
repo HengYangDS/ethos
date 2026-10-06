@@ -47,6 +47,15 @@ class CodeSubject:
         )
 
 
+def source_binding_gaps(subjects: tuple[CodeSubject, ...]) -> tuple[str, ...]:
+    """Artifact claims require source relations before any quality dispatch."""
+    return tuple(
+        f"source_contract_missing:{subject.path}"
+        for subject in subjects
+        if subject.role in {"generated", "snapshot"} and subject.source_kind == "authored"
+    )
+
+
 def observed_code_subjects(
     repository_paths: tuple[str, ...],
     *,

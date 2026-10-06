@@ -249,7 +249,12 @@ def source_verifier_gaps(owner: Mapping[str, object], gates: tuple[Gate, ...]) -
     except ValidationError:
         return ("source_contract_invalid",)
     selected = {gate.id: gate for gate in gates}
-    gaps: list[str] = []
+    prerequisites = owner.get("source_binding_gaps", ())
+    if not isinstance(prerequisites, (list, tuple)) or any(
+        not isinstance(gap, str) or not gap for gap in prerequisites
+    ):
+        return ("source_binding_observation_invalid",)
+    gaps: list[str] = list(prerequisites)
     for contract in contracts:
         gate = selected.get(contract.integrity_gate)
         if (

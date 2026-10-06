@@ -3,6 +3,9 @@ name = "quality-sample"
 version = "0.1.0"
 requires-python = ">=3.12"
 
+[tool.uv]
+prerelease = "disallow"
+
 [dependency-groups]
 dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0"]
 

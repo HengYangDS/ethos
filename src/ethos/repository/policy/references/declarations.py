@@ -7,15 +7,15 @@ import re
 import tomllib
 from typing import TYPE_CHECKING
 
-import ethos.repository.policy.references.commands as command_references
-import ethos.repository.policy.references.python_syntax as python_references
+import ethos.repository.policy.references.commands.invocation as command_references
+import ethos.repository.policy.references.python.syntax as python_references
 from ethos.contracts.gates import bind_gate_command
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import declaration_files
-from ethos.repository.policy.references.observation import normalized_distribution
-from ethos.repository.policy.references.observation import npm_script_commands
-from ethos.repository.policy.references.observation import package_json_references
-from ethos.repository.policy.references.observation import pyproject_references
+from ethos.repository.policy.references.manifests import normalized_distribution
+from ethos.repository.policy.references.manifests import npm_script_commands
+from ethos.repository.policy.references.manifests import package_json_references
+from ethos.repository.policy.references.manifests import pyproject_references
 
 if TYPE_CHECKING:
     from ast import AST

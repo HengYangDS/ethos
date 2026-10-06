@@ -21,6 +21,7 @@ from ethos.repository.policy.projections import projection_relations
 from ethos.repository.policy.references.carriers import REFERENCE_CARRIERS
 from ethos.repository.policy.references.closure import product_reference_gaps
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
+from ethos.repository.policy.references.observation import ProductReferences
 from ethos.repository.policy.references.observation import deleted_input_gaps
 from ethos.repository.policy.references.observation import product_references_from_files
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -48,6 +49,8 @@ def patch_admission(
             "baseline_head": baseline_head,
             "paths": [],
             "references": {},
+            "reference_coverage": "not_evaluated",
+            "uncertainties": [],
         }
     changes, parse_gap = _unified_patch_changes(patch)
     patch_paths = sorted({str(change["path"]) for change in changes})
@@ -64,11 +67,12 @@ def patch_admission(
     effects: dict[str, str] = {}
     outputs: list[str] = []
     profile_postimage_id = ""
+    observation: ProductReferences | None = None
     if not reason:
         try:
             baseline_files = _baseline_reference_files(root, baseline_head)
             baseline_references = native_owned_references_from_files(baseline_files)
-            references, effect_gaps, unknown, effects, outputs, profile_postimage_id = (
+            observation, effect_gaps, unknown, effects, outputs, profile_postimage_id = (
                 _patch_references(
                     root,
                     patch,
@@ -77,6 +81,7 @@ def patch_admission(
                     declared_commands=baseline_references["command"],
                 )
             )
+            references = observation.references
             reason = effect_gaps[0] if effect_gaps else ""
         except (OSError, UnicodeError, ValueError):
             reason = "prewrite_patch_postimage_failed"
@@ -90,6 +95,12 @@ def patch_admission(
         "effects": effects,
         "origin_outputs": outputs,
         "unknown_inputs": unknown,
+        "reference_coverage": observation.coverage if observation is not None else "not_evaluated",
+        "uncertainties": (
+            [item.to_dict() for item in observation.uncertainties]
+            if observation is not None
+            else []
+        ),
         "coverage": "changed_references_and_explicit_native_inputs",
         "baseline_head": baseline_head,
         "paths": patch_paths,
@@ -401,7 +412,7 @@ def _patch_references(
     *,
     context_files: dict[str, str],
     declared_commands: tuple[str, ...] | frozenset[str] = (),
-) -> tuple[dict[str, set[str]], list[str], list[str], dict[str, str], list[str], str]:
+) -> tuple[ProductReferences, list[str], list[str], dict[str, str], list[str], str]:
     with tempfile.TemporaryDirectory(prefix="ethos-prewrite-postimage-") as temporary:
         workspace = Path(temporary)
         for change in changes:
@@ -438,13 +449,19 @@ def _patch_references(
         }
         context = {path: text for path, text in context_files.items() if path not in postimages}
         context.update(files)
-        references = product_references_from_files(
+        observation = product_references_from_files(
             files,
             context_files=context,
             declared_commands=declared_commands,
             include_declarations=False,
         )
         gaps, unknown, outputs = _source_effect_gaps(root, context_files, postimages)
+        unknown.extend(f"reference_carrier_unknown:{path}" for path in observation.unknown_paths)
+        unknown.extend(
+            f"reference_consumer_unknown:{item.kind}:{item.path}:{item.line}:{item.column}"
+            for item in observation.uncertainties
+            if item.state == "unknown"
+        )
         profile_gap, profile_id = _profile_postimage(root, postimages)
         if profile_gap:
             gaps.insert(0, profile_gap)
@@ -456,7 +473,7 @@ def _patch_references(
             else "modify"
             for change in changes
         }
-        return references, gaps, unknown, effects, outputs, profile_id
+        return observation, gaps, unknown, effects, outputs, profile_id
 
 
 def _profile_postimage(root: Path, postimages: dict[str, str | None]) -> tuple[str, str]:

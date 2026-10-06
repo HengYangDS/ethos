@@ -115,7 +115,7 @@ def _observe(provider: str, config: dict[str, Any], *, execute: bool) -> dict[st
     tool = "gh" if provider == "github" else "glab"
     policy = config.get("provider", {}).get(provider, {})
     target_env = str(policy.get("repository_target_env") or "")
-    target = os.environ.get(target_env, "").strip()
+    target = os.environ.get(target_env, "").strip() if target_env else ""
     tool_path = shutil.which(tool)
     state = (
         "not_configured" if not target else "tool_unavailable" if not tool_path else "not_executed"

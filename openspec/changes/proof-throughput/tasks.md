@@ -9,6 +9,13 @@
 - [x] 1.7 Measure consolidated full proof and repair merge intent diagnostic precedence.
 - [x] 1.8 Verify the consolidated proof, release and integration regressions with unchanged quality budgets.
 - [ ] 1.9 Restore complete proof within 900 seconds without weakening assurance; preserve completed-gate diagnostics and eliminate repeated work. Aggregate budgets may rise by 5,000 per class only after measured reuse/deletion establishes necessary complexity; retain per-file and coverage limits. The latest 900.174-second timeout leaves acceptance open.
+      The reviewed semantic slice replaces 818 superseded owner ELOC without a
+      new dependency; measured +3,489 product/+3,526 test ELOC preserves public
+      falsifiers and custody controls. One authorized 5,000-line step per class
+      raises native ceilings to 60,000/70,000; per-file 500 and coverage stay fixed.
+      Preserve the failed budget and exact delta receipts in
+      `quality-tool-comparison-2f8yn77j/results/semantic-freeze-{size-budget,complexity-delta}-20261006-09{20,24}.json`.
+      This bounded decision does not claim whole-corpus irreducibility.
 - [ ] 1.10 Evaluate the nonblocking 600-second optimization direction from the measured remaining critical path.
 
 ## 2. Invocation-Scoped Facts and Proof Reuse
@@ -176,6 +183,30 @@
 - [x] 10.10 Preserve meaningful YAML scalar newlines while rejecting redundant structural blank lines through the native configuration owner; keep producer-owned and historical carriers unchanged.
 - [ ] 10.11 Repair reference observation and declaration ownership at their existing owner: aliases, shadowing, lexical scope, call-site values, dynamic private imports, scoped dynamic UNKNOWN, and trusted profile/release command fields. Reproduce false passes and false blocks through public repository-audit, module-layout and patch-admission consumers; replace heuristics rather than adding name exceptions, preserve legal success, and qualify exact-source proof and installed behavior.
   Evidence: `GIT_INDEX_FILE` is declared at the actual input owner; five existing semantic-closure tests pass. Standard-library `TypedDict` removes an undeclared transitive import, and two redundant casts are removed; native Ty and dependency hygiene pass. The focused source receipt `prerequisite-green.result.json` does not establish full proof or installed behavior.
+      Bounded source-return projection retains exact definition identity, finite
+      native record fields and path suffixes; unsupported dispatch, mutation and
+      recursion remain site-specific UNKNOWN. Native execution and location
+      qualification remain separate. Public roles, wrapper-input controls and
+      exact packaged delivery are required before this task closes.
+      Scope/program-point binding replaces owner-spelling heuristics. Real public
+      CLI comparisons retain legal/shadow success, precise alias/input blocks and
+      dynamic/compiler-invalid UNKNOWN; the synthetic fixture's unrelated product
+      obligations still block its outer gate. Exact selector witnesses prevent stale
+      native-member answer reuse. Call-time ancestry and current/history containment
+      reconcile local heap deltas without discarding captured/default/projection
+      custody or fresh caller effects: unrelated graph expansions fall from 2/64 to
+      zero; missing-branch and present-empty identities remain distinct.
+      All 471 related source tests pass on exact current bytes; JUnit/Allure inputs
+      and verified cleanup are retained by reference in
+      `quality-tool-comparison-2f8yn77j/results/semantic-freeze-disposition-final-related-20261006-0937.*`,
+      `semantic-public-lineage-qualified-20261006-0900.*` and
+      `semantic-lazy-default-{red,green}-20261006-090{5,7}.*`.
+      Matched C/B/B/C observation equality holds, but elapsed speedup is unproved.
+      The lazy-default microoptimization is withdrawn after an isolated comparison
+      was slower; only its presence-sensitive semantic controls remain
+      (`semantic-lazy-default-matched-20261006-0924.results.json`).
+      Whole-source throughput, exact proof and installed acceptance remain open.
+
 - [ ] 10.12 Replace fixed OpenSpec proposal/design/tasks path inference with its resolved artifact graph; preserve positive removal-only acceptance; replay renamed/optional outputs, pure/mixed removal, `skip_specs`, missing/ambiguous resolution, archive identity and exact source binding through public compilation and proof.
 - [ ] 10.13 Preserve blocked CLI exit and incomplete-report status under nonblocking backpressure and short writes; distinguish closed consumers without replaying completed effects.
 
@@ -336,10 +367,11 @@
       source, not accepted/runtime/adopter closure. Selected methods, parser and
       license limits, and explicit platform non-adoption live in that topic;
       broader framework, rollout and semantic-owner obligations remain open.
-      Authorized OCR model review now has exact-source preview and a retained
-      endpoint-resolution failure: no model was called. Resolve the selected
-      native provider and explicitly include tests before claiming model review;
-      see the topic's [native review boundary](../../../docs/research/foundations/verification.md#native-model-review-boundary).
+      The initial endpoint-resolution failure is retained history, not current
+      model availability. Native Claude/Astra batches subsequently reviewed
+      hash-bound source and explicitly selected tests; confirmed defects select
+      task 10.11. Model findings are not fix or delivery evidence; see the topic's
+      [native review boundary](../../../docs/research/foundations/verification.md#native-model-review-boundary).
 
 ## 13. Feedback-Driven Improvement Closure
 

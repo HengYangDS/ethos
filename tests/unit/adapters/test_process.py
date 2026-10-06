@@ -8,8 +8,11 @@ import signal
 import subprocess
 import sys
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
+from contextvars import copy_context
 from time import monotonic
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
@@ -21,6 +24,112 @@ from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_execution_identity
 from tests.support.subprocesses import ready_descendant
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+@pytest.mark.parametrize("outcome", ["success", "nonzero", "timeout"])
+def test_native_command_owns_its_handle_without_an_outer_scope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, outcome: str
+) -> None:
+    """Every native command registers and releases one real owned process."""
+    started: list[tuple[process_adapter.CommandScope, subprocess.Popen[str]]] = []
+    terminated: list[subprocess.Popen[str]] = []
+    discarded: list[subprocess.Popen[str]] = []
+    start = process_adapter.CommandScope.start
+    terminate = process_adapter.CommandScope.terminate
+    discard = process_adapter.CommandScope.discard
+
+    def observed_start(
+        owner: process_adapter.CommandScope, command: tuple[str, ...], **options: object
+    ) -> subprocess.Popen[str]:
+        child = start(owner, command, **options)
+        started.append((owner, child))
+        return child
+
+    def observed_terminate(
+        owner: process_adapter.CommandScope, child: subprocess.Popen[str]
+    ) -> None:
+        assert (owner, child) in started
+        terminated.append(child)
+        terminate(owner, child)
+
+    def observed_discard(owner: process_adapter.CommandScope, child: subprocess.Popen[str]) -> None:
+        assert (owner, child) in started
+        assert child.returncode is not None
+        discarded.append(child)
+        discard(owner, child)
+
+    monkeypatch.setattr(process_adapter.CommandScope, "start", observed_start)
+    monkeypatch.setattr(process_adapter.CommandScope, "terminate", observed_terminate)
+    monkeypatch.setattr(process_adapter.CommandScope, "discard", observed_discard)
+    body = "import time; time.sleep(1)" if outcome == "timeout" else "raise SystemExit(7)"
+    if outcome == "success":
+        body = "print('complete')"
+    command = (sys.executable, "-c", body)
+    if outcome == "success":
+        result = process_adapter.run_command(tmp_path, command, check=True)
+        assert result.returncode == 0
+        assert result.stdout == "complete\n"
+    else:
+        failure = (
+            subprocess.TimeoutExpired if outcome == "timeout" else subprocess.CalledProcessError
+        )
+        with pytest.raises(failure):
+            process_adapter.run_command(
+                tmp_path, command, check=True, timeout=0.1 if outcome == "timeout" else 2
+            )
+    assert len(started) == 1
+    child = started[0][1]
+    assert child.returncode is not None
+    assert discarded == [child]
+    assert terminated == ([child] if outcome == "timeout" else [])
+
+
+def test_caught_command_failure_preserves_a_live_sibling(tmp_path, monkeypatch) -> None:
+    """A checked failure cancels only when it escapes the caller's scope."""
+    ready = threading.Event()
+    children = []
+
+    def observed(child, _options):
+        children.append(child)
+        ready.set()
+
+    with (
+        ready_descendant(monkeypatch, observed) as (body, _closed),
+        process_adapter.command_scope(timeout_seconds=5) as scope,
+        ThreadPoolExecutor(max_workers=1) as pool,
+    ):
+        pending = pool.submit(
+            copy_context().run,
+            process_adapter.run_command,
+            tmp_path,
+            (sys.executable, "-c", body),
+            timeout=4,
+        )
+        try:
+            assert ready.wait(2)
+            with pytest.raises(subprocess.CalledProcessError):
+                process_adapter.run_command(
+                    tmp_path, (sys.executable, "-c", "raise SystemExit(7)"), check=True, timeout=2
+                )
+            assert children[0].poll() is None
+        finally:
+            scope.cancel()
+            assert pending.result(timeout=2).returncode != 0
+    assert children[0].returncode is not None
+
+
+def test_cancelled_command_scope_rejects_creation(tmp_path, monkeypatch) -> None:
+    """Cancellation fences creation before any native process can start."""
+    creation = Mock(wraps=subprocess.Popen)
+    monkeypatch.setattr(subprocess, "Popen", creation)
+    with process_adapter.command_scope() as scope:
+        scope.cancel()
+        with pytest.raises(process_adapter.ProcessExecutionError, match="process_cancelled"):
+            process_adapter.run_command(tmp_path, (sys.executable, "-c", "pass"), timeout=2)
+    creation.assert_not_called()
 
 
 def test_command_scope_conserves_one_deadline_across_native_calls(tmp_path) -> None:

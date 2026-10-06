@@ -168,7 +168,7 @@ def run_runtime_tool(
     if args[:1] == ("build",) and (source / "package-lock.json").is_file():
         environment["ETHOS_NODE_PACKAGE_SUPPLY"] = resolve_node_package_supply(source).as_posix()
     completed = subprocess.run(
-        _uv_module_command(executable, *args),
+        (executable.as_posix(), "-B", "-I", "-m", "uv", *args),
         cwd=source,
         capture_output=True,
         text=True,
@@ -213,7 +213,3 @@ def selected_runtime_source(source: Path) -> SelectedRuntime | None:
     if prefix.name != "python" or runtime.parent.name != "runtime":
         return None
     return require_selected_runtime(runtime)
-
-
-def _uv_module_command(python: Path, *arguments: str) -> tuple[str, ...]:
-    return (python.as_posix(), "-B", "-I", "-m", "uv", *arguments)

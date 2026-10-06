@@ -321,6 +321,12 @@ def javascript_tests(session) -> None:
 def javascript_lint(session) -> None:
     paths = _paths("*.js", "*.mjs", "*.cjs")
     if paths:
+        _, subjects = import_module("ethos.adapters.repo.gate_policy").observe_quality_subjects(
+            ROOT, language="javascript"
+        )
+        paths = tuple(subject.path for subject in subjects if subject.requires_authored_analysis)
+        if not paths:
+            return
         analyzer = import_module("ethos.adapters.gates.javascript.analysis")
         observation = analyzer.static_observation(ROOT, paths)
         if observation["verdict"] != "pass":

@@ -66,8 +66,8 @@ def test_native_c8_selection_is_not_overridden_and_unselected_authored_source_st
     assert report["unselected_paths"] == ["omitted.js"]
 
 
-def test_generated_runtime_input_requires_execution_not_only_a_role(tmp_path: Path) -> None:
-    """A generated input excluded by c8 still needs the same native execution witness."""
+def test_generated_role_cannot_replace_authored_coverage(tmp_path: Path) -> None:
+    """Executing a role-labelled input does not establish native artifact provenance."""
     repo = committed_source_repo(
         tmp_path,
         {
@@ -92,9 +92,11 @@ def test_generated_runtime_input_requires_execution_not_only_a_role(tmp_path: Pa
     node = shutil.which("node")
     assert node is not None
     report = javascript_behavior.behavior_observation(repo, subjects, None, node, {})
-    assert report["verdict"] == "pass", report["required_gaps"]
-    assert isinstance(report["executed_generated_paths"], list)
-    assert "generated.js" in report["executed_generated_paths"]
+    assert report["verdict"] == "block", report
+    gaps = report["required_gaps"]
+    assert isinstance(gaps, list)
+    assert "javascript_coverage_subject_unselected:generated.js" in gaps
+    assert report["executed_generated_paths"] == []
 
 
 @pytest.mark.parametrize("defect", ["none", "missing", "alias", "counter", "scope"])

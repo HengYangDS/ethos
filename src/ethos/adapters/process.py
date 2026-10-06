@@ -325,7 +325,7 @@ def _execute_command(
         if timeout <= 0:
             raise subprocess.TimeoutExpired(command, timeout)
     stdin = kwargs.pop("input")
-    scope = _COMMAND_SCOPE.get()
+    scope = _COMMAND_SCOPE.get() or CommandScope()
     with ExitStack() as resources:
         finite_input = None
         if stdin is not None:
@@ -335,7 +335,7 @@ def _execute_command(
             finite_input.write(stdin)
             finite_input.seek(0)
         try:
-            process = (scope.start if scope is not None else subprocess.Popen)(
+            process = scope.start(
                 command,
                 stdin=finite_input if finite_input is not None else subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
@@ -355,13 +355,13 @@ def _execute_command(
             try:
                 stdout, stderr = process.communicate(timeout=timeout)
             except BaseException as error:
-                (scope.terminate if scope is not None else _terminate_command)(process)
+                scope.terminate(process)
                 if os.name == "nt" and isinstance(error, subprocess.TimeoutExpired):
                     error.stdout, error.stderr = process.communicate()
                 process.wait()
                 raise
             finally:
-                if scope is not None and process.returncode is not None:
+                if process.returncode is not None:
                     scope.discard(process)
             result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
             if check:

@@ -3,19 +3,79 @@
 from __future__ import annotations
 
 import ast
-import re
-import shlex
+import symtable
 import warnings
+from dataclasses import dataclass
+from dataclasses import field
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
-from ethos.repository.policy.references.commands import command_executables
-from ethos.repository.policy.references.commands import normalize_command
+from ethos.repository.policy.references.commands.vocabulary import normalize_command
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-_SUBPROCESS_CALLS = {"run", "Popen", "check_call", "check_output"}
+
+@dataclass(frozen=True, slots=True)
+class LexicalBindings:
+    """Compiler-owned classification, independent of statement-order value facts."""
+
+    locals: frozenset[str]
+    globals: frozenset[str]
+    nonlocals: frozenset[str]
+    outer_writes: frozenset[str]
+    free: frozenset[str]
+
+    @classmethod
+    def from_table(cls, table: symtable.SymbolTable) -> LexicalBindings:
+        """Use the public CPython classifier rather than another lexical parser."""
+        symbols = table.get_symbols()
+        return cls(
+            frozenset(item.get_name() for item in symbols if item.is_local()),
+            frozenset(item.get_name() for item in symbols if item.is_global()),
+            frozenset(item.get_name() for item in symbols if item.is_nonlocal()),
+            frozenset(
+                item.get_name()
+                for item in symbols
+                if item.is_assigned() and (item.is_global() or item.is_nonlocal())
+            ),
+            frozenset(item.get_name() for item in symbols if item.is_free()),
+        )
+
+
+@dataclass(slots=True)
+class NativeScopes:
+    """Invocation-local native lexical classification, not a second parser or graph."""
+
+    tables: dict[tuple[str, int], list[LexicalBindings]]
+    sites: dict[ast.AST, LexicalBindings] = field(default_factory=dict)
+
+    @classmethod
+    def from_source(cls, source: str, path: str) -> NativeScopes:
+        """Classify original source with the current language's native symbol table."""
+        tables: dict[tuple[str, int], list[LexicalBindings]] = {}
+        pending = [symtable.symtable(source, path, "exec")]
+        while pending:
+            table = pending.pop()
+            key = table.get_name(), table.get_lineno()
+            tables.setdefault(key, []).append(LexicalBindings.from_table(table))
+            pending.extend(reversed(table.get_children()))
+        return cls(tables)
+
+    def for_node(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda | ast.ClassDef
+    ) -> LexicalBindings:
+        """Bind the definition site, including distinct same-line lambda scopes."""
+        if node in self.sites:
+            return self.sites[node]
+        name = "lambda" if isinstance(node, ast.Lambda) else node.name
+        candidates = self.tables.get((name, node.lineno), [])
+        if not candidates:
+            message = "native_scope_unavailable"
+            raise ValueError(message)
+        binding = candidates.pop(0)
+        self.sites[node] = binding
+        return binding
 
 
 def python_trees(text: str) -> tuple[ast.AST, ...]:
@@ -35,116 +95,24 @@ def python_trees(text: str) -> tuple[ast.AST, ...]:
         return tuple(trees)
 
 
-def complete_python_tree(text: str) -> ast.AST | None:
-    """Parse one complete Python carrier without fragment fallback."""
+def complete_python_tree(text: str) -> ast.Module | None:
+    """Require native compilation validity without executing the parsed carrier."""
     try:
-        return _parse_without_syntax_warnings(text)
-    except SyntaxError:
+        tree = _parse_without_syntax_warnings(text)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", SyntaxWarning)
+            compile(tree, "<reference-carrier>", "exec", dont_inherit=True)
+    except (SyntaxError, SyntaxWarning, ValueError):
         return None
+    else:
+        return tree
 
 
-def _parse_without_syntax_warnings(text: str) -> ast.AST:
+def _parse_without_syntax_warnings(text: str) -> ast.Module:
     """Treat warning-producing snippets as invalid partial Python syntax."""
     with warnings.catch_warnings():
         warnings.simplefilter("error", SyntaxWarning)
         return ast.parse(text)
-
-
-def python_references(
-    tree: ast.AST,
-    npm_scripts: dict[str, set[str]],
-) -> tuple[set[str], set[str], set[str]]:
-    """Extract imports, executables, and runtime inputs in one AST traversal."""
-    imports: set[str] = set()
-    executables: set[str] = set()
-    inputs: set[str] = set()
-    constants = {
-        target.id: value
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Assign)
-        and len(node.targets) == 1
-        and isinstance((target := node.targets[0]), ast.Name)
-        and (value := _string(node.value))
-    }
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            imports.update(alias.name.split(".")[0] for alias in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.module:
-            imports.add(node.module.split(".")[0])
-        elif isinstance(node, ast.Call):
-            executables.update(_call_executables(node, npm_scripts, imports))
-            owner = node.func.value if isinstance(node.func, ast.Attribute) else None
-            name = node.func.attr if isinstance(node.func, ast.Attribute) else ""
-            value = _string(node.args[0]) if node.args else ""
-            if not value and node.args and isinstance(node.args[0], ast.Name):
-                value = constants.get(node.args[0].id, "")
-            if value and _is_environment_read(owner, name):
-                inputs.add(value)
-        elif isinstance(node, ast.Assign) and len(node.targets) == 1:
-            target = node.targets[0]
-            if (
-                isinstance(target, ast.Name)
-                and re.search(r"(?:COMMAND|CMD|EXECUTABLE|BINARY|CLI|TOOL)$", target.id)
-                and isinstance(node.value, ast.List | ast.Tuple)
-            ):
-                executables.update(
-                    command_executables(
-                        _literal_command_tokens(node.value), npm_scripts, module_imports=imports
-                    )
-                )
-    return imports, executables, inputs
-
-
-def _is_environment_read(owner: ast.AST | None, name: str) -> bool:
-    return (isinstance(owner, ast.Name) and owner.id == "os" and name == "getenv") or (
-        isinstance(owner, ast.Attribute)
-        and isinstance(owner.value, ast.Name)
-        and owner.value.id == "os"
-        and owner.attr == "environ"
-        and name == "get"
-    )
-
-
-def _call_executables(
-    node: ast.Call, npm_scripts: dict[str, set[str]], module_imports: set[str]
-) -> set[str]:
-    name = node.func.id if isinstance(node.func, ast.Name) else ""
-    attribute = node.func.attr if isinstance(node.func, ast.Attribute) else ""
-    owner = (
-        node.func.value.id
-        if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name)
-        else ""
-    )
-    if node.args and (owner == "subprocess" and attribute in _SUBPROCESS_CALLS):
-        return command_executables(
-            _literal_command_tokens(node.args[0]), npm_scripts, module_imports=module_imports
-        )
-    if node.args and owner == "shutil" and attribute == "which":
-        return {_string(node.args[0])} - {""}
-    if (
-        name == "Path"
-        and node.args
-        and (value := _string(node.args[0]))
-        and value.startswith(("/bin/", "/usr/bin/", "/usr/local/bin/"))
-    ):
-        return {value.rsplit("/", maxsplit=1)[-1]}
-    return set()
-
-
-def _literal_command_tokens(node: ast.AST) -> tuple[str, ...]:
-    if isinstance(node, ast.Constant) and isinstance(node.value, str):
-        try:
-            return tuple(shlex.split(node.value))
-        except ValueError:
-            return ()
-    if isinstance(node, ast.List | ast.Tuple):
-        values = []
-        for item in node.elts:
-            if not (value := _string(item)):
-                break
-            values.append(value)
-        return tuple(values)
-    return ()
 
 
 def _string(node: ast.AST) -> str:

@@ -90,7 +90,7 @@ jobs:
 
     observation = observe_repository_references(tmp_path)
     assert ".config/mise/config.toml" in observation.files
-    observed = product_references_from_files(observation.files)
+    observed = product_references_from_files(observation.files).references
 
     assert {"external_sdk", "extension_sdk"} <= observed["import"]
     assert "external-dist" in observed["distribution"]
@@ -117,6 +117,7 @@ app.command(lane_app)
     observed = product_references_from_files(
         {
             "src/ethos/commands.py": """import external_sdk
+import subprocess
 @lane_app.command(name="start")
 def start() -> None:
     subprocess.run(["external-runner"], check=True)
@@ -130,7 +131,7 @@ dependencies = ["external-dist>=1"]
 """,
         },
         context_files=context,
-    )
+    ).references
 
     assert observed == {
         "import": {"external_sdk"},
@@ -257,7 +258,7 @@ def test_malformed_reference_carriers_fail_closed_without_inventing_references()
             ".github/workflows/ci.yml": "jobs: [",
             "README.md": "Use `unterminated ' command` safely.",
         }
-    )
+    ).references
 
     assert observed == {
         "import": set(),
@@ -274,7 +275,7 @@ def test_native_declarations_and_cross_carrier_commands_are_observed() -> None:
         {
             "pyproject.toml": """[project]
 name = "Demo_Package"
-dependencies = ["Requests>=2", 42]
+dependencies = ["Requests>=2"]
 [project.optional-dependencies]
 test = ["PyTest"]
 [project.scripts]
@@ -303,7 +304,7 @@ output
 """,
         },
         declared_commands=("demo",),
-    )
+    ).references
 
     assert {
         "demo-package",
@@ -327,7 +328,7 @@ def test_observation_can_exclude_dependency_declarations_but_keeps_consumers() -
             "package.json": '{"dependencies": {"left-pad": "1"}, "scripts": {"x": "node x.js"}}',
         },
         include_declarations=False,
-    )
+    ).references
 
     assert observed["distribution"] == set()
     assert observed["executable"] == {"node"}

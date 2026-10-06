@@ -22,7 +22,6 @@
 !tools/
 !tools/ci/
 !tools/ci/scripts/
-!tools/ci/scripts/download-file.sh
 !tools/ci/scripts/with-python-runtime.sh
 !tools/ci/scripts/mise-install.sh
 !tools/ci/toolchain/

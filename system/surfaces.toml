@@ -8,6 +8,8 @@ schema = "system/schemas/contracts/surfaces.schema.json"
 [runtime]
 executables = ["git", "lsof", "ps", "ssh-keygen", "gh", "glab", "mise", "pre-commit"]
 inputs = [
+  "CI",
+  "COMSPEC",
   "DOCKER_HOST",
   "ETHOS_ACTOR",
   "ETHOS_CHANGE",
@@ -35,13 +37,20 @@ inputs = [
   "GIT_AUTHOR_NAME",
   "GIT_COMMITTER_EMAIL",
   "GIT_COMMITTER_NAME",
+  "GIT_CONFIG_GLOBAL",
+  "GIT_CONFIG_NOSYSTEM",
+  "GIT_CONFIG_SYSTEM",
   "GIT_INDEX_FILE",
   "PATH",
   "PYTEST_CURRENT_TEST",
   "PYTEST_XDIST_WORKER",
   "SYSTEMROOT",
+  "SystemRoot",
+  "TEMP",
+  "TMP",
   "TMPDIR",
   "USER",
+  "WINDIR",
   "XDG_DATA_HOME",
 ]
 

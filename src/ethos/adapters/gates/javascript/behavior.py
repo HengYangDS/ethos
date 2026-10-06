@@ -215,12 +215,13 @@ def _observe_coverage(
             item["count"] > 0 for function in script["functions"] for item in function["ranges"]
         )
     }
-    generated = {
+    artifact_runtime = {
         subject.path
         for subject in subjects
-        if subject.role == "generated" and (root / subject.path).resolve() in executed
+        if subject.requires_behavior and not subject.requires_authored_analysis
     }
-    observed["executed_generated_paths"] = sorted(generated)
+    executed_artifacts = {path for path in artifact_runtime if (root / path).resolve() in executed}
+    observed["executed_generated_paths"] = sorted(executed_artifacts)
     measured = run_command(
         root,
         (
@@ -252,12 +253,11 @@ def _observe_coverage(
         for subject in subjects
         if subject.requires_behavior
         and subject.path not in expected
-        and subject.path not in generated
+        and subject.path not in executed_artifacts
     ]
     gaps.extend(
-        f"javascript_generated_input_unexecuted:{subject.path}"
-        for subject in subjects
-        if subject.role == "generated" and subject.path not in generated
+        f"javascript_generated_input_unexecuted:{path}"
+        for path in sorted(artifact_runtime - executed_artifacts)
     )
     if not preserved:
         gaps.append(

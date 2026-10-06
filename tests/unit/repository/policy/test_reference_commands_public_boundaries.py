@@ -6,13 +6,13 @@ import shlex
 
 import pytest
 
-from ethos.repository.policy.references.commands import CommandVocabulary
-from ethos.repository.policy.references.commands import command_executables
-from ethos.repository.policy.references.commands import command_identity
-from ethos.repository.policy.references.commands import normalize_command
-from ethos.repository.policy.references.commands import shebang_executable
-from ethos.repository.policy.references.commands import shell_commands
-from ethos.repository.policy.references.commands import shell_executables
+from ethos.repository.policy.references.commands.invocation import command_executables
+from ethos.repository.policy.references.commands.invocation import command_identity
+from ethos.repository.policy.references.commands.invocation import shebang_executable
+from ethos.repository.policy.references.commands.invocation import shell_commands
+from ethos.repository.policy.references.commands.invocation import shell_executables
+from ethos.repository.policy.references.commands.vocabulary import CommandVocabulary
+from ethos.repository.policy.references.commands.vocabulary import normalize_command
 from ethos.repository.policy.references.observation import product_references_from_files
 
 
@@ -67,7 +67,10 @@ def test_reference_commands_preserve_multiline_quoted_arguments(quote: str) -> N
 
     assert shell_executables(command, {}) == shell_executables(flattened, {}) == expected
     assert shell_commands(command, expected) == expected
-    assert product_references_from_files({"tools/example.sh": command})["executable"] == expected
+    assert (
+        product_references_from_files({"tools/example.sh": command}).references["executable"]
+        == expected
+    )
 
 
 def test_reference_commands_do_not_resume_inside_unterminated_quoted_data() -> None:
@@ -131,6 +134,6 @@ def test_command_vocabulary_is_reused_across_identity_checks() -> None:
 def test_reference_commands_canonical_environment_and_package_boundaries(
     tokens: tuple[str, ...], expected: set[str], modules: set[str]
 ) -> None:
-    observed = product_references_from_files({"tools/run.sh": shlex.join(tokens)})
+    observed = product_references_from_files({"tools/run.sh": shlex.join(tokens)}).references
     assert observed["executable"] == expected
     assert observed["import"] == modules

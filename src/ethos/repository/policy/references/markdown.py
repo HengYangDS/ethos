@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING
 
 from markdown_it import MarkdownIt
 
-import ethos.repository.policy.references.commands as command_references
+import ethos.repository.policy.references.commands.invocation as command_references
+import ethos.repository.policy.references.commands.vocabulary as command_vocabulary
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
 def markdown_references(
     path: str,
     text: str,
-    known_commands: command_references.CommandVocabulary,
+    known_commands: command_vocabulary.CommandVocabulary,
     npm_scripts: dict[str, set[str]],
     observed: dict[str, set[str]],
     *,
@@ -82,7 +83,7 @@ def _update_fence_references(
     *,
     path: str,
     token: Token,
-    known_commands: command_references.CommandVocabulary,
+    known_commands: command_vocabulary.CommandVocabulary,
     npm_scripts: dict[str, set[str]],
     observed: dict[str, set[str]],
     require_declared: bool,
@@ -124,7 +125,7 @@ def _update_inline_references(
     *,
     children: list[Token],
     openspec: bool,
-    known_commands: command_references.CommandVocabulary,
+    known_commands: command_vocabulary.CommandVocabulary,
     npm_scripts: dict[str, set[str]],
     observed: dict[str, set[str]],
     require_declared: bool,
@@ -174,7 +175,7 @@ def _openspec_scenario_commands(children: list[Token]) -> tuple[str, ...]:
 def _record_inline_command(
     inline: str,
     *,
-    known_commands: command_references.CommandVocabulary,
+    known_commands: command_vocabulary.CommandVocabulary,
     npm_scripts: dict[str, set[str]],
     observed: dict[str, set[str]],
     require_declared: bool,

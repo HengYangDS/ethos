@@ -14,6 +14,12 @@ import pytest
 import tomli_w
 
 import tests
+import tools.ci.sessions as ci_sessions
+from ethos.adapters.gates.code_quality import behavior_report
+from ethos.adapters.gates.code_quality import static_report
+from ethos.adapters.gates.provenance.observation import integrity_report
+from ethos.adapters.process import run_command
+from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
@@ -21,10 +27,11 @@ from tests.support.proof import declare_quality_profile
 from tests.support.proof import run_quality_proof
 
 
-def _locked_upstream_member(repo: Path, original: bytes) -> tuple[str, str]:
+def _locked_upstream_member(
+    repo: Path, original: bytes, member: str = "package/source.py"
+) -> tuple[str, str]:
     """Publish one exact native tar member and its npm lock identity in the fixture."""
     archive = repo / "upstream.tgz"
-    member = "package/source.py"
     with tarfile.open(archive, "w:gz") as stream:
         entry = tarfile.TarInfo(member)
         entry.size = len(original)
@@ -148,3 +155,201 @@ def test_public_quality_gate_requires_native_artifact_integrity(
         assert report["verdict"] == "block", report
         assert report["required_gaps"]
     assert report["summary"]["proof_attestation_issued"] is False
+
+
+class _JavaScriptLintSession:
+    """Run the existing session's native commands against the committed fixture."""
+
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        self.commands: list[tuple[str, ...]] = []
+
+    def run(self, *command: str) -> None:
+        self.commands.append(command)
+        result = run_command(
+            self.root,
+            command,
+            timeout=60,
+            remove_env=("NODE_OPTIONS", "NODE_PATH"),
+            remove_env_prefixes=("MISE_",),
+        )
+        assert result.returncode == 0, (result.stdout, result.stderr)
+        assert not result.stderr
+
+    def error(self, message: str) -> None:
+        raise ValueError(message)
+
+
+def _javascript_supply_repository(tmp_path: Path, *, kind: str, role: str, entered: bool) -> Path:
+    """Bind identical JavaScript bytes to real producer, lock, or authored identities."""
+    repo = init_git_repo(tmp_path / "javascript")
+    declare_quality_profile(repo)
+    original = b"const unused = 0;\nexport const supplied = 42;\n"
+    (repo / "supply.js").write_bytes(original)
+    (repo / ".gitattributes").write_text(f"supply.js ethos-role={role}\n")
+    (repo / "package.json").write_text(
+        json.dumps(
+            {
+                "type": "module",
+                "scripts": {
+                    "test": "node --test answer.test.js",
+                    "test:coverage": "c8 --config .config/coverage.json npm test",
+                },
+            }
+        )
+    )
+    config = repo / ".config/coverage.json"
+    config.parent.mkdir(parents=True)
+    config.write_text(
+        json.dumps(
+            {
+                "all": True,
+                "include": ["answer.js"],
+                "lines": 100,
+                "branches": 100,
+                "functions": 100,
+                "statements": 100,
+            }
+        )
+    )
+    (repo / "answer.js").write_text(
+        'import { supplied } from "./supply.js";\n\n'
+        "export function answer() {\n  return supplied;\n}\n"
+        if entered
+        else "export function answer() {\n  return 42;\n}\n"
+    )
+    (repo / "answer.test.js").write_text(
+        'import test from "node:test";\n'
+        'import assert from "node:assert/strict";\n'
+        'import { answer } from "./answer.js";\n\n'
+        'test("answer", () => {\n  assert.equal(answer(), 42);\n});\n'
+    )
+    profile = repo / ".ethos/profile.toml"
+    payload = tomllib.loads(profile.read_text())
+    if kind != "authored":
+        if kind == "generated":
+            reference = ".config/checks/ci/templates.toml"
+            member = "supply.js"
+            (repo / "template.txt").write_bytes(original)
+            owner = repo / reference
+            owner.parent.mkdir(parents=True)
+            owner.write_text(
+                tomli_w.dumps(
+                    {
+                        "schema": "ethos-ci-template-consistency-v1",
+                        "projection": [{"template": "template.txt", "projection": member}],
+                    }
+                )
+            )
+        else:
+            reference, member = _locked_upstream_member(repo, original, "package/source.js")
+        payload["proof"]["code_correctness_gates"].append("integrity")
+        payload["proof"]["gates"].append(
+            {
+                "id": "integrity",
+                "kind": "integrity",
+                "providers": ["ethos.adapters.gates.provenance.observation:integrity_report"],
+                "trust_bearing": True,
+            }
+        )
+        for gate in payload["proof"]["gates"][:2]:
+            gate["depends_on"] = ["integrity"]
+        payload["proof"]["source_contracts"] = [
+            {
+                "kind": kind,
+                "input_refs": [reference],
+                "members": {"supply.js": [reference, member]},
+                "integrity_gate": "integrity",
+            }
+        ]
+        profile.write_text(tomli_w.dumps(payload))
+    commit_fixture(repo, "bind exact JavaScript source obligations")
+    return repo
+
+
+@pytest.mark.parametrize(
+    ("kind", "role", "entered", "verdict"),
+    [
+        ("authored", "code", True, "block"),
+        ("authored", "snapshot", True, "pass"),
+        ("authored", "generated", True, "block"),
+        ("generated", "snapshot", True, "pass"),
+        ("generated", "snapshot", False, "block"),
+        ("upstream", "snapshot", False, "pass"),
+        ("upstream", "code", True, "pass"),
+        ("upstream", "code", False, "block"),
+    ],
+)
+def test_javascript_provenance_preserves_native_lexical_and_behavior_obligations(
+    tmp_path: Path, kind: str, role: str, *, entered: bool, verdict: str
+) -> None:
+    """Native provenance changes analysis, never raw execution or byte authenticity."""
+    repo = _javascript_supply_repository(tmp_path, kind=kind, role=role, entered=entered)
+    _, subjects = observe_quality_subjects(repo)
+    supply = next(subject for subject in subjects if subject.path == "supply.js")
+    assert supply.source_kind == kind
+    assert supply.role == role
+    assert integrity_report(repo)["verdict"] == "pass"
+    lexical = static_report(repo)
+    assert lexical["verdict"] == ("block" if kind == "authored" else "pass"), lexical
+    behavior = behavior_report(repo, timeout_seconds=60)
+    assert behavior["verdict"] == verdict, behavior
+    native_reports = behavior["native"]
+    assert isinstance(native_reports, list)
+    assert len(native_reports) == 1
+    native = native_reports[0]
+    assert isinstance(native, dict)
+    assert native["native_selection"]["selected_paths"] == ["answer.js"]
+    assert native["raw_identity_preserved"] is True
+    assert native["executed_generated_paths"] == (
+        ["supply.js"] if kind != "authored" and entered else []
+    )
+    assert not any(
+        str(argument).startswith(("--include=", "--exclude="))
+        for argument in native["coverage_execution"]["argv"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("kind", "role"),
+    [
+        ("authored", "code"),
+        ("authored", "snapshot"),
+        ("generated", "snapshot"),
+        ("upstream", "snapshot"),
+    ],
+)
+def test_javascript_lint_session_uses_native_authored_partition(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kind: str, role: str
+) -> None:
+    """The Nox consumer cannot apply authored ESLint or formatting to frozen supply."""
+    repo = _javascript_supply_repository(tmp_path, kind=kind, role=role, entered=False)
+    monkeypatch.setattr(ci_sessions, "ROOT", repo)
+    session = _JavaScriptLintSession(repo)
+    if kind == "authored":
+        with pytest.raises(ValueError, match="no-unused-vars"):
+            ci_sessions.javascript_lint(session)
+        assert session.commands == []
+    else:
+        ci_sessions.javascript_lint(session)
+        assert len(session.commands) == 1
+        assert session.commands[0][-2:] == ("answer.js", "answer.test.js")
+        assert "supply.js" not in session.commands[0]
+
+
+@pytest.mark.parametrize("kind", ["generated", "upstream"])
+def test_javascript_artifact_analysis_cannot_certify_changed_supply(
+    tmp_path: Path, kind: str
+) -> None:
+    """Skipping authored rules cannot authenticate a changed producer or archive member."""
+    repo = _javascript_supply_repository(tmp_path, kind=kind, role="snapshot", entered=False)
+    assert integrity_report(repo)["verdict"] == "pass"
+    original = (repo / "supply.js").read_bytes()
+    (repo / "supply.js").write_bytes(original + b"// drift\n")
+    assert (repo / "supply.js").read_bytes() != original
+    commit_fixture(repo, "record altered artifact without changing its native input")
+    integrity = integrity_report(repo)
+    assert integrity["verdict"] == "unknown", integrity
+    gaps = integrity["required_gaps"]
+    assert isinstance(gaps, list)
+    assert "source_integrity_unproven:supply.js" in gaps

@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import ast
-from importlib.util import resolve_name
 from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.repository.policy.layout.policy import module_name
 from ethos.repository.policy.layout.policy import package_python_files
 from ethos.repository.policy.layout.policy import semantic_python_files
+from ethos.repository.policy.references.python.flow import PythonReferenceFlow
+from ethos.repository.policy.references.python.syntax import complete_python_tree
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -40,7 +41,7 @@ def private_import_findings(
     policy: dict[str, Any],
     files: tuple[Path, ...] | None = None,
 ) -> list[dict[str, object]]:
-    """Check module and symbol visibility for every governed Python consumer."""
+    """Consume the unique binding observation for static and dynamic imports."""
     sources = semantic_python_files(root, policy, files=files)
     modules = {module_name(root, path) for path in sources}
     findings: list[dict[str, object]] = []
@@ -48,40 +49,45 @@ def private_import_findings(
         rel = path.relative_to(root).as_posix()
         consumer = module_name(root, path)
         package = consumer if path.name == "__init__.py" else consumer.rpartition(".")[0]
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                targets = ((alias.name, "") for alias in node.names)
-            elif isinstance(node, ast.ImportFrom):
-                try:
-                    origin = resolve_name("." * node.level + (node.module or ""), package)
-                except (ImportError, ValueError):
-                    findings.append({"gap": f"module_layout_import_unresolved:{rel}:{node.lineno}"})
-                    continue
-                targets = (
-                    (f"{origin}.{alias.name}", "")
-                    if f"{origin}.{alias.name}" in modules
-                    else (origin, alias.name)
-                    for alias in node.names
+        source = path.read_text(encoding="utf-8")
+        tree = complete_python_tree(source)
+        if tree is None:
+            findings.append({"gap": f"module_layout_import_unknown:{rel}", "path": rel})
+            continue
+        try:
+            observed = PythonReferenceFlow(rel, {}).observe(tree, source=source)
+        except (SyntaxError, ValueError):
+            findings.append({"gap": f"module_layout_import_unknown:{rel}", "path": rel})
+            continue
+        findings.extend(
+            {
+                "gap": f"module_layout_private_import_unknown:{rel}:{item.line}"
+                if item.state == "unknown"
+                else "",
+                **item.to_dict(),
+            }
+            for item in observed.uncertainties
+            if item.kind == "import"
+        )
+        for site in observed.import_sites:
+            target, symbol = site.module, site.name
+            if f"{target}.{symbol}" in modules:
+                target, symbol = f"{target}.{symbol}", ""
+            violation = _private_boundary(target, package)
+            if not violation and consumer != target and _private_name(symbol):
+                violation = "symbol"
+            if violation:
+                findings.append(
+                    {
+                        "gap": f"module_layout_private_import:{rel}:{target}->{symbol}",
+                        "path": rel,
+                        "line": site.line,
+                        "module": target,
+                        "name": symbol,
+                        "consumer": consumer,
+                        "boundary": violation,
+                    }
                 )
-            else:
-                continue
-            for target, symbol in targets:
-                violation = _private_boundary(target, package)
-                if not violation and consumer != target and _private_name(symbol):
-                    violation = "symbol"
-                if violation:
-                    findings.append(
-                        {
-                            "gap": f"module_layout_private_import:{rel}:{target}->{symbol}",
-                            "path": rel,
-                            "line": node.lineno,
-                            "module": target,
-                            "name": symbol,
-                            "consumer": consumer,
-                            "boundary": violation,
-                        }
-                    )
     return findings
 
 

@@ -20,7 +20,7 @@ from ethos.repository.policy.gates import bind_gate_source_digests
 from ethos.repository.policy.gates import canonical_gate_command
 from ethos.repository.policy.gates import gate_policy_fields
 from ethos.repository.policy.gates import source_paths_for_gate
-from ethos.repository.policy.references.commands import python_module
+from ethos.repository.policy.references.commands.invocation import python_module
 
 if TYPE_CHECKING:
     from collections.abc import MutableMapping

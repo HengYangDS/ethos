@@ -8,9 +8,11 @@ import subprocess
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Literal
+from typing import TypedDict
 
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.system.contracts import system_contracts_report
+from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import reference_carrier
@@ -19,12 +21,14 @@ from ethos.repository.policy.references.declarations import native_owned_referen
 from ethos.repository.policy.references.markdown import markdown_tokens
 from ethos.repository.policy.references.observation import observe_repository_references
 from ethos.repository.policy.references.observation import reference_consumer_sources_from_files
-from ethos.repository.policy.references.python_syntax import complete_python_tree
-from ethos.repository.policy.references.python_syntax import module_name
+from ethos.repository.policy.references.python.syntax import complete_python_tree
+from ethos.repository.policy.references.python.syntax import module_name
 from ethos.repository.registry.docs.registry import build_docs_registry
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from ethos.repository.policy.references.python.bindings import ReferenceUncertaintyRecord
 
 SemanticCategory = Literal[
     "missing",
@@ -34,6 +38,32 @@ SemanticCategory = Literal[
     "conflict",
     "unknown",
 ]
+
+
+class SemanticFindingRecord(TypedDict):
+    """The exact relation projected to public closure consumers."""
+
+    relation: str
+    kind: str
+    identity: str
+    sources: list[str]
+
+
+class SemanticClosureReport(TypedDict):
+    """Typed public evidence, not a claim of whole-language semantic completeness."""
+
+    verdict: Verdict
+    coverage: Literal["evaluated", "partial", "unknown"]
+    uncertainties: list[ReferenceUncertaintyRecord]
+    summary: dict[SemanticCategory, int]
+    missing: list[SemanticFindingRecord]
+    duplicate: list[SemanticFindingRecord]
+    orphan: list[SemanticFindingRecord]
+    superseded: list[SemanticFindingRecord]
+    conflict: list[SemanticFindingRecord]
+    unknown: list[SemanticFindingRecord]
+    required_gaps: list[str]
+
 
 _PATH_REFERENCE = re.compile(
     r"(?<![A-Za-z0-9_.@+-])(?:\.\.?/)*[A-Za-z0-9_.@+-]+(?:/[A-Za-z0-9_.@+-]+)*"
@@ -60,7 +90,7 @@ class SemanticClosureFinding:
         source_text = ",".join(self.sources)
         return f"semantic_{self.relation}_{self.category}:{self.kind}:{self.identity}:{source_text}"
 
-    def to_dict(self) -> dict[str, object]:
+    def to_dict(self) -> SemanticFindingRecord:
         """Project one uniform finding shape for every category."""
         return {
             "relation": self.relation,
@@ -89,7 +119,7 @@ def repository_semantic_closure(
     root: Path,
     *,
     system_contracts: dict[str, object] | None = None,
-) -> dict[str, object]:
+) -> SemanticClosureReport:
     """Prove current native reference ownership and relation closure."""
     observation = observe_repository_references(root)
     files = _effective_reference_files(observation.files)
@@ -114,6 +144,17 @@ def repository_semantic_closure(
         *_superseded_current_carriers(root, files),
         *_declaration_findings(contract_report),
         *_unknown_carriers((*observation.unreadable_paths, *consumption.unknown_paths)),
+        *(
+            SemanticClosureFinding(
+                "unknown",
+                "consumer",
+                item.kind,
+                f"{item.target}@{item.line}:{item.column}",
+                (item.path,),
+            )
+            for item in consumption.uncertainties
+            if item.state == "unknown"
+        ),
     ]
     findings.sort(
         key=lambda item: (
@@ -140,15 +181,20 @@ def repository_semantic_closure(
         "verdict": close_verdict(verdict, required_gaps=tuple(required_gaps)),
         "coverage": "unknown"
         if any(item.category == "unknown" for item in findings)
+        else "partial"
+        if consumption.uncertainties
         else "evaluated",
+        "uncertainties": [item.to_dict() for item in consumption.uncertainties],
         "summary": {
             category: sum(finding.category == category for finding in findings)
             for category in categories
         },
-        **{
-            category: [finding.to_dict() for finding in findings if finding.category == category]
-            for category in categories
-        },
+        "missing": [item.to_dict() for item in findings if item.category == "missing"],
+        "duplicate": [item.to_dict() for item in findings if item.category == "duplicate"],
+        "orphan": [item.to_dict() for item in findings if item.category == "orphan"],
+        "superseded": [item.to_dict() for item in findings if item.category == "superseded"],
+        "conflict": [item.to_dict() for item in findings if item.category == "conflict"],
+        "unknown": [item.to_dict() for item in findings if item.category == "unknown"],
         "required_gaps": required_gaps,
     }
 

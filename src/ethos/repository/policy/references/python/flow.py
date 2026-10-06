@@ -484,22 +484,20 @@ class PythonReferenceFlow:
         if "os.environ" in owner.targets:
             self.result.consume("value", index, node, scope, "os.environ.__getitem__")
             return BindingValue(deferred=True)
-        if self.sources is not None:
-            key = (
-                node.slice.value
-                if isinstance(node.slice, ast.Constant)
-                and isinstance(node.slice.value, str | int)
-                and not isinstance(node.slice.value, bool)
-                else None
-            )
-            return project(
-                owner,
-                MemberDemand("index", key=key, selector=index if key is None else None),
-                scope,
-                self.sources,
-                self.result,
-            )
-        return BindingValue(unknown=True)
+        key = (
+            node.slice.value
+            if isinstance(node.slice, ast.Constant)
+            and isinstance(node.slice.value, str | int)
+            and not isinstance(node.slice.value, bool)
+            else None
+        )
+        return project(
+            owner,
+            MemberDemand("index", key=key, selector=index if key is None else None),
+            scope,
+            self.sources,
+            self.result,
+        )
 
     @expression.register
     def interpolated(self, node: ast.JoinedStr, scope: BindingScope) -> BindingValue:

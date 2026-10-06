@@ -36,6 +36,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- Resolved finite Python tuple and mapping selections through the same native
+  observation owner without requiring cross-file source context; public layout
+  checks retain precise private-import rejection.
+- Refreshed the architecture learning source binding after reviewed continuation
+  and retention changes, without changing the authored graph meaning.
 - Preserved official OpenSpec apply refusal while admitting repair of its exact
   selected existing task artifact from native schema and tracking observations.
 - Allowed planning without an unselected, observably absent local Skill portfolio;

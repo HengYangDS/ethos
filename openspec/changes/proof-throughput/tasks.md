@@ -206,6 +206,17 @@
       was slower; only its presence-sensitive semantic controls remain
       (`semantic-lazy-default-matched-20261006-0924.results.json`).
       Whole-source throughput, exact proof and installed acceptance remain open.
+      Standalone finite tuple/mapping reads now use the existing native projection
+      owner even without cross-file source context: six public module-layout
+      cases went RED to GREEN; 490 related tests pass. The learning source-binding
+      refresh validates all 13 bindings without changing graph meaning.
+      The exact `578f6e638` full proof reached its caller-owned 900-second deadline;
+      no final proof report was produced. Completed failures and cleanup are
+      retained in `ddwg-frozen-native-full-proof-20261006-1804.*`.
+      The transfer-demand optimization is withdrawn: matched diagnostics measured
+      30.925/30.020 seconds and added a cutoff UNKNOWN, not qualified speedup
+      (`native-demand-matched-20261006-1853.receipt.json`). Repeated truncated
+      evaluation remains the next owning bottleneck; no full-proof replay is due.
 
 - [ ] 10.12 Replace fixed OpenSpec proposal/design/tasks path inference with its resolved artifact graph; preserve positive removal-only acceptance; replay renamed/optional outputs, pure/mixed removal, `skip_specs`, missing/ambiguous resolution, archive identity and exact source binding through public compilation and proof.
 - [ ] 10.13 Preserve blocked CLI exit and incomplete-report status under nonblocking backpressure and short writes; distinguish closed consumers without replaying completed effects.

@@ -154,6 +154,9 @@ def test_transfer_retains_missing_default_custody(install: str, lineage: str) ->
     """Unchanged backing cannot hide a foreign callable's absent default allocation."""
     source = "def idle():\n    return\ndef foreign(saved=None):\n    return saved\n"
     tree = ast.parse(source)
+    idle_node, foreign_node = tree.body
+    assert isinstance(idle_node, ast.FunctionDef)
+    assert isinstance(foreign_node, ast.FunctionDef)
     sources = PythonSourceReturns({}, {}, PythonReferenceFlow)
     flow = PythonReferenceFlow("probe.py", {}, sources=sources)
     flow.lexical = NativeScopes.from_source(source, "probe.py")
@@ -174,10 +177,10 @@ def test_transfer_retains_missing_default_custody(install: str, lineage: str) ->
             )
         ]
     )
-    foreign_value = sources.definition(flow, tree.body[1], foreign, (), ())
+    foreign_value = sources.definition(flow, foreign_node, foreign, (), ())
     foreign_key = next(iter(foreign_value.targets))
     sources.definitions[foreign_key] = FunctionDefinition(
-        foreign_key, tree.body[1], flow, foreign, signature
+        foreign_key, foreign_node, flow, foreign, signature
     )
     caller = BindingScope(
         "caller",
@@ -190,11 +193,11 @@ def test_transfer_retains_missing_default_custody(install: str, lineage: str) ->
             backing: foreign_value if install == "history" else scalar,
         },
     )
-    idle = sources.definition(flow, tree.body[0], caller, (), ())
+    idle = sources.definition(flow, idle_node, caller, (), ())
     definition = sources.definitions[next(iter(idle.targets))]
-    invocation = SourceInvocation(
-        definition, (), {}, ast.parse("idle()").body[0].value, caller, caller.fork()
-    )
+    call = ast.parse("idle()", mode="eval").body
+    assert isinstance(call, ast.Call)
+    invocation = SourceInvocation(definition, (), {}, call, caller, caller.fork())
     child = BindingScope(
         "caller.idle",
         parent=invocation.parent,
@@ -215,6 +218,8 @@ def test_transfer_preserves_live_branch_and_summarized_obligations() -> None:
     """No-op branches retain fresh caller data; weak-update facts cannot disappear."""
     source = "def idle():\n    return\n"
     tree = ast.parse(source)
+    idle_node = tree.body[0]
+    assert isinstance(idle_node, ast.FunctionDef)
     sources = PythonSourceReturns({}, {}, PythonReferenceFlow)
     flow = PythonReferenceFlow("probe.py", {}, sources=sources)
     flow.lexical = NativeScopes.from_source(source, "probe.py")
@@ -223,11 +228,11 @@ def test_transfer_preserves_live_branch_and_summarized_obligations() -> None:
     live = BindingValue(strings=frozenset({"live"}))
     changed = BindingValue(strings=frozenset({"changed"}))
     caller = BindingScope("caller", members={identity: initial}, member_history={identity: initial})
-    idle = sources.definition(flow, tree.body[0], caller, (), ())
+    idle = sources.definition(flow, idle_node, caller, (), ())
     definition = sources.definitions[next(iter(idle.targets))]
-    invocation = SourceInvocation(
-        definition, (), {}, ast.parse("idle()").body[0].value, caller, caller.fork()
-    )
+    call = ast.parse("idle()", mode="eval").body
+    assert isinstance(call, ast.Call)
+    invocation = SourceInvocation(definition, (), {}, call, caller, caller.fork())
     unchanged = BindingScope(
         "caller.idle",
         parent=invocation.parent,
@@ -265,3 +270,73 @@ def test_branch_merge_preserves_presence_sensitive_unknown(*, present: bool, rev
 
     assert merged.values["value"].unknown is not present
     assert merged.history["value"].unknown is not present
+
+
+@pytest.mark.parametrize("count", [2, 16])
+@pytest.mark.parametrize("shared_base", [False, True])
+def test_branch_merge_reuses_equal_facts_without_rejoining(
+    monkeypatch: pytest.MonkeyPatch, count: int, *, shared_base: bool
+) -> None:
+    """Equal branch facts share immutable values, not mutable environment dictionaries."""
+    identity = AggregateIdentity("caller", 1, 0)
+    base = BindingScope("base")
+    branches = tuple(
+        BindingScope(
+            "branch",
+            values={"value": BindingValue(strings=frozenset({"stable"}))},
+            history={"value": BindingValue(strings=frozenset({"stable"}))},
+            members={identity: BindingValue(unknown=True)},
+            member_history={identity: BindingValue()},
+            member_base=base if shared_base else BindingScope("separate"),
+            summarized={identity},
+        )
+        for _ in range(count)
+    )
+    merged = BindingScope("merged")
+    joined: list[tuple[BindingValue, BindingValue]] = []
+    join = BindingValue.join
+
+    def counted(left: BindingValue, right: BindingValue) -> BindingValue:
+        joined.append((left, right))
+        return join(left, right)
+
+    monkeypatch.setattr(BindingValue, "join", counted)
+    merged.merge(*branches)
+
+    assert joined == []
+    assert merged.member_base is (base if shared_base else None)
+    assert merged.summarized == {identity}
+    for name in ("values", "history", "members", "member_history"):
+        mapping = getattr(merged, name)
+        assert all(mapping == getattr(branch, name) for branch in branches)
+        assert all(mapping is not getattr(branch, name) for branch in branches)
+        mapping.clear()
+        assert all(getattr(branch, name) for branch in branches)
+
+
+def test_branch_merge_rejoins_only_changed_fact_channels(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A changed lexical channel preserves its may-values without rescanning stable history."""
+    left = BindingScope(
+        "left",
+        values={"value": BindingValue(strings=frozenset({"left"}))},
+        history={"value": BindingValue(strings=frozenset({"shared"}))},
+    )
+    right = BindingScope(
+        "right",
+        values={"value": BindingValue(strings=frozenset({"right"}))},
+        history={"value": BindingValue(strings=frozenset({"shared"}))},
+    )
+    merged = BindingScope("merged")
+    joined: list[tuple[BindingValue, BindingValue]] = []
+    join = BindingValue.join
+
+    def counted(first: BindingValue, second: BindingValue) -> BindingValue:
+        joined.append((first, second))
+        return join(first, second)
+
+    monkeypatch.setattr(BindingValue, "join", counted)
+    merged.merge(left, right)
+
+    assert joined == [(left.values["value"], right.values["value"])]
+    assert merged.values["value"].strings == {"left", "right"}
+    assert merged.history["value"].strings == {"shared"}

@@ -573,21 +573,22 @@ class BindingScope:
             return
         self.wildcard = any(branch.wildcard for branch in branches)
         self.summarized = set().union(*(branch.summarized for branch in branches))
-        for field_name in ("values", "history"):
+        for field_name in ("values", "history", "members", "member_history"):
             mappings = [getattr(branch, field_name) for branch in branches]
-            result: dict[str, BindingValue] = {}
+            if all(mapping == mappings[0] for mapping in mappings[1:]):
+                setattr(self, field_name, dict(mappings[0]))
+                continue
+            missing = BindingValue(unknown=True)
+            result: dict[str | AggregateIdentity, BindingValue] = {}
             for name in set().union(*(mapping.keys() for mapping in mappings)):
-                value = mappings[0].get(name, BindingValue(unknown=True))
-                for mapping in mappings[1:]:
-                    value = value.join(mapping.get(name, BindingValue(unknown=True)))
+                values = (
+                    mapping.get(name, missing)
+                    if field_name in ("values", "history")
+                    else branch.member(name, later=field_name == "member_history")
+                    for mapping, branch in zip(mappings, branches, strict=True)
+                )
+                value = next(values)
+                for selected in values:
+                    value = value.join(selected)
                 result[name] = value
             setattr(self, field_name, result)
-        for field_name in ("members", "member_history"):
-            mappings = [getattr(branch, field_name) for branch in branches]
-            members: dict[str | AggregateIdentity, BindingValue] = {}
-            for name in set().union(*(mapping.keys() for mapping in mappings)):
-                value = branches[0].member(name, later=field_name == "member_history")
-                for branch in branches[1:]:
-                    value = value.join(branch.member(name, later=field_name == "member_history"))
-                members[name] = value
-            setattr(self, field_name, members)

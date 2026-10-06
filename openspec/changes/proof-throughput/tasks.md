@@ -216,7 +216,21 @@
       The transfer-demand optimization is withdrawn: matched diagnostics measured
       30.925/30.020 seconds and added a cutoff UNKNOWN, not qualified speedup
       (`native-demand-matched-20261006-1853.receipt.json`). Repeated truncated
-      evaluation remains the next owning bottleneck; no full-proof replay is due.
+      evaluation remains an open throughput limit; no full-proof replay is due.
+      Native branch merge now copies equal fact channels once and rejoins only
+      changed channels. Five distinguishing regressions went RED to GREEN;
+      presence, mutable-map isolation, member lineage and residual observations
+      remain intact. Matched three-source profiling preserves all observations
+      and reduces joins from 2,353,316 to 1,184,611; 31.173/29.615 seconds is a
+      local measured result, not a whole-proof speedup claim. Retain
+      `native-equal-map-merge-{red,final-profile}-20261006-{2121,2150}.*`.
+      The duplicate merge loops were consolidated to pass native complexity;
+      explicit AST shape assertions repair six test typing diagnostics without
+      casts or suppressions. Final related native suite passes all 511 cases in
+      9.59 seconds with owned scratch absent; selected Ruff, Ty and format pass.
+      Independent read-only correctness and Ponytail review find no required gap.
+      Public exact-source and installed acceptance remain open; the current land
+      reader selects `proof_not_proven`.
 
 - [ ] 10.12 Replace fixed OpenSpec proposal/design/tasks path inference with its resolved artifact graph; preserve positive removal-only acceptance; replay renamed/optional outputs, pure/mixed removal, `skip_specs`, missing/ambiguous resolution, archive identity and exact source binding through public compilation and proof.
 - [ ] 10.13 Preserve blocked CLI exit and incomplete-report status under nonblocking backpressure and short writes; distinguish closed consumers without replaying completed effects.

@@ -36,6 +36,8 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- Shared equal Python branch facts without replaying their abstract joins;
+  changed bindings, presence-sensitive UNKNOWN and isolated mutable scopes remain.
 - Resolved finite Python tuple and mapping selections through the same native
   observation owner without requiring cross-file source context; public layout
   checks retain precise private-import rejection.

@@ -237,6 +237,14 @@
       Independent read-only correctness and Ponytail review find no required gap.
       Public exact-source and installed acceptance remain open; the current land
       reader selects `proof_not_proven`.
+      Invocation-request custody now expands once per traversal while retaining
+      scope-qualified inline siblings, captures, arguments, keywords and fresh
+      return reads. Six distinguishing failures become passing cases; all 488
+      related native cases, Ruff and selected Ty pass. The same-input real-carrier
+      comparison preserves every reference and all 35 UNKNOWN residuals;
+      34.943/29.370 seconds is one local observation, not whole-proof speedup.
+      Evidence: `build/evidence/python-request-reachability-{red-v3,related-final,real-carrier}`.
+      Exact product proof, installed behavior and GitLab closeout remain open.
 
 - [ ] 10.12 Replace fixed OpenSpec proposal/design/tasks path inference with its resolved artifact graph; preserve positive removal-only acceptance; replay renamed/optional outputs, pure/mixed removal, `skip_specs`, missing/ambiguous resolution, archive identity and exact source binding through public compilation and proof.
 - [ ] 10.13 Preserve blocked CLI exit and incomplete-report status under nonblocking backpressure and short writes; distinguish closed consumers without replaying completed effects.

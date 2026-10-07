@@ -281,7 +281,7 @@ class InvocationCustody:
     ) -> dict[str | AggregateIdentity, dict[int, BindingScope]]:
         """Retain all scope-qualified witnesses; do not choose the first captured snapshot."""
         retained: dict[str | AggregateIdentity, dict[int, BindingScope]] = defaultdict(dict)
-        seen_values, seen_calls = set(), set()
+        seen_values, seen_calls, seen_requests = set(), set(), set()
         pending = list(roots)
         captures: list[tuple[FunctionDefinition, BindingScope]] = []
         while pending or captures:
@@ -315,7 +315,8 @@ class InvocationCustody:
                 if definition is not None:
                     captures.append((definition, definition.parent))
                 pending.extend(self.record_roots(name, scope))
-            for projection in value.projections:
+            for projection in (item for item in value.projections if item.key not in seen_requests):
+                seen_requests.add(projection.key)
                 request = self.sources.invocations.requests[projection.key]
                 pending.extend((item, request.caller) for item in request.arguments)
                 pending.extend((item, request.caller) for item in request.keywords.values())

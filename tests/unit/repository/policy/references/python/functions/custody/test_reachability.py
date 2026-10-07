@@ -11,6 +11,7 @@ import pytest
 from ethos.repository.policy.references.python.bindings import AggregateIdentity
 from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
+from ethos.repository.policy.references.python.bindings import ReturnProjection
 from ethos.repository.policy.references.python.control import FlowExit
 from ethos.repository.policy.references.python.flow import PythonReferenceFlow
 from ethos.repository.policy.references.python.functions.custody import InvocationCustody
@@ -65,6 +66,82 @@ def test_heap_edges_expand_once_per_identity_and_scope(
     assert set(retained) == {root, child, *inline}
     assert all(set(witnesses) == {id(owner) for owner in owners} for witnesses in retained.values())
     assert set(expansions.values()) == {1}, expansions
+
+
+@pytest.mark.parametrize("aliases", [2, 16])
+@pytest.mark.parametrize("state", ["pending", "returned", "unknown"])
+def test_return_request_edges_expand_once_without_losing_inline_owners(
+    aliases: int, state: str
+) -> None:
+    """Aliases share fixed request custody; inline siblings and a later read remain distinct."""
+    source = "def select(value=None, *, option):\n    return value\n"
+    tree = ast.parse(source)
+    node = tree.body[0]
+    assert isinstance(node, ast.FunctionDef)
+    sources = PythonSourceReturns({}, {}, PythonReferenceFlow)
+    flow = PythonReferenceFlow("probe.py", {}, sources=sources)
+    flow.lexical = NativeScopes.from_source(source, "probe.py")
+    argument, keyword, returned, capture = (
+        AggregateIdentity("request", index, 0) for index in range(4)
+    )
+    preserved = BindingValue(strings=frozenset({"retained_probe"}))
+    caller = BindingScope(
+        "caller", members={argument: preserved, keyword: preserved, returned: preserved}
+    )
+    parent = BindingScope(
+        "captured", values={"value": BindingValue(aggregates=frozenset({capture}))}
+    )
+    definition = sources.definition(
+        flow, node, parent, (BindingValue(aggregates=frozenset({capture})),), (None,)
+    )
+    call = ast.parse("select(value, option=value)", mode="eval").body
+    assert isinstance(call, ast.Call)
+    request = SourceInvocation(
+        sources.definitions[next(iter(definition.targets))],
+        (BindingValue(aggregates=frozenset({argument})),),
+        {"option": BindingValue(aggregates=frozenset({keyword}))},
+        call,
+        caller,
+        parent,
+    )
+    if state != "pending":
+        request.returned = BindingValue(
+            aggregates=frozenset({returned}), unknown=state == "unknown"
+        )
+    reads: list[int] = []
+
+    class Requests(list[SourceInvocation]):
+        def __getitem__(self, index):
+            reads.append(index)
+            return super().__getitem__(index)
+
+    sources.invocations.requests = Requests([request])
+    owners = (BindingScope("first"), BindingScope("second"))
+    inline = tuple(AggregateIdentity("inline", index, 0) for index in range(aliases))
+    roots = [
+        (
+            BindingValue(
+                projections=frozenset({ReturnProjection(0)}),
+                items=(BindingValue(aggregates=frozenset({identity})),),
+            ),
+            owner,
+        )
+        for owner in owners
+        for identity in inline
+    ]
+    expected = {argument, keyword, capture, *inline}
+    if state != "pending":
+        expected.add(returned)
+    retained = sources.invocations.custody.reachable(roots)
+    assert set(retained) == expected
+    assert set(retained[argument]) == {id(caller)}
+    assert set(retained[keyword]) == {id(caller)}
+    assert set(retained[capture]) == {id(parent)}
+    assert all(set(retained[identity]) == {id(owner) for owner in owners} for identity in inline)
+    assert reads == [0], reads
+    request.returned = BindingValue(aggregates=frozenset({returned}))
+    assert returned in sources.invocations.custody.reachable(roots)
+    assert reads == [0, 0]
 
 
 @pytest.mark.parametrize(

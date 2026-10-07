@@ -246,6 +246,19 @@
       Evidence: `build/evidence/python-request-reachability-{red-v3,related-final,real-carrier}`.
       Exact product proof, installed behavior and GitLab closeout remain open.
 
+      Resource-free scalar custody no longer expands empty edges or retains
+      visited scalar identities. The original regression fails before the fix;
+      all 43 custody and 261 related/public native cases pass. Complete native
+      Ruff (671 files) and Ty pass without a complexity waiver. The exact-HEAD
+      comparison freezes all 889 context inputs, including the baseline test,
+      and binds both changed inputs independently. Every reference, uncertainty,
+      unknown path and coverage state is unchanged, including all 35 UNKNOWN
+      residuals. One unprofiled comparison measures 36.652/34.271 seconds; this
+      limited improvement is not a complete-proof speedup claim. Evidence:
+      `build/evidence/custody-scalar-pruning-{red,related-v2,public,native-lint,native-types,native-comparison}-7fb5240b.*`.
+      The failed product-boundary deadline receipt remains retained; exact full
+      proof, installed behavior and hosted acceptance are still unproved.
+
 - [ ] 10.12 Replace fixed OpenSpec proposal/design/tasks path inference with its resolved artifact graph; preserve positive removal-only acceptance; replay renamed/optional outputs, pure/mixed removal, `skip_specs`, missing/ambiguous resolution, archive identity and exact source binding through public compilation and proof.
 - [ ] 10.13 Preserve blocked CLI exit and incomplete-report status under nonblocking backpressure and short writes; distinguish closed consumers without replaying completed effects.
 

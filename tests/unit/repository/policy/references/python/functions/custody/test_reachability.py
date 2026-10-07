@@ -21,6 +21,43 @@ from ethos.repository.policy.references.python.functions.returns import PythonSo
 from ethos.repository.policy.references.python.syntax import NativeScopes
 
 
+@pytest.mark.parametrize("aliases", [2, 64])
+def test_reachability_does_not_expand_resource_free_leaves(
+    monkeypatch: pytest.MonkeyPatch, aliases: int
+) -> None:
+    """Scalar facts have no custody edges, while a sibling allocation stays reachable."""
+    scope = BindingScope("caller")
+    leaf = BindingValue(strings=frozenset({"literal"}), unknown=True, deferred=True)
+    identity = AggregateIdentity("caller", 1, 0)
+    roots = [
+        (leaf, scope),
+        (
+            BindingValue(
+                items=tuple(leaf for _ in range(aliases)),
+                entries=(("scalar", leaf),),
+                fields=(("scalar", leaf),),
+                element=leaf,
+                methods=frozenset(),
+                aggregates=frozenset({identity}),
+            ),
+            scope,
+        ),
+    ]
+    visited: list[BindingValue] = []
+    inline_value = InvocationCustody.inline_value
+
+    def counted(value: BindingValue, target: BindingScope | None) -> BindingValue:
+        visited.append(value)
+        return inline_value(value, target)
+
+    monkeypatch.setattr(InvocationCustody, "inline_value", staticmethod(counted))
+    retained = PythonSourceReturns({}, {}, PythonReferenceFlow).invocations.custody.reachable(roots)
+
+    assert set(retained) == {identity}
+    assert set(retained[identity]) == {id(scope)}
+    assert leaf not in visited
+
+
 @pytest.mark.parametrize("aliases", [2, 16])
 @pytest.mark.parametrize("later", [None, False, True])
 def test_heap_edges_expand_once_per_identity_and_scope(

@@ -295,7 +295,16 @@ class InvocationCustody:
                 continue
             value, scope = pending.pop()
             site = id(value), id(scope)
-            if site in seen_values:
+            if site in seen_values or not (
+                value.aggregates
+                or value.targets
+                or value.projections
+                or value.items
+                or value.entries
+                or value.fields
+                or value.methods
+                or value.element is not None
+            ):
                 continue
             seen_values.add(site)
             for key in (key for key in value.aggregates if id(scope) not in retained[key]):

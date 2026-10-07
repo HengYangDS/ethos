@@ -491,14 +491,20 @@
   - [ ] 13.4.2 Qualify and install the exact candidate, observe complete publication performance, and obtain the adopter-owned consumer result; keep these separate from source and focused-test success.
     - [x] 13.4.2.1 Deliver the isolated signed finite-input repair through the native wheel/runtime owner; qualify public admission, independent byte custody and the original AIGW implicit hook and DDWG proof consumers. This closes their hang, not full-proof, release or whole-product acceptance.
   - [ ] 13.4.3 Close owner-confirmed historical attribution and peer readback through exact corrections and recoverable originals. Current author-header repair is accepted and installed; the three platform committer records are retained after exact original GitHub web-flow signature verification. Evidence: `~/.local/share/ethos/recovery/identity-repair-20261001/historical-human-attribution-disposition.json`. The false Junie coauthor, exact proof, peer publication and old PR-reference disposition remain open; future genuine contributors are not constrained.
-        Remote-retirement checkpoint, 2026-10-04 11:51 UTC: live GitLab/GitHub retain
-        three/four proposal refs with no open reviews. Original/repaired peer history
-        now passes 51 native retirement/review tests after a reproduced false block;
-        source remains unaccepted and no remote ref was removed. Existing-owner
-        evidence is `proposal-retirement-{test-red,test-green,attestation-cost}`.
-        The 120-MB selected set and repeated repair validation exceed bounded
-        previews; remove that repetition before exact retirement. Current adopters
-        were notified; four historical families still lack acknowledged owner routing.
+    - [x] 13.4.3.1 Preserve original-peer provenance across consecutive completed native repairs; verify exact mapping composition, ref intersection, missing or ambiguous evidence refusal, final-tip forward-policy checks and unchanged advertised CAS input through the owning public boundaries. Exact product proof, installed recovery and GitLab read-back remain separate acceptance obligations.
+
+      Evidence: `build/evidence/history-repair-chain-{final,commit,real-range}`;
+      the related source suite and final nine-case regression pass. Full proof,
+      runtime admission and GitLab delivery remain separate obligations.
+
+    Remote-retirement checkpoint, 2026-10-04 11:51 UTC: live GitLab/GitHub retain
+    three/four proposal refs with no open reviews. Original/repaired peer history
+    now passes 51 native retirement/review tests after a reproduced false block;
+    source remains unaccepted and no remote ref was removed. Existing-owner
+    evidence is `proposal-retirement-{test-red,test-green,attestation-cost}`.
+    The 120-MB selected set and repeated repair validation exceed bounded
+    previews; remove that repetition before exact retirement. Current adopters
+    were notified; four historical families still lack acknowledged owner routing.
   - [ ] 13.4.4 Deliver native stat-cache refresh at the worktree-sync owner; preserve real dirty bytes and qualify public closeout, exact proof and installed behavior. Current focused native owner tests are evidence, not accepted delivery.
     - [ ] 13.4.4.1 Recover materialization from the admitted original plan and Attestation without recompilation or CAS replay; preserve the receipt and qualify the public journey, exact proof and installed replay.
           The original 19-case run failed candidate-sync-loss. The transition/primitive

@@ -304,7 +304,16 @@
   public prove/land and strict Git hooks; product-policy drift blocks CAS and sync.
   The exact braces 3.0.3 advisory GHSA-vfj7-8cjw-p6xm is user-approved across
   downstream boundaries, not declared clean. Portable production approvals ship
-  once with canonical resources; npm/parser approvals remain host/expiry-bound.
+  once with canonical resources. The user temporarily approved the 12 exact locked
+  npm 12.2.0 bundled subjects for GitLab CI, installation and distribution through
+  2026-10-18 in Asia/Shanghai; the native policy expires at
+  2026-10-19T00:00:00+08:00. Existing local dispositions and braces approval remain
+  unchanged. Native production audit accepts the 13 authorized advisory identities
+  without clearing adverse findings; Python is clean. Exact expiry and changed-lock
+  replays reject, and 60 native audit regressions pass. Hosted CI, installed
+  successor and release acceptance remain open. Evidence:
+  `build/evidence/gitlab-npm-production-approval-{preview,audit-before,audit-after}.json`
+  and `gitlab-npm-production-approval-regression.stdout`.
   Native focused tests pass 237 cases in 96.41 seconds, including strict incumbent
   roles, inverse candidate admission, retained original-plan recovery without CAS,
   and public interrupted-sync recovery. Caller-held plan recovery is not automatic

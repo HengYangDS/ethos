@@ -203,3 +203,195 @@ owner = "ethos-quality-gate-governance"
 approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
 rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
 expires_at = 2026-10-19T00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-2vr4-cq9g-pvrc"
+package = "ip-address"
+version = "10.5.0"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = [
+  "node_modules/npm/node_modules/ip-address",
+]
+lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+scope = "production-release"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
+rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
+expires_at = 2026-10-19 00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-3wwx-pv8p-q78v"
+package = "undici"
+version = "6.28.0"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = [
+  "node_modules/npm/node_modules/undici",
+]
+lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+scope = "production-release"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
+rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
+expires_at = 2026-10-19 00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p"
+package = "brace-expansion"
+version = "5.0.9"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = [
+  "node_modules/npm/node_modules/brace-expansion",
+]
+lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+scope = "production-release"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
+rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
+expires_at = 2026-10-19 00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-ch52-4w7c-c8xp"
+package = "http-cache-semantics"
+version = "4.2.0"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = [
+  "node_modules/npm/node_modules/http-cache-semantics",
+]
+lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+scope = "production-release"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
+rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
+expires_at = 2026-10-19 00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-h3mg-xc3c-68pw"
+package = "ip-address"
+version = "10.5.0"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = [
+  "node_modules/npm/node_modules/ip-address",
+]
+lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+scope = "production-release"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
+rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
+expires_at = 2026-10-19 00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-j6r3-76f7-8jcv"
+package = "ip-address"
+version = "10.5.0"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = [
+  "node_modules/npm/node_modules/ip-address",
+]
+lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+scope = "production-release"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
+rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
+expires_at = 2026-10-19 00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr"
+package = "brace-expansion"
+version = "5.0.9"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = [
+  "node_modules/npm/node_modules/brace-expansion",
+]
+lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+scope = "production-release"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
+rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
+expires_at = 2026-10-19 00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-qhr7-859c-m2p7"
+package = "brace-expansion"
+version = "5.0.9"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = [
+  "node_modules/npm/node_modules/brace-expansion",
+]
+lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+scope = "production-release"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
+rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
+expires_at = 2026-10-19 00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-r53p-7pc4-xj5r"
+package = "undici"
+version = "6.28.0"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = [
+  "node_modules/npm/node_modules/undici",
+]
+lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+scope = "production-release"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
+rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
+expires_at = 2026-10-19 00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-rfgv-xxqx-mfg5"
+package = "undici"
+version = "6.28.0"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = [
+  "node_modules/npm/node_modules/undici",
+]
+lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+scope = "production-release"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
+rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
+expires_at = 2026-10-19 00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-rj75-hqrm-r3gf"
+package = "postcss-selector-parser"
+version = "7.1.4"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = [
+  "node_modules/npm/node_modules/postcss-selector-parser",
+]
+lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+scope = "production-release"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
+rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
+expires_at = 2026-10-19 00:00:00+08:00
+
+[[dispositions]]
+ecosystem = "npm"
+advisory_url = "https://github.com/advisories/GHSA-rpw4-54j3-4h4q"
+package = "ip-address"
+version = "10.5.0"
+integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+nodes = [
+  "node_modules/npm/node_modules/ip-address",
+]
+lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+scope = "production-release"
+owner = "ethos-quality-gate-governance"
+approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
+rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
+expires_at = 2026-10-19 00:00:00+08:00

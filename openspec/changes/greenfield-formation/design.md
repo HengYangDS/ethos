@@ -145,3 +145,13 @@ and current Lease. Other paths and uncertain identities remain blocked. The
 profile's historical fields require a reviewed disposition; ETHOS neither
 normalizes nor deletes them automatically. Staged admission validates index
 bytes even when the worktree shows a different valid profile.
+
+Missing coordination must not make that repair path unreachable. Lease
+reacquisition uses the stable identity from the exact committed historical
+profile, not its invalid envelope as runtime policy. The control root uses
+complete committed native branch roles, or the existing native defaults when
+the workspace declares no branch-role table. An explicitly malformed table
+still rejects. The snapshot binds the selected control HEAD, policy, linked
+worktree, index and retained bytes before and during Lease insertion. This
+metadata-only restoration leaves strict profile admission and every later
+effect unchanged; no legacy runtime or second configuration owner is restored.

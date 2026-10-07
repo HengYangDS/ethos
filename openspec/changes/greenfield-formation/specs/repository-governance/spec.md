@@ -86,6 +86,13 @@ identity. The preview SHALL change no repository bytes.
 - **THEN** prewrite admits that patch without accepting the old envelope as policy
 - **AND** status, ordinary adoption and later repository effects retain their separate current checks.
 
+#### Scenario: Missing coordination precedes a profile repair
+
+- **WHEN** an authorized holder requests missing Lease restoration for one exact linked Work Lane whose accepted control root has an invalid historical profile
+- **THEN** restoration binds the committed stable repository identity and the committed native branch-role policy, including native defaults when no branch-role table is declared
+- **AND** a declared invalid branch-role table or uncertain control root still blocks; preview and apply preserve refs, index, dirty bytes and the invalid profile
+- **AND** the Lease does not make that profile runtime authority or authorize ordinary adoption, integration or publication.
+
 #### Scenario: A profile repair lacks a trustworthy boundary
 
 - **WHEN** the patch is absent, changes another path or identity, has an invalid postimage, or lacks Work Lane authority

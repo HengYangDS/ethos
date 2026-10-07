@@ -6,6 +6,7 @@ import os
 import shlex
 import sqlite3
 import subprocess
+import tomllib
 from dataclasses import asdict
 from datetime import UTC
 from datetime import datetime
@@ -25,7 +26,7 @@ from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
-from ethos.adapters.repo.profile import repository_identity
+from ethos.adapters.repo.profile import historical_repository_identity
 from ethos.adapters.repo.status.workspace import worktree_records
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_or_recognize_lease
 from ethos.adapters.store.state.lease.projection import observe_lease
@@ -58,12 +59,12 @@ def _reacquire_coordinates(root: Path, path: Path) -> dict[str, str]:
                 ".ethos/workspace.toml",
                 observation=True,
             ).stdout
+            workspace = (
+                committed_file_text(repo, row["head"], ".ethos/workspace.toml") if declared else ""
+            )
             policy = (
-                strict_branch_role_policy_from_text(
-                    committed_file_text(repo, row["head"], ".ethos/workspace.toml"),
-                    allow_legacy_sibling_default=True,
-                )
-                if declared
+                strict_branch_role_policy_from_text(workspace, allow_legacy_sibling_default=True)
+                if "branch_roles" in tomllib.loads(workspace)
                 else BranchRolePolicy()
             )
         except ValueError:
@@ -96,7 +97,7 @@ def _reacquire_coordinates(root: Path, path: Path) -> dict[str, str]:
         "control_root": control.as_posix(),
         "control_head": current_head(control),
         "policy_digest": canonical_json_digest(asdict(policy)),
-        "repository": repository_identity(control, tree_ref=control_head),
+        "repository": historical_repository_identity(control, tree_ref=control_head),
         "common_directory": git_common_dir(control),
         "path": target.as_posix(),
         "branch": lane["branch"],

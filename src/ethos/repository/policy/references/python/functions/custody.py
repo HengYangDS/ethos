@@ -294,7 +294,7 @@ class InvocationCustody:
                 pending.extend(self.capture_roots(definition, environment))
                 continue
             value, scope = pending.pop()
-            site = id(value), id(scope)
+            site = self.reachability_key(value), id(scope)
             if site in seen_values or not (
                 value.aggregates
                 or value.targets
@@ -333,6 +333,21 @@ class InvocationCustody:
                     pending.append((request.returned, request.caller))
                 captures.append((request.definition, request.parent))
         return dict(retained)
+
+    @staticmethod
+    def reachability_key(
+        value: BindingValue,
+    ) -> int | tuple[frozenset[AggregateIdentity], frozenset[str], frozenset[int]]:
+        """Equal resource leaves share custody; inline owners retain object identity."""
+        if (
+            value.items
+            or value.entries
+            or value.fields
+            or value.methods
+            or value.element is not None
+        ):
+            return id(value)
+        return value.aggregates, value.targets, frozenset(item.key for item in value.projections)
 
     @staticmethod
     def inline_value(value: BindingValue, target: BindingScope | None) -> BindingValue:

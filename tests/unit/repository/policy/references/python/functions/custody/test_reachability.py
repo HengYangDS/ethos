@@ -58,6 +58,63 @@ def test_reachability_does_not_expand_resource_free_leaves(
     assert leaf not in visited
 
 
+@pytest.mark.parametrize("aliases", [2, 32])
+@pytest.mark.parametrize("resource", ["heap", "callable", "request"])
+def test_equal_resource_leaves_expand_once_per_scope(
+    monkeypatch: pytest.MonkeyPatch, aliases: int, resource: str
+) -> None:
+    """Equal resource facts share edges, not scopes, inline siblings or later observations."""
+    sources = PythonSourceReturns({}, {}, PythonReferenceFlow)
+    captured = BindingScope("captured")
+    tree = ast.parse("def select(value):\n    return value\n")
+    node = tree.body[0]
+    assert isinstance(node, ast.FunctionDef)
+    flow = PythonReferenceFlow("probe.py", {}, sources=sources)
+    flow.lexical = NativeScopes.from_source("def select(value):\n    return value\n", "probe.py")
+    callable_value = sources.definition(flow, node, captured, (), ())
+    definition = sources.definitions[next(iter(callable_value.targets))]
+    call = ast.parse("select(value)", mode="eval").body
+    assert isinstance(call, ast.Call)
+    child = AggregateIdentity("child", 0, 0)
+    request = SourceInvocation(
+        definition, (BindingValue(aggregates=frozenset({child})),), {}, call, captured, captured
+    )
+    sources.invocations.requests.append(request)
+    heap = AggregateIdentity("heap", 0, 0)
+    roots = []
+    scopes = (BindingScope("first"), BindingScope("second"))
+    for scope in scopes:
+        for _ in range(aliases):
+            value = {
+                "heap": BindingValue(aggregates=frozenset({heap})),
+                "callable": BindingValue(targets=callable_value.targets),
+                "request": BindingValue(projections=frozenset({ReturnProjection(0)})),
+            }[resource]
+            roots.append((value, scope))
+    visits: Counter[int] = Counter()
+    original = InvocationCustody.inline_value
+
+    def counted(value: BindingValue, target: BindingScope | None) -> BindingValue:
+        if (
+            (resource == "heap" and heap in value.aggregates)
+            or (resource == "callable" and value.targets == callable_value.targets)
+            or (resource == "request" and value.projections)
+        ):
+            visits[id(value)] += 1
+        return original(value, target)
+
+    monkeypatch.setattr(InvocationCustody, "inline_value", staticmethod(counted))
+    retained = sources.invocations.custody.reachable(roots)
+    if resource == "heap":
+        assert set(retained[heap]) == {id(scope) for scope in scopes}
+    elif resource == "request":
+        assert set(retained[child]) == {id(captured)}
+    assert sum(visits.values()) == len(scopes), visits
+    request.returned = BindingValue(aggregates=frozenset({heap}))
+    if resource == "request":
+        assert heap in sources.invocations.custody.reachable(roots)
+
+
 @pytest.mark.parametrize("aliases", [2, 16])
 @pytest.mark.parametrize("later", [None, False, True])
 def test_heap_edges_expand_once_per_identity_and_scope(

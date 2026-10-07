@@ -259,6 +259,17 @@
       The failed product-boundary deadline receipt remains retained; exact full
       proof, installed behavior and hosted acceptance are still unproved.
 
+      Equal resource-only custody leaves now share one traversal key per actual
+      scope; inline shape keeps object identity and later observations remain
+      fresh. Six distinguishing regressions fail before the fix; all 467
+      related/public cases, complete native Ruff (671 files) and Ty pass.
+      The frozen 889-input comparison preserves every observed relation and
+      all 35 UNKNOWN residuals, with 28.498/25.447 seconds measured locally.
+      Evidence: `build/evidence/custody-resource-leaf-{red,public,native-lint,native-types,native-comparison}-86ea12fe.*`.
+      The earlier empty-queue experiment is withdrawn after unchanged semantics
+      measured slower (20.109/21.167 seconds); its original RED and comparison
+      remain retained. Complete-proof, installed and hosted claims stay open.
+
 - [ ] 10.12 Replace fixed OpenSpec proposal/design/tasks path inference with its resolved artifact graph; preserve positive removal-only acceptance; replay renamed/optional outputs, pure/mixed removal, `skip_specs`, missing/ambiguous resolution, archive identity and exact source binding through public compilation and proof.
 - [ ] 10.13 Preserve blocked CLI exit and incomplete-report status under nonblocking backpressure and short writes; distinguish closed consumers without replaying completed effects.
 

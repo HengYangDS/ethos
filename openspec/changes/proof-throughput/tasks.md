@@ -503,6 +503,23 @@
       the related source suite and final nine-case regression pass. Full proof,
       runtime admission and GitLab delivery remain separate obligations.
 
+      GitLab proposal checkpoint, 2026-10-07 19:57 UTC: the native creation
+      preview confirmed live GitLab access and review-only proof selection, but
+      rejected the repaired accepted baseline before validating its provenance.
+      The range owner now resolves the exact baseline ref and completed repair
+      together; creation retains its zero destination CAS and checks all forward
+      objects under the final repair-tip policy. Focused RED had three failures;
+      four focused cases and 70 related native cases pass, including unsigned
+      forward refusal and a ref excluded by the successor. Evidence:
+      `build/evidence/new-proposal-repair-baseline-{red,green,related}` and
+      `gitlab-history-chain-proposal-preview.json`. The real GitLab accepted
+      baseline passes the source-native range observer with both repair
+      witnesses, 43 forward objects and zero violations in 147.04 seconds;
+      `new-proposal-repair-baseline-live-source-v2.json` preserves the exact
+      inputs. The shorter failed deadline receipt is retained separately.
+      Exact product proof, installed pre-push, hosted CI and actual peer
+      projection remain unproved.
+
     Remote-retirement checkpoint, 2026-10-04 11:51 UTC: live GitLab/GitHub retain
     three/four proposal refs with no open reviews. Original/repaired peer history
     now passes 51 native retirement/review tests after a reproduced false block;

@@ -164,6 +164,75 @@ def test_original_peer_prefix_survives_consecutive_repairs(tmp_path, monkeypatch
     assert git(repo, "show-ref") == before
 
 
+@pytest.mark.parametrize("case", ["tip", "forward", "unsigned", "excluded_ref"])
+def test_new_proposal_keeps_completed_baseline_ref_provenance(tmp_path, monkeypatch, case):
+    """Creation uses its trusted source ref, never a repair of the absent destination."""
+    repo, original, _first, second = _consecutive_repairs(
+        tmp_path, monkeypatch, independent=case == "excluded_ref"
+    )
+    head = (
+        second
+        if case == "tip"
+        else git(
+            repo,
+            "commit-tree",
+            *(("-S",) if case != "unsigned" else ()),
+            f"{second}^{{tree}}",
+            "-p",
+            second,
+            "-m",
+            "fix: new proposal forward source",
+        )
+    )
+    baseline_ref = (
+        "refs/remotes/origin/main" if case == "excluded_ref" else "refs/remotes/origin/dev"
+    )
+    git(repo, "update-ref", baseline_ref, original)
+    native_zero = "0" * len(head)
+    before = git(repo, "show-ref")
+    report = commit_range_admission_report(
+        repo,
+        target_ref="refs/heads/proposal/repaired-baseline",
+        proposed_head=head,
+        remote_head=native_zero,
+        remote_name="origin",
+        trusted_baseline=baseline_ref if case == "excluded_ref" else "",
+    )
+    valid = case in {"tip", "forward"}
+    assert report["verdict"] == ("pass" if valid else "block"), report
+    assert report["remote_head"] == native_zero
+    assert report["update_kind"] == "create"
+    if valid or case == "unsigned":
+        assert report["baseline_commit"] == original
+        assert report["baseline_ref"] == baseline_ref
+        assert report["integration_baseline"] == second
+        assert report["revisions"] == ([] if case == "tip" else [head])
+        assert len(report["repair_attestations"]) == 2
+        assert {item["commit"] for item in report["violations"]} == (
+            {head} if case == "unsigned" else set()
+        )
+        cli = (run_ethos if valid else run_ethos_blocked)(
+            "hook",
+            "commit-range",
+            "--target-ref",
+            "refs/heads/proposal/repaired-baseline",
+            "--proposed-head",
+            head,
+            "--remote-head",
+            native_zero,
+            "--remote",
+            "origin",
+            "--json",
+            cwd=repo,
+        )
+        assert cli["verdict"] == report["verdict"], cli
+    else:
+        assert report["required_gaps"] == [
+            f"commit_range_trusted_baseline_not_ancestor:{original}:{head}"
+        ]
+    assert git(repo, "show-ref") == before
+
+
 @pytest.mark.parametrize(
     "case", ["missing_result", "missing_effect", "ambiguous", "tampered", "revoked_trust"]
 )

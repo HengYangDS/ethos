@@ -79,6 +79,11 @@ def commit_range_admission_report(
         return {
             **report(state="repaired_history", update_kind="repair", revisions=revisions),
             "repair_attestation": repair["attestation_id"],
+            **(
+                {"repair_attestations": repair["attestation_ids"]}
+                if "attestation_ids" in repair
+                else {}
+            ),
             "signature_verification": "verified_native",
         }
     integration_baseline = str(repair["new"]) if repair is not None else baseline
@@ -125,6 +130,11 @@ def commit_range_admission_report(
             repair_attestation=repair["attestation_id"],
             repair_replacement=repair["new"],
             integration_baseline=integration_baseline,
+            **(
+                {"repair_attestations": repair["attestation_ids"]}
+                if "attestation_ids" in repair
+                else {}
+            ),
         )
     return result
 

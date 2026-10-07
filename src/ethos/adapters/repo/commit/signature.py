@@ -413,21 +413,68 @@ def repaired_ref_provenance(
 
 
 def repaired_object_provenance(root: Path, *, old: str, new: str) -> dict[str, object] | None:
-    """Resolve one exact old object through verified repair beneath accepted history."""
+    """Resolve one exact old object through completed repairs beneath accepted history."""
     _, attestations = read_attestation_set(root)
+    records = tuple(item for item in attestations if item.predicate == RESULT)
+    validated: dict[str, dict[str, object] | None] = {}
+    return _repaired_object_path(root, old, new, records, attestations, validated, frozenset())
+
+
+def _repaired_object_path(
+    root: Path,
+    old: str,
+    head: str,
+    records: tuple[Attestation, ...],
+    attestations: tuple[Attestation, ...],
+    validated: dict[str, dict[str, object] | None],
+    active: frozenset[str],
+) -> dict[str, object] | None:
+    """Compose exact native mappings; each selected repair is verified once per observation."""
+    _require(head not in active, "signature_repair_evidence_ambiguous")
     matches = []
-    for record in attestations:
+    for record in records:
         replacement = record.payload.body.get("replacement")
-        if (
-            record.predicate != RESULT
-            or not isinstance(replacement, str)
-            or not is_ancestor(root, replacement, new)
-        ):
+        if not isinstance(replacement, str) or not is_ancestor(root, replacement, head):
             continue
-        repair = completed_signature_repair(root, new=replacement, attestations=attestations)
+        if replacement not in validated:
+            validated[replacement] = completed_signature_repair(
+                root, new=replacement, attestations=attestations
+            )
+        repair = validated[replacement]
         mapping = repair.get("mapping") if repair else None
-        if isinstance(mapping, Mapping) and old in mapping:
-            matches.append(repair)
+        if not isinstance(mapping, Mapping):
+            continue
+        assert repair is not None
+        if old in mapping:
+            relation = repair
+        else:
+            previous = _repaired_object_path(
+                root, old, str(repair["old"]), records, attestations, validated, active | {head}
+            )
+            if previous is None:
+                continue
+            previous_mapping = cast("Mapping[str, str]", previous["mapping"])
+            previous_refs = cast("Mapping[str, str]", previous["refs"])
+            current_refs = cast("Mapping[str, str]", repair["refs"])
+            relation = {
+                **repair,
+                "old": previous["old"],
+                "mapping": {
+                    original: mapping.get(intermediate, intermediate)
+                    for original, intermediate in previous_mapping.items()
+                },
+                "refs": {
+                    ref: source for ref, source in previous_refs.items() if ref in current_refs
+                },
+                "attestation_ids": [
+                    *cast(
+                        "list[str]",
+                        previous.get("attestation_ids", [previous["attestation_id"]]),
+                    ),
+                    repair["attestation_id"],
+                ],
+            }
+        matches.append(relation)
     _require(len(matches) <= 1, "signature_repair_evidence_ambiguous")
     return matches[0] if matches else None
 

@@ -363,7 +363,7 @@ class PythonInvocations:
     ) -> BindingValue:
         """Resolve selected members before expanding their demanded structure."""
         value = scope.resolve(value)
-        current = replace(value, projections=frozenset())
+        current = replace(value, projections=frozenset()) if value.projections else value
         if self.summarizing and value.projections:
             return current.join(BindingValue(deferred=True, context_limited=True))
         for projection in value.projections:
@@ -383,17 +383,33 @@ class PythonInvocations:
                 resolved = self.resolve(resolved, request.caller, result, deep=deep)
                 self.custody.publish(resolved, request.caller, scope)
             current = current.join(resolved)
-        if not deep:
+        if not deep or (current.items is None and current.fields is None):
             return current
-        return replace(
-            current,
-            items=tuple(self.resolve(item, scope, result) for item in current.items)
+        items = (
+            tuple(self.resolve(item, scope, result) for item in current.items)
             if current.items is not None
-            else None,
-            fields=tuple((name, self.resolve(item, scope, result)) for name, item in current.fields)
-            if current.fields is not None
-            else None,
+            else None
         )
+        fields = (
+            tuple((name, self.resolve(item, scope, result)) for name, item in current.fields)
+            if current.fields is not None
+            else None
+        )
+        if (
+            items is None
+            or all(
+                original is resolved
+                for original, resolved in zip(current.items or (), items, strict=True)
+            )
+        ) and (
+            fields is None
+            or all(
+                original[1] is resolved[1]
+                for original, resolved in zip(current.fields or (), fields, strict=True)
+            )
+        ):
+            return current
+        return replace(current, items=items, fields=fields)
 
     def evaluate(self, invocation: SourceInvocation, result: PythonConsumption) -> BindingValue:
         """Instantiate the same terminal-aware flow under a local dependency bound."""

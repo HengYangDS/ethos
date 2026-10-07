@@ -140,6 +140,12 @@
 - [ ] 9.1 Resolve native startup and repeated observation costs at their owners.
 - [ ] 9.2 Implement the highest-impact bounded repair with falsifying regressions.
 - [ ] 9.3 Verify equivalent results, reduced work, isolation and cleanup.
+  Evidence: `build/evidence/return-resolution-{red-v2,property,native-final-comparison}`.
+  All 439 semantic-reference cases pass; one actual admission carrier retains
+  identical observations with 130,199 versus 26,014 replacement allocations.
+  One bounded comparison measured 13.56 versus 12.02 seconds; that sample does
+  not close the whole-product timeout or establish general performance.
+  Exact proof, installed use and GitLab delivery remain open.
 - [x] 9.4 Reuse one current runtime observation in public status and verify corruption recovery.
 - [x] 9.5 Qualify and deliver the exact single-observation status candidate.
 - [x] 9.6 Initialize quality capabilities on demand and verify native missing-supply and fresh-selection behavior.

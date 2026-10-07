@@ -10,6 +10,9 @@ import pytest
 from ethos.repository.policy.references.closure import repository_semantic_closure
 from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
+from ethos.repository.policy.references.python.effects import PythonConsumption
+from ethos.repository.policy.references.python.flow import PythonReferenceFlow
+from ethos.repository.policy.references.python.functions.returns import PythonSourceReturns
 from tests.support.architecture import declare_reference_package
 from tests.support.architecture import declare_reference_surface
 from tests.support.architecture import write_reference_source
@@ -506,6 +509,25 @@ def test_binding_join_reuses_unchanged_immutable_facts(value: BindingValue) -> N
     assert value.join(value) is value
     equivalent = replace(value)
     assert value.join(equivalent) is value
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        BindingValue(),
+        BindingValue(strings=frozenset({"known"}), unknown=True),
+        BindingValue(items=(BindingValue(strings=frozenset({"known"})),), ordered=True),
+        BindingValue(fields=(("member", BindingValue(strings=frozenset({"known"}))),)),
+    ],
+)
+def test_return_resolution_reuses_unchanged_immutable_facts(value: BindingValue) -> None:
+    """A resolved value retains its immutable identity without rebuilding the same facts."""
+    sources = PythonSourceReturns({}, {}, PythonReferenceFlow)
+    result = PythonConsumption("probe.py", {}, sources=sources)
+
+    resolved = sources.invocations.resolve(value, BindingScope("caller"), result)
+
+    assert resolved is value
 
 
 def test_binding_single_continuation_does_not_rejoin_facts(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -84,7 +84,10 @@ def commit_range_admission_report(
         }
     integration_baseline = str(repair["new"]) if repair is not None else baseline
     revisions = _introduced_commit_revisions(
-        repo, proposed_commit=proposed_commit, baseline_commit=integration_baseline
+        repo,
+        proposed_commit=proposed_commit,
+        baseline_commit=integration_baseline,
+        additional_baseline_commits=(baseline,) if repair is not None else (),
     )
     if revisions is None:
         gap = f"commit_range_unreadable:{baseline}:{proposed_commit}"
@@ -235,7 +238,7 @@ def _baseline(
     ancestral = is_ancestor(root, baseline, proposed_commit)
     repair = (
         repaired_peer_ref_provenance(root, ref=repair_ref, old=baseline, new=proposed_commit)
-        if repair_ref.startswith("refs/heads/") and not ancestral
+        if repair_ref.startswith("refs/heads/")
         else None
     )
     gap = (
@@ -251,8 +254,9 @@ def _introduced_commit_revisions(
     *,
     proposed_commit: str,
     baseline_commit: str,
+    additional_baseline_commits: tuple[str, ...] = (),
 ) -> tuple[str, ...] | None:
-    """Return the oldest-first commits newly reachable from one exact baseline."""
+    """Return oldest-first objects outside the exact admitted baseline prefixes."""
     completed = run_git(
         root,
         "rev-list",
@@ -261,6 +265,7 @@ def _introduced_commit_revisions(
         proposed_commit,
         "--not",
         baseline_commit,
+        *additional_baseline_commits,
         check=False,
         observation=True,
     )

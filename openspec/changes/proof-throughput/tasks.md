@@ -528,6 +528,16 @@
       Exact product proof, installed pre-push, hosted CI and actual peer
       projection remain unproved.
 
+      The ancestry-bridge range now resolves the completed exact-ref repair even
+      when the original peer is ancestral, and excludes both admitted prefixes.
+      Six distinguishing failures become eight passing cases; all 158 native
+      neighboring cases and lint pass. Excluded refs and invalid or unsigned
+      forward objects still fail. Evidence:
+      `build/evidence/history-ancestry-bridge-{red-v3,green,native-related,live-source-v2}`.
+      The exact GitLab proposal source observes two repair witnesses, 44 forward
+      objects and no violations. Installation, exact product proof, hosted CI
+      and actual GitLab publication remain open.
+
     Remote-retirement checkpoint, 2026-10-04 11:51 UTC: live GitLab/GitHub retain
     three/four proposal refs with no open reviews. Original/repaired peer history
     now passes 51 native retirement/review tests after a reproduced false block;

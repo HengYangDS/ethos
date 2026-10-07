@@ -50,7 +50,7 @@ def commit_range_admission_report(
         return report(
             state="blocked", required_gaps=[f"commit_range_proposed_unreadable:{proposed_head}"]
         )
-    baseline, baseline_ref, baseline_source, gap = _baseline(
+    baseline, baseline_ref, baseline_source, gap, repair = _baseline(
         repo,
         target_ref=target_ref,
         proposed_commit=proposed_commit,
@@ -69,12 +69,8 @@ def commit_range_admission_report(
     if gap:
         return report(state="blocked", required_gaps=[gap])
     report = partial(report, baseline_commit=baseline)
-    repair = (
-        repaired_peer_ref_provenance(repo, ref=target_ref, old=baseline, new=proposed_commit)
-        if target_ref.startswith("refs/heads/") and not is_ancestor(repo, baseline, proposed_commit)
-        else None
-    )
-    if repair is not None and repair["new"] == proposed_commit:
+    creation = remote_head == native_zero
+    if repair is not None and repair["new"] == proposed_commit and not creation:
         revisions = tuple(cast("Mapping[str, str]", repair["mapping"]).values())
         return {
             **report(state="repaired_history", update_kind="repair", revisions=revisions),
@@ -126,7 +122,7 @@ def commit_range_admission_report(
     )
     if repair is not None:
         result.update(
-            update_kind="repair",
+            update_kind="create" if creation else "repair",
             repair_attestation=repair["attestation_id"],
             repair_replacement=repair["new"],
             integration_baseline=integration_baseline,
@@ -204,45 +200,50 @@ def _baseline(
     trusted_baseline: str,
     trusted_baseline_source: str,
     native_zero: str,
-) -> tuple[str, str, str, str]:
-    if remote_head != native_zero:
-        baseline = peel_commit(root, remote_head)
-        return (
-            baseline,
-            "",
-            "remote_head",
-            "" if baseline else f"commit_range_remote_unreadable:{remote_head}",
-        )
-    baseline_ref = trusted_baseline
-    baseline_source = trusted_baseline_source or "explicit_trusted_baseline"
-    policy = load_branch_role_policy(root)
-    branch = target_ref.removeprefix("refs/heads/")
-    if not baseline_ref and branch.startswith(policy.proposal_branch_prefix):
-        baseline_ref = f"refs/remotes/{remote_name}/{policy.accepted_branch}"
-        baseline_source = "declared_remote_accepted_ref"
-    if not baseline_ref:
-        return (
-            "",
-            "",
-            "",
-            f"commit_range_trusted_baseline_required:{target_ref}",
-        )
+) -> tuple[str, str, str, str, dict[str, object] | None]:
+    """Resolve the exact baseline and its completed source-ref repair together."""
+    creation = remote_head == native_zero
+    if creation:
+        baseline_ref = trusted_baseline
+        baseline_source = trusted_baseline_source or "explicit_trusted_baseline"
+        policy = load_branch_role_policy(root)
+        branch = target_ref.removeprefix("refs/heads/")
+        if not baseline_ref and branch.startswith(policy.proposal_branch_prefix):
+            baseline_ref = f"refs/remotes/{remote_name}/{policy.accepted_branch}"
+            baseline_source = "declared_remote_accepted_ref"
+        if not baseline_ref:
+            return "", "", "", f"commit_range_trusted_baseline_required:{target_ref}", None
+    else:
+        baseline_ref, baseline_source = remote_head, "remote_head"
     baseline = peel_commit(root, baseline_ref)
+    selected_ref = baseline_ref if creation else ""
     if not baseline:
-        return (
-            "",
-            baseline_ref,
-            baseline_source,
-            f"commit_range_trusted_baseline_unreadable:{baseline_ref}",
+        gap = (
+            f"commit_range_trusted_baseline_unreadable:{baseline_ref}"
+            if creation
+            else f"commit_range_remote_unreadable:{remote_head}"
         )
-    if not is_ancestor(root, baseline, proposed_commit):
-        return (
-            baseline,
-            baseline_ref,
-            baseline_source,
-            f"commit_range_trusted_baseline_not_ancestor:{baseline}:{proposed_commit}",
-        )
-    return baseline, baseline_ref, baseline_source, ""
+        return "", selected_ref, baseline_source, gap, None
+    remote_prefix = f"refs/remotes/{remote_name}/"
+    repair_ref = (
+        f"refs/heads/{baseline_ref.removeprefix(remote_prefix)}"
+        if creation and baseline_ref.startswith(remote_prefix)
+        else baseline_ref
+        if creation
+        else target_ref
+    )
+    ancestral = is_ancestor(root, baseline, proposed_commit)
+    repair = (
+        repaired_peer_ref_provenance(root, ref=repair_ref, old=baseline, new=proposed_commit)
+        if repair_ref.startswith("refs/heads/") and not ancestral
+        else None
+    )
+    gap = (
+        f"commit_range_trusted_baseline_not_ancestor:{baseline}:{proposed_commit}"
+        if creation and not ancestral and repair is None
+        else ""
+    )
+    return baseline, selected_ref, baseline_source, gap, repair
 
 
 def _introduced_commit_revisions(

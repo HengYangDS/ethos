@@ -496,6 +496,14 @@
   - [x] 13.4.1 Preserve original acceptance through validated repair relations; exercise native repair, new-source proof and release, plus fresh membership and bounded decoding counterexamples.
   - [ ] 13.4.2 Qualify and install the exact candidate, observe complete publication performance, and obtain the adopter-owned consumer result; keep these separate from source and focused-test success.
     - [x] 13.4.2.1 Deliver the isolated signed finite-input repair through the native wheel/runtime owner; qualify public admission, independent byte custody and the original AIGW implicit hook and DDWG proof consumers. This closes their hang, not full-proof, release or whole-product acceptance.
+
+    Independent Python carriers now share source and parsed inputs, not mutable
+    observation state. The original order-contamination regression failed twice;
+    all eight cases, 447 neighboring cases, 71 public-boundary cases and native
+    lint pass. Evidence: `build/evidence/python-carrier-isolation-{red,green,related,public,lint,real-consumer}`.
+    The real carrier still has 251 unknown semantic residuals; full product proof,
+    installed behavior and GitLab delivery remain open.
+
   - [ ] 13.4.3 Close owner-confirmed historical attribution and peer readback through exact corrections and recoverable originals. Current author-header repair is accepted and installed; the three platform committer records are retained after exact original GitHub web-flow signature verification. Evidence: `~/.local/share/ethos/recovery/identity-repair-20261001/historical-human-attribution-disposition.json`. The false Junie coauthor, exact proof, peer publication and old PR-reference disposition remain open; future genuine contributors are not constrained.
     - [x] 13.4.3.1 Preserve original-peer provenance across consecutive completed native repairs; verify exact mapping composition, ref intersection, missing or ambiguous evidence refusal, final-tip forward-policy checks and unchanged advertised CAS input through the owning public boundaries. Exact product proof, installed recovery and GitLab read-back remain separate acceptance obligations.
 

@@ -104,19 +104,20 @@ def product_references_from_files(
             known_commands.update(python_references.cyclopts_command_owners(path, tree, prefixes))
     command_vocabulary = command_declarations.CommandVocabulary.compile(known_commands)
     npm_scripts = npm_script_commands(command_sources)
-    sources = PythonSourceReturns(
-        command_sources,
-        {
-            path: python_references.complete_python_tree(text)
-            for path, text in command_sources.items()
-            if reference_carrier(path).name == "python"
-        },
-        PythonReferenceFlow,
-    )
+    source_trees = {
+        path: python_references.complete_python_tree(text)
+        for path, text in command_sources.items()
+        if reference_carrier(path).name == "python"
+    }
     observed = {kind: set() for kind in REFERENCE_KINDS}
     uncertainties: list[ReferenceUncertainty] = []
     unknown_paths: list[str] = []
     for path, text in files.items():
+        sources = (
+            PythonSourceReturns(command_sources, source_trees, PythonReferenceFlow)
+            if reference_carrier(path).name == "python"
+            else None
+        )
         parsed = _file_references(
             path,
             text,
@@ -126,6 +127,7 @@ def product_references_from_files(
             observed,
             include_declarations=include_declarations,
             require_complete=True,
+            parsed_files=source_trees,
             uncertainties=uncertainties,
             sources=sources,
         )
@@ -147,21 +149,24 @@ def reference_consumer_sources_from_files(
     }
     command_vocabulary = command_declarations.CommandVocabulary.compile(known_commands)
     npm_scripts = npm_script_commands(files)
-    sources = PythonSourceReturns(
-        files,
+    source_trees = (
         parsed_files
         if parsed_files is not None
         else {
             path: python_references.complete_python_tree(text)
             for path, text in files.items()
             if reference_carrier(path).name == "python"
-        },
-        PythonReferenceFlow,
+        }
     )
     consumers = {kind: defaultdict(set) for kind in REFERENCE_KINDS}
     unknown_paths: list[str] = []
     uncertainties: list[ReferenceUncertainty] = []
     for path, text in files.items():
+        sources = (
+            PythonSourceReturns(files, source_trees, PythonReferenceFlow)
+            if reference_carrier(path).name == "python"
+            else None
+        )
         observed = {kind: set() for kind in REFERENCE_KINDS}
         parsed = _file_references(
             path,
@@ -172,7 +177,7 @@ def reference_consumer_sources_from_files(
             observed,
             include_declarations=False,
             require_complete=True,
-            parsed_files=parsed_files,
+            parsed_files=source_trees,
             uncertainties=uncertainties,
             sources=sources,
         )

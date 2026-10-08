@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.gates.runner as gate_runner
+from ethos.adapters.gates.verification import classify_action_result
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -105,7 +106,7 @@ def test_command_runner_surfaces_missing_command_and_nonzero_exit(
 def test_command_runner_rejects_invalid_or_adverse_ethos_envelopes(
     exit_code: int, stdout: str, verdict: str, gap: str
 ) -> None:
-    observed, diagnostics = gate_runner.classify_action_result(exit_code=exit_code, stdout=stdout)
+    observed, diagnostics = classify_action_result(exit_code=exit_code, stdout=stdout)
     assert observed == verdict
     assert not gap or gap in diagnostics[0]["required_gaps"]
     if verdict == "pass" or exit_code:

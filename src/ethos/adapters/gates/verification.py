@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import json
 import subprocess
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -22,6 +23,8 @@ from ethos.normalization.coercion import string_sequence
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.adapters.gates.javascript.execution import NodeAttempt
+
 
 @dataclass(frozen=True, slots=True)
 class NativeExecution:
@@ -35,6 +38,49 @@ class NativeExecution:
     stderr: str
     # Preserve the invocation path: dereferencing Python changes virtual-environment semantics.
     executable: str = ""
+    node_attempt: NodeAttempt | None = None
+
+
+def classify_action_result(
+    *,
+    exit_code: int | None,
+    stdout: str,
+) -> tuple[Verdict, tuple[dict[str, Any], ...]]:
+    """Interpret native command output independently of execution and scheduling."""
+    if exit_code != 0:
+        return "block", ()
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        return "pass", ()
+    if not isinstance(payload, dict) or "command" not in payload:
+        return "pass", ()
+    raw_verdict = payload.get("verdict")
+    if not isinstance(raw_verdict, str) or raw_verdict not in {"pass", "block", "unknown"}:
+        return "unknown", (
+            {
+                "kind": "ethos_result",
+                "verdict": "unknown",
+                "state": str(payload.get("state", "")),
+                "required_gaps": ["ethos_result_verdict_missing_or_invalid"],
+            },
+        )
+    required_gaps = string_sequence(payload.get("required_gaps"), drop_empty=True)
+    warnings = string_sequence(payload.get("warnings"), drop_empty=True)
+    diagnostic_gaps = diagnostic_gaps_for(payload.get("diagnostics"), "ethos_result")
+    gaps = tuple(dict.fromkeys((*required_gaps, *diagnostic_gaps)))
+    verdict = report_verdict(payload)
+    if verdict == "pass":
+        return verdict, ()
+    warning_gaps = tuple(f"ethos_result_warning:{warning}" for warning in warnings)
+    return verdict, (
+        {
+            "kind": "ethos_result",
+            "verdict": verdict,
+            "state": str(payload.get("state", "")),
+            "required_gaps": list(dict.fromkeys((*gaps, *warning_gaps))),
+        },
+    )
 
 
 def provider_reports(

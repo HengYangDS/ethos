@@ -403,7 +403,7 @@ def test_public_proof_rejects_command_authored_evidence_adapter(tmp_path: Path) 
 def test_public_proof_conjoins_native_commands_with_product_verifiers(
     tmp_path: Path, command: list[str]
 ) -> None:
-    """An outer command without owned coverage custody cannot pass or trigger a replay."""
+    """Owned same-attempt evidence qualifies a native test without replaying it."""
     repo = init_git_repo(tmp_path / "adopter")
     declare_quality_profile(repo)
     _write_javascript_fixture(repo, "none")
@@ -425,12 +425,14 @@ def test_public_proof_conjoins_native_commands_with_product_verifiers(
     head = commit_fixture(repo, "bind outer native command and product verification")
     result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
-    assert result.returncode != 0
-    assert payload["verdict"] == "block"
-    assert "quality_obligation_unproven:behavior" in payload["required_gaps"]
-    assert (
-        (repo / "runs").read_text() == "x" if "--test" in command else not (repo / "runs").exists()
-    )
+    tested = "--test" in command
+    assert (result.returncode == 0) == tested
+    assert payload["verdict"] == ("pass" if tested else "block")
+    if tested:
+        assert payload["required_gaps"] == []
+    else:
+        assert "quality_obligation_unproven:behavior" in payload["required_gaps"]
+    assert (repo / "runs").read_text() == "x" if tested else not (repo / "runs").exists()
 
 
 @pytest.mark.parametrize("exercise_tool", ["exercised", "unexercised"])

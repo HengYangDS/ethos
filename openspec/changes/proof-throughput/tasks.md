@@ -399,6 +399,21 @@
         The full 93-case hook/commit matrix passes in 65.97 seconds with same-attempt
         Allure 3 (`repowise-optimization-9wli7wjw/native-ignore-green*`). Original failed
         receipts remain retained; exact-source proof and installed acceptance stay open.
+        The DDWG native-command successor now retains invocation-owned V8 input,
+        a separate test journal, launcher stdout/stderr, and warning diagnostics.
+        Source-binding refusal preserves the raw attempt before retiring scratch;
+        a drifted source cannot erase evidence or escape as an unstructured error.
+        Caller timeout likewise retains partial streams and owned native input
+        without claiming a completed test. Result interpretation belongs to the
+        existing verifier, not the scheduler; the runner remains within its ceiling.
+        Distinguishing stream and custody cases pass (56), related native consumers
+        pass (317), and Python 3.12 passes (11); originals remain in
+        `ddwg-native-integration-20261008/composition-{native-stdout,source-custody}*`.
+        Timeout and result-owner consumers pass (72), including nine Python 3.12
+        cases. Real DDWG source `3374ba5` passes its native checks and 312 tests
+        through this source successor with distinct streams and retained coverage.
+        Nox and mixed-language composition, final exact-source proof, accepted
+        wheel/runtime delivery, and same-product adopter qualification remain open.
         DDWG's native task-artifact refusal is source-repaired without treating
         `apply.requires` as ownership: only the resolved schema/tracking binding
         admits repair of the exact selected existing artifact. Original real-source

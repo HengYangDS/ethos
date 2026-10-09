@@ -300,6 +300,38 @@ def test_native_trust_empty_selection_is_not_success(tmp_path):
     assert report["required_gaps"] == ["git_object_trust_selection_empty"]
 
 
+@pytest.mark.parametrize("diagnostic_error", [False, True])
+def test_native_trust_diagnostics_cannot_erase_original_batch_refusal(
+    tmp_path, monkeypatch, diagnostic_error
+):
+    """Successful diagnostics under pinned inputs do not authorize a refused selection."""
+    repo, anchor, target, _digest = _configured_repository(tmp_path, monkeypatch, signed=True)
+    anchor.write_text(f'owner@example.com namespaces="git" {(tmp_path / "signer.pub").read_text()}')
+    native = verification.run_git
+    selections = []
+
+    def refused(root, *args, **kwargs):
+        if "verify-commit" in args:
+            selected = args[args.index("--raw") + 1 :]
+            selections.append(selected)
+            if len(selected) > 1:
+                return subprocess.CompletedProcess(args, 1, "", "original batch refusal")
+            if diagnostic_error:
+                raise subprocess.TimeoutExpired(args, 30)
+        return native(root, *args, **kwargs)
+
+    monkeypatch.setattr(verification, "run_git", refused)
+    report = verification.verify_commit_trust(repo, (target, target))
+    assert report["verdict"] == "block"
+    assert report["required_gaps"] == ["commit_signature_untrusted"] + (
+        ["git_object_trust_observation_unavailable"] if diagnostic_error else []
+    )
+    if not diagnostic_error:
+        assert report["object_required_gaps"] == {target: ["commit_signature_untrusted"]}
+    assert selections == [(target, target), (target,)] + ([] if diagnostic_error else [(target,)])
+    assert "original batch refusal" in report["status"]
+
+
 def test_native_trust_unreadable_configuration_is_a_structured_failure(tmp_path):
     """A malformed native config cannot silently select fallback verification policy."""
     repo = init_git_repo(tmp_path / "repo")

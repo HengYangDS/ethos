@@ -13,6 +13,7 @@ from ethos.adapters.repo.commit.signature import repaired_peer_ref_provenance
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import zero_oid
+from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.contracts.branch.roles import load_branch_role_policy
 
 if TYPE_CHECKING:
@@ -176,11 +177,31 @@ def _validate_commit_revisions(
     """Validate one already-derived oldest-first commit sequence."""
     if policy is None:
         return [], []
+    reports = [
+        (revision, commit_policy_report(root, policy, revision, verify_trust=False))
+        for revision in revisions
+    ]
+    selected = tuple(
+        revision
+        for revision, report in reports
+        if verify_trust
+        and policy.signing_required
+        and not cast("dict[str, object]", report["signature"])["required_gaps"]
+    )
+    trust = (
+        verify_commit_trust(root, selected[0] if len(selected) == 1 else selected)
+        if selected
+        else {}
+    )
+    trust_gaps = cast("list[str]", trust.get("required_gaps", []))
+    object_gaps = cast("dict[str, list[str]]", trust.get("object_required_gaps", {}))
+    verified = set(selected)
     violations: list[dict[str, object]] = []
     gaps: list[str] = []
-    for revision in revisions:
-        report = commit_policy_report(root, policy, revision, verify_trust=verify_trust)
+    for revision, report in reports:
         commit_gaps = cast("list[str]", report["required_gaps"])
+        if revision in verified:
+            commit_gaps.extend(object_gaps.get(revision, []) if object_gaps else trust_gaps)
         subject = str(cast("dict[str, object]", report["head"]).get("subject") or "")
         if commit_gaps:
             violations.append(

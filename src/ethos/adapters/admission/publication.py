@@ -20,7 +20,7 @@ from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.release import accepted_delivery_report
-from ethos.adapters.repo.release import release_tag_publication_gaps
+from ethos.adapters.repo.release import tag_publication_gaps
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
@@ -34,6 +34,7 @@ from ethos.repository.release.publication import publication_proof_selection
 from ethos.repository.release.publication import publication_ref_admission
 from ethos.repository.release.publication import publication_ref_role
 from ethos.repository.release.publication import publication_topology
+from ethos.repository.release.publication import publication_transport_tags
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -44,7 +45,7 @@ _POLICY_PATHS = (".ethos/workspace.toml", ".ethos/release.toml")
 
 def _committed_target_policy(
     root: Path, revision: str
-) -> tuple[BranchRolePolicy, tuple[str, ...], list[str]]:
+) -> tuple[BranchRolePolicy, tuple[str, ...], tuple[str, ...], list[str]]:
     """Read exact prior declarations without substituting mutable checkout bytes."""
     listed = run_git(
         root,
@@ -80,7 +81,12 @@ def _committed_target_policy(
     )
     release = release_config_from_text(texts.get(_POLICY_PATHS[1], ""))
     protected = release.get("protected_refs", {})
-    return policy, tuple(protected.get("tags", [])), release_role_policy_gaps(release, policy)
+    return (
+        policy,
+        tuple(protected.get("tags", [])),
+        publication_transport_tags(release),
+        release_role_policy_gaps(release, policy),
+    )
 
 
 def ref_update_admission_report(
@@ -142,18 +148,17 @@ def _ref_update_admission(
     if commits.get("update_kind") == "delete":
         policy_ref = remote_head
     policy_ref = accepted_policy_ref or policy_ref
-    policy, tags = BranchRolePolicy(), ()
+    policy, tags, transport_tags = BranchRolePolicy(), (), ()
     policy_known = False
     if policy_ref:
         try:
-            policy, tags, _prior_role_gaps = _committed_target_policy(root, policy_ref)
+            policy, tags, transport_tags, _ = _committed_target_policy(root, policy_ref)
             policy_known = True
         except (OSError, UnicodeError, ValueError) as error:
             local_gaps.append(f"publication_policy_invalid:{policy_ref}:{error}")
     if proposed:
         try:
-            _proposed_policy, _proposed_tags, role_gaps = _committed_target_policy(root, proposed)
-            local_gaps.extend(role_gaps)
+            local_gaps.extend(_committed_target_policy(root, proposed)[-1])
         except (OSError, UnicodeError, ValueError) as error:
             local_gaps.append(f"publication_policy_invalid:{proposed}:{error}")
     ref_valid = (
@@ -161,7 +166,7 @@ def _ref_update_admission(
     )
     if not ref_valid:
         local_gaps.append(f"publication_target_ref_invalid:{target_ref}")
-    kind, role, allowed = publication_ref_role(policy, target_ref, tags)
+    kind, role, allowed = publication_ref_role(policy, target_ref, tags, transport_tags)
     if policy_known and not allowed:
         local_gaps.append(f"publication_ref_unavailable:{kind}:{role}:{target_ref}")
     intent: dict[str, object] = {"verdict": "pass", "changes": [], "required_gaps": []}
@@ -190,7 +195,7 @@ def _ref_update_admission(
         if verdict == "unknown"
         else "blocked",
         "target_ref": target_ref,
-        "target_branch": target_ref.removeprefix("refs/heads/"),
+        "target_branch": target_ref.removeprefix("refs/heads/") if kind == "branch" else "",
         "proposed_head": proposed_head,
         "proposed_commit": proposed,
         "remote_head": remote_head,
@@ -411,7 +416,7 @@ def push_admission_report(
         else []
     )
     ref_gaps = list(string_sequence(ref_admission.get("enforcement_gaps")))
-    ref_gaps.extend(release_tag_publication_gaps(repo, target_ref, remote_head, pushed_head))
+    ref_gaps.extend(tag_publication_gaps(repo, target_ref, remote_head, pushed_head, role=role))
     gaps = list(
         dict.fromkeys(
             (

@@ -10,10 +10,16 @@ from ethos.adapters.repo.commit.admission import commit_policy_for_revision
 from ethos.adapters.repo.commit.admission import commit_policy_report
 from ethos.adapters.repo.commit.admission import peel_commit
 from ethos.adapters.repo.commit.signature import repaired_peer_ref_provenance
+from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
+from ethos.repository.release.configuration import release_config_from_text
+from ethos.repository.release.publication import publication_proof_selection
+from ethos.repository.release.publication import publication_ref_role
+from ethos.repository.release.publication import publication_transport_tags
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -207,6 +213,13 @@ def _baseline(
     baseline_source = trusted_baseline_source or "explicit_trusted_baseline"
     policy = load_branch_role_policy(root)
     branch = target_ref.removeprefix("refs/heads/")
+    if not baseline_ref and target_ref.startswith("refs/tags/"):
+        baseline_ref, gap = _peer_transport_baseline(
+            root, target_ref=target_ref, remote_name=remote_name
+        )
+        if gap:
+            return "", baseline_ref, "declared_remote_accepted_ref", gap
+        baseline_source = "declared_remote_accepted_ref"
     if not baseline_ref and branch.startswith(policy.proposal_branch_prefix):
         baseline_ref = f"refs/remotes/{remote_name}/{policy.accepted_branch}"
         baseline_source = "declared_remote_accepted_ref"
@@ -233,6 +246,53 @@ def _baseline(
             f"commit_range_trusted_baseline_not_ancestor:{baseline}:{proposed_commit}",
         )
     return baseline, baseline_ref, baseline_source, ""
+
+
+def _peer_transport_baseline(root: Path, *, target_ref: str, remote_name: str) -> tuple[str, str]:
+    """Resolve transport policy from the native peer root, never proposed declarations."""
+    namespace = f"refs/remotes/{remote_name}/"
+    selected = run_git(
+        root,
+        "symbolic-ref",
+        "--quiet",
+        f"{namespace}HEAD",
+        check=False,
+        observation=True,
+    )
+    root_ref = selected.stdout.strip()
+    if selected.returncode or not root_ref.startswith(namespace):
+        return "", f"commit_range_trusted_baseline_required:{target_ref}"
+    try:
+        root_policy = strict_branch_role_policy_from_text(
+            committed_file_text(root, root_ref, ".ethos/workspace.toml")
+        )
+        if root_ref.removeprefix(namespace) not in root_policy.protected_branches:
+            return "", f"commit_range_peer_root_not_protected:{root_ref}"
+        baseline_ref = f"{namespace}{root_policy.accepted_branch}"
+        baseline = peel_commit(root, baseline_ref)
+        if not baseline:
+            return baseline_ref, f"commit_range_trusted_baseline_unreadable:{baseline_ref}"
+        policy = strict_branch_role_policy_from_text(
+            committed_file_text(root, baseline, ".ethos/workspace.toml")
+        )
+        if policy.accepted_branch != root_policy.accepted_branch:
+            return baseline_ref, f"commit_range_peer_accepted_role_mismatch:{baseline_ref}"
+        declaration = release_config_from_text(
+            committed_file_text(root, baseline, ".ethos/release.toml")
+        )
+        _, role, allowed = publication_ref_role(
+            policy,
+            target_ref,
+            tuple(declaration.get("protected_refs", {}).get("tags", ())),
+            publication_transport_tags(declaration),
+        )
+    except (UnicodeError, ValueError) as error:
+        return root_ref, f"commit_range_peer_policy_invalid:{root_ref}:{error}"
+    return (
+        (baseline_ref, "")
+        if allowed and publication_proof_selection(role) == "review_object"
+        else ("", f"commit_range_trusted_baseline_required:{target_ref}")
+    )
 
 
 def _introduced_commit_revisions(

@@ -20,6 +20,7 @@ from ethos.adapters.repo.git_object import zero_oid
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.repository.release.configuration import release_config_from_text
 from ethos.repository.release.identity import product_version_from_text
+from ethos.repository.release.publication import publication_proof_selection
 from ethos.repository.release.publication import publication_ref_role
 
 if TYPE_CHECKING:
@@ -198,21 +199,12 @@ def release_ref_subject(
     policy = load_branch_role_policy(root)
     head = ref_head(root, policy.accepted_branch)
     if ref.startswith("refs/tags/"):
-        source = observe_git_object(root, new, "annotated-tag")
         require_release(
-            not source["required_gaps"] and source["peeled_commit"] == head,
+            _immutable_tag_commit(root, ref=ref, old=old, new=new, allow_identical=allow_identical)
+            == head,
             "release_tag_source_untrusted",
         )
-        # Newly prepared objects have no source ref yet; inspect the native tag header.
-        header = run_git(root, "cat-file", "tag", new).stdout.partition("\n\n")[0]
-        names = [
-            line.removeprefix("tag ") for line in header.splitlines() if line.startswith("tag ")
-        ]
-        require_release(names == [ref.removeprefix("refs/tags/")], "release_tag_name_mismatch")
         release_tag_policy(root, head, ref.removeprefix("refs/tags/"))
-        require_release(
-            old == zero_oid(root) or (allow_identical and old == new), "release_tag_immutable"
-        )
     else:
         require_release(new == head, "release_source_not_current_accepted")
         require_release(
@@ -222,12 +214,30 @@ def release_ref_subject(
     return head
 
 
-def release_tag_publication_gaps(root: Path, ref: str, old: str, new: str) -> list[str]:
+def _immutable_tag_commit(
+    root: Path, *, ref: str, old: str, new: str, allow_identical: bool
+) -> str:
+    """Validate signature, native header and immutable identity for any admitted tag."""
+    source = observe_git_object(root, new, "annotated-tag")
+    require_release(not source["required_gaps"], "release_tag_source_untrusted")
+    header = run_git(root, "cat-file", "tag", new).stdout.partition("\n\n")[0]
+    names = [line.removeprefix("tag ") for line in header.splitlines() if line.startswith("tag ")]
+    require_release(names == [ref.removeprefix("refs/tags/")], "release_tag_name_mismatch")
+    require_release(
+        old == zero_oid(root) or (allow_identical and old == new), "release_tag_immutable"
+    )
+    return str(source["peeled_commit"])
+
+
+def tag_publication_gaps(root: Path, ref: str, old: str, new: str, *, role: str) -> list[str]:
     """Check the complete tag object at the native pre-push boundary."""
     if not ref.startswith("refs/tags/"):
         return []
     try:
-        release_ref_subject(root, ref=ref, old=old, new=new, allow_identical=True)
+        if publication_proof_selection(role) == "review_object":
+            _immutable_tag_commit(root, ref=ref, old=old, new=new, allow_identical=True)
+        else:
+            release_ref_subject(root, ref=ref, old=old, new=new, allow_identical=True)
     except (OSError, ValueError) as error:
         return [str(error)]
     return []

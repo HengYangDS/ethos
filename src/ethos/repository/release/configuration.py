@@ -11,6 +11,7 @@ from ethos.contracts.verdict import close_verdict
 from ethos.repository.release.identity import product_version
 from ethos.repository.release.identity import projected_package_versions
 from ethos.repository.release.publication import publication_topology
+from ethos.repository.release.publication import publication_transport_tags
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -73,6 +74,7 @@ def release_config_from_text(source: str) -> dict[str, Any]:
             or len(entries) != len(set(entries))
         ):
             raise ValueError(gap)
+    publication_transport_tags(config)
     return config
 
 

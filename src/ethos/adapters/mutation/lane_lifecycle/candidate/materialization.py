@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import cast
 
 from ethos.adapters.mutation.lane_lifecycle.change_overlay import lifecycle_report
+from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
@@ -169,7 +170,16 @@ def materialize_candidate(
             )
     except (OSError, ValueError) as error:
         return lifecycle_report(
-            policy.candidate_branch, head, "blocked", [str(error)], next_action=action
+            policy.candidate_branch,
+            head,
+            "blocked",
+            [str(error)],
+            next_action=action,
+            **(
+                {"process_failure": error.evidence()}
+                if isinstance(error, ProcessExecutionError)
+                else {}
+            ),
         )
     return lifecycle_report(
         policy.candidate_branch,

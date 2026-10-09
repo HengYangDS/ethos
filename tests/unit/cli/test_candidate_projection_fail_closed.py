@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import shlex
+import subprocess
+import sys
 from typing import TYPE_CHECKING
 from typing import TypedDict
 
@@ -11,6 +14,8 @@ import pytest
 import ethos.adapters.mutation.lane_lifecycle.candidate.materialization as materialization
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as projection
 from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.git import git_environment
+from ethos.adapters.repo.worktree_effects import hold_worktree_refs
 from ethos.domain.inspection import inspect_repository
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
@@ -54,6 +59,7 @@ def _retained_candidate(tmp_path: Path) -> tuple[Path, Path, str, str]:
 def test_candidate_materialization_preserves_refs_and_recognizes_replay(tmp_path: Path) -> None:
     """Fresh public admission repairs only the proven index and worktree projection."""
     repo, candidate, previous, head = _retained_candidate(tmp_path)
+    install_fixture_hook_runtime(repo)
     arguments = (
         "lane",
         "candidate",
@@ -77,6 +83,22 @@ def test_candidate_materialization_preserves_refs_and_recognizes_replay(tmp_path
     assert index.read_bytes() == before
     assert (candidate / "payload.md").read_text() == "Retained input\n"
     command = shlex.split(preview["next_action"])[1:]
+    with hold_worktree_refs(repo, {"refs/heads/candidate/dev": head}):
+        refused = subprocess.run(
+            [sys.executable, "-B", "-I", "-m", "ethos.cli", *command],
+            cwd=repo,
+            env=git_environment(),
+            check=False,
+            text=True,
+            capture_output=True,
+            timeout=30,
+        )
+    assert refused.returncode != 0
+    blocked = json.loads(refused.stdout)
+    assert blocked["required_gaps"] == ["worktree_effect_ref_preparation_failed"], blocked
+    assert "cannot lock ref" in blocked["data"]["process_failure"]["cause"]
+    assert blocked["data"]["process_failure"]["observation"]["returncode"] != 0
+    assert index.read_bytes() == before
     applied = run_ethos(*command, cwd=repo)
     assert applied["verdict"] == "pass", applied
     assert applied["state"] == "materialized"
@@ -347,7 +369,7 @@ def test_unborn_accepted_head_refuses_candidate_without_traceback(
     refresh = projection.refresh_candidate_from_accepted(
         root=repo, apply=apply, authorized=True, expect_head=""
     )
-    assert refresh["required_gaps"] == ["accepted_head_unavailable"]
+    assert refresh["required_gaps"] == ["accepted_head_unavailable", "candidate_branch_missing"]
     if not apply:
         status = run_ethos("status", "--root", str(repo), "--json", cwd=repo)
         assert "accepted_head_unavailable" in status["required_gaps"]

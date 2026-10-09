@@ -16,6 +16,7 @@ from typing import Any
 from typing import NoReturn
 
 from ethos.adapters.process import CommandScope
+from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import command_scope
 from ethos.adapters.repo.dirty.change_provenance import working_content_changed
 from ethos.adapters.repo.git import current_tree
@@ -105,18 +106,28 @@ def hold_worktree_refs(
                 _fail("worktree_effect_ref_lock_unavailable")
             program = (
                 "start\n"
-                + "".join(f"verify {ref} {head}\n" for ref, head in sorted(assertions.items()))
+                + "".join(
+                    f"update {ref} {head} {head}\n" for ref, head in sorted(assertions.items())
+                )
                 + "prepare\n"
             )
             process.stdin.write(program.encode())
             process.stdin.flush()
             for expected in (b"start: ok\n", b"prepare: ok\n"):
                 if process.stdout.readline() != expected:
-                    _fail(
+                    _release_ref_transaction(scope, process)
+                    errors.seek(0)
+                    failure = ProcessExecutionError(
                         "worktree_effect_ref_lock_timeout"
                         if expired.is_set()
-                        else "worktree_effect_ref_binding_stale"
+                        else "worktree_effect_ref_preparation_failed",
+                        reason="reference_transaction_preparation_failed",
+                        command=command,
+                        cwd=os.fspath(root),
+                        cause=errors.read().decode(errors="replace").strip(),
+                        observation={"returncode": process.returncode},
                     )
+                    raise failure
             timer.cancel()
             timer.join()
             if expired.is_set():

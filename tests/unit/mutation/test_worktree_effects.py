@@ -9,6 +9,7 @@ from threading import Event
 
 import pytest
 
+from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.config_effects import set_local_config
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_ref_worktrees import worktree_sync_gap
@@ -21,14 +22,16 @@ from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 
 @pytest.mark.parametrize("interrupted", [False, True])
 def test_worktree_ref_assertions_hold_all_inputs_and_release_on_failure(
     tmp_path: Path, *, interrupted: bool
 ) -> None:
-    """Prepared native assertions prevent concurrent writes without making same-value updates."""
+    """Original governed hooks admit held assertions, not ref movements or deletions."""
     repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
     previous = git(repo, "rev-parse", "HEAD")
     head = commit_fixture_file(repo, "next.md", "Next input\n", "fix: next input")
     refs = {
@@ -38,7 +41,11 @@ def test_worktree_ref_assertions_hold_all_inputs_and_release_on_failure(
     }
     for ref, value in refs.items():
         git(repo, "update-ref", ref, value)
+    install_fixture_hook_runtime(repo)
     reflog = git(repo, "reflog", "--all")
+    before = git(repo, "show-ref"), git(repo, "status", "--porcelain")
+    common = repo / git(repo, "rev-parse", "--git-common-dir")
+    locks = set(common.rglob("*.lock"))
 
     def compete() -> None:
         with hold_worktree_refs(repo, refs):
@@ -66,22 +73,46 @@ def test_worktree_ref_assertions_hold_all_inputs_and_release_on_failure(
     else:
         compete()
     assert git(repo, "reflog", "--all") == reflog
-    for ref, value in refs.items():
-        other = previous if value == head else head
-        git(repo, "update-ref", ref, other, value)
-        assert git(repo, "rev-parse", ref) == other
+    assert (git(repo, "show-ref"), git(repo, "status", "--porcelain")) == before
+    assert set(common.rglob("*.lock")) == locks
+    with hold_worktree_refs(repo, refs):
+        assert all(git(repo, "rev-parse", ref) == value for ref, value in refs.items())
+    refused = run_git(repo, "update-ref", "-d", "refs/heads/candidate/dev", head, check=False)
+    assert refused.returncode != 0
+    assert "candidate_ref_move_no_ref_intent" in refused.stderr
+    assert git(repo, "rev-parse", "refs/heads/candidate/dev") == head
+    with (
+        pytest.raises(ProcessExecutionError) as failed,
+        hold_worktree_refs(repo, {"refs/heads/candidate/dev": previous}),
+    ):
+        pytest.fail("A stale assertion must not enter the effect")
+    assert failed.value.code == "worktree_effect_ref_preparation_failed"
+    assert "cannot lock ref" in failed.value.cause
+    assert failed.value.observation["returncode"] != 0
+    assert set(common.rglob("*.lock")) == locks
+    assert git(repo, "reflog", "--all") == reflog
 
 
 def test_worktree_ref_holder_timeout_releases_owned_git_process(tmp_path: Path) -> None:
     """A caller deadline ends the held transaction without an operator killing it."""
     repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
     head = git(repo, "rev-parse", "HEAD")
     refs = {"refs/heads/dev": head}
-    with (
-        pytest.raises(ValueError, match="worktree_effect_ref_lock_timeout"),
-        hold_worktree_refs(repo, refs, timeout_seconds=0.1),
-    ):
-        Event().wait(0.2)
+    install_fixture_hook_runtime(repo)
+    common = repo / git(repo, "rev-parse", "--git-common-dir")
+    locks = set(common.rglob("*.lock"))
+    entered = Event()
+
+    def expire() -> None:
+        with hold_worktree_refs(repo, refs, timeout_seconds=2):
+            entered.set()
+            Event().wait(2.1)
+
+    with pytest.raises(ValueError, match="worktree_effect_ref_lock_timeout"):
+        expire()
+    assert entered.is_set()
+    assert set(common.rglob("*.lock")) == locks
     with hold_worktree_refs(repo, refs):
         assert git(repo, "rev-parse", "HEAD") == head
 

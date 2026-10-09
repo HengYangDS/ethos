@@ -457,10 +457,6 @@ def resolve_gate_policy(
                 )
             }
         )
-        scoped_registry = selected.registry()
-        declaration = declaration.model_copy(
-            update={"gates": tuple(scoped_registry[gate.id] for gate in declaration.gates)}
-        )
     python_executable = repository_python or sys.executable
     gates = selected.proof_gates(
         gate_ids,

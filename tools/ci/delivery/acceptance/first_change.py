@@ -8,7 +8,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
+from ethos.repository.release.resources import GUIDANCE_RESOURCE
+from ethos.repository.release.resources import WHEEL_RESOURCE_ROOT
 from tools.ci.delivery.acceptance.invocation import invoke
+from tools.ci.delivery.acceptance.invocation import require_installed_guidance
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -59,11 +62,12 @@ def _official_command(status: dict[str, object], environment: Mapping[str, str])
     guidance = context.get("agent_guidance") if isinstance(context, dict) else None
     command = native.get("base_command") if isinstance(native, dict) else None
     guide = guidance.get("path") if isinstance(guidance, dict) else None
+    suffix = (WHEEL_RESOURCE_ROOT.name, *GUIDANCE_RESOURCE.parts)
     package = (
-        Path(guide).resolve().parents[3]
+        Path(guide).resolve().parents[len(suffix) - 1]
         if isinstance(guide, str)
         and Path(guide).is_absolute()
-        and Path(guide).parts[-4:] == ("data", "skills", "ethos-repository-work", "SKILL.md")
+        and Path(guide).parts[-len(suffix) :] == suffix
         else None
     )
     if (
@@ -76,6 +80,7 @@ def _official_command(status: dict[str, object], environment: Mapping[str, str])
     ):
         message = "installed_first_change_tool_unavailable"
         raise RuntimeError(message)
+    require_installed_guidance(json.dumps(status), str(package / "__init__.py"))
     return command[0], command[1]
 
 

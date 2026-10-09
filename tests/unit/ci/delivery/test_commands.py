@@ -15,6 +15,8 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.materialization.node_package_supply import (
     resolve_node_package_supply,
 )
+from ethos.repository.release.resources import GUIDANCE_RESOURCE
+from ethos.repository.release.resources import packaged_resource
 from ethos.result import EthosResult
 from tools.ci.delivery.acceptance import adopter as fixture
 from tools.ci.delivery.acceptance import brownfield as brownfield_fixture
@@ -22,6 +24,7 @@ from tools.ci.delivery.acceptance import effect
 from tools.ci.delivery.acceptance import invocation
 from tools.ci.delivery.acceptance import lane
 from tools.ci.delivery.acceptance.adopter import verify_formed
+from tools.ci.delivery.acceptance.first_change import _official_command
 
 ROOT = Path(__file__).resolve().parents[4]
 
@@ -371,3 +374,48 @@ def test_independent_cli_checks_do_not_replace_a_blocked_request(
     assert "plan --changed" in observation["commands"]
     assert sum(command[1:3] == ("plan", "--changed") for command in commands) == 1
     assert not any(command[1] == "plan" and "--changed" not in command for command in commands[1:])
+
+
+@pytest.mark.parametrize("projection", ["resources", "data", "outside", "digest"])
+def test_first_change_uses_native_packaged_resource_ownership(
+    tmp_path: Path, *, projection: str
+) -> None:
+    package = tmp_path / "installed/ethos"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    guide = packaged_resource(GUIDANCE_RESOURCE, package=package)
+    guide.parent.mkdir(parents=True)
+    guide.write_text("Run ethos status.\n", encoding="utf-8")
+    executable = tmp_path / "node"
+    executable.write_text("", encoding="utf-8")
+    command = packaged_resource("node_modules/openspec/cli.js", package=package)
+    command.parent.mkdir(parents=True)
+    command.write_text("", encoding="utf-8")
+    if projection == "data":
+        guide = package / "data" / GUIDANCE_RESOURCE
+        guide.parent.mkdir(parents=True)
+        guide.write_text("Run ethos status.\n", encoding="utf-8")
+    elif projection == "outside":
+        command = tmp_path / "foreign/cli.js"
+        command.parent.mkdir()
+        command.write_text("", encoding="utf-8")
+    status: dict[str, object] = {
+        "governance_context": {
+            "official_openspec": {"base_command": [str(executable), str(command)]},
+            "agent_guidance": {
+                "path": str(guide),
+                "authority": "product_projection",
+                "media_type": "text/markdown",
+                "sha256": "invalid"
+                if projection == "digest"
+                else hashlib.sha256(guide.read_bytes()).hexdigest(),
+            },
+        }
+    }
+    if projection == "resources":
+        assert _official_command(status, {"PATH": ""}) == (str(executable), str(command))
+    else:
+        with pytest.raises(
+            RuntimeError, match=r"installed_(first_change_tool_unavailable|agent_guidance_invalid)"
+        ):
+            _official_command(status, {"PATH": ""})

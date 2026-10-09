@@ -78,6 +78,26 @@ def test_python_copy_boundaries_and_windows_payload(
         assert (target / relative).read_bytes() == relative.encode()
 
 
+@pytest.mark.parametrize("platform", ["posix", "nt"])
+def test_interpreter_copy_preserves_standard_library_without_dependency_supply(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, platform: str
+) -> None:
+    """External distributions come only from the selected supply, not the base image."""
+    home, target = tmp_path / "home", tmp_path / "target"
+    interpreter = _file(home / ("python.exe" if platform == "nt" else "bin/python"))
+    library = "Lib" if platform == "nt" else "lib/python3.14"
+    _file(home / library / "os.py", b"standard library")
+    _file(home / library / "site-packages/previous-1.dist-info/METADATA", b"previous")
+    _file(home / library / "site-packages/previous/__init__.py", b"previous")
+    before = _snapshot(home)
+    monkeypatch.setattr(python_image, "os", SimpleNamespace(name=platform))
+    monkeypatch.setattr(python_image, "runtime_scripts", lambda root: root / "Scripts")
+    vars(python_image)["_copy_python_runtime"](home, interpreter, target, "3.14.7")
+    assert (target / library / "os.py").read_bytes() == b"standard library"
+    assert not (target / library / "site-packages").exists()
+    assert _snapshot(home) == before
+
+
 @pytest.mark.parametrize(
     ("payload", "status", "gap"),
     [
@@ -220,7 +240,9 @@ def test_materialized_image_preserves_exact_source_and_requires_package_authorit
         _file(target / "lib/python3.14/obsolete.pyc")
 
     monkeypatch.setattr(python_image, "install_locked_runtime", install)
-    project = Mock()
+    project = Mock(
+        side_effect=lambda *_args: _file(target / "lib/python3.14/site-packages/_yaml/__init__.py")
+    )
     monkeypatch.setattr(python_image, "project_dependency_supply", project)
 
     def materialize(requirements):

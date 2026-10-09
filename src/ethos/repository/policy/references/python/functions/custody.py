@@ -12,11 +12,14 @@ from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.effects import PythonConsumption
 from ethos.repository.policy.references.python.functions.effects import native_member
+from ethos.repository.policy.references.python.functions.effects import substitute
+from ethos.repository.policy.references.python.functions.effects import supplied
 
 if TYPE_CHECKING:
     from ethos.repository.policy.references.python.bindings import LexicalRead
     from ethos.repository.policy.references.python.control import FlowExit
     from ethos.repository.policy.references.python.functions.effects import EffectSummary
+    from ethos.repository.policy.references.python.functions.invocation import PythonInvocations
     from ethos.repository.policy.references.python.functions.invocation import SourceInvocation
     from ethos.repository.policy.references.python.functions.returns import FunctionDefinition
     from ethos.repository.policy.references.python.functions.returns import PythonSourceReturns
@@ -493,3 +496,65 @@ class InvocationCustody:
         caller.summarized.update(
             key for scope, _ in outgoing for key in scope.summarized if key in keys
         )
+
+
+def effect_dependencies(
+    invocations: PythonInvocations,
+    summary: EffectSummary,
+    key: str,
+    arguments: dict[str, BindingValue],
+    caller: BindingScope,
+    result: PythonConsumption,
+) -> tuple[
+    list[
+        tuple[
+            FunctionDefinition,
+            tuple[BindingValue, ...],
+            dict[str | None, BindingValue],
+            BindingScope,
+        ]
+    ],
+    bool,
+]:
+    """Instantiate each call edge independently of known and opaque alternatives."""
+    pending = []
+    for call in summary.calls:
+        scope = supplied(caller, call.custody)
+        callee = substitute(call.callee, arguments, scope, invocations.sources, result, owner=key)
+        selected = invocations.sources.call_identity(callee)
+        if selected.selection or any(result.kind(target) for target in selected.targets):
+            return pending, True
+        values = tuple(
+            substitute(value, arguments, scope, invocations.sources, result, owner=key)
+            for value in call.arguments
+        )
+        named_values = {
+            name: substitute(value, arguments, scope, invocations.sources, result, owner=key)
+            for name, value in call.keywords.items()
+        }
+        for method in selected.methods:
+            native = result.bound_method(
+                scope.resolve(method.receiver), method.name, values, named_values, scope
+            )
+            if native.disposition != "read" and any(
+                invocations.custody.mutable(value)
+                for value in (native.footprint, *values, *named_values.values())
+            ):
+                return pending, True
+        pending.extend(
+            (invocations.sources.definitions[target], values, named_values, scope)
+            for target in selected.targets
+            if target in invocations.sources.definitions
+        )
+        if result.call_escapes(selected, values, named_values, scope):
+            return pending, True
+        if selected.unknown and not (selected.targets or selected.methods or selected.parameters):
+            roots = [callee, selected, *values, *named_values.values()]
+            if not any(invocations.custody.mutable(value, symbolic=True) for value in roots):
+                roots.extend(read.value for read in summary.reads.values())
+                roots.append(summary.returned)
+                if not invocations.custody.retained_transfer(roots, scope):
+                    continue
+        if callee.parameters or selected.unknown or (selected.deferred and not selected.methods):
+            return pending, True
+    return pending, False

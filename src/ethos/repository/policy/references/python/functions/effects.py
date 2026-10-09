@@ -9,7 +9,9 @@ from dataclasses import dataclass
 from dataclasses import field
 from dataclasses import replace
 from typing import TYPE_CHECKING
+from typing import cast
 
+from ethos.repository.policy.references.python.bindings import AggregateIdentity
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.bindings import LexicalRead
 from ethos.repository.policy.references.python.bindings import MemberDemand
@@ -22,7 +24,7 @@ if TYPE_CHECKING:
 
     from ethos.repository.policy.references.python.bindings import BindingScope
     from ethos.repository.policy.references.python.effects import PythonConsumption
-    from ethos.repository.policy.references.python.functions.invocation import PythonInvocations
+    from ethos.repository.policy.references.python.functions.custody import InvocationCustody
     from ethos.repository.policy.references.python.functions.returns import FunctionDefinition
     from ethos.repository.policy.references.python.functions.returns import PythonSourceReturns
     from ethos.repository.policy.references.python.syntax import LexicalBindings
@@ -42,6 +44,7 @@ class EffectCall:
     node: ast.expr
     path: str
     scope: str
+    custody: tuple[tuple[AggregateIdentity, BindingValue], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,7 +59,7 @@ class MemberRead:
 
 
 type EffectEdge = tuple[
-    tuple[ast.expr, str, str, BindingValue, tuple[BindingValue, ...]],
+    tuple[ast.expr, str, str, BindingValue, tuple[BindingValue, ...], tuple[object, ...]],
     tuple[tuple[str | None, BindingValue], ...],
 ]
 
@@ -92,7 +95,7 @@ class EffectSummary:
 
     def record(self, call: EffectCall) -> None:
         """Keep one edge per site and actual values; loop passes re-derive equal edges."""
-        site = (call.node, call.path, call.scope, call.callee, call.arguments)
+        site = (call.node, call.path, call.scope, call.callee, call.arguments, call.custody)
         edge = (site, tuple(call.keywords.items()))
         if edge not in self.edges:
             self.edges.add(edge)
@@ -107,24 +110,28 @@ def bound_arguments(
     """Use the same native signature/default relation for summaries and actual calls."""
     if None in keywords or any(value.spread for value in args):
         return None
+    named = dict(definition.captured_keywords) | cast("dict[str, BindingValue]", keywords)
     try:
-        bound = definition.signature.bind(
-            *args, **{name: value for name, value in keywords.items() if name is not None}
-        )
+        bound = definition.signature.bind(*definition.captured, *args, **named)
     except TypeError:
         return None
     bound.apply_defaults()
-    values = {}
-    for name, argument in bound.arguments.items():
-        kind = definition.signature.parameters[name].kind
-        values[name] = (
-            BindingValue(items=argument, ordered=True)
-            if kind == inspect.Parameter.VAR_POSITIONAL
-            else BindingValue(entries=tuple(argument.items()))
-            if kind == inspect.Parameter.VAR_KEYWORD
-            else argument
-        )
-    return values
+    return bound_values(definition, bound)
+
+
+def bound_values(
+    definition: FunctionDefinition, bound: inspect.BoundArguments
+) -> dict[str, BindingValue]:
+    """Project native bound slots, packing variadic positional and keyword arguments."""
+    kinds = {name: item.kind for name, item in definition.signature.parameters.items()}
+    return {
+        name: BindingValue(items=argument, ordered=True)
+        if kinds[name] == inspect.Parameter.VAR_POSITIONAL
+        else BindingValue(entries=tuple(argument.items()))
+        if kinds[name] == inspect.Parameter.VAR_KEYWORD
+        else argument
+        for name, argument in bound.arguments.items()
+    }
 
 
 def symbolic_arguments(definition: FunctionDefinition) -> dict[str, BindingValue]:
@@ -481,21 +488,18 @@ def project(
     observer: PythonConsumption,
 ) -> BindingValue:
     """Bind symbolic demands or record the exact native relation actually consumed."""
-    value = scope.resolve(value)
+    value, held = scope.resolve(value), None
     if value.parameters or value.projections:
-        return replace(
-            value,
-            parameters=frozenset(
-                replace(item, members=(*item.members, demand)) for item in value.parameters
-            ),
-            projections=frozenset(
-                replace(item, members=(*item.members, demand)) for item in value.projections
-            ),
-        )
+        flags = ("unknown", "deferred", "local", "context_limited", "spread")
+        held = BindingValue(parameters=value.parameters, projections=value.projections)
+        held = replace(held, **{name: getattr(value, name) for name in flags}).demanded(demand)
+        value = replace(value, parameters=frozenset(), projections=frozenset())
+        if replace(value, **dict.fromkeys(flags, False)) == BindingValue():
+            return held
     selected = native_member(value, demand, scope, observer)
     if sources is not None:
         sources.invocations.note_member(value, demand, selected, scope)
-    return selected
+    return selected if held is None else held.join(selected)
 
 
 def command_tokens(value: BindingValue) -> tuple[tuple[str, ...], ...]:
@@ -518,55 +522,26 @@ def command_tokens(value: BindingValue) -> tuple[tuple[str, ...], ...]:
     return tuple(itertools.product(*alternatives)) if alternatives else ()
 
 
-def effect_dependencies(
-    invocations: PythonInvocations,
-    summary: EffectSummary,
-    key: str,
-    arguments: dict[str, BindingValue],
-    scope: BindingScope,
-    result: PythonConsumption,
-) -> tuple[
-    list[tuple[FunctionDefinition, tuple[BindingValue, ...], dict[str | None, BindingValue]]],
-    bool,
-]:
-    """Instantiate each call edge independently of known and opaque alternatives."""
-    pending = []
-    for call in summary.calls:
-        callee = substitute(call.callee, arguments, scope, invocations.sources, result, owner=key)
-        selected = invocations.sources.call_identity(callee)
-        if selected.selection or any(result.kind(target) for target in selected.targets):
-            return pending, True
-        values = tuple(
-            substitute(value, arguments, scope, invocations.sources, result, owner=key)
-            for value in call.arguments
-        )
-        named_values = {
-            name: substitute(value, arguments, scope, invocations.sources, result, owner=key)
-            for name, value in call.keywords.items()
-        }
-        for method in selected.methods:
-            native = result.bound_method(
-                scope.resolve(method.receiver), method.name, values, named_values, scope
-            )
-            if native.disposition != "read" and any(
-                invocations.custody.mutable(value)
-                for value in (native.footprint, *values, *named_values.values())
-            ):
-                return pending, True
-        pending.extend(
-            (invocations.sources.definitions[target], values, named_values)
-            for target in selected.targets
-            if target in invocations.sources.definitions
-        )
-        if result.call_escapes(selected, values, named_values, scope):
-            return pending, True
-        if selected.unknown and not (selected.targets or selected.methods or selected.parameters):
-            roots = [callee, selected, *values, *named_values.values()]
-            if not any(invocations.custody.mutable(value, symbolic=True) for value in roots):
-                roots.extend(read.value for read in summary.reads.values())
-                roots.append(summary.returned)
-                if not invocations.custody.retained_transfer(roots, scope):
-                    continue
-        if callee.parameters or selected.unknown or (selected.deferred and not selected.methods):
-            return pending, True
-    return pending, False
+def held(
+    custody: InvocationCustody, values: tuple[BindingValue, ...], scope: BindingScope
+) -> tuple[tuple[AggregateIdentity, BindingValue], ...]:
+    """Snapshot only allocations reachable from one call edge at its program point."""
+    found: dict[AggregateIdentity, BindingValue] = {}
+    for key, owners in custody.reachable([(value, scope) for value in values]).items():
+        if isinstance(key, AggregateIdentity):
+            for owner in owners.values():
+                found[key] = found.get(key, BindingValue()).join(owner.member(key))
+    return tuple(found.items())
+
+
+def supplied(
+    scope: BindingScope, custody: tuple[tuple[AggregateIdentity, BindingValue], ...]
+) -> BindingScope:
+    """Read an edge's own allocations only where the instantiating scope lacks them."""
+    missing = [(key, value) for key, value in custody if scope.member_binding(key) is None]
+    if not missing:
+        return scope
+    edge = scope.fork()
+    for key, value in missing:
+        edge.members[key] = edge.member_history[key] = value
+    return edge

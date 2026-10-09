@@ -33,6 +33,8 @@ def native_return(
         "shutil.which",
     }:
         args = tuple(observer.sources.invocations.resolve(value, scope, observer) for value in args)
+    if target == "functools.partial" and observer.sources is not None:
+        return observer.sources.partial(args, keywords)
     if target == "builtins.getattr" and args:
         return observer.attribute(args, scope)
     if target == "builtins.hasattr" and len(args) == 2 and not keywords:

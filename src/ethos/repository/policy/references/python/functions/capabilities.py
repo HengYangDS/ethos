@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
 from ethos.repository.policy.references.python.bindings import BindingValue
+from ethos.repository.policy.references.python.functions.effects import bound_values
 from ethos.repository.policy.references.python.functions.effects import observe_calls
 from ethos.repository.policy.references.python.functions.effects import substitute
 from ethos.repository.policy.references.python.functions.effects import symbolic_arguments
@@ -59,6 +61,23 @@ def escaped_capabilities(
                 for name, parameter in definition.signature.parameters.items():
                     if isinstance(parameter.default, BindingValue):
                         arguments[name] = arguments[name].join(parameter.default)
+                named = dict(definition.captured_keywords)
+                packs = {
+                    item.name
+                    for item in definition.signature.parameters.values()
+                    if item.kind in {item.VAR_POSITIONAL, item.VAR_KEYWORD}
+                }
+                with suppress(TypeError):
+                    bound = definition.signature.bind_partial(*definition.captured, **named)
+                    for name, value in bound_values(definition, bound).items():
+                        runtime = arguments[name]
+                        arguments[name] = (
+                            BindingValue(element=value.iterated().join(runtime))
+                            if value.items is not None
+                            else runtime.join(value)
+                            if name in named or name in packs
+                            else value
+                        )
                 observed = type(observer)(definition.flow.path, observer.npm_scripts, sources)
                 observe_calls(
                     summary,

@@ -216,6 +216,14 @@ class BindingValue:
             context_limited=self.context_limited or other.context_limited,
         )
 
+    def demanded(self, need: MemberDemand) -> BindingValue:
+        """Defer a demand on every symbolic slot without applying it to concrete alternatives."""
+        return replace(
+            self,
+            parameters=frozenset(replace(p, members=(*p.members, need)) for p in self.parameters),
+            projections=frozenset(replace(p, members=(*p.members, need)) for p in self.projections),
+        )
+
     def iterated(self) -> BindingValue:
         """Retain a finite element join separately from an exact ordered sequence."""
         result = self.element

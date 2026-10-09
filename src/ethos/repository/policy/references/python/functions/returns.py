@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from dataclasses import replace
 from typing import TYPE_CHECKING
+from typing import cast
 
 from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
@@ -33,6 +34,19 @@ class FunctionDefinition:
     parent: BindingScope
     signature: inspect.Signature
     receiver: str = ""
+    captured: tuple[BindingValue, ...] = ()
+    captured_keywords: tuple[tuple[str, BindingValue], ...] = ()
+
+
+def same_definition(left: FunctionDefinition, right: FunctionDefinition) -> bool:
+    """Equivalent callables share node, lexical owner and exact captures, not a derived key."""
+    return (
+        left.node is right.node
+        and left.flow is right.flow
+        and left.parent is right.parent
+        and (left.signature, left.receiver) == (right.signature, right.receiver)
+        and (left.captured, left.captured_keywords) == (right.captured, right.captured_keywords)
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,6 +139,36 @@ class PythonSourceReturns:
             receiver,
         )
         return BindingValue(targets=frozenset({key}))
+
+    def partial(
+        self, args: tuple[BindingValue, ...], keywords: dict[str | None, BindingValue]
+    ) -> BindingValue | None:
+        """Compose native partial captures; each call binds them through the original signature."""
+        if not args or any(value.spread for value in args) or None in keywords:
+            return None
+        callee, captured = args[0], args[1:]
+        alternatives = [self.definitions.get(target) for target in callee.targets]
+        if (
+            not alternatives
+            or callee != BindingValue(targets=callee.targets)
+            or any(item is None or item.receiver for item in alternatives)
+        ):
+            return None
+        bound = BindingValue()
+        for definition in cast("list[FunctionDefinition]", alternatives):
+            named = dict(definition.captured_keywords) | cast("dict[str, BindingValue]", keywords)
+            derived = replace(
+                definition,
+                captured=(*definition.captured, *captured),
+                captured_keywords=tuple(named.items()),
+            )
+            key = next(
+                (key for key, item in self.definitions.items() if same_definition(item, derived)),
+                f"{definition.flow.path}:{definition.node.lineno}:partial:{len(self.definitions)}",
+            )
+            self.definitions.setdefault(key, replace(derived, key=key))
+            bound = bound.join(BindingValue(targets=frozenset({key})))
+        return bound
 
     @staticmethod
     def record_kind(flow: PythonReferenceFlow, node: ast.ClassDef, parent: BindingScope) -> str:

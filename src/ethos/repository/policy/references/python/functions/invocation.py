@@ -14,11 +14,12 @@ from ethos.repository.policy.references.python.bindings import ReturnProjection
 from ethos.repository.policy.references.python.control import FlowExit
 from ethos.repository.policy.references.python.control import PythonControlFlow
 from ethos.repository.policy.references.python.functions.custody import InvocationCustody
+from ethos.repository.policy.references.python.functions.custody import effect_dependencies
 from ethos.repository.policy.references.python.functions.effects import EffectCall
 from ethos.repository.policy.references.python.functions.effects import EffectSummary
 from ethos.repository.policy.references.python.functions.effects import MemberRead
 from ethos.repository.policy.references.python.functions.effects import bound_arguments
-from ethos.repository.policy.references.python.functions.effects import effect_dependencies
+from ethos.repository.policy.references.python.functions.effects import held
 from ethos.repository.policy.references.python.functions.effects import observe_calls
 from ethos.repository.policy.references.python.functions.effects import project
 from ethos.repository.policy.references.python.functions.effects import substitute
@@ -143,6 +144,7 @@ class PythonInvocations:
                     node,
                     result.path,
                     caller.name,
+                    held(self.custody, (*args, *keywords.values()), caller),
                 )
             )
             selected = self.summary_for(definition, result, caller)
@@ -271,7 +273,7 @@ class PythonInvocations:
             )
             if uncertain:
                 return True
-            pending.extend((*call, context_scope) for call in called)
+            pending.extend(called)
         return False
 
     def summarize(

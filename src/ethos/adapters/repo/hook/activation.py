@@ -81,8 +81,6 @@ def install_hook_launchers(
             previous = current_runtime(common)
         except (OSError, ValueError) as error:
             previous_root = selected_runtime_path(common)
-            if previous_root.parent != common / "ethos/runtime":
-                raise
             rollback_supply = {
                 "state": "unavailable",
                 "runtime": previous_root.as_posix(),

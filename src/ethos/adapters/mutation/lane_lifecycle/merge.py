@@ -375,7 +375,7 @@ def merge_work_lane(
     try:
         observed = observe_merge(root)
         context = _context(root, observed, mode)
-        message = subject or "chore: merge candidate contribution"
+        message = subject or "chore(integration): merge candidate contribution"
         if not apply:
             return _preview(context, mode, message)
         return _execute(

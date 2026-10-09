@@ -294,6 +294,17 @@
       qualification pass; full exact proof, accepted runtime and installed
       integration remain open. Evidence: `local-source-owner-*` under
       `build/evidence/ddwg-native-integration-20261008/`.
+      Native merge continuation now defaults to a scoped Conventional Commit.
+      The DDWG-reproduced subject refusal goes RED to GREEN; explicit repository
+      policy and signing remain enforced. All 97 related native merge, recovery,
+      policy and OpenSpec cases pass on Python 3.12 with two workers. The original
+      two isolated-child import failures remain retained; native frozen/offline
+      project installation restores the declared test supply without changing
+      recovery behavior. An existing recovery-path type gap now has a real string
+      assertion, without casts or suppressions. Native lint/configuration,
+      focused Ty and Ruff format pass. Exact-source full proof, accepted runtime
+      and installed default-subject acceptance remain open. Evidence:
+      `native-merge-*` under `build/evidence/ddwg-native-integration-20261008/`.
       Allure is locked to official stable 3.20.0 after isolated native resolution: 409→408
       lock entries, no added packages or install scripts. Original 77/5 result sets retain
       exact input hashes and report name/status parity without test replay. Those observations

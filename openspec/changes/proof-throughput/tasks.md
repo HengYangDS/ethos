@@ -286,6 +286,14 @@
       DDWG reports its accepted installed OpenSpec 1.13.2 while its repository locks
       1.14.0. This is a consumer migration obligation, not a reason to downgrade the
       repository lock; the exact accepted source/tree/wheel/runtime handoff remains open.
+      Local-source compilation now keeps the declared registry as the quality
+      owner and binds audit scope only in execution gates. The real registry
+      reproduces the former false adopter obligations; focused RED/GREEN and
+      790 related Python 3.12 cases pass. Substantive adopter obligations remain
+      required. Native lint/configuration, focused Ty, layout and code-size
+      qualification pass; full exact proof, accepted runtime and installed
+      integration remain open. Evidence: `local-source-owner-*` under
+      `build/evidence/ddwg-native-integration-20261008/`.
       Allure is locked to official stable 3.20.0 after isolated native resolution: 409→408
       lock entries, no added packages or install scripts. Original 77/5 result sets retain
       exact input hashes and report name/status parity without test replay. Those observations

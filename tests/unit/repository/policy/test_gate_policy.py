@@ -14,6 +14,7 @@ from ethos.adapters.repo.gate_policy import resolve_proof_policies
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import load_gate_registry_declaration
+from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.repository.policy.gates import ResolvedGatePolicy
 from ethos.repository.policy.gates import canonical_gate_command
 from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
@@ -31,16 +32,49 @@ from tests.support.governed_repository import write_script_gate_policy
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.contracts.proof.plan import AcceptancePurpose
+
 _MISSING_QUALITY = (
     "quality_obligation_unproven:behavior",
     "quality_obligation_unproven:static-analysis",
 )
 
 
-def test_source_acceptance_preserves_floors_and_binds_native_audit() -> None:
+@pytest.mark.parametrize("owner_kind", ["packaged", "registry"])
+def test_source_acceptance_preserves_floors_and_binds_native_audit(
+    tmp_path: Path, owner_kind: str
+) -> None:
     """One explicit purpose changes the audit command, never the required gate set."""
-    strict = compile_gate_policy(full=True)
-    source = compile_gate_policy(full=True, acceptance_purpose="local-source")
+    declaration = load_gate_registry_declaration()
+    profile = (
+        RepositoryProfile(
+            root=tmp_path,
+            exists=True,
+            declaration=RepositoryProfileDeclaration(
+                profile_id="ethos", proof=ProofPolicy(gate_registry="system/gates.toml")
+            ),
+        )
+        if owner_kind == "registry"
+        else None
+    )
+
+    def compiled(purpose: AcceptancePurpose) -> ResolvedGatePolicy:
+        return compile_gate_policy(
+            profile=profile,
+            gate_registry_source=tomli_w.dumps(
+                declaration.model_dump(mode="json", exclude_defaults=True)
+            ).encode(),
+            repository_python="python",
+            repository_paths=("src/ethos/cli.py",),
+            full=True,
+            acceptance_purpose=purpose,
+        )
+
+    strict = compiled("repository")
+    source = compiled("local-source")
+    assert source.projection["owner"] == strict.projection["owner"]
+    assert not set(_MISSING_QUALITY).intersection(source.gaps)
+    assert source.declaration == strict.declaration
     assert source.gate_ids == strict.gate_ids
     assert source.digest != strict.digest
     assert source.projection["acceptance_purpose"] == "local-source"
@@ -54,7 +88,7 @@ def test_source_acceptance_preserves_floors_and_binds_native_audit() -> None:
         else:
             assert selected == gate
     with pytest.raises(ValueError, match="proof_acceptance_purpose_invalid"):
-        compile_gate_policy(full=True, acceptance_purpose="publishing")
+        proof_acceptance_purpose({"acceptance_purpose": "publishing"})
 
 
 def test_quality_axis_conjoins_scoped_evidence_from_distinct_gates() -> None:
@@ -197,6 +231,18 @@ def test_scheduler_hint_does_not_reclassify_product_quality_owner(tmp_path: Path
     owner = compiled(substantive).projection["owner"]
     assert isinstance(owner, dict)
     assert owner.get("quality_floor_version") == 2
+    local_source = compile_gate_policy(
+        profile=profile,
+        gate_registry_source=tomli_w.dumps(
+            substantive.model_dump(mode="json", exclude_defaults=True)
+        ).encode(),
+        repository_python="python",
+        repository_paths=("src/example.py",),
+        full=True,
+        acceptance_purpose="local-source",
+    )
+    assert local_source.projection["owner"] == owner
+    assert set(_MISSING_QUALITY).issubset(local_source.gaps)
 
 
 @pytest.mark.parametrize("floor", ["full", "default"])

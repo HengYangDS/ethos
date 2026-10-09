@@ -28,6 +28,10 @@ if TYPE_CHECKING:
     from ethos.repository.policy.references.python.syntax import LexicalBindings
 
 
+# Each procedure keeps finite precise contexts, then widens only its own arguments.
+OWNER_CONTEXT_LIMIT = 16
+
+
 @dataclass(frozen=True, slots=True)
 class EffectCall:
     """A source or callback edge retaining actual argument substitutions and its site."""
@@ -148,15 +152,16 @@ def observe_calls(
 ) -> None:
     """Instantiate native effect edges at their defining source sites, not generic findings."""
     pending = [(owner, summary, arguments)]
-    seen = set()
+    seen, contexts = set(), dict[str, int]()
     while pending:
         owner, summary, arguments = pending.pop()
-        if len(seen) >= 128:
+        if contexts.get(owner, 0) >= OWNER_CONTEXT_LIMIT:
             arguments = dict.fromkeys(arguments, BindingValue(unknown=True, context_limited=True))
         key = owner, tuple(arguments.items())
         if key in seen:
             continue
         seen.add(key)
+        contexts[owner] = contexts.get(owner, 0) + 1
         observe_summary(summary, arguments, scope, sources, observer, owner=owner)
         if not transitive:
             continue

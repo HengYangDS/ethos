@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 import pytest
 
 from ethos.repository.policy.references.python.bindings import AggregateIdentity
-from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.bindings import ParameterProjection
 from ethos.repository.policy.references.python.bindings import ReceiverMethod
@@ -18,6 +17,7 @@ from ethos.repository.policy.references.python.flow import PythonReferenceFlow
 from ethos.repository.policy.references.python.functions.effects import substitute
 from ethos.repository.policy.references.python.functions.invocation import PythonInvocations
 from ethos.repository.policy.references.python.functions.returns import PythonSourceReturns
+from ethos.repository.policy.references.python.scope import BindingScope
 
 if TYPE_CHECKING:
     from ethos.repository.policy.references.python.functions.invocation import SourceInvocation

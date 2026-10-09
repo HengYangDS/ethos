@@ -9,7 +9,6 @@ from collections import Counter
 import pytest
 
 from ethos.repository.policy.references.python.bindings import AggregateIdentity
-from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.control import FlowExit
 from ethos.repository.policy.references.python.flow import PythonReferenceFlow
@@ -17,6 +16,7 @@ from ethos.repository.policy.references.python.functions.custody import Invocati
 from ethos.repository.policy.references.python.functions.invocation import SourceInvocation
 from ethos.repository.policy.references.python.functions.returns import FunctionDefinition
 from ethos.repository.policy.references.python.functions.returns import PythonSourceReturns
+from ethos.repository.policy.references.python.scope import BindingScope
 from ethos.repository.policy.references.python.syntax import NativeScopes
 
 

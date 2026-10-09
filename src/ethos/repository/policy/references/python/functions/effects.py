@@ -11,17 +11,17 @@ from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from ethos.repository.policy.references.python.bindings import BindingValue
-from ethos.repository.policy.references.python.bindings import LexicalRead
 from ethos.repository.policy.references.python.bindings import MemberDemand
 
 if TYPE_CHECKING:
     import ast
 
-    from ethos.repository.policy.references.python.bindings import BindingScope
     from ethos.repository.policy.references.python.effects import PythonConsumption
     from ethos.repository.policy.references.python.functions.invocation import PythonInvocations
     from ethos.repository.policy.references.python.functions.returns import FunctionDefinition
     from ethos.repository.policy.references.python.functions.returns import PythonSourceReturns
+    from ethos.repository.policy.references.python.scope import BindingScope
+    from ethos.repository.policy.references.python.scope import LexicalRead
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,6 +130,15 @@ def substitute(
         )
         if value.entries is not None
         else None,
+        mapping_shapes=frozenset(
+            tuple(
+                (name, substitute(item, arguments, scope, sources, observer, owner=owner))
+                for name, item in shape
+            )
+            for shape in value.mapping_shapes
+        )
+        if value.mapping_shapes is not None
+        else None,
         fields=tuple(
             (name, substitute(item, arguments, scope, sources, observer, owner=owner))
             for name, item in value.fields
@@ -171,10 +180,11 @@ def mapping_get(value: BindingValue, demand: MemberDemand) -> BindingValue:
         deferred=selector.deferred or value.deferred,
         unknown=selector.unknown or value.unknown,
     )
-    for name in selector.strings:
-        selected = selected.join(
-            dict(value.entries or ()).get(name, demand.default or BindingValue(local=True))
-        )
+    for shape in value.closed_mapping_shapes():
+        for name in selector.strings:
+            selected = selected.join(
+                dict(shape).get(name, demand.default or BindingValue(local=True))
+            )
     return selected if selector.strings else selected.join(BindingValue(unknown=True))
 
 
@@ -351,7 +361,16 @@ def effect_dependencies(
             name: substitute(value, arguments, scope, invocations.sources, result, owner=key)
             for name, value in call.keywords.items()
         }
-        for method in selected.methods:
+        pending.extend(
+            (invocations.sources.definitions[method.name], (method.receiver, *values), named_values)
+            for method in selected.methods
+            if method.name in invocations.sources.definitions
+        )
+        for method in (
+            method
+            for method in selected.methods
+            if method.name not in invocations.sources.definitions
+        ):
             native = result.bound_method(
                 scope.resolve(method.receiver), method.name, values, named_values, scope
             )

@@ -19,8 +19,8 @@ from tests.support.architecture import write_reference_source
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ethos.repository.policy.references.python.bindings import BindingScope
     from ethos.repository.policy.references.python.functions.invocation import SourceInvocation
+    from ethos.repository.policy.references.python.scope import BindingScope
 
 
 @pytest.mark.parametrize("name", ["select", "renamed_selector"])

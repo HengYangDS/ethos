@@ -8,18 +8,19 @@ from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from ethos.repository.policy.references.python.bindings import AggregateIdentity
-from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.effects import PythonConsumption
 from ethos.repository.policy.references.python.functions.effects import project
+from ethos.repository.policy.references.python.functions.escape import invocation_roots
+from ethos.repository.policy.references.python.scope import BindingScope
 
 if TYPE_CHECKING:
-    from ethos.repository.policy.references.python.bindings import LexicalRead
     from ethos.repository.policy.references.python.control import FlowExit
     from ethos.repository.policy.references.python.functions.effects import EffectSummary
     from ethos.repository.policy.references.python.functions.invocation import SourceInvocation
     from ethos.repository.policy.references.python.functions.returns import FunctionDefinition
     from ethos.repository.policy.references.python.functions.returns import PythonSourceReturns
+    from ethos.repository.policy.references.python.scope import LexicalRead
 
 
 @dataclass(slots=True)
@@ -97,7 +98,11 @@ class InvocationCustody:
             or any(read.later for read in summary.reads.values())
             or any(
                 call.callee.targets
-                & (self.sources.definitions.keys() | self.sources.records.keys())
+                & (
+                    self.sources.definitions.keys()
+                    | self.sources.records.keys()
+                    | self.sources.classes.definitions.keys()
+                )
                 for call in summary.calls
             )
         ):
@@ -140,6 +145,12 @@ class InvocationCustody:
                 else None,
                 entries=tuple((name, normalized(item)) for name, item in current.entries)
                 if current.entries is not None and not current.aggregates
+                else None,
+                mapping_shapes=frozenset(
+                    tuple((name, normalized(item)) for name, item in shape)
+                    for shape in current.mapping_shapes
+                )
+                if current.mapping_shapes is not None and not current.aggregates
                 else None,
                 fields=tuple((name, normalized(item)) for name, item in current.fields)
                 if current.fields is not None and not current.aggregates
@@ -209,6 +220,7 @@ class InvocationCustody:
                 or any(
                     target in self.sources.definitions
                     or target in self.sources.records
+                    or target in self.sources.classes.definitions
                     or target in self.sources.module_paths
                     or PythonConsumption.kind(target)
                     or PythonConsumption.module_kinds(target)
@@ -222,46 +234,6 @@ class InvocationCustody:
             if current.element is not None:
                 pending.append(current.element)
         return False
-
-    def capabilities(
-        self, values: tuple[BindingValue, ...], scope: BindingScope, observer: PythonConsumption
-    ) -> frozenset[str]:
-        """Follow actual reachable and lazy inputs, not every callable in the module."""
-        pending, seen, aggregates, found, captures = (
-            [(value, scope) for value in values],
-            set(),
-            set(),
-            set(),
-            set(),
-        )
-        while pending:
-            value, owner = pending.pop()
-            identities = {(identity, owner.identity) for identity in value.aggregates}
-            site = id(value), owner.identity
-            if site in seen or (identities and identities <= aggregates):
-                continue
-            seen.add(site)
-            aggregates.update(identities)
-            value = self.sources.invocations.resolve(value, owner, observer, deep=False)
-            found.update(
-                target
-                for target in value.targets
-                if observer.kind(target) or observer.module_kinds(target)
-            )
-            pending.extend((item, owner) for item in value.items or ())
-            pending.extend(
-                (item, owner) for _, item in (*(value.entries or ()), *(value.fields or ()))
-            )
-            pending.extend((method.receiver, owner) for method in value.methods)
-            if value.element is not None:
-                pending.append((value.element, owner))
-            for target in value.targets:
-                definition = self.sources.definitions.get(target)
-                if definition is not None and (target, owner.identity) not in captures:
-                    captures.add((target, owner.identity))
-                    pending.extend(self.capture_roots(definition, definition.parent))
-                pending.extend(self.record_roots(target, owner))
-        return frozenset(found)
 
     def retained_transfer(self, roots: list[BindingValue], scope: BindingScope) -> bool:
         """Distinguish live capture custody from not-yet-published local allocations."""
@@ -310,25 +282,39 @@ class InvocationCustody:
                 (item, scope) for _, item in (*(value.entries or ()), *(value.fields or ()))
             )
             pending.extend((item, scope) for item in (value.element,) if item is not None)
+            for name, owner in self.class_owners(value, scope):
+                retained[name][id(owner)] = owner
             for name in value.targets:
                 definition = self.sources.definitions.get(name)
                 if definition is not None:
                     captures.append((definition, definition.parent))
                 pending.extend(self.record_roots(name, scope))
+            pending.extend(
+                (BindingValue(targets=frozenset({name})), scope) for name in value.instance_types
+            )
             for projection in value.projections:
                 request = self.sources.invocations.requests[projection.key]
-                pending.extend((item, request.caller) for item in request.arguments)
-                pending.extend((item, request.caller) for item in request.keywords.values())
-                if request.returned is not None:
-                    pending.append((request.returned, request.caller))
-                captures.append((request.definition, request.parent))
+                outgoing, callable_roots = invocation_roots(request)
+                pending.extend(outgoing)
+                captures.extend(callable_roots)
         return dict(retained)
+
+    def class_owners(
+        self, value: BindingValue, scope: BindingScope
+    ) -> list[tuple[str, BindingScope]]:
+        """Opaque class custody reaches its call-site state and exact defining namespace."""
+        return [
+            (name, owner)
+            for name in value.targets & self.sources.classes.definitions.keys()
+            for owner in (scope, self.sources.classes.definitions[name].namespace.parent)
+            if owner is not None
+        ]
 
     @staticmethod
     def inline_value(value: BindingValue, target: BindingScope | None) -> BindingValue:
         """Live allocations select their heap edges instead of copied inline edges."""
         return (
-            replace(value, items=None, entries=None, fields=None, element=None)
+            replace(value, items=None, entries=None, mapping_shapes=None, fields=None, element=None)
             if target is not None and value.aggregates
             else value
         )
@@ -374,7 +360,18 @@ class InvocationCustody:
         """Record defaults and declared methods retain their constructor ownership."""
         record = self.sources.records.get(target)
         if record is None:
-            return []
+            definition = self.sources.classes.definitions.get(target)
+            if definition is None:
+                return []
+            roots = [
+                (self.sources.classes.state(target, scope, later=later), scope)
+                for later in (False, True)
+            ]
+            if any(value.unknown for value, _ in roots):
+                roots.extend(
+                    (value, definition.namespace) for value in definition.namespace.values.values()
+                )
+            return roots
         roots = [
             (parameter.default, record.owner)
             for parameter in record.signature.parameters.values()

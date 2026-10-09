@@ -217,6 +217,25 @@
       30.925/30.020 seconds and added a cutoff UNKNOWN, not qualified speedup
       (`native-demand-matched-20261006-1853.receipt.json`). Repeated truncated
       evaluation remains an open throughput limit; no full-proof replay is due.
+      A provisional exhausted-demand early return is also withdrawn. The same
+      889-file input and real admission carrier produced eight additional UNKNOWN
+      sites (55 versus 47), without qualified throughput improvement. Complete
+      observations and the rejected patch remain in
+      `ddwg-native-integration-20261008/invocation-boundary-candidate-withdrawal-20261009T0406.*`.
+      Actual indexed Git configuration and retired uv cache reads now have their
+      input identities declared at `system/surfaces.toml`; no observation exception
+      or reduced gate floor is introduced. Whole-source proof and installed
+      acceptance remain open.
+      Lazy existential and scalar-terminal reachability candidates are withdrawn:
+      counterordered real publication results do not establish repeatable
+      improvement. Their implementation and test are restored to exact HEAD.
+      Original failed proof, rejected patches, complete comparisons and input-owner
+      RED/GREEN survive in native Attestation
+      `d6cf7119f0a8f361b85e209bad7d77813431ee802a0d7ded905f9659c3e0b1d0`;
+      canonical bytes and all 59 archive members are verified. Public native Git
+      observation still lacks executable identity and retains two computed-input
+      UNKNOWN sites. Repair their owner; source, wheel and installed acceptance
+      remain open.
       Native branch merge now copies equal fact channels once and rejoins only
       changed channels. Five distinguishing regressions went RED to GREEN;
       presence, mutable-map isolation, member lineage and residual observations
@@ -231,6 +250,25 @@
       Independent read-only correctness and Ponytail review find no required gap.
       Public exact-source and installed acceptance remain open; the current land
       reader selects `proof_not_proven`.
+      Native source-class and allocation dispatch now resolve imported identities,
+      preserve saved bound functions, and permit strong replacement only for one
+      pure closed owner. Instance may-stores retain field absence and later class
+      lookup; descriptor, custom-hook and class-identity uncertainty cannot pass
+      through an instance field. Public class RED (8 failures), bound-owner RED
+      (1 failure), and distinguishing instance RED (8 failures) have qualified
+      GREEN successors. All 555 related cases pass; native Nox lint/configuration,
+      declared and focused Ty, selected public module layout, and native code size
+      pass without exceptions. Every affected Python carrier stays below 500 ELOC.
+      Value, lexical scope, storage, class lookup, keyword shape and escape owners
+      replace the mixed implementation; all 50 existing test function names survive
+      relocation. Candidate manifest
+      `a16789956cbcd24fcf5e8887060de416b9cccbd10b696945e1b66d4e651f64c8`
+      and all 99 archived members have complete readback in native Attestation
+      `98b123c3263a944296c1fe65342534b591552fb2c01c5382999299505f50f3ef`.
+      Intermediate fixture and consumer-rewire failures remain distinct from the
+      diagnosed implementation failures. Signed source, exact public proof,
+      accepted wheel/runtime and installed DDWG integration remain open; source
+      qualification does not close 10.11 or supersede the original failed proof.
 
 - [ ] 10.12 Replace fixed OpenSpec proposal/design/tasks path inference with its resolved artifact graph; preserve positive removal-only acceptance; replay renamed/optional outputs, pure/mixed removal, `skip_specs`, missing/ambiguous resolution, archive identity and exact source binding through public compilation and proof.
 - [ ] 10.13 Preserve blocked CLI exit and incomplete-report status under nonblocking backpressure and short writes; distinguish closed consumers without replaying completed effects.

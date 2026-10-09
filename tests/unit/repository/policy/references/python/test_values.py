@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 from ethos.repository.policy.references.closure import repository_semantic_closure
-from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
+from ethos.repository.policy.references.python.scope import BindingScope
 from tests.support.architecture import declare_reference_package
 from tests.support.architecture import declare_reference_surface
 from tests.support.architecture import write_reference_source

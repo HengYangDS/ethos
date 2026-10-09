@@ -5,18 +5,19 @@ from __future__ import annotations
 import ast
 from dataclasses import dataclass
 from dataclasses import field
-from dataclasses import replace
 from functools import singledispatchmethod
 from importlib.util import resolve_name
 from typing import TYPE_CHECKING
 
-from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.bindings import ImportReference
 from ethos.repository.policy.references.python.bindings import MemberDemand
 from ethos.repository.policy.references.python.control import PythonControlFlow
 from ethos.repository.policy.references.python.effects import PythonConsumption
 from ethos.repository.policy.references.python.functions.effects import project
+from ethos.repository.policy.references.python.keywords import keyword_arguments
+from ethos.repository.policy.references.python.scope import BindingScope
+from ethos.repository.policy.references.python.stores import PythonStores
 from ethos.repository.policy.references.python.syntax import LexicalBindings
 from ethos.repository.policy.references.python.syntax import NativeScopes
 from ethos.repository.policy.references.python.syntax import module_name
@@ -164,12 +165,12 @@ class PythonReferenceFlow:
         value = self.expression(node.value, scope)
         targets = node.targets if isinstance(node, ast.Assign) else [node.target]
         for target in targets:
-            self.assign(target, value, scope)
+            PythonStores(self).assign(target, value, scope)
 
     @statement.register
     def augmented_assignment(self, node: ast.AugAssign, scope: BindingScope) -> None:
         """Observe read-modify-write rather than retaining a stale literal."""
-        self.assign(
+        PythonStores(self).assign(
             node.target,
             self.combine(
                 self.expression(node.target, scope), self.expression(node.value, scope), node.op
@@ -182,8 +183,7 @@ class PythonReferenceFlow:
         self, node: ast.FunctionDef | ast.AsyncFunctionDef, scope: BindingScope
     ) -> None:
         """Defaults and decorators execute now; the function body is deferred."""
-        for value in node.decorator_list:
-            self.expression(value, scope)
+        decorators = tuple(self.expression(value, scope) for value in node.decorator_list)
         defaults = tuple(self.expression(value, scope) for value in node.args.defaults)
         keywords = tuple(
             self.expression(value, scope) if value is not None else None
@@ -192,10 +192,35 @@ class PythonReferenceFlow:
         parent = scope
         while parent.kind == "class" and parent.parent is not None:
             parent = parent.parent
+        modifier = (
+            next(iter(decorators[0].targets))
+            if scope.kind == "class"
+            and len(decorators) == 1
+            and decorators[0].targets
+            in {
+                frozenset({"builtins.staticmethod"}),
+                frozenset({"builtins.classmethod"}),
+            }
+            and not (decorators[0].unknown or decorators[0].deferred or decorators[0].local)
+            else ""
+        )
         value = (
-            self.sources.definition(self, node, parent, defaults, keywords)
+            self.sources.definition(
+                self,
+                node,
+                parent,
+                defaults,
+                keywords,
+                binding="static"
+                if modifier == "builtins.staticmethod"
+                else "class"
+                if modifier
+                else "instance"
+                if scope.kind == "class"
+                else "",
+            )
             if self.sources is not None
-            and not node.decorator_list
+            and (not node.decorator_list or modifier)
             and not isinstance(node, ast.AsyncFunctionDef)
             else BindingValue(local=True)
         )
@@ -233,65 +258,16 @@ class PythonReferenceFlow:
         self.block(node.body, child)
         scope.assign(
             node.name,
-            self.sources.record(self, node, scope) if self.sources else BindingValue(local=True),
+            self.sources.classes.value(self, node, scope, child)
+            if self.sources
+            else BindingValue(local=True),
         )
 
     @statement.register
     def delete_binding(self, node: ast.Delete, scope: BindingScope) -> None:
         """Deletion kills a binding instead of resurrecting its outer namesake."""
         for target in node.targets:
-            self.assign(target, BindingValue(unknown=True), scope)
-
-    def assign(self, target: ast.AST, value: BindingValue, scope: BindingScope) -> None:
-        """Bind names, destructuring and exact object-member replacements."""
-        if isinstance(target, ast.Name):
-            scope.assign(target.id, value)
-        elif isinstance(target, ast.Tuple | ast.List):
-            value = project(value, MemberDemand("structure"), scope, self.sources, self.result)
-            for index, item in enumerate(target.elts):
-                self.assign(
-                    item,
-                    value.items[index]
-                    if value.items is not None and index < len(value.items)
-                    else BindingValue(
-                        deferred=value.deferred,
-                        unknown=value.unknown or value.items is not None or not value.deferred,
-                    ),
-                    scope,
-                )
-        elif isinstance(target, ast.Attribute):
-            value_owner = self.expression(target.value, scope)
-            if self.sources is not None:
-                self.sources.invocations.note_mutation(scope, value_owner, native_store=True)
-            for owner in value_owner.targets:
-                scope.assign_member(f"{owner}.{target.attr}", value)
-        elif isinstance(target, ast.Subscript):
-            self.assign_item(target, value, scope)
-
-    def assign_item(self, target: ast.Subscript, value: BindingValue, scope: BindingScope) -> None:
-        """Replace only exact single-owner mapping slots; join alternatives or havoc the heap."""
-        owner = self.expression(target.value, scope)
-        if self.sources is not None:
-            self.sources.invocations.note_mutation(scope, owner)
-        key = self.expression(target.slice, scope)
-        for identity in owner.aggregates:
-            current = scope.member(identity)
-            if current.entries is not None and len(key.strings) == 1:
-                entries = dict(current.entries)
-                name = next(iter(key.strings))
-                entries[name] = (
-                    value
-                    if len(owner.aggregates) == 1
-                    and identity not in scope.summarized
-                    and not (owner.unknown or owner.deferred or key.unknown or key.deferred)
-                    else entries.get(name, BindingValue(unknown=True)).join(value)
-                )
-                scope.assign_member(
-                    identity,
-                    replace(current, entries=tuple(entries.items())),
-                )
-            else:
-                scope.assign_member(identity, BindingValue(unknown=True))
+            PythonStores(self).assign(target, BindingValue(unknown=True), scope)
 
     @singledispatchmethod
     def expression(self, node: ast.AST, scope: BindingScope) -> BindingValue:
@@ -343,6 +319,16 @@ class PythonReferenceFlow:
         entries: dict[str, BindingValue] = {}
         unknown = len(node.keys) > 64
         for key, value in zip(node.keys, node.values, strict=True):
+            if key is None:
+                item = self.expression(value, scope)
+                if self.sources is not None:
+                    item = self.sources.invocations.resolve(item, scope, self.result, deep=False)
+                item = scope.resolve(item)
+                if item.entries is None or item.unknown or item.deferred or item.parameters:
+                    unknown = True
+                else:
+                    entries.update(item.entries)
+                continue
             selected = (
                 self.expression(key, scope) if key is not None else BindingValue(unknown=True)
             )
@@ -353,7 +339,9 @@ class PythonReferenceFlow:
                 unknown = True
         return scope.aggregate(
             BindingValue(
-                entries=None if unknown else tuple(entries.items()), unknown=unknown, ordered=True
+                entries=None if unknown or len(entries) > 64 else tuple(entries.items()),
+                unknown=unknown or len(entries) > 64,
+                ordered=True,
             ),
             node,
         )
@@ -437,7 +425,7 @@ class PythonReferenceFlow:
         """Expression assignment updates its containing lexical namespace."""
         value = self.expression(node.value, scope)
         target = scope.parent if scope.kind == "comprehension" and scope.parent else scope
-        self.assign(node.target, value, target)
+        PythonStores(self).assign(node.target, value, target)
         return value
 
     @expression.register
@@ -466,14 +454,25 @@ class PythonReferenceFlow:
         if self.sources is not None:
             callee = self.sources.invocations.resolve(callee, scope, self.result, deep=False)
         args = tuple(self.expression(argument, scope) for argument in node.args)
-        keywords = {
-            argument.arg: self.expression(argument.value, scope) for argument in node.keywords
-        }
-        if self.sources is not None:
-            returned = self.sources.call(callee, args, keywords, node, scope, self.result)
-            if returned is not None:
-                return returned
-        return self.result.call(callee, args, keywords, node, scope)
+        alternatives = keyword_arguments(self, node.keywords, scope)
+        returned = BindingValue()
+        branches = []
+        for keywords in alternatives:
+            branch = scope.fork() if len(alternatives) > 1 else scope
+            value = (
+                self.sources.call(callee, args, keywords, node, branch, self.result)
+                if self.sources is not None
+                else None
+            )
+            returned = returned.join(
+                value
+                if value is not None
+                else self.result.call(callee, args, keywords, node, branch)
+            )
+            branches.append(branch)
+        if len(branches) > 1:
+            scope.merge(*branches)
+        return returned
 
     @expression.register
     def subscript(self, node: ast.Subscript, scope: BindingScope) -> BindingValue:
@@ -529,7 +528,7 @@ class PythonReferenceFlow:
         child = BindingScope(f"{scope.name}.<comprehension>", scope, kind="comprehension")
         for index, generator in enumerate(node.generators):
             value = self.expression(generator.iter, scope if index == 0 else child)
-            self.assign(
+            PythonStores(self).assign(
                 generator.target,
                 project(value, MemberDemand("iterate"), child, self.sources, self.result),
                 child,

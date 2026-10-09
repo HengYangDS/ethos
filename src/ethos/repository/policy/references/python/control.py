@@ -5,14 +5,16 @@ from __future__ import annotations
 import ast
 from dataclasses import dataclass
 from dataclasses import field
+from dataclasses import replace
 from functools import singledispatchmethod
 from typing import TYPE_CHECKING
 from typing import Literal
 
-from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.bindings import MemberDemand
 from ethos.repository.policy.references.python.functions.effects import project
+from ethos.repository.policy.references.python.scope import BindingScope
+from ethos.repository.policy.references.python.stores import PythonStores
 
 if TYPE_CHECKING:
     from ethos.repository.policy.references.python.flow import PythonReferenceFlow
@@ -110,12 +112,14 @@ class PythonControlFlow:
         for item in node.items:
             self.flow.expression(item.context_expr, scope)
             if item.optional_vars:
-                self.flow.assign(item.optional_vars, BindingValue(unknown=True), scope)
+                PythonStores(self.flow).assign(
+                    item.optional_vars, BindingValue(unknown=True), scope
+                )
         paths = self.block(node.body, scope)
         for path in paths:
             path.scope.invalidate_aggregates(*path.scope.values.values(), path.value)
         return tuple(
-            FlowExit(path.scope, path.kind, path.value.join(BindingValue(unknown=True)))
+            FlowExit(path.scope, path.kind, replace(path.value, unknown=True))
             if path.kind == "return"
             else path
             for path in paths
@@ -208,7 +212,7 @@ class PythonControlFlow:
                         self.flow.sources,
                         self.flow.result,
                     )
-                    self.flow.assign(node.target, item, path.scope)
+                    PythonStores(self.flow).assign(node.target, item, path.scope)
                     for result in self.block(node.body, path.scope):
                         (following if result.kind in {"normal", "continue"} else exited).append(
                             result
@@ -224,7 +228,7 @@ class PythonControlFlow:
         for _ in range(8):
             branch = head.fork()
             if isinstance(node, ast.For | ast.AsyncFor):
-                self.flow.assign(
+                PythonStores(self.flow).assign(
                     node.target,
                     project(
                         value, MemberDemand("iterate"), branch, self.flow.sources, self.flow.result
@@ -251,7 +255,7 @@ class PythonControlFlow:
                     head.assign_member(name, head.member(name).join(BindingValue(unknown=True)))
             branch = head.fork()
             if isinstance(node, ast.For | ast.AsyncFor):
-                self.flow.assign(
+                PythonStores(self.flow).assign(
                     node.target,
                     project(
                         value, MemberDemand("iterate"), branch, self.flow.sources, self.flow.result

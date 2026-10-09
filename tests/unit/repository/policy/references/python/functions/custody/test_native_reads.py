@@ -14,11 +14,11 @@ from ethos.repository.policy.references.python.functions.invocation import Pytho
 from ethos.repository.policy.references.python.functions.returns import PythonSourceReturns
 
 if TYPE_CHECKING:
-    from ethos.repository.policy.references.python.bindings import BindingScope
     from ethos.repository.policy.references.python.bindings import BindingValue
     from ethos.repository.policy.references.python.effects import PythonConsumption
     from ethos.repository.policy.references.python.functions.effects import EffectSummary
     from ethos.repository.policy.references.python.functions.invocation import SourceInvocation
+    from ethos.repository.policy.references.python.scope import BindingScope
 
 
 @pytest.mark.parametrize("change", ["none", "selected", "sibling"])

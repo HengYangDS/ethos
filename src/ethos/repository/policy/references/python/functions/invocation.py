@@ -8,7 +8,6 @@ from dataclasses import field
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.bindings import ParameterProjection
 from ethos.repository.policy.references.python.bindings import ReturnProjection
@@ -22,6 +21,8 @@ from ethos.repository.policy.references.python.functions.effects import bound_ar
 from ethos.repository.policy.references.python.functions.effects import effect_dependencies
 from ethos.repository.policy.references.python.functions.effects import project
 from ethos.repository.policy.references.python.functions.effects import substitute
+from ethos.repository.policy.references.python.functions.escape import immutable_native_value
+from ethos.repository.policy.references.python.scope import BindingScope
 
 if TYPE_CHECKING:
     from ethos.repository.policy.references.python.bindings import MemberDemand
@@ -306,7 +307,7 @@ class PythonInvocations:
         if invocation.returned is None:
             invocation.returned = self.evaluate(invocation, result)
         value = invocation.returned
-        if invocation.invalidated:
+        if invocation.invalidated and not immutable_native_value(value):
             invocation.caller.invalidate_aggregates(value)
             value = value.join(BindingValue(unknown=True))
         return value

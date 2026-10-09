@@ -16,12 +16,14 @@ from ethos.repository.policy.references.python.bindings import ReceiverMethod
 from ethos.repository.policy.references.python.bindings import ReferenceUncertainty
 from ethos.repository.policy.references.python.functions.effects import command_tokens
 from ethos.repository.policy.references.python.functions.effects import project
+from ethos.repository.policy.references.python.functions.escape import escaped_capabilities
+from ethos.repository.policy.references.python.native_returns import native_leaf_return
 
 if TYPE_CHECKING:
     import ast
 
-    from ethos.repository.policy.references.python.bindings import BindingScope
     from ethos.repository.policy.references.python.functions.returns import PythonSourceReturns
+    from ethos.repository.policy.references.python.scope import BindingScope
 
 _EXECUTABLE_CALLS = frozenset(
     f"subprocess.{name}"
@@ -176,7 +178,9 @@ class PythonConsumption:
         returned: BindingValue | None = None
         for target in callee.targets:
             value_returned = known[target] or generic
-            if target == "builtins.dict.fromkeys" and value_returned.entries is not None:
+            if (target == "builtins.dict.fromkeys" and value_returned.entries is not None) or (
+                target == "subprocess.Popen" and value_returned.fields is not None
+            ):
                 value_returned = scope.aggregate(value_returned, node)
             kind = self.kind(target)
             if kind is not None:
@@ -187,12 +191,21 @@ class PythonConsumption:
                 if callee.unknown:
                     self.residual(kind, "unknown", node, scope, target, "callee_not_closed")
             returned = value_returned if returned is None else returned.join(value_returned)
-        for module in callee.selection:
-            for kind in self.module_kinds(module):
-                self.residual(kind, "unknown", node, scope, module, "dynamic_callee")
+        self.consume_selection(callee.selection, node, scope)
         if returned is not None and (callee.unknown or callee.local or callee.deferred):
             returned = returned.join(generic)
         return returned if returned is not None else generic
+
+    def consume_selection(
+        self, selection: frozenset[str], node: ast.Call, scope: BindingScope
+    ) -> None:
+        """Unknown lookup preserves the selected owner's native capability uncertainty."""
+        for module in selection:
+            if self.sources is not None and module in self.sources.classes.definitions:
+                self.escape((BindingValue(targets=frozenset({module})),), node, scope)
+            else:
+                for kind in self.module_kinds(module):
+                    self.residual(kind, "unknown", node, scope, module, "dynamic_callee")
 
     def invalidate(
         self, scope: BindingScope, *values: BindingValue, conditional: bool = False
@@ -243,6 +256,9 @@ class PythonConsumption:
         scope: BindingScope,
     ) -> BindingValue | None:
         """Keep bounded return contracts separate from executable consumption."""
+        if target == "subprocess.Popen":
+            command = args[0] if args else keywords.get("args", BindingValue(unknown=True))
+            return BindingValue(fields=(("args", command),))
         if self.sources is not None and target in {
             "pathlib.Path",
             "builtins.str",
@@ -263,25 +279,7 @@ class PythonConsumption:
                 return BindingValue(deferred=True)
         if target in {"builtins.tuple", "builtins.dict.fromkeys"} and args:
             return self.native_container(target, args, scope)
-        if target == "shutil.which":
-            name = args[0] if args else keywords.get("cmd", BindingValue(unknown=True))
-            return BindingValue(
-                executable_origins=name.strings,
-                deferred=name.deferred,
-                unknown=name.unknown or (not name.strings and not name.deferred),
-                context_limited=name.context_limited,
-            )
-        if target in {"pathlib.Path", "builtins.str"} and len(args) == 1 and not keywords:
-            return BindingValue(
-                strings=args[0].strings,
-                executable_origins=args[0].executable_origins,
-                path=target == "pathlib.Path",
-                deferred=args[0].deferred,
-                context_limited=args[0].context_limited,
-                unknown=args[0].unknown
-                or not (args[0].strings or args[0].executable_origins or args[0].deferred),
-            )
-        return None
+        return native_leaf_return(target, args, keywords)
 
     def native_container(
         self, target: str, args: tuple[BindingValue, ...], scope: BindingScope
@@ -353,10 +351,12 @@ class PythonConsumption:
             )
         return ReceiverCall(footprint=owner)
 
-    def escape(self, values: tuple[BindingValue, ...], node: ast.Call, scope: BindingScope) -> None:
+    def escape(self, values: tuple[BindingValue, ...], node: ast.AST, scope: BindingScope) -> None:
         """Opaque custody transfer may invoke a known capability before returning."""
         if self.sources is not None:
-            for target in self.sources.invocations.custody.capabilities(values, scope, self):
+            for target in escaped_capabilities(
+                self.sources.invocations.custody, values, scope, self
+            ):
                 kind = self.kind(target)
                 for affected in (kind,) if kind is not None else self.module_kinds(target):
                     self.residual(
@@ -425,7 +425,9 @@ class PythonConsumption:
             ),
         )
         source_targets = (
-            self.sources.definitions.keys() | self.sources.records.keys()
+            self.sources.definitions.keys()
+            | self.sources.records.keys()
+            | self.sources.classes.definitions.keys()
             if self.sources is not None
             else set()
         )
@@ -436,7 +438,7 @@ class PythonConsumption:
                 value = value.join(sourced)
             for target in owner.targets - source_targets:
                 value = value.join(scope.member(f"{target}.{name}"))
-            if owner.aggregates or owner.path:
+            if owner.path or (owner.aggregates and not owner.instance_types):
                 value = value.join(
                     BindingValue(methods=frozenset({ReceiverMethod(native_owner, name)}))
                 )

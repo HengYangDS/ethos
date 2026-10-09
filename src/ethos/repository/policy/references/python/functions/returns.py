@@ -9,9 +9,9 @@ from dataclasses import field
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.bindings import MemberDemand
+from ethos.repository.policy.references.python.functions.classes import PythonClasses
 from ethos.repository.policy.references.python.functions.invocation import PythonInvocations
 from ethos.repository.policy.references.python.syntax import module_name
 
@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
     from ethos.repository.policy.references.python.effects import PythonConsumption
     from ethos.repository.policy.references.python.flow import PythonReferenceFlow
+    from ethos.repository.policy.references.python.scope import BindingScope
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +34,7 @@ class FunctionDefinition:
     parent: BindingScope
     signature: inspect.Signature
     receiver: str = ""
+    binding: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +56,7 @@ class PythonSourceReturns:
     factory: Callable[..., PythonReferenceFlow]
     definitions: dict[str, FunctionDefinition] = field(default_factory=dict)
     records: dict[str, RecordDefinition] = field(default_factory=dict)
+    classes: PythonClasses = field(init=False)
     modules: dict[str, BindingScope] = field(default_factory=dict)
     module_paths: dict[str, str | None] = field(init=False)
     preparing: set[str] = field(default_factory=set)
@@ -61,6 +64,7 @@ class PythonSourceReturns:
 
     def __post_init__(self) -> None:
         """Resolve exact source modules once; collisions remain explicitly ambiguous."""
+        self.classes = PythonClasses(self)
         self.invocations = PythonInvocations(self)
         self.module_paths = {}
         for path in self.trees:
@@ -112,6 +116,7 @@ class PythonSourceReturns:
         keyword_defaults: tuple[BindingValue | None, ...],
         *,
         receiver: str = "",
+        binding: str = "",
     ) -> BindingValue:
         """Capture a distinct actual callable, including nested invocation closures."""
         name = "<lambda>" if isinstance(node, ast.Lambda) else node.name
@@ -123,6 +128,7 @@ class PythonSourceReturns:
             parent,
             self.signature(node.args, defaults, keyword_defaults),
             receiver,
+            binding,
         )
         return BindingValue(targets=frozenset({key}))
 
@@ -272,30 +278,60 @@ class PythonSourceReturns:
                 deferred=owner.deferred,
             )
         if owner.fields is not None:
-            value = dict(owner.fields).get(name, BindingValue(unknown=True))
-            return replace(
-                value,
-                unknown=owner.unknown or value.unknown,
-                deferred=owner.deferred or value.deferred,
-            )
+            value = dict(owner.fields).get(name)
+            if value is not None:
+                if name in owner.optional_fields:
+                    for target in owner.instance_types:
+                        value = value.join(self.classes.member(target, name, owner, scope))
+                if owner.instance_types and (
+                    owner.unknown
+                    or owner.local
+                    or owner.deferred
+                    or not self.classes.instance_storage(owner, name, scope)
+                ):
+                    return replace(
+                        value,
+                        unknown=True,
+                        selection=value.selection | owner.instance_types,
+                    )
+                return replace(
+                    value,
+                    unknown=owner.unknown or value.unknown,
+                    deferred=owner.deferred or value.deferred,
+                )
         result = None
+        for target in owner.instance_types:
+            value = self.classes.member(target, name, owner, scope)
+            result = value if result is None else result.join(value)
         for target in owner.targets:
-            resolved = self.imported(target) if target not in self.records else owner
-            if resolved is not None and resolved != owner:
-                value = self.attribute(resolved, name, scope)
-            elif target in self.records:
-                member = f"{target}.{name}"
-                value = scope.member(member)
-                if value.targets == frozenset({member}):
-                    value = self.records[target].owner.member(member)
-            else:
-                value = None
+            value = self.target_member(target, name, owner, scope)
             if value is not None:
                 result = value if result is None else result.join(value)
         return (
             result.join(BindingValue(unknown=True))
             if result is not None and (owner.unknown or owner.local or owner.deferred)
             else result
+        )
+
+    def target_member(
+        self, target: str, name: str, owner: BindingValue, scope: BindingScope
+    ) -> BindingValue | None:
+        """Resolve a native class, generated record or imported owner at its actual namespace."""
+        if target in self.classes.definitions:
+            return self.classes.member(target, name, owner, scope)
+        if target in self.records:
+            member = f"{target}.{name}"
+            value = scope.member(member)
+            return (
+                self.records[target].owner.member(member)
+                if value.targets == frozenset({member})
+                else value
+            )
+        resolved = self.imported(target)
+        return (
+            self.attribute(resolved, name, scope)
+            if resolved is not None and resolved != owner
+            else None
         )
 
     def call(
@@ -309,10 +345,17 @@ class PythonSourceReturns:
     ) -> BindingValue | None:
         """Join alternative outgoing effects without dropping native or opaque branches."""
         selected = self.call_identity(callee)
-        targets = selected.targets & (self.definitions.keys() | self.records.keys())
-        if not targets:
+        targets = selected.targets & (
+            self.definitions.keys() | self.records.keys() | self.classes.definitions.keys()
+        )
+        methods = frozenset(
+            method for method in selected.methods if method.name in self.definitions
+        )
+        if not targets and not methods:
             return None
-        other = replace(selected, targets=selected.targets - targets)
+        other = replace(
+            selected, targets=selected.targets - targets, methods=selected.methods - methods
+        )
         has_other = bool(
             other.targets
             or other.parameters
@@ -324,9 +367,21 @@ class PythonSourceReturns:
         )
         branches, returned = [], BindingValue()
         for target in targets:
-            branch = scope.fork() if has_other or len(targets) > 1 else scope
+            branch = scope.fork() if has_other or len(targets) + len(methods) > 1 else scope
             value = self.source_call(
                 BindingValue(targets=frozenset({target})), args, keywords, node, branch, result
+            )
+            returned = returned.join(value)
+            branches.append(branch)
+        for method in methods:
+            branch = scope.fork() if has_other or len(targets) + len(methods) > 1 else scope
+            value = self.invocations.request(
+                self.definitions[method.name],
+                (method.receiver, *args),
+                keywords,
+                node,
+                branch,
+                result,
             )
             returned = returned.join(value)
             branches.append(branch)
@@ -344,7 +399,9 @@ class PythonSourceReturns:
         for target in callee.targets:
             value = (
                 self.imported(target)
-                if target not in self.definitions and target not in self.records
+                if target not in self.definitions
+                and target not in self.records
+                and target not in self.classes.definitions
                 else None
             )
             resolved = resolved.join(value or BindingValue(targets=frozenset({target})))
@@ -364,6 +421,8 @@ class PythonSourceReturns:
         for target in callee.targets:
             if target in self.records:
                 value = self.construct(self.records[target], args, keywords, scope, node)
+            elif target in self.classes.definitions:
+                value = self.classes.construct(target, args, keywords, scope, node, result)
             elif target in self.definitions:
                 definition = self.definitions[target]
                 actual = (

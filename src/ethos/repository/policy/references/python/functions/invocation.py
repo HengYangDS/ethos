@@ -186,7 +186,7 @@ class PythonInvocations:
         callee: BindingValue,
         args: tuple[BindingValue, ...],
         keywords: dict[str | None, BindingValue],
-        node: ast.Call,
+        node: ast.expr,
         path: str,
         scope: BindingScope,
     ) -> None:

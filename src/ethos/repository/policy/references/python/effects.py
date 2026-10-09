@@ -307,7 +307,21 @@ class PythonConsumption:
                 disposition,
                 owner,
             )
-        return ReceiverCall(footprint=owner)
+        indexed = (
+            name == "__getitem__"
+            and len(args) == 1
+            and not (keywords or owner.unknown or owner.targets or owner.parameters)
+            and (owner.entries is not None or owner.items is not None)
+        )
+        return (
+            ReceiverCall(
+                project(owner, MemberDemand("index", selector=args[0]), scope, self.sources, self),
+                "read",
+                owner,
+            )
+            if indexed
+            else ReceiverCall(footprint=owner)
+        )
 
     def escape(self, values: tuple[BindingValue, ...], node: ast.AST, scope: BindingScope) -> None:
         """Opaque custody transfer may invoke a known capability before returning."""

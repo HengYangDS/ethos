@@ -511,6 +511,10 @@ class PythonReferenceFlow:
         ):
             self.result.consume("value", index, node, scope, "os.environ.__getitem__")
             return BindingValue(deferred=True)
+        if owner.parameters and self.sources is not None:
+            name = BindingValue(strings=frozenset({"__getitem__"}))
+            method = self.result.attribute((owner, name), scope)
+            self.sources.invocations.note_call(method, (index,), {}, node, self.path, scope)
         key = (
             node.slice.value
             if isinstance(node.slice, ast.Constant)

@@ -135,7 +135,7 @@ class PythonInvocations:
         """A source call preserves return demand independently of its transitive effects."""
         if self.summarizing:
             summary = self.summaries[self.summarizing[-1]]
-            summary.calls.append(
+            summary.record(
                 EffectCall(
                     BindingValue(targets=frozenset({definition.key})),
                     args,
@@ -199,7 +199,7 @@ class PythonInvocations:
                 for value in (callee, *args, *keywords.values())
             )
         ):
-            self.summaries[self.summarizing[-1]].calls.append(
+            self.summaries[self.summarizing[-1]].record(
                 EffectCall(callee, args, keywords, node, path, scope.name)
             )
 

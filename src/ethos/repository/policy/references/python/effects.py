@@ -439,7 +439,7 @@ class PythonConsumption:
         """Observe executable selection separately from process-visible arguments."""
         if self.sources is not None and self.sources.invocations.summarizing:
             summary = self.sources.invocations.summaries[self.sources.invocations.summarizing[-1]]
-            summary.calls.append(
+            summary.record(
                 EffectCall(
                     BindingValue(targets=frozenset({target})),
                     (executable or BindingValue(unknown=True), value)

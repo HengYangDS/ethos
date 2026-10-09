@@ -51,6 +51,12 @@ class MemberRead:
     later: bool = False
 
 
+type EffectEdge = tuple[
+    tuple[ast.expr, str, str, BindingValue, tuple[BindingValue, ...]],
+    tuple[tuple[str | None, BindingValue], ...],
+]
+
+
 @dataclass(slots=True)
 class EffectSummary:
     """Tracked native effects, parameterized calls and externally observable footprints."""
@@ -69,6 +75,7 @@ class EffectSummary:
         default_factory=lambda: BindingValue(deferred=True, unknown=True, context_limited=True)
     )
     observation: PythonConsumption | None = None
+    edges: set[EffectEdge] = field(default_factory=set)
     pending: tuple[
         tuple[
             ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
@@ -78,6 +85,14 @@ class EffectSummary:
         ],
         ...,
     ] = ()
+
+    def record(self, call: EffectCall) -> None:
+        """Keep one edge per site and actual values; loop passes re-derive equal edges."""
+        site = (call.node, call.path, call.scope, call.callee, call.arguments)
+        edge = (site, tuple(call.keywords.items()))
+        if edge not in self.edges:
+            self.edges.add(edge)
+            self.calls.append(call)
 
 
 def bound_arguments(

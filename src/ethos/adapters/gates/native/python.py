@@ -417,6 +417,7 @@ def _behavior(
         raise ValueError(msg)
     _, subjects = observe_quality_subjects(root, language="python", expected_tree=evidence.tree)
     source = tuple(subject.path for subject in subjects if subject.requires_behavior)
+    cast("dict[str, object]", observation["quality_evidence"])["selected_paths"] = list(source)
     tests = _outputs(execution, "junit-xml")
     events = _outputs(execution, "pytest-jsonl")
     coverage = _outputs(execution, "coverage-xml")

@@ -16,6 +16,7 @@ from ethos.adapters.gates.python_quality import behavior_report
 from ethos.adapters.gates.python_quality import static_report
 from ethos.adapters.gates.runner import LocalGateRunner
 from ethos.adapters.gates.verification import NativeExecution
+from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_execution_identity
@@ -205,6 +206,13 @@ def test_native_nox_reports_qualify_the_original_attempt(tmp_path: Path) -> None
     reports = [item["report"] for item in providers]
     assert reports[0]["tests"]["total"] == 3
     assert reports[0]["coverage"]["combined_percent"] == 100
+    _, subjects = observe_quality_subjects(tmp_path / "repo", language="python")
+    assert reports[0]["quality_evidence"]["selected_paths"] == [
+        subject.path for subject in subjects if subject.requires_behavior
+    ]
+    assert reports[1]["quality_evidence"]["selected_paths"] == [
+        subject.path for subject in subjects
+    ]
     assert reports[1]["quality_evidence"]["axis"] == "static-analysis"
     assert reports[0]["native"]["same_attempt"] is True
     artifact_value = result.verification["native_artifact"]

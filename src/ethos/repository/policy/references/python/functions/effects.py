@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import inspect
 import itertools
 import shlex
@@ -12,6 +13,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.repository.policy.references.python.bindings import AggregateIdentity
+from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.bindings import LexicalRead
 from ethos.repository.policy.references.python.bindings import MemberDemand
@@ -20,9 +22,6 @@ from ethos.repository.policy.references.python.native.scalars import concatenate
 from ethos.repository.policy.references.python.native.scalars import native_scalar
 
 if TYPE_CHECKING:
-    import ast
-
-    from ethos.repository.policy.references.python.bindings import BindingScope
     from ethos.repository.policy.references.python.effects import PythonConsumption
     from ethos.repository.policy.references.python.functions.custody import InvocationCustody
     from ethos.repository.policy.references.python.functions.returns import FunctionDefinition
@@ -415,6 +414,30 @@ def selected_key(demand: MemberDemand) -> str | int | None:
     return key
 
 
+def stored(
+    current: BindingValue, node: ast.expr, key: BindingValue, value: BindingValue, *, strong: bool
+) -> BindingValue:
+    """Apply one native subscript store to an exact mapping slot or ordered sequence index."""
+    name = next(iter(key.strings)) if len(key.strings) == 1 else None
+    if current.entries is not None and name is not None:
+        entries = dict(current.entries)
+        old = entries.get(name, BindingValue(unknown=True))
+        entries[name] = value if strong else old.join(value)
+        return replace(current, entries=tuple(entries.items()))
+    if current.items is None or isinstance(node, ast.Slice) or key.strings:
+        return BindingValue(unknown=True)
+    try:
+        index = ast.literal_eval(node)
+    except ValueError:
+        index = None
+    items = list(current.items)
+    if type(index) is not int:
+        return replace(current, items=tuple(item.join(value) for item in items))
+    if -len(items) <= index < len(items):
+        items[index] = value if strong else items[index].join(value)
+    return replace(current, items=tuple(items))
+
+
 def native_member(
     value: BindingValue, demand: MemberDemand, scope: BindingScope, observer: PythonConsumption
 ) -> BindingValue:
@@ -541,7 +564,7 @@ def supplied(
     missing = [(key, value) for key, value in custody if scope.member_binding(key) is None]
     if not missing:
         return scope
-    edge = scope.fork()
+    edge = BindingScope(scope.name, parent=scope, kind=scope.kind)
     for key, value in missing:
         edge.members[key] = edge.member_history[key] = value
     return edge

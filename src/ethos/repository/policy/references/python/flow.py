@@ -5,7 +5,6 @@ from __future__ import annotations
 import ast
 from dataclasses import dataclass
 from dataclasses import field
-from dataclasses import replace
 from functools import singledispatchmethod
 from importlib.util import resolve_name
 from typing import TYPE_CHECKING
@@ -17,6 +16,7 @@ from ethos.repository.policy.references.python.bindings import MemberDemand
 from ethos.repository.policy.references.python.control import PythonControlFlow
 from ethos.repository.policy.references.python.effects import PythonConsumption
 from ethos.repository.policy.references.python.functions.effects import project
+from ethos.repository.policy.references.python.functions.effects import stored
 from ethos.repository.policy.references.python.native.scalars import concatenate
 from ethos.repository.policy.references.python.syntax import LexicalBindings
 from ethos.repository.policy.references.python.syntax import NativeScopes
@@ -297,24 +297,12 @@ class PythonReferenceFlow:
         if self.sources is not None:
             self.sources.invocations.note_mutation(scope, owner)
         key = self.expression(target.slice, scope)
+        strong = len(owner.aggregates) == 1 and not (
+            owner.unknown or owner.deferred or key.unknown or key.deferred
+        )
         for identity in owner.aggregates:
-            current = scope.member(identity)
-            if current.entries is not None and len(key.strings) == 1:
-                entries = dict(current.entries)
-                name = next(iter(key.strings))
-                entries[name] = (
-                    value
-                    if len(owner.aggregates) == 1
-                    and identity not in scope.summarized
-                    and not (owner.unknown or owner.deferred or key.unknown or key.deferred)
-                    else entries.get(name, BindingValue(unknown=True)).join(value)
-                )
-                scope.assign_member(
-                    identity,
-                    replace(current, entries=tuple(entries.items())),
-                )
-            else:
-                scope.assign_member(identity, BindingValue(unknown=True))
+            current, exact = scope.member(identity), strong and identity not in scope.summarized
+            scope.assign_member(identity, stored(current, target.slice, key, value, strong=exact))
 
     @singledispatchmethod
     def expression(self, node: ast.AST, scope: BindingScope) -> BindingValue:

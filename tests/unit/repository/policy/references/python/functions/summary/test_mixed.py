@@ -66,8 +66,25 @@ def test_container_pack_keeps_concrete_items_beside_symbolic_sibling() -> None:
         ("overlay([os.environ], env)", {"C"}),
         ("overlay(env, [os.environ])", {"C"}),
         ("box = [os.environ]\n    box[0] = {}\n    overlay(box, env)", set()),
+        ("box = [{}]\n    box[0] = os.environ\n    overlay(box, env)\n    box[0] = {}", {"C"}),
+        ("box = [{}]\n    box[-1] = os.environ\n    overlay(box, env)", {"C"}),
+        (
+            "box = [{}]\n    overlay(box, env)\n    box[0] = os.environ\n    overlay(box, env)",
+            {"C"},
+        ),
+        ("box = [{}]\n    box[3] = os.environ\n    overlay(box, env)", set()),
+        ("box = [{}]\n    box[len(env)] = os.environ\n    overlay(box, env)", {"C"}),
     ],
-    ids=["actual", "reversed", "replaced-before-call"],
+    ids=[
+        "actual",
+        "reversed",
+        "replaced-before-call",
+        "replaced-after-call",
+        "negative-index",
+        "later-call",
+        "out-of-range",
+        "dynamic-index",
+    ],
 )
 def test_call_edge_keeps_its_own_allocation_custody(call: str, inputs: set[str]) -> None:
     """An actual caller instantiates callee-local allocations from the call program point."""

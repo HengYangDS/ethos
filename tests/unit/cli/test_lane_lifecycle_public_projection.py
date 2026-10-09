@@ -19,6 +19,33 @@ ARCHIVE_HEAD = "old-head"
 ARCHIVE_CHANGE = "fixture-change"
 
 
+def test_lane_start_forwards_exact_immutable_base(monkeypatch, tmp_path):
+    """The public surface forwards the explicit object without selecting another train."""
+    captured = {}
+    base = "b" * 40
+    monkeypatch.setattr(lifecycle, "resolve_root", lambda _root: tmp_path)
+    monkeypatch.setattr(
+        lifecycle,
+        "start_work_lane",
+        lambda **kwargs: captured.update(kwargs) or {"verdict": "pass", "state": "planned"},
+    )
+    monkeypatch.setattr(lifecycle, "project_lane_result", lambda *_args, **_kwargs: None)
+    lifecycle.start(
+        "maintenance",
+        SimpleNamespace(
+            root=tmp_path,
+            path=None,
+            base=base,
+            holder_ref="agent:test:maintenance",
+            apply=False,
+            command="lane start",
+            json_output=True,
+        ),
+    )
+    assert captured["base"] == base
+    assert captured["root"] == tmp_path
+
+
 @pytest.mark.parametrize("gap", ["proof_not_proven", "full_proof_required"])
 def test_transition_continuations_request_the_admitted_proof_floor(gap):
     """Missing and insufficient proof must not lead through a knowingly weaker run."""

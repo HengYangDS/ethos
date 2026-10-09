@@ -14,12 +14,11 @@ from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.publication.retirement import proposal_retirement_report
 from ethos.adapters.openspec.observation import active_change_names_in_ref
 from ethos.adapters.repo.commit.integration import commit_range_admission_report
-from ethos.adapters.repo.commit.provenance import accepted_provenance
-from ethos.adapters.repo.commit.signature import completed_signature_repair
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.release import accepted_delivery_report
+from ethos.adapters.repo.release import publication_source_baseline
 from ethos.adapters.repo.release import tag_publication_gaps
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
@@ -287,6 +286,7 @@ def publication_proof_admission(
     roles: tuple[str, ...],
     *,
     observed: object = None,
+    attestation_id: str = "",
 ) -> dict[str, object]:
     """Select the strongest actual target obligation without inventing review proof."""
     selections = {publication_proof_selection(role) for role in roles}
@@ -301,13 +301,25 @@ def publication_proof_admission(
         }
     repository_transition = "repository_transition" in selections
     selection = "repository_transition" if repository_transition else "current_commitment"
-    if isinstance(observed, Mapping) and observed.get("selection") == selection:
+    if (
+        isinstance(observed, Mapping)
+        and observed.get("selection") == selection
+        and (
+            not attestation_id
+            or (
+                isinstance(observed.get("attestation"), Mapping)
+                and observed["attestation"].get("id") == attestation_id
+            )
+        )
+    ):
         attestation = observed.get("attestation")
         if observed.get("verdict") != "pass" or (
             isinstance(attestation, Mapping) and attestation.get("commit") == head
         ):
             return dict(observed)
-    return proof_admission_report(root, head, repository_transition=repository_transition)
+    return proof_admission_report(
+        root, head, repository_transition=repository_transition, attestation_id=attestation_id
+    )
 
 
 def push_admission_report(
@@ -345,21 +357,31 @@ def push_admission_report(
         else pushed_head
     )
     branch = target_ref.removeprefix("refs/heads/") if target_ref.startswith("refs/heads/") else ""
-    closeout, closeout_gaps, baseline, baseline_source = _accepted_closeout_baseline(
+    closeout, closeout_gaps, baseline, baseline_source = publication_source_baseline(
         repo,
         policy=current_policy,
         branch=branch,
         role=str(preliminary["role"]),
         proof_head=proof_head,
         remote_head=remote_head,
+        target_ref=target_ref,
+        source_oid=pushed_head,
     )
     accepted_content = False
     observed_proof = options.get("proof_admission")
     if str(preliminary["role"]) in {"release_root", "release_publication"} and closeout:
         observed_proof = publication_proof_admission(
-            repo, proof_head, (str(preliminary["role"]),), observed=observed_proof
+            repo,
+            proof_head,
+            (str(preliminary["role"]),),
+            observed=observed_proof,
+            attestation_id=str(closeout.get("proof_attestation_id") or ""),
         )
-        accepted_content = observed_proof["verdict"] == "pass" and not closeout_gaps
+        accepted_content = (
+            observed_proof["verdict"] == "pass"
+            and not closeout_gaps
+            and closeout.get("operation") != "release.promote"
+        )
     observed, policy = _ref_update_admission(
         repo,
         target_ref=target_ref,
@@ -380,13 +402,15 @@ def push_admission_report(
         remote_name=remote_name,
     )
     if policy != current_policy:
-        closeout, closeout_gaps, _baseline, _source = _accepted_closeout_baseline(
+        closeout, closeout_gaps, _baseline, _source = publication_source_baseline(
             repo,
             policy=policy,
             branch=branch,
             role=role,
             proof_head=proof_head,
             remote_head=remote_head,
+            target_ref=target_ref,
+            source_oid=pushed_head,
         )
     commits = cast("dict[str, object]", observed["commit_policy_admission"])
     proof = (
@@ -399,7 +423,13 @@ def push_admission_report(
             "next_action": "",
         }
         if ref_admission["enforcement_gaps"]
-        else publication_proof_admission(repo, proof_head, (role,), observed=observed_proof)
+        else publication_proof_admission(
+            repo,
+            proof_head,
+            (role,),
+            observed=observed_proof,
+            attestation_id=str((closeout or {}).get("proof_attestation_id") or ""),
+        )
     )
     proof_gaps = list(string_sequence(proof.get("required_gaps")))
     repaired = commits.get("update_kind") == "repair"
@@ -462,71 +492,3 @@ def push_admission_report(
         "required_gaps": gaps,
         "next_action": str(proof.get("next_action") or ""),
     }
-
-
-def _accepted_closeout_baseline(
-    repo: Path,
-    *,
-    policy: BranchRolePolicy,
-    branch: str,
-    role: str,
-    proof_head: str,
-    remote_head: str,
-) -> tuple[dict[str, object], list[str], str, str]:
-    """Bind protected publication to its accepted effect and initial-range baseline."""
-    release = role in {"release_root", "release_publication"}
-    required = (
-        branch == policy.accepted_branch
-        or release
-        or (
-            remote_head in _ZERO_OIDS
-            and publication_proof_selection(role) == "repository_transition"
-        )
-    )
-    if release and git_stdout(repo, "rev-parse", policy.accepted_branch) != proof_head:
-        return {}, ["release_source_not_current_accepted"], "", ""
-    if not required:
-        return {}, [], "", ""
-    accepted_ref = f"refs/heads/{policy.accepted_branch}"
-    try:
-        closeout = accepted_provenance(
-            repo,
-            accepted_ref=accepted_ref,
-            candidate_ref=f"refs/heads/{policy.candidate_branch}",
-            head=proof_head,
-        )
-    except ValueError as error:
-        return {}, [str(error)], "", ""
-    if closeout is None:
-        repair = completed_signature_repair(repo, new=proof_head)
-        if repair is not None and accepted_ref in cast("Mapping[str, str]", repair["refs"]):
-            return (
-                {
-                    "attestation_id": repair["attestation_id"],
-                    "plan_digest": repair["plan_digest"],
-                    "accepted_ref": accepted_ref,
-                    "accepted_before": repair["old"],
-                    "candidate_head": proof_head,
-                    "operation": "commit.identity-replace",
-                },
-                [],
-                "",
-                "",
-            )
-        return {}, ["accepted_closeout_effect_not_attested"], "", ""
-    plan, attestation = closeout.plan, closeout.attestation
-    accepted_before = closeout.previous_head
-    projection = {
-        "attestation_id": attestation.id,
-        "plan_digest": plan.digest,
-        "accepted_ref": accepted_ref,
-        "accepted_before": accepted_before,
-        "remote_head": remote_head,
-        "candidate_head": proof_head,
-        "provenance": closeout.projection(),
-    }
-    return (
-        (projection, [], "", "")
-        if remote_head not in _ZERO_OIDS
-        else (projection, [], accepted_before, "accepted_closeout_effect")
-    )

@@ -67,7 +67,8 @@ def pending_merge(tmp_path: Path) -> Path:
 
 
 @pytest.mark.parametrize(
-    "case", ["valid", "missing", "corrupt", "unrelated", "historical", "ambiguous"]
+    "case",
+    ["valid", "missing", "corrupt", "unrelated", "historical", "ambiguous", "independent-base"],
 )
 def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     tmp_path, monkeypatch, case
@@ -88,10 +89,11 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     ref = f"refs/heads/{branch}"
 
     def start(head):
-        git(repo, "update-ref", "refs/heads/candidate/dev", head)
+        candidate_head = side if case == "independent-base" else head
+        git(repo, "update-ref", "refs/heads/candidate/dev", candidate_head)
         effect = GitEffect(
             updates={ref: GitRefUpdate(expected="0" * len(head), desired=head)},
-            assertions={"refs/heads/candidate/dev": head},
+            assertions={"refs/heads/candidate/dev": candidate_head},
         )
         plan = compile_observed_git_effect(
             repo,
@@ -121,14 +123,14 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
             )
         replacement = () if case == "missing" else (record,)
         monkeypatch.setattr(
-            "ethos.adapters.openspec.selection.read_attestation_set",
+            "ethos.adapters.repo.commit.provenance.read_attestation_set",
             lambda _root: (selected_root, replacement),
         )
         if case == "unrelated":
             git(repo, "checkout", "-b", "work/other")
     rows = [{"name": "active", "status": "in-progress"}]
     revision = base if case == "historical" else merge
-    expected = "active" if case in {"valid", "historical"} else None
+    expected = "active" if case in {"valid", "historical", "independent-base"} else None
     selected, gap = resolve_change_selection(rows, None, root=repo, tree_ref=revision)
     assert selected == expected
     gaps = [gap] if gap else []

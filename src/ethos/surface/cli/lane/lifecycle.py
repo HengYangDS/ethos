@@ -76,6 +76,7 @@ class _RefreshBase(AppliedLaneCommandOptions):
 class _Start(AppliedLaneCommandOptions):
     command = "lane start"
     path: Annotated[str | None, Parameter(name="--path")] = None
+    base: Annotated[str | None, Parameter(name="--base")] = None
     holder_ref: Annotated[str, Parameter(name="--holder-ref")]
 
 
@@ -315,6 +316,7 @@ def start(
         name=name,
         path=Path(options.path) if options.path is not None else None,
         holder_ref=options.holder_ref,
+        base=options.base,
         apply=options.apply,
     )
     project_lane_result(

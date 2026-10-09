@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from ethos.repository.policy.references.python.bindings import BindingValue
@@ -74,8 +75,10 @@ def escaped_capabilities(
                         arguments[name] = (
                             BindingValue(element=value.iterated().join(runtime))
                             if value.items is not None
+                            else replace(value, unknown=True)
+                            if name in packs
                             else runtime.join(value)
-                            if name in named or name in packs
+                            if name in named
                             else value
                         )
                 observed = type(observer)(definition.flow.path, observer.npm_scripts, sources)

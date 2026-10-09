@@ -12,7 +12,9 @@
       The reviewed semantic slice replaces 818 superseded owner ELOC without a
       new dependency; measured +3,489 product/+3,526 test ELOC preserves public
       falsifiers and custody controls. One authorized 5,000-line step per class
-      raises native ceilings to 60,000/70,000; coverage stays fixed.
+      raised the then-selected ceilings to 60,000/70,000; coverage stays fixed.
+      The current native declaration is 65,000/70,000 in
+      `.config/checks/format/selection.toml`; that declaration owns the budget.
       The later user-directed per-file ceiling is 512.
       Preserve the failed budget and exact delta receipts in
       `quality-tool-comparison-2f8yn77j/results/semantic-freeze-{size-budget,complexity-delta}-20261006-09{20,24}.json`.
@@ -118,6 +120,16 @@
   - [x] 7.11.1 Qualify compatible operator mise supply and native PowerShell environment isolation through exact source and runtime delivery.
   - [ ] 7.11.2 Qualify the GitHub-hosted-only matrix and source-derived emulator mapping; retire dedicated-runner and inherited-hook projections, verify GitLab digest-bound supply, and distinguish the bootstrap transport failure in 5.11 from version admission and ACL conformance. Fault-test each selected Forge's complete required graph on a cold runner while the peer's registry and release endpoints are unavailable; current ETHOS and AIGW GitLab images depend on GHCR.
 - [ ] 7.12 Qualify semantic CI job partitions and native successful-pipeline merge enforcement.
+      DDWG's selected external `7a235eaa` contains `compile_projections` but lacks
+      `SourceContract` and the provenance integrity provider. Accepted `947cd020`
+      is now pinned by its native owner as external host supply with exact wheel
+      `2a2fc9fa`; relocated CLI/owner reads and a disposable public hook install
+      pass in 7.08 seconds. The consumer uses shared bytes, not a per-repository
+      runtime; its exact scratch is removed. DDWG rebind, typed JSON/TOML and
+      complete output-group acceptance remain open. Evidence:
+      `accepted-provider-{external-pin,native-install}-20261010.receipt.json`.
+      Use the matching installed entry, not ETHOS's private Git runtime, and
+      never copy authoritative JSON into a second TOML carrier.
 - [ ] 7.13 Qualify runner capacity and dependent-pipeline observation with bounded acquire, terminal readback and original-state restoration; distinguish paused, offline and tag mismatch without repository-specific VM control.
 
 ## 8. Trusted Verification and Result Admission
@@ -134,6 +146,10 @@
 - [ ] 8.10 Verify one-attempt Allure 3 human/Agent reports alongside native JUnit/coverage, complete per-property reports, explicit product/test/tooling type-check scopes, cross-platform admission and warning propagation with native falsifying cases.
 - [ ] 8.11 Reject tracked-document links satisfied only by ignored/untracked host bytes; use native link syntax plus selected-tree or verified published-artifact membership and retain valid local targets.
 - [ ] 8.12 Make native source inventory failure observable and include nonignored candidate files in early size checks; reject empty Markdown selection, nested rule override and malformed system-schema report loss; replay corresponding public positive/negative cases.
+      Portable measurement remains open: `product` is a declaration label, but
+      the current owner requires Python-shaped aggregates and ambient SCC
+      selection. Qualify carrier/language applicability and native tool binding
+      there rather than copying a metrics gate into an adopter.
 - [ ] 8.13 Verify formatter write and nonmutating check commands against actual native session discovery and effective configuration; reject missing `format` sessions, write-as-check and disabled-rule false green at the format ownership gate.
 
 ## 9. Startup and Structural Simplification
@@ -370,6 +386,83 @@
         preserve code/document/release applicability and trusted-prior floors. Product
         context supplies principles without user retelling: rules own obligations,
         Skills route methods, and actual Agent adherence requires separate evidence.
+        October 10 native gate composition closes the reproduced single-versus-union
+        mismatch at the existing resolver. Target declarations retain id precedence,
+        proof floors and quality ownership; only demanded product gates and dependencies
+        join execution, with installed `@ethos/` provider sources. Starter compilation
+        reads the target registry once and no longer copies the fallback policy.
+        Local-source purpose applies to imported audit commands as well as native ones.
+        Distinguishing RED controls retain profile-loss, mixed-selection and purpose
+        failures. The 218 affected consumer controls pass in 148.66 seconds; after
+        removing the repeated registry read, all 39 owner/public controls pass in
+        6.41 seconds. Actual public plan and two-gate CLI execution pass; stale HEAD
+        and a target-owned retired schema block. These are host observations without
+        Attestation, not accepted or installed product delivery. Same-attempt Allure 3
+        reports match JUnit, generated without pytest replay in 0.96/0.49 seconds.
+        Evidence: `semantic-demand-closure-20261009/native-gate-*20261010*`
+        and `native-gate-same-attempt-allure-20261010.json`. Claude's 216 prior controls
+        identified the starter gap but did not qualify union composition; the copied
+        fallback is removed. The no-op member experiment is withdrawn with exact
+        preimages restored; no full-proof speedup is claimed. Exact proof and installed
+        shared-quality delivery remain open. AIGW's reported mixed-Change freeze is
+        closed separately by its original signed `git commit --only` partial-index
+        contract, not a runtime patch: secondary `2fac7b7f` preserves the full staged
+        tree, then primary `91546b27` completes. Fresh October 10 02:10 +08 readback
+        sees successor `cc4ddf9a` clean, not continued cleanliness of the historical HEAD.
+        No AIGW source was written here. Signed gate-composition source is `f80f95ef`,
+        tree `243dea8e`; exact four-path commit and signature are verified. Its incumbent
+        full readiness has only `full_proof_requires_execute`, not a reader mismatch.
+        Claude's original bounded takeover ended after 1797.53 seconds: identical
+        fixed-point edges are recorded once in signed `1c6804c55`. Paired 276-file
+        medians improve 20.5 to 16.6 seconds; 565 reference controls pass, without a
+        full-proof performance claim. Exact `ed824d422` proof then blocks left after
+        144.90 seconds, before tests/build, on one private-helper test import and
+        15 required semantic uncertainties. Signed `dac0d850b` removes declaration
+        mutation across execution purposes and tests first-Change resources through
+        the public journey: 36 controls pass; same-attempt Allure/JUnit agree 36/36;
+        source readiness retains only `full_proof_requires_execute`.
+        Claude's 03:09 continuation ends normally after 1285.79 seconds: a missing
+        parameter-subscript edge is repaired in signed `3e68ee814`, exposing two
+        previously hidden Git input uncertainties, not closing the original 15.
+        Its 568 reference controls pass; main's 57 consumer and three AST-identical
+        moved cases pass within 512 ELOC. The new regression belongs in the existing
+        summary directory, not a suffix-flat module. Signed `edc3ec453` bounds
+        context widening per procedure, preventing a busy function from erasing
+        unrelated known inputs; 570 reference controls and both discriminators pass.
+        Signed `318159e44` fixes native CI child-PATH selection by executing its
+        resolved absolute locator; real RED and frozen-final 10 controls pass,
+        with same-attempt Allure/JUnit parity. Both are source-qualified only.
+        The first partial candidate is withdrawn despite nine local passes:
+        its apparent 18-to-15 UNKNOWN reduction hid real Git environment reads.
+        Claude's original 04:44:34 +08 window ends normally after 685.50 seconds;
+        its revised candidate has 583 passing controls and 18-to-14 distinct gaps,
+        with all 17 abandonment inputs retained. Main and independent Astra then
+        reject that candidate: native-invalid partial calls become false-known
+        reads, and nested concrete containers lose inputs without UNKNOWN.
+        Claude's repaired native signature binding, concrete/symbolic projection
+        and call-point allocation custody are signed in `944226a50`: 599 reference
+        controls and 106 independent controls pass; the real Git admission carrier
+        retains all 17 inputs in 6.10 seconds. Signed `645896e26` adds native
+        sequence-store custody and a small parent overlay instead of a whole-scope
+        copy: 604 reference controls pass in 5.35 seconds, with 14 independently
+        replayed controls. All 27 inherited paths remain byte-identical; signatures
+        are valid. These are source-qualified repairs, not accepted delivery.
+        Symbolic `**kwargs.values()`/`items()` propagation, slice/selector uncertainty,
+        whole-repository closure and full proof remain open. Claude owns the next
+        bounded mapping-view repair; no unchanged full proof repeats. Evidence:
+        `semantic-callpoint-signed-source-20261010.receipt.json`,
+        `semantic-store-signed-source-20261010.receipt.json`,
+        `semantic-store-claude-references-20261010.xml` and
+        `semantic-mapping-view-claude-20261010.*`.
+        Astra rejects wildcard waivers and UNKNOWN-to-deferred laundering;
+        exact indexed-set validation may prove input closure without a count cap.
+        Resource bounds and semantic completeness are separate obligations.
+        Evidence: `semantic-{owner-context,ci-locator}-commit-20261010.json`,
+        `semantic-ci-locator-frozen-final-20261010/`,
+        `semantic-partial-claude-receipt-20261010.json`, and
+        `semantic-substitution-claude-execution-lead-20261010.*`.
+        Original failed receipts remain; no unchanged full proof repeats.
+        Full proof, accepted runtime and installed-product delivery remain open.
         Native Ruff, exact-HEAD subjects, invocation identity, pytest-cov and native uv
         selection are source-implemented; prior installed observations are independently
         corroborated, not accepted delivery. Node+c8 now retains one test, explicit
@@ -603,9 +696,90 @@
         the original 180 + 435 cases and source-bound allocation/timing evidence;
         discovery's 77 cases were already included. Its mistaken repeated run
         is not additional progress. Ruff/format/Ty and selected native layout
-        pass; source signing, installed observation and full proof stay distinct.
+        pass; signed source `0976ad9c` preserves that complete slice. Installed
+        observation and full proof stay distinct.
         See `semantic-demand-closure-20261009/semantic-coherence-*` and the
         existing [research conclusions](../../../docs/research/modern-engineering-foundations.md#october-9-computation-and-native-effect-findings).
+        **Independent maintenance base:** the existing public lane start accepts
+        an exact trusted commit OID without moving candidate or using historical
+        policy. Native creation and compensation keep base updates separate from
+        current candidate assertions; the birth reader consumes that same effect.
+        Five public/native RED cases and actual trust-revocation and current-identity
+        RED cases select the owning fix; all 61 selected cases pass in the original
+        attempt and are not replayed. Isolated signed source `c5af28a2`, tree
+        `9f2a14a7`, has parent `edd40436` and only ten declared maintenance paths;
+        the real index, refs and unrelated work remain unchanged. One offline
+        build takes 18.343 seconds with native supply by reference. Its wheel
+        SHA256 is `e8f1a8472eed5ed4b2907e0558fe06a04388250e11ae2198889d574f3b485c52`;
+        only three production modules, the corresponding command reference and
+        build identity differ from the predecessor; other product bytes and modes
+        match. Owned build scratch is absent. The exact package and native
+        bootstrap commands are delivered to AIGW's owner. Its native install,
+        dependency check and hook activation pass with runtime `38d3e412`;
+        actual preview/apply creates the historical lane at `d288eb5f` without
+        changing protected or candidate refs. Metadata-only admission selects
+        official `openspec new change`; the earlier three-document invocation
+        is not evidence that intake needs another implementation. Actual source
+        prewrite reproduced a block on inherited strict-validation warnings
+        despite the selected maintenance Change passing; exact corrective-carrier
+        admission also refused the combined old-Change/spec repair. Signed minimal
+        successor `d95f4961`, tree `49ed1adc`, extends `c5af28a2` at three production
+        and two regression paths. The target RED fails correctly; 138 current and
+        archive controls pass, and the real native CLI journey admits exact combined
+        repairs, refuses unrelated source, then admits source only after strict
+        postimage validation. Ruff/Ty pass; the five files remain below 512 ELOC.
+        Shared finding/path logic stays in the existing validation owner. One
+        offline build takes 7.488 seconds, wheel SHA256
+        `490e2af393585a614ea65c1a84cf3c19dbc392ecd242a2c9273ba370ff08dbbd`;
+        independent custody verifies source, package identity, bytes and modes.
+        Build/index scratch is absent. AIGW's original owner activates runtime
+        `9561bed7`: exact four-carrier prewrite passes, uncorrected source remains
+        refused, official strict validation passes 12/12 with no issues, then the
+        exact source-test prewrite passes. Native installed payload and the original
+        refusal are independently verified. This closes the repair admission cycle
+        within the user's one-hour boundary; it does not accept new business source.
+        The full public file subsequently reveals an old INFO-level fixture assumption:
+        current native OpenSpec emits strict WARNING. Its test-only correction passes
+        119 cases and preserves INFO reader controls; unchanged product bytes are not
+        rebuilt. Do not weaken validation, delete prior meaning or refresh into current candidate. Exact
+        proof, source acceptance and independent tag-only release remain open.
+        **Maintenance release owner, 2026-10-10:** the public `--release-base`
+        relation admits only native maintenance source with accepted-base
+        provenance, current range/signature policy, exact proof and live Lease.
+        Existing tag CAS, peer publication and native recovery remain the owners;
+        protected branch trains are assertions, not updates. Independent review
+        exposed a renewal interleaving: the genuine RED created a tag after G1
+        changed to G2. Compilation now carries the proof's G1 and compares it
+        again; final native CAS independently rechecks it. Publication binds the
+        original proof and accepted-effect IDs; roles match current accepted
+        committed policy. Ruff/Ty pass; no ELOC budget changes. Earlier public
+        dual-peer and recovery acceptance is retained. The 110-case owner run
+        reports 73 PASS and one migrated test-injection failure; only affected
+        cases are rerun. Signed transport `3007c89b`, tree `fba60152`, extends
+        `d95f4961` at 13 exact paths without moving HEAD, refs or the real index.
+        Native offline wheel takes 8.698 seconds, SHA256
+        `24df394f39839d8e6a19262bde929de47e8977725a2c8508078768f4bd1f8cca`;
+        10 production files match exact signed source bytes; source/index scratch
+        is absent. Canonical focused acceptance has 23 PASS and one failure:
+        all nine maintenance journeys pass. The remaining plan fixture sees
+        unknown starter-rule gates only with the unrelated, unaccepted
+        gate-definition rewrite. An isolated Git checkout of exact signed source
+        `3007c89b` with the locked official OpenSpec supply, selected through
+        `ETHOS_NODE_PACKAGE_SUPPLY`, passes that single case; imports resolve
+        inside the isolated source and its scratch is absent. That owner is
+        unchanged. Fresh public maintenance acceptance now passes 9/9 in 278.69
+        seconds; Allure 3 renders the same attempt in 1.12 seconds with 9/9 JUnit
+        parity, no test replay and owned scratch absent.
+        Evidence: `semantic-maintenance-all-public-controls-20261010/terminal.json`
+        and its `report-qualification.json`. A separate minimal inherited-intent
+        attempt during Claude's source writes is unproved: the runtime build
+        fence correctly reports `runtime_build_stale`. Preserve that failed
+        receipt; source-identity-dependent acceptance waits for writer quiescence,
+        never a disabled fence or repeated concurrent test.
+        Original adopter activation and actual release remain open until their
+        receipts exist. Evidence:
+        `semantic-demand-closure-20261009/maintenance-*-20261010.*`.
+        Evidence: `semantic-demand-closure-20261009/{historical-base-*,combined-official-repair-*}`.
     - [x] 13.4.2.1 Deliver the isolated signed finite-input repair through the native wheel/runtime owner; qualify public admission, independent byte custody and the original AIGW implicit hook and DDWG proof consumers. This closes their hang, not full-proof, release or whole-product acceptance.
   - [ ] 13.4.3 Close owner-confirmed historical attribution and peer readback through exact corrections and recoverable originals. Current author-header repair is accepted and installed; retain the three platform committer records after verified original GitHub web-flow signatures. False Junie coauthor, exact proof, peer publication and old PR-reference disposition remain open; future genuine contributors are not constrained.
     - **Facts, 2026-10-09 02:33 +08:00:** accepted source is `1e6fd8ee`; candidate
@@ -795,6 +969,80 @@ native-minimum-refined-budget,native-minimum-refined-prewrite}-20261009.json`.
       No new Change, lane, scanner or package-name exception. Evidence:
       `native-nox-owner-20261009/{native-minimum-full-proof-bounded-cancellation,
 advisory-owner-finished-regression,direct-user-supply-advisory-instruction}-20261009*`.
+    - **Execution correction, 2026-10-09 15:25 +08:00:** signed maintenance
+      `693c15f2` / tree `25c96006` remains unaccepted source. Native development
+      package qualification is distinct from release-source proof. Official
+      offline uv/Hatch builds the complete 59,981,688-byte wheel in 7.73 seconds,
+      SHA256 `e0c10db4...99c0c160`. The first installed journey fails at 123.68
+      seconds because its source-owned reader still requires retired `data/skills`.
+      Fresh admitted repair references native resource constants and the existing
+      guidance authority/hash check: two RED failures become four GREEN cases;
+      17 related command cases pass. The same wheel now executes the complete
+      native installed journey, including first Change and Agent handoff; no
+      release, installed-successor or adopter claim is made before terminal evidence.
+      Separately, the real product gate ends BLOCK at its 310-second deadline.
+      Profiling selects repeated source-registry enumeration and effect substitution,
+      not downloads, locks or worker count. Proven native-list length is corrected
+      (77 focused cases); custom/unknown protocols stay refused or UNKNOWN.
+      Reuse exact maintenance bytes for delivery, optimize the measured owner,
+      then freeze for one necessary semantic proof. Keep original failures and
+      delete only each released owned scratch. Evidence:
+      `native-nox-owner-20261009/maintenance-693c-complete-native-qualification-20261009/`
+      (`build-canonical.terminal.json`, `fixture-green.json`, `fixture-commands.json`,
+      `install-smoke-resources.terminal.json`, `source-target-membership-cost.json`) and
+      `native-length-topology-20261009T070434Z/receipt.json`.
+    - **Delivery and failure-left correction, 2026-10-09 16:02 +08:00:** the
+      same signed maintenance wheel reaches native first-Change, handoff and
+      greenfield/brownfield activation, then fails after 218.93 seconds because
+      its source-owned staged formatter probe omits required configuration.
+      Repair that exact caller; on Proxy's independently selected immutable
+      `e5e8392d` runtime the minimal actual probe passes in 1.71 seconds, preserves
+      staged/working bytes and leaves no owned scratch. This is not complete
+      installed acceptance. Proxy's public hook installation passes in 26.26
+      seconds; its later document admission exposes a real native profile gate
+      declaration omission. One typed profile selects inline or registry gates;
+      the reference owner now consumes that same declaration, without an added
+      command allowlist, copied adopter rules or relaxed proof. Two native-owner
+      RED failures become GREEN; 608 related cases, same-attempt JUnit/Allure,
+      Ruff/format/Ty and exact source-bound patch admission pass. The original
+      15-document Proxy patch on immutable `e12f66d6` replays PASS without mutation.
+      Commit only those two owned files as signed `1b6a0ef1` / tree `266098a2`;
+      retain all 21 unrelated dirty files by hash. Official offline uv/Hatch
+      builds the complete maintenance wheel in 8.93 seconds, SHA256
+      `6edcb831...6a03d50b`; compared with `693c15f2`, only the declarations owner
+      and build identity change among product members. This is maintenance source,
+      not accepted integration, release or completed product. Public successor
+      install/readback and complete installed journey remain required. Native
+      package-role and import-mapping peer failures remain separate, unverified
+      source obligations; do not turn report/performance work into dependencies
+      of downstream delivery. Owned build/test scratch is removed, original
+      failures and currently consumed predecessor supply remain retained.
+      Evidence: `native-nox-owner-20261009/profile-native-gate-declarations-20261009/`
+      (`owner-native-scope.admission.json`, `actual-proxy-patch-source.json`,
+      `final.json`, `wheel-qualification.json`, `build.terminal.json`,
+      `focused-cleanup.json`); minimal installed probe:
+      `maintenance-693c-complete-native-qualification-20261009/installed-format-minimal-runtime-e5e839-20261009.json`.
+    - **Native behavior scope closure, 2026-10-09 16:48 +08:00:** Proxy's
+      original matrix completed 6,843 tests with 97.204577% coverage, but its
+      behavior reporter projected all 235 Python subjects instead of the 118
+      requiring behavior. Keep strict expected/observed equality; update only
+      the report's existing source projection. Actual Nox/pytest/coverage RED
+      demonstrates the extra tooling/test subjects; 56 related GREEN cases,
+      native Ruff/format/Ty and original staged commit hooks pass. Original
+      immutable execution bytes requalify in 0.46 seconds with exact 118/118
+      scope and no test replay; this diagnostic is not a new Attestation.
+      Signed maintenance `e448cc7c` / tree `8167cadd` changes only that owner and
+      its regression. Official offline uv/Hatch builds the complete wheel in
+      9.06 seconds, SHA256 `0bf938d8...da062a5a`; only report and build-identity
+      product members differ from `1b6a`. Delivered to the existing Proxy owner
+      for public invoking-package install and one necessary exact proof.
+      Installed successor, accepted integration and release remain unproved.
+      The preceding 443.31-second full installation failure at damaged-selector
+      recovery and AIGW dependency/transport failures remain separate open
+      obligations, not dependencies of this maintenance delivery. Evidence:
+      `native-nox-owner-20261009/native-behavior-subjects-20261009/`
+      (`red.json`, `green.json`, `actual-proxy-native-readback.json`,
+      `commit.json`, `wheel-predecessor-parity.json`, `build.terminal.json`).
   - [ ] 13.4.4 Deliver native stat-cache refresh at the worktree-sync owner; preserve real dirty bytes and qualify public closeout, exact proof and installed behavior. Current focused native owner tests are evidence, not accepted delivery.
     - [ ] 13.4.4.1 Recover materialization from the admitted original plan and Attestation without recompilation or CAS replay; preserve the receipt and qualify the public journey, exact proof and installed replay.
           The original 19-case run failed candidate-sync-loss. The transition/primitive
@@ -803,5 +1051,24 @@ advisory-owner-finished-regression,direct-user-supply-advisory-instruction}-2026
           consumer was reproduced RED and migrated; 166 related native consumers now
           pass in 109.01 seconds. Exact proof and installed replay remain open. Evidence:
           `native-carrier-applicability-e34/original-readiness-green.{log,junit.xml,exit}`.
+          **Current custody repair, 2026-10-09:** historical CAS replay cannot
+          authorize AIGW candidate `5eef` with retained `cffc` index/worktree.
+          The existing candidate entry now derives fresh materialization admission
+          from one current ref/actor/custody observation, holds native ref assertions
+          and reuses `sync_worktree` without ref movement. Public RED rejects the
+          formerly unsupported operation. Focused legal success, lost-ACK recognition,
+          ref/byte drift, masked/ignored/unsigned refusal and lock/timeout release pass;
+          native Ruff/Ty pass. The first installed replay exposed Git `verify` notifications
+          as old-to-zero tuples, misclassified as protected deletion. Signed maintenance
+          `f3526386` / tree `77a08361` changes only the existing holder to native same-value
+          `prepare`/`abort` assertions and preserves process failure evidence; no ref commit
+          or hook exemption. Original hooked lock/delete/timeout tests pass, with 103
+          unchanged results reused and three corrected public tests passing in 7.15 seconds.
+          One offline wheel build retains every other product member. AIGW's actual native
+          installation, materialization, recognized replay and land readiness now pass;
+          refs/reflogs, the signed retained preimage and unrelated work remain unchanged.
+          This closes that adopter defect, not exact full-product proof or accepted release.
+          Evidence: `semantic-demand-closure-20261009/candidate-native-hook-*` and AIGW's
+          bound `native-packaged-inputs-20261009/candidate-native-hook.*` receipts.
   - [ ] 13.4.5 Deliver exact false-coauthor selection at the existing history owner; preserve every unselected message byte, true contributors, timestamps and ordered parents. Native trailer and signed history tests pass; runtime activation, actual repair and GitHub Commit.authors readback remain open.
   - [ ] 13.4.6 Resume the conserved full-product candidate after attribution closure. Signed checkpoint `6c4584cb6998d0307ef1a08db09c520fb620e74f` retains tree `701996186a5ad660b417004f58fe18523bbd97e3`; `exact-before-refresh.bundle` and the recorded admitted inverse patch preserve every unrelated source, test, contract and canonical-plan change. Isolation is not semantic retirement or completion of those obligations.

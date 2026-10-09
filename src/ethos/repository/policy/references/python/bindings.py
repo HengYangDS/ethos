@@ -224,6 +224,19 @@ class BindingValue:
             projections=frozenset(replace(p, members=(*p.members, need)) for p in self.projections),
         )
 
+    def viewed(self, view: str) -> BindingValue:
+        """Project native mapping keys, values or items as their ordered sequence."""
+        pairs = ((BindingValue(strings=frozenset({key})), item) for key, item in self.entries or ())
+        items = tuple(
+            item
+            if view == "values"
+            else key
+            if view == "keys"
+            else BindingValue(items=(key, item), ordered=True)
+            for key, item in pairs
+        )
+        return replace(self, items=items, entries=None)
+
     def iterated(self) -> BindingValue:
         """Retain a finite element join separately from an exact ordered sequence."""
         result = self.element
@@ -469,17 +482,7 @@ class BindingScope:
         if resolved is None:
             return value
         if value.view and resolved.entries is not None:
-            items = tuple(
-                item
-                if value.view == "values"
-                else BindingValue(strings=frozenset({key}))
-                if value.view == "keys"
-                else BindingValue(
-                    items=(BindingValue(strings=frozenset({key})), item), ordered=True
-                )
-                for key, item in resolved.entries
-            )
-            resolved = replace(resolved, items=items, entries=None)
+            resolved = resolved.viewed(value.view)
         return replace(
             resolved,
             targets=resolved.targets | value.targets,

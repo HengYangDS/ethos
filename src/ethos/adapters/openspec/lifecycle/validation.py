@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import PurePosixPath
 from stat import S_ISREG
 from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.openspec.identifiers import active_change_root
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
 _INFO_SPEC = "openspec_validation_issue:INFO:spec:"
@@ -168,3 +170,165 @@ def canonical_spec_repair_paths(root: Path, official: dict[str, object]) -> tupl
         except OSError:
             return ()
     return paths
+
+
+def failed_validation_item(
+    official: dict[str, object], *, kind: str, identifier: str
+) -> dict[str, object] | None:
+    """Return the unique invalid official item for one semantic identity."""
+    commands = official.get("commands")
+    validate = commands.get("validate") if isinstance(commands, dict) else None
+    payload = validate.get("json") if isinstance(validate, dict) else None
+    items = validation_items(payload) if isinstance(payload, dict) else None
+    if not isinstance(items, list):
+        return None
+    matching = [
+        item
+        for item in items
+        if isinstance(item, dict)
+        if item.get("type") == kind and item.get("id") == identifier and item.get("valid") is False
+    ]
+    return matching[0] if len(matching) == 1 else None
+
+
+def strict_blocking_issue_paths(item: dict[str, object] | None) -> tuple[str, ...] | None:
+    """Return file paths from ERROR/WARNING issues while ignoring INFO guidance."""
+    issues = item.get("issues") if item is not None else None
+    if not isinstance(issues, list) or not issues:
+        return None
+    paths: list[str] = []
+    for issue in issues:
+        if not isinstance(issue, dict):
+            return None
+        level = issue.get("level")
+        if level == "INFO":
+            continue
+        if level not in {"ERROR", "WARNING"}:
+            return None
+        issue_path = _strict_relative_issue_path(issue.get("path"))
+        if issue_path is None:
+            return None
+        paths.append(issue_path)
+    return tuple(paths) or None
+
+
+def resolved_issue_repairs(
+    change_root: str,
+    issue_paths: tuple[str, ...],
+    official_outputs: set[str],
+) -> tuple[str, ...]:
+    """Resolve every validator path against the two official path bases."""
+    repairs: list[str] = []
+    for issue_path in issue_paths:
+        candidates = {
+            f"{change_root}/{issue_path}",
+            f"{change_root}/specs/{issue_path}",
+        }
+        matches = candidates & official_outputs
+        if len(matches) != 1:
+            return ()
+        repairs.extend(matches)
+    return tuple(dict.fromkeys(repairs))
+
+
+def _strict_relative_issue_path(value: object) -> str | None:
+    """Return one canonical POSIX-relative validator path, or fail closed."""
+    if not isinstance(value, str) or not value or value != value.strip() or "\\" in value:
+        return None
+    path = PurePosixPath(value)
+    canonical = path.as_posix()
+    invalid_part = any(part in {"", ".", ".."} for part in path.parts)
+    if path.is_absolute() or canonical != value or invalid_part:
+        return None
+    return canonical
+
+
+def official_regular_file(path: Path) -> bool:
+    """Return whether the exact path is a regular file without following a link."""
+    try:
+        return S_ISREG(path.lstat().st_mode)
+    except OSError:
+        return False
+
+
+def _inherited_validation_items(
+    official: dict[str, object], *, change: str
+) -> list[dict[str, Any]] | None:
+    """Require complete native status, finding identities and strict-gap equality."""
+    commands = official.get("commands")
+    status = commands.get("status") if isinstance(commands, dict) else None
+    validate = commands.get("validate") if isinstance(commands, dict) else None
+    selected = status.get("json") if isinstance(status, dict) else None
+    payload = validate.get("json") if isinstance(validate, dict) else None
+    if not (
+        isinstance(status, dict)
+        and status.get("exit_code") == 0
+        and not status.get("parse_error")
+        and isinstance(selected, dict)
+        and selected.get("changeName") == change
+        and isinstance(validate, dict)
+        and validate.get("exit_code") == 1
+        and not validate.get("parse_error")
+        and isinstance(payload, dict)
+        and set(validation_result_gaps(validate))
+        == set(string_sequence(official.get("required_gaps")))
+    ):
+        return None
+    items = validation_items(payload)
+    if items is None:
+        return None
+    identities = [(item["type"], item["id"]) for item in items]
+    return (
+        items
+        if len(set(identities)) == len(identities)
+        and any(
+            item["type"] == "change" and item["id"] == change and item["valid"] for item in items
+        )
+        else None
+    )
+
+
+def _inherited_item_repair_paths(
+    root: Path, item: dict[str, Any], *, change: str
+) -> tuple[str, ...] | None:
+    """Resolve one native item's exact unlinked carrier without changing its owner."""
+    issue_paths = strict_blocking_issue_paths(item)
+    if issue_paths is None:
+        return None
+    if item["type"] == "spec":
+        path = root.resolve() / f"openspec/specs/{item['id']}/spec.md"
+        return () if path.resolve() == path and official_regular_file(path) else None
+    identifier = item["id"]
+    if identifier == change or logical_change_identifier_issue(identifier):
+        return None
+    directory = active_change_root(identifier)
+    outputs = {
+        candidate
+        for issue_path in issue_paths
+        for candidate in (f"{directory}/{issue_path}", f"{directory}/specs/{issue_path}")
+        if (target := root.resolve() / candidate).resolve() == target
+        and official_regular_file(target)
+    }
+    return resolved_issue_repairs(directory, issue_paths, outputs) or None
+
+
+def inherited_validation_repair_paths(
+    root: Path, official: dict[str, object], *, change: str
+) -> tuple[str, ...] | None:
+    """Bind inherited repairs to complete native findings, never a second intent."""
+    if not any(
+        gap.startswith("openspec_validation_failed:change:")
+        for gap in string_sequence(official.get("required_gaps"))
+    ):
+        return ()
+    items = _inherited_validation_items(official, change=change)
+    if items is None:
+        return None
+    repairs: list[str] = []
+    for item in items:
+        if not item["valid"]:
+            paths = _inherited_item_repair_paths(root, item, change=change)
+            if paths is None:
+                return None
+            repairs.extend(paths)
+    return tuple(dict.fromkeys(repairs))

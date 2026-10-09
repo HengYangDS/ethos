@@ -32,6 +32,8 @@ if TYPE_CHECKING:
 # Each procedure keeps finite precise contexts, then widens only its own arguments.
 OWNER_CONTEXT_LIMIT = 16
 
+MAPPING_VIEWS = {f"builtins.dict.{name}": name for name in ("keys", "values", "items")}
+
 
 @dataclass(frozen=True, slots=True)
 class EffectCall:
@@ -438,13 +440,25 @@ def stored(
     return replace(current, items=tuple(items))
 
 
+def mapping_view(value: BindingValue, target: str) -> BindingValue | None:
+    """Return a closed native mapping view; other receivers are not this contract."""
+    view = MAPPING_VIEWS.get(target)
+    if view is None or value.entries is None or value.targets:
+        return None
+    return value.viewed(view)
+
+
 def native_member(
     value: BindingValue, demand: MemberDemand, scope: BindingScope, observer: PythonConsumption
 ) -> BindingValue:
     """Read one closed native relation, retaining opaque selectors and missing values."""
     key = selected_key(demand)
     if demand.kind == "native_return" and isinstance(key, str):
-        selected = native_scalar(key, (value,), {}) or BindingValue(unknown=True)
+        selected = (
+            mapping_view(value, key)
+            or native_scalar(key, (value,), {})
+            or BindingValue(unknown=True)
+        )
     elif demand.kind == "concatenate":
         other = demand.selector or BindingValue(unknown=True)
         selected = concatenate(value, other) if demand.key == "left" else concatenate(other, value)

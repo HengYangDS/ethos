@@ -28,6 +28,7 @@ class _LandOptions:
     identity_transition: bool = False
     release: bool = False
     release_head: Annotated[str, Parameter(name="--release-head")] = ""
+    release_base: Annotated[str, Parameter(name="--release-base")] = ""
     tag: str = ""
     independent_verification_receipt: Annotated[
         Path | None, Parameter(name="--independent-verification-receipt")

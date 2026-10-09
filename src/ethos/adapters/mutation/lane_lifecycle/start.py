@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
+from ethos.adapters.repo.commit.admission import commit_policy_for_revision
+from ethos.adapters.repo.commit.admission import commit_policy_report
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import ref_head
@@ -25,6 +27,7 @@ from ethos.adapters.repo.runtime.materialization.input_resolution import (
 )
 from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.repo.status.workspace import workspace_status
+from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.adapters.repo.worktree_effects import add_worktree
 from ethos.adapters.repo.worktree_effects import remove_worktree
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
@@ -110,7 +113,7 @@ def _candidate_gap(repo: Path, candidate: dict[str, object]) -> tuple[str, dict[
 
 
 def _admit(
-    repo: Path, *, branch: str, target: Path
+    repo: Path, *, branch: str, target: Path, base: str | None = None
 ) -> tuple[dict[str, object], dict[str, object] | None]:
     status = workspace_status(repo)
     if status["role"] != ROLE_ACCEPTED_ROOT or status["dirty"]:
@@ -125,7 +128,7 @@ def _admit(
     gap, details = _candidate_gap(repo, candidate)
     if gap:
         return {}, _blocked(branch, target, gap, **details)
-    head = str(candidate["head"])
+    head = str(candidate["head"]) if base is None else base
     current_ref = ref_head(repo, branch)
     if current_ref and current_ref != head:
         return {}, _blocked(branch, target, "lane_start_target_ref_exists")
@@ -135,6 +138,28 @@ def _admit(
         if expected not in f"{listed}\n":
             return {}, _blocked(branch, target, "lane_start_target_path_exists")
     return candidate, None
+
+
+def _require_base(repo: Path, base: str | None) -> None:
+    """Admit one exact native commit through today's trust inputs, never historical policy."""
+    if base is None:
+        return
+    if (
+        not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", base)
+        or run_git(repo, "rev-parse", "--verify", f"{base}^{{commit}}", check=False).stdout.strip()
+        != base
+    ):
+        message = "lane_start_base_commit_invalid"
+        raise ValueError(message)
+    policy = commit_policy_for_revision(repo, current_tracked_head(repo))
+    admission = commit_policy_report(repo, policy, base, verify_trust=False)
+    if admission["required_gaps"]:
+        message = ";".join(cast("list[str]", admission["required_gaps"]))
+        raise ValueError(message)
+    trust = verify_commit_trust(repo, base)
+    if trust["verdict"] != "pass":
+        message = ";".join(cast("list[str]", trust["required_gaps"]))
+        raise ValueError(message or "lane_start_base_commit_untrusted")
 
 
 def _lease(repo: Path, branch: str, holder_ref: str) -> tuple[dict[str, object], bool]:
@@ -170,6 +195,7 @@ def _rollback_start(
     branch: str,
     target: Path,
     head: str,
+    candidate_head: str,
     holder_ref: str,
     lease: dict[str, object] | None,
     ref_created: bool,
@@ -206,6 +232,7 @@ def _rollback_start(
                 policy=policy,
                 branch=branch,
                 head=head,
+                candidate_head=candidate_head,
                 holder_ref=holder_ref,
             )
         except (OSError, ValueError):
@@ -219,11 +246,12 @@ def _create_ref(
     policy: BranchRolePolicy,
     branch: str,
     head: str,
+    candidate_head: str,
     holder_ref: str,
 ):
     effect = GitEffect(
         updates={f"refs/heads/{branch}": GitRefUpdate(expected="0" * len(head), desired=head)},
-        assertions={f"refs/heads/{policy.candidate_branch}": head},
+        assertions={f"refs/heads/{policy.candidate_branch}": candidate_head},
     )
     plan = compile_observed_git_effect(
         repo,
@@ -247,12 +275,13 @@ def _delete_started_ref(
     policy: BranchRolePolicy,
     branch: str,
     head: str,
+    candidate_head: str,
     holder_ref: str,
 ) -> None:
     zero = "0" * len(head)
     effect = GitEffect(
         updates={f"refs/heads/{branch}": GitRefUpdate(expected=head, desired=zero)},
-        assertions={f"refs/heads/{policy.candidate_branch}": head},
+        assertions={f"refs/heads/{policy.candidate_branch}": candidate_head},
     )
     plan = compile_observed_git_effect(
         repo,
@@ -286,9 +315,10 @@ def start_work_lane(
     name: str,
     path: Path | None = None,
     holder_ref: str,
+    base: str | None = None,
     apply: bool = False,
 ) -> dict[str, object]:
-    """Create or resume one exact candidate-based Work Lane and minimal Lease."""
+    """Create or resume one exact Work Lane under current candidate and trust authority."""
     repo = repository_root(root)
     policy = load_branch_role_policy(repo)
     branch, target, target_block = _target(
@@ -309,12 +339,15 @@ def start_work_lane(
             "next_action": "ethos lane start --help",
             "user_decision_required": True,
         }
-    candidate, admission_block = _admit(repo, branch=branch, target=target)
+    candidate, admission_block = _admit(repo, branch=branch, target=target, base=base)
     bootstrap: dict[str, str] = {}
-    head = str(candidate.get("head") or "")
+    candidate_head = str(candidate.get("head") or "")
+    head = candidate_head if base is None else base
     if admission_block is None:
         try:
             bootstrap = _runner_bootstrap(repo, target)
+            if not apply:
+                _require_base(repo, base)
         except ValueError as error:
             admission_block = _blocked(
                 branch,
@@ -325,17 +358,18 @@ def start_work_lane(
         return admission_block | {
             "next_action": f"ethos status --root {shlex.quote(repo.as_posix())} --json"
         }
+    base_option = f"--base {head} " if base is not None else ""
+    apply_action = (
+        f"ethos lane start {shlex.quote(name)} --path {shlex.quote(target.as_posix())} "
+        f"--holder-ref {shlex.quote(holder_ref)} {base_option}--apply "
+        f"--root {shlex.quote(repo.as_posix())} --json"
+    )
     if not apply:
-        apply_action = (
-            f"ethos lane start {shlex.quote(name)} --path {shlex.quote(target.as_posix())} "
-            f"--holder-ref {shlex.quote(holder_ref)} --apply "
-            f"--root {shlex.quote(repo.as_posix())} --json"
-        )
         return {
             "verdict": "pass",
             "state": "planned",
             "branch": branch,
-            "base": policy.candidate_branch,
+            "base": policy.candidate_branch if base is None else head,
             "base_head": head,
             "head": head,
             "path": target.as_posix(),
@@ -349,6 +383,7 @@ def start_work_lane(
     worktree_created = False if os.path.lexists(target) else None
     try:
         require_runtime_wheel_provenance()
+        _require_base(repo, base)
         if ref_head(repo, branch) == head:
             ref_attestation = None
         else:
@@ -357,6 +392,7 @@ def start_work_lane(
                 policy=policy,
                 branch=branch,
                 head=head,
+                candidate_head=candidate_head,
                 holder_ref=holder_ref,
             )
             ref_created = True
@@ -374,6 +410,7 @@ def start_work_lane(
             branch=branch,
             target=target,
             head=head,
+            candidate_head=candidate_head,
             holder_ref=holder_ref,
             lease=lease if lease_created else None,
             ref_created=ref_created,
@@ -387,16 +424,13 @@ def start_work_lane(
             head=head,
             ref_state="present" if ref_head(repo, branch) == head else "absent",
             lease_state=observe_lease(state_database(repo), branch).state,
-            next_action=(
-                f"ethos lane start {name} --path {target.as_posix()} "
-                f"--holder-ref {holder_ref} --apply --json"
-            ),
+            next_action=apply_action,
         )
     return {
         "verdict": "pass",
         "state": "started",
         "branch": branch,
-        "base": policy.candidate_branch,
+        "base": policy.candidate_branch if base is None else head,
         "base_head": head,
         "head": head,
         "path": target.as_posix(),

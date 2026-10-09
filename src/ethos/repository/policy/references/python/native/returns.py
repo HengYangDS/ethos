@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.bindings import MemberDemand
+from ethos.repository.policy.references.python.functions.effects import MAPPING_VIEWS
 from ethos.repository.policy.references.python.functions.effects import project
 from ethos.repository.policy.references.python.native.scalars import native_scalar
 
@@ -94,3 +95,21 @@ def native_container(
             context_limited=value.context_limited or default.context_limited,
         )
     return None
+
+
+def symbolic_view(
+    callee: BindingValue, args: tuple[BindingValue, ...], keywords: dict[str | None, BindingValue]
+) -> BindingValue | None:
+    """Defer a no-argument native mapping view on symbolic receivers to each actual pack."""
+    if args or keywords or callee != BindingValue(parameters=callee.parameters):
+        return None
+    deferred = set()
+    for projection in callee.parameters:
+        member = projection.members[-1] if projection.members else None
+        names = member.selector.strings if member and member.selector else frozenset()
+        target = f"builtins.dict.{next(iter(names))}" if len(names) == 1 else ""
+        if member is None or member.kind != "attribute" or target not in MAPPING_VIEWS:
+            return None
+        view = MemberDemand("native_return", key=target)
+        deferred.add(replace(projection, members=(*projection.members[:-1], view)))
+    return BindingValue(parameters=frozenset(deferred))

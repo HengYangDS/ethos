@@ -155,6 +155,18 @@ same command semantics; it is not a parallel lifecycle.
 
 ## Accepted Release Selection
 
+For maintenance from a historical accepted base, select
+`ethos land --release --expect-head <source-head> --release-base <accepted-base>
+--release-head <current-main> --tag v<source-version> --json`. The source must
+belong to its native Work Lane, retain the exact accepted-base witness, and have
+current trusted signatures, introduced-range admission and a proof bound to the
+live holder's complete Lease generation. The base alone authorizes no new source.
+Only `--apply --authorize` creates the immutable signed tag; current accepted,
+candidate, release and maintenance branches remain asserted, never updated or
+synchronized. The checkout's branch roles must match current accepted policy.
+Publication uses the original completed tag plan and its exact proof and
+accepted-effect IDs, then obtains fresh admission independently for each peer.
+
 `ethos land --release --expect-head <accepted-head> --release-head <old-main>
 --json` previews selection of the exact current accepted source for an
 independent release branch. Add `--tag v<version>` for a declared signed
@@ -391,6 +403,20 @@ valid target Lease requires its current holder. Retained ref movement invalidate
 the receipt. Re-derive from current facts instead of replaying stale coordinates.
 The surviving ref and checkout are not written, and their unique semantics still
 need adjudication before final retirement.
+
+For independent maintenance, select a full trusted commit OID without changing
+the current candidate train:
+
+```bash
+ethos lane start <name> --base <full-commit-oid> --holder-ref "$ETHOS_ACTOR" --root <accepted-root> --json
+```
+
+Inspect the planned base and follow its exact apply command. Omission of `--base`
+retains the candidate default. Both modes use current repository policy, trust,
+runtime and Lease authority; an old source does not reactivate old governance.
+Creation asserts the observed candidate and writes only the owned lane ref.
+Failure compensates only newly created resources. This creates authoring state,
+not release authority; exact proof, integration and publication remain separate.
 
 For a registered Work Lane that has lost its Lease, derive coordination recovery
 without recreating its checkout or changing its staged and unstaged content:

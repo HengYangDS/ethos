@@ -14,6 +14,7 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_repo_with_candidate
+from tests.support.signature import configure_signer
 
 HOLDER = "agent:test:case:lane-start"
 COMMAND = "/runtime/python -B -I -m ethos.cli"
@@ -40,6 +41,92 @@ def _failure(*_args, message="injected_failure", **_kwargs):
 
 def _observe(repo, target):
     return ref_head(repo, BRANCH), target.exists(), leases_by_branch(repo).get(BRANCH)
+
+
+@pytest.mark.parametrize("fail_hook", [False, True])
+def test_historical_start_preserves_candidate_and_compensates_only_owned_state(
+    start_case, tmp_path, monkeypatch, *, fail_hook
+):
+    """An exact trusted base is independent of today's candidate and governing runtime."""
+    repo, candidate, target, start = start_case
+    configure_signer(repo, tmp_path)
+    git(repo, "-c", "commit.gpgsign=true", "commit", "--allow-empty", "-m", "signed base")
+    base = git(repo, "rev-parse", "HEAD")
+    git(candidate, "merge", "--ff-only", base)
+    candidate_head = commit_fixture_file(candidate, "later.txt", "later\n", "later candidate")
+    indexes = (git(repo, "write-tree"), git(candidate, "write-tree"))
+    reflog = git(repo, "reflog", "show", "candidate/dev")
+    planned = start(base=base)
+    assert planned["state"] == "planned"
+    assert planned["base_head"] == base
+    assert f"--base {base}" in planned["next_action"]
+    assert _observe(repo, target) == ("", False, None)
+    if fail_hook:
+        monkeypatch.setattr(lane_start, "install_hook_launchers", _failure)
+    applied = start(base=base, apply=True)
+    assert applied["state"] == ("blocked" if fail_hook else "started")
+    assert ref_head(repo, "candidate/dev") == candidate_head
+    assert (git(repo, "write-tree"), git(candidate, "write-tree")) == indexes
+    assert git(repo, "reflog", "show", "candidate/dev") == reflog
+    if fail_hook:
+        assert applied["required_gaps"] == ["injected_failure"]
+        assert _observe(repo, target) == ("", False, None)
+        assert f"--base {base}" in applied["next_action"]
+    else:
+        assert ref_head(repo, BRANCH) == git(target, "rev-parse", "HEAD") == base
+        resumed = start(base=base, apply=True)
+        assert resumed["lease"]["generation"] == applied["lease"]["generation"]
+        assert resumed["ref_attestation"] == {}
+
+
+def test_explicit_unsigned_base_is_refused_before_lane_effects(start_case):
+    """A discoverable native commit is not a trusted maintenance selection."""
+    repo, _candidate, target, start = start_case
+    base = git(repo, "rev-parse", "HEAD")
+    before = _observe(repo, target)
+    result = start(base=base, apply=True)
+    assert result["verdict"] == "block"
+    assert result["required_gaps"]
+    assert _observe(repo, target) == before
+
+
+def test_historical_base_rechecks_current_trust_before_effects(start_case, tmp_path, monkeypatch):
+    """Bootstrap cannot turn a former trusted observation into effect authority."""
+    repo, _candidate, target, start = start_case
+    configure_signer(repo, tmp_path)
+    git(repo, "-c", "commit.gpgsign=true", "commit", "--allow-empty", "-m", "signed base")
+    base = git(repo, "rev-parse", "HEAD")
+    before = _observe(repo, target)
+    monkeypatch.setattr(
+        lane_start,
+        "require_runtime_wheel_provenance",
+        lambda: (tmp_path / "trust/allowed-signers").write_text(""),
+    )
+    result = start(base=base, apply=True)
+    assert result["verdict"] == "block"
+    assert result["required_gaps"]
+    assert _observe(repo, target) == before
+
+
+def test_historical_base_obeys_current_identity_not_its_old_policy(start_case, tmp_path):
+    """A trusted key cannot bypass the current repository's explicit attribution rule."""
+    repo, _candidate, target, start = start_case
+    configure_signer(repo, tmp_path)
+    git(repo, "-c", "commit.gpgsign=true", "commit", "--allow-empty", "-m", "signed base")
+    base = git(repo, "rev-parse", "HEAD")
+    commit_fixture_file(
+        repo,
+        ".ethos/workspace.toml",
+        '[commit_policy]\nsubject_pattern = ".*"\nsigning_required = true\n'
+        'signing_format = "ssh"\n[commit_policy.author]\n'
+        'name = "Required Author"\nemail = "required@example.invalid"\n',
+        "current identity contract",
+    )
+    before = _observe(repo, target)
+    result = start(base=base, apply=True)
+    assert result["verdict"] == "block"
+    assert any("commit_author_identity_mismatch" in gap for gap in result["required_gaps"])
+    assert _observe(repo, target) == before
 
 
 @pytest.mark.parametrize("advance_accepted", [False, True])

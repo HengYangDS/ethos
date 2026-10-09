@@ -17,8 +17,10 @@ from ethos.repository.policy.references.python.bindings import ReferenceUncertai
 from ethos.repository.policy.references.python.functions.capabilities import escaped_capabilities
 from ethos.repository.policy.references.python.functions.effects import EffectCall
 from ethos.repository.policy.references.python.functions.effects import command_tokens
+from ethos.repository.policy.references.python.functions.effects import mapping_view
 from ethos.repository.policy.references.python.functions.effects import project
 from ethos.repository.policy.references.python.native.returns import native_return
+from ethos.repository.policy.references.python.native.returns import symbolic_view
 
 if TYPE_CHECKING:
     import ast
@@ -111,6 +113,7 @@ class PythonConsumption:
         if has_native or not callee.methods:
             branch = scope.fork() if callee.methods else scope
             value = self.native_call(native, args, keywords, node, branch)
+            value = symbolic_view(native, args, keywords) or value
             returned = value if returned is None else returned.join(value)
             if callee.methods:
                 scope.merge(receiver_scope, branch)
@@ -286,9 +289,11 @@ class PythonConsumption:
                     element=owner.iterated().join(args[0]) if owner.items is None else None,
                 ),
             )
-        if owner.aggregates and owner.entries is not None and name in {"keys", "values", "items"}:
+        if owner.entries is not None and name in {"keys", "values", "items"}:
             return ReceiverCall(
-                scope.resolve(BindingValue(aggregates=owner.aggregates, view=name)),
+                scope.resolve(BindingValue(aggregates=owner.aggregates, view=name))
+                if owner.aggregates
+                else mapping_view(owner, f"builtins.dict.{name}"),
                 disposition,
                 owner,
             )
@@ -422,7 +427,7 @@ class PythonConsumption:
                 value = value.join(sourced)
             for target in native_targets:
                 value = value.join(scope.member(f"{target}.{name}"))
-            if owner.aggregates or owner.path:
+            if owner.aggregates or owner.path or owner.entries is not None:
                 value = value.join(
                     BindingValue(methods=frozenset({ReceiverMethod(native_owner, name)}))
                 )

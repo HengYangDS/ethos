@@ -271,11 +271,14 @@ class PythonReferenceFlow:
             scope.assign(target.id, value)
         elif isinstance(target, ast.Tuple | ast.List):
             value = project(value, MemberDemand("structure"), scope, self.sources, self.result)
+            symbolic = bool(value.parameters or value.projections) and value.items is None
             for index, item in enumerate(target.elts):
                 self.assign(
                     item,
                     value.items[index]
                     if value.items is not None and index < len(value.items)
+                    else project(value, MemberDemand("index", key=index), scope, None, self.result)
+                    if symbolic
                     else BindingValue(
                         deferred=value.deferred,
                         unknown=value.unknown or value.items is not None or not value.deferred,

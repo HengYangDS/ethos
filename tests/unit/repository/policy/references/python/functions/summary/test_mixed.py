@@ -102,3 +102,52 @@ def test_call_edge_keeps_its_own_allocation_custody(call: str, inputs: set[str])
     observation = PythonReferenceFlow("probe.py", {}, sources=sources).observe(tree, source=source)
     assert observation.inputs == inputs
     assert not [item for item in observation.uncertainties if item.state == "unknown"]
+
+
+@pytest.mark.parametrize(
+    ("loop", "call", "inputs", "unknown"),
+    [
+        ("environments.values()", "read(environment=os.environ)", {"C"}, set()),
+        ("environments.values()", "read(environment={})", set(), set()),
+        ("environments.keys()", "read(environment=os.environ)", set(), set()),
+        ("environments.values()", "read(environment=Shadow())", set(), set()),
+        (
+            "environments.values()",
+            "thing.run(partial(read, environment=os.environ))",
+            {"C"},
+            {"os.environ.get"},
+        ),
+    ],
+    ids=["values", "plain-mapping", "keys", "shadow-element", "escaped-partial"],
+)
+def test_symbolic_mapping_view_keeps_packed_values(
+    loop: str, call: str, inputs: set[str], unknown: set[str]
+) -> None:
+    """A native view of a symbolic keyword pack is instantiated against each actual pack."""
+    source = (
+        "import os\nimport thing\nfrom functools import partial\n"
+        "class Shadow:\n    def get(self, name):\n        return name\n"
+        f"def read(**environments):\n    for environment in {loop}:\n"
+        "        environment.get('C')\n"
+        f"{call}\n"
+    )
+    tree = ast.parse(source)
+    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
+    observation = PythonReferenceFlow("probe.py", {}, sources=sources).observe(tree, source=source)
+    assert observation.inputs == inputs
+    assert {item.target for item in observation.uncertainties if item.state == "unknown"} == unknown
+
+
+def test_symbolic_items_unpack_keeps_pair_members() -> None:
+    """Tuple unpacking of a symbolic native items view keeps each pair member relation."""
+    source = (
+        "import os\n"
+        "def read(**environments):\n"
+        "    for _, environment in environments.items():\n"
+        "        environment.get('C')\n"
+        "read(environment=os.environ)\n"
+    )
+    tree = ast.parse(source)
+    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
+    observation = PythonReferenceFlow("probe.py", {}, sources=sources).observe(tree, source=source)
+    assert observation.inputs == {"C"}

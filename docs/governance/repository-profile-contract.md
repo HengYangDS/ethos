@@ -231,6 +231,23 @@ Missing, changed, unsupported or incompletely observed sources remain explicit
 `unknown` obligations. Invalid typed declarations are validation errors, not
 uncaught interpreter errors. See [system source and package boundaries](../../system/README.md).
 
+CUE compiler input references use their existing native carriers. A string
+reference remains TOML; a typed reference declares an exact repository-relative
+`path` and `format` (`toml` or `json`). The declaration itself remains TOML:
+
+```toml
+[compiler.inputs]
+policy = "policy.toml"
+package = { path = "package.json", format = "json" }
+```
+
+The same typed references select compilation data and the complete source
+relationship. JSON values retain their native types; existing manifests are not
+copied into another format. Unknown fields or formats, unsafe paths, malformed
+native input, and missing material fail without fallback or source mutation.
+Every declared provider output remains required, with the existing locked native
+compiler and independent observation boundary.
+
 The product source-integrity adapter reads committed and live inputs under one
 bounded observation and rechecks their bindings. It delegates SRI, cache digest
 selection and TAR interpretation to its selected native npm libraries. A framing

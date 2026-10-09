@@ -406,8 +406,7 @@ def resolve_current_resolution(
         )
     )
     prewrite_scope = (
-        prospective_scope
-        or _info_authoring_scope(
+        _info_authoring_scope(
             info_capabilities=info_capabilities,
             projected=projected,
             requested_paths=prewrite_paths,
@@ -415,6 +414,7 @@ def resolve_current_resolution(
             material_scope=material_scope,
         )
         or repair_scope
+        or prospective_scope
         or bootstrap_scope
     )
     if prewrite_paths and prewrite_scope:

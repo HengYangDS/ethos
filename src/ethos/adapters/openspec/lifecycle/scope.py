@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import shlex
 from pathlib import PurePosixPath
-from stat import S_ISREG
 from typing import TYPE_CHECKING
 
 from ethos.adapters.openspec.lifecycle.bootstrap import bootstrap_artifacts
 from ethos.adapters.openspec.lifecycle.bootstrap import new_change_root_intent
 from ethos.adapters.openspec.lifecycle.validation import canonical_info_only_capabilities
 from ethos.adapters.openspec.lifecycle.validation import canonical_spec_repair_paths
+from ethos.adapters.openspec.lifecycle.validation import failed_validation_item
+from ethos.adapters.openspec.lifecycle.validation import inherited_validation_repair_paths
+from ethos.adapters.openspec.lifecycle.validation import official_regular_file
+from ethos.adapters.openspec.lifecycle.validation import resolved_issue_repairs
+from ethos.adapters.openspec.lifecycle.validation import strict_blocking_issue_paths
 from ethos.adapters.openspec.relocation import archived_reference_repair_paths
 from ethos.contracts.semantic import Commitment
 from ethos.normalization.coercion import repository_path_matches
@@ -271,14 +275,14 @@ def _archived_canonical_repair_paths(
     ):
         return ()
     for path in paths:
-        if path not in string_sequence(source.get("authorized_paths")) or not _is_regular_file(
+        if path not in string_sequence(source.get("authorized_paths")) or not official_regular_file(
             root / path
         ):
             return ()
         if failed:
             capability = path.removeprefix("openspec/specs/").removesuffix("/spec.md")
-            item = _selected_failed_validation_item(official, kind="spec", identifier=capability)
-            if not _strict_blocking_issue_paths(item):
+            item = failed_validation_item(official, kind="spec", identifier=capability)
+            if not strict_blocking_issue_paths(item):
                 return ()
     return paths
 
@@ -293,79 +297,20 @@ def _active_change_validation_repair_paths(
     """Resolve strict-blocking issue paths to unique existing official outputs."""
     if not _active_change_validation_repair_context_valid(official, change=change):
         return ()
-    item = _selected_failed_validation_item(official, kind="change", identifier=change)
-    issue_paths = _strict_blocking_issue_paths(item)
+    item = failed_validation_item(official, kind="change", identifier=change)
+    issue_paths = strict_blocking_issue_paths(item)
     if issue_paths is None:
         return ()
     change_root = active_change_root(change)
     outputs = {
         path
         for path in official_artifact_paths
-        if repository_path_matches(path, f"{change_root}/**") and _is_regular_file(root / path)
+        if repository_path_matches(path, f"{change_root}/**") and official_regular_file(root / path)
     }
     metadata = f"{change_root}/.openspec.yaml"
-    if _is_regular_file(root / metadata):
+    if official_regular_file(root / metadata):
         outputs.add(metadata)
-    return _resolved_issue_repairs(change_root, issue_paths, outputs)
-
-
-def _selected_failed_validation_item(
-    official: dict[str, object], *, kind: str, identifier: str
-) -> dict[str, object] | None:
-    """Return the unique invalid official item for one semantic identity."""
-    commands = official.get("commands")
-    validate = commands.get("validate") if isinstance(commands, dict) else None
-    payload = validate.get("json") if isinstance(validate, dict) else None
-    items = payload.get("items") if isinstance(payload, dict) else None
-    if not isinstance(items, list):
-        return None
-    matching = [
-        item
-        for item in items
-        if isinstance(item, dict)
-        if item.get("type") == kind and item.get("id") == identifier and item.get("valid") is False
-    ]
-    return matching[0] if len(matching) == 1 else None
-
-
-def _strict_blocking_issue_paths(item: dict[str, object] | None) -> tuple[str, ...] | None:
-    """Return file paths from ERROR/WARNING issues while ignoring INFO guidance."""
-    issues = item.get("issues") if item is not None else None
-    if not isinstance(issues, list) or not issues:
-        return None
-    paths: list[str] = []
-    for issue in issues:
-        if not isinstance(issue, dict):
-            return None
-        level = issue.get("level")
-        if level == "INFO":
-            continue
-        if level not in {"ERROR", "WARNING"}:
-            return None
-        issue_path = _strict_relative_issue_path(issue.get("path"))
-        if issue_path is None:
-            return None
-        paths.append(issue_path)
-    return tuple(paths) or None
-
-
-def _resolved_issue_repairs(
-    change_root: str,
-    issue_paths: tuple[str, ...],
-    official_outputs: set[str],
-) -> tuple[str, ...]:
-    """Resolve every validator path against the two official path bases."""
-    repairs: list[str] = []
-    for issue_path in issue_paths:
-        candidates = {
-            f"{change_root}/{issue_path}",
-            f"{change_root}/specs/{issue_path}",
-        }
-        matches = candidates & official_outputs
-        if len(matches) != 1:
-            return ()
-        repairs.extend(matches)
-    return tuple(dict.fromkeys(repairs))
+    return resolved_issue_repairs(change_root, issue_paths, outputs)
 
 
 def _active_change_validation_repair_context_valid(
@@ -415,32 +360,16 @@ def _active_change_validation_repair_context_valid(
     )
 
 
-def _strict_relative_issue_path(value: object) -> str | None:
-    """Return one canonical POSIX-relative validator path, or fail closed."""
-    if not isinstance(value, str) or not value or value != value.strip() or "\\" in value:
-        return None
-    path = PurePosixPath(value)
-    canonical = path.as_posix()
-    invalid_part = any(part in {"", ".", ".."} for part in path.parts)
-    if path.is_absolute() or canonical != value or invalid_part:
-        return None
-    return canonical
-
-
-def _is_regular_file(path: Path) -> bool:
-    """Return whether the exact path is a regular file without following a link."""
-    try:
-        return S_ISREG(path.lstat().st_mode)
-    except OSError:
-        return False
-
-
 def _canonical_spec_repair_context_valid(official: dict[str, object], *, change: str) -> bool:
     """Require one valid selected Change and no non-repair governance gap."""
     gaps = string_sequence(official.get("required_gaps"))
     if not gaps or any(
         not gap.startswith(
-            ("openspec_validation_failed:spec:", "openspec_validation_issue:INFO:spec:")
+            (
+                "openspec_validation_failed:spec:",
+                "openspec_validation_failed:change:",
+                "openspec_validation_issue:INFO:spec:",
+            )
         )
         for gap in gaps
     ):
@@ -492,11 +421,11 @@ def canonical_active_repair_paths(
     root: Path, official: dict[str, object], *, change: str
 ) -> tuple[str, ...]:
     """Expose only validated active-Change repairs to prewrite and status."""
-    return (
-        canonical_spec_repair_paths(root, official)
-        if _canonical_spec_repair_context_valid(official, change=change)
-        else ()
-    )
+    if not _canonical_spec_repair_context_valid(official, change=change):
+        return ()
+    canonical = canonical_spec_repair_paths(root, official)
+    inherited = inherited_validation_repair_paths(root, official, change=change)
+    return tuple(dict.fromkeys((*canonical, *inherited))) if inherited is not None else ()
 
 
 def canonical_repair_paths(

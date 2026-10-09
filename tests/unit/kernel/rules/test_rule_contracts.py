@@ -2,18 +2,28 @@
 
 from __future__ import annotations
 
+import json
+import sys
 from typing import TYPE_CHECKING
 
 import pytest
 import tomli_w
 from pydantic import ValidationError
 
+from ethos.adapters.process import run_command
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.rules import Rule
 from ethos.contracts.rules import RuleSet
 from ethos.domain.plan import matching_rule_gates
 from ethos.repository.policy.rules.compile import compile_rules
 from ethos.repository.policy.rules.config import resolve_profile_stack
 from ethos.repository.policy.schema import validate_schema_instance
+from tests.support.ethos_cli_runner import run_ethos
+from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import declare_fixture_documentation_proof
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_active_commitment
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -163,3 +173,235 @@ def test_compiled_rule_matching_treats_trailing_glob_as_its_directory(tmp_path: 
         "custom.second",
     }
     assert [gate["id"] for gate in required_gates] == ["docs-registry"]
+
+
+@pytest.mark.parametrize("registry_file", [False, True], ids=["profile", "registry"])
+def test_compile_rules_uses_selected_root_gate_authority(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, registry_file: bool
+) -> None:
+    """Rule selection uses the target's native owner, never ambient or packaged gates."""
+    target = tmp_path / "target"
+    target.mkdir()
+    _write_rules(
+        target,
+        _rule(id="custom.native", path_globs=["notes/**"], required_gates=["native-quality"]),
+    )
+    gate_ids = ["docs-registry", "schemas", "skills", "native-quality"]
+    gates = [
+        {"id": gate_id, "kind": "check", "command": ["target-quality", gate_id]}
+        for gate_id in gate_ids
+    ]
+    proof = (
+        {"gate_registry": ".config/checks/gates.toml"}
+        if registry_file
+        else {
+            "code_correctness_gates": gate_ids,
+            "code_correctness_map": {
+                "behavior": "native-quality",
+                "static-analysis": "native-quality",
+            },
+            "gates": gates,
+        }
+    )
+    (target / ".ethos/profile.toml").write_text(
+        tomli_w.dumps({"profile_id": "target", "proof": proof}), encoding="utf-8"
+    )
+    if registry_file:
+        registry = target / ".config/checks/gates.toml"
+        registry.parent.mkdir(parents=True)
+        registry.write_text(
+            tomli_w.dumps(
+                {
+                    "id": "target",
+                    "proof_sets": {"default": gate_ids, "full": gate_ids},
+                    "gates": gates,
+                }
+            ),
+            encoding="utf-8",
+        )
+    ambient = tmp_path / "ambient"
+    ambient.mkdir()
+    (ambient / ".ethos").mkdir()
+    (ambient / ".ethos/profile.toml").write_text(
+        tomli_w.dumps({"profile_id": "ambient"}), encoding="utf-8"
+    )
+    monkeypatch.chdir(ambient)
+
+    compiled = compile_rules(target)
+    expected = {
+        "id": "native-quality",
+        "command": "target-quality native-quality",
+        "blocking": True,
+    }
+    assert compiled["compile_gaps"] == []
+    assert set(compiled["gate_definitions"]) == set(gate_ids)
+    assert compiled["gate_definitions"]["native-quality"] == expected
+    matched, selected, gaps = matching_rule_gates(target, ("notes",))
+    assert [rule["id"] for rule in matched] == ["custom.native"]
+    assert selected == [expected]
+    assert gaps == []
+
+    _write_rules(
+        target,
+        _rule(id="custom.missing", path_globs=["notes/**"], required_gates=["unit-architecture"]),
+    )
+    matched, selected, gaps = matching_rule_gates(target, ("notes",))
+    assert [rule["id"] for rule in matched] == ["custom.missing"]
+    assert selected == []
+    assert gaps == ["unknown_rule_gate:custom.missing:unit-architecture"]
+
+
+@pytest.mark.parametrize(
+    ("profile", "registry", "error"),
+    [
+        ("profile_id = 1\n", None, "repository_profile_invalid"),
+        (
+            'profile_id = "target"\n[proof]\ngate_registry = ".config/gates.toml"\n',
+            None,
+            "gate_registry_invalid:.config/gates.toml",
+        ),
+        (
+            'profile_id = "target"\n[proof]\ngate_registry = ".config/gates.toml"\n',
+            "id = 1\n",
+            "gate_registry_invalid:.config/gates.toml",
+        ),
+    ],
+    ids=["invalid-profile", "missing-registry", "invalid-registry"],
+)
+def test_compile_rules_rejects_unavailable_native_gate_authority(
+    tmp_path: Path, profile: str, registry: str | None, error: str
+) -> None:
+    """An invalid explicit native owner cannot fall back to the product registry."""
+    (tmp_path / ".ethos").mkdir()
+    (tmp_path / ".ethos/profile.toml").write_text(profile, encoding="utf-8")
+    if registry is not None:
+        (tmp_path / ".config").mkdir()
+        (tmp_path / ".config/gates.toml").write_text(registry, encoding="utf-8")
+    with pytest.raises(ValueError, match=error):
+        compile_rules(tmp_path)
+
+
+def test_product_starter_rules_keep_product_gates_beside_target_authority(tmp_path: Path) -> None:
+    """Product-owned rules use product gates the target does not own; target rules do not."""
+    gate = {"id": "native-quality", "kind": "check", "command": ["target-quality"]}
+    (tmp_path / ".ethos").mkdir()
+    (tmp_path / ".ethos/profile.toml").write_text(
+        tomli_w.dumps({"profile_id": "target", "proof": {"gate_registry": "gates.toml"}}),
+        encoding="utf-8",
+    )
+    (tmp_path / "gates.toml").write_text(
+        tomli_w.dumps(
+            {
+                "id": "target",
+                "proof_sets": {"default": ["native-quality"], "full": ["native-quality"]},
+                "gates": [gate],
+            }
+        ),
+        encoding="utf-8",
+    )
+    packaged = compile_rules(tmp_path.parent / "absent")["gate_definitions"]
+
+    compiled = compile_rules(tmp_path)
+    assert compiled["compile_gaps"] == []
+    assert compiled["gate_definitions"]["schemas"] == packaged["schemas"]
+    assert compiled["gate_definitions"]["native-quality"]["command"] == "target-quality"
+    assert "unit-architecture" not in compiled["gate_definitions"]
+    matched, selected, gaps = matching_rule_gates(tmp_path, ("openspec/changes/x/tasks.md",))
+    assert [rule["id"] for rule in matched] == ["starter.governance"]
+    assert selected == [packaged["schemas"]]
+    assert gaps == []
+
+    _write_rules(tmp_path, _rule(id="custom.product", required_gates=["schemas"]))
+    assert compile_rules(tmp_path)["compile_gaps"] == ["unknown_rule_gate:custom.product:schemas"]
+
+
+def test_public_native_product_composition_binds_target_and_refuses_stale_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Rules, public planning and actual CLI execution retain one target-bound selection."""
+    monkeypatch.delenv("ETHOS_CHANGE", raising=False)
+    monkeypatch.delenv("ETHOS_ACTOR", raising=False)
+    root = init_git_repo(tmp_path / "repo")
+    declare_fixture_documentation_proof(root)
+    write_active_commitment(root, change_id="gate-composition")
+    _write_rules(
+        root,
+        _rule(
+            id="custom.native",
+            path_globs=["openspec/**"],
+            required_gates=["openspec-baseline"],
+        ),
+    )
+    commit_fixture(root, "declare composed rule demand")
+    tasks = root / "openspec/changes/gate-composition/tasks.md"
+    tasks.write_text(tasks.read_text().replace("fixture lifecycle", "native composition"))
+    plan = run_ethos("plan", "--changed", "--change", "gate-composition", "--json", cwd=root)
+    assert plan["verdict"] == "pass"
+    assert {gate["id"] for gate in plan["data"]["required_gates"]} == {
+        "openspec-baseline",
+        "schemas",
+    }
+    assert {node["id"] for node in plan["data"]["transition_plan"]["nodes"]} == {
+        "openspec-baseline",
+        "schemas",
+    }
+    head = commit_fixture(root, "bind composed rule demand")
+    policy = resolve_gate_policy(root, tree_ref=head, gate_ids=("openspec-baseline", "schemas"))
+    assert policy.gaps == ()
+    assert set(policy.registry) == {"openspec-baseline", "schemas"}
+    assert policy.declaration == load_gate_registry_declaration(root / "system/gates.toml")
+    assert policy.registry["openspec-baseline"].command == (
+        "git",
+        "grep",
+        "-q",
+        "^### Requirement:",
+        "HEAD",
+        "--",
+        "openspec/specs",
+    )
+    assert {path for path, _ in dict(policy.sources)["schemas"]} == {
+        "@ethos/repository/policy/schema.py"
+    }
+    command = (
+        sys.executable,
+        "-B",
+        "-I",
+        "-m",
+        "ethos.cli",
+        "prove",
+        "--root",
+        str(root),
+        "--host",
+        "--execute",
+        "--gate",
+        "openspec-baseline",
+        "--gate",
+        "schemas",
+        "--expect-head",
+        head,
+        "--json",
+    )
+    completed = run_command(root, command, timeout=60)
+    report = json.loads(completed.stdout)
+    assert completed.returncode == 0, completed.stderr
+    assert report["verdict"] == "pass"
+    assert report["data"]["policy_digest"] == policy.digest
+    assert report["summary"]["proof_attestation_issued"] is False
+    assert {check["action_id"] for check in report["data"]["checks"]} == set(policy.gate_ids)
+    retired = root / "system/schemas/kernel/capability-profile.schema.json"
+    retired.parent.mkdir(parents=True)
+    retired.write_text("{}\n")
+    successor = commit_fixture(root, "record target schema violation")
+    stale = run_command(root, command, timeout=60)
+    assert stale.returncode != 0
+    assert "expected_head_mismatch" in json.loads(stale.stdout)["required_gaps"]
+    current = run_command(
+        root, tuple(successor if part == head else part for part in command), timeout=60
+    )
+    refused = json.loads(current.stdout)
+    assert current.returncode != 0
+    assert refused["verdict"] == "block"
+    schema = next(check for check in refused["data"]["checks"] if check["action_id"] == "schemas")
+    observation = json.loads(schema["stdout"])["providers"][0]["report"]
+    assert observation["required_gaps"] == ["schema_retired:capability-profile.schema.json"]
+    assert schema["verdict"] == "block"

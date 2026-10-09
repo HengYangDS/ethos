@@ -62,7 +62,9 @@ class ResolvedGatePolicy:
 
     @property
     def registry(self) -> dict[str, Gate]:
-        return self.declaration.registry(python_executable=self.python_executable)
+        return self.declaration.registry(python_executable=self.python_executable) | {
+            gate.id: gate for gate in self.gates
+        }
 
     @property
     def gate_ids(self) -> tuple[str, ...]:
@@ -287,6 +289,39 @@ def provider_module_sources(gate: Gate) -> tuple[tuple[str, str], ...]:
     )
 
 
+def _selected_declaration(
+    declaration: GateRegistryDeclaration, gate_ids: tuple[str, ...]
+) -> GateRegistryDeclaration:
+    """Complete only demanded product gates; declared ids retain target authority."""
+    owned = declaration.registry()
+    packaged = _PACKAGED_GATE_DECLARATION.registry()
+    extra: dict[str, Gate] = {}
+    pending = list(gate_ids)
+    while pending:
+        gate_id = pending.pop()
+        if gate_id in owned or gate_id in extra:
+            continue
+        gate = packaged.get(gate_id)
+        if gate is None:
+            message = "unknown proof gate"
+            raise ValueError(message)
+        extra[gate_id] = (
+            gate.model_copy(update={"profile": "repository", "tool_adapter": "ethos"})
+            if gate.providers or gate.verification_providers
+            else gate
+        )
+        pending.extend(gate.depends_on)
+    if not extra:
+        return declaration
+    return GateRegistryDeclaration(
+        id=declaration.id,
+        schema_version=declaration.schema_version,
+        source_refs=declaration.source_refs,
+        proof_sets=declaration.proof_sets,
+        gates=(*declaration.gates, *extra.values()),
+    )
+
+
 def source_paths_for_gate(
     gate: Gate,
     *,
@@ -407,14 +442,9 @@ def resolve_gate_policy(
         profile,
         gate_registry_source=gate_registry_source,
     )
-    if gate_ids:
-        requested = set(gate_ids)
-        owned = declaration.registry().keys()
-        packaged = _PACKAGED_GATE_DECLARATION.registry().keys()
-        if requested.isdisjoint(owned) and requested <= packaged:
-            declaration, profile = _PACKAGED_GATE_DECLARATION, None
+    selected = _selected_declaration(declaration, gate_ids)
     if acceptance_purpose == "local-source":
-        declaration = declaration.model_copy(
+        selected = selected.model_copy(
             update={
                 "gates": tuple(
                     gate.model_copy(
@@ -423,12 +453,16 @@ def resolve_gate_policy(
                     if native_dependency_audit_scope(gate.model_dump(mode="python"))
                     == "production-release"
                     else gate
-                    for gate in declaration.gates
+                    for gate in selected.gates
                 )
             }
         )
+        scoped_registry = selected.registry()
+        declaration = declaration.model_copy(
+            update={"gates": tuple(scoped_registry[gate.id] for gate in declaration.gates)}
+        )
     python_executable = repository_python or sys.executable
-    gates = declaration.proof_gates(
+    gates = selected.proof_gates(
         gate_ids,
         full=full,
         python_executable=python_executable,

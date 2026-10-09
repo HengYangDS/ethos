@@ -15,10 +15,15 @@ from ethos.repository.policy.rules.config import load_rules_config
 from ethos.repository.policy.rules.config import resolve_profile_stack
 from ethos.repository.policy.rules.config import rules_path
 from ethos.repository.policy.schema import validate_schema_instance
+from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
     from typing import Any
+
+    from ethos.contracts.gates import Gate
+    from ethos.repository.policy.gates import ResolvedGatePolicy
 
 STRICT_PROFILE = "strict"
 STARTER_RULES: tuple[Rule, ...] = (
@@ -123,15 +128,31 @@ def _rule_schema_gaps(rule: dict[str, Any]) -> list[str]:
     return [str(gap) for gap in cast("list[object]", validation["required_gaps"])]
 
 
-def gate_definitions() -> dict[str, dict[str, object]]:
-    """Return executable gates from the repository's single registry owner."""
+def _gate_policy(root: Path, *, gate_ids: tuple[str, ...]) -> ResolvedGatePolicy:
+    """Observe the selected registry once for native ownership and executable demand."""
+    profile = load_repository_profile(root)
+    registry_path = profile.declaration.proof.gate_registry if profile.declaration else None
+    registry_source = None
+    if registry_path:
+        path = profile.root / registry_path
+        try:
+            if not path.is_symlink() and path.resolve(strict=True).is_relative_to(profile.root):
+                registry_source = path.read_bytes()
+        except (OSError, RuntimeError, ValueError):
+            pass  # The native resolver rejects an unavailable declared registry.
+    return resolve_gate_policy(
+        profile=profile, gate_registry_source=registry_source, gate_ids=gate_ids
+    )
+
+
+def _definitions(registry: Mapping[str, Gate]) -> dict[str, dict[str, object]]:
     return {
         gate_id: {
             "id": gate_id,
             "command": " ".join(gate.command),
             "blocking": gate.policy == "required",
         }
-        for gate_id, gate in resolve_gate_policy().registry.items()
+        for gate_id, gate in registry.items()
     }
 
 
@@ -170,12 +191,20 @@ def compile_rules(root: Path) -> dict[str, object]:
     config = load_rules_config(root)
     profile_stack, profile_gaps = resolve_profile_stack(config)
     rules, rule_gaps = _rules_as_contracts(root, config, profile_stack)
-    gate_definitions_by_id = gate_definitions()
+    product_rules = [rule for rule in rules if rule in STARTER_RULES]
+    policy = _gate_policy(
+        root,
+        gate_ids=tuple(
+            dict.fromkeys(gate_id for rule in product_rules for gate_id in rule.required_gates)
+        ),
+    )
+    owned = {gate.id for gate in policy.declaration.gates}
+    gate_definitions_by_id = _definitions(policy.registry)
     gate_gaps = [
         f"unknown_rule_gate:{rule.id}:{gate_id}"
         for rule in rules
         for gate_id in rule.required_gates
-        if gate_id not in gate_definitions_by_id
+        if gate_id not in (gate_definitions_by_id if rule in product_rules else owned)
     ]
     compile_gaps = [*profile_gaps, *rule_gaps, *gate_gaps]
     try:

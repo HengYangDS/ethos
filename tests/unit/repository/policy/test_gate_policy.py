@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import TYPE_CHECKING
 
@@ -55,6 +56,104 @@ def test_source_acceptance_preserves_floors_and_binds_native_audit() -> None:
             assert selected == gate
     with pytest.raises(ValueError, match="proof_acceptance_purpose_invalid"):
         compile_gate_policy(full=True, acceptance_purpose="publishing")
+
+
+@pytest.mark.parametrize("requested", [("native",), ("schemas",), ("native", "schemas")])
+def test_gate_composition_retains_native_owner_and_exact_provider_sources(
+    tmp_path: Path, requested: tuple[str, ...]
+) -> None:
+    """One selection preserves the target floor and binds only requested product providers."""
+    native = Gate(
+        id="native",
+        kind="test",
+        command=("tools/check.py",),
+        verification_providers=("ethos.adapters.gates.python_quality:behavior_report",),
+    )
+    profile = RepositoryProfile(
+        root=tmp_path,
+        exists=True,
+        declaration=RepositoryProfileDeclaration(
+            profile_id="target",
+            proof=ProofPolicy(
+                code_correctness_gates=("native",),
+                code_correctness_map={"behavior": "native", "static-analysis": "native"},
+                gates=(native,),
+            ),
+        ),
+    )
+    materials = {
+        "tools/check.py": b"print('target check')\n",
+        "@ethos/adapters/gates/python_quality.py": b"native verification\n",
+        "@ethos/repository/policy/schema.py": b"installed schema provider\n",
+    }
+    baseline = compile_gate_policy(
+        profile=profile, source_materials=materials, repository_python="python", full=True
+    )
+    selected = compile_gate_policy(
+        profile=profile,
+        source_materials=materials,
+        repository_python="python",
+        gate_ids=requested,
+    )
+    assert selected.profile is profile
+    assert selected.declaration == baseline.declaration
+    assert selected.projection["owner"] == baseline.projection["owner"]
+    assert set(selected.gate_ids) == set(requested)
+    assert set(selected.registry) == {"native", *requested}
+    sources = dict(selected.sources)
+    for name in requested:
+        expected = (
+            ("tools/check.py", "@ethos/adapters/gates/python_quality.py")
+            if name == "native"
+            else ("@ethos/repository/policy/schema.py",)
+        )
+        assert dict(sources[name]) == {
+            path: hashlib.sha256(materials[path]).hexdigest() for path in expected
+        }
+    if "schemas" in requested:
+        assert selected.registry["schemas"].profile == "repository"
+        assert selected.registry["schemas"].tool_adapter == "ethos"
+    if requested == ("schemas",):
+        assert "quality_obligation_unproven:behavior" in selected.gaps
+    else:
+        assert selected.gaps == baseline.gaps
+
+
+def test_imported_native_audit_honors_source_purpose_without_changing_target_floor(
+    tmp_path: Path,
+) -> None:
+    """Purpose interpretation follows selected closure, including newly imported commands."""
+    profile = RepositoryProfile(
+        root=tmp_path,
+        exists=True,
+        declaration=RepositoryProfileDeclaration(
+            profile_id="target",
+            proof=ProofPolicy(
+                code_correctness_gates=("native",),
+                code_correctness_map={"behavior": "native", "static-analysis": "native"},
+                gates=(Gate(id="native", kind="check", command=("target-check",)),),
+            ),
+        ),
+    )
+    requested = ("native", "dependency-vulnerabilities")
+    strict = compile_gate_policy(profile=profile, gate_ids=requested, repository_python="python")
+    source = compile_gate_policy(
+        profile=profile,
+        gate_ids=requested,
+        repository_python="python",
+        acceptance_purpose="local-source",
+    )
+    assert strict.profile is source.profile is profile
+    assert source.declaration.proof_sets == strict.declaration.proof_sets
+    assert source.gate_ids == strict.gate_ids
+    assert source.registry["native"] == strict.registry["native"]
+    assert source.registry["dependency-vulnerabilities"].command == (
+        *strict.registry["dependency-vulnerabilities"].command,
+        "--",
+        "--scope",
+        "local-development",
+    )
+    assert source.digest != strict.digest
 
 
 def test_quality_axis_conjoins_scoped_evidence_from_distinct_gates() -> None:

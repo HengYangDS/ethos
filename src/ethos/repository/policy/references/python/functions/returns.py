@@ -309,7 +309,11 @@ class PythonSourceReturns:
     ) -> BindingValue | None:
         """Join alternative outgoing effects without dropping native or opaque branches."""
         selected = self.call_identity(callee)
-        targets = selected.targets & (self.definitions.keys() | self.records.keys())
+        targets = frozenset(
+            target
+            for target in selected.targets
+            if target in self.definitions or target in self.records
+        )
         if not targets:
             return None
         other = replace(selected, targets=selected.targets - targets)

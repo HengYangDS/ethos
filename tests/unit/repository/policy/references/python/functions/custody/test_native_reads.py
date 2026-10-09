@@ -3,19 +3,27 @@
 from __future__ import annotations
 
 import ast
+import sys
 from collections import Counter
+from types import BuiltinFunctionType
 from typing import TYPE_CHECKING
 
 import pytest
 
+from ethos.repository.policy.references.python.bindings import BindingValue
+from ethos.repository.policy.references.python.bindings import ParameterProjection
+from ethos.repository.policy.references.python.bindings import ReceiverMethod
 from ethos.repository.policy.references.python.flow import PythonReferenceFlow
 from ethos.repository.policy.references.python.functions.custody import InvocationCustody
+from ethos.repository.policy.references.python.functions.effects import substitute
 from ethos.repository.policy.references.python.functions.invocation import PythonInvocations
 from ethos.repository.policy.references.python.functions.returns import PythonSourceReturns
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from types import FrameType
+
     from ethos.repository.policy.references.python.bindings import BindingScope
-    from ethos.repository.policy.references.python.bindings import BindingValue
     from ethos.repository.policy.references.python.effects import PythonConsumption
     from ethos.repository.policy.references.python.functions.effects import EffectSummary
     from ethos.repository.policy.references.python.functions.invocation import SourceInvocation
@@ -138,3 +146,204 @@ def test_effectful_invocation_does_not_validate_unusable_answer(
     assert flow.result.executables == {"effect_probe"}, flow.result
     assert not flow.result.uncertainties, flow.result
     assert checks == 0
+
+
+@pytest.mark.parametrize("change", ["none", "selected"])
+def test_summary_validation_does_not_collect_ancestor_dependencies(change: str) -> None:
+    """Checking a callee witness cannot turn the validator's frame into a dependency."""
+    source = (
+        "import types as ns\nns.flag = 'before_probe'\n"
+        "def leaf(): return ns.flag\n"
+        "def outer(): return leaf()\n"
+    )
+    tree = ast.parse(source)
+    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
+    flow = PythonReferenceFlow("probe.py", {}, sources=sources)
+    scope = flow.initialize(tree, source=source)
+    invocations = sources.invocations
+    leaf = sources.definitions[next(iter(scope.lookup("leaf").targets))]
+    outer = sources.definitions[next(iter(scope.lookup("outer").targets))]
+    selected = invocations.summary_for(leaf, flow.result, scope)
+    ancestor = invocations.summary_for(outer, flow.result, scope)
+    before = (dict(ancestor.reads), dict(ancestor.members), tuple(ancestor.calls))
+    if change == "selected":
+        scope.assign_member(
+            "types.flag", type(selected.returned)(strings=frozenset({"after_probe"}))
+        )
+    invocations.summarizing.append(outer.key)
+    try:
+        valid = invocations.custody.unchanged(selected, scope, flow.result)
+    finally:
+        invocations.summarizing.pop()
+
+    assert valid == (change == "none")
+    assert (ancestor.reads, ancestor.members, tuple(ancestor.calls)) == before
+
+
+def test_validation_read_does_not_extend_active_summary() -> None:
+    """Validation may resolve a lexical value without collecting a new dependency."""
+    source = "flag = 'before_probe'\ndef owner(): return ''\n"
+    tree = ast.parse(source)
+    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
+    flow = PythonReferenceFlow("probe.py", {}, sources=sources)
+    scope = flow.initialize(tree, source=source)
+    invocations = sources.invocations
+    definition = sources.definitions[next(iter(scope.lookup("owner").targets))]
+    summary = invocations.summary_for(definition, flow.result, scope)
+    before = dict(summary.reads)
+    invocations.summarizing.append(definition.key)
+    invocations.validating += 1
+    try:
+        value = invocations.read(scope, "flag")
+    finally:
+        invocations.validating -= 1
+        invocations.summarizing.pop()
+
+    assert value.strings == {"before_probe"}
+    assert summary.reads == before
+    invocations.summarizing.append(definition.key)
+    try:
+        invocations.read(scope, "flag")
+    finally:
+        invocations.summarizing.pop()
+    assert set(summary.reads) - before.keys() == {(scope.identity, "flag", False)}
+
+
+@pytest.mark.parametrize("unrelated", [0, 64])
+def test_source_target_lookup_is_bounded_by_selected_relations(unrelated: int) -> None:
+    """Native/source alternatives preserve effects without scanning unrelated registries."""
+    source = (
+        "import subprocess as sp\n"
+        "def executable(): return 'selected_probe'\n"
+        "def launch(): sp.run([executable()])\n"
+        "launch()\n"
+        + "\n".join(f"def unused_{index}(): return {index}" for index in range(unrelated))
+    )
+    tree = ast.parse(source)
+    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
+    enumerations: Counter[str] = Counter()
+
+    def observe(_frame: FrameType, event: str, value: object) -> None:
+        if (
+            event == "c_call"
+            and isinstance(value, BuiltinFunctionType)
+            and value.__name__ == "keys"
+        ):
+            if value.__self__ is sources.definitions:
+                enumerations["definitions"] += 1
+            elif value.__self__ is sources.records:
+                enumerations["records"] += 1
+
+    previous = sys.getprofile()
+    try:
+        sys.setprofile(observe)
+        result = PythonReferenceFlow("probe.py", {}, sources=sources).observe(tree, source=source)
+    finally:
+        sys.setprofile(previous)
+
+    assert result.executables == {"selected_probe"}
+    assert result.uncertainties == []
+    assert enumerations == {}, enumerations
+
+
+@pytest.mark.parametrize("shape", ["leaf", "items", "fields"])
+@pytest.mark.parametrize("deep", [False, True])
+def test_native_resolution_shares_unchanged_semantic_values(shape: str, *, deep: bool) -> None:
+    """Resolution retains unchanged paths, including their uncertainty and provenance."""
+    source = "import subprocess as sp\n"
+    tree = ast.parse(source)
+    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
+    flow = PythonReferenceFlow("probe.py", {}, sources=sources)
+    scope = flow.initialize(tree, source=source)
+    leaf = BindingValue(strings=frozenset({"shared_probe"}), unknown=True, context_limited=True)
+    value = (
+        BindingValue(items=(leaf,), ordered=True)
+        if shape == "items"
+        else BindingValue(fields=(("selected", leaf),))
+        if shape == "fields"
+        else leaf
+    )
+
+    for _ in range(3):
+        assert sources.invocations.resolve(value, scope, flow.result, deep=deep) is value
+
+    assert leaf.strings == {"shared_probe"}
+    assert leaf.unknown
+    assert leaf.context_limited
+    assert not flow.result.executables
+    assert not flow.result.uncertainties
+
+
+@pytest.mark.parametrize(
+    "wrap",
+    [
+        lambda value: value,
+        lambda value: BindingValue(items=(value,), ordered=True),
+        lambda value: BindingValue(entries=(("selected", value),)),
+        lambda value: BindingValue(fields=(("selected", value),)),
+        lambda value: BindingValue(element=value),
+        lambda value: BindingValue(methods=frozenset({ReceiverMethod(value, "get")})),
+    ],
+    ids=["leaf", "items", "entries", "fields", "element", "methods"],
+)
+def test_substitution_preserves_unchanged_structural_identity(
+    wrap: Callable[[BindingValue], BindingValue],
+) -> None:
+    """Complete recursive substitution retains unchanged ownership and all value channels."""
+    source = "def choose(command): return command\n"
+    tree = ast.parse(source)
+    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
+    flow = PythonReferenceFlow("probe.py", {}, sources=sources)
+    scope = flow.initialize(tree, source=source)
+    leaf = BindingValue(
+        strings=frozenset({"unchanged_probe"}),
+        parameters=frozenset({ParameterProjection("command", owner="foreign_invocation")}),
+        unknown=True,
+        context_limited=True,
+    )
+    value = wrap(leaf)
+    assert substitute(value, {}, scope, sources, flow.result, owner="selected_invocation") is value
+    assert not flow.result.uncertainties
+
+
+def test_substitution_rebuilds_only_the_changed_ancestor() -> None:
+    """A selected parameter changes its ancestors, never their immutable siblings."""
+    source = "def choose(command): return command\n"
+    tree = ast.parse(source)
+    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
+    flow = PythonReferenceFlow("probe.py", {}, sources=sources)
+    scope = flow.initialize(tree, source=source)
+    stable = BindingValue(strings=frozenset({"stable_probe"}))
+    selected = BindingValue(
+        parameters=frozenset({ParameterProjection("command", owner="selected")})
+    )
+    value = BindingValue(fields=(("stable", stable), ("selected", selected)))
+    actual = BindingValue(strings=frozenset({"changed_probe"}))
+    resolved = substitute(value, {"command": actual}, scope, sources, flow.result, owner="selected")
+    assert resolved is not value
+    assert resolved.fields == (("stable", stable), ("selected", actual))
+    assert resolved.fields[0][1] is stable
+    assert resolved.fields[1][1] is actual
+
+
+def test_native_resolution_rebuilds_only_the_changed_ancestor() -> None:
+    """An actual deferred child resolves without reconstructing its immutable sibling."""
+    source = "def choose(command): return command\nselected = choose('changed_probe')\n"
+    tree = ast.parse(source)
+    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
+    flow = PythonReferenceFlow("probe.py", {}, sources=sources)
+    scope = flow.initialize(tree, source=source)
+    stable = BindingValue(strings=frozenset({"stable_probe"}))
+    value = BindingValue(fields=(("stable", stable), ("selected", scope.lookup("selected"))))
+
+    resolved = sources.invocations.resolve(value, scope, flow.result)
+
+    assert resolved is not value
+    assert resolved.fields is not None
+    fields = dict(resolved.fields)
+    assert fields["stable"] is stable
+    assert fields["selected"].strings == {"changed_probe"}
+    assert not fields["selected"].projections
+    assert sources.invocations.resolve(resolved, scope, flow.result) is resolved
+    assert not flow.result.executables
+    assert not flow.result.uncertainties

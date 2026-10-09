@@ -580,6 +580,32 @@
 - [ ] 13.4 Close publication provenance and post-history-repair delivery through its existing owner.
   - [x] 13.4.1 Preserve original acceptance through validated repair relations; exercise native repair, new-source proof and release, plus fresh membership and bounded decoding counterexamples.
   - [ ] 13.4.2 Qualify and install the exact candidate, observe complete publication performance, and obtain the adopter-owned consumer result; keep these separate from source and focused-test success.
+        **Native range throughput, 2026-10-09:** signed maintenance `edd40436`,
+        tree `974f3295`, changes two production owners and three native test
+        carriers only. Original 558-object B/C/C/B reports remain completely
+        equal; median 91.436 to 54.295 seconds, verification calls 558 to 5 and
+        current trust-input reads 1,116 to 2. Three RED cases pass within 129
+        native cases; extraction 12 and timeout-evidence 8 cases pass separately
+        without rerunning unchanged suites. Original refusal and global UNKNOWN
+        remain fail-closed; subject, identity and signature-format checks remain.
+        One exact offline wheel has SHA256
+        `505df2f1739093a97e85b6068bc7508efb471e188de21f390c203b38638c0a1e`;
+        all other product members and modes match `f3526386`. AIGW's original
+        native install now passes and selects runtime `325347fc`, preserving
+        three worktrees' refs, indexes and reflogs. Its previously failing
+        GitHub-only publication passes in 205.075 seconds: push exit zero,
+        exact dev `cc4ddf9a` / tree `f67f8829`, effect `af43d3cc`. The internal
+        120-second deadline is unchanged; successful GitLab is not replayed.
+        This closes the concrete failure, not full-proof, hosted CI, release
+        or whole-product acceptance. Original failures remain preserved.
+        Evidence: `semantic-demand-closure-20261009/commit-range-native-batch-*`.
+        **Structural reuse:** the complete semantic dependency slice preserves
+        the original 180 + 435 cases and source-bound allocation/timing evidence;
+        discovery's 77 cases were already included. Its mistaken repeated run
+        is not additional progress. Ruff/format/Ty and selected native layout
+        pass; source signing, installed observation and full proof stay distinct.
+        See `semantic-demand-closure-20261009/semantic-coherence-*` and the
+        existing [research conclusions](../../../docs/research/modern-engineering-foundations.md#october-9-computation-and-native-effect-findings).
     - [x] 13.4.2.1 Deliver the isolated signed finite-input repair through the native wheel/runtime owner; qualify public admission, independent byte custody and the original AIGW implicit hook and DDWG proof consumers. This closes their hang, not full-proof, release or whole-product acceptance.
   - [ ] 13.4.3 Close owner-confirmed historical attribution and peer readback through exact corrections and recoverable originals. Current author-header repair is accepted and installed; retain the three platform committer records after verified original GitHub web-flow signatures. False Junie coauthor, exact proof, peer publication and old PR-reference disposition remain open; future genuine contributors are not constrained.
     - **Facts, 2026-10-09 02:33 +08:00:** accepted source is `1e6fd8ee`; candidate

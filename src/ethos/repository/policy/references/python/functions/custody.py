@@ -11,7 +11,7 @@ from ethos.repository.policy.references.python.bindings import AggregateIdentity
 from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.effects import PythonConsumption
-from ethos.repository.policy.references.python.functions.effects import project
+from ethos.repository.policy.references.python.functions.effects import native_member
 
 if TYPE_CHECKING:
     from ethos.repository.policy.references.python.bindings import LexicalRead
@@ -47,13 +47,17 @@ class InvocationCustody:
         self, summary: EffectSummary, scope: BindingScope, observer: PythonConsumption
     ) -> bool:
         """Recheck bindings and consumed relations, never unrelated reachable contents."""
-        return all(
-            self.lexical_value(read, scope) == read.value for read in summary.reads.values()
-        ) and all(
-            self.witness(
-                project(
-                    read.subject,
-                    read.demand,
+        if any(self.lexical_value(read, scope) != read.value for read in summary.reads.values()):
+            return False
+        self.sources.invocations.validating += 1
+        try:
+            return all(
+                self.witness(
+                    native_member(selected.resolve(read.subject), read.demand, selected, observer)
+                )
+                == read.value
+                for read in summary.members.values()
+                for selected in (
                     scope
                     if read.subject.targets and not read.subject.aggregates
                     else self.view(
@@ -62,13 +66,10 @@ class InvocationCustody:
                         scope,
                         later=read.later,
                     ),
-                    self.sources,
-                    observer,
                 )
             )
-            == read.value
-            for read in summary.members.values()
-        )
+        finally:
+            self.sources.invocations.validating -= 1
 
     def return_inputs(
         self, summary: EffectSummary, arguments: dict[str, BindingValue], scope: BindingScope
@@ -96,9 +97,9 @@ class InvocationCustody:
             )
             or any(read.later for read in summary.reads.values())
             or any(
-                call.callee.targets
-                & (self.sources.definitions.keys() | self.sources.records.keys())
+                target in self.sources.definitions or target in self.sources.records
                 for call in summary.calls
+                for target in call.callee.targets
             )
         ):
             return None
@@ -222,46 +223,6 @@ class InvocationCustody:
             if current.element is not None:
                 pending.append(current.element)
         return False
-
-    def capabilities(
-        self, values: tuple[BindingValue, ...], scope: BindingScope, observer: PythonConsumption
-    ) -> frozenset[str]:
-        """Follow actual reachable and lazy inputs, not every callable in the module."""
-        pending, seen, aggregates, found, captures = (
-            [(value, scope) for value in values],
-            set(),
-            set(),
-            set(),
-            set(),
-        )
-        while pending:
-            value, owner = pending.pop()
-            identities = {(identity, owner.identity) for identity in value.aggregates}
-            site = id(value), owner.identity
-            if site in seen or (identities and identities <= aggregates):
-                continue
-            seen.add(site)
-            aggregates.update(identities)
-            value = self.sources.invocations.resolve(value, owner, observer, deep=False)
-            found.update(
-                target
-                for target in value.targets
-                if observer.kind(target) or observer.module_kinds(target)
-            )
-            pending.extend((item, owner) for item in value.items or ())
-            pending.extend(
-                (item, owner) for _, item in (*(value.entries or ()), *(value.fields or ()))
-            )
-            pending.extend((method.receiver, owner) for method in value.methods)
-            if value.element is not None:
-                pending.append((value.element, owner))
-            for target in value.targets:
-                definition = self.sources.definitions.get(target)
-                if definition is not None and (target, owner.identity) not in captures:
-                    captures.add((target, owner.identity))
-                    pending.extend(self.capture_roots(definition, definition.parent))
-                pending.extend(self.record_roots(target, owner))
-        return frozenset(found)
 
     def retained_transfer(self, roots: list[BindingValue], scope: BindingScope) -> bool:
         """Distinguish live capture custody from not-yet-published local allocations."""

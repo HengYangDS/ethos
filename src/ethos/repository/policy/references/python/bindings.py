@@ -54,7 +54,17 @@ class AggregateIdentity:
 class MemberDemand:
     """A typed member/index/iteration relationship with an exact or symbolic selector."""
 
-    kind: Literal["attribute", "index", "iterate", "get", "truth", "structure", "iteration_shape"]
+    kind: Literal[
+        "attribute",
+        "index",
+        "iterate",
+        "get",
+        "truth",
+        "structure",
+        "iteration_shape",
+        "native_return",
+        "concatenate",
+    ]
     key: str | int | None = None
     selector: BindingValue | None = None
     default: BindingValue | None = None
@@ -109,7 +119,7 @@ class BindingValue:
     deferred: bool = False
     unknown: bool = False
     spread: bool = False
-    native_kind: Literal["", "list"] = ""
+    native_kind: Literal["", "list", "environment"] = ""
     context_limited: bool = False
 
     def join(self, other: BindingValue) -> BindingValue:
@@ -206,23 +216,6 @@ class BindingValue:
             context_limited=self.context_limited or other.context_limited,
         )
 
-    def concatenate(self, other: BindingValue) -> BindingValue:
-        """Bound literal alternatives while retaining loss of value precision."""
-        if self.items is not None and other.items is not None:
-            return BindingValue(items=self.items + other.items)
-        if len(self.strings) * len(other.strings) <= 64:
-            return BindingValue(
-                strings=frozenset(a + b for a in self.strings for b in other.strings),
-                deferred=self.deferred or other.deferred,
-                unknown=self.unknown or other.unknown,
-                context_limited=self.context_limited or other.context_limited,
-            )
-        return BindingValue(
-            deferred=self.deferred or other.deferred,
-            unknown=True,
-            context_limited=self.context_limited or other.context_limited,
-        )
-
     def iterated(self) -> BindingValue:
         """Retain a finite element join separately from an exact ordered sequence."""
         result = self.element
@@ -280,7 +273,11 @@ class BindingValue:
                 deferred=self.deferred, unknown=True, context_limited=self.context_limited
             )
         entries = dict(self.entries)
-        names = entries if key.unknown or key.deferred or not key.strings else key.strings
+        names = (
+            entries
+            if key.unknown or key.deferred or key.parameters or key.projections or not key.strings
+            else key.strings
+        )
         value = BindingValue()
         for name in names:
             value = value.join(entries.get(name, BindingValue(unknown=True)))
@@ -376,14 +373,19 @@ class BindingScope:
             )
         elif name in {
             "getattr",
+            "hasattr",
             "__import__",
             "str",
             "exec",
             "eval",
             "tuple",
+            "list",
+            "len",
             "dict",
             "classmethod",
             "isinstance",
+            "int",
+            "range",
         }:
             value = BindingValue(targets=frozenset({f"builtins.{name}"}))
         else:

@@ -13,6 +13,9 @@ from typing import TYPE_CHECKING
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.bindings import LexicalRead
 from ethos.repository.policy.references.python.bindings import MemberDemand
+from ethos.repository.policy.references.python.bindings import ParameterProjection
+from ethos.repository.policy.references.python.native.scalars import concatenate
+from ethos.repository.policy.references.python.native.scalars import native_scalar
 
 if TYPE_CHECKING:
     import ast
@@ -22,6 +25,7 @@ if TYPE_CHECKING:
     from ethos.repository.policy.references.python.functions.invocation import PythonInvocations
     from ethos.repository.policy.references.python.functions.returns import FunctionDefinition
     from ethos.repository.policy.references.python.functions.returns import PythonSourceReturns
+    from ethos.repository.policy.references.python.syntax import LexicalBindings
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,7 +35,9 @@ class EffectCall:
     callee: BindingValue
     arguments: tuple[BindingValue, ...]
     keywords: dict[str | None, BindingValue]
-    node: ast.Call
+    node: ast.expr
+    path: str
+    scope: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +68,16 @@ class EffectSummary:
     returned: BindingValue = field(
         default_factory=lambda: BindingValue(deferred=True, unknown=True, context_limited=True)
     )
+    observation: PythonConsumption | None = None
+    pending: tuple[
+        tuple[
+            ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
+            BindingScope,
+            LexicalBindings,
+            BindingValue,
+        ],
+        ...,
+    ] = ()
 
 
 def bound_arguments(
@@ -92,6 +108,115 @@ def bound_arguments(
     return values
 
 
+def symbolic_arguments(definition: FunctionDefinition) -> dict[str, BindingValue]:
+    """Parameterize only runtime slots; a declared classmethod receiver is already bound."""
+    values = {
+        parameter.name: BindingValue(
+            parameters=frozenset({ParameterProjection(parameter.name, owner=definition.key)})
+        )
+        for parameter in definition.signature.parameters.values()
+    }
+    if definition.receiver:
+        values[next(iter(values))] = BindingValue(targets=frozenset({definition.receiver}))
+    return values
+
+
+def observe_calls(
+    summary: EffectSummary,
+    arguments: dict[str, BindingValue],
+    scope: BindingScope,
+    sources: PythonSourceReturns,
+    observer: PythonConsumption,
+    *,
+    owner: str,
+    transitive: bool = False,
+) -> None:
+    """Instantiate native effect edges at their defining source sites, not generic findings."""
+    pending = [(owner, summary, arguments)]
+    seen = set()
+    while pending:
+        owner, summary, arguments = pending.pop()
+        if len(seen) >= 128:
+            arguments = dict.fromkeys(arguments, BindingValue(unknown=True, context_limited=True))
+        key = owner, tuple(arguments.items())
+        if key in seen:
+            continue
+        seen.add(key)
+        observe_summary(summary, arguments, scope, sources, observer, owner=owner)
+        if not transitive:
+            continue
+        for call in summary.calls:
+            callee = substitute(call.callee, arguments, scope, sources, observer, owner=owner)
+            selected = sources.call_identity(callee)
+            for target in frozenset(t for t in selected.targets if t in sources.definitions):
+                definition = sources.definitions[target]
+                actual = bound_arguments(
+                    definition,
+                    tuple(
+                        substitute(value, arguments, scope, sources, observer, owner=owner)
+                        for value in call.arguments
+                    ),
+                    {
+                        name: substitute(value, arguments, scope, sources, observer, owner=owner)
+                        for name, value in call.keywords.items()
+                    },
+                )
+                if actual is not None:
+                    pending.append(
+                        (
+                            target,
+                            sources.invocations.summary_for(definition, observer, scope),
+                            actual,
+                        )
+                    )
+
+
+def observe_summary(
+    summary: EffectSummary,
+    arguments: dict[str, BindingValue],
+    scope: BindingScope,
+    sources: PythonSourceReturns,
+    observer: PythonConsumption,
+    *,
+    owner: str,
+) -> None:
+    """Replay one context's native sites while retaining their source identities."""
+    if summary.observation is not None:
+        observer.absorb(summary.observation)
+    for call in tuple(summary.calls):
+        callee = sources.call_identity(
+            substitute(call.callee, arguments, scope, sources, observer, owner=owner)
+        )
+        targets = frozenset(
+            target for target in callee.targets if target not in sources.definitions
+        )
+        if (
+            targets
+            or callee.selection
+            or callee.unknown
+            or callee.local
+            or callee.parameters
+            or (callee.deferred and not callee.targets)
+        ):
+            site = scope.fork()
+            site.name = call.scope
+            observation = type(observer)(call.path, observer.npm_scripts, sources=sources)
+            observation.native_call(
+                replace(callee, targets=targets),
+                tuple(
+                    substitute(value, arguments, scope, sources, observer, owner=owner)
+                    for value in call.arguments
+                ),
+                {
+                    name: substitute(value, arguments, scope, sources, observer, owner=owner)
+                    for name, value in call.keywords.items()
+                },
+                call.node,
+                site,
+            )
+            observer.absorb(observation)
+
+
 def substitute(
     value: BindingValue,
     arguments: dict[str, BindingValue],
@@ -105,40 +230,77 @@ def substitute(
     held = frozenset(key for key in value.aggregates if scope.member(key) != BindingValue())
     value = scope.resolve(value) if held else value
     selected_slots = frozenset(item for item in value.parameters if item.owner == owner)
-    current = replace(
-        value,
-        parameters=value.parameters - selected_slots,
-        aggregates=held,
-        methods=frozenset(
-            replace(
-                method,
-                receiver=substitute(
-                    method.receiver, arguments, scope, sources, observer, owner=owner
-                ),
+    methods = frozenset(
+        method
+        if (
+            receiver := substitute(
+                method.receiver, arguments, scope, sources, observer, owner=owner
             )
-            for method in value.methods
-        ),
-        items=tuple(
+        )
+        is method.receiver
+        else replace(method, receiver=receiver)
+        for method in value.methods
+    )
+    items = (
+        tuple(
             substitute(item, arguments, scope, sources, observer, owner=owner)
             for item in value.items
         )
         if value.items is not None
-        else None,
-        entries=tuple(
+        else None
+    )
+    entries = (
+        tuple(
             (name, substitute(item, arguments, scope, sources, observer, owner=owner))
             for name, item in value.entries
         )
         if value.entries is not None
-        else None,
-        fields=tuple(
+        else None
+    )
+    fields = (
+        tuple(
             (name, substitute(item, arguments, scope, sources, observer, owner=owner))
             for name, item in value.fields
         )
         if value.fields is not None
-        else None,
-        element=substitute(value.element, arguments, scope, sources, observer, owner=owner)
+        else None
+    )
+    element = (
+        substitute(value.element, arguments, scope, sources, observer, owner=owner)
         if value.element is not None
-        else None,
+        else None
+    )
+    if all(left is right for left, right in zip(value.items or (), items or (), strict=True)):
+        items = value.items
+    if all(
+        left is right
+        for (_, left), (_, right) in zip(value.entries or (), entries or (), strict=True)
+    ):
+        entries = value.entries
+    if all(
+        left is right
+        for (_, left), (_, right) in zip(value.fields or (), fields or (), strict=True)
+    ):
+        fields = value.fields
+    current = (
+        value
+        if not selected_slots
+        and held == value.aggregates
+        and methods == value.methods
+        and items is value.items
+        and entries is value.entries
+        and fields is value.fields
+        and element is value.element
+        else replace(
+            value,
+            parameters=value.parameters - selected_slots,
+            aggregates=held,
+            methods=methods,
+            items=items,
+            entries=entries,
+            fields=fields,
+            element=element,
+        )
     )
     for projection in selected_slots:
         selected = arguments.get(projection.name, BindingValue(unknown=True))
@@ -215,17 +377,28 @@ def native_iteration(
     )
 
 
-def native_member(
-    value: BindingValue, demand: MemberDemand, scope: BindingScope, observer: PythonConsumption
-) -> BindingValue:
-    """Read one closed native relation, retaining opaque selectors and missing values."""
+def selected_key(demand: MemberDemand) -> str | int | None:
+    """A concrete selector requires one closed string, not a symbolic or opaque alternative."""
     key = demand.key
     if demand.selector is not None:
         selector = demand.selector
         key = next(iter(selector.strings)) if len(selector.strings) == 1 else None
         if selector.unknown or selector.deferred or selector.parameters:
             key = None
-    if demand.kind == "truth":
+    return key
+
+
+def native_member(
+    value: BindingValue, demand: MemberDemand, scope: BindingScope, observer: PythonConsumption
+) -> BindingValue:
+    """Read one closed native relation, retaining opaque selectors and missing values."""
+    key = selected_key(demand)
+    if demand.kind == "native_return" and isinstance(key, str):
+        selected = native_scalar(key, (value,), {}) or BindingValue(unknown=True)
+    elif demand.kind == "concatenate":
+        other = demand.selector or BindingValue(unknown=True)
+        selected = concatenate(value, other) if demand.key == "left" else concatenate(other, value)
+    elif demand.kind == "truth":
         truth = value.truthiness()
         selected = (
             BindingValue(truths=frozenset({truth}))
@@ -365,7 +538,7 @@ def effect_dependencies(
             for target in selected.targets
             if target in invocations.sources.definitions
         )
-        if result.call_escapes(selected.targets, values, named_values, scope):
+        if result.call_escapes(selected, values, named_values, scope):
             return pending, True
         if selected.unknown and not (selected.targets or selected.methods or selected.parameters):
             roots = [callee, selected, *values, *named_values.values()]

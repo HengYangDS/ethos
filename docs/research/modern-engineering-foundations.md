@@ -175,6 +175,81 @@ missing obligations, and no benchmark claim precedes its measurement.
 
 ## Evidence And Limits
 
+### October 9 Computation And Native-Effect Findings
+
+Immutable semantic values should retain unchanged leaves and parents; only changed
+ancestors need reconstruction. The `PythonInvocations.resolve_value` experiment
+preserved complete observation multisets in four alternating same-input runs:
+operation medians fell from 16.646 to 15.655 seconds and wrapper medians from
+18.663 to 17.698 seconds. Allocation profiling recorded 1,676,731 to 1,266,490
+`replace` calls, but profiling elapsed time increased; it is not speedup evidence.
+The measured workload had zero concrete requests. These results qualify only
+that observation scope, not a full-proof breakthrough. A separate substitution
+shortcut passed 210 focused cases but alternating paired times were
+9.233/10.565/8.933/10.998 seconds, with identical complete observations and
+unchanged inputs. Opposite pair directions do not establish a stable benefit;
+the shortcut and its experiment-only identity cases were withdrawn without
+altering preceding admitted work. Preserve the failed hypothesis, not its code.
+
+The broader `substitute` copy-on-change candidate retains unchanged structural
+channels after resolving every current dependency. Seven RED cases now pass;
+180 selected cases and 435 additional existing semantic/public-observation cases
+pass without repeating the first selection. Six alternating observations preserve
+complete results and source hashes: median 11.590 to 8.097 seconds. Calls to
+`substitute` remain 403,025, while `_replace` calls fall from 1,267,569 to 880,724.
+Retain the candidate for broader exact-source qualification, not as an installed
+or full-proof performance claim. The workload still has zero concrete requests.
+
+Repeated transitive summary instantiation and effect interpretation remain the
+larger opportunity. Compare demand/delta worklists and context-complete reuse
+before adopting another LRU or incremental framework. Pure computation reuse must
+preserve binding ownership, consumed heap members, source sites and UNKNOWN;
+leases, ref admission, external observations and effects remain fresh.
+
+Evidence reuse follows exact selected case identities and consumed inputs, not
+JUnit `classname` presence or a count alone. The configured discovery report has
+empty class names but already contains all 24 functions and 77 parameterized
+cases. A mistaken coverage lookup repeated those cases; retain that attempt as
+an execution error, not new progress. Unchanged semantic bytes retain the 180
+and 435-case qualification; later trust or record changes do not turn it into
+new-HEAD full proof. Native scc, Ruff and Ty qualify the coherent source slice;
+fresh source/effect admission and installed behavior remain separate duties.
+
+The native held-ref repair also exposed a false abstraction: Git `verify` reports
+old-to-zero hook tuples without deleting a ref. Existing native same-value
+`update`/`prepare`/`abort` retains all ref locks without committing or moving refs;
+the original hook still rejects real deletion. Signed maintenance `f3526386`
+qualifies the actual AIGW materialization/replay without a new intent store.
+Preserve native stderr rather than guessing that every preparation failure means
+stale input. Model independent competing callers with separate native processes;
+in-process tests intentionally share cancellation ownership.
+
+The publication range owner was reopening native trust inputs per commit although
+its verifier already accepts 128-object batches. Signed maintenance `edd40436`
+reuses that capability, preserving every subject, identity and signature-format
+check. Four original 558-object observations, B/C/C/B, match the complete original
+report: median 91.436 to 54.295 seconds; native verification calls 558 to 5 and
+trust-input reads 1,116 to 2. Both pair directions improve; dispersion remains.
+Failed batches locate objects under the same pinned inputs. Original refusal,
+diagnostic timeout and global trust changes cannot be erased by successful retries
+or partial attribution. Three RED cases pass within 129 native cases; private
+extraction and failure-evidence follow-ups pass 12 and 8 selected cases, without
+repeating unchanged evidence. Only two production members and build identity
+change in the exact wheel; one offline build reuses supply by reference and
+releases its owned source. Actual AIGW installation selects runtime `325347fc`
+with those exact signed bytes, preserving three worktrees' refs, indexes and
+reflogs. Its previously failing GitHub-only publication passes in 205.075 seconds,
+with push exit zero and exact remote commit/tree readback. The internal
+120-second deadline is unchanged and successful GitLab is not replayed. This
+closes the concrete downstream failure, not full-product proof, CI or release.
+
+Reuse unchanged evidence by exact inputs, rerun only diagnosed changed cases,
+build once from signed source with existing supply by reference, and render reports
+from the same attempt. Retain failed receipts and retire completed owned scratch.
+Raw comparison and maintenance receipts are in the existing bound recovery scope,
+`semantic-demand-closure-20261009/{identity-sharing,substitution-copy-on-change,candidate-native-hook,commit-range-native-batch}-*`;
+the existing `proof-throughput` tasks retain implementation and acceptance state.
+
 The original September 12 source review used official documentation and read-only
 GitHub APIs; its receipts remain in the existing ignored evidence home under
 `build/evidence/quality/evidence-retirement/foundations-*.json`. These historical

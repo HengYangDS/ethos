@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 
 from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
-from ethos.repository.policy.references.python.bindings import ParameterProjection
 from ethos.repository.policy.references.python.bindings import ReturnProjection
 from ethos.repository.policy.references.python.control import FlowExit
 from ethos.repository.policy.references.python.control import PythonControlFlow
@@ -20,8 +19,10 @@ from ethos.repository.policy.references.python.functions.effects import EffectSu
 from ethos.repository.policy.references.python.functions.effects import MemberRead
 from ethos.repository.policy.references.python.functions.effects import bound_arguments
 from ethos.repository.policy.references.python.functions.effects import effect_dependencies
+from ethos.repository.policy.references.python.functions.effects import observe_calls
 from ethos.repository.policy.references.python.functions.effects import project
 from ethos.repository.policy.references.python.functions.effects import substitute
+from ethos.repository.policy.references.python.functions.effects import symbolic_arguments
 
 if TYPE_CHECKING:
     from ethos.repository.policy.references.python.bindings import MemberDemand
@@ -61,6 +62,7 @@ class PythonInvocations:
     active: list[str] = field(default_factory=list)
     demands: int = 0
     resolution_depth: int = 0
+    validating: int = 0
     custody: InvocationCustody = field(init=False)
 
     def __post_init__(self) -> None:
@@ -79,7 +81,7 @@ class PythonInvocations:
         """Record actual lexical dependencies while retaining native binding precision."""
         read = scope.read(name)
         value = self.custody.resolve(read.value, read.namespace, scope, later=read.later)
-        for key in self.summarizing:
+        for key in self.summarizing if not self.validating else ():
             frame: BindingScope | None = self.sources.definitions[key].parent
             while frame is not None and frame.identity != read.namespace.identity:
                 frame = frame.parent
@@ -108,7 +110,7 @@ class PythonInvocations:
         self, subject: BindingValue, demand: MemberDemand, value: BindingValue, scope: BindingScope
     ) -> None:
         """Track consumed external members without expanding unrelated heap siblings."""
-        if self.summarizing and (subject.aggregates or subject.targets):
+        if self.summarizing and not self.validating and (subject.aggregates or subject.targets):
             parent = self.sources.definitions[self.summarizing[-1]].parent
             namespace = self.custody.namespace(parent, scope)
             later = scope.deferred_outer
@@ -134,13 +136,24 @@ class PythonInvocations:
         if self.summarizing:
             summary = self.summaries[self.summarizing[-1]]
             summary.calls.append(
-                EffectCall(BindingValue(targets=frozenset({definition.key})), args, keywords, node)
+                EffectCall(
+                    BindingValue(targets=frozenset({definition.key})),
+                    args,
+                    keywords,
+                    node,
+                    result.path,
+                    caller.name,
+                )
             )
             selected = self.summary_for(definition, result, caller)
             summary.reads.update(selected.reads)
             summary.members.update(selected.members)
             summary.context_limited = summary.context_limited or selected.context_limited
             arguments = bound_arguments(definition, args, keywords)
+            if caller.deferred_outer and selected.observation is not None and arguments is not None:
+                observe_calls(
+                    selected, arguments, caller, self.sources, result, owner=definition.key
+                )
             return (
                 substitute(
                     selected.returned,
@@ -174,6 +187,8 @@ class PythonInvocations:
         args: tuple[BindingValue, ...],
         keywords: dict[str | None, BindingValue],
         node: ast.Call,
+        path: str,
+        scope: BindingScope,
     ) -> None:
         """Preserve callback holes without calling every deferred method effectful."""
         if self.summarizing and (
@@ -185,7 +200,7 @@ class PythonInvocations:
             )
         ):
             self.summaries[self.summarizing[-1]].calls.append(
-                EffectCall(callee, args, keywords, node)
+                EffectCall(callee, args, keywords, node, path, scope.name)
             )
 
     def note_mutation(
@@ -299,6 +314,7 @@ class PythonInvocations:
         summary.direct = summary.direct or bool(
             definition.flow.lexical.for_node(definition.node).outer_writes
         )
+        summary.observation = observer
 
     def materialize(self, index: int, result: PythonConsumption) -> BindingValue:
         """Evaluate one actual call once; reachable values remain subject to later mutation."""
@@ -363,7 +379,7 @@ class PythonInvocations:
     ) -> BindingValue:
         """Resolve selected members before expanding their demanded structure."""
         value = scope.resolve(value)
-        current = replace(value, projections=frozenset())
+        current = replace(value, projections=frozenset()) if value.projections else value
         if self.summarizing and value.projections:
             return current.join(BindingValue(deferred=True, context_limited=True))
         for projection in value.projections:
@@ -383,17 +399,57 @@ class PythonInvocations:
                 resolved = self.resolve(resolved, request.caller, result, deep=deep)
                 self.custody.publish(resolved, request.caller, scope)
             current = current.join(resolved)
-        if not deep:
+        if not deep or not (current.items or current.fields):
             return current
-        return replace(
-            current,
-            items=tuple(self.resolve(item, scope, result) for item in current.items)
+        items = (
+            tuple(self.resolve(item, scope, result) for item in current.items)
             if current.items is not None
-            else None,
-            fields=tuple((name, self.resolve(item, scope, result)) for name, item in current.fields)
-            if current.fields is not None
-            else None,
+            else None
         )
+        fields = (
+            tuple((name, self.resolve(item, scope, result)) for name, item in current.fields)
+            if current.fields is not None
+            else None
+        )
+        if (
+            items is None
+            or all(
+                before is after for before, after in zip(current.items or (), items, strict=True)
+            )
+        ) and (
+            fields is None
+            or all(
+                before is after
+                for (_, before), (_, after) in zip(current.fields or (), fields, strict=True)
+            )
+        ):
+            return current
+        return replace(current, items=items, fields=fields)
+
+    def bounded_return(
+        self, invocation: SourceInvocation, result: PythonConsumption
+    ) -> BindingValue:
+        """Carry unresolved values to native consumers without inventing another effect kind."""
+        definition = invocation.definition
+        if self.summarizing:
+            self.summaries[self.summarizing[-1]].context_limited = True
+        else:
+            summary = self.summary_for(definition, result, invocation.caller)
+            arguments = bound_arguments(definition, invocation.arguments, invocation.keywords)
+            if arguments is None:
+                arguments = dict.fromkeys(
+                    symbolic_arguments(definition), BindingValue(unknown=True)
+                )
+            observe_calls(
+                summary,
+                arguments,
+                invocation.caller,
+                self.sources,
+                result,
+                owner=definition.key,
+                transitive=True,
+            )
+        return BindingValue(deferred=bool(self.summarizing), unknown=True, context_limited=True)
 
     def evaluate(self, invocation: SourceInvocation, result: PythonConsumption) -> BindingValue:
         """Instantiate the same terminal-aware flow under a local dependency bound."""
@@ -404,31 +460,14 @@ class PythonInvocations:
         )
         if (
             definition.key in self.active
-            or len(self.active) >= 8
+            or (not self.summarizing and len(self.active) >= 8)
             or (not self.summarizing and self.demands >= 128)
             or None in keywords
             or any(value.spread for value in args)
         ):
-            if self.summarizing:
-                self.summaries[self.summarizing[-1]].context_limited = True
-            result.residual(
-                "executable",
-                "unknown",
-                invocation.node,
-                invocation.caller,
-                definition.key,
-                "source_invocation_not_closed",
-            )
-            return BindingValue(deferred=bool(self.summarizing), unknown=True, context_limited=True)
+            return self.bounded_return(invocation, result)
         bound = (
-            {
-                parameter.name: BindingValue(
-                    parameters=frozenset(
-                        {ParameterProjection(parameter.name, owner=definition.key)}
-                    ),
-                )
-                for parameter in definition.signature.parameters.values()
-            }
+            symbolic_arguments(definition)
             if self.summarizing and self.summarizing[-1] == definition.key
             else bound_arguments(definition, args, keywords)
         )
@@ -480,10 +519,7 @@ class PythonInvocations:
             self.active.pop()
             if root_demand:
                 self.demands = 0
-        result.imports.update(flow.result.imports)
-        result.executables.update(flow.result.executables)
-        result.inputs.update(flow.result.inputs)
-        result.uncertainties.extend(flow.result.uncertainties)
+        result.absorb(flow.result)
         returned = returned if returned != BindingValue() else BindingValue(local=True)
         if (
             summary is not None

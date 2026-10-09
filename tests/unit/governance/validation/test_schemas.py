@@ -10,6 +10,7 @@ import pytest
 from pydantic import ValidationError
 
 from ethos.contracts.gates import Gate
+from ethos.contracts.gates import NativeOutput
 from ethos.repository.audit import REQUIRED_SCHEMAS
 from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.repository.policy.schema import load_schema
@@ -151,6 +152,43 @@ def test_gate_schema_accepts_quality_descriptor_fields() -> None:
     )
     validation = validate_schema_instance("gate.schema.json", payload)
     assert validation["verdict"] == "pass"
+
+
+@pytest.mark.parametrize("groups", [("quality",), ()])
+def test_native_gate_schema_preserves_runtime_selection(groups: tuple[str, ...]) -> None:
+    """Native syntax projects once; omission cannot silently drop the dependency floor."""
+    assert (
+        load_schema("gate.schema.json")["$defs"]["NativeOutput"] == NativeOutput.model_json_schema()
+    )
+    payload = Gate.model_validate(
+        {
+            "id": "native-static",
+            "kind": "test",
+            "command": ("python", "-m", "nox", "--report", "{native_output}/nox.json"),
+            "verification_providers": ("ethos.adapters.gates.python_quality:static_report",),
+            "native_outputs": (
+                {"path": "nox.json", "format": "nox-json", "sessions": ("static",)},
+                {"path": "ruff.json", "format": "ruff-json", "sessions": ("static",)},
+                {
+                    "path": "runtime.json",
+                    "format": "python-runtime-json",
+                    "sessions": ("static",),
+                    "python": "3.12",
+                    "configuration": ".config/ruff/ruff.toml",
+                    "dependency_groups": groups,
+                },
+            ),
+        }
+    ).to_dict()
+    assert validate_schema_instance("gate.schema.json", payload)["verdict"] == "pass"
+    outputs = payload["native_outputs"]
+    assert isinstance(outputs, list)
+    runtime = outputs[-1]
+    assert isinstance(runtime, dict)
+    del runtime["dependency_groups"]
+    assert validate_schema_instance("gate.schema.json", payload)["verdict"] == "block"
+    with pytest.raises(ValidationError):
+        Gate.model_validate(payload)
 
 
 def test_gate_schema_matches_positive_cpu_reservation_contract() -> None:

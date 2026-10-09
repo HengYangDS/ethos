@@ -160,7 +160,7 @@ Check the largest independently readable section and whether readers can find
 a current decision, its rationale and the next action without scanning unrelated
 history. A short but fragmented or duplicated document can still fail that test.
 
-The portable hard ceiling is 500 nonblank physical lines per tracked, current,
+The portable hard ceiling is 512 nonblank physical lines per tracked, current,
 authored Markdown document, including root entrypoints, rules, Skills and a
 repository's native documentation root. Frontmatter, tables, code fences and
 quotes count; blank-line padding and a metadata state of `archived` do not

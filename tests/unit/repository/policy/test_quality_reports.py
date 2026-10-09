@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import json
+import sys
 from typing import TYPE_CHECKING
+from xml.etree import ElementTree
+from xml.sax.saxutils import escape
 
 import pytest
 
+from ethos.adapters.process import run_command
 from ethos.repository.policy.quality_reports import coverage_report
+from ethos.repository.policy.quality_reports import coverage_stream_report
 from ethos.repository.policy.quality_reports import junit_report
+from ethos.repository.policy.quality_reports import junit_stream_report
 from ethos.repository.policy.quality_reports import node_event_report
 
 if TYPE_CHECKING:
@@ -73,6 +79,88 @@ def test_junit_declared_counts_agree_with_executed_cases(tmp_path: Path) -> None
     counts, failed = junit_report((path,))
     assert counts == {"total": 2, "failures": 0, "errors": 0, "skipped": 1}
     assert failed is False
+
+
+@pytest.mark.parametrize("outcome", ["pass", "fail", "skip", "warn"])
+def test_native_pytest_subtest_reports_preserve_parent_and_event_counts(
+    tmp_path: Path, outcome: str
+) -> None:
+    """Original pytest events explain totals that its JUnit parent projection omits."""
+    body = {
+        "pass": "assert value > 0",
+        "fail": "assert value != 2",
+        "skip": "pytest.skip('native-skip') if value == 2 else None",
+        "warn": "warnings.warn('native-warning') if value == 2 else None",
+    }[outcome]
+    source = tmp_path / "test_subtests.py"
+    source.write_text(
+        "import pytest\nimport warnings\n\ndef test_parent(subtests):\n"
+        "    for value in (1, 2):\n        with subtests.test(value=value):\n"
+        f"            {body}\n\ndef test_other():\n    assert True\n",
+        encoding="utf-8",
+    )
+    xml, events = tmp_path / "junit.xml", tmp_path / "events.jsonl"
+    result = run_command(
+        tmp_path,
+        (
+            sys.executable,
+            "-B",
+            "-m",
+            "pytest",
+            "-p",
+            "pytest_reportlog.plugin",
+            "--noconftest",
+            "--rootdir",
+            str(tmp_path),
+            "-o",
+            "addopts=",
+            "-o",
+            f"cache_dir={tmp_path / 'cache'}",
+            f"--basetemp={tmp_path / 'scratch'}",
+            f"--junitxml={xml}",
+            f"--report-log={events}",
+            "-q",
+            str(source),
+        ),
+        timeout=30,
+        env={"PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"},
+        remove_env=("PYTEST_ADDOPTS",),
+    )
+    assert result.returncode == int(outcome == "fail"), (result.stdout, result.stderr)
+    original = xml.read_bytes(), events.read_bytes()
+    counts, failed = junit_stream_report(original[0].decode(), pytest_events=original[1].decode())
+    assert counts == {
+        "total": 4,
+        "failures": 2 if outcome == "fail" else 0,
+        "errors": 0,
+        "skipped": int(outcome == "skip"),
+    }
+    assert failed is (outcome in {"fail", "warn"})
+    assert (xml.read_bytes(), events.read_bytes()) == original
+    root = ElementTree.fromstring(original[0])
+    parent, other = tuple(root.iter("testcase"))
+    if outcome == "pass":
+        for tag in ("failure", "error", "skipped"):
+            marker = ElementTree.SubElement(parent, tag)
+            with pytest.raises(ValueError, match=r"^pytest_junit_outcome_mismatch$"):
+                junit_stream_report(
+                    ElementTree.tostring(root, encoding="unicode"),
+                    pytest_events=original[1].decode(),
+                )
+            parent.remove(marker)
+    elif outcome in {"fail", "skip"}:
+        for marker in tuple(parent):
+            parent.remove(marker)
+            other.append(marker)
+        with pytest.raises(ValueError, match=r"^pytest_junit_outcome_mismatch$"):
+            junit_stream_report(
+                ElementTree.tostring(root, encoding="unicode"),
+                pytest_events=original[1].decode(),
+            )
+    records = [json.loads(line) for line in original[1].decode().splitlines()]
+    without_terminal = "\n".join(json.dumps(record) for record in records[:-1])
+    with pytest.raises(ValueError, match=r"^pytest_terminal_missing$"):
+        junit_stream_report(original[0].decode(), pytest_events=without_terminal)
 
 
 @pytest.mark.parametrize(
@@ -166,3 +254,64 @@ def test_native_node_events_require_conserved_scope_and_terminal(
     else:
         with pytest.raises(ValueError, match="javascript_"):
             node_event_report(tmp_path, payload, ("answer.test.js",))
+
+
+@pytest.mark.parametrize(
+    ("source", "filename"),
+    [
+        (".", "src/app.py"),
+        ("src", "app.py"),
+        ("absolute", "src/app.py"),
+        ("absolute-src", "app.py"),
+    ],
+)
+def test_native_coverage_source_roots_preserve_subject_identity(
+    tmp_path: Path, source: str, filename: str
+) -> None:
+    """Native relative and absolute source roots identify the same declared subject."""
+    root = tmp_path.resolve()
+    if source == "absolute":
+        source = str(root)
+    elif source == "absolute-src":
+        source = str(root / "src")
+    payload = (
+        '<coverage lines-covered="1" lines-valid="1" branches-covered="0" branches-valid="0">'
+        f"<sources><source>{escape(source)}</source></sources>"
+        f'<class filename="{filename}"><line hits="1"/></class></coverage>'
+    ).encode()
+    path = tmp_path / "coverage.xml"
+    path.write_bytes(payload)
+    expected = {
+        "covered": 1,
+        "total": 1,
+        "combined_percent": 100,
+        "files": {"src/app.py": {"lines": 1, "hit_lines": 1}},
+    }
+    assert (
+        coverage_stream_report(
+            payload, include_files=True, repository_root=root, source_paths=("src/app.py",)
+        )
+        == expected
+    )
+    assert (
+        coverage_report(
+            path, include_files=True, repository_root=root, source_paths=("src/app.py",)
+        )
+        == expected
+    )
+
+
+def test_native_coverage_source_roots_require_unique_subject_binding(tmp_path: Path) -> None:
+    """A basename present under two admitted roots has no unique coverage identity."""
+    payload = (
+        b'<coverage lines-covered="1" lines-valid="1" branches-covered="0" branches-valid="0">'
+        b"<sources><source>left</source><source>right</source></sources>"
+        b'<class filename="app.py"><line hits="1"/></class></coverage>'
+    )
+    with pytest.raises(ValueError, match=r"^coverage_file_ambiguous$"):
+        coverage_stream_report(
+            payload,
+            include_files=True,
+            repository_root=tmp_path.resolve(),
+            source_paths=("left/app.py", "right/app.py"),
+        )

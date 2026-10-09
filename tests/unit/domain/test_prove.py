@@ -57,13 +57,12 @@ def test_invalid_python_is_not_a_valid_size_measurement() -> None:
 
 
 @pytest.mark.parametrize(
-    ("relative", "limit"),
-    [("src/logic.py", 500), ("src/ethos/surface/cli/view.py", 500), ("tests/test_case.py", 500)],
+    "relative",
+    ["src/logic.py", "src/ethos/surface/cli/view.py", "tests/test_case.py"],
 )
-def test_public_size_gate_enforces_current_role_boundaries(
-    tmp_path: Path, relative: str, limit: int
-) -> None:
+def test_public_size_gate_enforces_current_role_boundaries(tmp_path: Path, relative: str) -> None:
     """The native CLI accepts each exact ceiling and rejects one additional source line."""
+    limit = 512
     root = init_git_repo(tmp_path / "repo")
     rules = root / ".ethos/rules.toml"
     rules.parent.mkdir()
@@ -75,9 +74,9 @@ def test_public_size_gate_enforces_current_role_boundaries(
         git(root, "add", relative)
         report, observed = _public_size_report(root)
         assert report["verdict"] == ("pass" if lines == limit else "block"), report
-        assert observed["default_effective_max_lines"] == 500
-        assert observed["surface_effective_max_lines"] == 500
-        assert observed["test_effective_max_lines"] == 500
+        assert observed["default_effective_max_lines"] == limit
+        assert observed["surface_effective_max_lines"] == limit
+        assert observed["test_effective_max_lines"] == limit
         assert observed["required_gaps"] == (
             [] if lines == limit else [f"code_size_exceeded:{relative}:{lines}>{limit}"]
         )
@@ -92,18 +91,18 @@ def test_public_size_gate_enforces_current_role_boundaries(
         "[quality.code_size]\n",
         *(
             f"[quality.code_size]\ndefault_effective_max_lines = {value}\n"
-            for value in ('"500"', "true", "500.0", "0", "-100", "550")
+            for value in ('"512"', "true", "512.0", "0", "-100", "550.5")
         ),
-        '[quality.code_size]\ndefault_effective_max_lines = 500\nsurface_path_globs = "src/**"\n',
-        '[quality.code_size]\ndefault_effective_max_lines = 500\nsurface_path_globs = [""]\n',
-        "[quality.code_size]\ndefault_effective_max_lines = 500\nsurface_path_globs = [false]\n",
-        "[quality.code_size]\ndefault_effective_max_lines = 500\ntest_effective_max_lines = true\n",
+        '[quality.code_size]\ndefault_effective_max_lines = 512\nsurface_path_globs = "src/**"\n',
+        '[quality.code_size]\ndefault_effective_max_lines = 512\nsurface_path_globs = [""]\n',
+        "[quality.code_size]\ndefault_effective_max_lines = 512\nsurface_path_globs = [false]\n",
+        "[quality.code_size]\ndefault_effective_max_lines = 512\ntest_effective_max_lines = true\n",
         (
-            "[quality.code_size]\ndefault_effective_max_lines = 500\n"
-            "surface_effective_max_lines = 550\n"
+            "[quality.code_size]\ndefault_effective_max_lines = 512\n"
+            "surface_effective_max_lines = 550.5\n"
         ),
         (
-            "[quality.code_size]\ndefault_effective_max_lines = 500\n"
+            "[quality.code_size]\ndefault_effective_max_lines = 512\n"
             'exemptions = ["src/oversized.py"]\n'
         ),
     ],
@@ -139,7 +138,7 @@ def test_public_size_gate_reports_invalid_source(tmp_path: Path, content: bytes)
     root = init_git_repo(tmp_path / "repo")
     rules = root / ".ethos/rules.toml"
     rules.parent.mkdir()
-    rules.write_text("[quality.code_size]\ndefault_effective_max_lines = 500\n")
+    rules.write_text("[quality.code_size]\ndefault_effective_max_lines = 512\n")
     (root / "broken.py").write_bytes(content)
     git(root, "add", "broken.py")
     report, observed = _public_size_report(root)
@@ -158,7 +157,7 @@ def test_size_report_keeps_unavailable_observation_unknown(
     root = init_git_repo(tmp_path / "repo")
     rules = root / ".ethos/rules.toml"
     rules.parent.mkdir()
-    rules.write_text("[quality.code_size]\ndefault_effective_max_lines = 500\n")
+    rules.write_text("[quality.code_size]\ndefault_effective_max_lines = 512\n")
     (root / "source.py").write_text("value = 1\n")
     git(root, "add", "source.py")
 
@@ -201,7 +200,7 @@ def test_code_size_report_applies_declared_role_limits(tmp_path, monkeypatch):
             "quality": {
                 "code_size": {
                     "default_effective_max_lines": 300,
-                    "surface_effective_max_lines": 500,
+                    "surface_effective_max_lines": 512,
                     "test_effective_max_lines": 800,
                     "surface_path_globs": ["**/surface/**"],
                 }
@@ -216,7 +215,7 @@ def test_code_size_report_applies_declared_role_limits(tmp_path, monkeypatch):
 
     assert by_path["src/ethos/domain/small.py"]["role"] == "logic"
     assert by_path["src/ethos/domain/small.py"]["limit"] == 300
-    assert by_path["src/ethos/surface/cli/big.py"]["limit"] == 500
+    assert by_path["src/ethos/surface/cli/big.py"]["limit"] == 512
     assert by_path["tests/unit/test_big.py"]["limit"] == 800
     assert by_path["tests/unit/test_big.py"]["category"] == "test"
     # An oversized logic file is held to its role limit (300) and therefore fails —

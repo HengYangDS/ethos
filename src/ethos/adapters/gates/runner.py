@@ -20,6 +20,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 import ethos
+from ethos.adapters.gates.native.attempt import native_attempt
+from ethos.adapters.gates.native.attempt import retained_execution
 from ethos.adapters.gates.verification import NativeExecution
 from ethos.adapters.gates.verification import diagnostic_gaps_for
 from ethos.adapters.gates.verification import provider_reports
@@ -69,13 +71,16 @@ def classify_action_result(
     *,
     exit_code: int | None,
     stdout: str,
+    timeout_gap: str | None = None,
 ) -> tuple[Verdict, tuple[dict[str, Any], ...]]:
+    if timeout_gap is not None:
+        return "unknown", ({"kind": "gate_timeout", "required_gaps": [timeout_gap]},)
     if exit_code != 0:
         return "block", ()
     try:
         payload = json.loads(stdout)
     except json.JSONDecodeError:
-        return "pass", ()
+        payload = None
     if not isinstance(payload, dict) or "command" not in payload:
         return "pass", ()
     raw_verdict = payload.get("verdict")
@@ -148,12 +153,21 @@ class LocalGateRunner:
         execution_command = (
             (str(Path(executable).absolute()), *command[1:]) if executable else command
         )
+        native_evidence = None
         try:
-            completed = run_command(
-                root,
-                execution_command,
-                **({"timeout": max(0, deadline - monotonic())} if deadline else {}),
-            )
+            if gate.native_outputs:
+                completed, native_evidence = native_attempt(
+                    root,
+                    gate,
+                    execution_command,
+                    timeout=max(0, deadline - monotonic()) if deadline else None,
+                )
+            else:
+                completed = run_command(
+                    root,
+                    execution_command,
+                    **({"timeout": max(0, deadline - monotonic())} if deadline else {}),
+                )
         except subprocess.TimeoutExpired as exc:
             return ActionRunResult(
                 action_id=node.id,
@@ -193,7 +207,14 @@ class LocalGateRunner:
                     },
                 ),
             )
-        if scope := native_dependency_audit_scope(gate.model_dump(mode="python")):
+        timeout_gap = (
+            f"gate_timeout:{node.id}"
+            if native_evidence is not None and "native_execution_timeout" in native_evidence.gaps
+            else None
+        )
+        if (
+            scope := native_dependency_audit_scope(gate.model_dump(mode="python"))
+        ) and timeout_gap is None:
             decision = captured_dependency_acceptance(
                 completed.stdout,
                 head=current_tracked_head(root),
@@ -212,6 +233,7 @@ class LocalGateRunner:
             verdict, diagnostics = classify_action_result(
                 exit_code=completed.returncode,
                 stdout=completed.stdout,
+                timeout_gap=timeout_gap,
             )
         execution = ActionRunResult(
             action_id=node.id,
@@ -222,29 +244,45 @@ class LocalGateRunner:
             stderr=completed.stderr,
             diagnostics=diagnostics,
         )
+        native = retained_execution(
+            NativeExecution(
+                declared_identity=node.command,
+                argv=completed.args if native_evidence is not None else command,
+                cwd=root.resolve(),
+                exit_code=completed.returncode,
+                stdout=completed.stdout,
+                stderr=completed.stderr,
+                executable=execution_command[0] if executable else "",
+                evidence=native_evidence,
+            )
+        )
         verification: dict[str, object] | None = None
+        if native.evidence is not None:
+            verification = {
+                "gate": gate.id,
+                "native_artifact": native.evidence.artifact,
+                "providers": [],
+            }
         if verdict == "pass" and gate.verification_providers:
             reports, verdict, provider_diagnostics = provider_reports(
                 gate.id,
                 gate.verification_providers,
                 root,
                 timeout_seconds=max(0, deadline - monotonic()) if deadline else None,
-                execution=NativeExecution(
-                    declared_identity=node.command,
-                    argv=command,
-                    cwd=root.resolve(),
-                    exit_code=completed.returncode,
-                    stdout=completed.stdout,
-                    stderr=completed.stderr,
-                    executable=execution_command[0] if executable else "",
-                ),
+                execution=native,
             )
-            verification = {"gate": gate.id, "providers": reports}
+            verification = {
+                **(verification or {}),
+                "gate": gate.id,
+                "providers": reports,
+            }
             diagnostics = (*diagnostics, *provider_diagnostics)
         return replace(
             execution,
             verdict=verdict,
-            exit_code=completed.returncode if verification is None else int(verdict != "pass"),
+            exit_code=completed.returncode
+            if native.evidence is not None
+            else (completed.returncode if verification is None else int(verdict != "pass")),
             diagnostics=diagnostics,
             verification=verification,
         )

@@ -101,6 +101,15 @@ peers have no Forge review system. Failed or unavailable queries remain unknown.
 Each peer is reobserved before exact-old deletion, with partial outcomes and
 already-absent replay recorded by the existing publication Attestation.
 
+The dependency-audit owner's product policy discloses advisory findings without
+blocking development, CI, installation, release or distribution. Raw reports,
+finding identities, counts and native exit evidence remain intact. Missing or
+malformed observations, unexpected exits, source drift, adverse non-advisory
+statuses and artifact integrity failures remain nonpassing. This distinction
+does not grant release or credential authority. Product reporting replaces the
+former advisory approval and expiry list; explicitly strict subject policies
+retain their exact disposition contracts.
+
 Release readiness is proven with:
 
 ```bash

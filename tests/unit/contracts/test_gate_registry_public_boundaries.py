@@ -296,3 +296,88 @@ def test_default_gate_declaration_ignores_caller_checkout(tmp_path: Path, monkey
     candidate.write_text('schema_version = 999\nid = "ambient"\n', encoding="utf-8")
     monkeypatch.chdir(tmp_path)
     assert load_gate_registry_declaration() == expected
+
+
+@pytest.mark.parametrize(
+    "binding",
+    [
+        "valid",
+        "shared-runtime",
+        "report-routing",
+        "outside-session",
+        "duplicate-producer",
+        "missing-selection",
+        "duplicate-group",
+    ],
+)
+def test_native_output_contract_preserves_exact_producer_selection(binding: str) -> None:
+    """A single Nox attempt selects concrete producers and their portable output paths."""
+    command = (
+        "python",
+        "-m",
+        "nox",
+        "-s",
+        "tests-3.12",
+        "static",
+        "--report",
+        "{native_output}/nox.json",
+    )
+    static_sessions: tuple[str, ...] = ("static",)
+    if binding == "shared-runtime":
+        static_sessions = ("tests-3.12", "static")
+    elif binding == "outside-session":
+        static_sessions = ("unexpected",)
+    elif binding == "report-routing":
+        command = (*command[:-1], "{native_output}/other.json")
+    outputs: list[dict[str, object]] = [
+        {"path": "nox.json", "format": "nox-json", "sessions": ("tests-3.12", "static")},
+        {"path": "tests.xml", "format": "junit-xml", "sessions": ("tests-3.12",)},
+        {"path": "events.jsonl", "format": "pytest-jsonl", "sessions": ("tests-3.12",)},
+        {"path": "coverage.xml", "format": "coverage-xml", "sessions": ("tests-3.12",)},
+        {"path": "ruff.json", "format": "ruff-json", "sessions": ("static",)},
+        {
+            "path": "tests-runtime.json",
+            "format": "python-runtime-json",
+            "configuration": ".config/quality.toml",
+            "sessions": ("tests-3.12",),
+            "python": "3.12",
+            "dependency_groups": ("quality",),
+        },
+        {
+            "path": "static-runtime.json",
+            "format": "python-runtime-json",
+            "configuration": ".config/quality.toml",
+            "sessions": static_sessions,
+            "python": "3.12",
+            "dependency_groups": ("quality",),
+        },
+    ]
+    if binding == "duplicate-producer":
+        outputs.append(
+            {
+                "path": "other-static-runtime.json",
+                "format": "python-runtime-json",
+                "configuration": ".config/quality.toml",
+                "sessions": ("static",),
+                "python": "3.12",
+                "dependency_groups": ("quality",),
+            }
+        )
+    if binding == "missing-selection":
+        outputs[-1].pop("dependency_groups")
+    elif binding == "duplicate-group":
+        outputs[-1]["dependency_groups"] = ("quality", "quality")
+    payload = {
+        "id": "native",
+        "kind": "test",
+        "command": command,
+        "verification_providers": ("ethos.adapters.gates.python_quality:behavior_report",),
+        "native_outputs": tuple(outputs),
+    }
+    if binding == "valid":
+        gate = Gate.model_validate(payload)
+        assert gate.native_outputs[0].sessions == ("tests-3.12", "static")
+        assert ".config/quality.toml" in source_paths_for_gate(gate)
+    else:
+        with pytest.raises(ValidationError):
+            Gate.model_validate(payload)

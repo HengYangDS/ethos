@@ -2,28 +2,216 @@
 
 from __future__ import annotations
 
+import shlex
 from typing import TYPE_CHECKING
+from typing import TypedDict
 
 import pytest
 
+import ethos.adapters.mutation.lane_lifecycle.candidate.materialization as materialization
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as projection
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.domain.inspection import inspect_repository
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import init_repo_with_candidate
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
+from tests.support.signature import configure_signer
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+class _MaterializationInput(TypedDict):
+    root: Path
+    preserved_preimage: str
+    retention_ref: str
+    reason: str
 
 
 def _repo_without_candidate(tmp_path: Path) -> tuple[Path, str]:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     return repo, git(repo, "rev-parse", "HEAD")
+
+
+def _retained_candidate(tmp_path: Path) -> tuple[Path, Path, str, str]:
+    """Retain a signed ancestor while its candidate ref advances without materialization."""
+    repo, candidate = init_repo_with_candidate(tmp_path)
+    configure_signer(repo, tmp_path)
+    git(repo, "config", "commit.gpgsign", "true")
+    previous = commit_fixture_file(candidate, "payload.md", "Retained input\n", "fix: retain input")
+    git(repo, "branch", "work/retained", previous)
+    head = commit_fixture_file(candidate, "payload.md", "Current input\n", "fix: current input")
+    git(candidate, "read-tree", "--reset", "-u", previous)
+    return repo, candidate, previous, head
+
+
+def test_candidate_materialization_preserves_refs_and_recognizes_replay(tmp_path: Path) -> None:
+    """Fresh public admission repairs only the proven index and worktree projection."""
+    repo, candidate, previous, head = _retained_candidate(tmp_path)
+    arguments = (
+        "lane",
+        "candidate",
+        "--materialize",
+        "--preserved-preimage",
+        previous,
+        "--retention-ref",
+        "refs/heads/work/retained",
+        "--reason",
+        "Restore retained projection",
+        "--root",
+        str(repo),
+        "--json",
+    )
+    refs = git(repo, "show-ref")
+    index = candidate / git(candidate, "rev-parse", "--git-path", "index")
+    before = index.read_bytes()
+    preview = run_ethos(*arguments, cwd=repo)
+    assert preview["verdict"] == "pass", preview
+    assert preview["state"] == "ready_to_materialize"
+    assert index.read_bytes() == before
+    assert (candidate / "payload.md").read_text() == "Retained input\n"
+    command = shlex.split(preview["next_action"])[1:]
+    applied = run_ethos(*command, cwd=repo)
+    assert applied["verdict"] == "pass", applied
+    assert applied["state"] == "materialized"
+    assert (candidate / "payload.md").read_text() == "Current input\n"
+    assert git(candidate, "write-tree") == git(repo, "rev-parse", head + "^{tree}")
+    assert git(repo, "show-ref", "--heads", "--tags") == "\n".join(
+        line for line in refs.splitlines() if " refs/heads/" in line or " refs/tags/" in line
+    )
+    replayed = run_ethos(*command, cwd=repo)
+    assert replayed["verdict"] == "pass", replayed
+    assert replayed["data"]["effect_state"] == "recognized"
+    assert git(repo, "rev-parse", "candidate/dev") == head
+    assert git(repo, "rev-parse", "work/retained") == previous
+
+
+@pytest.mark.parametrize("drift", ["content", "candidate", "accepted", "retention"])
+def test_candidate_materialization_refuses_changed_admission_without_overwrite(
+    tmp_path: Path, drift: str
+) -> None:
+    """A fresh state binding cannot authorize changed refs or unpreserved working bytes."""
+    repo, candidate, previous, head = _retained_candidate(tmp_path)
+    preview = run_ethos(
+        "lane",
+        "candidate",
+        "--materialize",
+        "--preserved-preimage",
+        previous,
+        "--retention-ref",
+        "refs/heads/work/retained",
+        "--reason",
+        "Restore retained projection",
+        "--root",
+        str(repo),
+        "--json",
+        cwd=repo,
+    )
+    if drift == "content":
+        (candidate / "payload.md").write_text("Unpreserved edit\n")
+    elif drift == "candidate":
+        git(repo, "update-ref", "refs/heads/candidate/dev", previous, head)
+    elif drift == "accepted":
+        commit_fixture_file(repo, "accepted.md", "New accepted input\n", "fix: accepted input")
+    else:
+        git(repo, "update-ref", "refs/heads/work/retained", head, previous)
+    refs = git(repo, "show-ref")
+    contents = (candidate / "payload.md").read_bytes()
+    blocked = run_ethos_blocked(*shlex.split(preview["next_action"])[1:], cwd=repo)
+    assert blocked["verdict"] == "block"
+    assert blocked["required_gaps"]
+    assert git(repo, "show-ref") == refs
+    assert (candidate / "payload.md").read_bytes() == contents
+
+
+def test_candidate_materialization_recognizes_lost_ack_without_repeating_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A lost response after the native effect does not authorize rewriting its projection."""
+    repo, candidate, previous, head = _retained_candidate(tmp_path)
+    kwargs: _MaterializationInput = {
+        "root": repo,
+        "preserved_preimage": previous,
+        "retention_ref": "refs/heads/work/retained",
+        "reason": "Restore retained projection",
+    }
+    preview = materialization.materialize_candidate(**kwargs)
+    original = materialization.sync_worktree
+
+    token = preview["state_digest"]
+    assert isinstance(token, str)
+
+    def lose_response(root: Path, path: Path, *, branch: str, previous: str, head: str):
+        original(root, path, branch=branch, previous=previous, head=head)
+        message = "Materialization acknowledgement lost"
+        raise OSError(message)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(materialization, "sync_worktree", lose_response)
+        interrupted = materialization.materialize_candidate(
+            **kwargs,
+            apply=True,
+            authorized=True,
+            expect_head=head,
+            expect_state=token,
+        )
+    assert interrupted["verdict"] == "block"
+    assert (candidate / "payload.md").read_text() == "Current input\n"
+    index = candidate / git(candidate, "rev-parse", "--git-path", "index")
+    before = index.read_bytes()
+    recognized = materialization.materialize_candidate(
+        **kwargs,
+        apply=True,
+        authorized=True,
+        expect_head=head,
+        expect_state=token,
+    )
+    assert recognized["effect_state"] == "recognized"
+    assert index.read_bytes() == before
+
+
+@pytest.mark.parametrize("content", ["untracked", "ignored", "masked", "unsigned"])
+def test_candidate_materialization_requires_owned_trusted_preimage(
+    tmp_path: Path, content: str
+) -> None:
+    """Unknown bytes, masked incoming paths, and untrusted tips cannot enter materialization."""
+    repo, candidate, previous, head = _retained_candidate(tmp_path)
+    if content == "untracked":
+        (candidate / "foreign.md").write_text("Foreign work\n")
+    elif content == "masked":
+        git(candidate, "update-index", "--assume-unchanged", "payload.md")
+    elif content == "unsigned":
+        git(candidate, "read-tree", "--reset", "-u", head)
+        git(repo, "config", "commit.gpgsign", "false")
+        commit_fixture_file(candidate, "payload.md", "Unsigned input\n", "fix: unsigned input")
+        git(candidate, "read-tree", "--reset", "-u", previous)
+    else:
+        git(candidate, "read-tree", "--reset", "-u", head)
+        head = commit_fixture_file(candidate, "incoming.md", "Incoming input\n", "fix: new input")
+        git(candidate, "read-tree", "--reset", "-u", previous)
+        excludes = repo / git(repo, "rev-parse", "--git-path", "info/exclude")
+        excludes.parent.mkdir(parents=True, exist_ok=True)
+        excludes.write_text("incoming.md\n")
+        (candidate / "incoming.md").write_text("Ignored foreign work\n")
+    index = candidate / git(candidate, "rev-parse", "--git-path", "index")
+    before = index.read_bytes()
+    refs = git(repo, "show-ref")
+    preview = materialization.materialize_candidate(
+        root=repo,
+        preserved_preimage=previous,
+        retention_ref="refs/heads/work/retained",
+        reason="Restore retained projection",
+    )
+    assert preview["verdict"] == "block", preview
+    assert preview["required_gaps"]
+    assert index.read_bytes() == before
+    assert git(repo, "show-ref") == refs
 
 
 @pytest.mark.parametrize("should_apply", [False, True])
@@ -43,6 +231,7 @@ def test_candidate_bootstrap_rejects_path_collision_before_effect(
 
     assert report["state"] == "blocked"
     assert report["required_gaps"] == ["candidate_worktree_path_exists"]
+    assert isinstance(report["next_action"], str)
     assert report["next_action"].startswith(f"Inspect {target}")
     assert git(repo, "branch", "--list", "candidate/dev") == ""
 
@@ -99,6 +288,7 @@ def test_candidate_bootstrap_preview_requires_an_explicit_apply_decision(tmp_pat
 
     assert report["state"] == "planned"
     assert report["user_decision_required"] is True
+    assert isinstance(report["next_action"], str)
     assert "--apply" in report["next_action"]
     assert git(repo, "branch", "--list", "candidate/dev") == ""
 
@@ -151,12 +341,13 @@ def test_unborn_accepted_head_refuses_candidate_without_traceback(
 
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["accepted_head_unavailable"]
+    assert isinstance(report["next_action"], str)
     assert "first commit" in report["next_action"]
     assert git(repo, "branch", "--list", "candidate/dev") == ""
     refresh = projection.refresh_candidate_from_accepted(
         root=repo, apply=apply, authorized=True, expect_head=""
     )
-    assert "accepted_head_unavailable" in refresh["required_gaps"]
+    assert refresh["required_gaps"] == ["accepted_head_unavailable"]
     if not apply:
         status = run_ethos("status", "--root", str(repo), "--json", cwd=repo)
         assert "accepted_head_unavailable" in status["required_gaps"]

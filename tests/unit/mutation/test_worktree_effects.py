@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
+from threading import Event
 
 import pytest
 
@@ -13,11 +14,76 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_ref_worktrees import worktree_sync_gap
 from ethos.adapters.repo.worktree_effects import add_worktree
 from ethos.adapters.repo.worktree_effects import attach_worktree
+from ethos.adapters.repo.worktree_effects import hold_worktree_refs
 from ethos.adapters.repo.worktree_effects import remove_worktree
 from ethos.adapters.repo.worktree_effects import sync_worktree
 from tests.support.governed_repository import adopt_and_commit
+from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+
+
+@pytest.mark.parametrize("interrupted", [False, True])
+def test_worktree_ref_assertions_hold_all_inputs_and_release_on_failure(
+    tmp_path: Path, *, interrupted: bool
+) -> None:
+    """Prepared native assertions prevent concurrent writes without making same-value updates."""
+    repo = init_git_repo(tmp_path / "repo")
+    previous = git(repo, "rev-parse", "HEAD")
+    head = commit_fixture_file(repo, "next.md", "Next input\n", "fix: next input")
+    refs = {
+        "refs/heads/dev": head,
+        "refs/heads/candidate/dev": head,
+        "refs/heads/work/retained": previous,
+    }
+    for ref, value in refs.items():
+        git(repo, "update-ref", ref, value)
+    reflog = git(repo, "reflog", "--all")
+
+    def compete() -> None:
+        with hold_worktree_refs(repo, refs):
+            for ref, value in refs.items():
+                other = previous if value == head else head
+                result = run_git(
+                    repo,
+                    "-c",
+                    "core.filesRefLockTimeout=0",
+                    "update-ref",
+                    ref,
+                    other,
+                    value,
+                    check=False,
+                )
+                assert result.returncode != 0
+                assert git(repo, "rev-parse", ref) == value
+            if interrupted:
+                message = "Interrupted materialization"
+                raise OSError(message)
+
+    if interrupted:
+        with pytest.raises(OSError, match="Interrupted materialization"):
+            compete()
+    else:
+        compete()
+    assert git(repo, "reflog", "--all") == reflog
+    for ref, value in refs.items():
+        other = previous if value == head else head
+        git(repo, "update-ref", ref, other, value)
+        assert git(repo, "rev-parse", ref) == other
+
+
+def test_worktree_ref_holder_timeout_releases_owned_git_process(tmp_path: Path) -> None:
+    """A caller deadline ends the held transaction without an operator killing it."""
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    refs = {"refs/heads/dev": head}
+    with (
+        pytest.raises(ValueError, match="worktree_effect_ref_lock_timeout"),
+        hold_worktree_refs(repo, refs, timeout_seconds=0.1),
+    ):
+        Event().wait(0.2)
+    with hold_worktree_refs(repo, refs):
+        assert git(repo, "rev-parse", "HEAD") == head
 
 
 def test_worktree_preimage_uses_content_not_index_stat_cache(tmp_path: Path) -> None:

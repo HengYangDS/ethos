@@ -19,6 +19,7 @@ import ethos.domain.prove as prove_domain
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation.lane_lifecycle.archive.command import archive_change
+from ethos.adapters.mutation.lane_lifecycle.candidate.materialization import materialize_candidate
 from ethos.adapters.mutation.lane_lifecycle.candidate_projection import bootstrap_candidate
 from ethos.adapters.mutation.lane_lifecycle.candidate_projection import (
     refresh_candidate_from_accepted,
@@ -218,12 +219,34 @@ def candidate(
     path: Annotated[str | None, Parameter(name="--path")] = None,
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None,
     refresh_from_accepted: Annotated[bool, Parameter(name="--refresh-from-accepted")] = False,
+    materialize: bool = False,
+    preserved_preimage: Annotated[str, Parameter(name="--preserved-preimage")] = "",
+    retention_ref: Annotated[str, Parameter(name="--retention-ref")] = "",
+    reason: str = "",
+    expect_state: Annotated[str | None, Parameter(name="--expect-state")] = None,
     authorize: bool = False,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Bootstrap, inspect, or refresh the local candidate train."""
+    """Bootstrap, inspect, refresh, or materialize the local candidate train."""
     repo = resolve_root(root)
+    if materialize:
+        report = (
+            {"verdict": "block", "state": "blocked", "required_gaps": ["candidate_mode_conflict"]}
+            if refresh_from_accepted or path is not None
+            else materialize_candidate(
+                root=repo,
+                apply=apply,
+                authorized=authorize,
+                expect_head=expect_head,
+                expect_state=expect_state,
+                preserved_preimage=preserved_preimage,
+                retention_ref=retention_ref,
+                reason=reason,
+            )
+        )
+        project_lane_result("lane candidate", report, enforce=apply, json_output=json_output)
+        return
     report = (
         refresh_candidate_from_accepted(
             root=repo,

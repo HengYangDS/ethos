@@ -91,6 +91,26 @@ authored content rather than overwriting it. Integration keeps candidate, accept
 and release transitions distinct, including preview, exact coordinates and fresh
 effect admission. Proof and publication do not yet have equivalent SDK and MCP surfaces.
 
+## Retained Candidate Materialization
+
+When a candidate ref has advanced but its index and worktree still exactly match
+a trusted, retained ancestor, inspect the existing candidate command:
+
+```bash
+ethos lane candidate --materialize --preserved-preimage <full-commit-oid> --retention-ref <full-ref> --reason "Restore the retained candidate projection" --root <clean-accepted-root> --json
+```
+
+Follow the returned authorized apply command. Its state digest binds the current
+candidate and accepted refs, retention ref, common directory, target and actor;
+the caller does not restate those facts in another plan. The effect holds native
+Git ref assertions, re-observes the exact index and working bytes, and uses the
+existing worktree synchronization owner. It moves no ref and replays no earlier CAS.
+
+Unknown edits, untrusted commits, changed refs and ignored or masked overwrite
+risks refuse materialization. A completed native effect is recognized without
+rewriting its index after a lost acknowledgement. The returned NativeEffect is
+evidence of materialization, not source acceptance or a new authorization.
+
 ## Runtime Selection and Recovery
 
 `status.data.hook_runtime` is the single hook-runtime

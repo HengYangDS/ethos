@@ -169,7 +169,7 @@
 - [x] 10.2 Schedule selected source-side readiness before behavior and delivery without expanding offline selection or rewriting proof policy; qualify public failure propagation and preserve transitive post-execution checks.
 - [x] 10.3 Restore native configuration discovery and reject missing or delegated explicit targets.
 - [ ] 10.4 Restore effective JavaScript semantic quality and native launcher behavior. Product-pinned ESLint now replaces syntax-only inspection and is shared with Nox; exact proof and installed delivery remain pending.
-  Evidence: native JavaScript lint and final format pass; the original 77 affected report/adopter/Git tests pass. Original-attempt Allure/JUnit and source-scope receipts are retained in `prerequisite-reports.result.json` under native evidence custody. Authored/generated/upstream applicability remains open; a carrier role is not provenance.
+      Evidence: native JavaScript lint and final format pass; the original 77 affected report/adopter/Git tests pass. Original-attempt Allure/JUnit and source-scope receipts are retained in `prerequisite-reports.result.json` under native evidence custody. Authored/generated/upstream applicability remains open; a carrier role is not provenance.
 - [x] 10.5 Reject invalid and non-Boolean CEL predicates at declaration loading and qualify existing consumers.
 - [ ] 10.6 Enforce unapproved-warning rejection at native command adapters without treating informational output as failure. Direct Node checks retain native typed events, diagnostics and terminal coverage from one execution; npm/c8 and Python same-attempt adaptation remain open.
   - [ ] 10.6.1 Bind Allure 3 global process logs and native exit to the same test attempt; preserve focused report scope, retain rejected attempts and avoid replay solely to fill report metadata.
@@ -182,7 +182,7 @@
 - [x] 10.9 Repair installed hook formatting supply: a configured check must not silently pass when its bound Ruff executable is absent; verify installed valid, invalid and missing-tool cases.
 - [x] 10.10 Preserve meaningful YAML scalar newlines while rejecting redundant structural blank lines through the native configuration owner; keep producer-owned and historical carriers unchanged.
 - [ ] 10.11 Repair reference observation and declaration ownership at their existing owner: aliases, shadowing, lexical scope, call-site values, dynamic private imports, scoped dynamic UNKNOWN, and trusted profile/release command fields. Reproduce false passes and false blocks through public repository-audit, module-layout and patch-admission consumers; replace heuristics rather than adding name exceptions, preserve legal success, and qualify exact-source proof and installed behavior.
-  Evidence: `GIT_INDEX_FILE` is declared at the actual input owner; five existing semantic-closure tests pass. Standard-library `TypedDict` removes an undeclared transitive import, and two redundant casts are removed; native Ty and dependency hygiene pass. The focused source receipt `prerequisite-green.result.json` does not establish full proof or installed behavior.
+      Evidence: `GIT_INDEX_FILE` is declared at the actual input owner; five existing semantic-closure tests pass. Standard-library `TypedDict` removes an undeclared transitive import, and two redundant casts are removed; native Ty and dependency hygiene pass. The focused source receipt `prerequisite-green.result.json` does not establish full proof or installed behavior.
       Bounded source-return projection retains exact definition identity, finite
       native record fields and path suffixes; unsupported dispatch, mutation and
       recursion remain site-specific UNKNOWN. Native execution and location
@@ -266,9 +266,14 @@
       and all 99 archived members have complete readback in native Attestation
       `98b123c3263a944296c1fe65342534b591552fb2c01c5382999299505f50f3ef`.
       Intermediate fixture and consumer-rewire failures remain distinct from the
-      diagnosed implementation failures. Signed source, exact public proof,
-      accepted wheel/runtime and installed DDWG integration remain open; source
-      qualification does not close 10.11 or supersede the original failed proof.
+      diagnosed implementation failures. Signed source
+      `ae53d84a0e50e0ba20753d042dbabeebb7542965` preserves the trusted signature;
+      native Git verification passes without changing signing policy.
+      Exact signed-source host module-layout and Python-size checks pass; the
+      installed provider/source mismatch remains a separate failed observation.
+      Full exact public proof, accepted wheel/runtime and installed DDWG
+      integration remain open. Source qualification does not close 10.11 or
+      supersede the original failed proof.
 
 - [ ] 10.12 Replace fixed OpenSpec proposal/design/tasks path inference with its resolved artifact graph; preserve positive removal-only acceptance; replay renamed/optional outputs, pure/mixed removal, `skip_specs`, missing/ambiguous resolution, archive identity and exact source binding through public compilation and proof.
 - [ ] 10.13 Preserve blocked CLI exit and incomplete-report status under nonblocking backpressure and short writes; distinguish closed consumers without replaying completed effects.
@@ -278,67 +283,67 @@
 - [x] 11.1 Qualify the official stable SBOM supply after observed host-version drift.
 - [x] 11.2 Refresh compatible stable supply and exact CI projections with the Python support line intact.
 - [ ] 11.3 Qualify supported latest-stable supply or an obligation-preserving constrained-owner replacement. OpenSpec 1.14.0 is repository-locked: 134 focused tests and all 14 official strict validations pass; 168 native apply tasks retain source locations. Lock entries remain 378 with no new advisories (`openspec114-{resolution,native-verification-corrected,strict}-result` evidence). The approved braces exception permits continued development; it is not a fixed advisory or a production-release waiver. Exact scope and expiry remain with the native audit owner.
-  DDWG reports its accepted installed OpenSpec 1.13.2 while its repository locks
-  1.14.0. This is a consumer migration obligation, not a reason to downgrade the
-  repository lock; the exact accepted source/tree/wheel/runtime handoff remains open.
-  Allure is locked to official stable 3.20.0 after isolated native resolution: 409→408
-  lock entries, no added packages or install scripts. Original 77/5 result sets retain
-  exact input hashes and report name/status parity without test replay. Those observations
-  predate the npm 12.2.0 addition; current lock and audit identity are stated below.
-  Exact proof and installed delivery remain open. Evidence: `allure320-experiment.result.json` and `allure320-lock-delta.json`.
+      DDWG reports its accepted installed OpenSpec 1.13.2 while its repository locks
+      1.14.0. This is a consumer migration obligation, not a reason to downgrade the
+      repository lock; the exact accepted source/tree/wheel/runtime handoff remains open.
+      Allure is locked to official stable 3.20.0 after isolated native resolution: 409→408
+      lock entries, no added packages or install scripts. Original 77/5 result sets retain
+      exact input hashes and report name/status parity without test replay. Those observations
+      predate the npm 12.2.0 addition; current lock and audit identity are stated below.
+      Exact proof and installed delivery remain open. Evidence: `allure320-experiment.result.json` and `allure320-lock-delta.json`.
   - [ ] 11.3.1 Close the adopter-reproduced actionlint child-start-before-input deadlock at the existing native workflow-check owner. Verify bounded finite input, EOF and cancellation on the actual large workflow without a timeout increase, wrapper/fork or reduced validation. Source and native focused closure are implemented, including the direct Python gate, selected module/package source bindings and retired shell launcher; exact proof and installed delivery remain pending.
   - [ ] 11.3.2 Deliver the 2026-10-05 official-stable supply refresh through native manifests, locks, CI projections and accepted runtime. The isolated rehearsal upgrades 18 Python lock entries and 17 distinct npm package identities; two native dependency placements change, with no new package names or install-script paths; Python audit covers 126 packages with no findings. Preserve Python 3.12.15 support. Pydantic 2.13.5 requires pydantic-core 2.46.5 exactly; do not force the independently newer core. Syft 1.54.0, uv 0.12.23 and setup-uv v10.2.0 are source-bound. Mise 2026.10.2 is pending: immutable-runtime patch admission misreads the new official installer's quoted awk body as shell executables; fix the existing reference owner rather than whitelist those spellings or alter the vendor installer. The source candidate replaces nodejs-wheel-binaries 24.19.0 with official Node 26.10.0 archives bound by the existing Mise config/lock and native download/cache owner. Source consumers resolve verified cache; wheels emit Node-only resources. The existing product package lock uniquely selects npm 12.2.0; archive-bundled npm is a verified build-only first-install seed, not installed product authority. Source CI projections retire the duplicate Node policy and shell installers while retaining native JavaScript and platform qualification. Cold Windows Mise preparation, image publication, exact full proof and accepted installed delivery remain unqualified. Evidence: `stable-supply-{official-metadata-20261005,native-rehearsal,native-audit,actions-metadata}`.
-  Current 2026-10-06 package-lock SHA-256:
-  `f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085`.
-  Native complete supply preparation took 1.584 seconds; all 198 selected
-  production roots match the lock, without lifecycle scripts. OpenSpec 1.14.1,
-  smol-toml 1.9.0 and KaTeX 0.19.0 remove the remediable new findings; scoped
-  commander 15.0.0 retains parent constraints. cachetools 7.2.1, filelock 4.0.12,
-  hypothesis 6.168.5 and griffelib 2.3.2 are source/lock-bound upgrades.
-  The fresh native audit took 3.545 seconds: Python clean; npm remains blocked
-  with 11 affected aggregates and 13 advisory roots. Exact bundle/lock/host
-  approvals permit only controlled local development through 2026-10-18,
-  exclusive expiry 2026-10-19T00:00:00+08:00. The separately approved parser
-  7.1.4 advisory binds the containing npm 12.2.0 integrity via native `inBundle`
-  ownership; npm's native audit fix cannot replace that child. Local decision
-  passes; strict and declared-CI decisions block. Evidence:
-  `native-npm-stable-complete-supply-20261006.receipt.json`,
-  `native-npm-approved-local-audit-native-20261006.receipt.json` and
-  `native-parser-approval-boundary-replay-20261006.json`.
-  Associated quality/audit tests pass 144 cases; the source-prerequisite
-  refinement separately passes four public profile/packaged-floor cases.
-  Bootstrap passes all 15 cases, including one seed-failure stop regression;
-  its real script and inline Python remain unchanged. OpenSpec strict validation
-  passes all 14 current items without actionable warnings; warning semantics
-  separately pass four public cases. Same-attempt Allure/JUnit and required
-  failed receipts remain in native evidence custody; all test scratch is absent.
-  Final policy/proof/provenance/OpenSpec/report consumers pass 98 cases in
-  136.40 seconds. Allure 3.20.0 renders their original results and the 15-case
-  bootstrap attempt in 0.746/0.624 seconds, with native JUnit totals and raw-byte
-  parity; reports remain focused source evidence, not full-proof acceptance.
-  Current Ruff, format and Ty pass. Evidence:
-  `native-upgraded-quality-associated-20261006.receipt.json`,
-  `native-packaged-floor-prerequisite-green-20261006.receipt.json`,
-  `native-bootstrap-stop-contract-final-green-20261006.receipt.json` and
-  `native-openspec1141-current-warning-green-20261006.receipt.json`.
-  Mise 2026.10.3 remains blocked by unchanged installer patch admission at the
-  older shell observer; relocated official sidecar bytes are retained. No
-  accepted runtime, installed successor or whole-source proof is claimed.
-  Local-source acceptance now uses the unique purpose-bound policy owner through
-  public prove/land and strict Git hooks; product-policy drift blocks CAS and sync.
-  The exact braces 3.0.3 advisory GHSA-vfj7-8cjw-p6xm is user-approved across
-  downstream boundaries, not declared clean. Portable production approvals ship
-  once with canonical resources; npm/parser approvals remain host/expiry-bound.
-  Native focused tests pass 237 cases in 96.41 seconds, including strict incumbent
-  roles, inverse candidate admission, retained original-plan recovery without CAS,
-  and public interrupted-sync recovery. Caller-held plan recovery is not automatic
-  public recovery from an intent digest. Evidence:
-  `native-source-policy-inverse-qualified-20261007.receipt.json`,
-  `native-product-policy-isolated-build-20261006.receipt.json`.
-  Signed source recovery, accepted successor activation, full exact proof,
-  install/upgrade/adopter readback and release qualification remain open.
-  Evidence: `audit-npm-disposition-sidecar-20261005T0615/{qualification-summary.json,native-local.dependency-audit.json,native-strict.dependency-audit.json,native-ci-local.dependency-audit.json}`
-  and `ci-node-ssot-sidecar-20261005T051804Z/ci-node-ssot-generated.patch`.
+        Current 2026-10-06 package-lock SHA-256:
+        `f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085`.
+        Native complete supply preparation took 1.584 seconds; all 198 selected
+        production roots match the lock, without lifecycle scripts. OpenSpec 1.14.1,
+        smol-toml 1.9.0 and KaTeX 0.19.0 remove the remediable new findings; scoped
+        commander 15.0.0 retains parent constraints. cachetools 7.2.1, filelock 4.0.12,
+        hypothesis 6.168.5 and griffelib 2.3.2 are source/lock-bound upgrades.
+        The fresh native audit took 3.545 seconds: Python clean; npm remains blocked
+        with 11 affected aggregates and 13 advisory roots. Exact bundle/lock/host
+        approvals permit only controlled local development through 2026-10-18,
+        exclusive expiry 2026-10-19T00:00:00+08:00. The separately approved parser
+        7.1.4 advisory binds the containing npm 12.2.0 integrity via native `inBundle`
+        ownership; npm's native audit fix cannot replace that child. Local decision
+        passes; strict and declared-CI decisions block. Evidence:
+        `native-npm-stable-complete-supply-20261006.receipt.json`,
+        `native-npm-approved-local-audit-native-20261006.receipt.json` and
+        `native-parser-approval-boundary-replay-20261006.json`.
+        Associated quality/audit tests pass 144 cases; the source-prerequisite
+        refinement separately passes four public profile/packaged-floor cases.
+        Bootstrap passes all 15 cases, including one seed-failure stop regression;
+        its real script and inline Python remain unchanged. OpenSpec strict validation
+        passes all 14 current items without actionable warnings; warning semantics
+        separately pass four public cases. Same-attempt Allure/JUnit and required
+        failed receipts remain in native evidence custody; all test scratch is absent.
+        Final policy/proof/provenance/OpenSpec/report consumers pass 98 cases in
+        136.40 seconds. Allure 3.20.0 renders their original results and the 15-case
+        bootstrap attempt in 0.746/0.624 seconds, with native JUnit totals and raw-byte
+        parity; reports remain focused source evidence, not full-proof acceptance.
+        Current Ruff, format and Ty pass. Evidence:
+        `native-upgraded-quality-associated-20261006.receipt.json`,
+        `native-packaged-floor-prerequisite-green-20261006.receipt.json`,
+        `native-bootstrap-stop-contract-final-green-20261006.receipt.json` and
+        `native-openspec1141-current-warning-green-20261006.receipt.json`.
+        Mise 2026.10.3 remains blocked by unchanged installer patch admission at the
+        older shell observer; relocated official sidecar bytes are retained. No
+        accepted runtime, installed successor or whole-source proof is claimed.
+        Local-source acceptance now uses the unique purpose-bound policy owner through
+        public prove/land and strict Git hooks; product-policy drift blocks CAS and sync.
+        The exact braces 3.0.3 advisory GHSA-vfj7-8cjw-p6xm is user-approved across
+        downstream boundaries, not declared clean. Portable production approvals ship
+        once with canonical resources; npm/parser approvals remain host/expiry-bound.
+        Native focused tests pass 237 cases in 96.41 seconds, including strict incumbent
+        roles, inverse candidate admission, retained original-plan recovery without CAS,
+        and public interrupted-sync recovery. Caller-held plan recovery is not automatic
+        public recovery from an intent digest. Evidence:
+        `native-source-policy-inverse-qualified-20261007.receipt.json`,
+        `native-product-policy-isolated-build-20261006.receipt.json`.
+        Signed source recovery, accepted successor activation, full exact proof,
+        install/upgrade/adopter readback and release qualification remain open.
+        Evidence: `audit-npm-disposition-sidecar-20261005T0615/{qualification-summary.json,native-local.dependency-audit.json,native-strict.dependency-audit.json,native-ci-local.dependency-audit.json}`
+        and `ci-node-ssot-sidecar-20261005T051804Z/ci-node-ssot-generated.patch`.
 
 - [ ] 11.4 Migrate native developer/CI tool supply to mise locks and retire replaced installers.
 - [x] 11.5 Verify native import-linter and coverage TOML option equivalence; replace their INI owners and consumers without adding a converter.

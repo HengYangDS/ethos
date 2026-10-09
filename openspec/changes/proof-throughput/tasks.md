@@ -305,6 +305,21 @@
       focused Ty and Ruff format pass. Exact-source full proof, accepted runtime
       and installed default-subject acceptance remain open. Evidence:
       `native-merge-*` under `build/evidence/ddwg-native-integration-20261008/`.
+      The exact signed-source related suite passes 97 cases. Local-source and
+      merge evidence, including original failures and the 120-second host
+      product-boundary timeout, has complete byte/hash readback in native
+      custody `c9b49b4324d8fda46d5fb2b348355dd3aca4a9dba4aace8140dd911e8e065b75`.
+      Six finished test-owned basetemp roots were retired after exact liveness
+      checks; the Python 3.12 supply, required receipts and foreign work remain.
+      A new native audit identifies three unapproved Handlebars 4.7.9 advisories.
+      Official native isolated resolution to 4.7.10 changes one of 556 lock
+      entries, adds no packages/scripts/advisories, and removes all three.
+      Source lock is `b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027`.
+      The 12 old-lock local-development approvals remain unchanged and refuse
+      that new binding; exact reauthorization is pending. Shared installed
+      supply correctly refuses the changed lock. No accepted dependency supply,
+      full proof, wheel, runtime or publication is claimed. Evidence:
+      `handlebars-*` and `local-source-merge-*` under the same evidence root.
       Allure is locked to official stable 3.20.0 after isolated native resolution: 409→408
       lock entries, no added packages or install scripts. Original 77/5 result sets retain
       exact input hashes and report name/status parity without test replay. Those observations

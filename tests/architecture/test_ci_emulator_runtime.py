@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+import os
+import sys
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -14,8 +16,35 @@ from tests.support.architecture import write_reference_source
 from tools.ci.ci_projection import emulator_declaration
 from tools.ci.ci_projection import provider_entry
 
-if TYPE_CHECKING:
-    from pathlib import Path
+
+@pytest.mark.parametrize("available", [False, True])
+@pytest.mark.parametrize("relative", [False, True], ids=["absolute-path", "child-relative-path"])
+def test_emulator_uses_exact_child_environment_locator(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, available: bool, relative: bool
+) -> None:
+    """Execution selects the child PATH, not a locator from the parent environment."""
+    native = Path(sys.executable)
+    absent = tmp_path / "empty"
+    absent.mkdir()
+    child_path = native.parent if available else absent
+    parent_path = absent if available else native.parent
+    monkeypatch.setenv("PATH", str(parent_path))
+    selected_path = os.path.relpath(child_path, tmp_path) if relative else str(child_path)
+    environment = dict(os.environ, PATH=selected_path)
+    log = tmp_path / "emulator.log"
+    result = ci.run_command(
+        [native.name, "-c", "import sys; print(sys.executable)"],
+        cwd=tmp_path,
+        env=environment,
+        timeout_seconds=10,
+        log_path=log,
+        dry_run=False,
+    )
+    assert result["returncode"] == (0 if available else 127), result
+    if available:
+        assert Path(result["stdout"].strip()).resolve() == native.resolve()
+    else:
+        assert not log.exists()
 
 
 def test_emulator_timeout_preserves_partial_log_and_blocks(monkeypatch, tmp_path: Path) -> None:

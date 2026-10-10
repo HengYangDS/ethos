@@ -513,7 +513,7 @@ def test_publication_and_pre_push_share_exact_proof_and_continuation(
         monkeypatch.setattr(
             proof_adapter,
             "proof_for_repository_transition",
-            lambda *_: (None, ["proof_not_proven"]),
+            lambda *_, **__: (None, ["proof_not_proven"]),
         )
     if state == "runtime-missing":
         monkeypatch.setattr(

@@ -254,6 +254,16 @@
       remain intact; see `experimental-sharing-withdrawal-20261008/`.
       The 150-second carrier diagnostic locates repeated source-flow expansion;
       it is not full proof or an established global performance remedy.
+      Source qualification only, by reference under the semantic-demand evidence
+      root: exact-text runtime boundary and source-known path protocol custody
+      (`be5cb3161`, `native-known-protocol-custody-20261010T1024/`); malformed
+      `CURRENT` rollback custody and stdlib reuse (`d43f6ea46`,
+      `native-malformed-current-custody-20261010T1041/`); historical proposal
+      range selected from the lane birth with original accepted provenance
+      (`native-historical-proposal-range-20261010T1131/`, qualified with real
+      lane.start and candidate.accept effects, not an installed result). Still open:
+      `len`/iteration and discarded opaque-call effects, non-plain class
+      callbacks, deferred receivers, installed proof and delivery.
 
 - [ ] 10.12 Replace fixed OpenSpec proposal/design/tasks path inference with its resolved artifact graph; preserve positive removal-only acceptance; replay renamed/optional outputs, pure/mixed removal, `skip_specs`, missing/ambiguous resolution, archive identity and exact source binding through public compilation and proof.
 - [ ] 10.13 Preserve blocked CLI exit and incomplete-report status under nonblocking backpressure and short writes; distinguish closed consumers without replaying completed effects.

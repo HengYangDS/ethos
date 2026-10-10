@@ -9,6 +9,8 @@ from typing import cast
 from ethos.adapters.repo.commit.admission import commit_policy_for_revision
 from ethos.adapters.repo.commit.admission import commit_policy_report
 from ethos.adapters.repo.commit.admission import peel_commit
+from ethos.adapters.repo.commit.provenance import accepted_provenance
+from ethos.adapters.repo.commit.provenance import lane_creation_boundary
 from ethos.adapters.repo.commit.signature import repaired_peer_ref_provenance
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import is_ancestor
@@ -259,14 +261,34 @@ def _baseline(
             baseline_source,
             f"commit_range_trusted_baseline_unreadable:{baseline_ref}",
         )
+    gap = ""
     if not is_ancestor(root, baseline, proposed_commit):
-        return (
-            baseline,
-            baseline_ref,
-            baseline_source,
-            f"commit_range_trusted_baseline_not_ancestor:{baseline}:{proposed_commit}",
+        proposal = branch.startswith(policy.proposal_branch_prefix) and not trusted_baseline
+        birth = _accepted_lane_birth(root, proposed_commit) if proposal else ""
+        if birth:
+            return birth, "", "native_lane_birth_accepted_provenance", ""
+        gap = f"commit_range_trusted_baseline_not_ancestor:{baseline}:{proposed_commit}"
+    return baseline, baseline_ref, baseline_source, gap
+
+
+def _accepted_lane_birth(root: Path, proposed_commit: str) -> str:
+    """Select a historical lane's own birth only when it was an originally accepted head.
+
+    The native lane.start effect observes where the lane began; the original
+    candidate.accept provenance of that exact commit is what makes it a trusted baseline.
+    """
+    policy = load_branch_role_policy(root)
+    try:
+        birth = lane_creation_boundary(root, proposed_commit)
+        accepted = birth and accepted_provenance(
+            root,
+            accepted_ref=f"refs/heads/{policy.accepted_branch}",
+            candidate_ref=f"refs/heads/{policy.candidate_branch}",
+            head=birth,
         )
-    return baseline, baseline_ref, baseline_source, ""
+    except ValueError:
+        return ""
+    return birth if accepted else ""
 
 
 def _peer_transport_baseline(root: Path, *, target_ref: str, remote_name: str) -> tuple[str, str]:

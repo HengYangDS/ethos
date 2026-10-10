@@ -254,11 +254,12 @@ def _profile_declaration(profile: RepositoryProfile) -> GateRegistryDeclaration:
     )
 
 
-def _gate_declaration(
+def resolve_gate_declaration(
     profile: RepositoryProfile | None,
     *,
     gate_registry_source: bytes | None = None,
 ) -> tuple[GateRegistryDeclaration, RepositoryProfile | None]:
+    """Validate the selected native declaration without observing execution materials."""
     if profile is None:
         return _PACKAGED_GATE_DECLARATION, None
     if profile.state == "invalid":
@@ -413,7 +414,7 @@ def resolve_gate_policy(
     acceptance_purpose: AcceptancePurpose = "repository",
 ) -> ResolvedGatePolicy:
     acceptance_purpose = proof_acceptance_purpose({"acceptance_purpose": acceptance_purpose})
-    declaration, profile = _gate_declaration(
+    declaration, profile = resolve_gate_declaration(
         profile,
         gate_registry_source=gate_registry_source,
     )

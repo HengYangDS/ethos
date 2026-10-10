@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+import tomllib
 from typing import TYPE_CHECKING
 
 import pytest
 import tomli_w
 
+import ethos.adapters.repo.gate_policy as gate_policy
 from ethos.adapters.repo.dependency_acceptance import dependency_acceptance_gaps
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
@@ -64,6 +66,86 @@ def test_partial_product_source_floor_still_requires_its_native_audit(tmp_path: 
     assert "proof_dependency_acceptance_audit_missing" in selected.gaps
     assert dependency_acceptance_gaps(
         tmp_path, "a" * 40, selected.projection, (), acceptance_purpose="local-source"
+    ) == ["proof_dependency_acceptance_audit_missing"]
+
+
+@pytest.mark.parametrize("canonical", [False, True], ids=["native", "canonical"])
+@pytest.mark.parametrize("carrier", ["registry", "profile"])
+def test_audit_applicability_reads_only_the_committed_declaration(
+    tmp_path: Path, monkeypatch, carrier: str, *, canonical: bool
+) -> None:
+    """A partial proof keeps the full audit obligation without expanding source bindings."""
+    repo = init_git_repo(tmp_path / "repo")
+    write_script_gate_policy(repo, full=True)
+    registry = repo / "system/gates.toml"
+    declaration = tomllib.loads(registry.read_text())
+    declaration["proof_sets"]["full"].append("audit")
+    declaration["gates"].append(
+        {
+            "id": "audit",
+            "kind": "lint",
+            "command": ["{python}", "-m", "nox", "-s", "vulnerabilities"],
+            "tool_adapter": "vulnerabilities" if canonical else "repository-native",
+            "depends_on": ["check"],
+        }
+    )
+    registry.write_text(tomli_w.dumps(declaration))
+    if carrier == "profile":
+        registry = repo / ".ethos/profile.toml"
+        registry.write_text(
+            tomli_w.dumps(
+                {
+                    "profile_id": "policy-test",
+                    "proof": {
+                        "code_correctness_gates": [gate["id"] for gate in declaration["gates"]],
+                        "code_correctness_map": {"behavior": "check", "static-analysis": "audit"},
+                        "gates": declaration["gates"],
+                    },
+                }
+            )
+        )
+    head = commit_fixture(repo, "declare audit ownership")
+
+    def source_binding_forbidden(*_args, **_options):
+        pytest.fail("audit applicability must not expand the repository source binding")
+
+    monkeypatch.setattr(gate_policy, "_repository_paths", source_binding_forbidden)
+    monkeypatch.setattr(gate_policy, "source_paths_for_gates", source_binding_forbidden)
+    monkeypatch.setattr(gate_policy, "compile_gate_policy", source_binding_forbidden)
+    policy = {"gates": ({"id": "check", "command": ("tools/check.sh",)},)}
+    expected = (
+        ["proof_dependency_acceptance_audit_missing"] if canonical and carrier == "registry" else []
+    )
+    assert (
+        dependency_acceptance_gaps(repo, head, policy, (), acceptance_purpose="local-source")
+        == expected
+    )
+
+    registry.write_text("uncommitted invalid registry")
+    assert (
+        dependency_acceptance_gaps(repo, head, policy, (), acceptance_purpose="local-source")
+        == expected
+    )
+    invalid = commit_fixture(repo, "invalidate audit declaration")
+    assert dependency_acceptance_gaps(
+        repo, invalid, policy, (), acceptance_purpose="local-source"
+    ) == ["proof_dependency_acceptance_audit_missing"]
+
+
+@pytest.mark.parametrize("profile", ["", "invalid profile"], ids=["absent", "invalid"])
+def test_audit_applicability_never_exempts_an_absent_or_invalid_profile(
+    tmp_path: Path, profile: str
+) -> None:
+    """Only a valid committed native declaration can select its own audit owner."""
+    repo = init_git_repo(tmp_path / "repo")
+    (repo / "README.md").write_text("Audit applicability fixture\n")
+    if profile:
+        path = repo / ".ethos/profile.toml"
+        path.parent.mkdir()
+        path.write_text(profile)
+    head = commit_fixture(repo, "capture profile state")
+    assert dependency_acceptance_gaps(
+        repo, head, {"gates": ()}, (), acceptance_purpose="local-source"
     ) == ["proof_dependency_acceptance_audit_missing"]
 
 

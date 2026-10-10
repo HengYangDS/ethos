@@ -17,8 +17,8 @@ from ethos.repository.policy.references.python.bindings import ReferenceUncertai
 from ethos.repository.policy.references.python.functions.capabilities import escaped_capabilities
 from ethos.repository.policy.references.python.functions.effects import EffectCall
 from ethos.repository.policy.references.python.functions.effects import command_tokens
-from ethos.repository.policy.references.python.functions.effects import mapping_view
 from ethos.repository.policy.references.python.functions.effects import project
+from ethos.repository.policy.references.python.native.containers import mapping_view
 from ethos.repository.policy.references.python.native.returns import native_return
 from ethos.repository.policy.references.python.native.returns import symbolic_view
 

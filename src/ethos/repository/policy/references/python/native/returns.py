@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING
 
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.bindings import MemberDemand
-from ethos.repository.policy.references.python.functions.effects import MAPPING_VIEWS
 from ethos.repository.policy.references.python.functions.effects import project
+from ethos.repository.policy.references.python.native.containers import MAPPING_VIEWS
+from ethos.repository.policy.references.python.native.containers import mapping_copy
 from ethos.repository.policy.references.python.native.scalars import native_scalar
 
 if TYPE_CHECKING:
@@ -79,10 +80,7 @@ def native_container(
             return replace(copied, native_kind="list", ordered=True)
     if target == "builtins.dict" and len(args) <= 1 and not keywords:
         value = scope.resolve(args[0]) if args else BindingValue(entries=(), ordered=True)
-        if value.targets == frozenset({"os.environ"}) and not value.unknown:
-            return BindingValue(entries=(), ordered=True, native_kind="environment")
-        if value.entries is not None and not value.targets:
-            return replace(value, aggregates=frozenset(), view="")
+        return mapping_copy(value)
     if target in {"builtins.tuple", "builtins.dict.fromkeys"} and args:
         if target == "builtins.tuple":
             return project(args[0], MemberDemand("structure"), scope, observer.sources, observer)

@@ -18,6 +18,7 @@ from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.bindings import LexicalRead
 from ethos.repository.policy.references.python.bindings import MemberDemand
 from ethos.repository.policy.references.python.bindings import ParameterProjection
+from ethos.repository.policy.references.python.native.containers import mapping_return
 from ethos.repository.policy.references.python.native.scalars import concatenate
 from ethos.repository.policy.references.python.native.scalars import native_scalar
 
@@ -31,8 +32,6 @@ if TYPE_CHECKING:
 
 # Each procedure keeps finite precise contexts, then widens only its own arguments.
 OWNER_CONTEXT_LIMIT = 16
-
-MAPPING_VIEWS = {f"builtins.dict.{name}": name for name in ("keys", "values", "items")}
 
 
 @dataclass(frozen=True, slots=True)
@@ -440,14 +439,6 @@ def stored(
     return replace(current, items=tuple(items))
 
 
-def mapping_view(value: BindingValue, target: str) -> BindingValue | None:
-    """Return a closed native mapping view; other receivers are not this contract."""
-    view = MAPPING_VIEWS.get(target)
-    if view is None or value.entries is None or value.targets:
-        return None
-    return value.viewed(view)
-
-
 def native_member(
     value: BindingValue, demand: MemberDemand, scope: BindingScope, observer: PythonConsumption
 ) -> BindingValue:
@@ -455,7 +446,7 @@ def native_member(
     key = selected_key(demand)
     if demand.kind == "native_return" and isinstance(key, str):
         selected = (
-            mapping_view(value, key)
+            mapping_return(value, key)
             or native_scalar(key, (value,), {})
             or BindingValue(unknown=True)
         )

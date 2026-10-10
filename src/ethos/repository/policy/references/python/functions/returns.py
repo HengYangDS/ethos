@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+import subprocess
 from dataclasses import dataclass
 from dataclasses import field
 from dataclasses import replace
@@ -69,20 +70,12 @@ class RecordDefinition:
     protocols: tuple[tuple[str, str], ...] = ()
 
 
-_COMPLETED_PROCESS = inspect.Signature(
-    [
-        *(
-            inspect.Parameter(name, inspect.Parameter.POSITIONAL_OR_KEYWORD)
-            for name in ("args", "returncode")
-        ),
-        *(
-            inspect.Parameter(
-                name,
-                inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                default=BindingValue(truths=frozenset({False})),
-            )
-            for name in ("stdout", "stderr")
-        ),
+_NONE = BindingValue(truths=frozenset({False}))
+_NATIVE = inspect.signature(subprocess.CompletedProcess)
+_COMPLETED_PROCESS = _NATIVE.replace(
+    parameters=[
+        item if item.default is item.empty else item.replace(default=_NONE)
+        for item in _NATIVE.parameters.values()
     ]
 )
 

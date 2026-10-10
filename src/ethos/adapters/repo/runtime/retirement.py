@@ -197,8 +197,13 @@ def _reclamation_unproven(path: Path, common: Path) -> bool:
     return True
 
 
-def retire_generations(root: Path, *, hooks: Path, runtime: Path) -> GenerationCleanup:
-    """Retire only currently unused generations, conserving partial outcomes."""
+def retire_generations(
+    root: Path, *, hooks: Path, runtime: Path, unnamed_predecessor: bool = False
+) -> GenerationCleanup:
+    """Retire only currently unused generations, conserving partial outcomes.
+
+    An unnamed predecessor keeps every runtime generation: one of them may be the only rollback.
+    """
     selected = {hooks, runtime}
     identities: dict[Path, tuple[int, int, int, int]] = {}
     candidates: tuple[Path, ...] = ()
@@ -232,7 +237,9 @@ def retire_generations(root: Path, *, hooks: Path, runtime: Path) -> GenerationC
                 if path in used:
                     retained.add(path)
                     continue
-                if _reclamation_unproven(path, common):
+                if (
+                    unnamed_predecessor and path.parent == common / "ethos/runtime"
+                ) or _reclamation_unproven(path, common):
                     # A repository-local runtime may be selected by another Git common-dir.
                     retained.add(path)
                     unproven.add(path)

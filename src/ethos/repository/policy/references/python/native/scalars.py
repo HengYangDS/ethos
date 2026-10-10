@@ -45,11 +45,6 @@ def concatenate(left: BindingValue, right: BindingValue) -> BindingValue:
     return value
 
 
-def native_path_text(*parts: str) -> str:
-    """Return the observing host's lexical path text; no other path flavor is observed."""
-    return str(PurePath(*parts))
-
-
 def native_scalar(
     target: str, args: tuple[BindingValue, ...], keywords: dict[str | None, BindingValue]
 ) -> BindingValue | None:
@@ -93,7 +88,7 @@ def native_scalar(
         symbolic = bool(value.parameters or value.projections)
         return replace(
             current,
-            strings=frozenset(map(native_path_text, value.strings))
+            strings=frozenset(str(PurePath(text)) for text in value.strings)
             if target == "pathlib.Path"
             else value.strings
             if target != "builtins.int"
@@ -239,7 +234,7 @@ def native_divide(left: BindingValue, right: BindingValue) -> BindingValue | Non
             exact = () if left.unknown or left.deferred else left.strings
             current = BindingValue(
                 path=True,
-                strings=frozenset(native_path_text(root, suffix) for root in exact),
+                strings=frozenset(str(PurePath(root, suffix)) for root in exact),
                 executable_origins=frozenset({suffix}),
                 deferred=left.deferred or right.deferred or bool(left.parameters),
                 unknown=left.unknown or right.unknown,

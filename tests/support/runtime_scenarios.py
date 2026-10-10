@@ -279,8 +279,10 @@ def materialize_runtime_case(
         package.parent.mkdir(parents=True, exist_ok=True)
         package.write_text("original\n", encoding="utf-8")
 
-    def require_runtime_execution(runtime: Path, *, smoke: bool) -> None:
+    def require_runtime_execution(text: str, *, smoke: bool) -> None:
         """Model the lightweight fixture interpreter, not structural validation."""
+        assert type(text) is str, type(text)
+        runtime = Path(text)
         python = runtime_executable(runtime / "python", "python")
         facts = runtime_materialization.observe_python_facts(python)
         assert same_python_path(facts["executable"], python), facts

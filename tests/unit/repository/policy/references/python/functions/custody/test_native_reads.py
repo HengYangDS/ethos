@@ -347,3 +347,183 @@ def test_native_resolution_rebuilds_only_the_changed_ancestor() -> None:
     assert sources.invocations.resolve(resolved, scope, flow.result) is resolved
     assert not flow.result.executables
     assert not flow.result.uncertainties
+
+
+_PROCESS = 'import os\nimport subprocess\nimport thing\nc = subprocess.CompletedProcess(["x"], 0'
+
+
+@pytest.mark.parametrize(
+    ("body", "inputs", "unknown"),
+    [
+        (', "KEY")\n', {"KEY"}, False),
+        (", stdout='KEY')\n", {"KEY"}, False),
+        (", **thing.named())\n", set(), True),
+        (", *thing.values())\n", set(), True),
+        (', "KEY")\nc.stdout = thing.value()\n', set(), True),
+        (', "KEY")\nd = c\nd.stdout = "NEW"\n', {"NEW"}, False),
+        (
+            ', "A")\nc = c if thing.flag() else thing.other()\nc.stdout = "NEW"\n',
+            {"A", "NEW"},
+            True,
+        ),
+        (', "KEY")\ndel c.stdout\n', set(), True),
+        (', "KEY")\nthing.mutate(c)\n', set(), True),
+        (', "KEY")\nc.__dict__["stdout"] = thing.value()\n', set(), True),
+    ],
+    ids=[
+        "positional",
+        "keyword",
+        "kwargs",
+        "spread",
+        "opaque",
+        "alias",
+        "weak",
+        "del",
+        "escape",
+        "dict",
+    ],
+)
+def test_native_completed_process_fields_follow_aggregate_stores(
+    body: str, inputs: set[str], *, unknown: bool
+) -> None:
+    """Native process fields are allocated once; exact stores replace, aliases only join."""
+    source = f"{_PROCESS}{body}os.environ.get(c.stdout)\n"
+    tree = ast.parse(source)
+    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
+    observation = PythonReferenceFlow("probe.py", {}, sources=sources).observe(tree, source=source)
+    assert observation.inputs == inputs
+    assert bool(observation.uncertainties) is unknown
+
+
+_DIGEST = (
+    "import subprocess\nimport hashlib\nfrom pathlib import Path\n"
+    "d = hashlib.sha256(b'x').hexdigest()\n"
+)
+
+
+@pytest.mark.parametrize(
+    ("component", "closed"),
+    [
+        ("Path(str(Path(d)))", True),
+        ("Path(Path(d).as_posix())", True),
+        ("Path(d).absolute()", True),
+        ("Path(d).absolute(7)", False),
+        ("Path(Path(d).as_posix(1))", False),
+        ("Path(d).resolve(object())", False),
+        ("Path(d).as_posix().absolute()", False),
+    ],
+)
+def test_native_path_conversions_follow_their_exact_signatures(
+    component: str, *, closed: bool
+) -> None:
+    """Successful lexical conversion yields text; unsupported calls never name an executable."""
+    source = f"{_DIGEST}subprocess.run([str({component} / 'python')])\n"
+    tree = ast.parse(source)
+    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
+    observation = PythonReferenceFlow("probe.py", {}, sources=sources).observe(tree, source=source)
+    assert bool(observation.uncertainties) is not closed
+    assert "python" in observation.executables or not closed
+
+
+_GUARD = "    if type(text) is not str:\n        raise ValueError(text)\n"
+_HOME = "def home(h):\n    return h / ('Scripts' if os.name == 'nt' else 'bin') / 'python'\n"
+_RUN = "    subprocess.run([str(Path(text) / 'python')])\n"
+_FSPATH = f"def run(root):\n    text = os.fspath(root)\n{_GUARD}{_RUN}"
+_ROOT = (
+    "class Root:\n    def __fspath__(self):\n        global Path\n"
+    "        Path = thing.path\n        return '/r'\n"
+)
+
+
+@pytest.mark.parametrize(
+    ("body", "closed"),
+    [
+        (f"{_HOME}def run(text):\n{_GUARD}    subprocess.run([str(home(Path(text)))])\n", True),
+        (f"def run():\n    text = 'python'\n{_GUARD}    subprocess.run([text])\n", True),
+        (f"{_HOME}def run(root):\n    subprocess.run([str(home(root))])\n", False),
+        (f"def run(text):\n{_RUN}", False),
+        (f"type = thing.t\ndef run(text):\n{_GUARD}{_RUN}", False),
+        (f"def run(text):\n{_GUARD}    text = thing.v()\n{_RUN}", False),
+        (f"def run(text):\n{_GUARD}    subprocess.run([text])\n", False),
+        (_FSPATH, False),
+        (f"{_ROOT}{_FSPATH}run(Root())\n", False),
+        (f"def run():\n    text = 'python' if thing.f() else thing.v()\n{_GUARD}{_RUN}", False),
+    ],
+    ids=[
+        "guarded",
+        "literal",
+        "raw-helper",
+        "unguarded",
+        "shadowed-type",
+        "rebound",
+        "content-leaf",
+        "protocol",
+        "mutating-protocol",
+        "mixed",
+    ],
+)
+def test_exact_native_text_guard_closes_only_its_continuation(body: str, *, closed: bool) -> None:
+    """`type(text) is str` proves representation, not content; raw operands stay UNKNOWN."""
+    source = f"import os\nimport subprocess\nimport thing\nfrom pathlib import Path\n{body}"
+    tree = ast.parse(source)
+    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
+    observation = PythonReferenceFlow("probe.py", {}, sources=sources).observe(tree, source=source)
+    assert bool(observation.uncertainties) is not closed
+    assert "python" in observation.executables or not closed
+
+
+_PURE = "class Root:\n    def __fspath__(self):\n        return 'tool'\n"
+_REBIND = "    def {}(self):\n        global Path\n        Path = thing.path\n        return 'r'\n"
+_LATE = _REBIND[4:].format("late")
+_LATER = "subprocess.run([str(Path('x') / 'python')])\n"
+_STORE = "state = ['tool']\n" + _PURE.replace(
+    "        r", "        state[0] = thing.v()\n        r"
+)
+_USE = "subprocess.run([os.fspath(Root())])\n"
+
+
+@pytest.mark.parametrize(
+    ("body", "executables"),
+    [
+        (f"{_PURE}{_USE}", {"tool"}),
+        (f"{_PURE}subprocess.run([str(Path(Root()) / 'python')])\n", {"python"}),
+        (
+            f"{_PURE}root = Root()\nroot.__fspath__ = thing.f\nsubprocess.run([os.fspath(root)])\n",
+            {"tool"},
+        ),
+        (f"class Root:\n{_REBIND.format('__fspath__')}os.fspath(Root())\n{_LATER}", None),
+        (f"class Root:\n{_REBIND.format('__fspath__')}Path(Root())\n{_LATER}", None),
+        (f"class Root:\n{_REBIND.format('__str__')}str(Root())\n{_LATER}", None),
+        (
+            f"{_PURE}{_LATE}root = Root()\nRoot.__fspath__ = late\nos.fspath(root)\n{_LATER}",
+            None,
+        ),
+        (f"{_STORE}os.fspath(Root())\nsubprocess.run([state[0]])\n", None),
+        (f"{_PURE}Root.__fspath__ = thing.f\n{_USE}", None),
+        (f"{_PURE}class Sub(Root):\n    pass\nsubprocess.run([os.fspath(Sub())])\n", None),
+        ("subprocess.run([os.fspath(thing.root())])\n", None),
+    ],
+    ids=[
+        "pure",
+        "pure-path",
+        "instance-store-ignored",
+        "unused-fspath",
+        "unused-path",
+        "unused-str",
+        "late-class-replacement",
+        "stores-heap",
+        "opaque-replacement",
+        "inherited",
+        "opaque",
+    ],
+)
+def test_known_path_protocol_transfers_its_own_effects(
+    body: str, executables: set[str] | None
+) -> None:
+    """A plain class's `__fspath__` is invoked as source; anything else stays UNKNOWN."""
+    source = f"import os\nimport subprocess\nimport thing\nfrom pathlib import Path\n{body}"
+    tree = ast.parse(source)
+    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
+    observation = PythonReferenceFlow("probe.py", {}, sources=sources).observe(tree, source=source)
+    assert bool(observation.uncertainties) is (executables is None)
+    assert executables is None or observation.executables == executables

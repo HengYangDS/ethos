@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 from dataclasses import dataclass
 from dataclasses import field
+from dataclasses import replace
 from functools import singledispatchmethod
 from typing import TYPE_CHECKING
 from typing import Literal
@@ -98,9 +99,12 @@ class PythonControlFlow:
     def conditional(self, node: ast.If, scope: BindingScope) -> tuple[FlowExit, ...]:
         """Guard each live branch independently and preserve all feasible exits."""
         value = self.flow.truth(self.flow.expression(node.test, scope), scope)
+        branches = scope.alternatives(node.test, value)
+        for truth, branch in branches:
+            exact_type(node.test, branch, truth=truth)
         return tuple(
             result
-            for truth, branch in scope.alternatives(node.test, value)
+            for truth, branch in branches
             for result in self.block(node.body if truth else node.orelse, branch)
         )
 
@@ -282,3 +286,31 @@ class PythonControlFlow:
                 else (path,)
             )
         )
+
+
+def exact_type(test: ast.expr, scope: BindingScope, *, truth: bool) -> None:
+    """`type(name) is str` qualifies only an open slot's representation, never its producer."""
+    if not (
+        isinstance(test, ast.Compare)
+        and len(test.ops) == 1
+        and isinstance(test.ops[0], ast.Is | ast.IsNot)
+        and truth is isinstance(test.ops[0], ast.Is)
+        and isinstance(test.left, ast.Call)
+        and isinstance(test.left.func, ast.Name)
+        and len(test.left.args) == 1
+        and not test.left.keywords
+        and isinstance(test.left.args[0], ast.Name)
+        and isinstance(test.comparators[0], ast.Name)
+        and scope.lookup(test.left.func.id) == BindingValue(targets=frozenset({"builtins.type"}))
+        and scope.lookup(test.comparators[0].id)
+        == BindingValue(targets=frozenset({"builtins.str"}))
+    ):
+        return
+    name = test.left.args[0].id
+    current = scope.lookup(name)
+    slots = replace(current, parameters=frozenset(), projections=frozenset(), deferred=False)
+    # Closed literals already are exact text; an opaque producer keeps its own uncertainty.
+    if (current.parameters or current.projections) and slots == BindingValue(
+        context_limited=current.context_limited
+    ):
+        scope.values[name] = replace(slots, native_kind="text", deferred=current.deferred)

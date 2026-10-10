@@ -17,7 +17,9 @@ from ethos.repository.policy.references.python.control import PythonControlFlow
 from ethos.repository.policy.references.python.effects import PythonConsumption
 from ethos.repository.policy.references.python.functions.effects import project
 from ethos.repository.policy.references.python.functions.effects import stored
+from ethos.repository.policy.references.python.native.returns import store_field
 from ethos.repository.policy.references.python.native.scalars import concatenate
+from ethos.repository.policy.references.python.native.scalars import native_divide
 from ethos.repository.policy.references.python.syntax import LexicalBindings
 from ethos.repository.policy.references.python.syntax import NativeScopes
 from ethos.repository.policy.references.python.syntax import module_name
@@ -291,6 +293,7 @@ class PythonReferenceFlow:
                 self.sources.invocations.note_mutation(scope, value_owner, native_store=True)
             for owner in value_owner.targets:
                 scope.assign_member(f"{owner}.{target.attr}", value)
+            store_field(target.attr, value_owner, value, scope)
         elif isinstance(target, ast.Subscript):
             self.assign_item(target, value, scope)
 
@@ -299,6 +302,8 @@ class PythonReferenceFlow:
         owner = self.expression(target.value, scope)
         if self.sources is not None:
             self.sources.invocations.note_mutation(scope, owner)
+        if owner.unknown:
+            scope.invalidate_aggregates(*(method.receiver for method in owner.methods))
         key = self.expression(target.slice, scope)
         strong = len(owner.aggregates) == 1 and not (
             owner.unknown or owner.deferred or key.unknown or key.deferred
@@ -323,7 +328,8 @@ class PythonReferenceFlow:
         if isinstance(node.value, str):
             return BindingValue(strings=frozenset({node.value}))
         if node.value is None or isinstance(node.value, bool | int | float | complex | bytes):
-            return BindingValue(truths=frozenset({bool(node.value)}))
+            kind = "bytes" if isinstance(node.value, bytes) else ""
+            return BindingValue(truths=frozenset({bool(node.value)}), native_kind=kind)
         return BindingValue(local=True)
 
     @expression.register
@@ -385,22 +391,8 @@ class PythonReferenceFlow:
         if self.sources is not None:
             left = self.sources.invocations.resolve(left, scope, self.result)
             right = self.sources.invocations.resolve(right, scope, self.result)
-        if isinstance(node.op, ast.Div) and left.path and right.strings:
-            value = BindingValue()
-            for suffix in right.strings:
-                if suffix in {"", "."}:
-                    current = left
-                elif suffix == ".." or "/" in suffix or "\\" in suffix:
-                    current = BindingValue(unknown=True)
-                else:
-                    current = BindingValue(
-                        path=True,
-                        strings=frozenset({suffix}),
-                        deferred=left.deferred or right.deferred or bool(left.parameters),
-                        unknown=left.unknown or right.unknown,
-                    )
-                value = value.join(current)
-            return value
+        if isinstance(node.op, ast.Div) and (divided := native_divide(left, right)) is not None:
+            return divided
         if isinstance(node.op, ast.Add):
             left = project(left, MemberDemand("structure"), scope, self.sources, self.result)
             right = project(right, MemberDemand("structure"), scope, self.sources, self.result)

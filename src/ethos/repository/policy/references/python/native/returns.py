@@ -56,7 +56,11 @@ def native_return(
             return BindingValue(deferred=True)
     if target in {"builtins.dict", "builtins.list", "builtins.tuple", "builtins.dict.fromkeys"}:
         return native_container(observer, target, args, keywords, scope)
-    return native_scalar(target, args, keywords)
+    return (
+        observer.sources.completed_process(args, keywords, scope)
+        if target == "subprocess.CompletedProcess" and observer.sources is not None
+        else native_scalar(target, args, keywords)
+    )
 
 
 def native_container(
@@ -111,3 +115,25 @@ def symbolic_view(
         view = MemberDemand("native_return", key=target)
         deferred.add(replace(projection, members=(*projection.members[:-1], view)))
     return BindingValue(parameters=frozenset(deferred))
+
+
+def store_field(name: str, owner: BindingValue, value: BindingValue, scope: BindingScope) -> None:
+    """Only native mutable records store fields; one exact owner replaces, aliases join."""
+    if owner.unknown:
+        scope.invalidate_aggregates(*(method.receiver for method in owner.methods))
+    strong = len(owner.aggregates) == 1 and not (owner.unknown or owner.deferred)
+    for identity in owner.aggregates:
+        current = scope.member(identity)
+        if current.fields is not None and current.native_kind != "completed_process":
+            # A store on any other record never establishes a value; it only removes one.
+            fields = dict(current.fields) | {name: BindingValue(unknown=True)}
+            scope.assign_member(identity, replace(current, fields=tuple(fields.items())))
+        if current.native_kind != "completed_process" or current.fields is None:
+            continue
+        fields = dict(current.fields)
+        fields[name] = (
+            value
+            if strong and identity not in scope.summarized
+            else fields.get(name, BindingValue(unknown=True)).join(value)
+        )
+        scope.assign_member(identity, replace(current, fields=tuple(fields.items())))

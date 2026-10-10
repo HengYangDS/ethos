@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING
 from typing import Literal
 from typing import TypedDict
 
+from ethos.repository.policy.references.python.native.builtins import NATIVE_BUILTINS
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
@@ -28,6 +30,9 @@ class ReferenceUncertaintyRecord(TypedDict):
     target: str
     reason: str
     identity: str | None
+
+
+NativeKind = Literal["", "list", "environment", "completed_process", "hash", "text", "bytes"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,7 +124,7 @@ class BindingValue:
     deferred: bool = False
     unknown: bool = False
     spread: bool = False
-    native_kind: Literal["", "list", "environment"] = ""
+    native_kind: NativeKind = ""
     context_limited: bool = False
 
     def join(self, other: BindingValue) -> BindingValue:
@@ -210,7 +215,8 @@ class BindingValue:
                 and other.entries is not None
                 and {key for key, _ in self.entries} != {key for key, _ in other.entries}
             )
-            or (self.view != other.view and bool(self.aggregates | other.aggregates)),
+            or (self.view != other.view and bool(self.aggregates | other.aggregates))
+            or (bool(self.strings or other.strings) and (self.absent() or other.absent())),
             spread=self.spread or other.spread,
             native_kind=self.native_kind if self.native_kind == other.native_kind else "",
             context_limited=self.context_limited or other.context_limited,
@@ -258,6 +264,12 @@ class BindingValue:
             deferred=result.deferred or self.deferred,
             spread=False,
             context_limited=result.context_limited or self.context_limited,
+        )
+
+    def absent(self) -> bool:
+        """A native Path or text alternative whose exact content was not observed."""
+        return (self.path or self.native_kind in {"hash", "text", "bytes"}) and not (
+            self.strings or self.unknown
         )
 
     def truthiness(self) -> bool | None:
@@ -392,22 +404,7 @@ class BindingScope:
                 if self.wildcard
                 else read
             )
-        elif name in {
-            "getattr",
-            "hasattr",
-            "__import__",
-            "str",
-            "exec",
-            "eval",
-            "tuple",
-            "list",
-            "len",
-            "dict",
-            "classmethod",
-            "isinstance",
-            "int",
-            "range",
-        }:
+        elif name in NATIVE_BUILTINS:
             value = BindingValue(targets=frozenset({f"builtins.{name}"}))
         else:
             value = BindingValue(unknown=True)

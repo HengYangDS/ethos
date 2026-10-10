@@ -20,6 +20,7 @@ from ethos.repository.policy.references.python.bindings import MemberDemand
 from ethos.repository.policy.references.python.bindings import ParameterProjection
 from ethos.repository.policy.references.python.native.containers import mapping_return
 from ethos.repository.policy.references.python.native.scalars import concatenate
+from ethos.repository.policy.references.python.native.scalars import native_operation
 from ethos.repository.policy.references.python.native.scalars import native_scalar
 
 if TYPE_CHECKING:
@@ -443,10 +444,12 @@ def native_member(
     value: BindingValue, demand: MemberDemand, scope: BindingScope, observer: PythonConsumption
 ) -> BindingValue:
     """Read one closed native relation, retaining opaque selectors and missing values."""
-    key = selected_key(demand)
+    # A native operation is selected by its opcode; its selector is the other operand.
+    key = demand.key if demand.kind == "native_return" else selected_key(demand)
     if demand.kind == "native_return" and isinstance(key, str):
         selected = (
-            mapping_return(value, key)
+            native_operation(value, demand)
+            or mapping_return(value, key)
             or native_scalar(key, (value,), {})
             or BindingValue(unknown=True)
         )

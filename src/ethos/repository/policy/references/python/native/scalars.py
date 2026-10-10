@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from pathlib import PurePath
 
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.bindings import MemberDemand
@@ -42,6 +43,11 @@ def concatenate(left: BindingValue, right: BindingValue) -> BindingValue:
                 dependent(subject, MemberDemand("concatenate", key=order, selector=other))
             )
     return value
+
+
+def native_path_text(*parts: str) -> str:
+    """Return the observing host's lexical path text; no other path flavor is observed."""
+    return str(PurePath(*parts))
 
 
 def native_scalar(
@@ -87,8 +93,13 @@ def native_scalar(
         symbolic = bool(value.parameters or value.projections)
         return replace(
             current,
-            strings=value.strings if target != "builtins.int" else frozenset(),
+            strings=frozenset(map(native_path_text, value.strings))
+            if target == "pathlib.Path"
+            else value.strings
+            if target != "builtins.int"
+            else frozenset(),
             executable_origins=value.executable_origins,
+            native_kind="text" if target == "builtins.str" and native_content(value) else "",
             path=target == "pathlib.Path",
             deferred=value.deferred or (target == "builtins.int" and not symbolic),
             unknown=value.unknown
@@ -97,11 +108,159 @@ def native_scalar(
                 or value.executable_origins
                 or value.deferred
                 or symbolic
+                or (target != "builtins.int" and native_content(value))
                 or (target == "builtins.int" and value.truths)
             ),
+        )
+    if target == "hashlib.sha256":
+        # A successful native digest needs one bytes-like buffer; others keep their escape.
+        flags = keywords.get("usedforsecurity", BindingValue(truths=frozenset({True})))
+        valid = len(args) <= 1 and set(keywords) <= {"usedforsecurity"}
+        return (
+            BindingValue(native_kind="hash")
+            if valid
+            and all(native_text(item, "bytes") for item in args)
+            and flags.truths
+            and not (flags.unknown or flags.strings or flags.native_kind or flags.targets)
+            else None
         )
     if target == "builtins.range" and args and not keywords:
         current = dependent(value, MemberDemand("native_return", key="builtins.int"))
         current = replace(current, deferred=current.deferred or not current.parameters)
         return BindingValue(element=current, unknown=any(item.unknown for item in args))
     return None
+
+
+_ENCODINGS = frozenset({"utf-8", "utf8", "ascii"})
+
+
+def native_content(value: BindingValue) -> bool:
+    """Native text, or a qualified native Path whose text conversion cannot fail."""
+    return native_text(value) or (
+        value.path and not (value.unknown or value.local or value.targets or value.methods)
+    )
+
+
+def native_text(value: BindingValue, *kinds: str) -> bool:
+    """Every alternative is one native content value of a selected kind, with no other shape."""
+    pure = replace(value, deferred=False, truths=frozenset())
+    return pure.native_kind in (kinds or ("text",)) and pure == BindingValue(
+        native_kind=pure.native_kind
+    )
+
+
+def native_method(
+    owner: BindingValue,
+    name: str,
+    args: tuple[BindingValue, ...],
+    keywords: dict[str | None, BindingValue],
+) -> BindingValue | None:
+    """Return a native digest or text method kind for exact supported signatures only."""
+    if keywords or any(value.spread for value in args):
+        return None
+    closed = all(item.strings and item == BindingValue(strings=item.strings) for item in args)
+    if native_text(owner, "hash") and name == "hexdigest" and not args:
+        return BindingValue(native_kind="text")
+    if native_text(owner) and name in {"strip", "rstrip", "lstrip"} and len(args) <= 1 and closed:
+        return BindingValue(native_kind="text")
+    if (
+        native_text(owner)
+        and name == "encode"
+        and len(args) <= 1
+        and closed
+        and all(item.strings <= _ENCODINGS for item in args)
+    ):
+        return BindingValue(native_kind="bytes")
+    return native_path_method(owner, name, args)
+
+
+def native_path_method(
+    owner: BindingValue, name: str, args: tuple[BindingValue, ...]
+) -> BindingValue | None:
+    """Exact Path conversion signatures; unsupported or opaque calls stay unresolved."""
+    if owner.path and (
+        (name in {"absolute", "as_posix"} and not args)
+        or (name == "resolve" and len(args) <= 1 and all(native_flag(item) for item in args))
+    ):
+        # as_posix is lexical; resolve() may follow a symlink to another final name.
+        names = frozenset() if name == "resolve" else owner.executable_origins
+        text = (
+            frozenset(PurePath(item).as_posix() for item in owner.strings)
+            if name == "as_posix"
+            else frozenset()
+        )
+        converted = replace(owner, strings=text, executable_origins=names)
+        if name != "as_posix":
+            return converted
+        # A successful lexical conversion is native text, never a Path.
+        return replace(converted, path=False, native_kind="" if owner.unknown else "text")
+    return None
+
+
+def native_flag(value: BindingValue) -> bool:
+    """One closed native truth value with no other alternative."""
+    return bool(value.truths) and value == BindingValue(truths=value.truths)
+
+
+PATH_DIVIDE = ("pathlib.PurePath.__truediv__", "pathlib.PurePath.__rtruediv__")
+
+
+def native_divide(left: BindingValue, right: BindingValue) -> BindingValue | None:
+    """Apply one native Path division now, or retain it for each symbolic operand."""
+    if not (left.path and (native_text(right) or right.strings)) and (
+        left.parameters or left.projections or right.parameters or right.projections
+    ):
+        value = BindingValue(
+            deferred=left.deferred or right.deferred,
+            unknown=left.unknown or right.unknown,
+            context_limited=left.context_limited or right.context_limited,
+        )
+        for subject, other, key in ((left, right, PATH_DIVIDE[0]), (right, left, PATH_DIVIDE[1])):
+            if subject.parameters or subject.projections:
+                demand = MemberDemand("native_return", key=key, selector=other)
+                value = value.join(dependent(subject, demand))
+        return value
+    if not left.path:
+        return None
+    if native_text(right):
+        # A native text component keeps the Path type; it never names the final leaf.
+        return BindingValue(
+            path=True, unknown=left.unknown, deferred=left.deferred or right.deferred
+        )
+    if not right.strings:
+        return None
+    value = BindingValue()
+    for suffix in right.strings:
+        if suffix in {"", "."}:
+            current = left
+        elif suffix == ".." or "/" in suffix or "\\" in suffix:
+            current = BindingValue(unknown=True)
+        else:
+            exact = () if left.unknown or left.deferred else left.strings
+            current = BindingValue(
+                path=True,
+                strings=frozenset(native_path_text(root, suffix) for root in exact),
+                executable_origins=frozenset({suffix}),
+                deferred=left.deferred or right.deferred or bool(left.parameters),
+                unknown=left.unknown or right.unknown,
+            )
+        value = value.join(current)
+    return value
+
+
+def native_operation(value: BindingValue, demand: MemberDemand) -> BindingValue | None:
+    """Apply a retained native operator to its substituted operand, or stay unknown."""
+    if demand.key not in PATH_DIVIDE:
+        return None
+    other = demand.selector or BindingValue(unknown=True)
+    operands = (value, other) if demand.key == PATH_DIVIDE[0] else (other, value)
+    return native_divide(*operands) or BindingValue(unknown=True)
+
+
+def open_operation(value: BindingValue) -> bool:
+    """A native operator still waiting on an unbound operand has no closed receiver."""
+    return any(
+        member.kind == "native_return" and member.key in PATH_DIVIDE
+        for slot in (*value.parameters, *value.projections)
+        for member in slot.members
+    )

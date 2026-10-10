@@ -21,6 +21,9 @@ from ethos.repository.policy.references.python.functions.effects import project
 from ethos.repository.policy.references.python.native.containers import mapping_view
 from ethos.repository.policy.references.python.native.returns import native_return
 from ethos.repository.policy.references.python.native.returns import symbolic_view
+from ethos.repository.policy.references.python.native.scalars import native_method
+from ethos.repository.policy.references.python.native.scalars import native_text
+from ethos.repository.policy.references.python.native.scalars import open_operation
 
 if TYPE_CHECKING:
     import ast
@@ -192,11 +195,15 @@ class PythonConsumption:
         for target in callee.targets:
             value_returned = known[target] or generic
             if (
-                target in {"builtins.dict", "builtins.dict.fromkeys"}
-                and value_returned.entries is not None
-            ) or (
-                target == "builtins.list"
-                and (value_returned.items is not None or value_returned.element is not None)
+                (
+                    target in {"builtins.dict", "builtins.dict.fromkeys"}
+                    and value_returned.entries is not None
+                )
+                or (
+                    target == "builtins.list"
+                    and (value_returned.items is not None or value_returned.element is not None)
+                )
+                or (value_returned.native_kind == "completed_process")
             ):
                 value_returned = scope.aggregate(value_returned, node)
             kind = self.kind(target)
@@ -266,11 +273,10 @@ class PythonConsumption:
         scope: BindingScope,
     ) -> ReceiverCall:
         """Classify native receiver relationships without applying their effects."""
+        native = native_method(owner, name, args, keywords)
+        if native is not None:
+            return ReceiverCall(native, "read")
         disposition = "unresolved" if owner.unknown or owner.targets else "read"
-        if owner.path and name in {"resolve", "absolute", "as_posix"}:
-            return ReceiverCall(
-                replace(owner, strings=frozenset(), path=name != "as_posix"), "read"
-            )
         if (
             owner.aggregates
             and owner.native_kind == "list"
@@ -427,7 +433,12 @@ class PythonConsumption:
                 value = value.join(sourced)
             for target in native_targets:
                 value = value.join(scope.member(f"{target}.{name}"))
-            if owner.aggregates or owner.path or owner.entries is not None:
+            if (
+                owner.aggregates
+                or owner.path
+                or owner.entries is not None
+                or native_text(owner, "hash", "text", "bytes")
+            ):
                 value = value.join(
                     BindingValue(methods=frozenset({ReceiverMethod(native_owner, name)}))
                 )
@@ -506,7 +517,7 @@ class PythonConsumption:
                 item.partition(".")[0] if kind == "import" else item for item in value.strings
             )
             known, head = bool(value.strings), value
-        if head.unknown or (not known and not (head.deferred or head.parameters)):
+        if head.unknown or open_operation(head) or not (known or head.deferred or head.parameters):
             self.residual(kind, "unknown", node, scope, target, "value_not_resolved")
         elif head.deferred or head.parameters:
             self.residual(kind, "deferred", node, scope, target, "runtime_argument")

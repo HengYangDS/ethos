@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 import tomli_w
 
+from ethos.adapters.repo.dependency_acceptance import dependency_acceptance_gaps
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.gate_policy import resolve_proof_policies
@@ -55,6 +56,15 @@ def test_source_acceptance_preserves_floors_and_binds_native_audit() -> None:
             assert selected == gate
     with pytest.raises(ValueError, match="proof_acceptance_purpose_invalid"):
         compile_gate_policy(full=True, acceptance_purpose="publishing")
+
+
+def test_partial_product_source_floor_still_requires_its_native_audit(tmp_path: Path) -> None:
+    """A product gate subset cannot acquire a native-profile applicability exemption."""
+    selected = compile_gate_policy(acceptance_purpose="local-source")
+    assert "proof_dependency_acceptance_audit_missing" in selected.gaps
+    assert dependency_acceptance_gaps(
+        tmp_path, "a" * 40, selected.projection, (), acceptance_purpose="local-source"
+    ) == ["proof_dependency_acceptance_audit_missing"]
 
 
 def test_quality_axis_conjoins_scoped_evidence_from_distinct_gates() -> None:
@@ -158,7 +168,9 @@ def test_scheduler_hint_does_not_reclassify_product_quality_owner(tmp_path: Path
         ),
     )
 
-    def compiled(declaration: GateRegistryDeclaration) -> ResolvedGatePolicy:
+    def compiled(
+        declaration: GateRegistryDeclaration, *, local_source: bool = False
+    ) -> ResolvedGatePolicy:
         return compile_gate_policy(
             profile=profile,
             gate_registry_source=tomli_w.dumps(
@@ -167,9 +179,14 @@ def test_scheduler_hint_does_not_reclassify_product_quality_owner(tmp_path: Path
             repository_python="python",
             repository_paths=("src/example.py",),
             full=True,
+            acceptance_purpose="local-source" if local_source else "repository",
         )
 
     base = compiled(packaged)
+    scoped = compiled(packaged, local_source=True)
+    assert scoped.projection["owner"] == base.projection["owner"]
+    assert scoped.digest != base.digest
+    assert scoped.gaps == base.gaps
     varied = packaged.model_copy(
         update={
             "gates": tuple(
@@ -183,6 +200,7 @@ def test_scheduler_hint_does_not_reclassify_product_quality_owner(tmp_path: Path
     capacity = compiled(varied)
     assert capacity.projection["owner"] == base.projection["owner"]
     assert capacity.digest != base.digest
+    assert compiled(varied, local_source=True).projection["owner"] == base.projection["owner"]
 
     substantive = packaged.model_copy(
         update={

@@ -11,6 +11,7 @@
   - These are controlled-local candidate observations, not accepted-runtime delivery or release permission. Exact-source full proof, accepted installation and actual Agent/recovery/handoff remain open; failed receipts remain retained.
 - [x] 1.6 Add an explicit typed repository identity transition through the existing effect and Attestation owners; preserve ordinary cross-identity refusal and verify exact intent/proof, object-database continuity, target-ref coordinates, actor/Lease generation, per-effect one-shot recovery, independently authorized later stages and absence of compatibility aliases.
 - [x] 1.7 Reconcile the sole ETHOS binding with official OpenSpec initialization and verified mutation readiness at the shared adoption owner; preserve preview, existing customizations, precise conflicts, bounded recovery and CLI/SDK/MCP agreement without hand-rendered native configuration or a second lifecycle.
+- [ ] 1.8 Deliver the minimum native-audit applicability correction through exact-source local acceptance and the installed runtime; preserve every declared native gate and canonical audit input, scope, finding and expiry check. Qualify a native adopter's proof and candidate transition, reject failed native checks and an omitted required product audit before execution, then verify the actual AIGW consumer without coupling this repair to unrelated ETHOS work.
 
 ## 2. Installed MCP Transport
 

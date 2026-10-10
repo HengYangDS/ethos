@@ -203,9 +203,20 @@ def _owner_projection(
 
 
 def _same_packaged_quality_floor(declaration: GateRegistryDeclaration) -> bool:
-    """Keep scheduler capacity out of quality ownership, but bind it in proof policy."""
+    """Bind capacity and audit scope in proof without changing quality ownership."""
     exclusion = {"gates": {"__all__": {"cpu_reservation"}}}
-    return declaration.model_dump(mode="json", exclude=exclusion) == (
+    normalized = declaration.model_copy(
+        update={
+            "gates": tuple(
+                gate.model_copy(update={"command": gate.command[:-3]})
+                if native_dependency_audit_scope(gate.model_dump(mode="python"))
+                == "local-development"
+                else gate
+                for gate in declaration.gates
+            )
+        }
+    )
+    return normalized.model_dump(mode="json", exclude=exclusion) == (
         _PACKAGED_GATE_DECLARATION.model_dump(mode="json", exclude=exclusion)
     )
 
@@ -442,6 +453,12 @@ def resolve_gate_policy(
         if profile is not None and profile.declaration is not None
         else ((), ())
     )
+    if acceptance_purpose == "local-source" and any(
+        gate.id not in {selected.id for selected in gates}
+        and native_dependency_audit_scope(gate.model_dump(mode="python")) == "local-development"
+        for gate in declaration.proof_gates(full=True, python_executable=python_executable)
+    ):
+        gaps = (*gaps, "proof_dependency_acceptance_audit_missing")
     if (
         profile is not None
         and repository_python is None

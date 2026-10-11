@@ -203,6 +203,7 @@ def test_profile_rejects_retired_or_incomplete_proof_owners(tmp_path: Path, proo
 
 
 def test_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Path) -> None:
+    """Retain native proof declarations and the same applicable shared floor in both views."""
     git(tmp_path, "init", "-q")
     git(tmp_path, "config", "user.name", "test")
     git(tmp_path, "config", "user.email", "test@example.invalid")
@@ -218,7 +219,12 @@ def test_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Path) -
     assert worktree.profile is not None
     assert worktree.profile.state == "valid"
     assert worktree.digest == committed.digest
-    assert set(worktree.gate_ids) == {"sample-tests", "sample-static"}
+    assert worktree.gate_ids == committed.gate_ids
+    assert set(worktree.profile.declaration.proof.code_correctness_gates) == {
+        "sample-tests",
+        "sample-static",
+    }
+    assert set(worktree.gate_ids) == {"sample-tests", "sample-static", "config-quality"}
 
 
 def test_profile_gate_rejects_retired_registry_projection_field(tmp_path: Path) -> None:

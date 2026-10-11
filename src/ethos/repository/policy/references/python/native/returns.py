@@ -70,18 +70,33 @@ _EXCEPTION_OUTPUT_ALIASES = frozenset(
     f"subprocess.{constructor.__name__}"
     for constructor in (subprocess.TimeoutExpired, subprocess.CalledProcessError)
 )
-_PATH_RESOLVE_DISPATCH = tuple(
-    dict.fromkeys(
-        [
-            f"pathlib.{owner.__name__}.{name}"
-            for concrete in (pathlib.Path, pathlib.PosixPath, pathlib.WindowsPath)
-            for owner in concrete.__mro__[:-1]
-            for name in ("resolve", "with_segments", "__new__", "__init__", "__setattr__")
-            if hasattr(owner, name)
-        ]
-        + ["os.path.realpath"]
+_PATH_DISPATCH = {
+    f"pathlib.Path.{method}": tuple(
+        dict.fromkeys(
+            [
+                f"pathlib.{owner.__name__}.{name}"
+                for concrete in (pathlib.Path, pathlib.PosixPath, pathlib.WindowsPath)
+                for owner in concrete.__mro__[:-1]
+                for name in names
+                if hasattr(owner, name)
+            ]
+            + list(dependencies)
+        )
     )
-)
+    for method, names, dependencies in (
+        (
+            "resolve",
+            ("resolve", "with_segments", "__new__", "__init__", "__setattr__"),
+            ("os.path.realpath",),
+        ),
+        (
+            "read_text",
+            ("read_text", "open", "__fspath__", "__str__"),
+            ("io.open", "io.text_encoding"),
+        ),
+        ("read_bytes", ("read_bytes", "open", "__fspath__", "__str__"), ("io.open",)),
+    )
+}
 
 
 def native_return(
@@ -170,11 +185,12 @@ def native_dependencies(
     dependencies = (
         _TEMPORARY_DIRECTORY_DISPATCH
         if target == "tempfile.TemporaryDirectory"
-        else _PATH_RESOLVE_DISPATCH
-        if target == "pathlib.Path.resolve"
-        else (f"{target}.__init__", f"{target}.__new__", f"{target}.__setattr__")
-        if target in _NATIVE_RECORD_SIGNATURES
-        else ()
+        else _PATH_DISPATCH.get(
+            target,
+            (f"{target}.__init__", f"{target}.__new__", f"{target}.__setattr__")
+            if target in _NATIVE_RECORD_SIGNATURES
+            else (),
+        )
     )
     for dependency in dependencies:
         owner, _, name = dependency.rpartition(".")

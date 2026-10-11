@@ -211,8 +211,21 @@
       `native-signature-slot-repair/native-receiver-{final-bytes,locked-final}-20261011/`
       and `native-receiver-final-prewrite-20261011.json` in the existing custody.
       This is source qualification, not exact proof, installation or release.
-      Text removesuffix/split, homogeneous indexing/join and text concatenation
-      remain distinct model gaps; no unknown-content or executable origin is invented.
+      **Native content qualification, 2026-10-11:** the same owner now preserves
+      prefix/suffix removal, split/list element and join/concatenation representation.
+      Successful native content never invents bytes or an executable identity.
+      Read dispatch observes actual Path-family, open and io dependencies; replaced
+      producers remain UNKNOWN. Each native mutable branch allocates before its
+      alternatives join, so changed fields and escaped capabilities retain custody.
+      The post-join allocation simplification was rejected by independent review
+      and reproduced RED; restore branch custody, not a capacity exemption.
+      Final bytes pass 748 reference/public-observation tests, locked Ruff/Ty and
+      format; every Python carrier remains within 512 ELOC. Exact root/path
+      admission preceded edits; generated PATCH and final acceptance stay strict.
+      All attempts and caller exits remain in
+      `native-signature-slot-repair/native-content-20261011T0504/`;
+      owned scratch is absent. Generic pending UNKNOWN, full proof, aggregate
+      test budget, installed delivery and actual adopter effects remain open.
 
       Evidence: `GIT_INDEX_FILE` is declared at the actual input owner; five existing semantic-closure tests pass. Standard-library `TypedDict` removes an undeclared transitive import, and two redundant casts are removed; native Ty and dependency hygiene pass. The focused source receipt `prerequisite-green.result.json` does not establish full proof or installed behavior.
       Bounded source-return projection retains exact definition identity, finite

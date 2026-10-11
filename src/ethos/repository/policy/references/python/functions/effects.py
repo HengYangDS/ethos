@@ -21,6 +21,7 @@ from ethos.repository.policy.references.python.native.scalars import concatenate
 from ethos.repository.policy.references.python.native.scalars import dependent
 from ethos.repository.policy.references.python.native.scalars import native_operation
 from ethos.repository.policy.references.python.native.scalars import native_scalar
+from ethos.repository.policy.references.python.native.scalars import native_text
 
 if TYPE_CHECKING:
     from ethos.repository.policy.references.python.effects import PythonConsumption
@@ -407,7 +408,7 @@ def native_member(
             fields=None,
             aggregates=frozenset(),
             view="",
-            native_kind="",
+            native_kind=value.native_kind if native_text(value) else "",
         )
     elif demand.kind == "attribute":
         names = (
@@ -425,12 +426,13 @@ def native_member(
             else demand.selector or BindingValue(unknown=True)
         )
         selected = scope.resolve(value.selected(selector))
-    elif (
-        value.items is not None
-        and isinstance(key, int)
-        and -len(value.items) <= key < len(value.items)
+    elif isinstance(key, int) and (
+        (value.items is not None and -len(value.items) <= key < len(value.items))
+        or (value.items is None and value.native_kind == "list" and value.element is not None)
     ):
-        selected = scope.resolve(value.items[key])
+        selected = scope.resolve(
+            value.items[key] if value.items is not None else value.element or BindingValue()
+        )
         selected = replace(
             selected,
             unknown=selected.unknown or value.unknown,

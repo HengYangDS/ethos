@@ -152,6 +152,8 @@ class PythonConsumption:
                     self.escape((*args, *keywords.values()), node, scope)
                     self.invalidate(scope, native.footprint, conditional=True)
             value = native.returned or BindingValue(unknown=True)
+            if value.native_kind == "list" and not value.aggregates:
+                value = scope.aggregate(value, node)
             returned = value if returned is None else returned.join(value)
         return returned
 
@@ -193,16 +195,9 @@ class PythonConsumption:
         for target in callee.targets:
             value_returned = known[target] or generic
             if (
-                (
-                    target in {"builtins.dict", "builtins.dict.fromkeys"}
-                    and value_returned.entries is not None
-                )
-                or (
-                    target == "builtins.list"
-                    and (value_returned.items is not None or value_returned.element is not None)
-                )
-                or value_returned.native_kind in {"native_record", "temporary_directory"}
-            ):
+                target in {"builtins.dict", "builtins.dict.fromkeys"}
+                and value_returned.entries is not None
+            ) or value_returned.native_kind in {"list", "native_record", "temporary_directory"}:
                 value_returned = scope.aggregate(value_returned, node)
             kind = self.kind(target)
             if kind is not None:
@@ -271,7 +266,7 @@ class PythonConsumption:
         scope: BindingScope,
     ) -> ReceiverCall:
         """Classify native receiver relationships without applying their effects."""
-        native = native_method(owner, name, args, keywords)
+        native = native_method(owner, name, tuple(scope.resolve(value) for value in args), keywords)
         if native is not None:
             changed = native_dependencies(self, f"pathlib.Path.{name}", scope) if owner.path else ()
             return ReceiverCall(
@@ -442,6 +437,7 @@ class PythonConsumption:
                 owner.aggregates
                 or owner.path
                 or owner.entries is not None
+                or owner.strings
                 or native_text(owner, "hash", "text", "bytes")
             ):
                 value = value.join(

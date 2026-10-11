@@ -28,6 +28,8 @@ def concatenate(left: BindingValue, right: BindingValue) -> BindingValue:
     """Compose literal or symbolic operands without dropping opaque alternatives."""
     if left.items is not None and right.items is not None:
         return BindingValue(items=left.items + right.items)
+    if text_operand(left) and text_operand(right) and (native_text(left) or native_text(right)):
+        return BindingValue(native_kind="text")
     bounded = len(left.strings) * len(right.strings) <= 64
     value = BindingValue(
         strings=frozenset(a + b for a in left.strings for b in right.strings)
@@ -144,6 +146,30 @@ def native_text(value: BindingValue, *kinds: str) -> bool:
     )
 
 
+def text_operand(value: BindingValue) -> bool:
+    """A closed native string representation or an exact finite literal alternative."""
+    return native_text(value) or bool(
+        value.strings and value == BindingValue(strings=value.strings)
+    )
+
+
+def text_sequence(value: BindingValue) -> bool:
+    """Every possible successful sequence selection is text, with no opaque shape."""
+    shape = replace(value, aggregates=frozenset(), ordered=False)
+    return (
+        shape.native_kind in {"", "list"}
+        and shape
+        == BindingValue(items=shape.items, element=shape.element, native_kind=shape.native_kind)
+        and (
+            all(text_operand(item) for item in shape.items)
+            if shape.items is not None
+            else shape.native_kind == "list"
+            and shape.element is not None
+            and text_operand(shape.element)
+        )
+    )
+
+
 def native_method(
     owner: BindingValue,
     name: str,
@@ -173,10 +199,27 @@ def native_method(
     if keywords or any(value.spread for value in args):
         return None
     closed = all(item.strings and item == BindingValue(strings=item.strings) for item in args)
-    if native_text(owner, "hash") and name == "hexdigest" and not args:
+    if (
+        (native_text(owner, "hash") and name == "hexdigest" and not args)
+        or (
+            native_text(owner)
+            and closed
+            and (
+                (name in {"strip", "rstrip", "lstrip"} and len(args) <= 1)
+                or (name in {"removesuffix", "removeprefix"} and len(args) == 1)
+            )
+        )
+        or (text_operand(owner) and name == "join" and len(args) == 1 and text_sequence(args[0]))
+    ):
         return BindingValue(native_kind="text")
-    if native_text(owner) and name in {"strip", "rstrip", "lstrip"} and len(args) <= 1 and closed:
-        return BindingValue(native_kind="text")
+    if (
+        native_text(owner)
+        and name in {"split", "rsplit"}
+        and len(args) <= 1
+        and closed
+        and all(all(item.strings) for item in args)
+    ):
+        return BindingValue(native_kind="list", element=BindingValue(native_kind="text"))
     if (
         (
             (native_text(owner) and name == "encode")

@@ -7,6 +7,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -79,6 +80,48 @@ def test_source_cleanup_preserves_another_repositorys_selected_runtime(tmp_path:
     assert selection.current_runtime(adopter_common).root == old
     assert old.as_posix() in result["retained"]
     assert result["unproven_removals"] == [old.as_posix()]
+
+
+@pytest.mark.parametrize("unknown_generation", [False, True])
+def test_supply_wheels_follow_retained_generations_releases_and_live_references(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, unknown_generation: bool
+) -> None:
+    """Only a wheel no retained generation, accepted release or live reference names is freed."""
+    repo = init_git_repo(tmp_path / "repo")
+    common = Path(git_common_dir(repo))
+    hooks = common / "ethos/hooks" / ("a" * 64)
+    hooks.mkdir(parents=True)
+    (hooks / "selected").write_bytes(b"selected immutable payload")
+    (common / "ethos/runtime").mkdir(parents=True)
+    runtime = fixture_runtime_generation(common / "ethos/runtime/placeholder", "b" * 64)
+    (runtime.parent / "CURRENT").write_text(runtime.name + "\n", encoding="ascii")
+    if unknown_generation:
+        (common / "ethos/runtime" / ("9" * 64)).mkdir()
+    store = common / "ethos/packages"
+    wheels = {letter: store / (letter * 64) for letter in "fcde"}
+    for letter, path in wheels.items():
+        path.mkdir(parents=True)
+        (path / f"ethos-{letter}.whl").write_bytes(letter.encode())
+    (store / "notes.txt").write_text("foreign", encoding="utf-8")
+    live = f"python -m pip install {wheels['d'] / 'ethos-d.whl'}"
+    monkeypatch.setattr(retirement, "process_commands", lambda _root: live)
+    monkeypatch.setattr(retirement, "read_attestation_set", lambda _root: ("", ()))
+    monkeypatch.setattr(
+        retirement,
+        "accepted_release_identities",
+        lambda _attestations: (SimpleNamespace(wheel_sha256="c" * 64),),
+    )
+
+    result = retirement.retire_generations(repo, hooks=hooks, runtime=runtime)
+
+    assert result["state"] == "complete", result
+    assert wheels["e"].exists() is unknown_generation
+    assert (wheels["e"].as_posix() in result["removed"]) is not unknown_generation
+    assert (wheels["e"].as_posix() in result["unproven_removals"]) is unknown_generation
+    for letter in "fcd":
+        assert (wheels[letter] / f"ethos-{letter}.whl").read_bytes() == letter.encode()
+        assert wheels[letter].as_posix() in result["retained"]
+    assert (store / "notes.txt").read_text(encoding="utf-8") == "foreign"
 
 
 def test_a_later_generation_gets_a_fresh_consumer_observation(

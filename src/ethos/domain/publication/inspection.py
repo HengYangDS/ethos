@@ -17,6 +17,7 @@ from ethos.adapters.admission.publication import publication_proof_admission
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.decision import mutation_envelope
+from ethos.adapters.repo.commit.integration import peer_publication_baseline
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
@@ -29,9 +30,11 @@ from ethos.domain.land.closeout import repository_audit_after_admission
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
 from ethos.repository.release.configuration import release_config
+from ethos.repository.release.publication import publication_proof_selection
 from ethos.repository.release.publication import publication_ref_admission
 from ethos.repository.release.publication import publication_target_ref_for_source
 from ethos.repository.release.publication import publication_topology
+from ethos.repository.release.publication import select_publication_peers
 from ethos.repository.release.publication import topology_remotes
 from ethos.result import EthosResult
 
@@ -308,6 +311,7 @@ def observe_publication(
     authorized: bool,
     expect_head: str | None,
     target_refs: tuple[str, ...],
+    peer_ids: tuple[str, ...] = (),
 ) -> PublicationContext:
     """Observe local admission once for readiness or exact remote publication."""
     governance = repository_context(repo)
@@ -341,6 +345,24 @@ def observe_publication(
         )
         for ref in target_refs
     }
+    selected_remotes, _ = select_publication_peers(configured_remotes, peer_ids)
+    for ref, admission in ref_admissions.items():
+        if not ref.startswith("refs/tags/") or not selected_remotes:
+            continue
+        peer_roles = tuple(
+            peer_publication_baseline(repo, target_ref=ref, remote_name=remote)[1]
+            for remote in selected_remotes.values()
+        )
+        role = (
+            "object_transport"
+            if all(role == "object_transport" for role in peer_roles)
+            else "release_publication"
+            if "release_publication" in peer_roles or admission["role"] == "release_publication"
+            else "other"
+        )
+        admission.update(role=role, proof_selection=publication_proof_selection(role))
+        if role == "object_transport":
+            admission["remote_mutation_allowed"] = not remote_topology.get("required_gaps")
     target_roles = tuple(str(item.get("role") or "other") for item in ref_admissions.values())
     review_only = bool(ref_admissions) and all(
         item["proof_selection"] == "review_object" for item in ref_admissions.values()

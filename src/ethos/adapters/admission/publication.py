@@ -143,7 +143,7 @@ def _ref_update_admission(
         )
     local_gaps: list[str] = []
     proposed = str(commits.get("proposed_commit") or "")
-    policy_ref = str(commits.get("baseline_commit") or "")
+    policy_ref = str(commits.get("policy_ref") or commits.get("baseline_commit") or "")
     if commits.get("update_kind") == "delete":
         policy_ref = remote_head
     policy_ref = accepted_policy_ref or policy_ref
@@ -204,6 +204,7 @@ def _ref_update_admission(
         "policy_ref": policy_ref,
         "role_policy": asdict(policy),
         "release_tags": tags,
+        "transport_tags": transport_tags,
         "commit_policy_admission": commits,
         "openspec": intent,
         "required_gaps": gaps,
@@ -395,7 +396,7 @@ def push_admission_report(
     )
     role = str(observed["role"])
     ref_admission = publication_ref_admission(
-        topology,
+        {**topology, "transport_tags": observed["transport_tags"]},
         policy=policy,
         target_ref=target_ref,
         release_tags=tuple(string_sequence(observed["release_tags"])),

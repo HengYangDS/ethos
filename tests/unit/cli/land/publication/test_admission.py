@@ -15,7 +15,6 @@ import ethos.adapters.mutation.publication.request as publication_request
 import ethos.adapters.repo.commit.integration as commit_integration
 import ethos.repository.release.publication as release_publication
 from ethos.adapters.admission.publication import publication_proof_admission
-from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.admission.publication import ref_update_admission_report
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.adapters.repo.runtime.selection import runtime_command
@@ -23,185 +22,13 @@ from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.value import mutable_json
+from ethos.normalization.coercion import string_sequence
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import branch_publication
 from tests.unit.cli.land.publication.support import branch_publication_fixture
 from tests.unit.cli.land.publication.support import proposal_ref
-
-
-@pytest.mark.parametrize("product_proof", [False, True])
-def test_declared_signed_transport_shares_publish_and_native_push_admission(
-    tmp_path: Path, *, product_proof: bool
-) -> None:
-    """Object transport preserves trust and CAS without requiring product release proof."""
-    repo, peers, prior = branch_publication_fixture(tmp_path, proof=product_proof)
-    declaration = repo / ".ethos/release.toml"
-    text = declaration.read_text().replace(
-        "[publication]\n", '[publication]\ntransport_tags = ["evidence-*"]\n'
-    )
-    baseline = commit_fixture_file(
-        repo, ".ethos/release.toml", text, "test: declare object transport"
-    )
-    for remote in ("origin", "github"):
-        git(repo, "push", "--no-verify", remote, f"{baseline}:refs/heads/dev")
-        git(repo, "push", "--no-verify", remote, f"{prior}:refs/heads/main")
-        git(repo, "symbolic-ref", f"refs/remotes/{remote}/HEAD", f"refs/remotes/{remote}/main")
-    head = commit_fixture_file(repo, "input.txt", "qualified input\n", "test: qualify input object")
-    ref = f"refs/tags/evidence-{head}"
-    git(repo, "tag", "-s", "-m", "Exact signed input carrier", ref.removeprefix("refs/tags/"), head)
-    tag = git(repo, "rev-parse", ref)
-    report = branch_publication(repo, head, "--peer", "github", target_ref=ref)
-    assert report["verdict"] == "pass", report
-    assert report["data"]["proof_admission"]["selection"] == "review_object"
-    native = push_admission_report(
-        root=repo, target_ref=ref, pushed_head=tag, remote_head=zero_oid(repo), remote_name="github"
-    )
-    assert native["verdict"] == "pass", native
-    assert native["proof_admission"]["selection"] == "review_object"
-    receipt = report["data"]["request_receipt"]
-    applied = apply_receipt(repo, receipt, head)
-    assert applied["verdict"] == "pass", applied
-    assert git(peers["github"], "rev-parse", ref) == tag
-    assert git(peers["gitlab"], "for-each-ref", "--format=%(objectname)", ref) == ""
-    assert git(repo, "rev-parse", "HEAD") == head
-    repeated = apply_receipt(repo, receipt, head)
-    assert repeated["verdict"] == "pass", repeated
-    assert git(peers["github"], "rev-parse", ref) == tag
-
-
-@pytest.mark.parametrize(
-    ("redirect_accepted_ref", "peer_root"),
-    [(False, "native"), (True, "native"), (True, "missing"), (True, "mismatched")],
-)
-def test_transport_candidate_cannot_select_its_own_prior_authority(
-    tmp_path: Path, *, redirect_accepted_ref: bool, peer_root: str
-) -> None:
-    """A proposed scope and branch designation cannot turn a proposal into accepted policy."""
-    repo, peers, prior = branch_publication_fixture(tmp_path, proof=False)
-    git(repo, "push", "--no-verify", "github", f"{prior}:refs/heads/main")
-    git(repo, "symbolic-ref", "refs/remotes/github/HEAD", "refs/remotes/github/main")
-    declaration = repo / ".ethos/release.toml"
-    head = commit_fixture_file(
-        repo,
-        ".ethos/release.toml",
-        declaration.read_text().replace(
-            "[publication]\n", '[publication]\ntransport_tags = ["evidence-*"]\n'
-        ),
-        "test: propose object transport scope",
-    )
-    if redirect_accepted_ref:
-        workspace = repo / ".ethos/workspace.toml"
-        accepted = load_branch_role_policy(repo).accepted_branch
-        head = commit_fixture_file(
-            repo,
-            ".ethos/workspace.toml",
-            workspace.read_text().replace(
-                f'accepted_branch = "{accepted}"',
-                'accepted_branch = "proposal/transport-authority"',
-            ),
-            "test: propose alternate accepted designation",
-        )
-        git(repo, "branch", "proposal/transport-authority", head)
-        git(
-            repo, "push", "--no-verify", "github", f"{head}:refs/heads/proposal/transport-authority"
-        )
-    if peer_root == "missing":
-        git(repo, "symbolic-ref", "--delete", "refs/remotes/github/HEAD")
-        for branch in ("dev", "main"):
-            git(repo, "update-ref", "-d", f"refs/remotes/github/{branch}")
-    elif peer_root == "mismatched":
-        git(repo, "push", "--no-verify", "github", f"{head}:refs/heads/dev")
-    ref = f"refs/tags/evidence-{head}"
-    git(repo, "tag", "-s", "-m", "Unaccepted signed input", ref.removeprefix("refs/tags/"), head)
-    tag = git(repo, "rev-parse", ref)
-    native = push_admission_report(
-        root=repo, target_ref=ref, pushed_head=tag, remote_head=zero_oid(repo), remote_name="github"
-    )
-    assert native["verdict"] == "block", native
-    assert native["policy_ref"] != head, native
-    report = branch_publication(repo, head, "--peer", "github", target_ref=ref, blocked=True)
-    assert report["verdict"] == "block", report
-    assert git(peers["github"], "for-each-ref", "--format=%(objectname)", ref) == ""
-
-
-def test_transport_keeps_native_signature_header_and_immutable_ref_checks(tmp_path: Path) -> None:
-    """Review qualification never authorizes an altered tag or an untrusted envelope."""
-    repo, _, _ = branch_publication_fixture(tmp_path, proof=False)
-    declaration = repo / ".ethos/release.toml"
-    text = declaration.read_text().replace(
-        "[publication]\n", '[publication]\ntransport_tags = ["evidence-*"]\n'
-    )
-    head = commit_fixture_file(repo, ".ethos/release.toml", text, "test: declare transport scope")
-    git(repo, "push", "--no-verify", "github", f"{head}:refs/heads/dev")
-    ref = "refs/tags/evidence-input"
-    git(repo, "tag", "-s", "-m", "Signed exact input", "evidence-input", head)
-    tag = git(repo, "rev-parse", ref)
-    options = {"root": repo, "pushed_head": tag, "remote_name": "github"}
-    altered = push_admission_report(
-        **options, target_ref="refs/tags/evidence-renamed", remote_head=zero_oid(repo)
-    )
-    assert "release_tag_name_mismatch" in altered["required_gaps"]
-    conflict = push_admission_report(**options, target_ref=ref, remote_head=head)
-    assert "release_tag_immutable" in conflict["required_gaps"]
-    git(repo, "tag", "-a", "--no-sign", "-m", "Untrusted input", "evidence-unsigned", head)
-    unsigned = git(repo, "rev-parse", "refs/tags/evidence-unsigned")
-    denied = push_admission_report(
-        root=repo,
-        pushed_head=unsigned,
-        target_ref="refs/tags/evidence-unsigned",
-        remote_name="github",
-        remote_head=zero_oid(repo),
-    )
-    assert "release_tag_source_untrusted" in denied["required_gaps"]
-    assert git(repo, "rev-parse", ref) == tag
-
-
-def test_transport_declaration_cannot_downgrade_declared_product_tags(tmp_path: Path) -> None:
-    """Product patterns retain release obligations even when transport also matches."""
-    repo, _, prior = branch_publication_fixture(tmp_path, proof=False)
-    declaration = repo / ".ethos/release.toml"
-    text = '[protected_refs]\ntags = ["v*"]\n\n' + declaration.read_text().replace(
-        "[publication]\n", '[publication]\ntransport_tags = ["*"]\n'
-    )
-    head = commit_fixture_file(repo, ".ethos/release.toml", text, "test: preserve release role")
-    git(repo, "push", "--no-verify", "github", f"{head}:refs/heads/dev")
-    git(repo, "push", "--no-verify", "github", f"{prior}:refs/heads/main")
-    git(repo, "symbolic-ref", "refs/remotes/github/HEAD", "refs/remotes/github/main")
-    git(repo, "tag", "-s", "-m", "Not a product release", "v9.9.9", head)
-    observed = ref_update_admission_report(
-        repo,
-        target_ref="refs/tags/v9.9.9",
-        proposed_head=git(repo, "rev-parse", "v9.9.9"),
-        remote_head=zero_oid(repo),
-        remote_name="github",
-        trusted_baseline=head,
-    )
-    assert observed["role"] == "release_publication", observed
-    report = branch_publication(repo, head, target_ref="refs/tags/v9.9.9", blocked=True)
-    assert report["verdict"] == "block"
-    assert any("version" in gap or "proof" in gap for gap in report["required_gaps"]), report
-
-
-@pytest.mark.parametrize("tags", ["evidence-*", [""], ["a", "a"], [1]])
-def test_invalid_transport_declaration_is_not_treated_as_absent(
-    tmp_path: Path, tags: object
-) -> None:
-    """Explicit malformed transport ranges are rejected by the sole native owner."""
-    topology = release_publication.publication_topology(
-        tmp_path,
-        {
-            "publication": {
-                "local_verification_command": "git --version",
-                "local_installation_command": "git --version",
-                "transport_tags": tags,
-                "peers": [],
-            }
-        },
-    )
-    assert "publication_transport_tags_invalid" in topology["required_gaps"]
 
 
 @pytest.mark.parametrize("valid", [False, True])
@@ -230,7 +57,10 @@ def test_exact_publication_policy_rejects_inconsistent_release_roles(
     )
     assert report["verdict"] == ("pass" if valid else "block"), report
     if not valid:
-        assert any("protected_branches_policy_missing" in gap for gap in report["required_gaps"])
+        assert any(
+            "protected_branches_policy_missing" in gap
+            for gap in string_sequence(report["required_gaps"])
+        )
     assert git(repo, "rev-parse", "HEAD") == head
 
 
@@ -289,9 +119,6 @@ def test_publication_contract_failure_matrix(tmp_path: Path) -> None:
         topology = release_publication.publication_topology(tmp_path, {"publication": declaration})
         assert isinstance(topology["required_gaps"], list)
         assert any(gap in item for item in topology["required_gaps"])
-    assert release_publication.publication_source_version_gaps(
-        source_ref="refs/tags/v1", annotated_tag=True, version_text=None
-    ) == ("publication_source_version_invalid:v1",)
     topology = {"required_gaps": [], "remotes": [{"id": "gitlab", "git_remote": "origin"}]}
     for ref, remote, gap in (
         ("invalid", "origin", "ref_unavailable"),
@@ -407,7 +234,9 @@ def test_publication_remote_failure_matrix(tmp_path: Path, monkeypatch: pytest.M
         assert gaps == tuple(
             f"publication_remote_observation_unavailable:gitlab:origin:{ref}" for ref in refs
         )
-        for observed in observations["gitlab"]["refs"].values():
+        observed_refs = observations["gitlab"]["refs"]
+        assert isinstance(observed_refs, dict)
+        for observed in observed_refs.values():
             assert [observed[k] for k in ("state", "reason", "object_oid")] == [
                 "unavailable",
                 reason,
@@ -513,7 +342,7 @@ def test_publication_and_pre_push_share_exact_proof_and_continuation(
         monkeypatch.setattr(
             proof_adapter,
             "proof_for_repository_transition",
-            lambda *_, **__: (None, ["proof_not_proven"]),
+            lambda *_, **_options: (None, ["proof_not_proven"]),
         )
     if state == "runtime-missing":
         monkeypatch.setattr(

@@ -56,6 +56,13 @@ class NativeNoxSupply:
             timeout=15,
             check=True,
         )
+        interpreter = (
+            staging / "python" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+        )
+        if interpreter.is_symlink():
+            source = interpreter.resolve(strict=True)
+            interpreter.unlink()
+            shutil.copy2(source, interpreter)
         environment = observe_runtime_environment(self.project, Path(sys.executable))
         files = runtime_file_inventory(staging)
         build = wheel_build_identity(self.wheel)

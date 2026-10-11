@@ -22,6 +22,7 @@ from ethos.normalization.coercion import string_sequence
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.contracts.evidence.observer import ObserverIdentity
     from ethos.contracts.gates import Gate
     from ethos.contracts.gates import NativeOutput
 
@@ -39,6 +40,7 @@ class NativeEvidence:
     gaps: tuple[str, ...]
     artifact: str
     dependency_checks: tuple[tuple[NativeOutput, bytes], ...] = ()
+    observer: ObserverIdentity | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -20,6 +20,7 @@ from pydantic import Field
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.git import current_tracked_head
+from ethos.contracts.evidence.observer import ObserverIdentity
 from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.policy.quality_reports import coverage_stream_report
 from ethos.repository.policy.quality_reports import junit_stream_report
@@ -142,6 +143,13 @@ class PythonRuntime(BaseModel):
     prefix: str = Field(min_length=1)
     pytest: PytestInvocation | None = None
     ruff: RuffInvocation | None = None
+    observer: ObserverIdentity | None = None
+
+    def require_observer(self, expected: ObserverIdentity | None) -> None:
+        """Child provenance must equal the originally supplied runtime and wheel."""
+        if expected is None or self.observer != expected:
+            msg = "python_native_observer_identity_unbound"
+            raise ValueError(msg)
 
     def require_checks(
         self, root: Path, output: NativeOutput, outputs: tuple[NativeOutput, ...]
@@ -358,6 +366,7 @@ def _runtimes(execution: NativeExecution, found: tuple[str, ...]) -> None:
         if evidence is None:
             msg = "python_native_evidence_unavailable"
             raise ValueError(msg)
+        runtime.require_observer(evidence.observer)
         runtime.require_checks(execution.cwd, output, evidence.gate.native_outputs)
     if runtime_sessions != set(found):
         msg = "python_native_toolchain_unbound"

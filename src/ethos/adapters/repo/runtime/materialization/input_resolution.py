@@ -91,9 +91,9 @@ def resolve_runtime_wheel(
             return wheel_dir / wheels[0].name
         finally:
             shutil.rmtree(staging, ignore_errors=True)
-    managed = _managed_runtime_wheel(source)
-    if managed is not None:
-        return managed
+    selected = selected_runtime_source(source)
+    if selected is not None:
+        return runtime_wheel(selected)
     try:
         metadata = distribution("ethos")
         direct_url = json.loads(metadata.read_text("direct_url.json") or "")
@@ -184,12 +184,9 @@ def run_runtime_tool(
     return completed
 
 
-def _managed_runtime_wheel(source: Path) -> Path | None:
-    selected = selected_runtime_source(source)
-    if selected is None:
-        return None
-    runtime = selected.root
-    package_root = runtime.parent.parent / "packages" / selected.wheel_sha256
+def runtime_wheel(selected: SelectedRuntime) -> Path:
+    """Resolve selected package bytes through their sole private-layout owner."""
+    package_root = selected.root.parent.parent / "packages" / selected.wheel_sha256
     if package_root.is_symlink() or not package_root.is_dir():
         _fail("hook_runtime_wheel_provenance_missing")
     wheels = tuple(

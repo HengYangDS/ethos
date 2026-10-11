@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sys
 from importlib.metadata import version
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from ethos.domain.quality.observer import runtime_identity
 
 if TYPE_CHECKING:
     import pytest
@@ -32,9 +33,7 @@ def _write(session: pytest.Session, exitstatus: int | None) -> None:
         msg = "python_native_pytest_config_unbound"
         raise ValueError(msg)
     payload = {
-        "executable": sys.executable,
-        "version": list(sys.version_info[:3]),
-        "prefix": sys.prefix,
+        **runtime_identity(),
         "pytest": {
             "session": producer,
             "argv": list(config.invocation_params.args),

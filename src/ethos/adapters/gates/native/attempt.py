@@ -21,9 +21,13 @@ from ethos.adapters.gates.verification import NativeEvidence
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.git import current_tracked_head
+from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.runtime.materialization.input_resolution import runtime_wheel
+from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.schema import local_state_root
+from ethos.contracts.evidence.observer import ObserverIdentity
 from ethos.contracts.semantic import canonical_json_digest
 
 if TYPE_CHECKING:
@@ -82,6 +86,7 @@ def _retain(root: Path, execution: NativeExecution) -> str:
                     "gate": evidence.gate.to_dict(),
                     "output_root": evidence.output_root,
                     "gaps": evidence.gaps,
+                    "observer": evidence.observer.to_payload() if evidence.observer else None,
                     "dependency_checks": [
                         output.model_dump(mode="json") for output, _ in evidence.dependency_checks
                     ],
@@ -102,6 +107,35 @@ def _retain(root: Path, execution: NativeExecution) -> str:
     return str(target)
 
 
+def _capture_outputs(
+    root: Path,
+    gate: Gate,
+    directory: Path,
+    observer: ObserverIdentity | None,
+    deadline: float,
+) -> tuple[list[tuple[NativeOutput, bytes]], list[tuple[NativeOutput, bytes]], list[str]]:
+    """Retain declared reports before qualifying the same supplied child."""
+    outputs: list[tuple[NativeOutput, bytes]] = []
+    checks: list[tuple[NativeOutput, bytes]] = []
+    gaps: list[str] = []
+    for output in gate.native_outputs:
+        try:
+            content = _read_output(directory, output.path)
+            outputs.append((output, content))
+            if output.format == "python-runtime-json":
+                runtime = PythonRuntime.model_validate_json(content)
+                runtime.require_observer(observer)
+                check = runtime.qualify(root, output, deadline=deadline)
+                checks.append((output, check))
+                runtime.require_floor(root, check)
+        except subprocess.TimeoutExpired:
+            gaps.append("native_execution_timeout")
+        except (OSError, ValueError) as error:
+            reason = str(error) if isinstance(error, ValueError) else "native_output_missing"
+            gaps.append(f"{reason}:{output.path}")
+    return outputs, checks, gaps
+
+
 def native_attempt(
     root: Path, gate: Gate, command: tuple[str, ...], *, timeout: float | None
 ) -> tuple[subprocess.CompletedProcess[str], NativeEvidence]:
@@ -117,14 +151,40 @@ def native_attempt(
         outputs: list[tuple[NativeOutput, bytes]] = []
         gaps: list[str] = []
         checks: list[tuple[NativeOutput, bytes]] = []
+        observer = None
+        supply_error = ""
+        environment = {"ETHOS_NATIVE_OUTPUT_DIR": str(directory)}
         deadline = monotonic() + (timeout if timeout is not None else 900)
         try:
-            completed = run_command(
-                root,
-                argv,
-                timeout=timeout,
-                env={"ETHOS_NATIVE_OUTPUT_DIR": str(directory)},
-            )
+            if any(output.format == "python-runtime-json" for output in gate.native_outputs):
+                selected = current_runtime(Path(git_common_dir(root)))
+                wheel = runtime_wheel(selected)
+                observer = ObserverIdentity(
+                    f"ethos @ {wheel.as_uri()}#sha256={selected.wheel_sha256}",
+                    selected.digest,
+                    selected.wheel_sha256,
+                )
+                environment.update(
+                    ETHOS_NATIVE_OBSERVER_REQUIREMENT=observer.requirement,
+                    ETHOS_NATIVE_OBSERVER_RUNTIME_DIGEST=observer.runtime_digest,
+                )
+        except (OSError, ValueError) as error:
+            supply_error = str(error)
+            gaps.append(supply_error)
+        try:
+            if supply_error:
+                completed = subprocess.CompletedProcess(argv, 1, "", supply_error)
+            else:
+                completed = run_command(
+                    root,
+                    argv,
+                    timeout=max(0, deadline - monotonic()) if timeout is not None else None,
+                    env=environment,
+                    remove_env=(
+                        "ETHOS_NATIVE_OBSERVER_REQUIREMENT",
+                        "ETHOS_NATIVE_OBSERVER_RUNTIME_DIGEST",
+                    ),
+                )
         except subprocess.TimeoutExpired as error:
             stdout = (
                 error.stdout.decode(errors="replace")
@@ -138,20 +198,11 @@ def native_attempt(
             )
             completed = subprocess.CompletedProcess(argv, 124, stdout, stderr)
             gaps.append("native_execution_timeout")
-        for output in gate.native_outputs:
-            try:
-                content = _read_output(directory, output.path)
-                outputs.append((output, content))
-                if output.format == "python-runtime-json":
-                    runtime = PythonRuntime.model_validate_json(content)
-                    check = runtime.qualify(root, output, deadline=deadline)
-                    checks.append((output, check))
-                    runtime.require_floor(root, check)
-            except subprocess.TimeoutExpired:
-                gaps.append("native_execution_timeout")
-            except (OSError, ValueError) as error:
-                reason = str(error) if isinstance(error, ValueError) else "native_output_missing"
-                gaps.append(f"{reason}:{output.path}")
+        if not supply_error:
+            outputs, checks, output_gaps = _capture_outputs(
+                root, gate, directory, observer, deadline
+            )
+            gaps.extend(output_gaps)
         try:
             observe_quality_subjects(root, expected_tree=tree)
             if current_tracked_head(root) != head:
@@ -170,6 +221,7 @@ def native_attempt(
             gaps=tuple(gaps),
             artifact="",
             dependency_checks=tuple(checks),
+            observer=observer,
         )
         return completed, evidence
 

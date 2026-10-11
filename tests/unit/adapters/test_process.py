@@ -30,8 +30,9 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.parametrize("outcome", ["success", "nonzero", "timeout"])
+@pytest.mark.parametrize("spool_stdout", [False, True])
 def test_native_command_owns_its_handle_without_an_outer_scope(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, outcome: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, outcome: str, spool_stdout: bool
 ) -> None:
     """Every native command registers and releases one real owned process."""
     started: list[tuple[process_adapter.CommandScope, subprocess.Popen[str]]] = []
@@ -69,7 +70,9 @@ def test_native_command_owns_its_handle_without_an_outer_scope(
         body = "print('complete')"
     command = (sys.executable, "-c", body)
     if outcome == "success":
-        result = process_adapter.run_command(tmp_path, command, check=True)
+        result = process_adapter.run_command(
+            tmp_path, command, check=True, spool_stdout=spool_stdout
+        )
         assert result.returncode == 0
         assert result.stdout == "complete\n"
     else:
@@ -78,13 +81,69 @@ def test_native_command_owns_its_handle_without_an_outer_scope(
         )
         with pytest.raises(failure):
             process_adapter.run_command(
-                tmp_path, command, check=True, timeout=0.1 if outcome == "timeout" else 2
+                tmp_path,
+                command,
+                check=True,
+                timeout=0.1 if outcome == "timeout" else 2,
+                spool_stdout=spool_stdout,
             )
     assert len(started) == 1
     child = started[0][1]
     assert child.returncode is not None
     assert discarded == [child]
     assert terminated == ([child] if outcome == "timeout" else [])
+
+
+@pytest.mark.parametrize("text", [False, True])
+@pytest.mark.parametrize("outcome", ["success", "nonzero", "timeout"])
+def test_bulk_stdout_preserves_native_output_and_closes_capture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, text: bool, outcome: str
+) -> None:
+    """A finite producer retains output and closes its invocation-local capture."""
+    opened = []
+    temporary_file = process_adapter.TemporaryFile
+
+    def capture(*args, **kwargs):
+        value = temporary_file(*args, **kwargs)
+        opened.append(value)
+        return value
+
+    monkeypatch.setattr(process_adapter, "TemporaryFile", capture)
+    payload = b"first\r\nsecond\rthird\n" * 65_536
+    diagnostic = b"diagnostic\r\nnext\rlast\n"
+    body = (
+        "import os,stat,sys,time; assert stat.S_ISREG(os.fstat(1).st_mode); "
+        "sys.stdout.buffer.write(b'first\\r\\nsecond\\rthird\\n'*65536); "
+        "sys.stdout.flush(); sys.stderr.buffer.write(b'diagnostic\\r\\nnext\\rlast\\n'); "
+        "sys.stderr.flush(); "
+        "time.sleep(10) if sys.argv[1]=='timeout' else None; "
+        "raise SystemExit(7 if sys.argv[1]=='nonzero' else 0)"
+    )
+    command = (sys.executable, "-c", body, outcome)
+    options = {"text": text, "check": True, "spool_stdout": True}
+    expected = "first\nsecond\nthird\n" * 65_536 if text else payload
+    if outcome == "success":
+        result = process_adapter.run_command(tmp_path, command, timeout=5, **options)
+        assert result.stdout == expected
+        assert result.stderr == ("diagnostic\nnext\nlast\n" if text else diagnostic)
+        assert result.returncode == 0
+    else:
+        failure = (
+            subprocess.TimeoutExpired if outcome == "timeout" else subprocess.CalledProcessError
+        )
+        with pytest.raises(failure) as caught:
+            process_adapter.run_command(
+                tmp_path, command, timeout=1 if outcome == "timeout" else 5, **options
+            )
+        if outcome == "timeout":
+            assert caught.value.stdout == payload
+            assert caught.value.stderr == diagnostic
+        else:
+            assert caught.value.returncode == 7
+            assert caught.value.stdout == expected
+            assert caught.value.stderr == ("diagnostic\nnext\nlast\n" if text else diagnostic)
+    assert len(opened) == 1
+    assert all(value.closed for value in opened)
 
 
 def test_caught_command_failure_preserves_a_live_sibling(tmp_path, monkeypatch) -> None:
@@ -121,28 +180,32 @@ def test_caught_command_failure_preserves_a_live_sibling(tmp_path, monkeypatch) 
     assert children[0].returncode is not None
 
 
-def test_cancelled_command_scope_rejects_creation(tmp_path, monkeypatch) -> None:
+@pytest.mark.parametrize("spool_stdout", [False, True])
+def test_cancelled_command_scope_rejects_creation(tmp_path, monkeypatch, spool_stdout) -> None:
     """Cancellation fences creation before any native process can start."""
     creation = Mock(wraps=subprocess.Popen)
     monkeypatch.setattr(subprocess, "Popen", creation)
     with process_adapter.command_scope() as scope:
         scope.cancel()
         with pytest.raises(process_adapter.ProcessExecutionError, match="process_cancelled"):
-            process_adapter.run_command(tmp_path, (sys.executable, "-c", "pass"), timeout=2)
+            process_adapter.run_command(
+                tmp_path, (sys.executable, "-c", "pass"), timeout=2, spool_stdout=spool_stdout
+            )
     creation.assert_not_called()
 
 
-def test_command_scope_conserves_one_deadline_across_native_calls(tmp_path) -> None:
+@pytest.mark.parametrize("spool_stdout", [False, True])
+def test_command_scope_conserves_one_deadline_across_native_calls(tmp_path, spool_stdout) -> None:
     """A later or nested command cannot renew a caller's finite execution budget."""
     command = (sys.executable, "-c", "import time; time.sleep(0.2)")
     started = monotonic()
     with process_adapter.command_scope(timeout_seconds=0.3):
-        process_adapter.run_command(tmp_path, command, timeout=10)
+        process_adapter.run_command(tmp_path, command, timeout=10, spool_stdout=spool_stdout)
         with (
             process_adapter.command_scope(timeout_seconds=10),
             pytest.raises(subprocess.TimeoutExpired),
         ):
-            process_adapter.run_command(tmp_path, command, timeout=10)
+            process_adapter.run_command(tmp_path, command, timeout=10, spool_stdout=spool_stdout)
     assert monotonic() - started < 1
     assert process_adapter.run_command(tmp_path, (sys.executable, "-c", "pass")).returncode == 0
 
@@ -287,7 +350,8 @@ def test_process_observer_resolves_native_authority(tmp_path, monkeypatch, platf
 
 
 @pytest.mark.parametrize("phase", ["spawn", "communication", "completed"])
-def test_process_failure_preserves_its_actual_boundary(tmp_path, monkeypatch, phase):
+@pytest.mark.parametrize("spool_stdout", [False, True])
+def test_process_failure_preserves_its_actual_boundary(tmp_path, monkeypatch, phase, spool_stdout):
     """Only failure before successful creation is a process-creation error."""
     failure = OSError(5, "boundary probe")
     target, attribute = (
@@ -306,7 +370,7 @@ def test_process_failure_preserves_its_actual_boundary(tmp_path, monkeypatch, ph
     with pytest.raises(
         process_adapter.ProcessExecutionError if phase == "spawn" else OSError
     ) as caught:
-        process_adapter.run_command(tmp_path, command)
+        process_adapter.run_command(tmp_path, command, spool_stdout=spool_stdout)
     if phase != "spawn":
         assert caught.value is failure
     else:
@@ -321,8 +385,9 @@ def test_process_failure_preserves_its_actual_boundary(tmp_path, monkeypatch, ph
 
 
 @pytest.mark.parametrize("mode", ["key", "prefix", "isolated"])
+@pytest.mark.parametrize("spool_stdout", [False, True])
 @pytest.mark.timeout(5)
-def test_command_environment_and_native_io(tmp_path, monkeypatch, mode):
+def test_command_environment_and_native_io(tmp_path, monkeypatch, mode, spool_stdout):
     """Native children consume exactly the selected environment and input."""
     environment = {"PSModulePath": "pwsh", "ETHOS_PRESERVED": "inherited", "GIT_PRESERVED": "git"}
     for key, value in environment.items():
@@ -345,6 +410,7 @@ def test_command_environment_and_native_io(tmp_path, monkeypatch, mode):
         remove_env=("psmodulepath",) if mode == "key" else (),
         remove_env_prefixes=("git_",) if mode == "prefix" else (),
         stdin="input" * 16384 if textual else b"input" * 16384,
+        spool_stdout=spool_stdout,
     )
     observed = json.loads(result.stdout)
     expected_output = "output" * 16384 + "input" * 16384
@@ -355,19 +421,31 @@ def test_command_environment_and_native_io(tmp_path, monkeypatch, mode):
     expected["ETHOS_ADDED"] = "explicit"
     assert {k: observed[k] for k in (*environment, "ETHOS_ADDED") if k in observed} == expected
     with pytest.raises(subprocess.CalledProcessError) as failure:
-        process_adapter.run_command(tmp_path, (sys.executable, "-c", body, "7"), check=True)
+        process_adapter.run_command(
+            tmp_path, (sys.executable, "-c", body, "7"), check=True, spool_stdout=spool_stdout
+        )
     assert failure.value.returncode == 7
     assert failure.value.stderr == "output" * 16384
     assert json.loads(failure.value.stdout)["ETHOS_PRESERVED"] == "inherited"
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX process-group boundary")
-@pytest.mark.parametrize("failure", ["timeout", "cancel", "gate-cancel", "gate-overlap"])
+@pytest.mark.parametrize(
+    ("failure", "spool_stdout"),
+    [
+        ("timeout", False),
+        ("timeout", True),
+        ("cancel", False),
+        ("cancel", True),
+        ("gate-cancel", False),
+        ("gate-overlap", False),
+    ],
+)
 @pytest.mark.parametrize(
     ("parent_exited", "inherit_pipes"), [(False, False), (False, True), (True, True)]
 )
 def test_command_failure_closes_owned_descendants(
-    tmp_path, monkeypatch, failure, inherit_pipes, parent_exited
+    tmp_path, monkeypatch, failure, inherit_pipes, parent_exited, spool_stdout
 ):
     """A ready descendant cannot retain its socket after the command is interrupted."""
     fallback = []
@@ -409,7 +487,9 @@ def test_command_failure_closes_owned_descendants(
         def execute():
             command = (sys.executable, "-c", parent)
             if not failure.startswith("gate-"):
-                process_adapter.run_command(tmp_path, command, timeout=0.2)
+                process_adapter.run_command(
+                    tmp_path, command, timeout=0.2, spool_stdout=spool_stdout
+                )
             else:
                 gate = Gate(id="probe", kind="test", command=command)
                 node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))

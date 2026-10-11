@@ -13,6 +13,8 @@ from contextlib import ExitStack
 from contextlib import contextmanager
 from contextlib import suppress
 from contextvars import ContextVar
+from io import BytesIO
+from io import TextIOWrapper
 from pathlib import Path
 from tempfile import TemporaryFile
 from threading import Lock
@@ -23,6 +25,7 @@ from typing import Any
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from collections.abc import Mapping
+    from typing import BinaryIO
 
 PROCESS_CREATION_FAILED = "process_creation_failed"
 NATIVE_WINDOWS_POWERSHELL_UNAVAILABLE = "native_windows_powershell_unavailable"
@@ -285,6 +288,7 @@ def run_command(
     remove_env_prefixes: tuple[str, ...] = (),
     inherit_environment: bool = True,
     stdin: str | bytes | None = None,
+    spool_stdout: bool = False,
 ) -> subprocess.CompletedProcess[Any]:
     """Run one exact argv command and preserve process-creation evidence."""
     resolved_root = root.resolve()
@@ -311,11 +315,17 @@ def run_command(
         env=effective_env,
         input=stdin,
         timeout=timeout,
+        spool_stdout=spool_stdout,
     )
 
 
 def _execute_command(
-    command: tuple[str, ...], *, check: bool, timeout: float | None, **kwargs: Any
+    command: tuple[str, ...],
+    *,
+    check: bool,
+    timeout: float | None,
+    spool_stdout: bool,
+    **kwargs: Any,
 ) -> subprocess.CompletedProcess[Any]:
     """Separate creation failures from communication and owned-process cleanup."""
     deadline = _COMMAND_DEADLINE.get()
@@ -325,6 +335,7 @@ def _execute_command(
         if timeout <= 0:
             raise subprocess.TimeoutExpired(command, timeout)
     stdin = kwargs.pop("input")
+    text_mode = kwargs["text"]
     scope = _COMMAND_SCOPE.get() or CommandScope()
     with ExitStack() as resources:
         finite_input = None
@@ -334,11 +345,13 @@ def _execute_command(
             )
             finite_input.write(stdin)
             finite_input.seek(0)
+        finite_output = resources.enter_context(TemporaryFile(mode="w+b")) if spool_stdout else None
+        kwargs["text"] = text_mode and finite_output is None
         try:
             process = scope.start(
                 command,
                 stdin=finite_input if finite_input is not None else subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
+                stdout=finite_output if finite_output is not None else subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 **({"process_group": 0} if os.name == "posix" else {}),
                 **kwargs,
@@ -351,22 +364,51 @@ def _execute_command(
                 cwd=kwargs["cwd"].as_posix(),
                 cause=f"{error.__class__.__name__}: {error}",
             ) from error
-        with process:
-            try:
-                stdout, stderr = process.communicate(timeout=timeout)
-            except BaseException as error:
-                scope.terminate(process)
-                if os.name == "nt" and isinstance(error, subprocess.TimeoutExpired):
-                    error.stdout, error.stderr = process.communicate()
-                process.wait()
-                raise
-            finally:
-                if process.returncode is not None:
-                    scope.discard(process)
-            result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
-            if check:
-                result.check_returncode()
-            return result
+        stdout, stderr = _communicate_command(
+            process, scope, timeout=timeout, text=text_mode, finite_output=finite_output
+        )
+        result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+        if check:
+            result.check_returncode()
+        return result
+
+
+def _communicate_command(
+    process: subprocess.Popen[Any],
+    scope: CommandScope,
+    *,
+    timeout: float | None,
+    text: bool,
+    finite_output: BinaryIO | None,
+) -> tuple[Any, Any]:
+    """Reap one owned process, preserving finite capture and native failure output."""
+    with process:
+        try:
+            stdout, stderr = process.communicate(timeout=timeout)
+        except BaseException as error:
+            scope.terminate(process)
+            if os.name == "nt" and isinstance(error, subprocess.TimeoutExpired):
+                error.stdout, error.stderr = process.communicate()
+            process.wait()
+            if finite_output is not None and isinstance(error, subprocess.TimeoutExpired):
+                finite_output.seek(0)
+                error.stdout = finite_output.read()
+            raise
+        finally:
+            if process.returncode is not None:
+                scope.discard(process)
+        if finite_output is not None:
+            finite_output.seek(0)
+            if text:
+                with (
+                    TextIOWrapper(finite_output) as reader,
+                    TextIOWrapper(BytesIO(stderr)) as diagnostic_reader,
+                ):
+                    stdout = reader.read()
+                    stderr = diagnostic_reader.read()
+            else:
+                stdout = finite_output.read()
+        return stdout, stderr
 
 
 def _terminate_command(process: subprocess.Popen[Any]) -> None:

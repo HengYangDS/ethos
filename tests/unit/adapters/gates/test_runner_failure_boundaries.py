@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -10,14 +11,102 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.gates.runner as gate_runner
+import ethos.adapters.gates.tool as gate_tool
+import ethos.adapters.mutation.proof_artifacts as proof_artifacts
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
+from ethos.surface.cli.proof.report import summarize_checks
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+@pytest.mark.parametrize("exit_code", [0, 7])
+def test_quality_tool_complete_streams_survive_native_proof_custody(
+    tmp_path: Path, exit_code: int
+) -> None:
+    """Read-only reports retain native text; existing proof artifacts own persistence."""
+    repo = init_git_repo(tmp_path / "repo")
+    work = repo / "work"
+    work.mkdir()
+    stdout, stderr = "stdout \u03b1\n" * 700 + "stdout-end", "stderr \u03b2\n" * 700 + "stderr-end"
+    command = [
+        sys.executable,
+        "-c",
+        (
+            f"import sys; print({stdout!r}, end=''); "
+            f"print({stderr!r}, end='', file=sys.stderr); sys.exit({exit_code})"
+        ),
+    ]
+    report = gate_tool.quality_tool_report(
+        root=repo,
+        gate_id="quality",
+        tool=sys.executable,
+        command=command,
+        files=["source.py"],
+        cwd=work,
+    )
+    assert (report["stdout"], report["stderr"]) == (stdout, stderr)
+    assert (report["verdict"], report["exit_code"]) == (
+        "pass" if exit_code == 0 else "block",
+        exit_code,
+    )
+    store = proof_artifacts.proof_artifact_root(repo)
+    assert not store.exists()
+    check = {
+        "action_id": "quality",
+        "command": command,
+        "verdict": report["verdict"],
+        "exit_code": exit_code,
+        "stdout": "native provider result",
+        "diagnostics": [],
+        "evidence_class": "test",
+        "trust_bearing": False,
+        "verification": {
+            "gate": "quality",
+            "providers": [
+                {"provider": "ethos.adapters.gates.tool:quality_tool_report", "report": report},
+            ],
+        },
+    }
+    normalized = proof_artifacts.normalize_checks((check,))
+    descriptor = proof_artifacts.write_proof_artifact(store, "a" * 40, normalized)
+    stored = json.loads((store / str(descriptor["path"])).read_text())
+    assert stored["checks"][0]["verification"] == check["verification"]
+    summary = summarize_checks([check])[0]
+    assert not {"stdout", "stderr", "verification"}.intersection(summary)
+
+
+@pytest.mark.parametrize("encoded", [False, True])
+def test_quality_tool_timeout_preserves_observed_partial_streams(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, encoded: bool
+) -> None:
+    """A deadline remains unknown while retaining all output observed before it."""
+    stdout, stderr = "partial \u03b1\n" * 700, "partial \u03b2\n" * 700
+
+    def expired(_root: Path, command: tuple[str, ...], **_options: object):
+        raise subprocess.TimeoutExpired(
+            command,
+            1,
+            output=stdout.encode() if encoded else stdout,
+            stderr=stderr.encode() if encoded else stderr,
+        )
+
+    monkeypatch.setattr(gate_tool, "run_command", expired)
+    report = gate_tool.quality_tool_report(
+        root=tmp_path,
+        gate_id="quality",
+        tool=sys.executable,
+        command=[sys.executable, "-c", "pass"],
+        files=["source.py"],
+    )
+    assert (report["verdict"], report["state"]) == ("unknown", "tool_error")
+    assert report["required_gaps"] == ["quality_tool_execution_unknown:quality"]
+    assert (report["stdout"], report["stderr"]) == (stdout, stderr)
+    assert report["exit_code"] is None
 
 
 @pytest.mark.parametrize("boundary", ["nonzero", "missing", "denied", "identity"])

@@ -341,7 +341,7 @@ def test_quality_tool_public_failure_matrix(
     if state == "skipped":
         assert report["file_count"] == 0
     if state == "failed":
-        assert str(report["stdout"]).endswith("[trimmed 1000 bytes]")
+        assert (report["stdout"], report["stderr"]) == ("x" * 5000, "failed")
 
 
 def test_markdown_link_gate_excludes_deleted_tracked_paths(

@@ -26,10 +26,9 @@ from ethos.repository.policy.quality.tool_configuration import native_tool_confi
 from ethos.repository.release.resources import canonical_resource
 
 
-def _trim_output(text: str, *, limit: int = 4000) -> str:
-    if len(text) <= limit:
-        return text
-    return f"{text[:limit]}\n[trimmed {len(text) - limit} bytes]"
+def _observed_output(value: str | bytes | None) -> str:
+    """Preserve observed text, including native timeout streams returned as bytes."""
+    return value.decode(errors="replace") if isinstance(value, bytes) else value or ""
 
 
 def quality_tool_report(
@@ -78,6 +77,13 @@ def quality_tool_report(
             "file_count": len(files),
             "command": command,
             "error": f"{type(error).__name__}: {error}",
+            "exit_code": None,
+            "stdout": _observed_output(error.stdout)
+            if isinstance(error, subprocess.TimeoutExpired)
+            else "",
+            "stderr": _observed_output(error.stderr)
+            if isinstance(error, subprocess.TimeoutExpired)
+            else "",
             "required_gaps": [f"quality_tool_execution_unknown:{gate_id}"],
         }
     gaps = [] if completed.returncode == 0 else [f"quality_gate_failed:{gate_id}"]
@@ -92,8 +98,8 @@ def quality_tool_report(
         "file_count": len(files),
         "command": command,
         "exit_code": completed.returncode,
-        "stdout": _trim_output(completed.stdout),
-        "stderr": _trim_output(completed.stderr),
+        "stdout": completed.stdout,
+        "stderr": completed.stderr,
         "required_gaps": gaps,
     }
 

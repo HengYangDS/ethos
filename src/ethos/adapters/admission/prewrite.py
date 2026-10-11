@@ -228,19 +228,7 @@ def _prewrite_material_scope(
         require_workspace=require_workspace,
     )
     scope = resolution.scope_report(requested)
-    if (
-        patch_report.get("profile_metadata_repair") is True
-        and resolution.required_gaps
-        and all(
-            gap.startswith(
-                (
-                    "openspec_spec_capability_entry_unexpected:",
-                    "openspec_specs_root_entry_unexpected:",
-                )
-            )
-            for gap in resolution.required_gaps
-        )
-    ):
+    if patch_report.get("profile_metadata_repair") is True and resolution.required_gaps:
         scope = profile_repair_scope(
             root, role=effective["role"], requested_paths=requested, report=patch_report
         )

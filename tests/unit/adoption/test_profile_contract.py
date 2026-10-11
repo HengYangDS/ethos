@@ -132,10 +132,25 @@ def test_exact_metadata_profile_repair_preserves_other_policy(
 
     completed, report = _profile_prewrite(root, patch=patch)
 
-    assert (report["verdict"] == "pass") is (rejection is None), json.dumps(report, indent=2)
-    assert (completed.returncode == 0) is (rejection is None), report
+    accepted = rejection != "scope"
+    assert (report["verdict"] == "pass") is accepted, json.dumps(report, indent=2)
+    assert (completed.returncode == 0) is accepted, report
     assert profile.read_text() == original
     assert all(metadata.read_text() == 'family = "contracts"\n' for metadata in metadata_paths)
+    if rejection in {"strict-spec", "supporting-template"}:
+        profile.write_text(replacement)
+        completed, remaining = _profile_prewrite(root, patch=None)
+        assert completed.returncode != 0, remaining
+        assert remaining["verdict"] == "block", remaining
+        prefix = (
+            "openspec_validation_failed:spec:"
+            if rejection == "strict-spec"
+            else "openspec_specs_root_entry_unexpected:"
+        )
+        assert remaining["data"]["openspec"]["verdict"] == "block", remaining
+        assert any(
+            gap.startswith(prefix) for gap in remaining["data"]["openspec"]["required_gaps"]
+        ), remaining
 
 
 def _assert_invalid_profile(root: Path, text: str) -> None:

@@ -104,8 +104,10 @@ Supplemental data binds its existing native owner through
 `file_name` and repository-relative `authority_ref`; native TOML, JSON or YAML
 must be non-executable, parseable mappings. These declarations neither replace
 `spec.md` nor admit supporting Markdown templates as data. Binding-only profile
-repair may add these references while preserving identity and all other policy;
-unrelated shape gaps or strict specification failures remain blocking.
+repair may add these references only when it strictly reduces the current
+root-shape gap set while preserving identity and all other policy. Remaining
+shape gaps and strict specification failures still block ordinary writes and
+proof; they do not prevent this exact metadata-only repair.
 
 Work ownership is independent: a Lease contains only `lane_ref`, `holder_ref`,
 `generation`, and `expires_at`. Lane creation, archive, continuation, handoff,

@@ -127,6 +127,7 @@ def profile_postimage(root: Path, postimages: Mapping[str, str | None]) -> Profi
             previous != incoming
             and all(item in incoming[field] for field in fields for item in previous[field])
             and restored == current
-            and not accepted_spec_root_gaps(root / "openspec/specs", policy=proposed.openspec)
+            and set(accepted_spec_root_gaps(root / "openspec/specs", policy=proposed.openspec))
+            < set(accepted_spec_root_gaps(root / "openspec/specs", policy=current.openspec))
         )
     return ProfilePostimage("", proposed.profile_id, repair)

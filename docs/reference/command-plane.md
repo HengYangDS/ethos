@@ -91,6 +91,31 @@ authored content rather than overwriting it. Integration keeps candidate, accept
 and release transitions distinct, including preview, exact coordinates and fresh
 effect admission. Proof and publication do not yet have equivalent SDK and MCP surfaces.
 
+## Native Python Observer Interface
+
+The native attempt exports `ETHOS_NATIVE_OBSERVER_REQUIREMENT` as the exact
+hash-qualified file requirement `ethos @ file://...#sha256=...`, together with
+`ETHOS_NATIVE_OBSERVER_RUNTIME_DIGEST`, the selected immutable runtime's 64-hex
+digest. The native producer verifies the wheel's SHA256 before child-only
+`--no-deps` installation; it does not import or install ETHOS in the Nox parent,
+edit adopter metadata or locks, build from source, or select an ambient package.
+
+Run Ruff custody through the installed child, preserving the original Ruff argv:
+
+```text
+python -B -I -m ethos.domain.quality.nox run \
+  --runtime-output PATH --session ID --configuration PATH \
+  -- <exact original Ruff argv>
+```
+
+This operation records the actual child interpreter, validates supplied-wheel
+PEP 610 provenance, launches Ruff once, and retains its stdout/stderr. It is not
+another scheduler or authority. The pytest interface remains
+`-p ethos.surface.pytest.plugin`, `--ethos-runtime-output` and
+`--ethos-native-session`. Both child records and `execution.json` retain the
+observer requirement, runtime digest and wheel SHA256. Supply applies only to
+declared Python observer outputs; audit events do not authenticate hostile producers.
+
 ## Retained Candidate Materialization
 
 When a candidate ref has advanced but its index and worktree still exactly match

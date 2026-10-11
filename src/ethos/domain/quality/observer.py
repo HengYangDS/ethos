@@ -9,6 +9,7 @@ import sys
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import distribution
 from pathlib import Path
+from urllib.parse import urldefrag
 
 import ethos
 from ethos.contracts.evidence.observer import ObserverIdentity
@@ -35,17 +36,19 @@ def observer_identity() -> ObserverIdentity:
     try:
         metadata = distribution("ethos")
         direct = json.loads(metadata.read_text("direct_url.json") or "")
+        location, fragment = urldefrag(direct["url"])
         archive = direct["archive_info"]
         hashes = archive.get("hashes", {})
-        recorded = hashes.get("sha256", archive.get("hash", "").removeprefix("sha256="))
+        recorded = hashes.get("sha256", archive.get("hash", fragment).removeprefix("sha256="))
         loaded = ObserverIdentity.from_requirement(
-            f"ethos @ {direct['url']}#sha256={recorded}", identity.runtime_digest
+            f"ethos @ {location}#sha256={recorded}", identity.runtime_digest
         )
         valid = (
             "dir_info" not in direct
             and "vcs_info" not in direct
             and loaded.wheel.resolve() == wheel.resolve()
             and loaded.wheel_sha256 == identity.wheel_sha256
+            and (not fragment or fragment == f"sha256={recorded}")
             and archive.get("hash", f"sha256={recorded}") == f"sha256={recorded}"
             and Path(ethos.__file__).resolve().parent
             == Path(str(metadata.locate_file("ethos"))).resolve()

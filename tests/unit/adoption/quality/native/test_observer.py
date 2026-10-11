@@ -212,7 +212,10 @@ def test_child_ruff_owns_its_actual_interpreter_and_one_launch(
     assert "Using user-specified configuration file at:" in observed["ruff"]["stderr"]
 
 
-@pytest.mark.parametrize("boundary", ["valid", "missing", "editable", "wrong-wheel", "wrong-hash"])
+@pytest.mark.parametrize(
+    "boundary",
+    ["valid", "url-hash", "missing", "editable", "wrong-wheel", "wrong-hash", "conflicting-hash"],
+)
 def test_loaded_observer_requires_exact_supplied_pep610_provenance(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str
 ) -> None:
@@ -224,7 +227,9 @@ def test_loaded_observer_requires_exact_supplied_pep610_provenance(
     monkeypatch.setenv("ETHOS_NATIVE_OBSERVER_REQUIREMENT", requirement)
     monkeypatch.setenv("ETHOS_NATIVE_OBSERVER_RUNTIME_DIGEST", "a" * 64)
     record = {"url": wheel.as_uri(), "archive_info": {"hashes": {"sha256": digest}}}
-    if boundary == "missing":
+    if boundary == "url-hash":
+        record = {"url": f"{wheel.as_uri()}#sha256={digest}", "archive_info": {}}
+    elif boundary == "missing":
         monkeypatch.delenv("ETHOS_NATIVE_OBSERVER_REQUIREMENT")
     elif boundary == "editable":
         record["dir_info"] = {"editable": True}
@@ -232,12 +237,15 @@ def test_loaded_observer_requires_exact_supplied_pep610_provenance(
         record["url"] = (tmp_path / "other.whl").as_uri()
     elif boundary == "wrong-hash":
         record["archive_info"] = {"hashes": {"sha256": "b" * 64}}
+    elif boundary == "conflicting-hash":
+        record["url"] = f"{wheel.as_uri()}#sha256={digest}"
+        record["archive_info"] = {"hashes": {"sha256": "b" * 64}}
     metadata = SimpleNamespace(
         read_text=lambda _name: json.dumps(record),
         locate_file=lambda _name: Path(native_observer.__file__).parents[2],
     )
     monkeypatch.setattr(native_observer, "distribution", lambda _name: metadata)
-    if boundary == "valid":
+    if boundary in {"valid", "url-hash"}:
         identity = native_observer.observer_identity()
         assert identity.to_payload() == {
             "requirement": requirement,

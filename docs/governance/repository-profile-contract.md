@@ -178,6 +178,23 @@ package need not be a source checkout; an external source runner must match its
 selected build. Lease ownership, runtime currentness, proof and exact-effect
 permission remain independent conditions.
 
+### Native Python Observer Supply
+
+For declared `python-runtime-json` outputs, the native attempt supplies
+`ETHOS_NATIVE_OBSERVER_REQUIREMENT="ethos @ file://...#sha256=..."` and
+`ETHOS_NATIVE_OBSERVER_RUNTIME_DIGEST` from the repository's selected immutable
+runtime. The requirement binds one exact local wheel and its SHA256; the runtime
+digest binds the selected runtime identity. Missing or invalid selected supply
+refuses before launch. Gates without Python observer outputs need no ETHOS wheel.
+
+The native producer byte-checks that wheel before installing it with `--no-deps`
+in the Nox child only. The Nox parent remains ETHOS-free; adopter metadata and
+lockfiles do not acquire an ETHOS dependency. The installed child validates loaded
+PEP 610 provenance against the supplied wheel. `execution.json` and child runtime
+records retain the same requirement, runtime digest and wheel SHA256. Audit events
+observe launch custody, not hostile-producer authentication. See the
+[child invocation interface](../reference/command-plane.md#native-python-observer-interface).
+
 ## Validation
 
 A repository profile validator must fail closed when:

@@ -329,6 +329,23 @@ checkout and compare-delete its exact ref in a transaction verifying accepted.
 - **THEN** ETHOS re-observes the ref, worktree, and Lease postconditions
 - **AND** it reports the exact non-terminal state without claiming retirement.
 
+## REMOVED Requirements
+
+### Requirement: Preservation-bound exceptional Work Lane retirement
+
+**Reason**: No command writes, verifies or applies lane-resolution preserve or
+preserve-retire packages; exact retirement owns every remaining disposition.
+**Migration**: Use the existing receipt-bound `ethos lane retire abandon` and
+`ethos lane retire superseded` transitions for divergent or reviewed content.
+
+### Requirement: Durable exceptional-resolution recovery inventory
+
+**Reason**: No inventory, clear or legacy-retention check implements this
+requirement, and the retained local packages have no consumer or unfinished
+transition.
+**Migration**: Recovery material stays with the operation that needs it; the
+unconsumed local `build/artifacts/lane-resolution` residue is removed.
+
 ## ADDED Requirements
 
 ### Requirement: Archive completion requires exact postimage quality

@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
 from tools.ci.delivery.acceptance.invocation import invoke
+from tools.ci.delivery.acceptance.invocation import require_installed_guidance
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -53,25 +54,23 @@ def _admitted(root: Path, executable: Path, environment: Mapping[str, str], *pat
         raise RuntimeError(message)
 
 
-def _official_command(status: dict[str, object], environment: Mapping[str, str]) -> tuple[str, str]:
+def _official_command(
+    status: dict[str, object], environment: Mapping[str, str], *, origin: str
+) -> tuple[str, str]:
+    require_installed_guidance(json.dumps(status), origin)
+    package = Path(origin).resolve(strict=True).parent
     context = status.get("governance_context")
     native = context.get("official_openspec") if isinstance(context, dict) else None
-    guidance = context.get("agent_guidance") if isinstance(context, dict) else None
     command = native.get("base_command") if isinstance(native, dict) else None
-    guide = guidance.get("path") if isinstance(guidance, dict) else None
-    package = (
-        Path(guide).resolve().parents[3]
-        if isinstance(guide, str)
-        and Path(guide).is_absolute()
-        and Path(guide).parts[-4:] == ("data", "skills", "ethos-repository-work", "SKILL.md")
-        else None
-    )
     if (
         not isinstance(command, list)
         or len(command) != 2
-        or not all(isinstance(part, str) and Path(part).is_file() for part in command)
-        or package is None
-        or not Path(command[1]).resolve().is_relative_to(package)
+        or not all(
+            isinstance(part, str)
+            and Path(part).is_file()
+            and Path(part).resolve().is_relative_to(package)
+            for part in command
+        )
         or shutil.which("openspec", path=environment.get("PATH", "")) is not None
     ):
         message = "installed_first_change_tool_unavailable"
@@ -150,6 +149,7 @@ def prove_first_change(
     executable: Path,
     target: Path,
     *,
+    origin: str,
     environment: Mapping[str, str],
 ) -> dict[str, str]:
     """Prove first ADDED intent and write admission without source or candidate edits."""
@@ -186,7 +186,7 @@ def prove_first_change(
         message = "installed_first_change_lane_missing"
         raise RuntimeError(message)
     status, selected = _handoff(executable, lane, data, environment, actor)
-    command = _official_command(status, selected)
+    command = _official_command(status, selected, origin=origin)
     _admitted(lane, executable, selected, f"{_ROOT}/.openspec.yaml")
     created = run_command(
         lane,

@@ -19,6 +19,7 @@ from ethos.result import EthosResult
 from tools.ci.delivery.acceptance import adopter as fixture
 from tools.ci.delivery.acceptance import brownfield as brownfield_fixture
 from tools.ci.delivery.acceptance import effect
+from tools.ci.delivery.acceptance import first_change
 from tools.ci.delivery.acceptance import invocation
 from tools.ci.delivery.acceptance import lane
 from tools.ci.delivery.acceptance.adopter import verify_formed
@@ -288,6 +289,99 @@ def test_installed_observation_runs_shared_isolated_conformance(
     assert Path(probe[4]).is_relative_to(smoke)
     assert Path(probe[4]).stem == "ethos"
     assert probe[5] == str(effect.WORK)
+
+
+@pytest.mark.parametrize(
+    ("selection", "gap"),
+    [
+        ("current", ""),
+        ("foreign-guidance", "installed_agent_guidance_invalid"),
+        ("escaped-script", "installed_first_change_tool_unavailable"),
+        ("escaped-node", "installed_first_change_tool_unavailable"),
+        ("ambient-openspec", "installed_first_change_tool_unavailable"),
+    ],
+)
+def test_first_change_uses_the_installed_guidance_resource(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, selection: str, gap: str
+) -> None:
+    """The first Change consumes the current package resource, not a historical layout."""
+    package = tmp_path / "site-packages/ethos"
+    guide = package / "resources/skills/ethos-repository-work/SKILL.md"
+    guide.parent.mkdir(parents=True)
+    guide.write_text("Run ethos status.\n", encoding="utf-8")
+    origin = package / "__init__.py"
+    origin.write_text("", encoding="utf-8")
+    command = [
+        package / "resources/node/bin/node",
+        package / "resources/node_modules/@fission-ai/openspec/bin/openspec.js",
+    ]
+    for path in command:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("package-owned executable\n", encoding="utf-8")
+    status = {
+        "governance_context": {
+            "agent_guidance": {
+                "authority": "product_projection",
+                "media_type": "text/markdown",
+                "path": str(guide),
+                "sha256": hashlib.sha256(guide.read_bytes()).hexdigest(),
+            },
+            "official_openspec": {"base_command": [str(path) for path in command]},
+        }
+    }
+
+    environment = {"PATH": ""}
+    context = status["governance_context"]
+    if selection == "foreign-guidance":
+        foreign = tmp_path / "foreign/ethos/resources/skills/ethos-repository-work/SKILL.md"
+        foreign.parent.mkdir(parents=True)
+        foreign.write_bytes(guide.read_bytes())
+        context["agent_guidance"]["path"] = str(foreign)
+    elif selection in {"escaped-script", "escaped-node"}:
+        outside = tmp_path / "external-command"
+        outside.write_text("external executable\n", encoding="utf-8")
+        selected = command[selection == "escaped-script"]
+        selected.unlink()
+        selected.symlink_to(outside)
+    elif selection == "ambient-openspec":
+        ambient = tmp_path / "bin/openspec"
+        ambient.parent.mkdir()
+        ambient.write_text("external executable\n", encoding="utf-8")
+        ambient.chmod(0o755)
+        environment["PATH"] = str(ambient.parent)
+    lane_root = tmp_path / "lane"
+    lane_root.mkdir()
+    executed: list[tuple[str, ...]] = []
+    monkeypatch.setattr(
+        first_change,
+        "invoke",
+        lambda *_args, **_kwargs: (0, {"verdict": "pass", "data": {"path": str(lane_root)}}, ""),
+    )
+    monkeypatch.setattr(first_change, "_handoff", lambda *_args: (status, environment))
+
+    def run(root: Path, selected: tuple[str, ...], **_kwargs: object) -> SimpleNamespace:
+        executed.append(selected)
+        marker = root / "openspec/changes/first-change/.openspec.yaml"
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text("schema: spec-driven\n", encoding="utf-8")
+        return SimpleNamespace(
+            returncode=0,
+            stderr="",
+            stdout=json.dumps({"summary": {"totals": {"items": 1, "passed": 1, "failed": 0}}}),
+        )
+
+    monkeypatch.setattr(first_change, "run_command", run)
+    if gap:
+        with pytest.raises(RuntimeError, match=gap):
+            first_change.prove_first_change(
+                tmp_path / "ethos", tmp_path, environment=environment, origin=str(origin)
+            )
+        assert executed == []
+    else:
+        assert first_change.prove_first_change(
+            tmp_path / "ethos", tmp_path, environment=environment, origin=str(origin)
+        ) == {"first_change": "lane_admitted", "agent_handoff": "passed"}
+        assert [selected[:2] for selected in executed] == [tuple(map(str, command))] * 2
 
 
 def test_installed_guidance_must_match_the_package_that_served_status(tmp_path: Path) -> None:

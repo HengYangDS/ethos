@@ -330,6 +330,7 @@ def prove_formation(
             journey = prove_first_change(
                 executable,
                 target,
+                origin=origin,
                 environment=environment,
             )
         if starter == "python-library":

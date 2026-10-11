@@ -430,54 +430,45 @@ def publication_readiness_result(
     probe_remote: bool,
 ) -> EthosResult:
     """Return the complete no-push readiness result for any thin transport."""
-    repo, branch, current_head = context.root, context.branch, context.head
-    policy, remote_topology, configured_remotes = (
-        context.role_policy,
-        context.topology,
-        context.remotes,
-    )
-    release_tags, local_verdict, gaps = context.release_tags, context.verdict, context.required_gaps
-    audit, independent_verification = context.audit, context.independent_verification
-    governance = context.governance
-    target_ref = publication_target_ref_for_source(policy, branch)
+    target_ref = publication_target_ref_for_source(context.role_policy, context.branch)
     local_verification_command = str(
-        _object(remote_topology.get("local")).get("verification_command") or ""
+        _object(context.topology.get("local")).get("verification_command") or ""
     )
     ref_admissions = {
         peer_id: publication_ref_admission(
-            remote_topology,
-            policy=policy,
+            context.topology,
+            policy=context.role_policy,
             target_ref=target_ref,
-            release_tags=release_tags,
+            release_tags=context.release_tags,
             remote_name=remote,
         )
-        for peer_id, remote in configured_remotes.items()
+        for peer_id, remote in context.remotes.items()
     }
     remote_observations = _remote_observations(
-        repo=repo,
-        branch=target_ref.removeprefix("refs/heads/") if target_ref else branch,
-        remotes=configured_remotes,
+        repo=context.root,
+        branch=target_ref.removeprefix("refs/heads/") if target_ref else context.branch,
+        remotes=context.remotes,
         probe_remote=probe_remote,
     )
     local_ci_fallback = local_ci_fallback_package(
-        root=repo,
-        current_head=current_head,
+        root=context.root,
+        current_head=context.head,
         command=local_verification_command,
     )
     publication = publication_readiness(
-        branch=str(branch),
-        head=current_head,
-        local_ok=local_verdict == "pass",
-        policy=policy,
+        branch=str(context.branch),
+        head=context.head,
+        local_ok=context.verdict == "pass",
+        policy=context.role_policy,
         local_ci_fallback=local_ci_fallback,
-        topology=remote_topology,
+        topology=context.topology,
         remote_observations=remote_observations,
         local_verification_command=local_verification_command,
     )
     remote_push = str(publication.get("remote_push") or "not_performed")
     publish_summary = {
         "mode": "local_readiness",
-        "local_readiness": local_verdict == "pass",
+        "local_readiness": context.verdict == "pass",
         "remote_push": remote_push,
         "remote_publication_state": str(publication.get("remote_state") or "deferred"),
         "remote_states": {
@@ -494,18 +485,18 @@ def publication_readiness_result(
         ),
         "hosted_ci_status_claimed": False,
         "independent_verification": str(
-            independent_verification.get("evidence_class") or "local_readiness"
+            context.independent_verification.get("evidence_class") or "local_readiness"
         ),
         "next_publication_action": str(publication.get("next_action") or ""),
     }
     publish_next_action = (
         str(publication.get("next_action") or "")
-        if local_verdict == "pass"
-        else str(independent_verification.get("next_action") or "ethos land --json")
+        if context.verdict == "pass"
+        else str(context.independent_verification.get("next_action") or "ethos land --json")
     )
     # Read-only tracking synchronization observes an existing remote ref; it never
     # upgrades this no-push command into an executed publication transition.
-    publication_verdict: Verdict = "block" if local_verdict == "block" else "unknown"
+    publication_verdict: Verdict = "block" if context.verdict == "block" else "unknown"
     publish_expected_state = _publish_expected_state(
         context,
         remote_observations=remote_observations,
@@ -527,31 +518,29 @@ def publication_readiness_result(
             time_basis="evaluation_time",
         ),
         policy_ref="commitment:publish-admission",
-        required_gaps=gaps,
+        required_gaps=context.required_gaps,
         why=(str(publication.get("remote_state") or "remote_publication_deferred"),),
         next_action=publish_next_action,
     )
     return EthosResult(
         command="publish",
-        verdict=publication_verdict if apply else local_verdict,
+        verdict=publication_verdict if apply else context.verdict,
         state=(
-            "local_publish_ready"
-            if local_verdict == "pass" and not apply
-            else "publication_deferred"
-            if local_verdict == "pass" and apply
+            ("publication_deferred" if apply else "local_publish_ready")
+            if context.verdict == "pass"
             else "blocked"
-            if local_verdict == "block"
+            if context.verdict == "block"
             else "unknown"
         ),
         summary=publish_summary,
-        required_gaps=gaps,
+        required_gaps=context.required_gaps,
         next_action=publish_next_action,
-        governance_context=governance,
+        governance_context=context.governance,
         data={
-            "repository_audit": audit,
-            "independent_verification": independent_verification,
+            "repository_audit": context.audit,
+            "independent_verification": context.independent_verification,
             "remote_push": remote_push,
-            "remote_topology": remote_topology,
+            "remote_topology": context.topology,
             "publication_ref_admissions": ref_admissions,
             "remote_observations": remote_observations,
             "local_ci_fallback": local_ci_fallback,

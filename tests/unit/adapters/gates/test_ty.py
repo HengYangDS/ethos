@@ -103,6 +103,7 @@ def test_ty_gate_classifies_tool_and_diagnostic_outcomes(
         assert command[command.index("--project") + 1] == str(tmp_path)
         assert "--frozen" in command
         assert "--offline" in command
+        assert "--no-sync" in command
         assert kwargs["timeout"] == 120
         if isinstance(output, Exception):
             raise output
@@ -112,6 +113,7 @@ def test_ty_gate_classifies_tool_and_diagnostic_outcomes(
     report = ty.ty_gate_report(tmp_path)
     assert report["required_gaps"] == ([gap] if gap else [])
     package = report["analysis"]
+    assert isinstance(package, dict)
     state = "tool_error" if "execution_failed" in gap else "diagnostics" if gap else "clean"
     assert (package["state"], package["count"]) == (state, count)
     if isinstance(output, OSError):

@@ -6,7 +6,6 @@ import json
 import os
 import subprocess
 import sys
-import tomllib
 from importlib import import_module
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -210,19 +209,10 @@ def repository_hygiene(session) -> None:
 
 
 def prose(session) -> None:
-    policy = ROOT / ".config/checks/prose/codespell.toml"
-    declared = tomllib.loads(policy.read_text(encoding="utf-8")).get("paths", [])
-    paths = tuple(str(path) for path in declared if isinstance(path, str) and path)
-    if not paths:
-        session.error("prose policy paths are missing")
-    session.run(
-        RUNTIME.script("codespell"),
-        "--toml",
-        str(policy),
-        "--count",
-        "--quiet-level=2",
-        *paths,
-    )
+    report = import_module("ethos.adapters.gates.tool").prose_report(ROOT)
+    session.log(json.dumps(report))
+    if report["verdict"] != "pass":
+        session.error("native spelling did not pass")
 
 
 def shell_lint(session) -> None:

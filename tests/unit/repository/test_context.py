@@ -176,6 +176,7 @@ def test_packaged_resource_requires_a_contained_relative_input(tmp_path: Path) -
     "relative",
     [
         ".config/checks/format/prettier.toml",
+        ".config/checks/prose/codespell.toml",
         ".config/checks/markdown/markdownlint.yaml",
         ".config/checks/links/lychee.toml",
     ],

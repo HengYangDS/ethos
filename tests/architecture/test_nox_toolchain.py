@@ -109,13 +109,17 @@ def test_schema_gate_reuses_repository_validator(monkeypatch: pytest.MonkeyPatch
     session.error.assert_not_called()
 
 
-def test_prose_executor_consumes_only_declared_policy_paths() -> None:
-    calls = []
-    sessions.prose(type("Session", (), {"run": lambda _, *args: calls.append(args)})())
-    expected = [sessions.RUNTIME.script("codespell"), "--toml"]
-    expected += [str(ROOT / ".config/checks/prose/codespell.toml"), "--count"]
-    expected += ["--quiet-level=2", "README.md", "CONTRIBUTING.md", "AGENTS.md"]
-    assert calls[0] == (*expected, "docs", "rules", "openspec/specs")
+def test_prose_executor_reuses_installed_native_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Source Nox projects the product owner without a competing spelling command."""
+    owner = sessions.import_module("ethos.adapters.gates.tool")
+    provider = Mock(return_value={"verdict": "pass"})
+    monkeypatch.setattr(owner, "prose_report", provider)
+    session = Mock()
+    sessions.prose(session)
+    provider.assert_called_once_with(ROOT)
+    session.log.assert_called_once()
+    session.run.assert_not_called()
+    session.error.assert_not_called()
 
 
 @pytest.mark.parametrize(

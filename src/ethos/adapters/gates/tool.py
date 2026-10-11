@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
@@ -38,6 +39,7 @@ def quality_tool_report(
     tool: str,
     command: list[str],
     files: list[str],
+    cwd: Path | None = None,
 ) -> dict[str, object]:
     """Run an external quality tool over files and structure its pass/fail result."""
     if not files:
@@ -49,7 +51,7 @@ def quality_tool_report(
             "file_count": 0,
             "required_gaps": [],
         }
-    if shutil.which(tool) is None:
+    if tool != sys.executable and shutil.which(tool) is None:
         return {
             "verdict": "unknown",
             "id": gate_id,
@@ -62,7 +64,7 @@ def quality_tool_report(
     # Fixed gate command (list form, no shell, no external input).
     try:
         completed = run_command(
-            root,
+            cwd or root,
             tuple(command),
             timeout=120,
             remove_env=("NODE_OPTIONS", "NODE_PATH"),
@@ -156,6 +158,60 @@ def _native_configurations(root: Path, tool: str, shared: str) -> tuple[str, ...
         if path.resolve() != common.resolve():
             return str(common), str(path)
     return (str(common),)
+
+
+def prose_report(root: Path) -> dict[str, object]:
+    """Run native spelling on exact copies without ambient policy or source writes."""
+    files = _markdown_files(root)
+    try:
+        configs = _native_configurations(root, "codespell", ".config/checks/prose/codespell.toml")
+        sources = {relative: (root / relative).read_bytes() for relative in files}
+        if any((root / relative).is_symlink() for relative in files):
+            return _configuration_failure("prose", ValueError("native_prose_input_invalid"))
+        native = []
+        for ordinal, config in enumerate(configs):
+            with TemporaryDirectory(prefix="ethos-native-prose-") as temporary:
+                work = Path(temporary)
+                for relative, content in sources.items():
+                    target = work / relative
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(content)
+                command = [
+                    sys.executable,
+                    "-B",
+                    "-I",
+                    "-m",
+                    "codespell_lib",
+                    "--toml",
+                    config,
+                    "--count",
+                    "--quiet-level=2",
+                    *files,
+                ]
+                result = quality_tool_report(
+                    root=root,
+                    gate_id="prose" if ordinal == 0 else "prose-increment",
+                    tool=sys.executable,
+                    command=command,
+                    files=files,
+                    cwd=work,
+                )
+                if files and (
+                    not str(result.get("stderr", "")).strip().isdecimal()
+                    or any(
+                        (work / relative).read_bytes() != content
+                        for relative, content in sources.items()
+                    )
+                ):
+                    result.update(verdict="block", state="unproven")
+                    result["required_gaps"] = [
+                        *string_sequence(result["required_gaps"]),
+                        "native_prose_not_read_only_clean",
+                    ]
+                native.append(result)
+        return _native_report("prose", files, native)
+    except (OSError, ValueError) as error:
+        return _configuration_failure("prose", error)
 
 
 def format_markdown_content(root: Path, relative: str, content: bytes) -> bytes:

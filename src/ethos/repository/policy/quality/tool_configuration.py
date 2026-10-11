@@ -11,6 +11,7 @@ def native_tool_configuration(repository_paths: tuple[str, ...], tool: str) -> s
         "lychee": ".config/checks/links/lychee.toml",
         "markdownlint-cli2": ".config/checks/markdown/markdownlint.yaml",
         "prettier": ".config/checks/format/prettier.toml",
+        "codespell": ".config/checks/prose/codespell.toml",
     }
     location = locations.get(tool)
     names = {
@@ -22,6 +23,7 @@ def native_tool_configuration(repository_paths: tuple[str, ...], tool: str) -> s
             ".markdownlint-cli2.jsonc",
         },
         "prettier": {"prettier.toml", ".prettierrc.toml", ".prettierrc.json", ".prettierrc.yaml"},
+        "codespell": {"codespell.toml", ".codespellrc"},
     }
     selected = tuple(path for path in repository_paths if Path(path).name in names.get(tool, set()))
     if len(selected) > 1:

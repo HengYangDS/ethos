@@ -41,8 +41,11 @@ configuration plane, not a truth center.
   projects the shared product gate and its shipped, lock-bound native tools.
   Both checks consume the same current authored files. Immutable records are
   retained without rewrite; generated and local outputs are not source inputs.
-- `.config/checks/prose/codespell.toml` owns report-first prose spelling policy;
-  the `prose` Nox session runs locked `codespell` without rewriting files.
+- `.config/checks/prose/codespell.toml` supplies the mandatory native spelling
+  policy in both wheel and source distributions. The shared `prose` Gate and
+  source Nox projection use one installed owner over exact authored copies,
+  rejecting source writes and ambient policy; local policy only adds checks.
+  Codespell does not replace repository-owned Vale styles or terminology rules.
 - `.config/checks/deptry/policy.toml` owns dependency hygiene policy. The
   `dependencies` Nox session invokes `tools/ci/dependency_hygiene.py` for the
   sole Python distribution and its locked supply. The runner passes the declared

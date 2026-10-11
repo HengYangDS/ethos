@@ -468,6 +468,40 @@ def test_markdown_links_use_declared_installed_supply_without_path(
     assert Path(report["native"][0]["command"][0]).is_absolute()
 
 
+def test_prose_gate_keeps_native_spelling_without_adopter_toolchain(tmp_path, monkeypatch):
+    """The installed owner ignores ambient policy and preserves exact authored bytes."""
+    gate = load_gate_registry_declaration().registry()["prose"]
+    assert gate.providers == ("ethos.adapters.gates.tool:prose_report",)
+    assert not gate.command
+    document = tmp_path / "README.md"
+    local = tmp_path / ".config/checks/prose/codespell.toml"
+    local.parent.mkdir(parents=True)
+    local.write_text('[tool.codespell]\nignore-words-list = "teh"\n')
+    (tmp_path / "pyproject.toml").write_text('[tool.codespell]\nskip = "*"\n')
+    monkeypatch.setattr(
+        gate_tool, "git_files", lambda *_: ["README.md", local.relative_to(tmp_path).as_posix()]
+    )
+    monkeypatch.setenv("PATH", "")
+    for source, verdict in (
+        ("The result is verified.\n", "pass"),
+        ("The result is teh result.\n", "block"),
+    ):
+        document.write_text(source)
+        report = gate_tool.prose_report(tmp_path)
+        assert (report["verdict"], document.read_text()) == (verdict, source), report
+        assert len(report["native"]) == 2
+        commands = [result["command"][:4] for result in report["native"]]
+        assert commands == [[sys.executable, "-B", "-I", "-m"]] * 2
+    assert report["native"][0]["exit_code"] != 0
+    assert report["native"][1]["exit_code"] == 0
+    local.write_text("[tool.codespell]\nwrite-changes = true\n")
+    report = gate_tool.prose_report(tmp_path)
+    assert (report["verdict"], document.read_text()) == ("block", source)
+    monkeypatch.setattr(gate_tool, "git_files", lambda *_: [])
+    report = gate_tool.prose_report(tmp_path)
+    assert (report["verdict"], report["file_count"]) == ("pass", 0)
+
+
 def test_command_gate_executes_declared_python_not_ambient_canonical_identity(
     monkeypatch, tmp_path: Path
 ) -> None:

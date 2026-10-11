@@ -7,7 +7,9 @@ id = "ethos"
 root = "src/ethos"
 config = "pyproject.toml"
 known_first_party = ["ethos", "noxfile"]
-per_rule_ignores = ["DEP002=uv"]
+# Native executables are selected and exercised by their bound gate owners,
+# not imported as Python modules. All other dependency checks remain enabled.
+per_rule_ignores = ["DEP002=codespell|lychee-bin|uv"]
 package_module_name_map = [
   "allure-pytest=allure",
   "cel-expr-python=cel_expr_python",

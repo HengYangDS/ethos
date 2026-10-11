@@ -432,7 +432,12 @@ def run(
         package_environment, _git = independent_host_environment()
         package_environment["UV_OFFLINE"] = "1"
         formation = adopter_fixture.prove_formation(
-            installed_ethos, WORK, origin=origin, environment=package_environment
+            installed_ethos,
+            WORK,
+            origin=origin,
+            build=build,
+            wheel_sha256=wheel_sha256,
+            environment=package_environment,
         )
         brownfield = brownfield_acceptance.prove_brownfield(
             installed_ethos, WORK, environment=package_environment, run=_run

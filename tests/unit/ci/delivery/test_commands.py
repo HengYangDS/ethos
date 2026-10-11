@@ -15,6 +15,7 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.materialization.node_package_supply import (
     resolve_node_package_supply,
 )
+from ethos.repository.release.identity import build_identity
 from ethos.result import EthosResult
 from tools.ci.delivery.acceptance import adopter as fixture
 from tools.ci.delivery.acceptance import brownfield as brownfield_fixture
@@ -382,6 +383,66 @@ def test_first_change_uses_the_installed_guidance_resource(
             tmp_path / "ethos", tmp_path, environment=environment, origin=str(origin)
         ) == {"first_change": "lane_admitted", "agent_handoff": "passed"}
         assert [selected[:2] for selected in executed] == [tuple(map(str, command))] * 2
+
+
+def test_formation_first_change_binds_the_selected_runtime_origin(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Formation selects immutable supply before the first Change consumes guidance."""
+    bootstrap = tmp_path / "bootstrap/ethos"
+    guide = bootstrap / "resources/skills/ethos-repository-work/SKILL.md"
+    guide.parent.mkdir(parents=True)
+    guide.write_text("Run ethos status.\n", encoding="utf-8")
+    origin = bootstrap / "__init__.py"
+    origin.write_text("", encoding="utf-8")
+    selected_origin = tmp_path / "immutable/site-packages/ethos/__init__.py"
+    build = build_identity(product="0.2.0-alpha.3", source_commit="a" * 40, source_tree="b" * 40)
+    observed: list[str] = []
+
+    def invoke(_root: Path, command: tuple[str, ...], **_kwargs: object) -> tuple:
+        target = Path(command[command.index("--root") + 1])
+        if "--create" in command:
+            if "--apply" in command:
+                if target.exists():
+                    return 1, {"required_gaps": ["formation_target_exists"]}, ""
+                target.mkdir()
+                data = {"applied": True}
+            else:
+                data = {
+                    "plan_digest": "a" * 64,
+                    "candidate_worktree_path": str(target) + "-candidate",
+                }
+        else:
+            data = {"hook_runtime": {"current": True}}
+        return 0, {"verdict": "pass", "data": data}, ""
+
+    def first(_executable: Path, _target: Path, **kwargs: object) -> dict[str, str]:
+        observed.append(str(kwargs["origin"]))
+        return {"first_change": "lane_admitted", "agent_handoff": "passed"}
+
+    monkeypatch.setattr(fixture, "invoke", invoke)
+    monkeypatch.setattr(fixture, "verify_formed", lambda *_args: "a" * 40)
+    monkeypatch.setattr(fixture, "_verify_candidate", lambda *_args: None)
+    monkeypatch.setattr(fixture, "prove_first_change", first)
+    monkeypatch.setattr(fixture, "require_manifest", lambda *_args, **_kwargs: tmp_path / "python")
+    monkeypatch.setattr(
+        fixture,
+        "run_command",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=0, stdout=str(selected_origin), stderr=""
+        ),
+    )
+
+    fixture.prove_formation(
+        tmp_path / "ethos",
+        tmp_path,
+        origin=str(origin),
+        build=build,
+        wheel_sha256="f" * 64,
+        environment={"PATH": ""},
+    )
+
+    assert observed == [str(selected_origin)]
 
 
 def test_installed_guidance_must_match_the_package_that_served_status(tmp_path: Path) -> None:

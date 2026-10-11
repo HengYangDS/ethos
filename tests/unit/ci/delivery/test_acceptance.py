@@ -24,6 +24,7 @@ from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.release.identity import BuildIdentity
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import fixture_runtime_generation
+from tools.ci import dependency_audit
 from tools.ci import sessions
 from tools.ci.delivery import pipeline
 from tools.ci.delivery.acceptance import effect
@@ -77,13 +78,16 @@ def test_install_smoke_invokes_one_acceptance_transaction(monkeypatch, tmp_path,
     )
     artifact = object()
     accept = Mock()
+    audit = Mock()
     prepare = Mock(return_value=artifact)
+    monkeypatch.setattr(dependency_audit, "run", audit)
     monkeypatch.setattr(pipeline.acceptance_effect, "run", accept)
     monkeypatch.setattr(pipeline, "prepare_release_candidate", prepare)
     monkeypatch.setattr(sessions, "RUNTIME", ProjectRuntime.discover(tmp_path))
     monkeypatch.setattr(ProjectRuntime, "node_package_supply", lambda _: tmp_path / "node_modules")
     sessions.install_smoke(session)
     if release_head:
+        audit.assert_called_once_with(session, root=tmp_path, scope="production-release")
         prepare.assert_called_once_with(tmp_path, release_head)
         accept.assert_called_once_with(
             session,
@@ -91,6 +95,7 @@ def test_install_smoke_invokes_one_acceptance_transaction(monkeypatch, tmp_path,
             evidence=tmp_path / "build/evidence/local-install/release-smoke.json",
         )
     else:
+        audit.assert_not_called()
         prepare.assert_not_called()
         accept.assert_called_once_with(session)
 

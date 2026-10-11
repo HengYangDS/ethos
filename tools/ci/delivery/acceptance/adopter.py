@@ -17,9 +17,12 @@ from ethos.repository.release.resources import GUIDANCE_RESOURCE
 from ethos.repository.release.resources import packaged_resource
 from tools.ci.delivery.acceptance.first_change import prove_first_change
 from tools.ci.delivery.acceptance.invocation import invoke
+from tools.ci.delivery.acceptance.runtime import require_manifest
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+    from ethos.repository.release.identity import BuildIdentity
 
 CommandRunner = Callable[..., str]
 
@@ -232,6 +235,8 @@ def prove_formation(
     work: Path,
     *,
     origin: str,
+    build: BuildIdentity,
+    wheel_sha256: str,
     environment: Mapping[str, str],
 ) -> dict[str, object]:
     """Form both starters from the installed CLI without a source checkout."""
@@ -327,10 +332,33 @@ def prove_formation(
             expected_guidance,
         )
         if starter == "foundation":
+            data = preserved[1].get("data")
+            runtime = data.get("hook_runtime") if isinstance(data, dict) else None
+            if not isinstance(runtime, dict):
+                message = "installed_formation_runtime_missing"
+                raise RuntimeError(message)
+            python = require_manifest(runtime, target, build=build, wheel_sha256=wheel_sha256)
+            selected_origin = run_command(
+                target,
+                (
+                    str(python),
+                    "-B",
+                    "-I",
+                    "-c",
+                    (
+                        "from pathlib import Path; import ethos; "
+                        "print(Path(ethos.__file__).resolve(strict=True))"
+                    ),
+                ),
+                env=environment,
+                inherit_environment=False,
+                check=True,
+                timeout=20,
+            ).stdout.strip()
             journey = prove_first_change(
                 executable,
                 target,
-                origin=origin,
+                origin=selected_origin,
                 environment=environment,
             )
         if starter == "python-library":

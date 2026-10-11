@@ -6,6 +6,7 @@ import json
 import sys
 from dataclasses import replace
 from pathlib import Path
+from typing import TYPE_CHECKING
 from zipfile import ZipFile
 
 import pytest
@@ -17,39 +18,66 @@ from ethos.adapters.gates.python_quality import static_report
 from ethos.adapters.gates.runner import LocalGateRunner
 from ethos.adapters.gates.verification import NativeExecution
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
+from ethos.contracts.evidence.observer import ObserverIdentity
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_execution_identity
 from tests.support.governed_repository import committed_source_repo
 
+if TYPE_CHECKING:
+    from tests.unit.adoption.quality.native.conftest import NativeNoxSupply
 
-def _native_gate(root: Path, outcome: str = "pass") -> Gate:
+
+def _native_gate(root: Path, supply: NativeNoxSupply, outcome: str = "pass") -> Gate:
     version = f"{sys.version_info.major}.{sys.version_info.minor}"
     behavior, static = f"behavior-{version}", f"static-{version}"
     source = f'''"""A native producer for one exact quality attempt."""
 import json
+import hashlib
 import os
 from pathlib import Path
 import nox
 
 VERSION = {version!r}
-EXECUTABLE = {sys.executable!r}
+UV = {str(supply.uv)!r}
+FLOOR = {str(supply.project)!r}
 OUTCOME = {outcome!r}
+nox.options.envdir = {str(supply.environments)!r}
+nox.options.reuse_existing_virtualenvs = True
 
-def runtime(session):
+def prepare(session):
+    requirement = os.environ["ETHOS_NATIVE_OBSERVER_REQUIREMENT"]
+    from urllib.parse import urlsplit
+    from urllib.request import url2pathname
+    parsed = urlsplit(requirement.removeprefix("ethos @ "))
+    wheel = Path(url2pathname(parsed.path))
+    with wheel.open("rb") as stream:
+        assert hashlib.file_digest(stream, "sha256").hexdigest() == parsed.fragment[7:]
+    python = Path(session.virtualenv.location) / (
+        "Scripts/python.exe" if os.name == "nt" else "bin/python")
+    session.run(UV, "sync", "--offline", "--frozen", "--no-default-groups", "--group", "dev",
+        "--no-install-project", "--inexact", "--no-python-downloads", "--project", FLOOR,
+        "--python", str(python), env={{"UV_PROJECT_ENVIRONMENT": str(session.virtualenv.location)}},
+        external=True)
+    session.run(UV, "pip", "install", "--offline", "--no-deps", "--python", str(python),
+        requirement, external=True)
+    return python
+
+def runtime(session, python):
     output = Path(os.environ["ETHOS_NATIVE_OUTPUT_DIR"])
-    session.run(EXECUTABLE, "-c",
+    session.run(str(python), "-B", "-I", "-c",
         "import json,sys; from pathlib import Path; "
-        "Path(sys.argv[1]).write_text(json.dumps({{'executable':sys.executable, "
-        "'version':list(sys.version_info[:3]), 'prefix':sys.prefix}}))",
+        "from ethos.domain.quality.observer import runtime_identity; "
+        "Path(sys.argv[1]).write_text(json.dumps(runtime_identity()))",
         str(output / (session.name + "-runtime.json")), external=True)
     return output
 
-@nox.session(python=VERSION, venv_backend="none")
+@nox.session(python=VERSION, venv_backend="uv")
 def behavior(session):
+    python = prepare(session)
     output = Path(os.environ["ETHOS_NATIVE_OUTPUT_DIR"])
     if OUTCOME == "runtime-detached":
-        runtime(session)
+        runtime(session, python)
     with (output / "behavior-count.txt").open("a") as stream:
         stream.write("one\\n")
     env = {{"COVERAGE_FILE": str(output / ".coverage")}}
@@ -60,33 +88,34 @@ def behavior(session):
         "--ethos-runtime-output=" + str(output / (session.name + "-runtime.json")),
         "--ethos-native-session=" + session.name + "-" + VERSION,
     ]
-    session.run(EXECUTABLE, "-B", "-I", "-m", "pytest", "--rootdir", ".", "-c", config,
+    session.run(str(python), "-B", "-I", "-m", "pytest", "--rootdir", ".", "-c", config,
         *capture, "-q", "-W", "error",
         "--junitxml=" + str(output / "behavior.xml"),
         "--report-log=" + str(output / "behavior-events.jsonl"), "--cov=src",
         "--cov-branch", "--cov-report=xml:" + str(output / "coverage.xml"),
         "tests", env=env, external=True)
 
-@nox.session(python=VERSION, venv_backend="none")
+@nox.session(python=VERSION, venv_backend="uv")
 def static(session):
-    output = runtime(session)
+    python = prepare(session)
+    output = runtime(session, python)
     targets = ("src/app.py",) if OUTCOME == "static-scope" else ("src", "tests", "noxfile.py")
     config = ".config/ruff-alternate.toml" if OUTCOME == "static-config" else ".config/ruff.toml"
     if OUTCOME == "static-detached":
-        session.run(EXECUTABLE, "-m", "ruff", "check", "--config", config,
+        session.run(str(python), "-m", "ruff", "check", "--config", config,
             "--output-format", "json", "--output-file", str(output / "ruff.json"),
             "src", "tests", "noxfile.py", external=True)
     else:
-        from ethos.domain.quality.nox import run_ruff
-        binary = Path(EXECUTABLE).with_name("ruff.exe" if os.name == "nt" else "ruff")
-        run_ruff(session, (str(binary), "check", "--config", config, "--verbose", "--no-cache",
+        binary = python.with_name("ruff.exe" if os.name == "nt" else "ruff")
+        session.run(str(python), "-B", "-I", "-m", "ethos.domain.quality.nox", "run",
+            "--runtime-output", str(output / (session.name + "-runtime.json")),
+            "--session", session.name + "-" + VERSION, "--configuration", config, "--",
+            str(binary), "check", "--config", config, "--verbose", "--no-cache",
             "--output-format", "json", "--output-file", str(output / "ruff.json"),
-            *targets),
-            runtime_output=output / (session.name + "-runtime.json"),
-            identity=session.name + "-" + VERSION, configuration=Path(config))
+            *targets, external=True)
     if OUTCOME == "timeout":
-        session.run(EXECUTABLE, "-c",
-            "import time; print('timeout-sentinel', flush=True); time.sleep(10)",
+        session.run(str(python), "-c",
+            "import time; print('timeout-sentinel', flush=True); time.sleep(60)",
             external=True)
     if OUTCOME == "missing":
         (output / "coverage.xml").unlink()
@@ -142,6 +171,7 @@ def static(session):
             ),
         },
     )
+    supply.bind(repo)
     outputs = (
         {"path": "nox.json", "format": "nox-json", "sessions": (behavior, static)},
         {"path": "behavior.xml", "format": "junit-xml", "sessions": (behavior,)},
@@ -170,7 +200,9 @@ def static(session):
             "id": "native-python",
             "kind": "test",
             "command": (
-                sys.executable,
+                str(supply.parent),
+                "-B",
+                "-I",
                 "-m",
                 "nox",
                 "--non-interactive",
@@ -188,14 +220,18 @@ def static(session):
                 "ethos.adapters.gates.python_quality:static_report",
             ),
             "native_outputs": outputs,
-            "timeout_seconds": 3 if outcome == "timeout" else 45,
+            "timeout_seconds": 15 if outcome == "timeout" else 45,
         }
     )
 
 
-def test_native_nox_reports_qualify_the_original_attempt(tmp_path: Path) -> None:
+def test_native_nox_reports_qualify_the_original_attempt(
+    tmp_path: Path, native_nox_supply: NativeNoxSupply
+) -> None:
     """Two native sessions produce one complete, interpreter-bound observation."""
-    gate = _native_gate(tmp_path)
+    gate = _native_gate(tmp_path, native_nox_supply)
+    root = tmp_path / "repo"
+    locks = {name: (root / name).read_bytes() for name in ("uv.lock", "pyproject.toml")}
     node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
     result = LocalGateRunner().run(node, gate, root=tmp_path / "repo")
     assert result.verdict == "pass", (result.stdout, result.stderr, result.verification)
@@ -220,6 +256,11 @@ def test_native_nox_reports_qualify_the_original_attempt(tmp_path: Path) -> None
     artifact = Path(artifact_value)
     with ZipFile(artifact) as stored:
         identity = json.loads(stored.read("execution.json"))
+        observer = identity["observer"]
+        assert observer["wheel_sha256"] == native_nox_supply.wheel_sha256
+        for output in gate.native_outputs:
+            if output.format == "python-runtime-json":
+                assert json.loads(stored.read("reports/" + output.path))["observer"] == observer
         checks = identity["dependency_checks"]
         assert len(checks) == 2
         assert {tuple(item["dependency_groups"]) for item in checks} == {("dev",)}
@@ -230,6 +271,17 @@ def test_native_nox_reports_qualify_the_original_attempt(tmp_path: Path) -> None
             == []
             for index in range(len(checks))
         )
+    assert all((root / name).read_bytes() == content for name, content in locks.items())
+    assert not Path(identity["output_root"]).exists()
+    selected = ObserverIdentity.from_requirement(
+        observer["requirement"], observer["runtime_digest"]
+    )
+    selected.wheel.write_bytes(b"changed selected observer wheel\n")
+    completed, refused = native_attempt(root, gate, gate.command, timeout=45)
+    assert completed.returncode == 1
+    assert refused.gaps == ("hook_runtime_wheel_provenance_missing",)
+    assert refused.outputs == ()
+    assert not Path(refused.output_root).exists()
 
 
 @pytest.mark.parametrize(
@@ -237,10 +289,10 @@ def test_native_nox_reports_qualify_the_original_attempt(tmp_path: Path) -> None
     ["missing", "runtime", "runtime-path", "junit", "toolchain", "lock-missing", "group-missing"],
 )
 def test_native_nox_reports_refuse_incomplete_producer_outputs(
-    tmp_path: Path, outcome: str
+    tmp_path: Path, native_nox_supply: NativeNoxSupply, outcome: str
 ) -> None:
     """Successful session text cannot repair missing evidence or another interpreter."""
-    gate = _native_gate(tmp_path, outcome)
+    gate = _native_gate(tmp_path, native_nox_supply, outcome)
     node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
     result = LocalGateRunner().run(node, gate, root=tmp_path / "repo")
     assert result.verdict == "block"
@@ -267,9 +319,11 @@ def test_native_nox_reports_refuse_incomplete_producer_outputs(
 
 
 @pytest.mark.parametrize("outcome", ["runtime-detached", "runtime-config"])
-def test_native_behavior_requires_same_run_configuration(tmp_path: Path, outcome: str) -> None:
+def test_native_behavior_requires_same_run_configuration(
+    tmp_path: Path, native_nox_supply: NativeNoxSupply, outcome: str
+) -> None:
     """A separate interpreter print cannot qualify the actual pytest invocation."""
-    gate = _native_gate(tmp_path, outcome)
+    gate = _native_gate(tmp_path, native_nox_supply, outcome)
     node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
     result = LocalGateRunner().run(node, gate, root=tmp_path / "repo")
     assert result.verdict == "block", result.verification
@@ -286,10 +340,10 @@ def test_native_behavior_requires_same_run_configuration(tmp_path: Path, outcome
     ],
 )
 def test_native_static_requires_the_actual_checker_launch(
-    tmp_path: Path, outcome: str, gap: str
+    tmp_path: Path, native_nox_supply: NativeNoxSupply, outcome: str, gap: str
 ) -> None:
     """A different environment or config cannot reuse another Ruff runtime print."""
-    gate = _native_gate(tmp_path, outcome)
+    gate = _native_gate(tmp_path, native_nox_supply, outcome)
     node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
     result = LocalGateRunner().run(node, gate, root=tmp_path / "repo")
     assert result.verdict == "block", result.verification
@@ -297,9 +351,11 @@ def test_native_static_requires_the_actual_checker_launch(
 
 
 @pytest.mark.parametrize("boundary", ["command", "outputs", "sessions", "runtime-scope"])
-def test_native_evidence_is_bound_to_one_declared_attempt(tmp_path: Path, boundary: str) -> None:
+def test_native_evidence_is_bound_to_one_declared_attempt(
+    tmp_path: Path, native_nox_supply: NativeNoxSupply, boundary: str
+) -> None:
     """Original bytes cannot be promoted through a different command or producer scope."""
-    gate = _native_gate(tmp_path)
+    gate = _native_gate(tmp_path, native_nox_supply)
     root = tmp_path / "repo"
     completed, evidence = native_attempt(root, gate, gate.command, timeout=45)
     execution = retained_execution(
@@ -343,9 +399,11 @@ def test_native_evidence_is_bound_to_one_declared_attempt(tmp_path: Path, bounda
     assert static_report(root, execution=execution)["verdict"] == "block"
 
 
-def test_native_each_selected_session_requires_its_quality_outputs(tmp_path: Path) -> None:
+def test_native_each_selected_session_requires_its_quality_outputs(
+    tmp_path: Path, native_nox_supply: NativeNoxSupply
+) -> None:
     """One reported session cannot lend its quality evidence to another session."""
-    gate = _native_gate(tmp_path)
+    gate = _native_gate(tmp_path, native_nox_supply)
     extra = "unobserved-static"
     outputs = [
         output.model_copy(update={"sessions": (*output.sessions, extra)})
@@ -391,9 +449,11 @@ def test_native_each_selected_session_requires_its_quality_outputs(tmp_path: Pat
         assert report(root, execution=retained)["verdict"] == "block"
 
 
-def test_native_timeout_preserves_partial_output_and_owned_cleanup(tmp_path: Path) -> None:
+def test_native_timeout_preserves_partial_output_and_owned_cleanup(
+    tmp_path: Path, native_nox_supply: NativeNoxSupply
+) -> None:
     """A timed-out original command retains its partial reports before scratch disposal."""
-    gate = _native_gate(tmp_path, "timeout")
+    gate = _native_gate(tmp_path, native_nox_supply, "timeout")
     node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
     result = LocalGateRunner().run(node, gate, root=tmp_path / "repo")
     assert result.verdict == "unknown"

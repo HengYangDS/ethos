@@ -172,9 +172,7 @@ marketing claims were not used as evidence of comparative performance.
 [rust]: https://github.com/rust-lang/rust/blob/9c99d05505bccb67912d68e05fe7fc7c58afcb41/README.md
 [go]: https://github.com/golang/go/blob/fdcd66bb544d230a7eb0c2512e9e7a6ab191388b/README.md
 [rich]: https://github.com/Textualize/rich/blob/9d8f9a372cc5916fd4781fec207ced7ddac2f08f/README.md
-
 [brew-python]: https://docs.brew.sh/Language-Specific-Formulae
 [uv-tools]: https://docs.astral.sh/uv/concepts/tools/
 [frozen-runtime]: https://pyinstaller.org/en/stable/runtime-information.html
-
 [fastmcp-tools]: https://gofastmcp.com/servers/tools

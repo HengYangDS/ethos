@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -36,7 +37,7 @@ def test_locked_environment_exposes_only_selected_mise_during_native_execution(
     locked_go = locked_bin / f"go{suffix}"
     locked_go.write_bytes(b"locked go")
     locked_go.chmod(0o755)
-    files = {mise.MISE_CONFIG: "config", mise.MISE_LOCK: "lock"}
+    files = {mise.MISE_CONFIG: "", mise.MISE_LOCK: "lock"}
 
     def observe(
         _root: Path,
@@ -47,7 +48,7 @@ def test_locked_environment_exposes_only_selected_mise_during_native_execution(
         offline: bool,
     ) -> subprocess.CompletedProcess[str]:
         assert offline
-        assert files == {mise.MISE_CONFIG: "config", mise.MISE_LOCK: "lock"}
+        assert files == {mise.MISE_CONFIG: "", mise.MISE_LOCK: "lock"}
         assert executable == selected
         output = '{"MISE_TEST":"selected"}' if arguments == ("env", "--json") else f"{locked_bin}\n"
         return subprocess.CompletedProcess(arguments, 0, output, "")
@@ -191,3 +192,88 @@ def test_repository_mise_files_rejects_incomplete_selection(tmp_path: Path, layo
         match="mise_config_ambiguous" if layout == "ambiguous" else "locked_toolchain_missing",
     ):
         mise.repository_mise_files(tmp_path)
+
+
+def test_native_mise_preserves_selected_idiomatic_inputs_in_safe_mode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Native discovery selects version files; isolated execution preserves their bytes."""
+    config = tmp_path / mise.MISE_CONFIG
+    config.parent.mkdir(parents=True)
+    config.write_text('[settings]\nidiomatic_version_file_enable_tools = ["node", "npm"]\n')
+    (tmp_path / mise.MISE_LOCK).write_text("lockfile_version = 3\n")
+    package = tmp_path / "package.json"
+    package.write_bytes(b'{"devEngines":{"runtime":{"name":"node","version":"26.x"}}}\r\n')
+    executable = tmp_path / "native-mise"
+    executable.write_bytes(b"selected native executable")
+    isolated_roots: list[Path] = []
+
+    def native(root: Path, command: tuple[str, ...], **options: object):
+        environment = options["env"]
+        assert isinstance(environment, dict)
+        assert environment["MISE_SAFE"] == "1"
+        assert environment["MISE_LOCKED"] == "1"
+        assert environment["MISE_OFFLINE"] == "1"
+        assert environment["MISE_NOT_FOUND_SYSTEM_FALLBACK"] == "0"
+        assert environment["MISE_IDIOMATIC_VERSION_FILE_ENABLE_TOOLS"] == "node,npm"
+        if command[1:] == ("config", "ls", "--json"):
+            assert root == tmp_path
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                json.dumps(
+                    [{"path": str(config), "tools": []}, {"path": str(package), "tools": ["node"]}]
+                ),
+                "",
+            )
+        isolated_roots.append(root)
+        assert root != tmp_path
+        assert (root / "package.json").read_bytes() == package.read_bytes()
+        assert (root / mise.MISE_CONFIG).read_bytes() == config.read_bytes()
+        outputs = {
+            ("which", "node"): "native-node\n",
+            ("env", "--json"): "{}",
+            ("bin-paths",): f"{tmp_path}\n",
+        }
+        return subprocess.CompletedProcess(command, 0, outputs[command[1:]], "")
+
+    monkeypatch.setattr(mise, "run_command", native)
+    monkeypatch.setattr(mise, "mise_executable", lambda: executable)
+    files = mise.repository_mise_files(tmp_path)
+    assert files is not None
+    assert files["package.json"].encode("utf-8") == package.read_bytes()
+    result = mise.run_mise(tmp_path, ("which", "node"), files=files, offline=True)
+    assert result.stdout == "native-node\n"
+    with mise.locked_environment(tmp_path, files) as environment:
+        assert environment["MISE_IDIOMATIC_VERSION_FILE_ENABLE_TOOLS"] == "node,npm"
+    assert isolated_roots
+    assert all(not root.exists() for root in isolated_roots)
+
+
+@pytest.mark.parametrize("selection", ["missing-path", "external-link"])
+def test_native_mise_discovery_requires_owned_file_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, selection: str
+) -> None:
+    """Malformed discovery and symlink escape cannot import non-repository material."""
+    root = tmp_path / "repository"
+    root.mkdir()
+    (root / "mise.toml").write_text('[settings]\nidiomatic_version_file_enable_tools = ["node"]\n')
+    (root / "mise.lock").write_text("lockfile_version = 3\n")
+    outside = tmp_path / "external-package.json"
+    outside.write_text('{"private":"outside the selected repository"}\n')
+    selected = root / "package.json"
+    selected.symlink_to(outside)
+    entry = {"tools": ["node"]} if selection == "missing-path" else {"path": str(selected)}
+
+    def discover(_root: Path, command: tuple[str, ...], **_options: object):
+        return subprocess.CompletedProcess(command, 0, json.dumps([entry]), "")
+
+    monkeypatch.setattr(mise, "run_command", discover)
+    monkeypatch.setattr(mise, "mise_executable", lambda: tmp_path / "native-mise")
+    gap = (
+        "mise_input_discovery_invalid"
+        if selection == "missing-path"
+        else "mise_input_outside_repository"
+    )
+    with pytest.raises(ValueError, match=gap):
+        mise.repository_mise_files(root)

@@ -86,8 +86,9 @@ def test_source_acceptance_preserves_floors_and_binds_native_audit(
 
 
 @pytest.mark.parametrize("requested", [("native",), ("schemas",), ("native", "schemas")])
+@pytest.mark.parametrize("full", [False, True])
 def test_gate_composition_retains_native_owner_and_exact_provider_sources(
-    tmp_path: Path, requested: tuple[str, ...]
+    tmp_path: Path, requested: tuple[str, ...], *, full: bool
 ) -> None:
     """One selection preserves the target floor and binds only requested product providers."""
     native = Gate(
@@ -121,11 +122,12 @@ def test_gate_composition_retains_native_owner_and_exact_provider_sources(
         source_materials=materials,
         repository_python="python",
         gate_ids=requested,
+        full=full,
     )
     assert selected.profile is profile
     assert selected.declaration == baseline.declaration
     assert selected.projection["owner"] == baseline.projection["owner"]
-    assert set(selected.gate_ids) == set(requested)
+    assert set(selected.gate_ids) == ({"native", *requested} if full else set(requested))
     assert set(selected.registry) == {"native", *requested}
     sources = dict(selected.sources)
     for name in requested:
@@ -140,7 +142,7 @@ def test_gate_composition_retains_native_owner_and_exact_provider_sources(
     if "schemas" in requested:
         assert selected.registry["schemas"].profile == "repository"
         assert selected.registry["schemas"].tool_adapter == "ethos"
-    if requested == ("schemas",):
+    if not full and requested == ("schemas",):
         assert "quality_obligation_unproven:behavior" in selected.gaps
     else:
         assert selected.gaps == baseline.gaps
@@ -330,7 +332,13 @@ def test_gate_policy_binds_committed_sources_and_reports_missing_source(tmp_path
     repo = init_git_repo(tmp_path / "repo")
     write_script_gate_policy(repo, full=True)
     first = dict(resolve_proof_policies(repo, tree_ref=commit_fixture(repo, "policy")))[floor]
-    assert first.gate_ids == (("check", "publish") if floor == "full" else ("check",))
+    assert set(first.gate_ids) == {
+        "check",
+        "docs-registry",
+        "markdown-links",
+        "markdown-lint",
+        *({"publish"} if floor == "full" else set()),
+    }
     assert first.gaps == _MISSING_QUALITY
 
     registry = repo / "system/gates.toml"

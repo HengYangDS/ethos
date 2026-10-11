@@ -487,6 +487,46 @@ exact rollback and non-deletion with focused counterexamples; then execute two
 installed adopter paths, source proof and current runtime acceptance. Shared-store
 reclamation and published Homebrew remain separate open tasks.
 
+## Shared Native Quality Supply
+
+Applicable shared gates follow authored inputs rather than an adopter's
+language or a copied command list. Markdown selects documentation, native
+format/lint and link obligations; official intent selects OpenSpec and its
+schema prerequisite. Existing native adopter checks compose as increments.
+A same-named local gate cannot replace the shared verifier or its execution
+identity. Focused diagnosis remains explicit rather than claiming full proof.
+
+The installed product ships official Node, Prettier, Markdownlint and Lychee
+with their native common policies. Both source and installed consumers execute
+that same floor before any repository policy. Native repository parameters
+are additional checks, not replacements. Prettier alone owns Markdown spacing,
+container layout and style with preserved prose wrapping. Markdownlint owns
+heading, link, reference, table and code-language semantics. Immutable records,
+complete external publisher sources and captured originals retain their own
+mutation boundaries.
+
+Markdownlint reads native YAML. The locked secure TOML parser's nested objects
+are incompatible with the official linter's parameter interpretation; a
+vulnerable downgrade is not a valid remedy. A thin product IO adapter supplies
+exact named document content to the unchanged official CLI API with explicit
+configuration and no directory discovery, imports, inline overrides or fixing.
+The tool retains parsing, rule evaluation and diagnostics. Repository config
+cannot disable the mandatory pass, omit an input or mutate source through a
+local fix setting. Native nested parameters retain actual-consumer tests.
+
+The Docs Registry enforces its existing Decision Record content contract:
+distinct authored context, choice, consequences and revisit roles, plus
+meaningful alternatives or evidence when those optional roles are declared.
+It does not infer a decision from metadata, quotations or literal examples,
+or impose one heading spelling on every repository.
+
+Each bounded migration removes the superseded config location and execution
+path after input, supply and actual-consumer verification. Package-only
+qualification can supply this slice without claiming whole-product release,
+CURRENT advancement or hosted acceptance. A cold CI consumer must bind that
+exact wheel and its complete offline material through the existing installer;
+it must not add a checkout launcher or second installation controller.
+
 ## Release Version And Artifact Boundary
 
 VERSION is the single next product-release target. Unpublished source builds

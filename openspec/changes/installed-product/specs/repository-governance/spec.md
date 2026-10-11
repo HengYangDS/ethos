@@ -18,6 +18,149 @@ invalid carrier. CLI, SDK and MCP SHALL share this decision and retain its gaps.
 - **THEN** adoption preserves its exact bytes and does not replace its schema, context or rules
 - **AND** this preservation does not certify full mutation readiness or executed proof
 
+### Requirement: Signed object transport preserves non-product meaning
+
+The existing publication declaration SHALL select explicit `transport_tags`
+scopes for non-product signed input objects. Product tag scopes SHALL take
+precedence. Transport SHALL reuse review-object qualification, not product
+version, accepted-release or repository-proof obligations.
+
+#### Scenario: An admitted signed input is transported
+
+- **WHEN** an exact annotated tag matches a scope declared in the trusted peer baseline
+- **THEN** public publication and native pre-push use the same role and introduced-range checks
+- **AND** signature trust, native tag-header identity, declared peer, exact source and immutable-ref CAS remain required
+- **AND** replay observes the same result without authorizing replacement or another peer
+
+#### Scenario: Candidate configuration cannot grant itself transport authority
+
+- **WHEN** the prior trusted policy omits the scope or also selects a product tag
+- **THEN** candidate-authored transport configuration does not override that policy
+- **AND** automatic transport baselines follow native peer HEAD, its committed protected-root policy and the same peer's accepted ref, not a candidate-authored accepted designation
+- **AND** malformed scopes, missing baselines, untrusted signatures, renamed tag headers and tag replacement remain rejected
+
+### Requirement: Explicit repository identity transition
+
+ETHOS SHALL permit a typed, explicitly authorized repository identity transition
+through existing GitEffect, TransitionPlan, Attestation and CAS owners. Each
+authorization SHALL bind one target ref, exact pre/post commits and trees,
+old/new identities, one object database, accepted intent/proof, actor and current
+Lease generation. Ordinary cross-identity CAS SHALL remain rejected.
+
+#### Scenario: Identity changes progress through independently authorized stages
+
+- **WHEN** a proven new-identity work lane explicitly integrates into an old-identity candidate
+- **THEN** only the exact admitted target ref transitions and its result uses the new identity
+- **AND** accepted and release refs may transition later under separate fresh authorizations
+- **AND** unrelated refs are not changed to manufacture a global singleton identity
+
+#### Scenario: Missing or contradictory authority cannot cross identities
+
+- **WHEN** the semantic operation is unsupported or database identity, ancestry, target coordinates, intent/proof, actor or Lease generation is missing, stale or contradictory
+- **THEN** admission preserves all refs and reports the owning refusal
+- **AND** a shared object database does not make different profiles equivalent
+
+#### Scenario: A completed authorization is not consumed twice
+
+- **WHEN** the same exact transition is replayed after completion
+- **THEN** recovery observes the original effect and result without repeating its mutation
+- **AND** the original exact coordinates resolve to the original Attestation while invented coordinates remain rejected
+- **AND** a later target-ref transition requires its own authorization
+- **AND** partial or unknown execution is observed before any further effect
+
+#### Scenario: Ref completion leaves checkout materialization pending
+
+- **WHEN** the exact ref transition succeeds but its linked checkout synchronization fails
+- **THEN** preview reports pending materialization rather than completed acceptance
+- **AND** authorized recovery validates the original result and synchronizes only the admitted preimage without repeating the ref effect
+- **AND** missing authorization, stale coordination and unrelated user edits remain rejected
+- **AND** restored original content remains admissible despite stale stat metadata, without refreshing index bytes during observation
+
+#### Scenario: Renaming does not retain an obsolete current product identity
+
+- **WHEN** a target has completed its admitted old-to-new identity transition
+- **THEN** its current results use the new identity without aliases or compatibility mappings
+- **AND** old revisions remain historical or not-yet-transitioned stage inputs
+- **AND** no temporary profile rollback or history rewrite is required
+
+#### Scenario: A ref program contains both migration and new publication refs
+
+- **WHEN** an admitted branch identity transition also creates a signed tag or follows a declared accepted-mirror policy
+- **THEN** only existing branches whose identities change receive identity edges
+- **AND** new tags and unchanged-identity refs remain in the same exact ref program without invented pre-identities
+
+#### Scenario: Preview preserves the selected transition
+
+- **WHEN** an identity transition is previewed before applying it
+- **THEN** no ref changes and its continuation retains the exact root, source, target and explicit identity mode
+- **AND** a future signed tag is distinguished from the branch scope already admitted by that preview
+
+### Requirement: Adopter runtime selection preserves incumbent enforcement
+
+Explicit native adoption MAY select the exact immutable package runtime independently of
+hook installation. Preview SHALL bind the source build and current selector. Authorized apply
+SHALL use the existing runtime materialization and compare-and-swap owners, preserve incumbent
+Git configuration and hooks, and compensate failed selection without overwriting intervening
+state. Runtime provenance SHALL NOT imply hook enforcement, source qualification or delivery.
+
+#### Scenario: Incumbent domain hooks remain active during adoption
+
+- **WHEN** an owned adopter explicitly selects the runtime through native adoption
+- **THEN** the selected package may validate tracked-write provenance without replacing its hooks
+- **AND** hook, domain, signing, full-proof and delivery obligations remain independently required
+- **AND** preview, missing authorization or a stale selector produces no runtime-selection effect
+
+### Requirement: Supplemental OpenSpec metadata has explicit native ownership
+
+An adopter MAY bind exact non-executable capability metadata filenames to existing repository
+authority files in its typed profile. Required normative specs SHALL remain authoritative;
+metadata SHALL NOT establish domain correctness. An identity-preserving profile repair MAY
+resolve this shape conflict only
+when it changes these bindings alone and satisfies every other admission obligation without
+mutating its preimage.
+
+#### Scenario: Native capability metadata coexists with normative specs
+
+- **WHEN** declared metadata is valid, regular and bound to its existing native owner
+- **THEN** OpenSpec observation preserves both the metadata and required normative spec
+- **AND** each capability retains one required regular `spec.md`
+- **AND** undeclared files, unsafe names, symlinks, missing owners and malformed metadata fail closed
+- **AND** absent specs and unrelated profile weakening remain inadmissible
+
+### Requirement: Applicable shared quality is supplied by the product
+
+ETHOS SHALL select shared documentation, native carrier and official intent
+obligations from actual authored inputs. Its source and installed execution
+SHALL use the same shipped native verifier, locked supply and mandatory policy.
+Adopter checks and tool configuration MAY add requirements but SHALL NOT replace
+or disable the shared floor. Focused diagnosis SHALL remain distinguishable
+from the complete applicable proof closure.
+
+#### Scenario: A document repository retains its native development workflow
+
+- **WHEN** its authored Markdown and OpenSpec inputs select common obligations
+- **THEN** the product composes those obligations with existing adopter checks
+- **AND** no ETHOS Python development environment or copied quality controller is required
+
+#### Scenario: Local policy attempts to disable a shared rule
+
+- **WHEN** a repository's native configuration disables a common Markdown rule or supplies competing discovery configuration
+- **THEN** the mandatory shipped policy still checks the same exact authored inputs
+- **AND** local configuration cannot hide a shared failure, skip an input or cause source mutation
+
+#### Scenario: Native formatter and linter have distinct responsibilities
+
+- **WHEN** official Prettier accepts a tight list with a nested fenced block
+- **THEN** semantic Markdown lint accepts its container structure while still rejecting empty links
+- **AND** check refusal preserves bytes, native fixing succeeds and a second fix leaves bytes unchanged
+- **AND** secure native YAML preserves nested heading parameters without a vendor patch or dependency downgrade
+
+#### Scenario: A Decision Record has no authored choice
+
+- **WHEN** a current decision record omits a core role or supplies only comments, quotations, code or one multi-role section
+- **THEN** the portable Docs Registry rejects the unproven role
+- **AND** distinct core roles and meaningful declared alternatives or evidence are accepted independently of heading wording and documentation-root names
+
 ## MODIFIED Requirements
 
 ### Requirement: Minimal Adoption Binding
@@ -172,114 +315,3 @@ active Change presence, or a historical authoring Lease.
 - **AND** topic role, current accepted OID, no linked worktree, no Lease and exact CAS still apply
 - **AND** missing, invalid or nonconserving evidence blocks deletion; unavailable conservation remains UNKNOWN
 - **AND** failed local effect evidence preserves or compensates the exact original ref
-
-## ADDED Requirements
-
-### Requirement: Signed object transport preserves non-product meaning
-
-The existing publication declaration SHALL select explicit `transport_tags`
-scopes for non-product signed input objects. Product tag scopes SHALL take
-precedence. Transport SHALL reuse review-object qualification, not product
-version, accepted-release or repository-proof obligations.
-
-#### Scenario: An admitted signed input is transported
-
-- **WHEN** an exact annotated tag matches a scope declared in the trusted peer baseline
-- **THEN** public publication and native pre-push use the same role and introduced-range checks
-- **AND** signature trust, native tag-header identity, declared peer, exact source and immutable-ref CAS remain required
-- **AND** replay observes the same result without authorizing replacement or another peer
-
-#### Scenario: Candidate configuration cannot grant itself transport authority
-
-- **WHEN** the prior trusted policy omits the scope or also selects a product tag
-- **THEN** candidate-authored transport configuration does not override that policy
-- **AND** automatic transport baselines follow native peer HEAD, its committed protected-root policy and the same peer's accepted ref, not a candidate-authored accepted designation
-- **AND** malformed scopes, missing baselines, untrusted signatures, renamed tag headers and tag replacement remain rejected
-
-### Requirement: Explicit repository identity transition
-
-ETHOS SHALL permit a typed, explicitly authorized repository identity transition
-through existing GitEffect, TransitionPlan, Attestation and CAS owners. Each
-authorization SHALL bind one target ref, exact pre/post commits and trees,
-old/new identities, one object database, accepted intent/proof, actor and current
-Lease generation. Ordinary cross-identity CAS SHALL remain rejected.
-
-#### Scenario: Identity changes progress through independently authorized stages
-
-- **WHEN** a proven new-identity work lane explicitly integrates into an old-identity candidate
-- **THEN** only the exact admitted target ref transitions and its result uses the new identity
-- **AND** accepted and release refs may transition later under separate fresh authorizations
-- **AND** unrelated refs are not changed to manufacture a global singleton identity
-
-#### Scenario: Missing or contradictory authority cannot cross identities
-
-- **WHEN** the semantic operation is unsupported or database identity, ancestry, target coordinates, intent/proof, actor or Lease generation is missing, stale or contradictory
-- **THEN** admission preserves all refs and reports the owning refusal
-- **AND** a shared object database does not make different profiles equivalent
-
-#### Scenario: A completed authorization is not consumed twice
-
-- **WHEN** the same exact transition is replayed after completion
-- **THEN** recovery observes the original effect and result without repeating its mutation
-- **AND** the original exact coordinates resolve to the original Attestation while invented coordinates remain rejected
-- **AND** a later target-ref transition requires its own authorization
-- **AND** partial or unknown execution is observed before any further effect
-
-#### Scenario: Ref completion leaves checkout materialization pending
-
-- **WHEN** the exact ref transition succeeds but its linked checkout synchronization fails
-- **THEN** preview reports pending materialization rather than completed acceptance
-- **AND** authorized recovery validates the original result and synchronizes only the admitted preimage without repeating the ref effect
-- **AND** missing authorization, stale coordination and unrelated user edits remain rejected
-- **AND** restored original content remains admissible despite stale stat metadata, without refreshing index bytes during observation
-
-#### Scenario: Renaming does not retain an obsolete current product identity
-
-- **WHEN** a target has completed its admitted old-to-new identity transition
-- **THEN** its current results use the new identity without aliases or compatibility mappings
-- **AND** old revisions remain historical or not-yet-transitioned stage inputs
-- **AND** no temporary profile rollback or history rewrite is required
-
-#### Scenario: A ref program contains both migration and new publication refs
-
-- **WHEN** an admitted branch identity transition also creates a signed tag or follows a declared accepted-mirror policy
-- **THEN** only existing branches whose identities change receive identity edges
-- **AND** new tags and unchanged-identity refs remain in the same exact ref program without invented pre-identities
-
-#### Scenario: Preview preserves the selected transition
-
-- **WHEN** an identity transition is previewed before applying it
-- **THEN** no ref changes and its continuation retains the exact root, source, target and explicit identity mode
-- **AND** a future signed tag is distinguished from the branch scope already admitted by that preview
-
-### Requirement: Adopter runtime selection preserves incumbent enforcement
-
-Explicit native adoption MAY select the exact immutable package runtime independently of
-hook installation. Preview SHALL bind the source build and current selector. Authorized apply
-SHALL use the existing runtime materialization and compare-and-swap owners, preserve incumbent
-Git configuration and hooks, and compensate failed selection without overwriting intervening
-state. Runtime provenance SHALL NOT imply hook enforcement, source qualification or delivery.
-
-#### Scenario: Incumbent domain hooks remain active during adoption
-
-- **WHEN** an owned adopter explicitly selects the runtime through native adoption
-- **THEN** the selected package may validate tracked-write provenance without replacing its hooks
-- **AND** hook, domain, signing, full-proof and delivery obligations remain independently required
-- **AND** preview, missing authorization or a stale selector produces no runtime-selection effect
-
-### Requirement: Supplemental OpenSpec metadata has explicit native ownership
-
-An adopter MAY bind exact non-executable capability metadata filenames to existing repository
-authority files in its typed profile. Required normative specs SHALL remain authoritative;
-metadata SHALL NOT establish domain correctness. An identity-preserving profile repair MAY
-resolve this shape conflict only
-when it changes these bindings alone and satisfies every other admission obligation without
-mutating its preimage.
-
-#### Scenario: Native capability metadata coexists with normative specs
-
-- **WHEN** declared metadata is valid, regular and bound to its existing native owner
-- **THEN** OpenSpec observation preserves both the metadata and required normative spec
-- **AND** each capability retains one required regular `spec.md`
-- **AND** undeclared files, unsafe names, symlinks, missing owners and malformed metadata fail closed
-- **AND** absent specs and unrelated profile weakening remain inadmissible

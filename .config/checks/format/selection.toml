@@ -69,8 +69,8 @@ mutation_policy = "native-formatter"
 [[ownership]]
 id = "markdownlint-cli2"
 extensions = [".md"]
-format_owner = "markdownlint-cli2"
-format_command = "uv run --frozen --offline python -m nox -s format -- markdown"
+format_owner = "prettier"
+format_command = "node node_modules/prettier/bin/prettier.cjs --config .config/checks/format/prettier.toml --no-editorconfig --prose-wrap preserve --write --"
 format_check = "uv run --frozen --offline python -m nox -s markdown_lint"
 validation_owner = "markdownlint-cli2"
 validation_command = "uv run --frozen --offline python -m nox -s markdown_lint"
@@ -220,7 +220,7 @@ truth_boundary = "repository-owned public presentation projection"
 [[format]]
 extensions = [".md"]
 carrier = "Markdown"
-owner = ".config/checks/markdown/.markdownlint-cli2.yaml"
+owner = ".config/checks/format/prettier.toml"
 execution = "uv run --frozen --offline python -m nox -s markdown_lint"
 truth_boundary = "human docs and plans"
 budget = [{ category = "markdown" }]

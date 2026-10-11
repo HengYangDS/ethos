@@ -26,12 +26,12 @@ and action. A short file, metadata completeness or valid links cannot establish
 that outcome. The same accepted meaning must serve human reading and agent
 retrieval without becoming separately edited knowledge stores.
 
-| Question | Read |
-| --- | --- |
+| Question                                                 | Read                                                                  |
+| -------------------------------------------------------- | --------------------------------------------------------------------- |
 | What should OKF contribute, and what must remain native? | [Format fit](#format-fit) and [source assessment](#source-assessment) |
-| Which metadata is necessary? | [Metadata design](#metadata-design) |
-| Which defects were actually reproduced? | [Executed counterexamples](#executed-counterexamples) |
-| How should quality and thresholds be evaluated? | [Dual-reader acceptance](#dual-reader-acceptance) |
+| Which metadata is necessary?                             | [Metadata design](#metadata-design)                                   |
+| Which defects were actually reproduced?                  | [Executed counterexamples](#executed-counterexamples)                 |
+| How should quality and thresholds be evaluated?          | [Dual-reader acceptance](#dual-reader-acceptance)                     |
 
 ## Format Fit
 
@@ -57,15 +57,15 @@ as a replacement for accepted intent, document governance or effect admission.
 The format requires no runtime and leaves domain organization to producers.
 This assessment introduces no dependency, document migration or second plan.
 
-| Disposition | Source observation | ETHOS consequence |
-| --- | --- | --- |
-| Adopt the portable representation where needed | Markdown/YAML concepts, source references and ordinary links support human and tool interchange. | Derive a bounded bundle from existing owners; imported material remains input to interpretation and acceptance, never an instruction to mutate. |
-| Map, do not equate, metadata | OKF `type` classifies a concept; ETHOS Subject, Role, State and Relations express different responsibilities. | Preserve distinctions and unknown extension fields. Do not mechanically rename Role to type or duplicate manually maintained state. |
-| Separate consumption from admission | OKF consumers tolerate broken links and missing optional fields; missing status means stable. | Accept format-valid material without promoting it to accepted/current ETHOS meaning. Report unresolved references and apply the relevant native obligation before use. |
-| Preserve provenance without inheriting authority | Trust tiers are advisory and derived from actor labels in verified metadata. | Bind upstream claims to their original source and revision. Human-prefixed text, imported verification or successful parsing cannot establish local identity, authorization or currentness. |
-| Keep necessary identity distinctions | OKF concept identity is its bundle path without the Markdown suffix; link relation types remain prose. | File movement must not silently change ETHOS semantic identity. Preserve Subject and typed Relations in an explicit mapping or report the loss. |
-| Reuse existing navigation and history | index.md and log.md are optional. | Do not recreate directory indexes, duplicate README navigation, mirror external evidence or add a parallel change log merely for conformance. |
-| Defer executable integration | Executor packaging, attester ABI/sandboxing and full receipt/verdict wire formats are outside the current specification. | Attested Computation is not ETHOS Attestation. Never auto-execute imported resources; any future adapter uses the existing capability and fresh-admission boundaries. |
+| Disposition                                      | Source observation                                                                                                       | ETHOS consequence                                                                                                                                                                           |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Adopt the portable representation where needed   | Markdown/YAML concepts, source references and ordinary links support human and tool interchange.                         | Derive a bounded bundle from existing owners; imported material remains input to interpretation and acceptance, never an instruction to mutate.                                             |
+| Map, do not equate, metadata                     | OKF `type` classifies a concept; ETHOS Subject, Role, State and Relations express different responsibilities.            | Preserve distinctions and unknown extension fields. Do not mechanically rename Role to type or duplicate manually maintained state.                                                         |
+| Separate consumption from admission              | OKF consumers tolerate broken links and missing optional fields; missing status means stable.                            | Accept format-valid material without promoting it to accepted/current ETHOS meaning. Report unresolved references and apply the relevant native obligation before use.                      |
+| Preserve provenance without inheriting authority | Trust tiers are advisory and derived from actor labels in verified metadata.                                             | Bind upstream claims to their original source and revision. Human-prefixed text, imported verification or successful parsing cannot establish local identity, authorization or currentness. |
+| Keep necessary identity distinctions             | OKF concept identity is its bundle path without the Markdown suffix; link relation types remain prose.                   | File movement must not silently change ETHOS semantic identity. Preserve Subject and typed Relations in an explicit mapping or report the loss.                                             |
+| Reuse existing navigation and history            | index.md and log.md are optional.                                                                                        | Do not recreate directory indexes, duplicate README navigation, mirror external evidence or add a parallel change log merely for conformance.                                               |
+| Defer executable integration                     | Executor packaging, attester ABI/sandboxing and full receipt/verdict wire formats are outside the current specification. | Attested Computation is not ETHOS Attestation. Never auto-execute imported resources; any future adapter uses the existing capability and fresh-admission boundaries.                       |
 
 Upstream [issue 15](https://github.com/GoogleCloudPlatform/open-knowledge-format/issues/15)
 reports ambiguous imported verification provenance and proposes an imported
@@ -90,16 +90,16 @@ implementation. This trial and conformance are not yet executed.
 Evolve the existing registry as a small typed contract, not a larger mandatory
 form. The following are design recommendations, not an implemented schema.
 
-| Concern | Recommended representation | Avoid |
-| --- | --- | --- |
-| Identity | Existing stable subject; paths locate it. | Renames silently changing meaning or adding a second ID for OKF. |
-| Reader purpose | Existing role expresses document function; directories express subject containment. | Equating OKF concept type with reader purpose or imposing one template. |
-| Lifecycle and authority | Explicit lifecycle, authority relationships resolved against accepted sources. | Treating canonical labels, timestamps or actor strings as permission or proof. |
-| Relationships | Typed values distinguish paths, subjects, external sources and scope descriptions. | Flattening relations into strings or guessing all values are paths. |
-| Sources and applicability | Source revisions, scope and assumptions where a claim requires them. | Mandatory empty decoration or duplicating complete source material. |
-| Freshness | Observations bind evidence and relevant dependencies. | File mtime or a universal expiry period masquerading as verification. |
-| Display and history | Derive titles, breadcrumbs, backlinks and Git history when already owned. | Independently maintained status, title, version or author copies. |
-| Extensions | Unknown imported fields remain inert and preserved; known fields validate strictly. | Silent loss, inherited foreign authority or automatic execution. |
+| Concern                   | Recommended representation                                                          | Avoid                                                                          |
+| ------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Identity                  | Existing stable subject; paths locate it.                                           | Renames silently changing meaning or adding a second ID for OKF.               |
+| Reader purpose            | Existing role expresses document function; directories express subject containment. | Equating OKF concept type with reader purpose or imposing one template.        |
+| Lifecycle and authority   | Explicit lifecycle, authority relationships resolved against accepted sources.      | Treating canonical labels, timestamps or actor strings as permission or proof. |
+| Relationships             | Typed values distinguish paths, subjects, external sources and scope descriptions.  | Flattening relations into strings or guessing all values are paths.            |
+| Sources and applicability | Source revisions, scope and assumptions where a claim requires them.                | Mandatory empty decoration or duplicating complete source material.            |
+| Freshness                 | Observations bind evidence and relevant dependencies.                               | File mtime or a universal expiry period masquerading as verification.          |
+| Display and history       | Derive titles, breadcrumbs, backlinks and Git history when already owned.           | Independently maintained status, title, version or author copies.              |
+| Extensions                | Unknown imported fields remain inert and preserved; known fields validate strictly. | Silent loss, inherited foreign authority or automatic execution.               |
 
 Every retained field needs a real consumer and meaning that cannot already be
 derived reliably. Schema versions belong to the protocol boundary, not ordinary
@@ -118,15 +118,15 @@ docs-registry report adapter, loading the real command tree and shared health
 owner. Source: 684823165b48c8d18ded89969fbfaeee15dd14f5.
 Runtime: 12e1dcb17fae62c59976a4c8e17084732f60ccc9a585162b9fcc4c21c3aadd92.
 
-| Input | Observed | Required distinction |
-| --- | --- | --- |
-| Plain valid metadata | PASS | Preserve this legal path. |
-| Quoted YAML role and state | BLOCK | Equivalent valid scalars preserve meaning. |
-| Duplicate state keys | PASS | Ambiguous declarations cannot silently choose one value. |
-| Missing closing frontmatter delimiter | PASS | Body text cannot become a valid header. |
-| Current-owner relation points to a missing document | PASS | Required authority targets resolve. |
-| Canonical header with superseded visible status | PASS | Human and machine views cannot disagree. |
-| Required visible labels appear only inside a fenced example | PASS | Literal examples are not actual page guidance. |
+| Input                                                       | Observed | Required distinction                                     |
+| ----------------------------------------------------------- | -------- | -------------------------------------------------------- |
+| Plain valid metadata                                        | PASS     | Preserve this legal path.                                |
+| Quoted YAML role and state                                  | BLOCK    | Equivalent valid scalars preserve meaning.               |
+| Duplicate state keys                                        | PASS     | Ambiguous declarations cannot silently choose one value. |
+| Missing closing frontmatter delimiter                       | PASS     | Body text cannot become a valid header.                  |
+| Current-owner relation points to a missing document         | PASS     | Required authority targets resolve.                      |
+| Canonical header with superseded visible status             | PASS     | Human and machine views cannot disagree.                 |
+| Required visible labels appear only inside a fenced example | PASS     | Literal examples are not actual page guidance.           |
 
 The inspected owner splits lines and flattens nested fields; visible-section
 checks search raw text. These mechanisms explain the sampled outcomes.

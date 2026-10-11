@@ -218,11 +218,11 @@ it is an obligation declaration, not evidence of authenticity. Its fields are
 `integrity_gate`. The gate must invoke the product source-integrity provider;
 a trusted-looking name, version, directory or successful command is insufficient.
 
-| Kind | Existing owner | Required observation |
-| --- | --- | --- |
-| Generated | Native projection declaration, including all declared outputs and compiler inputs | Reproduce exact expected bytes from the same committed input group |
-| Upstream | Exact npm lock `#packages/node_modules/...` member and locked SRI | Match authentic archive and selected member bytes without executing or extracting them |
-| Authored | Repository's own maintained code or configuration | Applicable native static and behavior checks; no artifact exemption |
+| Kind      | Existing owner                                                                    | Required observation                                                                   |
+| --------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Generated | Native projection declaration, including all declared outputs and compiler inputs | Reproduce exact expected bytes from the same committed input group                     |
+| Upstream  | Exact npm lock `#packages/node_modules/...` member and locked SRI                 | Match authentic archive and selected member bytes without executing or extracting them |
+| Authored  | Repository's own maintained code or configuration                                 | Applicable native static and behavior checks; no artifact exemption                    |
 
 An exact source relationship can remove inappropriate authored-style inspection,
 not applicable behavior, build-input or integrity obligations. Authored policy

@@ -101,9 +101,9 @@ and reason to change, not by filename or storage location.
 | Proposed change, alternatives, experiment procedure and migration | Selected Change proposal, delta specs and design        | Research supplies attributed findings, not undeclared approved scope.           |
 | Bounded task progress                                             | Official Change tasks                                   | The terminal plan orders dependencies and exits without copying checkbox state. |
 | Executable behavior and policy                                    | Existing implementation, schema or native configuration | Adapters and generated views consume the owner.                                 |
-| Stable operational boundaries                                    | Applicable rule owner                                   | Skills route methods; native checks enforce decidable constraints.              |
-| Reusable task methods                                            | One applicable Skill and its selected references        | Consume native owners; do not duplicate policy, acceptance or progress.          |
-| Reproducible failure and distinguishing expectation                | Regression at the responsible behavior owner            | Check accepted meaning, valid controls and relevant unknown/recovery paths.     |
+| Stable operational boundaries                                     | Applicable rule owner                                   | Skills route methods; native checks enforce decidable constraints.              |
+| Reusable task methods                                             | One applicable Skill and its selected references        | Consume native owners; do not duplicate policy, acceptance or progress.         |
+| Reproducible failure and distinguishing expectation               | Regression at the responsible behavior owner            | Check accepted meaning, valid controls and relevant unknown/recovery paths.     |
 | Observed execution, proof and effects                             | Exact evidence and necessary Attestations               | Reports cite facts; acceptance, installation and publication remain separate.   |
 | Reusable explanation, guidance and sourced synthesis              | Relevant docs topic                                     | Link supporting authorities; do not create another workflow or proof store.     |
 | Irreducible cross-Change rationale                                | One necessary decision record                           | Name the current owner; history does not grant permission.                      |
@@ -272,7 +272,12 @@ number is never reused for another ruling, while the topic stays legible. The
 Docs Registry rejects missing or duplicate current IDs without adding a
 decision database. A record states its status and date, context, decision,
 consequences and revisit condition; alternatives and evidence are included when
-they explain the choice. Its directory README navigates records but does not
+they explain the choice. Each core role has a distinct second-level section
+with visible authored rationale; quoted text, hidden comments, literal code,
+or one paragraph under a heading naming several roles cannot establish them.
+Declared alternatives or evidence sections also require authored content.
+Heading wording may express a companion boundary, evidence or retirement
+condition without redefining the role. Its directory README navigates records but does not
 become a second decision register. Adopters need not copy ETHOS's directory
 shape; their `role: decision` records follow the same identity grammar within
 their selected documentation root.

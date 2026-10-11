@@ -561,6 +561,43 @@ def test_native_document_roles_keep_observations_and_rationale_non_authorizing(t
     assert "decision_record_gaps" not in report
 
 
+@pytest.mark.parametrize("docs", ["docs", "handbook"])
+@pytest.mark.parametrize(
+    ("heading", "decision"),
+    [
+        ("Decision", None),
+        ("Decision", ""),
+        ("Decision", "<!-- Hidden choice. -->\n"),
+        ("Decision", "```text\nChoice.\n```\n"),
+        ("Decision", "> Quoted choice.\n"),
+        ("Decision", "We choose the native owner."),
+        ("Context Decision Consequences Revisit", "We choose the native owner."),
+    ],
+)
+def test_decision_role_requires_visible_authored_choice_in_portable_root(
+    tmp_path: Path, docs: str, heading: str, decision: str | None
+) -> None:
+    """Common decision semantics cannot be satisfied by metadata, quotes or code."""
+    if docs != "docs":
+        profile = tmp_path / ".ethos/profile.toml"
+        profile.parent.mkdir()
+        profile.write_text("profile_id='sample'\n[roots]\ndocs='handbook'\n")
+    path = tmp_path / docs / "dr-0001-native-owner.md"
+    path.parent.mkdir(parents=True)
+    text = _document("example:decision", "decision", "canonical", "Native Owner")
+    text += "\n## Context\n\nDuplicate controllers disagree.\n"
+    if decision is not None:
+        text += "\n## " + heading + "\n\n" + decision + "\n"
+    text += "\n## Consequences and Boundary\n\nOne native owner governs the effect.\n"
+    text += "\n## Evidence and Revisit\n\nRevisit if the native owner cannot meet its contract.\n"
+    path.write_text(text)
+    report = docs_registry_report(tmp_path)
+    gap = f"docs_decision_section_unproven:{docs}/{path.name}:decision"
+    accepted = heading == "Decision" and decision == "We choose the native owner."
+    assert report["verdict"] == ("pass" if accepted else "block")
+    assert (gap in report["required_gaps"]) is not accepted
+
+
 @pytest.mark.parametrize("closed", [False, True])
 def test_native_shell_fences_flush_continuations_and_ignore_unrelated_commands(tmp_path, closed):
     """Closing and end-of-file boundaries preserve the same logical command."""

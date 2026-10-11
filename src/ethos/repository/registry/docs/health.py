@@ -30,6 +30,7 @@ ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 OBSERVATIONAL_ROLES = frozenset({"evidence", "history"})
 MAX_CURRENT_MARKDOWN_NONBLANK = 512
 DECISION_RECORD_NAME = re.compile(r"^dr-([0-9]{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
+DECISION_REQUIRED_SECTIONS = ("context", "decision", "consequences", "revisit")
 
 
 def docs_health_report(
@@ -289,6 +290,8 @@ def visible_section_gaps_for_registry(root: Path, registry: list[dict[str, Any]]
             continue
         body = text.split("\n---", 1)[1] if text.startswith("---\n") else text
         tokens = MarkdownIt("commonmark").parse(body)
+        if entry.get("role") == "decision" and reader_guidance:
+            gaps.extend(_decision_section_gaps(tokens, entry["path"]))
         if commented and (
             len(tokens) < 2
             or tokens[0].type != "html_block"
@@ -309,6 +312,42 @@ def visible_section_gaps_for_registry(root: Path, registry: list[dict[str, Any]]
             gaps.append(f"docs_visible_guidance_missing:{entry['path']}")
         gaps.extend(_visible_state_gaps(paragraphs, entry))
     return gaps
+
+
+def _decision_section_gaps(tokens, path: str) -> list[str]:
+    """Require the declared rationale roles in authored prose, not literal heading spelling."""
+    proven: set[str] = set()
+    declared = set(DECISION_REQUIRED_SECTIONS)
+    current: set[str] = set()
+    quoted = 0
+    for index, token in enumerate(tokens):
+        if token.type == "blockquote_open":
+            quoted += 1
+        elif token.type == "blockquote_close":
+            quoted -= 1
+        elif token.type == "heading_open" and token.level == 0:
+            roles = set(tokens[index + 1].content.casefold().split())
+            core = roles & set(DECISION_REQUIRED_SECTIONS)
+            current = core if token.tag == "h2" and len(core) == 1 else set()
+            optional = roles & {"alternatives", "evidence"}
+            if token.tag == "h2" and not core and len(optional) == 1:
+                current = optional
+                declared.update(optional)
+        elif (
+            token.type == "inline"
+            and not quoted
+            and index > 0
+            and tokens[index - 1].type == "paragraph_open"
+            and any(
+                child.type == "text" and child.content.strip() for child in token.children or ()
+            )
+        ):
+            proven.update(current)
+    return [
+        f"docs_decision_section_unproven:{path}:{role}"
+        for role in sorted(declared)
+        if role not in proven
+    ]
 
 
 def _visible_state_gaps(paragraphs: list[str], entry: dict[str, Any]) -> list[str]:

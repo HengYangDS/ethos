@@ -135,6 +135,7 @@ class Gate(BaseModel):
     toolchain: str = "quality-adapter"
     depends_on: FrozenTuple[str] = ()
     asset_classes: FrozenTuple[str] = ()
+    required_for_paths: FrozenTuple[str] = Field(default=(), exclude_if=lambda value: not value)
     dimensions: FrozenTuple[str] = ()
     execution_mode: str = "inprocess"
     evidence_class: str = "contract"

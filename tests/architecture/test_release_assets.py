@@ -65,7 +65,8 @@ def test_native_tool_declarations_have_one_locked_supply_identity() -> None:
         assert all(re.fullmatch(r"sha256:[a-f0-9]{64}", value["checksum"]) for value in materials)
 
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())
-    assert any(item.startswith("lychee-bin>=") for item in project["dependency-groups"]["dev"])
+    assert any(item.startswith("lychee-bin>=") for item in project["project"]["dependencies"])
+    assert not any(item.startswith("lychee-bin>=") for item in project["dependency-groups"]["dev"])
 
 
 def test_python_bootstrap_supplies_the_declared_linux_signing_tool() -> None:

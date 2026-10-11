@@ -20,15 +20,15 @@ See also: [Product Design Contract](../governance/product-design-contract.md),
 
 ## Canonical Files
 
-| Use | File | Notes |
-| --- | --- | --- |
-| Square project image | [ethos-logo-1024.png](../../assets/brand/ethos-logo-1024.png) | Use where a forge or account accepts a square project image. |
-| Editable master mark | [ethos-logo.svg](../../assets/brand/ethos-logo.svg) | Dark-background vector version. |
-| Light-background mark | [ethos-logo-light.svg](../../assets/brand/ethos-logo-light.svg) | Use on paper or light surfaces. |
-| One-color mark | [ethos-logo-mono.svg](../../assets/brand/ethos-logo-mono.svg) | Use where color is unavailable. |
-| Wordmark lockup | [ethos-lockup-dark.svg](../../assets/brand/ethos-lockup-dark.svg) | Use in wide headers. |
-| Social preview | [ethos-social-preview.png](../../assets/brand/ethos-social-preview.png) | Use where a forge accepts a repository social image. |
-| Product poster | [ethos-poster.png](../../assets/brand/ethos-poster.png) | Use for long-form product introduction, not as an avatar. |
+| Use                   | File                                                                    | Notes                                                        |
+| --------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Square project image  | [ethos-logo-1024.png](../../assets/brand/ethos-logo-1024.png)           | Use where a forge or account accepts a square project image. |
+| Editable master mark  | [ethos-logo.svg](../../assets/brand/ethos-logo.svg)                     | Dark-background vector version.                              |
+| Light-background mark | [ethos-logo-light.svg](../../assets/brand/ethos-logo-light.svg)         | Use on paper or light surfaces.                              |
+| One-color mark        | [ethos-logo-mono.svg](../../assets/brand/ethos-logo-mono.svg)           | Use where color is unavailable.                              |
+| Wordmark lockup       | [ethos-lockup-dark.svg](../../assets/brand/ethos-lockup-dark.svg)       | Use in wide headers.                                         |
+| Social preview        | [ethos-social-preview.png](../../assets/brand/ethos-social-preview.png) | Use where a forge accepts a repository social image.         |
+| Product poster        | [ethos-poster.png](../../assets/brand/ethos-poster.png)                 | Use for long-form product introduction, not as an avatar.    |
 
 ## Positioning
 
@@ -86,12 +86,12 @@ claim must be bound to evidence, not a performance metric or status badge.
 
 ## Palette
 
-| Token | Value | Use |
-| --- | --- | --- |
-| Ink | #10242C | Primary field and dark mark. |
-| Paper | #F6F1E8 | Light field and high-contrast mark. |
-| Cinnabar | #B5523D | Origin or datum only. |
-| Muted | #687771 | Secondary explanatory text. |
+| Token    | Value   | Use                                 |
+| -------- | ------- | ----------------------------------- |
+| Ink      | #10242C | Primary field and dark mark.        |
+| Paper    | #F6F1E8 | Light field and high-contrast mark. |
+| Cinnabar | #B5523D | Origin or datum only.               |
+| Muted    | #687771 | Secondary explanatory text.         |
 
 Do not introduce gradients, neon glows, extra accent colors, badges, growth
 metrics, or decorative East-Asian motifs. 问道 is the root constraint on

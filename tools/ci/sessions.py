@@ -235,13 +235,10 @@ def shell_lint(session) -> None:
 
 
 def markdown_lint(session) -> None:
-    node = RUNTIME.node_executable()
-    markdownlint = RUNTIME.node_package_supply() / "markdownlint-cli2/markdownlint-cli2-bin.mjs"
-    if not markdownlint.is_file():
-        session.error("locked markdownlint-cli2 is missing; run npm ci --ignore-scripts")
-    session.run(
-        str(node), str(markdownlint), "--config", ".config/checks/markdown/.markdownlint-cli2.yaml"
-    )
+    report = import_module("ethos.adapters.gates.tool").markdown_lint_report(ROOT)
+    session.log(json.dumps(report))
+    if report["verdict"] != "pass":
+        session.error("native Markdown format and semantic lint did not pass")
 
 
 def config_quality(session) -> None:

@@ -161,14 +161,14 @@ The former plan mixed these duties with dated execution narratives. Their
 complete bytes remain at the [history retrieval boundary](../history/README.md#terminal-plan-observations).
 The current ownership disposition is:
 
-| Meaning | Current owner |
-| --- | --- |
-| Product mission and invariants | [Product Design Contract](../governance/product-design-contract.md) |
-| Accepted capability behavior | [OpenSpec specs](../../openspec/specs/) |
-| Bounded progress and proof duties | The three active Change task/spec artifacts linked above |
-| Stable mechanism explanation | [Architecture](../architecture/README.md) and native contracts |
-| Tool comparisons and source findings | [Research](../research/README.md) |
-| Dated executions and retired schedules | Git revision linked from History; not a current queue |
+| Meaning                                | Current owner                                                       |
+| -------------------------------------- | ------------------------------------------------------------------- |
+| Product mission and invariants         | [Product Design Contract](../governance/product-design-contract.md) |
+| Accepted capability behavior           | [OpenSpec specs](../../openspec/specs/)                             |
+| Bounded progress and proof duties      | The three active Change task/spec artifacts linked above            |
+| Stable mechanism explanation           | [Architecture](../architecture/README.md) and native contracts      |
+| Tool comparisons and source findings   | [Research](../research/README.md)                                   |
+| Dated executions and retired schedules | Git revision linked from History; not a current queue               |
 
 Open gaps remain open in their official owners. The Git snapshot makes
 observations recoverable; it does not prove that a requirement was satisfied.

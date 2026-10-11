@@ -51,11 +51,11 @@ does not establish a better critical path.
 
 ### Distinct Replacement Responsibilities
 
-| Foundation | Replacement scope | Incumbent to retire | ETHOS retains |
-| --- | --- | --- | --- |
-| Pants | Input inference, per-target/compatible-batch tests, sandboxing, caching, result capture | Equivalent custom selection, scheduling, materialization and cache logic | Accepted obligations, candidate binding, fresh effect admission and evidence interpretation |
-| Dagger | Container builds/tests, immutable inputs, services, reusable operations and traces | Repeated container assembly and local/provider recipes | Native macOS/Windows qualification, coordination, publication authorization and current observations |
-| Nix/uv2nix | Interpreter, native libraries, build inputs, derivations and store reuse | Equivalent Unix environment/package construction | Portable delivery, host selection, live users, activation/rollback and repository authority |
+| Foundation | Replacement scope                                                                       | Incumbent to retire                                                      | ETHOS retains                                                                                        |
+| ---------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| Pants      | Input inference, per-target/compatible-batch tests, sandboxing, caching, result capture | Equivalent custom selection, scheduling, materialization and cache logic | Accepted obligations, candidate binding, fresh effect admission and evidence interpretation          |
+| Dagger     | Container builds/tests, immutable inputs, services, reusable operations and traces      | Repeated container assembly and local/provider recipes                   | Native macOS/Windows qualification, coordination, publication authorization and current observations |
+| Nix/uv2nix | Interpreter, native libraries, build inputs, derivations and store reuse                | Equivalent Unix environment/package construction                         | Portable delivery, host selection, live users, activation/rollback and repository authority          |
 
 Use one scheduler and one environment-assembly owner for each adopted scope.
 A Nix-built OCI image consumed by Dagger is a producer/consumer relation, not
@@ -77,11 +77,11 @@ derived a hashed requirements projection without editing uv.lock. Seventy-one
 hash-checked wheels were prepared; Pants then used an offline wheelhouse with
 indexes disabled. Result-store clearing retained this supply.
 
-| Workload | Baseline runs | Pants first | Pants unchanged runs | Cleared result store |
-| --- | --- | ---: | --- | ---: |
-| 48 original decision tests | 1.096 / 1.098 / 1.050 s | 5.586 s | 2.093 / 2.080 / 1.987 s | 19.559 s |
-| Those tests plus five original Git-worktree cases | 1.804 / 1.780 / 1.744 s | 12.878 s | 1.960 / 1.951 / 2.000 s | Not separately measured |
-| 23 original public proof/source-boundary tests | 8.540 / 8.462 / 8.786 s | 14.417 s | 2.015 / 2.143 / 2.039 s | 27.562 s |
+| Workload                                          | Baseline runs           | Pants first | Pants unchanged runs    |    Cleared result store |
+| ------------------------------------------------- | ----------------------- | ----------: | ----------------------- | ----------------------: |
+| 48 original decision tests                        | 1.096 / 1.098 / 1.050 s |     5.586 s | 2.093 / 2.080 / 1.987 s |                19.559 s |
+| Those tests plus five original Git-worktree cases | 1.804 / 1.780 / 1.744 s |    12.878 s | 1.960 / 1.951 / 2.000 s | Not separately measured |
+| 23 original public proof/source-boundary tests    | 8.540 / 8.462 / 8.786 s |    14.417 s | 2.015 / 2.143 / 2.039 s |                27.562 s |
 
 The first two partitions show no wall-time advantage over direct pytest.
 The public-proof partition shows useful unchanged-result reuse: median 8.540
@@ -130,15 +130,15 @@ actual inputs and keep live effects outside reusable execution.
 
 #### Falsifying Cases And Native Capability Use
 
-| Counterexample or capability | Executed result |
-| --- | --- |
-| Unrelated document added to the 48-test partition | Tests remain cached; PASS in 1.982 s. |
-| Release observation changed to return the wrong result | Invalidation and failure in 2.561 s; restored source passes. |
-| Proof-source observer falsely reports clean source/index | Invalidation and failure in 12.469 s; restored source passes in 1.980 s. |
-| Invalid native pytest argument | Public partition fails with exit 4 in 2.866 s; restored policy passes. |
-| Declared Node supply changed to an absent path | Invalidation and nonzero failure in 7.637 s; restored supply passes. |
-| Owned result/blob store deleted while supply remains | Public partition reexecutes, PASS in 27.562 s, zero cache hits. |
-| Native `--test-report` after successful execution | 23 JUnit cases materialized in 2.319 s using cached test output, not another test run. |
+| Counterexample or capability                             | Executed result                                                                        |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Unrelated document added to the 48-test partition        | Tests remain cached; PASS in 1.982 s.                                                  |
+| Release observation changed to return the wrong result   | Invalidation and failure in 2.561 s; restored source passes.                           |
+| Proof-source observer falsely reports clean source/index | Invalidation and failure in 12.469 s; restored source passes in 1.980 s.               |
+| Invalid native pytest argument                           | Public partition fails with exit 4 in 2.866 s; restored policy passes.                 |
+| Declared Node supply changed to an absent path           | Invalidation and nonzero failure in 7.637 s; restored supply passes.                   |
+| Owned result/blob store deleted while supply remains     | Public partition reexecutes, PASS in 27.562 s, zero cache hits.                        |
+| Native `--test-report` after successful execution        | 23 JUnit cases materialized in 2.319 s using cached test output, not another test run. |
 
 All source, test and policy perturbations were restored. The failure-channel
 assertion in the probe initially inspected stdout only; correcting that observer
@@ -200,14 +200,14 @@ runtime assembly intact would not achieve this replacement.
 The [overview workload](../modern-engineering-foundations.md#comparative-acceptance-workload)
 owns the shared experiment contract. Additional execution-specific obligations:
 
-| Dimension | Required distinguishing evidence |
-| --- | --- |
-| Coverage | Reused raw coverage belongs to the relevant exact inputs and preserves combined line/branch coverage; no stitching focused runs into a fictitious full run. |
-| Isolation | Concurrent/interrupted tests cannot consume partial supply or share mutable Git state; qualify actual process descendants and cache corruption. |
-| Input completeness | Native tools, non-Python data, rules, environment and relevant Git facts invalidate reuse; unrelated changes avoid unnecessary execution. |
-| Scope | Every tracked carrier has applicable checks; generated outputs require source/digest/reconstruction rather than silent exemption. |
-| Portability | Linux containers, native macOS and native Windows are separately qualified. |
-| Maintainability | Count retired duplicate owners and actual adapter/operational cost, not only configuration or code-line totals. |
+| Dimension          | Required distinguishing evidence                                                                                                                            |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Coverage           | Reused raw coverage belongs to the relevant exact inputs and preserves combined line/branch coverage; no stitching focused runs into a fictitious full run. |
+| Isolation          | Concurrent/interrupted tests cannot consume partial supply or share mutable Git state; qualify actual process descendants and cache corruption.             |
+| Input completeness | Native tools, non-Python data, rules, environment and relevant Git facts invalidate reuse; unrelated changes avoid unnecessary execution.                   |
+| Scope              | Every tracked carrier has applicable checks; generated outputs require source/digest/reconstruction rather than silent exemption.                           |
+| Portability        | Linux containers, native macOS and native Windows are separately qualified.                                                                                 |
+| Maintainability    | Count retired duplicate owners and actual adapter/operational cost, not only configuration or code-line totals.                                             |
 
 The read-only quality inventory found 2,930 tracked files and 548 Python files.
 Ruff selected all 548 and carrier assignment had no unowned file; this proves

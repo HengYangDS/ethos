@@ -43,6 +43,7 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "docs-registry"
 kind = "docs"
+required_for_paths = ["*.md"]
 providers = ["ethos.surface.cli.root.reference:docs_registry_report"]
 policy = "required"
 profile = "product"
@@ -129,6 +130,7 @@ version_source = "product"
 [[gates]]
 id = "openspec"
 kind = "governance"
+required_for_paths = ["openspec/config.yaml", "openspec/specs/*.md", "openspec/changes/*.md"]
 providers = ["ethos.adapters.openspec.governance:openspec_validation_report"]
 policy = "required"
 profile = "product"
@@ -289,6 +291,7 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "markdown-links"
 kind = "docs"
+required_for_paths = ["*.md"]
 providers = ["ethos.adapters.gates.tool:markdown_links_report"]
 policy = "required"
 profile = "product"
@@ -460,13 +463,14 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "markdown-lint"
 kind = "lint"
-command = ["{python}", "-m", "nox", "-s", "markdown_lint"]
+required_for_paths = ["*.md"]
+providers = ["ethos.adapters.gates.tool:markdown_lint_report"]
 policy = "required"
 profile = "product-toolchain"
-toolchain = "uv-python"
+toolchain = "ethos"
 asset_classes = ["markdown-docs"]
 dimensions = ["markdown-format", "markdown-lint"]
-execution_mode = "adapter"
+execution_mode = "provider"
 evidence_class = "diagnostic"
 trust_bearing = true
 tool_adapter = "markdown_lint"

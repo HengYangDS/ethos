@@ -563,6 +563,17 @@ def test_native_document_roles_keep_observations_and_rationale_non_authorizing(t
 
 @pytest.mark.parametrize("docs", ["docs", "handbook"])
 @pytest.mark.parametrize(
+    ("review_heading", "review"),
+    [
+        ("Evidence and Revisit", "Revisit if the native owner cannot meet its contract."),
+        ("Follow-ups", "Revisit if the native owner cannot meet its contract."),
+        ("Follow-ups", ""),
+        ("Follow-ups", "<!-- Hidden review. -->"),
+        ("Follow-ups", "```text\nReview.\n```"),
+        ("Follow-ups", "> Quoted review."),
+    ],
+)
+@pytest.mark.parametrize(
     ("heading", "decision"),
     [
         ("Decision", None),
@@ -575,7 +586,7 @@ def test_native_document_roles_keep_observations_and_rationale_non_authorizing(t
     ],
 )
 def test_decision_role_requires_visible_authored_choice_in_portable_root(
-    tmp_path: Path, docs: str, heading: str, decision: str | None
+    tmp_path: Path, docs: str, review_heading: str, review: str, heading: str, decision: str | None
 ) -> None:
     """Common decision semantics cannot be satisfied by metadata, quotes or code."""
     if docs != "docs":
@@ -589,13 +600,15 @@ def test_decision_role_requires_visible_authored_choice_in_portable_root(
     if decision is not None:
         text += "\n## " + heading + "\n\n" + decision + "\n"
     text += "\n## Consequences and Boundary\n\nOne native owner governs the effect.\n"
-    text += "\n## Evidence and Revisit\n\nRevisit if the native owner cannot meet its contract.\n"
+    text += "\n## Alternatives\n\nReject duplicate local governance.\n"
+    text += f"\n## {review_heading}\n\n{review}\n"
     path.write_text(text)
     report = docs_registry_report(tmp_path)
     gap = f"docs_decision_section_unproven:{docs}/{path.name}:decision"
-    accepted = heading == "Decision" and decision == "We choose the native owner."
+    choice = heading == "Decision" and decision == "We choose the native owner."
+    accepted = choice and review.startswith("Revisit")
     assert report["verdict"] == ("pass" if accepted else "block")
-    assert (gap in report["required_gaps"]) is not accepted
+    assert (gap in report["required_gaps"]) is not choice
 
 
 @pytest.mark.parametrize("closed", [False, True])

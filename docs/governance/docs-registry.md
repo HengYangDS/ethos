@@ -277,7 +277,10 @@ with visible authored rationale; quoted text, hidden comments, literal code,
 or one paragraph under a heading naming several roles cannot establish them.
 Declared alternatives or evidence sections also require authored content.
 Heading wording may express a companion boundary, evidence or retirement
-condition without redefining the role. Its directory README navigates records but does not
+condition without redefining the role. A `Follow-ups` section supplies the
+revisit role without requiring a duplicate section; it still needs visible
+authored rationale. The five-section form `Decision`, `Context`, `Consequences`,
+`Alternatives`, and `Follow-ups` follows the same contract. Its directory README navigates records but does not
 become a second decision register. Adopters need not copy ETHOS's directory
 shape; their `role: decision` records follow the same identity grammar within
 their selected documentation root.

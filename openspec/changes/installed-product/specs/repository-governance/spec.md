@@ -161,6 +161,12 @@ from the complete applicable proof closure.
 - **THEN** the portable Docs Registry rejects the unproven role
 - **AND** distinct core roles and meaningful declared alternatives or evidence are accepted independently of heading wording and documentation-root names
 
+#### Scenario: An adopter uses a five-section Decision Record
+
+- **WHEN** distinct `Decision`, `Context`, `Consequences`, `Alternatives`, and `Follow-ups` sections contain visible authored rationale
+- **THEN** the shared registry recognizes `Follow-ups` as the revisit role without requiring duplicate headings
+- **AND** missing, quoted, hidden, or code-only rationale remains unproven; no adopter-local parser or exemption is required
+
 ## MODIFIED Requirements
 
 ### Requirement: Minimal Adoption Binding

@@ -31,6 +31,7 @@ OBSERVATIONAL_ROLES = frozenset({"evidence", "history"})
 MAX_CURRENT_MARKDOWN_NONBLANK = 512
 DECISION_RECORD_NAME = re.compile(r"^dr-([0-9]{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
 DECISION_REQUIRED_SECTIONS = ("context", "decision", "consequences", "revisit")
+DECISION_SECTION_ALIASES = {"follow-ups": "revisit"}
 
 
 def docs_health_report(
@@ -326,7 +327,10 @@ def _decision_section_gaps(tokens, path: str) -> list[str]:
         elif token.type == "blockquote_close":
             quoted -= 1
         elif token.type == "heading_open" and token.level == 0:
-            roles = set(tokens[index + 1].content.casefold().split())
+            roles = {
+                DECISION_SECTION_ALIASES.get(word, word)
+                for word in tokens[index + 1].content.casefold().split()
+            }
             core = roles & set(DECISION_REQUIRED_SECTIONS)
             current = core if token.tag == "h2" and len(core) == 1 else set()
             optional = roles & {"alternatives", "evidence"}

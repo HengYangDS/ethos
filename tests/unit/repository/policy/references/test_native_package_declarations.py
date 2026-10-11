@@ -98,6 +98,72 @@ def test_native_package_manager_alternatives_and_legacy_declaration() -> None:
     }
 
 
+def test_valid_repository_binding_inherits_product_console_ownership() -> None:
+    """Governed content consumes the product's console without a duplicate package."""
+    profile = render_repository_profile(RepositoryProfileDeclaration.bootstrap("native-docs"))
+
+    owned = native_owned_references_from_files({".ethos/profile.toml": profile})
+
+    assert owned["executable"] == {"ethos"}
+    assert owned["distribution"] == set()
+    assert owned["import"] == set()
+
+
+@pytest.mark.parametrize(
+    ("binding", "verdict"),
+    [
+        ('profile_id = "native-docs"\n', "pass"),
+        (None, "block"),
+        ('profile_id = ""\n', "block"),
+        ("[profile", "block"),
+    ],
+    ids=("governed", "unadopted", "invalid", "malformed"),
+)
+def test_product_console_patch_admission_uses_immutable_governed_binding(
+    tmp_path: Path, binding: str | None, verdict: str
+) -> None:
+    """A mutable binding cannot grant or withdraw the product's baseline ownership."""
+    repo = tmp_path / "governed-content"
+    repo.mkdir()
+    git(repo, "init", "-b", "dev")
+    profile = repo / ".ethos/profile.toml"
+    profile.parent.mkdir()
+    if binding is not None:
+        profile.write_text(binding, encoding="utf-8")
+    path = "docs/README.md"
+    document = repo / path
+    document.parent.mkdir()
+    before = "# Product entry\n\n```console\n$ ethos --help\n```\n"
+    after = "# Product entry\n\n```console\n$ ethos --version\n```\n"
+    document.write_text(before, encoding="utf-8")
+    git(repo, "add", ".")
+    baseline = git(repo, "write-tree")
+    poisoned = "" if verdict == "pass" else 'profile_id = "native-docs"\n'
+    profile.write_text(poisoned, encoding="utf-8")
+    patch = f"diff --git a/{path} b/{path}\n" + "".join(
+        difflib.unified_diff(
+            before.splitlines(keepends=True),
+            after.splitlines(keepends=True),
+            fromfile=f"a/{path}",
+            tofile=f"b/{path}",
+        )
+    )
+
+    report = patch_admission(
+        root=repo, requested_paths=(path,), baseline_head=baseline, patch=patch
+    )
+
+    assert report["references"] == {"executable": ["ethos"]}
+    assert report["verdict"] == verdict, report
+    assert report["reason"] == (
+        "baseline_product_closure_matched"
+        if verdict == "pass"
+        else "product_reference_not_admitted_at_baseline:executable:ethos"
+    )
+    assert document.read_text(encoding="utf-8") == before
+    assert profile.read_text(encoding="utf-8") == poisoned
+
+
 @pytest.mark.parametrize("manager", [NPM_ENGINE, [NPM_ENGINE], None])
 @pytest.mark.parametrize("path", ["pipelines/verify.yml", "automation/npm-check.yaml"])
 def test_public_patch_admission_uses_immutable_native_declaration(

@@ -257,7 +257,11 @@ def _patch(path: str, added: str, *, new: bool = False) -> str:
             + f"@@ -0,0 +1,{len(added.splitlines())} @@\n"
             + "".join(f"+{line}\n" for line in added.splitlines())
         )
-    return header + f"--- a/{path}\n+++ b/{path}\n@@ -1 +1,2 @@\n VALUE = 1\n+{added}\n"
+    return (
+        header
+        + f"--- a/{path}\n+++ b/{path}\n@@ -1 +1,{len(added.splitlines()) + 1} @@\n VALUE = 1\n"
+        + "".join(f"+{line}\n" for line in added.splitlines())
+    )
 
 
 DECL = "diff --git a/system/surfaces.toml b/system/surfaces.toml\n"
@@ -272,7 +276,7 @@ E_IMPORT = "product_reference_not_admitted_at_baseline:import:external_sdk"
 E_EXEC = "product_reference_not_admitted_at_baseline:executable:external-runner"
 E_COMMAND = "product_reference_not_admitted_at_baseline:command:ethos external-operation"
 P_IMPORT = _patch(*M, "import external_sdk")
-P_EXEC = _patch(*M, 'COMMAND = ["external-runner"]')
+P_EXEC = _patch(*M, 'import subprocess\nCOMMAND = ["external-runner"]\nsubprocess.run(COMMAND)')
 C = ("src/commands.py",)
 P_COMMAND = _patch(
     *C,
@@ -291,6 +295,7 @@ PATCH_CASES = [
     ((), A, P_NEW, "pass"),
     ((), T + M, DECL + P_EXEC, E_EXEC),
     ((), T, DECL, "pass"),
+    ((), M, _patch(*M, 'COMMAND = ["external-runner"]'), "pass"),
 ]
 
 

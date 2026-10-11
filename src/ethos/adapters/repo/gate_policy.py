@@ -32,9 +32,17 @@ def resolve_gate_policy(
     gate_ids: tuple[str, ...] = (),
     full: bool = False,
     acceptance_purpose: AcceptancePurpose = "repository",
+    selected_obligations: bool = False,
 ) -> ResolvedGatePolicy:
     """Observe repository materials and compile one content-bound gate policy."""
-    return _resolve_policies(root, tree_ref, gate_ids, (full,), acceptance_purpose)[0]
+    return _resolve_policies(
+        root,
+        tree_ref,
+        gate_ids,
+        (full,),
+        acceptance_purpose,
+        selected_obligations=selected_obligations,
+    )[0]
 
 
 def resolve_proof_policies(
@@ -56,11 +64,18 @@ def _resolve_policies(
     gate_ids: tuple[str, ...],
     floors: tuple[bool, ...],
     acceptance_purpose: AcceptancePurpose,
+    *,
+    selected_obligations: bool = False,
 ) -> tuple[ResolvedGatePolicy, ...]:
     """Share material observation only within this requested policy compilation."""
     if root is None:
         return tuple(
-            compile_gate_policy(gate_ids=gate_ids, full=full, acceptance_purpose=acceptance_purpose)
+            compile_gate_policy(
+                gate_ids=gate_ids,
+                full=full,
+                acceptance_purpose=acceptance_purpose,
+                selected_obligations=selected_obligations,
+            )
             for full in floors
         )
     profile = (
@@ -87,6 +102,7 @@ def _resolve_policies(
             gate_ids=gate_ids,
             full=full,
             acceptance_purpose=acceptance_purpose,
+            selected_obligations=selected_obligations,
         )
         for full in floors
     )
@@ -123,6 +139,7 @@ def _resolve_policies(
             gate_ids=gate_ids,
             full=full,
             acceptance_purpose=acceptance_purpose,
+            selected_obligations=selected_obligations,
         )
         for full in floors
     )

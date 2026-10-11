@@ -22,6 +22,7 @@ from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import RepositoryProfileDeclaration
+from ethos.repository.profile import SourceContract
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import declare_fixture_code_correctness
 from tests.support.governed_repository import git
@@ -87,8 +88,9 @@ def test_source_acceptance_preserves_floors_and_binds_native_audit(
 
 @pytest.mark.parametrize("requested", [("native",), ("schemas",), ("native", "schemas")])
 @pytest.mark.parametrize("full", [False, True])
+@pytest.mark.parametrize("selected_obligations", [False, True])
 def test_gate_composition_retains_native_owner_and_exact_provider_sources(
-    tmp_path: Path, requested: tuple[str, ...], *, full: bool
+    tmp_path: Path, requested: tuple[str, ...], *, full: bool, selected_obligations: bool
 ) -> None:
     """One selection preserves the target floor and binds only requested product providers."""
     native = Gate(
@@ -123,10 +125,20 @@ def test_gate_composition_retains_native_owner_and_exact_provider_sources(
         repository_python="python",
         gate_ids=requested,
         full=full,
+        selected_obligations=selected_obligations,
     )
     assert selected.profile is profile
     assert selected.declaration == baseline.declaration
-    assert selected.projection["owner"] == baseline.projection["owner"]
+    assert (selected.projection.get("obligation_scope") == "selected") is (
+        selected_obligations and not full
+    )
+    document_diagnostic = selected_obligations and not full and requested == ("schemas",)
+    if document_diagnostic:
+        assert "code_correctness_map" not in selected.projection["owner"]
+        assert selected.gaps == ()
+        assert selected.digest != baseline.digest
+    else:
+        assert selected.projection["owner"] == baseline.projection["owner"]
     assert set(selected.gate_ids) == ({"native", *requested} if full else set(requested))
     assert set(selected.registry) == {"native", *requested}
     sources = dict(selected.sources)
@@ -142,10 +154,74 @@ def test_gate_composition_retains_native_owner_and_exact_provider_sources(
     if "schemas" in requested:
         assert selected.registry["schemas"].profile == "repository"
         assert selected.registry["schemas"].tool_adapter == "ethos"
-    if not full and requested == ("schemas",):
+    if not full and requested == ("schemas",) and not selected_obligations:
         assert "quality_obligation_unproven:behavior" in selected.gaps
-    else:
+    elif not document_diagnostic:
         assert selected.gaps == baseline.gaps
+
+
+@pytest.mark.parametrize("requested", [("docs-registry",), ("native-docs",), ("native",)])
+def test_focused_obligations_preserve_source_integrity_for_selected_code(
+    tmp_path: Path, requested: tuple[str, ...]
+) -> None:
+    """Document diagnosis excludes unrelated artifacts; a selected code check retains them."""
+    profile = RepositoryProfile(
+        root=tmp_path,
+        exists=True,
+        declaration=RepositoryProfileDeclaration(
+            profile_id="target",
+            proof=ProofPolicy(
+                code_correctness_gates=("native", "native-docs"),
+                gates=(
+                    Gate(id="native", kind="test", command=("tools/check.py",)),
+                    Gate(
+                        id="native-docs",
+                        kind="docs",
+                        providers=("ethos.surface.cli.root.reference:docs_registry_report",),
+                    ),
+                ),
+                code_correctness_map={"behavior": "native", "static-analysis": "native"},
+                source_contracts=(
+                    SourceContract(
+                        kind="upstream",
+                        input_refs=("package-lock.json#packages/node_modules/example",),
+                        members={
+                            "tools/upstream.js": (
+                                "package-lock.json#packages/node_modules/example",
+                                "package/index.js",
+                            )
+                        },
+                        integrity_gate="native",
+                    ),
+                ),
+            ),
+        ),
+    )
+    policy = compile_gate_policy(
+        profile=profile,
+        gate_ids=requested,
+        selected_obligations=True,
+        repository_paths=(
+            "README.md",
+            "tools/check.py",
+            "tools/upstream.js",
+            "src/ethos/surface/cli/root/reference.py",
+        ),
+        source_materials={
+            "tools/check.py": b"print('native')\n",
+            "@ethos/surface/cli/root/reference.py": b"document provider\n",
+            "src/ethos/surface/cli/root/reference.py": b"document provider\n",
+        },
+        repository_python="python",
+    )
+    owner = policy.projection["owner"]
+    assert isinstance(owner, dict)
+    if requested != ("native",):
+        assert policy.gaps == ()
+        assert "source_contracts" not in owner
+    else:
+        assert "source_integrity_gate_unbound:native" in policy.gaps
+        assert owner["source_contracts"]
 
 
 def test_imported_native_audit_honors_source_purpose_without_changing_target_floor(

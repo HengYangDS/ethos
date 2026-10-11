@@ -61,6 +61,7 @@ class ResolvedGatePolicy:
     script_paths: tuple[str, ...] = ()
     carrier_roles: tuple[tuple[str, str], ...] = ()
     acceptance_purpose: AcceptancePurpose = "repository"
+    selected_obligations: bool = False
 
     @property
     def registry(self) -> dict[str, Gate]:
@@ -121,6 +122,7 @@ class ResolvedGatePolicy:
                 self.repository_paths,
                 self.script_paths,
                 self.carrier_roles,
+                self.gates if self.selected_obligations else None,
             ),
             "gates": [gate_policy_fields(gate, sources.get(gate.id, ())) for gate in self.gates],
             "gaps": list(self.gaps),
@@ -129,6 +131,7 @@ class ResolvedGatePolicy:
                 if self.acceptance_purpose != "repository"
                 else {}
             ),
+            **({"obligation_scope": "selected"} if self.selected_obligations else {}),
         }
 
     @property
@@ -142,6 +145,7 @@ def _owner_projection(
     repository_paths: tuple[str, ...],
     script_paths: tuple[str, ...],
     carrier_roles: tuple[tuple[str, str], ...],
+    selected_gates: tuple[Gate, ...] | None = None,
 ) -> dict[str, object]:
     identity: dict[str, object] = {
         "id": declaration.id,
@@ -158,15 +162,8 @@ def _owner_projection(
         roles=dict(carrier_roles),
         source_kinds=proof.source_kinds,
     )
-    prerequisites = source_binding_gaps(code_subjects)
     if proof.gate_registry:
         owner: dict[str, object] = {"kind": "registry", "path": proof.gate_registry, **identity}
-        if contracts:
-            owner["source_contracts"] = contracts
-        if prerequisites:
-            owner["source_binding_gaps"] = list(prerequisites)
-        if _same_packaged_quality_floor(declaration):
-            return owner
         axes = {
             axis: next(
                 (
@@ -188,10 +185,33 @@ def _owner_projection(
             **identity,
         }
         axes = dict(proof.code_correctness_map)
+    if selected_gates is not None:
+        inputs = set(
+            source_paths_for_gates(
+                selected_gates,
+                repository_paths=repository_paths,
+                source_contracts=proof.source_contracts,
+            )
+        )
+        code_selected = any(
+            gate.id in axes.values() or set(gate.dimensions).intersection(QUALITY_PROVIDERS)
+            for gate in selected_gates
+        ) or any(subject.path in inputs for subject in code_subjects)
+        if not code_selected:
+            code_subjects, axes = (), {}
+            selected_ids = {gate.id for gate in selected_gates}
+            contracts = [
+                contract.model_dump(mode="json")
+                for contract in proof.source_contracts
+                if contract.integrity_gate in selected_ids or inputs.intersection(contract.members)
+            ]
+    prerequisites = source_binding_gaps(code_subjects)
     if contracts:
         owner["source_contracts"] = contracts
     if prerequisites:
         owner["source_binding_gaps"] = list(prerequisites)
+    if proof.gate_registry and _same_packaged_quality_floor(declaration):
+        return owner
     # A declared code obligation survives incomplete carrier discovery.
     if code_subjects or any(axes.values()):
         owner["quality_floor_version"] = 2
@@ -419,8 +439,10 @@ def resolve_gate_policy(
     gate_ids: tuple[str, ...] = (),
     full: bool = False,
     acceptance_purpose: AcceptancePurpose = "repository",
+    selected_obligations: bool = False,
 ) -> ResolvedGatePolicy:
     acceptance_purpose = proof_acceptance_purpose({"acceptance_purpose": acceptance_purpose})
+    selected_obligations = selected_obligations and bool(gate_ids) and not full
     declaration, profile = _gate_declaration(
         profile,
         gate_registry_source=gate_registry_source,
@@ -474,7 +496,12 @@ def resolve_gate_policy(
         gaps = (*gaps, "proof_floor_empty")
     if profile is not None and profile.declaration is not None:
         owner = _owner_projection(
-            declaration, profile, repository_paths, script_paths, carrier_roles
+            declaration,
+            profile,
+            repository_paths,
+            script_paths,
+            carrier_roles,
+            gates if selected_obligations else None,
         )
         gaps = (
             *gaps,
@@ -492,6 +519,7 @@ def resolve_gate_policy(
         script_paths,
         carrier_roles,
         acceptance_purpose,
+        selected_obligations,
     )
 
 

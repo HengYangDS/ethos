@@ -305,9 +305,16 @@ def observe_gate_execution(
     if expect_head is not None and expect_head != head:
         gaps.append("expected_head_mismatch")
     policy = None
+    selected_obligations = bool(gate_ids) and not full
     try:
         if not gaps:
-            policy = resolve_gate_policy(root, tree_ref=head, gate_ids=gate_ids, full=full)
+            policy = resolve_gate_policy(
+                root,
+                tree_ref=head,
+                gate_ids=gate_ids,
+                full=full,
+                selected_obligations=selected_obligations,
+            )
         if policy is not None:
             gaps.extend(policy.gaps)
             if not policy.nodes:
@@ -332,7 +339,13 @@ def observe_gate_execution(
             if exact and (
                 current_tracked_head(root) != head
                 or observe_execution_source(root, head, tree) != source
-                or resolve_gate_policy(root, tree_ref=head, gate_ids=gate_ids, full=full).digest
+                or resolve_gate_policy(
+                    root,
+                    tree_ref=head,
+                    gate_ids=gate_ids,
+                    full=full,
+                    selected_obligations=selected_obligations,
+                ).digest
                 != policy.digest
             ):
                 gaps.append("proof_execution_source_changed")

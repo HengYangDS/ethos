@@ -155,6 +155,27 @@ def test_host_admission_requires_committed_executable_source(tmp_path: Path, *, 
     assert git(repo, "status", "--short") == before
 
 
+def test_host_document_diagnostic_does_not_require_unselected_code_proof(tmp_path: Path) -> None:
+    """A real shared document provider executes independently of the native code floor."""
+    repo = init_git_repo(tmp_path / "repo")
+    write_script_gate_policy(repo, full=True)
+    (repo / "tools/check.sh").chmod(0o700)
+    head = commit_fixture(repo, "declare separate code and document obligations")
+    before = git(repo, "status", "--short")
+
+    completed = _host(repo, head, "--gate", "docs-registry")
+
+    payload = json.loads(completed.stdout)
+    assert completed.returncode == 0, payload
+    assert payload["verdict"] == "pass"
+    assert payload["required_gaps"] == []
+    assert payload["data"]["executed"] is True
+    assert [check["action_id"] for check in payload["data"]["checks"]] == ["docs-registry"]
+    assert payload["data"]["host_probe"]["satisfies_repository_proof"] is False
+    assert payload["data"]["attestation"] == {}
+    assert git(repo, "status", "--short") == before
+
+
 @pytest.mark.parametrize("full", [False, True])
 def test_host_invalid_policy_is_a_reported_nonexecution(tmp_path: Path, *, full: bool) -> None:
     """Malformed committed policy blocks without a traceback or executing checks."""

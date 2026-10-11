@@ -83,7 +83,10 @@ def test_native_configuration_uses_one_shared_directory_shape() -> None:
     assert native_tool_configuration((expected,), "lychee") == expected
 
 
-def test_same_executor_preserves_the_complete_applicable_common_contract(tmp_path: Path) -> None:
+@pytest.mark.parametrize("mode", ["default", "full", "focused"])
+def test_same_executor_preserves_the_complete_applicable_common_contract(
+    tmp_path: Path, mode: str
+) -> None:
     """A native redeclaration cannot lower the shared floor's policy or evidence bounds."""
     profile = RepositoryProfile(
         root=tmp_path,
@@ -110,7 +113,12 @@ def test_same_executor_preserves_the_complete_applicable_common_contract(tmp_pat
             ),
         ),
     )
-    policy = compile_gate_policy(profile=profile, repository_paths=("README.md",), full=True)
+    policy = compile_gate_policy(
+        profile=profile,
+        repository_paths=("README.md",),
+        gate_ids=("markdown-lint",) if mode == "focused" else (),
+        full=mode == "full",
+    )
     expected = (
         load_gate_registry_declaration()
         .registry()["markdown-lint"]

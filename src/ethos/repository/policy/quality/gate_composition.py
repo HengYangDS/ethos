@@ -27,9 +27,14 @@ def select_gate_declaration(
     common = tuple(
         gate.id
         for gate in packaged.values()
-        if (full or not gate_ids)
-        and gate.required_for_paths
-        and any(path_matches(path, gate.required_for_paths) for path in authored)
+        if gate.required_for_paths
+        and (
+            gate.id in gate_ids
+            or (
+                (full or not gate_ids)
+                and any(path_matches(path, gate.required_for_paths) for path in authored)
+            )
+        )
     )
     execution_fields = {
         "command",

@@ -230,3 +230,35 @@ Lease generation. Ordinary cross-identity CAS SHALL remain rejected.
 - **WHEN** an identity transition is previewed before applying it
 - **THEN** no ref changes and its continuation retains the exact root, source, target and explicit identity mode
 - **AND** a future signed tag is distinguished from the branch scope already admitted by that preview
+
+### Requirement: Adopter runtime selection preserves incumbent enforcement
+
+Explicit native adoption MAY select the exact immutable package runtime independently of
+hook installation. Preview SHALL bind the source build and current selector. Authorized apply
+SHALL use the existing runtime materialization and compare-and-swap owners, preserve incumbent
+Git configuration and hooks, and compensate failed selection without overwriting intervening
+state. Runtime provenance SHALL NOT imply hook enforcement, source qualification or delivery.
+
+#### Scenario: Incumbent domain hooks remain active during adoption
+
+- **WHEN** an owned adopter explicitly selects the runtime through native adoption
+- **THEN** the selected package may validate tracked-write provenance without replacing its hooks
+- **AND** hook, domain, signing, full-proof and delivery obligations remain independently required
+- **AND** preview, missing authorization or a stale selector produces no runtime-selection effect
+
+### Requirement: Supplemental OpenSpec metadata has explicit native ownership
+
+An adopter MAY bind exact non-executable capability metadata filenames to existing repository
+authority files in its typed profile. Required normative specs SHALL remain authoritative;
+metadata SHALL NOT establish domain correctness. An identity-preserving profile repair MAY
+resolve this shape conflict only
+when it changes these bindings alone and satisfies every other admission obligation without
+mutating its preimage.
+
+#### Scenario: Native capability metadata coexists with normative specs
+
+- **WHEN** declared metadata is valid, regular and bound to its existing native owner
+- **THEN** OpenSpec observation preserves both the metadata and required normative spec
+- **AND** each capability retains one required regular `spec.md`
+- **AND** undeclared files, unsafe names, symlinks, missing owners and malformed metadata fail closed
+- **AND** absent specs and unrelated profile weakening remain inadmissible

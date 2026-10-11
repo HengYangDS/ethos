@@ -6,7 +6,6 @@ import shlex
 from dataclasses import dataclass
 from dataclasses import field
 from typing import TYPE_CHECKING
-from typing import cast
 
 from ethos.adapters.openspec.governance import artifact_output_paths
 from ethos.adapters.openspec.governance import openspec_governance_report
@@ -96,7 +95,11 @@ class CurrentResolution:
 
     def scope_report(self, paths: tuple[str, ...] | None = None) -> JsonObject:
         """Project the selected Change as one material-path observation."""
-        if self.scope.material_scope and not self.scope.archive_authority:
+        if (
+            self.verdict == "pass"
+            and self.scope.material_scope
+            and not self.scope.archive_authority
+        ):
             return dict(self.scope.material_scope)
         if self.verdict != "pass":
             return {
@@ -110,13 +113,12 @@ class CurrentResolution:
                 "uncovered_paths": [],
                 "required_gaps": list(self.required_gaps),
                 "advisory_gaps": [],
+                "next_action": self.next_action,
+                "user_decision_required": self.user_decision_required,
             }
         authorized = tuple(
             dict.fromkeys(
-                cast(
-                    "tuple[str, ...]",
-                    tuple(self.scope.archive_authority.get("authorized_paths", ())),
-                )
+                string_sequence(self.scope.archive_authority.get("authorized_paths", ()))
                 if self.scope.archive_authority
                 else self.scope.paths
             )

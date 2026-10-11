@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import tomllib
 from typing import TYPE_CHECKING
+from typing import NamedTuple
 
 from ethos.adapters.repo.git import run_git
+from ethos.repository.openspec.audit import accepted_spec_root_gaps
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import load_repository_profile
@@ -89,3 +91,40 @@ def historical_repository_identity(
     if not isinstance(profile_id, str) or not profile_id:
         raise ValueError(message)
     return f"repository:{profile_id}"
+
+
+class ProfilePostimage(NamedTuple):
+    """One strict profile observation, identity and narrowly bound repair eligibility."""
+
+    gap: str
+    profile_id: str
+    metadata_repair: bool
+
+
+def profile_postimage(root: Path, postimages: Mapping[str, str | None]) -> ProfilePostimage:
+    """Validate the strict profile and recognize only additive metadata binding repair."""
+    text = postimages.get(".ethos/profile.toml")
+    if text is None:
+        return ProfilePostimage(gap="", profile_id="", metadata_repair=False)
+    proposed = repository_profile_from_text(root, exists=True, text=text).declaration
+    if proposed is None:
+        return ProfilePostimage(gap=INVALID_PROFILE_ERROR, profile_id="", metadata_repair=False)
+    current = load_repository_profile(root).declaration
+    repair = False
+    if (
+        len(postimages) == 1
+        and current is not None
+        and current.openspec is not None
+        and proposed.openspec is not None
+    ):
+        old, new = current.openspec.capability_metadata, proposed.openspec.capability_metadata
+        restored = proposed.model_copy(
+            update={"openspec": proposed.openspec.model_copy(update={"capability_metadata": old})}
+        )
+        repair = (
+            old != new
+            and all(item in new for item in old)
+            and restored == current
+            and not accepted_spec_root_gaps(root / "openspec/specs", policy=proposed.openspec)
+        )
+    return ProfilePostimage("", proposed.profile_id, repair)

@@ -75,30 +75,9 @@ def install_hook_launchers(
         build_source=build_source,
         installed_runtime=installed_runtime,
     )
-    rollback_supply: dict[str, str] = {}
-    if current_before is not None:
-        try:
-            previous = current_runtime(common)
-        except (OSError, ValueError) as error:
-            previous_root = selected_runtime_path(common)
-            if previous_root.parent != common / "ethos/runtime":
-                raise
-            rollback_supply = {
-                "state": "unavailable",
-                "runtime": previous_root.as_posix(),
-                "reason": str(error) or type(error).__name__,
-            }
-        else:
-            if previous.root != runtime.parent:
-                preserved = runtime_materialization.pin_installed_runtime(previous)
-                rollback_supply = {
-                    "state": "preserved",
-                    "runtime": preserved.as_posix(),
-                    "runtime_digest": previous.digest,
-                    "wheel_sha256": previous.wheel_sha256,
-                    "source_commit": previous.build.source_commit,
-                    "source_tree": previous.build.source_tree,
-                }
+    rollback_supply = (
+        _preserve_predecessor_supply(common, runtime.parent) if current_before is not None else {}
+    )
     hooks = materialize_hook_launchers(common / "ethos" / "hooks")
     linked = _linked_worktree_paths(repo)
     common_before = config_effects.config_values(repo, _ACTIVATION_KEYS, scope="local")
@@ -135,6 +114,37 @@ def install_hook_launchers(
         binding["next_action"] = "ethos hook install --json"
     binding["generation_cleanup"] = cleanup
     return binding
+
+
+def _preserve_predecessor_supply(common: Path, runtime: Path) -> dict[str, str]:
+    """Preserve usable rollback supply and distinguish absent from unsafe external bytes."""
+    try:
+        previous = current_runtime(common)
+    except (OSError, ValueError) as error:
+        previous_root = selected_runtime_path(common)
+        if previous_root.parent != common / "ethos/runtime":
+            try:
+                previous_root.lstat()
+            except FileNotFoundError:
+                pass
+            else:
+                raise error
+        return {
+            "state": "unavailable",
+            "runtime": previous_root.as_posix(),
+            "reason": str(error) or type(error).__name__,
+        }
+    if previous.root == runtime:
+        return {}
+    preserved = runtime_materialization.pin_installed_runtime(previous)
+    return {
+        "state": "preserved",
+        "runtime": preserved.as_posix(),
+        "runtime_digest": previous.digest,
+        "wheel_sha256": previous.wheel_sha256,
+        "source_commit": previous.build.source_commit,
+        "source_tree": previous.build.source_tree,
+    }
 
 
 def _activate_with_state(

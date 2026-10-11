@@ -81,13 +81,16 @@ def prewrite_guard(
         for path in checked
         if path["tracked_candidate"] is True and path["relative_path"]
     )
-    current_authority = _work_lane_authority(
+    current_authority = observe_current_authority(
         root=root,
-        effective=effective,
-        tracked_write_requested=tracked,
+        branch=effective["branch"],
+        actor=os.environ.get("ETHOS_ACTOR", "").strip(),
+        required=effective["role"] == ROLE_WORK_LANE and tracked,
+        head_source="rebase_branch_ref"
+        if effective["source"] == "git_rebase_head_name"
+        else "head",
     )
-    lease = current_authority.projection()
-    authority = lease
+    authority = current_authority.projection()
     editor = _editor_root_check(
         root=root,
         editor_root=editor_root,
@@ -165,7 +168,7 @@ def prewrite_guard(
         "status_branch": status_branch,
         "effective_context": effective,
         "runtime_binding": runtime_check,
-        "work_lane_lease": lease,
+        "work_lane_lease": authority,
         "mutation_authority": authority,
         "editor_root": editor,
         "patch_admission": patch_report,
@@ -197,37 +200,45 @@ def _prewrite_material_scope(
         if str(error) != INVALID_PROFILE_ERROR:
             raise
         profile_enabled = None
-    official: dict[str, object] = {"verdict": "pass", "change": None, "required_gaps": []}
     if profile_enabled is None:
+        return (
+            profile_repair_scope(
+                root, role=effective["role"], requested_paths=requested, report=patch_report
+            ),
+            {"verdict": "unknown", "required_gaps": [INVALID_PROFILE_ERROR]},
+            True,
+        )
+    if not profile_enabled:
+        return (
+            non_openspec_prewrite_scope(requested),
+            {"verdict": "pass", "change": None, "required_gaps": []},
+            False,
+        )
+    resolution = resolve_current_resolution(
+        root,
+        status={
+            "role": effective["role"],
+            "head": current_authority.current_head,
+            "changed_paths": list(requested),
+        },
+        authority=current_authority,
+        changed=False,
+        prewrite_paths=requested,
+        require_workspace=require_workspace,
+    )
+    scope = resolution.scope_report(requested)
+    if (
+        patch_report.get("profile_metadata_repair") is True
+        and resolution.required_gaps
+        and all(
+            gap.startswith("openspec_spec_capability_entry_unexpected:")
+            for gap in resolution.required_gaps
+        )
+    ):
         scope = profile_repair_scope(
             root, role=effective["role"], requested_paths=requested, report=patch_report
         )
-        official = {"verdict": "unknown", "required_gaps": [INVALID_PROFILE_ERROR]}
-    elif profile_enabled:
-        resolution = resolve_current_resolution(
-            root,
-            status={
-                "role": effective["role"],
-                "head": current_authority.current_head,
-                "changed_paths": list(requested),
-            },
-            authority=current_authority,
-            changed=False,
-            prewrite_paths=requested,
-            require_workspace=require_workspace,
-        )
-        official = resolution.openspec
-        scope = resolution.scope_report(requested)
-        if resolution.verdict != "pass":
-            scope.update(
-                verdict=resolution.verdict,
-                required_gaps=list(resolution.required_gaps),
-                next_action=resolution.next_action,
-                user_decision_required=resolution.user_decision_required,
-            )
-    else:
-        scope = non_openspec_prewrite_scope(requested)
-    return scope, official, profile_enabled is None
+    return scope, resolution.openspec, False
 
 
 def _checked_paths(
@@ -331,23 +342,6 @@ def _rebase_head_branch(root: Path) -> str:
         None,
     )
     return head.read_text(encoding="utf-8").strip().removeprefix("refs/heads/") if head else ""
-
-
-def _work_lane_authority(
-    *,
-    root: Path,
-    effective: dict[str, str],
-    tracked_write_requested: bool,
-) -> CurrentAuthority:
-    role, branch, source = effective["role"], effective["branch"], effective["source"]
-    actor = os.environ.get("ETHOS_ACTOR", "").strip()
-    return observe_current_authority(
-        root=root,
-        branch=branch,
-        actor=actor,
-        required=role == ROLE_WORK_LANE and tracked_write_requested,
-        head_source="rebase_branch_ref" if source == "git_rebase_head_name" else "head",
-    )
 
 
 def _prewrite_decision(

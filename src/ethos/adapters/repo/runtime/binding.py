@@ -8,10 +8,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import ethos
+from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
+from ethos.adapters.repo.runtime.selection import current_runtime
+from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.repository.policy.schema import schema_source_root
 
 if TYPE_CHECKING:
@@ -57,9 +60,45 @@ def runtime_binding(
         and Path(hook_binding["python"]).absolute() == Path(sys.executable).absolute()
     )
     declared_external_runner = False
+    if not runner_matches_common_runtime and hook_binding["required_gaps"]:
+        try:
+            common = Path(git_common_dir(audit_root))
+            selected = current_runtime(common)
+            matches = (common / "ethos/runtime/CURRENT").read_bytes() == runtime_selection_bytes(
+                common, selected.root
+            )
+            selected_identity = invoking_build_identity()
+            native_source = schema_root == source_root / "system/schemas"
+            version = ".".join(selected.python_version.split(".")[:2])
+            site = (
+                selected.root
+                / "python"
+                / (
+                    "Lib/site-packages"
+                    if selected.platform == "windows"
+                    else f"lib/python{version}/site-packages"
+                )
+            )
+            package = site / "ethos"
+            native_package = (
+                runner_module_path == package / "__init__.py"
+                and schema_root == package / "resources/system/schemas"
+                and selected.build == selected_identity
+            )
+            runner_matches_common_runtime = (
+                matches
+                and native_package
+                and Path(sys.executable).absolute() == selected.python.absolute()
+            )
+            declared_external_runner = (
+                matches and native_source and selected.build == selected_identity
+            )
+        except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError):
+            runner_matches_common_runtime = False
     if (
         not runner_matches_audit_root
         and not runner_matches_common_runtime
+        and not declared_external_runner
         and not hook_binding["required_gaps"]
         and schema_root == source_root / "system/schemas"
     ):

@@ -11,7 +11,9 @@ from typing import TYPE_CHECKING
 from ethos.adapters.projections.compiler import render_projections
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
+from ethos.adapters.repo.profile import ProfilePostimage
 from ethos.adapters.repo.profile import historical_repository_identity
+from ethos.adapters.repo.profile import profile_postimage
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.verdict import report_verdict
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
@@ -25,7 +27,6 @@ from ethos.repository.policy.references.observation import ProductReferences
 from ethos.repository.policy.references.observation import deleted_input_gaps
 from ethos.repository.policy.references.observation import product_references_from_files
 from ethos.repository.profile import INVALID_PROFILE_ERROR
-from ethos.repository.profile import repository_profile_from_text
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -66,20 +67,25 @@ def patch_admission(
     unknown: list[str] = []
     effects: dict[str, str] = {}
     outputs: list[str] = []
-    profile_postimage_id = ""
+    profile = ProfilePostimage(gap="", profile_id="", metadata_repair=False)
     observation: ProductReferences | None = None
     if not reason:
         try:
             baseline_files = _baseline_reference_files(root, baseline_head)
             baseline_references = native_owned_references_from_files(baseline_files)
-            observation, effect_gaps, unknown, effects, outputs, profile_postimage_id = (
-                _patch_references(
-                    root,
-                    patch,
-                    changes,
-                    context_files=baseline_files,
-                    declared_commands=baseline_references["command"],
-                )
+            (
+                observation,
+                effect_gaps,
+                unknown,
+                effects,
+                outputs,
+                profile,
+            ) = _patch_references(
+                root,
+                patch,
+                changes,
+                context_files=baseline_files,
+                declared_commands=baseline_references["command"],
             )
             references = observation.references
             reason = effect_gaps[0] if effect_gaps else ""
@@ -105,7 +111,8 @@ def patch_admission(
         "baseline_head": baseline_head,
         "paths": patch_paths,
         "references": {key: sorted(value) for key, value in references.items() if value},
-        **({"profile_postimage_id": profile_postimage_id} if profile_postimage_id else {}),
+        **({"profile_postimage_id": profile.profile_id} if profile.profile_id else {}),
+        **({"profile_metadata_repair": True} if profile.metadata_repair else {}),
     }
 
 
@@ -282,7 +289,7 @@ def staged_artifact_admission(
             if path in before or path in after or effects[path] == "delete"
         }
         gaps, unknown = _effect_gaps(root, projection_relations(before), after, postimages)
-        profile_gap, _ = _profile_postimage(root, postimages)
+        profile_gap, _, _ = profile_postimage(root, postimages)
         if profile_gap:
             gaps.insert(0, profile_gap)
     except (OSError, ValueError, UnicodeError) as exc:
@@ -412,7 +419,7 @@ def _patch_references(
     *,
     context_files: dict[str, str],
     declared_commands: tuple[str, ...] | frozenset[str] = (),
-) -> tuple[ProductReferences, list[str], list[str], dict[str, str], list[str], str]:
+) -> tuple[ProductReferences, list[str], list[str], dict[str, str], list[str], ProfilePostimage]:
     with tempfile.TemporaryDirectory(prefix="ethos-prewrite-postimage-") as temporary:
         workspace = Path(temporary)
         for change in changes:
@@ -462,9 +469,9 @@ def _patch_references(
             for item in observation.uncertainties
             if item.state == "unknown"
         )
-        profile_gap, profile_id = _profile_postimage(root, postimages)
-        if profile_gap:
-            gaps.insert(0, profile_gap)
+        profile = profile_postimage(root, postimages)
+        if profile.gap:
+            gaps.insert(0, profile.gap)
         effects = {
             str(change["path"]): "delete"
             if change["deleted"]
@@ -473,20 +480,14 @@ def _patch_references(
             else "modify"
             for change in changes
         }
-        return observation, gaps, unknown, effects, outputs, profile_id
-
-
-def _profile_postimage(root: Path, postimages: dict[str, str | None]) -> tuple[str, str]:
-    """Validate only a supplied profile after-image through its sole typed owner."""
-    text = postimages.get(".ethos/profile.toml")
-    if text is None:
-        return "", ""
-    profile = repository_profile_from_text(root, exists=True, text=text)
-    return (
-        ("", profile.declaration.profile_id)
-        if profile.declaration is not None
-        else (INVALID_PROFILE_ERROR, "")
-    )
+        return (
+            observation,
+            gaps,
+            unknown,
+            effects,
+            outputs,
+            profile,
+        )
 
 
 def _source_effect_gaps(

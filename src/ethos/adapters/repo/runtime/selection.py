@@ -192,7 +192,7 @@ def _restore_selector(
 def runtime_selection_transaction(
     common: Path,
     *,
-    expected_current: bytes,
+    expected_current: bytes | None,
 ) -> Iterator[None]:
     """Guard selector-dependent effects with the canonical lock and exact CAS."""
     common_root = common.resolve()

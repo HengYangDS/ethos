@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import sys
+from difflib import unified_diff
 from pathlib import Path
 
 import pytest
@@ -33,6 +34,94 @@ def _write_profile(root: Path, text: str) -> Path:
     profile.parent.mkdir()
     profile.write_text(text, encoding="utf-8")
     return profile
+
+
+@pytest.mark.parametrize(
+    "file_name",
+    [
+        "spec.md",
+        "../capability.toml",
+        "code.py",
+        "nested/data.json",
+        "",
+        "nested\\data.json",
+        "bad\nname.toml",
+        "bad\x00name.toml",
+        "*.json",
+    ],
+)
+def test_profile_rejects_unsafe_capability_metadata_bindings(file_name: str) -> None:
+    """Metadata is an exact native data member, never a new normative or executable carrier."""
+    with pytest.raises(ValidationError):
+        RepositoryProfileDeclaration.model_validate(
+            {
+                "profile_id": "sample",
+                "openspec": {
+                    "material_paths": ["**"],
+                    "capability_metadata": [
+                        {"file_name": file_name, "authority_ref": "rules/native-contract.md"}
+                    ],
+                },
+            }
+        )
+
+
+@pytest.mark.parametrize(
+    "authority_ref", ["/outside.md", "../outside.md", "nested/../owner.md", "owner\n.md"]
+)
+def test_metadata_authority_requires_an_exact_repository_path(authority_ref: str) -> None:
+    """A metadata owner is an exact contained file path, not an external or ambiguous locator."""
+    with pytest.raises(ValidationError):
+        RepositoryProfileDeclaration.model_validate(
+            {
+                "profile_id": "sample",
+                "openspec": {
+                    "material_paths": ["**"],
+                    "capability_metadata": [
+                        {"file_name": "data.json", "authority_ref": authority_ref}
+                    ],
+                },
+            }
+        )
+
+
+@pytest.mark.parametrize("weaken", [False, True])
+def test_exact_metadata_profile_repair_preserves_other_policy(
+    tmp_path: Path, *, weaken: bool
+) -> None:
+    """Resolve only native metadata bindings, never unrelated source or proof obligations."""
+    fixture = prepared_work_lane(tmp_path)
+    root = fixture.worktree
+    profile = root / ".ethos/profile.toml"
+    original = profile.read_text()
+    metadata = root / "openspec/specs/contracts/capability.toml"
+    metadata.write_text('family = "contracts"\n')
+    parsed = load_repository_profile(root).declaration.model_dump(mode="json")
+    parsed["openspec"]["capability_metadata"] = [
+        {"file_name": "capability.toml", "authority_ref": "openspec/specs/contracts/spec.md"}
+    ]
+    if weaken:
+        parsed["openspec"]["material_paths"] = [".ethos/**"]
+    replacement = render_repository_profile(RepositoryProfileDeclaration.model_validate(parsed))
+    patch = tmp_path / "metadata-binding.patch"
+    patch.write_text(
+        "diff --git a/.ethos/profile.toml b/.ethos/profile.toml\n"
+        + "".join(
+            unified_diff(
+                original.splitlines(keepends=True),
+                replacement.splitlines(keepends=True),
+                fromfile="a/.ethos/profile.toml",
+                tofile="b/.ethos/profile.toml",
+            )
+        )
+    )
+
+    completed, report = _profile_prewrite(root, patch=patch)
+
+    assert (report["verdict"] == "pass") is (not weaken), json.dumps(report, indent=2)
+    assert (completed.returncode == 0) is (not weaken), report
+    assert profile.read_text() == original
+    assert metadata.read_text() == 'family = "contracts"\n'
 
 
 def _assert_invalid_profile(root: Path, text: str) -> None:

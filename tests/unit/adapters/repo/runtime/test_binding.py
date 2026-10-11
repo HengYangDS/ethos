@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -9,8 +10,68 @@ import pytest
 import ethos.adapters.repo.runtime.authority as authority
 import ethos.adapters.repo.runtime.binding as binding
 import ethos.repository.policy.schema as schemas
+from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.selection import current_runtime
+from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
+
+
+def test_selected_runtime_provenance_does_not_replace_incumbent_hooks(tmp_path: Path) -> None:
+    """A selected package can own execution without claiming hook enforcement."""
+    root = init_git_repo(tmp_path / "repo")
+    install_fixture_hook_runtime(root)
+    git(root, "config", "--worktree", "core.hooksPath", ".incumbent-hooks")
+    selected = current_runtime(Path(git_common_dir(root)))
+    original = binding.hook_runtime_binding(root)
+    report = binding.runtime_binding(root, selected_runtime=selected)
+
+    assert binding.runtime_binding_check({"runtime_binding": report})["verdict"] == "pass", report
+    assert original["required_gaps"]
+    assert binding.hook_runtime_binding(root)["required_gaps"] == original["required_gaps"]
+    assert git(root, "config", "core.hooksPath") == ".incumbent-hooks"
+
+
+@pytest.mark.parametrize("foreign_member", [None, "package", "schema", "python"])
+def test_runtime_selection_requires_exact_native_package_members(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, foreign_member: str | None
+) -> None:
+    """Containment alone cannot certify an unrelated package, schema tree or interpreter."""
+    root = init_git_repo(tmp_path / "repo")
+    install_fixture_hook_runtime(root)
+    selected = current_runtime(Path(git_common_dir(root)))
+    version = ".".join(selected.python_version.split(".")[:2])
+    site = (
+        selected.root
+        / "python"
+        / (
+            "Lib/site-packages"
+            if selected.platform == "windows"
+            else f"lib/python{version}/site-packages"
+        )
+    )
+    package = site / "ethos"
+    schema = package / "resources/system/schemas"
+    module = package / "__init__.py"
+    python = selected.python
+    if foreign_member == "package":
+        module = selected.root / "unrelated/ethos/__init__.py"
+    if foreign_member == "schema":
+        schema = selected.root / "unrelated/system/schemas"
+    if foreign_member == "python":
+        python = selected.root / "unrelated/bin/python"
+    monkeypatch.setattr(binding, "ethos", SimpleNamespace(__file__=module))
+    monkeypatch.setattr(binding, "sys", SimpleNamespace(executable=python))
+    monkeypatch.setattr(binding, "schema_source_root", lambda: schema)
+    monkeypatch.setattr(binding, "runner_source_root", lambda _module: module.parent)
+    monkeypatch.setattr(binding, "invoking_build_identity", lambda: selected.build)
+    hook = {"required_gaps": ["incumbent_hooks_not_replaced"], "python": ""}
+
+    report = binding.runtime_binding(root, hook_binding=hook)
+
+    assert binding.runtime_binding_check({"runtime_binding": report})["verdict"] == (
+        "pass" if foreign_member is None else "block"
+    ), report
 
 
 @pytest.mark.parametrize("registry", [False, True])

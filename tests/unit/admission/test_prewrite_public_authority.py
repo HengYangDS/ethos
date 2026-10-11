@@ -69,7 +69,7 @@ def test_staged_coordinates_are_rechecked_after_other_admission_owners(
         current_head=git(root, "rev-parse", "HEAD"),
         current_tree=git(root, "rev-parse", "HEAD^{tree}"),
     )
-    monkeypatch.setattr(prewrite, "_work_lane_authority", lambda **_kwargs: authority)
+    monkeypatch.setattr(prewrite, "observe_current_authority", lambda **_kwargs: authority)
 
     def injected_scope(*_args):
         if coordinate == "head":
@@ -241,7 +241,7 @@ def test_prewrite_preserves_current_resolution_and_exact_paths(tmp_path, monkeyp
     _bind_common(monkeypatch, tmp_path)
     authority = _current_authority()
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
-    monkeypatch.setattr(prewrite, "_work_lane_authority", lambda **_kwargs: authority)
+    monkeypatch.setattr(prewrite, "observe_current_authority", lambda **_kwargs: authority)
     paths = (
         ("openspec/changes/example/.openspec.yaml", "openspec/changes/example/proposal.md")
         if bootstrap
@@ -345,7 +345,7 @@ def test_prewrite_archive_authority_rejects_unattested_path(
         current_tree="b" * 40,
     )
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
-    monkeypatch.setattr(prewrite, "_work_lane_authority", lambda **_kwargs: authority)
+    monkeypatch.setattr(prewrite, "observe_current_authority", lambda **_kwargs: authority)
     monkeypatch.setattr(
         prewrite,
         "resolve_current_resolution",
@@ -390,7 +390,7 @@ def test_prewrite_projects_only_minimal_lease_and_fresh_git_coordinates(
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:owner")
     monkeypatch.setattr(
         prewrite,
-        "_work_lane_authority",
+        "observe_current_authority",
         lambda **_kwargs: CurrentAuthority(
             verdict="pass",
             reason="matched",

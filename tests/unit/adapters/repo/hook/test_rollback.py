@@ -15,6 +15,7 @@ from ethos.adapters.repo.runtime.authority import RuntimeBuild
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import runtime_build
 
@@ -172,3 +173,46 @@ def test_repairing_invalid_local_predecessor_preserves_uncertainty_and_bytes(
     assert result["rollback_supply"]["reason"] == "hook_runtime_manifest_invalid"
     assert str(previous) not in result["generation_cleanup"]["removed"]
     assert damaged.read_bytes() == b"damaged predecessor\n"
+
+
+@pytest.mark.parametrize("predecessor", ["missing", "damaged", "unreadable"])
+def test_external_predecessor_recovery_requires_proven_absence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, predecessor: str
+) -> None:
+    """Recover an absent external payload without treating damaged or unknown bytes as absent."""
+    repo, previous, supplied = _upgrade_case(tmp_path, monkeypatch)
+    common = Path(git_common_dir(repo))
+    external = tmp_path / "external/runtime" / previous.name
+    if predecessor != "missing":
+        shutil.copytree(previous, external)
+        damaged = external / "python/lib/python3.14/site-packages/ethos/module.py"
+        damaged.chmod(0o644)
+        damaged.write_bytes(b"external predecessor\n")
+    selector = common / "ethos/runtime/CURRENT"
+    selector.write_bytes(runtime_selection_bytes(common, external))
+    before = selector.read_bytes()
+    if predecessor == "unreadable":
+        native = Path.lstat
+
+        def refuse_external(path: Path):
+            if path == external:
+                message = "external predecessor unavailable"
+                raise PermissionError(message)
+            return native(path)
+
+        monkeypatch.setattr(Path, "lstat", refuse_external)
+
+    if predecessor == "missing":
+        result = activation.install_hook_launchers(repo, installed_runtime=supplied)
+        assert result["required_gaps"] == []
+        assert current_runtime(common).digest == supplied.name
+        assert result["rollback_supply"]["state"] == "unavailable"
+        assert result["rollback_supply"]["runtime"] == external.as_posix()
+        assert not external.exists()
+    else:
+        failure = PermissionError if predecessor == "unreadable" else ValueError
+        with pytest.raises(failure):
+            activation.install_hook_launchers(repo, installed_runtime=supplied)
+        assert selector.read_bytes() == before
+        assert damaged.read_bytes() == b"external predecessor\n"
+        assert require_selected_runtime(previous).digest == previous.name

@@ -30,6 +30,77 @@ from tools.ci.delivery.acceptance.adopter import verify_formed
 ROOT = Path(__file__).resolve().parents[4]
 
 
+def _installed_guidance(
+    package: Path, content: str = "Run ethos status.\n", *, directory: str = "resources"
+):
+    """Materialize one installed guidance fixture with its exact status identity."""
+    guide = package / directory / GUIDANCE_RESOURCE
+    guide.parent.mkdir(parents=True)
+    guide.write_text(content, encoding="utf-8")
+    origin = package / "__init__.py"
+    origin.write_text("", encoding="utf-8")
+    guidance = {
+        "authority": "product_projection",
+        "media_type": "text/markdown",
+        "path": str(guide),
+        "sha256": hashlib.sha256(guide.read_bytes()).hexdigest(),
+    }
+    return guide, origin, {"governance_context": {"agent_guidance": guidance}}
+
+
+def _first_change_protocol(monkeypatch, lane_root: Path, status, executable: Path, command: Path):
+    """Bind resource cases to the same complete lane, handoff and native effects."""
+    lane_root.mkdir()
+    branch = "work/first-change"
+    calls: list[tuple[str, ...]] = []
+    effects: list[tuple[str, ...]] = []
+
+    def invoke(_root: Path, request: tuple[str, ...], *, environment):
+        calls.append(request)
+        report = {"verdict": "pass"}
+        if request[1:3] == ("lane", "start"):
+            report["data"] = {
+                "path": str(lane_root),
+                "branch": branch,
+                "lease": {"generation": 1, "expires_at": "2099-01-01T00:00:00Z"},
+            }
+        elif request[1:3] == ("lane", "handoff"):
+            report["state"] = "transferred" if "--apply" in request else "planned"
+            report["data"] = {
+                "lease": {
+                    "generation": 2,
+                    "holder_ref": request[request.index("--target-holder-ref") + 1],
+                }
+            }
+        elif request[1] == "status":
+            report.update(status)
+            successor = environment["ETHOS_ACTOR"].endswith(":successor")
+            report["required_gaps"] = [
+                "openspec_requested_change_missing:first-change"
+                if successor
+                else f"lease_holder_mismatch:{branch}"
+            ]
+        else:
+            assert request[1:3] == ("lane", "prewrite")
+        return 0, report, ""
+
+    def run(_root: Path, request: tuple[str, ...], **kwargs):
+        effects.append(request)
+        assert request[:2] == (str(executable), str(command))
+        assert not kwargs["inherit_environment"]
+        assert kwargs["env"]["ETHOS_ACTOR"].endswith(":successor")
+        if request[2] == "new":
+            metadata = lane_root / "openspec/changes/first-change/.openspec.yaml"
+            metadata.parent.mkdir(parents=True)
+            metadata.write_text("schema: spec-driven\n", encoding="utf-8")
+        report = {"summary": {"totals": {"items": 1, "passed": 1, "failed": 0}}}
+        return SimpleNamespace(returncode=0, stdout=json.dumps(report), stderr="")
+
+    monkeypatch.setattr(first_change, "invoke", invoke)
+    monkeypatch.setattr(first_change, "run_command", run)
+    return calls, effects
+
+
 @pytest.mark.parametrize(
     ("phase", "gap"),
     [
@@ -239,10 +310,7 @@ def test_installed_observation_runs_shared_isolated_conformance(
     smoke, adopter = tmp_path / "venv", tmp_path / "adopter"
     adopter.mkdir()
     package = smoke / "site-packages/ethos"
-    guide = package / "resources/skills/ethos-repository-work/SKILL.md"
-    guide.parent.mkdir(parents=True)
-    guide.write_text("Run ethos status.\n", encoding="utf-8")
-    (package / "__init__.py").write_text("", encoding="utf-8")
+    _guide, _origin, status = _installed_guidance(package)
     executed: list[tuple[str, ...]] = []
 
     def run(*command: str, **_kwargs: object) -> str:
@@ -252,18 +320,7 @@ def test_installed_observation_runs_shared_isolated_conformance(
         if "Path(ethos.__file__)" in " ".join(command):
             return (smoke / "site-packages/ethos/__init__.py").as_posix()
         if "status" in command:
-            return json.dumps(
-                {
-                    "governance_context": {
-                        "agent_guidance": {
-                            "authority": "product_projection",
-                            "media_type": "text/markdown",
-                            "path": str(guide),
-                            "sha256": hashlib.sha256(guide.read_bytes()).hexdigest(),
-                        }
-                    }
-                }
-            )
+            return json.dumps(status)
         if len(command) > 3 and Path(command[3]).name == "mcp.py":
             return '{"state":"passed","native_git_loss":"not_qualified"}'
         return ""
@@ -309,11 +366,7 @@ def test_first_change_uses_the_installed_guidance_resource(
 ) -> None:
     """The first Change consumes the current package resource, not a historical layout."""
     package = tmp_path / "site-packages/ethos"
-    guide = package / "resources/skills/ethos-repository-work/SKILL.md"
-    guide.parent.mkdir(parents=True)
-    guide.write_text("Run ethos status.\n", encoding="utf-8")
-    origin = package / "__init__.py"
-    origin.write_text("", encoding="utf-8")
+    guide, origin, status = _installed_guidance(package)
     command = [
         package / "resources/node/bin/node",
         package / "resources/node_modules/@fission-ai/openspec/bin/openspec.js",
@@ -321,16 +374,8 @@ def test_first_change_uses_the_installed_guidance_resource(
     for path in command:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("package-owned executable\n", encoding="utf-8")
-    status = {
-        "governance_context": {
-            "agent_guidance": {
-                "authority": "product_projection",
-                "media_type": "text/markdown",
-                "path": str(guide),
-                "sha256": hashlib.sha256(guide.read_bytes()).hexdigest(),
-            },
-            "official_openspec": {"base_command": [str(path) for path in command]},
-        }
+    status["governance_context"]["official_openspec"] = {
+        "base_command": [str(path) for path in command]
     }
 
     environment = {"PATH": ""}
@@ -352,28 +397,7 @@ def test_first_change_uses_the_installed_guidance_resource(
         ambient.write_text("external executable\n", encoding="utf-8")
         ambient.chmod(0o755)
         environment["PATH"] = str(ambient.parent)
-    lane_root = tmp_path / "lane"
-    lane_root.mkdir()
-    executed: list[tuple[str, ...]] = []
-    monkeypatch.setattr(
-        first_change,
-        "invoke",
-        lambda *_args, **_kwargs: (0, {"verdict": "pass", "data": {"path": str(lane_root)}}, ""),
-    )
-    monkeypatch.setattr(first_change, "_handoff", lambda *_args: (status, environment))
-
-    def run(root: Path, selected: tuple[str, ...], **_kwargs: object) -> SimpleNamespace:
-        executed.append(selected)
-        marker = root / "openspec/changes/first-change/.openspec.yaml"
-        marker.parent.mkdir(parents=True, exist_ok=True)
-        marker.write_text("schema: spec-driven\n", encoding="utf-8")
-        return SimpleNamespace(
-            returncode=0,
-            stderr="",
-            stdout=json.dumps({"summary": {"totals": {"items": 1, "passed": 1, "failed": 0}}}),
-        )
-
-    monkeypatch.setattr(first_change, "run_command", run)
+    _calls, executed = _first_change_protocol(monkeypatch, tmp_path / "lane", status, *command)
     if gap:
         with pytest.raises(RuntimeError, match=gap):
             first_change.prove_first_change(
@@ -392,11 +416,7 @@ def test_formation_first_change_binds_the_selected_runtime_origin(
 ) -> None:
     """Formation selects immutable supply before the first Change consumes guidance."""
     bootstrap = tmp_path / "bootstrap/ethos"
-    guide = bootstrap / "resources/skills/ethos-repository-work/SKILL.md"
-    guide.parent.mkdir(parents=True)
-    guide.write_text("Run ethos status.\n", encoding="utf-8")
-    origin = bootstrap / "__init__.py"
-    origin.write_text("", encoding="utf-8")
+    _guide, origin, _status = _installed_guidance(bootstrap)
     selected_origin = tmp_path / "immutable/site-packages/ethos/__init__.py"
     build = build_identity(product="0.2.0-alpha.3", source_commit="a" * 40, source_tree="b" * 40)
     observed: list[str] = []
@@ -450,17 +470,10 @@ def test_formation_first_change_binds_the_selected_runtime_origin(
 def test_installed_guidance_must_match_the_package_that_served_status(tmp_path: Path) -> None:
     """An installed CLI cannot point an Agent at source or altered guidance."""
     package = tmp_path / "venv/site-packages/ethos"
-    guide = package / "resources/skills/ethos-repository-work/SKILL.md"
-    guide.parent.mkdir(parents=True)
-    guide.write_text("Run ethos status and follow next_action.\n", encoding="utf-8")
-    origin = package / "__init__.py"
-    origin.write_text("", encoding="utf-8")
-    guidance = {
-        "authority": "product_projection",
-        "media_type": "text/markdown",
-        "path": str(guide),
-        "sha256": hashlib.sha256(guide.read_bytes()).hexdigest(),
-    }
+    guide, origin, status = _installed_guidance(
+        package, "Run ethos status and follow next_action.\n"
+    )
+    guidance = status["governance_context"]["agent_guidance"]
 
     def payload(value: dict[str, str] | None) -> str:
         return json.dumps({"governance_context": {"agent_guidance": value}})
@@ -536,10 +549,8 @@ def test_first_change_uses_native_packaged_resource_ownership(
 ) -> None:
     """Exercise resource admission through the public installed first-Change journey."""
     package = tmp_path / "installed/ethos"
-    guide = (
-        package / "data" / GUIDANCE_RESOURCE
-        if projection == "data"
-        else packaged_resource(GUIDANCE_RESOURCE, package=package)
+    _guide, _origin, status = _installed_guidance(
+        package, directory="data" if projection == "data" else "resources"
     )
     executable = packaged_resource("node/bin/node", package=package)
     command = (
@@ -547,95 +558,16 @@ def test_first_change_uses_native_packaged_resource_ownership(
         if projection == "outside"
         else packaged_resource("node_modules/openspec/cli.js", package=package)
     )
-    for path, content in {
-        package / "__init__.py": "",
-        guide: "Run ethos status.\n",
-        executable: "",
-        command: "",
-    }.items():
+    for path in (executable, command):
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
-    status: dict[str, object] = {
-        "governance_context": {
-            "official_openspec": {"base_command": [str(executable), str(command)]},
-            "agent_guidance": {
-                "path": str(guide),
-                "authority": "product_projection",
-                "media_type": "text/markdown",
-                "sha256": "invalid"
-                if projection == "digest"
-                else hashlib.sha256(guide.read_bytes()).hexdigest(),
-            },
-        }
+        path.write_text("", encoding="utf-8")
+    status["governance_context"]["official_openspec"] = {
+        "base_command": [str(executable), str(command)]
     }
+    if projection == "digest":
+        status["governance_context"]["agent_guidance"]["sha256"] = "invalid"
     lane_root = tmp_path / "work"
-    lane_root.mkdir()
-    branch = "work/first-change"
-    calls: list[tuple[str, ...]] = []
-    effects: list[tuple[str, ...]] = []
-
-    def invoke(_root: Path, request: tuple[str, ...], *, environment):
-        calls.append(request)
-        if request[1:3] == ("lane", "start"):
-            return (
-                0,
-                {
-                    "verdict": "pass",
-                    "data": {
-                        "path": str(lane_root),
-                        "branch": branch,
-                        "lease": {"generation": 1, "expires_at": "2099-01-01T00:00:00Z"},
-                    },
-                },
-                "",
-            )
-        if request[1:3] == ("lane", "handoff"):
-            applied = "--apply" in request
-            return (
-                0,
-                {
-                    "verdict": "pass",
-                    "state": "transferred" if applied else "planned",
-                    "data": {
-                        "lease": {
-                            "generation": 2,
-                            "holder_ref": request[request.index("--target-holder-ref") + 1],
-                        }
-                    },
-                },
-                "",
-            )
-        if request[1] == "status":
-            successor = environment["ETHOS_ACTOR"].endswith(":successor")
-            return (
-                0,
-                {
-                    **status,
-                    "required_gaps": [
-                        "openspec_requested_change_missing:first-change"
-                        if successor
-                        else f"lease_holder_mismatch:{branch}"
-                    ],
-                },
-                "",
-            )
-        assert request[1:3] == ("lane", "prewrite")
-        return 0, {"verdict": "pass"}, ""
-
-    def run(_root: Path, request: tuple[str, ...], **kwargs):
-        effects.append(request)
-        assert request[:2] == (str(executable), str(command))
-        assert not kwargs["inherit_environment"]
-        assert kwargs["env"]["ETHOS_ACTOR"].endswith(":successor")
-        if request[2] == "new":
-            metadata = lane_root / "openspec/changes/first-change/.openspec.yaml"
-            metadata.parent.mkdir(parents=True)
-            metadata.write_text("schema: spec-driven\n", encoding="utf-8")
-        report = {"summary": {"totals": {"items": 1, "passed": 1, "failed": 0}}}
-        return SimpleNamespace(returncode=0, stdout=json.dumps(report), stderr="")
-
-    monkeypatch.setattr(first_change, "invoke", invoke)
-    monkeypatch.setattr(first_change, "run_command", run)
+    calls, effects = _first_change_protocol(monkeypatch, lane_root, status, executable, command)
     if projection == "resources":
         assert first_change.prove_first_change(
             executable, tmp_path, environment={"PATH": ""}, origin=str(package / "__init__.py")

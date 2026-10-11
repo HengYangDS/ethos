@@ -158,6 +158,39 @@ def _native_configurations(root: Path, tool: str, shared: str) -> tuple[str, ...
     return (str(common),)
 
 
+def format_markdown_content(root: Path, relative: str, content: bytes) -> bytes:
+    """Render one declared Markdown input with the mandatory native formatter."""
+    command = (
+        str(resolve_node_runtime().executable),
+        str(product_node_module("prettier") / "bin/prettier.cjs"),
+        "--config",
+        str(canonical_resource(".config/checks/format/prettier.toml")),
+        "--no-editorconfig",
+        "--prose-wrap",
+        "preserve",
+        "--ignore-path",
+        os.devnull,
+        "--stdin-filepath",
+        relative,
+    )
+    try:
+        completed = run_command(
+            root,
+            command,
+            text=False,
+            stdin=content,
+            timeout=20,
+            remove_env=("NODE_OPTIONS", "NODE_PATH"),
+        )
+    except (OSError, ProcessExecutionError, subprocess.TimeoutExpired) as error:
+        message = f"native_markdown_format_unavailable:{relative}:{error}"
+        raise ValueError(message) from error
+    if completed.returncode:
+        message = f"native_markdown_format_failed:{relative}:{completed.stderr.decode()}"
+        raise ValueError(message)
+    return completed.stdout
+
+
 def _configuration_failure(gate_id: str, error: Exception) -> dict[str, object]:
     return {
         "id": gate_id,

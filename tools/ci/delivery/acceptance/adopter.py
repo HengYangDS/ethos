@@ -8,6 +8,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.openspec.archive_projection import normalize_projected_specs
 from ethos.adapters.openspec.cli import archive_result
 from ethos.adapters.openspec.cli import openspec_base_command
 from ethos.adapters.openspec.cli import run_json
@@ -442,6 +443,7 @@ def prepare_acceptance_topology(
     if archive_result(root, "smoke-change", archived)[0]:
         message = f"package_acceptance_openspec_archive_failed:{archived}"
         raise RuntimeError(message)
+    normalize_projected_specs(root, paths=("openspec/specs/package-smoke/spec.md",))
     run(git, "add", "--all", "--", "openspec", cwd=root)
     run(git, "commit", "--quiet", "-m", "complete package smoke change", cwd=root)
     candidate = root.parent / "repo-candidate-dev"

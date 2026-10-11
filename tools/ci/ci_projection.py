@@ -22,6 +22,7 @@ from ethos.adapters.process import run_command
 from ethos.adapters.projections.cue import compile_projections
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.repository.policy.projections import observe_projections
+from ethos.repository.policy.projections import projection_input_bindings
 from tools.ci.toolchain.environment import ProjectRuntime
 from tools.ci.toolchain.native import validate_mise_installer
 
@@ -220,7 +221,12 @@ def compile_providers(
     compiler = tomllib.loads(files[CONFIG_RELATIVE_PATH])["compiler"]
     for relative in (
         compiler["source"],
-        *compiler["inputs"].values(),
+        *(
+            path
+            for path, _kind in projection_input_bindings(
+                compiler["inputs"], CONFIG_RELATIVE_PATH
+            ).values()
+        ),
         *compiler["supply"].values(),
     ):
         target = root / relative

@@ -126,6 +126,37 @@ def run_git(
     timeout: float | None = None,
 ) -> subprocess.CompletedProcess[Any]:
     """Run one Git command and preserve the complete subprocess result."""
+    effective_env = git_environment(env=env, observation=observation)
+    command = (git_executable(effective_env), *args)
+    if timeout is not None and timeout <= 0:
+        raise _timeout_error(root, command, subprocess.TimeoutExpired(command, timeout))
+    try:
+        return process_adapter.run_command(
+            root,
+            command,
+            check=check,
+            text=text,
+            env=effective_env,
+            inherit_environment=False,
+            stdin=stdin,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise _timeout_error(root, command, error) from error
+    except process_adapter.ProcessExecutionError as error:
+        raise GitExecutionError(
+            GIT_PROCESS_SPAWN_FAILED,
+            reason=error.reason,
+            command=error.command,
+            cwd=error.cwd,
+            cause=error.cause,
+        ) from error
+
+
+def git_environment(
+    *, env: Mapping[str, str] | None = None, observation: bool = False
+) -> dict[str, str]:
+    """Bind all native Git consumers to the same isolated configuration owner."""
     if observation and env:
         message = "git_observation_environment_override_forbidden"
         raise ValueError(message)
@@ -153,30 +184,7 @@ def run_git(
             **config_overlay,
         }
     )
-    command = (git_executable(effective_env), *args)
-    if timeout is not None and timeout <= 0:
-        raise _timeout_error(root, command, subprocess.TimeoutExpired(command, timeout))
-    try:
-        return process_adapter.run_command(
-            root,
-            command,
-            check=check,
-            text=text,
-            env=effective_env,
-            inherit_environment=False,
-            stdin=stdin,
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired as error:
-        raise _timeout_error(root, command, error) from error
-    except process_adapter.ProcessExecutionError as error:
-        raise GitExecutionError(
-            GIT_PROCESS_SPAWN_FAILED,
-            reason=error.reason,
-            command=error.command,
-            cwd=error.cwd,
-            cause=error.cause,
-        ) from error
+    return effective_env
 
 
 def _timeout_error(

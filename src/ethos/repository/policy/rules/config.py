@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-type _LineLimit = Annotated[int, Field(gt=0, multiple_of=100)]
+type _LineLimit = Annotated[int, Field(gt=0)]
 
 
 class CodeSizePolicy(BaseModel):

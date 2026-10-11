@@ -86,6 +86,98 @@ def test_public_merge_continue_preserves_both_parents_and_untracked_work(tmp_pat
     assert official.call_count == 2  # Preview and effect each observe once; replay has no effect.
 
 
+@pytest.mark.parametrize("mode", ["pending", "start", "advanced"])
+def test_public_merge_accepts_exact_peer_ref_without_moving_candidate(tmp_path, mode):
+    """One existing native executor accepts a selected peer with unchanged protected refs."""
+    work = native_merge_fixture(tmp_path, pending=mode != "start")
+    ours, theirs = git(work, "rev-parse", "HEAD"), git(work, "rev-parse", "candidate/dev")
+    peer = "refs/heads/work/peer"
+    git(work, "update-ref", peer, theirs)
+    git(work, "update-ref", "refs/heads/candidate/dev", ours)
+    if mode == "advanced":
+        tree = git(work, "rev-parse", f"{theirs}^{{tree}}")
+        successor = git(work, "commit-tree", tree, "-p", theirs, "-m", "feat: later peer")
+        git(work, "update-ref", peer, successor)
+    selection = ("--source-ref", peer)
+    if mode == "start":
+        preview = run_ethos(
+            "lane",
+            "refresh-base",
+            "--strategy",
+            "merge",
+            "--mode",
+            "start",
+            *selection,
+            "--json",
+            cwd=work,
+        )
+        assert _apply(work, preview)["data"]["state"] == "merge_pending"
+    (work / "README.md").write_text("# Qualified peer contribution\n")
+    git(work, "add", "README.md")
+    preview = run_ethos(
+        "lane",
+        "refresh-base",
+        "--strategy",
+        "merge",
+        "--mode",
+        "continue",
+        *selection,
+        "--json",
+        cwd=work,
+    )
+    arguments = shlex.split(preview["next_action"])
+    assert arguments[arguments.index("--source-ref") + 1] == peer
+    result = _apply(work, preview)
+    assert result["verdict"] == "pass", result
+    assert git(work, "rev-list", "--parents", "-n", "1", "HEAD").split()[1:] == [ours, theirs]
+    assert git(work, "rev-parse", "candidate/dev") == ours
+    assert git(work, "rev-parse", peer) == (successor if mode == "advanced" else theirs)
+    assert not Path(git(work, "rev-parse", "--git-path", "MERGE_HEAD")).exists()
+
+
+@pytest.mark.parametrize("fault", ["advance", "diverge", "missing", "short", "protected", "rebase"])
+def test_peer_merge_ref_selection_refuses_unbound_or_changed_source(tmp_path, fault):
+    """The exact source snapshot fences effects without treating ancestry as permission."""
+    work = native_merge_fixture(tmp_path)
+    head, incoming = git(work, "rev-parse", "HEAD"), git(work, "rev-parse", "MERGE_HEAD")
+    (work / "README.md").write_text("# Combined contribution\n")
+    git(work, "add", "README.md")
+    peer = "refs/heads/work/peer"
+    git(work, "update-ref", peer, incoming)
+    args = (
+        "lane",
+        "refresh-base",
+        "--strategy",
+        "merge",
+        "--mode",
+        "continue",
+        "--source-ref",
+        peer,
+        "--json",
+    )
+    if fault == "advance":
+        preview = run_ethos(*args, cwd=work)
+        tree = git(work, "rev-parse", f"{incoming}^{{tree}}")
+        successor = git(work, "commit-tree", tree, "-p", incoming, "-m", "feat: later peer")
+        git(work, "update-ref", peer, successor)
+        with pytest.raises(AssertionError, match="merge_state_stale"):
+            _apply(work, preview)
+    else:
+        if fault == "diverge":
+            git(work, "update-ref", peer, head)
+        elif fault == "missing":
+            git(work, "update-ref", "-d", peer)
+        elif fault in {"short", "protected"}:
+            args = (*args[:-2], "work/peer" if fault == "short" else "refs/heads/dev", "--json")
+        elif fault == "rebase":
+            args = (*args[:3], "rebase", *args[4:])
+        report = run_ethos(*args, cwd=work)
+        assert report["verdict"] == "block", report
+        assert any(gap.startswith("merge_source_ref") for gap in report["required_gaps"])
+    assert git(work, "rev-parse", "HEAD") == head
+    assert git(work, "rev-parse", "MERGE_HEAD") == incoming
+
+
 def test_public_merge_preparation_is_explicit_and_conflicts_remain_recoverable(tmp_path):
     work = native_merge_fixture(tmp_path, pending=False)
     before = git(work, "rev-parse", "HEAD")
@@ -309,7 +401,9 @@ def test_recovery_inventory_preserves_kinds_and_rejects_unsafe_or_stale_bytes(tm
             preserve_merge(work, observed)
     else:
         artifact = preserve_merge(work, observed)
-        data = json.loads(Path(artifact["path"]).read_text())
+        path = artifact["path"]
+        assert isinstance(path, str)
+        data = json.loads(Path(path).read_text())
         assert data["files"]["README.md"]["kind"] == ("absent" if case == "absent" else "symlink")
         assert preserve_merge(work, observed) == artifact
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import glob
 import hashlib
 import io
 import json
@@ -42,7 +43,7 @@ def _native_recipe(
         raise ValueError(message)
     recipe = scripts.get("test")
     if recipe is None:
-        arguments = ("--test", *tests)
+        arguments = ("--test", *map(glob.escape, tests))
     elif isinstance(recipe, str):
         lexer = shlex.shlex(recipe, posix=True, punctuation_chars=";&|<>")
         lexer.whitespace_split = True
@@ -63,6 +64,10 @@ def _native_recipe(
             message = "javascript_native_recipe_unsupported"
             raise ValueError(message)
         arguments = tokens[1:]
+        # Option-only recipes use the independently observed Git test inventory.
+        # Positional operands retain their native meaning; the journal checks scope.
+        if all(argument.startswith("-") for argument in arguments):
+            arguments = (*arguments, *map(glob.escape, tests))
     else:
         message = "javascript_native_recipe_unsupported"
         raise ValueError(message)

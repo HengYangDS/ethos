@@ -19,6 +19,7 @@ import ethos.domain.prove as prove_domain
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation.lane_lifecycle.archive.command import archive_change
+from ethos.adapters.mutation.lane_lifecycle.candidate.materialization import materialize_candidate
 from ethos.adapters.mutation.lane_lifecycle.candidate_projection import bootstrap_candidate
 from ethos.adapters.mutation.lane_lifecycle.candidate_projection import (
     refresh_candidate_from_accepted,
@@ -67,6 +68,7 @@ class _RefreshBase(AppliedLaneCommandOptions):
     authorize: bool = False
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
     strategy: Literal["rebase", "merge"] = "rebase"
+    source_ref: str | None = None
     mode: MergeMode = "inspect"
     expect_state: str | None = None
     subject: str | None = None
@@ -75,6 +77,7 @@ class _RefreshBase(AppliedLaneCommandOptions):
 class _Start(AppliedLaneCommandOptions):
     command = "lane start"
     path: Annotated[str | None, Parameter(name="--path")] = None
+    base: Annotated[str | None, Parameter(name="--base")] = None
     holder_ref: Annotated[str, Parameter(name="--holder-ref")]
 
 
@@ -218,12 +221,34 @@ def candidate(
     path: Annotated[str | None, Parameter(name="--path")] = None,
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None,
     refresh_from_accepted: Annotated[bool, Parameter(name="--refresh-from-accepted")] = False,
+    materialize: bool = False,
+    preserved_preimage: Annotated[str, Parameter(name="--preserved-preimage")] = "",
+    retention_ref: Annotated[str, Parameter(name="--retention-ref")] = "",
+    reason: str = "",
+    expect_state: Annotated[str | None, Parameter(name="--expect-state")] = None,
     authorize: bool = False,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Bootstrap, inspect, or refresh the local candidate train."""
+    """Bootstrap, inspect, refresh, or materialize the local candidate train."""
     repo = resolve_root(root)
+    if materialize:
+        report = (
+            {"verdict": "block", "state": "blocked", "required_gaps": ["candidate_mode_conflict"]}
+            if refresh_from_accepted or path is not None
+            else materialize_candidate(
+                root=repo,
+                apply=apply,
+                authorized=authorize,
+                expect_head=expect_head,
+                expect_state=expect_state,
+                preserved_preimage=preserved_preimage,
+                retention_ref=retention_ref,
+                reason=reason,
+            )
+        )
+        project_lane_result("lane candidate", report, enforce=apply, json_output=json_output)
+        return
     report = (
         refresh_candidate_from_accepted(
             root=repo,
@@ -292,6 +317,7 @@ def start(
         name=name,
         path=Path(options.path) if options.path is not None else None,
         holder_ref=options.holder_ref,
+        base=options.base,
         apply=options.apply,
     )
     project_lane_result(
@@ -313,6 +339,7 @@ def lane_refresh_base(
         authorized=options.authorize,
         expect_head=options.expect_head,
         strategy=options.strategy,
+        source_ref=options.source_ref,
         mode=options.mode,
         expect_state=options.expect_state,
         subject=options.subject,

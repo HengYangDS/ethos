@@ -11,12 +11,15 @@ from ethos.repository.policy.references.python.bindings import AggregateIdentity
 from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.effects import PythonConsumption
-from ethos.repository.policy.references.python.functions.effects import project
+from ethos.repository.policy.references.python.functions.effects import native_member
+from ethos.repository.policy.references.python.functions.effects import substitute
+from ethos.repository.policy.references.python.functions.effects import supplied
 
 if TYPE_CHECKING:
     from ethos.repository.policy.references.python.bindings import LexicalRead
     from ethos.repository.policy.references.python.control import FlowExit
     from ethos.repository.policy.references.python.functions.effects import EffectSummary
+    from ethos.repository.policy.references.python.functions.invocation import PythonInvocations
     from ethos.repository.policy.references.python.functions.invocation import SourceInvocation
     from ethos.repository.policy.references.python.functions.returns import FunctionDefinition
     from ethos.repository.policy.references.python.functions.returns import PythonSourceReturns
@@ -47,13 +50,17 @@ class InvocationCustody:
         self, summary: EffectSummary, scope: BindingScope, observer: PythonConsumption
     ) -> bool:
         """Recheck bindings and consumed relations, never unrelated reachable contents."""
-        return all(
-            self.lexical_value(read, scope) == read.value for read in summary.reads.values()
-        ) and all(
-            self.witness(
-                project(
-                    read.subject,
-                    read.demand,
+        if any(self.lexical_value(read, scope) != read.value for read in summary.reads.values()):
+            return False
+        self.sources.invocations.validating += 1
+        try:
+            return all(
+                self.witness(
+                    native_member(selected.resolve(read.subject), read.demand, selected, observer)
+                )
+                == read.value
+                for read in summary.members.values()
+                for selected in (
                     scope
                     if read.subject.targets and not read.subject.aggregates
                     else self.view(
@@ -62,13 +69,10 @@ class InvocationCustody:
                         scope,
                         later=read.later,
                     ),
-                    self.sources,
-                    observer,
                 )
             )
-            == read.value
-            for read in summary.members.values()
-        )
+        finally:
+            self.sources.invocations.validating -= 1
 
     def return_inputs(
         self, summary: EffectSummary, arguments: dict[str, BindingValue], scope: BindingScope
@@ -96,9 +100,9 @@ class InvocationCustody:
             )
             or any(read.later for read in summary.reads.values())
             or any(
-                call.callee.targets
-                & (self.sources.definitions.keys() | self.sources.records.keys())
+                target in self.sources.definitions or target in self.sources.records
                 for call in summary.calls
+                for target in call.callee.targets
             )
         ):
             return None
@@ -222,46 +226,6 @@ class InvocationCustody:
             if current.element is not None:
                 pending.append(current.element)
         return False
-
-    def capabilities(
-        self, values: tuple[BindingValue, ...], scope: BindingScope, observer: PythonConsumption
-    ) -> frozenset[str]:
-        """Follow actual reachable and lazy inputs, not every callable in the module."""
-        pending, seen, aggregates, found, captures = (
-            [(value, scope) for value in values],
-            set(),
-            set(),
-            set(),
-            set(),
-        )
-        while pending:
-            value, owner = pending.pop()
-            identities = {(identity, owner.identity) for identity in value.aggregates}
-            site = id(value), owner.identity
-            if site in seen or (identities and identities <= aggregates):
-                continue
-            seen.add(site)
-            aggregates.update(identities)
-            value = self.sources.invocations.resolve(value, owner, observer, deep=False)
-            found.update(
-                target
-                for target in value.targets
-                if observer.kind(target) or observer.module_kinds(target)
-            )
-            pending.extend((item, owner) for item in value.items or ())
-            pending.extend(
-                (item, owner) for _, item in (*(value.entries or ()), *(value.fields or ()))
-            )
-            pending.extend((method.receiver, owner) for method in value.methods)
-            if value.element is not None:
-                pending.append((value.element, owner))
-            for target in value.targets:
-                definition = self.sources.definitions.get(target)
-                if definition is not None and (target, owner.identity) not in captures:
-                    captures.add((target, owner.identity))
-                    pending.extend(self.capture_roots(definition, definition.parent))
-                pending.extend(self.record_roots(target, owner))
-        return frozenset(found)
 
     def retained_transfer(self, roots: list[BindingValue], scope: BindingScope) -> bool:
         """Distinguish live capture custody from not-yet-published local allocations."""
@@ -557,3 +521,65 @@ class InvocationCustody:
         caller.summarized.update(
             key for scope, _ in outgoing for key in scope.summarized if key in keys
         )
+
+
+def effect_dependencies(
+    invocations: PythonInvocations,
+    summary: EffectSummary,
+    key: str,
+    arguments: dict[str, BindingValue],
+    caller: BindingScope,
+    result: PythonConsumption,
+) -> tuple[
+    list[
+        tuple[
+            FunctionDefinition,
+            tuple[BindingValue, ...],
+            dict[str | None, BindingValue],
+            BindingScope,
+        ]
+    ],
+    bool,
+]:
+    """Instantiate each call edge independently of known and opaque alternatives."""
+    pending = []
+    for call in summary.calls:
+        scope = supplied(caller, call.custody)
+        callee = substitute(call.callee, arguments, scope, invocations.sources, result, owner=key)
+        selected = invocations.sources.call_identity(callee)
+        if selected.selection or any(result.kind(target) for target in selected.targets):
+            return pending, True
+        values = tuple(
+            substitute(value, arguments, scope, invocations.sources, result, owner=key)
+            for value in call.arguments
+        )
+        named_values = {
+            name: substitute(value, arguments, scope, invocations.sources, result, owner=key)
+            for name, value in call.keywords.items()
+        }
+        for method in selected.methods:
+            native = result.bound_method(
+                scope.resolve(method.receiver), method.name, values, named_values, scope
+            )
+            if native.disposition != "read" and any(
+                invocations.custody.mutable(value)
+                for value in (native.footprint, *values, *named_values.values())
+            ):
+                return pending, True
+        pending.extend(
+            (invocations.sources.definitions[target], values, named_values, scope)
+            for target in selected.targets
+            if target in invocations.sources.definitions
+        )
+        if result.call_escapes(selected, values, named_values, scope):
+            return pending, True
+        if selected.unknown and not (selected.targets or selected.methods or selected.parameters):
+            roots = [callee, selected, *values, *named_values.values()]
+            if not any(invocations.custody.mutable(value, symbolic=True) for value in roots):
+                roots.extend(read.value for read in summary.reads.values())
+                roots.append(summary.returned)
+                if not invocations.custody.retained_transfer(roots, scope):
+                    continue
+        if callee.parameters or selected.unknown or (selected.deferred and not selected.methods):
+            return pending, True
+    return pending, False

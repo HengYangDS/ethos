@@ -6,6 +6,7 @@ import json
 import re
 import tomllib
 from collections import defaultdict
+from typing import Literal
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
@@ -77,6 +78,24 @@ class PythonManifest(BaseModel):
         observed["executable"].update(self.project.gui_scripts)
 
 
+class NativePackageManager(BaseModel):
+    """One native devEngines alternative declares an executable, not its effects."""
+
+    model_config = ConfigDict(strict=True, extra="forbid")
+    name: str = Field(min_length=1)
+    version: str = ""
+    on_fail: Literal["ignore", "warn", "error", "download"] = Field(default="error", alias="onFail")
+
+
+class NodeDevEngines(BaseModel):
+    """Validate consumed package-manager fields; other native engines stay native."""
+
+    model_config = ConfigDict(strict=True, extra="ignore")
+    package_manager: NativePackageManager | list[NativePackageManager] = Field(
+        default_factory=list, alias="packageManager"
+    )
+
+
 class NodeManifest(BaseModel):
     """Typed Node metadata, without interpreting arbitrary fields as commands."""
 
@@ -91,6 +110,7 @@ class NodeManifest(BaseModel):
     )
     peer_dependencies: dict[str, str] = Field(default_factory=dict, alias="peerDependencies")
     package_manager: str | None = Field(default=None, alias="packageManager")
+    dev_engines: NodeDevEngines = Field(default_factory=NodeDevEngines, alias="devEngines")
     bin: str | dict[str, str] | None = None
 
     @classmethod
@@ -114,6 +134,9 @@ class NodeManifest(BaseModel):
             observed["distribution"].update(name.lower() for name in dependencies)
         if self.package_manager is not None:
             observed["executable"].add(self.package_manager.partition("@")[0])
+        managers = self.dev_engines.package_manager
+        for manager in managers if isinstance(managers, list) else [managers]:
+            observed["executable"].add(manager.name)
         if isinstance(self.bin, dict):
             observed["executable"].update(self.bin)
         elif isinstance(self.bin, str) and self.name is not None:

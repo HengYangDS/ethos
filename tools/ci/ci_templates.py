@@ -142,13 +142,24 @@ def run_command(
 ) -> dict[str, Any]:
     if dry_run or not command:
         return _run_result(None, ok=True, log_path=str(log_path))
-    if shutil.which(command[0]) is None:
+    environment = dict(os.environ if env is None else env)
+    cwd = cwd.resolve()
+    search_path = os.pathsep.join(str(cwd / entry) for entry in os.get_exec_path(environment))
+    locator = str(cwd / command[0]) if Path(command[0]).name != command[0] else command[0]
+    executable = shutil.which(locator, path=search_path)
+    if executable is None:
         return _run_result(
             127, ok=not tool_required, stderr="tool not found", log_path=str(log_path)
         )
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("wb") as log:
-        process = subprocess.Popen(command, cwd=cwd, stdout=log, stderr=subprocess.STDOUT, env=env)
+        process = subprocess.Popen(
+            [executable, *command[1:]],
+            cwd=cwd,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            env=environment,
+        )
         sys.stderr.write(
             f"local emulator started: pid={process.pid} timeout={timeout_seconds}s log={log_path}\n"
         )
@@ -179,10 +190,11 @@ def run_command(
 
 
 def _tool_version(tool: str) -> str:
-    if shutil.which(tool) is None:
+    executable = shutil.which(tool)
+    if executable is None:
         return ""
     result = subprocess.run(
-        [tool, "--version"], cwd=ROOT, capture_output=True, text=True, check=False
+        [executable, "--version"], cwd=ROOT, capture_output=True, text=True, check=False
     )
     return next((line for line in (result.stdout or result.stderr).splitlines() if line), "")
 

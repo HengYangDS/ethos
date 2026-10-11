@@ -360,6 +360,32 @@ def projection_relations(files: Mapping[str, str]) -> tuple[Projection, ...]:
     return tuple(relations)
 
 
+def projection_input_bindings(values: object, declaration: str) -> dict[str, tuple[str, str]]:
+    """Resolve one typed native input contract for compilation and source closure."""
+    if not isinstance(values, dict):
+        msg = f"projection_inputs_invalid:{declaration}"
+        raise TypeError(msg)
+    bindings = {}
+    for key, value in values.items():
+        if not isinstance(key, str) or not key:
+            msg = f"projection_input_name_invalid:{declaration}"
+            raise ValueError(msg)
+        if isinstance(value, str):
+            path, kind = value, "toml"
+        elif (
+            isinstance(value, dict)
+            and set(value) == {"path", "format"}
+            and isinstance(value["format"], str)
+            and value["format"] in {"toml", "json"}
+        ):
+            path, kind = value["path"], value["format"]
+        else:
+            msg = f"projection_input_invalid:{declaration}:{key}"
+            raise ValueError(msg)
+        bindings[key] = (_local_path(path, declaration), kind)
+    return bindings
+
+
 def _compiler_relation(
     payload: dict, entry: dict, declaration: str
 ) -> tuple[str, tuple[str, ...], str]:
@@ -374,13 +400,11 @@ def _compiler_relation(
         msg = f"projection_compiler_invalid:{declaration}"
         raise ValueError(msg)
     source = _local_path(compiler.get("source"), declaration)
-    inputs = tuple(
-        _local_path(value, declaration)
-        for value in (
-            *compiler["inputs"].values(),
-            compiler["supply"].get("config"),
-            compiler["supply"].get("lock"),
-        )
+    bindings = projection_input_bindings(compiler["inputs"], declaration)
+    inputs = (
+        *(path for path, _kind in bindings.values()),
+        _local_path(compiler["supply"].get("config"), declaration),
+        _local_path(compiler["supply"].get("lock"), declaration),
     )
     return source, inputs, entry["provider"]
 

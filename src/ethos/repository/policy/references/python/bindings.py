@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING
 from typing import Literal
 from typing import TypedDict
 
+from ethos.repository.policy.references.python.native.builtins import NATIVE_BUILTINS
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
@@ -28,6 +30,11 @@ class ReferenceUncertaintyRecord(TypedDict):
     target: str
     reason: str
     identity: str | None
+
+
+NativeKind = Literal[
+    "", "list", "environment", "native_record", "temporary_directory", "hash", "text", "bytes"
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,7 +61,17 @@ class AggregateIdentity:
 class MemberDemand:
     """A typed member/index/iteration relationship with an exact or symbolic selector."""
 
-    kind: Literal["attribute", "index", "iterate", "get", "truth", "structure", "iteration_shape"]
+    kind: Literal[
+        "attribute",
+        "index",
+        "iterate",
+        "get",
+        "truth",
+        "structure",
+        "iteration_shape",
+        "native_return",
+        "concatenate",
+    ]
     key: str | int | None = None
     selector: BindingValue | None = None
     default: BindingValue | None = None
@@ -109,7 +126,7 @@ class BindingValue:
     deferred: bool = False
     unknown: bool = False
     spread: bool = False
-    native_kind: Literal["", "list"] = ""
+    native_kind: NativeKind = ""
     context_limited: bool = False
 
     def join(self, other: BindingValue) -> BindingValue:
@@ -200,28 +217,33 @@ class BindingValue:
                 and other.entries is not None
                 and {key for key, _ in self.entries} != {key for key, _ in other.entries}
             )
-            or (self.view != other.view and bool(self.aggregates | other.aggregates)),
+            or (self.view != other.view and bool(self.aggregates | other.aggregates))
+            or (bool(self.strings or other.strings) and (self.absent() or other.absent())),
             spread=self.spread or other.spread,
             native_kind=self.native_kind if self.native_kind == other.native_kind else "",
             context_limited=self.context_limited or other.context_limited,
         )
 
-    def concatenate(self, other: BindingValue) -> BindingValue:
-        """Bound literal alternatives while retaining loss of value precision."""
-        if self.items is not None and other.items is not None:
-            return BindingValue(items=self.items + other.items)
-        if len(self.strings) * len(other.strings) <= 64:
-            return BindingValue(
-                strings=frozenset(a + b for a in self.strings for b in other.strings),
-                deferred=self.deferred or other.deferred,
-                unknown=self.unknown or other.unknown,
-                context_limited=self.context_limited or other.context_limited,
-            )
-        return BindingValue(
-            deferred=self.deferred or other.deferred,
-            unknown=True,
-            context_limited=self.context_limited or other.context_limited,
+    def demanded(self, need: MemberDemand) -> BindingValue:
+        """Defer a demand on every symbolic slot without applying it to concrete alternatives."""
+        return replace(
+            self,
+            parameters=frozenset(replace(p, members=(*p.members, need)) for p in self.parameters),
+            projections=frozenset(replace(p, members=(*p.members, need)) for p in self.projections),
         )
+
+    def viewed(self, view: str) -> BindingValue:
+        """Project native mapping keys, values or items as their ordered sequence."""
+        pairs = ((BindingValue(strings=frozenset({key})), item) for key, item in self.entries or ())
+        items = tuple(
+            item
+            if view == "values"
+            else key
+            if view == "keys"
+            else BindingValue(items=(key, item), ordered=True)
+            for key, item in pairs
+        )
+        return replace(self, items=items, entries=None)
 
     def iterated(self) -> BindingValue:
         """Retain a finite element join separately from an exact ordered sequence."""
@@ -244,6 +266,12 @@ class BindingValue:
             deferred=result.deferred or self.deferred,
             spread=False,
             context_limited=result.context_limited or self.context_limited,
+        )
+
+    def absent(self) -> bool:
+        """A native Path or text alternative whose exact content was not observed."""
+        return (self.path or self.native_kind in {"hash", "text", "bytes"}) and not (
+            self.strings or self.unknown
         )
 
     def truthiness(self) -> bool | None:
@@ -280,7 +308,11 @@ class BindingValue:
                 deferred=self.deferred, unknown=True, context_limited=self.context_limited
             )
         entries = dict(self.entries)
-        names = entries if key.unknown or key.deferred or not key.strings else key.strings
+        names = (
+            entries
+            if key.unknown or key.deferred or key.parameters or key.projections or not key.strings
+            else key.strings
+        )
         value = BindingValue()
         for name in names:
             value = value.join(entries.get(name, BindingValue(unknown=True)))
@@ -374,17 +406,7 @@ class BindingScope:
                 if self.wildcard
                 else read
             )
-        elif name in {
-            "getattr",
-            "__import__",
-            "str",
-            "exec",
-            "eval",
-            "tuple",
-            "dict",
-            "classmethod",
-            "isinstance",
-        }:
+        elif name in NATIVE_BUILTINS:
             value = BindingValue(targets=frozenset({f"builtins.{name}"}))
         else:
             value = BindingValue(unknown=True)
@@ -459,17 +481,7 @@ class BindingScope:
         if resolved is None:
             return value
         if value.view and resolved.entries is not None:
-            items = tuple(
-                item
-                if value.view == "values"
-                else BindingValue(strings=frozenset({key}))
-                if value.view == "keys"
-                else BindingValue(
-                    items=(BindingValue(strings=frozenset({key})), item), ordered=True
-                )
-                for key, item in resolved.entries
-            )
-            resolved = replace(resolved, items=items, entries=None)
+            resolved = resolved.viewed(value.view)
         return replace(
             resolved,
             targets=resolved.targets | value.targets,

@@ -3,19 +3,12 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
-from ethos.adapters.repo.attestation_set import read_attestation_set
-from ethos.adapters.repo.git import current_branch
+from ethos.adapters.repo.commit.provenance import lane_creation_boundary
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
-from ethos.adapters.repo.git_effect_attestation import validate as validate_effect_attestation
 from ethos.adapters.repo.merge.observation import pending_merge_heads
-from ethos.contracts.branch.roles import ROLE_WORK_LANE
-from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.plan import git_effect_from_plan
 from ethos.repository.openspec.identifiers import active_change_root
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
@@ -93,10 +86,15 @@ def incoming_change_gaps(root: Path, selected: str, incoming: str) -> list[str]:
     changes = _change_trees(root, incoming)
     if changes is None:
         return ["openspec_incoming_change_observation_unavailable"]
+    bases = run_git(root, "merge-base", "--all", "HEAD", incoming, check=False, observation=True)
+    base = _change_trees(root, bases.stdout.strip()) if len(bases.stdout.split()) == 1 else None
+    if bases.returncode or base is None:
+        return ["openspec_incoming_change_observation_unavailable"]
     return [
         f"openspec_incoming_change_modified:{name}"
         for name in sorted(changes.keys() - {selected})
-        if run_git(
+        if changes[name] != base.get(name)
+        and run_git(
             root,
             "diff",
             "--cached",
@@ -108,6 +106,26 @@ def incoming_change_gaps(root: Path, selected: str, incoming: str) -> list[str]:
             observation=True,
         ).returncode
     ]
+
+
+def preserved_incoming_change_paths(
+    root: Path, paths: tuple[str, ...], *, tree_ref: str
+) -> tuple[str, ...]:
+    """Bind retained incoming paths to unchanged whole-Change trees in one native merge."""
+    pending = pending_merge_heads(root)
+    if len(pending) != 1:
+        return ()
+    incoming, staged = _change_trees(root, pending[0]), _change_trees(root, tree_ref)
+    if incoming is None or staged is None:
+        return ()
+    return tuple(
+        path
+        for path in paths
+        if len(parts := path.split("/")) >= 4
+        and parts[:2] == ["openspec", "changes"]
+        and parts[2] in incoming
+        and incoming[parts[2]] == staged.get(parts[2])
+    )
 
 
 def _change_trees(root: Path, revision: str) -> dict[str, str] | None:
@@ -157,7 +175,7 @@ def _lane_contribution(root: Path, names: set[str], tree_ref: str | None) -> set
             raise ValueError
         if not merge:
             return None
-        boundary = _lane_creation_boundary(root, revision)
+        boundary = lane_creation_boundary(root, revision)
         if boundary and is_ancestor(root, merge, boundary):
             return None
         parts = run_git(
@@ -165,46 +183,6 @@ def _lane_contribution(root: Path, names: set[str], tree_ref: str | None) -> set
         ).stdout.split()
         ours, theirs = (parts[1], parts[2]) if len(parts) == 3 else ("", "")
     return _owned_changes(root, names, revision, ours, theirs, merge)
-
-
-def _lane_creation_boundary(root: Path, revision: str) -> str:
-    """Read the selected lane's native birth without turning it into authority."""
-    branch = current_branch(root)
-    policy = load_branch_role_policy(root)
-    if policy.role_for_branch(branch) != ROLE_WORK_LANE:
-        return ""
-    ref = f"refs/heads/{branch}"
-    _, records = read_attestation_set(root)
-    boundaries: set[str] = set()
-    for record in records:
-        carried = record.payload.body.get("plan")
-        declaration = carried.get("policy") if isinstance(carried, Mapping) else None
-        if (
-            record.predicate != "effect:git-ref-update"
-            or not isinstance(declaration, Mapping)
-            or declaration.get("transition") != "lane.start"
-            or declaration.get("subject") != branch
-        ):
-            continue
-        plan = plan_from_attestation(record)
-        effect = git_effect_from_plan(plan)
-        validate_effect_attestation(
-            root, effect, record, issuer=record.verifier, plan=plan, current_postconditions=False
-        )
-        update = effect.updates.get(ref)
-        candidate = str(plan.policy.get("candidate_branch") or "")
-        if (
-            update is None
-            or len(effect.updates) != 1
-            or update.expected != "0" * len(update.desired)
-            or effect.assertions != {f"refs/heads/{candidate}": update.desired}
-        ):
-            raise ValueError
-        if is_ancestor(root, update.desired, revision):
-            boundaries.add(update.desired)
-    if len(boundaries) > 1:
-        raise ValueError
-    return next(iter(boundaries), "")
 
 
 def _owned_changes(

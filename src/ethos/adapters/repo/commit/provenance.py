@@ -8,8 +8,12 @@ from typing import NamedTuple
 
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.commit.signature import completed_signature_repair
+from ethos.adapters.repo.git import current_branch
+from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
 from ethos.adapters.repo.git_effect_attestation import validate
+from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import git_effect_from_plan
 
 if TYPE_CHECKING:
@@ -131,3 +135,45 @@ def _accepted_head(attestation: Attestation, accepted_ref: str, candidate_ref: s
         return None
     head = update.get("desired")
     return head if isinstance(head, str) and assertions.get(candidate_ref) == head else None
+
+
+def lane_creation_boundary(root: Path, revision: str) -> str:
+    """Read the selected lane's native birth without turning it into authority."""
+    branch = current_branch(root)
+    policy = load_branch_role_policy(root)
+    if policy.role_for_branch(branch) != ROLE_WORK_LANE:
+        return ""
+    ref = f"refs/heads/{branch}"
+    _, records = read_attestation_set(root)
+    boundaries: set[str] = set()
+    for record in records:
+        carried = record.payload.body.get("plan")
+        declaration = carried.get("policy") if isinstance(carried, Mapping) else None
+        if (
+            record.predicate != "effect:git-ref-update"
+            or not isinstance(declaration, Mapping)
+            or declaration.get("transition") != "lane.start"
+            or declaration.get("subject") != branch
+        ):
+            continue
+        plan = plan_from_attestation(record)
+        effect = git_effect_from_plan(plan)
+        validate(
+            root, effect, record, issuer=record.verifier, plan=plan, current_postconditions=False
+        )
+        update = effect.updates.get(ref)
+        candidate = str(plan.policy.get("candidate_branch") or "")
+        if (
+            update is None
+            or len(effect.updates) != 1
+            or update.expected != "0" * len(update.desired)
+            or not candidate
+            or set(effect.assertions) != {f"refs/heads/{candidate}"}
+            or not effect.assertions[f"refs/heads/{candidate}"].strip("0")
+        ):
+            raise ValueError
+        if is_ancestor(root, update.desired, revision):
+            boundaries.add(update.desired)
+    if len(boundaries) > 1:
+        raise ValueError
+    return next(iter(boundaries), "")

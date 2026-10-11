@@ -17,12 +17,11 @@ from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_OTHER
 from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
 from ethos.contracts.branch.roles import BranchRolePolicy
-from ethos.repository.release.identity import product_version_from_text
 
 _REMOTE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _LOCAL_FIELDS = ("local_verification_command", "local_installation_command")
-_DECLARATION_FIELDS = frozenset((*_LOCAL_FIELDS, "peers"))
+_DECLARATION_FIELDS = frozenset((*_LOCAL_FIELDS, "peers", "transport_tags"))
 _PEER_FIELDS = frozenset(
     ("id", "provider", "role", "git_remote", "capabilities", "ci_surface", "forge_repository")
 )
@@ -31,42 +30,22 @@ _ALLOWED_CAPABILITIES = frozenset((*_REQUIRED_CAPABILITIES, "ci_cd"))
 _PROPOSAL_REF = "proposal_ref"
 _BRANCH_PUBLICATION_ROLES = frozenset((ROLE_ACCEPTED_ROOT, _PROPOSAL_REF, ROLE_RELEASE_ROOT))
 _RELEASE_PUBLICATION = "release_publication"
+_TRANSPORT_PUBLICATION = "object_transport"
 _REPOSITORY_PROOF_ROLES = frozenset((ROLE_ACCEPTED_ROOT, ROLE_RELEASE_ROOT, _RELEASE_PUBLICATION))
-
-
-def publication_source_version_gaps(
-    *,
-    source_ref: str,
-    annotated_tag: bool,
-    version_text: str | None,
-) -> tuple[str, ...]:
-    """Validate that an annotated release tag names its committed VERSION."""
-    if not annotated_tag:
-        return ()
-    tag_name = source_ref.removeprefix("refs/tags/")
-    if version_text is None:
-        return (f"publication_source_version_invalid:{tag_name}",)
-    try:
-        version = product_version_from_text(version_text)
-    except ValueError:
-        return (f"publication_source_version_invalid:{tag_name}",)
-    expected_tag = f"v{version}"
-    return (
-        ()
-        if tag_name == expected_tag
-        else (f"publication_source_version_mismatch:{tag_name}!={expected_tag}",)
-    )
 
 
 def publication_proof_selection(role: str) -> str:
     """Return the sole proof selection mode for one publication lifecycle role."""
-    if role == _PROPOSAL_REF:
+    if role in {_PROPOSAL_REF, _TRANSPORT_PUBLICATION}:
         return "review_object"
     return "repository_transition" if role in _REPOSITORY_PROOF_ROLES else "current_commitment"
 
 
 def publication_ref_role(
-    policy: BranchRolePolicy, target_ref: str, release_tags: tuple[str, ...]
+    policy: BranchRolePolicy,
+    target_ref: str,
+    release_tags: tuple[str, ...],
+    transport_tags: tuple[str, ...] = (),
 ) -> tuple[str, str, bool]:
     """Resolve destination meaning with exact roles ahead of prefix projections."""
     if target_ref.startswith("refs/heads/"):
@@ -81,8 +60,10 @@ def publication_ref_role(
         return "branch", role, role in _BRANCH_PUBLICATION_ROLES
     if target_ref.startswith("refs/tags/"):
         tag = target_ref.removeprefix("refs/tags/")
-        allowed = any(fnmatchcase(tag, pattern) for pattern in release_tags)
-        return "tag", _RELEASE_PUBLICATION if allowed else ROLE_OTHER, allowed
+        if any(fnmatchcase(tag, pattern) for pattern in release_tags):
+            return "tag", _RELEASE_PUBLICATION, True
+        allowed = any(fnmatchcase(tag, pattern) for pattern in transport_tags)
+        return "tag", _TRANSPORT_PUBLICATION if allowed else ROLE_OTHER, allowed
     return "unknown", ROLE_OTHER, False
 
 
@@ -98,6 +79,10 @@ def publication_topology(root: Path, config: Mapping[str, Any]) -> dict[str, obj
     raw = config.get("publication")
     if not isinstance(raw, Mapping) or set(raw) - _DECLARATION_FIELDS:
         return _topology(local={}, peers=(), gaps=("publication_topology_declaration_invalid",))
+    try:
+        transport_tags = publication_transport_tags(config)
+    except ValueError as error:
+        return _topology(local={}, peers=(), gaps=(str(error),))
     if any(not isinstance(raw.get(field), str) for field in _LOCAL_FIELDS):
         return _topology(local={}, peers=(), gaps=("publication_topology_declaration_invalid",))
     raw_peers = raw.get("peers", [])
@@ -111,7 +96,28 @@ def publication_topology(root: Path, config: Mapping[str, Any]) -> dict[str, obj
         peers.append(peer)
         gaps.extend(peer_gaps)
     gaps.extend(_duplicate_peer_gaps(peers))
-    return _topology(local=local, peers=tuple(peers), gaps=tuple(dict.fromkeys(gaps)))
+    return _topology(
+        local=local,
+        peers=tuple(peers),
+        gaps=tuple(dict.fromkeys(gaps)),
+        transport_tags=transport_tags,
+    )
+
+
+def publication_transport_tags(config: Mapping[str, object]) -> tuple[str, ...]:
+    """Read declared object-transport scopes without treating invalid input as absence."""
+    publication = config.get("publication", {})
+    entries = publication.get("transport_tags", []) if isinstance(publication, Mapping) else []
+    if (
+        not isinstance(entries, list)
+        or any(
+            not isinstance(entry, str) or not entry or entry != entry.strip() for entry in entries
+        )
+        or len(entries) != len(set(entries))
+    ):
+        message = "publication_transport_tags_invalid"
+        raise ValueError(message)
+    return tuple(entries)
 
 
 def publication_ref_admission(
@@ -124,7 +130,9 @@ def publication_ref_admission(
 ) -> dict[str, object]:
     """Resolve and admit one complete remote ref through the positive topology."""
     gaps = _strings(topology.get("required_gaps"))
-    ref_kind, role, allowed = publication_ref_role(policy, target_ref, release_tags)
+    ref_kind, role, allowed = publication_ref_role(
+        policy, target_ref, release_tags, tuple(_strings(topology.get("transport_tags")))
+    )
     if not allowed:
         gaps.append(f"publication_ref_unavailable:{ref_kind}:{role}:{target_ref}")
     elif not remote_name:
@@ -354,7 +362,11 @@ def _resolved_path_gap(
 
 
 def _topology(
-    *, local: Mapping[str, str], peers: tuple[dict[str, object], ...], gaps: tuple[str, ...]
+    *,
+    local: Mapping[str, str],
+    peers: tuple[dict[str, object], ...],
+    gaps: tuple[str, ...],
+    transport_tags: tuple[str, ...] = (),
 ) -> dict[str, object]:
     return {
         "kind": "ethos_publication_topology",
@@ -372,6 +384,7 @@ def _topology(
             "allowed_effect": "git.ref.compare-and-swap",
         },
         "remotes": list(peers),
+        "transport_tags": list(transport_tags),
         "required_gaps": list(gaps),
     }
 

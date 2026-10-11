@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from pathlib import PurePath
 from typing import TYPE_CHECKING
 
 import pytest
@@ -54,29 +55,44 @@ def test_public_closure_preserves_guarded_input_applicability(
     assert {item["identity"] for item in report["orphan"]} == orphans, report
 
 
+TEXT_LEAVES = ["DIGEST", "Path(DIGEST).strip()/LEAF", "hashlib.sha256('t').hexdigest()/LEAF"]
+
+
 @pytest.mark.parametrize(
-    "expression",
-    ["str(Path(executable).resolve())", "Path(executable).absolute().as_posix()"],
+    ("expression", "coverage", "verdict", "orphans"),
+    [
+        ("str(Path(executable).resolve())", "unknown", "unknown", set()),
+        ("Path(executable).absolute().as_posix()", "evaluated", "block", {"binding_probe_binary"}),
+        *((f"str(Path('r') / {leaf})", "unknown", "unknown", set()) for leaf in TEXT_LEAVES),
+        (
+            "str(Path(DIGEST.strip()) / 'bin' / LEAF)",
+            "evaluated",
+            "block",
+            {"binding_probe_binary"},
+        ),
+        ("str(Path('r') / DIGEST / LEAF)", "evaluated", "block", {"binding_probe_binary"}),
+    ],
 )
 def test_public_closure_preserves_executable_origin_through_native_path(
-    tmp_path: Path, expression: str
+    tmp_path: Path, expression: str, coverage: str, verdict: str, orphans: set[str]
 ) -> None:
-    """Path presentation cannot erase the executable selected by a native lookup."""
+    """Native text keeps the Path type; only a later closed leaf names the executable."""
     declare_reference_surface(tmp_path)
     declare_reference_package(tmp_path)
     write_reference_source(
         tmp_path,
         "src/example/probe.py",
-        "import shutil, subprocess\nfrom pathlib import Path\n"
+        "import hashlib, shutil, subprocess\nfrom pathlib import Path\n"
+        'DIGEST, LEAF = hashlib.sha256(b"payload").hexdigest(), "binding_probe_binary"\n'
         'executable = shutil.which("binding_probe_binary")\n'
         f'if executable:\n    subprocess.run([{expression}, "--version"])',
     )
 
     report = repository_semantic_closure(tmp_path)
 
-    assert report["coverage"] == "evaluated", report
-    assert report["verdict"] == "block", report
-    assert {item["identity"] for item in report["orphan"]} == {"binding_probe_binary"}, report
+    assert report["coverage"] == coverage, report
+    assert report["verdict"] == verdict, report
+    assert {item["identity"] for item in report["orphan"]} == orphans, report
 
 
 @pytest.mark.parametrize(
@@ -595,3 +611,30 @@ def test_public_closure_preserves_native_literal_branch(
     assert {item["identity"] for item in report["orphan"]} == (
         {"literal_probe"} if selected else set()
     ), report
+
+
+@pytest.mark.parametrize(
+    "parent", ["ENV_PREFIX", "", ".", "ENV_PREFIX/./GROUP", "ENV_PREFIX//GROUP", "ENV\\PREFIX"]
+)
+@pytest.mark.parametrize(
+    ("expression", "method"),
+    [("str({})", "__str__"), ("({}).as_posix()", "as_posix")],
+    ids=["str", "as_posix"],
+)
+def test_public_closure_reads_native_lexical_path_text(
+    tmp_path: Path, parent: str, expression: str, method: str
+) -> None:
+    """A joined native path is read as the observing host's own lexical text."""
+    declare_reference_surface(tmp_path)
+    declare_reference_package(tmp_path)
+    joined = expression.format(f"Path({parent!r}) / 'LEAF_KEY'")
+    write_reference_source(
+        tmp_path,
+        "src/example/probe.py",
+        f"import os\nfrom pathlib import Path\nos.getenv({joined})\n",
+    )
+
+    report = repository_semantic_closure(tmp_path)
+
+    key = getattr(PurePath(parent, "LEAF_KEY"), method)()
+    assert {item["identity"] for item in report["orphan"]} == {key}, report

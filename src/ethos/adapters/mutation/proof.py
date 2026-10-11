@@ -473,15 +473,17 @@ def proof_admission_report(
     head: str,
     *,
     repository_transition: bool = False,
+    attestation_id: str = "",
 ) -> dict[str, object]:
     """Project the one exact proof authority consumed by guarded transitions."""
     attestation, gaps = (
-        proof_for_repository_transition(root, head)
+        proof_for_repository_transition(root, head, attestation_id=attestation_id)
         if repository_transition
         else ethos.adapters.mutation.proof_admission.proof_attestation(
             root,
             head,
             store=proof_artifact_root(root),
+            attestation_id=attestation_id,
         )
     )
     next_action = ""

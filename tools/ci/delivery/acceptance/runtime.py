@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
+from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from tools.ci.delivery.acceptance.invocation import invoke
@@ -84,19 +85,17 @@ def require_manifest(
         message = "package_runtime_manifest_missing"
         raise RuntimeError(message)
     try:
-        selected = require_selected_runtime(manifest_path.parent, expected_build=build)
+        selected = current_runtime(Path(git_common_dir(repo)), expected_build=build)
     except (OSError, TypeError, ValueError) as error:
         message = "package_runtime_identity_mismatch"
         raise RuntimeError(message) from error
-    expected_root = Path(git_common_dir(repo)) / "ethos/runtime"
     expected_report = {
         **build._asdict(),
         "wheel_sha256": wheel_sha256,
         "runtime_digest": selected.digest,
     }
     if (
-        manifest_path.parent.parent != expected_root
-        or selected.manifest != manifest_path
+        selected.manifest != manifest_path
         or selected.digest != runtime_digest
         or selected.python != python
         or selected.wheel_sha256 != wheel_sha256
@@ -122,7 +121,9 @@ assert importlib.util.find_spec("pytest") is None
 with TemporaryDirectory(prefix="ethos-installed-format-") as temporary:
     root = Path(temporary)
     subprocess.run(["git", "init", "--quiet", str(root)], check=True)
-    (root / "ruff.toml").write_text("line-length = 100\\n")
+    configuration = root / ".config/checks/ruff"
+    configuration.mkdir(parents=True)
+    (configuration / "ruff.toml").write_text("line-length = 100\\n")
     source = root / "change.py"
     for staged, working, rejected in (("VALUE=1\\n", "VALUE = 1\\n", True),
                                       ("VALUE = 1\\n", "VALUE=1\\n", False)):
@@ -130,7 +131,7 @@ with TemporaryDirectory(prefix="ethos-installed-format-") as temporary:
         subprocess.run(["git", "-C", str(root), "add", "change.py"], check=True)
         source.write_text(working)
         try:
-            _check_staged_python_format(root, ("change.py",), configuration=root)
+            _check_staged_python_format(root, ("change.py",), configuration=configuration)
         except RuntimeError as error:
             assert rejected and "pre_commit_python_format_failed" in str(error), str(error)
         else:

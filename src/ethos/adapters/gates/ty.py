@@ -17,7 +17,7 @@ _DIAGNOSTIC_EXCERPT_LIMIT = 12
 
 
 def _runtime_command(root: Path) -> list[str]:
-    """Build one source-bound check using Ty's native carrier selection."""
+    """Check the prepared source-bound toolchain without replacing running packages."""
     venv = root / ".venv"
     return [
         str(root / "tools/ci/scripts/with-python-runtime.sh"),
@@ -25,6 +25,7 @@ def _runtime_command(root: Path) -> list[str]:
         "uv",
         "run",
         "--frozen",
+        "--no-sync",
         "--offline",
         "--group",
         "dev",

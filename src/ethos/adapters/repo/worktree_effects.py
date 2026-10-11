@@ -3,12 +3,25 @@
 from __future__ import annotations
 
 import os
+import subprocess
+from contextlib import contextmanager
+from contextlib import suppress
 from pathlib import Path
+from tempfile import TemporaryFile
+from threading import Event
+from threading import Timer
+from time import monotonic
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import NoReturn
 
+from ethos.adapters.process import CommandScope
+from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.process import command_scope
 from ethos.adapters.repo.dirty.change_provenance import working_content_changed
 from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import git_environment
+from ethos.adapters.repo.git import git_executable
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
@@ -18,13 +31,119 @@ from ethos.adapters.repo.runtime.filesystem import is_junction
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from collections.abc import Iterator
     from collections.abc import Mapping
 
     from ethos.contracts.semantic import Attestation
 
 
-def _fail(message: str) -> None:
+def _fail(message: str) -> NoReturn:
     raise ValueError(message)
+
+
+def _ref_assertions(root: Path, assertions: Mapping[str, str], timeout_seconds: float) -> None:
+    if not assertions or timeout_seconds <= 0:
+        _fail("worktree_effect_ref_binding_invalid")
+    for ref, head in assertions.items():
+        if (
+            not head
+            or set(head) - set("0123456789abcdef")
+            or run_git(root, "check-ref-format", ref, check=False).returncode
+        ):
+            _fail("worktree_effect_ref_binding_invalid")
+
+
+def _abort_ref_input(process: subprocess.Popen[bytes]) -> None:
+    """Native EOF abort releases prepared locks before any forced termination."""
+    with suppress(OSError, ValueError):
+        if process.stdin is not None:
+            process.stdin.close()
+
+
+def _release_ref_transaction(scope: CommandScope, process: subprocess.Popen[bytes]) -> None:
+    _abort_ref_input(process)
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        scope.terminate(process)
+        process.wait()
+    scope.discard(process)
+    for stream in (process.stdin, process.stdout):
+        if stream is not None:
+            stream.close()
+
+
+@contextmanager
+def hold_worktree_refs(
+    root: Path, assertions: Mapping[str, str], *, timeout_seconds: float = 120
+) -> Iterator[None]:
+    """Hold exact native ref assertions through a worktree effect without moving refs."""
+    _ref_assertions(root, assertions, timeout_seconds)
+    deadline = monotonic() + timeout_seconds
+    environment = git_environment()
+    command = (git_executable(environment), "update-ref", "--stdin")
+    with command_scope(timeout_seconds=timeout_seconds) as scope, TemporaryFile() as errors:
+        process: subprocess.Popen[bytes] = scope.start(
+            command,
+            cwd=root,
+            env=environment,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=errors,
+            bufsize=0,
+            **({"process_group": 0} if os.name == "posix" else {}),
+        )
+        expired = Event()
+
+        def cancel() -> None:
+            expired.set()
+            _abort_ref_input(process)
+
+        timer = Timer(timeout_seconds, cancel)
+        timer.start()
+        try:
+            if process.stdin is None or process.stdout is None:
+                _fail("worktree_effect_ref_lock_unavailable")
+            program = (
+                "start\n"
+                + "".join(
+                    f"update {ref} {head} {head}\n" for ref, head in sorted(assertions.items())
+                )
+                + "prepare\n"
+            )
+            process.stdin.write(program.encode())
+            process.stdin.flush()
+            for expected in (b"start: ok\n", b"prepare: ok\n"):
+                if process.stdout.readline() != expected:
+                    _release_ref_transaction(scope, process)
+                    errors.seek(0)
+                    failure = ProcessExecutionError(
+                        "worktree_effect_ref_lock_timeout"
+                        if expired.is_set()
+                        else "worktree_effect_ref_preparation_failed",
+                        reason="reference_transaction_preparation_failed",
+                        command=command,
+                        cwd=os.fspath(root),
+                        cause=errors.read().decode(errors="replace").strip(),
+                        observation={"returncode": process.returncode},
+                    )
+                    raise failure
+            timer.cancel()
+            timer.join()
+            if expired.is_set():
+                _fail("worktree_effect_ref_lock_timeout")
+            yield
+            if monotonic() >= deadline:
+                _fail("worktree_effect_ref_lock_timeout")
+            process.stdin.write(b"abort\n")
+            process.stdin.flush()
+            output, _ = process.communicate(timeout=timeout_seconds)
+            if process.returncode or output != b"abort: ok\n":
+                _fail("worktree_effect_ref_lock_release_failed")
+        finally:
+            timer.cancel()
+            timer.join()
+            _release_ref_transaction(scope, process)
 
 
 def add_worktree(

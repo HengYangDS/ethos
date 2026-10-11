@@ -175,6 +175,27 @@ active Change presence, or a historical authoring Lease.
 
 ## ADDED Requirements
 
+### Requirement: Signed object transport preserves non-product meaning
+
+The existing publication declaration SHALL select explicit `transport_tags`
+scopes for non-product signed input objects. Product tag scopes SHALL take
+precedence. Transport SHALL reuse review-object qualification, not product
+version, accepted-release or repository-proof obligations.
+
+#### Scenario: An admitted signed input is transported
+
+- **WHEN** an exact annotated tag matches a scope declared in the trusted peer baseline
+- **THEN** public publication and native pre-push use the same role and introduced-range checks
+- **AND** signature trust, native tag-header identity, declared peer, exact source and immutable-ref CAS remain required
+- **AND** replay observes the same result without authorizing replacement or another peer
+
+#### Scenario: Candidate configuration cannot grant itself transport authority
+
+- **WHEN** the prior trusted policy omits the scope or also selects a product tag
+- **THEN** candidate-authored transport configuration does not override that policy
+- **AND** automatic transport baselines follow native peer HEAD, its committed protected-root policy and the same peer's accepted ref, not a candidate-authored accepted designation
+- **AND** malformed scopes, missing baselines, untrusted signatures, renamed tag headers and tag replacement remain rejected
+
 ### Requirement: Explicit repository identity transition
 
 ETHOS SHALL permit a typed, explicitly authorized repository identity transition

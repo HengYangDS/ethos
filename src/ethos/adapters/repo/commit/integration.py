@@ -9,11 +9,19 @@ from typing import cast
 from ethos.adapters.repo.commit.admission import commit_policy_for_revision
 from ethos.adapters.repo.commit.admission import commit_policy_report
 from ethos.adapters.repo.commit.admission import peel_commit
+from ethos.adapters.repo.commit.provenance import accepted_provenance
+from ethos.adapters.repo.commit.provenance import lane_creation_boundary
 from ethos.adapters.repo.commit.signature import repaired_peer_ref_provenance
+from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import zero_oid
+from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
+from ethos.repository.release.configuration import release_config_from_text
+from ethos.repository.release.publication import publication_ref_role
+from ethos.repository.release.publication import publication_transport_tags
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -50,7 +58,7 @@ def commit_range_admission_report(
         return report(
             state="blocked", required_gaps=[f"commit_range_proposed_unreadable:{proposed_head}"]
         )
-    baseline, baseline_ref, baseline_source, gap, repair = _baseline(
+    baseline, baseline_ref, baseline_source, policy_ref, gap, repair = _baseline(
         repo,
         target_ref=target_ref,
         proposed_commit=proposed_commit,
@@ -65,6 +73,7 @@ def commit_range_admission_report(
         proposed_commit=proposed_commit,
         baseline_ref=baseline_ref,
         baseline_source=baseline_source,
+        policy_ref=policy_ref,
     )
     if gap:
         return report(state="blocked", required_gaps=[gap])
@@ -93,7 +102,8 @@ def commit_range_admission_report(
         gap = f"commit_range_unreadable:{baseline}:{proposed_commit}"
     try:
         candidate = commit_policy_for_revision(repo, proposed_commit)
-        incumbent = commit_policy_for_revision(repo, integration_baseline)
+        incumbent_revision = policy_ref or integration_baseline
+        incumbent = commit_policy_for_revision(repo, incumbent_revision)
     except (TypeError, ValueError) as error:
         gap = str(error)
         candidate = incumbent = None
@@ -117,7 +127,7 @@ def commit_range_admission_report(
         required_gaps=gaps,
     )
     result["policy_sources"] = {
-        integration_baseline: incumbent.projection() if incumbent else None,
+        incumbent_revision: incumbent.projection() if incumbent else None,
         proposed_commit: candidate.projection() if candidate else None,
     }
     result["signature_verification"] = (
@@ -179,11 +189,31 @@ def _validate_commit_revisions(
     """Validate one already-derived oldest-first commit sequence."""
     if policy is None:
         return [], []
+    reports = [
+        (revision, commit_policy_report(root, policy, revision, verify_trust=False))
+        for revision in revisions
+    ]
+    selected = tuple(
+        revision
+        for revision, report in reports
+        if verify_trust
+        and policy.signing_required
+        and not cast("dict[str, object]", report["signature"])["required_gaps"]
+    )
+    trust = (
+        verify_commit_trust(root, selected[0] if len(selected) == 1 else selected)
+        if selected
+        else {}
+    )
+    trust_gaps = cast("list[str]", trust.get("required_gaps", []))
+    object_gaps = cast("dict[str, list[str]]", trust.get("object_required_gaps", {}))
+    verified = set(selected)
     violations: list[dict[str, object]] = []
     gaps: list[str] = []
-    for revision in revisions:
-        report = commit_policy_report(root, policy, revision, verify_trust=verify_trust)
+    for revision, report in reports:
         commit_gaps = cast("list[str]", report["required_gaps"])
+        if revision in verified:
+            commit_gaps.extend(object_gaps.get(revision, []) if object_gaps else trust_gaps)
         subject = str(cast("dict[str, object]", report["head"]).get("subject") or "")
         if commit_gaps:
             violations.append(
@@ -203,19 +233,42 @@ def _baseline(
     trusted_baseline: str,
     trusted_baseline_source: str,
     native_zero: str,
-) -> tuple[str, str, str, str, dict[str, object] | None]:
-    """Resolve the exact baseline and its completed source-ref repair together."""
+) -> tuple[str, str, str, str, str, dict[str, object] | None]:
+    """Resolve exact history, current peer policy and completed source-ref repair together."""
     creation = remote_head == native_zero
+    if not trusted_baseline and target_ref.startswith("refs/tags/"):
+        peer_ref, role, peer_gap = peer_publication_baseline(
+            root, target_ref=target_ref, remote_name=remote_name
+        )
+        policy_ref = peel_commit(root, peer_ref) if peer_ref else ""
+        if peer_gap or (creation and role != "object_transport"):
+            return (
+                "",
+                peer_ref,
+                "declared_remote_accepted_ref",
+                policy_ref,
+                peer_gap or f"commit_range_trusted_baseline_required:{target_ref}",
+                None,
+            )
+        baseline = policy_ref if creation else peel_commit(root, remote_head)
+        return (
+            baseline,
+            peer_ref,
+            "declared_remote_accepted_ref" if creation else "remote_head",
+            policy_ref,
+            "" if baseline else f"commit_range_remote_unreadable:{remote_head}",
+            None,
+        )
+    policy = load_branch_role_policy(root)
+    branch = target_ref.removeprefix("refs/heads/")
     if creation:
         baseline_ref = trusted_baseline
         baseline_source = trusted_baseline_source or "explicit_trusted_baseline"
-        policy = load_branch_role_policy(root)
-        branch = target_ref.removeprefix("refs/heads/")
         if not baseline_ref and branch.startswith(policy.proposal_branch_prefix):
             baseline_ref = f"refs/remotes/{remote_name}/{policy.accepted_branch}"
             baseline_source = "declared_remote_accepted_ref"
         if not baseline_ref:
-            return "", "", "", f"commit_range_trusted_baseline_required:{target_ref}", None
+            return "", "", "", "", f"commit_range_trusted_baseline_required:{target_ref}", None
     else:
         baseline_ref, baseline_source = remote_head, "remote_head"
     baseline = peel_commit(root, baseline_ref)
@@ -226,7 +279,7 @@ def _baseline(
             if creation
             else f"commit_range_remote_unreadable:{remote_head}"
         )
-        return "", selected_ref, baseline_source, gap, None
+        return "", selected_ref, baseline_source, "", gap, None
     remote_prefix = f"refs/remotes/{remote_name}/"
     repair_ref = (
         f"refs/heads/{baseline_ref.removeprefix(remote_prefix)}"
@@ -235,18 +288,89 @@ def _baseline(
         if creation
         else target_ref
     )
-    ancestral = is_ancestor(root, baseline, proposed_commit)
     repair = (
         repaired_peer_ref_provenance(root, ref=repair_ref, old=baseline, new=proposed_commit)
         if repair_ref.startswith("refs/heads/")
         else None
     )
-    gap = (
-        f"commit_range_trusted_baseline_not_ancestor:{baseline}:{proposed_commit}"
-        if creation and not ancestral and repair is None
-        else ""
+    if creation and not is_ancestor(root, baseline, proposed_commit) and repair is None:
+        proposal = branch.startswith(policy.proposal_branch_prefix) and not trusted_baseline
+        birth = _accepted_lane_birth(root, proposed_commit) if proposal else ""
+        if birth:
+            return birth, "", "native_lane_birth_accepted_provenance", "", "", None
+        gap = f"commit_range_trusted_baseline_not_ancestor:{baseline}:{proposed_commit}"
+    else:
+        gap = ""
+    return baseline, selected_ref, baseline_source, "", gap, repair
+
+
+def _accepted_lane_birth(root: Path, proposed_commit: str) -> str:
+    """Select a historical lane's own birth only when it was an originally accepted head.
+
+    The native lane.start effect observes where the lane began; the original
+    candidate.accept provenance of that exact commit is what makes it a trusted baseline.
+    """
+    policy = load_branch_role_policy(root)
+    try:
+        birth = lane_creation_boundary(root, proposed_commit)
+        accepted = birth and accepted_provenance(
+            root,
+            accepted_ref=f"refs/heads/{policy.accepted_branch}",
+            candidate_ref=f"refs/heads/{policy.candidate_branch}",
+            head=birth,
+        )
+    except ValueError:
+        return ""
+    return birth if accepted else ""
+
+
+def peer_publication_baseline(
+    root: Path, *, target_ref: str, remote_name: str
+) -> tuple[str, str, str]:
+    """Resolve a tag's destination policy from the same peer's accepted root."""
+    namespace = f"refs/remotes/{remote_name}/"
+    selected = run_git(
+        root,
+        "symbolic-ref",
+        "--quiet",
+        f"{namespace}HEAD",
+        check=False,
+        observation=True,
     )
-    return baseline, selected_ref, baseline_source, gap, repair
+    root_ref = selected.stdout.strip()
+    if selected.returncode or not root_ref.startswith(namespace):
+        return "", "other", f"commit_range_trusted_baseline_required:{target_ref}"
+    try:
+        root_policy = strict_branch_role_policy_from_text(
+            committed_file_text(root, root_ref, ".ethos/workspace.toml")
+        )
+        if root_ref.removeprefix(namespace) not in root_policy.protected_branches:
+            return "", "other", f"commit_range_peer_root_not_protected:{root_ref}"
+        baseline_ref = f"{namespace}{root_policy.accepted_branch}"
+        baseline = peel_commit(root, baseline_ref)
+        if not baseline:
+            return baseline_ref, "other", f"commit_range_trusted_baseline_unreadable:{baseline_ref}"
+        policy = strict_branch_role_policy_from_text(
+            committed_file_text(root, baseline, ".ethos/workspace.toml")
+        )
+        if policy.accepted_branch != root_policy.accepted_branch:
+            return "", "other", f"commit_range_peer_accepted_role_mismatch:{baseline_ref}"
+        declaration = release_config_from_text(
+            committed_file_text(root, baseline, ".ethos/release.toml")
+        )
+        _, role, allowed = publication_ref_role(
+            policy,
+            target_ref,
+            tuple(declaration.get("protected_refs", {}).get("tags", ())),
+            publication_transport_tags(declaration),
+        )
+    except (UnicodeError, ValueError) as error:
+        return root_ref, "other", f"commit_range_peer_policy_invalid:{root_ref}:{error}"
+    return (
+        (baseline_ref, role, "")
+        if allowed
+        else (baseline_ref, role, f"commit_range_trusted_baseline_required:{target_ref}")
+    )
 
 
 def _introduced_commit_revisions(
@@ -284,6 +408,7 @@ def _range_report(
     baseline_commit: str = "",
     baseline_ref: str = "",
     baseline_source: str = "",
+    policy_ref: str = "",
     policy: dict[str, object] | None = None,
     revisions: tuple[str, ...] = (),
     violations: list[dict[str, object]] | None = None,
@@ -302,6 +427,7 @@ def _range_report(
         "baseline_commit": baseline_commit,
         "baseline_ref": baseline_ref,
         "baseline_source": baseline_source,
+        "policy_ref": policy_ref,
         "policy": policy,
         "revisions": list(revisions),
         "checked_commit_count": len(revisions),

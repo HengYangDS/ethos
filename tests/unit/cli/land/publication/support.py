@@ -15,6 +15,7 @@ from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import apply_accepted_closeout
 from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import declare_fixture_documentation_proof
 from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
@@ -190,6 +191,57 @@ def accepted_release_fixture(
     return accepted, main, old, head
 
 
+def maintenance_release_fixture(tmp_path: Path, *, release_mirror: str = "independent"):
+    """Start a native maintenance lane from a proved, now historical accepted base."""
+    accepted, main, _old, base = accepted_release_fixture(
+        tmp_path, retired_source=True, release_mirror=release_mirror
+    )
+    candidate = tmp_path / "repo"
+    successor = commit_fixture_file(
+        candidate,
+        "successor.txt",
+        "current train continues\n",
+        "fix: continue current accepted train",
+    )
+    seed_executed_proof(candidate, successor)
+    run_ethos(
+        "land",
+        "--closeout",
+        "--expect-head",
+        base,
+        "--candidate-head",
+        successor,
+        "--apply",
+        "--authorize",
+        "--json",
+        cwd=accepted,
+    )
+    lane = tmp_path / "maintenance"
+    started = run_ethos(
+        "lane",
+        "start",
+        "maintenance",
+        "--base",
+        base,
+        "--path",
+        str(lane),
+        "--holder-ref",
+        os.environ["ETHOS_ACTOR"],
+        "--apply",
+        "--json",
+        cwd=accepted,
+    )
+    assert started["verdict"] == "pass", started
+    head = commit_fixture_file(
+        lane,
+        "package.json",
+        '{"name":"sample","version":"1.2.4"}\n',
+        "fix: maintain historical accepted release",
+    )
+    seed_executed_proof(lane, head)
+    return lane, main, base, head
+
+
 def assert_signed_publication(repo: Path, peers: dict[str, Path], head: str, tag: str) -> None:
     """Consume the actual released tag; recheck trust before exact peer publication."""
     anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
@@ -217,7 +269,6 @@ def assert_signed_publication(repo: Path, peers: dict[str, Path], head: str, tag
     trust = anchor.read_text()
     for name, signing, gap in (
         ("lightweight", (), "not_annotated_tag:refs/tags/lightweight"),
-        ("v9.9.9", ("-s", "-m", "different version"), "version_mismatch:v9.9.9!=v1.2.3"),
         ("v1.2.3", None, "signature_untrusted:refs/tags/v1.2.3"),
     ):
         if signing is None:
@@ -239,6 +290,9 @@ def assert_signed_publication(repo: Path, peers: dict[str, Path], head: str, tag
         for peer in peers.values()
     )
     anchor.write_text(trust)
+    git(repo, "tag", "-s", "-m", "different version", "v9.9.9", head)
+    wrong_version = branch_publication(repo, head, target_ref="refs/tags/v9.9.9", blocked=True)
+    assert any("version" in gap for gap in wrong_version["required_gaps"]), wrong_version
     assert apply_receipt(repo, receipt, head)["state"] == "published"
     for peer in peers.values():
         assert git(peer, "rev-parse", "refs/tags/v1.2.3") == tag

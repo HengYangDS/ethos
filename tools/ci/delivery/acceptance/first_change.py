@@ -75,6 +75,7 @@ def _official_command(
     ):
         message = "installed_first_change_tool_unavailable"
         raise RuntimeError(message)
+    require_installed_guidance(json.dumps(status), str(package / "__init__.py"))
     return command[0], command[1]
 
 

@@ -126,6 +126,32 @@ class _TrustInputs:
         return tuple(part for key, value in entries.items() for part in ("-c", f"{key}={value}"))
 
 
+def _diagnose_batch_refusal(
+    root: Path,
+    arguments: tuple[str, ...],
+    verifier: str,
+    selected: tuple[str, ...],
+    gap: str,
+) -> tuple[dict[str, list[str]], list[str]]:
+    """Locate failed objects under the original pinned inputs without erasing refusal."""
+    if len(selected) == 1:
+        return {selected[0]: [gap]}, []
+    failed, statuses = {}, []
+    for object_oid in selected:
+        diagnostic = run_git(
+            root, *arguments, verifier, "--raw", object_oid, check=False, timeout=30
+        )
+        detail = diagnostic.stderr.strip() or diagnostic.stdout.strip()
+        statuses.append(detail)
+        if diagnostic.returncode or len(list(_SSH_STATUS.finditer(detail))) != 1:
+            failed[object_oid] = [
+                "git_object_signature_untrusted"
+                if diagnostic.returncode
+                else "git_object_signature_observation_unavailable"
+            ]
+    return failed or {object_oid: [gap] for object_oid in selected}, statuses
+
+
 def verify_git_object_trust(
     root: Path, revision: str | tuple[str, ...], kind: Literal["commit", "annotated-tag"]
 ) -> dict[str, object]:
@@ -156,6 +182,7 @@ def verify_git_object_trust(
         with tempfile.TemporaryDirectory(prefix="ethos-trust-") as directory:
             arguments = inputs.arguments(Path(directory))
             gaps, statuses, matches = [], [], []
+            object_gaps: dict[str, list[str]] = {}
             for start in range(0, len(revisions), 128):
                 selected = revisions[start : start + 128]
                 completed = run_git(
@@ -165,16 +192,30 @@ def verify_git_object_trust(
                 found = list(_SSH_STATUS.finditer(status))
                 statuses.append(status)
                 if completed.returncode or len(found) != len(selected):
-                    gaps = [
+                    gap = (
                         "git_object_signature_untrusted"
                         if completed.returncode
                         else "git_object_signature_observation_unavailable"
-                    ]
-                    break
+                    )
+                    gaps.append(gap)
+                    report.update(required_gaps=gaps, status="\n".join(statuses))
+                    if _TrustInputs.read(root) != inputs:
+                        gaps = [_CHANGED]
+                        object_gaps.clear()
+                        break
+                    failed, details = _diagnose_batch_refusal(
+                        root, arguments, verifier, selected, gap
+                    )
+                    object_gaps.update(failed)
+                    statuses.extend(details)
+                    continue
                 matches.extend(found)
             if _TrustInputs.read(root) != inputs:
                 gaps = [_CHANGED]
-            report.update(required_gaps=gaps, status="\n".join(statuses))
+                object_gaps.clear()
+            report.update(required_gaps=list(dict.fromkeys(gaps)), status="\n".join(statuses))
+            if object_gaps:
+                report["object_required_gaps"] = object_gaps
             if not gaps:
                 report.update(verdict="pass")
                 if len(matches) == 1:
@@ -183,18 +224,32 @@ def verify_git_object_trust(
                         fingerprint=matches[0].group("fingerprint"),
                     )
     except (OSError, ValueError, subprocess.SubprocessError) as error:
-        report["required_gaps"] = [
-            str(error)
-            if isinstance(error, ValueError)
-            else "git_object_trust_observation_unavailable"
-        ]
-        report["status"] = str(error)
+        gaps = cast("list[str]", report["required_gaps"])
+        report["required_gaps"] = list(
+            dict.fromkeys(
+                [
+                    *gaps,
+                    str(error)
+                    if isinstance(error, ValueError)
+                    else "git_object_trust_observation_unavailable",
+                ]
+            )
+        )
+        report.pop("object_required_gaps", None)
+        report["status"] = "\n".join(filter(None, (str(report["status"]), str(error))))
     return report
 
 
 def verify_commit_trust(root: Path, revision: str | tuple[str, ...]) -> dict[str, object]:
     """Project native object verification through the commit admission gap vocabulary."""
     report = verify_git_object_trust(root, revision, "commit")
+    if "object_required_gaps" in report:
+        report["object_required_gaps"] = {
+            object_oid: [_commit_gap(gap) for gap in gaps]
+            for object_oid, gaps in cast(
+                "dict[str, list[str]]", report["object_required_gaps"]
+            ).items()
+        }
     return {
         **report,
         "required_gaps": [

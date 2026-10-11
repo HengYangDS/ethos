@@ -14,8 +14,19 @@ from ethos.repository.policy.references.python.bindings import ImportReference
 from ethos.repository.policy.references.python.bindings import MemberDemand
 from ethos.repository.policy.references.python.bindings import ReceiverMethod
 from ethos.repository.policy.references.python.bindings import ReferenceUncertainty
+from ethos.repository.policy.references.python.functions.capabilities import escaped_capabilities
+from ethos.repository.policy.references.python.functions.effects import EffectCall
 from ethos.repository.policy.references.python.functions.effects import command_tokens
 from ethos.repository.policy.references.python.functions.effects import project
+from ethos.repository.policy.references.python.native.containers import mapping_view
+from ethos.repository.policy.references.python.native.returns import ReceiverCall
+from ethos.repository.policy.references.python.native.returns import native_dependencies
+from ethos.repository.policy.references.python.native.returns import native_field
+from ethos.repository.policy.references.python.native.returns import native_return
+from ethos.repository.policy.references.python.native.returns import symbolic_return
+from ethos.repository.policy.references.python.native.scalars import native_method
+from ethos.repository.policy.references.python.native.scalars import native_text
+from ethos.repository.policy.references.python.native.scalars import open_operation
 
 if TYPE_CHECKING:
     import ast
@@ -39,17 +50,6 @@ _VALUE_CALLS = frozenset({"os.getenv", "os.environ.get", "os.environ.__getitem__
 _IMPORT_CALLS = frozenset({"importlib.import_module", "builtins.__import__"})
 
 
-@dataclass(frozen=True, slots=True)
-class ReceiverCall:
-    """A native result and its effect disposition are separate observations."""
-
-    returned: BindingValue | None = None
-    disposition: Literal["read", "mutation", "unresolved"] = "unresolved"
-    footprint: BindingValue = field(default_factory=BindingValue)
-    argument_demand: int | None = None
-    post_state: BindingValue | None = None
-
-
 @dataclass(slots=True)
 class PythonConsumption:
     """Consumed identities and unresolved sites, without any authorization claim."""
@@ -62,6 +62,15 @@ class PythonConsumption:
     executables: set[str] = field(default_factory=set)
     inputs: set[str] = field(default_factory=set)
     uncertainties: list[ReferenceUncertainty] = field(default_factory=list)
+
+    def absorb(self, observation: PythonConsumption) -> None:
+        """Retain native facts and their original uncertainty provenance once."""
+        self.imports.update(observation.imports)
+        self.executables.update(observation.executables)
+        self.inputs.update(observation.inputs)
+        self.uncertainties.extend(observation.uncertainties)
+        if self.path == observation.path:
+            self.import_sites.extend(observation.import_sites)
 
     def call(
         self,
@@ -92,13 +101,14 @@ class PythonConsumption:
             )
             if has_native or unresolved:
                 self.sources.invocations.note_call(
-                    replace(callee, methods=unresolved), args, keywords, node
+                    replace(callee, methods=unresolved), args, keywords, node, self.path, scope
                 )
         receiver_scope = scope.fork() if callee.methods and has_native else scope
         returned = self.receiver_returns(callee.methods, args, keywords, node, receiver_scope)
         if has_native or not callee.methods:
             branch = scope.fork() if callee.methods else scope
             value = self.native_call(native, args, keywords, node, branch)
+            value = symbolic_return(native, args, keywords) or value
             returned = value if returned is None else returned.join(value)
             if callee.methods:
                 scope.merge(receiver_scope, branch)
@@ -150,7 +160,7 @@ class PythonConsumption:
         callee: BindingValue,
         args: tuple[BindingValue, ...],
         keywords: dict[str | None, BindingValue],
-        node: ast.Call,
+        node: ast.expr,
         scope: BindingScope,
     ) -> BindingValue:
         """Observe qualified native targets and retain their opaque alternatives."""
@@ -163,7 +173,7 @@ class PythonConsumption:
             context_limited=any(value.context_limited for value in dependencies),
         )
         known = {
-            target: self.known_return(target, args, keywords, scope) for target in callee.targets
+            target: native_return(self, target, args, keywords, scope) for target in callee.targets
         }
         if (
             callee.unknown
@@ -171,12 +181,28 @@ class PythonConsumption:
             or not callee.targets
             or any(self.kind(target) is None and known[target] is None for target in callee.targets)
         ):
-            self.escape(() if callee.parameters else (*args, *keywords.values()), node, scope)
-            self.invalidate(scope, *args, *keywords.values(), conditional=True)
+            unresolved = tuple(
+                value
+                for target in callee.targets
+                for value in native_dependencies(self, target, scope)
+            )
+            escaped = (*args, *keywords.values(), *unresolved)
+            self.escape(() if callee.parameters else escaped, node, scope)
+            self.invalidate(scope, *escaped, conditional=True)
         returned: BindingValue | None = None
         for target in callee.targets:
             value_returned = known[target] or generic
-            if target == "builtins.dict.fromkeys" and value_returned.entries is not None:
+            if (
+                (
+                    target in {"builtins.dict", "builtins.dict.fromkeys"}
+                    and value_returned.entries is not None
+                )
+                or (
+                    target == "builtins.list"
+                    and (value_returned.items is not None or value_returned.element is not None)
+                )
+                or value_returned.native_kind in {"native_record", "temporary_directory"}
+            ):
                 value_returned = scope.aggregate(value_returned, node)
             kind = self.kind(target)
             if kind is not None:
@@ -220,10 +246,11 @@ class PythonConsumption:
             )
         return value, executable
 
-    def imported(self, value: BindingValue, target: str, node: ast.Call) -> BindingValue:
+    def imported(self, value: BindingValue, target: str, node: ast.AST) -> BindingValue:
         """Retain the imported module result and its exact import sites together."""
         self.import_sites.extend(
-            ImportReference(module, "", node.lineno, node.col_offset) for module in value.strings
+            ImportReference(module, "", getattr(node, "lineno", 0), getattr(node, "col_offset", 0))
+            for module in value.strings
         )
         return BindingValue(
             targets=frozenset(
@@ -235,69 +262,6 @@ class PythonConsumption:
             context_limited=value.context_limited,
         )
 
-    def known_return(
-        self,
-        target: str,
-        args: tuple[BindingValue, ...],
-        keywords: dict[str | None, BindingValue],
-        scope: BindingScope,
-    ) -> BindingValue | None:
-        """Keep bounded return contracts separate from executable consumption."""
-        if self.sources is not None and target in {
-            "pathlib.Path",
-            "builtins.str",
-            "builtins.tuple",
-            "shutil.which",
-        }:
-            args = tuple(self.sources.invocations.resolve(value, scope, self) for value in args)
-        if target == "builtins.getattr" and args:
-            return self.attribute(args, scope)
-        if target == "builtins.isinstance" and len(args) == 2 and not keywords:
-            native_types = {"builtins.str", "builtins.tuple", "builtins.dict"}
-            types = args[1]
-            if (
-                types.targets
-                and types.targets <= native_types
-                and not (types.unknown or types.local or types.deferred)
-            ):
-                return BindingValue(deferred=True)
-        if target in {"builtins.tuple", "builtins.dict.fromkeys"} and args:
-            return self.native_container(target, args, scope)
-        if target == "shutil.which":
-            name = args[0] if args else keywords.get("cmd", BindingValue(unknown=True))
-            return BindingValue(
-                executable_origins=name.strings,
-                deferred=name.deferred,
-                unknown=name.unknown or (not name.strings and not name.deferred),
-                context_limited=name.context_limited,
-            )
-        if target in {"pathlib.Path", "builtins.str"} and len(args) == 1 and not keywords:
-            return BindingValue(
-                strings=args[0].strings,
-                executable_origins=args[0].executable_origins,
-                path=target == "pathlib.Path",
-                deferred=args[0].deferred,
-                context_limited=args[0].context_limited,
-                unknown=args[0].unknown
-                or not (args[0].strings or args[0].executable_origins or args[0].deferred),
-            )
-        return None
-
-    def native_container(
-        self, target: str, args: tuple[BindingValue, ...], scope: BindingScope
-    ) -> BindingValue:
-        """Construct native finite containers without escaping their values."""
-        if target == "builtins.tuple":
-            return project(args[0], MemberDemand("structure"), scope, self.sources, self)
-        value = project(args[0], MemberDemand("iterate"), scope, self.sources, self)
-        default = args[1] if len(args) > 1 else BindingValue(local=True)
-        return BindingValue(
-            entries=tuple((name, default) for name in sorted(value.strings)),
-            ordered=False,
-            unknown=value.unknown or value.deferred or not value.strings,
-            context_limited=value.context_limited or default.context_limited,
-        )
-
     def bound_method(
         self,
         owner: BindingValue,
@@ -307,11 +271,15 @@ class PythonConsumption:
         scope: BindingScope,
     ) -> ReceiverCall:
         """Classify native receiver relationships without applying their effects."""
-        disposition = "unresolved" if owner.unknown or owner.targets else "read"
-        if owner.path and name in {"resolve", "absolute", "as_posix"}:
+        native = native_method(owner, name, args, keywords)
+        if native is not None:
+            changed = native_dependencies(self, f"pathlib.Path.{name}", scope) if owner.path else ()
             return ReceiverCall(
-                replace(owner, strings=frozenset(), path=name != "as_posix"), "read"
+                returned=None if changed else native,
+                disposition="unresolved" if changed else "read",
+                footprint=BindingValue(items=(owner, *changed)) if changed else BindingValue(),
             )
+        disposition = "unresolved" if owner.unknown or owner.targets else "read"
         if (
             owner.aggregates
             and owner.native_kind == "list"
@@ -330,9 +298,11 @@ class PythonConsumption:
                     element=owner.iterated().join(args[0]) if owner.items is None else None,
                 ),
             )
-        if owner.aggregates and owner.entries is not None and name in {"keys", "values", "items"}:
+        if owner.entries is not None and name in {"keys", "values", "items"}:
             return ReceiverCall(
-                scope.resolve(BindingValue(aggregates=owner.aggregates, view=name)),
+                scope.resolve(BindingValue(aggregates=owner.aggregates, view=name))
+                if owner.aggregates
+                else mapping_view(owner, f"builtins.dict.{name}"),
                 disposition,
                 owner,
             )
@@ -351,12 +321,26 @@ class PythonConsumption:
                 disposition,
                 owner,
             )
-        return ReceiverCall(footprint=owner)
+        indexed = (
+            name == "__getitem__"
+            and len(args) == 1
+            and not (keywords or owner.unknown or owner.targets or owner.parameters)
+            and (owner.entries is not None or owner.items is not None)
+        )
+        return (
+            ReceiverCall(
+                project(owner, MemberDemand("index", selector=args[0]), scope, self.sources, self),
+                "read",
+                owner,
+            )
+            if indexed
+            else ReceiverCall(footprint=owner)
+        )
 
-    def escape(self, values: tuple[BindingValue, ...], node: ast.Call, scope: BindingScope) -> None:
+    def escape(self, values: tuple[BindingValue, ...], node: ast.AST, scope: BindingScope) -> None:
         """Opaque custody transfer may invoke a known capability before returning."""
         if self.sources is not None:
-            for target in self.sources.invocations.custody.capabilities(values, scope, self):
+            for target in escaped_capabilities(self.sources, values, scope, self):
                 kind = self.kind(target)
                 for affected in (kind,) if kind is not None else self.module_kinds(target):
                     self.residual(
@@ -365,21 +349,36 @@ class PythonConsumption:
 
     def call_escapes(
         self,
-        targets: frozenset[str],
+        callee: BindingValue,
         args: tuple[BindingValue, ...],
         keywords: dict[str | None, BindingValue],
         scope: BindingScope,
     ) -> bool:
-        """Only an unresolved native contract can expose its actual mutable arguments."""
+        """Bind argument transfer to every source, native and unresolved callee alternative."""
         return (
             self.sources is not None
-            and any(
-                target not in self.sources.definitions
-                and self.known_return(target, args, keywords, scope) is None
-                for target in targets
+            and (
+                callee.unknown
+                or callee.local
+                or bool(callee.parameters)
+                or (callee.deferred and not callee.methods)
+                or not (callee.targets or callee.methods)
+                or any(
+                    target not in self.sources.definitions
+                    and self.kind(target) is None
+                    and native_return(self, target, args, keywords, scope) is None
+                    for target in callee.targets
+                )
+                or any(
+                    self.bound_method(
+                        scope.resolve(method.receiver), method.name, args, keywords, scope
+                    ).disposition
+                    == "unresolved"
+                    for method in callee.methods
+                )
             )
             and any(
-                self.sources.invocations.custody.mutable(value)
+                self.sources.invocations.custody.mutable(value, symbolic=True)
                 for value in (*args, *keywords.values())
             )
         )
@@ -424,19 +423,27 @@ class PythonConsumption:
                 for projection in owner.parameters
             ),
         )
-        source_targets = (
-            self.sources.definitions.keys() | self.sources.records.keys()
-            if self.sources is not None
-            else set()
+        native_targets = frozenset(
+            target
+            for target in owner.targets
+            if self.sources is None
+            or (target not in self.sources.definitions and target not in self.sources.records)
         )
-        native_owner = replace(owner, targets=owner.targets - source_targets)
+        native_owner = replace(owner, targets=native_targets)
         for name in names.strings:
-            sourced = self.sources.attribute(owner, name, scope) if self.sources else None
+            sourced = native_field(self, owner, name, scope)
+            if sourced is None and self.sources is not None:
+                sourced = self.sources.attribute(owner, name, scope)
             if sourced is not None:
                 value = value.join(sourced)
-            for target in owner.targets - source_targets:
+            for target in native_targets:
                 value = value.join(scope.member(f"{target}.{name}"))
-            if owner.aggregates or owner.path:
+            if (
+                owner.aggregates
+                or owner.path
+                or owner.entries is not None
+                or native_text(owner, "hash", "text", "bytes")
+            ):
                 value = value.join(
                     BindingValue(methods=frozenset({ReceiverMethod(native_owner, name)}))
                 )
@@ -458,13 +465,29 @@ class PythonConsumption:
         self,
         kind: Literal["import", "executable", "value"],
         value: BindingValue,
-        node: ast.AST,
+        node: ast.expr,
         scope: BindingScope,
         target: str,
         *,
         executable: BindingValue | None = None,
     ) -> None:
         """Observe executable selection separately from process-visible arguments."""
+        if self.sources is not None and self.sources.invocations.summarizing:
+            summary = self.sources.invocations.summaries[self.sources.invocations.summarizing[-1]]
+            summary.record(
+                EffectCall(
+                    BindingValue(targets=frozenset({target})),
+                    (executable or BindingValue(unknown=True), value)
+                    if target == "os.execv"
+                    else (value,),
+                    {"executable": executable}
+                    if executable is not None and target != "os.execv"
+                    else {},
+                    node,
+                    self.path,
+                    scope.name,
+                )
+            )
         if self.sources is not None:
             value = self.sources.invocations.resolve(value, scope, self)
             if executable is not None:
@@ -499,7 +522,7 @@ class PythonConsumption:
                 item.partition(".")[0] if kind == "import" else item for item in value.strings
             )
             known, head = bool(value.strings), value
-        if head.unknown or (not known and not (head.deferred or head.parameters)):
+        if head.unknown or open_operation(head) or not (known or head.deferred or head.parameters):
             self.residual(kind, "unknown", node, scope, target, "value_not_resolved")
         elif head.deferred or head.parameters:
             self.residual(kind, "deferred", node, scope, target, "runtime_argument")

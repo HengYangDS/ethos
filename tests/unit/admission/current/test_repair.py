@@ -110,6 +110,87 @@ def _canonical_repair_report(
     )
 
 
+def _combined_validation_report(root: Path) -> tuple[dict[str, object], tuple[str, ...]]:
+    """Retain one valid intent while diagnosing two distinct inherited carriers."""
+    selected = "repair-spec"
+    inherited = "inherited-change"
+    paths = (
+        "openspec/specs/distribution/spec.md",
+        f"openspec/changes/{inherited}/specs/distribution/spec.md",
+    )
+    for path in paths:
+        target = root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("official artifact\n", encoding="utf-8")
+    result = official_report(
+        change=selected,
+        gaps=(
+            "openspec_validation_failed:spec:distribution",
+            f"openspec_validation_failed:change:{inherited}",
+        ),
+        artifacts=(official_artifact("tasks", "tasks.md"),),
+        commitment=commitment_fixture(id=f"change:{selected}").model_dump(mode="json"),
+        status_payload={"changeName": selected},
+        validate_payload={
+            "items": [
+                {"id": selected, "type": "change", "valid": True, "issues": []},
+                {
+                    "id": "distribution",
+                    "type": "spec",
+                    "valid": False,
+                    "issues": [{"level": "WARNING", "path": "requirements[0]"}],
+                },
+                {
+                    "id": inherited,
+                    "type": "change",
+                    "valid": False,
+                    "issues": [{"level": "WARNING", "path": "distribution/spec.md"}],
+                },
+            ]
+        },
+    )
+    return result, paths
+
+
+def test_current_resolution_admits_exact_combined_inherited_repairs(tmp_path, monkeypatch):
+    report, paths = _combined_validation_report(tmp_path)
+    resolution = resolve_report(monkeypatch, report, root=tmp_path, paths=paths)
+    assert resolution.verdict == "pass"
+    assert set(resolution.scope.material_scope["authorized_paths"]) == set(paths)
+    assert resolution.scope.material_scope["changes"] == [
+        {"name": "repair-spec", "path": "openspec/changes/repair-spec"}
+    ]
+    assert resolution.openspec["required_gaps"] == report["required_gaps"]
+    assert resolution.next_action == "openspec validate --all --strict --json"
+    for requested in (("src/unrelated.py",), (*paths, "src/unrelated.py")):
+        assert (
+            resolve_report(monkeypatch, report, root=tmp_path, paths=requested).verdict == "block"
+        )
+
+
+@pytest.mark.parametrize(
+    ("coordinate", "value"),
+    [
+        (("commitment",), {}),
+        (("commands", "status", "json", "changeName"), "other"),
+        (("commands", "validate", "exit_code"), 0),
+        (("commands", "validate", "parse_error"), "unreadable"),
+        (("commands", "validate", "json", "items", 2, "id"), "other"),
+        (("commands", "validate", "json", "items", 2, "issues", 0, "path"), "../escape.md"),
+        (("commands", "validate", "json", "items", 1, "issues", 0, "level"), "UNKNOWN"),
+        (("lifecycle", "changes", 0, "artifacts", 0, "status"), "blocked"),
+    ],
+)
+def test_current_resolution_rejects_unbound_combined_repairs(
+    tmp_path, monkeypatch, coordinate, value
+):
+    report, paths = _combined_validation_report(tmp_path)
+    _corrupt_report_coordinate(report, coordinate, value)
+    result = resolve_report(monkeypatch, report, root=tmp_path, paths=paths)
+    assert result.verdict == "block"
+    assert not result.scope.material_scope.get("authorized_paths")
+
+
 @pytest.mark.parametrize(
     ("paths", "verdict", "uncovered"),
     [

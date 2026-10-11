@@ -8,12 +8,14 @@ from dataclasses import dataclass
 from dataclasses import field
 from dataclasses import replace
 from typing import TYPE_CHECKING
+from typing import cast
 
 from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.bindings import MemberDemand
 from ethos.repository.policy.references.python.functions.invocation import PythonInvocations
 from ethos.repository.policy.references.python.syntax import module_name
+from ethos.repository.policy.references.python.syntax import plain_method_class
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -33,6 +35,27 @@ class FunctionDefinition:
     parent: BindingScope
     signature: inspect.Signature
     receiver: str = ""
+    captured: tuple[BindingValue, ...] = ()
+    captured_keywords: tuple[tuple[str, BindingValue], ...] = ()
+
+
+def same_definition(left: FunctionDefinition, right: FunctionDefinition) -> bool:
+    """Equivalent callables share node, lexical owner and exact captures, not a derived key."""
+    return (
+        left.node is right.node
+        and left.flow is right.flow
+        and left.parent is right.parent
+        and (left.signature, left.receiver) == (right.signature, right.receiver)
+        and (left.captured, left.captured_keywords) == (right.captured, right.captured_keywords)
+    )
+
+
+PROTOCOLS_BY_CALL = {
+    "os.fspath": "__fspath__",
+    "pathlib.Path": "__fspath__",
+    "builtins.str": "__str__",
+}
+PROTOCOLS = frozenset(PROTOCOLS_BY_CALL.values())
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +66,7 @@ class RecordDefinition:
     names: tuple[str, ...]
     positional: bool
     owner: BindingScope
+    protocols: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(slots=True)
@@ -126,6 +150,36 @@ class PythonSourceReturns:
         )
         return BindingValue(targets=frozenset({key}))
 
+    def partial(
+        self, args: tuple[BindingValue, ...], keywords: dict[str | None, BindingValue]
+    ) -> BindingValue | None:
+        """Compose native partial captures; each call binds them through the original signature."""
+        if not args or any(value.spread for value in args) or None in keywords:
+            return None
+        callee, captured = args[0], args[1:]
+        alternatives = [self.definitions.get(target) for target in callee.targets]
+        if (
+            not alternatives
+            or callee != BindingValue(targets=callee.targets)
+            or any(item is None or item.receiver for item in alternatives)
+        ):
+            return None
+        bound = BindingValue()
+        for definition in cast("list[FunctionDefinition]", alternatives):
+            named = dict(definition.captured_keywords) | cast("dict[str, BindingValue]", keywords)
+            derived = replace(
+                definition,
+                captured=(*definition.captured, *captured),
+                captured_keywords=tuple(named.items()),
+            )
+            key = next(
+                (key for key, item in self.definitions.items() if same_definition(item, derived)),
+                f"{definition.flow.path}:{definition.node.lineno}:partial:{len(self.definitions)}",
+            )
+            self.definitions.setdefault(key, replace(derived, key=key))
+            bound = bound.join(BindingValue(targets=frozenset({key})))
+        return bound
+
     @staticmethod
     def record_kind(flow: PythonReferenceFlow, node: ast.ClassDef, parent: BindingScope) -> str:
         """Only exact native generators with modeled initialization establish fields."""
@@ -170,7 +224,8 @@ class PythonSourceReturns:
         self, flow: PythonReferenceFlow, node: ast.ClassDef, parent: BindingScope
     ) -> BindingValue:
         """Generated fields preserve values; names and field types grant no native trust."""
-        kind = self.record_kind(flow, node, parent)
+        plain = plain_method_class(node, PROTOCOLS)
+        kind = self.record_kind(flow, node, parent) or ("plain" if plain else "")
         forbidden = {
             "__new__",
             "__init__",
@@ -208,7 +263,16 @@ class PythonSourceReturns:
         except ValueError:
             return BindingValue(unknown=True)
         key = f"{flow.path}:{node.lineno}:{node.col_offset}:{node.name}:{len(self.records)}"
-        self.records[key] = RecordDefinition(signature, names, kind == "named", parent)
+        protocols = tuple(
+            (item.name, next(iter(self.definition(flow, item, parent, (), ()).targets)))
+            for item in node.body
+            if kind == "plain"
+            and isinstance(item, ast.FunctionDef)
+            and item.name in PROTOCOLS
+            and [argument.arg for argument in ast.walk(item.args) if isinstance(argument, ast.arg)]
+            == ["self"]
+        )
+        self.records[key] = RecordDefinition(signature, names, kind == "named", parent, protocols)
         for item in node.body:
             if not isinstance(item, ast.FunctionDef) or len(item.decorator_list) != 1:
                 continue
@@ -308,10 +372,19 @@ class PythonSourceReturns:
         result: PythonConsumption,
     ) -> BindingValue | None:
         """Join alternative outgoing effects without dropping native or opaque branches."""
+        dispatched = None if keywords else self.protocol(callee, args, node, scope, result)
+        if dispatched is not None and callee.targets == frozenset({"os.fspath"}):
+            return dispatched
+        args = args if dispatched is None else (dispatched,)
         selected = self.call_identity(callee)
-        targets = selected.targets & (self.definitions.keys() | self.records.keys())
+        targets = frozenset(
+            target
+            for target in selected.targets
+            if target in self.definitions or target in self.records
+        )
         if not targets:
-            return None
+            native = dispatched is not None
+            return result.call(selected, args, keywords, node, scope) if native else None
         other = replace(selected, targets=selected.targets - targets)
         has_other = bool(
             other.targets
@@ -337,6 +410,39 @@ class PythonSourceReturns:
         if len(branches) > 1:
             scope.merge(*branches)
         return returned
+
+    def protocol(
+        self,
+        callee: BindingValue,
+        args: tuple[BindingValue, ...],
+        node: ast.Call,
+        scope: BindingScope,
+        result: PythonConsumption,
+    ) -> BindingValue | None:
+        """Invoke the special method Python looks up on the receiver's class at this call."""
+        name = PROTOCOLS_BY_CALL.get(next(iter(callee.targets), ""))
+        receiver = scope.resolve(args[0]) if name and len(args) == 1 else BindingValue()
+        owner = dict(receiver.fields or ()).get("__class__", BindingValue())
+        record = self.records.get(next(iter(owner.targets), ""))
+        if (
+            record is None
+            or receiver.unknown
+            or callee != BindingValue(targets=callee.targets)
+            or owner != BindingValue(targets=owner.targets)
+            or len(callee.targets) != 1
+            or len(owner.targets) != 1
+        ):
+            return None
+        replaced = scope.member_binding(f"{next(iter(owner.targets))}.{name}")
+        original = dict(record.protocols).get(name or "")
+        if replaced is None and original is None:
+            return None
+        method = replaced or BindingValue(targets=frozenset({original or ""}))
+        instance = BindingValue(aggregates=receiver.aggregates)
+        bound = self.partial((method, instance), {}) if receiver.aggregates else None
+        if bound is None:
+            return BindingValue(unknown=True)
+        return self.call(bound, (), {}, node, scope, result) or BindingValue(unknown=True)
 
     def call_identity(self, callee: BindingValue) -> BindingValue:
         """Resolve source exports while retaining every native and opaque alternative."""
@@ -364,6 +470,9 @@ class PythonSourceReturns:
         for target in callee.targets:
             if target in self.records:
                 value = self.construct(self.records[target], args, keywords, scope, node)
+                for identity in value.aggregates if self.records[target].protocols else ():
+                    owner = (("__class__", BindingValue(targets=frozenset({target}))),)
+                    scope.assign_member(identity, replace(scope.member(identity), fields=owner))
             elif target in self.definitions:
                 definition = self.definitions[target]
                 actual = (
@@ -385,6 +494,16 @@ class PythonSourceReturns:
         scope: BindingScope,
         node: ast.Call,
     ) -> BindingValue:
+        """Allocate one successfully bound record; a failed binding stays unknown."""
+        value = PythonSourceReturns.bound(record, args, keywords)
+        return value if value.fields is None else scope.aggregate(value, node)
+
+    @staticmethod
+    def bound(
+        record: RecordDefinition,
+        args: tuple[BindingValue, ...],
+        keywords: dict[str | None, BindingValue],
+    ) -> BindingValue:
         """A successful trailing expansion preserves only fields before its first unknown."""
         if None in keywords:
             return BindingValue(unknown=True)
@@ -403,9 +522,8 @@ class PythonSourceReturns:
                 return BindingValue(unknown=True)
             bound.apply_defaults()
             values = tuple((name, bound.arguments[name]) for name in record.names)
-        value = BindingValue(
+        return BindingValue(
             fields=values,
             items=tuple(item for _, item in values) if record.positional else None,
             ordered=record.positional,
         )
-        return scope.aggregate(value, node)

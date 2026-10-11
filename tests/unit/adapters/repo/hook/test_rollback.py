@@ -260,3 +260,28 @@ def test_explicit_supply_recovers_malformed_selection_without_guessing_predecess
 
     assert require_selected_runtime(selected.root) == selected
     assert require_selected_runtime(rollback).digest == previous.name
+
+
+@pytest.mark.parametrize("selection", [b"", b"invalid\n\n", b"\xff\n"])
+def test_admitted_successor_repairs_malformed_selection_without_reading_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, selection: bytes
+) -> None:
+    """Malformed selector bytes are an unavailable predecessor, never a successor veto."""
+    repo, previous, supplied = _upgrade_case(tmp_path, monkeypatch)
+    common = Path(git_common_dir(repo))
+    (common / "ethos/runtime/CURRENT").write_bytes(selection)
+
+    result = activation.install_hook_launchers(repo, installed_runtime=supplied)
+
+    assert result["required_gaps"] == []
+    assert current_runtime(common).digest == supplied.name
+    assert result["rollback_supply"] == {
+        "state": "unavailable",
+        "selection": (common / "ethos/runtime/CURRENT").as_posix(),
+        "reason": "hook_runtime_current_invalid",
+    }
+    cleanup = result["generation_cleanup"]
+    assert cleanup["state"] == "complete"
+    assert previous.name in {Path(path).name for path in cleanup["unproven_removals"]}
+    assert previous.name not in {Path(path).name for path in cleanup["removed"]}
+    assert previous.is_dir()

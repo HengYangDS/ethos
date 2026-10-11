@@ -9,6 +9,7 @@ from typing import cast
 import pytest
 from ruff import find_ruff_bin
 
+import ethos.adapters.repo.trust_anchor.verification as verification
 from ethos.adapters.repo.commit.admission import commit_message_report
 from ethos.adapters.repo.commit.creation import create_git_commit
 from ethos.adapters.repo.commit.integration import commit_range_admission_report
@@ -46,6 +47,60 @@ def _repository(tmp_path: Path) -> tuple[Path, str, str]:
     tree = git(repo, "write-tree")
     baseline = git(repo, "commit-tree", tree, "-m", "fix: baseline")
     return repo, baseline, tree
+
+
+@pytest.mark.parametrize("invalid_middle", [False, True])
+def test_range_consumes_one_native_trust_selection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, invalid_middle: bool
+) -> None:
+    """Every introduced object retains admission while sharing one current trust input."""
+    repo, baseline, tree = _repository(tmp_path)
+    revisions = []
+    parent = baseline
+    for index in range(3):
+        parent = git(repo, "commit-tree", "-S", tree, "-p", parent, "-m", f"fix: item {index}")
+        if invalid_middle and index == 1:
+            raw = run_git(repo, "cat-file", "commit", parent, text=False).stdout
+            parent = (
+                run_git(
+                    repo,
+                    "hash-object",
+                    "-w",
+                    "-t",
+                    "commit",
+                    "--stdin",
+                    stdin=raw.replace(b"fix: item 1", b"fix: changed item"),
+                    text=False,
+                )
+                .stdout.decode()
+                .strip()
+            )
+        revisions.append(parent)
+    native = verification.run_git
+    selections = []
+
+    def observed(root, *args, **kwargs):
+        if "verify-commit" in args:
+            selections.append(args[args.index("--raw") + 1 :])
+        return native(root, *args, **kwargs)
+
+    monkeypatch.setattr(verification, "run_git", observed)
+    report = commit_range_admission_report(
+        repo,
+        target_ref="refs/heads/dev",
+        proposed_head=parent,
+        remote_head=baseline,
+        remote_name="origin",
+    )
+
+    assert selections[0] == tuple(revisions)
+    assert selections[1:] == ([(value,) for value in revisions] if invalid_middle else [])
+    assert report["revisions"] == revisions
+    assert report["verdict"] == ("block" if invalid_middle else "pass"), report
+    assert report["required_gaps"] == (["commit_signature_untrusted"] if invalid_middle else [])
+    assert [item["commit"] for item in report["violations"]] == (
+        [revisions[1]] if invalid_middle else []
+    )
 
 
 @pytest.mark.parametrize("select_policy", [False, True])

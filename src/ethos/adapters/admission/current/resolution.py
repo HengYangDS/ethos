@@ -324,6 +324,7 @@ def resolve_current_resolution(
     changed: bool = True,
     prewrite_paths: tuple[str, ...] = (),
     intent_tree_ref: str | None = None,
+    staged_tree_ref: str | None = None,
     require_workspace: bool = False,
 ) -> CurrentResolution:
     """Resolve current authority, official intent, paths, gap, and action once."""
@@ -341,7 +342,13 @@ def resolve_current_resolution(
         change_scope_paths_from_status(root, status) if changed else ()
     )
     change = change if change is not None else artifact_path_change(root, prewrite_paths)
-    prospective_scope = prospective_change_scope_report(prewrite_paths, change) if change else {}
+    prospective_scope = (
+        prospective_change_scope_report(
+            prewrite_paths, change, root=root, staged_tree_ref=staged_tree_ref
+        )
+        if change
+        else {}
+    )
     official = openspec_governance_report(
         root,
         change=change,
@@ -408,8 +415,7 @@ def resolve_current_resolution(
         )
     )
     prewrite_scope = (
-        prospective_scope
-        or _info_authoring_scope(
+        _info_authoring_scope(
             info_capabilities=info_capabilities,
             projected=projected,
             requested_paths=prewrite_paths,
@@ -417,6 +423,7 @@ def resolve_current_resolution(
             material_scope=material_scope,
         )
         or repair_scope
+        or prospective_scope
         or bootstrap_scope
     )
     if prewrite_paths and prewrite_scope:

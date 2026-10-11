@@ -399,7 +399,7 @@ def materialize_runtime_generation(
         )
         target, created = publish_runtime_generation(runtime_root, staging, artifact, environment)
         try:
-            require_runtime_execution(target, smoke=created)
+            require_runtime_execution(target.as_posix(), smoke=created)
         except BaseException:
             if created:
                 remove_generated_tree(target, ignore_errors=True)
@@ -525,8 +525,14 @@ def require_runtime_identity(
         _fail("hook_runtime_manifest_invalid")
 
 
-def require_runtime_execution(runtime: Path, *, smoke: bool = False) -> None:
+def require_runtime_execution(text: str, *, smoke: bool = False) -> None:
     """Qualify relocation and optional product behavior outside the signing boundary."""
+    # Only exact native text may select the executable: a subclass or path protocol
+    # could run arbitrary code or name another final component.
+    if type(text) is not str:
+        message = "hook_runtime_path_invalid"
+        raise ValueError(message)
+    runtime = Path(text)
     python = runtime_python(runtime / "python")
     facts = observe_python_facts(python)
     prefix = (runtime / "python").resolve().as_posix()

@@ -22,6 +22,7 @@ from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.value import mutable_json
+from ethos.normalization.coercion import string_sequence
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -56,7 +57,10 @@ def test_exact_publication_policy_rejects_inconsistent_release_roles(
     )
     assert report["verdict"] == ("pass" if valid else "block"), report
     if not valid:
-        assert any("protected_branches_policy_missing" in gap for gap in report["required_gaps"])
+        assert any(
+            "protected_branches_policy_missing" in gap
+            for gap in string_sequence(report["required_gaps"])
+        )
     assert git(repo, "rev-parse", "HEAD") == head
 
 
@@ -115,9 +119,6 @@ def test_publication_contract_failure_matrix(tmp_path: Path) -> None:
         topology = release_publication.publication_topology(tmp_path, {"publication": declaration})
         assert isinstance(topology["required_gaps"], list)
         assert any(gap in item for item in topology["required_gaps"])
-    assert release_publication.publication_source_version_gaps(
-        source_ref="refs/tags/v1", annotated_tag=True, version_text=None
-    ) == ("publication_source_version_invalid:v1",)
     topology = {"required_gaps": [], "remotes": [{"id": "gitlab", "git_remote": "origin"}]}
     for ref, remote, gap in (
         ("invalid", "origin", "ref_unavailable"),
@@ -233,7 +234,9 @@ def test_publication_remote_failure_matrix(tmp_path: Path, monkeypatch: pytest.M
         assert gaps == tuple(
             f"publication_remote_observation_unavailable:gitlab:origin:{ref}" for ref in refs
         )
-        for observed in observations["gitlab"]["refs"].values():
+        observed_refs = observations["gitlab"]["refs"]
+        assert isinstance(observed_refs, dict)
+        for observed in observed_refs.values():
             assert [observed[k] for k in ("state", "reason", "object_oid")] == [
                 "unavailable",
                 reason,
@@ -339,7 +342,7 @@ def test_publication_and_pre_push_share_exact_proof_and_continuation(
         monkeypatch.setattr(
             proof_adapter,
             "proof_for_repository_transition",
-            lambda *_: (None, ["proof_not_proven"]),
+            lambda *_, **_options: (None, ["proof_not_proven"]),
         )
     if state == "runtime-missing":
         monkeypatch.setattr(

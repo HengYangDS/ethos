@@ -114,6 +114,7 @@ class AuditPolicy(BaseModel):
     summary: str
     runner: str
     timeout_seconds: int = Field(gt=0)
+    finding_action: Literal["block", "report"] = "block"
     dispositions: list[AuditDisposition] = Field(default_factory=list)
 
 
@@ -134,7 +135,8 @@ def compose_audit_policies(subject: AuditPolicy, product: AuditPolicy) -> AuditP
     for record in (*subject.dispositions, *product.dispositions):
         if record not in records:
             records.append(record)
-    return subject.model_copy(update={"dispositions": records})
+    action = "report" if "report" in (subject.finding_action, product.finding_action) else "block"
+    return subject.model_copy(update={"dispositions": records, "finding_action": action})
 
 
 def audit_workspace_manifests(name: str, data: bytes) -> tuple[str, ...]:
@@ -338,6 +340,31 @@ def _native_observation_gaps(payload: dict, lock_source: bytes) -> tuple[str, st
     return "pass", ""
 
 
+def _reported_findings(checks: list[dict], lock_source: bytes) -> dict:
+    """Separate advisory disposition from required native observation validity."""
+    if any(
+        check["verdict"] == "unknown"
+        or check["exit_code"] != (0 if check["verdict"] == "pass" else 1)
+        for check in checks
+    ):
+        return {"verdict": "unknown", "reason": "native_execution_failed"}
+    python = json.loads(checks[0]["stdout"])
+    if python["summary"]["adverse_statuses"]:
+        return {"verdict": "block", "reason": "native_adverse_statuses"}
+    findings = python["summary"]["vulnerabilities"]
+    subjects: set[AuditSubject] = set()
+    if checks[1]["verdict"] == "block":
+        subjects, aggregates = _npm_subjects(lock_source, checks[1])
+        findings += aggregates
+    return {
+        "verdict": "pass",
+        "reason": "reported_findings" if findings else "clean",
+        "finding_count": findings,
+        "advisory_count": len({subject[0] for subject in subjects}),
+        "reported_subjects": sorted(subjects),
+    }
+
+
 def evaluate_dependency_acceptance(
     policy: AuditPolicy,
     payload: dict,
@@ -358,8 +385,11 @@ def evaluate_dependency_acceptance(
             return {**decision, "verdict": verdict, "reason": reason}
         decision["verdict"] = payload["verdict"]
         checks = payload["checks"]
+        if policy.finding_action == "report":
+            decision.update(_reported_findings(checks, lock_source))
         if (
-            payload["verdict"] == "pass"
+            policy.finding_action == "report"
+            or payload["verdict"] == "pass"
             or checks[0]["verdict"] != "pass"
             or (
                 scope == "production-release"

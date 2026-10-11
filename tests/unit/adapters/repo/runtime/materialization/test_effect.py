@@ -294,7 +294,7 @@ def test_runtime_generation_hashes_only_prepared_and_exposed_bytes(
             verify = (
                 partial(materialization.require_runtime_identity, target, args[3], environment)
                 if name == "runtime_file_inventory"
-                else partial(materialization.require_runtime_execution, target)
+                else partial(materialization.require_runtime_execution, target.as_posix())
             )
             with pytest.raises(ValueError, match=reason):
                 verify()
@@ -356,7 +356,7 @@ def test_runtime_generation_compares_windows_prefixes_as_paths(
             else pytest.raises(ValueError, match="hook_runtime_python_not_relocatable")
         )
         with expectation:
-            materialization.require_runtime_execution(target)
+            materialization.require_runtime_execution(target.as_posix())
 
 
 @pytest.mark.parametrize("shape", ["missing", "present", "sealed", "symlink"])

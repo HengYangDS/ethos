@@ -108,7 +108,11 @@ def install_hook_launchers(
         }
         for worktree in linked
     ]
-    cleanup = retire_generations(repo, hooks=hooks, runtime=runtime.parent)
+    # A malformed selector named no predecessor, so any runtime generation may be the rollback.
+    unnamed = rollback_supply.get("state") == "unavailable" and "runtime" not in rollback_supply
+    cleanup = retire_generations(
+        repo, hooks=hooks, runtime=runtime.parent, unnamed_predecessor=unnamed
+    )
     if cleanup["state"] == "deferred" or binding["legacy_runtime_locator"]["state"] == "retained":
         binding["required_gaps"].append("hook_runtime_cleanup_deferred")
         binding["next_action"] = "ethos hook install --json"

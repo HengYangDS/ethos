@@ -5,7 +5,6 @@ from __future__ import annotations
 import ast
 from dataclasses import dataclass
 from dataclasses import field
-from dataclasses import replace
 from functools import singledispatchmethod
 from importlib.util import resolve_name
 from typing import TYPE_CHECKING
@@ -17,6 +16,10 @@ from ethos.repository.policy.references.python.bindings import MemberDemand
 from ethos.repository.policy.references.python.control import PythonControlFlow
 from ethos.repository.policy.references.python.effects import PythonConsumption
 from ethos.repository.policy.references.python.functions.effects import project
+from ethos.repository.policy.references.python.native.containers import stored
+from ethos.repository.policy.references.python.native.returns import store_field
+from ethos.repository.policy.references.python.native.scalars import concatenate
+from ethos.repository.policy.references.python.native.scalars import native_divide
 from ethos.repository.policy.references.python.syntax import LexicalBindings
 from ethos.repository.policy.references.python.syntax import NativeScopes
 from ethos.repository.policy.references.python.syntax import module_name
@@ -35,7 +38,12 @@ class PythonReferenceFlow:
     result: PythonConsumption = field(init=False)
     lexical: NativeScopes = field(init=False)
     pending: list[
-        tuple[ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda, BindingScope, LexicalBindings]
+        tuple[
+            ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
+            BindingScope,
+            LexicalBindings,
+            BindingValue,
+        ]
     ] = field(default_factory=list)
 
     def observe(self, tree: ast.AST, *, source: str) -> PythonConsumption:
@@ -43,7 +51,7 @@ class PythonReferenceFlow:
         self.initialize(tree, source=source)
         cursor = 0
         while cursor < len(self.pending):
-            function, parent, lexical = self.pending[cursor]
+            function, parent, lexical, value = self.pending[cursor]
             cursor += 1
             name = "<lambda>" if isinstance(function, ast.Lambda) else function.name
             child = BindingScope(
@@ -54,6 +62,13 @@ class PythonReferenceFlow:
                 lexical.nonlocals,
                 deferred_outer=True,
             )
+            if self.sources is not None and len(value.targets) == 1:
+                definition = self.sources.definitions[next(iter(value.targets))]
+                summary = self.sources.invocations.summary_for(definition, self.result, child)
+                if summary.observation is not None:
+                    self.result.absorb(summary.observation)
+                self.pending.extend(summary.pending)
+                continue
             arguments = function.args
             parameters = (*arguments.posonlyargs, *arguments.args, *arguments.kwonlyargs)
             for argument in (
@@ -195,15 +210,21 @@ class PythonReferenceFlow:
         value = (
             self.sources.definition(self, node, parent, defaults, keywords)
             if self.sources is not None
-            and not node.decorator_list
-            and not isinstance(node, ast.AsyncFunctionDef)
             else BindingValue(local=True)
         )
-        scope.assign(node.name, value)
-        self.defer(node, scope)
+        scope.assign(
+            node.name,
+            BindingValue(local=True)
+            if node.decorator_list or isinstance(node, ast.AsyncFunctionDef)
+            else value,
+        )
+        self.defer(node, scope, value)
 
     def defer(
-        self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda, scope: BindingScope
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
+        scope: BindingScope,
+        value: BindingValue | None = None,
     ) -> None:
         """Methods close over enclosing functions, not the class execution namespace."""
         parent = scope
@@ -214,7 +235,11 @@ class PythonReferenceFlow:
             "<deferred>", parent, lexical.locals, lexical.globals, lexical.nonlocals
         )
         child.invalidate_outer(lexical.outer_writes)
-        self.pending.append((node, parent, lexical))
+        entry = (node, parent, lexical, value if value is not None else BindingValue())
+        self.pending.append(entry)
+        if self.sources is not None and self.sources.invocations.summarizing:
+            summary = self.sources.invocations.summaries[self.sources.invocations.summarizing[-1]]
+            summary.pending = (*summary.pending, entry)
 
     @statement.register
     def class_definition(self, node: ast.ClassDef, scope: BindingScope) -> None:
@@ -248,11 +273,14 @@ class PythonReferenceFlow:
             scope.assign(target.id, value)
         elif isinstance(target, ast.Tuple | ast.List):
             value = project(value, MemberDemand("structure"), scope, self.sources, self.result)
+            symbolic = bool(value.parameters or value.projections) and value.items is None
             for index, item in enumerate(target.elts):
                 self.assign(
                     item,
                     value.items[index]
                     if value.items is not None and index < len(value.items)
+                    else project(value, MemberDemand("index", key=index), scope, None, self.result)
+                    if symbolic
                     else BindingValue(
                         deferred=value.deferred,
                         unknown=value.unknown or value.items is not None or not value.deferred,
@@ -265,6 +293,7 @@ class PythonReferenceFlow:
                 self.sources.invocations.note_mutation(scope, value_owner, native_store=True)
             for owner in value_owner.targets:
                 scope.assign_member(f"{owner}.{target.attr}", value)
+            store_field(target.attr, value_owner, value, scope, self.result)
         elif isinstance(target, ast.Subscript):
             self.assign_item(target, value, scope)
 
@@ -273,25 +302,17 @@ class PythonReferenceFlow:
         owner = self.expression(target.value, scope)
         if self.sources is not None:
             self.sources.invocations.note_mutation(scope, owner)
+        if owner.unknown:
+            scope.invalidate_aggregates(*(method.receiver for method in owner.methods))
         key = self.expression(target.slice, scope)
+        strong = len(owner.aggregates) == 1 and not (
+            owner.unknown
+            or owner.deferred
+            or ((key.unknown or key.deferred) and not isinstance(target.slice, ast.Slice))
+        )
         for identity in owner.aggregates:
-            current = scope.member(identity)
-            if current.entries is not None and len(key.strings) == 1:
-                entries = dict(current.entries)
-                name = next(iter(key.strings))
-                entries[name] = (
-                    value
-                    if len(owner.aggregates) == 1
-                    and identity not in scope.summarized
-                    and not (owner.unknown or owner.deferred or key.unknown or key.deferred)
-                    else entries.get(name, BindingValue(unknown=True)).join(value)
-                )
-                scope.assign_member(
-                    identity,
-                    replace(current, entries=tuple(entries.items())),
-                )
-            else:
-                scope.assign_member(identity, BindingValue(unknown=True))
+            current, exact = scope.member(identity), strong and identity not in scope.summarized
+            scope.assign_member(identity, stored(current, target.slice, key, value, strong=exact))
 
     @singledispatchmethod
     def expression(self, node: ast.AST, scope: BindingScope) -> BindingValue:
@@ -309,7 +330,8 @@ class PythonReferenceFlow:
         if isinstance(node.value, str):
             return BindingValue(strings=frozenset({node.value}))
         if node.value is None or isinstance(node.value, bool | int | float | complex | bytes):
-            return BindingValue(truths=frozenset({bool(node.value)}))
+            kind = "bytes" if isinstance(node.value, bytes) else ""
+            return BindingValue(truths=frozenset({bool(node.value)}), native_kind=kind)
         return BindingValue(local=True)
 
     @expression.register
@@ -361,8 +383,22 @@ class PythonReferenceFlow:
     @expression.register
     def starred(self, node: ast.Starred, scope: BindingScope) -> BindingValue:
         """Unresolved expansion cannot claim a complete finite sequence."""
-        value = self.expression(node.value, scope)
-        return BindingValue(deferred=value.deferred, unknown=True, spread=True)
+        value = scope.resolve(self.expression(node.value, scope))
+        if self.sources is not None:
+            value = self.sources.invocations.resolve(value, scope, self.result, deep=False)
+        if (
+            value.items is not None
+            and value.ordered
+            and not (
+                value.unknown
+                or value.deferred
+                or value.element
+                or any(item.spread for item in value.items)
+            )
+        ):
+            return BindingValue(items=value.items, ordered=True, spread=True)
+        element = project(value, MemberDemand("iterate"), scope, self.sources, self.result)
+        return BindingValue(element=element, deferred=value.deferred, unknown=True, spread=True)
 
     @expression.register
     def binary(self, node: ast.BinOp, scope: BindingScope) -> BindingValue:
@@ -371,22 +407,8 @@ class PythonReferenceFlow:
         if self.sources is not None:
             left = self.sources.invocations.resolve(left, scope, self.result)
             right = self.sources.invocations.resolve(right, scope, self.result)
-        if isinstance(node.op, ast.Div) and left.path and right.strings:
-            value = BindingValue()
-            for suffix in right.strings:
-                if suffix in {"", "."}:
-                    current = left
-                elif suffix == ".." or "/" in suffix or "\\" in suffix:
-                    current = BindingValue(unknown=True)
-                else:
-                    current = BindingValue(
-                        path=True,
-                        strings=frozenset({suffix}),
-                        deferred=left.deferred or right.deferred,
-                        unknown=left.unknown or right.unknown,
-                    )
-                value = value.join(current)
-            return value
+        if isinstance(node.op, ast.Div) and (divided := native_divide(left, right)) is not None:
+            return divided
         if isinstance(node.op, ast.Add):
             left = project(left, MemberDemand("structure"), scope, self.sources, self.result)
             right = project(right, MemberDemand("structure"), scope, self.sources, self.result)
@@ -443,8 +465,7 @@ class PythonReferenceFlow:
     @expression.register
     def lambda_value(self, node: ast.Lambda, scope: BindingScope) -> BindingValue:
         """A local callable supplies no stdlib provenance by name alone."""
-        self.defer(node, scope)
-        return (
+        value = (
             self.sources.definition(
                 self,
                 node,
@@ -458,6 +479,8 @@ class PythonReferenceFlow:
             if self.sources
             else BindingValue(local=True)
         )
+        self.defer(node, scope, value)
+        return value
 
     @expression.register
     def call(self, node: ast.Call, scope: BindingScope) -> BindingValue:
@@ -465,7 +488,11 @@ class PythonReferenceFlow:
         callee = self.expression(node.func, scope)
         if self.sources is not None:
             callee = self.sources.invocations.resolve(callee, scope, self.result, deep=False)
-        args = tuple(self.expression(argument, scope) for argument in node.args)
+        arguments = []
+        for argument in node.args:
+            value = self.expression(argument, scope)
+            arguments.extend(value.items if value.spread and value.items is not None else (value,))
+        args = tuple(arguments)
         keywords = {
             argument.arg: self.expression(argument.value, scope) for argument in node.keywords
         }
@@ -481,9 +508,16 @@ class PythonReferenceFlow:
         owner, index = self.expression(node.value, scope), self.expression(node.slice, scope)
         if self.sources is not None:
             owner = self.sources.invocations.resolve(owner, scope, self.result, deep=False)
-        if "os.environ" in owner.targets:
+        if "os.environ" in owner.targets or (
+            owner.native_kind == "environment"
+            and not (index.strings and index.strings <= dict(owner.entries or ()).keys())
+        ):
             self.result.consume("value", index, node, scope, "os.environ.__getitem__")
             return BindingValue(deferred=True)
+        if owner.parameters and self.sources is not None:
+            name = BindingValue(strings=frozenset({"__getitem__"}))
+            method = self.result.attribute((owner, name), scope)
+            self.sources.invocations.note_call(method, (index,), {}, node, self.path, scope)
         key = (
             node.slice.value
             if isinstance(node.slice, ast.Constant)
@@ -504,7 +538,7 @@ class PythonReferenceFlow:
         """Retain supported strings without guessing formatted objects."""
         value = BindingValue(strings=frozenset({""}))
         for part in node.values:
-            value = value.concatenate(self.expression(part, scope))
+            value = concatenate(value, self.expression(part, scope))
         return value
 
     @expression.register
@@ -547,5 +581,5 @@ class PythonReferenceFlow:
     def combine(left: BindingValue, right: BindingValue, operator: ast.operator) -> BindingValue:
         """Compose supported values while preserving loss of operation coverage."""
         if isinstance(operator, ast.Add):
-            return left.concatenate(right)
+            return concatenate(left, right)
         return BindingValue(deferred=left.deferred or right.deferred, unknown=True)

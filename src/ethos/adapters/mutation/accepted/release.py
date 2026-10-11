@@ -18,6 +18,8 @@ from filelock import Timeout
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.commit.creation import create_signed_tag
+from ethos.adapters.repo.commit.provenance import lane_creation_boundary
+from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import is_ancestor
@@ -31,11 +33,14 @@ from ethos.adapters.repo.git_ref_worktrees import sync_ref_worktrees
 from ethos.adapters.repo.git_ref_worktrees import worktree_sync_gap
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.release import accepted_release_source
+from ethos.adapters.repo.release import release_branch_policy
 from ethos.adapters.repo.release import release_checkout_gaps
 from ethos.adapters.repo.release import release_ref_subject
 from ethos.adapters.repo.release import release_selection_command
 from ethos.adapters.repo.release import release_tag_policy
 from ethos.adapters.repo.release import require_release
+from ethos.adapters.repo.status.bindings import lease_generation
+from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import GitEffect
@@ -58,6 +63,7 @@ class _Selection:
     tag: str
     branch: str
     identity_transition: bool = False
+    base: str = ""
 
     @property
     def ref(self) -> str:
@@ -70,6 +76,7 @@ class _Selection:
             "tag": self.tag,
             "release_ref": self.ref,
             **({"identity_transition": True} if self.identity_transition else {}),
+            **({"base": self.base} if self.base else {}),
         }
 
     @property
@@ -89,6 +96,7 @@ class _Selection:
             self.root,
             head=self.head,
             previous=self.previous,
+            base=self.base,
             tag=self.tag,
             apply=True,
             identity_transition=self.identity_transition,
@@ -98,9 +106,24 @@ class _Selection:
         self, accepted_ref: str, tag_oid: str = "", *, include_tag: bool = True
     ) -> GitEffect:
         """Assert aligned branches; reserve updates for actual state changes."""
-        assertions = {accepted_ref: self.head}
+        policy = release_branch_policy(self.root)
+        assertions = (
+            {
+                f"refs/heads/{branch}": ref_head(self.root, branch)
+                for branch in (
+                    policy.accepted_branch,
+                    policy.candidate_branch,
+                    policy.release_branch,
+                    current_branch(self.root),
+                )
+            }
+            if self.base
+            else {accepted_ref: self.head}
+        )
         updates = {}
-        if self.previous == self.head:
+        if self.base:
+            assertions[self.ref] = self.previous
+        elif self.previous == self.head:
             assertions[self.ref] = self.head
         else:
             updates[self.ref] = GitRefUpdate(expected=self.previous, desired=self.head)
@@ -124,34 +147,63 @@ def _release_paths(root: Path, branch: str) -> tuple[Path, ...]:
 def _observe(selection: _Selection, *, apply: bool, authorized: bool, plan: TransitionPlan | None):
     """Read fresh source, proof, permission and linked-worktree preconditions."""
     root, head = selection.root, selection.head
-    policy = load_branch_role_policy(root)
+    policy = release_branch_policy(root)
     require_release(head and selection.previous, "release_exact_coordinates_required")
-    if policy.release_mirror == "accepted_ff":
+    if policy.release_mirror == "accepted_ff" and not selection.base:
         require_release(
             selection.previous == head == ref_head(root, selection.ref),
             "release_mirror_requires_accepted_closeout",
         )
     require_release(not apply or authorized, "authorization_required")
-    gaps = release_checkout_gaps(root, head) + hook_runtime_binding(root)["required_gaps"]
+    if selection.base:
+        require_release(
+            selection.tag and not selection.identity_transition, "release_maintenance_tag_required"
+        )
+        require_release(
+            lane_creation_boundary(root, head) == selection.base, "release_lane_birth_mismatch"
+        )
+        lease = leases_by_branch(root).get(current_branch(root), {})
+        require_release(lease.get("lease_state") == "valid", "release_live_lease_required")
+        require_release(
+            lease.get("holder_ref") == os.environ.get("ETHOS_ACTOR", "").strip(),
+            "lease_actor_mismatch",
+        )
+    gaps = (
+        release_checkout_gaps(root, head, base=selection.base)
+        + hook_runtime_binding(root)["required_gaps"]
+    )
     require_release(not gaps, gaps[0] if gaps else "")
-    accepted = accepted_release_source(root, head)
+    accepted = accepted_release_source(root, head, base=selection.base)
     proof, gaps = proof_for_repository_transition(
         root, head, attestation_id=str(plan.prior_attestations["proof"]["id"]) if plan else ""
     )
     require_release(proof is not None, gaps[0] if gaps else "release_source_not_proven")
+    if selection.base:
+        assert proof is not None
+        require_release(
+            proof.payload.body["plan"]["facts"]["values"].get("lease_generation")
+            == lease_generation(lease),
+            "proof_lease_generation_stale",
+        )
     observed = ref_head(root, selection.ref)
     require_release(
-        observed in {selection.previous, head} and is_ancestor(root, selection.previous, head),
+        observed == selection.previous
+        if selection.base
+        else observed in {selection.previous, head} and is_ancestor(root, selection.previous, head),
         "release_ref_prestate_stale",
     )
-    paths = _release_paths(root, selection.branch)
-    gap = worktree_sync_gap(root, paths, selection.branch, observed, selection.previous, head)
+    paths = () if selection.base else _release_paths(root, selection.branch)
+    gap = (
+        ""
+        if selection.base
+        else worktree_sync_gap(root, paths, selection.branch, observed, selection.previous, head)
+    )
     if gap and observed == head:
         gap = worktree_sync_gap(root, paths, selection.branch, head, head, head)
     require_release(not gap, "release_" + gap)
     version = release_tag_policy(root, head, selection.tag) if selection.tag else {}
     preview = None
-    if not apply and (plan is not None or selection.previous != head):
+    if not apply and (plan is not None or (not selection.base and selection.previous != head)):
         assert proof is not None
         preview = plan or _compile_plan(
             selection,
@@ -171,7 +223,7 @@ def _validate_request_plan(selection: _Selection, plan: TransitionPlan) -> None:
         == (os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"),
         "release_request_actor_mismatch",
     )
-    policy = load_branch_role_policy(selection.root)
+    policy = release_branch_policy(selection.root)
     tag_oid = ""
     if selection.tag:
         tag_ref = f"refs/tags/{selection.tag}"
@@ -179,7 +231,13 @@ def _validate_request_plan(selection: _Selection, plan: TransitionPlan) -> None:
         require_release(update is not None, "release_request_tag_missing")
         assert update is not None
         require_release(update.expected == zero_oid(selection.root), "release_request_tag_invalid")
-        release_ref_subject(selection.root, ref=tag_ref, old=update.expected, new=update.desired)
+        release_ref_subject(
+            selection.root,
+            ref=tag_ref,
+            old=update.expected,
+            new=update.desired,
+            base=selection.base,
+        )
         tag_oid = update.desired
     require_release(
         effect == selection.effect(f"refs/heads/{policy.accepted_branch}", tag_oid)
@@ -205,6 +263,13 @@ def _existing_plan(selection: _Selection) -> TransitionPlan | None:
 def _compile_plan(
     selection: _Selection, effect: GitEffect, accepted: dict[str, object], proof: Attestation
 ):
+    generation = proof.payload.body["plan"]["facts"]["values"].get("lease_generation")
+    if selection.base:
+        current = leases_by_branch(selection.root).get(current_branch(selection.root), {})
+        require_release(
+            current.get("lease_state") == "valid" and generation == lease_generation(current),
+            "proof_lease_generation_stale",
+        )
     return compile_observed_git_effect(
         selection.root,
         None,
@@ -219,7 +284,11 @@ def _compile_plan(
             "proof": proof.model_dump(mode="json"),
             "accepted_effect": accepted["accepted_effect"],
         },
-        values={"release_request": selection.request(), "root": selection.root.as_posix()},
+        values={
+            "release_request": selection.request(),
+            "root": selection.root.as_posix(),
+            **({"lease_generation": generation} if selection.base else {}),
+        },
         identity_transition=selection.identity_transition,
     )
 
@@ -234,7 +303,7 @@ def _prepare_plan(selection: _Selection, accepted: dict[str, object], proof: Att
         oid = create_signed_tag(
             root, name=selection.tag, head=selection.head, staging=selection.signing
         )
-        release_ref_subject(root, ref=tag_ref, old=zero_oid(root), new=oid)
+        release_ref_subject(root, ref=tag_ref, old=zero_oid(root), new=oid, base=selection.base)
     effect = selection.effect(str(accepted["accepted_ref"]), oid)
     plan = _compile_plan(selection, effect, accepted, proof)
     raw = (
@@ -269,8 +338,12 @@ def _execute(
         plan,
         issuer=os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
     )
-    sync = sync_ref_worktrees(
-        selection.root, paths, selection.branch, selection.head, selection.previous
+    sync = (
+        {"worktree_sync": "not_required"}
+        if selection.base
+        else sync_ref_worktrees(
+            selection.root, paths, selection.branch, selection.head, selection.previous
+        )
     )
     require_release(
         sync["worktree_sync"] not in {"failed", "dirty"}, "release_worktree_sync_pending"
@@ -292,6 +365,7 @@ def promote_release(
     apply: bool = False,
     authorized: bool = False,
     identity_transition: bool = False,
+    base: str = "",
 ) -> dict[str, object]:
     """Select an independent release or tag already aligned accepted-mirror content."""
     selection = _Selection(
@@ -301,6 +375,7 @@ def promote_release(
         tag,
         load_branch_role_policy(root).release_branch,
         identity_transition=identity_transition,
+        base=base,
     )
     data: dict[str, object] = {"source": head, "previous": previous, "tag": tag}
     try:

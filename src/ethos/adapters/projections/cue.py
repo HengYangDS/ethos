@@ -13,6 +13,7 @@ from ethos.adapters.process import run_command
 from ethos.adapters.toolchain.mise import MISE_CONFIG
 from ethos.adapters.toolchain.mise import MISE_LOCK
 from ethos.adapters.toolchain.mise import locked_tool
+from ethos.repository.policy.projections import projection_input_bindings
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -30,7 +31,11 @@ def compile_projections(
     """Compile exact materials; candidate code cannot supply the observation verdict."""
     configuration = tomllib.loads(files[declaration])
     compiler = configuration["compiler"]
-    inputs = {key: tomllib.loads(files[path]) for key, path in compiler["inputs"].items()}
+    bindings = projection_input_bindings(compiler["inputs"], declaration)
+    inputs = {
+        key: (json.loads if kind == "json" else tomllib.loads)(files[path])
+        for key, (path, kind) in bindings.items()
+    }
     source = files[compiler["source"]]
     supply = compiler["supply"]
     tool_files = {MISE_CONFIG: files[supply["config"]], MISE_LOCK: files[supply["lock"]]}

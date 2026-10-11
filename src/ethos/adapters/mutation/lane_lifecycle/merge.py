@@ -43,7 +43,14 @@ def _fail(message: str) -> NoReturn:
     raise ValueError(message)
 
 
-def _command(root: Path, mode: str, observed: MergeObservation, token: str, message: str) -> str:
+def _command(
+    root: Path,
+    mode: str,
+    observed: MergeObservation,
+    token: str,
+    message: str,
+    source_ref: str | None = None,
+) -> str:
     return shlex.join(
         (
             "ethos",
@@ -51,6 +58,7 @@ def _command(root: Path, mode: str, observed: MergeObservation, token: str, mess
             "refresh-base",
             "--strategy",
             "merge",
+            *(("--source-ref", source_ref) if source_ref is not None else ()),
             "--mode",
             mode,
             "--expect-head",
@@ -159,6 +167,8 @@ class _MergeContext:
     candidate_ref: str
     incoming: str
     runtime_digest: str
+    source_head: str
+    explicit_source_ref: str | None = None
 
     def token(self, mode: str, message: str, native: dict[str, object] | None = None) -> str:
         return canonical_json_digest(
@@ -167,6 +177,7 @@ class _MergeContext:
                 "lease": self.lease,
                 "candidate_ref": self.candidate_ref,
                 "candidate": self.incoming,
+                "source_head": self.source_head,
                 "runtime": self.runtime_digest,
                 "mode": mode,
                 "subject": message,
@@ -179,19 +190,33 @@ class _MergeContext:
             _fail("merge_state_stale")
         if digest != self.runtime_digest:
             _fail("merge_runtime_changed")
-        if self.candidate_ref and ref_head(self.root, self.candidate_ref) != self.incoming:
+        if self.candidate_ref and ref_head(self.root, self.candidate_ref) != self.source_head:
             _fail("merge_candidate_changed")
         if native and observe_merge(self.root) != self.observed:
             _fail("merge_state_stale")
 
 
-def _context(root: Path, observed: MergeObservation, mode: MergeMode) -> _MergeContext:
+def _context(
+    root: Path, observed: MergeObservation, mode: MergeMode, source_ref: str | None = None
+) -> _MergeContext:
     lease, digest = _authority(root, observed)
     policy = load_branch_role_policy(root)
-    candidate_ref = "" if mode == "abort" else f"refs/heads/{policy.candidate_branch}"
-    incoming = ref_head(root, candidate_ref) if candidate_ref else ""
-    if candidate_ref and not incoming:
-        _fail("candidate_branch_missing")
+    if source_ref is not None and (
+        mode == "abort"
+        or not source_ref.startswith("refs/heads/")
+        or run_git(root, "check-ref-format", source_ref, check=False, observation=True).returncode
+        or policy.role_for_branch(source_ref.removeprefix("refs/heads/")) != ROLE_WORK_LANE
+    ):
+        _fail("merge_source_ref_invalid")
+    candidate_ref = "" if mode == "abort" else source_ref or f"refs/heads/{policy.candidate_branch}"
+    source_head = ref_head(root, candidate_ref) if candidate_ref else ""
+    if candidate_ref and not source_head:
+        _fail("merge_source_ref_missing" if source_ref is not None else "candidate_branch_missing")
+    incoming = source_head
+    if source_ref is not None and observed.parents:
+        if len(observed.parents) != 1 or not is_ancestor(root, observed.parents[0], source_head):
+            _fail("merge_source_ref_changed")
+        incoming = observed.parents[0]
     return _MergeContext(
         root,
         observed,
@@ -199,6 +224,8 @@ def _context(root: Path, observed: MergeObservation, mode: MergeMode) -> _MergeC
         candidate_ref,
         incoming,
         digest,
+        source_head,
+        source_ref,
     )
 
 
@@ -305,7 +332,7 @@ def _preview(context: _MergeContext, mode: MergeMode, message: str) -> dict[str,
         observation=observed.projection(),
         state_digest=token,
         incoming=context.incoming,
-        next_action=_command(root, selected, observed, token, message),
+        next_action=_command(root, selected, observed, token, message, context.explicit_source_ref),
         user_decision_required=True,
     )
 
@@ -350,6 +377,7 @@ def _execute(
             mode=mode,
             incoming=context.incoming,
             candidate_ref=context.candidate_ref,
+            source_head=context.source_head,
             actor=os.environ.get("ETHOS_ACTOR", ""),
             lease=context.lease,
             message=message,
@@ -369,12 +397,13 @@ def merge_work_lane(
     expect_head: str | None = None,
     expect_state: str | None = None,
     subject: str | None = None,
+    source_ref: str | None = None,
 ) -> dict[str, object]:
     """Preview or execute exactly one supported native merge step."""
     observed: MergeObservation | None = None
     try:
         observed = observe_merge(root)
-        context = _context(root, observed, mode)
+        context = _context(root, observed, mode, source_ref)
         message = subject or "chore: merge candidate contribution"
         if not apply:
             return _preview(context, mode, message)

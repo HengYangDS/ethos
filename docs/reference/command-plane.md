@@ -91,6 +91,26 @@ authored content rather than overwriting it. Integration keeps candidate, accept
 and release transitions distinct, including preview, exact coordinates and fresh
 effect admission. Proof and publication do not yet have equivalent SDK and MCP surfaces.
 
+## Retained Candidate Materialization
+
+When a candidate ref has advanced but its index and worktree still exactly match
+a trusted, retained ancestor, inspect the existing candidate command:
+
+```bash
+ethos lane candidate --materialize --preserved-preimage <full-commit-oid> --retention-ref <full-ref> --reason "Restore the retained candidate projection" --root <clean-accepted-root> --json
+```
+
+Follow the returned authorized apply command. Its state digest binds the current
+candidate and accepted refs, retention ref, common directory, target and actor;
+the caller does not restate those facts in another plan. The effect holds native
+Git ref assertions, re-observes the exact index and working bytes, and uses the
+existing worktree synchronization owner. It moves no ref and replays no earlier CAS.
+
+Unknown edits, untrusted commits, changed refs and ignored or masked overwrite
+risks refuse materialization. A completed native effect is recognized without
+rewriting its index after a lost acknowledgement. The returned NativeEffect is
+evidence of materialization, not source acceptance or a new authorization.
+
 ## Runtime Selection and Recovery
 
 `status.data.hook_runtime` is the single hook-runtime
@@ -138,6 +158,18 @@ same command semantics; it is not a parallel lifecycle.
 
 ## Accepted Release Selection
 
+For maintenance from a historical accepted base, select
+`ethos land --release --expect-head <source-head> --release-base <accepted-base>
+--release-head <current-main> --tag v<source-version> --json`. The source must
+belong to its native Work Lane, retain the exact accepted-base witness, and have
+current trusted signatures, introduced-range admission and a proof bound to the
+live holder's complete Lease generation. The base alone authorizes no new source.
+Only `--apply --authorize` creates the immutable signed tag; current accepted,
+candidate, release and maintenance branches remain asserted, never updated or
+synchronized. The checkout's branch roles must match current accepted policy.
+Publication uses the original completed tag plan and its exact proof and
+accepted-effect IDs, then obtains fresh admission independently for each peer.
+
 `ethos land --release --expect-head <accepted-head> --release-head <old-main>
 --json` previews selection of the exact current accepted source for an
 independent release branch. Add `--tag v<version>` for a declared signed
@@ -178,6 +210,11 @@ not remote publication, a Forge Release, deployment or actual user benefit.
 `ethos lane refresh-base --strategy merge --json` observes one native merge or
 prepares a merge from the configured candidate. The default strategy remains
 rebase for unpublished replay; a pending merge instead routes to its own reader.
+For an explicitly coordinated peer contribution, `--source-ref refs/heads/work/<lane>`
+selects an existing Work Lane through this same executor without moving the
+candidate. The preview and apply bind that full ref and its exact commit; a
+missing, non-Work-Lane or changed source is refused. This option requires the
+merge strategy and does not apply to abort.
 `--mode start|continue|abort` selects one effect. Preview returns an exact apply
 command binding HEAD, parents, index, tracked and untracked content, runtime and
 Lease generation. Apply requires `--authorize`; a preview is not permission.
@@ -189,7 +226,8 @@ lane; cleanup follows it. Proof, candidate integration and accepted closeout
 remain separate obligations. Coexisting official Changes retain separate task
 states; ambiguous contributions require explicit resolution, not fabricated
 completion of incoming intent. Continue rejects edits to incoming Change
-artifacts. Archiving the local Change retains its archive attribution instead
+artifacts; unchanged incoming staged trees do not authorize ordinary cross-Change
+authoring or claim incoming task completion. Archiving the local Change retains its archive attribution instead
 of selecting an unchanged incoming Change merely because it is still active.
 
 `--mode abort` does not depend on candidate-ref existence or valid Change
@@ -374,6 +412,20 @@ valid target Lease requires its current holder. Retained ref movement invalidate
 the receipt. Re-derive from current facts instead of replaying stale coordinates.
 The surviving ref and checkout are not written, and their unique semantics still
 need adjudication before final retirement.
+
+For independent maintenance, select a full trusted commit OID without changing
+the current candidate train:
+
+```bash
+ethos lane start <name> --base <full-commit-oid> --holder-ref "$ETHOS_ACTOR" --root <accepted-root> --json
+```
+
+Inspect the planned base and follow its exact apply command. Omission of `--base`
+retains the candidate default. Both modes use current repository policy, trust,
+runtime and Lease authority; an old source does not reactivate old governance.
+Creation asserts the observed candidate and writes only the owned lane ref.
+Failure compensates only newly created resources. This creates authoring state,
+not release authority; exact proof, integration and publication remain separate.
 
 For a registered Work Lane that has lost its Lease, derive coordination recovery
 without recreating its checkout or changing its staged and unstaged content:

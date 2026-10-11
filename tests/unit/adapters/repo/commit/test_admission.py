@@ -10,10 +10,15 @@ import pytest
 
 import ethos.adapters.repo.commit.admission as admission
 import ethos.adapters.repo.commit.integration as integration
+import ethos.adapters.repo.trust_anchor.verification as verification
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.repository.policy.commit import CommitPolicy
+from tests.support.ethos_cli_runner import run_ethos
+from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import lane_start_arguments
+from tests.unit.cli.land.publication.support import branch_publication_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -227,6 +232,32 @@ def test_new_ref_baseline_matrix(tmp_path: Path, case: str) -> None:
         assert cast("list[str]", report["required_gaps"])[0].startswith(marker)
 
 
+def test_diverged_proposal_selects_its_accepted_native_lane_birth(tmp_path: Path) -> None:
+    """Real lane.start and candidate.accept effects select the range; a lane name alone cannot."""
+    accepted_root, _, accepted = branch_publication_fixture(tmp_path, accepted=True)
+    lane = tmp_path / "lane"
+    run_ethos(*lane_start_arguments(accepted_root, lane), cwd=accepted_root)
+    proposed = commit_fixture_file(lane, "FIX.md", "# fix\n", "fix: historical maintenance")
+    git(lane, "checkout", "-q", "--detach", f"{accepted}~1")
+    later = commit_fixture_file(lane, "LATER.md", "# later\n", "fix: later accepted line")
+    git(lane, "checkout", "-q", "-")
+    git(lane, "update-ref", "refs/remotes/origin/dev", later)
+
+    reports = {
+        root: _report(
+            root, proposed=proposed, remote=zero_oid(lane), target="refs/heads/proposal/feature"
+        )
+        for root in (lane, accepted_root)
+    }
+
+    assert reports[lane]["verdict"] == "pass"
+    assert reports[lane]["baseline_commit"] == accepted
+    assert reports[lane]["baseline_source"] == "native_lane_birth_accepted_provenance"
+    assert reports[lane]["revisions"] == [proposed]
+    gap = cast("list[str]", reports[accepted_root]["required_gaps"])[0]
+    assert gap.startswith("commit_range_trusted_baseline_not_ancestor:")
+
+
 @pytest.mark.parametrize("tagged_endpoint", ["baseline", "proposed"])
 def test_delete_and_annotated_tag_endpoints(
     tmp_path: Path,
@@ -348,9 +379,9 @@ def test_object_policy_and_optional_trust_matrix(
     )
     verified: list[str] = []
     monkeypatch.setattr(
-        admission,
-        "verify_commit_trust",
-        lambda _root, value: verified.append(value) or {"required_gaps": trust or []},
+        verification,
+        "verify_git_object_trust",
+        lambda _root, value, _kind: verified.append(value) or {"required_gaps": trust or []},
     )
 
     report = admission.commit_policy_report(

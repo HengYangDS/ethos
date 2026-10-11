@@ -3320,25 +3320,3 @@ all supported platforms or the whole quality foundation. Existing Task11.9.2
 retains Nox/pytest and npm/c8 same-attempt composition, native behavior failure
 custody and mixed-language scope. Caller termination and first-use foundation
 observations remain with their existing lifecycle and adoption owners.
-
-### Consecutive Native History Repairs
-
-The existing original-object resolver selected only a completed replacement
-that was directly ancestral to the proposed source. A later exact repair can
-replace that first replacement while preserving it in the later preimage.
-Direct ancestry alone then loses valid original-peer provenance.
-
-Resolve the relation through completed repair effects, not tree equality,
-patch IDs or an asserted mapping. Reuse native payload, parent and signature
-validation for each necessary repair once per observation. Compose the exact
-object maps, intersect the declared ref names and reject ambiguous paths.
-Retain the final-tip witness and all predecessor witnesses. The final repaired
-tip is the forward-policy baseline; the advertised peer object remains CAS
-input. This repair does not authorize a non-fast-forward push, a history bridge,
-accepted closeout or a weaker proof purpose. Those effects retain independent
-admission and exact current evidence.
-
-Task 13.4.3 owns this recovery. Native regressions exercise two actual signed
-repairs, valid and invalid forward contributions, a missing predecessor and a
-successor that no longer names the release ref. Focused source success remains
-distinct from exact product proof, installed acceptance and GitLab delivery.

@@ -43,7 +43,7 @@ def _config(root: Path, name: str) -> str:
     if git is None:
         return ""
     completed = subprocess.run(
-        (str(Path(git).resolve()), "config", "--get", name),
+        (str(Path(git).absolute()), "config", "--get", name),
         cwd=root,
         check=False,
         text=True,

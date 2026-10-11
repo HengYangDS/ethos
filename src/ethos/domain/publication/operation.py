@@ -211,12 +211,18 @@ def _publish_projection(
         )
     retirement = effect.retirement if effect is not None else retire
     projection_verdict: Verdict = "block" if gaps else "pass"
+    selected_ids = tuple(target.id for target in effect.targets) if effect is not None else peer_ids
     context = observe_publication(
-        repo, apply=False, authorized=authorize, expect_head=expect_head, target_refs=target_refs
+        repo,
+        apply=False,
+        authorized=authorize,
+        expect_head=expect_head,
+        target_refs=target_refs,
+        peer_ids=selected_ids,
     )
     current_head = context.head
     gaps.extend(context.required_gaps)
-    selected_remotes, selection_gaps = select_publication_peers(context.remotes, peer_ids)
+    selected_remotes, selection_gaps = select_publication_peers(context.remotes, selected_ids)
     if replay and peer_ids:
         selection_gaps.append("publication_peer_selection_receipt_conflict")
     request_gaps = _publication_request_gaps(
@@ -253,8 +259,6 @@ def _publish_projection(
             plan = compile_remote_publication_request(root=repo, effect=effect, proof=proof)
             gaps.extend(plan.required_gaps)
             projection_verdict = reduce_verdicts(projection_verdict, plan.verdict)
-            if plan.verdict == "pass" and projection_verdict == "pass":
-                request = persist_remote_publication_request(repo, plan)
     if effect is not None and effect.source.peeled_commit != current_head:
         gaps.append("remote_publication_receipt_head_mismatch")
         projection_verdict = "block"
@@ -265,6 +269,8 @@ def _publish_projection(
         "block" if request_gaps else "pass",
         required_gaps=tuple(gaps),
     )
+    if not replay and plan is not None and verdict == "pass":
+        request = persist_remote_publication_request(repo, plan)
     execution: dict[str, object] = {"state": "not_applied", "required_gaps": []}
     if apply and verdict == "pass" and (plan is not None):
         admitted = (

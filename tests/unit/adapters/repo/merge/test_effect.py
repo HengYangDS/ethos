@@ -56,6 +56,7 @@ def _prepare(root: Path, mode: str):
             mode=mode,
             incoming="",
             candidate_ref="",
+            source_head="",
             actor="agent:test",
             lease={},
             message="chore: recover merge",

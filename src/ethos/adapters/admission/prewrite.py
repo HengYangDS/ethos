@@ -224,6 +224,7 @@ def _prewrite_material_scope(
         authority=current_authority,
         changed=False,
         prewrite_paths=requested,
+        staged_tree_ref=str(patch_report["index_tree"]) if patch_report.get("index_tree") else None,
         require_workspace=require_workspace,
     )
     scope = resolution.scope_report(requested)

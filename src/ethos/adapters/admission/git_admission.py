@@ -340,10 +340,8 @@ def _release_move_gaps(repo: Path, ref: str, old: str, new: str, operation: str)
 def _release_move_report(
     repo: Path, base: dict[str, object], ref: str, old: str, new: str, operation: str
 ) -> dict[str, object]:
-    if operation == "release.tag":
-        policy = load_branch_role_policy(repo)
-        if not declared_release_tag(repo, ref_head(repo, policy.accepted_branch), ref):
-            return base
+    if operation == "release.tag" and not declared_release_tag(repo, ref):
+        return base
     gaps = _release_move_gaps(repo, ref, old, new, operation)
     if operation == "release.tag" and gaps == ["release_ref_move_no_ref_intent"]:
         policy = load_branch_role_policy(repo)

@@ -303,8 +303,9 @@ def recover_plan(
     desired: str,
     ref_name: str = "",
     assertions: Mapping[str, str] | None = None,
+    current_postconditions: bool = True,
 ) -> TransitionPlan | None:
-    """Return the sole current Attestation-backed plan for one exact ref effect."""
+    """Return one exact completed effect; historical evidence never grants authority."""
     try:
         _identity, attestations = read_attestation_set(root)
     except ValueError as error:
@@ -336,6 +337,7 @@ def recover_plan(
                 attestation,
                 issuer=attestation.verifier,
                 plan=plan,
+                current_postconditions=current_postconditions,
             )
         except ValueError:
             continue

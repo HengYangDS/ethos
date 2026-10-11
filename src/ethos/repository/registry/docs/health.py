@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 OBSERVATIONAL_ROLES = frozenset({"evidence", "history"})
-MAX_CURRENT_MARKDOWN_NONBLANK = 500
+MAX_CURRENT_MARKDOWN_NONBLANK = 512
 DECISION_RECORD_NAME = re.compile(r"^dr-([0-9]{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
 
 

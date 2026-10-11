@@ -29,7 +29,11 @@ def repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         target.write_bytes((root / name).read_bytes())
     (tmp_path / "package-lock.json").write_text('{"packages":{"":{}}}\n')
     policy = tmp_path / audit.POLICY
-    policy.write_text(policy.read_text().split("\n[[dispositions]]", 1)[0])
+    policy.write_text(
+        policy.read_text()
+        .split("\n[[dispositions]]", 1)[0]
+        .replace('finding_action = "report"\n', "")
+    )
     package = tmp_path / "product/ethos"
     product = package / "resources" / AUDIT_POLICY_PATH
     product.parent.mkdir(parents=True)

@@ -374,3 +374,21 @@ def test_repair_chain_keeps_only_refs_named_at_every_step(tmp_path, monkeypatch)
         repaired_peer_ref_provenance(repo, ref="refs/heads/main", old=original, new=second) is None
     )
     assert git(repo, "show-ref") == before
+
+
+def test_unrepaired_peer_ref_does_not_validate_unrelated_history(tmp_path, monkeypatch):
+    """An unselected peer ref cannot consume another ref's expensive repair proof."""
+    repo, original, _first, second = _consecutive_repairs(tmp_path, monkeypatch)
+
+    def unrelated_history(*_args, **_kwargs):
+        pytest.fail("An unrepaired ref selected unrelated historical validation")
+
+    monkeypatch.setattr(signature, "completed_signature_repair", unrelated_history)
+    before = git(repo, "show-ref")
+    assert (
+        repaired_peer_ref_provenance(
+            repo, ref="refs/heads/work/unrepaired", old=original, new=second
+        )
+        is None
+    )
+    assert git(repo, "show-ref") == before

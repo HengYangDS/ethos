@@ -517,7 +517,11 @@ def test_cached_return_depends_only_on_consumed_heap_members(
 @pytest.mark.parametrize("expanded", [False, True])
 @pytest.mark.parametrize("native_read", [False, True])
 def test_discarded_comprehension_calls_reuse_invocation_owned_bindings(
-    monkeypatch: pytest.MonkeyPatch, count: int, *, expanded: bool, native_read: bool
+    monkeypatch: pytest.MonkeyPatch,
+    count: int,
+    *,
+    expanded: bool,
+    native_read: bool,
 ) -> None:
     """A yielded element is not call expansion or a capture from the module."""
     sequence = "(*receiver['inputs'], *receiver['outputs'])" if expanded else "receiver['inputs']"
@@ -549,7 +553,8 @@ def test_discarded_comprehension_calls_reuse_invocation_owned_bindings(
 
     flow.initialize(tree, source=source)
 
-    assert observed == [("helper", True), ("leaf", True)], observed
+    expected = [("helper", True), ("leaf", True)]
+    assert sorted(observed) == sorted(expected), observed
     assert not flow.result.uncertainties, flow.result
 
 

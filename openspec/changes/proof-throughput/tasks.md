@@ -807,6 +807,14 @@
         Evidence: `semantic-demand-closure-20261009/{historical-base-*,combined-official-repair-*}`.
     - [x] 13.4.2.1 Deliver the isolated signed finite-input repair through the native wheel/runtime owner; qualify public admission, independent byte custody and the original AIGW implicit hook and DDWG proof consumers. This closes their hang, not full-proof, release or whole-product acceptance.
   - [ ] 13.4.3 Close owner-confirmed historical attribution and peer readback through exact corrections and recoverable originals. Current author-header repair is accepted and installed; retain the three platform committer records after verified original GitHub web-flow signatures. False Junie coauthor, exact proof, peer publication and old PR-reference disposition remain open; future genuine contributors are not constrained.
+    - [x] 13.4.3.1 Preserve original-peer provenance across consecutive completed native repairs; verify exact mapping composition, ref intersection, missing or ambiguous evidence refusal, final-tip forward-policy checks and unchanged advertised CAS input through the owning public boundaries. Exact product proof, installed recovery and GitLab read-back remain separate acceptance obligations.
+
+      Native merge recovery and exact-ref selection are qualified on signed
+      source `c103ea4b`: 197 native-config trust, repair-chain, merge and
+      publication controls pass; the merge effect records both original parents.
+      Evidence: `build/evidence/native-adopter-repair-20261011/peer-exact-ref-*`.
+      Full proof, accepted-runtime installation and GitLab delivery stay open.
+
     - **Facts, 2026-10-09 02:33 +08:00:** accepted source is `1e6fd8ee`; candidate
       is `3b9fd80c`; installed runtime is `947cd020`. Fresh GitHub/GitLab readbacks
       still expose four/three proposal refs; neither retirement is complete. Both

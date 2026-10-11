@@ -214,7 +214,16 @@ def test_child_ruff_owns_its_actual_interpreter_and_one_launch(
 
 @pytest.mark.parametrize(
     "boundary",
-    ["valid", "url-hash", "missing", "editable", "wrong-wheel", "wrong-hash", "conflicting-hash"],
+    [
+        "valid",
+        "url-hash",
+        "missing",
+        "missing-hash",
+        "editable",
+        "wrong-wheel",
+        "wrong-hash",
+        "conflicting-hash",
+    ],
 )
 def test_loaded_observer_requires_exact_supplied_pep610_provenance(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str
@@ -231,6 +240,8 @@ def test_loaded_observer_requires_exact_supplied_pep610_provenance(
         record = {"url": f"{wheel.as_uri()}#sha256={digest}", "archive_info": {}}
     elif boundary == "missing":
         monkeypatch.delenv("ETHOS_NATIVE_OBSERVER_REQUIREMENT")
+    elif boundary == "missing-hash":
+        record["archive_info"] = {}
     elif boundary == "editable":
         record["dir_info"] = {"editable": True}
     elif boundary == "wrong-wheel":

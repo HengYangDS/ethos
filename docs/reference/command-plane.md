@@ -126,7 +126,10 @@ then uses a compatible invoking package or builds a new source-bound generation
 before changing the selector. An explicit `--runtime` must match the requested
 build. Missing or damaged external supply never triggers an implicit rebuild;
 restore the installation or explicitly rebind. A damaged selector also requires
-explicit selection. Package-manager upgrade/uninstall qualification is separate.
+explicit selection. Valid supplied bytes may repair it without guessing a
+predecessor location; the result reports unavailable rollback selection, and a
+failed cutover restores the exact damaged selector bytes through compare-and-swap.
+Package-manager upgrade/uninstall qualification is separate.
 
 These roots are capabilities, not a fixed lifecycle. `status` selects the sole
 current continuation; after an effect, the caller re-observes instead of

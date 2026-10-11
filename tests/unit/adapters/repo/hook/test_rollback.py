@@ -216,3 +216,47 @@ def test_external_predecessor_recovery_requires_proven_absence(
         assert selector.read_bytes() == before
         assert damaged.read_bytes() == b"external predecessor\n"
         assert require_selected_runtime(previous).digest == previous.name
+
+
+@pytest.mark.parametrize("fail_activation", [False, True])
+def test_explicit_supply_recovers_malformed_selection_without_guessing_predecessor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, fail_activation: bool
+) -> None:
+    """Valid supply repairs damaged selection or restores its exact failed preimage."""
+    repo, previous, supplied = _upgrade_case(tmp_path, monkeypatch)
+    installed = activation.install_hook_launchers(repo, installed_runtime=supplied)
+    common = Path(git_common_dir(repo))
+    selected = current_runtime(common)
+    rollback = Path(installed["rollback_supply"]["runtime"])
+    selector = common / "ethos/runtime/CURRENT"
+    original = selector.read_bytes()
+    malformed = b"invalid\n"
+    selector.write_bytes(malformed)
+
+    with pytest.raises(ValueError, match="hook_runtime_current_invalid"):
+        activation.install_hook_launchers(repo)
+    assert selector.read_bytes() == malformed
+
+    if fail_activation:
+
+        def reject_config(*_args: object, **_kwargs: object) -> None:
+            message = "injected activation config failure"
+            raise ValueError(message)
+
+        monkeypatch.setattr(activation.config_effects, "set_common_config", reject_config)
+        with pytest.raises(ValueError, match="injected activation config failure"):
+            activation.install_hook_launchers(repo, installed_runtime=supplied)
+        assert selector.read_bytes() == malformed
+    else:
+        repaired = activation.install_hook_launchers(repo, installed_runtime=supplied)
+        assert repaired["required_gaps"] == []
+        assert selector.read_bytes() == original
+        assert current_runtime(common) == selected
+        assert repaired["rollback_supply"] == {
+            "state": "unavailable",
+            "selection": selector.as_posix(),
+            "reason": "hook_runtime_current_invalid",
+        }
+
+    assert require_selected_runtime(selected.root) == selected
+    assert require_selected_runtime(rollback).digest == previous.name

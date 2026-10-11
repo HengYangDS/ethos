@@ -25,7 +25,8 @@
 ## 3. Independent Installation
 
 - [x] 3.0 Restore the immutable POSIX console entry and verify actual installed invocation, including upgrade from a predecessor that removes it. Reject reuse of an identity-matching generation missing the required entry; preserve valid reuse, immutable old bytes and native recovery. Keep Windows entry and host dispatcher acceptance distinct.
-- [x] 3.1 Separate host immutable supply from exact repository selection; verify two repositories reuse bytes without sharing mutable state.
+- [ ] 3.1 Separate host immutable supply from exact repository selection; verify two repositories reuse bytes without sharing mutable state.
+  - Reopened after the exact `cddcda6` installed journey failed at explicit repair of a malformed shared-repository selector. Native RED and 310 sibling GREEN cases now preserve implicit no-guess refusal, exact CAS rollback and unavailable predecessor reporting. The original failed attempt, cleanup and focused acceptance remain under `build/evidence/native-adopter-repair-20261011/malformed-selection-*` and `exact-cddcda6-native-install-smoke.*`; complete successor installed acceptance remains pending.
 - [ ] 3.1.1 Qualify explicit native runtime selection without replacing incumbent domain hooks; retain independent enforcement, exact selector admission and rollback.
 - [ ] 3.1.2 Qualify typed supplemental OpenSpec metadata and exact binding-only repair without removing native consumers or weakening normative specs and other profile obligations.
 - [ ] 3.2 Prove retained-state upgrade, interruption, rollback and live-consumer-safe uninstall outside the source checkout.

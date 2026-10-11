@@ -121,7 +121,16 @@ def _preserve_predecessor_supply(common: Path, runtime: Path) -> dict[str, str]:
     try:
         previous = current_runtime(common)
     except (OSError, ValueError) as error:
-        previous_root = selected_runtime_path(common)
+        try:
+            previous_root = selected_runtime_path(common)
+        except ValueError as selection_error:
+            if str(selection_error) != "hook_runtime_current_invalid":
+                raise
+            return {
+                "state": "unavailable",
+                "selection": (common / "ethos/runtime/CURRENT").as_posix(),
+                "reason": str(selection_error),
+            }
         if previous_root.parent != common / "ethos/runtime":
             try:
                 previous_root.lstat()

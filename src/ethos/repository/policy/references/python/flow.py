@@ -16,7 +16,7 @@ from ethos.repository.policy.references.python.bindings import MemberDemand
 from ethos.repository.policy.references.python.control import PythonControlFlow
 from ethos.repository.policy.references.python.effects import PythonConsumption
 from ethos.repository.policy.references.python.functions.effects import project
-from ethos.repository.policy.references.python.functions.effects import stored
+from ethos.repository.policy.references.python.native.containers import stored
 from ethos.repository.policy.references.python.native.returns import store_field
 from ethos.repository.policy.references.python.native.scalars import concatenate
 from ethos.repository.policy.references.python.native.scalars import native_divide
@@ -293,7 +293,7 @@ class PythonReferenceFlow:
                 self.sources.invocations.note_mutation(scope, value_owner, native_store=True)
             for owner in value_owner.targets:
                 scope.assign_member(f"{owner}.{target.attr}", value)
-            store_field(target.attr, value_owner, value, scope)
+            store_field(target.attr, value_owner, value, scope, self.result)
         elif isinstance(target, ast.Subscript):
             self.assign_item(target, value, scope)
 
@@ -306,7 +306,9 @@ class PythonReferenceFlow:
             scope.invalidate_aggregates(*(method.receiver for method in owner.methods))
         key = self.expression(target.slice, scope)
         strong = len(owner.aggregates) == 1 and not (
-            owner.unknown or owner.deferred or key.unknown or key.deferred
+            owner.unknown
+            or owner.deferred
+            or ((key.unknown or key.deferred) and not isinstance(target.slice, ast.Slice))
         )
         for identity in owner.aggregates:
             current, exact = scope.member(identity), strong and identity not in scope.summarized
@@ -381,8 +383,22 @@ class PythonReferenceFlow:
     @expression.register
     def starred(self, node: ast.Starred, scope: BindingScope) -> BindingValue:
         """Unresolved expansion cannot claim a complete finite sequence."""
-        value = self.expression(node.value, scope)
-        return BindingValue(deferred=value.deferred, unknown=True, spread=True)
+        value = scope.resolve(self.expression(node.value, scope))
+        if self.sources is not None:
+            value = self.sources.invocations.resolve(value, scope, self.result, deep=False)
+        if (
+            value.items is not None
+            and value.ordered
+            and not (
+                value.unknown
+                or value.deferred
+                or value.element
+                or any(item.spread for item in value.items)
+            )
+        ):
+            return BindingValue(items=value.items, ordered=True, spread=True)
+        element = project(value, MemberDemand("iterate"), scope, self.sources, self.result)
+        return BindingValue(element=element, deferred=value.deferred, unknown=True, spread=True)
 
     @expression.register
     def binary(self, node: ast.BinOp, scope: BindingScope) -> BindingValue:
@@ -472,7 +488,11 @@ class PythonReferenceFlow:
         callee = self.expression(node.func, scope)
         if self.sources is not None:
             callee = self.sources.invocations.resolve(callee, scope, self.result, deep=False)
-        args = tuple(self.expression(argument, scope) for argument in node.args)
+        arguments = []
+        for argument in node.args:
+            value = self.expression(argument, scope)
+            arguments.extend(value.items if value.spread and value.items is not None else (value,))
+        args = tuple(arguments)
         keywords = {
             argument.arg: self.expression(argument.value, scope) for argument in node.keywords
         }

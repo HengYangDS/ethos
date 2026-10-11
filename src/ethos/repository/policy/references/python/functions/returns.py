@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import ast
 import inspect
-import subprocess
 from dataclasses import dataclass
 from dataclasses import field
 from dataclasses import replace
@@ -68,16 +67,6 @@ class RecordDefinition:
     positional: bool
     owner: BindingScope
     protocols: tuple[tuple[str, str], ...] = ()
-
-
-_NONE = BindingValue(truths=frozenset({False}))
-_NATIVE = inspect.signature(subprocess.CompletedProcess)
-_COMPLETED_PROCESS = _NATIVE.replace(
-    parameters=[
-        item if item.default is item.empty else item.replace(default=_NONE)
-        for item in _NATIVE.parameters.values()
-    ]
-)
 
 
 @dataclass(slots=True)
@@ -508,23 +497,6 @@ class PythonSourceReturns:
         """Allocate one successfully bound record; a failed binding stays unknown."""
         value = PythonSourceReturns.bound(record, args, keywords)
         return value if value.fields is None else scope.aggregate(value, node)
-
-    @staticmethod
-    def completed_process(
-        args: tuple[BindingValue, ...],
-        keywords: dict[str | None, BindingValue],
-        scope: BindingScope,
-    ) -> BindingValue | None:
-        """Bind the native CompletedProcess signature; other calls keep their native escape."""
-        if any(value.spread for value in args):
-            return None
-        names = tuple(_COMPLETED_PROCESS.parameters)
-        value = PythonSourceReturns.bound(
-            RecordDefinition(_COMPLETED_PROCESS, names, positional=False, owner=scope),
-            args,
-            keywords,
-        )
-        return None if value.fields is None else replace(value, native_kind="completed_process")
 
     @staticmethod
     def bound(

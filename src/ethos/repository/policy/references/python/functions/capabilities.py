@@ -7,10 +7,10 @@ from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from ethos.repository.policy.references.python.bindings import BindingValue
-from ethos.repository.policy.references.python.functions.effects import bound_values
+from ethos.repository.policy.references.python.functions.arguments import bound_values
+from ethos.repository.policy.references.python.functions.arguments import symbolic_arguments
 from ethos.repository.policy.references.python.functions.effects import observe_calls
 from ethos.repository.policy.references.python.functions.effects import substitute
-from ethos.repository.policy.references.python.functions.effects import symbolic_arguments
 
 if TYPE_CHECKING:
     from ethos.repository.policy.references.python.bindings import BindingScope

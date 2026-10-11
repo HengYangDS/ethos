@@ -199,6 +199,21 @@
 - [x] 10.9 Repair installed hook formatting supply: a configured check must not silently pass when its bound Ruff executable is absent; verify installed valid, invalid and missing-tool cases.
 - [x] 10.10 Preserve meaningful YAML scalar newlines while rejecting redundant structural blank lines through the native configuration owner; keep producer-owned and historical carriers unchanged.
 - [ ] 10.11 Repair reference observation and declaration ownership at their existing owner: aliases, shadowing, lexical scope, call-site values, dynamic private imports, scoped dynamic UNKNOWN, and trusted profile/release command fields. Reproduce false passes and false blocks through public repository-audit, module-layout and patch-admission consumers; replace heuristics rather than adding name exceptions, preserve legal success, and qualify exact-source proof and installed behavior.
+      **Native receiver qualification, 2026-10-11:** discarded changed descriptors
+      now invalidate their actual receiver; finite records and context exits retain
+      native signature, dispatch and captured-effect custody. Path.resolve preserves
+      an owner-qualified return relation through actual substitution. Generic pending
+      bodies still report UNKNOWN: one concrete call does not prove every receiver.
+      Final source selection passes 679 tests; the formatter-only changed test is
+      requalified separately. Locked Ruff/Ty and native format checks pass. Exact
+      root/path prewrite passes; generated PATCH and final acceptance remain strict.
+      Failed attempts remain intact; owned scratch is absent. Retain
+      `native-signature-slot-repair/native-receiver-{final-bytes,locked-final}-20261011/`
+      and `native-receiver-final-prewrite-20261011.json` in the existing custody.
+      This is source qualification, not exact proof, installation or release.
+      Text removesuffix/split, homogeneous indexing/join and text concatenation
+      remain distinct model gaps; no unknown-content or executable origin is invented.
+
       Evidence: `GIT_INDEX_FILE` is declared at the actual input owner; five existing semantic-closure tests pass. Standard-library `TypedDict` removes an undeclared transitive import, and two redundant casts are removed; native Ty and dependency hygiene pass. The focused source receipt `prerequisite-green.result.json` does not establish full proof or installed behavior.
       Bounded source-return projection retains exact definition identity, finite
       native record fields and path suffixes; unsupported dispatch, mutation and

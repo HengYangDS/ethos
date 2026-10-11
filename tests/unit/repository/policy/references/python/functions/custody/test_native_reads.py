@@ -349,52 +349,6 @@ def test_native_resolution_rebuilds_only_the_changed_ancestor() -> None:
     assert not flow.result.uncertainties
 
 
-_PROCESS = 'import os\nimport subprocess\nimport thing\nc = subprocess.CompletedProcess(["x"], 0'
-
-
-@pytest.mark.parametrize(
-    ("body", "inputs", "unknown"),
-    [
-        (', "KEY")\n', {"KEY"}, False),
-        (", stdout='KEY')\n", {"KEY"}, False),
-        (", **thing.named())\n", set(), True),
-        (", *thing.values())\n", set(), True),
-        (', "KEY")\nc.stdout = thing.value()\n', set(), True),
-        (', "KEY")\nd = c\nd.stdout = "NEW"\n', {"NEW"}, False),
-        (
-            ', "A")\nc = c if thing.flag() else thing.other()\nc.stdout = "NEW"\n',
-            {"A", "NEW"},
-            True,
-        ),
-        (', "KEY")\ndel c.stdout\n', set(), True),
-        (', "KEY")\nthing.mutate(c)\n', set(), True),
-        (', "KEY")\nc.__dict__["stdout"] = thing.value()\n', set(), True),
-    ],
-    ids=[
-        "positional",
-        "keyword",
-        "kwargs",
-        "spread",
-        "opaque",
-        "alias",
-        "weak",
-        "del",
-        "escape",
-        "dict",
-    ],
-)
-def test_native_completed_process_fields_follow_aggregate_stores(
-    body: str, inputs: set[str], *, unknown: bool
-) -> None:
-    """Native process fields are allocated once; exact stores replace, aliases only join."""
-    source = f"{_PROCESS}{body}os.environ.get(c.stdout)\n"
-    tree = ast.parse(source)
-    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
-    observation = PythonReferenceFlow("probe.py", {}, sources=sources).observe(tree, source=source)
-    assert observation.inputs == inputs
-    assert bool(observation.uncertainties) is unknown
-
-
 _DIGEST = (
     "import subprocess\nimport hashlib\nfrom pathlib import Path\n"
     "d = hashlib.sha256(b'x').hexdigest()\n"
@@ -423,6 +377,52 @@ def test_native_path_conversions_follow_their_exact_signatures(
     observation = PythonReferenceFlow("probe.py", {}, sources=sources).observe(tree, source=source)
     assert bool(observation.uncertainties) is not closed
     assert "python" in observation.executables or not closed
+
+
+@pytest.mark.parametrize(
+    ("operation", "actual", "rebind", "closed"),
+    [
+        ("resolve()", "Path('/tmp')", "", True),
+        ("resolve()", "opaque()", "", False),
+        ("resolve(object())", "Path('/tmp')", "", False),
+        ("resolve()", "Path('/tmp')", "Path.resolve = lambda self: opaque()\n", False),
+        (
+            "resolve()",
+            "Path('/tmp')",
+            "selected(Path('/tmp'))\nPath.resolve = lambda self: opaque()\n",
+            False,
+        ),
+    ],
+)
+def test_symbolic_path_return_retains_actual_receiver_and_dispatch(
+    operation: str, actual: str, rebind: str, *, closed: bool
+) -> None:
+    """Native return shape depends on a fresh receiver, not annotation or method spelling."""
+    source = (
+        "from pathlib import Path\nimport subprocess as sp\n"
+        f"def selected(common):\n    return common.{operation} / 'kernel'\n"
+        "def launch(common):\n    sp.run([str(selected(common) / 'python')])\n"
+        f"{rebind}launch({actual})\n"
+    )
+    tree = ast.parse(source)
+    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
+    observation = PythonReferenceFlow("probe.py", {}, sources=sources).observe(tree, source=source)
+    calls = [
+        item for item in sources.invocations.requests if item.definition.node.name == "selected"
+    ]
+    call = calls[-1]
+    returned = substitute(
+        sources.invocations.summaries[call.definition.key].returned,
+        {"common": call.arguments[0]},
+        call.caller,
+        sources,
+        observation,
+        owner=call.definition.key,
+    )
+    assert returned.unknown is not closed
+    assert returned.path is closed
+    assert "kernel" in returned.executable_origins or not closed
+    assert any(item.state == "unknown" for item in observation.uncertainties)
 
 
 _GUARD = "    if type(text) is not str:\n        raise ValueError(text)\n"
@@ -527,3 +527,63 @@ def test_known_path_protocol_transfers_its_own_effects(
     observation = PythonReferenceFlow("probe.py", {}, sources=sources).observe(tree, source=source)
     assert bool(observation.uncertainties) is (executables is None)
     assert executables is None or observation.executables == executables
+
+
+@pytest.mark.parametrize(
+    ("store", "executables", "unknown"),
+    [
+        ("command[3:3] = ['--repo', 'literal']", {"gh"}, False),
+        ("command[3:3] = ['--repo', opaque]", {"gh"}, False),
+        ("command[0:1] = [opaque]", set(), True),
+        ("command[index:index] = [opaque]", set(), True),
+    ],
+    ids=["tail", "opaque-tail", "opaque-head", "unknown-position"],
+)
+def test_native_slice_store_preserves_only_unaffected_command_head(
+    store: str, executables: set[str], *, unknown: bool
+) -> None:
+    """Ordered slice edits preserve disjoint slots, not an opaque head or unknown position."""
+    source = (
+        "import subprocess\n"
+        "command = ['gh', 'workflow', 'run', 'name']\n"
+        f"{store}\n"
+        "subprocess.run(command)\n"
+    )
+    tree = ast.parse(source)
+    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
+    observation = PythonReferenceFlow("probe.py", {}, sources=sources).observe(tree, source=source)
+    assert observation.executables == executables
+    assert bool([item for item in observation.uncertainties if item.state == "unknown"]) is unknown
+
+
+@pytest.mark.parametrize(
+    ("read", "unknown"),
+    [
+        ("Path('locator').read_text()", False),
+        ("Path('locator').read_bytes().decode('utf-8')", False),
+        ("Path('locator').read_text(encoding='utf-8')", False),
+        ("Path('locator').read_bytes().decode(encoding)", True),
+        ("thing.path.read_text()", True),
+        ("(Path('locator') if flag else thing.path).read_text()", True),
+    ],
+    ids=[
+        "text",
+        "bytes-decode",
+        "keyword-encoding",
+        "opaque-encoding",
+        "opaque-owner",
+        "mixed-owner",
+    ],
+)
+def test_native_path_read_keeps_return_identity_not_content(read: str, *, unknown: bool) -> None:
+    """A native read returns content of its declared kind without proving the root bytes."""
+    source = (
+        "import subprocess, thing\nfrom pathlib import Path\n"
+        f"root = {read}.strip()\n"
+        "subprocess.run([str(Path(root) / 'bin' / 'python')])\n"
+    )
+    tree = ast.parse(source)
+    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
+    observation = PythonReferenceFlow("probe.py", {}, sources=sources).observe(tree, source=source)
+    assert observation.executables == {"python"}
+    assert bool([item for item in observation.uncertainties if item.state == "unknown"]) is unknown

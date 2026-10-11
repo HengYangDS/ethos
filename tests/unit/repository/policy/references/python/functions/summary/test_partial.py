@@ -8,7 +8,7 @@ import pytest
 
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.flow import PythonReferenceFlow
-from ethos.repository.policy.references.python.functions.effects import bound_arguments
+from ethos.repository.policy.references.python.functions.arguments import bound_arguments
 from ethos.repository.policy.references.python.functions.returns import PythonSourceReturns
 
 _READ = (
@@ -123,3 +123,56 @@ def test_escaped_partial_packs_captures_with_runtime_slots(
     observation = PythonReferenceFlow("probe.py", {}, sources=sources).observe(tree, source=source)
     assert observation.inputs == inputs
     assert {item.target for item in observation.uncertainties if item.state == "unknown"} == unknown
+
+
+@pytest.mark.parametrize(
+    ("call", "unknown"),
+    [
+        ("run(*thing.args())", False),
+        ("run(*thing.args(), env=thing.env())", True),
+        ("run(**thing.kwargs())", True),
+        ("thing.run(run)", True),
+    ],
+    ids=["positional-only-uncertainty", "explicit-keyword", "keyword-pack", "escaped-callback"],
+)
+def test_positional_pack_keeps_keyword_only_receiver(call: str, *, unknown: bool) -> None:
+    """Actual positional uncertainty cannot erase an independent keyword-only default."""
+    source = (
+        "import os, thing\n"
+        "def overlay(*environments):\n"
+        "    for environment in environments:\n"
+        "        environment.get('C')\n"
+        "def run(*args, env=None):\n"
+        "    overlay(os.environ, env or {})\n"
+        f"{call}\n"
+    )
+    tree = ast.parse(source)
+    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
+    observation = PythonReferenceFlow("probe.py", {}, sources=sources).observe(tree, source=source)
+    assert observation.inputs == {"C"}
+    assert bool([item for item in observation.uncertainties if item.state == "unknown"]) is unknown
+
+
+@pytest.mark.parametrize(
+    ("default", "call", "unknown"),
+    [
+        ("", "invoke(*(sp.run,))", False),
+        ("=sp.run", "invoke(*thing.args())", True),
+    ],
+    ids=["finite-pack", "possibly-empty-pack"],
+)
+def test_positional_pack_preserves_callback_effect(
+    default: str, call: str, *, unknown: bool
+) -> None:
+    """Possible empty packs retain default effects alongside unknown supplied callbacks."""
+    source = (
+        "import subprocess as sp, thing\n"
+        f"def invoke(callback{default}):\n"
+        "    callback(['spread_probe'])\n"
+        f"{call}\n"
+    )
+    tree = ast.parse(source)
+    sources = PythonSourceReturns({"probe.py": source}, {"probe.py": tree}, PythonReferenceFlow)
+    observation = PythonReferenceFlow("probe.py", {}, sources=sources).observe(tree, source=source)
+    assert observation.executables == {"spread_probe"}
+    assert bool(observation.uncertainties) is unknown

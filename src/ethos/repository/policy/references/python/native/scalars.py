@@ -151,6 +151,25 @@ def native_method(
     keywords: dict[str | None, BindingValue],
 ) -> BindingValue | None:
     """Return a native digest or text method kind for exact supported signatures only."""
+    if (
+        owner.path
+        and native_content(owner)
+        and not args
+        and (
+            (name == "read_bytes" and not keywords)
+            or (
+                name == "read_text"
+                and set(keywords) <= {"encoding"}
+                and all(
+                    item.strings
+                    and item == BindingValue(strings=item.strings)
+                    and item.strings <= _ENCODINGS
+                    for item in keywords.values()
+                )
+            )
+        )
+    ):
+        return BindingValue(native_kind="bytes" if name == "read_bytes" else "text")
     if keywords or any(value.spread for value in args):
         return None
     closed = all(item.strings and item == BindingValue(strings=item.strings) for item in args)
@@ -159,13 +178,15 @@ def native_method(
     if native_text(owner) and name in {"strip", "rstrip", "lstrip"} and len(args) <= 1 and closed:
         return BindingValue(native_kind="text")
     if (
-        native_text(owner)
-        and name == "encode"
+        (
+            (native_text(owner) and name == "encode")
+            or (native_text(owner, "bytes") and name == "decode")
+        )
         and len(args) <= 1
         and closed
         and all(item.strings <= _ENCODINGS for item in args)
     ):
-        return BindingValue(native_kind="bytes")
+        return BindingValue(native_kind="bytes" if name == "encode" else "text")
     return native_path_method(owner, name, args)
 
 

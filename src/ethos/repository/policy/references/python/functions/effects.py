@@ -3,30 +3,28 @@
 from __future__ import annotations
 
 import ast
-import inspect
 import itertools
 import shlex
 from dataclasses import dataclass
 from dataclasses import field
 from dataclasses import replace
 from typing import TYPE_CHECKING
-from typing import cast
 
 from ethos.repository.policy.references.python.bindings import AggregateIdentity
 from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.bindings import LexicalRead
 from ethos.repository.policy.references.python.bindings import MemberDemand
-from ethos.repository.policy.references.python.bindings import ParameterProjection
+from ethos.repository.policy.references.python.functions.arguments import bound_arguments
 from ethos.repository.policy.references.python.native.containers import mapping_return
 from ethos.repository.policy.references.python.native.scalars import concatenate
+from ethos.repository.policy.references.python.native.scalars import dependent
 from ethos.repository.policy.references.python.native.scalars import native_operation
 from ethos.repository.policy.references.python.native.scalars import native_scalar
 
 if TYPE_CHECKING:
     from ethos.repository.policy.references.python.effects import PythonConsumption
     from ethos.repository.policy.references.python.functions.custody import InvocationCustody
-    from ethos.repository.policy.references.python.functions.returns import FunctionDefinition
     from ethos.repository.policy.references.python.functions.returns import PythonSourceReturns
     from ethos.repository.policy.references.python.syntax import LexicalBindings
 
@@ -101,51 +99,6 @@ class EffectSummary:
         if edge not in self.edges:
             self.edges.add(edge)
             self.calls.append(call)
-
-
-def bound_arguments(
-    definition: FunctionDefinition,
-    args: tuple[BindingValue, ...],
-    keywords: dict[str | None, BindingValue],
-) -> dict[str, BindingValue] | None:
-    """Use the same native signature/default relation for summaries and actual calls."""
-    if None in keywords or any(value.spread for value in args):
-        return None
-    named = dict(definition.captured_keywords) | cast("dict[str, BindingValue]", keywords)
-    try:
-        bound = definition.signature.bind(*definition.captured, *args, **named)
-    except TypeError:
-        return None
-    bound.apply_defaults()
-    return bound_values(definition, bound)
-
-
-def bound_values(
-    definition: FunctionDefinition, bound: inspect.BoundArguments
-) -> dict[str, BindingValue]:
-    """Project native bound slots, packing variadic positional and keyword arguments."""
-    kinds = {name: item.kind for name, item in definition.signature.parameters.items()}
-    return {
-        name: BindingValue(items=argument, ordered=True)
-        if kinds[name] == inspect.Parameter.VAR_POSITIONAL
-        else BindingValue(entries=tuple(argument.items()))
-        if kinds[name] == inspect.Parameter.VAR_KEYWORD
-        else argument
-        for name, argument in bound.arguments.items()
-    }
-
-
-def symbolic_arguments(definition: FunctionDefinition) -> dict[str, BindingValue]:
-    """Parameterize only runtime slots; a declared classmethod receiver is already bound."""
-    values = {
-        parameter.name: BindingValue(
-            parameters=frozenset({ParameterProjection(parameter.name, owner=definition.key)})
-        )
-        for parameter in definition.signature.parameters.values()
-    }
-    if definition.receiver:
-        values[next(iter(values))] = BindingValue(targets=frozenset({definition.receiver}))
-    return values
 
 
 def observe_calls(
@@ -416,30 +369,6 @@ def selected_key(demand: MemberDemand) -> str | int | None:
     return key
 
 
-def stored(
-    current: BindingValue, node: ast.expr, key: BindingValue, value: BindingValue, *, strong: bool
-) -> BindingValue:
-    """Apply one native subscript store to an exact mapping slot or ordered sequence index."""
-    name = next(iter(key.strings)) if len(key.strings) == 1 else None
-    if current.entries is not None and name is not None:
-        entries = dict(current.entries)
-        old = entries.get(name, BindingValue(unknown=True))
-        entries[name] = value if strong else old.join(value)
-        return replace(current, entries=tuple(entries.items()))
-    if current.items is None or isinstance(node, ast.Slice) or key.strings:
-        return BindingValue(unknown=True)
-    try:
-        index = ast.literal_eval(node)
-    except ValueError:
-        index = None
-    items = list(current.items)
-    if type(index) is not int:
-        return replace(current, items=tuple(item.join(value) for item in items))
-    if -len(items) <= index < len(items):
-        items[index] = value if strong else items[index].join(value)
-    return replace(current, items=tuple(items))
-
-
 def native_member(
     value: BindingValue, demand: MemberDemand, scope: BindingScope, observer: PythonConsumption
 ) -> BindingValue:
@@ -448,11 +377,14 @@ def native_member(
     key = demand.key if demand.kind == "native_return" else selected_key(demand)
     if demand.kind == "native_return" and isinstance(key, str):
         selected = (
-            native_operation(value, demand)
+            dependent(value, demand)
+            if key == "pathlib.Path.resolve" and (value.parameters or value.projections)
+            else observer.bound_method(value, "resolve", (), {}, scope).returned
+            if key == "pathlib.Path.resolve"
+            else native_operation(value, demand)
             or mapping_return(value, key)
             or native_scalar(key, (value,), {})
-            or BindingValue(unknown=True)
-        )
+        ) or BindingValue(unknown=True)
     elif demand.kind == "concatenate":
         other = demand.selector or BindingValue(unknown=True)
         selected = concatenate(value, other) if demand.key == "left" else concatenate(other, value)

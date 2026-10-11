@@ -14,6 +14,8 @@ from ethos.repository.policy.references.python.bindings import BindingScope
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.bindings import MemberDemand
 from ethos.repository.policy.references.python.functions.effects import project
+from ethos.repository.policy.references.python.native.returns import native_context
+from ethos.repository.policy.references.python.native.returns import native_dependencies
 
 if TYPE_CHECKING:
     from ethos.repository.policy.references.python.flow import PythonReferenceFlow
@@ -110,20 +112,48 @@ class PythonControlFlow:
 
     @statement.register
     def context(self, node: ast.With | ast.AsyncWith, scope: BindingScope) -> tuple[FlowExit, ...]:
-        """Observe context construction without pretending opaque exit methods are pure."""
+        """Preserve only state outside a proven native protocol's disposal footprint."""
+        managers = []
         for item in node.items:
-            self.flow.expression(item.context_expr, scope)
+            manager = self.flow.expression(item.context_expr, scope)
+            if self.flow.sources is not None:
+                manager = self.flow.sources.invocations.resolve(
+                    manager, scope, self.flow.result, deep=False
+                )
+            entered = (
+                native_context(manager, scope, self.flow.result)
+                if isinstance(node, ast.With)
+                else None
+            )
+            managers.append((manager, entered is not None))
             if item.optional_vars:
-                self.flow.assign(item.optional_vars, BindingValue(unknown=True), scope)
+                self.flow.assign(item.optional_vars, entered or BindingValue(unknown=True), scope)
         paths = self.block(node.body, scope)
+        outgoing = []
         for path in paths:
+            if all(
+                closed and native_context(manager, path.scope, self.flow.result) is not None
+                for manager, closed in managers
+            ):
+                outgoing.append(path)
+                continue
+            dependencies = tuple(
+                value
+                for manager, _closed in managers
+                if manager.native_kind == "temporary_directory"
+                for value in native_dependencies(
+                    self.flow.result, "tempfile.TemporaryDirectory", path.scope
+                )
+            )
+            self.flow.result.escape(dependencies, node, path.scope)
+            self.flow.result.invalidate(path.scope, *dependencies, conditional=True)
             path.scope.invalidate_aggregates(*path.scope.values.values(), path.value)
-        return tuple(
-            FlowExit(path.scope, path.kind, path.value.join(BindingValue(unknown=True)))
-            if path.kind == "return"
-            else path
-            for path in paths
-        )
+            outgoing.append(
+                replace(path, value=path.value.join(BindingValue(unknown=True)))
+                if path.kind == "return"
+                else path
+            )
+        return tuple(outgoing)
 
     @statement.register
     def exception_paths(

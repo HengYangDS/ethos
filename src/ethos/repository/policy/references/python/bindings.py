@@ -32,7 +32,9 @@ class ReferenceUncertaintyRecord(TypedDict):
     identity: str | None
 
 
-NativeKind = Literal["", "list", "environment", "completed_process", "hash", "text", "bytes"]
+NativeKind = Literal[
+    "", "list", "environment", "native_record", "temporary_directory", "hash", "text", "bytes"
+]
 
 
 @dataclass(frozen=True, slots=True)

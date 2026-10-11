@@ -19,8 +19,11 @@ from ethos.repository.policy.references.python.functions.effects import EffectCa
 from ethos.repository.policy.references.python.functions.effects import command_tokens
 from ethos.repository.policy.references.python.functions.effects import project
 from ethos.repository.policy.references.python.native.containers import mapping_view
+from ethos.repository.policy.references.python.native.returns import ReceiverCall
+from ethos.repository.policy.references.python.native.returns import native_dependencies
+from ethos.repository.policy.references.python.native.returns import native_field
 from ethos.repository.policy.references.python.native.returns import native_return
-from ethos.repository.policy.references.python.native.returns import symbolic_view
+from ethos.repository.policy.references.python.native.returns import symbolic_return
 from ethos.repository.policy.references.python.native.scalars import native_method
 from ethos.repository.policy.references.python.native.scalars import native_text
 from ethos.repository.policy.references.python.native.scalars import open_operation
@@ -45,17 +48,6 @@ _EXECUTABLE_CALLS = frozenset(
 ) | {"os.system", "os.execv"}
 _VALUE_CALLS = frozenset({"os.getenv", "os.environ.get", "os.environ.__getitem__"})
 _IMPORT_CALLS = frozenset({"importlib.import_module", "builtins.__import__"})
-
-
-@dataclass(frozen=True, slots=True)
-class ReceiverCall:
-    """A native result and its effect disposition are separate observations."""
-
-    returned: BindingValue | None = None
-    disposition: Literal["read", "mutation", "unresolved"] = "unresolved"
-    footprint: BindingValue = field(default_factory=BindingValue)
-    argument_demand: int | None = None
-    post_state: BindingValue | None = None
 
 
 @dataclass(slots=True)
@@ -116,7 +108,7 @@ class PythonConsumption:
         if has_native or not callee.methods:
             branch = scope.fork() if callee.methods else scope
             value = self.native_call(native, args, keywords, node, branch)
-            value = symbolic_view(native, args, keywords) or value
+            value = symbolic_return(native, args, keywords) or value
             returned = value if returned is None else returned.join(value)
             if callee.methods:
                 scope.merge(receiver_scope, branch)
@@ -189,8 +181,14 @@ class PythonConsumption:
             or not callee.targets
             or any(self.kind(target) is None and known[target] is None for target in callee.targets)
         ):
-            self.escape(() if callee.parameters else (*args, *keywords.values()), node, scope)
-            self.invalidate(scope, *args, *keywords.values(), conditional=True)
+            unresolved = tuple(
+                value
+                for target in callee.targets
+                for value in native_dependencies(self, target, scope)
+            )
+            escaped = (*args, *keywords.values(), *unresolved)
+            self.escape(() if callee.parameters else escaped, node, scope)
+            self.invalidate(scope, *escaped, conditional=True)
         returned: BindingValue | None = None
         for target in callee.targets:
             value_returned = known[target] or generic
@@ -203,7 +201,7 @@ class PythonConsumption:
                     target == "builtins.list"
                     and (value_returned.items is not None or value_returned.element is not None)
                 )
-                or (value_returned.native_kind == "completed_process")
+                or value_returned.native_kind in {"native_record", "temporary_directory"}
             ):
                 value_returned = scope.aggregate(value_returned, node)
             kind = self.kind(target)
@@ -275,7 +273,12 @@ class PythonConsumption:
         """Classify native receiver relationships without applying their effects."""
         native = native_method(owner, name, args, keywords)
         if native is not None:
-            return ReceiverCall(native, "read")
+            changed = native_dependencies(self, f"pathlib.Path.{name}", scope) if owner.path else ()
+            return ReceiverCall(
+                returned=None if changed else native,
+                disposition="unresolved" if changed else "read",
+                footprint=BindingValue(items=(owner, *changed)) if changed else BindingValue(),
+            )
         disposition = "unresolved" if owner.unknown or owner.targets else "read"
         if (
             owner.aggregates
@@ -428,7 +431,9 @@ class PythonConsumption:
         )
         native_owner = replace(owner, targets=native_targets)
         for name in names.strings:
-            sourced = self.sources.attribute(owner, name, scope) if self.sources else None
+            sourced = native_field(self, owner, name, scope)
+            if sourced is None and self.sources is not None:
+                sourced = self.sources.attribute(owner, name, scope)
             if sourced is not None:
                 value = value.join(sourced)
             for target in native_targets:

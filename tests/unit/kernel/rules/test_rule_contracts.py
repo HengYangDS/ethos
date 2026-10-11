@@ -179,7 +179,7 @@ def test_compiled_rule_matching_treats_trailing_glob_as_its_directory(tmp_path: 
 def test_compile_rules_uses_selected_root_gate_authority(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, registry_file: bool
 ) -> None:
-    """Rule selection uses the target's native owner, never ambient or packaged gates."""
+    """Shared gates retain product authority; native increments never use ambient gates."""
     target = tmp_path / "target"
     target.mkdir()
     _write_rules(
@@ -187,8 +187,11 @@ def test_compile_rules_uses_selected_root_gate_authority(
         _rule(id="custom.native", path_globs=["notes/**"], required_gates=["native-quality"]),
     )
     gate_ids = ["docs-registry", "schemas", "skills", "native-quality"]
+    shared = load_gate_registry_declaration().registry()
     gates = [
-        {"id": gate_id, "kind": "check", "command": ["target-quality", gate_id]}
+        shared[gate_id].model_dump(mode="json", exclude_none=True)
+        if gate_id in shared
+        else {"id": gate_id, "kind": "check", "command": ["target-quality", gate_id]}
         for gate_id in gate_ids
     ]
     proof = (
@@ -346,8 +349,14 @@ def test_public_native_product_composition_binds_target_and_refuses_stale_source
         "schemas",
     }
     head = commit_fixture(root, "bind composed rule demand")
-    policy = resolve_gate_policy(root, tree_ref=head, gate_ids=("openspec-baseline", "schemas"))
+    policy = resolve_gate_policy(
+        root,
+        tree_ref=head,
+        gate_ids=("openspec-baseline", "schemas"),
+        selected_obligations=True,
+    )
     assert policy.gaps == ()
+    assert policy.projection["obligation_scope"] == "selected"
     assert set(policy.registry) == {"openspec-baseline", "schemas"}
     assert policy.declaration == load_gate_registry_declaration(root / "system/gates.toml")
     assert policy.registry["openspec-baseline"].command == (

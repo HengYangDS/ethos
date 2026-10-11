@@ -1,8 +1,8 @@
 """Prove-stage domain reducers — pure report logic fed by adapters.
 
-The code-size report is a pure reducer over (role-based policy, tracked files,
-per-file effective LOC): it classifies each file into a role (surface / test /
-logic), applies its declared limit, and derives the gate verdict. Rules own
+The code-size report is a pure reducer over (one declared ceiling, tracked files,
+per-file effective LOC). Roles describe source ownership without changing capacity;
+the same limit applies to every file and derives the gate verdict. Rules own
 strict optional policy compilation, Git supplies inventory, and measure owns
 the shared metric. Invalid policy or syntax never becomes a smaller measurement.
 """
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 def _role_for(relative: str, surface_globs: list[str]) -> str:
-    """Classify a tracked file into its size-policy role."""
+    """Classify source ownership for reporting, never size-policy capacity."""
     if relative.startswith("tests/") or "/tests/" in relative:
         return "test"
     if any(fnmatch.fnmatchcase(relative, pattern) for pattern in surface_globs):
@@ -34,7 +34,7 @@ def _role_for(relative: str, surface_globs: list[str]) -> str:
 
 
 def code_size_report(root: Path) -> dict[str, object]:
-    """Derive the code-size gate verdict against the role-based limits."""
+    """Derive the code-size gate verdict against one uniform declared ceiling."""
     try:
         policy = code_size_policy(load_rules_config(root))
     except (ValueError, TypeError, OSError) as error:
@@ -55,10 +55,7 @@ def code_size_report(root: Path) -> dict[str, object]:
             "required_gaps": [],
             "next_action": "",
         }
-    default_limit = policy.default_effective_max_lines
-    test_limit = policy.test_effective_max_lines or default_limit
-    surface_limit = policy.surface_effective_max_lines or default_limit
-    role_limits = {"test": test_limit, "surface": surface_limit, "logic": default_limit}
+    limit = policy.default_effective_max_lines
     records: list[dict[str, object]] = []
     gaps: list[str] = []
     errors: list[dict[str, str]] = []
@@ -78,7 +75,6 @@ def code_size_report(root: Path) -> dict[str, object]:
             repair_path = repair_path or relative
             continue
         role = _role_for(relative, policy.surface_path_globs)
-        limit = role_limits[role]
         within_limit = effective <= limit
         records.append(
             {
@@ -97,9 +93,7 @@ def code_size_report(root: Path) -> dict[str, object]:
     return {
         "verdict": verdict,
         "state": "evaluated",
-        "default_effective_max_lines": default_limit,
-        "surface_effective_max_lines": surface_limit,
-        "test_effective_max_lines": test_limit,
+        "default_effective_max_lines": limit,
         "required_gaps": gaps,
         "errors": errors,
         "next_action": _size_repair_command(root, repair_path) if repair_path else "",

@@ -16,17 +16,15 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-type _LineLimit = Annotated[int, Field(gt=0)]
+type _LineLimit = Annotated[int, Field(gt=0, multiple_of=128)]
 
 
 class CodeSizePolicy(BaseModel):
-    """Declared file-size ceilings without coercion, hidden defaults or exemptions."""
+    """One positive 128-line-unit ceiling; role metadata never grants capacity."""
 
     model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
     default_effective_max_lines: _LineLimit
-    test_effective_max_lines: _LineLimit | None = None
-    surface_effective_max_lines: _LineLimit | None = None
     surface_path_globs: list[Annotated[str, Field(pattern=r"\S")]] = Field(default_factory=list)
 
 

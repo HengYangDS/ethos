@@ -10,6 +10,7 @@ import pytest
 
 import ethos.domain.prove as prove
 from ethos.measure import effective_code_lines_for_source
+from ethos.repository.policy.rules.config import CodeSizePolicy
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -60,8 +61,8 @@ def test_invalid_python_is_not_a_valid_size_measurement() -> None:
     "relative",
     ["src/logic.py", "src/ethos/surface/cli/view.py", "tests/test_case.py"],
 )
-def test_public_size_gate_enforces_current_role_boundaries(tmp_path: Path, relative: str) -> None:
-    """The native CLI accepts each exact ceiling and rejects one additional source line."""
+def test_public_size_gate_enforces_uniform_ceiling(tmp_path: Path, relative: str) -> None:
+    """Every role shares the native 512-pass and 513-reject boundary."""
     limit = 512
     root = init_git_repo(tmp_path / "repo")
     rules = root / ".ethos/rules.toml"
@@ -75,8 +76,10 @@ def test_public_size_gate_enforces_current_role_boundaries(tmp_path: Path, relat
         report, observed = _public_size_report(root)
         assert report["verdict"] == ("pass" if lines == limit else "block"), report
         assert observed["default_effective_max_lines"] == limit
-        assert observed["surface_effective_max_lines"] == limit
-        assert observed["test_effective_max_lines"] == limit
+        assert {record["limit"] for record in observed["files"]} == {limit}
+        assert not {"surface_effective_max_lines", "test_effective_max_lines"}.intersection(
+            observed
+        )
         assert observed["required_gaps"] == (
             [] if lines == limit else [f"code_size_exceeded:{relative}:{lines}>{limit}"]
         )
@@ -91,15 +94,15 @@ def test_public_size_gate_enforces_current_role_boundaries(tmp_path: Path, relat
         "[quality.code_size]\n",
         *(
             f"[quality.code_size]\ndefault_effective_max_lines = {value}\n"
-            for value in ('"512"', "true", "512.0", "0", "-100", "550.5")
+            for value in ('"512"', "true", "512.0", "0", "-100", "550.5", "500", "513")
         ),
         '[quality.code_size]\ndefault_effective_max_lines = 512\nsurface_path_globs = "src/**"\n',
         '[quality.code_size]\ndefault_effective_max_lines = 512\nsurface_path_globs = [""]\n',
         "[quality.code_size]\ndefault_effective_max_lines = 512\nsurface_path_globs = [false]\n",
-        "[quality.code_size]\ndefault_effective_max_lines = 512\ntest_effective_max_lines = true\n",
+        "[quality.code_size]\ndefault_effective_max_lines = 512\ntest_effective_max_lines = 800\n",
         (
             "[quality.code_size]\ndefault_effective_max_lines = 512\n"
-            "surface_effective_max_lines = 550.5\n"
+            "surface_effective_max_lines = 600\n"
         ),
         (
             "[quality.code_size]\ndefault_effective_max_lines = 512\n"
@@ -130,6 +133,23 @@ def test_public_size_gate_does_not_invent_an_undeclared_limit(tmp_path: Path) ->
     assert observed["state"] == "not_configured"
     assert observed["files"] == []
     assert observed["required_gaps"] == []
+
+
+@pytest.mark.parametrize("limit", [128, 256, 512])
+def test_code_size_policy_declares_one_positive_native_unit_limit(limit: int) -> None:
+    """The native schema owns one strict threshold in positive 128-line units."""
+    declaration = {"default_effective_max_lines": limit}
+    policy = CodeSizePolicy.model_validate(declaration)
+    assert policy.model_dump(exclude_defaults=True) == declaration
+    schema = CodeSizePolicy.model_json_schema()
+    threshold = schema["properties"]["default_effective_max_lines"]
+    if "$ref" in threshold:
+        threshold = schema["$defs"][threshold["$ref"].rsplit("/", 1)[1]]
+    assert threshold["type"] == "integer"
+    assert (threshold["exclusiveMinimum"], threshold["multipleOf"]) == (0, 128)
+    assert not {"surface_effective_max_lines", "test_effective_max_lines"}.intersection(
+        schema["properties"]
+    )
 
 
 @pytest.mark.parametrize("content", [b"def invalid(\n", b"name = '\xff'\n"])
@@ -179,14 +199,12 @@ def test_size_report_keeps_unavailable_observation_unknown(
     assert report["errors"]
 
 
-def test_code_size_report_applies_declared_role_limits(tmp_path, monkeypatch):
+def test_code_size_report_applies_declared_uniform_limit(tmp_path, monkeypatch):
     files = {
         "src/ethos/domain/small.py": "a=1\nb=2\n",
         "src/ethos/surface/cli/big.py": "value = 1\n" * 400,
         "tests/unit/test_big.py": "value = 1\n" * 600,
-        # An over-limit logic file is held to its role limit — there is no way to
-        # exempt it, so it fails.
-        "src/ethos/domain/oversized.py": "value = 1\n" * 301,
+        "src/ethos/domain/oversized.py": "value = 1\n" * 385,
     }
     for relative, text in files.items():
         path = tmp_path / relative
@@ -199,9 +217,7 @@ def test_code_size_report_applies_declared_role_limits(tmp_path, monkeypatch):
         lambda _root: {
             "quality": {
                 "code_size": {
-                    "default_effective_max_lines": 300,
-                    "surface_effective_max_lines": 512,
-                    "test_effective_max_lines": 800,
+                    "default_effective_max_lines": 384,
                     "surface_path_globs": ["**/surface/**"],
                 }
             }
@@ -214,16 +230,19 @@ def test_code_size_report_applies_declared_role_limits(tmp_path, monkeypatch):
     by_path = {record["path"]: record for record in records}
 
     assert by_path["src/ethos/domain/small.py"]["role"] == "logic"
-    assert by_path["src/ethos/domain/small.py"]["limit"] == 300
-    assert by_path["src/ethos/surface/cli/big.py"]["limit"] == 512
-    assert by_path["tests/unit/test_big.py"]["limit"] == 800
+    assert {record["limit"] for record in records} == {384}
+    assert by_path["src/ethos/surface/cli/big.py"]["within_limit"] is False
+    assert by_path["tests/unit/test_big.py"]["within_limit"] is False
     assert by_path["tests/unit/test_big.py"]["category"] == "test"
-    # An oversized logic file is held to its role limit (300) and therefore fails —
-    # no per-file escape hatch exists.
     oversized = by_path["src/ethos/domain/oversized.py"]
-    assert oversized["limit"] == 300
+    assert oversized["limit"] == 384
     assert oversized["within_limit"] is False
     assert report["verdict"] == "block"
+    assert report["required_gaps"] == [
+        "code_size_exceeded:src/ethos/surface/cli/big.py:400>384",
+        "code_size_exceeded:tests/unit/test_big.py:600>384",
+        "code_size_exceeded:src/ethos/domain/oversized.py:385>384",
+    ]
     assert "ok" not in report
 
 
@@ -231,11 +250,11 @@ def test_code_size_report_emits_gap_when_effective_lines_exceed_limit(tmp_path, 
     relative = "src/ethos/domain/too_big.py"
     path = tmp_path / relative
     path.parent.mkdir(parents=True)
-    path.write_text("value = 1\n" * 201, encoding="utf-8")
+    path.write_text("value = 1\n" * 257, encoding="utf-8")
     monkeypatch.setattr(
         prove,
         "load_rules_config",
-        lambda _root: {"quality": {"code_size": {"default_effective_max_lines": 200}}},
+        lambda _root: {"quality": {"code_size": {"default_effective_max_lines": 256}}},
     )
     monkeypatch.setattr(prove.git_adapter, "git_files", lambda _root, *_patterns: (relative,))
 
@@ -243,7 +262,7 @@ def test_code_size_report_emits_gap_when_effective_lines_exceed_limit(tmp_path, 
 
     assert report["verdict"] == "block"
     assert "ok" not in report
-    assert report["required_gaps"] == ["code_size_exceeded:src/ethos/domain/too_big.py:201>200"]
+    assert report["required_gaps"] == ["code_size_exceeded:src/ethos/domain/too_big.py:257>256"]
 
 
 def test_code_size_report_skips_deleted_tracked_paths(tmp_path, monkeypatch):
@@ -251,7 +270,7 @@ def test_code_size_report_skips_deleted_tracked_paths(tmp_path, monkeypatch):
     monkeypatch.setattr(
         prove,
         "load_rules_config",
-        lambda _root: {"quality": {"code_size": {"default_effective_max_lines": 200}}},
+        lambda _root: {"quality": {"code_size": {"default_effective_max_lines": 256}}},
     )
     monkeypatch.setattr(prove.git_adapter, "git_files", lambda _root, *_patterns: (relative,))
 

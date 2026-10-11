@@ -220,8 +220,11 @@ _root`). That is compatibility residue — it exists only to preserve old
 
 ## 3. Size and split
 
-The single effective-LOC limit for each carrier role lives in
-`.ethos/rules.toml [quality.code_size]` and is enforced by the code-size gate.
+One effective-LOC ceiling applies to all governed Python files, regardless of role.
+Its sole declaration lives in `.ethos/rules.toml [quality.code_size]`; the native
+schema requires a strict positive integer multiple of 128. ETHOS declares 512.
+Role metadata describes ownership, never additional capacity. The code-size gate
+uses the shared syntax-aware counter and rejects conflicting role-specific limits.
 A breach requires semantic review, but only a distinct concept, invariant,
 authority, or reason to change can justify a split; otherwise the module is
 simplified or absorbed.

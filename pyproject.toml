@@ -78,6 +78,9 @@ packages = ["src/ethos"]
 "uv.lock" = "ethos/resources/uv.lock"
 ".config/mise/config.toml" = "ethos/resources/.config/mise/config.toml"
 ".config/mise/mise.lock" = "ethos/resources/.config/mise/mise.lock"
+".config/checks/format/prettier.toml" = "ethos/resources/.config/checks/format/prettier.toml"
+".config/checks/markdown/markdownlint.yaml" = "ethos/resources/.config/checks/markdown/markdownlint.yaml"
+".config/checks/links/lychee.toml" = "ethos/resources/.config/checks/links/lychee.toml"
 "VERSION" = "ethos/resources/VERSION"
 "system/schemas" = "ethos/resources/system/schemas"
 "docs/governance/product-design-contract.md" = "ethos/resources/docs/governance/product-design-contract.md"
@@ -123,6 +126,9 @@ only-include = [
   "uv.lock",
   ".config/mise/config.toml",
   ".config/mise/mise.lock",
+  ".config/checks/format/prettier.toml",
+  ".config/checks/markdown/markdownlint.yaml",
+  ".config/checks/links/lychee.toml",
   "VERSION",
   "tools/ci/openspec_runtime_hook.py",
 ]

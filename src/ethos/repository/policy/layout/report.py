@@ -45,24 +45,7 @@ def module_layout_report(
         "dynamic_compat_facade_findings": dynamic_compat_facade_findings(root, policy, files),
         "private_import_findings": private_import_findings(root, policy, files),
     }
-    uncertainties = [
-        finding
-        for finding in finding_groups["private_import_findings"]
-        if finding.get("state") in {"unknown", "deferred"}
-    ]
-    gaps = [
-        str(finding["gap"])
-        for findings in finding_groups.values()
-        for finding in findings
-        if finding["gap"]
-    ]
-    coverage = (
-        "unknown"
-        if any(item.get("state") == "unknown" for item in uncertainties)
-        else "partial"
-        if uncertainties
-        else "evaluated"
-    )
+    gaps = [str(finding["gap"]) for findings in finding_groups.values() for finding in findings]
     summary = {
         key.removesuffix("_findings") + "_count": len(findings)
         for key, findings in finding_groups.items()
@@ -70,9 +53,7 @@ def module_layout_report(
     summary["gap_count"] = len(gaps)
     return {
         "verdict": close_verdict("pass", required_gaps=tuple(gaps)),
-        "state": "blocked" if gaps else "partial" if uncertainties else "clean",
-        "coverage": coverage,
-        "uncertainties": uncertainties,
+        "state": "clean" if not gaps else "blocked",
         "policy": POLICY_PATH.as_posix(),
         "semantic_paths": configured_semantic_paths(policy),
         "package_paths": configured_package_paths(policy),

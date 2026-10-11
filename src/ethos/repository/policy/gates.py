@@ -32,8 +32,8 @@ from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 from ethos.repository.policy.quality.obligations import quality_verifier_gaps
 from ethos.repository.policy.quality.obligations import source_verifier_gaps
 from ethos.repository.policy.quality.sources import source_contract_paths
-from ethos.repository.policy.references.commands.invocation import python_module
-from ethos.repository.policy.references.python.syntax import module_source_paths
+from ethos.repository.policy.references.commands import python_module
+from ethos.repository.policy.references.python_syntax import module_source_paths
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import SourceContract

@@ -36,15 +36,18 @@ def _write(path: Path, content: str = "") -> None:
         "executable",
     ],
 )
+@pytest.mark.parametrize("placement", ["capability", "specs_root"])
 def test_capability_metadata_requires_declared_native_ownership(
-    tmp_path: Path, invalid: str | None
+    tmp_path: Path, invalid: str | None, placement: str
 ) -> None:
     """Supplemental data cannot replace a spec, escape ownership or become implicit authority."""
     specs = tmp_path / "openspec/specs"
-    metadata = specs / "sample/capability.toml"
+    metadata = specs / ("sample/capability.toml" if placement == "capability" else "families.toml")
     _write(metadata, 'family = "sample"\n' if invalid != "malformed" else "family = [\n")
     if invalid != "missing-spec":
-        _write(metadata.with_name("spec.md"), "## Requirements\n")
+        _write(specs / "sample/spec.md", "## Requirements\n")
+    else:
+        (specs / "sample").mkdir(exist_ok=True)
     if invalid != "missing-owner":
         _write(tmp_path / "rules/capability-metadata.md", "# Native metadata contract\n")
     if invalid == "symlink":
@@ -60,10 +63,11 @@ def test_capability_metadata_requires_declared_native_ownership(
     if invalid == "executable":
         metadata.chmod(0o755)
     if invalid != "undeclared":
+        field = "capability_metadata" if placement == "capability" else "specs_root_metadata"
         _write(
             tmp_path / ".ethos/profile.toml",
             'profile_id = "sample"\n[openspec]\nmaterial_paths = ["**"]\n'
-            '[[openspec.capability_metadata]]\nfile_name = "capability.toml"\n'
+            f'[[openspec.{field}]]\nfile_name = "{metadata.name}"\n'
             'authority_ref = "rules/capability-metadata.md"\n',
         )
 

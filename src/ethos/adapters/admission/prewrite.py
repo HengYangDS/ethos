@@ -232,7 +232,12 @@ def _prewrite_material_scope(
         patch_report.get("profile_metadata_repair") is True
         and resolution.required_gaps
         and all(
-            gap.startswith("openspec_spec_capability_entry_unexpected:")
+            gap.startswith(
+                (
+                    "openspec_spec_capability_entry_unexpected:",
+                    "openspec_specs_root_entry_unexpected:",
+                )
+            )
             for gap in resolution.required_gaps
         )
     ):

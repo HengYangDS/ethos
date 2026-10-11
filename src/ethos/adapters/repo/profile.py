@@ -117,13 +117,15 @@ def profile_postimage(root: Path, postimages: Mapping[str, str | None]) -> Profi
         and current.openspec is not None
         and proposed.openspec is not None
     ):
-        old, new = current.openspec.capability_metadata, proposed.openspec.capability_metadata
+        fields = ("capability_metadata", "specs_root_metadata")
+        previous = {field: getattr(current.openspec, field) for field in fields}
+        incoming = {field: getattr(proposed.openspec, field) for field in fields}
         restored = proposed.model_copy(
-            update={"openspec": proposed.openspec.model_copy(update={"capability_metadata": old})}
+            update={"openspec": proposed.openspec.model_copy(update=previous)}
         )
         repair = (
-            old != new
-            and all(item in new for item in old)
+            previous != incoming
+            and all(item in incoming[field] for field in fields for item in previous[field])
             and restored == current
             and not accepted_spec_root_gaps(root / "openspec/specs", policy=proposed.openspec)
         )

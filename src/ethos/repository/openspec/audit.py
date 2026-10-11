@@ -173,26 +173,43 @@ def accepted_spec_root_gaps(specs_root: Path, *, policy: OpenSpecPolicy | None =
         if profile.state == "invalid":
             return [INVALID_PROFILE_ERROR]
         policy = profile.declaration.openspec if profile.declaration is not None else None
-    metadata = (
-        {item.file_name: item.authority_ref for item in policy.capability_metadata}
+    metadata, root_metadata = (
+        (
+            {item.file_name: item.authority_ref for item in policy.capability_metadata},
+            {item.file_name: item.authority_ref for item in policy.specs_root_metadata},
+        )
         if policy
-        else {}
+        else ({}, {})
     )
     gaps = [
         f"openspec_metadata_authority_unavailable:{name}:{authority}"
-        for name, authority in metadata.items()
+        for name, authority in (*metadata.items(), *root_metadata.items())
         if not _regular_repository_file(root, root / authority)
     ]
     for entry in sorted(specs_root.iterdir(), key=lambda path: path.name):
-        if entry.name == "README.md":
-            if not entry.is_file() or entry.is_symlink():
-                gaps.append("openspec_specs_root_entry_unexpected:README.md")
-            continue
-        if not entry.is_dir() or entry.is_symlink():
-            gaps.append(f"openspec_specs_root_entry_unexpected:{entry.name}")
-            continue
-        gaps.extend(_capability_member_gaps(root, entry, metadata))
+        gaps.extend(_specs_root_member_gaps(root, entry, metadata, root_metadata))
     return gaps
+
+
+def _specs_root_member_gaps(
+    root: Path, entry: Path, metadata: Collection[str], root_metadata: Collection[str]
+) -> list[str]:
+    """Classify one native root member without giving data capability authority."""
+    if entry.name in root_metadata:
+        return (
+            []
+            if _regular_repository_file(root, entry) and _valid_metadata(entry)
+            else [f"openspec_specs_root_metadata_invalid:{entry.name}"]
+        )
+    if entry.name == "README.md":
+        return (
+            []
+            if _regular_repository_file(root, entry)
+            else ["openspec_specs_root_entry_unexpected:README.md"]
+        )
+    if not entry.is_dir() or entry.is_symlink():
+        return [f"openspec_specs_root_entry_unexpected:{entry.name}"]
+    return _capability_member_gaps(root, entry, metadata)
 
 
 def _capability_member_gaps(root: Path, capability: Path, metadata: Collection[str]) -> list[str]:

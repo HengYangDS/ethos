@@ -98,6 +98,15 @@ projection into a transient Commitment containing only `schema_version`, `id`,
 and `acceptance`. It derives changed paths from Git rather than a second scope
 carrier.
 
+Supplemental data binds its existing native owner through
+`[[openspec.capability_metadata]]` for capability members or
+`[[openspec.specs_root_metadata]]` for specs-root members. Both use an exact
+`file_name` and repository-relative `authority_ref`; native TOML, JSON or YAML
+must be non-executable, parseable mappings. These declarations neither replace
+`spec.md` nor admit supporting Markdown templates as data. Binding-only profile
+repair may add these references while preserving identity and all other policy;
+unrelated shape gaps or strict specification failures remain blocking.
+
 Work ownership is independent: a Lease contains only `lane_ref`, `holder_ref`,
 `generation`, and `expires_at`. Lane creation, archive, continuation, handoff,
 and retirement observe the current Lease and Git state, compile one exact ref

@@ -50,7 +50,8 @@ def _write_profile(root: Path, text: str) -> Path:
         "*.json",
     ],
 )
-def test_profile_rejects_unsafe_capability_metadata_bindings(file_name: str) -> None:
+@pytest.mark.parametrize("field", ["capability_metadata", "specs_root_metadata"])
+def test_profile_rejects_unsafe_capability_metadata_bindings(file_name: str, field: str) -> None:
     """Metadata is an exact native data member, never a new normative or executable carrier."""
     with pytest.raises(ValidationError):
         RepositoryProfileDeclaration.model_validate(
@@ -58,9 +59,7 @@ def test_profile_rejects_unsafe_capability_metadata_bindings(file_name: str) -> 
                 "profile_id": "sample",
                 "openspec": {
                     "material_paths": ["**"],
-                    "capability_metadata": [
-                        {"file_name": file_name, "authority_ref": "rules/native-contract.md"}
-                    ],
+                    field: [{"file_name": file_name, "authority_ref": "rules/native-contract.md"}],
                 },
             }
         )
@@ -69,7 +68,10 @@ def test_profile_rejects_unsafe_capability_metadata_bindings(file_name: str) -> 
 @pytest.mark.parametrize(
     "authority_ref", ["/outside.md", "../outside.md", "nested/../owner.md", "owner\n.md"]
 )
-def test_metadata_authority_requires_an_exact_repository_path(authority_ref: str) -> None:
+@pytest.mark.parametrize("field", ["capability_metadata", "specs_root_metadata"])
+def test_metadata_authority_requires_an_exact_repository_path(
+    authority_ref: str, field: str
+) -> None:
     """A metadata owner is an exact contained file path, not an external or ambiguous locator."""
     with pytest.raises(ValidationError):
         RepositoryProfileDeclaration.model_validate(
@@ -77,31 +79,43 @@ def test_metadata_authority_requires_an_exact_repository_path(authority_ref: str
                 "profile_id": "sample",
                 "openspec": {
                     "material_paths": ["**"],
-                    "capability_metadata": [
-                        {"file_name": "data.json", "authority_ref": authority_ref}
-                    ],
+                    field: [{"file_name": "data.json", "authority_ref": authority_ref}],
                 },
             }
         )
 
 
-@pytest.mark.parametrize("weaken", [False, True])
+@pytest.mark.parametrize("rejection", [None, "scope", "strict-spec", "supporting-template"])
+@pytest.mark.parametrize("placement", ["capability", "specs_root", "both"])
 def test_exact_metadata_profile_repair_preserves_other_policy(
-    tmp_path: Path, *, weaken: bool
+    tmp_path: Path, placement: str, rejection: str | None
 ) -> None:
     """Resolve only native metadata bindings, never unrelated source or proof obligations."""
     fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
     profile = root / ".ethos/profile.toml"
     original = profile.read_text()
-    metadata = root / "openspec/specs/contracts/capability.toml"
-    metadata.write_text('family = "contracts"\n')
     parsed = load_repository_profile(root).declaration.model_dump(mode="json")
-    parsed["openspec"]["capability_metadata"] = [
-        {"file_name": "capability.toml", "authority_ref": "openspec/specs/contracts/spec.md"}
-    ]
-    if weaken:
+    metadata_paths = []
+    if placement in {"capability", "both"}:
+        metadata_paths.append(root / "openspec/specs/contracts/capability.toml")
+        parsed["openspec"]["capability_metadata"] = [
+            {"file_name": "capability.toml", "authority_ref": "openspec/specs/contracts/spec.md"}
+        ]
+    if placement in {"specs_root", "both"}:
+        metadata_paths.append(root / "openspec/specs/families.toml")
+        parsed["openspec"]["specs_root_metadata"] = [
+            {"file_name": "families.toml", "authority_ref": "openspec/specs/contracts/spec.md"}
+        ]
+    for metadata in metadata_paths:
+        metadata.write_text('family = "contracts"\n')
+    if rejection == "scope":
         parsed["openspec"]["material_paths"] = [".ethos/**"]
+    if rejection == "strict-spec":
+        spec = root / "openspec/specs/contracts/spec.md"
+        spec.write_text(spec.read_text().replace("SHALL", "can"))
+    if rejection == "supporting-template":
+        (root / "openspec/specs/template.md").write_text("# Supporting template\n")
     replacement = render_repository_profile(RepositoryProfileDeclaration.model_validate(parsed))
     patch = tmp_path / "metadata-binding.patch"
     patch.write_text(
@@ -118,10 +132,10 @@ def test_exact_metadata_profile_repair_preserves_other_policy(
 
     completed, report = _profile_prewrite(root, patch=patch)
 
-    assert (report["verdict"] == "pass") is (not weaken), json.dumps(report, indent=2)
-    assert (completed.returncode == 0) is (not weaken), report
+    assert (report["verdict"] == "pass") is (rejection is None), json.dumps(report, indent=2)
+    assert (completed.returncode == 0) is (rejection is None), report
     assert profile.read_text() == original
-    assert metadata.read_text() == 'family = "contracts"\n'
+    assert all(metadata.read_text() == 'family = "contracts"\n' for metadata in metadata_paths)
 
 
 def _assert_invalid_profile(root: Path, text: str) -> None:

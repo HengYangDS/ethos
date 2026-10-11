@@ -11,13 +11,13 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import field_validator
 
-_INVALID_METADATA_FILENAME = "capability metadata must be an exact native data filename"
+_INVALID_METADATA_FILENAME = "spec metadata must be an exact native data filename"
 _INVALID_METADATA_AUTHORITY = "metadata authority must be a repository-relative file"
 _DOT_SEGMENT_METADATA_AUTHORITY = "metadata authority must not contain dot segments"
-_DUPLICATE_METADATA_FILENAMES = "capability metadata filenames must be unique"
+_DUPLICATE_METADATA_FILENAMES = "spec metadata filenames must be unique within their placement"
 
 
-class CapabilityMetadata(BaseModel):
+class SpecMetadata(BaseModel):
     """Bind one supplemental data filename to its existing native authority."""
 
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
@@ -70,15 +70,17 @@ class OpenSpecPolicy(BaseModel):
         BeforeValidator(lambda value: tuple(value) if isinstance(value, list) else value),
     ] = Field(min_length=1)
     capability_metadata: Annotated[
-        tuple[CapabilityMetadata, ...],
+        tuple[SpecMetadata, ...],
+        BeforeValidator(lambda value: tuple(value) if isinstance(value, list) else value),
+    ] = ()
+    specs_root_metadata: Annotated[
+        tuple[SpecMetadata, ...],
         BeforeValidator(lambda value: tuple(value) if isinstance(value, list) else value),
     ] = ()
 
-    @field_validator("capability_metadata")
+    @field_validator("capability_metadata", "specs_root_metadata")
     @classmethod
-    def validate_capability_metadata(
-        cls, value: tuple[CapabilityMetadata, ...]
-    ) -> tuple[CapabilityMetadata, ...]:
+    def validate_metadata(cls, value: tuple[SpecMetadata, ...]) -> tuple[SpecMetadata, ...]:
         if len({item.file_name for item in value}) != len(value):
             raise ValueError(_DUPLICATE_METADATA_FILENAMES)
         return value

@@ -44,6 +44,12 @@ def select_gate_declaration(
         ):
             message = f"common_gate_execution_conflict:{gate_id}"
             raise ValueError(message)
+    common_contracts = {
+        gate_id: packaged[gate_id].model_copy(
+            update={"profile": "repository", "tool_adapter": "ethos"}
+        )
+        for gate_id in common
+    }
     extra: dict[str, Gate] = {}
     pending = [*common, *gate_ids]
     while pending:
@@ -64,12 +70,13 @@ def select_gate_declaration(
         default=tuple(dict.fromkeys((*declaration.proof_sets.default, *common))),
         full=tuple(dict.fromkeys((*declaration.proof_sets.full, *common))),
     )
-    if not extra and proof_sets == declaration.proof_sets:
+    gates = tuple(common_contracts.get(gate.id, gate) for gate in declaration.gates)
+    if not extra and gates == declaration.gates and proof_sets == declaration.proof_sets:
         return declaration
     return GateRegistryDeclaration(
         id=declaration.id,
         schema_version=declaration.schema_version,
         source_refs=declaration.source_refs,
         proof_sets=proof_sets,
-        gates=(*declaration.gates, *extra.values()),
+        gates=(*gates, *extra.values()),
     )

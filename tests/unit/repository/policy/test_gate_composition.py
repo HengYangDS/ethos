@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from ethos.contracts.gates import Gate
+from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
 from ethos.repository.profile import ProofPolicy
@@ -80,3 +81,41 @@ def test_native_configuration_uses_one_shared_directory_shape() -> None:
         native_tool_configuration((".config/checks/lychee/lychee.toml",), "lychee")
     expected = ".config/checks/links/lychee.toml"
     assert native_tool_configuration((expected,), "lychee") == expected
+
+
+def test_same_executor_preserves_the_complete_applicable_common_contract(tmp_path: Path) -> None:
+    """A native redeclaration cannot lower the shared floor's policy or evidence bounds."""
+    profile = RepositoryProfile(
+        root=tmp_path,
+        exists=True,
+        declaration=RepositoryProfileDeclaration(
+            profile_id="document-repository",
+            proof=ProofPolicy(
+                code_correctness_gates=("markdown-lint",),
+                gates=(
+                    Gate(
+                        id="markdown-lint",
+                        kind="native",
+                        providers=("ethos.adapters.gates.tool:markdown_lint_report",),
+                        policy="advisory",
+                        network_policy="unrestricted",
+                        trust_bearing=False,
+                        writes_files=True,
+                    ),
+                ),
+                code_correctness_map={
+                    "behavior": "markdown-lint",
+                    "static-analysis": "markdown-lint",
+                },
+            ),
+        ),
+    )
+    policy = compile_gate_policy(profile=profile, repository_paths=("README.md",), full=True)
+    expected = (
+        load_gate_registry_declaration()
+        .registry()["markdown-lint"]
+        .model_copy(update={"profile": "repository", "tool_adapter": "ethos"})
+    )
+    assert policy.registry["markdown-lint"] == expected
+    assert profile.declaration is not None
+    assert profile.declaration.proof.gates[0].policy == "advisory"

@@ -20,8 +20,10 @@ from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.release.identity import BuildIdentity
+from ethos.repository.release.identity import build_identity
 from tools.ci import dependency_audit
 from tools.ci import sessions
+from tools.ci.delivery import artifact as artifact_owner
 from tools.ci.delivery import pipeline
 from tools.ci.delivery.acceptance import effect
 from tools.ci.delivery.acceptance import receipt
@@ -56,7 +58,13 @@ def test_package_lifecycle_has_one_execution_owner() -> None:
 
     assert lifecycle_gates == {"local-install-smoke"}
     assert full.index("build") < full.index("local-install-smoke")
-    assert gates["local-install-smoke"]["depends_on"] == ["build"]
+    assert gates["unit-architecture"]["depends_on"][0] == "build"
+    assert set(gates["local-install-smoke"]["depends_on"]) == {
+        "build",
+        "coverage-floor",
+        "dependency-vulnerabilities",
+    }
+    assert gates["unit-architecture"]["resource_locks"]["artifacts/python"] == "shared"
     assert gates["local-install-smoke"]["network_policy"] == "offline"
     assert gates["local-install-smoke"]["writes_files"] is True
     expected = resolve_gate_policy(ROOT, full=True)
@@ -250,7 +258,7 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     sealed_runtime.chmod(0o555)
     sealed_runtime.parent.chmod(0o555)
     lifecycle = {stage: {"state": "passed"} for stage in _LIFECYCLE_STAGES}
-    build = BuildIdentity("0.2.0-alpha.3", "0.2.0a3.dev0+ga.ta", "a" * 40, "b" * 40)
+    build = build_identity(product="0.2.0-alpha.3", source_commit="a" * 40, source_tree="b" * 40)
     lifecycle["successor_activation"]["runtime_digest"] = "f" * 64
     monkeypatch.setattr(effect, "git_common_dir", lambda root: str(root / ".git"))
     selected_runtime = Mock(
@@ -270,7 +278,9 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         "EVIDENCE": evidence,
         "RUNTIME": SimpleNamespace(python=source_python, script=lambda _name: "/locked/uv"),
         "current_tracked_head": lambda _root: "a" * 40,
-        "wheel_build_identity": lambda _wheel: build,
+        "selected_wheel": lambda _root, **_kwargs: PackageArtifact(
+            wheel, hashlib.sha256(wheel.read_bytes()).hexdigest(), build
+        ),
         "_run": lambda *_command, **_kwargs: "",
         "prepare_locked_requirements": lambda _root, work, _python: (
             work / "locked-requirements.txt"
@@ -279,6 +289,8 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         "observe_runtime_lifecycle": lambda **kwargs: observed.update(kwargs) or lifecycle,
     }.items():
         monkeypatch.setattr(effect, name, value)
+    monkeypatch.setattr(artifact_owner, "source_build_identity", lambda _root: build)
+    monkeypatch.setattr(artifact_owner, "wheel_build_identity", lambda _wheel: build)
     for owner, method, value in (
         (effect, "package_runtime", {"path": "archive", "runtime_digest": "f" * 64}),
         (effect.runtime_acceptance, "prove_shared_supply", {"state": "passed"}),

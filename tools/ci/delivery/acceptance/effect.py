@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import shutil
@@ -29,10 +28,9 @@ from ethos.adapters.repo.runtime.materialization.dependency_supply import (
 )
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.adapters.repo.runtime.selection import current_runtime
-from ethos.adapters.repo.runtime.transition import PackageArtifact
-from ethos.repository.release.identity import BuildIdentity
-from ethos.repository.release.identity import wheel_build_identity
 from tools.ci.delivery.acceptance.receipt import package_acceptance_evidence
+from tools.ci.delivery.artifact import require_artifact_current
+from tools.ci.delivery.artifact import selected_wheel
 from tools.ci.delivery.distribution import package_runtime
 from tools.ci.toolchain.environment import ProjectRuntime
 
@@ -40,6 +38,9 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     import nox
+
+    from ethos.adapters.repo.runtime.transition import PackageArtifact
+    from ethos.repository.release.identity import BuildIdentity
 
 ROOT = Path(__file__).resolve().parents[4]
 ARTIFACTS = ROOT / "build/artifacts/python"
@@ -77,14 +78,6 @@ def _run(
         message = f"command failed ({completed.returncode}): {rendered}\n{detail}"
         raise RuntimeError(message)
     return completed.stdout.strip()
-
-
-def _single_wheel() -> Path:
-    wheels = tuple(ARTIFACTS.glob("ethos-*.whl"))
-    if len(wheels) != 1:
-        message = "local install smoke requires exactly one ETHOS wheel"
-        raise RuntimeError(message)
-    return wheels[0]
 
 
 def independent_host_environment() -> tuple[dict[str, str], str]:
@@ -397,11 +390,9 @@ def run(
     """Verify one exact wheel through the shared workload without publishing a release."""
     head = current_tracked_head(ROOT)
     output = evidence if evidence is not None else EVIDENCE
-    wheel = artifact.path if artifact is not None else _single_wheel()
-    selected = artifact or PackageArtifact(
-        wheel, hashlib.sha256(wheel.read_bytes()).hexdigest(), wheel_build_identity(wheel)
-    )
-    _require_artifact_current(selected, head=head)
+    selected = artifact or selected_wheel(ROOT, head=head, artifacts=ARTIFACTS)
+    wheel = selected.path
+    require_artifact_current(selected, head=head, repo=ROOT)
     if WORK.exists():
         remove_generated_tree(WORK)
     output.unlink(missing_ok=True)
@@ -459,7 +450,7 @@ def run(
         distribution.pop("path")
         distribution.pop("homebrew_cask", None)
         distribution["retained"] = False
-        _require_artifact_current(selected, head=head)
+        require_artifact_current(selected, head=head, repo=ROOT)
         if current_tracked_head(ROOT) != head:
             session.error(f"local install smoke HEAD moved from {head}")
         payload = package_acceptance_evidence(
@@ -491,16 +482,3 @@ def run(
         encoding="utf-8",
     )
     session.log(json.dumps(payload, indent=2, sort_keys=True))
-
-
-def _require_artifact_current(artifact: PackageArtifact, *, head: str) -> None:
-    """Reject changed or redirected selected bytes before effects and evidence."""
-    if (
-        artifact.build.source_commit != head
-        or artifact.path.is_symlink()
-        or not artifact.path.is_file()
-        or hashlib.sha256(artifact.path.read_bytes()).hexdigest() != artifact.sha256
-        or wheel_build_identity(artifact.path) != artifact.build
-    ):
-        message = "package_acceptance_artifact_changed"
-        raise ValueError(message)

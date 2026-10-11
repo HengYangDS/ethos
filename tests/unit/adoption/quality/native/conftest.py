@@ -93,10 +93,10 @@ class NativeNoxSupply:
 
 @pytest.fixture(scope="session")
 def native_nox_supply(tmp_path_factory: pytest.TempPathFactory) -> Iterator[NativeNoxSupply]:
-    """Missing source-only supply skips; an explicitly supplied invalid wheel fails."""
+    """Package evidence requires supplied wheel bytes, never a silent source-only skip."""
     supplied = os.environ.get("ETHOS_TEST_OBSERVER_WHEEL")
     if not supplied:
-        pytest.skip("package qualification requires ETHOS_TEST_OBSERVER_WHEEL")
+        pytest.fail("package qualification requires ETHOS_TEST_OBSERVER_WHEEL")
     wheel = Path(supplied)
     assert wheel.is_absolute()
     assert wheel.is_file()
@@ -108,13 +108,13 @@ def native_nox_supply(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Nati
     uv = shutil.which("uv")
     assert uv is not None
     scratch = tmp_path_factory.mktemp("native-nox-supply")
-    parent = scratch / "parent"
-    project = scratch / "floor"
-    project.mkdir()
-    fixture = Path(__file__).resolve().parents[4] / "fixtures/quality-sample"
-    for name in ("pyproject.toml", "uv.lock"):
-        shutil.copyfile(fixture / name, project / name)
     try:
+        parent = scratch / "parent"
+        project = scratch / "floor"
+        project.mkdir()
+        fixture = Path(__file__).resolve().parents[4] / "fixtures/quality-sample"
+        for name in ("pyproject.toml", "uv.lock"):
+            shutil.copyfile(fixture / name, project / name)
         run_command(
             scratch,
             (uv, "venv", "--no-python-downloads", "--python", sys.executable, str(parent)),

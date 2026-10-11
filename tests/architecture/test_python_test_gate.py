@@ -25,6 +25,7 @@ import subprocess
 
 
 @pytest.mark.parametrize("failure", ["none", "cached", "crash", "assertion"])
+@pytest.mark.usefixtures("python_gate_artifact")
 def test_parallel_python_test_gate_bounds_failed_attempt_without_replay(
     tmp_path: Path, monkeypatch, failure: str
 ) -> None:
@@ -106,6 +107,8 @@ def test_coverage_gate_is_in_the_resolved_proof_closure(*, full: bool) -> None:
     )
     selected = declaration.proof_gates(full=full, python_executable=str(python_test_gate.PYTHON))
     identifiers = [gate.id for gate in selected]
+    assert identifiers.count("build") == 1
+    assert identifiers.index("build") < identifiers.index("unit-architecture")
     assert identifiers.count("coverage-floor") == 1
     assert identifiers.index("unit-architecture") < identifiers.index("coverage-floor")
     gate = selected[identifiers.index("coverage-floor")]
@@ -186,6 +189,7 @@ def _test_gate(tmp_path: Path, *, workers: int | None = None):
     )
 
 
+@pytest.mark.usefixtures("python_gate_artifact")
 def test_failed_python_attempt_observes_capacity_before_temp_cleanup(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -325,6 +329,7 @@ def test_python_cleanup_preserves_external_content_and_permissions(tmp_path, rel
 
 
 @pytest.mark.parametrize("failure", ["prepare", "test", "cleanup", "freshness"])
+@pytest.mark.usefixtures("python_gate_artifact")
 def test_python_attempt_revokes_previous_success_before_any_work(
     tmp_path, monkeypatch, failure
 ) -> None:
@@ -370,6 +375,7 @@ def test_python_attempt_revokes_previous_success_before_any_work(
         gate.enforce_floor(cast("nox.Session", SimpleNamespace(error=pytest.fail)))
 
 
+@pytest.mark.usefixtures("python_gate_artifact")
 def test_python_single_attempt_discards_partial_and_sharded_outputs(tmp_path, monkeypatch) -> None:
     """An interrupted attempt's data cannot silently join a new test population."""
     gate = _test_gate(tmp_path)
@@ -394,7 +400,9 @@ def test_python_single_attempt_discards_partial_and_sharded_outputs(tmp_path, mo
     assert not gate.s.basetemp.exists()
 
 
-def test_killed_python_attempt_cannot_reuse_previous_completion(tmp_path, monkeypatch) -> None:
+def test_killed_python_attempt_cannot_reuse_previous_completion(
+    tmp_path, monkeypatch, python_gate_artifact
+) -> None:
     """An actual process kill cannot revive a prior same-source success marker."""
     gate = _test_gate(tmp_path)
     gate.coverage.mkdir(parents=True)
@@ -407,7 +415,13 @@ from pathlib import Path
 from types import SimpleNamespace
 from tests.support.subprocesses import pause_after_effect
 from tools.ci.python_test_gate import PythonTestGate, Settings
+import tools.ci.python_test_gate as owner
+from ethos.adapters.repo.runtime.transition import PackageArtifact
+from ethos.repository.release.identity import wheel_build_identity
 root = Path(sys.argv[1])
+wheel = Path(sys.argv[2])
+artifact = PackageArtifact(wheel, sys.argv[3], wheel_build_identity(wheel))
+owner.selected_wheel = lambda _root, *, head: artifact
 gate = PythonTestGate(Settings(
     head='a' * 40, evidence=root / 'evidence', basetemp=root / 'pytest',
     basetemp_owned=True, workers=1, shards=1, durations=0, timeout=None,
@@ -417,7 +431,16 @@ session = SimpleNamespace(run=lambda *args, **kwargs: 'executing')
 pause_after_effect(session, 'run', root / 'ready')
 gate.run_tests(session)
 """
-    assert kill_after_marker(tmp_path, script, (str(tmp_path),), ready, timeout=15) == "executing"
+    assert (
+        kill_after_marker(
+            tmp_path,
+            script,
+            (str(tmp_path), str(python_gate_artifact.path), python_gate_artifact.sha256),
+            ready,
+            timeout=15,
+        )
+        == "executing"
+    )
 
     assert not gate.head_file.exists()
     monkeypatch.setattr(python_test_gate, "_head", lambda: gate.s.head)
@@ -429,6 +452,7 @@ gate.run_tests(session)
     ("failure", "ownership"),
     [("", "owned"), ("pytest", "owned"), ("prepare", "owned"), ("", "external")],
 )
+@pytest.mark.usefixtures("python_gate_artifact")
 def test_python_basetemp_ownership(tmp_path, monkeypatch, failure, ownership) -> None:
     root, external = tmp_path / "repo", tmp_path / "external"
     empty_node_package_supply(root)

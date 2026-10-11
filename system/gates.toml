@@ -148,6 +148,7 @@ version_source = "locked-toolchain"
 id = "unit-architecture"
 kind = "test"
 depends_on = [
+  "build",
   "repository-audit",
   "schemas",
   "skills",
@@ -175,7 +176,7 @@ trust_bearing = true
 tool_adapter = "pytest"
 writes_files = true
 cpu_reservation = 2
-resource_locks = { repository = "shared", supply = "shared", "evidence/tests" = "exclusive", "scratch/tests" = "exclusive" }
+resource_locks = { repository = "shared", supply = "shared", "artifacts/python" = "shared", "evidence/tests" = "exclusive", "scratch/tests" = "exclusive" }
 network_policy = "offline"
 version_source = "locked-toolchain"
 
@@ -255,7 +256,7 @@ command = ["{python}", "-m", "nox", "-s", "build"]
 policy = "required"
 profile = "product-toolchain"
 toolchain = "uv-python"
-depends_on = ["ruff", "dependency-vulnerabilities"]
+depends_on = ["ruff"]
 asset_classes = ["release-artifacts"]
 dimensions = ["reproducibility", "attestation"]
 execution_mode = "adapter"
@@ -273,7 +274,7 @@ kind = "package"
 command = ["{python}", "-m", "nox", "-s", "install_smoke"]
 profile = "product-toolchain"
 toolchain = "uv-python"
-depends_on = ["build"]
+depends_on = ["build", "coverage-floor", "dependency-vulnerabilities"]
 asset_classes = ["release-artifacts"]
 dimensions = ["installability", "isolation", "provenance"]
 execution_mode = "adapter"

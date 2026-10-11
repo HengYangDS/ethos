@@ -25,6 +25,7 @@ from ethos.domain.quality import observer as native_observer
 from ethos.repository.policy.gates import gate_execution_identity
 from tests.support.governed_repository import committed_source_repo
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
+from tests.unit.adoption.quality.native import conftest as native_fixture
 
 
 def _supply_attempt(tmp_path: Path) -> tuple[Path, Gate]:
@@ -310,3 +311,25 @@ def test_child_ruff_windows_audit_requires_exact_native_command_line(
     if matching:
         assert observed["argv"] == list(command)
         assert observed["cwd"] == str(tmp_path)
+
+
+def test_native_fixture_reclaims_scratch_when_setup_copy_fails(tmp_path, monkeypatch) -> None:
+    """The fixture owns setup scratch before its first fallible preparation."""
+    wheel = tmp_path / "selected.whl"
+    wheel.write_bytes(b"test supply")
+    scratch = tmp_path / "owned-supply"
+    scratch.mkdir()
+    monkeypatch.setenv("ETHOS_TEST_OBSERVER_WHEEL", str(wheel))
+    monkeypatch.setattr(native_fixture, "wheel_build_identity", lambda _: None)
+    monkeypatch.setattr(native_fixture.shutil, "which", lambda _: "uv")
+
+    def failed_copy(*_args) -> None:
+        message = "fixture_copy_failed"
+        raise OSError(message)
+
+    monkeypatch.setattr(native_fixture.shutil, "copyfile", failed_copy)
+    factory = SimpleNamespace(mktemp=lambda _name: scratch)
+    fixture = native_fixture.native_nox_supply.__wrapped__(factory)
+    with pytest.raises(OSError, match="fixture_copy_failed"):
+        next(fixture)
+    assert not scratch.exists()

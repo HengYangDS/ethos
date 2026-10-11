@@ -20,7 +20,7 @@ package = "postcss-selector-parser"
 version = "7.1.4"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/postcss-selector-parser"]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "local-development"
 host = "yheng-macbook-pro.local"
 owner = "ethos-quality-gate-governance"
@@ -46,7 +46,7 @@ package = "brace-expansion"
 version = "5.0.9"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/brace-expansion"]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "local-development"
 host = "yheng-macbook-pro.local"
 owner = "ethos-quality-gate-governance"
@@ -61,7 +61,7 @@ package = "brace-expansion"
 version = "5.0.9"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/brace-expansion"]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "local-development"
 host = "yheng-macbook-pro.local"
 owner = "ethos-quality-gate-governance"
@@ -76,7 +76,7 @@ package = "brace-expansion"
 version = "5.0.9"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/brace-expansion"]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "local-development"
 host = "yheng-macbook-pro.local"
 owner = "ethos-quality-gate-governance"
@@ -91,7 +91,7 @@ package = "http-cache-semantics"
 version = "4.2.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/http-cache-semantics"]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "local-development"
 host = "yheng-macbook-pro.local"
 owner = "ethos-quality-gate-governance"
@@ -106,7 +106,7 @@ package = "ip-address"
 version = "10.5.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/ip-address"]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "local-development"
 host = "yheng-macbook-pro.local"
 owner = "ethos-quality-gate-governance"
@@ -121,7 +121,7 @@ package = "ip-address"
 version = "10.5.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/ip-address"]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "local-development"
 host = "yheng-macbook-pro.local"
 owner = "ethos-quality-gate-governance"
@@ -136,7 +136,7 @@ package = "ip-address"
 version = "10.5.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/ip-address"]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "local-development"
 host = "yheng-macbook-pro.local"
 owner = "ethos-quality-gate-governance"
@@ -151,7 +151,7 @@ package = "ip-address"
 version = "10.5.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/ip-address"]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "local-development"
 host = "yheng-macbook-pro.local"
 owner = "ethos-quality-gate-governance"
@@ -166,7 +166,7 @@ package = "undici"
 version = "6.28.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/undici"]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "local-development"
 host = "yheng-macbook-pro.local"
 owner = "ethos-quality-gate-governance"
@@ -181,7 +181,7 @@ package = "undici"
 version = "6.28.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/undici"]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "local-development"
 host = "yheng-macbook-pro.local"
 owner = "ethos-quality-gate-governance"
@@ -196,7 +196,7 @@ package = "undici"
 version = "6.28.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/undici"]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "local-development"
 host = "yheng-macbook-pro.local"
 owner = "ethos-quality-gate-governance"
@@ -213,7 +213,7 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = [
   "node_modules/npm/node_modules/ip-address",
 ]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
 approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
@@ -229,7 +229,7 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = [
   "node_modules/npm/node_modules/undici",
 ]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
 approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
@@ -245,7 +245,7 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = [
   "node_modules/npm/node_modules/brace-expansion",
 ]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
 approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
@@ -261,7 +261,7 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = [
   "node_modules/npm/node_modules/http-cache-semantics",
 ]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
 approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
@@ -277,7 +277,7 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = [
   "node_modules/npm/node_modules/ip-address",
 ]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
 approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
@@ -293,7 +293,7 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = [
   "node_modules/npm/node_modules/ip-address",
 ]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
 approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
@@ -309,7 +309,7 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = [
   "node_modules/npm/node_modules/brace-expansion",
 ]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
 approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
@@ -325,7 +325,7 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = [
   "node_modules/npm/node_modules/brace-expansion",
 ]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
 approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
@@ -341,7 +341,7 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = [
   "node_modules/npm/node_modules/undici",
 ]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
 approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
@@ -357,7 +357,7 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = [
   "node_modules/npm/node_modules/undici",
 ]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
 approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
@@ -373,7 +373,7 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = [
   "node_modules/npm/node_modules/postcss-selector-parser",
 ]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
 approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
@@ -389,7 +389,7 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = [
   "node_modules/npm/node_modules/ip-address",
 ]
-lock_sha256 = "f07dfb1bc117f18123cc9b4e94be730a2c3e2a86f9266292cc965f3e90c10085"
+lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
 approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"

@@ -37,11 +37,38 @@ _MISSING_QUALITY = (
 )
 
 
-def test_source_acceptance_preserves_floors_and_binds_native_audit() -> None:
+@pytest.mark.parametrize("full", [False, True])
+@pytest.mark.parametrize("native_registry", [False, True])
+def test_source_acceptance_preserves_floors_and_binds_native_audit(
+    tmp_path: Path, *, full: bool, native_registry: bool
+) -> None:
     """One explicit purpose changes the audit command, never the required gate set."""
-    strict = compile_gate_policy(full=True)
-    source = compile_gate_policy(full=True, acceptance_purpose="local-source")
+    declaration = load_gate_registry_declaration()
+    inputs = {
+        "profile": RepositoryProfile(
+            root=tmp_path,
+            exists=True,
+            declaration=RepositoryProfileDeclaration(
+                profile_id="ethos", proof=ProofPolicy(gate_registry="system/gates.toml")
+            ),
+        )
+        if native_registry
+        else None,
+        "gate_registry_source": tomli_w.dumps(
+            declaration.model_dump(mode="json", exclude_defaults=True)
+        ).encode()
+        if native_registry
+        else None,
+        "repository_python": "python",
+        "repository_paths": ("src/example.py",),
+        "full": full,
+    }
+    strict = compile_gate_policy(**inputs)
+    source = compile_gate_policy(**inputs, acceptance_purpose="local-source")
     assert source.gate_ids == strict.gate_ids
+    assert source.gaps == strict.gaps
+    assert source.projection["owner"] == strict.projection["owner"]
+    assert source.declaration == strict.declaration
     assert source.digest != strict.digest
     assert source.projection["acceptance_purpose"] == "local-source"
     for gate in strict.gates:

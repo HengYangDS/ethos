@@ -62,7 +62,10 @@ class ResolvedGatePolicy:
 
     @property
     def registry(self) -> dict[str, Gate]:
-        return self.declaration.registry(python_executable=self.python_executable)
+        """Overlay selected execution gates without rewriting declaration authority."""
+        return self.declaration.registry(python_executable=self.python_executable) | {
+            gate.id: gate for gate in self.gates
+        }
 
     @property
     def gate_ids(self) -> tuple[str, ...]:
@@ -412,26 +415,21 @@ def resolve_gate_policy(
         packaged = _PACKAGED_GATE_DECLARATION.registry().keys()
         if requested.isdisjoint(owned) and requested <= packaged:
             declaration, profile = _PACKAGED_GATE_DECLARATION, None
-    if acceptance_purpose == "local-source":
-        declaration = declaration.model_copy(
-            update={
-                "gates": tuple(
-                    gate.model_copy(
-                        update={"command": (*gate.command, "--", "--scope", "local-development")}
-                    )
-                    if native_dependency_audit_scope(gate.model_dump(mode="python"))
-                    == "production-release"
-                    else gate
-                    for gate in declaration.gates
-                )
-            }
-        )
     python_executable = repository_python or sys.executable
     gates = declaration.proof_gates(
         gate_ids,
         full=full,
         python_executable=python_executable,
     )
+    if acceptance_purpose == "local-source":
+        gates = tuple(
+            gate.model_copy(
+                update={"command": (*gate.command, "--", "--scope", "local-development")}
+            )
+            if native_dependency_audit_scope(gate.model_dump(mode="python")) == "production-release"
+            else gate
+            for gate in gates
+        )
     sources, gaps = (
         bind_gate_source_digests(
             gates,

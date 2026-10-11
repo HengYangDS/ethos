@@ -1,6 +1,6 @@
 """Prove-stage domain reducers — pure report logic fed by adapters.
 
-The code-size report is a pure reducer over (one declared ceiling, tracked files,
+The code-size report is a pure reducer over (one declared ceiling, native source inventory,
 per-file effective LOC). Roles describe source ownership without changing capacity;
 the same limit applies to every file and derives the gate verdict. Rules own
 strict optional policy compilation, Git supplies inventory, and measure owns
@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import fnmatch
 import shlex
+import subprocess
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -49,11 +50,32 @@ def code_size_report(root: Path) -> dict[str, object]:
         }
     if policy is None:
         return {
-            "verdict": "pass",
-            "state": "not_configured",
+            "verdict": "block",
+            "state": "policy_missing",
             "files": [],
-            "required_gaps": [],
-            "next_action": "",
+            "required_gaps": ["code_size_policy_missing"],
+            "next_action": _size_repair_command(root, ".ethos/rules.toml"),
+        }
+    try:
+        files = git_adapter.git_files(
+            root, "--cached", "--others", "--exclude-standard", "--", "*.py", check=True
+        )
+    except (git_adapter.GitExecutionError, subprocess.CalledProcessError, OSError) as error:
+        return {
+            "verdict": "unknown",
+            "state": "inventory_unavailable",
+            "files": [],
+            "required_gaps": ["code_size_inventory_unavailable"],
+            "errors": [
+                error.evidence()
+                if isinstance(error, git_adapter.GitExecutionError)
+                else {
+                    "reason": str(error),
+                    "stdout": getattr(error, "stdout", None),
+                    "stderr": getattr(error, "stderr", None),
+                }
+            ],
+            "next_action": "restore the native Git source inventory and rerun the size gate",
         }
     limit = policy.default_effective_max_lines
     records: list[dict[str, object]] = []
@@ -61,7 +83,7 @@ def code_size_report(root: Path) -> dict[str, object]:
     errors: list[dict[str, str]] = []
     verdict = "pass"
     repair_path = ""
-    for relative in git_adapter.git_files(root, "*.py"):
+    for relative in files:
         path = root / relative
         if not path.exists():
             continue

@@ -225,6 +225,10 @@ Its sole declaration lives in `.ethos/rules.toml [quality.code_size]`; the nativ
 schema requires a strict positive integer multiple of 128. ETHOS declares 512.
 Role metadata describes ownership, never additional capacity. The code-size gate
 uses the shared syntax-aware counter and rejects conflicting role-specific limits.
+Native Git inventory includes tracked and non-ignored new Python sources without
+counting ignored tool supply. A selected gate requires its declaration; absent
+policy or unavailable inventory cannot certify successful coverage or invent a
+default ceiling.
 A breach requires semantic review, but only a distinct concept, invariant,
 authority, or reason to change can justify a split; otherwise the module is
 simplified or absorbed.

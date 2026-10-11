@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from typing import cast
 
@@ -61,8 +62,11 @@ def test_invalid_python_is_not_a_valid_size_measurement() -> None:
     "relative",
     ["src/logic.py", "src/ethos/surface/cli/view.py", "tests/test_case.py"],
 )
-def test_public_size_gate_enforces_uniform_ceiling(tmp_path: Path, relative: str) -> None:
-    """Every role shares the native 512-pass and 513-reject boundary."""
+@pytest.mark.parametrize("tracked", [True, False], ids=["tracked", "new"])
+def test_public_size_gate_enforces_uniform_ceiling(
+    tmp_path: Path, relative: str, *, tracked: bool
+) -> None:
+    """Every admitted role, including new source, shares the 512-pass/513-reject boundary."""
     limit = 512
     root = init_git_repo(tmp_path / "repo")
     rules = root / ".ethos/rules.toml"
@@ -72,7 +76,8 @@ def test_public_size_gate_enforces_uniform_ceiling(tmp_path: Path, relative: str
     source.parent.mkdir(parents=True)
     for lines in (limit, limit + 1):
         source.write_text("value = 1\n" * lines, encoding="utf-8")
-        git(root, "add", relative)
+        if tracked:
+            git(root, "add", relative)
         report, observed = _public_size_report(root)
         assert report["verdict"] == ("pass" if lines == limit else "block"), report
         assert observed["default_effective_max_lines"] == limit
@@ -123,16 +128,42 @@ def test_public_size_gate_rejects_malformed_policy(tmp_path: Path, declaration: 
     assert "lane prewrite .ethos/rules.toml" in observed["next_action"]
 
 
-def test_public_size_gate_does_not_invent_an_undeclared_limit(tmp_path: Path) -> None:
-    """A generic repository without the optional declaration acquires no hidden ceiling."""
+def test_selected_size_gate_requires_its_declaration_without_inventing_limit(
+    tmp_path: Path,
+) -> None:
+    """Selecting the gate requires its policy; generic compilation still invents no ceiling."""
     root = init_git_repo(tmp_path / "repo")
     (root / "large.py").write_text("value = 1\n" * 1_200, encoding="utf-8")
     git(root, "add", "large.py")
     report, observed = _public_size_report(root)
-    assert report["verdict"] == "pass", report
-    assert observed["state"] == "not_configured"
+    assert prove.code_size_policy({}) is None
+    assert report["verdict"] == observed["verdict"] == "block", report
+    assert observed["state"] == "policy_missing"
     assert observed["files"] == []
-    assert observed["required_gaps"] == []
+    assert observed["required_gaps"] == ["code_size_policy_missing"]
+    assert "default_effective_max_lines" not in observed
+    assert "lane prewrite .ethos/rules.toml" in observed["next_action"]
+
+
+def test_size_inventory_failure_is_unknown_with_original_diagnostics(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failed native inventory cannot certify an empty successful source set."""
+    root = init_git_repo(tmp_path / "repo")
+    rules = root / ".ethos/rules.toml"
+    rules.parent.mkdir()
+    rules.write_text("[quality.code_size]\ndefault_effective_max_lines = 512\n")
+
+    def failed_inventory(_root: Path, *_arguments: str, **_options: object) -> object:
+        raise subprocess.CalledProcessError(128, ("git", "ls-files"), "", "inventory failure\n")
+
+    monkeypatch.setattr(prove.git_adapter, "run_git", failed_inventory)
+    report = prove.code_size_report(root)
+    assert report["verdict"] == "unknown", report
+    assert report["state"] == "inventory_unavailable"
+    assert report["files"] == []
+    assert report["required_gaps"] == ["code_size_inventory_unavailable"]
+    assert report["errors"][0]["stderr"] == "inventory failure\n"
 
 
 @pytest.mark.parametrize("limit", [128, 256, 512])
@@ -223,7 +254,9 @@ def test_code_size_report_applies_declared_uniform_limit(tmp_path, monkeypatch):
             }
         },
     )
-    monkeypatch.setattr(prove.git_adapter, "git_files", lambda _root, *_patterns: tuple(files))
+    monkeypatch.setattr(
+        prove.git_adapter, "git_files", lambda _root, *_patterns, **_options: tuple(files)
+    )
 
     report = prove.code_size_report(tmp_path)
     records = cast("list[dict[str, object]]", report["files"])
@@ -256,7 +289,9 @@ def test_code_size_report_emits_gap_when_effective_lines_exceed_limit(tmp_path, 
         "load_rules_config",
         lambda _root: {"quality": {"code_size": {"default_effective_max_lines": 256}}},
     )
-    monkeypatch.setattr(prove.git_adapter, "git_files", lambda _root, *_patterns: (relative,))
+    monkeypatch.setattr(
+        prove.git_adapter, "git_files", lambda _root, *_patterns, **_options: (relative,)
+    )
 
     report = prove.code_size_report(tmp_path)
 
@@ -272,7 +307,9 @@ def test_code_size_report_skips_deleted_tracked_paths(tmp_path, monkeypatch):
         "load_rules_config",
         lambda _root: {"quality": {"code_size": {"default_effective_max_lines": 256}}},
     )
-    monkeypatch.setattr(prove.git_adapter, "git_files", lambda _root, *_patterns: (relative,))
+    monkeypatch.setattr(
+        prove.git_adapter, "git_files", lambda _root, *_patterns, **_options: (relative,)
+    )
 
     report = prove.code_size_report(tmp_path)
 

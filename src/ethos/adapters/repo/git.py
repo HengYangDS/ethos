@@ -510,11 +510,11 @@ def git_common_dir(root: Path) -> str:
     return path.resolve().as_posix()
 
 
-def git_files(root: Path, *patterns: str) -> list[str]:
-    """Return tracked files matching the given pathspec patterns."""
-    completed = run_git(root, "ls-files", *patterns, check=False)
+def git_files(root: Path, *patterns: str, check: bool = False) -> list[str]:
+    """Read native NUL file inventory; callers select source scope and failure enforcement."""
+    completed = run_git(root, "ls-files", "-z", *patterns, check=check)
     return (
-        [line for line in completed.stdout.splitlines() if line]
+        list(dict.fromkeys(path for path in completed.stdout.split("\0") if path))
         if completed.returncode == 0
         else []
     )

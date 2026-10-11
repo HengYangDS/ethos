@@ -300,25 +300,25 @@ def observe_gate_execution(
     exact = full or expect_head is not None
     tree = current_tree(root, head) if head and exact else ""
     source: dict[str, str] = {}
-    results: tuple[ActionRunResult, ...] = ()
+    checks: list[dict[str, Any]] = []
     gaps = ["proof_head_missing"] if not head else []
     if expect_head is not None and expect_head != head:
         gaps.append("expected_head_mismatch")
     policy = None
-    selected_obligations = bool(gate_ids) and not full
+
+    def resolve():
+        return resolve_gate_policy(
+            root,
+            tree_ref=head,
+            gate_ids=gate_ids,
+            full=full,
+            selected_obligations=bool(gate_ids) and not full,
+        )
+
     try:
-        if not gaps:
-            policy = resolve_gate_policy(
-                root,
-                tree_ref=head,
-                gate_ids=gate_ids,
-                full=full,
-                selected_obligations=selected_obligations,
-            )
+        policy = resolve() if not gaps else None
         if policy is not None:
             gaps.extend(policy.gaps)
-            if not policy.nodes:
-                gaps.append("proof_floor_empty")
         if not gaps and exact:
             source = observe_execution_source(root, head, tree)
             gaps.extend(
@@ -333,31 +333,23 @@ def observe_gate_execution(
                 capacity=max(1, os.cpu_count() or 1),
                 parallel=True,
             )
-            gaps.extend(
-                policy.result_gaps(tuple(asdict(result) for result in results), source_tree=tree)
-            )
+            checks = [asdict(result) for result in results]
+            gaps.extend(policy.result_gaps(checks, source_tree=tree))
             if exact and (
                 current_tracked_head(root) != head
                 or observe_execution_source(root, head, tree) != source
-                or resolve_gate_policy(
-                    root,
-                    tree_ref=head,
-                    gate_ids=gate_ids,
-                    full=full,
-                    selected_obligations=selected_obligations,
-                ).digest
-                != policy.digest
+                or resolve().digest != policy.digest
             ):
                 gaps.append("proof_execution_source_changed")
     except ValueError as error:
         gaps.append(str(error))
     return {
-        "verdict": "block" if gaps or not results else "pass",
+        "verdict": "block" if gaps or not checks else "pass",
         "head": head,
         "policy_digest": policy.digest if policy is not None else "",
         "execution_source": source,
-        "executed": bool(results),
-        "checks": [asdict(result) for result in results],
+        "executed": bool(checks),
+        "checks": checks,
         "required_gaps": gaps,
     }
 

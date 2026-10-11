@@ -130,7 +130,7 @@ with TemporaryDirectory(prefix="ethos-installed-format-") as temporary:
         subprocess.run(["git", "-C", str(root), "add", "change.py"], check=True)
         source.write_text(working)
         try:
-            _check_staged_python_format(root, ("change.py",))
+            _check_staged_python_format(root, ("change.py",), configuration=root)
         except RuntimeError as error:
             assert rejected and "pre_commit_python_format_failed" in str(error), str(error)
         else:

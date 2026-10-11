@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 import shlex
+import shutil
+import sys
 import tomllib
 from pathlib import Path
 from types import SimpleNamespace
@@ -16,6 +18,7 @@ from unittest.mock import call
 import pytest
 
 import tools.ci.local_ci as local_ci
+from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
@@ -195,6 +198,24 @@ def test_package_manifest_acceptance_uses_selected_runtime_owner(tmp_path: Path,
             )
             == selected.python
         )
+
+
+def test_installed_format_probe_uses_current_native_configuration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Run real Git and Ruff; installed smoke separately proves dependency absence."""
+    dependency_check = 'assert importlib.util.find_spec("pytest") is None'
+
+    def run(root: Path, command: tuple[str, ...], **kwargs: object) -> object:
+        assert dependency_check in command[-1]
+        selected = (*command[:-1], command[-1].replace(dependency_check, ""))
+        return run_command(root, selected, **kwargs)
+
+    monkeypatch.setattr(runtime_acceptance, "run_command", run)
+
+    assert runtime_acceptance.require_production_dependencies(
+        Path(sys.executable), environment={"PATH": str(Path(shutil.which("git")).parent)}
+    ) == {"state": "passed", "excluded": ["pytest"], "staged_format": "passed"}
 
 
 def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(

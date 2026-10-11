@@ -19,8 +19,10 @@ from yamllint import config as yamllint_config
 from yamllint import linter as yamllint_linter
 
 from ethos.adapters.gates.tool import native_configurations
+from ethos.adapters.gates.tool import quality_inventory_failure
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.contracts.verdict import close_verdict
@@ -244,6 +246,8 @@ def configuration_report(root: Path, *, paths: tuple[str, ...] = ()) -> dict[str
             *_yaml_failures(root, candidates["yaml"]),
             *_ini_failures(root, candidates["ini"]),
         )
+    except (GitExecutionError, subprocess.CalledProcessError) as error:
+        return quality_inventory_failure(root, "config-quality", error)
     except (
         OSError,
         ValueError,

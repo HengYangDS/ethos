@@ -16,6 +16,7 @@ from tempfile import TemporaryDirectory
 
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_files
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
@@ -115,9 +116,11 @@ def external_links_report(root: Path) -> dict[str, object]:
 
 
 def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, object]:
-    files = _markdown_files(root)
     try:
+        files = _markdown_files(root)
         configs = native_configurations(root, "lychee", ".config/checks/links/lychee.toml")
+    except (GitExecutionError, subprocess.CalledProcessError) as error:
+        return quality_inventory_failure(root, gate_id, error)
     except (OSError, ValueError) as error:
         return _configuration_failure(gate_id, error)
     mode = ["--offline=false", "--scheme", "http", "--scheme", "https"] if online else []
@@ -137,11 +140,43 @@ def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, objec
     return _native_report(gate_id, files, native)
 
 
+def quality_source_files(root: Path, *patterns: str) -> list[str]:
+    """Read current authored input through native Git without swallowing inventory failure."""
+    return git_files(
+        root, "--cached", "--others", "--exclude-standard", "--", *patterns, check=True
+    )
+
+
+def quality_inventory_failure(
+    root: Path, gate_id: str, error: GitExecutionError | subprocess.CalledProcessError
+) -> dict[str, object]:
+    """Unavailable input remains unknown with its original native execution evidence."""
+    evidence = (
+        error.evidence()
+        if isinstance(error, GitExecutionError)
+        else {
+            "command": list(error.cmd),
+            "cwd": str(root),
+            "exit_code": error.returncode,
+            "stdout": _observed_output(error.stdout),
+            "stderr": _observed_output(error.stderr),
+        }
+    )
+    return {
+        "id": gate_id,
+        "verdict": "unknown",
+        "state": "inventory_unavailable",
+        "file_count": 0,
+        "required_gaps": [f"quality_input_inventory_unavailable:{gate_id}"],
+        "errors": [evidence],
+    }
+
+
 def _markdown_files(root: Path) -> list[str]:
-    """Current authored Markdown excludes immutable records and absent tracked paths."""
+    """Current authored Markdown excludes immutable records and absent paths."""
     return [
         path
-        for path in git_files(root, "*.md")
+        for path in quality_source_files(root, "*.md")
         if path.endswith(".md")
         and not path.startswith(("evidence/", "docs/archive/", "openspec/changes/archive/"))
         and (root / path).is_file()
@@ -151,7 +186,7 @@ def _markdown_files(root: Path) -> list[str]:
 def native_configurations(root: Path, tool: str, shared: str) -> tuple[str, ...]:
     """The shipped policy is mandatory; repository policy is a native increment."""
     common = canonical_resource(shared)
-    selected = native_tool_configuration(tuple(git_files(root)), tool)
+    selected = native_tool_configuration(tuple(quality_source_files(root)), tool)
     if selected:
         path = root / selected
         if (
@@ -168,8 +203,8 @@ def native_configurations(root: Path, tool: str, shared: str) -> tuple[str, ...]
 
 def prose_report(root: Path) -> dict[str, object]:
     """Run native spelling on exact copies without ambient policy or source writes."""
-    files = _markdown_files(root)
     try:
+        files = _markdown_files(root)
         configs = native_configurations(root, "codespell", ".config/checks/prose/codespell.toml")
         sources = {relative: (root / relative).read_bytes() for relative in files}
         if any((root / relative).is_symlink() for relative in files):
@@ -216,6 +251,8 @@ def prose_report(root: Path) -> dict[str, object]:
                     ]
                 native.append(result)
         return _native_report("prose", files, native)
+    except (GitExecutionError, subprocess.CalledProcessError) as error:
+        return quality_inventory_failure(root, "prose", error)
     except (OSError, ValueError) as error:
         return _configuration_failure("prose", error)
 
@@ -264,10 +301,10 @@ def _configuration_failure(gate_id: str, error: Exception) -> dict[str, object]:
 
 def markdown_lint_report(root: Path) -> dict[str, object]:
     """Check the shared floor and native repository increments on the same authored inputs."""
-    files = _markdown_files(root)
-    if not files:
-        return {"verdict": "pass", "state": "skipped", "file_count": 0, "required_gaps": []}
     try:
+        files = _markdown_files(root)
+        if not files:
+            return {"verdict": "pass", "state": "skipped", "file_count": 0, "required_gaps": []}
         node = str(resolve_node_runtime().executable)
         prettier = str(product_node_module("prettier") / "bin/prettier.cjs")
         markdownlint = str(product_node_module("markdownlint-cli2") / "markdownlint-cli2.mjs")
@@ -277,6 +314,8 @@ def markdown_lint_report(root: Path) -> dict[str, object]:
         lint_configs = native_configurations(
             root, "markdownlint-cli2", ".config/checks/markdown/markdownlint.yaml"
         )
+    except (GitExecutionError, subprocess.CalledProcessError) as error:
+        return quality_inventory_failure(root, "markdown-lint", error)
     except (OSError, ValueError) as error:
         return _configuration_failure("markdown-lint", error)
     commands = [
@@ -327,9 +366,10 @@ def _native_report(
 
 def module_layout_gate_report(root: Path) -> dict[str, object]:
     """Audit tracked and non-ignored untracked Python through the layout policy."""
-    files = tuple(
-        root / path
-        for path in git_files(root, "--cached", "--others", "--exclude-standard", "--", "*.py")
-        if (root / path).is_file()
-    )
+    try:
+        files = tuple(
+            root / path for path in quality_source_files(root, "*.py") if (root / path).is_file()
+        )
+    except (GitExecutionError, subprocess.CalledProcessError) as error:
+        return quality_inventory_failure(root, "module-layout", error)
     return module_layout_report(root, files=files)

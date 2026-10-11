@@ -21,6 +21,10 @@ from ethos.repository.policy.gates import gate_policy_fields
 from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 
 
+def _quality_files(monkeypatch: pytest.MonkeyPatch, *files: str) -> None:
+    monkeypatch.setattr(gate_tool, "quality_source_files", lambda *_args: list(files))
+
+
 def _gate(*providers: str) -> Gate:
     return Gate(id="gate", kind="test", providers=providers)
 
@@ -352,11 +356,7 @@ def test_markdown_link_gate_excludes_deleted_tracked_paths(
     config = tmp_path / ".config/checks/links/lychee.toml"
     config.parent.mkdir(parents=True)
     config.write_text("offline = true\n")
-    monkeypatch.setattr(
-        gate_tool,
-        "git_files",
-        lambda *_args: ["README.md", "docs/deleted.md", str(config.relative_to(tmp_path))],
-    )
+    _quality_files(monkeypatch, "README.md", "docs/deleted.md", str(config.relative_to(tmp_path)))
     monkeypatch.setattr(gate_tool.shutil, "which", lambda _tool: "/bin/lychee")
     observed: list[list[str]] = []
 
@@ -386,9 +386,7 @@ def test_packaged_markdown_gate_uses_shipped_node_tools_and_selected_native_conf
     config.parent.mkdir(parents=True)
     config.write_text("noInlineConfig: true\nconfig:\n  default: false\n")
     (tmp_path / "README.md").write_text("# Current\n\n[Empty link]()\n")
-    monkeypatch.setattr(
-        gate_tool, "git_files", lambda *_args: ["README.md", str(config.relative_to(tmp_path))]
-    )
+    _quality_files(monkeypatch, "README.md", str(config.relative_to(tmp_path)))
     selected = load_gate_registry_declaration().registry()["markdown-lint"]
     assert selected.command == ()
     assert selected.providers == ("ethos.adapters.gates.tool:markdown_lint_report",)
@@ -415,9 +413,7 @@ def test_native_markdown_configuration_preserves_nested_rule_parameters(
         "# Native\n\n## One\n\n### Fixed\n\nWords.\n\n## Two\n\n### Fixed\n\nMore words.\n",
         encoding="utf-8",
     )
-    monkeypatch.setattr(
-        gate_tool, "git_files", lambda *_args: ["README.md", str(config.relative_to(tmp_path))]
-    )
+    _quality_files(monkeypatch, "README.md", str(config.relative_to(tmp_path)))
     report = gate_tool.markdown_lint_report(tmp_path)
     assert report["verdict"] == "pass", report
 
@@ -429,7 +425,7 @@ def test_common_markdown_policy_accepts_native_formatter_container_layout(
     document = tmp_path / "README.md"
     accepted = b"# Spacing\n\n- First.\n  ```text\n  example\n  ```\n- Second.\n"
     document.write_bytes(accepted)
-    monkeypatch.setattr(gate_tool, "git_files", lambda *_args: ["README.md"])
+    _quality_files(monkeypatch, "README.md")
 
     report = gate_tool.markdown_lint_report(tmp_path)
 
@@ -458,7 +454,7 @@ def test_markdown_links_use_declared_installed_supply_without_path(
 ) -> None:
     """The installed native link checker is independent of adopter and ambient tools."""
     (tmp_path / "README.md").write_text("# Links\n\n[Current](README.md)\n", encoding="utf-8")
-    monkeypatch.setattr(gate_tool, "git_files", lambda *_args: ["README.md"])
+    _quality_files(monkeypatch, "README.md")
     monkeypatch.setenv("PATH", "")
 
     report = gate_tool.markdown_links_report(tmp_path)
@@ -478,9 +474,7 @@ def test_prose_gate_keeps_native_spelling_without_adopter_toolchain(tmp_path, mo
     local.parent.mkdir(parents=True)
     local.write_text('[tool.codespell]\nignore-words-list = "teh"\n')
     (tmp_path / "pyproject.toml").write_text('[tool.codespell]\nskip = "*"\n')
-    monkeypatch.setattr(
-        gate_tool, "git_files", lambda *_: ["README.md", local.relative_to(tmp_path).as_posix()]
-    )
+    _quality_files(monkeypatch, "README.md", local.relative_to(tmp_path).as_posix())
     monkeypatch.setenv("PATH", "")
     for source, verdict in (
         ("The result is verified.\n", "pass"),
@@ -497,7 +491,7 @@ def test_prose_gate_keeps_native_spelling_without_adopter_toolchain(tmp_path, mo
     local.write_text("[tool.codespell]\nwrite-changes = true\n")
     report = gate_tool.prose_report(tmp_path)
     assert (report["verdict"], document.read_text()) == ("block", source)
-    monkeypatch.setattr(gate_tool, "git_files", lambda *_: [])
+    _quality_files(monkeypatch)
     report = gate_tool.prose_report(tmp_path)
     assert (report["verdict"], report["file_count"]) == ("pass", 0)
 

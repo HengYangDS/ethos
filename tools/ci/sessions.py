@@ -232,13 +232,12 @@ def markdown_lint(session) -> None:
 
 
 def config_quality(session) -> None:
-    failures = import_module("tools.ci.config_quality").run(
-        tuple(session.posargs),
-        node=RUNTIME.node_executable(),
-        package_supply=RUNTIME.node_package_supply(),
+    report = import_module("ethos.adapters.gates.configuration").configuration_report(
+        ROOT, paths=tuple(session.posargs)
     )
-    if failures:
-        session.error("configuration quality failed:\n" + "\n".join(failures))
+    session.log(json.dumps(report))
+    if report["verdict"] != "pass":
+        session.error("configuration quality failed: " + str(report["required_gaps"]))
     if not session.posargs or PRE_COMMIT_CONFIG in session.posargs:
         session.run(RUNTIME.script("pre-commit"), "validate-config", PRE_COMMIT_CONFIG)
 

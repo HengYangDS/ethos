@@ -343,13 +343,14 @@ version_source = "adopter-toolchain"
 [[gates]]
 id = "config-quality"
 kind = "config"
-command = ["{python}", "-m", "nox", "-s", "config_quality"]
+required_for_paths = ["*.toml", "*.yaml", "*.yml", "*.json", "*.ini", "*.cfg"]
+providers = ["ethos.adapters.gates.configuration:configuration_report"]
 policy = "required"
-profile = "product-toolchain"
-toolchain = "uv-python"
+profile = "product"
+toolchain = "quality-adapter"
 asset_classes = ["toml-config", "json-contracts", "yaml-config"]
 dimensions = ["format", "lint", "syntax", "projection-boundary"]
-execution_mode = "adapter"
+execution_mode = "provider"
 evidence_class = "diagnostic"
 trust_bearing = true
 tool_adapter = "repository-config-toolchain"
@@ -602,6 +603,7 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "prose"
 kind = "docs"
+required_for_paths = ["*.md"]
 providers = ["ethos.adapters.gates.tool:prose_report"]
 policy = "required"
 profile = "product"

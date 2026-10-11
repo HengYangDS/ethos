@@ -23,6 +23,7 @@ dependencies = [
   "ruff>=0.16.10",
   "tomli-w>=1.2.0",
   "uv>=0.12.23",
+  "yamllint>=1.38.0",
 ]
 
 [project.scripts]
@@ -52,7 +53,6 @@ dev = [
   "shfmt-py>=4.2.0",
   "ty>=0.0.84",
   "uv>=0.12.23",
-  "yamllint>=1.38.0",
 ]
 
 [build-system]
@@ -80,6 +80,9 @@ packages = ["src/ethos"]
 ".config/mise/mise.lock" = "ethos/resources/.config/mise/mise.lock"
 ".config/checks/format/prettier.toml" = "ethos/resources/.config/checks/format/prettier.toml"
 ".config/checks/prose/codespell.toml" = "ethos/resources/.config/checks/prose/codespell.toml"
+".config/checks/taplo/taplo.toml" = "ethos/resources/.config/checks/taplo/taplo.toml"
+".config/checks/yaml/yamllint.yaml" = "ethos/resources/.config/checks/yaml/yamllint.yaml"
+".config/checks/json/format.toml" = "ethos/resources/.config/checks/json/format.toml"
 ".config/checks/markdown/markdownlint.yaml" = "ethos/resources/.config/checks/markdown/markdownlint.yaml"
 ".config/checks/links/lychee.toml" = "ethos/resources/.config/checks/links/lychee.toml"
 "VERSION" = "ethos/resources/VERSION"
@@ -129,6 +132,9 @@ only-include = [
   ".config/mise/mise.lock",
   ".config/checks/format/prettier.toml",
   ".config/checks/prose/codespell.toml",
+  ".config/checks/taplo/taplo.toml",
+  ".config/checks/yaml/yamllint.yaml",
+  ".config/checks/json/format.toml",
   ".config/checks/markdown/markdownlint.yaml",
   ".config/checks/links/lychee.toml",
   "VERSION",

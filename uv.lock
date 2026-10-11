@@ -598,6 +598,7 @@ dependencies = [
     { name = "ruff" },
     { name = "tomli-w" },
     { name = "uv" },
+    { name = "yamllint" },
 ]
 
 [package.dev-dependencies]
@@ -621,7 +622,6 @@ dev = [
     { name = "shfmt-py" },
     { name = "ty" },
     { name = "uv" },
-    { name = "yamllint" },
 ]
 
 [package.metadata]
@@ -644,6 +644,7 @@ requires-dist = [
     { name = "ruff", specifier = ">=0.16.10" },
     { name = "tomli-w", specifier = ">=1.2.0" },
     { name = "uv", specifier = ">=0.12.23" },
+    { name = "yamllint", specifier = ">=1.38.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -667,7 +668,6 @@ dev = [
     { name = "shfmt-py", specifier = ">=4.2.0" },
     { name = "ty", specifier = ">=0.0.84" },
     { name = "uv", specifier = ">=0.12.23" },
-    { name = "yamllint", specifier = ">=1.38.0" },
 ]
 
 [[package]]

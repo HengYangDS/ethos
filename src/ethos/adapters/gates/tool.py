@@ -111,7 +111,7 @@ def external_links_report(root: Path) -> dict[str, object]:
 def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, object]:
     files = _markdown_files(root)
     try:
-        configs = _native_configurations(root, "lychee", ".config/checks/links/lychee.toml")
+        configs = native_configurations(root, "lychee", ".config/checks/links/lychee.toml")
     except (OSError, ValueError) as error:
         return _configuration_failure(gate_id, error)
     mode = ["--offline=false", "--scheme", "http", "--scheme", "https"] if online else []
@@ -142,7 +142,7 @@ def _markdown_files(root: Path) -> list[str]:
     ]
 
 
-def _native_configurations(root: Path, tool: str, shared: str) -> tuple[str, ...]:
+def native_configurations(root: Path, tool: str, shared: str) -> tuple[str, ...]:
     """The shipped policy is mandatory; repository policy is a native increment."""
     common = canonical_resource(shared)
     selected = native_tool_configuration(tuple(git_files(root)), tool)
@@ -164,7 +164,7 @@ def prose_report(root: Path) -> dict[str, object]:
     """Run native spelling on exact copies without ambient policy or source writes."""
     files = _markdown_files(root)
     try:
-        configs = _native_configurations(root, "codespell", ".config/checks/prose/codespell.toml")
+        configs = native_configurations(root, "codespell", ".config/checks/prose/codespell.toml")
         sources = {relative: (root / relative).read_bytes() for relative in files}
         if any((root / relative).is_symlink() for relative in files):
             return _configuration_failure("prose", ValueError("native_prose_input_invalid"))
@@ -265,10 +265,10 @@ def markdown_lint_report(root: Path) -> dict[str, object]:
         node = str(resolve_node_runtime().executable)
         prettier = str(product_node_module("prettier") / "bin/prettier.cjs")
         markdownlint = str(product_node_module("markdownlint-cli2") / "markdownlint-cli2.mjs")
-        format_configs = _native_configurations(
+        format_configs = native_configurations(
             root, "prettier", ".config/checks/format/prettier.toml"
         )
-        lint_configs = _native_configurations(
+        lint_configs = native_configurations(
             root, "markdownlint-cli2", ".config/checks/markdown/markdownlint.yaml"
         )
     except (OSError, ValueError) as error:

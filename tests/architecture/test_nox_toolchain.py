@@ -14,11 +14,13 @@ from unittest.mock import Mock
 import pytest
 import tomli_w
 
+import ethos.adapters.gates.configuration as configuration_gate
 import ethos.repository.policy.schema as schema_owner
 from ethos.adapters.process import run_command
+from ethos.contracts.gates import load_gate_registry_declaration
+from ethos.normalization.coercion import string_sequence
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tools.ci import config_quality
 from tools.ci import dependency_hygiene
 from tools.ci import sessions
 
@@ -122,6 +124,84 @@ def test_prose_executor_reuses_installed_native_provider(monkeypatch: pytest.Mon
     session.error.assert_not_called()
 
 
+def test_configuration_gate_has_one_installed_owner() -> None:
+    """Native configuration checks cannot require the ETHOS source Nox toolchain."""
+    gate = load_gate_registry_declaration().registry()["config-quality"]
+    assert gate.providers == ("ethos.adapters.gates.configuration:configuration_report",)
+    assert not gate.command
+    assert not (ROOT / "tools/ci/config_quality.py").exists()
+
+
+def test_configuration_owner_preserves_the_common_floor_and_exact_inputs(tmp_path) -> None:
+    """Local ignores and ambient configuration cannot weaken installed native checks."""
+    root = init_git_repo(tmp_path / "repo")
+    yaml_policy = root / ".config/checks/yaml/yamllint.yaml"
+    yaml_policy.parent.mkdir(parents=True)
+    yaml_policy.write_text("---\nextends: default\nignore: '*.yaml'\n")
+    yaml_input = root / "example.yaml"
+    toml_input = root / "example.toml"
+    json_input = root / "example.json"
+    ini_input = root / "example.ini"
+    git(root, "add", yaml_policy.relative_to(root).as_posix())
+    cases = (
+        (yaml_input, "---\nvalue: true\n", "pass"),
+        (yaml_input, "---\nvalue: true\n\n\nother: 1\n", "block"),
+        (toml_input, 'value = "valid"\n', "pass"),
+        (toml_input, 'value="valid"\n', "block"),
+        (json_input, '{\n  "value": true\n}\n', "pass"),
+        (json_input, '{"value":true}\n', "block"),
+        (ini_input, "[native]\nvalue = valid\n", "pass"),
+        (ini_input, "[native]\nvalue = first\nvalue = duplicate\n", "block"),
+    )
+    for target, content, verdict in cases:
+        target.write_text(content)
+        report = configuration_gate.configuration_report(root, paths=(target.name,))
+        assert (report["verdict"], target.read_text()) == (verdict, content), report
+    invalid_policy = "rules:\n  missing-native-rule: enable\n"
+    yaml_policy.write_text(invalid_policy)
+    yaml_input.write_text("---\nvalue: true\n")
+    report = configuration_gate.configuration_report(root, paths=(yaml_input.name,))
+    assert report["verdict"] == "block", report
+    assert report["required_gaps"]
+    assert yaml_policy.read_text() == invalid_policy
+    assert yaml_input.read_text() == "---\nvalue: true\n"
+
+
+def test_configuration_owner_validates_native_json_policy_before_rendering(tmp_path) -> None:
+    """Malformed local policy blocks structurally and preserves authored bytes."""
+    root = init_git_repo(tmp_path / "repo")
+    target = root / "example.json"
+    content = '{\n  "value": true\n}\n'
+    target.write_text(content)
+    policy = root / ".config/checks/json/format.toml"
+    policy.parent.mkdir(parents=True)
+    git(root, "add", target.name)
+    valid = {
+        "owner": "local-quality",
+        "formatter": "python-stdlib-json",
+        "default_mode": "compact",
+        "indent": 2,
+        "rule": [{"globs": ["example.json"], "mode": "pretty"}],
+    }
+    for declaration, verdict in (
+        (valid, "pass"),
+        ({key: value for key, value in valid.items() if key != "default_mode"}, "block"),
+        ({**valid, "default_mode": "unknown"}, "block"),
+        ({**valid, "indent": True}, "block"),
+        ({**valid, "rule": [{"globs": "example.json", "mode": "pretty"}]}, "block"),
+    ):
+        original = tomli_w.dumps(declaration)
+        policy.write_text(original)
+        git(root, "add", policy.relative_to(root).as_posix())
+        report = configuration_gate.configuration_report(root, paths=(target.name,))
+        assert (report["verdict"], target.read_text(), policy.read_text()) == (
+            verdict,
+            content,
+            original,
+        ), report
+        assert bool(report["required_gaps"]) == (verdict == "block"), report
+
+
 @pytest.mark.parametrize(
     ("arguments", "succeeds"),
     [(("--list",), True), (("-s", "lint"), True), (("-s", "markdown_lint"), False)],
@@ -179,14 +259,10 @@ def test_session_discovery_does_not_load_unselected_capabilities() -> None:
         ("external", True, True),
     ],
 )
-def test_config_selection_keeps_native_failures_and_ownership(
-    tmp_path, monkeypatch, state, explicit, fails
-):
+def test_config_selection_keeps_native_failures_and_ownership(tmp_path, state, explicit, fails):
     """Default discovery covers candidates; explicit absent or foreign inputs cannot pass."""
     root = init_git_repo(tmp_path / "repo")
-    policy = root / ".config/checks/format/selection.toml"
-    policy.parent.mkdir(parents=True)
-    policy.write_bytes((ROOT / policy.relative_to(root)).read_bytes())
+    (root / ".config").mkdir()
     relative = "openspec/config.yaml" if state == "external" else ".config/new-policy.yaml"
     target = root / relative
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -197,21 +273,19 @@ def test_config_selection_keeps_native_failures_and_ownership(
             "blank": "---\nfirst: 1\n\n\nsecond: 2\n",
         }.get(state, "broken: [\n")
     )
-    (root / ".gitignore").write_text(
-        policy.relative_to(root).as_posix() + "\n" + (relative if state == "ignored" else "")
-    )
+    (root / ".gitignore").write_text(relative if state == "ignored" else "")
     if state not in {"ignored", "untracked", "missing"}:
         git(root, "add", relative)
     if state in {"missing", "deleted"}:
         target.unlink()
-    monkeypatch.setattr(config_quality, "ROOT", root)
     spellings = (
         (relative, str(target), str(root / ".config" / ".." / relative)) if explicit else (None,)
     )
     for spelling in spellings:
-        failures = config_quality.run(
-            (spelling,) if spelling else (), node=root / "node", package_supply=root
+        report = configuration_gate.configuration_report(
+            root, paths=(spelling,) if spelling else ()
         )
+        failures = string_sequence(report["required_gaps"])
         assert bool(failures) is fails, failures
         if fails:
             assert relative in "\n".join(failures)

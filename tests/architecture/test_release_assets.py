@@ -293,17 +293,18 @@ def test_project_capability_supply_revalidates_each_operation(tmp_path, monkeypa
     assert pipeline.node_package_supply == supply
 
 
-def test_config_quality_consumes_source_bound_node_package_supply(tmp_path, monkeypatch) -> None:
-    supply, node = tmp_path / "node_modules", tmp_path / "node"
-    check = Mock(return_value=())
-    monkeypatch.setattr(ProjectRuntime, "node_executable", lambda _self: node)
-    monkeypatch.setattr(ProjectRuntime, "node_package_supply", lambda _self: supply)
-    monkeypatch.setattr(ci_sessions, "import_module", lambda _name: SimpleNamespace(run=check))
-    session = SimpleNamespace(posargs=(), run=Mock(), error=pytest.fail)
+def test_config_quality_projects_the_installed_owner(monkeypatch) -> None:
+    """Nox owns transport and source hook validation, not generic configuration rules."""
+    check = Mock(return_value={"verdict": "pass"})
+    monkeypatch.setattr(
+        ci_sessions, "import_module", lambda _name: SimpleNamespace(configuration_report=check)
+    )
+    session = SimpleNamespace(posargs=(), run=Mock(), log=Mock(), error=pytest.fail)
 
     ci_sessions.config_quality(cast("nox.Session", session))
 
-    check.assert_called_once_with((), node=node, package_supply=supply)
+    check.assert_called_once_with(ci_sessions.ROOT, paths=())
+    session.log.assert_called_once()
     session.run.assert_called_once_with(
         ci_sessions.RUNTIME.script("pre-commit"), "validate-config", ci_sessions.PRE_COMMIT_CONFIG
     )

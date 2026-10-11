@@ -43,7 +43,15 @@ def test_applicable_common_document_floor_preserves_native_increment_and_focus(
         gate_ids=("native",) if mode == "focused" else (),
         full=mode == "full",
     )
-    common = {"docs-registry", "markdown-lint", "markdown-links", "openspec", "schemas"}
+    common = {
+        "config-quality",
+        "docs-registry",
+        "markdown-lint",
+        "markdown-links",
+        "openspec",
+        "prose",
+        "schemas",
+    }
     assert set(policy.gate_ids) == ({"native"} if mode == "focused" else {"native", *common})
     assert policy.registry["native"].command == ("native-check",)
     if mode != "focused":

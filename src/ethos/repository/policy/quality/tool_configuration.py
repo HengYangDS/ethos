@@ -12,6 +12,9 @@ def native_tool_configuration(repository_paths: tuple[str, ...], tool: str) -> s
         "markdownlint-cli2": ".config/checks/markdown/markdownlint.yaml",
         "prettier": ".config/checks/format/prettier.toml",
         "codespell": ".config/checks/prose/codespell.toml",
+        "taplo": ".config/checks/taplo/taplo.toml",
+        "yamllint": ".config/checks/yaml/yamllint.yaml",
+        "json": ".config/checks/json/format.toml",
     }
     location = locations.get(tool)
     names = {
@@ -24,8 +27,12 @@ def native_tool_configuration(repository_paths: tuple[str, ...], tool: str) -> s
         },
         "prettier": {"prettier.toml", ".prettierrc.toml", ".prettierrc.json", ".prettierrc.yaml"},
         "codespell": {"codespell.toml", ".codespellrc"},
+        "taplo": {"taplo.toml", ".taplo.toml"},
+        "yamllint": {"yamllint.yaml", ".yamllint", ".yamllint.yaml", ".yamllint.yml"},
     }
     selected = tuple(path for path in repository_paths if Path(path).name in names.get(tool, set()))
+    if location in repository_paths and location not in selected:
+        selected = (*selected, location)
     if len(selected) > 1:
         message = f"native_tool_configuration_ambiguous:{tool}"
         raise ValueError(message)

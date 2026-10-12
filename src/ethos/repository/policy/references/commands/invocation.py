@@ -133,23 +133,11 @@ def command_executables(
 
 
 def _command_tokens(tokens: tuple[str, ...]) -> tuple[str, ...]:
+    """Select only a native environment wrapper's child; argv zero is never shell syntax."""
     index = 0
-    while index < len(tokens):
-        argument = tokens[index]
-        if argument == "env":
-            index = _env_command_start(tokens, index + 1)
-            continue
-        if (
-            argument in _SHELL_PREFIXES
-            or argument in {"(", ")"}
-            or _SHELL_ASSIGNMENT.fullmatch(argument)
-            or argument.startswith("-")
-            or argument.isdigit()
-        ):
-            index += 1
-            continue
-        return tokens[index:]
-    return ()
+    while index < len(tokens) and tokens[index] == "env":
+        index = _env_command_start(tokens, index + 1)
+    return tokens[index:]
 
 
 def _env_command_start(tokens: tuple[str, ...], index: int) -> int:
@@ -463,7 +451,7 @@ def shell_configuration_inputs(text: str) -> tuple[set[str], bool]:
             tokens[0] == "env"
             and any(token.partition("=")[0] in {"-C", "--chdir"} for token in tokens[1:])
         )
-        command = _command_tokens(tokens)
+        command = _shell_segment_command(tokens)
         while command and (wrapped := _wrapped_command_tokens(command, command[0])):
             if wrapped == command:
                 break

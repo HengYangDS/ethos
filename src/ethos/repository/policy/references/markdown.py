@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shlex
 from typing import TYPE_CHECKING
 
 from markdown_it import MarkdownIt
@@ -180,19 +179,15 @@ def _record_inline_command(
     observed: dict[str, set[str]],
     require_declared: bool,
 ) -> None:
-    try:
-        tokens = tuple(shlex.split(inline))
-    except ValueError:
-        return
-    if command := command_references.command_identity(
-        tokens,
+    if commands := command_references.shell_commands(
+        inline,
         known_commands,
         require_declared=require_declared,
     ):
-        observed["command"].add(command)
+        observed["command"].update(commands)
         observed["executable"].update(
-            command_references.command_executables(
-                tokens, npm_scripts, module_imports=observed["import"]
+            command_references.shell_executables(
+                inline, npm_scripts, module_imports=observed["import"]
             )
         )
 

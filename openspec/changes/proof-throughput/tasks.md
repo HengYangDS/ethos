@@ -208,6 +208,14 @@
       static review pass. Same-attempt Allure 3 reports 752/752; global console logs
       remain separately preserved. Evidence: `local-cli-delivery-20261012/semantic-argv-expansion/`.
       Whole-repository closure, exact-source proof and installed successor remain open.
+      **Command boundary qualification:** native argv zero no longer skips shell
+      keywords, numbers or option-shaped executable names; shell and Markdown
+      consumers use the existing shell parser. Three former false passes fail;
+      820 related cases pass in 18.54s, with strict warnings and same-attempt
+      Allure 3. Both observer inputs are declared by their actual surface owner.
+      Evidence: `local-cli-delivery-20261012/semantic-native-command-contract/`.
+      The full-tree observation timed out at 120.022s; variable-length sequence
+      joins still lose positional provenance and remain a separate owning defect.
       **Native receiver qualification, 2026-10-11:** discarded changed descriptors
       now invalidate their actual receiver; finite records and context exits retain
       native signature, dispatch and captured-effect custody. Path.resolve preserves

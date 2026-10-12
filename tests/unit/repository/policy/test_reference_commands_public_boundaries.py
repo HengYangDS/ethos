@@ -90,6 +90,15 @@ def test_reference_commands_malformed_public_inputs_fail_closed() -> None:
     )
 
 
+@pytest.mark.parametrize("executable", ["123", "then", "--native-probe"])
+def test_reference_commands_keep_native_argv_zero_as_the_executable(executable: str) -> None:
+    """Native argv has no shell prefixes; later data cannot become the program."""
+    tokens = (executable, "argument")
+
+    assert command_executables(tokens, {}) == {executable}
+    assert command_identity(tokens, {executable}) == executable
+
+
 def test_reference_commands_do_not_let_a_group_owner_hide_an_unknown_subcommand() -> None:
     """A declared command group cannot authorize an undeclared child command."""
     known = {"ethos", "ethos status", "ethos lane", "ethos lane start"}

@@ -192,7 +192,7 @@ def test_issued_identity_time_and_keys_fail_closed() -> None:
     with pytest.raises(ValueError, match="attestation_issue_derived_field:id"):
         Attestation.issue({**_attestation_payload(), "id": "0" * 64})
     with pytest.raises(ValueError, match="attestation_validity_invalid"):
-        canonical_utc_time(datetime(2026, 8, 14))  # noqa: DTZ001
+        canonical_utc_time(datetime(2026, 8, 14, tzinfo=UTC).replace(tzinfo=None))
     reversed_window = {
         **_attestation_payload(),
         "valid_from": datetime(2026, 8, 15, tzinfo=UTC),

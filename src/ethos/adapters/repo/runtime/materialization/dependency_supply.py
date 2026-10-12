@@ -29,6 +29,7 @@ for distribution in distributions():
         path = Path(os.path.abspath(distribution.locate_file(entry)))
         if path.is_symlink() or not path.is_file():
             raise ValueError(path)
+        path = path.resolve(strict=True)
         relative = path.relative_to(prefix).as_posix()
         files[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
 print(json.dumps({"prefix": prefix.as_posix(), "files": files}, sort_keys=True))

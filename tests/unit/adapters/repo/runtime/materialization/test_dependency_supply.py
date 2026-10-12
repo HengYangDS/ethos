@@ -4,12 +4,72 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
+import venv
 from pathlib import Path
 
 import pytest
 
 import ethos.adapters.repo.runtime.materialization.dependency_supply as supply
+
+
+@pytest.mark.parametrize("location", ["regular", "file-link", "external-entry", "external-parent"])
+def test_native_supply_canonicalizes_prefix_alias_without_accepting_external_files(
+    tmp_path: Path, location: str
+) -> None:
+    prefix, alias = tmp_path / "physical", tmp_path / "logical"
+    builder = venv.EnvBuilder(with_pip=False, symlinks=True)
+    context = builder.ensure_directories(prefix)
+    builder.create(prefix)
+    alias.symlink_to(prefix, target_is_directory=True)
+    python = alias / Path(context.env_exe).relative_to(prefix)
+    purelib = Path(
+        subprocess.check_output(
+            (
+                str(python),
+                "-B",
+                "-I",
+                "-c",
+                "import sysconfig; print(sysconfig.get_path('purelib'))",
+            ),
+            text=True,
+        ).strip()
+    )
+    metadata = purelib / "example-1.0.dist-info"
+    metadata.mkdir()
+    package = purelib / "example"
+    package.mkdir()
+    module = package / "module.py"
+    module.write_bytes(b"value = 1\n")
+    outside = tmp_path / "outside.py"
+    outside.write_bytes(b"value = 2\n")
+    if location == "file-link":
+        module.unlink()
+        module.symlink_to(outside)
+    elif location == "external-entry":
+        module = outside
+    elif location == "external-parent":
+        module.unlink()
+        package.rmdir()
+        package.symlink_to(tmp_path, target_is_directory=True)
+        module = package / outside.name
+    files = (module, metadata / "METADATA", metadata / "RECORD")
+    files[1].write_text("Metadata-Version: 2.1\nName: example\nVersion: 1.0\n", encoding="utf-8")
+    files[2].write_text(
+        "".join(f"{Path(os.path.relpath(path, purelib)).as_posix()},,\n" for path in files),
+        encoding="utf-8",
+    )
+    if location != "regular":
+        with pytest.raises(ValueError, match="hook_runtime_dependency_supply_invalid"):
+            supply.observe_dependency_supply(python)
+        return
+    observed_prefix, observed_files = supply.observe_dependency_supply(python)
+    assert observed_prefix == prefix.resolve()
+    assert dict(observed_files) == {
+        path.resolve().relative_to(prefix.resolve()): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in files
+    }
 
 
 def _supply_case(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

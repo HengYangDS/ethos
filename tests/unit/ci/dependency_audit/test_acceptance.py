@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import tomllib
@@ -12,12 +13,16 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+import tomli_w
 
 import ethos.repository.release.resources as resource_owner
 import tests
+from ethos.adapters.repo.dependency_acceptance import captured_dependency_acceptance
+from ethos.repository.policy.quality.dependency_acceptance import AUDIT_INPUTS
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_POLICY_PATH
 from ethos.repository.policy.quality.dependency_acceptance import AuditPolicy
 from ethos.repository.policy.quality.dependency_acceptance import compose_audit_policies
+from ethos.repository.policy.quality.dependency_acceptance import evaluate_dependency_acceptance
 from ethos.repository.policy.quality.dependency_acceptance import product_audit_projection
 from tests.unit.ci.dependency_audit.support import authorize_fixture
 from tests.unit.ci.dependency_audit.support import clean_report
@@ -164,16 +169,31 @@ def test_exact_disposition_does_not_cover_changed_or_expired_findings(
         assert "expired" in json.dumps(payload["decision"])
 
 
-@pytest.mark.parametrize("fault", ["dangling", "cycle"])
+@pytest.mark.parametrize(
+    "fault", ["dangling", "cycle", "name", "advisory", "nodes", "node-path", "integrity", "version"]
+)
 def test_unresolved_npm_aggregate_identity_is_not_an_authorized_finding(
     repository, monkeypatch, fault
 ):
-    """Missing aggregate references and cycles retain native findings without local permission."""
+    """Unresolved aggregates and unbound lock identities retain findings without permission."""
     raw = npm_advisories(repository)
     authorize_fixture(repository)
-    raw["vulnerabilities"]["braces"]["via"].append(
-        "absent" if fault == "dangling" else "micromatch"
-    )
+    braces = raw["vulnerabilities"]["braces"]
+    lock = repository / "package-lock.json"
+    packages = json.loads(lock.read_text())["packages"]
+    if fault in {"dangling", "cycle"}:
+        braces["via"].append("absent" if fault == "dangling" else "micromatch")
+    elif fault == "name":
+        braces["name"] = "Braces"
+    elif fault == "advisory":
+        braces["via"][0]["url"] = "http://github.com/advisories/GHSA-vfj7-8cjw-p6xm"
+    elif fault == "nodes":
+        braces["nodes"] = []
+    elif fault == "node-path":
+        braces["nodes"] = ["node_modules/../node_modules/braces"]
+    else:
+        packages["node_modules/braces"][fault] = " "
+        lock.write_text(json.dumps({"packages": packages}) + "\n")
     npm_transport(monkeypatch, json.dumps(raw))
     payload = invoke_audit(repository, scope="local-development")
     assert payload["verdict"] == "block"
@@ -318,3 +338,156 @@ def test_bundled_advisory_uses_owning_lock_artifact(repository, monkeypatch, fau
     strict = invoke_audit(repository)
     assert strict["decision"]["verdict"] == "block"
     assert strict["decision"]["scope"] == "production-release"
+
+
+_EXACT_RISK = {
+    "ecosystem": "npm",
+    "advisory_url": "https://github.com/advisories/GHSA-fixture",
+    "package": "fixture",
+    "version": "1.0.0",
+    "integrity": "sha512-fixture",
+    "scope": "production-release",
+    "owner": "fixture:owner",
+    "approval_ref": "fixture:approval",
+    "rationale": "Test-only exact artifact risk.",
+}
+
+
+def _audit_policy(*records: dict) -> dict:
+    return {
+        "owner": "fixture:owner",
+        "summary": "fixture",
+        "runner": "fixture",
+        "timeout_seconds": 1,
+        "dispositions": list(records),
+    }
+
+
+@pytest.mark.parametrize(
+    ("changes", "message"),
+    [
+        ({"owner": " fixture:owner"}, "nonblank and exact"),
+        ({"rationale": " "}, "nonblank and exact"),
+        ({"nodes": ["node_modules/fixture", "node_modules/fixture"]}, "nonempty and unique"),
+        ({"nodes": [""]}, "nonempty and unique"),
+        ({"host": "fixture-host "}, "host must be exact"),
+        ({"scope": "local-development", "host": "fixture-host"}, "host, lock, nodes and expiry"),
+    ],
+)
+def test_risk_disposition_names_exact_authority_and_local_bounds(changes, message):
+    """Accepted risk keeps exact identity, distinct nodes and a bounded local context."""
+    with pytest.raises(ValueError, match=message):
+        AuditPolicy.model_validate(_audit_policy(_EXACT_RISK | changes))
+
+
+def test_product_projection_refuses_host_bound_release_risk():
+    """A portable release approval cannot carry one host's local authority."""
+    source = tomli_w.dumps(_audit_policy(_EXACT_RISK | {"host": "fixture-host"})).encode()
+    with pytest.raises(ValueError, match="product_audit_policy_host_bound"):
+        product_audit_projection(source)
+
+
+def _captured_payload(**changes) -> tuple[str, dict[str, bytes]]:
+    sources = {name: f"captured {name}\n".encode() for name in AUDIT_INPUTS}
+    payload = {
+        "command": "dependency-audit",
+        "head": "a" * 40,
+        "inputs": {name: hashlib.sha256(value).hexdigest() for name, value in sources.items()},
+    }
+    payload.update(changes)
+    return json.dumps(payload), sources
+
+
+@pytest.mark.parametrize(
+    ("fault", "reason"),
+    [
+        ("command", "dependency_audit_payload_invalid"),
+        ("head", "dependency_audit_head_mismatch"),
+        ("inputs", "dependency_audit_inputs_missing"),
+        ("path", "dependency_audit_input_path_invalid"),
+        ("changed", "dependency_audit_inputs_changed"),
+        ("workspace", "dependency_audit_workspace_inputs_missing"),
+    ],
+)
+def test_captured_acceptance_binds_exact_same_attempt_inputs(fault, reason):
+    """Source permission reads only the exact captured audit attempt and its inputs."""
+    stdout, sources = _captured_payload()
+    payload = json.loads(stdout)
+    if fault == "command":
+        payload["command"] = "other"
+    elif fault == "head":
+        payload["head"] = "b" * 40
+    elif fault == "inputs":
+        payload["inputs"].pop("uv.lock")
+    elif fault == "path":
+        payload["inputs"] = {"../outside": "0" * 64, **payload["inputs"]}
+    elif fault == "changed":
+        sources["uv.lock"] = b"changed\n"
+    else:
+        sources["uv.lock"] = b"version = 1\n"
+        sources["package-lock.json"] = b'{"packages": {"": {}, "packages/app": {}}}\n'
+        payload["inputs"].update(
+            {
+                name: hashlib.sha256(sources[name]).hexdigest()
+                for name in ("uv.lock", "package-lock.json")
+            }
+        )
+    decision = captured_dependency_acceptance(
+        json.dumps(payload), head="a" * 40, source=sources.__getitem__, scope="production-release"
+    )
+    assert decision == {"scope": "production-release", "verdict": "unknown", "reason": reason}
+
+
+def _native_observation(fault: str) -> tuple[dict, bytes]:
+    lock = b'{"packages": {"": {}}}\n'
+    checks = [
+        {
+            "ecosystem": ecosystem,
+            "exit_code": 0,
+            "stdout": json.dumps(clean_report(ecosystem)),
+            "verdict": "pass",
+            "reason": "clean",
+        }
+        for ecosystem in ("python", "npm")
+    ]
+    payload = {
+        "state": "finished",
+        "required_gaps": [],
+        "checks": checks,
+        "verdict": "pass",
+        "inputs": {"package-lock.json": hashlib.sha256(lock).hexdigest()},
+    }
+    if fault == "incomplete":
+        payload["state"] = "running"
+    elif fault == "verdict":
+        checks[0]["verdict"] = "block"
+    elif fault == "reduction":
+        payload["verdict"] = "block"
+    else:
+        checks[1].update(exit_code=1, verdict="unknown", reason="native_execution_failed")
+        payload.update(verdict="unknown", required_gaps=["npm:native_execution_failed"])
+    return payload, lock
+
+
+@pytest.mark.parametrize(
+    ("fault", "reason"),
+    [
+        ("incomplete", "dependency_audit_incomplete"),
+        ("verdict", "native_audit_verdict_mismatch"),
+        ("reduction", "native_audit_reduction_mismatch"),
+        ("npm-exit", "native_execution_failed"),
+    ],
+)
+def test_captured_verdicts_are_reinterpreted_from_native_output(fault, reason):
+    """A saved summary never stands in for the exact native result it reduces."""
+    payload, lock = _native_observation(fault)
+    decision = evaluate_dependency_acceptance(
+        AuditPolicy.model_validate(_audit_policy()),
+        payload,
+        lock_source=lock,
+        scope="local-development",
+        host="fixture-host",
+        now=datetime(2026, 1, 1, tzinfo=UTC),
+        ci=False,
+    )
+    assert decision == {"scope": "local-development", "verdict": "unknown", "reason": reason}

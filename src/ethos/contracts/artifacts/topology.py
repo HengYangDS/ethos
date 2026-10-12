@@ -350,8 +350,3 @@ def path_policy_from_declaration(
     # Return a new mapping: callers receive a normal mutable public payload while
     # the cached decision remains immutable and cannot leak mutation across reads.
     return dict(_cached_path_policy(rel, declaration, origin))
-
-
-def path_policy_for(path: Path | str) -> dict[str, Any]:
-    """Classify a repository-relative path under the generated topology contract."""
-    return path_policy_from_declaration(path, load_generated_artifact_topology_declaration())

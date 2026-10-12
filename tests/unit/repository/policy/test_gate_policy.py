@@ -69,6 +69,27 @@ def test_partial_product_source_floor_still_requires_its_native_audit(tmp_path: 
     ) == ["proof_dependency_acceptance_audit_missing"]
 
 
+@pytest.mark.parametrize(
+    "gates",
+    [
+        "unparsed",
+        (
+            {
+                "id": "audit",
+                "command": ("{python}", "-m", "nox", "-s", "vulnerabilities"),
+                "tool_adapter": "vulnerabilities",
+            },
+        ),
+    ],
+    ids=["malformed", "unexecuted"],
+)
+def test_release_acceptance_requires_each_selected_audit_attempt(tmp_path: Path, gates) -> None:
+    """A malformed selection or an unexecuted audit is never read as accepted risk."""
+    assert dependency_acceptance_gaps(
+        tmp_path, "a" * 40, {"gates": gates}, (), acceptance_purpose="repository"
+    ) == ["proof_dependency_acceptance_audit_missing"]
+
+
 @pytest.mark.parametrize("canonical", [False, True], ids=["native", "canonical"])
 @pytest.mark.parametrize("carrier", ["registry", "profile"])
 def test_audit_applicability_reads_only_the_committed_declaration(
@@ -516,3 +537,22 @@ def test_quality_observation_retains_committed_roles_and_explicit_test_identity(
     assert subject.requires_behavior
     (repo / ".gitattributes").write_text("test_entry.js ethos-role=test\n")
     assert observe_quality_subjects(repo)[1] == (subject,)
+
+
+def test_rootless_policy_compiles_only_the_product_declaration() -> None:
+    """Without a repository, the product registry compiles without observing materials."""
+    assert resolve_gate_policy(full=True) == compile_gate_policy(full=True)
+
+
+@pytest.mark.parametrize("fault", ["profile", "tree"])
+def test_quality_subjects_bind_one_valid_committed_tree(tmp_path: Path, fault: str) -> None:
+    """An invalid committed profile or another expected tree never yields quality subjects."""
+    repo = init_git_repo(tmp_path / "repo")
+    (repo / "answer.py").write_text("VALUE = 42\n")
+    if fault == "profile":
+        (repo / ".ethos").mkdir()
+        (repo / ".ethos/profile.toml").write_text("profile_id = 1\n")
+    commit_fixture(repo, "record source")
+    message = "repository_profile_invalid" if fault == "profile" else "code_source_changed"
+    with pytest.raises(ValueError, match=message):
+        observe_quality_subjects(repo, expected_tree="0" * 40 if fault == "tree" else "")

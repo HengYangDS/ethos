@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from ethos.repository.policy.quality_reports import coverage_report
+from ethos.repository.policy.quality_reports import istanbul_coverage_report
 from ethos.repository.policy.quality_reports import junit_report
 from ethos.repository.policy.quality_reports import node_event_report
 
@@ -166,3 +167,50 @@ def test_native_node_events_require_conserved_scope_and_terminal(
     else:
         with pytest.raises(ValueError, match="javascript_"):
             node_event_report(tmp_path, payload, ("answer.test.js",))
+
+
+@pytest.mark.parametrize(
+    ("payload", "code"),
+    [
+        ("{not json\n", "javascript_native_events_invalid"),
+        ("[]\n", "javascript_native_events_invalid"),
+    ],
+)
+def test_node_event_journal_must_be_native_event_objects(
+    tmp_path: Path, payload: str, code: str
+) -> None:
+    """Only complete native event objects can stand for a JavaScript test attempt."""
+    with pytest.raises(ValueError, match=code):
+        node_event_report(tmp_path, payload, ())
+
+
+def _istanbul_axis(total: int, covered: int) -> dict[str, int]:
+    return {"total": total, "covered": covered, "skipped": 0}
+
+
+@pytest.mark.parametrize("fault", ["json", "summary", "counts", "empty"])
+def test_istanbul_report_conserves_exact_native_counts(tmp_path: Path, fault: str) -> None:
+    """Native coverage counts must parse, sum exactly and measure real statements."""
+    source = tmp_path / "src/answer.js"
+    source.parent.mkdir()
+    source.write_text("export const answer = 42;\n", encoding="utf-8")
+    axes = ("lines", "branches", "functions", "statements")
+    measured = 0 if fault == "empty" else 1
+    document: dict[str, object] = {
+        "total": {axis: _istanbul_axis(measured, measured) for axis in axes},
+        str(source): {axis: _istanbul_axis(measured, measured) for axis in axes},
+    }
+    if fault == "summary":
+        document[str(source)] = "not a summary"
+    if fault == "counts":
+        document["total"] = {axis: _istanbul_axis(2, 1) for axis in axes}
+    report = tmp_path / "coverage-summary.json"
+    report.write_text("{" if fault == "json" else json.dumps(document), encoding="utf-8")
+    code = {
+        "json": "javascript_coverage_invalid",
+        "summary": "javascript_coverage_invalid",
+        "counts": "javascript_coverage_count_invalid",
+        "empty": "javascript_coverage_empty",
+    }[fault]
+    with pytest.raises(ValueError, match=code):
+        istanbul_coverage_report(tmp_path, report, ("src/answer.js",))

@@ -274,11 +274,3 @@ def profile_root(root: Path, key: str) -> Path:
 
 def profile_required_gaps(profile: RepositoryProfile) -> tuple[str, ...]:
     return (INVALID_PROFILE_ERROR,) if profile.state == "invalid" else ()
-
-
-def profile_gate_registry(root: Path) -> str:
-    """Return the repository-declared gate registry, if any."""
-    profile = load_repository_profile(root)
-    if profile.state == "invalid":
-        raise ValueError(INVALID_PROFILE_ERROR)
-    return profile.declaration.proof.gate_registry or "" if profile.declaration else ""

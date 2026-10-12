@@ -15,6 +15,8 @@ from pydantic import ValidationError
 
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
+from ethos.contracts.semantic import canonical_json_bytes
+from ethos.contracts.semantic import canonical_utc_time
 from tests.support.semantic import commitment_fixture
 
 _JSON_SCALAR = (
@@ -181,3 +183,26 @@ def test_semantic_contract_golden_vectors_are_exact_in_source_wheel_and_sdist() 
         attestation_vector["id"],
     )
     assert json.loads(source_bytes) == vectors
+
+
+def test_issued_identity_time_and_keys_fail_closed() -> None:
+    """Issued identity, validity windows and object keys keep one canonical meaning."""
+    with pytest.raises(TypeError, match="attestation_issue_payload_invalid"):
+        Attestation.issue(["not", "a", "mapping"])
+    with pytest.raises(ValueError, match="attestation_issue_derived_field:id"):
+        Attestation.issue({**_attestation_payload(), "id": "0" * 64})
+    with pytest.raises(ValueError, match="attestation_validity_invalid"):
+        canonical_utc_time(datetime(2026, 8, 14))  # noqa: DTZ001
+    reversed_window = {
+        **_attestation_payload(),
+        "valid_from": datetime(2026, 8, 15, tzinfo=UTC),
+        "valid_until": datetime(2026, 8, 14, tzinfo=UTC),
+    }
+    with pytest.raises(ValueError, match="attestation_validity_invalid"):
+        Attestation.issue(reversed_window)
+    with pytest.raises(ValueError, match="attestation_validity_invalid"):
+        Attestation.issue({**_attestation_payload(), "issued_at": "not-a-time"})
+    with pytest.raises(ValueError, match="semantic_collection_duplicate"):
+        Attestation.issue({**_attestation_payload(), "evidence_refs": ["evidence:a", "evidence:a"]})
+    with pytest.raises(TypeError, match="semantic_object_key_invalid"):
+        canonical_json_bytes({1: "integer key"})

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
 from pathlib import PurePath
 from typing import TYPE_CHECKING
 
@@ -97,6 +96,10 @@ def test_public_closure_preserves_executable_origin_through_native_path(
     [
         ('["binding_probe_binary"] if condition else factory()', "unknown"),
         ('["binding_probe_binary", argument]', "evaluated"),
+        ('[*["binding_probe_binary"], "--bind"]', "evaluated"),
+        ('(*("binding_probe_binary",), argument)', "evaluated"),
+        ('[*factory(), "--bind"]', "unknown"),
+        ('["binding_probe_binary", *factory()]', "evaluated"),
     ],
 )
 def test_public_closure_preserves_command_container_alternatives(
@@ -505,23 +508,6 @@ def test_public_closure_resolves_literal_interpolation(tmp_path: Path) -> None:
     assert report["coverage"] == "evaluated", report
     assert report["verdict"] == "block", report
     assert {item["identity"] for item in report["orphan"]} == {"unowned"}
-
-
-@pytest.mark.parametrize(
-    "value",
-    [
-        BindingValue(),
-        BindingValue(strings=frozenset({"known"}), unknown=True, deferred=True),
-        BindingValue(items=(BindingValue(strings=frozenset({"known"})),), ordered=True),
-        BindingValue(fields=(("member", BindingValue(strings=frozenset({"known"}))),)),
-        BindingValue(entries=(("key", BindingValue(local=True, unknown=True)),), ordered=True),
-    ],
-)
-def test_binding_join_reuses_unchanged_immutable_facts(value: BindingValue) -> None:
-    """An idempotent may-state join preserves meaning without rebuilding immutable facts."""
-    assert value.join(value) is value
-    equivalent = replace(value)
-    assert value.join(equivalent) is value
 
 
 def test_binding_single_continuation_does_not_rejoin_facts(monkeypatch: pytest.MonkeyPatch) -> None:

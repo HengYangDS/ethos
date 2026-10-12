@@ -16,6 +16,7 @@ from ethos.repository.policy.references.python.bindings import MemberDemand
 from ethos.repository.policy.references.python.control import PythonControlFlow
 from ethos.repository.policy.references.python.effects import PythonConsumption
 from ethos.repository.policy.references.python.functions.effects import project
+from ethos.repository.policy.references.python.native.containers import expanded
 from ethos.repository.policy.references.python.native.containers import stored
 from ethos.repository.policy.references.python.native.returns import store_field
 from ethos.repository.policy.references.python.native.scalars import concatenate
@@ -353,7 +354,7 @@ class PythonReferenceFlow:
     def sequence(self, node: ast.List | ast.Tuple | ast.Set, scope: BindingScope) -> BindingValue:
         """Preserve finite elements for command prefixes and iteration."""
         value = BindingValue(
-            items=tuple(self.expression(item, scope) for item in node.elts),
+            items=expanded(self.expression(item, scope) for item in node.elts),
             ordered=isinstance(node, ast.List | ast.Tuple),
             native_kind="list" if isinstance(node, ast.List) else "",
         )
@@ -488,11 +489,7 @@ class PythonReferenceFlow:
         callee = self.expression(node.func, scope)
         if self.sources is not None:
             callee = self.sources.invocations.resolve(callee, scope, self.result, deep=False)
-        arguments = []
-        for argument in node.args:
-            value = self.expression(argument, scope)
-            arguments.extend(value.items if value.spread and value.items is not None else (value,))
-        args = tuple(arguments)
+        args = expanded(self.expression(argument, scope) for argument in node.args)
         keywords = {
             argument.arg: self.expression(argument.value, scope) for argument in node.keywords
         }

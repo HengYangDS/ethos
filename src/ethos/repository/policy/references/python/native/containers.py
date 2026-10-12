@@ -4,15 +4,28 @@ from __future__ import annotations
 
 import ast
 from dataclasses import replace
+from typing import TYPE_CHECKING
 
 from ethos.repository.policy.references.python.bindings import BindingValue
 from ethos.repository.policy.references.python.bindings import MemberDemand
 from ethos.repository.policy.references.python.native.scalars import dependent
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
 ENVIRONMENT = "os.environ"
 MAPPING_COPY = "builtins.dict"
 MAPPING_VIEWS = {f"{MAPPING_COPY}.{name}": name for name in ("keys", "values", "items")}
 _FLAGS = ("unknown", "deferred", "local", "context_limited", "spread")
+
+
+def expanded(values: Iterable[BindingValue]) -> tuple[BindingValue, ...]:
+    """Flatten proven starred sequences; retain opaque expansions as positional residuals."""
+    return tuple(
+        item
+        for value in values
+        for item in (value.items if value.spread and value.items is not None else (value,))
+    )
 
 
 def mapping_view(value: BindingValue, target: str) -> BindingValue | None:

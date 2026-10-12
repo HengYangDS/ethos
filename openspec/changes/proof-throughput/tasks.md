@@ -200,6 +200,14 @@
 - [x] 10.9 Repair installed hook formatting supply: a configured check must not silently pass when its bound Ruff executable is absent; verify installed valid, invalid and missing-tool cases.
 - [x] 10.10 Preserve meaningful YAML scalar newlines while rejecting redundant structural blank lines through the native configuration owner; keep producer-owned and historical carriers unchanged.
 - [ ] 10.11 Repair reference observation and declaration ownership at their existing owner: aliases, shadowing, lexical scope, call-site values, dynamic private imports, scoped dynamic UNKNOWN, and trusted profile/release command fields. Reproduce false passes and false blocks through public repository-audit, module-layout and patch-admission consumers; replace heuristics rather than adding name exceptions, preserve legal success, and qualify exact-source proof and installed behavior.
+      **Finite expansion qualification, 2026-10-12:** one native container owner
+      expands proven starred elements for both sequences and call arguments;
+      opaque prefixes remain UNKNOWN and known executable prefixes stay observable.
+      Two public cases first fail; 752 related cases pass in 8.02s with warnings
+      fatal and no skips. Ruff, configured Ty, all four 512-ELOC limits and independent
+      static review pass. Same-attempt Allure 3 reports 752/752; global console logs
+      remain separately preserved. Evidence: `local-cli-delivery-20261012/semantic-argv-expansion/`.
+      Whole-repository closure, exact-source proof and installed successor remain open.
       **Native receiver qualification, 2026-10-11:** discarded changed descriptors
       now invalidate their actual receiver; finite records and context exits retain
       native signature, dispatch and captured-effect custody. Path.resolve preserves

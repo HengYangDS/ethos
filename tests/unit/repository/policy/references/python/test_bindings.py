@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 import pytest
@@ -587,3 +588,20 @@ def test_public_closure_preserves_every_mapping_shape(tmp_path: Path, setup: str
         "empty_map_probe",
         "nonempty_map_probe",
     }, report
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        BindingValue(),
+        BindingValue(strings=frozenset({"known"}), unknown=True, deferred=True),
+        BindingValue(items=(BindingValue(strings=frozenset({"known"})),), ordered=True),
+        BindingValue(fields=(("member", BindingValue(strings=frozenset({"known"}))),)),
+        BindingValue(entries=(("key", BindingValue(local=True, unknown=True)),), ordered=True),
+    ],
+)
+def test_binding_join_reuses_unchanged_immutable_facts(value: BindingValue) -> None:
+    """An idempotent may-state join preserves meaning without rebuilding immutable facts."""
+    assert value.join(value) is value
+    equivalent = replace(value)
+    assert value.join(equivalent) is value

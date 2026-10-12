@@ -25,6 +25,7 @@ from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.release.identity import BuildIdentity
 from tools.ci import dependency_audit
 from tools.ci import sessions
+from tools.ci.delivery import distribution as native_distribution
 from tools.ci.delivery import pipeline
 from tools.ci.delivery.acceptance import effect
 from tools.ci.delivery.acceptance import receipt
@@ -301,8 +302,25 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         "observe_runtime_lifecycle": lambda **kwargs: observed.update(kwargs) or lifecycle,
     }.items():
         monkeypatch.setattr(effect, name, value)
+
+    def package_runtime(_runtime: Path, _wheel: Path, destination: Path, **_kwargs):
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(b"qualified native archive")
+        cask = destination.parent / "homebrew/Casks/ethos.rb"
+        cask.parent.mkdir(parents=True, exist_ok=True)
+        cask.write_text(destination.as_uri())
+        return {
+            "path": str(destination),
+            "homebrew_cask": str(cask),
+            "runtime_digest": "f" * 64,
+            "wheel_sha256": hashlib.sha256(_wheel.read_bytes()).hexdigest(),
+            "sha256": hashlib.sha256(destination.read_bytes()).hexdigest(),
+        }
+
+    package = Mock(side_effect=package_runtime)
+    monkeypatch.setattr(effect, "package_runtime", package)
+    monkeypatch.setattr(native_distribution, "package_runtime", package)
     for owner, method, value in (
-        (effect, "package_runtime", {"path": "archive", "runtime_digest": "f" * 64}),
         (effect.runtime_acceptance, "prove_shared_supply", {"state": "passed"}),
         (effect.adopter_fixture, "materialize_adopter", "d" * 40),
         (effect.adopter_fixture, "line_ending_conformance", ["lf", "crlf"]),
@@ -401,15 +419,20 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
         effect.run(cast("nox.Session", session), artifact=artifact, evidence=output)
         payload = json.loads(output.read_text())
         assert (
-            cast("Mock", effect.package_runtime).call_args.args[0]
+            cast("Mock", effect.package_runtime).call_args_list[0].args[0]
             == case.sealed_payload.parent.parent
         )
         case.selected_runtime.assert_called_once_with(
             work / "adopter/.git", expected_build=case.build
         )
-        assert cast("Mock", effect.package_runtime).call_args.args[2].is_relative_to(work)
-        assert payload["distribution"]["retained"] is False
-        assert {"path", "homebrew_cask"}.isdisjoint(payload["distribution"])
+        packages = cast("Mock", effect.package_runtime).call_args_list
+        assert len(packages) == 2
+        archive = Path(payload["distribution"]["path"])
+        assert archive == packages[1].args[2]
+        assert archive.is_relative_to(tmp_path / "build/artifacts/native")
+        assert hashlib.sha256(archive.read_bytes()).hexdigest() == payload["distribution"]["sha256"]
+        assert payload["distribution"]["retained"] is True
+        assert Path(payload["distribution"]["homebrew_cask"]).read_text() == archive.as_uri()
         assert case.observed["supply"] == (
             tmp_path,
             tmp_path / "project-python",

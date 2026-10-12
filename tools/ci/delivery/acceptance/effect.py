@@ -34,6 +34,7 @@ from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import wheel_build_identity
 from tools.ci.delivery.acceptance.receipt import package_acceptance_evidence
 from tools.ci.delivery.distribution import package_runtime
+from tools.ci.delivery.distribution import retain_qualified_distribution
 from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
@@ -461,12 +462,18 @@ def run(
         distribution["shared_supply"] = runtime_acceptance.prove_shared_supply(
             Path(str(distribution["path"])), WORK, environment=package_environment
         )
-        distribution.pop("path")
-        distribution.pop("homebrew_cask", None)
-        distribution["retained"] = False
         _require_artifact_current(selected, head=head)
         if current_tracked_head(ROOT) != head:
             session.error(f"local install smoke HEAD moved from {head}")
+        distribution = retain_qualified_distribution(
+            distribution,
+            runtime,
+            wheel,
+            ROOT
+            / "build/artifacts/native"
+            / str(distribution["runtime_digest"])
+            / f"ethos-{build.distribution_version}.tar.gz",
+        )
         payload = package_acceptance_evidence(
             root=ROOT,
             head=head,

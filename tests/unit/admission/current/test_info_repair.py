@@ -59,10 +59,13 @@ def test_canonical_info_can_be_repaired_without_satisfying_ordinary_resolution(
             "report": {
                 "kind": "validation-findings",
                 "version": "1.0",
+                "scope": "all",
                 "returnedItems": 1,
                 "totalItems": 1,
             },
             "itemFindings": items,
+            "summary": report["commands"]["validate"]["json"]["summary"],
+            "root": report["commands"]["validate"]["json"]["root"],
         }
     repair = resolve_report(monkeypatch, report, root=tmp_path, paths=(path,))
     assert repair.verdict == "pass"
@@ -205,7 +208,11 @@ def test_archived_info_repair_requires_exact_validated_output(
     second = "openspec_validation_issue:INFO:spec:quality:requirements[1]"
     report["required_gaps"].append(second)
     report["commands"]["validate"]["json"]["items"][0]["issues"].append(
-        {"level": "INFO", "path": "requirements[1]"}
+        {
+            "level": "INFO",
+            "path": "requirements[1]",
+            "message": "Requirement text is very long (> 500 characters).",
+        }
     )
     if mode == "extra-gap":
         report["required_gaps"].append("openspec_doctor_unhealthy")

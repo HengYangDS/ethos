@@ -121,6 +121,7 @@ def test_run_json_reports_timeout_without_claiming_payload(monkeypatch, tmp_path
         else "late stderr",
         "json": {},
         "parse_error": "openspec_command_timeout",
+        "cwd": tmp_path.resolve().as_posix(),
     }
 
 

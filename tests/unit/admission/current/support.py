@@ -9,6 +9,7 @@ import ethos.adapters.admission.current.resolution as resolution_adapter
 from ethos.adapters.admission.current.authority import CurrentAuthority
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
+from tests.support.openspec_lifecycle import official_validation_payload
 
 if TYPE_CHECKING:
     from ethos.contracts.verdict import Verdict
@@ -79,7 +80,14 @@ def official_report(
     if status_payload is not None:
         commands["status"] = receipt(status_payload)
     if validate_payload is not None:
+        items = validate_payload["items"]
+        assert isinstance(items, list)
+        assert all(isinstance(item, dict) for item in items)
+        validate_payload = official_validation_payload(
+            Path(change_path).parents[2] if change_path else ROOT, items
+        )
         commands["validate"] = receipt(validate_payload, exit_code=1)
+        commands["validate"]["cwd"] = validate_payload["root"]["path"]
     report: dict[str, object] = {
         "verdict": "block",
         "official_cli": {"available": True},

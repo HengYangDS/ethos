@@ -35,6 +35,30 @@ if TYPE_CHECKING:
 HOLDER = "agent:test:case:agent-test"
 
 
+def official_validation_payload(root: Path, items: list[dict[str, Any]]) -> dict[str, Any]:
+    """Complete authored item fixtures with the original producer envelope."""
+    passed = sum(item.get("valid") is True for item in items)
+    summary: dict[str, Any] = {
+        "totals": {"items": len(items), "passed": passed, "failed": len(items) - passed},
+        "byType": {},
+    }
+    for kind in ("change", "spec"):
+        rows = [item for item in items if item.get("type") == kind]
+        valid = sum(item.get("valid") is True for item in rows)
+        if rows:
+            summary["byType"][kind] = {
+                "items": len(rows),
+                "passed": valid,
+                "failed": len(rows) - valid,
+            }
+    return {
+        "items": items,
+        "summary": summary,
+        "version": "1.0",
+        "root": {"path": root.resolve().as_posix(), "source": "nearest"},
+    }
+
+
 def native_merge_fixture(tmp_path: Path, *, pending: bool = True) -> Path:
     """Create independently authored Changes with real native conflict stages."""
     repo, candidate = start_adopted_candidate(tmp_path)

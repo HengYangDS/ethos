@@ -19,6 +19,19 @@
       Preserve the failed budget and exact delta receipts in
       `quality-tool-comparison-2f8yn77j/results/semantic-freeze-{size-budget,complexity-delta}-20261006-09{20,24}.json`.
       This bounded decision does not claim whole-corpus irreducibility.
+      The latest exact `108a7bdd` attempt ended at 900.051s with exit 143:
+      32 gates passed, but unit-architecture did not terminalize. Same-interpreter
+      SQLite accepts a short native path and refuses the 576-character recovery
+      path; that retained failed attempt is not proof. The existing test owner
+      now probes a real coverage database before execution and closes it before
+      reclaiming scratch. Two distinguishing cases and 199 related cases pass
+      with real coverage/JUnit/Allure, external native fixture roots and fatal
+      warnings (4.85s/116.67s); stale predecessor and immediate-dependency test
+      assumptions are corrected without product fallbacks. Ruff/Ty, per-file
+      512 and measured 58,225/68,167 product/test budgets pass. Evidence:
+      `build/evidence/quality/tests/{database-preflight-green,related-green}-108a7bdd/`.
+      Freeze and prove the successor once with short execution paths; full proof,
+      accepted integration and installed delivery remain open.
 - [ ] 1.10 Evaluate the nonblocking 600-second optimization direction from the measured remaining critical path.
 
 ## 2. Invocation-Scoped Facts and Proof Reuse
@@ -214,6 +227,21 @@
 - [x] 10.3 Restore native configuration discovery and reject missing or delegated explicit targets.
 - [ ] 10.4 Restore effective JavaScript semantic quality and native launcher behavior. Product-pinned ESLint now replaces syntax-only inspection and is shared with Nox; exact proof and installed delivery remain pending.
       Evidence: native JavaScript lint and final format pass; the original 77 affected report/adopter/Git tests pass. Original-attempt Allure/JUnit and source-scope receipts are retained in `prerequisite-reports.result.json` under native evidence custody. Authored/generated/upstream applicability remains open; a carrier role is not provenance.
+      **Independent DDWG contribution disposition, 2026-10-12:** direct Node,
+      declaration preservation and finite Git output use qualified current
+      owners; the old Python-reference and mandatory scoped-commit directions
+      are withdrawn. Only the Handlebars lock delta was needed and is signed in
+      `108a7bdd`; arbitrary wrapper equivalence remains unproved. No whole-branch
+      merge is justified. The seven-contribution readback remains at
+      `20261008-ddwg-native-quality-integration/build/evidence/ddwg-native-integration-20261008/current-seven-contribution-disposition-20261012.json`.
+      Its Node supply stays active until every current consumer releases it.
+      **Browser-realm gap:** Claude report `ethos-eslint-browser-callback-19e3`
+      describes Node `no-undef` rejecting `window` inside Playwright browser
+      callbacks under source `1e6fd8ee`. Current adapter inspection agrees with
+      the environment-selection premise, but actual adopter reproduction remains
+      unproved. Assess execution-realm semantics or a bounded reviewable extension;
+      do not globally enable browser globals or change render-bound adopter bytes.
+      Reported older-runtime success is not successor-product acceptance.
 - [x] 10.5 Reject invalid and non-Boolean CEL predicates at declaration loading and qualify existing consumers.
 - [ ] 10.6 Enforce unapproved-warning rejection at native command adapters without treating informational output as failure. Direct Node checks retain native typed events, diagnostics and terminal coverage from one execution; npm/c8 and Python same-attempt adaptation remain open.
   - [ ] 10.6.1 Bind Allure 3 global process logs and native exit to the same test attempt; preserve focused report scope, retain rejected attempts and avoid replay solely to fill report metadata.

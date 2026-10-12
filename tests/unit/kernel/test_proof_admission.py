@@ -77,7 +77,13 @@ def test_predecessor_policy_probe_preserves_failure_identity(
     )
     monkeypatch.setattr(proof_admission, "invoking_build_identity", object)
     monkeypatch.setattr(
-        proof_admission, "plan_from_statement", Mock(return_value=SimpleNamespace(commitment=None))
+        proof_admission,
+        "plan_from_statement",
+        Mock(
+            return_value=SimpleNamespace(
+                commitment=None, policy={"acceptance_purpose": "repository"}
+            )
+        ),
     )
     monkeypatch.setattr(
         proof_admission,

@@ -20,6 +20,7 @@ from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Facts
+from ethos.contracts.verdict import execution_succeeded
 from ethos.repository.policy.gates import ResolvedGatePolicy
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -157,6 +158,8 @@ def test_run_plan_checks_executes_ready_checks_concurrently_in_plan_order(
         return
 
     for check in checks:
+        assert isinstance(check["started_after_seconds"], (int, float))
+        assert isinstance(check["duration_seconds"], (int, float))
         assert check["started_after_seconds"] >= 0
         assert check["duration_seconds"] >= 0
 
@@ -184,7 +187,9 @@ def test_ready_child_does_not_wait_for_unrelated_slow_reader(
     )
 
     class Runner(gate_runner.LocalGateRunner):
-        def run(self, node, _gate, **_context):
+        def run(self, node, gate, *, root):
+            assert gate.id == node.id
+            assert root == tmp_path
             if concurrent and node.id in {"fast", "slow"}:
                 started.wait(timeout=2)
             if concurrent and node.id == "slow":
@@ -259,8 +264,22 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
     assert len(checks) == len(nodes)
     tests = next(check for check in checks if check["action_id"] == "unit-architecture")
     assert tests["exit_code"] is None
+    assert isinstance(tests["diagnostics"], list)
     (diagnostic,) = tests["diagnostics"]
     assert diagnostic["kind"] == "gate_dependency"
-    assert f"gate_dependency_not_proven:{readiness_gate}" in diagnostic["required_gaps"]
+    by_id = {check["action_id"]: check for check in checks}
+    assert {key for key in executed if not execution_succeeded(by_id[key])} == {readiness_gate}
+    expected = [
+        f"gate_dependency_not_proven:{dependency}"
+        for dependency in sorted(registry["unit-architecture"].depends_on)
+        if not execution_succeeded(by_id[dependency])
+    ]
+    assert expected
+    assert diagnostic["required_gaps"] == expected
+    build = by_id["build"]
+    assert isinstance(build["diagnostics"], list)
+    (build_diagnostic,) = build["diagnostics"]
+    assert build_diagnostic["kind"] == "gate_dependency"
+    assert f"gate_dependency_not_proven:{readiness_gate}" in build_diagnostic["required_gaps"]
     assert registry["generated-artifacts"].providers == registry["repository-audit"].providers[1:]
     assert registry["generated-artifacts"].depends_on == (postexecution_dependency,)

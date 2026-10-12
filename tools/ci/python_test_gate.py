@@ -6,9 +6,11 @@ import json
 import os
 import re
 import shutil
+import sqlite3
 import sys
 import tempfile
 import tomllib
+from contextlib import closing
 from contextlib import contextmanager
 from contextlib import suppress
 from dataclasses import dataclass
@@ -328,6 +330,15 @@ class PythonTestGate:
         remove_generated_path(self.allure_report)
         for path in (self.coverage, self.pytest, self.s.basetemp):
             path.mkdir(parents=True, exist_ok=True)
+        try:
+            with (
+                tempfile.TemporaryDirectory(prefix=".preflight-", dir=self.coverage) as scratch,
+                closing(sqlite3.connect(Path(scratch) / ".coverage")) as database,
+            ):
+                database.execute("CREATE TABLE readiness (ready INTEGER)")
+        except sqlite3.Error as error:
+            message = f"coverage evidence database unavailable: {self.coverage}: {error}"
+            raise RuntimeError(message) from error
 
     def _cleanup(self) -> None:
         for path in (

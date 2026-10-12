@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 import tomllib
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -187,6 +188,49 @@ def _test_gate(tmp_path: Path, *, workers: int | None = None):
             node_package_supply=tmp_path / "node_modules",
         )
     )
+
+
+@pytest.mark.parametrize("unavailable", [False, True])
+@pytest.mark.usefixtures("python_gate_artifact")
+def test_coverage_database_is_ready_before_selected_test_execution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, unavailable: bool
+) -> None:
+    """Native database refusal stops the attempt before any selected test executes."""
+    gate = _test_gate(tmp_path)
+    observed = []
+    executed = []
+
+    def connect(path):
+        observed.append(path)
+        if unavailable:
+            message = "unable to open database file"
+            raise sqlite3.OperationalError(message)
+        return sqlite3.connect(path)
+
+    monkeypatch.setattr(python_test_gate, "ROOT", tmp_path)
+    monkeypatch.setattr(python_test_gate, "_head", lambda: gate.s.head)
+    monkeypatch.setattr(
+        python_test_gate,
+        "sqlite3",
+        SimpleNamespace(connect=connect, Error=sqlite3.Error),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        python_test_gate.PythonTestGate,
+        "_single",
+        lambda self, _session: executed.append(self.s.head),
+    )
+    if unavailable:
+        with pytest.raises(RuntimeError, match="coverage evidence database unavailable"):
+            gate.run_tests(cast("nox.Session", SimpleNamespace()))
+    else:
+        gate.run_tests(cast("nox.Session", SimpleNamespace()))
+    assert executed == ([] if unavailable else [gate.s.head])
+    assert len(observed) == 1
+    assert observed[0].parent.parent == gate.coverage
+    assert not observed[0].parent.exists()
+    assert not gate.s.basetemp.exists()
+    assert gate.head_file.exists() is not unavailable
 
 
 @pytest.mark.usefixtures("python_gate_artifact")

@@ -32,6 +32,8 @@ from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import string_mapping
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from ethos.contracts.plan import GitEffect
     from ethos.contracts.plan import GitRefUpdate
     from ethos.contracts.plan import TransitionPlan
@@ -87,9 +89,10 @@ def resolve_git_effect_repository(
         *effect.assertions.values(),
     } - _ZERO_OIDS
     expected = {update.expected for update in effect.updates.values()}
-    if allow_absent_prestate and all(
+    deletion = allow_absent_prestate and all(
         update.desired in _ZERO_OIDS for update in effect.updates.values()
-    ):
+    )
+    if deletion:
         retained = {
             revision
             for revision in effect.assertions.values()
@@ -116,9 +119,47 @@ def resolve_git_effect_repository(
         return _transition_identity(
             root, effect, plan, identities, current_scope=current_scope, environment=environment
         )
+    if deletion:
+        for revision in _inherited_identities(
+            root, identities, expected, identity_reader, environment=environment
+        ):
+            del identities[revision]
     if len(set(identities.values())) != 1:
         raise ValueError(_MISMATCH)
     return next(iter(identities.values()))
+
+
+def _inherited_identities(
+    root: Path,
+    identities: Mapping[str, str],
+    expected: set[str],
+    identity_reader: Callable[..., str],
+    *,
+    environment: Mapping[str, str] | None,
+) -> set[str]:
+    """Return deleted heads whose identity their common ancestor with every kept ref carried."""
+    kept = [revision for revision in identities if revision not in expected]
+    if len({identities[revision] for revision in kept}) != 1:
+        return set()
+    inherited: set[str] = set()
+    for revision, identity in identities.items():
+        if revision not in expected or identity == identities[kept[0]]:
+            continue
+        bases = [
+            run_git(root, "merge-base", revision, other, check=False, env=environment)
+            for other in kept
+        ]
+        try:
+            if all(
+                base.returncode == 0
+                and identity_reader(root, tree_ref=base.stdout.strip(), environment=environment)
+                == identity
+                for base in bases
+            ):
+                inherited.add(revision)
+        except ValueError:
+            continue
+    return inherited
 
 
 def compile_observed_git_effect(

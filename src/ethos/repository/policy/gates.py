@@ -33,7 +33,9 @@ from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 from ethos.repository.policy.quality.obligations import quality_verifier_gaps
 from ethos.repository.policy.quality.obligations import source_verifier_gaps
 from ethos.repository.policy.quality.sources import source_contract_paths
+from ethos.repository.policy.quality.tool_configuration import native_gate_tools
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
+from ethos.repository.policy.quality.tool_configuration import native_tool_configurations
 from ethos.repository.policy.references.commands.invocation import python_module
 from ethos.repository.policy.references.python.syntax import module_source_paths
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -350,16 +352,8 @@ def source_paths_for_gate(
                 *[path for _reference, path in providers],
                 *(
                     path
-                    for reference, _source in providers
-                    if reference.startswith("ethos.adapters.gates.tool:")
-                    for tool in (
-                        ("prettier", "markdownlint-cli2")
-                        if reference.endswith(":markdown_lint_report")
-                        else ("lychee",)
-                        if reference.endswith((":markdown_links_report", ":external_links_report"))
-                        else ()
-                    )
-                    if (path := native_tool_configuration(repository_paths, tool)) is not None
+                    for tool in native_gate_tools(gate)
+                    for path in native_tool_configurations(repository_paths, tool)
                 ),
                 *artifacts,
                 *noxfile,
@@ -417,6 +411,11 @@ def bind_gate_source_digests(
             paths = source_paths_for_gate(
                 gate, repository_paths=repository_paths, source_contracts=source_contracts
             )
+        for tool in native_gate_tools(gate):
+            try:
+                native_tool_configuration(repository_paths, tool)
+            except ValueError as error:
+                gaps.append(f"gate_policy_source_invalid:{gate.id}:{error}")
         for relative in paths:
             source = materials.get(relative)
             if source is None:

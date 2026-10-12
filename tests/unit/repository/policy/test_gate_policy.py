@@ -273,6 +273,8 @@ def test_gate_policy_binds_committed_sources_and_reports_missing_source(tmp_path
         "docs-registry",
         "markdown-links",
         "markdown-lint",
+        "config-quality",
+        "prose",
         *({"publish"} if floor == "full" else set()),
     }
     assert first.gaps == _MISSING_QUALITY

@@ -6,10 +6,13 @@ import hashlib
 from typing import TYPE_CHECKING
 
 import pytest
+import tomli_w
 
 from ethos.contracts.gates import Gate
+from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
+from ethos.repository.policy.gates import source_paths_for_gate
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import RepositoryProfile
@@ -91,6 +94,52 @@ def test_native_configuration_uses_one_shared_directory_shape() -> None:
         native_tool_configuration((".config/checks/lychee/lychee.toml",), "lychee")
     expected = ".config/checks/links/lychee.toml"
     assert native_tool_configuration((expected,), "lychee") == expected
+
+
+def test_invalid_configuration_is_bound_as_evidence_not_admitted_policy(tmp_path: Path) -> None:
+    """Discovery retains every observed carrier, while normal compilation stays strict."""
+    paths = (
+        ".config/checks/markdown/markdownlint.yaml",
+        ".config/checks/markdown/markdownlint.toml",
+    )
+    gate = Gate(
+        id="markdown-lint",
+        kind="lint",
+        profile="repository",
+        tool_adapter="ethos",
+        providers=("ethos.adapters.gates.tool:markdown_lint_report",),
+    )
+    declaration = load_gate_registry_declaration().model_copy(
+        update={"gates": (gate,), "proof_sets": GateProofSets(default=(gate.id,), full=(gate.id,))}
+    )
+    profile = RepositoryProfile(
+        root=tmp_path,
+        exists=True,
+        declaration=RepositoryProfileDeclaration(
+            profile_id="configuration-observation",
+            proof=ProofPolicy(gate_registry="system/gates.toml"),
+        ),
+    )
+    sources = source_paths_for_gate(gate, repository_paths=paths)
+    assert set(paths) <= set(sources)
+    materials = {path: path.encode() for path in sources}
+    policy = compile_gate_policy(
+        profile=profile,
+        gate_registry_source=tomli_w.dumps(
+            declaration.model_dump(mode="json", exclude_none=True)
+        ).encode(),
+        repository_paths=paths,
+        source_materials=materials,
+        repository_python="python",
+        gate_ids=(gate.id,),
+        selected_obligations=True,
+    )
+    assert policy.gaps == (
+        "gate_policy_source_invalid:markdown-lint:native_tool_configuration_ambiguous:markdownlint-cli2",
+    )
+    assert dict(dict(policy.sources)[gate.id]) == {
+        path: hashlib.sha256(value).hexdigest() for path, value in materials.items()
+    }
 
 
 @pytest.mark.parametrize("mode", ["default", "full", "focused"])

@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.repo.gate_policy import resolve_committed_gate_declaration
 from ethos.adapters.repo.git import committed_file_bytes
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.repository.policy.gates import native_dependency_audit_scope
@@ -136,7 +137,20 @@ def dependency_acceptance_gaps(
         if isinstance(gate, Mapping) and native_dependency_audit_scope(gate) == scope
     }
     if not audit_ids:
-        return ["proof_dependency_acceptance_audit_missing"] if scope == "local-development" else []
+        if scope != "local-development":
+            return []
+        try:
+            declared = resolve_committed_gate_declaration(root, head)
+        except (OSError, ValueError):
+            return ["proof_dependency_acceptance_audit_missing"]
+        return (
+            ["proof_dependency_acceptance_audit_missing"]
+            if any(
+                native_dependency_audit_scope(gate.model_dump(mode="python")) is not None
+                for gate in declared.proof_gates(full=True)
+            )
+            else []
+        )
     selected = tuple(check for check in checks if check.get("action_id") in audit_ids)
     if len(selected) != len(audit_ids):
         return ["proof_dependency_acceptance_audit_missing"]

@@ -202,7 +202,9 @@ def quality_report(root: Path, *, axis: str) -> dict:
     }
 
 
-def prepare_source(tmp_path: Path, actor: str) -> tuple[WorkLaneFixture, str, str]:
+def prepare_source(
+    tmp_path: Path, actor: str, *, native_scan: bool | None = None
+) -> tuple[WorkLaneFixture, str, str]:
     repo, candidate = start_adopted_candidate(tmp_path, release_mirror="accepted_ff")
     roles = load_branch_role_policy(repo)
     registry = repo / "system/gates.toml"
@@ -226,7 +228,34 @@ def prepare_source(tmp_path: Path, actor: str) -> tuple[WorkLaneFixture, str, st
         for floor in ("default", "full"):
             gates["proof_sets"][floor].append(identity)
     registry.write_text(tomli_w.dumps(gates), encoding="utf-8")
-    _declare_audit(repo, datetime.now(UTC) + timedelta(hours=1))
+    if native_scan is None:
+        _declare_audit(repo, datetime.now(UTC) + timedelta(hours=1))
+    else:
+        native = {
+            "id": "native-dependencies",
+            "kind": "static",
+            "command": ["git", "grep", "-q", "^module ", "HEAD", "--", "go.mod"],
+            "evidence_class": "proof",
+            "trust_bearing": True,
+        }
+        selected = [gate for gate in gates["gates"] if gate["id"] in {"behavior", "static"}]
+        selected.append(native)
+        selected[1]["depends_on"] = [native["id"]]
+        profile = repo / ".ethos/profile.toml"
+        declaration = tomllib.loads(profile.read_text())
+        declaration["proof"] = {
+            "code_correctness_gates": [gate["id"] for gate in selected],
+            "code_correctness_map": {"behavior": "behavior", "static-analysis": "static"},
+            "gates": selected,
+        }
+        profile.write_text(tomli_w.dumps(declaration), encoding="utf-8")
+        (repo / "go.mod").write_text(
+            "module example.test/native\n" if native_scan else "invalid native manifest\n",
+            encoding="utf-8",
+        )
+        (repo / "main.go").write_text("package main\n\nfunc main() {}\n", encoding="utf-8")
+        ignore = repo / ".gitignore"
+        ignore.write_text(ignore.read_text() + "\nbuild/\n.venv/\n", encoding="utf-8")
     before = commit_fixture(repo, "fixture: native audit declaration")
     git(candidate, "reset", "--hard", before)
     git(repo, "branch", roles.release_branch, before)

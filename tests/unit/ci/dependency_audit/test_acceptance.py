@@ -491,3 +491,29 @@ def test_captured_verdicts_are_reinterpreted_from_native_output(fault, reason):
         ci=False,
     )
     assert decision == {"scope": "local-development", "verdict": "unknown", "reason": reason}
+
+
+@pytest.mark.parametrize("change", ["reading-build", "policy-bytes"])
+def test_captured_product_policy_is_bound_by_content_not_reading_build(
+    repository, monkeypatch, change
+):
+    """A lane-built proof and the installed hook read one product policy through two builds."""
+    native_transport(monkeypatch, lambda _root, cmd, ecosystem: native_result(cmd, ecosystem))
+    payload = invoke_audit(repository)
+    binding = payload["product_policy"]
+    if change == "reading-build":
+        payload["product_policy"] = {
+            **binding,
+            "build": {**binding["build"], "source_commit": "c" * 40},
+        }
+    else:
+        payload["product_policy"] = {**binding, "sha256": "0" * 64}
+    decision = captured_dependency_acceptance(
+        json.dumps(payload),
+        head="a" * 40,
+        source=lambda name: (repository / name).read_bytes(),
+        scope="production-release",
+    )
+    assert decision["verdict"] == ("pass" if change == "reading-build" else "unknown"), decision
+    if change == "policy-bytes":
+        assert decision["reason"] == "dependency_audit_product_policy_changed"

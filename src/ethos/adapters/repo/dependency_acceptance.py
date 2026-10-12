@@ -84,7 +84,8 @@ def _captured_audit_materials(
         message = "dependency_audit_workspace_inputs_missing"
         raise ValueError(message)
     product, binding = product_audit_snapshot(build=invoking_build_identity())
-    if payload.get("product_policy") != binding:
+    captured = payload.get("product_policy")
+    if not isinstance(captured, dict) or _policy_identity(captured) != _policy_identity(binding):
         message = (
             "dependency_audit_product_policy_changed"
             if "product_policy" in payload
@@ -92,6 +93,11 @@ def _captured_audit_materials(
         )
         raise ValueError(message)
     return payload, materials, product
+
+
+def _policy_identity(binding: Mapping[str, object]) -> tuple[object, object]:
+    """Bind the exact projected product policy; the build that read it is provenance only."""
+    return binding.get("path"), binding.get("sha256")
 
 
 def captured_dependency_acceptance(

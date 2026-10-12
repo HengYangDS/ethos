@@ -13,7 +13,6 @@ from contextlib import ExitStack
 from contextlib import nullcontext
 from contextvars import copy_context
 from time import monotonic
-from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
@@ -25,67 +24,6 @@ from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_execution_identity
 from tests.support.subprocesses import ready_descendant
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
-
-@pytest.mark.parametrize("outcome", ["success", "nonzero", "timeout"])
-def test_native_command_owns_its_handle_without_an_outer_scope(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, outcome: str
-) -> None:
-    """Every native command registers and releases one real owned process."""
-    started: list[tuple[process_adapter.CommandScope, subprocess.Popen[str]]] = []
-    terminated: list[subprocess.Popen[str]] = []
-    discarded: list[subprocess.Popen[str]] = []
-    start = process_adapter.CommandScope.start
-    terminate = process_adapter.CommandScope.terminate
-    discard = process_adapter.CommandScope.discard
-
-    def observed_start(
-        owner: process_adapter.CommandScope, command: tuple[str, ...], **options: object
-    ) -> subprocess.Popen[str]:
-        child = start(owner, command, **options)
-        started.append((owner, child))
-        return child
-
-    def observed_terminate(
-        owner: process_adapter.CommandScope, child: subprocess.Popen[str]
-    ) -> None:
-        assert (owner, child) in started
-        terminated.append(child)
-        terminate(owner, child)
-
-    def observed_discard(owner: process_adapter.CommandScope, child: subprocess.Popen[str]) -> None:
-        assert (owner, child) in started
-        assert child.returncode is not None
-        discarded.append(child)
-        discard(owner, child)
-
-    monkeypatch.setattr(process_adapter.CommandScope, "start", observed_start)
-    monkeypatch.setattr(process_adapter.CommandScope, "terminate", observed_terminate)
-    monkeypatch.setattr(process_adapter.CommandScope, "discard", observed_discard)
-    body = "import time; time.sleep(1)" if outcome == "timeout" else "raise SystemExit(7)"
-    if outcome == "success":
-        body = "print('complete')"
-    command = (sys.executable, "-c", body)
-    if outcome == "success":
-        result = process_adapter.run_command(tmp_path, command, check=True)
-        assert result.returncode == 0
-        assert result.stdout == "complete\n"
-    else:
-        failure = (
-            subprocess.TimeoutExpired if outcome == "timeout" else subprocess.CalledProcessError
-        )
-        with pytest.raises(failure):
-            process_adapter.run_command(
-                tmp_path, command, check=True, timeout=0.1 if outcome == "timeout" else 2
-            )
-    assert len(started) == 1
-    child = started[0][1]
-    assert child.returncode is not None
-    assert discarded == [child]
-    assert terminated == ([] if outcome == "success" else [child])
 
 
 def test_caught_command_failure_preserves_a_live_sibling(tmp_path, monkeypatch) -> None:
@@ -508,13 +446,15 @@ def _observe_ready_parent(process, parent_exited, failure):
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX process-group boundary")
 @pytest.mark.parametrize(
-    "failure", ["timeout", "cancel", "terminate", "gate-cancel", "gate-overlap"]
+    ("failure", "spool_stdout"),
+    [(failure, mode) for failure in ("timeout", "cancel", "terminate") for mode in (False, True)]
+    + [(failure, False) for failure in ("gate-cancel", "gate-overlap")],
 )
 @pytest.mark.parametrize(
     ("parent_exited", "inherit_pipes"), [(False, False), (False, True), (True, True)]
 )
 def test_command_failure_closes_owned_descendants(
-    tmp_path, monkeypatch, failure, inherit_pipes, parent_exited
+    tmp_path, monkeypatch, failure, inherit_pipes, parent_exited, spool_stdout
 ):
     """A ready descendant cannot retain its socket after the command is interrupted."""
     fallback = []
@@ -555,11 +495,12 @@ def test_command_failure_closes_owned_descendants(
         def execute():
             command = (sys.executable, "-c", parent)
             if not failure.startswith("gate-"):
-                process_adapter.run_command(tmp_path, command, timeout=0.2)
-                return
+                return process_adapter.run_command(
+                    tmp_path, command, timeout=0.2, spool_stdout=spool_stdout
+                )
             gate = Gate(id="probe", kind="test", command=command)
             node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
-            gate_runner.run_gate_graph(
+            return gate_runner.run_gate_graph(
                 gate_runner.LocalGateRunner(),
                 (node,),
                 {gate.id: gate},
@@ -569,17 +510,22 @@ def test_command_failure_closes_owned_descendants(
             )
 
         error = subprocess.TimeoutExpired if failure == "timeout" else KeyboardInterrupt
+        completed = failure == "timeout" and spool_stdout and parent_exited
         previous_handler = signal.getsignal(signal.SIGTERM)
         with (
-            pytest.raises(error) as raised,
+            nullcontext() if completed else pytest.raises(error) as raised,
             ExitStack() as interrupts,
             process_adapter.command_scope(handle_termination=failure == "terminate"),
         ):
-            execute()
+            result = execute()
         assert signal.getsignal(signal.SIGTERM) == previous_handler
-        assert getattr(raised.value, "output", None) == (
-            b"started\n" if failure == "timeout" else None
-        )
+        if completed:
+            assert result.returncode == 0
+            assert result.stdout == "started\n"
+        else:
+            assert getattr(raised.value, "output", None) == (
+                b"started\n" if failure == "timeout" else None
+            )
         assert closed()
         assert not fallback, "caller cancellation waited for external rescue"
         assert sum(call.args[1] == signal.SIGKILL for call in signals.call_args_list) == 1

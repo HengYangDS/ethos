@@ -14,6 +14,7 @@ from contextlib import contextmanager
 from contextlib import suppress
 from contextvars import ContextVar
 from functools import partial
+from io import TextIOWrapper
 from pathlib import Path
 from tempfile import TemporaryFile
 from threading import Lock
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from types import FrameType
     from types import TracebackType
+    from typing import BinaryIO
 
 PROCESS_CREATION_FAILED = "process_creation_failed"
 NATIVE_WINDOWS_POWERSHELL_UNAVAILABLE = "native_windows_powershell_unavailable"
@@ -363,6 +365,7 @@ def run_command(
     remove_env_prefixes: tuple[str, ...] = (),
     inherit_environment: bool = True,
     stdin: str | bytes | None = None,
+    spool_stdout: bool = False,
 ) -> subprocess.CompletedProcess[Any]:
     """Run one exact argv command and preserve process-creation evidence."""
     resolved_root = root.resolve()
@@ -389,11 +392,17 @@ def run_command(
         env=effective_env,
         input=stdin,
         timeout=timeout,
+        spool_stdout=spool_stdout,
     )
 
 
 def _execute_command(
-    command: tuple[str, ...], *, check: bool, timeout: float | None, **kwargs: Any
+    command: tuple[str, ...],
+    *,
+    check: bool,
+    timeout: float | None,
+    spool_stdout: bool,
+    **kwargs: Any,
 ) -> subprocess.CompletedProcess[Any]:
     """Separate creation failures from communication and owned-process cleanup."""
     deadline = _COMMAND_DEADLINE.get()
@@ -403,6 +412,7 @@ def _execute_command(
         if timeout <= 0:
             raise subprocess.TimeoutExpired(command, timeout)
     stdin = kwargs.pop("input")
+    text_mode = kwargs["text"]
     scope = _COMMAND_SCOPE.get() or CommandScope()
     with ExitStack() as resources:
         finite_input = None
@@ -412,13 +422,17 @@ def _execute_command(
             )
             finite_input.write(stdin)
             finite_input.seek(0)
+        finite_output = resources.enter_context(
+            _finite_output(enabled=spool_stdout and os.name == "posix")
+        )
+        kwargs["text"] = text_mode and finite_output is None
         try:
             process = scope.start(
                 command,
                 resources=resources,
                 stdin=finite_input if finite_input is not None else subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=finite_output[0] if finite_output is not None else subprocess.PIPE,
+                stderr=finite_output[1] if finite_output is not None else subprocess.PIPE,
                 **({"process_group": 0} if os.name == "posix" else {}),
                 **kwargs,
             )
@@ -431,10 +445,41 @@ def _execute_command(
                 cause=f"{error.__class__.__name__}: {error}",
             ) from error
         stdout, stderr = process.communicate(timeout=timeout)
+        if finite_output is not None:
+            scope.terminate(process)
+            for output in finite_output:
+                output.seek(0)
+            if text_mode:
+                with (
+                    TextIOWrapper(finite_output[0]) as reader,
+                    TextIOWrapper(finite_output[1]) as diagnostic_reader,
+                ):
+                    stdout = reader.read()
+                    stderr = diagnostic_reader.read()
+            else:
+                stdout = finite_output[0].read()
+                stderr = finite_output[1].read()
         result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
         if check:
             result.check_returncode()
         return result
+
+
+@contextmanager
+def _finite_output(*, enabled: bool) -> Iterator[tuple[BinaryIO, BinaryIO] | None]:
+    """Capture both finite streams after owned cleanup, without recovery pipe waits."""
+    if not enabled:
+        yield None
+        return
+    with TemporaryFile(mode="w+b") as output, TemporaryFile(mode="w+b") as diagnostic:
+        try:
+            yield output, diagnostic
+        except subprocess.TimeoutExpired as error:
+            output.seek(0)
+            diagnostic.seek(0)
+            error.stdout = output.read()
+            error.stderr = diagnostic.read()
+            raise
 
 
 def _terminate_command(process: subprocess.Popen[Any]) -> None:

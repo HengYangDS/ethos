@@ -91,6 +91,19 @@
     - [x] 5.12.1.1 Close predecessor custody, post-selector failure and exact-CAS compensation at the existing owners; qualify the signed minimal wheel, immutable runtime and isolated public upgrade/rollback/no-op with independent byte review. Live-adopter adoption and full-source proof remain open.
     - [x] 5.12.1.2 Deliver the qualified minimal package through the Publisher owner's public activation; verify exact prior-runtime/wheel custody and the original implicit prewrite without user retelling. Keep whole-source proof, release and host-store reclamation distinct.
 - [ ] 5.13 Qualify exact producer/consumer scratch ownership under repeated normal, crash and kill cycles; preserve live/unknown roots and shared supply, then measure source-bound 24/48-hour count, byte, inode and cleanup bounds before claiming recurrence closed.
+  - **Finite-output source qualification, 2026-10-12:** the existing native
+    process owner captures both POSIX finite streams in invocation-local
+    standard-library files. Registered cleanup precedes timeout capture; completed
+    producers fence their registered group before output is read. Native Git
+    batch framing, type, order, length and digest checks remain unchanged.
+    Three adverse custody cases were reproduced before repair; 215 bound process,
+    Git and Attestation cases now pass in 13.41s with Ruff, Ty, per-file 512 ELOC
+    and aggregate source budgets passing. Six duplicate gate executions were
+    removed without dropping distinct mode coverage. Evidence:
+    `local-cli-delivery-20261012/claude-semantic-withdrawal/successor-ab4d682a/finite-output-native-final-bound.*`
+    and `finite-output-current-source-qualification.json`. Full proof, accepted
+    integration, installed replay, supervisor loss, Windows descendants and
+    descendants escaping the registered POSIX group remain unproved.
 
 - [ ] 5.18 Deliver the reviewed Claude withdrawal `b18465bb0` through the existing owned lane. The current native whole-repository closure passes in 8.591s with all six finding classes zero; 123 command, native-manifest and patch regressions pass in 10.73s, and Ruff/Ty pass. Retire all superseded engine-only files and tests while preserving native manifest/GateRegistry validation, argv-zero identity and Observer supply. Evidence: `local-cli-delivery-20261012/claude-semantic-withdrawal/` under existing native custody. Full proof, accepted integration, runtime delivery and complete public semantic capability remain open; the prior 120.022-second timeout remains failed evidence. The withdrawn enhancement is recoverable in Git, not retained as a compatibility facade.
 

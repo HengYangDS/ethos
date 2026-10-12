@@ -12,6 +12,8 @@ from pydantic import ValidationError
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.contracts.gates import Gate
+from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.rules import Rule
 from ethos.contracts.rules import RuleSet
@@ -318,15 +320,36 @@ def test_product_starter_rules_keep_product_gates_beside_target_authority(tmp_pa
     assert compile_rules(tmp_path)["compile_gaps"] == ["unknown_rule_gate:custom.product:schemas"]
 
 
-def test_public_native_product_composition_binds_target_and_refuses_stale_source(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Rules, public planning and actual CLI execution retain one target-bound selection."""
-    monkeypatch.delenv("ETHOS_CHANGE", raising=False)
-    monkeypatch.delenv("ETHOS_ACTOR", raising=False)
+def _composed_document_repository(tmp_path: Path, *, mixed_code: bool) -> Path:
+    """Retain native code obligations beside one selected document journey."""
     root = init_git_repo(tmp_path / "repo")
     declare_fixture_documentation_proof(root)
     write_active_commitment(root, change_id="gate-composition")
+    if mixed_code:
+        source = root / "src/native.py"
+        source.parent.mkdir()
+        source.write_text('"""Native repository code outside this document change."""\n')
+        registry = root / "system/gates.toml"
+        declaration = load_gate_registry_declaration(registry)
+        native = Gate(
+            id="native-code",
+            kind="test",
+            command=(sys.executable, "-c", "pass"),
+            verification_providers=(
+                "ethos.adapters.gates.python_quality:behavior_report",
+                "ethos.adapters.gates.python_quality:static_report",
+            ),
+        )
+        mixed = declaration.model_copy(
+            update={
+                "gates": (*declaration.gates, native),
+                "proof_sets": GateProofSets(
+                    default=(*declaration.proof_sets.default, native.id),
+                    full=(*declaration.proof_sets.full, native.id),
+                ),
+            }
+        )
+        registry.write_text(tomli_w.dumps(mixed.model_dump(mode="json", exclude_none=True)))
     _write_rules(
         root,
         _rule(
@@ -338,6 +361,17 @@ def test_public_native_product_composition_binds_target_and_refuses_stale_source
     commit_fixture(root, "declare composed rule demand")
     tasks = root / "openspec/changes/gate-composition/tasks.md"
     tasks.write_text(tasks.read_text().replace("fixture lifecycle", "native composition"))
+    return root
+
+
+@pytest.mark.parametrize("mixed_code", [False, True])
+def test_public_native_product_composition_binds_target_and_refuses_stale_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, mixed_code: bool
+) -> None:
+    """Rules, public planning and actual CLI execution retain one target-bound selection."""
+    monkeypatch.delenv("ETHOS_CHANGE", raising=False)
+    monkeypatch.delenv("ETHOS_ACTOR", raising=False)
+    root = _composed_document_repository(tmp_path, mixed_code=mixed_code)
     plan = run_ethos("plan", "--changed", "--change", "gate-composition", "--json", cwd=root)
     assert plan["verdict"] == "pass"
     assert {gate["id"] for gate in plan["data"]["required_gates"]} == {
@@ -348,6 +382,9 @@ def test_public_native_product_composition_binds_target_and_refuses_stale_source
         "openspec-baseline",
         "schemas",
     }
+    planned_policy = plan["data"]["transition_plan"]["policy"]
+    assert planned_policy["obligation_scope"] == "selected"
+    assert "code_correctness_map" not in planned_policy["owner"]
     head = commit_fixture(root, "bind composed rule demand")
     policy = resolve_gate_policy(
         root,
@@ -357,7 +394,10 @@ def test_public_native_product_composition_binds_target_and_refuses_stale_source
     )
     assert policy.gaps == ()
     assert policy.projection["obligation_scope"] == "selected"
-    assert set(policy.registry) == {"openspec-baseline", "schemas"}
+    assert set(policy.registry) == {"openspec-baseline", "schemas"} | (
+        {"native-code"} if mixed_code else set()
+    )
+    assert set(policy.gate_ids) == {"openspec-baseline", "schemas"}
     assert policy.declaration == load_gate_registry_declaration(root / "system/gates.toml")
     assert policy.registry["openspec-baseline"].command == (
         "git",
@@ -368,6 +408,18 @@ def test_public_native_product_composition_binds_target_and_refuses_stale_source
         "--",
         "openspec/specs",
     )
+    if mixed_code:
+        full_policy = resolve_gate_policy(root, tree_ref=head, full=True)
+        assert "obligation_scope" not in full_policy.projection
+        assert full_policy.projection["owner"]["code_correctness_map"] == {
+            "behavior": "native-code",
+            "static-analysis": "native-code",
+        }
+        assert full_policy.projection["owner"]["quality_subjects"] == {
+            "behavior": ["src/native.py"],
+            "static-analysis": ["src/native.py"],
+        }
+        assert "native-code" in full_policy.gate_ids
     assert {path for path, _ in dict(policy.sources)["schemas"]} == {
         "@ethos/repository/policy/schema.py"
     }

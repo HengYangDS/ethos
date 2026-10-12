@@ -33,6 +33,7 @@ def test_fixture_supply_preserves_native_project_policy(
     git(repo, "add", "tests")
     monkeypatch.setenv("UV_OFFLINE", "1")
     monkeypatch.setenv("VIRTUAL_ENV", str(tmp_path / "unrelated-environment"))
+    monkeypatch.setenv("UV_PYTHON", str(tmp_path / "unrelated-interpreter"))
 
     fixture_supply.provision(repo)
 

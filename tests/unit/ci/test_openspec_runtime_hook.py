@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import subprocess
 import tomllib
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
@@ -180,8 +182,9 @@ def test_build_hook_projects_prepared_production_supply_without_npm_or_temp_tree
 
 
 @pytest.mark.parametrize("target", ["sdist", "wheel"])
+@pytest.mark.parametrize("include_dispositions", [False, True])
 def test_build_policy_projection_retains_release_authority_and_cleans_rejection(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, target: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, target: str, *, include_dispositions: bool
 ) -> None:
     """The real policy projector never ships host approvals or leaks failed staging."""
     supply = _prepared_supply(tmp_path)
@@ -195,30 +198,54 @@ def test_build_policy_projection_retains_release_authority_and_cleans_rejection(
     hook = _hook(tmp_path, target)
     policy = tmp_path / audit_owner.AUDIT_POLICY_PATH
     source = Path(__file__).resolve().parents[3] / audit_owner.AUDIT_POLICY_PATH
-    policy.write_bytes(source.read_bytes())
+    release = audit_owner.AuditDisposition(
+        ecosystem="npm",
+        advisory_url="https://example.invalid/advisories/fixture",
+        package="fixture-package",
+        version="1.0.0",
+        integrity="fixture-integrity",
+        scope="production-release",
+        owner="fixture-owner",
+        approval_ref="fixture-approval",
+        rationale="Exercise portable policy projection independently of current findings.",
+    )
+    local = release.model_copy(
+        update={
+            "scope": "local-development",
+            "host": "fixture:local",
+            "lock_sha256": "a" * 64,
+            "nodes": ["node_modules/fixture-package"],
+            "expires_at": datetime(2050, 1, 1, tzinfo=UTC),
+        }
+    )
+    audit_policy = audit_owner.AuditPolicy.model_validate(tomllib.loads(source.read_text()))
+    audit_policy = audit_policy.model_copy(
+        update={"dispositions": [release, local] if include_dispositions else []}
+    )
+    policy.write_text(tomli_w.dumps(audit_policy.model_dump(mode="python", exclude_none=True)))
     data = {"force_include": {}}
-    hook.initialize("standard", data)
-    projected = next(
-        Path(path)
-        for path, destination in data["force_include"].items()
-        if destination.endswith(audit_owner.AUDIT_POLICY_PATH)
-    )
-    records = tomllib.loads(projected.read_text())["dispositions"]
-    assert records
-    assert all(
-        record["scope"] == "production-release" and "host" not in record for record in records
-    )
-    assert projected.read_bytes() == audit_owner.product_audit_projection(source.read_bytes())
-    staging = projected.parent
-    hook.finalize("standard", data, "fixture")
+    try:
+        hook.initialize("standard", data)
+        projected = next(
+            Path(path)
+            for path, destination in data["force_include"].items()
+            if destination.endswith(audit_owner.AUDIT_POLICY_PATH)
+        )
+        records = tomllib.loads(projected.read_text())["dispositions"]
+        expected = (
+            [release.model_dump(mode="python", exclude_none=True)] if include_dispositions else []
+        )
+        assert records == expected
+        assert projected.read_bytes() == audit_owner.product_audit_projection(policy.read_bytes())
+        staging = projected.parent
+    finally:
+        hook.finalize("standard", data, "fixture")
     assert not staging.exists()
 
-    changed = tomllib.loads(source.read_text())
-    release = next(
-        record for record in changed["dispositions"] if record["scope"] == "production-release"
+    changed = audit_policy.model_copy(
+        update={"dispositions": [release.model_copy(update={"host": "fixture:host-bound-release"})]}
     )
-    release["host"] = "fixture:host-bound-release"
-    policy.write_text(tomli_w.dumps(changed))
+    policy.write_text(tomli_w.dumps(changed.model_dump(mode="python", exclude_none=True)))
     created = []
     temporary = subject.tempfile.TemporaryDirectory
 

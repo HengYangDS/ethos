@@ -149,7 +149,7 @@
     "local_state": {
       "path": "docs/architecture/local-state.md",
       "authority": "current host-local coordination boundary",
-      "sha256": "61fc0c9e0fd301fc0b1453192302af72e9207bd60684bfbc767a151c7da29fbc"
+      "sha256": "5831e4ee51d1307ef13aa746af9f49e18068659f28760e12a69acadee2525d0b"
     },
     "adoption": {
       "path": "docs/architecture/adoption-profiles.md",

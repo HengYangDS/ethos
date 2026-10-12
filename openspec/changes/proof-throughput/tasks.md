@@ -343,7 +343,9 @@
     installer supports only Linux and macOS, and hosted Windows resolves `bash` to the WSL launcher.
     One hosted-only test dropped the native tool cache selection from its isolated child; it now
     passes that selection with the validated package supply. Two research links named the wrong
-    upstream package path and are corrected. Windows mise preparation remains open.
+    upstream package path and are corrected. Windows now stages the release's official
+    executable, accepted only with its digest from that release's SHASUMS256.txt bound in the
+    bootstrap record; hosted Windows qualification awaits the next published run.
 
 - [ ] 11.4 Migrate native developer/CI tool supply to mise locks and retire replaced installers.
 - [x] 11.5 Verify native import-linter and coverage TOML option equivalence; replace their INI owners and consumers without adding a converter.

@@ -233,7 +233,8 @@ def _bootstrap_source(root: Path, script: str, version: str = "2026.9.11") -> Pa
         root,
         ".config/checks/ci/templates.toml",
         f'[bootstrap]\nversion = "{version}"\n'
-        f'sha256 = "{hashlib.sha256(installer.read_bytes()).hexdigest()}"\n',
+        f'sha256 = "{hashlib.sha256(installer.read_bytes()).hexdigest()}"\n'
+        f'[bootstrap.windows]\narm64 = "{"0" * 64}"\nx64 = "{"1" * 64}"\n',
     )
     return installer
 

@@ -77,6 +77,12 @@ inputs = { gate_registry = "system/gates.toml", node = ".config/mise/config.toml
 
 # Generated supply binding, not an independent source signature or version selector.
 # Refresh only from native generation; ordinary CI checks never acquire this material.
+# Windows digests come from the same release's official SHASUMS256.txt, because the
+# shell installer supports only Linux and macOS.
 [bootstrap]
 version = "2026.10.8"
 sha256 = "891db2f217ec3d64768167f655a8afc925983969711286408f60ec3e5fd77525"
+
+[bootstrap.windows]
+arm64 = "37fb631c501e8bb6a96e72914a5066f3c8d87a0c5e3aa0b42acffad714752db3"
+x64 = "9147c464c607be2444b4a6f0684dd253ecf0a0ec5d1fe9db639005a8c81fe013"

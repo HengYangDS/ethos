@@ -55,6 +55,8 @@ configuration plane, not a truth center.
 - `.config/mise/config.toml` and `.config/mise/mise.lock` select native developer/CI supply through native discovery. The existing
   Python bootstrap prepares missing mise with tools/ci/scripts/mise-install.sh,
   a version-bound official generator projection checked by ci_templates.
+  Windows stages the same release's official executable, accepted only with
+  its digest bound in the bootstrap record, because the installer is POSIX-only.
   Installation is staged and bounded; observation does not install tools.
   Isolated consumers preserve this same nested layout; disposable copies do
   not own versions or checksums.

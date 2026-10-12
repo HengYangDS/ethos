@@ -15,6 +15,7 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.materialization.node_package_supply import (
     resolve_node_package_supply,
 )
+from ethos.adapters.toolchain.mise import native_tool_cache
 from ethos.repository.release.resources import GUIDANCE_RESOURCE
 from ethos.repository.release.resources import packaged_resource
 from ethos.result import EthosResult
@@ -154,7 +155,10 @@ def test_signature_acceptance_binds_source_supply_across_isolated_commands(tmp_p
     observed = lane.prove_signature_repair(
         Path(sys.executable),
         adopter,
-        environment={"ETHOS_NODE_PACKAGE_SUPPLY": supply.as_posix()},
+        environment={
+            "ETHOS_NODE_PACKAGE_SUPPLY": supply.as_posix(),
+            "ETHOS_CI_TOOL_CACHE_DIR": native_tool_cache(ROOT).as_posix(),
+        },
         historical=historical,
     )
     assert observed["state"] == "passed"

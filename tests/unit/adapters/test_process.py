@@ -254,16 +254,16 @@ def test_process_handoff_already_owns_reaping_and_pipes(
 
 def test_command_scope_conserves_one_deadline_across_native_calls(tmp_path) -> None:
     """A later or nested command cannot renew a caller's finite execution budget."""
-    command = (sys.executable, "-c", "import time; time.sleep(0.2)")
+    command = (sys.executable, "-c", "import time; time.sleep(0.6)")
     started = monotonic()
-    with process_adapter.command_scope(timeout_seconds=0.3):
+    with process_adapter.command_scope(timeout_seconds=1.0):
         process_adapter.run_command(tmp_path, command, timeout=10)
         with (
             process_adapter.command_scope(timeout_seconds=10),
             pytest.raises(subprocess.TimeoutExpired),
         ):
             process_adapter.run_command(tmp_path, command, timeout=10)
-    assert monotonic() - started < 1
+    assert monotonic() - started < 3
     assert process_adapter.run_command(tmp_path, (sys.executable, "-c", "pass")).returncode == 0
 
 

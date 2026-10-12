@@ -439,13 +439,7 @@ def _compensate_git_effect(
     cause: BaseException,
 ) -> None:
     """Reverse one applied CAS exactly or retain its committed recovery intent."""
-    reverse = GitEffect(
-        updates={
-            name: GitRefUpdate(expected=update.desired, desired=update.expected)
-            for name, update in effect.updates.items()
-        },
-        assertions=effect.assertions,
-    )
+    reverse = effect.inverse()
     if plan.policy.get("transition") == "candidate.integrate":
         ref, update = next(iter(reverse.updates.items()))
         policy = resolve_ref_move_policy(root, ref, update.expected, update.desired)

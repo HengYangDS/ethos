@@ -67,7 +67,8 @@ def pending_merge(tmp_path: Path) -> Path:
 
 
 @pytest.mark.parametrize(
-    "case", ["valid", "missing", "corrupt", "unrelated", "historical", "ambiguous"]
+    "case",
+    ["valid", "missing", "corrupt", "unrelated", "historical", "ambiguous", "compensated"],
 )
 def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     tmp_path, monkeypatch, case
@@ -87,19 +88,20 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     branch = "work/native"
     ref = f"refs/heads/{branch}"
 
-    def start(head):
-        git(repo, "update-ref", "refs/heads/candidate/dev", head)
-        effect = GitEffect(
+    def effect(head):
+        return GitEffect(
             updates={ref: GitRefUpdate(expected="0" * len(head), desired=head)},
             assertions={"refs/heads/candidate/dev": head},
         )
+
+    def execute(value, operation, head):
         plan = compile_observed_git_effect(
             repo,
             None,
-            effect,
-            head=git(repo, "rev-parse", "HEAD"),
+            value,
+            head=head,
             policy={
-                "operation": "lane.start",
+                "operation": operation,
                 "subject": branch,
                 "holder_ref": "agent:test:case:agent-test",
                 "candidate_branch": "candidate/dev",
@@ -107,9 +109,16 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
         )
         execute_git_effect(repo, plan, issuer="agent:test:case:agent-test")
 
+    def start(head):
+        git(repo, "update-ref", "refs/heads/candidate/dev", head)
+        execute(effect(head), "lane.start", git(repo, "rev-parse", "HEAD"))
+
     if case == "ambiguous":
         start(base)
         git(repo, "update-ref", "-d", ref, base)
+    elif case == "compensated":
+        start(base)
+        execute(effect(base).inverse(), "lane.start.compensate", base)
     start(merge)
     git(repo, "checkout", branch)
     selected_root, records = read_attestation_set(repo)
@@ -128,7 +137,7 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
             git(repo, "checkout", "-b", "work/other")
     rows = [{"name": "active", "status": "in-progress"}]
     revision = base if case == "historical" else merge
-    expected = "active" if case in {"valid", "historical"} else None
+    expected = "active" if case in {"valid", "historical", "compensated"} else None
     selected, gap = resolve_change_selection(rows, None, root=repo, tree_ref=revision)
     assert selected == expected
     gaps = [gap] if gap else []

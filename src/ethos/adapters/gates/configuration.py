@@ -5,7 +5,6 @@ from __future__ import annotations
 import configparser
 import fnmatch
 import json
-import os
 import subprocess
 import tomllib
 from pathlib import Path
@@ -13,8 +12,9 @@ from pathlib import Path
 from yamllint import config as yamllint_config
 from yamllint import linter as yamllint_linter
 
-from ethos.adapters.gates.tool import native_configurations
-from ethos.adapters.gates.tool import quality_inventory_failure
+from ethos.adapters.gates.formatting import source_format_report
+from ethos.adapters.gates.native.inputs import native_configurations
+from ethos.adapters.gates.native.inputs import quality_inventory_failure
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import GitExecutionError
@@ -22,6 +22,7 @@ from ethos.adapters.repo.runtime.materialization.input_resolution import resolve
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.contracts.verdict import close_verdict
 from ethos.domain.source_budget.measurement_policy import policy_for_root
+from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
 from ethos.repository.policy.projections import projection_relations
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -140,45 +141,21 @@ def _toml_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
     taplo = product_node_module("@taplo/cli") / "dist/cli.js"
     configs = native_configurations(root, "taplo", ".config/checks/taplo/taplo.toml")
     for config in configs:
-        for arguments in (("format", "--check"), ("lint", "--no-schema")):
-            completed = run_command(
-                root,
-                (str(node), str(taplo), *arguments, "--config", config, *map(str, paths)),
-                timeout=60,
-                remove_env=("NODE_OPTIONS", "NODE_PATH"),
-            )
-            if completed.returncode:
-                failures.append((completed.stdout + completed.stderr).strip())
-    return failures
-
-
-def _native_format_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
-    """Use the original Prettier check on the same exact authored configuration."""
-    if not paths:
-        return []
-    failures = []
-    configs = native_configurations(root, "prettier", ".config/checks/format/prettier.toml")
-    node = str(resolve_node_runtime().executable)
-    prettier = str(product_node_module("prettier") / "bin/prettier.cjs")
-    for config in configs:
         completed = run_command(
             root,
             (
-                node,
-                prettier,
+                str(node),
+                str(taplo),
+                "lint",
+                "--no-schema",
                 "--config",
                 config,
-                "--no-editorconfig",
-                "--ignore-path",
-                os.devnull,
-                "--check",
-                "--",
                 *map(str, paths),
             ),
             timeout=60,
             remove_env=("NODE_OPTIONS", "NODE_PATH"),
         )
-        if completed.returncode or completed.stderr:
+        if completed.returncode:
             failures.append((completed.stdout + completed.stderr).strip())
     return failures
 
@@ -190,7 +167,7 @@ def _json_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
             json.loads((root / path).read_text(encoding="utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as error:
             failures.append(f"{path}: JSON parse failed: {error}")
-    return [*failures, *_native_format_failures(root, paths)]
+    return failures
 
 
 def _yaml_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
@@ -206,7 +183,7 @@ def _yaml_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
                 for problem in yamllint_linter.run(text, policy, filepath=path.as_posix())
                 if problem.rule is None or problem.rule in semantic_rules
             )
-    return [*failures, *_native_format_failures(root, paths)]
+    return failures
 
 
 def _ini_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
@@ -232,6 +209,12 @@ def configuration_report(root: Path, *, paths: tuple[str, ...] = ()) -> dict[str
             *_yaml_failures(root, candidates["yaml"]),
             *_ini_failures(root, candidates["ini"]),
         )
+        format_paths = tuple(
+            path.as_posix() for kind in ("toml", "json", "yaml") for path in candidates[kind]
+        )
+        if format_paths:
+            formatted = source_format_report(root, paths=format_paths)
+            failures = (*failures, *string_sequence(formatted["required_gaps"]))
     except (GitExecutionError, subprocess.CalledProcessError) as error:
         return quality_inventory_failure(root, "config-quality", error)
     except (

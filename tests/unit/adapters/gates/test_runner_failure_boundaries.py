@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.gates.configuration as configuration_gate
+import ethos.adapters.gates.formatting as formatting_gate
 import ethos.adapters.gates.runner as gate_runner
 import ethos.adapters.gates.tool as gate_tool
 import ethos.adapters.mutation.proof_artifacts as proof_artifacts
@@ -36,6 +37,7 @@ if TYPE_CHECKING:
         ("prose_report", "prose"),
         ("module_layout_gate_report", "module-layout"),
         ("configuration_report", "config-quality"),
+        ("source_format_report", "source-format"),
     ],
 )
 def test_native_quality_inventory_failure_is_not_empty_success(
@@ -47,10 +49,17 @@ def test_native_quality_inventory_failure_is_not_empty_success(
     if boundary == "missing-executable":
         monkeypatch.setattr(git_adapter, "git_executable", lambda _: str(tmp_path / "missing-git"))
     try:
+        owner = (
+            configuration_gate
+            if provider == "configuration_report"
+            else formatting_gate
+            if provider == "source_format_report"
+            else gate_tool
+        )
         report = (
             configuration_gate.configuration_report(tmp_path, paths=("source.json",))
             if provider == "configuration_report"
-            else getattr(gate_tool, provider)(tmp_path)
+            else getattr(owner, provider)(tmp_path)
         )
     except (ValueError, subprocess.CalledProcessError) as error:
         pytest.fail(f"native inventory failure escaped its public result: {error}")
@@ -90,8 +99,10 @@ def test_native_markdown_consumes_literal_tracked_and_untracked_authored_inputs(
     report = gate_tool.markdown_lint_report(repo)
     assert (report["verdict"], report["file_count"]) == ("block", 2)
     assert "MD042" in report["native"][1]["stderr"]
-    assert set(report["native"][0]["command"][-2:]) == {"docs/usage-\u03b1-[literal].md", pending}
-    accepted = gate_tool.format_markdown_content(repo, pending, b"# Pending\n\nWords.\n")
+    assert set(report["native"][0]["files"]) == {"docs/usage-\u03b1-[literal].md", pending}
+    accepted, _ignored = formatting_gate.render_source_content(
+        repo, pending, "prettier", b"# Pending\n\nWords.\n"
+    )
     (repo / pending).write_bytes(accepted)
     for _ in range(2):
         assert gate_tool.markdown_lint_report(repo)["verdict"] == "pass"

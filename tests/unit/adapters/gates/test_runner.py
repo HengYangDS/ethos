@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import ethos.adapters.gates.native.inputs as native_inputs
 import ethos.adapters.gates.runner as gate_runner
 import ethos.adapters.gates.tool as gate_tool
 import ethos.adapters.gates.verification as gate_verification
@@ -22,7 +23,7 @@ from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 
 
 def _quality_files(monkeypatch: pytest.MonkeyPatch, *files: str) -> None:
-    monkeypatch.setattr(gate_tool, "quality_source_files", lambda *_args: list(files))
+    monkeypatch.setattr(native_inputs, "quality_source_files", lambda *_args: list(files))
 
 
 def _gate(*providers: str) -> Gate:
@@ -432,16 +433,22 @@ def test_common_markdown_policy_accepts_native_formatter_container_layout(
     assert report["verdict"] == "pass", report
     assert document.read_bytes() == accepted
     native = report["native"]
-    command = native[0]["command"]
+    assert native[0]["files"] == ["README.md"]
+    assert native[0]["required_gaps"] == []
     document.write_bytes(accepted.rstrip(b"\n"))
     refused = gate_tool.markdown_lint_report(tmp_path)
     assert refused["verdict"] == "block"
     assert document.read_bytes() == accepted.rstrip(b"\n")
-    fix = tuple("--write" if argument == "--check" else argument for argument in command)
-    assert gate_tool.run_command(tmp_path, fix, timeout=30).returncode == 0
+    fixed, _ignored = gate_tool.render_source_content(
+        tmp_path, "README.md", "prettier", document.read_bytes()
+    )
+    document.write_bytes(fixed)
     assert document.read_bytes() == accepted
     assert gate_tool.markdown_lint_report(tmp_path)["verdict"] == "pass"
-    assert gate_tool.run_command(tmp_path, fix, timeout=30).returncode == 0
+    repeated, _ignored = gate_tool.render_source_content(
+        tmp_path, "README.md", "prettier", document.read_bytes()
+    )
+    document.write_bytes(repeated)
     assert document.read_bytes() == accepted
     document.write_text("# Semantic lint\n\n[Empty link]()\n", encoding="utf-8")
     semantic = gate_tool.markdown_lint_report(tmp_path)

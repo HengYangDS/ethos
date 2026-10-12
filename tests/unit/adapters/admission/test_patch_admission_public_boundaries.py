@@ -69,6 +69,23 @@ def test_patch_admission_rejects_missing_preimage(tmp_path: Path) -> None:
     assert report["reason"] == "prewrite_patch_preimage_mismatch"
 
 
+@pytest.mark.parametrize("relative", ["native space.txt", "native-é.txt", 'native "quote".txt'])
+def test_original_git_quoted_patch_retains_literal_path(tmp_path: Path, relative: str) -> None:
+    repo, head = _repository(tmp_path)
+    source = repo / relative
+    source.write_text("old\n")
+    git(repo, "add", relative)
+    source.write_text("old\nnew\n")
+    patch = admission.run_git(repo, "-c", "core.quotePath=true", "diff", "--", relative).stdout
+    source.write_text("old\n")
+    report = patch_admission(
+        root=repo, requested_paths=(relative,), baseline_head=head, patch=patch
+    )
+    assert report["verdict"] == "pass", report
+    assert report["paths"] == [relative]
+    assert source.read_text() == "old\n"
+
+
 def test_patch_admission_rejects_escaping_postimage(tmp_path: Path) -> None:
     repo, head = _repository(tmp_path)
 
@@ -94,7 +111,7 @@ def test_patch_admission_reports_failed_postimage_apply(
     def fail_second_apply(root: Path, *args: str, **kwargs):
         nonlocal calls
         completed = real_run(root, *args, **kwargs)
-        if args[:1] != ("apply",):
+        if args[:1] != ("apply",) or "--numstat" in args:
             return completed
         calls += 1
         return completed if calls == 1 else completed.__class__(completed.args, 1, "", "")

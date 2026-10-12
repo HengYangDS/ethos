@@ -187,6 +187,17 @@ from the complete applicable proof closure.
 - **AND** check refusal preserves bytes, native fixing succeeds and a second fix leaves bytes unchanged
 - **AND** secure native YAML preserves nested heading parameters without a vendor patch or dependency downgrade
 
+#### Scenario: Native source check and fix share one exact selection
+
+- **WHEN** authored inputs select the installed source-format capability
+- **THEN** preview and check prepare the same original native postimages without writes
+- **AND** an authorized fix requires current HEAD, actor, Work Lane and Lease admission for the complete patch
+- **AND** source bytes, modes and index are re-observed before effect, the index and HEAD remain unchanged, and a second fix is a no-op
+- **AND** literal names, native ignore controls and byte-exact formatting pragmas retain their meanings
+- **AND** foreign source, immutable evidence, dependency records and generated projections retain their owners
+- **AND** missing inputs remain unknown while unsafe paths, native parse errors and conflicting policy refuse without source writes
+- **AND** Nox and proof project this same owner, while independent semantic gates remain required
+
 #### Scenario: A Decision Record has no authored choice
 
 - **WHEN** a current decision record omits a core role or supplies only comments, quotations, code or one multi-role section

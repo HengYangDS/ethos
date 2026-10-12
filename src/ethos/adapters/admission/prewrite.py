@@ -434,7 +434,12 @@ def _check_path(
     indexed_effects: dict[str, object] | None = None,
 ) -> dict[str, object]:
     text = path.as_posix()
-    if has_invalid_path_token_character(text):
+    literal_file = (
+        any(character.isspace() for character in text)
+        and all(character.isprintable() for character in text)
+        and (path if path.is_absolute() else root / path).is_file()
+    )
+    if has_invalid_path_token_character(text) and not literal_file:
         reason = (
             "path_invalid_control_character"
             if any(not character.isprintable() for character in text)

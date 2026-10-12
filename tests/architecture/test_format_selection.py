@@ -11,6 +11,7 @@ import pytest
 import yaml
 
 import tools.ci.format_selection as format_selection
+from ethos.repository.policy.quality.format_selection import audit
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
@@ -150,7 +151,7 @@ def test_format_selection_rejects_malformed_native_policy(
     config = tmp_path / "selection.toml"
     config.write_text(declaration)
     monkeypatch.setattr(format_selection, "CONFIG_PATH", config)
-    monkeypatch.setattr(format_selection, "audit", lambda _root: {})
+    monkeypatch.setattr(format_selection, "audit", lambda _root, **_kwargs: {})
 
     with pytest.raises(error):
         format_selection.main()
@@ -175,7 +176,7 @@ def test_carrier_assignment_rejects_malformed_owned_fields(tmp_path, fields: str
     )
 
     with pytest.raises(TypeError):
-        format_selection.audit(tmp_path, paths=("example.py",))
+        audit(tmp_path, paths=("example.py",))
 
 
 def test_unused_malformed_owner_cannot_hide_behind_a_valid_fallback(tmp_path) -> None:
@@ -191,4 +192,4 @@ def test_unused_malformed_owner_cannot_hide_behind_a_valid_fallback(tmp_path) ->
     )
 
     with pytest.raises(TypeError):
-        format_selection.audit(tmp_path, paths=("example.py",))
+        audit(tmp_path, paths=("example.py",))

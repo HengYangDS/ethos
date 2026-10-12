@@ -164,7 +164,7 @@ def test_host_conformance_reuses_the_single_package_acceptance_effect(
 def test_installed_format_probe_uses_current_native_configuration(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Run real Git and Ruff; installed smoke separately proves dependency absence."""
+    """Run every shipped formatter; package smoke separately proves dependency absence."""
     dependency_check = 'assert importlib.util.find_spec("pytest") is None'
 
     def run(root: Path, command: tuple[str, ...], **kwargs: object) -> object:
@@ -176,7 +176,13 @@ def test_installed_format_probe_uses_current_native_configuration(
 
     assert runtime_acceptance.require_production_dependencies(
         Path(sys.executable), environment={"PATH": str(Path(shutil.which("git")).parent)}
-    ) == {"state": "passed", "excluded": ["pytest"], "staged_format": "passed"}
+    ) == {
+        "state": "passed",
+        "excluded": ["pytest"],
+        "staged_format": "passed",
+        "source_format": "passed",
+        "formatters": ["ruff", "prettier", "taplo", "shfmt", "svgo"],
+    }
 
 
 def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(

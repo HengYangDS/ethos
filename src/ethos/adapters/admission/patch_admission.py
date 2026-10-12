@@ -12,6 +12,7 @@ from ethos.adapters.openspec.lifecycle.root_repair import supporting_file_reloca
 from ethos.adapters.projections.compiler import render_projections
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
+from ethos.adapters.repo.git_patch import unified_patch_changes
 from ethos.adapters.repo.profile import ProfilePostimage
 from ethos.adapters.repo.profile import historical_repository_identity
 from ethos.adapters.repo.profile import profile_postimage
@@ -31,8 +32,6 @@ from ethos.repository.profile import INVALID_PROFILE_ERROR
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-
-_UNIFIED_DIFF_HEADER_PART_COUNT = 4
 
 
 def patch_admission(
@@ -54,7 +53,7 @@ def patch_admission(
             "reference_coverage": "not_evaluated",
             "uncertainties": [],
         }
-    changes, parse_gap = _unified_patch_changes(patch)
+    changes, parse_gap = unified_patch_changes(root, patch)
     patch_paths = sorted({str(change["path"]) for change in changes})
     requested = sorted(set(requested_paths))
     reason = parse_gap
@@ -369,56 +368,6 @@ def _indexed_effects(root: Path, *, index_env: Mapping[str, str] | None = None) 
         path: "delete" if kind == "D" else "create" if kind == "A" else "modify"
         for kind, path in zip(parts[::2], parts[1::2], strict=True)
     }
-
-
-def _unified_patch_changes(patch: str) -> tuple[list[dict[str, object]], str]:
-    changes: list[dict[str, object]] = []
-    current: dict[str, object] | None = None
-    for line in patch.splitlines():
-        if line.startswith(("GIT binary patch", "Binary files ")):
-            return changes, "prewrite_patch_binary_unsupported"
-        if line.startswith("diff --git "):
-            current = _new_patch_change(line)
-            if current is None:
-                return changes, "prewrite_patch_invalid"
-            changes.append(current)
-        elif current is not None:
-            _update_patch_change(current, line)
-    if not changes or any(not change["path"] for change in changes):
-        return changes, "prewrite_patch_invalid"
-    return changes, ""
-
-
-def _new_patch_change(line: str) -> dict[str, object] | None:
-    try:
-        parts = shlex.split(line)
-    except ValueError:
-        return None
-    if len(parts) != _UNIFIED_DIFF_HEADER_PART_COUNT:
-        return None
-    return {
-        "old_path": _patch_path(parts[2]),
-        "path": _patch_path(parts[3]),
-        "new": False,
-        "deleted": False,
-    }
-
-
-def _update_patch_change(change: dict[str, object], line: str) -> None:
-    if line.startswith("--- "):
-        change["old_path"] = _patch_path(line[4:].split("\t", 1)[0])
-        change["new"] = change["old_path"] == "/dev/null"
-    elif line.startswith("+++ "):
-        path = _patch_path(line[4:].split("\t", 1)[0])
-        change["deleted"] = path == "/dev/null"
-        if path != "/dev/null":
-            change["path"] = path
-
-
-def _patch_path(raw: str) -> str:
-    if raw == "/dev/null":
-        return raw
-    return raw.removeprefix("a/").removeprefix("b/")
 
 
 def _patch_references(

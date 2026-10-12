@@ -21,6 +21,7 @@ dependencies = [
   "pydantic>=2.13.5",
   "pyyaml>=6.0.3",
   "ruff>=0.16.10",
+  "shfmt-py>=4.2.0",
   "tomli-w>=1.2.0",
   "uv>=0.12.23",
   "yamllint>=1.38.0",
@@ -50,7 +51,6 @@ dev = [
   "pytest-timeout>=2.4.0",
   "pytest-xdist>=3.8.0",
   "shellcheck-py>=0.11.0.1",
-  "shfmt-py>=4.2.0",
   "ty>=0.0.84",
   "uv>=0.12.23",
 ]
@@ -79,6 +79,7 @@ packages = ["src/ethos"]
 ".config/mise/config.toml" = "ethos/resources/.config/mise/config.toml"
 ".config/mise/mise.lock" = "ethos/resources/.config/mise/mise.lock"
 ".config/checks/format/prettier.toml" = "ethos/resources/.config/checks/format/prettier.toml"
+".config/checks/ruff/ruff.toml" = "ethos/resources/.config/checks/ruff/ruff.toml"
 ".config/checks/prose/codespell.toml" = "ethos/resources/.config/checks/prose/codespell.toml"
 ".config/checks/taplo/taplo.toml" = "ethos/resources/.config/checks/taplo/taplo.toml"
 ".config/checks/yaml/yamllint.yaml" = "ethos/resources/.config/checks/yaml/yamllint.yaml"
@@ -131,6 +132,7 @@ only-include = [
   ".config/mise/config.toml",
   ".config/mise/mise.lock",
   ".config/checks/format/prettier.toml",
+  ".config/checks/ruff/ruff.toml",
   ".config/checks/prose/codespell.toml",
   ".config/checks/taplo/taplo.toml",
   ".config/checks/yaml/yamllint.yaml",

@@ -14,17 +14,18 @@ import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import ethos.adapters.gates.native.inputs as native_inputs
+from ethos.adapters.gates.formatting import render_source_content
+from ethos.adapters.gates.native.inputs import native_configurations
+from ethos.adapters.gates.native.inputs import quality_inventory_failure
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import GitExecutionError
-from ethos.adapters.repo.git import git_files
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.contracts.verdict import close_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.layout.report import module_layout_report
-from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
-from ethos.repository.release.resources import canonical_resource
 
 
 def _observed_output(value: str | bytes | None) -> str:
@@ -140,65 +141,15 @@ def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, objec
     return _native_report(gate_id, files, native)
 
 
-def quality_source_files(root: Path, *patterns: str) -> list[str]:
-    """Read current authored input through native Git without swallowing inventory failure."""
-    return git_files(
-        root, "--cached", "--others", "--exclude-standard", "--", *patterns, check=True
-    )
-
-
-def quality_inventory_failure(
-    root: Path, gate_id: str, error: GitExecutionError | subprocess.CalledProcessError
-) -> dict[str, object]:
-    """Unavailable input remains unknown with its original native execution evidence."""
-    evidence = (
-        error.evidence()
-        if isinstance(error, GitExecutionError)
-        else {
-            "command": list(error.cmd),
-            "cwd": str(root),
-            "exit_code": error.returncode,
-            "stdout": _observed_output(error.stdout),
-            "stderr": _observed_output(error.stderr),
-        }
-    )
-    return {
-        "id": gate_id,
-        "verdict": "unknown",
-        "state": "inventory_unavailable",
-        "file_count": 0,
-        "required_gaps": [f"quality_input_inventory_unavailable:{gate_id}"],
-        "errors": [evidence],
-    }
-
-
 def _markdown_files(root: Path) -> list[str]:
     """Current authored Markdown excludes immutable records and absent paths."""
     return [
         path
-        for path in quality_source_files(root, "*.md")
+        for path in native_inputs.quality_source_files(root, "*.md")
         if path.endswith(".md")
         and not path.startswith(("evidence/", "docs/archive/", "openspec/changes/archive/"))
         and (root / path).is_file()
     ]
-
-
-def native_configurations(root: Path, tool: str, shared: str) -> tuple[str, ...]:
-    """The shipped policy is mandatory; repository policy is a native increment."""
-    common = canonical_resource(shared)
-    selected = native_tool_configuration(tuple(quality_source_files(root)), tool)
-    if selected:
-        path = root / selected
-        if (
-            path.is_symlink()
-            or not path.resolve().is_relative_to(root.resolve())
-            or not path.is_file()
-        ):
-            message = f"native_tool_configuration_invalid:{tool}"
-            raise ValueError(message)
-        if path.resolve() != common.resolve():
-            return str(common), str(path)
-    return (str(common),)
 
 
 def prose_report(root: Path) -> dict[str, object]:
@@ -257,39 +208,6 @@ def prose_report(root: Path) -> dict[str, object]:
         return _configuration_failure("prose", error)
 
 
-def format_markdown_content(root: Path, relative: str, content: bytes) -> bytes:
-    """Render one declared Markdown input with the mandatory native formatter."""
-    command = (
-        str(resolve_node_runtime().executable),
-        str(product_node_module("prettier") / "bin/prettier.cjs"),
-        "--config",
-        str(canonical_resource(".config/checks/format/prettier.toml")),
-        "--no-editorconfig",
-        "--prose-wrap",
-        "preserve",
-        "--ignore-path",
-        os.devnull,
-        "--stdin-filepath",
-        relative,
-    )
-    try:
-        completed = run_command(
-            root,
-            command,
-            text=False,
-            stdin=content,
-            timeout=20,
-            remove_env=("NODE_OPTIONS", "NODE_PATH"),
-        )
-    except (OSError, ProcessExecutionError, subprocess.TimeoutExpired) as error:
-        message = f"native_markdown_format_unavailable:{relative}:{error}"
-        raise ValueError(message) from error
-    if completed.returncode:
-        message = f"native_markdown_format_failed:{relative}:{completed.stderr.decode()}"
-        raise ValueError(message)
-    return completed.stdout
-
-
 def _configuration_failure(gate_id: str, error: Exception) -> dict[str, object]:
     return {
         "id": gate_id,
@@ -306,11 +224,7 @@ def markdown_lint_report(root: Path) -> dict[str, object]:
         if not files:
             return {"verdict": "pass", "state": "skipped", "file_count": 0, "required_gaps": []}
         node = str(resolve_node_runtime().executable)
-        prettier = str(product_node_module("prettier") / "bin/prettier.cjs")
         markdownlint = str(product_node_module("markdownlint-cli2") / "markdownlint-cli2.mjs")
-        format_configs = native_configurations(
-            root, "prettier", ".config/checks/format/prettier.toml"
-        )
         lint_configs = native_configurations(
             root, "markdownlint-cli2", ".config/checks/markdown/markdownlint.yaml"
         )
@@ -318,34 +232,35 @@ def markdown_lint_report(root: Path) -> dict[str, object]:
         return quality_inventory_failure(root, "markdown-lint", error)
     except (OSError, ValueError) as error:
         return _configuration_failure("markdown-lint", error)
-    commands = [
-        (
-            "markdown-format",
-            [
-                node,
-                prettier,
-                "--config",
-                config,
-                "--no-editorconfig",
-                "--prose-wrap",
-                "preserve",
-                "--ignore-path",
-                os.devnull,
-                "--check",
-                "--",
-                *files,
-            ],
-        )
-        for config in format_configs
-    ]
+    format_gaps = []
+    try:
+        for relative in files:
+            content = (root / relative).read_bytes()
+            rendered, _ignored = render_source_content(root, relative, "prettier", content)
+            if rendered != content:
+                format_gaps.append(f"source_format_drift:{relative}")
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        format_gaps.append(str(error))
+    format_report: dict[str, object] = {
+        "id": "markdown-format",
+        "verdict": "block" if format_gaps else "pass",
+        "state": "failed" if format_gaps else "passed",
+        "required_gaps": format_gaps,
+        "files": files,
+        "file_count": len(files),
+    }
+    commands = []
     adapter = str(Path(__file__).with_name("markdown.mjs"))
     commands.extend(
         ("markdown-lint", [node, adapter, markdownlint, config, str(root), json.dumps(files)])
         for config in lint_configs
     )
     native = [
-        quality_tool_report(root=root, gate_id=gate_id, tool=node, command=command, files=files)
-        for gate_id, command in commands
+        format_report,
+        *[
+            quality_tool_report(root=root, gate_id=gate_id, tool=node, command=command, files=files)
+            for gate_id, command in commands
+        ],
     ]
     return _native_report("markdown-lint", files, native)
 
@@ -368,7 +283,9 @@ def module_layout_gate_report(root: Path) -> dict[str, object]:
     """Audit tracked and non-ignored untracked Python through the layout policy."""
     try:
         files = tuple(
-            root / path for path in quality_source_files(root, "*.py") if (root / path).is_file()
+            root / path
+            for path in native_inputs.quality_source_files(root, "*.py")
+            if (root / path).is_file()
         )
     except (GitExecutionError, subprocess.CalledProcessError) as error:
         return quality_inventory_failure(root, "module-layout", error)

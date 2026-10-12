@@ -15,12 +15,17 @@ def native_gate_tools(gate: Gate) -> tuple[str, ...]:
         dict.fromkeys(
             tool
             for reference in (*gate.providers, *gate.verification_providers)
-            if reference.startswith("ethos.adapters.gates.tool:")
             for tool in (
-                ("prettier", "markdownlint-cli2")
-                if reference.endswith(":markdown_lint_report")
+                ("prettier", "taplo", "ruff")
+                if reference == "ethos.adapters.gates.formatting:source_format_report"
+                else ("prettier", "markdownlint-cli2")
+                if reference == "ethos.adapters.gates.tool:markdown_lint_report"
                 else ("lychee",)
-                if reference.endswith((":markdown_links_report", ":external_links_report"))
+                if reference
+                in (
+                    "ethos.adapters.gates.tool:markdown_links_report",
+                    "ethos.adapters.gates.tool:external_links_report",
+                )
                 else ()
             )
         )
@@ -49,6 +54,7 @@ def _configuration_carriers(
 ) -> tuple[str | None, tuple[str, ...]]:
     """Select carrier identities once for strict admission and historical observation."""
     locations = {
+        "ruff": "ruff.toml",
         "lychee": ".config/checks/links/lychee.toml",
         "markdownlint-cli2": ".config/checks/markdown/markdownlint.yaml",
         "prettier": ".config/checks/format/prettier.toml",
@@ -58,6 +64,7 @@ def _configuration_carriers(
     }
     location = locations.get(tool)
     names = {
+        "ruff": {"ruff.toml"},
         "lychee": {"lychee.toml"},
         "markdownlint-cli2": {
             "markdownlint.toml",
@@ -71,6 +78,8 @@ def _configuration_carriers(
         "yamllint": {"yamllint.yaml", ".yamllint", ".yamllint.yaml", ".yamllint.yml"},
     }
     selected = tuple(path for path in repository_paths if Path(path).name in names.get(tool, set()))
+    if tool == "ruff" and location in selected:
+        selected = (location,)
     if location in repository_paths and location not in selected:
         selected = (*selected, location)
     return location, selected

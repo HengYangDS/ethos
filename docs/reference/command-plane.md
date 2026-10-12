@@ -354,6 +354,17 @@ ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
 
 ## Hidden Operational Roots
 
+`ethos lane format` prepares native source postimages without writes. Optional
+literal paths select exact inputs; omission selects tracked and non-ignored new
+authored source while retaining foreign, generated, immutable and dependency
+owners. `--check` evaluates those same postimages. Fixing requires `--apply
+--authorize --expect-head <current-head>` and the current Work Lane admission;
+it preserves HEAD, index and source modes. Missing inputs remain unknown and
+policy or parse conflicts refuse before effect. Native formatter ignores and
+pragmas preserve bytes but do not waive independent semantic gates. Nox `format`
+and `format_check` project this operation; they do not own another formatter or
+replace the complete proof closure.
+
 `ethos lane` and `ethos hook` are hidden operational roots. They support Work
 Lane admission and guard reporting; they do not expand the public lifecycle.
 For a tracked write, bind the exact checkout and paths before editing:

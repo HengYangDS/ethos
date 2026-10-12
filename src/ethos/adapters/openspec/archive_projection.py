@@ -6,7 +6,7 @@ from pathlib import Path
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
-from ethos.adapters.gates.tool import format_markdown_content
+from ethos.adapters.gates.formatting import render_source_content
 from ethos.adapters.openspec.relocation import archive_relocation
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
@@ -189,7 +189,9 @@ def normalize_projected_specs(root: Path, *, paths: tuple[str, ...]) -> tuple[st
             content = target.read_bytes()
         except OSError:
             continue
-        canonical = format_markdown_content(root, relative, content)
+        canonical, _ignored = render_source_content(
+            root, relative, "prettier", content, repository_policy=False
+        )
         if canonical == content:
             continue
         target.write_bytes(canonical)

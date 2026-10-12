@@ -19,6 +19,7 @@ RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
 PRE_COMMIT_CONFIG = ".config/checks/hooks/pre-commit.yaml"
 PUBLIC_SESSIONS = (
     "lint",
+    "format",
     "format_check",
     "tests",
     "coverage_floor",
@@ -95,14 +96,33 @@ def _host(session, name: str) -> None:
     )
 
 
+def source_format(session) -> None:
+    """Project native preview or explicitly authorized fixing without owning format policy."""
+    _source_format(session, checking=False)
+
+
 def format_check(session) -> None:
-    lint(session)
-    config_quality(session)
-    markdown_lint(session)
-    shell_lint(session)
-    javascript_lint(session)
-    svg_lint(session)
-    asset_validation(session)
+    """Check the exact same selected native postimages without source writes."""
+    _source_format(session, checking=True)
+
+
+def _source_format(session, *, checking: bool) -> None:
+    session.run(
+        str(RUNTIME.python),
+        "-B",
+        "-m",
+        "ethos.cli",
+        "lane",
+        "format",
+        "--root",
+        str(ROOT),
+        *(("--check",) if checking else ()),
+        *session.posargs,
+        "--json",
+    )
+
+
+SESSION_IMPLEMENTATIONS = {"format": source_format}
 
 
 def lint(session) -> None:
@@ -317,42 +337,22 @@ def javascript_lint(session) -> None:
         observation = analyzer.static_observation(ROOT, paths)
         if observation["verdict"] != "pass":
             session.error(json.dumps(observation))
-        node = RUNTIME.node_executable()
-        prettier = RUNTIME.node_package_supply() / "prettier/bin/prettier.cjs"
-        session.run(
-            str(node), str(prettier), "--check", "--no-config", "--print-width", "100", *paths
-        )
+        _check_source_paths(session, paths)
 
 
 def svg_lint(session) -> None:
     paths = _paths("*.svg")
-    if not paths:
-        return
-    node = RUNTIME.node_executable()
-    svgo = RUNTIME.node_package_supply() / "svgo/bin/svgo.js"
-    for relative in paths:
-        result = subprocess.run(
-            (
-                str(node),
-                str(svgo),
-                "--multipass",
-                "--pretty",
-                "--indent",
-                "2",
-                "--eol",
-                "lf",
-                "--final-newline",
-                "--input",
-                relative,
-                "--output",
-                "-",
-            ),
-            cwd=ROOT,
-            capture_output=True,
-            check=True,
-        )
-        if result.stdout != (ROOT / relative).read_bytes():
-            session.error(f"{relative}: SVG format drift")
+    if paths:
+        _check_source_paths(session, paths)
+
+
+def _check_source_paths(session, paths: tuple[str, ...]) -> None:
+    report = import_module("ethos.adapters.gates.formatting").source_format_report(
+        ROOT, paths=paths
+    )
+    session.log(json.dumps(report))
+    if report["verdict"] != "pass":
+        session.error("native source formatting did not pass")
 
 
 def asset_validation(session) -> None:

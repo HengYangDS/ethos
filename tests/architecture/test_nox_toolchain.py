@@ -45,7 +45,10 @@ def test_machine_declared_nox_gates_are_implemented_by_sessions() -> None:
         for item in gates
         if "nox" in (command := item.get("command", [])) and "-s" in command
     } <= public
-    assert all(callable(getattr(sessions, name)) for name in public)
+    assert all(
+        callable(sessions.SESSION_IMPLEMENTATIONS.get(name) or getattr(sessions, name))
+        for name in public
+    )
 
 
 def test_project_runtime_is_the_only_executable_resolution_owner() -> None:
@@ -130,6 +133,33 @@ def test_configuration_gate_has_one_installed_owner() -> None:
     assert gate.providers == ("ethos.adapters.gates.configuration:configuration_report",)
     assert not gate.command
     assert not (ROOT / "tools/ci/config_quality.py").exists()
+
+
+@pytest.mark.parametrize("checking", [False, True])
+def test_source_format_sessions_project_one_native_owner(*, checking: bool) -> None:
+    """Check and fix share exact literal inputs without a second Nox formatter."""
+    session = Mock(posargs=["source file.py"])
+    operation = sessions.format_check if checking else sessions.source_format
+    operation(session)
+    command = tuple(session.run.call_args.args)
+    assert command[:5] == (str(sessions.RUNTIME.python), "-B", "-m", "ethos.cli", "lane")
+    assert command[5:8] == ("format", "--root", str(ROOT))
+    assert "source file.py" in command
+    assert ("--check" in command) is checking
+    assert "--apply" not in command
+    assert "--authorize" not in command
+    session.run.assert_called_once()
+
+
+def test_source_format_gate_is_supplied_by_the_installed_product() -> None:
+    declaration = load_gate_registry_declaration()
+    gate = declaration.registry()["source-format"]
+    assert gate.providers == ("ethos.adapters.gates.formatting:source_format_report",)
+    assert gate.command == ()
+    assert gate.writes_files is False
+    assert gate.required_for_paths
+    assert "source-format" in declaration.proof_sets.default
+    assert "source-format" in declaration.proof_sets.full
 
 
 def test_configuration_owner_preserves_the_common_floor_and_exact_inputs(tmp_path) -> None:

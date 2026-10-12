@@ -527,6 +527,24 @@ CURRENT advancement or hosted acceptance. A cold CI consumer must bind that
 exact wheel and its complete offline material through the existing installer;
 it must not add a checkout launcher or second installation controller.
 
+Source formatting compiles the existing carrier assignments against literal
+tracked and non-ignored new Git inputs. The selected product supplies Ruff,
+Prettier, Taplo, shfmt and SVGO; package-manager records, generated projections,
+foreign inputs and immutable originals keep their own owners. The same native
+postimages serve preview, check and admitted fixing. Native ignores and formatting
+pragmas preserve bytes without waiving independent semantic proof. Conflicting
+shared and repository postimages refuse before any source write.
+
+`ethos lane format` is preview-only by default. Fixing requires explicit
+authorization, current HEAD and native complete-patch prewrite admission. The
+effect rechecks source bytes, modes and index, applies through native Git, and
+reads back exact postimages without staging or changing HEAD. Missing input and
+unavailable Git inventory remain unknown; native parse and authority conflicts
+remain blocking. Nox `format` and `format_check` are command projections, not
+additional formatters. The shared source-format provider composes with applicable
+proof while behavioral, static, syntax, provenance and documentation obligations
+keep their separate acceptance.
+
 ## Release Version And Artifact Boundary
 
 VERSION is the single next product-release target. Unpublished source builds

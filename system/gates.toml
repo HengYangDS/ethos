@@ -3,8 +3,8 @@ id = "gate-registry"
 source_refs = ["system/gates.toml"]
 
 [proof_sets]
-default = ["repository-audit", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "config-quality", "shell-lint"]
-full = ["repository-audit", "repository-hygiene", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "github-workflow-syntax", "python-size", "source-budget", "markdown-lint", "javascript-lint", "javascript-tests", "svg-format", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "prose", "dependency-vulnerabilities", "release-sbom", "secrets"]
+default = ["repository-audit", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "config-quality", "source-format", "shell-lint"]
+full = ["repository-audit", "repository-hygiene", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "github-workflow-syntax", "python-size", "source-budget", "markdown-lint", "javascript-lint", "javascript-tests", "svg-format", "asset-validation", "ci-projection", "format-selection", "source-format", "architecture-projection", "prose", "dependency-vulnerabilities", "release-sbom", "secrets"]
 
 [[gates]]
 id = "repository-audit"
@@ -582,6 +582,24 @@ tool_adapter = "format_selection"
 writes_files = false
 network_policy = "offline"
 version_source = "locked-toolchain"
+
+[[gates]]
+id = "source-format"
+kind = "format"
+required_for_paths = ["*.py", "*.pyi", "*.md", "*.toml", "*.yaml", "*.yml", "*.json", "*.js", "*.mjs", "*.cjs", "*.sh", "*.bash", "*.svg"]
+providers = ["ethos.adapters.gates.formatting:source_format_report"]
+policy = "required"
+profile = "product"
+toolchain = "ethos"
+asset_classes = ["python-code", "config", "markdown-docs", "assets"]
+dimensions = ["native-source-format"]
+execution_mode = "provider"
+evidence_class = "contract"
+trust_bearing = true
+tool_adapter = "ethos-source-format"
+writes_files = false
+network_policy = "offline"
+version_source = "product"
 
 [[gates]]
 id = "architecture-projection"

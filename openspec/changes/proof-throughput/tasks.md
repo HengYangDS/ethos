@@ -87,6 +87,17 @@
 - [x] 5.10 Share owned-output removal, preserve external referents and verify minimal permission effects.
 - [ ] 5.11 Close native bootstrap identity wiring and tool transport timeouts; retain failed output, reuse verified supply across disposable checkouts, scope offline flags to bootstrap, and qualify cold and warm hosted consumers without increasing the deadline.
 - [ ] 5.12 Reproduce ignored durable-custody loss at retirement; consume existing artifact declarations to distinguish retained, active, foreign, unknown and proved disposable resources before deletion.
+  - **Retirement acceptance, 2026-10-12:** native receipt-bound recovery retired
+    the redundant Responses checkout, topic ref and Lease with no remaining
+    effects; terminal receipt `396b4318caad9d4bac58eada74f907a2ba36f848929636972a5cade226a71bc3`
+    and current directory/ref observations agree. Native custody
+    `56fb840ffcf033c952cd3fc69d5e1e57b04ae2a487a01e57a3355db92dba957f`
+    preserves 51 original members; byte/hash readback passes. Three duplicate
+    projections were removed without changing eight retained receipt hashes.
+    Five child worktrees remain; independent active work and the old semantic
+    lane's unique 35 unmatched patches are preserved. Evidence:
+    `local-cli-delivery-20261012/claude-semantic-withdrawal/successor-ab4d682a/responses-audit-projection-disposal.acceptance.json`.
+    Source absorption, full proof and installed delivery remain open.
   - [ ] 5.12.1 Preserve exact predecessor runtime and wheel through the existing shared-installation owner before local reclamation; bind cutover to the original selector CAS, verify failure/no-op/concurrency boundaries, then qualify package and real-adopter rollback custody.
     - [x] 5.12.1.1 Close predecessor custody, post-selector failure and exact-CAS compensation at the existing owners; qualify the signed minimal wheel, immutable runtime and isolated public upgrade/rollback/no-op with independent byte review. Live-adopter adoption and full-source proof remain open.
     - [x] 5.12.1.2 Deliver the qualified minimal package through the Publisher owner's public activation; verify exact prior-runtime/wheel custody and the original implicit prewrite without user retelling. Keep whole-source proof, release and host-store reclamation distinct.
@@ -409,6 +420,14 @@
       Evidence: `remote-proposal-readback-20261008/retrospective-task-prewrite.json`.
 
   - [ ] 11.9.1 Qualify carrier-role and native-discovery applicability, including frozen provenance, generated build inputs, explicit selection, missing discovery and unauthorized relabeling; preserve integrity obligations without language or directory-name exceptions.
+        **Shared-supplier convergence, 2026-10-12:** the existing native
+        exact-PATCH admission accepts only the Handlebars lock delta, 4.7.9 to
+        official registry latest 4.7.10. Exactly one of 556 entries changes.
+        The already prepared lock-matched supply is reused by reference, not
+        copied or reinstalled; old audit results do not certify the new lock.
+        Evidence: `local-cli-delivery-20261012/claude-semantic-withdrawal/successor-ab4d682a/handlebars-minimal-native-supply.acceptance.json`
+        and `handlebars-official-native-selection-20261012.json`. Exact-source
+        audit, proof, accepted integration and installed delivery remain open.
         Native snapshot-label RED (2 failed) and script-owner RED (3 failed) now have
         11 focused GREEN cases; the unsupported script is checked with actual
         ShellCheck without execution. Snapshot-only lexical suppression was removed.

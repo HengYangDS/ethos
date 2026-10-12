@@ -10,6 +10,7 @@ import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
+from contextlib import nullcontext
 from contextvars import copy_context
 from time import monotonic
 from typing import TYPE_CHECKING
@@ -84,7 +85,7 @@ def test_native_command_owns_its_handle_without_an_outer_scope(
     child = started[0][1]
     assert child.returncode is not None
     assert discarded == [child]
-    assert terminated == ([child] if outcome == "timeout" else [])
+    assert terminated == ([] if outcome == "success" else [child])
 
 
 def test_caught_command_failure_preserves_a_live_sibling(tmp_path, monkeypatch) -> None:
@@ -130,6 +131,125 @@ def test_cancelled_command_scope_rejects_creation(tmp_path, monkeypatch) -> None
         with pytest.raises(process_adapter.ProcessExecutionError, match="process_cancelled"):
             process_adapter.run_command(tmp_path, (sys.executable, "-c", "pass"), timeout=2)
     creation.assert_not_called()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX SIGTERM delivery")
+def test_interruption_after_process_creation_retains_and_reaps_child(tmp_path, monkeypatch):
+    """Registration must finish before a native termination can escape its start."""
+    native = subprocess.Popen
+    children = []
+
+    def create(*args, **kwargs):
+        child = native(*args, **kwargs)
+        children.append(child)
+        os.kill(os.getpid(), signal.SIGTERM)
+        return child
+
+    monkeypatch.setattr(subprocess, "Popen", create)
+    try:
+        with (
+            pytest.raises(KeyboardInterrupt),
+            process_adapter.command_scope(handle_termination=True),
+        ):
+            process_adapter.run_command(
+                tmp_path, (sys.executable, "-c", "import time; time.sleep(30)")
+            )
+        assert len(children) == 1
+        assert children[0].poll() is not None
+    finally:
+        for child in children:
+            if child.poll() is None:
+                os.killpg(child.pid, signal.SIGKILL)
+            child.wait(timeout=2)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX signal delivery")
+@pytest.mark.parametrize("boundary", ["scope", "deferral"])
+def test_signal_installation_already_owns_restoration(monkeypatch, boundary):
+    """A signal between native installation and return cannot leave a replaced handler."""
+    original = {number: signal.getsignal(number) for number in (signal.SIGINT, signal.SIGTERM)}
+    install = signal.signal
+    fired = []
+
+    def interrupt_install(number, handler):
+        previous = install(number, handler)
+        target = signal.SIGTERM if boundary == "scope" else signal.SIGINT
+        if number == target and handler != original[number] and not fired:
+            fired.append(number)
+            os.kill(os.getpid(), signal.SIGTERM)
+        return previous
+
+    monkeypatch.setattr(signal, "signal", interrupt_install)
+    try:
+        with (
+            pytest.raises(KeyboardInterrupt),
+            process_adapter.command_scope(handle_termination=True),
+            process_adapter.defer_interruptions(),
+        ):
+            pass
+        assert fired
+        assert all(signal.getsignal(number) == handler for number, handler in original.items())
+    finally:
+        for number, handler in original.items():
+            install(number, handler)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX signal delivery")
+@pytest.mark.parametrize("boundary", ["registered-return", "process-context"])
+@pytest.mark.parametrize("outer_scope", [False, True])
+def test_process_handoff_already_owns_reaping_and_pipes(
+    tmp_path, monkeypatch, boundary, outer_scope
+):
+    """Both standalone and scoped callers own a child before its handle can escape."""
+    native = subprocess.Popen
+    children, fired = [], []
+
+    def deliver():
+        fired.append(True)
+        os.kill(os.getpid(), signal.SIGINT)
+
+    def create(*args, **kwargs):
+        child = native(*args, **kwargs)
+        children.append(child)
+        return child
+
+    def trace(frame, event, _argument):
+        registered_return = (
+            event == "return" and frame.f_code is process_adapter.CommandScope.start.__code__
+        )
+        caller_context = (
+            event == "line"
+            and frame.f_globals is vars(process_adapter)
+            and frame.f_code.co_name == "_execute_command"
+            and "process" in frame.f_locals
+        )
+        if not fired and (registered_return if boundary == "registered-return" else caller_context):
+            deliver()
+        return trace
+
+    monkeypatch.setattr(subprocess, "Popen", create)
+    previous_trace = sys.gettrace()
+    try:
+        sys.settrace(trace)
+        with (
+            process_adapter.command_scope() if outer_scope else nullcontext(),
+            pytest.raises(KeyboardInterrupt),
+        ):
+            process_adapter.run_command(
+                tmp_path, (sys.executable, "-c", "import time; time.sleep(30)")
+            )
+        assert fired
+        assert len(children) == 1
+        child = children[0]
+        assert child.returncode is not None
+        assert child.stdout.closed
+        assert child.stderr.closed
+    finally:
+        sys.settrace(previous_trace)
+        for child in children:
+            if child.poll() is None:
+                os.killpg(child.pid, signal.SIGKILL)
+            child.__exit__(None, None, None)
 
 
 def test_command_scope_conserves_one_deadline_across_native_calls(tmp_path) -> None:
@@ -361,8 +481,35 @@ def test_command_environment_and_native_io(tmp_path, monkeypatch, mode):
     assert json.loads(failure.value.stdout)["ETHOS_PRESERVED"] == "inherited"
 
 
+def _interrupt_first_native_wait(monkeypatch):
+    """Interrupt once, then retain the native wait that proves reaping."""
+    native_wait = subprocess.Popen.wait
+    delivered = False
+
+    def interrupted_wait(child, *args, **kwargs):
+        nonlocal delivered
+        if not delivered:
+            delivered = True
+            os.kill(os.getpid(), signal.SIGINT)
+        return native_wait(child, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess.Popen, "wait", interrupted_wait)
+
+
+def _observe_ready_parent(process, parent_exited, failure):
+    """Distinguish an unreaped exited leader from a natively reaped leader."""
+    if parent_exited:
+        waitid = getattr(os, "waitid", None)
+        assert callable(waitid)
+        waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT)
+        if failure == "cancel":
+            assert process.poll() == 0
+
+
 @pytest.mark.skipif(os.name != "posix", reason="POSIX process-group boundary")
-@pytest.mark.parametrize("failure", ["timeout", "cancel", "gate-cancel", "gate-overlap"])
+@pytest.mark.parametrize(
+    "failure", ["timeout", "cancel", "terminate", "gate-cancel", "gate-overlap"]
+)
 @pytest.mark.parametrize(
     ("parent_exited", "inherit_pipes"), [(False, False), (False, True), (True, True)]
 )
@@ -375,12 +522,9 @@ def test_command_failure_closes_owned_descendants(
     monkeypatch.setattr(os, "killpg", signals)
 
     def after_ready(process, _options):
-        if parent_exited:
-            waitid = getattr(os, "waitid", None)
-            assert callable(waitid)
-            waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT)
+        _observe_ready_parent(process, parent_exited, failure)
         if failure == "gate-overlap":
-            monkeypatch.setattr(subprocess.Popen, "wait", Mock(side_effect=KeyboardInterrupt))
+            _interrupt_first_native_wait(monkeypatch)
             raise subprocess.TimeoutExpired(process.args, 1)
         if failure == "gate-cancel":
 
@@ -394,7 +538,9 @@ def test_command_failure_closes_owned_descendants(
             interrupts.callback(timer.cancel)
             timer.start()
             os.kill(os.getpid(), signal.SIGINT)
-        elif failure != "timeout":
+        elif failure == "terminate":
+            os.kill(os.getpid(), signal.SIGTERM)
+        elif failure == "cancel":
             raise KeyboardInterrupt
 
     with ready_descendant(monkeypatch, after_ready) as (child, closed):
@@ -410,24 +556,30 @@ def test_command_failure_closes_owned_descendants(
             command = (sys.executable, "-c", parent)
             if not failure.startswith("gate-"):
                 process_adapter.run_command(tmp_path, command, timeout=0.2)
-            else:
-                gate = Gate(id="probe", kind="test", command=command)
-                node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
-                gate_runner.run_gate_graph(
-                    gate_runner.LocalGateRunner(),
-                    (node,),
-                    {gate.id: gate},
-                    root=tmp_path,
-                    capacity=1,
-                    parallel=True,
-                )
+                return
+            gate = Gate(id="probe", kind="test", command=command)
+            node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
+            gate_runner.run_gate_graph(
+                gate_runner.LocalGateRunner(),
+                (node,),
+                {gate.id: gate},
+                root=tmp_path,
+                capacity=1,
+                parallel=True,
+            )
 
         error = subprocess.TimeoutExpired if failure == "timeout" else KeyboardInterrupt
-        with pytest.raises(error) as raised, ExitStack() as interrupts:
+        previous_handler = signal.getsignal(signal.SIGTERM)
+        with (
+            pytest.raises(error) as raised,
+            ExitStack() as interrupts,
+            process_adapter.command_scope(handle_termination=failure == "terminate"),
+        ):
             execute()
-        if failure == "timeout":
-            assert isinstance(raised.value, subprocess.TimeoutExpired)
-            assert raised.value.output == b"started\n"
+        assert signal.getsignal(signal.SIGTERM) == previous_handler
+        assert getattr(raised.value, "output", None) == (
+            b"started\n" if failure == "timeout" else None
+        )
         assert closed()
         assert not fallback, "caller cancellation waited for external rescue"
         assert sum(call.args[1] == signal.SIGKILL for call in signals.call_args_list) == 1

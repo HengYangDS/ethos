@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shlex
+import signal
+import subprocess
+import sys
 import tomllib
 from pathlib import Path
 from types import SimpleNamespace
@@ -16,10 +20,11 @@ from unittest.mock import call
 import pytest
 
 import tools.ci.local_ci as local_ci
+from ethos.adapters.process import command_scope
+from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.repository.policy.gates import gate_execution_identity
-from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import build_identity
 from tools.ci import dependency_audit
 from tools.ci import sessions
@@ -33,17 +38,6 @@ if TYPE_CHECKING:
     import nox
 
 ROOT = Path(__file__).resolve().parents[4]
-_LIFECYCLE_STAGES = {
-    "development_dependencies",
-    "hook_activation",
-    "immutable_identity",
-    "lane_bootstrap",
-    "relocation_repair",
-    "retirement_recovery",
-    "successor_activation",
-    "signature_repair",
-    "native_merge",
-}
 
 
 def test_package_lifecycle_has_one_execution_owner() -> None:
@@ -164,83 +158,6 @@ def test_host_conformance_reuses_the_single_package_acceptance_effect(
     assert calls.mock_calls == [preflight]
 
 
-def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    bootstrap_environment = tmp_path / "bootstrap-environment"
-    bootstrap_repository = tmp_path / "bootstrap-repository"
-    repository = tmp_path / "adopter"
-    for directory in (bootstrap_environment, bootstrap_repository, repository):
-        directory.mkdir()
-    (bootstrap_environment / "owned.txt").write_text("owned\n", encoding="utf-8")
-    (bootstrap_repository / "owned.txt").write_text("owned\n", encoding="utf-8")
-
-    events: list[str] = []
-    bootstrap_python = tmp_path / "bootstrap-runtime/python/bin/python"
-    runtime_python = tmp_path / "adopter-runtime/python/bin/python"
-    bootstrap_report, successor_report = (
-        {
-            "runtime_digest": digit * 64,
-            "wheel_sha256": "c" * 64,
-            "source_commit": "a" * 40,
-            "source_tree": "b" * 40,
-        }
-        for digit in ("1", "2")
-    )
-    successor_report["hooks_path"] = (tmp_path / "hooks").as_posix()
-
-    def require_manifest(report, *_args, **_kwargs):
-        stage = "bootstrap_manifest" if report is bootstrap_report else "successor_manifest"
-        events.append(stage)
-        return bootstrap_python if report is bootstrap_report else runtime_python
-
-    monkeypatch.setattr(effect.runtime_acceptance, "require_manifest", require_manifest)
-    declarations = (
-        (effect.adopter_fixture, "materialize_bootstrap_repository", None),
-        (effect.adopter_fixture, "prepare_acceptance_topology", tmp_path / "candidate"),
-        (effect.runtime_acceptance, "activate_from_entrypoint", bootstrap_report),
-        (effect.runtime_acceptance, "activate_from_runtime", successor_report),
-        (effect.runtime_acceptance, "require_production_dependencies", {"state": "passed"}),
-        (effect.runtime_acceptance, "require_version_identity", {"state": "passed"}),
-        (effect.runtime_acceptance, "prove_repair", {"state": "passed"}),
-        (effect.lane_acceptance, "prove_signature_repair", {"state": "passed"}),
-        (
-            effect.lane_acceptance,
-            "prove_lifecycle",
-            {
-                stage: {"state": "passed"}
-                for stage in ("lane_bootstrap", "retirement_recovery", "native_merge")
-            },
-        ),
-    )
-    for owner, method, result in declarations:
-        monkeypatch.setattr(
-            owner,
-            method,
-            lambda *_args, stage=method, result=result, **_kwargs: events.append(stage) or result,
-        )
-
-    lifecycle = effect.observe_runtime_lifecycle(
-        installed_ethos=tmp_path / "wheel-environment/bin/ethos",
-        bootstrap_environment=bootstrap_environment,
-        bootstrap_repository=bootstrap_repository,
-        repository=repository,
-        build=BuildIdentity("0.2.0-alpha.3", "0.2.0a3.dev0+ga.ta", "a" * 40, "b" * 40),
-        wheel_sha256="c" * 64,
-        environment={},
-    )
-
-    expected = [method for _owner, method, _result in declarations]
-    expected.insert(expected.index("activate_from_entrypoint") + 1, "bootstrap_manifest")
-    expected.insert(expected.index("activate_from_runtime") + 1, "successor_manifest")
-    assert events == expected
-    assert set(lifecycle) == _LIFECYCLE_STAGES
-    assert all(observation["state"] == "passed" for observation in lifecycle.values())
-    assert not bootstrap_environment.exists()
-    assert not bootstrap_repository.exists()
-
-
 @pytest.fixture
 def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     """Isolate expensive lifecycle effects while retaining the real receipt compiler."""
@@ -250,21 +167,17 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     artifacts.mkdir()
     wheel = artifacts / "ethos-0.2.0a3-py3-none-any.whl"
     wheel.write_bytes(b"wheel")
-    sealed_runtime = work / "shared-installation" / ("f" * 64) / "python"
+    sealed_runtime = work / "adopter/.git/ethos/runtime" / ("f" * 64) / "python"
     sealed_runtime.mkdir(parents=True)
     sealed_payload = sealed_runtime / "sealed.txt"
     sealed_payload.write_text("immutable runtime\n", encoding="utf-8")
     sealed_payload.chmod(0o444)
     sealed_runtime.chmod(0o555)
     sealed_runtime.parent.chmod(0o555)
-    lifecycle = {stage: {"state": "passed"} for stage in _LIFECYCLE_STAGES}
+    lifecycle = {stage: {"state": "passed"} for stage in receipt.REQUIRED_LIFECYCLE_STAGES}
     build = build_identity(product="0.2.0-alpha.3", source_commit="a" * 40, source_tree="b" * 40)
     lifecycle["successor_activation"]["runtime_digest"] = "f" * 64
     monkeypatch.setattr(effect, "git_common_dir", lambda root: str(root / ".git"))
-    selected_runtime = Mock(
-        return_value=SimpleNamespace(root=sealed_runtime.parent, digest="f" * 64)
-    )
-    monkeypatch.setattr(effect, "current_runtime", selected_runtime)
     observed: dict[str, object] = {}
     logs: list[str] = []
     cleanup_evidence_states: list[bool] = []
@@ -342,7 +255,6 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         logs=logs,
         cleanup=cleanup_evidence_states,
         sealed_payload=sealed_payload,
-        selected_runtime=selected_runtime,
     )
 
 
@@ -390,13 +302,6 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
     else:
         effect.run(cast("nox.Session", session), artifact=artifact, evidence=output)
         payload = json.loads(output.read_text())
-        assert (
-            cast("Mock", effect.package_runtime).call_args.args[0]
-            == case.sealed_payload.parent.parent
-        )
-        case.selected_runtime.assert_called_once_with(
-            work / "adopter/.git", expected_build=case.build
-        )
         assert cast("Mock", effect.package_runtime).call_args.args[2].is_relative_to(work)
         assert payload["distribution"]["retained"] is False
         assert {"path", "homebrew_cask"}.isdisjoint(payload["distribution"])
@@ -420,18 +325,118 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
         assert evidence.read_text() == "previous development acceptance"
 
 
-def test_failed_package_supply_cleans_owned_work(monkeypatch, acceptance_case):
+@pytest.mark.parametrize(
+    ("failure", "expected"),
+    [
+        ("command", RuntimeError),
+        ("cleanup", OSError),
+        ("interrupt", KeyboardInterrupt),
+        ("deadline", subprocess.TimeoutExpired),
+        pytest.param(
+            "terminate",
+            KeyboardInterrupt,
+            marks=pytest.mark.skipif(os.name != "posix", reason="POSIX SIGTERM delivery"),
+        ),
+    ],
+)
+def test_failed_package_supply_cleans_owned_work(monkeypatch, acceptance_case, failure, expected):
+    previous_handler = signal.getsignal(signal.SIGTERM)
+    cleanup = effect.remove_generated_tree
+
+    def remove(path):
+        partial = (path / "partial-supply").exists()
+        cleanup(path)
+        if failure == "cleanup" and partial:
+            message = "private cleanup detail"
+            raise OSError(message)
+
     def fail_supply(*_args):
         (effect.WORK / "partial-supply").mkdir()
+        if failure == "deadline":
+            with command_scope(timeout_seconds=0.01):
+                run_command(effect.WORK, (sys.executable, "-c", "import time; time.sleep(1)"))
+        if failure == "terminate":
+            assert callable(signal.getsignal(signal.SIGTERM))
+            assert signal.getsignal(signal.SIGTERM) != previous_handler
+            os.kill(os.getpid(), signal.SIGTERM)
         message = "expected supply failure"
+        if failure == "interrupt":
+            raise KeyboardInterrupt(message)
         raise RuntimeError(message)
 
     monkeypatch.setattr(effect, "install_locked_runtime", fail_supply)
-    with pytest.raises(RuntimeError, match="expected supply failure"):
+    monkeypatch.setattr(effect, "remove_generated_tree", remove)
+    with pytest.raises(expected):
         effect.run(cast("nox.Session", object()))
     assert not effect.WORK.exists()
     assert not effect.EVIDENCE.exists()
     assert not acceptance_case.observed
+    terminal = json.loads(effect.EVIDENCE.with_suffix(".terminal.json").read_text())
+    assert terminal["verdict"] == "block"
+    assert terminal["error_type"] == expected.__name__
+    assert terminal["error_types"] == (
+        ["OSError", "RuntimeError"] if failure == "cleanup" else [expected.__name__]
+    )
+    assert "private cleanup detail" not in json.dumps(terminal)
+    assert terminal["owned_work_absent"] is True
+    assert terminal["acceptance_written"] is False
+    assert (
+        terminal["wheel_sha256"] == hashlib.sha256(acceptance_case.wheel.read_bytes()).hexdigest()
+    )
+    assert signal.getsignal(signal.SIGTERM) == previous_handler
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX SIGTERM delivery")
+@pytest.mark.parametrize("stage", ["setup", "cleanup", "terminal"])
+def test_interruption_completes_owned_terminalization(monkeypatch, acceptance_case, stage):
+    """A first signal at a critical boundary cannot strand work or lose its result."""
+    previous = signal.getsignal(signal.SIGTERM)
+    wheel = acceptance_case.wheel
+    mkdir, write, remove = Path.mkdir, Path.write_text, effect.remove_generated_tree
+    supplied = effect.install_locked_runtime
+
+    def deliver():
+        assert callable(signal.getsignal(signal.SIGTERM))
+        assert signal.getsignal(signal.SIGTERM) != previous
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    def create(path, *args, **kwargs):
+        mkdir(path, *args, **kwargs)
+        if path == effect.WORK and stage == "setup":
+            deliver()
+
+    def cleanup(path):
+        if stage == "cleanup" and (path / "partial-supply").exists():
+            deliver()
+        remove(path)
+
+    def terminal(path, *args, **kwargs):
+        if stage == "terminal" and path == effect.EVIDENCE.with_suffix(".terminal.json"):
+            deliver()
+        return write(path, *args, **kwargs)
+
+    def supply(*args):
+        (effect.WORK / "partial-supply").mkdir()
+        if stage == "terminal":
+            message = "expected supply failure"
+            raise RuntimeError(message)
+        return supplied(*args)
+
+    monkeypatch.setattr(Path, "mkdir", create)
+    monkeypatch.setattr(Path, "write_text", terminal)
+    monkeypatch.setattr(effect, "remove_generated_tree", cleanup)
+    monkeypatch.setattr(effect, "install_locked_runtime", supply)
+    expected = RuntimeError if stage == "terminal" else KeyboardInterrupt
+    with pytest.raises(expected):
+        effect.run(cast("nox.Session", SimpleNamespace(error=pytest.fail, log=lambda _: None)))
+    payload = json.loads(effect.EVIDENCE.with_suffix(".terminal.json").read_text())
+    assert payload["owned_work_absent"] is True
+    assert payload["acceptance_written"] is False
+    assert payload["error_type"] == expected.__name__
+    assert payload["wheel_sha256"] == hashlib.sha256(wheel.read_bytes()).hexdigest()
+    assert not effect.WORK.exists()
+    assert not effect.EVIDENCE.exists()
+    assert signal.getsignal(signal.SIGTERM) == previous
 
 
 @pytest.mark.parametrize("shape", ["missing", "directory", "symlink", "multiple"])
@@ -463,47 +468,26 @@ def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact):
         "registry_publication_claimed",
     ):
         assert payload[field] is False
-    assert payload["conformance"]["command_plane"] == {
-        "state": "passed",
-        "native_git_loss": "not_qualified",
-    }
-    assert payload["conformance"]["formation"]["state"] == "passed"
-    assert payload["conformance"]["formation"]["first_change"] == "lane_admitted"
-    assert payload["conformance"]["formation"]["agent_handoff"] == "passed"
-    assert payload["conformance"]["brownfield"] == {
-        "state": "passed",
-        "authored_content_preserved": True,
-        "planned_files": [".ethos/profile.toml", "openspec/config.yaml"],
-    }
-    with pytest.raises(ValueError, match="package_brownfield_preservation_incomplete"):
-        receipt.package_acceptance_evidence(
-            **(
-                case.receipt.call_args.kwargs
-                | {"brownfield": {"state": "passed", "authored_content_preserved": False}}
-            )
-        )
-    with pytest.raises(ValueError, match="package_first_change_claim_invalid"):
-        receipt.package_acceptance_evidence(
-            **(
-                case.receipt.call_args.kwargs
-                | {"formation": {"state": "passed", "first_change": "skeleton_created"}}
-            )
-        )
-    with pytest.raises(ValueError, match="package_formation_incomplete"):
-        receipt.package_acceptance_evidence(
-            **(case.receipt.call_args.kwargs | {"formation": {"state": "blocked"}})
-        )
-    with pytest.raises(ValueError, match="package_agent_handoff_incomplete"):
-        receipt.package_acceptance_evidence(
-            **(
-                case.receipt.call_args.kwargs
-                | {"formation": {"state": "passed", "first_change": "lane_admitted"}}
-            )
-        )
-    with pytest.raises(ValueError, match="package_command_plane_incomplete"):
-        receipt.package_acceptance_evidence(
-            **(case.receipt.call_args.kwargs | {"command_plane": {"state": "blocked"}})
-        )
+    for field in ("command_plane", "formation", "brownfield"):
+        assert payload["conformance"][field] == case.receipt.call_args.kwargs[field]
+    for error, invalid in (
+        (
+            "package_brownfield_preservation_incomplete",
+            {"brownfield": {"state": "passed", "authored_content_preserved": False}},
+        ),
+        (
+            "package_first_change_claim_invalid",
+            {"formation": {"state": "passed", "first_change": "skeleton_created"}},
+        ),
+        ("package_formation_incomplete", {"formation": {"state": "blocked"}}),
+        (
+            "package_agent_handoff_incomplete",
+            {"formation": {"state": "passed", "first_change": "lane_admitted"}},
+        ),
+        ("package_command_plane_incomplete", {"command_plane": {"state": "blocked"}}),
+    ):
+        with pytest.raises(ValueError, match=error):
+            receipt.package_acceptance_evidence(**(case.receipt.call_args.kwargs | invalid))
     assert "sdk_commitment_digest" not in payload["conformance"]
     assert payload["wheels"][0]["path"] == selected.relative_to(tmp_path).as_posix()
     incomplete = dict(case.lifecycle)

@@ -107,3 +107,34 @@ def package_acceptance_evidence(
         "remote_publication_claimed": False,
         "registry_publication_claimed": False,
     }
+
+
+def package_failure_evidence(
+    *,
+    head: str,
+    wheel_sha256: str,
+    error: BaseException,
+    owned_work_absent: bool,
+    acceptance_written: bool,
+    generated_at: datetime,
+) -> dict[str, object]:
+    """Keep the original failure chain without exposing runtime error messages."""
+    error_types: list[str] = []
+    seen: set[int] = set()
+    current: BaseException | None = error
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        error_types.append(type(current).__name__)
+        current = current.__cause__ or current.__context__
+    return {
+        "schema_version": 1,
+        "kind": "ethos_local_install_smoke_terminal",
+        "verdict": "block",
+        "head": head,
+        "wheel_sha256": wheel_sha256,
+        "generated_at": generated_at.isoformat(),
+        "error_type": type(error).__name__,
+        "error_types": error_types,
+        "owned_work_absent": owned_work_absent,
+        "acceptance_written": acceptance_written,
+    }

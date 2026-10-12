@@ -18,6 +18,8 @@ import tools.ci.delivery.acceptance.brownfield as brownfield_acceptance
 import tools.ci.delivery.acceptance.invocation as cli_invocation
 import tools.ci.delivery.acceptance.lane as lane_acceptance
 import tools.ci.delivery.acceptance.runtime as runtime_acceptance
+from ethos.adapters.process import command_scope
+from ethos.adapters.process import defer_interruptions
 from ethos.adapters.process import run_command
 from ethos.adapters.process import windows_powershell
 from ethos.adapters.repo.git import current_tracked_head
@@ -27,8 +29,8 @@ from ethos.adapters.repo.runtime.materialization.dependency_supply import (
     prepare_locked_requirements,
 )
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
-from ethos.adapters.repo.runtime.selection import current_runtime
 from tools.ci.delivery.acceptance.receipt import package_acceptance_evidence
+from tools.ci.delivery.acceptance.receipt import package_failure_evidence
 from tools.ci.delivery.artifact import require_artifact_current
 from tools.ci.delivery.artifact import selected_wheel
 from tools.ci.delivery.distribution import package_runtime
@@ -384,101 +386,143 @@ def observe_runtime_lifecycle(
     }
 
 
+def _observe_package(
+    session: nox.Session, selected: PackageArtifact, *, head: str
+) -> dict[str, object]:
+    """Execute the complete installed workload on one supplied package identity."""
+    wheel = selected.path
+    smoke, adopter = WORK / "venv", WORK / "adopter"
+    uv, source_python = RUNTIME.script("uv"), RUNTIME.python
+    _run(uv, "venv", "--offline", "--python", str(source_python), str(smoke))
+    requirements = prepare_locked_requirements(ROOT, WORK, source_python)
+    install_locked_runtime(
+        ROOT,
+        source_python,
+        _venv_executable(smoke, "python"),
+        wheel,
+        requirements,
+    )
+    adopter_fixture.materialize_adopter(
+        adopter,
+        openspec_config=ROOT / "openspec/config.yaml",
+        run=_run,
+    )
+    line_endings = adopter_fixture.line_ending_conformance(adopter, run=_run)
+    origin, version, command_plane = observe_installed_package(smoke, adopter)
+    installed_ethos = _venv_executable(smoke, "ethos")
+    independent_host = observe_independent_command_plane(installed_ethos, adopter)
+    _run(uv, "pip", "check", "--python", str(_venv_executable(smoke, "python")))
+    resources = _verify_resources(wheel)
+    build, wheel_sha256 = selected.build, selected.sha256
+    package_environment, _git = independent_host_environment()
+    package_environment["UV_OFFLINE"] = "1"
+    formation = adopter_fixture.prove_formation(
+        installed_ethos, WORK, origin=origin, environment=package_environment
+    )
+    brownfield = brownfield_acceptance.prove_brownfield(
+        installed_ethos, WORK, environment=package_environment, run=_run
+    )
+    lifecycle = observe_runtime_lifecycle(
+        installed_ethos=installed_ethos,
+        bootstrap_environment=smoke,
+        bootstrap_repository=WORK / "bootstrap-repository",
+        repository=adopter,
+        build=build,
+        wheel_sha256=wheel_sha256,
+        environment=package_environment,
+    )
+    runtime = (
+        Path(git_common_dir(adopter))
+        / "ethos/runtime"
+        / str(lifecycle["successor_activation"]["runtime_digest"])
+    )
+    distribution = package_runtime(
+        runtime,
+        wheel,
+        WORK / "native" / f"ethos-{build.distribution_version}.tar.gz",
+    )
+    distribution["shared_supply"] = runtime_acceptance.prove_shared_supply(
+        Path(str(distribution["path"])), WORK, environment=package_environment
+    )
+    distribution.pop("path")
+    distribution.pop("homebrew_cask", None)
+    distribution["retained"] = False
+    require_artifact_current(selected, head=head, repo=ROOT)
+    if current_tracked_head(ROOT) != head:
+        session.error(f"local install smoke HEAD moved from {head}")
+    payload = package_acceptance_evidence(
+        root=ROOT,
+        head=head,
+        wheel=wheel,
+        origin=origin,
+        version=version,
+        line_endings=line_endings,
+        independent_host=independent_host,
+        command_plane=command_plane,
+        formation=formation,
+        brownfield=brownfield,
+        resources=resources,
+        runtime_lifecycle=lifecycle,
+        generated_at=datetime.now(UTC),
+    )
+    payload["distribution"] = distribution
+    payload["build_identity"] = build.projection()
+    return payload
+
+
 def run(
     session: nox.Session, *, artifact: PackageArtifact | None = None, evidence: Path | None = None
 ) -> None:
-    """Verify one exact wheel through the shared workload without publishing a release."""
+    """Verify one exact wheel and finalize owned work before restoring interruption."""
     head = current_tracked_head(ROOT)
     output = evidence if evidence is not None else EVIDENCE
     selected = artifact or selected_wheel(ROOT, head=head, artifacts=ARTIFACTS)
-    wheel = selected.path
     require_artifact_current(selected, head=head, repo=ROOT)
-    if WORK.exists():
-        remove_generated_tree(WORK)
-    output.unlink(missing_ok=True)
-    WORK.mkdir(parents=True)
-    try:
-        smoke, adopter = WORK / "venv", WORK / "adopter"
-        uv, source_python = RUNTIME.script("uv"), RUNTIME.python
-        _run(uv, "venv", "--offline", "--python", str(source_python), str(smoke))
-        requirements = prepare_locked_requirements(ROOT, WORK, source_python)
-        install_locked_runtime(
-            ROOT,
-            source_python,
-            _venv_executable(smoke, "python"),
-            wheel,
-            requirements,
-        )
-        adopter_fixture.materialize_adopter(
-            adopter,
-            openspec_config=ROOT / "openspec/config.yaml",
-            run=_run,
-        )
-        line_endings = adopter_fixture.line_ending_conformance(adopter, run=_run)
-        origin, version, command_plane = observe_installed_package(smoke, adopter)
-        installed_ethos = _venv_executable(smoke, "ethos")
-        independent_host = observe_independent_command_plane(installed_ethos, adopter)
-        _run(uv, "pip", "check", "--python", str(_venv_executable(smoke, "python")))
-        resources = _verify_resources(wheel)
-        build, wheel_sha256 = selected.build, selected.sha256
-        package_environment, _git = independent_host_environment()
-        package_environment["UV_OFFLINE"] = "1"
-        formation = adopter_fixture.prove_formation(
-            installed_ethos, WORK, origin=origin, environment=package_environment
-        )
-        brownfield = brownfield_acceptance.prove_brownfield(
-            installed_ethos, WORK, environment=package_environment, run=_run
-        )
-        lifecycle = observe_runtime_lifecycle(
-            installed_ethos=installed_ethos,
-            bootstrap_environment=smoke,
-            bootstrap_repository=WORK / "bootstrap-repository",
-            repository=adopter,
-            build=build,
-            wheel_sha256=wheel_sha256,
-            environment=package_environment,
-        )
-        runtime = current_runtime(Path(git_common_dir(adopter)), expected_build=build).root
-        distribution = package_runtime(
-            runtime,
-            wheel,
-            WORK / "native" / f"ethos-{build.distribution_version}.tar.gz",
-        )
-        distribution["shared_supply"] = runtime_acceptance.prove_shared_supply(
-            Path(str(distribution["path"])), WORK, environment=package_environment
-        )
-        distribution.pop("path")
-        distribution.pop("homebrew_cask", None)
-        distribution["retained"] = False
-        require_artifact_current(selected, head=head, repo=ROOT)
-        if current_tracked_head(ROOT) != head:
-            session.error(f"local install smoke HEAD moved from {head}")
-        payload = package_acceptance_evidence(
-            root=ROOT,
-            head=head,
-            wheel=wheel,
-            origin=origin,
-            version=version,
-            line_endings=line_endings,
-            independent_host=independent_host,
-            command_plane=command_plane,
-            formation=formation,
-            brownfield=brownfield,
-            resources=resources,
-            runtime_lifecycle=lifecycle,
-            generated_at=datetime.now(UTC),
-        )
-        payload["distribution"] = distribution
-        payload["build_identity"] = build.projection()
-        if artifact is not None:
-            payload["command"] = (
-                cast("str", payload["command"]) + f" -- --release --expect-head {head}"
-            )
-    finally:
-        remove_generated_tree(WORK)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    session.log(json.dumps(payload, indent=2, sort_keys=True))
+    terminal = output.with_suffix(".terminal.json")
+    with command_scope(handle_termination=True) as scope:
+        try:
+            try:
+                with defer_interruptions():
+                    if WORK.exists():
+                        remove_generated_tree(WORK)
+                    output.unlink(missing_ok=True)
+                    terminal.unlink(missing_ok=True)
+                    WORK.mkdir(parents=True)
+                payload = _observe_package(session, selected, head=head)
+                if artifact is not None:
+                    payload["command"] = (
+                        cast("str", payload["command"]) + f" -- --release --expect-head {head}"
+                    )
+            except BaseException:
+                with defer_interruptions():
+                    scope.cancel()
+                raise
+            finally:
+                with defer_interruptions():
+                    remove_generated_tree(WORK)
+            with defer_interruptions():
+                rendered = json.dumps(payload, indent=2, sort_keys=True)
+                session.log(rendered)
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_text(rendered + "\n", encoding="utf-8")
+        except BaseException as error:
+            with defer_interruptions():
+                output.unlink(missing_ok=True)
+                terminal.parent.mkdir(parents=True, exist_ok=True)
+                terminal.write_text(
+                    json.dumps(
+                        package_failure_evidence(
+                            head=head,
+                            wheel_sha256=selected.sha256,
+                            error=error,
+                            owned_work_absent=not os.path.lexists(WORK),
+                            acceptance_written=output.exists(),
+                            generated_at=datetime.now(UTC),
+                        ),
+                        indent=2,
+                        sort_keys=True,
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
+                raise

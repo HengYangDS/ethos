@@ -13,16 +13,22 @@ from contextlib import ExitStack
 from contextlib import contextmanager
 from contextlib import suppress
 from contextvars import ContextVar
+from functools import partial
 from pathlib import Path
 from tempfile import TemporaryFile
 from threading import Lock
+from threading import current_thread
+from threading import main_thread
 from time import monotonic
 from typing import TYPE_CHECKING
 from typing import Any
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from collections.abc import Iterator
     from collections.abc import Mapping
+    from types import FrameType
+    from types import TracebackType
 
 PROCESS_CREATION_FAILED = "process_creation_failed"
 NATIVE_WINDOWS_POWERSHELL_UNAVAILABLE = "native_windows_powershell_unavailable"
@@ -70,8 +76,10 @@ class CommandScope:
         self._processes: set[subprocess.Popen[Any]] = set()
         self._cancelled = False
 
-    def start(self, command: tuple[str, ...], **kwargs: Any) -> subprocess.Popen[Any]:
-        """Fence creation against cancellation, retaining the actual process handle."""
+    def start(
+        self, command: tuple[str, ...], *, resources: ExitStack, **kwargs: Any
+    ) -> subprocess.Popen[Any]:
+        """Bind caller cleanup before a created child can leave its owning scope."""
         with self._lock:
             if self._cancelled:
                 message = "process_cancelled"
@@ -81,9 +89,38 @@ class CommandScope:
                     command=command,
                     cwd=str(kwargs.get("cwd", "")),
                 )
-            process = subprocess.Popen(command, **kwargs)
-            self._processes.add(process)
-            return process
+            process: subprocess.Popen[Any] | None = None
+            try:
+                with defer_interruptions():
+                    process = subprocess.Popen(command, **kwargs)
+                    self._processes.add(process)
+                    resources.push(partial(self.release, process))
+            except BaseException:
+                if process is not None:
+                    with defer_interruptions():
+                        _terminate_command(process)
+                        process.__exit__(None, None, None)
+                        self._processes.discard(process)
+                raise
+        return process
+
+    def release(
+        self,
+        process: subprocess.Popen[Any],
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        _traceback: TracebackType | None,
+    ) -> None:
+        """Finish the registered native lifetime even when handle handoff is interrupted."""
+        with defer_interruptions():
+            if exc_type is not None or process.returncode is None:
+                self.terminate(process)
+            try:
+                if os.name == "nt" and isinstance(exc, subprocess.TimeoutExpired):
+                    exc.stdout, exc.stderr = process.communicate()
+                process.__exit__(None, None, None)
+            finally:
+                self.discard(process)
 
     def discard(self, process: subprocess.Popen[Any]) -> None:
         """Release a completed command without retaining historical process IDs."""
@@ -118,8 +155,38 @@ _COMMAND_DEADLINE: ContextVar[float | None] = ContextVar("command_deadline", def
 
 
 @contextmanager
-def command_scope(*, timeout_seconds: float | None = None) -> Iterator[CommandScope]:
-    """Propagate caller interruption through one transient native command owner."""
+def defer_interruptions() -> Iterator[None]:
+    """Finish one critical effect before replaying an already-owned signal."""
+    if current_thread() is not main_thread():
+        yield
+        return
+    pending: tuple[int, FrameType | None] | None = None
+    handlers: dict[int, Callable[[int, FrameType | None], object]] = {}
+
+    def postpone(signum: int, frame: FrameType | None) -> None:
+        nonlocal pending
+        pending = signum, frame
+
+    with ExitStack() as restoration:
+        for signum in (signal.SIGINT, signal.SIGTERM):
+            handler = signal.getsignal(signum)
+            if callable(handler):
+                handlers[signum] = handler
+                restoration.callback(signal.signal, signum, handler)
+                signal.signal(signum, postpone)
+        yield
+    if pending is not None:
+        handlers[pending[0]](*pending)
+
+
+@contextmanager
+def command_scope(
+    *, timeout_seconds: float | None = None, handle_termination: bool = False
+) -> Iterator[CommandScope]:
+    """Propagate interruption, optionally owning SIGTERM on the caller's main thread."""
+    if handle_termination and current_thread() is not main_thread():
+        message = "command_scope_signal_requires_main_thread"
+        raise ValueError(message)
     scope = _COMMAND_SCOPE.get() or CommandScope()
     token = _COMMAND_SCOPE.set(scope)
     deadline = _COMMAND_DEADLINE.get()
@@ -127,11 +194,22 @@ def command_scope(*, timeout_seconds: float | None = None) -> Iterator[CommandSc
         proposed = monotonic() + timeout_seconds
         deadline = min(deadline, proposed) if deadline is not None else proposed
     deadline_token = _COMMAND_DEADLINE.set(deadline)
+
+    def interrupt(_signum: int, _frame: FrameType | None) -> None:
+        raise KeyboardInterrupt
+
     try:
-        yield scope
-    except BaseException:
-        scope.cancel()
-        raise
+        with ExitStack() as restoration:
+            if handle_termination:
+                handler = signal.getsignal(signal.SIGTERM)
+                restoration.callback(signal.signal, signal.SIGTERM, handler)
+                signal.signal(signal.SIGTERM, interrupt)
+            try:
+                yield scope
+            except BaseException:
+                with defer_interruptions():
+                    scope.cancel()
+                raise
     finally:
         _COMMAND_DEADLINE.reset(deadline_token)
         _COMMAND_SCOPE.reset(token)
@@ -337,6 +415,7 @@ def _execute_command(
         try:
             process = scope.start(
                 command,
+                resources=resources,
                 stdin=finite_input if finite_input is not None else subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -351,22 +430,11 @@ def _execute_command(
                 cwd=kwargs["cwd"].as_posix(),
                 cause=f"{error.__class__.__name__}: {error}",
             ) from error
-        with process:
-            try:
-                stdout, stderr = process.communicate(timeout=timeout)
-            except BaseException as error:
-                scope.terminate(process)
-                if os.name == "nt" and isinstance(error, subprocess.TimeoutExpired):
-                    error.stdout, error.stderr = process.communicate()
-                process.wait()
-                raise
-            finally:
-                if process.returncode is not None:
-                    scope.discard(process)
-            result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
-            if check:
-                result.check_returncode()
-            return result
+        stdout, stderr = process.communicate(timeout=timeout)
+        result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+        if check:
+            result.check_returncode()
+        return result
 
 
 def _terminate_command(process: subprocess.Popen[Any]) -> None:

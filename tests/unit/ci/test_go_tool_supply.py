@@ -56,7 +56,11 @@ def test_declared_go_enters_native_quality_path_only_after_locked_supply(
             stderr="missing" if missing else "",
         )
 
+    node = tmp_path / "node-supply/bin"
     monkeypatch.setattr(native, "prepare_mise", lambda _root: mise)
+    monkeypatch.setattr(
+        native, "prepare", lambda _root, tool, **_kwargs: node if tool == "node" else None
+    )
     monkeypatch.setattr(native, "run_mise", locked_mise)
     monkeypatch.setattr(sys, "argv", ["native", "--root", str(tmp_path), "--mise"])
 
@@ -67,7 +71,7 @@ def test_declared_go_enters_native_quality_path_only_after_locked_supply(
     else:
         assert any(command[:2] == ("install", "--locked") and "go" in command for command in calls)
     if fault in {"none", "offline-ready"}:
-        assert captured.out.strip().split(os.pathsep) == [str(binary), str(tmp_path)]
+        assert captured.out.strip().split(os.pathsep) == [str(node), str(binary), str(tmp_path)]
     else:
         assert captured.out == ""
         assert "native_tool_supply_failed" in captured.err

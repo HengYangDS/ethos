@@ -15,6 +15,7 @@ from unittest.mock import call
 
 import pytest
 
+import tools.ci.dependency_audit as dependency_audit
 import tools.ci.local_ci as local_ci
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import git_common_dir
@@ -77,13 +78,18 @@ def test_install_smoke_invokes_one_acceptance_transaction(monkeypatch, tmp_path,
     )
     artifact = object()
     accept = Mock()
+    audit = Mock()
     prepare = Mock(return_value=artifact)
+    monkeypatch.setattr(dependency_audit, "run", audit)
     monkeypatch.setattr(pipeline.acceptance_effect, "run", accept)
     monkeypatch.setattr(pipeline, "prepare_release_candidate", prepare)
     monkeypatch.setattr(sessions, "RUNTIME", ProjectRuntime.discover(tmp_path))
     monkeypatch.setattr(ProjectRuntime, "node_package_supply", lambda _: tmp_path / "node_modules")
     sessions.install_smoke(session)
     if release_head:
+        audit.assert_called_once_with(
+            session, root=sessions.RUNTIME.root, scope="production-release"
+        )
         prepare.assert_called_once_with(tmp_path, release_head)
         accept.assert_called_once_with(
             session,
@@ -91,6 +97,7 @@ def test_install_smoke_invokes_one_acceptance_transaction(monkeypatch, tmp_path,
             evidence=tmp_path / "build/evidence/local-install/release-smoke.json",
         )
     else:
+        audit.assert_not_called()
         prepare.assert_not_called()
         accept.assert_called_once_with(session)
 

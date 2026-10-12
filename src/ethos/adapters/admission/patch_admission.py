@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.openspec.lifecycle.root_repair import supporting_file_relocation
 from ethos.adapters.projections.compiler import render_projections
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
@@ -69,6 +70,7 @@ def patch_admission(
     outputs: list[str] = []
     profile = ProfilePostimage(gap="", profile_id="", metadata_repair=False)
     observation: ProductReferences | None = None
+    root_repair: dict[str, object] = {}
     if not reason:
         try:
             baseline_files = _baseline_reference_files(root, baseline_head)
@@ -80,6 +82,7 @@ def patch_admission(
                 effects,
                 outputs,
                 profile,
+                root_repair,
             ) = _patch_references(
                 root,
                 patch,
@@ -92,12 +95,17 @@ def patch_admission(
         except (OSError, UnicodeError, ValueError):
             reason = "prewrite_patch_postimage_failed"
     if not reason:
-        gaps = product_reference_gaps(baseline_references, references)
+        gaps = product_reference_gaps(baseline_references, {} if root_repair else references)
         reason = gaps[0] if gaps else ""
+    success_reason = (
+        "native_reference_relocation_preserved"
+        if root_repair
+        else "baseline_product_closure_matched"
+    )
     return {
         "verdict": "block" if reason else "unknown" if unknown else "pass",
         "state": "blocked" if reason else "unknown" if unknown else "admitted",
-        "reason": reason or (unknown[0] if unknown else "baseline_product_closure_matched"),
+        "reason": reason or (unknown[0] if unknown else success_reason),
         "effects": effects,
         "origin_outputs": outputs,
         "unknown_inputs": unknown,
@@ -113,6 +121,7 @@ def patch_admission(
         "references": {key: sorted(value) for key, value in references.items() if value},
         **({"profile_postimage_id": profile.profile_id} if profile.profile_id else {}),
         **({"profile_metadata_repair": True} if profile.metadata_repair else {}),
+        **({"openspec_root_repair": root_repair} if root_repair else {}),
     }
 
 
@@ -419,7 +428,15 @@ def _patch_references(
     *,
     context_files: dict[str, str],
     declared_commands: tuple[str, ...] | frozenset[str] = (),
-) -> tuple[ProductReferences, list[str], list[str], dict[str, str], list[str], ProfilePostimage]:
+) -> tuple[
+    ProductReferences,
+    list[str],
+    list[str],
+    dict[str, str],
+    list[str],
+    ProfilePostimage,
+    dict[str, object],
+]:
     with tempfile.TemporaryDirectory(prefix="ethos-prewrite-postimage-") as temporary:
         workspace = Path(temporary)
         for change in changes:
@@ -480,14 +497,8 @@ def _patch_references(
             else "modify"
             for change in changes
         }
-        return (
-            observation,
-            gaps,
-            unknown,
-            effects,
-            outputs,
-            profile,
-        )
+        root_repair = supporting_file_relocation(root, postimages, postimage_root=workspace)
+        return observation, gaps, unknown, effects, outputs, profile, root_repair
 
 
 def _source_effect_gaps(

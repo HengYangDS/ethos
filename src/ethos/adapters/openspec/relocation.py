@@ -20,6 +20,35 @@ if TYPE_CHECKING:
 type TreeEntries = dict[str, tuple[str, str, str]]
 
 
+def relocate_documents(
+    root: Path,
+    *,
+    documents: Mapping[str, str],
+    files: Mapping[str, str],
+    postimage_files: Mapping[str, str],
+    moves: Mapping[str, str],
+    reference_targets: tuple[str, ...] = (),
+) -> dict[str, str]:
+    """Derive exact Markdown destination changes through the existing native parser."""
+    expected: set[str | None] = {moves.get(path, path) for path in documents}
+    payload = _observe(
+        root,
+        {
+            "documents": [
+                {"before": path, "after": moves.get(path, path), "content": text}
+                for path, text in documents.items()
+            ],
+            "canonical": [],
+            "files": dict(files),
+            "postimage_files": dict(postimage_files),
+            "moves": list(moves.items()),
+            **({"reference_targets": list(reference_targets)} if reference_targets else {}),
+        },
+    )
+    rows = _result_rows(payload, "documents", expected, complete=True)
+    return {row["path"]: row["content"] for row in rows}
+
+
 def archive_relocation(
     root: Path,
     *,

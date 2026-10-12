@@ -16,6 +16,7 @@ from ethos.adapters.admission.patch_admission import projection_preimages
 from ethos.adapters.admission.patch_admission import revalidate_staged_admission
 from ethos.adapters.admission.patch_admission import staged_artifact_admission
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
+from ethos.adapters.openspec.lifecycle.root_repair import supporting_relocation_scope
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
@@ -231,6 +232,16 @@ def _prewrite_material_scope(
     if patch_report.get("profile_metadata_repair") is True and resolution.required_gaps:
         scope = profile_repair_scope(
             root, role=effective["role"], requested_paths=requested, report=patch_report
+        )
+    if resolution.required_gaps and patch_report.get("openspec_root_repair"):
+        scope = (
+            supporting_relocation_scope(
+                role=effective["role"],
+                requested_paths=requested,
+                repair=patch_report["openspec_root_repair"],
+                official=resolution.openspec,
+            )
+            or scope
         )
     return scope, resolution.openspec, False
 

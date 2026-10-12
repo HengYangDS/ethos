@@ -1,5 +1,29 @@
 ## ADDED Requirements
 
+### Requirement: Exact supporting template relocation restores native write admission
+
+ETHOS SHALL admit one exact supporting-template relocation from the canonical
+spec root to a distinct template in the current repository-local native schema.
+The admitted patch SHALL preserve the original authored content, all concrete
+reference destinations, the selected complete Change and all other obligations.
+
+#### Scenario: A supporting template blocks its own corrective move
+
+- **WHEN** the current native root audit rejects that regular Markdown member
+  and the owned Work Lane supplies its exact relocation patch
+- **THEN** prewrite admits only the template move and parser-derived link changes
+- **AND** ordinary writes, proof and remaining strict validation stay blocked
+- **AND** the official delta template is not overwritten or relabeled as metadata
+
+#### Scenario: Unbound source or incomplete consumers cannot gain repair scope
+
+- **WHEN** the patch changes authored meaning, omits a concrete consumer, targets
+  another owner or carries unrelated work
+- **THEN** it does not acquire supporting-relocation admission
+- **AND** missing official observations, stale configuration, another Change or
+  unrelated governance gaps preserve the blocking decision
+- **AND** historical code mentions and unrelated references remain unchanged
+
 ### Requirement: Adoption rejects invalid existing intent configuration before binding
 
 Adoption SHALL consume the existing official OpenSpec configuration audit before

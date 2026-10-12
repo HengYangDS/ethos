@@ -369,18 +369,25 @@ def _active_change_validation_repair_context_valid(
     )
 
 
-def _canonical_spec_repair_context_valid(official: dict[str, object], *, change: str) -> bool:
+def canonical_repair_context_valid(
+    official: dict[str, object], *, change: str, exact_repair_gaps: tuple[str, ...] = ()
+) -> bool:
     """Require one valid selected Change and no non-repair governance gap."""
     gaps = string_sequence(official.get("required_gaps"))
-    if not gaps or any(
-        not gap.startswith(
-            (
-                "openspec_validation_failed:spec:",
-                "openspec_validation_failed:change:",
-                "openspec_validation_issue:INFO:spec:",
+    if (
+        not _official_observation_available(official)
+        or not gaps
+        or any(
+            gap not in exact_repair_gaps
+            and not gap.startswith(
+                (
+                    "openspec_validation_failed:spec:",
+                    "openspec_validation_failed:change:",
+                    "openspec_validation_issue:INFO:spec:",
+                )
             )
+            for gap in gaps
         )
-        for gap in gaps
     ):
         return False
     projected = official.get("commitment")
@@ -430,7 +437,7 @@ def canonical_active_repair_paths(
     root: Path, official: dict[str, object], *, change: str
 ) -> tuple[str, ...]:
     """Expose only validated active-Change repairs to prewrite and status."""
-    if not _canonical_spec_repair_context_valid(official, change=change):
+    if not canonical_repair_context_valid(official, change=change):
         return ()
     canonical = canonical_spec_repair_paths(root, official)
     inherited = inherited_validation_repair_paths(root, official, change=change)

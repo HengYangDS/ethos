@@ -426,7 +426,7 @@ def locked_go_bin(root: Path, mise: Path, version: str) -> Path:
         )
         raise ValueError(msg)
     go = Path(selected.stdout.strip())
-    gofmt = go.with_name("gofmt")
+    gofmt = go.with_name(f"gofmt{go.suffix}")
     if not (
         go.is_absolute()
         and go.is_file()

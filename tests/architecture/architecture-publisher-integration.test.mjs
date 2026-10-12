@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -178,7 +178,7 @@ test("the runtime identity closes over only the explicitly installed package", a
   for (const member of first) {
     assert.equal(isAbsolute(member.path), false);
     assert.equal(member.path === "package.json" || member.path.startsWith("src/"), true);
-    assert.equal(member.file.startsWith(`${resolve(INTEGRATION)}/`), true);
+    assert.equal(member.file.startsWith(`${resolve(INTEGRATION)}${sep}`), true);
     assert.match(member.sha256, /^[0-9a-f]{64}$/);
     assert.equal(Number.isSafeInteger(member.bytes) && member.bytes >= 0, true);
   }

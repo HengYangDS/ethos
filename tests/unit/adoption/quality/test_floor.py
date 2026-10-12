@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 import sys
+import tomllib
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 
 import pytest
+import tomli_w
 
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
@@ -333,6 +335,18 @@ def test_frozen_transition_plan_policy_preserves_quality_subject_match() -> None
     )
 
 
+def _declare_unlocked_dependency(project: Path, dependency: str) -> None:
+    """Construct actual dependency drift without relying on serialized formatting."""
+    preimage = project.read_bytes()
+    declaration = tomllib.loads(preimage.decode("utf-8"))
+    dependencies = declaration["dependency-groups"]["dev"]
+    assert dependency not in dependencies
+    dependencies.append(dependency)
+    project.write_text(tomli_w.dumps(declaration), encoding="utf-8")
+    assert project.read_bytes() != preimage
+    assert tomllib.loads(project.read_text())["dependency-groups"]["dev"] == dependencies
+
+
 @pytest.mark.parametrize(
     "defect",
     [
@@ -421,13 +435,7 @@ def test_real_locked_python_checks_qualify_the_selected_source(
     if defect != "missing-lock":
         (repo / "uv.lock").write_bytes((fixture / "uv.lock").read_bytes())
     if defect == "lock-drift":
-        project = repo / "pyproject.toml"
-        project.write_text(
-            project.read_text(encoding="utf-8").replace(
-                '"pytest-cov>=7.1.0"]', '"pytest-cov>=7.1.0", "pytest-timeout>=2.4.0"]'
-            ),
-            encoding="utf-8",
-        )
+        _declare_unlocked_dependency(repo / "pyproject.toml", "pytest-timeout")
     head = commit_fixture(repo, "bind real native quality")
     if defect == "plugin-disabled":
         monkeypatch.setenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
@@ -435,6 +443,8 @@ def test_real_locked_python_checks_qualify_the_selected_source(
     result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
 
+    if defect != "missing-lock":
+        assert (repo / "uv.lock").read_bytes() == (fixture / "uv.lock").read_bytes()
     if defect in {"none", "strict-config", "plugin-disabled"}:
         assert result.returncode == 0, payload["required_gaps"]
         assert payload["verdict"] == "pass"

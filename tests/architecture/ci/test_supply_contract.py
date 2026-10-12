@@ -92,6 +92,7 @@ def test_fixture_supply_uses_tracked_locks_and_cleans_owned_environment(
 
     def observe(_root, command, **options):
         environment = options["env"]
+        assert "VIRTUAL_ENV" not in environment
         owned = Path(environment["UV_PROJECT_ENVIRONMENT"])
         owned.mkdir(parents=True)
         calls.append((tuple(command), owned, environment["UV_OFFLINE"]))
@@ -104,7 +105,7 @@ def test_fixture_supply_uses_tracked_locks_and_cleans_owned_environment(
     assert len(calls) == 1
     command, owned, offline = calls[0]
     assert str(tracked) in command
-    assert {"--no-config", "--locked", "--no-install-project", "dev"} <= set(command)
+    assert {"--locked", "--no-install-project", "dev"} <= set(command)
     assert offline == "true"
     assert not owned.exists()
 

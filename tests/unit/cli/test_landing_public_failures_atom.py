@@ -45,11 +45,15 @@ def _candidate_transition(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tu
     monkeypatch.setattr(
         landing,
         "proof_attestation",
-        lambda *_args: SimpleNamespace(
-            commitment_digest="digest",
-            model_dump=lambda **_kwargs: {"id": "proof"},
+        lambda *_args, **_kwargs: (
+            SimpleNamespace(
+                commitment_digest="digest",
+                model_dump=lambda **_kwargs: {"id": "proof"},
+            ),
+            [],
         ),
     )
+    monkeypatch.setattr(landing, "proof_artifact_root", lambda _root: tmp_path / "proof-store")
     monkeypatch.setattr(landing, "predecessor_policy_gaps", lambda *_args: [])
     monkeypatch.setattr(
         landing,
@@ -66,7 +70,9 @@ def _candidate_transition(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tu
     monkeypatch.setattr(
         landing,
         "evaluate_mutation",
-        lambda **_kwargs: SimpleNamespace(verdict="pass", required_gaps=()),
+        lambda **_kwargs: SimpleNamespace(
+            verdict="pass", required_gaps=(), subject=SimpleNamespace(expected_state={})
+        ),
     )
     return candidate, plan
 
@@ -127,11 +133,8 @@ def test_candidate_transition_readiness_requires_proof(
 ) -> None:
     _candidate_transition(tmp_path, monkeypatch)
     monkeypatch.setattr(landing, "run_git", lambda *_args, **_kwargs: _git(HEAD))
-    monkeypatch.setattr(landing, "proof_attestation", lambda *_args: None)
     monkeypatch.setattr(
-        landing,
-        "proof_gaps",
-        lambda *_args: ["proof_not_proven"],
+        landing, "proof_attestation", lambda *_args, **_kwargs: (None, ["proof_not_proven"])
     )
 
     report = landing.candidate_transition_readiness(root=tmp_path)

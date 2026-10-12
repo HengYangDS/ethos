@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import re
 import stat
 import subprocess
@@ -136,7 +137,7 @@ def _reference_paths(references: str) -> frozenset[Path]:
 
 
 def _native_path_prefixes(anchor: Path, tail: str) -> set[Path]:
-    """Stop a possible path at its first absent directory, not arbitrary punctuation."""
+    """Preserve every real prefix, ignoring suffixes the native filesystem rejects."""
     paths: set[Path] = set()
     current = anchor
     while tail:
@@ -144,15 +145,25 @@ def _native_path_prefixes(anchor: Path, tail: str) -> set[Path]:
         for end in re.finditer(r"[\s'\";|&)]|$", component):
             part = component[: end.start()]
             candidate = current / part
-            if part and (candidate.exists() or candidate.is_symlink()):
+            if part and _native_path_exists(candidate):
                 paths.add(candidate.resolve(strict=True))
         full = current / component
-        if not separator or not full.is_dir():
+        if not separator or not _native_path_exists(full, directory=True):
             break
         current = full.resolve(strict=True)
         paths.add(current)
         tail = rest
     return paths
+
+
+def _native_path_exists(path: Path, *, directory: bool = False) -> bool:
+    """Reject invalid command suffixes without hiding unobserved filesystem errors."""
+    try:
+        return path.is_dir() if directory else path.exists() or path.is_symlink()
+    except OSError as failure:
+        if failure.errno in {errno.ENAMETOOLONG, errno.EINVAL}:
+            return False
+        raise
 
 
 def _require_identity(path: Path, expected: tuple[int, int, int, int]) -> None:

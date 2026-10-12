@@ -13,6 +13,8 @@ from zipfile import ZipFile
 
 import pytest
 
+import ethos.domain.quality.nox as custody
+import ethos.domain.quality.observer as native_observer
 from ethos.adapters.gates.native.attempt import native_attempt
 from ethos.adapters.gates.native.attempt import retained_execution
 from ethos.adapters.gates.verification import NativeExecution
@@ -20,8 +22,6 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.contracts.evidence.observer import ObserverIdentity
 from ethos.contracts.gates import Gate
-from ethos.domain.quality import nox as custody
-from ethos.domain.quality import observer as native_observer
 from ethos.repository.policy.gates import gate_execution_identity
 from tests.support.governed_repository import committed_source_repo
 from tests.support.runtime_scenarios import install_fixture_hook_runtime

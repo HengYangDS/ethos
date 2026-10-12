@@ -350,6 +350,8 @@ def completed_product_work(tmp_path, monkeypatch):
     return repo, candidate, work
 
 
+# One case drives the complete native integration journey; each operation keeps its own deadline.
+@pytest.mark.timeout(240)
 def test_process_intent_carries_product_work_through_native_integration(
     completed_product_work, monkeypatch
 ):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import posixpath
 import sys
 from collections import defaultdict
@@ -9,30 +10,25 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Literal
 
-import ethos.repository.policy.references.commands.invocation as command_references
-import ethos.repository.policy.references.commands.vocabulary as command_declarations
+import yaml
+
+import ethos.repository.policy.references.commands as command_references
 import ethos.repository.policy.references.markdown as markdown_observation
-import ethos.repository.policy.references.python.syntax as python_references
+import ethos.repository.policy.references.python_syntax as python_references
 from ethos.repository.policy.boundary.product import product_surface_files
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import reference_carrier
 from ethos.repository.policy.references.carriers import reference_paths
-from ethos.repository.policy.references.commands.vocabulary import normalize_command
-from ethos.repository.policy.references.configuration import yaml_references
-from ethos.repository.policy.references.manifests import NodeManifest
+from ethos.repository.policy.references.commands import normalize_command
 from ethos.repository.policy.references.manifests import npm_script_commands
 from ethos.repository.policy.references.manifests import package_json_references
 from ethos.repository.policy.references.manifests import pyproject_references
-from ethos.repository.policy.references.python.flow import PythonReferenceFlow
-from ethos.repository.policy.references.python.functions.returns import PythonSourceReturns
 
 if TYPE_CHECKING:
     from ast import AST
     from collections.abc import Iterable
     from collections.abc import Mapping
     from pathlib import Path
-
-    from ethos.repository.policy.references.python.bindings import ReferenceUncertainty
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,27 +41,10 @@ class RepositoryReferenceObservation:
 
 @dataclass(frozen=True, slots=True)
 class ReferenceConsumption:
-    """Current consumer relation, carrier failures and bounded semantic residuals."""
+    """Current consumer relation plus carriers whose syntax was not observable."""
 
     sources: dict[str, dict[str, frozenset[str]]]
     unknown_paths: tuple[str, ...]
-    uncertainties: tuple[ReferenceUncertainty, ...] = ()
-
-
-@dataclass(frozen=True, slots=True)
-class ProductReferences:
-    """Observed identities never discard unsupported carrier or consumer semantics."""
-
-    references: dict[str, set[str]]
-    unknown_paths: tuple[str, ...] = ()
-    uncertainties: tuple[ReferenceUncertainty, ...] = ()
-
-    @property
-    def coverage(self) -> Literal["evaluated", "partial", "unknown"]:
-        """Never equate successful parsing with closed reference semantics."""
-        if self.unknown_paths or any(item.state == "unknown" for item in self.uncertainties):
-            return "unknown"
-        return "partial" if self.uncertainties else "evaluated"
 
 
 def observe_repository_references(root: Path) -> RepositoryReferenceObservation:
@@ -84,6 +63,19 @@ def observe_repository_references(root: Path) -> RepositoryReferenceObservation:
     )
 
 
+@dataclass(frozen=True, slots=True)
+class ProductReferences:
+    """Observed native identities and unreadable carriers, not call-time proof."""
+
+    references: dict[str, set[str]]
+    unknown_paths: tuple[str, ...] = ()
+
+    @property
+    def coverage(self) -> Literal["evaluated", "unknown"]:
+        """Describe native carrier coverage without claiming semantic correctness."""
+        return "unknown" if self.unknown_paths else "evaluated"
+
+
 def product_references_from_files(
     files: dict[str, str],
     *,
@@ -91,7 +83,7 @@ def product_references_from_files(
     declared_commands: Iterable[str] = (),
     include_declarations: bool = True,
 ) -> ProductReferences:
-    """Observe typed references from complete files."""
+    """Observe native references and keep malformed consumed carriers explicit."""
     declared_commands = tuple(declared_commands)
     command_sources = dict(context_files or {})
     command_sources.update(files)
@@ -102,19 +94,9 @@ def product_references_from_files(
     for path, text in command_sources.items():
         for tree in python_references.python_trees(text):
             known_commands.update(python_references.cyclopts_command_owners(path, tree, prefixes))
-    command_vocabulary = command_declarations.CommandVocabulary.compile(known_commands)
+    command_vocabulary = command_references.CommandVocabulary.compile(known_commands)
     npm_scripts = npm_script_commands(command_sources)
-    sources = PythonSourceReturns(
-        command_sources,
-        {
-            path: python_references.complete_python_tree(text)
-            for path, text in command_sources.items()
-            if reference_carrier(path).name == "python"
-        },
-        PythonReferenceFlow,
-    )
     observed = {kind: set() for kind in REFERENCE_KINDS}
-    uncertainties: list[ReferenceUncertainty] = []
     unknown_paths: list[str] = []
     for path, text in files.items():
         parsed = _file_references(
@@ -126,13 +108,11 @@ def product_references_from_files(
             observed,
             include_declarations=include_declarations,
             require_complete=True,
-            uncertainties=uncertainties,
-            sources=sources,
         )
         if not parsed:
             unknown_paths.append(path)
     observed["import"].difference_update(sys.stdlib_module_names)
-    return ProductReferences(observed, tuple(sorted(unknown_paths)), tuple(uncertainties))
+    return ProductReferences(observed, tuple(sorted(unknown_paths)))
 
 
 def reference_consumer_sources_from_files(
@@ -145,22 +125,10 @@ def reference_consumer_sources_from_files(
     known_commands = {
         normalize_command(command) for command in declared_commands if command.strip()
     }
-    command_vocabulary = command_declarations.CommandVocabulary.compile(known_commands)
+    command_vocabulary = command_references.CommandVocabulary.compile(known_commands)
     npm_scripts = npm_script_commands(files)
-    sources = PythonSourceReturns(
-        files,
-        parsed_files
-        if parsed_files is not None
-        else {
-            path: python_references.complete_python_tree(text)
-            for path, text in files.items()
-            if reference_carrier(path).name == "python"
-        },
-        PythonReferenceFlow,
-    )
     consumers = {kind: defaultdict(set) for kind in REFERENCE_KINDS}
     unknown_paths: list[str] = []
-    uncertainties: list[ReferenceUncertainty] = []
     for path, text in files.items():
         observed = {kind: set() for kind in REFERENCE_KINDS}
         parsed = _file_references(
@@ -173,8 +141,6 @@ def reference_consumer_sources_from_files(
             include_declarations=False,
             require_complete=True,
             parsed_files=parsed_files,
-            uncertainties=uncertainties,
-            sources=sources,
         )
         if not parsed:
             unknown_paths.append(path)
@@ -191,7 +157,6 @@ def reference_consumer_sources_from_files(
             for kind in REFERENCE_KINDS
         },
         unknown_paths=tuple(sorted(unknown_paths)),
-        uncertainties=tuple(uncertainties),
     )
 
 
@@ -199,15 +164,13 @@ def _file_references(
     path: str,
     text: str,
     prefixes: dict[tuple[str, str], str],
-    known_commands: command_declarations.CommandVocabulary,
+    known_commands: command_references.CommandVocabulary,
     npm_scripts: dict[str, set[str]],
     observed: dict[str, set[str]],
     *,
     include_declarations: bool,
     require_complete: bool = False,
     parsed_files: Mapping[str, AST | None] | None = None,
-    uncertainties: list[ReferenceUncertainty] | None = None,
-    sources: PythonSourceReturns | None = None,
 ) -> bool:
     carrier = reference_carrier(path).name
     if carrier == "python":
@@ -220,8 +183,6 @@ def _file_references(
             include_declarations=include_declarations,
             require_complete=require_complete,
             parsed_files=parsed_files,
-            uncertainties=uncertainties,
-            sources=sources,
         )
     if carrier == "pyproject":
         return pyproject_references(text, observed, declarations=include_declarations)
@@ -256,8 +217,6 @@ def _python_carrier_references(
     include_declarations: bool,
     require_complete: bool,
     parsed_files: Mapping[str, AST | None] | None,
-    uncertainties: list[ReferenceUncertainty] | None,
-    sources: PythonSourceReturns | None,
 ) -> bool:
     tree = (
         parsed_files.get(path)
@@ -268,7 +227,7 @@ def _python_carrier_references(
     )
     if require_complete and tree is None:
         return False
-    return _python_file_references(
+    _python_file_references(
         path,
         text,
         prefixes,
@@ -276,9 +235,8 @@ def _python_carrier_references(
         observed,
         include_declarations=include_declarations,
         trees=(tree,) if tree is not None else None,
-        uncertainties=uncertainties,
-        sources=sources,
     )
+    return True
 
 
 def _text_carrier_references(
@@ -286,12 +244,12 @@ def _text_carrier_references(
     carrier: str,
     path: str,
     text: str,
-    known_commands: command_declarations.CommandVocabulary,
+    known_commands: command_references.CommandVocabulary,
     npm_scripts: dict[str, set[str]],
     observed: dict[str, set[str]],
 ) -> bool:
     if carrier == "yaml":
-        return yaml_references(path, text, npm_scripts, observed)
+        return _yaml_references(path, text, npm_scripts, observed)
     if carrier == "shell":
         observed["executable"].update(
             command_references.shell_executables(
@@ -305,7 +263,7 @@ def _text_carrier_references(
             known_commands,
             npm_scripts,
             observed,
-            yaml_references=yaml_references,
+            yaml_references=_yaml_references,
         )
     return True
 
@@ -319,32 +277,74 @@ def _python_file_references(
     *,
     include_declarations: bool,
     trees: tuple[AST, ...] | None = None,
-    uncertainties: list[ReferenceUncertainty] | None = None,
-    sources: PythonSourceReturns | None = None,
-) -> bool:
+) -> None:
     for tree in trees or python_references.python_trees(text):
-        try:
-            consumption = PythonReferenceFlow(path, npm_scripts, sources=sources).observe(
-                tree, source=text
-            )
-        except (SyntaxError, ValueError):
-            return False
-        observed["import"].update(consumption.imports)
-        if uncertainties is not None:
-            uncertainties.extend(
-                item
-                for item in consumption.uncertainties
-                if not path.startswith("tests/") or item.kind == "import"
-            )
+        imports, executables, inputs = python_references.python_references(tree, npm_scripts)
+        observed["import"].update(imports)
         if path.startswith("tests/"):
             continue
-        observed["executable"].update(consumption.executables)
-        observed["value"].update(consumption.inputs)
+        observed["executable"].update(executables)
+        observed["value"].update(inputs)
         if include_declarations:
             observed["command"].update(
                 python_references.cyclopts_command_owners(path, tree, prefixes)
             )
+
+
+def _yaml_references(
+    path: str,
+    text: str,
+    npm_scripts: dict[str, set[str]],
+    observed: dict[str, set[str]],
+) -> bool:
+    if path.startswith(".github/"):
+        observed["reference"].add("github")
+    elif path == ".gitlab-ci.yml" or path.startswith(".gitlab/"):
+        observed["reference"].add("gitlab")
+    try:
+        stack = [yaml.safe_load(text)]
+    except yaml.YAMLError:
+        return False
+    while stack:
+        value = stack.pop()
+        if isinstance(value, list):
+            stack.extend(value)
+        elif isinstance(value, dict):
+            stack.extend(value.values())
+            for key, item in value.items():
+                _configuration_reference(str(key), item, npm_scripts, observed)
     return True
+
+
+def _configuration_reference(
+    key: str,
+    item: object,
+    npm_scripts: dict[str, set[str]],
+    observed: dict[str, set[str]],
+) -> None:
+    if key == "uses" and isinstance(item, str):
+        if reference := _github_reference(item):
+            observed["reference"].add(reference)
+    elif key in {"run", "script"}:
+        commands = item if isinstance(item, list) else [item]
+        for command in commands:
+            if isinstance(command, str):
+                observed["executable"].update(
+                    command_references.shell_executables(
+                        command, npm_scripts, module_imports=observed["import"]
+                    )
+                )
+    elif key == "image" and isinstance(item, str) and item:
+        observed["reference"].add("docker")
+
+
+def _github_reference(value: str) -> str:
+    action = value.strip().strip("'\"")
+    if not action or action.startswith("./"):
+        return ""
+    if action.startswith("docker://"):
+        return "docker"
+    return "github" if "@" in action and "/" in action.partition("@")[0] else ""
 
 
 def deleted_input_gaps(
@@ -381,5 +381,9 @@ def deleted_input_gaps(
 
 def _native_scripts(text: str) -> dict[str, object] | None:
     """Read the native scripts map without silently accepting malformed structure."""
-    manifest = NodeManifest.read(text)
-    return dict(manifest.scripts) if manifest is not None else None
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        return None
+    scripts = payload.get("scripts", {}) if isinstance(payload, dict) else None
+    return scripts if isinstance(scripts, dict) else None

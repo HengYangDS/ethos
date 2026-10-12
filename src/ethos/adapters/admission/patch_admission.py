@@ -50,7 +50,6 @@ def patch_admission(
             "paths": [],
             "references": {},
             "reference_coverage": "not_evaluated",
-            "uncertainties": [],
         }
     changes, parse_gap = _unified_patch_changes(patch)
     patch_paths = sorted({str(change["path"]) for change in changes})
@@ -96,11 +95,6 @@ def patch_admission(
         "origin_outputs": outputs,
         "unknown_inputs": unknown,
         "reference_coverage": observation.coverage if observation is not None else "not_evaluated",
-        "uncertainties": (
-            [item.to_dict() for item in observation.uncertainties]
-            if observation is not None
-            else []
-        ),
         "coverage": "changed_references_and_explicit_native_inputs",
         "baseline_head": baseline_head,
         "paths": patch_paths,
@@ -457,11 +451,6 @@ def _patch_references(
         )
         gaps, unknown, outputs = _source_effect_gaps(root, context_files, postimages)
         unknown.extend(f"reference_carrier_unknown:{path}" for path in observation.unknown_paths)
-        unknown.extend(
-            f"reference_consumer_unknown:{item.kind}:{item.path}:{item.line}:{item.column}"
-            for item in observation.uncertainties
-            if item.state == "unknown"
-        )
         profile_gap, profile_id = _profile_postimage(root, postimages)
         if profile_gap:
             gaps.insert(0, profile_gap)

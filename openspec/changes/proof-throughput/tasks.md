@@ -92,6 +92,8 @@
     - [x] 5.12.1.2 Deliver the qualified minimal package through the Publisher owner's public activation; verify exact prior-runtime/wheel custody and the original implicit prewrite without user retelling. Keep whole-source proof, release and host-store reclamation distinct.
 - [ ] 5.13 Qualify exact producer/consumer scratch ownership under repeated normal, crash and kill cycles; preserve live/unknown roots and shared supply, then measure source-bound 24/48-hour count, byte, inode and cleanup bounds before claiming recurrence closed.
 
+- [ ] 5.18 Deliver the reviewed Claude withdrawal `b18465bb0` through the existing owned lane. The current native whole-repository closure passes in 8.591s with all six finding classes zero; 123 command, native-manifest and patch regressions pass in 10.73s, and Ruff/Ty pass. Retire all superseded engine-only files and tests while preserving native manifest/GateRegistry validation, argv-zero identity and Observer supply. Evidence: `local-cli-delivery-20261012/claude-semantic-withdrawal/` under existing native custody. Full proof, accepted integration, runtime delivery and complete public semantic capability remain open; the prior 120.022-second timeout remains failed evidence. The withdrawn enhancement is recoverable in Git, not retained as a compatibility facade.
+
 ## 6. Native Test Isolation and Shared Preparation
 
 - [x] 6.1 Isolate import-time environment testing and verify the same cases at two, four and eight workers.

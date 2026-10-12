@@ -4,8 +4,55 @@ from __future__ import annotations
 
 import re
 import shlex
+from dataclasses import dataclass
 
-import ethos.repository.policy.references.commands.vocabulary as command_vocabulary
+
+@dataclass(frozen=True, slots=True)
+class CommandVocabulary:
+    """One immutable tokenization of declared command identities."""
+
+    identities: tuple[tuple[tuple[str, ...], str], ...]
+    groups: frozenset[str]
+    roots: frozenset[str]
+
+    @classmethod
+    def compile(cls, commands: set[str]) -> CommandVocabulary:
+        """Compile normalized command identities once for repeated matching."""
+        identities = tuple(
+            sorted(
+                ((tokens, command) for command in commands if (tokens := _split_command(command))),
+                key=lambda item: (len(item[0]), item[1]),
+                reverse=True,
+            )
+        )
+        groups = frozenset(
+            identity
+            for tokens, identity in identities
+            if any(
+                other[: len(tokens)] == tokens and len(other) > len(tokens)
+                for other, _ in identities
+            )
+        )
+        return cls(
+            identities=identities,
+            groups=groups,
+            roots=frozenset(tokens[0] for tokens, _ in identities),
+        )
+
+
+def normalize_command(command: str) -> str:
+    """Return one whitespace-normalized command identity without dropping options."""
+    try:
+        return shlex.join(shlex.split(command))
+    except ValueError:
+        return command.strip()
+
+
+def _split_command(command: str) -> tuple[str, ...]:
+    try:
+        return tuple(shlex.split(command))
+    except ValueError:
+        return ()
 
 
 def shell_executables(
@@ -133,7 +180,7 @@ def command_executables(
 
 
 def _command_tokens(tokens: tuple[str, ...]) -> tuple[str, ...]:
-    """Select only a native environment wrapper's child; argv zero is never shell syntax."""
+    """Unwrap native env only; argv zero is not Shell syntax."""
     index = 0
     while index < len(tokens) and tokens[index] == "env":
         index = _env_command_start(tokens, index + 1)
@@ -282,7 +329,7 @@ def shebang_executable(line: str) -> str:
 
 def shell_commands(
     text: str,
-    known_commands: set[str] | command_vocabulary.CommandVocabulary,
+    known_commands: set[str] | CommandVocabulary,
     *,
     require_declared: bool = False,
 ) -> set[str]:
@@ -297,7 +344,7 @@ def shell_commands(
 
 def command_identity(
     tokens: tuple[str, ...],
-    known_commands: set[str] | command_vocabulary.CommandVocabulary,
+    known_commands: set[str] | CommandVocabulary,
     *,
     require_declared: bool = False,
 ) -> str:
@@ -311,8 +358,8 @@ def command_identity(
         return command_identity(child, known_commands, require_declared=require_declared)
     vocabulary = (
         known_commands
-        if isinstance(known_commands, command_vocabulary.CommandVocabulary)
-        else command_vocabulary.CommandVocabulary.compile(known_commands)
+        if isinstance(known_commands, CommandVocabulary)
+        else CommandVocabulary.compile(known_commands)
     )
     match = next(
         (

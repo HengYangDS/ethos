@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import difflib
 from typing import TYPE_CHECKING
 
 import pytest
@@ -52,7 +51,6 @@ def test_patch_admission_rejects_absolute_and_escaping_preimages(tmp_path: Path,
 
     assert report["verdict"] == "block"
     assert report["reason"] == "prewrite_patch_preimage_mismatch"
-    assert report["reference_coverage"] == "not_evaluated"
 
 
 def test_patch_admission_rejects_missing_preimage(tmp_path: Path) -> None:
@@ -110,57 +108,3 @@ def test_patch_admission_reports_failed_postimage_apply(
 
     assert report["verdict"] == "block"
     assert report["reason"] == "prewrite_patch_postimage_failed"
-    assert report["reference_coverage"] == "not_evaluated"
-
-
-def test_patch_admission_does_not_claim_unrequested_observation(tmp_path: Path) -> None:
-    """No requested patch means no reference observation was evaluated."""
-    repo, head = _repository(tmp_path)
-
-    report = patch_admission(root=repo, requested_paths=(), baseline_head=head, patch="")
-
-    assert report["verdict"] == "pass"
-    assert report["state"] == "not_requested"
-    assert report["reference_coverage"] == "not_evaluated"
-    assert report["uncertainties"] == []
-
-
-@pytest.mark.parametrize(
-    ("source", "verdict", "coverage", "state"),
-    [
-        (
-            "import subprocess\ndef launch(command):\n    subprocess.run(command)\n",
-            "pass",
-            "partial",
-            "deferred",
-        ),
-        (
-            'import subprocess\ngetattr(subprocess, selector)(["probe"])\n',
-            "unknown",
-            "unknown",
-            "unknown",
-        ),
-    ],
-)
-def test_patch_admission_preserves_reference_observation(
-    tmp_path: Path, source: str, verdict: str, coverage: str, state: str
-) -> None:
-    """Admission retains deferred and unknown sites instead of flattening them away."""
-    repo, head = _repository(tmp_path)
-    path = "src/probe.py"
-    patch = f"diff --git a/{path} b/{path}\nnew file mode 100644\n" + "".join(
-        difflib.unified_diff(
-            [], source.splitlines(keepends=True), fromfile="/dev/null", tofile=f"b/{path}"
-        )
-    )
-
-    report = patch_admission(root=repo, requested_paths=(path,), baseline_head=head, patch=patch)
-
-    assert report["verdict"] == verdict, report
-    assert report["reference_coverage"] == coverage, report
-    residuals = report["uncertainties"]
-    assert isinstance(residuals, list)
-    assert len(residuals) == 1
-    assert residuals[0]["state"] == state
-    assert residuals[0]["kind"] == "executable"
-    assert residuals[0]["path"] == path

@@ -14,9 +14,9 @@ from ethos.repository.policy.references.manifests import npm_script_commands
 from ethos.repository.policy.references.observation import observe_repository_references
 from ethos.repository.policy.references.observation import product_references_from_files
 from ethos.repository.policy.references.observation import reference_consumer_sources_from_files
-from ethos.repository.policy.references.python.syntax import cyclopts_command_owners
-from ethos.repository.policy.references.python.syntax import cyclopts_prefixes
-from ethos.repository.policy.references.python.syntax import module_name
+from ethos.repository.policy.references.python_syntax import cyclopts_command_owners
+from ethos.repository.policy.references.python_syntax import cyclopts_prefixes
+from ethos.repository.policy.references.python_syntax import module_name
 from tests.support.architecture import declare_reference_package
 from tests.support.architecture import declare_reference_surface
 from tests.support.architecture import write_reference_source
@@ -129,7 +129,7 @@ def test_consumer_observation_does_not_recompute_command_declarations(
         return {}
 
     monkeypatch.setattr(
-        "ethos.repository.policy.references.python.syntax.cyclopts_prefixes",
+        "ethos.repository.policy.references.python_syntax.cyclopts_prefixes",
         record_prefix_scan,
     )
 

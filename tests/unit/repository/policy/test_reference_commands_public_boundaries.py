@@ -6,13 +6,13 @@ import shlex
 
 import pytest
 
-from ethos.repository.policy.references.commands.invocation import command_executables
-from ethos.repository.policy.references.commands.invocation import command_identity
-from ethos.repository.policy.references.commands.invocation import shebang_executable
-from ethos.repository.policy.references.commands.invocation import shell_commands
-from ethos.repository.policy.references.commands.invocation import shell_executables
-from ethos.repository.policy.references.commands.vocabulary import CommandVocabulary
-from ethos.repository.policy.references.commands.vocabulary import normalize_command
+from ethos.repository.policy.references.commands import CommandVocabulary
+from ethos.repository.policy.references.commands import command_executables
+from ethos.repository.policy.references.commands import command_identity
+from ethos.repository.policy.references.commands import normalize_command
+from ethos.repository.policy.references.commands import shebang_executable
+from ethos.repository.policy.references.commands import shell_commands
+from ethos.repository.policy.references.commands import shell_executables
 from ethos.repository.policy.references.observation import product_references_from_files
 
 

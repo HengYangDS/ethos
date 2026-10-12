@@ -313,6 +313,30 @@
   install/upgrade/adopter readback and release qualification remain open.
   Evidence: `audit-npm-disposition-sidecar-20261005T0615/{qualification-summary.json,native-local.dependency-audit.json,native-strict.dependency-audit.json,native-ci-local.dependency-audit.json}`
   and `ci-node-ssot-sidecar-20261005T051804Z/ci-node-ssot-generated.patch`.
+  - [ ] 11.3.3 Deliver the 2026-10-12 latest-stable supply refresh, which also repairs hosted CI.
+    Hosted GitHub CI on `1669c37bd` failed in every job at bootstrap because the pinned mise
+    2026.9.11 could not read the lockfile_version 3 mise lock. Official stable releases observed on
+    2026-10-12: mise 2026.10.8, Node 26.11.1, Go 1.27.2, Syft 1.54.1, uv 0.13.0 with setup-uv
+    v10.3.0, upload-artifact v7.0.2 and 20 Python lock entries, including Ruff 0.17.0, Ty 0.0.86
+    and Pydantic 2.14.1 with its natively resolved core 2.50.1. CUE, Actionlint, scc, Gitleaks,
+    checkout, setup-python and the act emulator image were already current. Native owners
+    refreshed the mise config and lock with each tool's platform set preserved, the version-bound
+    installer projection and its bootstrap binding, both Python locks, the npm lock (Allure 3.20.1,
+    Prettier 3.9.10, smol-toml 1.9.1; no new packages or install scripts) and both CI projections.
+    On the current shell observer the new installer adds only the `awk` and `printf` executables;
+    its quoted awk bodies are not read as commands. Ty 0.0.86 findings are fixed at their owners:
+    context managers return `Generator`, one verification floor is typed, and the gate runner
+    passes an explicit optional timeout. npm 12.2.0 is still the latest stable npm, and native
+    audit fix cannot replace its bundled components. Under the user's 2026-10-12 directive that
+    every decision serve unblocking and closeout, the twelve host-bound local approvals become
+    production-release approvals for the same bundled components, expiring 2026-11-13. uv and
+    Ruff now default to Python 3.15; the explicit 3.12 to 3.14 support line is unchanged, and
+    adopting 3.15 is a separate support decision. The supply Dockerfile moves to the uv 0.13.0
+    base and the patched xz-utils; the GitLab supply image keeps its prior digest until a
+    dispatch-built image is published, and GitLab is unreachable. `npm update` is refused by
+    npm 12.2.0 (`EALLOWREMOTE` for its own bundled tarball), so unchanged transitive npm entries
+    stay at their locked in-range versions. Exact proof, hosted CI on the published head, the
+    GitLab supply image and installed delivery remain open.
 
 - [ ] 11.4 Migrate native developer/CI tool supply to mise locks and retire replaced installers.
 - [x] 11.5 Verify native import-linter and coverage TOML option equivalence; replace their INI owners and consumers without adding a converter.

@@ -24,13 +24,11 @@ package = "postcss-selector-parser"
 version = "7.1.4"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/postcss-selector-parser"]
-lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-06:npm-12.2.0-parser-7.1.4-GHSA-rj75-hqrm-r3gf-local-development-through-2026-10-18"
-rationale = "Human-approved controlled local development on this host through 2026-10-18. This exact inBundle component uses the containing npm 12.2.0 locked artifact integrity. Native audit fix cannot change the bundled component. CI, installation delivery, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -50,13 +48,11 @@ package = "brace-expansion"
 version = "5.0.9"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/brace-expansion"]
-lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -65,13 +61,11 @@ package = "brace-expansion"
 version = "5.0.9"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/brace-expansion"]
-lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -80,13 +74,11 @@ package = "brace-expansion"
 version = "5.0.9"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/brace-expansion"]
-lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -95,13 +87,11 @@ package = "http-cache-semantics"
 version = "4.2.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/http-cache-semantics"]
-lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -110,13 +100,11 @@ package = "ip-address"
 version = "10.5.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/ip-address"]
-lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -125,13 +113,11 @@ package = "ip-address"
 version = "10.5.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/ip-address"]
-lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -140,13 +126,11 @@ package = "ip-address"
 version = "10.5.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/ip-address"]
-lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -155,13 +139,11 @@ package = "ip-address"
 version = "10.5.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/ip-address"]
-lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -170,13 +152,11 @@ package = "undici"
 version = "6.28.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/undici"]
-lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -185,13 +165,11 @@ package = "undici"
 version = "6.28.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/undici"]
-lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -200,10 +178,8 @@ package = "undici"
 version = "6.28.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/undici"]
-lock_sha256 = "b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00

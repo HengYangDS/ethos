@@ -28,7 +28,7 @@ from ethos.repository.release.resources import BUILD_IDENTITY_RESOURCE
 from ethos.repository.release.resources import SDIST_RESOURCE_ROOT
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
 
     import nox
 
@@ -213,7 +213,7 @@ def _release_source_identity(repo: Path, head: str) -> BuildIdentity:
 
 
 @contextmanager
-def release_build_source(repo: Path, work: Path, *, head: str) -> Iterator[Path]:
+def release_build_source(repo: Path, work: Path, *, head: str) -> Generator[Path]:
     """Project admitted Git bytes and release identity into one disposable build source."""
     identity = _release_source_identity(repo, head)
     work.mkdir(parents=True, exist_ok=True)

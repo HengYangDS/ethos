@@ -42,7 +42,7 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import report_verdict
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
     from collections.abc import Mapping
 
 
@@ -145,7 +145,7 @@ def _native_configuration_dependency(path: str, source: bytes, *, owner: str) ->
 @contextmanager
 def _native_hook_configuration(
     root: Path, *, index_env: Mapping[str, str] | None
-) -> Iterator[Path]:
+) -> Generator[Path]:
     """Project incumbent native policy and its include closure without working-tree reads."""
     observed = run_git(root, "rev-parse", "--verify", "HEAD", check=False, timeout=30)
     head = observed.stdout.strip() if not observed.returncode else ""

@@ -13,7 +13,7 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
 
 
 class WorktreePostimage(NamedTuple):
@@ -25,7 +25,7 @@ class WorktreePostimage(NamedTuple):
 
 
 @contextmanager
-def observe_worktree_postimage(root: Path, *, previous: str) -> Iterator[WorktreePostimage]:
+def observe_worktree_postimage(root: Path, *, previous: str) -> Generator[WorktreePostimage]:
     """Project the complete worktree through a quarantined index and object store."""
     common = Path(git_common_dir(root))
     with tempfile.TemporaryDirectory(prefix="ethos-postimage-") as temporary:

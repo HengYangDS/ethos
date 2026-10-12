@@ -23,7 +23,7 @@ from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
 
     from ethos.contracts.semantic import Attestation
 
@@ -32,7 +32,7 @@ _TASK_CHECKBOX = re.compile(rb"(?m)^([ \t]*[-*+]\s+)\[[ xX]\]")
 
 
 @contextmanager
-def _openspec_projection(repo: Path, tree_ref: str | None) -> Iterator[Path]:
+def _openspec_projection(repo: Path, tree_ref: str | None) -> Generator[Path]:
     """Expose official OpenSpec artifacts from one exact Git tree."""
     if tree_ref is None:
         yield repo

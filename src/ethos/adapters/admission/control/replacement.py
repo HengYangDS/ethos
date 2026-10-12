@@ -81,7 +81,7 @@ def control_replacement_report(
     prior = resolve_gate_policy(candidate_root, tree_ref=accepted_head, full=True)
     proposed = resolve_gate_policy(candidate_root, tree_ref=candidate_head, full=True)
     changed_obligations = _changed_obligations(prior, proposed)
-    floor = (
+    floor: dict[str, object] = (
         {
             "accepted_policy_digest": prior.digest,
             "candidate_policy_digest": proposed.digest,

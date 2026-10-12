@@ -152,7 +152,7 @@ class LocalGateRunner:
             completed = run_command(
                 root,
                 execution_command,
-                **({"timeout": max(0, deadline - monotonic())} if deadline else {}),
+                timeout=max(0, deadline - monotonic()) if deadline else None,
             )
         except subprocess.TimeoutExpired as exc:
             return ActionRunResult(

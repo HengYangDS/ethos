@@ -345,7 +345,11 @@
     passes that selection with the validated package supply. Two research links named the wrong
     upstream package path and are corrected. Windows now stages the release's official
     executable, accepted only with its digest from that release's SHASUMS256.txt bound in the
-    bootstrap record; hosted Windows qualification awaits the next published run.
+    bootstrap record. Hosted run 38306041965 on `1ce814e6c` passes external links and every
+    Linux and macOS job; Windows now prepares mise, Go and Node and stopped only because the
+    locked Go check looked for `gofmt` without the executable suffix of `go.exe` (fixed). One
+    hosted-only bound let shellcheck read the large workflow fixture for 5 seconds under 12
+    workers; the test now bounds a deadlocked child at 30 seconds.
 
 - [ ] 11.4 Migrate native developer/CI tool supply to mise locks and retire replaced installers.
 - [x] 11.5 Verify native import-linter and coverage TOML option equivalence; replace their INI owners and consumers without adding a converter.

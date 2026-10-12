@@ -82,7 +82,7 @@ packages = ["src/ethos"]
 ".config/checks/prose/codespell.toml" = "ethos/resources/.config/checks/prose/codespell.toml"
 ".config/checks/taplo/taplo.toml" = "ethos/resources/.config/checks/taplo/taplo.toml"
 ".config/checks/yaml/yamllint.yaml" = "ethos/resources/.config/checks/yaml/yamllint.yaml"
-".config/checks/json/format.toml" = "ethos/resources/.config/checks/json/format.toml"
+".config/checks/format/selection.toml" = "ethos/resources/.config/checks/format/selection.toml"
 ".config/checks/markdown/markdownlint.yaml" = "ethos/resources/.config/checks/markdown/markdownlint.yaml"
 ".config/checks/links/lychee.toml" = "ethos/resources/.config/checks/links/lychee.toml"
 "VERSION" = "ethos/resources/VERSION"
@@ -134,7 +134,7 @@ only-include = [
   ".config/checks/prose/codespell.toml",
   ".config/checks/taplo/taplo.toml",
   ".config/checks/yaml/yamllint.yaml",
-  ".config/checks/json/format.toml",
+  ".config/checks/format/selection.toml",
   ".config/checks/markdown/markdownlint.yaml",
   ".config/checks/links/lychee.toml",
   "VERSION",

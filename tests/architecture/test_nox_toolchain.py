@@ -167,28 +167,20 @@ def test_configuration_owner_preserves_the_common_floor_and_exact_inputs(tmp_pat
     assert yaml_input.read_text() == "---\nvalue: true\n"
 
 
-def test_configuration_owner_validates_native_json_policy_before_rendering(tmp_path) -> None:
-    """Malformed local policy blocks structurally and preserves authored bytes."""
+def test_configuration_owner_validates_native_formatter_policy_before_checking(tmp_path) -> None:
+    """Original formatter rejects malformed native policy and preserves authored bytes."""
     root = init_git_repo(tmp_path / "repo")
     target = root / "example.json"
     content = '{\n  "value": true\n}\n'
     target.write_text(content)
-    policy = root / ".config/checks/json/format.toml"
+    policy = root / ".config/checks/format/prettier.toml"
     policy.parent.mkdir(parents=True)
     git(root, "add", target.name)
-    valid = {
-        "owner": "local-quality",
-        "formatter": "python-stdlib-json",
-        "default_mode": "compact",
-        "indent": 2,
-        "rule": [{"globs": ["example.json"], "mode": "pretty"}],
-    }
     for declaration, verdict in (
-        (valid, "pass"),
-        ({key: value for key, value in valid.items() if key != "default_mode"}, "block"),
-        ({**valid, "default_mode": "unknown"}, "block"),
-        ({**valid, "indent": True}, "block"),
-        ({**valid, "rule": [{"globs": "example.json", "mode": "pretty"}]}, "block"),
+        ({"tabWidth": 2}, "pass"),
+        ({"tabWidth": "unknown"}, "block"),
+        ({"tabWidth": True}, "block"),
+        ({"unknownFormat": True}, "block"),
     ):
         original = tomli_w.dumps(declaration)
         policy.write_text(original)

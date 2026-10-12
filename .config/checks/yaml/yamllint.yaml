@@ -1,23 +1,12 @@
 ---
-extends: default
-
 rules:
-  braces:
-    max-spaces-inside: 1
-    min-spaces-inside: 1
-  document-start: enable
-  indentation:
-    indent-sequences: consistent
-  line-length:
-    allow-non-breakable-words: true
-    max: 160
-  new-lines:
-    type: unix
-  empty-lines:
-    max: 1
-    max-start: 0
-    max-end: 0
-  trailing-spaces: enable
+  anchors: enable
+  empty-values: disable
+  float-values: disable
+  key-duplicates: enable
+  key-ordering: disable
+  octal-values: disable
+  quoted-strings: disable
   truthy:
     allowed-values: ["false", "no", "off", "on", "true", "yes"]
     check-keys: false

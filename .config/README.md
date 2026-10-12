@@ -29,11 +29,23 @@ configuration plane, not a truth center.
   repository-wide semantic scope, plus the narrower product-package topology
   scope, ambiguous naming, facade, command-owner, and import-boundary policy.
   `uv run --frozen --offline python -m nox -s module_layout` is the reusable runner.
-- `.config/checks/taplo/taplo.toml` owns TOML canonical formatting. `.config/checks/json/format.toml` owns path-selected Python stdlib JSON formatting: ordinary JSON is two-space pretty form, while schemas and evidence remain compact machine carriers. The installed `config-quality` provider owns native TOML, YAML, JSON and INI checks; the `config_quality` Nox session projects that same result and validates source pre-commit configuration. Shipped policies are mandatory, tracked local policies are increments, and malformed JSON policy blocks before rendering. No source Nox toolchain, shell, ambient PATH or dependency fallback is required by the installed provider.
-- `.config/checks/yaml/yamllint.yaml` owns ETHOS-authored YAML linting,
-  including CI, hook, and quality configurations. OpenSpec YAML remains under
-  the pinned OpenSpec validator. CI invokes both owners through their existing
-  lifecycle gates.
+- `.config/checks/taplo/taplo.toml` owns TOML canonical formatting. Original
+  locked Prettier owns authored JSON and YAML formatting through
+  `.config/checks/format/prettier.toml`; JSON parsing and the native semantic
+  yamllint rules retain syntax, duplicate-key and alias obligations without a
+  second layout policy. The installed `config-quality` provider and native
+  `config_quality` Nox projection check the same exact authored inputs. Native
+  format fixing uses the commands declared in `checks/format/selection.toml`.
+  Dependency resolution members keep their existing package-manager byte owner
+  from that declaration; official OpenSpec, projections and explicitly bound
+  source contracts retain their separate verification. The replaced stdlib JSON
+  formatter and its configuration are retired, not retained as another authority.
+  Shipped policy remains mandatory, native increments cannot hide its failures,
+  and refusal preserves bytes. No adopter controller or source environment is
+  required by the installed provider.
+- `.config/checks/yaml/yamllint.yaml` owns native YAML semantic lint, including CI,
+  hook and quality configurations. OpenSpec YAML remains under the pinned
+  official validator. CI invokes both owners through their existing gates.
 - `.config/checks/shell/.shellcheckrc` owns ShellCheck policy; the `shell_lint` Nox session resolves the locked cross-platform `shellcheck-py` executable.
 - `.config/checks/format/prettier.toml` owns Markdown spacing, container layout
   and formatting style; `.config/checks/markdown/markdownlint.yaml` owns

@@ -5,16 +5,11 @@ from __future__ import annotations
 import configparser
 import fnmatch
 import json
+import os
 import subprocess
 import tomllib
 from pathlib import Path
-from typing import Any
-from typing import Literal
 
-import yaml
-from pydantic import BaseModel
-from pydantic import ConfigDict
-from pydantic import Field
 from yamllint import config as yamllint_config
 from yamllint import linter as yamllint_linter
 
@@ -26,27 +21,14 @@ from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.contracts.verdict import close_verdict
+from ethos.domain.source_budget.measurement_policy import policy_for_root
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
 from ethos.repository.policy.projections import projection_relations
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
+from ethos.repository.release.resources import canonical_resource
 
 SUPPORTED_SUFFIXES = frozenset({".toml", ".yaml", ".yml", ".json", ".ini", ".cfg"})
-
-
-class _JsonFormatRule(BaseModel):
-    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
-    globs: list[str] = Field(min_length=1)
-    mode: Literal["pretty", "compact"]
-
-
-class _JsonFormatPolicy(BaseModel):
-    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
-    owner: str = Field(min_length=1)
-    formatter: Literal["python-stdlib-json"]
-    default_mode: Literal["pretty", "compact"]
-    indent: int = Field(gt=0)
-    rule: list[_JsonFormatRule] = Field(default_factory=list)
 
 
 def _configuration_inventory(root: Path) -> tuple[Path, ...]:
@@ -78,6 +60,16 @@ def _candidate_paths(root: Path, requested: tuple[str, ...]) -> dict[str, tuple[
         if (root / relative).is_file()
     }
     generated = {relation.output for relation in projection_relations(declarations)}
+    selection, gaps = policy_for_root(canonical_resource())
+    if selection is None or gaps:
+        message = ", ".join(gaps) or "source_budget_policy_invalid"
+        raise ValueError(message)
+    dependency_patterns = tuple(
+        pattern
+        for carrier in selection.carriers
+        if carrier.category == "dependency_resolution"
+        for pattern in carrier.paths
+    )
     selected = []
     for raw in tuple(map(Path, requested)) or _configuration_inventory(root):
         path = root / raw
@@ -100,8 +92,7 @@ def _candidate_paths(root: Path, requested: tuple[str, ...]) -> dict[str, tuple[
                 ("evidence/", "docs/archive/", "openspec/changes/", "openspec/specs/")
             )
             or relative in {"openspec/config.yaml", "openspec/config.yml"}
-            or raw.name.endswith("-lock.json")
-            or raw.name == "npm-shrinkwrap.json"
+            or any(fnmatch.fnmatchcase(relative, pattern) for pattern in dependency_patterns)
         )
         if owned_elsewhere:
             if requested:
@@ -161,66 +152,61 @@ def _toml_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
     return failures
 
 
-def _json_rendering(policy: _JsonFormatPolicy, relative: str, parsed: Any) -> bytes:
-    mode = next(
-        (
-            rule.mode
-            for rule in reversed(policy.rule)
-            if any(fnmatch.fnmatchcase(relative, glob) for glob in rule.globs)
-        ),
-        policy.default_mode,
-    )
-    indent = None if mode == "compact" else policy.indent
-    arguments: dict[str, Any] = {"ensure_ascii": False, "indent": indent}
-    if indent is None:
-        arguments["separators"] = (",", ":")
-    return (json.dumps(parsed, **arguments) + "\n").encode()
+def _native_format_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
+    """Use the original Prettier check on the same exact authored configuration."""
+    if not paths:
+        return []
+    failures = []
+    configs = native_configurations(root, "prettier", ".config/checks/format/prettier.toml")
+    node = str(resolve_node_runtime().executable)
+    prettier = str(product_node_module("prettier") / "bin/prettier.cjs")
+    for config in configs:
+        completed = run_command(
+            root,
+            (
+                node,
+                prettier,
+                "--config",
+                config,
+                "--no-editorconfig",
+                "--ignore-path",
+                os.devnull,
+                "--check",
+                "--",
+                *map(str, paths),
+            ),
+            timeout=60,
+            remove_env=("NODE_OPTIONS", "NODE_PATH"),
+        )
+        if completed.returncode or completed.stderr:
+            failures.append((completed.stdout + completed.stderr).strip())
+    return failures
 
 
 def _json_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
     failures = []
-    configs = native_configurations(root, "json", ".config/checks/json/format.toml")
-    policies = [
-        _JsonFormatPolicy.model_validate(tomllib.loads(Path(config).read_text(encoding="utf-8")))
-        for config in configs
-    ]
     for path in paths:
         try:
-            data = (root / path).read_bytes()
-            parsed = json.loads(data.decode("utf-8"))
+            json.loads((root / path).read_text(encoding="utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as error:
             failures.append(f"{path}: JSON parse failed: {error}")
-            continue
-        if any(data != _json_rendering(policy, path.as_posix(), parsed) for policy in policies):
-            failures.append(f"{path}: JSON format drift")
-    return failures
+    return [*failures, *_native_format_failures(root, paths)]
 
 
 def _yaml_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
     failures = []
     configs = native_configurations(root, "yamllint", ".config/checks/yaml/yamllint.yaml")
     policies = [yamllint_config.YamlLintConfig(Path(config).read_text()) for config in configs]
+    semantic_rules = policies[0].rules.keys()
     for path in paths:
         text = (root / path).read_text(encoding="utf-8")
         for policy in policies:
-            problems = tuple(yamllint_linter.run(text, policy, filepath=path.as_posix()))
-            scalar_lines: set[int] = set()
-            if any(problem.rule == "empty-lines" for problem in problems):
-                try:
-                    scalar_lines = {
-                        line
-                        for token in yaml.scan(text)
-                        if isinstance(token, yaml.ScalarToken)
-                        for line in range(token.start_mark.line + 2, token.end_mark.line + 1)
-                    }
-                except yaml.YAMLError:
-                    scalar_lines = set()
             failures.extend(
                 f"{path}:{problem.line}:{problem.column}: {problem.message}"
-                for problem in problems
-                if problem.rule != "empty-lines" or problem.line not in scalar_lines
+                for problem in yamllint_linter.run(text, policy, filepath=path.as_posix())
+                if problem.rule is None or problem.rule in semantic_rules
             )
-    return failures
+    return [*failures, *_native_format_failures(root, paths)]
 
 
 def _ini_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:

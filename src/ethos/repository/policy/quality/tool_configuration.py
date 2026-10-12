@@ -14,7 +14,6 @@ def native_tool_configuration(repository_paths: tuple[str, ...], tool: str) -> s
         "codespell": ".config/checks/prose/codespell.toml",
         "taplo": ".config/checks/taplo/taplo.toml",
         "yamllint": ".config/checks/yaml/yamllint.yaml",
-        "json": ".config/checks/json/format.toml",
     }
     location = locations.get(tool)
     names = {

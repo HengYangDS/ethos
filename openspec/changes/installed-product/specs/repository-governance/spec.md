@@ -172,6 +172,14 @@ from the complete applicable proof closure.
 - **THEN** the mandatory shipped policy still checks the same exact authored inputs
 - **AND** local configuration cannot hide a shared failure, skip an input or cause source mutation
 
+#### Scenario: Native configuration has one formatter and independent semantics
+
+- **WHEN** original locked Prettier accepts authored JSON or YAML structure
+- **THEN** shared configuration checks accept that formatting without a competing serializer or layout rule
+- **AND** native syntax, duplicate keys and undeclared aliases remain independently checked
+- **AND** package-manager dependency records and explicitly bound source inputs keep their original owners and bytes
+- **AND** native policy errors and formatting refusal block without source writes
+
 #### Scenario: Native formatter and linter have distinct responsibilities
 
 - **WHEN** official Prettier accepts a tight list with a nested fenced block

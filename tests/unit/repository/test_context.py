@@ -179,7 +179,7 @@ def test_packaged_resource_requires_a_contained_relative_input(tmp_path: Path) -
         ".config/checks/prose/codespell.toml",
         ".config/checks/taplo/taplo.toml",
         ".config/checks/yaml/yamllint.yaml",
-        ".config/checks/json/format.toml",
+        ".config/checks/format/selection.toml",
         ".config/checks/markdown/markdownlint.yaml",
         ".config/checks/links/lychee.toml",
     ],

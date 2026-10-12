@@ -106,15 +106,13 @@ def test_native_configuration_consumes_untracked_repository_increment(tmp_path: 
     source = repo / "source.json"
     source.write_text('{\n  "value": 1\n}\n')
     commit_fixture(repo, "record configuration")
-    increment = repo / ".config/checks/json/format.toml"
+    increment = repo / ".config/checks/format/prettier.toml"
     increment.parent.mkdir(parents=True)
-    policy = (
-        'owner = "fixture"\nformatter = "python-stdlib-json"\ndefault_mode = "pretty"\nindent = '
-    )
+    policy = "tabWidth = "
     increment.write_text(policy + "4\n")
     refused = configuration_gate.configuration_report(repo, paths=("source.json",))
     assert refused["verdict"] == "block"
-    assert refused["required_gaps"] == ["source.json: JSON format drift"]
+    assert "source.json" in str(refused["required_gaps"])
     assert source.read_text() == '{\n  "value": 1\n}\n'
     increment.write_text(policy + "2\n")
     assert (

@@ -13,7 +13,7 @@ remain at signed source `8878c8406a06fa592c41dbb291578c2f2114de51` and its nativ
 - [x] 1.6 Compare identical native boundary cases at two, four and eight workers without retries.
 - [x] 1.7 Measure consolidated full proof and repair merge intent diagnostic precedence.
 - [x] 1.8 Verify the consolidated proof, release and integration regressions with unchanged quality budgets.
-- [ ] 1.9 Restore complete repository proof within 900 seconds, including preparation, every required gate and cleanup. After selected source preflight, overlap independent package and test journeys under their declared resource ownership; require passing tests and coverage before complete acceptance, landing or delivery. Verify exact signed-source proof and immutable installation; retain diagnostics, budgets, per-file limits and failed or incomplete evidence.
+- [ ] 1.9 Restore complete repository proof within 900 seconds, including preparation, every required gate and cleanup. Select the minimal frozen repair inputs instead of replaying the unchanged broad candidate; preserve unrelated commitments at signed source `f029116881d70612a93a681479a6db3ad231788c`. Require passing tests, coverage, exact signed-source proof and immutable installation. Latest strict attempt `f02911688-repository-workers4-proof.execution.json` timed out; focused and install-smoke success does not supply full acceptance.
 - [ ] 1.10 Evaluate the nonblocking 600-second optimization direction from the measured remaining critical path.
 
 ## 2. Invocation-Scoped Facts and Proof Reuse
@@ -66,7 +66,7 @@ remain at signed source `8878c8406a06fa592c41dbb291578c2f2114de51` and its nativ
 - [x] 4.13 Complete exact full proof and source/package/runtime delivery for archive preservation. Verify the owning native regression.
 - [x] 4.14 Qualify the actual archive postimage before Git CAS against native formatting, references and OpenSpec findings; compensate avoidable findings with a source repair action, preserve valid new-capability acceptance, and retain post-CAS proof/recovery without weakening repository gates.
 - [x] 4.15 Admit only complete, monotonic final task progress in an official staged archive; retain source/postimage proof boundaries, precise drift diagnostics and public positive/negative regressions.
-- [ ] 4.16 Deliver exact native merge continuation with explicit peer snapshot/CAS, three-way attribution, both parents, complete prospective index, incoming Change progress and lost-ACK recovery. Verify full signed-source proof within 900 seconds, immutable installation and the original real merge; preserve fresh authority, Python >=3.12,<3.15 and packaging rollback. Custody: `32c4f656e92acee172d1f68cd714c6f078b72a4caa09b4fb5263d6cb816c3072`. Remove the mutable-candidate dependency and preserve exact-tree source applicability.
+- [ ] 4.16 Isolate and deliver the minimal native merge-continuation repair with explicit peer snapshot/CAS, three-way attribution, both parents, complete prospective index, incoming Change progress and lost-ACK recovery. Preserve the full signed candidate at `f029116881d70612a93a681479a6db3ad231788c`; do not make unrelated candidate work a delivery prerequisite. Verify exact signed-source proof, immutable installation and the original real merge; retain fresh authority, Python >=3.12,<3.15 and rollback. Original custody: `32c4f656e92acee172d1f68cd714c6f078b72a4caa09b4fb5263d6cb816c3072`.
 
 ## 5. Process Lifetimes and Resource Recovery
 

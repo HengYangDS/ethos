@@ -120,6 +120,15 @@ def test_caught_command_failure_preserves_a_live_sibling(tmp_path, monkeypatch) 
     assert children[0].returncode is not None
 
 
+@pytest.mark.parametrize("failure", [RuntimeError("initial"), KeyboardInterrupt()])
+def test_command_scope_preserves_initiating_failure_when_cleanup_fails(monkeypatch, failure):
+    cleanup = OSError("cleanup")
+    monkeypatch.setattr(process_adapter.CommandScope, "cancel", Mock(side_effect=cleanup))
+    with pytest.raises(BaseExceptionGroup) as result, process_adapter.command_scope():
+        raise failure
+    assert result.value.exceptions == (failure, cleanup)
+
+
 def test_cancelled_command_scope_rejects_creation(tmp_path, monkeypatch) -> None:
     """Cancellation fences creation before any native process can start."""
     creation = Mock(wraps=subprocess.Popen)

@@ -13,7 +13,7 @@ remain at signed source `8878c8406a06fa592c41dbb291578c2f2114de51` and its nativ
 - [x] 1.6 Compare identical native boundary cases at two, four and eight workers without retries.
 - [x] 1.7 Measure consolidated full proof and repair merge intent diagnostic precedence.
 - [x] 1.8 Verify the consolidated proof, release and integration regressions with unchanged quality budgets.
-- [ ] 1.9 Restore complete repository proof within 900 seconds, including preparation, every required gate and cleanup; require successful tests and coverage before package build or installation, and retain completed-gate diagnostics, current budgets and per-file limits. Verify exact signed-source proof and immutable delivery; failed or incomplete attempts remain evidence, not acceptance.
+- [ ] 1.9 Restore complete repository proof within 900 seconds, including preparation, every required gate and cleanup. After selected source preflight, overlap independent package and test journeys under their declared resource ownership; require passing tests and coverage before complete acceptance, landing or delivery. Verify exact signed-source proof and immutable installation; retain diagnostics, budgets, per-file limits and failed or incomplete evidence.
 - [ ] 1.10 Evaluate the nonblocking 600-second optimization direction from the measured remaining critical path.
 
 ## 2. Invocation-Scoped Facts and Proof Reuse

@@ -129,8 +129,12 @@ def command_scope(*, timeout_seconds: float | None = None) -> Generator[CommandS
     deadline_token = _COMMAND_DEADLINE.set(deadline)
     try:
         yield scope
-    except BaseException:
-        scope.cancel()
+    except BaseException as failure:
+        try:
+            scope.cancel()
+        except (OSError, ExceptionGroup) as cleanup:
+            message = "command_scope_cleanup_failed"
+            raise BaseExceptionGroup(message, [failure, cleanup]) from None
         raise
     finally:
         _COMMAND_DEADLINE.reset(deadline_token)

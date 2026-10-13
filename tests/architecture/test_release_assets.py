@@ -209,11 +209,8 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
     session = SimpleNamespace(error=pytest.fail, log=lambda _message: None)
     if case == "pass":
         local_ci.run(cast("nox.Session", session))
-        assert (
-            observed.index("coverage-floor")
-            < observed.index("build")
-            < observed.index("local-install-smoke")
-        )
+        assert observed.index("unit-architecture") < observed.index("coverage-floor")
+        assert observed.index("build") < observed.index("local-install-smoke")
     else:
         with pytest.raises((pytest.fail.Exception, RuntimeError)):
             local_ci.run(cast("nox.Session", session))
@@ -225,8 +222,8 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
         assert observed.count("unit-architecture") == 1
         assert observed.count("coverage-floor") == int(case != "tests")
     if case in {"tests", "coverage"}:
-        assert "build" not in observed
-        assert "local-install-smoke" not in observed
+        assert "build" in observed
+        assert "local-install-smoke" in observed
     assert len(observed) == len(set(observed))
 
 

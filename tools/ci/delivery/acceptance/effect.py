@@ -495,8 +495,7 @@ def run(
             runtime_lifecycle=lifecycle,
             generated_at=datetime.now(UTC),
         )
-        payload["distribution"] = distribution
-        payload["build_identity"] = build.projection()
+        payload.update(distribution=distribution, build_identity=build.projection())
         if artifact is not None:
             payload["command"] = (
                 cast("str", payload["command"]) + f" -- --release --expect-head {head}"
@@ -505,10 +504,9 @@ def run(
         remove_generated_tree(WORK)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+        rendered := json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
-    session.log(json.dumps(payload, indent=2, sort_keys=True))
+    session.log(rendered.rstrip("\n"))
 
 
 def _require_artifact_current(artifact: PackageArtifact, *, head: str) -> None:

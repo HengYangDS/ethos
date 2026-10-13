@@ -354,10 +354,15 @@
     `/`; it now uses `path.sep`. Accepted `5fc32a243` passed its repository-purpose full proof and
     the ordinary land, closeout and native GitHub publication. Hosted ETHOS CI runs 38323590796
     (dev) and 38323590691 (main) pass every job, including all three Windows host-conformance
-    jobs, and CodeQL passes. Deferred, owned by this Change: publish dev/main and the CI supply
-    image to GitLab when the intranet is reachable (it refused connections on 2026-10-13), through
-    native `ethos publish --probe-remote --peer gitlab` first. The npm 12.2.0 approval review
-    is superseded by 11.3.4.
+    jobs, and CodeQL passes. GitLab dev and main reached `4f4b0d1bd` on 2026-10-13 through a
+    user-authorized exact-lease push (custody `720737c7b83726d5`). GitLab CI then fails its supply
+    check, because the pinned image predates every refreshed supply input. The first image dispatch
+    since then (run 38421416153) stopped because the image build synced the quality-sample fixture
+    with `--no-config`, which drops the fixture's prerelease policy; the build now uses the
+    fixture's own settings. Remaining, owned by this Change: bind a dispatch-built image digest,
+    then publish to GitLab and retire its three stale pre-repair proposal branches when the
+    intranet is reachable, through native `ethos publish --probe-remote --peer gitlab` first.
+    The npm 12.2.0 approval review is superseded by 11.3.4.
   - [ ] 11.3.4 Report, without blocking, a finding that no official stable release fixes yet.
     The user chose this rule on 2026-10-13 over renewing per-advisory approvals. The audit
     records, with `npm view`, the registry latest release of every locked npm artifact that

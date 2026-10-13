@@ -7,9 +7,7 @@ operation for every partial linked-lane retirement. The operation MUST accept
 an immutable receipt path and digest, return the currently observed effect
 progress as structured JSON, and provide exactly one copyable continuation.
 It SHALL never require raw Git, direct SQLite mutation, or recreation of a
-deleted checkout. A continuation SHALL be executable from current facts: when
-the immutable receipt can no longer apply, the continuation SHALL be a fresh
-native admission instead of `recover`.
+deleted checkout.
 
 #### Scenario: Partial retirement returns its continuation
 

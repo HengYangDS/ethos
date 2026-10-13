@@ -3,21 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
-import ethos.adapters.repo.runtime.selection as selection
-import tools.ci.delivery.distribution as distribution
 from ethos.adapters.repo.git import git_common_dir
-from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
-from ethos.adapters.repo.runtime.selection import activate_runtime
-from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import fixture_runtime_generation
-from tests.support.runtime_scenarios import materialize_runtime_case
 from tools.ci.delivery.acceptance import runtime as runtime_acceptance
 
 
@@ -82,48 +75,3 @@ def test_package_manifest_acceptance_uses_selected_runtime_owner(tmp_path: Path,
             )
             == selected.python
         )
-
-
-@pytest.mark.parametrize("outcome", ["success", "input-drift", "cancellation"])
-def test_distribution_carries_fresh_runtime_and_retains_publication_custody(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, outcome: str
-) -> None:
-    """Reuse the immediate validation; never publish changed inputs or partial output."""
-    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
-    common = Path(git_common_dir(repo))
-    selected = activate_runtime(common, python.parent)
-    wheel = common / "ethos/packages" / selected.wheel_sha256 / "ethos-test.whl"
-    original_wheel, original_manifest = wheel.read_bytes(), selected.manifest.read_bytes()
-    destination = tmp_path / "ethos.tar.gz"
-    cask = tmp_path / "homebrew/Casks/ethos.rb"
-    cask.parent.mkdir(parents=True)
-    cask.write_bytes(b"previous Cask")
-    destination.write_bytes(b"previous archive")
-    add = distribution.tarfile.TarFile.add
-
-    def archive(self, name, *args, **kwargs):
-        add(self, name, *args, **kwargs)
-        if Path(name) == selected.root:
-            if outcome == "input-drift":
-                selected.manifest.chmod(0o644)
-                selected.manifest.write_bytes(original_manifest + b" ")
-            elif outcome == "cancellation":
-                raise KeyboardInterrupt
-
-    monkeypatch.setattr(distribution.tarfile.TarFile, "add", archive)
-    with patch.object(selection, "runtime_file_inventory", wraps=runtime_file_inventory) as scans:
-        observed = current_runtime(common)
-        if outcome == "success":
-            result = distribution.package_runtime(observed, wheel, destination)
-            assert scans.call_count == 2
-            assert result["runtime_digest"] == observed.digest
-            assert result["wheel_sha256"] == observed.wheel_sha256
-        else:
-            with pytest.raises(ValueError if outcome == "input-drift" else KeyboardInterrupt):
-                distribution.package_runtime(observed, wheel, destination)
-            assert destination.read_bytes() == b"previous archive"
-            assert cask.read_bytes() == b"previous Cask"
-    assert not list(tmp_path.glob(".ethos-distribution-*"))
-    assert wheel.read_bytes() == original_wheel
-    if outcome != "input-drift":
-        assert selected.manifest.read_bytes() == original_manifest

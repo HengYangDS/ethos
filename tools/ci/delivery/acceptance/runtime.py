@@ -37,14 +37,12 @@ def activate_from_runtime(
     repo: Path,
     *,
     environment: Mapping[str, str],
-    installed_runtime: Path | None = None,
 ) -> dict[str, object]:
     """Activate a successor repository runtime from an immutable package runtime."""
     return _activate(
         (python.as_posix(), "-B", "-I", "-m", "ethos.cli"),
         repo,
         environment=environment,
-        installed_runtime=installed_runtime,
     )
 
 

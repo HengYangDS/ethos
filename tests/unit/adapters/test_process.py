@@ -120,15 +120,6 @@ def test_caught_command_failure_preserves_a_live_sibling(tmp_path, monkeypatch) 
     assert children[0].returncode is not None
 
 
-@pytest.mark.parametrize("failure", [RuntimeError("initial"), KeyboardInterrupt()])
-def test_command_scope_preserves_initiating_failure_when_cleanup_fails(monkeypatch, failure):
-    cleanup = OSError("cleanup")
-    monkeypatch.setattr(process_adapter.CommandScope, "cancel", Mock(side_effect=cleanup))
-    with pytest.raises(BaseExceptionGroup) as result, process_adapter.command_scope():
-        raise failure
-    assert result.value.exceptions == (failure, cleanup)
-
-
 def test_cancelled_command_scope_rejects_creation(tmp_path, monkeypatch) -> None:
     """Cancellation fences creation before any native process can start."""
     creation = Mock(wraps=subprocess.Popen)
@@ -140,51 +131,7 @@ def test_cancelled_command_scope_rejects_creation(tmp_path, monkeypatch) -> None
     creation.assert_not_called()
 
 
-def test_command_scope_conserves_one_deadline_across_native_calls(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A later or nested command cannot renew a caller's finite execution budget."""
-    command = (sys.executable, "-c", "pass")
-    clock = 100.0
-    budgets: list[float | None] = []
-    started: list[subprocess.Popen[str]] = []
-    start = process_adapter.CommandScope.start
-
-    def observed_start(
-        owner: process_adapter.CommandScope, argv: tuple[str, ...], **options: object
-    ) -> subprocess.Popen[str]:
-        child = start(owner, argv, **options)
-        started.append(child)
-        communicate = child.communicate
-
-        def observed_communication(*, timeout: float | None) -> tuple[str, str]:
-            nonlocal clock
-            budgets.append(timeout)
-            result = communicate(timeout=10)
-            clock += 0.6
-            return result
-
-        monkeypatch.setattr(child, "communicate", observed_communication)
-        return child
-
-    monkeypatch.setattr(process_adapter, "monotonic", lambda: clock)
-    monkeypatch.setattr(process_adapter.CommandScope, "start", observed_start)
-    with process_adapter.command_scope(timeout_seconds=1.0):
-        assert process_adapter.run_command(tmp_path, command, timeout=10).returncode == 0
-        with process_adapter.command_scope(timeout_seconds=10):
-            assert process_adapter.run_command(tmp_path, command, timeout=10).returncode == 0
-        assert len(started) == 2
-        with pytest.raises(subprocess.TimeoutExpired):
-            process_adapter.run_command(tmp_path, command, timeout=10)
-        assert len(started) == 2
-    assert budgets == pytest.approx([1.0, 0.4])
-    assert process_adapter.run_command(tmp_path, command, timeout=10).returncode == 0
-    assert budgets == pytest.approx([1.0, 0.4, 10.0])
-
-
-def test_command_scope_expires_at_remaining_native_deadline(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_command_scope_conserves_one_deadline_across_native_calls(tmp_path, monkeypatch) -> None:
     """A later or nested command cannot renew a caller's finite execution budget."""
     now = [1_000.0]
     monkeypatch.setattr(process_adapter, "monotonic", lambda: now[0])

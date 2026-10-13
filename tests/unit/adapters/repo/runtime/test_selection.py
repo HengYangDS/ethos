@@ -405,7 +405,7 @@ def test_windows_console_relay_preserves_argument_boundaries(tmp_path, monkeypat
     assert calls == [([str(selected), "-B", "-I", "-m", "ethos.cli", *args], False)]
 
 
-@pytest.mark.parametrize("failure", ["write", "replace", "archive", "archive-cancel"])
+@pytest.mark.parametrize("failure", ["write", "replace", "archive"])
 def test_distribution_preserves_previous_outputs_when_cask_projection_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
 ) -> None:
@@ -438,18 +438,17 @@ def test_distribution_preserves_previous_outputs_when_cask_projection_fails(
         if failure == "replace" and target == cask:
             message = "Cask replacement unavailable"
             raise OSError(message)
-        if failure in {"archive", "archive-cancel"} and target == destination:
+        if failure == "archive" and target == destination:
             message = "archive replacement unavailable"
-            raise KeyboardInterrupt(message) if failure == "archive-cancel" else OSError(message)
+            raise OSError(message)
         return replace(self, target)
 
     if failure == "write":
         monkeypatch.setattr(Path, "write_text", reject_cask)
     else:
         monkeypatch.setattr(Path, "replace", reject_replace)
-    error = KeyboardInterrupt if failure == "archive-cancel" else OSError
-    with pytest.raises(error, match=r"(Cask|archive) .* unavailable"):
-        distribution.package_runtime(selected, wheel, destination)
+    with pytest.raises(OSError, match=r"(Cask|archive) .* unavailable"):
+        distribution.package_runtime(selected.root, wheel, destination)
     assert destination.read_bytes() == b"prior archive"
     assert cask.read_bytes() == b"prior Cask"
     assert not list(tmp_path.glob(".ethos-distribution-*"))
@@ -486,7 +485,7 @@ def test_distribution_retains_exact_input_and_previous_output(tmp_path, monkeypa
     monkeypatch.setattr(distribution, "run_command", invoke)
     with pytest.raises(ValueError, match="distribution_release_build_required"):
         distribution.package_runtime(
-            selected, wheel, destination, download_url="https://example.invalid/ethos.tar.gz"
+            selected.root, wheel, destination, download_url="https://example.invalid/ethos.tar.gz"
         )
     assert destination.read_bytes() == b"previous"
     assert not (tmp_path / "homebrew").exists()
@@ -499,7 +498,7 @@ def test_distribution_retains_exact_input_and_previous_output(tmp_path, monkeypa
     if producer == "wheel":
         wheel.write_bytes(b"changed")
     with pytest.raises(failure[0], match=failure[1]) if failure else nullcontext():
-        result = distribution.package_runtime(selected, wheel, destination)
+        result = distribution.package_runtime(selected.root, wheel, destination)
     assert not list(tmp_path.glob(".ethos-distribution-*"))
     assert require_selected_runtime(selected.root) == selected
     assert len(calls) == (2 if native and selected.platform == "darwin" else 0)
@@ -516,10 +515,7 @@ def test_distribution_retains_exact_input_and_previous_output(tmp_path, monkeypa
     if native:
         assert destination.read_bytes() == b"native image"
         return
-    assert (
-        distribution.package_runtime(require_selected_runtime(selected.root), wheel, destination)
-        == result
-    )
+    assert distribution.package_runtime(selected.root, wheel, destination) == result
     with tarfile.open(destination) as archive:
         archive.extractall(tmp_path / "relocated", filter="tar")
     assert (

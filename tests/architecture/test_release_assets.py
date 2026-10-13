@@ -126,7 +126,6 @@ def test_python_test_sessions_receive_the_frozen_node_package_supply(tmp_path, m
     "case",
     [
         "pass",
-        "tests",
         "coverage",
         "dirty",
         "head-missing",
@@ -169,8 +168,7 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
     class Runner:
         def run(self, node, _gate, **_context):
             observed.append(node.id)
-            failed = {"tests": "unit-architecture", "coverage": "coverage-floor"}.get(case)
-            verdict = "block" if node.id == failed else "pass"
+            verdict = "block" if case == "coverage" and node.id == "coverage-floor" else "pass"
             return ActionRunResult(node.id, node.command, verdict, int(verdict != "pass"))
 
     def execute(*args, **kwargs):
@@ -209,7 +207,6 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
     session = SimpleNamespace(error=pytest.fail, log=lambda _message: None)
     if case == "pass":
         local_ci.run(cast("nox.Session", session))
-        assert observed.index("unit-architecture") < observed.index("coverage-floor")
         assert observed.index("build") < observed.index("local-install-smoke")
     else:
         with pytest.raises((pytest.fail.Exception, RuntimeError)):
@@ -219,11 +216,7 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
     if case in {"dirty", "head-missing", "policy", "crash"}:
         assert not observed
     else:
-        assert observed.count("unit-architecture") == 1
-        assert observed.count("coverage-floor") == int(case != "tests")
-    if case in {"tests", "coverage"}:
-        assert "build" in observed
-        assert "local-install-smoke" in observed
+        assert observed.count("unit-architecture") == observed.count("coverage-floor") == 1
     assert len(observed) == len(set(observed))
 
 

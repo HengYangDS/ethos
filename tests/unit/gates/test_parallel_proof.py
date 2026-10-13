@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import threading
-from dataclasses import asdict
 from datetime import UTC
 from datetime import datetime
 from types import SimpleNamespace
@@ -201,38 +200,6 @@ def test_ready_child_does_not_wait_for_unrelated_slow_reader(
     assert [result.action_id for result in results] == [node.id for node in nodes]
     assert not concurrent or order.index(release_by) < order.index("slow")
     assert not concurrent or release_by != "queued" or order.index("slow") < order.index("child")
-
-
-@pytest.mark.parametrize("outcome", ["pass", "tests", "coverage", "construction"])
-def test_native_construction_overlaps_tests_without_waiving_the_complete_proof(tmp_path, outcome):
-    declaration = load_gate_registry_declaration()
-    policy = ResolvedGatePolicy(declaration, None, declaration.proof_gates(full=True))
-    root = init_git_repo(tmp_path / "repo")
-    together = threading.Barrier(2, timeout=2)
-    completed = threading.Event()
-    failed = {"tests": "unit-architecture", "coverage": "coverage-floor", "construction": "build"}
-
-    class Runner:
-        def run(self, node, _gate, **_context):
-            if node.id in {"unit-architecture", "build"}:
-                together.wait()
-            if node.id == "unit-architecture":
-                assert completed.wait(2)
-            if node.id == "local-install-smoke" or (
-                node.id == "build" and outcome == "construction"
-            ):
-                completed.set()
-            verdict = "block" if node.id == failed.get(outcome) else "pass"
-            return ActionRunResult(node.id, node.command, verdict, int(verdict != "pass"))
-
-    results = gate_runner.run_gate_graph(
-        Runner(), policy.nodes, policy.registry, root=root, capacity=4, parallel=True
-    )
-    observed = {result.action_id: result for result in results}
-    assert (observed["coverage-floor"].verdict == "pass") == (outcome not in {"tests", "coverage"})
-    assert (observed["local-install-smoke"].verdict == "pass") == (outcome != "construction")
-    gaps = policy.result_gaps(tuple(asdict(result) for result in results))
-    assert bool(gaps) == (outcome != "pass")
 
 
 @pytest.mark.parametrize("verdict", ["block", "unknown"])

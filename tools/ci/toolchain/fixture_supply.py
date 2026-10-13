@@ -45,8 +45,6 @@ def provision(root: Path) -> None:
                     str(lock.parent),
                     "sync",
                     "--locked",
-                    "--python",
-                    sys.executable,
                     "--no-install-project",
                     "--group",
                     "dev",

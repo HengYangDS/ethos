@@ -233,6 +233,107 @@ def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
     assert not bootstrap_repository.exists()
 
 
+@pytest.fixture
+def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+    """Isolate expensive lifecycle effects while retaining the real receipt compiler."""
+    artifacts = tmp_path / "artifacts"
+    work = tmp_path / "work"
+    evidence = tmp_path / "evidence/smoke.json"
+    artifacts.mkdir()
+    wheel = artifacts / "ethos-0.2.0a3-py3-none-any.whl"
+    wheel.write_bytes(b"wheel")
+    sealed_runtime = work / "shared-installation" / ("f" * 64) / "python"
+    sealed_runtime.mkdir(parents=True)
+    sealed_payload = sealed_runtime / "sealed.txt"
+    sealed_payload.write_text("immutable runtime\n", encoding="utf-8")
+    sealed_payload.chmod(0o444)
+    sealed_runtime.chmod(0o555)
+    sealed_runtime.parent.chmod(0o555)
+    lifecycle = {stage: {"state": "passed"} for stage in _LIFECYCLE_STAGES}
+    build = BuildIdentity("0.2.0-alpha.3", "0.2.0a3.dev0+ga.ta", "a" * 40, "b" * 40)
+    lifecycle["successor_activation"]["runtime_digest"] = "f" * 64
+    monkeypatch.setattr(effect, "git_common_dir", lambda root: str(root / ".git"))
+    selected_runtime = Mock(
+        return_value=SimpleNamespace(root=sealed_runtime.parent, digest="f" * 64)
+    )
+    monkeypatch.setattr(effect, "current_runtime", selected_runtime)
+    observed: dict[str, object] = {}
+    logs: list[str] = []
+    cleanup_evidence_states: list[bool] = []
+    remove_generated_tree = effect.remove_generated_tree
+
+    source_python = tmp_path / "project-python"
+    for name, value in {
+        "ROOT": tmp_path,
+        "ARTIFACTS": artifacts,
+        "WORK": work,
+        "EVIDENCE": evidence,
+        "RUNTIME": SimpleNamespace(python=source_python, script=lambda _name: "/locked/uv"),
+        "current_tracked_head": lambda _root: "a" * 40,
+        "wheel_build_identity": lambda _wheel: build,
+        "_run": lambda *_command, **_kwargs: "",
+        "prepare_locked_requirements": lambda _root, work, _python: (
+            work / "locked-requirements.txt"
+        ),
+        "install_locked_runtime": lambda *args: observed.update(supply=args),
+        "observe_runtime_lifecycle": lambda **kwargs: observed.update(kwargs) or lifecycle,
+    }.items():
+        monkeypatch.setattr(effect, name, value)
+    for owner, method, value in (
+        (effect, "package_runtime", {"path": "archive", "runtime_digest": "f" * 64}),
+        (effect.runtime_acceptance, "prove_shared_supply", {"state": "passed"}),
+        (effect.adopter_fixture, "materialize_adopter", "d" * 40),
+        (effect.adopter_fixture, "line_ending_conformance", ["lf", "crlf"]),
+        (
+            effect.adopter_fixture,
+            "prove_formation",
+            {"state": "passed", "first_change": "lane_admitted", "agent_handoff": "passed"},
+        ),
+        (
+            effect,
+            "observe_installed_package",
+            (
+                "/installed/ethos/__init__.py",
+                "ethos 0.2.0-alpha.3",
+                {"state": "passed", "native_git_loss": "not_qualified"},
+            ),
+        ),
+        (effect, "observe_independent_command_plane", {"external_governance_available": False}),
+        (effect, "_verify_resources", ["ethos/resources/system/gates.toml"]),
+    ):
+        monkeypatch.setattr(owner, method, Mock(return_value=value))
+    monkeypatch.setattr(
+        effect.brownfield_acceptance,
+        "prove_brownfield",
+        Mock(
+            return_value={
+                "state": "passed",
+                "authored_content_preserved": True,
+                "planned_files": [".ethos/profile.toml", "openspec/config.yaml"],
+            }
+        ),
+    )
+
+    def remove_owned_work(path: Path) -> None:
+        cleanup_evidence_states.append(evidence.exists())
+        remove_generated_tree(path)
+
+    monkeypatch.setattr(effect, "remove_generated_tree", remove_owned_work)
+    compile_receipt = Mock(wraps=receipt.package_acceptance_evidence)
+    monkeypatch.setattr(effect, "package_acceptance_evidence", compile_receipt)
+    return SimpleNamespace(
+        receipt=compile_receipt,
+        wheel=wheel,
+        build=build,
+        lifecycle=lifecycle,
+        observed=observed,
+        logs=logs,
+        cleanup=cleanup_evidence_states,
+        sealed_payload=sealed_payload,
+        selected_runtime=selected_runtime,
+    )
+
+
 @pytest.mark.parametrize(
     "selection", ["default", "explicit", "changed", "changed-after", "changed-head"]
 )
@@ -279,7 +380,7 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
         payload = json.loads(output.read_text())
         assert (
             cast("Mock", effect.package_runtime).call_args.args[0]
-            is case.selected_runtime.return_value
+            == case.sealed_payload.parent.parent
         )
         case.selected_runtime.assert_called_once_with(
             work / "adopter/.git", expected_build=case.build
@@ -305,42 +406,6 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
         assert json.loads(case.logs[0]) == payload
     if artifact:
         assert evidence.read_text() == "previous development acceptance"
-
-
-def test_formation_reuses_supply_and_preserves_cold_install(monkeypatch, acceptance_case):
-    case = acceptance_case
-    lifecycle = effect.observe_runtime_lifecycle
-    formation = effect.adopter_fixture.prove_formation
-    expected = hashlib.sha256(case.guidance.read_bytes()).hexdigest()
-    observed = []
-
-    def complete_lifecycle(**kwargs):
-        result = lifecycle(**kwargs)
-        case.guidance.unlink()
-        observed.append("lifecycle")
-        return result
-
-    def form(executable, *_args, **kwargs):
-        assert observed == ["lifecycle"]
-        assert executable == case.executable
-        assert kwargs["expected_guidance"] == expected
-        assert kwargs["environment"]["XDG_DATA_HOME"] == str(effect.WORK / "host-data")
-        observed.append("formation")
-        return formation.return_value
-
-    monkeypatch.setattr(effect, "observe_runtime_lifecycle", complete_lifecycle)
-    monkeypatch.setattr(effect.adopter_fixture, "prove_formation", form)
-    effect.run(SimpleNamespace(error=pytest.fail, log=case.logs.append))
-    assert observed == ["lifecycle", "formation"]
-    effect.runtime_acceptance.prove_shared_supply.assert_called_once_with(
-        Path("archive"), effect.WORK / "native", environment=case.observed["environment"]
-    )
-    effect.runtime_acceptance.activate_from_runtime.assert_called_once_with(
-        case.selected_runtime.return_value.python,
-        effect.WORK / "adopter",
-        environment=case.observed["environment"],
-        installed_runtime=case.selected_runtime.return_value.root,
-    )
 
 
 def test_failed_package_supply_cleans_owned_work(monkeypatch, acceptance_case):
@@ -398,29 +463,35 @@ def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact):
         "authored_content_preserved": True,
         "planned_files": [".ethos/profile.toml", "openspec/config.yaml"],
     }
-    for field, observation, reason in (
-        (
-            "brownfield",
-            {"state": "passed", "authored_content_preserved": False},
-            "brownfield_preservation_incomplete",
-        ),
-        (
-            "formation",
-            {"state": "passed", "first_change": "skeleton_created"},
-            "first_change_claim_invalid",
-        ),
-        ("formation", {"state": "blocked"}, "formation_incomplete"),
-        (
-            "formation",
-            {"state": "passed", "first_change": "lane_admitted"},
-            "agent_handoff_incomplete",
-        ),
-        ("command_plane", {"state": "blocked"}, "command_plane_incomplete"),
-    ):
-        with pytest.raises(ValueError, match=f"package_{reason}"):
-            receipt.package_acceptance_evidence(
-                **(case.receipt.call_args.kwargs | {field: observation})
+    with pytest.raises(ValueError, match="package_brownfield_preservation_incomplete"):
+        receipt.package_acceptance_evidence(
+            **(
+                case.receipt.call_args.kwargs
+                | {"brownfield": {"state": "passed", "authored_content_preserved": False}}
             )
+        )
+    with pytest.raises(ValueError, match="package_first_change_claim_invalid"):
+        receipt.package_acceptance_evidence(
+            **(
+                case.receipt.call_args.kwargs
+                | {"formation": {"state": "passed", "first_change": "skeleton_created"}}
+            )
+        )
+    with pytest.raises(ValueError, match="package_formation_incomplete"):
+        receipt.package_acceptance_evidence(
+            **(case.receipt.call_args.kwargs | {"formation": {"state": "blocked"}})
+        )
+    with pytest.raises(ValueError, match="package_agent_handoff_incomplete"):
+        receipt.package_acceptance_evidence(
+            **(
+                case.receipt.call_args.kwargs
+                | {"formation": {"state": "passed", "first_change": "lane_admitted"}}
+            )
+        )
+    with pytest.raises(ValueError, match="package_command_plane_incomplete"):
+        receipt.package_acceptance_evidence(
+            **(case.receipt.call_args.kwargs | {"command_plane": {"state": "blocked"}})
+        )
     assert "sdk_commitment_digest" not in payload["conformance"]
     assert payload["wheels"][0]["path"] == selected.relative_to(tmp_path).as_posix()
     incomplete = dict(case.lifecycle)

@@ -64,10 +64,8 @@ Hidden content and a prior PASS cannot repair an unsupported current claim.
   No exclusions, metric changes, weakened thresholds or deleted behavioral
   obligations may compensate for a failing requirement.
 - Failed or unknown prerequisite results block dependent checks without executing
-  them. Independent diagnostics can continue. Package construction that consumes
-  no test output may overlap tests after selected source preflight under distinct
-  resource ownership. Complete acceptance, landing and delivery still require
-  passing tests and coverage; construction cannot substitute for that conjunction.
+  them. Independent diagnostics can continue. Package creation depends on passing
+  coverage; a successful process cannot substitute for a complete result set.
 - Before selecting a gate as inexpensive, inspect its transitive dependencies in
   the current registry. A focused selection is not necessarily a small workload.
   Carry the declared resource envelope into every native process explicitly;

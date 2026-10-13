@@ -13,8 +13,6 @@ from ethos.adapters.openspec.cli import openspec_base_command
 from ethos.adapters.openspec.cli import run_json
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
-from ethos.repository.release.resources import GUIDANCE_RESOURCE
-from ethos.repository.release.resources import packaged_resource
 from tools.ci.delivery.acceptance.first_change import prove_first_change
 from tools.ci.delivery.acceptance.invocation import invoke
 
@@ -231,14 +229,10 @@ def prove_formation(
     executable: Path,
     work: Path,
     *,
-    origin: str,
+    expected_guidance: str,
     environment: Mapping[str, str],
 ) -> dict[str, object]:
     """Form both starters from the installed CLI without a source checkout."""
-    package_guidance = packaged_resource(
-        GUIDANCE_RESOURCE, package=Path(origin).parent
-    ).read_bytes()
-    expected_guidance = hashlib.sha256(package_guidance).hexdigest()
     formed: list[dict[str, object]] = []
     journey = {"first_change": "not_attempted", "agent_handoff": "not_attempted"}
     for starter in ("foundation", "python-library"):

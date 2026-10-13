@@ -20,6 +20,7 @@ from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.release.identity import BuildIdentity
+from tests.support.runtime_scenarios import runtime_executable
 from tools.ci import dependency_audit
 from tools.ci import sessions
 from tools.ci.delivery import pipeline
@@ -253,10 +254,18 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     build = BuildIdentity("0.2.0-alpha.3", "0.2.0a3.dev0+ga.ta", "a" * 40, "b" * 40)
     lifecycle["successor_activation"]["runtime_digest"] = "f" * 64
     monkeypatch.setattr(effect, "git_common_dir", lambda root: str(root / ".git"))
+    runtime_python = runtime_executable(sealed_runtime, "python")
     selected_runtime = Mock(
-        return_value=SimpleNamespace(root=sealed_runtime.parent, digest="f" * 64)
+        return_value=SimpleNamespace(
+            root=sealed_runtime.parent, python=runtime_python, digest="f" * 64
+        )
     )
     monkeypatch.setattr(effect, "current_runtime", selected_runtime)
+    origin = tmp_path / "installed/ethos/__init__.py"
+    guidance = origin.parent / "resources/skills/ethos-repository-work/SKILL.md"
+    guidance.parent.mkdir(parents=True)
+    guidance.write_bytes(b"Use the selected immutable product.\n")
+    origin.write_text("", encoding="utf-8")
     observed: dict[str, object] = {}
     logs: list[str] = []
     cleanup_evidence_states: list[bool] = []
@@ -282,6 +291,12 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     for owner, method, value in (
         (effect, "package_runtime", {"path": "archive", "runtime_digest": "f" * 64}),
         (effect.runtime_acceptance, "prove_shared_supply", {"state": "passed"}),
+        (effect.runtime_acceptance, "require_manifest", runtime_python),
+        (
+            effect.runtime_acceptance,
+            "activate_from_runtime",
+            {"python": str(runtime_python)},
+        ),
         (effect.adopter_fixture, "materialize_adopter", "d" * 40),
         (effect.adopter_fixture, "line_ending_conformance", ["lf", "crlf"]),
         (
@@ -293,7 +308,7 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
             effect,
             "observe_installed_package",
             (
-                "/installed/ethos/__init__.py",
+                str(origin),
                 "ethos 0.2.0-alpha.3",
                 {"state": "passed", "native_git_loss": "not_qualified"},
             ),
@@ -322,6 +337,8 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     compile_receipt = Mock(wraps=receipt.package_acceptance_evidence)
     monkeypatch.setattr(effect, "package_acceptance_evidence", compile_receipt)
     return SimpleNamespace(
+        executable=runtime_executable(sealed_runtime, "ethos"),
+        guidance=guidance,
         receipt=compile_receipt,
         wheel=wheel,
         build=build,
@@ -406,6 +423,42 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
         assert json.loads(case.logs[0]) == payload
     if artifact:
         assert evidence.read_text() == "previous development acceptance"
+
+
+def test_formation_reuses_supply_and_preserves_cold_install(monkeypatch, acceptance_case):
+    case = acceptance_case
+    lifecycle = effect.observe_runtime_lifecycle
+    formation = effect.adopter_fixture.prove_formation
+    expected = hashlib.sha256(case.guidance.read_bytes()).hexdigest()
+    observed = []
+
+    def complete_lifecycle(**kwargs):
+        result = lifecycle(**kwargs)
+        case.guidance.unlink()
+        observed.append("lifecycle")
+        return result
+
+    def form(executable, *_args, **kwargs):
+        assert observed == ["lifecycle"]
+        assert executable == case.executable
+        assert kwargs["expected_guidance"] == expected
+        assert kwargs["environment"]["XDG_DATA_HOME"] == str(effect.WORK / "host-data")
+        observed.append("formation")
+        return formation.return_value
+
+    monkeypatch.setattr(effect, "observe_runtime_lifecycle", complete_lifecycle)
+    monkeypatch.setattr(effect.adopter_fixture, "prove_formation", form)
+    effect.run(SimpleNamespace(error=pytest.fail, log=case.logs.append))
+    assert observed == ["lifecycle", "formation"]
+    effect.runtime_acceptance.prove_shared_supply.assert_called_once_with(
+        Path("archive"), effect.WORK / "native", environment=case.observed["environment"]
+    )
+    effect.runtime_acceptance.activate_from_runtime.assert_called_once_with(
+        case.selected_runtime.return_value.python,
+        effect.WORK / "adopter",
+        environment=case.observed["environment"],
+        installed_runtime=case.selected_runtime.return_value.root,
+    )
 
 
 def test_failed_package_supply_cleans_owned_work(monkeypatch, acceptance_case):

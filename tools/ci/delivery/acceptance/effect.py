@@ -32,6 +32,8 @@ from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import wheel_build_identity
+from ethos.repository.release.resources import GUIDANCE_RESOURCE
+from ethos.repository.release.resources import packaged_resource
 from tools.ci.delivery.acceptance.receipt import package_acceptance_evidence
 from tools.ci.delivery.distribution import package_runtime
 from tools.ci.toolchain.environment import ProjectRuntime
@@ -428,13 +430,12 @@ def run(
         installed_ethos = _venv_executable(smoke, "ethos")
         independent_host = observe_independent_command_plane(installed_ethos, adopter)
         _run(uv, "pip", "check", "--python", str(_venv_executable(smoke, "python")))
-        resources = _verify_resources(wheel)
-        build, wheel_sha256 = selected.build, selected.sha256
+        resources, build, wheel_sha256 = _verify_resources(wheel), selected.build, selected.sha256
         package_environment, _git = independent_host_environment()
-        package_environment["UV_OFFLINE"] = "1"
-        formation = adopter_fixture.prove_formation(
-            installed_ethos, WORK, origin=origin, environment=package_environment
-        )
+        package_environment.update(UV_OFFLINE="1", XDG_DATA_HOME=str(WORK / "host-data"))
+        expected_guidance = hashlib.sha256(
+            packaged_resource(GUIDANCE_RESOURCE, package=Path(origin).parent).read_bytes()
+        ).hexdigest()
         brownfield = brownfield_acceptance.prove_brownfield(
             installed_ethos, WORK, environment=package_environment, run=_run
         )
@@ -448,13 +449,30 @@ def run(
             environment=package_environment,
         )
         runtime = current_runtime(Path(git_common_dir(adopter)), expected_build=build)
+        shared_python = runtime_acceptance.require_manifest(
+            runtime_acceptance.activate_from_runtime(
+                runtime.python,
+                adopter,
+                environment=package_environment,
+                installed_runtime=runtime.root,
+            ),
+            adopter,
+            build=build,
+            wheel_sha256=wheel_sha256,
+        )
+        formation = adopter_fixture.prove_formation(
+            _venv_executable(shared_python.parent.parent, "ethos"),
+            WORK,
+            expected_guidance=expected_guidance,
+            environment=package_environment,
+        )
         distribution = package_runtime(
             runtime,
             wheel,
             WORK / "native" / f"ethos-{build.distribution_version}.tar.gz",
         )
         distribution["shared_supply"] = runtime_acceptance.prove_shared_supply(
-            Path(str(distribution["path"])), WORK, environment=package_environment
+            Path(str(distribution["path"])), WORK / "native", environment=package_environment
         )
         distribution.pop("path")
         distribution.pop("homebrew_cask", None)

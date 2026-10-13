@@ -21,10 +21,11 @@ from tests.support.governed_repository import init_git_repo
 ROOT = Path(__file__).resolve().parents[3]
 
 
+@pytest.mark.parametrize("ambient_python", ["unset", "unavailable"])
 def test_fixture_supply_preserves_native_project_policy(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ambient_python: str
 ) -> None:
-    """Warm one tracked lock without ambient activation or retained environments."""
+    """Warm one tracked lock with the caller's interpreter and no retained environment."""
     repo = init_git_repo(tmp_path / "repo")
     relative = Path("tests/fixtures/quality-sample")
     fixture = repo / relative
@@ -33,6 +34,9 @@ def test_fixture_supply_preserves_native_project_policy(
     git(repo, "add", "tests")
     monkeypatch.setenv("UV_OFFLINE", "1")
     monkeypatch.setenv("VIRTUAL_ENV", str(tmp_path / "unrelated-environment"))
+    monkeypatch.delenv("UV_PYTHON", raising=False)
+    if ambient_python == "unavailable":
+        monkeypatch.setenv("UV_PYTHON", str(tmp_path / "unrelated-python"))
 
     fixture_supply.provision(repo)
 

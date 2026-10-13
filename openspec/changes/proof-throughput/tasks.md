@@ -336,7 +336,7 @@
     base and the patched xz-utils; the GitLab supply image keeps its prior digest until a
     dispatch-built image is published, and GitLab is unreachable. `npm update` is refused by
     npm 12.2.0 (`EALLOWREMOTE` for its own bundled tarball), so unchanged transitive npm entries
-    stay at their locked in-range versions. Exact proof, hosted CI on the published head, the
+    stay at their locked in-range versions. Exact proof and hosted CI are recorded below; the
     GitLab supply image and installed delivery remain open.
     Accepted at `272b7a58a` through the 5.26 recovery. Hosted run 38285590747 on that head passes
     every Linux and macOS host-conformance job. Windows jobs stop at mise preparation: the official
@@ -350,6 +350,15 @@
     locked Go check looked for `gofmt` without the executable suffix of `go.exe` (fixed). One
     hosted-only bound let shellcheck read the large workflow fixture for 5 seconds under 12
     workers; the test now bounds a deadlocked child at 30 seconds.
+    The last Windows-only defect was a Node test that joined a native Windows path with a literal
+    `/`; it now uses `path.sep`. Accepted `5fc32a243` passed its repository-purpose full proof and
+    the ordinary land, closeout and native GitHub publication. Hosted ETHOS CI runs 38323590796
+    (dev) and 38323590691 (main) pass every job, including all three Windows host-conformance
+    jobs, and CodeQL passes. Deferred, owned by this Change: publish dev/main and the CI supply
+    image to GitLab when the intranet is reachable (it refused connections on 2026-10-13), through
+    native `ethos publish --probe-remote --peer gitlab` first; and review the npm 12.2.0 approvals by
+    2026-11-06, replacing them with an official stable npm that removes the findings or renewing
+    them through the audit owner before the 2026-11-13 expiry.
 
 - [ ] 11.4 Migrate native developer/CI tool supply to mise locks and retire replaced installers.
 - [x] 11.5 Verify native import-linter and coverage TOML option equivalence; replace their INI owners and consumers without adding a converter.

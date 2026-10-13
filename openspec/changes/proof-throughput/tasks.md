@@ -320,50 +320,66 @@
         Evidence: `audit-npm-disposition-sidecar-20261005T0615/{qualification-summary.json,native-local.dependency-audit.json,native-strict.dependency-audit.json,native-ci-local.dependency-audit.json}`
         and `ci-node-ssot-sidecar-20261005T051804Z/ci-node-ssot-generated.patch`.
   - [ ] 11.3.3 Deliver the 2026-10-12 latest-stable supply refresh, which also repairs hosted CI.
-        Hosted GitHub CI on `1669c37bd` failed in every job at bootstrap because the pinned mise
-        2026.9.11 could not read the lockfile_version 3 mise lock. Official stable releases observed on
-        2026-10-12: mise 2026.10.8, Node 26.11.1, Go 1.27.2, Syft 1.54.1, uv 0.13.0 with setup-uv
-        v10.3.0, upload-artifact v7.0.2 and 20 Python lock entries, including Ruff 0.17.0, Ty 0.0.86
-        and Pydantic 2.14.1 with its natively resolved core 2.50.1. CUE, Actionlint, scc, Gitleaks,
-        checkout, setup-python and the act emulator image were already current. Native owners
-        refreshed the mise config and lock with each tool's platform set preserved, the version-bound
-        installer projection and its bootstrap binding, both Python locks, the npm lock (Allure 3.20.1,
-        Prettier 3.9.10, smol-toml 1.9.1; no new packages or install scripts) and both CI projections.
-        On the current shell observer the new installer adds only the `awk` and `printf` executables;
-        its quoted awk bodies are not read as commands. Ty 0.0.86 findings are fixed at their owners:
-        context managers return `Generator`, one verification floor is typed, and the gate runner
-        passes an explicit optional timeout. npm 12.2.0 is still the latest stable npm, and native
-        audit fix cannot replace its bundled components. Under the user's 2026-10-12 directive that
-        every decision serve unblocking and closeout, the twelve host-bound local approvals become
-        production-release approvals for the same bundled components, expiring 2026-11-13. uv and
-        Ruff now default to Python 3.15; the explicit 3.12 to 3.14 support line is unchanged, and
-        adopting 3.15 is a separate support decision. The supply Dockerfile moves to the uv 0.13.0
-        base and the patched xz-utils; the GitLab supply image keeps its prior digest until a
-        dispatch-built image is published, and GitLab is unreachable. `npm update` is refused by
-        npm 12.2.0 (`EALLOWREMOTE` for its own bundled tarball), so unchanged transitive npm entries
-        stay at their locked in-range versions. Exact proof and hosted CI are recorded below; the
-        GitLab supply image and installed delivery remain open.
-        Accepted at `272b7a58a` through the 5.26 recovery. Hosted run 38285590747 on that head passes
-        every Linux and macOS host-conformance job. Windows jobs stop at mise preparation: the official
-        installer supports only Linux and macOS, and hosted Windows resolves `bash` to the WSL launcher.
-        One hosted-only test dropped the native tool cache selection from its isolated child; it now
-        passes that selection with the validated package supply. Two research links named the wrong
-        upstream package path and are corrected. Windows now stages the release's official
-        executable, accepted only with its digest from that release's SHASUMS256.txt bound in the
-        bootstrap record. Hosted run 38306041965 on `1ce814e6c` passes external links and every
-        Linux and macOS job; Windows now prepares mise, Go and Node and stopped only because the
-        locked Go check looked for `gofmt` without the executable suffix of `go.exe` (fixed). One
-        hosted-only bound let shellcheck read the large workflow fixture for 5 seconds under 12
-        workers; the test now bounds a deadlocked child at 30 seconds.
-        The last Windows-only defect was a Node test that joined a native Windows path with a literal
-        `/`; it now uses `path.sep`. Accepted `5fc32a243` passed its repository-purpose full proof and
-        the ordinary land, closeout and native GitHub publication. Hosted ETHOS CI runs 38323590796
-        (dev) and 38323590691 (main) pass every job, including all three Windows host-conformance
-        jobs, and CodeQL passes. Deferred, owned by this Change: publish dev/main and the CI supply
-        image to GitLab when the intranet is reachable (it refused connections on 2026-10-13), through
-        native `ethos publish --probe-remote --peer gitlab` first; and review the npm 12.2.0 approvals by
-        2026-11-06, replacing them with an official stable npm that removes the findings or renewing
-        them through the audit owner before the 2026-11-13 expiry.
+    Hosted GitHub CI on `1669c37bd` failed in every job at bootstrap because the pinned mise
+    2026.9.11 could not read the lockfile_version 3 mise lock. Official stable releases observed on
+    2026-10-12: mise 2026.10.8, Node 26.11.1, Go 1.27.2, Syft 1.54.1, uv 0.13.0 with setup-uv
+    v10.3.0, upload-artifact v7.0.2 and 20 Python lock entries, including Ruff 0.17.0, Ty 0.0.86
+    and Pydantic 2.14.1 with its natively resolved core 2.50.1. CUE, Actionlint, scc, Gitleaks,
+    checkout, setup-python and the act emulator image were already current. Native owners
+    refreshed the mise config and lock with each tool's platform set preserved, the version-bound
+    installer projection and its bootstrap binding, both Python locks, the npm lock (Allure 3.20.1,
+    Prettier 3.9.10, smol-toml 1.9.1; no new packages or install scripts) and both CI projections.
+    On the current shell observer the new installer adds only the `awk` and `printf` executables;
+    its quoted awk bodies are not read as commands. Ty 0.0.86 findings are fixed at their owners:
+    context managers return `Generator`, one verification floor is typed, and the gate runner
+    passes an explicit optional timeout. npm 12.2.0 is still the latest stable npm, and native
+    audit fix cannot replace its bundled components. Under the user's 2026-10-12 directive that
+    every decision serve unblocking and closeout, the twelve host-bound local approvals become
+    production-release approvals for the same bundled components, expiring 2026-11-13. uv and
+    Ruff now default to Python 3.15; the explicit 3.12 to 3.14 support line is unchanged, and
+    adopting 3.15 is a separate support decision. The supply Dockerfile moves to the uv 0.13.0
+    base and the patched xz-utils; the GitLab supply image keeps its prior digest until a
+    dispatch-built image is published, and GitLab is unreachable. `npm update` is refused by
+    npm 12.2.0 (`EALLOWREMOTE` for its own bundled tarball), so unchanged transitive npm entries
+    stay at their locked in-range versions. Exact proof and hosted CI are recorded below; the
+    GitLab supply image and installed delivery remain open.
+    Accepted at `272b7a58a` through the 5.26 recovery. Hosted run 38285590747 on that head passes
+    every Linux and macOS host-conformance job. Windows jobs stop at mise preparation: the official
+    installer supports only Linux and macOS, and hosted Windows resolves `bash` to the WSL launcher.
+    One hosted-only test dropped the native tool cache selection from its isolated child; it now
+    passes that selection with the validated package supply. Two research links named the wrong
+    upstream package path and are corrected. Windows now stages the release's official
+    executable, accepted only with its digest from that release's SHASUMS256.txt bound in the
+    bootstrap record. Hosted run 38306041965 on `1ce814e6c` passes external links and every
+    Linux and macOS job; Windows now prepares mise, Go and Node and stopped only because the
+    locked Go check looked for `gofmt` without the executable suffix of `go.exe` (fixed). One
+    hosted-only bound let shellcheck read the large workflow fixture for 5 seconds under 12
+    workers; the test now bounds a deadlocked child at 30 seconds.
+    The last Windows-only defect was a Node test that joined a native Windows path with a literal
+    `/`; it now uses `path.sep`. Accepted `5fc32a243` passed its repository-purpose full proof and
+    the ordinary land, closeout and native GitHub publication. Hosted ETHOS CI runs 38323590796
+    (dev) and 38323590691 (main) pass every job, including all three Windows host-conformance
+    jobs, and CodeQL passes. Deferred, owned by this Change: publish dev/main and the CI supply
+    image to GitLab when the intranet is reachable (it refused connections on 2026-10-13), through
+    native `ethos publish --probe-remote --peer gitlab` first. The npm 12.2.0 approval review
+    is superseded by 11.3.4.
+  - [ ] 11.3.4 Report, without blocking, a finding that no official stable release fixes yet.
+    The user chose this rule on 2026-10-13 over renewing per-advisory approvals. The audit
+    records, with `npm view`, the registry latest release of every locked npm artifact that
+    ships a finding: the package itself, or the bundling package for an `inBundle` component.
+    Evaluation passes a finding whose owning artifacts all already are their latest stable
+    releases, and a Python advisory whose native fix versions name no newer stable release.
+    Fixable findings, missing or malformed observations and adverse Python statuses still
+    block, and an exact disposition keeps precedence. Landing and hooks reevaluate the
+    captured observation without network access. Evaluation now resolves finding identity in
+    every scope, so an unresolvable production identity reports `unknown` instead of an
+    unexamined `block`. The twelve npm 12.2.0 dispositions are redundant under this rule;
+    removing them changes the product policy and waits for the 5.26 owner gap, and after
+    their 2026-11-13 expiry they cannot authorize anything. The native view of `name@latest`
+    is a one-element array; any other shape stays unobserved. A real audit on 2026-10-13
+    observed braces 3.0.3 and npm 12.2.0 as latest; without dispositions, all six advisory
+    packages are reported and none blocks, while the live policy still reports its exact
+    approvals. Exact proof, landing and hosted CI remain open.
 
 - [ ] 11.4 Migrate native developer/CI tool supply to mise locks and retire replaced installers.
 - [x] 11.5 Verify native import-linter and coverage TOML option equivalence; replace their INI owners and consumers without adding a converter.

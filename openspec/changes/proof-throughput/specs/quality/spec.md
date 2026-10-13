@@ -6,7 +6,8 @@ The existing dependency-audit owner MAY admit explicitly selected local
 development against a human-authorized disposition for the exact advisory,
 locked package artifact, nodes, dependency snapshot and explicitly approved host.
 Native observations SHALL remain unchanged; unselected development, CI, release,
-installation and distribution SHALL retain the strict decision.
+installation and distribution SHALL retain the strict decision for every finding
+that an official stable release fixes.
 
 #### Scenario: A bundled component has no independent integrity
 
@@ -52,6 +53,33 @@ installation and distribution SHALL retain the strict decision.
 - **WHEN** an explicit release build or install is requested through Nox
 - **THEN** the same audit owner evaluates strict production-release scope before the release effect
 - **AND** a local-development permission cannot authorize that effect
+
+### Requirement: Findings without a stable upstream fix do not block
+
+The dependency-audit owner SHALL report, without blocking any scope, a native
+finding that no official stable release fixes yet. Fixable or unobserved findings
+SHALL keep blocking until the supply is upgraded or an exact disposition applies.
+Adverse Python package statuses are not advisories and SHALL keep the strict result.
+
+#### Scenario: Every owning artifact already is its latest stable release
+
+- **WHEN** every locked npm artifact that ships a finding, the bundling package for
+  an `inBundle` component, already is its registry latest release, or a Python
+  advisory's native fix versions name no newer stable release
+- **THEN** the decision passes and lists the finding as unfixed upstream
+- **AND** native findings, counts, exit status and raw evidence remain unchanged
+
+#### Scenario: An upgrade can fix the finding or the observation is missing
+
+- **WHEN** an owning artifact is behind its latest stable release, a Python advisory
+  names a newer stable fix version, or the registry observation is missing or malformed
+- **THEN** the finding blocks until the supply is upgraded or an exact disposition applies
+
+#### Scenario: Landing reevaluates the captured observation
+
+- **WHEN** landing or a Git hook reevaluates a captured audit
+- **THEN** it reads the same-attempt upstream observation without network access
+- **AND** an exact disposition keeps precedence over the unfixed-upstream report
 
 ### Requirement: Object coordinates share one typed native observation
 

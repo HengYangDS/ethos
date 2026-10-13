@@ -101,9 +101,9 @@ and reason to change, not by filename or storage location.
 | Proposed change, alternatives, experiment procedure and migration | Selected Change proposal, delta specs and design        | Research supplies attributed findings, not undeclared approved scope.           |
 | Bounded task progress                                             | Official Change tasks                                   | The terminal plan orders dependencies and exits without copying checkbox state. |
 | Executable behavior and policy                                    | Existing implementation, schema or native configuration | Adapters and generated views consume the owner.                                 |
-| Stable operational boundaries                                    | Applicable rule owner                                   | Skills route methods; native checks enforce decidable constraints.              |
-| Reusable task methods                                            | One applicable Skill and its selected references        | Consume native owners; do not duplicate policy, acceptance or progress.          |
-| Reproducible failure and distinguishing expectation                | Regression at the responsible behavior owner            | Check accepted meaning, valid controls and relevant unknown/recovery paths.     |
+| Stable operational boundaries                                     | Applicable rule owner                                   | Skills route methods; native checks enforce decidable constraints.              |
+| Reusable task methods                                             | One applicable Skill and its selected references        | Consume native owners; do not duplicate policy, acceptance or progress.         |
+| Reproducible failure and distinguishing expectation               | Regression at the responsible behavior owner            | Check accepted meaning, valid controls and relevant unknown/recovery paths.     |
 | Observed execution, proof and effects                             | Exact evidence and necessary Attestations               | Reports cite facts; acceptance, installation and publication remain separate.   |
 | Reusable explanation, guidance and sourced synthesis              | Relevant docs topic                                     | Link supporting authorities; do not create another workflow or proof store.     |
 | Irreducible cross-Change rationale                                | One necessary decision record                           | Name the current owner; history does not grant permission.                      |
@@ -270,12 +270,27 @@ source. It is not a feedback receipt, status page, task list, or archive index.
 Its filename is `dr-<four-digit-id>-<semantic-topic>.md`: the stable positive
 number is never reused for another ruling, while the topic stays legible. The
 Docs Registry rejects missing or duplicate current IDs without adding a
-decision database. A record states its status and date, context, decision,
-consequences and revisit condition; alternatives and evidence are included when
-they explain the choice. Its directory README navigates records but does not
-become a second decision register. Adopters need not copy ETHOS's directory
-shape; their `role: decision` records follow the same identity grammar within
-their selected documentation root.
+decision database. Each `role: decision` record declares `decision_id`, matching
+its filename and sole top-level `DR-####: Topic` title, plus
+`decision_status: accepted` and `state: canonical`. Decision disposition is not
+document currentness, implementation acceptance, or effect authorization. Preserve
+known decision dates and provenance; a structural migration cannot invent them.
+
+After the title, a record has exactly five document-level sections in this order:
+Context; Decision; Alternatives Rejected; Consequences and Boundary; Evidence and
+Revisit. Every section contains readable rationale. Evidence references support
+the choice; they do not prove present delivery. Plain prose, rationale lists,
+quotations, tables, bare identifiers and evidence paths remain valid. Task
+checkboxes, code blocks, embedded HTML and executable procedures belong to their
+producing Change, how-to or native record, not a DR. Invocation inspection parses
+syntax without executing it; ambiguous inline execution is refused rather than
+reported as proved absent. Mechanical validation does not decide whether a
+choice is sound or worth preserving.
+
+Its directory README navigates records but does not become a second decision
+register. Adopters need not copy ETHOS's directory shape; their decision records
+use this same contract within the selected documentation root. Non-decision roles
+retain the common metadata floor without DR-specific fields or sections.
 
 ## Markdown list structure
 

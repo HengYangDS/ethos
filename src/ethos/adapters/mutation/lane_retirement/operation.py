@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import os
-import shlex
 import sqlite3
 from contextlib import closing
 from functools import partial
@@ -19,6 +18,7 @@ from filelock import Timeout
 from ethos.adapters.mutation.lane_retirement.content import remove_reviewed_content
 from ethos.adapters.mutation.lane_retirement.content import unreviewed_content
 from ethos.adapters.mutation.lane_retirement.content import verify_reviewed_content
+from ethos.adapters.mutation.lane_retirement.continuation import retirement_continuation
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import process_file_identities
 from ethos.adapters.repo.git import GitExecutionError
@@ -38,6 +38,7 @@ from ethos.adapters.store.state.schema import local_state_root
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import TransitionPlan
+from ethos.contracts.retirement import AcceptedState
 from ethos.contracts.retirement import CarrierState
 from ethos.contracts.retirement import RetirementObservation
 from ethos.contracts.retirement import RetirementOperation
@@ -166,7 +167,7 @@ def reduce_progress(
         "delete_ref": observation.ref_state,
         "revoke_lease": observation.lease_state,
     }
-    if observation.accepted_state != "expected" or any(
+    if observation.accepted_state not in {"expected", "advanced"} or any(
         states[effect] in {"moved", "unavailable"} for effect in request.effects
     ):
         _fail("retirement_operation_state_drift")
@@ -183,6 +184,15 @@ def reduce_progress(
         completed_effects=completed,
         remaining_effects=remaining,
     )
+
+
+def _require_accepted_coordinate(progress: RetirementProgress) -> None:
+    """Fail closed before any remaining worktree or ref deletion once accepted advanced."""
+    if progress.observation.accepted_state != "expected" and {
+        "remove_worktree",
+        "delete_ref",
+    } & set(progress.remaining_effects):
+        _fail("retirement_accepted_coordinate_drift")
 
 
 def _lease_outcome(root: Path, request: RetirementOperation) -> CarrierState:
@@ -238,6 +248,16 @@ def _ref_outcome(root: Path, ref: str, expected: str) -> CarrierState:
     return "absent" if observed.returncode == 1 else "unavailable"
 
 
+def _accepted_outcome(root: Path, request: RetirementOperation) -> AcceptedState:
+    """Distinguish a fast-forward of the accepted ref from any other move."""
+    ref = f"refs/heads/{request.accepted_branch}"
+    observed = _ref_outcome(root, ref, request.accepted_head)
+    if observed != "moved":
+        return observed
+    advanced = run_git(root, "merge-base", "--is-ancestor", request.accepted_head, ref, check=False)
+    return "advanced" if advanced.returncode == 0 else "moved"
+
+
 def observe_operation(root: Path, request: RetirementOperation) -> RetirementObservation:
     """Observe all retirement carriers from the surviving control root."""
     control = Path(request.control_root)
@@ -249,11 +269,7 @@ def observe_operation(root: Path, request: RetirementOperation) -> RetirementObs
             else "absent"
         ),
         lease_state=_lease_outcome(root, request),
-        accepted_state=_ref_outcome(
-            control,
-            f"refs/heads/{request.accepted_branch}",
-            request.accepted_head,
-        ),
+        accepted_state=_accepted_outcome(control, request),
     )
 
 
@@ -322,6 +338,7 @@ def preflight_operation(root: Path, request: RetirementOperation) -> RetirementP
     ):
         _fail("lane_retirement_receipt_repository_mismatch")
     progress = reduce_progress(request, observe_operation(root, request))
+    _require_accepted_coordinate(progress)
     if "delete_ref" in progress.remaining_effects:
         admit_git_effect(execution_root, _git_plan(request))
     if "remove_worktree" in progress.remaining_effects:
@@ -382,36 +399,6 @@ def revoke_operation_lease(root: Path, request: RetirementOperation) -> None:
         connection.commit()
 
 
-def content_review_command(root: Path, branch: str) -> str:
-    """Request an exact content review, without authorizing its eventual disposal."""
-    return shlex.join(
-        [
-            "ethos",
-            "lane",
-            "retire",
-            "abandon",
-            "--branch",
-            branch,
-            "--review-content",
-            "--reason-code",
-            "content-review",
-            "--reason",
-            "Review nontracked content and preserve required custody before disposal",
-            "--root",
-            root.as_posix(),
-            "--json",
-        ]
-    )
-
-
-def _recovery_command(root: Path, receipt: Mapping[str, object]) -> str:
-    return (
-        f"ethos lane retire recover --receipt {shlex.quote(str(receipt.get('path') or ''))} "
-        f"--receipt-sha256 {shlex.quote(str(receipt.get('sha256') or ''))} "
-        f"--authorize --apply --root {shlex.quote(root.as_posix())} --json"
-    )
-
-
 def _report(
     root: Path,
     request: RetirementOperation,
@@ -435,13 +422,7 @@ def _report(
         "head": request.head,
         "receipt": dict(request_receipt),
         "required_gaps": ["lane_retirement_partial"] if partial else [],
-        "next_action": (
-            content_review_command(root, request.branch)
-            if failure and failure.get("required_gaps") == ["retirement_content_review_required"]
-            else _recovery_command(root, request_receipt)
-            if progress is None or progress.remaining_effects
-            else f"ethos status --root {root.as_posix()} --json"
-        ),
+        "next_action": retirement_continuation(root, request, request_receipt, progress, failure),
         "user_decision_required": progress is None or bool(progress.remaining_effects),
         **dict(failure or {}),
     }
@@ -488,6 +469,7 @@ def apply_operation(
                 actions[effect](control_root, request)
                 progress = reduce_progress(request, observe_operation(control_root, request))
                 progress_receipt = persist_progress(control_root, request, progress)
+                _require_accepted_coordinate(progress)
             terminal_receipt = (
                 persist_terminal_receipt(control_root, request, progress)
                 if progress.state == "terminal"
@@ -497,7 +479,9 @@ def apply_operation(
             failure = retirement_failure(error)
             try:
                 progress = reduce_progress(request, observe_operation(control_root, request))
-                progress_receipt = persist_progress(control_root, request, progress)
+                progress_receipt = (
+                    persist_progress(control_root, request, progress) if apply else {}
+                )
             except (GitExecutionError, OSError, RuntimeError, TypeError, ValueError):
                 return report(None, failure=failure)
         return report(

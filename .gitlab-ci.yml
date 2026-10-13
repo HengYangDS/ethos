@@ -112,7 +112,7 @@ ethos:external-links:
 ethos:npm:
   stage: verify
   variables:
-    NODE_VERSION: 26.10.0
+    NODE_VERSION: 26.11.1
   image: ghcr.io/hengyangds/ethos-ci-supply@sha256:e66721fa93a216afd6bfec1784e123fb17ae72b9a9a449f04ea13d62f02ee59c
   script:
     - tools/ci/scripts/bootstrap-python.sh

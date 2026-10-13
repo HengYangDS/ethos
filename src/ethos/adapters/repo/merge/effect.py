@@ -218,7 +218,6 @@ def apply_merge(
     *,
     mode: str,
     incoming: str,
-    candidate_ref: str,
     actor: str,
     lease: dict[str, object],
     message: str,
@@ -235,8 +234,6 @@ def apply_merge(
         result = _continue(
             root,
             observed,
-            candidate_ref,
-            incoming,
             actor,
             lease,
             message,
@@ -286,8 +283,6 @@ def apply_merge(
 def _continue(
     root: Path,
     observed: MergeObservation,
-    candidate_ref: str,
-    incoming: str,
     actor: str,
     lease: dict[str, object],
     message: str,
@@ -316,7 +311,6 @@ def _continue(
         updates={
             f"refs/heads/{observed.branch}": GitRefUpdate(expected=observed.head, desired=desired)
         },
-        assertions={candidate_ref: incoming},
     )
     plan = compile_observed_git_effect(
         root,

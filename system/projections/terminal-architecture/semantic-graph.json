@@ -149,7 +149,7 @@
     "local_state": {
       "path": "docs/architecture/local-state.md",
       "authority": "current host-local coordination boundary",
-      "sha256": "61fc0c9e0fd301fc0b1453192302af72e9207bd60684bfbc767a151c7da29fbc"
+      "sha256": "5831e4ee51d1307ef13aa746af9f49e18068659f28760e12a69acadee2525d0b"
     },
     "adoption": {
       "path": "docs/architecture/adoption-profiles.md",
@@ -184,7 +184,7 @@
     "command_plane": {
       "path": "openspec/specs/command-plane/spec.md",
       "authority": "current public command and result semantics",
-      "sha256": "0772e9f1d61133de638cee7f16f7b8c09981de139a55e1d404ad138b9b7eed31"
+      "sha256": "2fd14e007b0a239ea306b01e0aff6ccb545904ea02e8e225b6a7b5ec78ecc94c"
     },
     "learning_relations": {
       "path": "docs/governance/evolution-campaign.md",

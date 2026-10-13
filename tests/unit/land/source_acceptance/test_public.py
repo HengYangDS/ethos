@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import tomllib
 from datetime import datetime
 from datetime import timedelta
@@ -21,6 +22,7 @@ from ethos.repository.policy.quality.dependency_acceptance import AUDIT_POLICY_P
 from ethos.repository.policy.quality.dependency_acceptance import product_audit_projection
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import WorkLaneFixture
 from tests.support.governed_repository import git
 from tests.unit.land.source_acceptance.support import EXPIRED
@@ -191,3 +193,67 @@ def test_public_source_acceptance(
     assert git(fixture.candidate, "write-tree") == git(work, "rev-parse", f"{head}^{{tree}}")
     _delivery_boundaries(fixture, head, before, proof)
     assert len(stdout_attempts) == len(transactions) == 1
+
+
+@pytest.mark.parametrize("scan_passes", [False, True], ids=["native-refusal", "native-acceptance"])
+def test_public_native_source_acceptance(
+    tmp_path: Path, monkeypatch, audit_attempts: list[str], *, scan_passes: bool
+) -> None:
+    """The declared native check owns applicability and still controls proof and CAS."""
+    actor = "agent:test:case:agent-test"
+    monkeypatch.setenv("ETHOS_ACTOR", actor)
+    fixture, before, head = prepare_source(tmp_path, actor, native_scan=scan_passes)
+    work = fixture.worktree
+    assert not any((work / name).exists() for name in ("pyproject.toml", "uv.lock"))
+    arguments = (
+        "prove",
+        "--full",
+        "--execute",
+        "--expect-head",
+        head,
+        "--acceptance-purpose",
+        "local-source",
+        "--json",
+    )
+    completed = run_ethos_raw(*arguments, cwd=work)
+    result = json.loads(completed.stdout)
+    assert completed.returncode == (0 if scan_passes else 1), result
+    roles = load_branch_role_policy(work)
+    if not scan_passes:
+        assert result["verdict"] == "block"
+        assert git(fixture.candidate, "rev-parse", "HEAD") == before
+        assert not any(
+            item.predicate == "proof:execution" and item.subject == f"git:commit:{head}"
+            for item in read_attestation_set(work)[1]
+        )
+        return
+    proof = result["data"]["attestation"]
+    selected, gaps = proof_attestation(
+        work,
+        head,
+        store=proof_artifact_root(work),
+        attestation_id=proof["id"],
+        acceptance_purpose="local-source",
+    )
+    assert selected is not None
+    assert not gaps
+    assert {gate["id"] for gate in proof["payload"]["body"]["plan"]["policy"]["gates"]} == {
+        "behavior",
+        "static",
+        "native-dependencies",
+    }
+    landed = run_ethos(
+        "land",
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        head,
+        "--acceptance-purpose",
+        "local-source",
+        "--json",
+        cwd=work,
+    )
+    assert landed["verdict"] == "pass"
+    assert git(fixture.candidate, "rev-parse", "HEAD") == head
+    assert git(fixture.repository, "rev-parse", roles.accepted_branch) == before
+    assert not audit_attempts

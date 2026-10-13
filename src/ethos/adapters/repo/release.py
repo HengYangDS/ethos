@@ -7,17 +7,23 @@ import shlex
 import tomllib
 from typing import TYPE_CHECKING
 
+from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.commit.admission import commit_policy_for_revision
 from ethos.adapters.repo.commit.provenance import accepted_provenance
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tracked_head
+from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_effect_attestation import declares_transition
+from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
+from ethos.adapters.repo.git_effect_attestation import validate
 from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.plan import git_effect_from_plan
 from ethos.repository.release.configuration import release_config_from_text
 from ethos.repository.release.identity import product_version_from_text
 from ethos.repository.release.publication import publication_ref_role
@@ -129,11 +135,78 @@ def release_tag_policy(root: Path, head: str, name: str) -> dict[str, str]:
     return version
 
 
-def accepted_release_source(root: Path, head: str) -> dict[str, object]:
+def release_publication_head(root: Path, *, ref: str = "", new: str = "") -> str:
+    """Return the accepted commit that publishing one ref object delivers.
+
+    Branches and new release tags deliver the current accepted head. An existing
+    tag object delivers the earlier accepted commit at which its attested release
+    effect created it, so a peer that missed that release can still receive it.
+    """
+    policy = load_branch_role_policy(root)
+    accepted_ref = f"refs/heads/{policy.accepted_branch}"
+    head = ref_head(root, accepted_ref)
+    if not ref.startswith("refs/tags/") or not new:
+        return head
+    released = git_stdout(root, "rev-parse", "--verify", "--quiet", f"{new}^{{commit}}")
+    if not released or released == head or not is_ancestor(root, released, head):
+        return head
+    attested = _attested_release(root, ref=ref, tag=new, accepted_ref=accepted_ref, commit=released)
+    return released if attested else head
+
+
+def publication_proof_head(root: Path, refs: tuple[str, ...], head: str) -> str:
+    """Prove a tag's release commit; every other publication proves the checkout head."""
+    if not refs or not all(ref.startswith("refs/tags/") for ref in refs):
+        return head
+    tag = ref_head(root, refs[0])
+    try:
+        return release_publication_head(root, ref=refs[0], new=tag) if tag else head
+    except ValueError:
+        return head
+
+
+def _attested_release(root: Path, *, ref: str, tag: str, accepted_ref: str, commit: str) -> bool:
+    """Select only a validated release effect that created this exact tag at commit."""
+    zero = zero_oid(root)
+    for attestation in read_attestation_set(root)[1]:
+        if attestation.predicate != "effect:git-ref-update" or not declares_transition(
+            attestation, "release.promote"
+        ):
+            continue
+        try:
+            plan = plan_from_attestation(attestation)
+            effect = git_effect_from_plan(plan)
+            update = effect.updates.get(ref)
+            if (
+                update is None
+                or (update.expected, update.desired) != (zero, tag)
+                or effect.assertions.get(accepted_ref) != commit
+            ):
+                continue
+            validate(
+                root,
+                effect,
+                attestation,
+                issuer=attestation.verifier,
+                plan=plan,
+                current_postconditions=False,
+            )
+        except ValueError:
+            continue
+        return True
+    return False
+
+
+def accepted_release_source(
+    root: Path, head: str, *, ref: str = "", new: str = ""
+) -> dict[str, object]:
     """Validate exact accepted content without claiming historical signatures."""
     policy = load_branch_role_policy(root)
     accepted_ref = f"refs/heads/{policy.accepted_branch}"
-    require_release(ref_head(root, accepted_ref) == head, "release_source_not_current_accepted")
+    require_release(
+        release_publication_head(root, ref=ref, new=new) == head,
+        "release_source_not_current_accepted",
+    )
     source = observe_git_object(root, head, "commit")
     require_release(not source["required_gaps"], "release_source_signature_untrusted")
     closeout = accepted_provenance(
@@ -163,7 +236,7 @@ def accepted_delivery_report(
     accepted effect and policy remain independently checked.
     """
     try:
-        accepted = accepted_release_source(root, head)
+        accepted = accepted_release_source(root, head, ref=target, new=proposed)
         policy = commit_policy_for_revision(root, head)
     except (OSError, TypeError, ValueError) as error:
         return {"verdict": "block", "required_gaps": [str(error)]}
@@ -192,12 +265,18 @@ def accepted_delivery_report(
 
 
 def release_ref_subject(
-    root: Path, *, ref: str, old: str, new: str, allow_identical: bool = False
+    root: Path, *, ref: str, old: str, new: str, publication: bool = False
 ) -> str:
-    """Require native release identity; callers separately admit proof and intent."""
+    """Require native release identity; callers separately admit proof and intent.
+
+    Creation selects the current accepted head. Publishing an existing tag object
+    may instead deliver the accepted commit of its attested release.
+    """
     policy = load_branch_role_policy(root)
     head = ref_head(root, policy.accepted_branch)
+    published = {"ref": ref, "new": new} if publication else {}
     if ref.startswith("refs/tags/"):
+        head = release_publication_head(root, **published)
         source = observe_git_object(root, new, "annotated-tag")
         require_release(
             not source["required_gaps"] and source["peeled_commit"] == head,
@@ -211,14 +290,14 @@ def release_ref_subject(
         require_release(names == [ref.removeprefix("refs/tags/")], "release_tag_name_mismatch")
         release_tag_policy(root, head, ref.removeprefix("refs/tags/"))
         require_release(
-            old == zero_oid(root) or (allow_identical and old == new), "release_tag_immutable"
+            old == zero_oid(root) or (publication and old == new), "release_tag_immutable"
         )
     else:
         require_release(new == head, "release_source_not_current_accepted")
         require_release(
             old == zero_oid(root) or is_ancestor(root, old, new), "release_not_fast_forward"
         )
-    accepted_release_source(root, head)
+    accepted_release_source(root, head, **published)
     return head
 
 
@@ -227,7 +306,7 @@ def release_tag_publication_gaps(root: Path, ref: str, old: str, new: str) -> li
     if not ref.startswith("refs/tags/"):
         return []
     try:
-        release_ref_subject(root, ref=ref, old=old, new=new, allow_identical=True)
+        release_ref_subject(root, ref=ref, old=old, new=new, publication=True)
     except (OSError, ValueError) as error:
         return [str(error)]
     return []

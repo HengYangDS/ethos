@@ -37,6 +37,7 @@ def repo(tmp_path: Path) -> Path:
     ("name", "arguments", "stdin", "gap"),
     [
         ("pre-commit", (), "", ""),
+        ("commit-msg", (), "", "commit_message_file_missing"),
         ("unknown", (), "", "hook_name_invalid"),
         ("pre-push", ("origin",), "invalid\n", "push_update_invalid"),
         (

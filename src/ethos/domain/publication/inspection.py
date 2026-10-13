@@ -17,6 +17,8 @@ from ethos.adapters.admission.publication import publication_proof_admission
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.decision import mutation_envelope
+from ethos.adapters.mutation.proof_admission import unavailable_proof_admission
+from ethos.adapters.repo.release import publication_proof_head
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
@@ -243,6 +245,7 @@ class PublicationContext:
     root: Path
     governance: dict[str, object]
     head: str
+    proof_head: str
     branch: str
     role_policy: BranchRolePolicy
     topology: dict[str, object]
@@ -350,19 +353,13 @@ def observe_publication(
         if review_only
         else repository_audit_after_admission(repo, decision)
     )
+    proof_head = publication_proof_head(repo, target_refs, current_head)
     proof_admission = (
         publication_proof_admission(
-            repo, current_head, target_roles or (str(status_payload["role"]),)
+            repo, proof_head, target_roles or (str(status_payload["role"]),)
         )
         if decision.verdict != "block"
-        else {
-            "verdict": "block",
-            "state": "unavailable",
-            "selection": "",
-            "attestation": {},
-            "required_gaps": [],
-            "next_action": "",
-        }
+        else unavailable_proof_admission()
     )
     gaps = tuple(
         dict.fromkeys(
@@ -385,6 +382,7 @@ def observe_publication(
         root=repo,
         governance=governance,
         head=current_head,
+        proof_head=proof_head,
         branch=str(branch),
         role_policy=policy,
         topology=remote_topology,

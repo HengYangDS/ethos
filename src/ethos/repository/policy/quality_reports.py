@@ -91,15 +91,6 @@ def junit_report(paths: Iterable[Path]) -> tuple[dict[str, int], bool]:
     return _junit_roots_report(roots)
 
 
-def junit_stream_report(text: str) -> tuple[dict[str, int], bool]:
-    """Validate a JUnit report captured from the same native command."""
-    try:
-        root = ElementTree.fromstring(text)
-    except ElementTree.ParseError as error:
-        _invalid("junit_invalid", error)
-    return _junit_roots_report((root,))
-
-
 def _junit_roots_report(
     roots: tuple[ElementTree.Element, ...],
 ) -> tuple[dict[str, int], bool]:

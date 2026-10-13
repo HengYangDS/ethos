@@ -156,7 +156,7 @@ def governance_audit(
     *,
     openspec: dict[str, object],
     commit_policy_observer: CommitPolicyObserver,
-    tracked_documents: tuple[str, ...] = (),
+    tracked_documents: tuple[str, ...] | None = None,
 ) -> dict[str, object]:
     """Compose applicable repository obligations without product-layout requirements."""
     reports = {
@@ -195,7 +195,7 @@ def repository_audit(
     *,
     openspec_mode: str = "deep",
     openspec_reporter: OpenSpecReporter | None = None,
-    tracked_documents: tuple[str, ...] = (),
+    tracked_documents: tuple[str, ...] | None = None,
     openspec_shape: dict[str, object] | None = None,
     commit_policy_observer: CommitPolicyObserver | None = None,
 ) -> dict[str, object]:
@@ -238,7 +238,9 @@ def repository_audit(
     design_integrity_gaps = [
         str(gap) for gap in cast("list[str]", design_integrity["required_gaps"])
     ]
-    semantic_closure_gaps = [str(gap) for gap in semantic_closure["required_gaps"]]
+    semantic_closure_gaps = [
+        str(gap) for gap in cast("list[str]", semantic_closure["required_gaps"])
+    ]
     openspec_gaps = [str(gap) for gap in cast("list[str]", openspec["required_gaps"])]
     portfolio_report = skill_portfolio_report(root)
     skill_gaps = [str(gap) for gap in cast("list[str]", portfolio_report["required_gaps"])]

@@ -2,6 +2,8 @@
 subject: ethos:decision:proof-trust-boundary
 role: decision
 state: canonical
+decision_id: DR-0006
+decision_status: accepted
 relations:
   current_owner: ../governance/provenance-and-attestation.md
 ---
@@ -44,7 +46,16 @@ Attestation is never relabeled as independent, and an independent receipt does
 not authorize an unrelated Git or repository effect. Missing or mismatched
 independent evidence fails only the action that selected that proof plane.
 
-## Consequences
+## Alternatives Rejected
+
+- **A MAC or signature controlled by the same local principal:** rejected as a
+  false independence boundary; that principal can alter both sides.
+- **Mandatory hosted verification:** rejected because it breaks local-first and
+  offline operation and makes a forge an implicit authority.
+- **A bundled verifier daemon and product-owned key:** rejected because ETHOS
+  would own operator infrastructure and expand the trust blast radius.
+
+## Consequences and Boundary
 
 - Local proof remains deterministic, content-addressed, and usable offline.
 - Claims requiring anti-forgery assurance must select a genuinely separate
@@ -55,16 +66,7 @@ independent evidence fails only the action that selected that proof plane.
   observed instead of collapsing local proof, hosted CI, and signatures into
   one generic green result.
 
-## Rejected Alternatives
-
-- **A MAC or signature controlled by the same local principal:** rejected as a
-  false independence boundary; that principal can alter both sides.
-- **Mandatory hosted verification:** rejected because it breaks local-first and
-  offline operation and makes a forge an implicit authority.
-- **A bundled verifier daemon and product-owned key:** rejected because ETHOS
-  would own operator infrastructure and expand the trust blast radius.
-
-## Evidence
+## Evidence and Revisit
 
 - [Provenance And Attestation](../governance/provenance-and-attestation.md)
   defines the current Attestation and proof-plane contract.
@@ -74,8 +76,6 @@ independent evidence fails only the action that selected that proof plane.
   bindings, protected verifier configuration, and default-off behavior.
 - `tests/unit/kernel/test_proof_plan_binding.py` covers local proof identity and
   exact plan bindings.
-
-## Revisit And Retirement
 
 Revisit when the threat model or available execution identities change, or when
 a concrete verifier proves a stronger boundary with less operational burden.

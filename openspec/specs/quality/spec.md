@@ -924,16 +924,16 @@ path for each scenario, independent of collection time and wall-clock rollover.
 ### Requirement: Declared file-size policy is strict and observable
 
 ETHOS SHALL compile an optional file-size policy through the rules configuration
-owner. Declared ceilings SHALL be positive integer multiples of one hundred,
-without coercion, unknown fields or per-file exemptions. Omitted role limits
-SHALL inherit the declared default. An absent declaration SHALL impose no hidden
-generic ceiling; malformed declarations SHALL block rather than become absent.
+owner. Declared ceilings SHALL be positive integers, without coercion, unknown
+fields or per-file exemptions. Omitted role limits SHALL inherit the declared
+default. An absent declaration SHALL impose no hidden generic ceiling; malformed
+declarations SHALL block rather than become absent.
 
 #### Scenario: Invalid or coercible policy
 
 - **WHEN** a present declaration has invalid TOML, shape, field names or limits
 - **THEN** the public size gate blocks with a policy-path-bound cause
-- **AND** booleans, strings, floats, zero and fractional hundreds are not limits
+- **AND** booleans, strings, floats, zero and negative values are not limits
 - **AND** continuation derives exact prewrite without granting write authority
 
 #### Scenario: Optional policy is absent

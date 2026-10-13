@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
     from collections.abc import Mapping
     from typing import BinaryIO
 
@@ -121,7 +121,7 @@ _COMMAND_DEADLINE: ContextVar[float | None] = ContextVar("command_deadline", def
 
 
 @contextmanager
-def command_scope(*, timeout_seconds: float | None = None) -> Iterator[CommandScope]:
+def command_scope(*, timeout_seconds: float | None = None) -> Generator[CommandScope]:
     """Propagate caller interruption through one transient native command owner."""
     scope = _COMMAND_SCOPE.get() or CommandScope()
     token = _COMMAND_SCOPE.set(scope)

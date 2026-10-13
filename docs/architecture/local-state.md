@@ -34,10 +34,13 @@ invalid parallel owners and `ethos hook install` removes them.
 
 After activation, the runtime retirement owner retains the selected runtime and
 hook generation, effective repository-config references, live process-command
-references and linked `.venv` interpreter bindings. An operation or diagnostic
-record naming a former generation is historical observation, not a dependency
-on that executable; recovery uses the current selected runtime. Retirement
-neither edits nor deletes those records.
+references and linked `.venv` interpreter bindings. A supply wheel under
+`<git-common-dir>/ethos/packages/` survives while a retained runtime generation
+manifest or an accepted release identity names it, or a live reference points
+into it; an unreadable retained manifest keeps every wheel. An operation or
+diagnostic record naming a former generation or wheel is historical observation,
+not a dependency on that executable; recovery uses the current selected runtime.
+Retirement neither edits nor deletes those records.
 
 Each removal re-observes dependencies and the exact generated directory under
 the bounded native selector lock. Unknown observations, contention or stale

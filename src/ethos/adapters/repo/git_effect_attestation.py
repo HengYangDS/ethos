@@ -257,11 +257,49 @@ def _matching_plan_attestations(
         for attestation in attestations
         if attestation.predicate == "effect:git-ref-update"
         and attestation.plan_digest == plan_digest
+        and not compensated(root, attestation, attestations)
     )
     if len(matches) > 1:
         message = "git_effect_attestation_collision"
         raise ValueError(message)
     return matches
+
+
+def compensated(
+    root: Path, attestation: Attestation, attestations: tuple[Attestation, ...]
+) -> bool:
+    """Recognize a later attested exact inverse; both immutable records remain members."""
+    try:
+        inverse = git_effect_from_plan(plan_from_attestation(attestation)).inverse()
+        completed = _observed_time(attestation, "after")
+    except (TypeError, ValueError):
+        return False
+    for candidate in attestations:
+        if (
+            candidate.predicate != "effect:git-ref-update"
+            or candidate.effect_digest != inverse.digest()
+        ):
+            continue
+        try:
+            if _observed_time(candidate, "before") < completed:
+                continue
+            validate(
+                root,
+                inverse,
+                candidate,
+                issuer=candidate.verifier,
+                plan=plan_from_attestation(candidate),
+                current_postconditions=False,
+            )
+        except (TypeError, ValueError):
+            continue
+        return True
+    return False
+
+
+def _observed_time(attestation: Attestation, phase: str) -> datetime:
+    observed = _object_mapping(_statement(attestation).get("observed_at"))
+    return datetime.fromisoformat(str(observed.get(phase)))
 
 
 def validated_plan_attestation(
@@ -353,7 +391,7 @@ def records(
     *,
     environment: Mapping[str, str] | None = None,
 ) -> tuple[Attestation, ...]:
-    """Read or atomically persist the sole Attestation for one exact plan."""
+    """Read or atomically persist the sole uncompensated Attestation for one exact plan."""
     effect = git_effect_from_plan(plan)
     if record is None:
         existing = _matching_plan_attestations(root, plan.digest)

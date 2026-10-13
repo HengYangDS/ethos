@@ -1,5 +1,5 @@
 # Linux ARM64 execution supply only; source and policy are read from the CI checkout.
-FROM ghcr.io/astral-sh/uv:0.12.23-python3.14-trixie-slim@sha256:8e88a074b0969bdc461f681727238e109438d70771828909f9ef19cfcc96c43a AS base
+FROM ghcr.io/astral-sh/uv:0.13.0-python3.14-trixie-slim@sha256:8e70ac2e85d09a5bb7ef09753b80671a60a71c8d24f195e4890d71e03865e36d AS base
 
 ENV UV_CACHE_DIR=/opt/ethos-supply/uv-cache \
     NPM_CONFIG_CACHE=/opt/ethos-supply/npm-cache \
@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git=1:2.47.3-0+deb13u1 openssh-client=1:10.0p1-7+deb13u4 \
     procps=2:4.0.4-9 lsof=4.99.4+dfsg-2 libatomic1=14.2.0-19 \
     curl=8.14.1-2+deb13u5 ca-certificates=20250419 \
-    xz-utils=5.8.1-1+deb13u1 coreutils=9.7-3 \
+    xz-utils=5.8.1-1+deb13u2 coreutils=9.7-3 \
     && rm -rf /var/lib/apt/lists/*
 
 FROM base AS prepare

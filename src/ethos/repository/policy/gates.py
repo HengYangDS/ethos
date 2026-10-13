@@ -32,8 +32,8 @@ from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 from ethos.repository.policy.quality.obligations import quality_verifier_gaps
 from ethos.repository.policy.quality.obligations import source_verifier_gaps
 from ethos.repository.policy.quality.sources import source_contract_paths
-from ethos.repository.policy.references.commands.invocation import python_module
-from ethos.repository.policy.references.python.syntax import module_source_paths
+from ethos.repository.policy.references.commands import python_module
+from ethos.repository.policy.references.python_syntax import module_source_paths
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import SourceContract
@@ -209,9 +209,20 @@ def _owner_projection(
 
 
 def _same_packaged_quality_floor(declaration: GateRegistryDeclaration) -> bool:
-    """Keep scheduler capacity out of quality ownership, but bind it in proof policy."""
+    """Bind capacity and audit scope in proof without changing quality ownership."""
     exclusion = {"gates": {"__all__": {"cpu_reservation"}}}
-    return declaration.model_dump(mode="json", exclude=exclusion) == (
+    normalized = declaration.model_copy(
+        update={
+            "gates": tuple(
+                gate.model_copy(update={"command": gate.command[:-3]})
+                if native_dependency_audit_scope(gate.model_dump(mode="python"))
+                == "local-development"
+                else gate
+                for gate in declaration.gates
+            )
+        }
+    )
+    return normalized.model_dump(mode="json", exclude=exclusion) == (
         _PACKAGED_GATE_DECLARATION.model_dump(mode="json", exclude=exclusion)
     )
 
@@ -249,11 +260,12 @@ def _profile_declaration(profile: RepositoryProfile) -> GateRegistryDeclaration:
     )
 
 
-def _gate_declaration(
+def resolve_gate_declaration(
     profile: RepositoryProfile | None,
     *,
     gate_registry_source: bytes | None = None,
 ) -> tuple[GateRegistryDeclaration, RepositoryProfile | None]:
+    """Validate the selected native declaration without observing execution materials."""
     if profile is None:
         return _PACKAGED_GATE_DECLARATION, None
     if profile.state == "invalid":
@@ -408,7 +420,7 @@ def resolve_gate_policy(
     acceptance_purpose: AcceptancePurpose = "repository",
 ) -> ResolvedGatePolicy:
     acceptance_purpose = proof_acceptance_purpose({"acceptance_purpose": acceptance_purpose})
-    declaration, profile = _gate_declaration(
+    declaration, profile = resolve_gate_declaration(
         profile,
         gate_registry_source=gate_registry_source,
     )
@@ -437,6 +449,15 @@ def resolve_gate_policy(
         if profile is not None and profile.declaration is not None
         else ((), ())
     )
+    if acceptance_purpose == "local-source" and any(
+        gate.id not in {selected.id for selected in gates}
+        and native_dependency_audit_scope(
+            _execution_gate(gate, acceptance_purpose).model_dump(mode="python")
+        )
+        == "local-development"
+        for gate in declaration.proof_gates(full=True, python_executable=python_executable)
+    ):
+        gaps = (*gaps, "proof_dependency_acceptance_audit_missing")
     if (
         profile is not None
         and repository_python is None

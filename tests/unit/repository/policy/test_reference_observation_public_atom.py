@@ -10,13 +10,13 @@ import pytest
 import ethos.repository.policy.references.declarations as reference_declarations
 import ethos.repository.policy.references.markdown as reference_markdown
 from ethos.repository.policy.references.closure import repository_semantic_closure
-from ethos.repository.policy.references.manifests import npm_script_commands
+from ethos.repository.policy.references.observation import npm_script_commands
 from ethos.repository.policy.references.observation import observe_repository_references
 from ethos.repository.policy.references.observation import product_references_from_files
 from ethos.repository.policy.references.observation import reference_consumer_sources_from_files
-from ethos.repository.policy.references.python.syntax import cyclopts_command_owners
-from ethos.repository.policy.references.python.syntax import cyclopts_prefixes
-from ethos.repository.policy.references.python.syntax import module_name
+from ethos.repository.policy.references.python_syntax import cyclopts_command_owners
+from ethos.repository.policy.references.python_syntax import cyclopts_prefixes
+from ethos.repository.policy.references.python_syntax import module_name
 from tests.support.architecture import declare_reference_package
 from tests.support.architecture import declare_reference_surface
 from tests.support.architecture import write_reference_source
@@ -43,7 +43,7 @@ def test_repository_public_observation_skips_unreadable_reference_carriers(tmp_p
     (skill / "bad.md").write_bytes(b"\xff")
 
     observation = observe_repository_references(tmp_path)
-    observed = product_references_from_files(observation.files).references
+    observed = product_references_from_files(observation.files)
 
     assert observation.files == {".agents/skills/sample/SKILL.md": "good\n"}
     assert observation.unreadable_paths == (".agents/skills/sample/bad.md",)
@@ -59,7 +59,7 @@ def test_repository_public_observation_skips_unreadable_python(
     (source / "bad.py").write_bytes(b"\xff")
 
     observation = observe_repository_references(tmp_path)
-    observed = product_references_from_files(observation.files).references
+    observed = product_references_from_files(observation.files)
 
     assert observed == _observed()
     assert observation.unreadable_paths == ("src/ethos/bad.py",)
@@ -77,14 +77,14 @@ def test_repository_public_observation_skips_unreadable_python(
 def test_pyproject_public_observation_accepts_only_normalizable_requirements(
     text: str, expected: set[str]
 ) -> None:
-    observed = product_references_from_files({"pyproject.toml": text}).references
+    observed = product_references_from_files({"pyproject.toml": text})
     assert observed["distribution"] == expected
 
 
 def test_npm_public_observation_ignores_invalid_and_non_object_scripts() -> None:
     assert npm_script_commands({"bad.json": "{"}) == {}
     assert npm_script_commands({"package.json": '{"scripts": []}'}) == {}
-    assert product_references_from_files({"package.json": "[]"}).references == _observed()
+    assert product_references_from_files({"package.json": "[]"}) == _observed()
 
 
 def test_npm_public_observation_reads_explicit_manifests() -> None:
@@ -106,7 +106,7 @@ def test_yaml_public_observation_normalizes_action_references(
     value: str, expected: set[str]
 ) -> None:
     text = f"jobs:\n  test:\n    steps:\n      - uses: {value!r}\n"
-    observed = product_references_from_files({".github/workflows/test.yml": text}).references
+    observed = product_references_from_files({".github/workflows/test.yml": text})
     assert observed["reference"] == expected
 
 
@@ -114,7 +114,7 @@ def test_markdown_public_observation_ignores_malformed_inline_shell() -> None:
     observed = product_references_from_files(
         {"docs/reference/example.md": "`'unterminated`\n"},
         declared_commands=("ethos status",),
-    ).references
+    )
     assert observed == _observed()
 
 
@@ -129,7 +129,7 @@ def test_consumer_observation_does_not_recompute_command_declarations(
         return {}
 
     monkeypatch.setattr(
-        "ethos.repository.policy.references.python.syntax.cyclopts_prefixes",
+        "ethos.repository.policy.references.python_syntax.cyclopts_prefixes",
         record_prefix_scan,
     )
 

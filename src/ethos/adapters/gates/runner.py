@@ -144,15 +144,11 @@ class LocalGateRunner:
             completed = run_command(
                 root,
                 execution_command,
-                **({"timeout": max(0, deadline - monotonic())} if deadline else {}),
-                **(
-                    {
-                        "env": node_attempt.environment(),
-                        "remove_env": ("NODE_OPTIONS", "NODE_PATH", "NODE_V8_COVERAGE"),
-                    }
-                    if node_attempt is not None
-                    else {}
-                ),
+                timeout=max(0, deadline - monotonic()) if deadline else None,
+                env=node_attempt.environment() if node_attempt is not None else None,
+                remove_env=("NODE_OPTIONS", "NODE_PATH", "NODE_V8_COVERAGE")
+                if node_attempt is not None
+                else (),
             )
         except subprocess.TimeoutExpired as exc:
             stdout = (

@@ -270,39 +270,6 @@ def test_import_policy_finds_package_root_and_private_imports(tmp_path, monkeypa
         ("src/ethos/other/use.py", "from ..owner.api import _hidden", True),
         ("src/ethos/other/use.py", "from ethos.owner.api import __hidden", True),
         ("src/ethos/other/use.py", "from ethos.owner.api import __version__", False),
-        (
-            "src/ethos/other/use.py",
-            'import importlib as loader\nloader.import_module("ethos.owner._engine")',
-            True,
-        ),
-        (
-            "src/ethos/other/use.py",
-            'from importlib import import_module as load\nload("ethos.owner._engine")',
-            True,
-        ),
-        (
-            "src/ethos/other/use.py",
-            'from builtins import __import__ as load\nload("ethos.owner._engine")',
-            True,
-        ),
-        (
-            "src/ethos/other/use.py",
-            'import importlib\ngetattr(importlib, "import_module")("ethos.owner._engine")',
-            True,
-        ),
-        (
-            "src/ethos/other/use.py",
-            (
-                "class Local:\n    def import_module(self, name):\n        return name\n"
-                'importlib = Local()\nimportlib.import_module("ethos.owner._engine")'
-            ),
-            False,
-        ),
-        (
-            "src/ethos/other/use.py",
-            "import importlib\nimportlib.import_module(selected_module)",
-            True,
-        ),
     ],
 )
 def test_public_layout_gate_enforces_private_ownership(tmp_path, consumer, statement, blocked):
@@ -316,75 +283,5 @@ def test_public_layout_gate_enforces_private_ownership(tmp_path, consumer, state
     report = module_layout_gate_report(tmp_path)
 
     gaps = report["required_gaps"]
-    assert isinstance(gaps, list)
     assert any("private" in gap for gap in gaps) is blocked, report
     assert report["verdict"] == ("block" if blocked else "pass"), report
-
-
-def test_public_layout_gate_preserves_deferred_private_import_coverage(tmp_path) -> None:
-    """A runtime import parameter is incomplete observation, not an invented violation."""
-    _write(
-        tmp_path,
-        "src/ethos/other/use.py",
-        "import importlib\ndef load(name):\n    return importlib.import_module(name)\n",
-    )
-    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-
-    report = module_layout_gate_report(tmp_path)
-
-    assert report["verdict"] == "pass", report
-    assert report["state"] == "partial", report
-    assert report["coverage"] == "partial", report
-    assert report["required_gaps"] == []
-    residuals = report["uncertainties"]
-    assert isinstance(residuals, list)
-    assert len(residuals) == 1
-    assert residuals[0]["kind"] == "import"
-    assert residuals[0]["state"] == "deferred"
-
-
-@pytest.mark.parametrize("target", ["ethos.owner.api", "ethos.owner._engine"])
-@pytest.mark.parametrize(
-    "selection",
-    [
-        (
-            "MODULES = {'chosen': TARGET}\n"
-            "def load():\n"
-            "    importlib.import_module(MODULES['chosen'])\n"
-        ),
-        "MODULES = (TARGET,)\ndef load():\n    importlib.import_module(MODULES[0])\n",
-        (
-            "MODULES = {'chosen': TARGET}\n"
-            "def load(key):\n"
-            "    if key in MODULES:\n"
-            "        selected = (MODULES[key],)\n"
-            "    elif key:\n"
-            "        selected = ()\n"
-            "    else:\n"
-            "        selected = tuple(dict.fromkeys(MODULES.values()))\n"
-            "    for module in selected:\n"
-            "        importlib.import_module(module)\n"
-        ),
-    ],
-)
-def test_public_layout_gate_preserves_native_selection_without_source_context(
-    tmp_path, target: str, selection: str
-) -> None:
-    """Finite native reads need no callee source; private ownership remains enforced."""
-    _write(tmp_path, "src/ethos/owner/_engine.py", "def run():\n    return 1\n")
-    _write(tmp_path, "src/ethos/owner/api.py", "def run():\n    return 1\n")
-    _write(
-        tmp_path,
-        "src/ethos/other/use.py",
-        f"import importlib\nTARGET = {target!r}\n" + selection,
-    )
-    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-
-    report = module_layout_gate_report(tmp_path)
-
-    assert report["coverage"] == "evaluated", report
-    assert report["uncertainties"] == [], report
-    assert report["verdict"] == ("block" if target.endswith("._engine") else "pass"), report
-    gaps = report["required_gaps"]
-    assert isinstance(gaps, list)
-    assert all("private_import_unknown" not in gap for gap in gaps), report

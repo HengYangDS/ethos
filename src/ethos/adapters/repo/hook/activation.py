@@ -75,30 +75,7 @@ def install_hook_launchers(
         build_source=build_source,
         installed_runtime=installed_runtime,
     )
-    rollback_supply: dict[str, str] = {}
-    if current_before is not None:
-        try:
-            previous = current_runtime(common)
-        except (OSError, ValueError) as error:
-            previous_root = selected_runtime_path(common)
-            if previous_root.parent != common / "ethos/runtime":
-                raise
-            rollback_supply = {
-                "state": "unavailable",
-                "runtime": previous_root.as_posix(),
-                "reason": str(error) or type(error).__name__,
-            }
-        else:
-            if previous.root != runtime.parent:
-                preserved = runtime_materialization.pin_installed_runtime(previous)
-                rollback_supply = {
-                    "state": "preserved",
-                    "runtime": preserved.as_posix(),
-                    "runtime_digest": previous.digest,
-                    "wheel_sha256": previous.wheel_sha256,
-                    "source_commit": previous.build.source_commit,
-                    "source_tree": previous.build.source_tree,
-                }
+    rollback_supply = _rollback_supply(common, runtime.parent) if current_before is not None else {}
     hooks = materialize_hook_launchers(common / "ethos" / "hooks")
     linked = _linked_worktree_paths(repo)
     common_before = config_effects.config_values(repo, _ACTIVATION_KEYS, scope="local")
@@ -129,7 +106,11 @@ def install_hook_launchers(
         }
         for worktree in linked
     ]
-    cleanup = retire_generations(repo, hooks=hooks, runtime=runtime.parent)
+    # A malformed selector named no predecessor, so any runtime generation may be the rollback.
+    unnamed = rollback_supply.get("state") == "unavailable" and "runtime" not in rollback_supply
+    cleanup = retire_generations(
+        repo, hooks=hooks, runtime=runtime.parent, unnamed_predecessor=unnamed
+    )
     if cleanup["state"] == "deferred" or binding["legacy_runtime_locator"]["state"] == "retained":
         binding["required_gaps"].append("hook_runtime_cleanup_deferred")
         binding["next_action"] = "ethos hook install --json"
@@ -319,6 +300,32 @@ def _restore_failed_activation(
         errors.append(str(error) or error.__class__.__name__)
     if errors:
         raise ValueError("hook_runtime_activation_compensation_failed:" + ",".join(errors))
+
+
+def _rollback_supply(common: Path, successor: Path) -> dict[str, str]:
+    """Classify the predecessor; malformed selector bytes name none and stay CAS-protected."""
+    try:
+        previous = current_runtime(common)
+    except (OSError, ValueError) as error:
+        try:
+            located = {"runtime": selected_runtime_path(common).as_posix()}
+        except ValueError as selection:
+            selector = common / "ethos" / "runtime" / "CURRENT"
+            if str(selection) != "hook_runtime_current_invalid" or selector.is_symlink():
+                raise
+            located = {}
+        return {"state": "unavailable", **located, "reason": str(error) or type(error).__name__}
+    if previous.root == successor:
+        return {}
+    preserved = runtime_materialization.pin_installed_runtime(previous)
+    return {
+        "state": "preserved",
+        "runtime": preserved.as_posix(),
+        "runtime_digest": previous.digest,
+        "wheel_sha256": previous.wheel_sha256,
+        "source_commit": previous.build.source_commit,
+        "source_tree": previous.build.source_tree,
+    }
 
 
 def _runtime_selection_bytes(common: Path) -> bytes | None:

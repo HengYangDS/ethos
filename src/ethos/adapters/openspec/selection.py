@@ -10,6 +10,7 @@ from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_effect_attestation import compensated
 from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
 from ethos.adapters.repo.git_effect_attestation import validate as validate_effect_attestation
 from ethos.adapters.repo.merge.observation import pending_merge_heads
@@ -200,7 +201,7 @@ def _lane_creation_boundary(root: Path, revision: str) -> str:
             or effect.assertions != {f"refs/heads/{candidate}": update.desired}
         ):
             raise ValueError
-        if is_ancestor(root, update.desired, revision):
+        if is_ancestor(root, update.desired, revision) and not compensated(root, record, records):
             boundaries.add(update.desired)
     if len(boundaries) > 1:
         raise ValueError

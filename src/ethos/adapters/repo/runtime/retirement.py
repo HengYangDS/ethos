@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import re
 import stat
 import subprocess
@@ -14,6 +15,7 @@ from filelock import Timeout
 
 from ethos.adapters.process import process_listing_command
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.binding import load_hook_contract
@@ -24,6 +26,7 @@ from ethos.adapters.repo.runtime.materialization.effect import remove_generated_
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.adapters.repo.runtime.selection import runtime_selection_transaction
+from ethos.repository.release.admission import accepted_release_identities
 
 
 class GenerationCleanup(TypedDict):
@@ -134,7 +137,7 @@ def _reference_paths(references: str) -> frozenset[Path]:
 
 
 def _native_path_prefixes(anchor: Path, tail: str) -> set[Path]:
-    """Stop a possible path at its first absent directory, not arbitrary punctuation."""
+    """Preserve every real prefix, ignoring suffixes the native filesystem rejects."""
     paths: set[Path] = set()
     current = anchor
     while tail:
@@ -142,15 +145,25 @@ def _native_path_prefixes(anchor: Path, tail: str) -> set[Path]:
         for end in re.finditer(r"[\s'\";|&)]|$", component):
             part = component[: end.start()]
             candidate = current / part
-            if part and (candidate.exists() or candidate.is_symlink()):
+            if part and _native_path_exists(candidate):
                 paths.add(candidate.resolve(strict=True))
         full = current / component
-        if not separator or not full.is_dir():
+        if not separator or not _native_path_exists(full, directory=True):
             break
         current = full.resolve(strict=True)
         paths.add(current)
         tail = rest
     return paths
+
+
+def _native_path_exists(path: Path, *, directory: bool = False) -> bool:
+    """Reject invalid command suffixes without hiding unobserved filesystem errors."""
+    try:
+        return path.is_dir() if directory else path.exists() or path.is_symlink()
+    except OSError as failure:
+        if failure.errno in {errno.ENAMETOOLONG, errno.EINVAL}:
+            return False
+        raise
 
 
 def _require_identity(path: Path, expected: tuple[int, int, int, int]) -> None:
@@ -197,11 +210,76 @@ def _reclamation_unproven(path: Path, common: Path) -> bool:
     return True
 
 
-def retire_generations(root: Path, *, hooks: Path, runtime: Path) -> GenerationCleanup:
-    """Retire only currently unused generations, conserving partial outcomes."""
+def _generation_wheels(common: Path, generations: set[Path]) -> frozenset[str] | None:
+    """Name supply wheels still bound by retained runtime generation manifests."""
+    wheels: set[str] = set()
+    for path in generations:
+        if path.parent != common / "ethos/runtime":
+            continue
+        try:
+            manifest = load_runtime_manifest_bytes((path / "manifest.json").read_bytes())
+        except (OSError, TypeError, UnicodeError, ValueError):
+            return None
+        wheels.add(manifest.wheel_sha256)
+    return frozenset(wheels)
+
+
+def _retire_packages(
+    root: Path,
+    common: Path,
+    *,
+    checked: list[Path],
+    retained: set[Path],
+    removed: list[Path],
+    unproven: set[Path],
+) -> None:
+    """Reclaim wheels that no retained generation, accepted release or live reference names."""
+    store = common / "ethos/packages"
+    if not store.exists() and not store.is_symlink():
+        return
+    _directory_identity(store)
+    candidates = tuple(sorted(path for path in store.iterdir() if _digest(path.name)))
+    checked.extend(candidates)
+    identities = {path: _directory_identity(path) for path in candidates}
+    wheels = _generation_wheels(common, retained)
+    if wheels is None:
+        retained.update(candidates)
+        unproven.update(candidates)
+        return
+    unnamed = [path for path in candidates if path.name not in wheels]
+    if unnamed:
+        _selected, attestations = read_attestation_set(root)
+        released = {release.wheel_sha256 for release in accepted_release_identities(attestations)}
+        unnamed = [path for path in unnamed if path.name not in released]
+    retained.update(path for path in candidates if path not in unnamed)
+    if not unnamed:
+        return
+    references = _reference_paths(_operational_references(root))
+    for path in unnamed:
+        if any(reference.is_relative_to(path) for reference in references):
+            retained.add(path)
+            continue
+        _require_identity(path, identities[path])
+        try:
+            remove_generated_tree(path)
+        finally:
+            if not path.exists() and not path.is_symlink():
+                removed.append(path)
+        if path not in removed:
+            _fail("hook_runtime_package_cleanup_failed")
+
+
+def retire_generations(
+    root: Path, *, hooks: Path, runtime: Path, unnamed_predecessor: bool = False
+) -> GenerationCleanup:
+    """Retire only currently unused generations, conserving partial outcomes.
+
+    An unnamed predecessor keeps every runtime generation: one of them may be the only rollback.
+    """
     selected = {hooks, runtime}
     identities: dict[Path, tuple[int, int, int, int]] = {}
     candidates: tuple[Path, ...] = ()
+    packages: list[Path] = []
     removed: list[Path] = []
     retained = set(selected)
     unproven = set[Path]()
@@ -232,7 +310,9 @@ def retire_generations(root: Path, *, hooks: Path, runtime: Path) -> GenerationC
                 if path in used:
                     retained.add(path)
                     continue
-                if _reclamation_unproven(path, common):
+                if (
+                    unnamed_predecessor and path.parent == common / "ethos/runtime"
+                ) or _reclamation_unproven(path, common):
                     # A repository-local runtime may be selected by another Git common-dir.
                     retained.add(path)
                     unproven.add(path)
@@ -246,18 +326,40 @@ def retire_generations(root: Path, *, hooks: Path, runtime: Path) -> GenerationC
                     _fail("hook_runtime_generation_cleanup_failed")
         with runtime_selection_transaction(common, expected_current=expected):
             _require_identities(retained, identities)
+            _retire_packages(
+                root,
+                common,
+                checked=packages,
+                retained=retained,
+                removed=removed,
+                unproven=unproven,
+            )
     except Timeout:
         error = "hook_runtime_selection_busy"
     except (OSError, RuntimeError, UnicodeError, ValueError, subprocess.TimeoutExpired) as failure:
         error = str(failure) or type(failure).__name__
-    deferred = set(candidates) - set(removed) - retained
+    return _cleanup_result(
+        (*candidates, *packages), removed=removed, retained=retained, unproven=unproven, error=error
+    )
+
+
+def _cleanup_result(
+    checked: tuple[Path, ...],
+    *,
+    removed: list[Path],
+    retained: set[Path],
+    unproven: set[Path],
+    error: str,
+) -> GenerationCleanup:
+    """Project observed reclamation effects, keeping deferred work explicit."""
     result: GenerationCleanup = {
         "state": "deferred" if error else "complete",
-        "checked": [str(path) for path in candidates],
+        "checked": [str(path) for path in checked],
         "removed": [str(path) for path in removed],
         "retained": [str(path) for path in sorted(retained)],
         "unproven_removals": [str(path) for path in sorted(unproven)],
     }
     if error:
+        deferred = set(checked) - set(removed) - retained
         result.update(deferred=[str(path) for path in sorted(deferred)], error=error)
     return result

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import sqlite3
+from collections import Counter
 from contextlib import closing
 from functools import partial
 
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.start as lane_start
+from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from tests.support.governed_repository import commit_fixture_file
@@ -129,6 +131,28 @@ def test_failed_start_only_compensates_resources_created_by_this_invocation(
         ]
     else:
         assert removed == []
+
+
+def test_identical_start_after_compensated_failure_retains_every_effect(start_case, monkeypatch):
+    repo, candidate, target, start = start_case
+    outcomes = iter(("injected_failure", "injected_failure", ""))
+
+    def projection(_root):
+        if failure := next(outcomes):
+            raise ValueError(failure)
+        return {"state": "current"}
+
+    monkeypatch.setattr(lane_start, "install_hook_launchers", projection)
+    reports = [start(apply=True) for _ in range(3)]
+    assert [report["required_gaps"] for report in reports] == [["injected_failure"]] * 2 + [[]]
+    assert _observe(repo, target)[:2] == (git(candidate, "rev-parse", "HEAD"), True)
+    assert leases_by_branch(repo)[BRANCH]["holder_ref"] == HOLDER
+    recorded = Counter(
+        (item.payload.body["plan"]["policy"]["transition"], item.plan_digest)
+        for item in read_attestation_set(repo)[1]
+    )
+    assert recorded[("lane.start", reports[2]["ref_attestation"]["plan_digest"])] == 3
+    assert sorted(recorded.values()) == [2, 3]
 
 
 @pytest.mark.parametrize(

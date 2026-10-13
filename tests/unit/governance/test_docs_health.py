@@ -100,6 +100,9 @@ def test_docs_health_requires_a_navigation_entrypoint_for_multiple_topics(tmp_pa
     assert no_route["readme_disposition"] == [
         "docs_readme_without_local_route:docs/topic/README.md"
     ]
+    fence = chr(96) * 3
+    readme.write_text(readme.read_text() + f"\n{fence}text\n[First](first.md)\n{fence}\n")
+    assert docs_health_report(tmp_path)["readme_disposition"] == no_route["readme_disposition"]
     readme.write_text(readme.read_text() + "\nStart with [First](first.md).\n")
     assert docs_health_report(tmp_path)["readme_disposition"] == []
 

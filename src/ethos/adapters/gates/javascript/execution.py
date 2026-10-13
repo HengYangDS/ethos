@@ -25,7 +25,7 @@ from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.schema import local_state_root
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
 
 
 def retain_attempt(root: Path, output: Path, observation: dict[str, object]) -> dict[str, object]:
@@ -73,7 +73,7 @@ class NodeAttempt:
 
 
 @contextmanager
-def command_observation(root: Path, command: tuple[str, ...], node: str) -> Iterator[NodeAttempt]:
+def command_observation(root: Path, command: tuple[str, ...], node: str) -> Generator[NodeAttempt]:
     """Bind fresh committed source and retire only this invocation's temporary input."""
     head = current_tracked_head(root)
     tree = current_tree(root, head) if head else ""

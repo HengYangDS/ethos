@@ -15,6 +15,7 @@ from ethos.adapters.repo.runtime.authority import RuntimeBuild
 from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from tests.support.runtime_scenarios import materialize_runtime_case
 from tests.support.runtime_scenarios import runtime_build
 
@@ -172,3 +173,61 @@ def test_repairing_invalid_local_predecessor_preserves_uncertainty_and_bytes(
     assert result["rollback_supply"]["reason"] == "hook_runtime_manifest_invalid"
     assert str(previous) not in result["generation_cleanup"]["removed"]
     assert damaged.read_bytes() == b"damaged predecessor\n"
+
+
+@pytest.mark.parametrize("missing", [True, False])
+def test_valid_successor_repairs_unavailable_external_predecessor_without_deleting_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, missing: bool
+) -> None:
+    """An admitted successor does not depend on damaged or absent rollback supply."""
+    repo, previous, supplied = _upgrade_case(tmp_path, monkeypatch)
+    common = Path(git_common_dir(repo))
+    external = tmp_path / "external" / "runtime" / previous.name
+    if not missing:
+        shutil.copytree(previous, external)
+        manifest = external / "manifest.json"
+        manifest.chmod(0o644)
+        manifest.write_bytes(b"damaged predecessor\n")
+    selector = common / "ethos/runtime/CURRENT"
+    selector.write_bytes(runtime_selection_bytes(common, external))
+
+    result = activation.install_hook_launchers(repo, installed_runtime=supplied)
+
+    assert result["required_gaps"] == []
+    assert current_runtime(common).digest == supplied.name
+    assert result["rollback_supply"] == {
+        "state": "unavailable",
+        "runtime": external.as_posix(),
+        "reason": "hook_runtime_current_target_invalid"
+        if missing
+        else "hook_runtime_manifest_invalid",
+    }
+    assert str(external) not in result["generation_cleanup"]["removed"]
+    if missing:
+        assert not external.exists()
+    else:
+        assert (external / "manifest.json").read_bytes() == b"damaged predecessor\n"
+
+
+@pytest.mark.parametrize("selection", [b"", b"invalid\n\n", b"\xff\n"])
+def test_admitted_successor_repairs_malformed_selection_without_reading_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, selection: bytes
+) -> None:
+    """Malformed selector bytes are an unavailable predecessor, never a successor veto."""
+    repo, previous, supplied = _upgrade_case(tmp_path, monkeypatch)
+    common = Path(git_common_dir(repo))
+    (common / "ethos/runtime/CURRENT").write_bytes(selection)
+
+    result = activation.install_hook_launchers(repo, installed_runtime=supplied)
+
+    assert result["required_gaps"] == []
+    assert current_runtime(common).digest == supplied.name
+    assert result["rollback_supply"] == {
+        "state": "unavailable",
+        "reason": "hook_runtime_current_invalid",
+    }
+    cleanup = result["generation_cleanup"]
+    assert cleanup["state"] == "complete"
+    assert previous.name in {Path(path).name for path in cleanup["unproven_removals"]}
+    assert previous.name not in {Path(path).name for path in cleanup["removed"]}
+    assert previous.is_dir()

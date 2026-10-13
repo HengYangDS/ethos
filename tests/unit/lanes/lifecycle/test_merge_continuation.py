@@ -98,6 +98,28 @@ def test_public_merge_continue_preserves_both_parents_and_untracked_work(
     assert official.call_count == 2  # Preview and effect each observe once; replay has no effect.
 
 
+@pytest.mark.parametrize("movement", ["before-preview", "before-apply"])
+def test_public_merge_continuation_uses_pending_parent_when_candidate_advances(tmp_path, movement):
+    """Candidate integration is separate from finishing an exact pending native merge."""
+    work = native_merge_fixture(tmp_path)
+    ours, incoming = git(work, "rev-parse", "HEAD"), git(work, "rev-parse", "MERGE_HEAD")
+    (work / "README.md").write_text("# Accepted combined resolution\n")
+    git(work, "add", "README.md")
+    candidate = tmp_path / "repo-candidate-dev"
+    preview = _preview(work, "continue") if movement == "before-apply" else None
+    (candidate / "later.txt").write_text("Unrelated candidate progress\n")
+    advanced = commit_fixture(candidate, "fix: advance candidate independently")
+    preview = preview or _preview(work, "continue")
+    result = _apply(work, preview)
+    assert result["verdict"] == "pass", result
+    head, *parents = git(work, "rev-list", "--parents", "-n", "1", "HEAD").split()
+    assert parents == [ours, incoming]
+    assert result["data"]["head"] == head
+    assert git(work, "rev-parse", "candidate/dev") == advanced
+    assert not (work / "later.txt").exists()
+    assert not Path(git(work, "rev-parse", "--git-path", "MERGE_HEAD")).exists()
+
+
 def test_public_merge_preparation_is_explicit_and_conflicts_remain_recoverable(tmp_path):
     work = native_merge_fixture(tmp_path, pending=False)
     before = git(work, "rev-parse", "HEAD")

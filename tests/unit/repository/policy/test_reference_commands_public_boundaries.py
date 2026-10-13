@@ -6,14 +6,63 @@ import shlex
 
 import pytest
 
-from ethos.repository.policy.references.commands.invocation import command_executables
-from ethos.repository.policy.references.commands.invocation import command_identity
-from ethos.repository.policy.references.commands.invocation import shebang_executable
-from ethos.repository.policy.references.commands.invocation import shell_commands
-from ethos.repository.policy.references.commands.invocation import shell_executables
-from ethos.repository.policy.references.commands.vocabulary import CommandVocabulary
-from ethos.repository.policy.references.commands.vocabulary import normalize_command
+import ethos.repository.policy.references.commands as commands
+from ethos.repository.policy.references.commands import CommandVocabulary
+from ethos.repository.policy.references.commands import command_executables
+from ethos.repository.policy.references.commands import command_identity
+from ethos.repository.policy.references.commands import normalize_command
+from ethos.repository.policy.references.commands import shebang_executable
+from ethos.repository.policy.references.commands import shell_commands
+from ethos.repository.policy.references.commands import shell_configuration_inputs
+from ethos.repository.policy.references.commands import shell_executables
 from ethos.repository.policy.references.observation import product_references_from_files
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("env X=1 git status --short", True),
+        ("sudo -u root git status", True),
+        ("printf value >(git status)", True),
+        ("cat <<(git status)", True),
+        ("true && git status", True),
+        ("node tools/check.mjs", True),
+        ("./tools/check.mjs --verify", True),
+        ("source ./setup", True),
+        ("echo value", None),
+        ("uv run ./tools/check.mjs", True),
+        ("cat <(uv run ./tools/check.mjs)", True),
+        ('python "a>b.py" --verify', True),
+        ("rm notes", None),
+        ("curl example.com", None),
+        ("./tools/check.mjs", False),
+        ("node", False),
+        ("node represents an executable host.", False),
+        ("rm describes a file-removal command.", False),
+        ("Each repository's profile owns current behavior.", False),
+        ("See docs/proof.md for the evidence.", None),
+        ("a < b is a comparison, not an execution request.", False),
+        ("'unterminated", None),
+    ],
+)
+def test_native_invocation_shape_preserves_reference_and_uncertainty(
+    source: str, *, expected: bool | None
+) -> None:
+    """Syntax and positive identities classify inputs without a command blacklist."""
+    vocabulary = CommandVocabulary.compile({"git status"})
+
+    assert commands.command_invocation(source, vocabulary) is expected
+
+
+def test_native_invocation_inspection_never_evaluates_payload(tmp_path, monkeypatch) -> None:
+    """Ambient variables and command substitution never authorize evaluation."""
+    marker = tmp_path / "unexpected-effect"
+    vocabulary = CommandVocabulary.compile({"git status"})
+    monkeypatch.setenv("FLAGS", "not a command")
+
+    assert commands.command_invocation(f"git status $(touch '{marker}')", vocabulary) is True
+    assert commands.command_invocation("git status $FLAGS", vocabulary) is True
+    assert not marker.exists()
 
 
 def test_reference_commands_canonical_wrappers_and_scripts() -> None:
@@ -55,6 +104,17 @@ scanner \\
     assert command_identity(("uv", "run", "pytest", "-q"), {"pytest"}) == "pytest"
 
 
+def test_reference_commands_keep_redirection_targets_as_data() -> None:
+    """Nested invocations survive while files and descriptor targets stay data."""
+    source = "env X=1 scanner > report.txt\nscanner 2>&1\ncat < input.txt\n"
+
+    assert shell_executables(source, {}) == {"scanner", "cat"}
+    assert shell_commands(source, {"scanner", "cat", "report.txt", "input.txt"}) == {
+        "scanner",
+        "cat",
+    }
+
+
 @pytest.mark.parametrize("quote", ["'", '"'])
 def test_reference_commands_preserve_multiline_quoted_arguments(quote: str) -> None:
     """Quoted program text stays data while adjacent commands remain observable."""
@@ -67,10 +127,7 @@ def test_reference_commands_preserve_multiline_quoted_arguments(quote: str) -> N
 
     assert shell_executables(command, {}) == shell_executables(flattened, {}) == expected
     assert shell_commands(command, expected) == expected
-    assert (
-        product_references_from_files({"tools/example.sh": command}).references["executable"]
-        == expected
-    )
+    assert product_references_from_files({"tools/example.sh": command})["executable"] == expected
 
 
 def test_reference_commands_do_not_resume_inside_unterminated_quoted_data() -> None:
@@ -88,6 +145,8 @@ def test_reference_commands_malformed_public_inputs_fail_closed() -> None:
     assert command_identity(("tool", "unknown"), {"tool run"}, require_declared=True) == (
         "tool unknown"
     )
+    vocabulary = CommandVocabulary.compile({"tool", "tool 'unterminated"})
+    assert [command for _tokens, command in vocabulary.identities] == ["tool"]
 
 
 def test_reference_commands_do_not_let_a_group_owner_hide_an_unknown_subcommand() -> None:
@@ -129,11 +188,44 @@ def test_command_vocabulary_is_reused_across_identity_checks() -> None:
         (("python", "-mpytest"), {"python"}, {"pytest"}),
         (("python", "--version", "-m", "not_imported"), {"python"}, set()),
         (("python", "-m"), {"python"}, set()),
+        (("python", "-B"), {"python"}, set()),
+        (("env", "-i", "python", "-m", "pytest"), {"python"}, {"pytest"}),
+        (("env", "-i"), set(), set()),
+        (("npx", ">log", "prettier"), {"npx"}, set()),
+        (("npx", "--", "prettier", "--check"), {"npx", "prettier"}, set()),
+        (("npx", "--yes"), {"npx"}, set()),
     ],
 )
 def test_reference_commands_canonical_environment_and_package_boundaries(
     tokens: tuple[str, ...], expected: set[str], modules: set[str]
 ) -> None:
-    observed = product_references_from_files({"tools/run.sh": shlex.join(tokens)}).references
+    observed = product_references_from_files({"tools/run.sh": shlex.join(tokens)})
     assert observed["executable"] == expected
     assert observed["import"] == modules
+
+
+@pytest.mark.parametrize(
+    ("text", "inputs", "unknown"),
+    [
+        (
+            "prettier --check --config .prettierrc --ignore-path .prettierignore .",
+            {".prettierrc", ".prettierignore"},
+            False,
+        ),
+        ("npx prettier --config=cfg.json --no-config --ignore-path=ignore .", {"ignore"}, False),
+        ("env -i -- prettier --config cfg.json .", {"cfg.json"}, False),
+        ("uv run prettier --config cfg.json .", {"cfg.json"}, False),
+        ("prettier --check -- --config cfg.json", set(), False),
+        ("prettier --config", set(), True),
+        ("prettier --config --check .", set(), True),
+        ("cd site && prettier --config cfg.json .", set(), True),
+        ("env --chdir=site prettier --config cfg.json .", set(), True),
+        ("prettier --config $CONFIG .", set(), True),
+        ("prettier --check 'unterminated", set(), True),
+    ],
+)
+def test_prettier_configuration_inputs_are_explicit_or_unknown(
+    text: str, inputs: set[str], *, unknown: bool
+) -> None:
+    """Only explicit static options are inputs; dynamic or malformed shell stays unknown."""
+    assert shell_configuration_inputs(text) == (inputs, unknown)

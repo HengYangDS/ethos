@@ -3,18 +3,20 @@
 from __future__ import annotations
 
 import json
+import tomllib
 from typing import TYPE_CHECKING
 
 import pytest
 import tomli_w
 
+import ethos.adapters.repo.gate_policy as gate_policy
+from ethos.adapters.repo.dependency_acceptance import dependency_acceptance_gaps
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.gate_policy import resolve_proof_policies
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import load_gate_registry_declaration
-from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.repository.policy.gates import ResolvedGatePolicy
 from ethos.repository.policy.gates import canonical_gate_command
 from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
@@ -32,63 +34,90 @@ from tests.support.governed_repository import write_script_gate_policy
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ethos.contracts.proof.plan import AcceptancePurpose
-
 _MISSING_QUALITY = (
     "quality_obligation_unproven:behavior",
     "quality_obligation_unproven:static-analysis",
 )
 
 
-@pytest.mark.parametrize("owner_kind", ["packaged", "registry"])
-def test_source_acceptance_preserves_floors_and_binds_native_audit(
-    tmp_path: Path, owner_kind: str
+@pytest.mark.parametrize("canonical", [False, True], ids=["native", "canonical"])
+@pytest.mark.parametrize("carrier", ["registry", "profile"])
+def test_audit_applicability_reads_only_the_committed_declaration(
+    tmp_path: Path, monkeypatch, carrier: str, *, canonical: bool
 ) -> None:
-    """One explicit purpose changes the audit command, never the required gate set."""
-    declaration = load_gate_registry_declaration()
-    profile = (
-        RepositoryProfile(
-            root=tmp_path,
-            exists=True,
-            declaration=RepositoryProfileDeclaration(
-                profile_id="ethos", proof=ProofPolicy(gate_registry="system/gates.toml")
-            ),
+    """A partial proof keeps the full audit obligation without expanding source bindings."""
+    repo = init_git_repo(tmp_path / "repo")
+    write_script_gate_policy(repo, full=True)
+    registry = repo / "system/gates.toml"
+    declaration = tomllib.loads(registry.read_text())
+    declaration["proof_sets"]["full"].append("audit")
+    declaration["gates"].append(
+        {
+            "id": "audit",
+            "kind": "lint",
+            "command": ["{python}", "-m", "nox", "-s", "vulnerabilities"],
+            "tool_adapter": "vulnerabilities" if canonical else "repository-native",
+            "depends_on": ["check"],
+        }
+    )
+    registry.write_text(tomli_w.dumps(declaration))
+    if carrier == "profile":
+        registry = repo / ".ethos/profile.toml"
+        registry.write_text(
+            tomli_w.dumps(
+                {
+                    "profile_id": "policy-test",
+                    "proof": {
+                        "code_correctness_gates": [gate["id"] for gate in declaration["gates"]],
+                        "code_correctness_map": {"behavior": "check", "static-analysis": "audit"},
+                        "gates": declaration["gates"],
+                    },
+                }
+            )
         )
-        if owner_kind == "registry"
-        else None
+    head = commit_fixture(repo, "declare audit ownership")
+
+    def source_binding_forbidden(*_args, **_options):
+        pytest.fail("audit applicability must not expand the repository source binding")
+
+    monkeypatch.setattr(gate_policy, "_repository_paths", source_binding_forbidden)
+    monkeypatch.setattr(gate_policy, "source_paths_for_gates", source_binding_forbidden)
+    monkeypatch.setattr(gate_policy, "compile_gate_policy", source_binding_forbidden)
+    policy = {"gates": ({"id": "check", "command": ("tools/check.sh",)},)}
+    expected = (
+        ["proof_dependency_acceptance_audit_missing"] if canonical and carrier == "registry" else []
+    )
+    assert (
+        dependency_acceptance_gaps(repo, head, policy, (), acceptance_purpose="local-source")
+        == expected
     )
 
-    def compiled(purpose: AcceptancePurpose) -> ResolvedGatePolicy:
-        return compile_gate_policy(
-            profile=profile,
-            gate_registry_source=tomli_w.dumps(
-                declaration.model_dump(mode="json", exclude_defaults=True)
-            ).encode(),
-            repository_python="python",
-            repository_paths=("src/ethos/cli.py",),
-            full=True,
-            acceptance_purpose=purpose,
-        )
+    registry.write_text("uncommitted invalid registry")
+    assert (
+        dependency_acceptance_gaps(repo, head, policy, (), acceptance_purpose="local-source")
+        == expected
+    )
+    invalid = commit_fixture(repo, "invalidate audit declaration")
+    assert dependency_acceptance_gaps(
+        repo, invalid, policy, (), acceptance_purpose="local-source"
+    ) == ["proof_dependency_acceptance_audit_missing"]
 
-    strict = compiled("repository")
-    source = compiled("local-source")
-    assert source.projection["owner"] == strict.projection["owner"]
-    assert not set(_MISSING_QUALITY).intersection(source.gaps)
-    assert source.declaration == strict.declaration
-    assert source.gate_ids == strict.gate_ids
-    assert source.digest != strict.digest
-    assert source.projection["acceptance_purpose"] == "local-source"
-    for gate in strict.gates:
-        selected = source.registry[gate.id]
-        if gate.tool_adapter == "vulnerabilities":
-            assert selected.command == (*gate.command, "--", "--scope", "local-development")
-            assert source.nodes[source.gate_ids.index(gate.id)].command != (
-                strict.nodes[strict.gate_ids.index(gate.id)].command
-            )
-        else:
-            assert selected == gate
-    with pytest.raises(ValueError, match="proof_acceptance_purpose_invalid"):
-        proof_acceptance_purpose({"acceptance_purpose": "publishing"})
+
+@pytest.mark.parametrize("profile", ["", "invalid profile"], ids=["absent", "invalid"])
+def test_audit_applicability_never_exempts_an_absent_or_invalid_profile(
+    tmp_path: Path, profile: str
+) -> None:
+    """Only a valid committed native declaration can select its own audit owner."""
+    repo = init_git_repo(tmp_path / "repo")
+    (repo / "README.md").write_text("Audit applicability fixture\n")
+    if profile:
+        path = repo / ".ethos/profile.toml"
+        path.parent.mkdir()
+        path.write_text(profile)
+    head = commit_fixture(repo, "capture profile state")
+    assert dependency_acceptance_gaps(
+        repo, head, {"gates": ()}, (), acceptance_purpose="local-source"
+    ) == ["proof_dependency_acceptance_audit_missing"]
 
 
 def test_quality_axis_conjoins_scoped_evidence_from_distinct_gates() -> None:
@@ -192,7 +221,9 @@ def test_scheduler_hint_does_not_reclassify_product_quality_owner(tmp_path: Path
         ),
     )
 
-    def compiled(declaration: GateRegistryDeclaration) -> ResolvedGatePolicy:
+    def compiled(
+        declaration: GateRegistryDeclaration, *, local_source: bool = False
+    ) -> ResolvedGatePolicy:
         return compile_gate_policy(
             profile=profile,
             gate_registry_source=tomli_w.dumps(
@@ -201,9 +232,14 @@ def test_scheduler_hint_does_not_reclassify_product_quality_owner(tmp_path: Path
             repository_python="python",
             repository_paths=("src/example.py",),
             full=True,
+            acceptance_purpose="local-source" if local_source else "repository",
         )
 
     base = compiled(packaged)
+    scoped = compiled(packaged, local_source=True)
+    assert scoped.projection["owner"] == base.projection["owner"]
+    assert scoped.digest != base.digest
+    assert scoped.gaps == base.gaps
     varied = packaged.model_copy(
         update={
             "gates": tuple(
@@ -217,6 +253,7 @@ def test_scheduler_hint_does_not_reclassify_product_quality_owner(tmp_path: Path
     capacity = compiled(varied)
     assert capacity.projection["owner"] == base.projection["owner"]
     assert capacity.digest != base.digest
+    assert compiled(varied, local_source=True).projection["owner"] == base.projection["owner"]
 
     substantive = packaged.model_copy(
         update={
@@ -462,3 +499,22 @@ def test_quality_observation_retains_committed_roles_and_explicit_test_identity(
     assert subject.requires_behavior
     (repo / ".gitattributes").write_text("test_entry.js ethos-role=test\n")
     assert observe_quality_subjects(repo)[1] == (subject,)
+
+
+def test_rootless_policy_compiles_only_the_product_declaration() -> None:
+    """Without a repository, the product registry compiles without observing materials."""
+    assert resolve_gate_policy(full=True) == compile_gate_policy(full=True)
+
+
+@pytest.mark.parametrize("fault", ["profile", "tree"])
+def test_quality_subjects_bind_one_valid_committed_tree(tmp_path: Path, fault: str) -> None:
+    """An invalid committed profile or another expected tree never yields quality subjects."""
+    repo = init_git_repo(tmp_path / "repo")
+    (repo / "answer.py").write_text("VALUE = 42\n")
+    if fault == "profile":
+        (repo / ".ethos").mkdir()
+        (repo / ".ethos/profile.toml").write_text("profile_id = 1\n")
+    commit_fixture(repo, "record source")
+    message = "repository_profile_invalid" if fault == "profile" else "code_source_changed"
+    with pytest.raises(ValueError, match=message):
+        observe_quality_subjects(repo, expected_tree="0" * 40 if fault == "tree" else "")

@@ -88,6 +88,19 @@
     - [x] 5.12.1.1 Close predecessor custody, post-selector failure and exact-CAS compensation at the existing owners; qualify the signed minimal wheel, immutable runtime and isolated public upgrade/rollback/no-op with independent byte review. Live-adopter adoption and full-source proof remain open.
     - [x] 5.12.1.2 Deliver the qualified minimal package through the Publisher owner's public activation; verify exact prior-runtime/wheel custody and the original implicit prewrite without user retelling. Keep whole-source proof, release and host-store reclamation distinct.
 - [ ] 5.13 Qualify exact producer/consumer scratch ownership under repeated normal, crash and kill cycles; preserve live/unknown roots and shared supply, then measure source-bound 24/48-hour count, byte, inode and cleanup bounds before claiming recurrence closed.
+- [x] 5.14 Bound native pytest failure reports so an interrupted test never renders frame-argument state; a timed-out whole-repository semantic test previously grew one worker past 70 GiB while formatting its traceback. Source `df5c4e94c` selects `--tb=short` in the native configuration; the native regression proves argument `repr` stays unrendered, and the real semantic consumer now ends at its deadline within 1.2 GiB. Exact proof and delivery remain under 1.9.
+- [x] 5.15 Recognize unchanged Git configuration before rewriting it so Lane start and hook installation leave `.git/config` and `core.hooksPath` untouched when values already match. Source `705ce5a53` keeps the postcondition proof and still applies differing keys; its native regression fails on rewrites of matching keys. Exact proof and delivery remain under 1.9.
+- [x] 5.16 Retire supply wheels with their runtime generations: a wheel survives only while a retained manifest, an accepted release identity or a live reference names it, and an unreadable retained manifest keeps every wheel. Source `892fe14fd` adds the parametrized native regression; exact proof and delivery remain under 1.9, and result-payload retention and host-store reclamation remain under 5.13.
+- [x] 5.17 Remove the unimplemented lane-resolution preservation and recovery-inventory requirements with their unconsumed residue. No command, package writer, verifier, inventory or clear implements them, and no code reads `build/artifacts/lane-resolution`; its 113 July packages (608 MiB, 624 commits unreachable from any ref and none patch-equivalent to reachable history) were deleted by explicit user decision on 2026-10-12. Exact proof and delivery remain under 1.9.
+- [x] 5.18 Withdraw the unproven call-time semantic engine from the accepted line until it passes its own gate. It entered `dev` through the 2026-10-07 maintainer break-glass without repository proof (`dfc17351c`, then `f353cd27f` and `00df7032d`); whole-repository closure then exceeded 600 s on `dev` and still reported 24 unknown consumers on its owner and integration lanes, so no Work Lane could pass repository proof. Restoring the `f2392b72a` engine with its four direct consumers and tests closes the same tree in 2.8 s with no missing, duplicate, orphan, superseded, conflict or unknown result; a capped full unit and architecture run adds no failure, and the eight closure, product-boundary and path-admission failures of the unchanged tree pass. Independent changes bundled into `dfc17351c` stay, and the restored shell lexer reads continuation from the native `No escaped character` refusal instead of private lexer state. Source budgets keep their accepted ceilings. The call-time engine returns only by reverting this withdrawal in a Work Lane whose whole-repository closure meets the existing 120-second, zero-unknown gate. Exact proof and delivery remain under 1.9.
+- [x] 5.19 Restore the unit and architecture floor on the accepted line. Outside Claude's sandbox the suite had 13 failures that occur identically at unchanged `1e6fd8ee0`, so none comes from this lane: doubles left behind by `1e6fd8ee0` (proof attestation contract, intent-first candidate admission), `41a75140c` (release smoke dependency audit, native Node supply) and `84c9e11b7` (fixture supply without `--no-config`); OpenSpec 1.14.1 reporting overlong requirements as strict WARNING; and the external-predecessor refusal from `6c4f8b3d6`. Existing owner fixes are reused by cherry-pick (`09fe52028`, `d26bd4824`) and by taking only the strict-WARNING successor test from `5c9eb6785`; the other tests now follow the accepted contracts. Exact proof and delivery remain under 1.9.
+- [x] 5.20 Restore the local package acceptance journey. Its first-change check still expected the pre-`435c7c0fd` `data` resource root, its installed format probe predated the `d07fbcc3a` configuration argument, and activation refused a malformed shared selector; the existing owner fixes `ed824d422` and `d43f6ea46` are reused by cherry-pick, composing `d43f6ea46` with the 5.16 supply-wheel retirement, and local install smoke passes. The deadline-conservation test keeps 0.4 s of process start-up headroom under parallel load without changing its claim, and the complete native integration journey, whose call alone measured 114 s under full-proof load, keeps the existing 240-second per-test budget used by the MCP stdio journey. Exact proof and delivery remain under 1.9.
+- [x] 5.21 Restore the 95% combined coverage floor without changing the floor or its measurement. It last passed at `1b30232e4` (95.00%, recorded under its pre-repair identity `d91bc7ebe`); the local proof store records no coverage-floor execution for the 41 first-parent `dev` commits that followed through `1e6fd8ee0`, and the next proof to reach the gate, at `c2871528e`, measured 94.23% with about 400 more uncovered lines and branches. The largest additions came from native artifact provenance (`4428220db`), dependency acceptance (`1e6fd8ee0`), hook admission (`d07fbcc3a`), Node supply (`41a75140c`) and JavaScript test evidence (`1833ea970`). Public regressions now exercise their unproven failure paths and those of the projection, quality-obligation, command-reference and gate-policy owners; new hook and JavaScript cases live in owner-named modules so the 500-line test limit holds, and three functions without callers (`profile_gate_registry`, `junit_stream_report`, `path_policy_for`) are removed instead of tested. Exact proof and delivery remain under 1.9.
+- [x] 5.22 Keep runtime retirement independent of unrelated host processes. A full proof at `878ad3b8c` deferred two unowned-digest retirements that pass in isolation and in two complete 12-worker adapter and adoption runs; the deferral reason was truncated, and the retirement owner had already reproduced this class on the same host with a live service process whose long command tail exceeds the native path-name limit. The retirement part of owner commit `68760e251` is reused unchanged: process-reference discovery treats filesystem-invalid command suffixes as absent without hiding other observation failures, with its live-process and command-tail regressions. Its OpenSpec validation part belongs to `installed-product` and is not taken. Exact proof and delivery remain under 1.9.
+- [x] 5.23 Recognize the identity-repaired history at both peers. GitLab and GitHub still advertise the pre-repair tips `ebe828d31` (dev) and `0a1c60613` (main). The two 2026-10-01 repairs replaced dev first with `3a49b9337` and then with `1b30232e4`, and the original-object resolver accepted only one directly ancestral replacement, so GitLab readiness for `f0630ed12` scanned all 2,703 rewritten commits and rejected 337 historical subjects. Owner commits `4082b7b4c` and `059e496d5` (13.4.3.1) are reused unchanged by cherry-pick with the batched trust verification `edd404364`; the same readiness then reports only the repository-purpose proof and the missing accepted closeout effect. The ancestry-bridge commit `7b80583cd` is not taken: the bridge was declined on 2026-10-10, and it makes every ordinary fast-forward range read the complete Attestation set, which the `2fdd27d2c` regression forbids. Exact proof and delivery remain under 1.9.
+- [x] 5.24 Bind captured dependency acceptance to the product policy it read, not the build that read it. Since `1e6fd8ee0` the protected reference hook re-evaluates a proof's captured audit with the installed runtime's build identity, while the audit runs in the proven source environment, so a Work Lane ahead of the installed runtime cannot land: the candidate move for `e4d6845db` was refused with `dependency_audit_product_policy_changed` and changed no ref. Running the proof through the selected runtime instead fails earlier with `gate_provider_source_mismatch` for every provider whose source the lane changes. Admission now compares the projected policy path and digest, keeps the reading build as provenance, and still refuses changed policy bytes. Exact proof and delivery remain under 1.9.
+- [x] 5.25 Reconcile the two 2026-10-12 bounded maintainer recoveries through normal governance. Each was explicitly authorized by the user because the incumbent governor could not admit its own proven repair: the runtime built from `1e6fd8ee0` could not plan local-source proofs (5.18 to 5.22 land at `f0630ed12`, custody `9ec69782d553277c`), and its build-bound product policy refused every Work Lane ahead of it (5.23 and 5.24 land at `1669c37bd`, custody `e8f1bf262f7c6bfe`). Each recovery moved only candidate/dev, dev and main by one exact compare-and-swap after a full local-source proof, and the successor runtime was activated from the advanced accepted root, which also meets the 2026-10-07 recovery's open full-proof and successor-activation obligations. This entry is the re-entry: it integrates into candidate/dev through the ordinary protected land path. Accepted closeout of local-source work stays forbidden by design (`local_source_acceptance_effect_forbidden`) until a strict repository-purpose proof passes, and that proof and forge publication remain blocked by the npm 12.2.0 release policy. Exact proof and delivery remain under 1.9.
+- [x] 5.26 Reconcile the 2026-10-13 bounded maintainer recovery through normal governance. The repository-purpose full proof of `272b7a58a` (11.3.3) passed, but the incumbent reference-transaction hook (runtime `05861f50`) refused the candidate move with `proof_dependency_acceptance:dependency_audit_product_policy_changed`: the hook compares captured audit evidence with its own build's product policy, a Work Lane proof must run from the lane's own source, and 11.3.3 changes that product policy, so no ordinary proof could satisfy the incumbent. With explicit user authorization, one exact CAS moved candidate/dev `941c36f6e` and dev/main `1669c37bd` to `272b7a58a`; both checkouts were materialized clean and hook install from dev activated runtime `5accd9ca6e9e` (custody `e5809d67ae287342`). GitHub dev and main were fast-forwarded by exact lease under the owner bypass (custody `9b9cf0945679cc94`). Admitting a product-policy change through an ordinary path remains an open owner gap. This entry is the re-entry through the ordinary protected land path.
 
 ## 6. Native Test Isolation and Shared Preparation
 
@@ -217,25 +230,6 @@
       30.925/30.020 seconds and added a cutoff UNKNOWN, not qualified speedup
       (`native-demand-matched-20261006-1853.receipt.json`). Repeated truncated
       evaluation remains an open throughput limit; no full-proof replay is due.
-      A provisional exhausted-demand early return is also withdrawn. The same
-      889-file input and real admission carrier produced eight additional UNKNOWN
-      sites (55 versus 47), without qualified throughput improvement. Complete
-      observations and the rejected patch remain in
-      `ddwg-native-integration-20261008/invocation-boundary-candidate-withdrawal-20261009T0406.*`.
-      Actual indexed Git configuration and retired uv cache reads now have their
-      input identities declared at `system/surfaces.toml`; no observation exception
-      or reduced gate floor is introduced. Whole-source proof and installed
-      acceptance remain open.
-      Lazy existential and scalar-terminal reachability candidates are withdrawn:
-      counterordered real publication results do not establish repeatable
-      improvement. Their implementation and test are restored to exact HEAD.
-      Original failed proof, rejected patches, complete comparisons and input-owner
-      RED/GREEN survive in native Attestation
-      `d6cf7119f0a8f361b85e209bad7d77813431ee802a0d7ded905f9659c3e0b1d0`;
-      canonical bytes and all 59 archive members are verified. Public native Git
-      observation still lacks executable identity and retains two computed-input
-      UNKNOWN sites. Repair their owner; source, wheel and installed acceptance
-      remain open.
       Native branch merge now copies equal fact channels once and rejoins only
       changed channels. Five distinguishing regressions went RED to GREEN;
       presence, mutable-map isolation, member lineage and residual observations
@@ -250,30 +244,6 @@
       Independent read-only correctness and Ponytail review find no required gap.
       Public exact-source and installed acceptance remain open; the current land
       reader selects `proof_not_proven`.
-      Native source-class and allocation dispatch now resolve imported identities,
-      preserve saved bound functions, and permit strong replacement only for one
-      pure closed owner. Instance may-stores retain field absence and later class
-      lookup; descriptor, custom-hook and class-identity uncertainty cannot pass
-      through an instance field. Public class RED (8 failures), bound-owner RED
-      (1 failure), and distinguishing instance RED (8 failures) have qualified
-      GREEN successors. All 555 related cases pass; native Nox lint/configuration,
-      declared and focused Ty, selected public module layout, and native code size
-      pass without exceptions. Every affected Python carrier stays below 500 ELOC.
-      Value, lexical scope, storage, class lookup, keyword shape and escape owners
-      replace the mixed implementation; all 50 existing test function names survive
-      relocation. Candidate manifest
-      `a16789956cbcd24fcf5e8887060de416b9cccbd10b696945e1b66d4e651f64c8`
-      and all 99 archived members have complete readback in native Attestation
-      `98b123c3263a944296c1fe65342534b591552fb2c01c5382999299505f50f3ef`.
-      Intermediate fixture and consumer-rewire failures remain distinct from the
-      diagnosed implementation failures. Signed source
-      `ae53d84a0e50e0ba20753d042dbabeebb7542965` preserves the trusted signature;
-      native Git verification passes without changing signing policy.
-      Exact signed-source host module-layout and Python-size checks pass; the
-      installed provider/source mismatch remains a separate failed observation.
-      Full exact public proof, accepted wheel/runtime and installed DDWG
-      integration remain open. Source qualification does not close 10.11 or
-      supersede the original failed proof.
 
 - [ ] 10.12 Replace fixed OpenSpec proposal/design/tasks path inference with its resolved artifact graph; preserve positive removal-only acceptance; replay renamed/optional outputs, pure/mixed removal, `skip_specs`, missing/ambiguous resolution, archive identity and exact source binding through public compilation and proof.
 - [ ] 10.13 Preserve blocked CLI exit and incomplete-report status under nonblocking backpressure and short writes; distinguish closed consumers without replaying completed effects.
@@ -286,40 +256,6 @@
       DDWG reports its accepted installed OpenSpec 1.13.2 while its repository locks
       1.14.0. This is a consumer migration obligation, not a reason to downgrade the
       repository lock; the exact accepted source/tree/wheel/runtime handoff remains open.
-      Local-source compilation now keeps the declared registry as the quality
-      owner and binds audit scope only in execution gates. The real registry
-      reproduces the former false adopter obligations; focused RED/GREEN and
-      790 related Python 3.12 cases pass. Substantive adopter obligations remain
-      required. Native lint/configuration, focused Ty, layout and code-size
-      qualification pass; full exact proof, accepted runtime and installed
-      integration remain open. Evidence: `local-source-owner-*` under
-      `build/evidence/ddwg-native-integration-20261008/`.
-      Native merge continuation now defaults to a scoped Conventional Commit.
-      The DDWG-reproduced subject refusal goes RED to GREEN; explicit repository
-      policy and signing remain enforced. All 97 related native merge, recovery,
-      policy and OpenSpec cases pass on Python 3.12 with two workers. The original
-      two isolated-child import failures remain retained; native frozen/offline
-      project installation restores the declared test supply without changing
-      recovery behavior. An existing recovery-path type gap now has a real string
-      assertion, without casts or suppressions. Native lint/configuration,
-      focused Ty and Ruff format pass. Exact-source full proof, accepted runtime
-      and installed default-subject acceptance remain open. Evidence:
-      `native-merge-*` under `build/evidence/ddwg-native-integration-20261008/`.
-      The exact signed-source related suite passes 97 cases. Local-source and
-      merge evidence, including original failures and the 120-second host
-      product-boundary timeout, has complete byte/hash readback in native
-      custody `c9b49b4324d8fda46d5fb2b348355dd3aca4a9dba4aace8140dd911e8e065b75`.
-      Six finished test-owned basetemp roots were retired after exact liveness
-      checks; the Python 3.12 supply, required receipts and foreign work remain.
-      A new native audit identifies three unapproved Handlebars 4.7.9 advisories.
-      Official native isolated resolution to 4.7.10 changes one of 556 lock
-      entries, adds no packages/scripts/advisories, and removes all three.
-      Source lock is `b85388610e9771e5d2717b7c7efec965cae6f08a5757b8fb27f279c1a26c3027`.
-      The 12 old-lock local-development approvals remain unchanged and refuse
-      that new binding; exact reauthorization is pending. Shared installed
-      supply correctly refuses the changed lock. No accepted dependency supply,
-      full proof, wheel, runtime or publication is claimed. Evidence:
-      `handlebars-*` and `local-source-merge-*` under the same evidence root.
       Allure is locked to official stable 3.20.0 after isolated native resolution: 409→408
       lock entries, no added packages or install scripts. Original 77/5 result sets retain
       exact input hashes and report name/status parity without test replay. Those observations
@@ -378,6 +314,67 @@
         install/upgrade/adopter readback and release qualification remain open.
         Evidence: `audit-npm-disposition-sidecar-20261005T0615/{qualification-summary.json,native-local.dependency-audit.json,native-strict.dependency-audit.json,native-ci-local.dependency-audit.json}`
         and `ci-node-ssot-sidecar-20261005T051804Z/ci-node-ssot-generated.patch`.
+  - [ ] 11.3.3 Deliver the 2026-10-12 latest-stable supply refresh, which also repairs hosted CI.
+        Hosted GitHub CI on `1669c37bd` failed in every job at bootstrap because the pinned mise
+        2026.9.11 could not read the lockfile_version 3 mise lock. Official stable releases observed on
+        2026-10-12: mise 2026.10.8, Node 26.11.1, Go 1.27.2, Syft 1.54.1, uv 0.13.0 with setup-uv
+        v10.3.0, upload-artifact v7.0.2 and 20 Python lock entries, including Ruff 0.17.0, Ty 0.0.86
+        and Pydantic 2.14.1 with its natively resolved core 2.50.1. CUE, Actionlint, scc, Gitleaks,
+        checkout, setup-python and the act emulator image were already current. Native owners
+        refreshed the mise config and lock with each tool's platform set preserved, the version-bound
+        installer projection and its bootstrap binding, both Python locks, the npm lock (Allure 3.20.1,
+        Prettier 3.9.10, smol-toml 1.9.1; no new packages or install scripts) and both CI projections.
+        On the current shell observer the new installer adds only the `awk` and `printf` executables;
+        its quoted awk bodies are not read as commands. Ty 0.0.86 findings are fixed at their owners:
+        context managers return `Generator`, one verification floor is typed, and the gate runner
+        passes an explicit optional timeout. npm 12.2.0 is still the latest stable npm, and native
+        audit fix cannot replace its bundled components. Under the user's 2026-10-12 directive that
+        every decision serve unblocking and closeout, the twelve host-bound local approvals become
+        production-release approvals for the same bundled components, expiring 2026-11-13. uv and
+        Ruff now default to Python 3.15; the explicit 3.12 to 3.14 support line is unchanged, and
+        adopting 3.15 is a separate support decision. The supply Dockerfile moves to the uv 0.13.0
+        base and the patched xz-utils; the GitLab supply image keeps its prior digest until a
+        dispatch-built image is published, and GitLab is unreachable. `npm update` is refused by
+        npm 12.2.0 (`EALLOWREMOTE` for its own bundled tarball), so unchanged transitive npm entries
+        stay at their locked in-range versions. Exact proof and hosted CI are recorded below; the
+        GitLab supply image and installed delivery remain open.
+        Accepted at `272b7a58a` through the 5.26 recovery. Hosted run 38285590747 on that head passes
+        every Linux and macOS host-conformance job. Windows jobs stop at mise preparation: the official
+        installer supports only Linux and macOS, and hosted Windows resolves `bash` to the WSL launcher.
+        One hosted-only test dropped the native tool cache selection from its isolated child; it now
+        passes that selection with the validated package supply. Two research links named the wrong
+        upstream package path and are corrected. Windows now stages the release's official
+        executable, accepted only with its digest from that release's SHASUMS256.txt bound in the
+        bootstrap record. Hosted run 38306041965 on `1ce814e6c` passes external links and every
+        Linux and macOS job; Windows now prepares mise, Go and Node and stopped only because the
+        locked Go check looked for `gofmt` without the executable suffix of `go.exe` (fixed). One
+        hosted-only bound let shellcheck read the large workflow fixture for 5 seconds under 12
+        workers; the test now bounds a deadlocked child at 30 seconds.
+        The last Windows-only defect was a Node test that joined a native Windows path with a literal
+        `/`; it now uses `path.sep`. Accepted `5fc32a243` passed its repository-purpose full proof and
+        the ordinary land, closeout and native GitHub publication. Hosted ETHOS CI runs 38323590796
+        (dev) and 38323590691 (main) pass every job, including all three Windows host-conformance
+        jobs, and CodeQL passes. Deferred, owned by this Change: publish dev/main and the CI supply
+        image to GitLab when the intranet is reachable (it refused connections on 2026-10-13), through
+        native `ethos publish --probe-remote --peer gitlab` first. The npm 12.2.0 approval review
+        is superseded by 11.3.4.
+  - [ ] 11.3.4 Report, without blocking, a finding that no official stable release fixes yet.
+        The user chose this rule on 2026-10-13 over renewing per-advisory approvals. The audit
+        records, with `npm view`, the registry latest release of every locked npm artifact that
+        ships a finding: the package itself, or the bundling package for an `inBundle` component.
+        Evaluation passes a finding whose owning artifacts all already are their latest stable
+        releases, and a Python advisory whose native fix versions name no newer stable release.
+        Fixable findings, missing or malformed observations and adverse Python statuses still
+        block, and an exact disposition keeps precedence. Landing and hooks reevaluate the
+        captured observation without network access. Evaluation now resolves finding identity in
+        every scope, so an unresolvable production identity reports `unknown` instead of an
+        unexamined `block`. The twelve npm 12.2.0 dispositions are redundant under this rule;
+        removing them changes the product policy and waits for the 5.26 owner gap, and after
+        their 2026-11-13 expiry they cannot authorize anything. The native view of `name@latest`
+        is a one-element array; any other shape stays unobserved. A real audit on 2026-10-13
+        observed braces 3.0.3 and npm 12.2.0 as latest; without dispositions, all six advisory
+        packages are reported and none blocks, while the live policy still reports its exact
+        approvals. Exact proof, landing and hosted CI remain open.
 
 - [ ] 11.4 Migrate native developer/CI tool supply to mise locks and retire replaced installers.
 - [x] 11.5 Verify native import-linter and coverage TOML option equivalence; replace their INI owners and consumers without adding a converter.
@@ -476,21 +473,6 @@
         The full 93-case hook/commit matrix passes in 65.97 seconds with same-attempt
         Allure 3 (`repowise-optimization-9wli7wjw/native-ignore-green*`). Original failed
         receipts remain retained; exact-source proof and installed acceptance stay open.
-        The DDWG native-command successor now retains invocation-owned V8 input,
-        a separate test journal, launcher stdout/stderr, and warning diagnostics.
-        Source-binding refusal preserves the raw attempt before retiring scratch;
-        a drifted source cannot erase evidence or escape as an unstructured error.
-        Caller timeout likewise retains partial streams and owned native input
-        without claiming a completed test. Result interpretation belongs to the
-        existing verifier, not the scheduler; the runner remains within its ceiling.
-        Distinguishing stream and custody cases pass (56), related native consumers
-        pass (317), and Python 3.12 passes (11); originals remain in
-        `ddwg-native-integration-20261008/composition-{native-stdout,source-custody}*`.
-        Timeout and result-owner consumers pass (72), including nine Python 3.12
-        cases. Real DDWG source `3374ba5` passes its native checks and 312 tests
-        through this source successor with distinct streams and retained coverage.
-        Nox and mixed-language composition, final exact-source proof, accepted
-        wheel/runtime delivery, and same-product adopter qualification remain open.
         DDWG's native task-artifact refusal is source-repaired without treating
         `apply.requires` as ownership: only the resolved schema/tracking binding
         admits repair of the exact selected existing artifact. Original real-source
@@ -511,6 +493,7 @@
 - [x] 12.2 Repair native metadata parsing and typed relationships; replay quoted-scalar, duplicate-key, delimiter, dangling-owner, human/machine contradiction, title-first commented metadata and adopter-native reader-guidance cases through the public report without widening system-axiom parsing.
 - [ ] 12.3 Derive human and agent navigation from one source; verify semantic hierarchy, reader orientation, prerequisites, section links, rename closure and independently understandable topics. Retire redundant current-tree OpenSpec archive copies only after canonical-spec, proof-consumer, incoming-reference and exact Git-recovery checks.
   - [x] 12.3.1 Settle the terminal plan's current-entry observations into existing history retrieval; preserve open obligations and dependency order without copying task status or dropping source evidence.
+  - [ ] 12.3.2 Deliver shared decision-carrier validation and declared normative reader routes through the accepted, installed product; qualify ETHOS and the unchanged DDWG consumer before retiring its duplicate tools. Bind registry membership to selected source and reject unreadable or escaping sources before metadata reads. Focused source evidence: `registry-selected-source-20261014T0145.confined-final.*`; installed delivery remains open.
 - [ ] 12.4 Enforce a 500-nonblank-line ceiling for current authored Markdown documentation in ETHOS and governed repositories. Keep release history, official OpenSpec artifacts and their archive, and declared generated output under their own owners. Verify human/agent retrieval and token cost without cosmetic splitting or lost meaning.
   - [ ] Audit the 17 first-parent reductions whose Markdown preimage exceeded 500 nonblank lines (eight docs, eight live OpenSpec carriers, one archived Change). Map each still-live claim to its current owner or explicitly retire it; recover missing semantics, especially from the terminal plan's 6011-to-420 reduction. Git recoverability alone is insufficient. The decision-record identity and command-root drift found in this audit require exact proof and delivery before this task can close.
 - [ ] 12.5 Qualify a bounded OKF consumer when needed; preserve identity, scope, unknown fields and declared loss without inherited authority or a parallel knowledge store.
@@ -583,14 +566,38 @@
   - [ ] 13.4.2 Qualify and install the exact candidate, observe complete publication performance, and obtain the adopter-owned consumer result; keep these separate from source and focused-test success.
     - [x] 13.4.2.1 Deliver the isolated signed finite-input repair through the native wheel/runtime owner; qualify public admission, independent byte custody and the original AIGW implicit hook and DDWG proof consumers. This closes their hang, not full-proof, release or whole-product acceptance.
   - [ ] 13.4.3 Close owner-confirmed historical attribution and peer readback through exact corrections and recoverable originals. Current author-header repair is accepted and installed; the three platform committer records are retained after exact original GitHub web-flow signature verification. Evidence: `~/.local/share/ethos/recovery/identity-repair-20261001/historical-human-attribution-disposition.json`. The false Junie coauthor, exact proof, peer publication and old PR-reference disposition remain open; future genuine contributors are not constrained.
-        Remote-retirement checkpoint, 2026-10-04 11:51 UTC: live GitLab/GitHub retain
-        three/four proposal refs with no open reviews. Original/repaired peer history
-        now passes 51 native retirement/review tests after a reproduced false block;
-        source remains unaccepted and no remote ref was removed. Existing-owner
-        evidence is `proposal-retirement-{test-red,test-green,attestation-cost}`.
-        The 120-MB selected set and repeated repair validation exceed bounded
-        previews; remove that repetition before exact retirement. Current adopters
-        were notified; four historical families still lack acknowledged owner routing.
+    - [x] 13.4.3.1 Preserve original-peer provenance across consecutive completed native repairs; verify exact mapping composition, ref intersection, missing or ambiguous evidence refusal, final-tip forward-policy checks and unchanged advertised CAS input through the owning public boundaries. Exact product proof, installed recovery and GitLab read-back remain separate acceptance obligations.
+
+      Evidence: `build/evidence/history-repair-chain-{final,commit,real-range}`;
+      the related source suite and final nine-case regression pass. Full proof,
+      runtime admission and GitLab delivery remain separate obligations.
+
+      GitLab proposal checkpoint, 2026-10-07 19:57 UTC: the native creation
+      preview confirmed live GitLab access and review-only proof selection, but
+      rejected the repaired accepted baseline before validating its provenance.
+      The range owner now resolves the exact baseline ref and completed repair
+      together; creation retains its zero destination CAS and checks all forward
+      objects under the final repair-tip policy. Focused RED had three failures;
+      four focused cases and 70 related native cases pass, including unsigned
+      forward refusal and a ref excluded by the successor. Evidence:
+      `build/evidence/new-proposal-repair-baseline-{red,green,related}` and
+      `gitlab-history-chain-proposal-preview.json`. The real GitLab accepted
+      baseline passes the source-native range observer with both repair
+      witnesses, 43 forward objects and zero violations in 147.04 seconds;
+      `new-proposal-repair-baseline-live-source-v2.json` preserves the exact
+      inputs. The shorter failed deadline receipt is retained separately.
+      Exact product proof, installed pre-push, hosted CI and actual peer
+      projection remain unproved.
+
+    Remote-retirement checkpoint, 2026-10-04 11:51 UTC: live GitLab/GitHub retain
+    three/four proposal refs with no open reviews. Original/repaired peer history
+    now passes 51 native retirement/review tests after a reproduced false block;
+    source remains unaccepted and no remote ref was removed. Existing-owner
+    evidence is `proposal-retirement-{test-red,test-green,attestation-cost}`.
+    The 120-MB selected set and repeated repair validation exceed bounded
+    previews; remove that repetition before exact retirement. Current adopters
+    were notified; four historical families still lack acknowledged owner routing.
+
   - [ ] 13.4.4 Deliver native stat-cache refresh at the worktree-sync owner; preserve real dirty bytes and qualify public closeout, exact proof and installed behavior. Current focused native owner tests are evidence, not accepted delivery.
     - [ ] 13.4.4.1 Recover materialization from the admitted original plan and Attestation without recompilation or CAS replay; preserve the receipt and qualify the public journey, exact proof and installed replay.
           The original 19-case run failed candidate-sync-loss. The transition/primitive

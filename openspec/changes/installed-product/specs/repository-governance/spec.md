@@ -18,6 +18,31 @@ invalid carrier. CLI, SDK and MCP SHALL share this decision and retain its gaps.
 - **THEN** adoption preserves its exact bytes and does not replace its schema, context or rules
 - **AND** this preservation does not certify full mutation readiness or executed proof
 
+### Requirement: Source acceptance preserves the declared native audit owner
+
+Local-source proof SHALL derive dependency-audit applicability from the exact
+declared full gate policy. It SHALL preserve all selected native checks and
+existing captured-input, scope, freshness and disposition obligations. A native
+adopter SHALL NOT acquire Python audit inputs from an unrelated product floor.
+
+#### Scenario: A native adopter has its own complete proof floor
+
+- **WHEN** every declared native check and required product observation passes
+- **THEN** proof issuance and consumption use that exact native policy
+- **AND** they do not impose an undeclared canonical Python audit
+
+#### Scenario: A declared canonical audit is omitted
+
+- **WHEN** local-source planning selects a subset missing the declared canonical audit
+- **THEN** it blocks before executing the subset
+- **AND** a saved partial proof cannot authorize a candidate transition
+
+#### Scenario: A declared native dependency check fails
+
+- **WHEN** the repository's selected native dependency check fails
+- **THEN** no passing proof is issued and the candidate ref remains unchanged
+- **AND** canonical audit findings, expiration and source bindings retain their original refusals
+
 ## MODIFIED Requirements
 
 ### Requirement: Minimal Adoption Binding
@@ -218,6 +243,13 @@ Lease generation. Ordinary cross-identity CAS SHALL remain rejected.
 - **THEN** its current results use the new identity without aliases or compatibility mappings
 - **AND** old revisions remain historical or not-yet-transitioned stage inputs
 - **AND** no temporary profile rollback or history rewrite is required
+
+#### Scenario: Retirement deletes a ref that predates a completed rename
+
+- **WHEN** a retirement only deletes a topic ref whose head carries the identity of its common ancestor with every kept ref
+- **THEN** the deletion is admitted under the kept identity without an identity edge, alias or profile rewrite
+- **AND** an identity introduced only by the deleted ref, or a ref without shared history, remains rejected
+- **AND** an integration that moves a ref across identities still requires the explicit transition
 
 #### Scenario: A ref program contains both migration and new publication refs
 

@@ -28,6 +28,7 @@ from ethos.adapters.repo.runtime.materialization.dependency_supply import (
     prepare_locked_requirements,
 )
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
+from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.repository.release.identity import BuildIdentity
 from ethos.repository.release.identity import wheel_build_identity
@@ -446,11 +447,7 @@ def run(
             wheel_sha256=wheel_sha256,
             environment=package_environment,
         )
-        runtime = (
-            Path(git_common_dir(adopter))
-            / "ethos/runtime"
-            / str(lifecycle["successor_activation"]["runtime_digest"])
-        )
+        runtime = current_runtime(Path(git_common_dir(adopter)), expected_build=build).root
         distribution = package_runtime(
             runtime,
             wheel,

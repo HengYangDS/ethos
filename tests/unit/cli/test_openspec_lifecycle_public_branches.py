@@ -28,10 +28,10 @@ def _validation_item(**fields: object) -> dict[str, object]:
     return {"id": "native", "type": "change", "valid": True, **fields}
 
 
-def test_public_prewrite_repairs_valid_canonical_info_without_weakening_status(
+def test_public_prewrite_repairs_native_strict_warning_without_weakening_status(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """One native INFO finding permits its file edit, not ordinary acceptance."""
+    """A native strict WARNING permits its exact repair, not ordinary acceptance."""
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     root = prepared_work_lane(tmp_path).worktree
     profile = root / ".ethos/profile.toml"
@@ -49,11 +49,13 @@ def test_public_prewrite_repairs_valid_canonical_info_without_weakening_status(
         encoding="utf-8",
     )
     official = governance.openspec_governance_report(root, change="fixture-change", lifecycle=True)
+    assert "openspec_validation_failed:spec:contracts" in official["required_gaps"]
+    validation = official["commands"]["validate"]
+    assert validation["exit_code"] == 1
     assert any(
-        gap.startswith("openspec_validation_issue:INFO:spec:contracts:")
-        for gap in official["required_gaps"]
+        item["id"] == "contracts" and any(issue["level"] == "WARNING" for issue in item["issues"])
+        for item in validation["json"]["items"]
     )
-    assert official["commands"]["validate"]["exit_code"] == 0
     status = run_ethos("status", "--json", cwd=root)
     assert status["verdict"] == "block"
     assert "ethos lane prewrite" in status["next_action"]
@@ -61,8 +63,9 @@ def test_public_prewrite_repairs_valid_canonical_info_without_weakening_status(
     repair = run_ethos("lane", "prewrite", path, *options, cwd=root)
     assert repair["data"]["material_scope"]["state"] == "canonical_spec_repair"
     assert repair["data"]["material_scope"]["authorized_paths"] == [path]
-    ordinary = run_ethos("lane", "prewrite", "README.md", *options, cwd=root)
-    assert ordinary["data"]["material_scope"]["state"] == "attributed"
+    ordinary = run_ethos_blocked("lane", "prewrite", "README.md", *options, cwd=root)
+    assert ordinary["data"]["material_scope"]["state"] == "canonical_spec_repair"
+    assert "openspec_material_path_uncovered:README.md" in ordinary["required_gaps"]
     assert ordinary["data"]["openspec"]["required_gaps"] == official["required_gaps"]
     mixed = run_ethos_blocked("lane", "prewrite", path, "README.md", *options, cwd=root)
     assert "openspec_material_path_uncovered:README.md" in mixed["required_gaps"]
@@ -244,15 +247,12 @@ def test_edge_reports_and_lifecycle_mismatches_preserve_attribution(
     assert timeout["commands"]["list"] == {}
 
     for stage in ("status", "apply"):
-        payloads = {
-            f"{key}_payload": {"changeName": "other" if key == stage else "requested"}
-            for key in ("status", "apply")
-        }
         mismatch = report.lifecycle_report(
             tmp_path,
             request=request,
             list_payload={"changes": [_completed("requested")]},
-            **payloads,
+            status_payload={"changeName": "other" if stage == "status" else "requested"},
+            apply_payload={"changeName": "other" if stage == "apply" else "requested"},
         )
         assert mismatch["required_gaps"] == [f"openspec_{stage}_change_mismatch:requested"]
 

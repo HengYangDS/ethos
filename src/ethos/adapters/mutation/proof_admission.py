@@ -141,6 +141,18 @@ def _predecessor_plan(stdout: str, head: str) -> tuple[TransitionPlan | None, li
     return predecessor, list(predecessor.required_gaps)
 
 
+def unavailable_proof_admission() -> dict[str, object]:
+    """Project a proof admission that cannot be selected for an inadmissible target."""
+    return {
+        "verdict": "block",
+        "state": "unavailable",
+        "selection": "",
+        "attestation": {},
+        "required_gaps": [],
+        "next_action": "",
+    }
+
+
 def proof_attestation(
     root: Path,
     head: str,

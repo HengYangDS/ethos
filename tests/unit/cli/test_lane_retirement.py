@@ -117,6 +117,38 @@ def test_landed_topic_retirement_obeys_the_exact_resource_boundary(
         assert observe_lease(state_database(repo), branch).state == "valid"
 
 
+def test_landed_topic_retirement_survives_an_accepted_identity_rename(tmp_path: Path) -> None:
+    """A topic that predates the accepted line's rename still retires through the public command."""
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    source = git(repo, "rev-parse", "HEAD")
+    branch = "topic/absorbed"
+    worktree = tmp_path / "absorbed"
+    git(repo, "worktree", "add", "-b", branch, worktree.as_posix(), source)
+    write_test_profile(repo, profile_id="renamed")
+    accepted = commit_fixture(repo, "rename repository identity")
+    install_fixture_hook_runtime(repo)
+
+    planned = run_ethos(
+        "lane",
+        "retire",
+        "landed",
+        "--branch",
+        branch,
+        "--root",
+        repo.as_posix(),
+        "--authorize",
+        "--json",
+        cwd=repo,
+    )
+    assert (planned["verdict"], planned["required_gaps"]) == ("pass", [])
+    applied = run_ethos(*shlex.split(planned["next_action"])[1:], cwd=repo)
+    assert applied["verdict"] == "pass"
+    assert (worktree.exists(), git(repo, "branch", "--list", branch)) == (False, "")
+    assert git(repo, "rev-parse", "dev") == accepted
+    assert observe_lease(state_database(repo), branch).state == "missing"
+
+
 @pytest.mark.parametrize(
     "boundary",
     [

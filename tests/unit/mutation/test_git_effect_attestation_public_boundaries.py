@@ -407,6 +407,40 @@ def test_attestation_negative_claim_matrix(tmp_path: Path, kind: str) -> None:
         records(case.repo, carried, record)
 
 
+@pytest.mark.parametrize("compensation", ["attested", "forged"])
+def test_only_attested_exact_inverse_reopens_identical_plan(
+    tmp_path: Path, compensation: str
+) -> None:
+    case = fixture(tmp_path)
+    forward = plan(case.repo, case.effect)
+    first = execute_git_effect(case.repo, forward, issuer=EFFECT_ISSUER)
+    inverse = plan(case.repo, case.effect.inverse())
+    if compensation == "attested":
+        execute_git_effect(case.repo, inverse, issuer=EFFECT_ISSUER)
+        retried = execute_git_effect(case.repo, forward, issuer=EFFECT_ISSUER)
+        assert records(case.repo, forward) == (retried,)
+        assert retried.plan_digest == first.plan_digest
+        assert retried.id != first.id
+        assert first in attestation_set.read_attestation_set(case.repo)[1]
+        return
+    body, later = first.payload.body, (first.issued_at + timedelta(seconds=1)).isoformat()
+    forged = attest.issue(
+        case.effect.inverse(),
+        plan=inverse,
+        issuer=EFFECT_ISSUER,
+        evidence=(
+            "repository:other",
+            "applied",
+            {**body["output"], "assertions": {}, "observed_at": later},
+            {**body["input"], "observed_at": later},
+        ),
+    )
+    git(case.repo, "update-ref", "refs/heads/dev", case.old, case.new)
+    record_attestations(case.repo, (forged,))
+    with pytest.raises(ValueError, match="git_effect_attestation_content_mismatch"):
+        execute_git_effect(case.repo, forward, issuer=EFFECT_ISSUER)
+
+
 @pytest.mark.parametrize("failure", ["corrupt", "collision"])
 def test_attestation_store_public_failure_matrix(tmp_path: Path, failure: str) -> None:
     case = fixture(tmp_path)

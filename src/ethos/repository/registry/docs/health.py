@@ -8,12 +8,15 @@ from pathlib import Path
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 from typing import Any
+from urllib.parse import unquote
 
 from markdown_it import MarkdownIt
 
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.policy.projections import observe_projections
 from ethos.repository.profile import INVALID_PROFILE_ERROR
+from ethos.repository.profile import load_repository_profile
+from ethos.repository.registry.docs.decisions import decision_record_gaps
 from ethos.repository.registry.docs.links import markdown_links
 from ethos.repository.registry.docs.registry import DEFAULT_ALLOWED_STATES
 from ethos.repository.registry.docs.registry import REQUIRED_FIELDS
@@ -29,20 +32,21 @@ if TYPE_CHECKING:
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 OBSERVATIONAL_ROLES = frozenset({"evidence", "history"})
 MAX_CURRENT_MARKDOWN_NONBLANK = 500
-DECISION_RECORD_NAME = re.compile(r"^dr-([0-9]{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
 
 
 def docs_health_report(
     root: Path,
     *,
     command_validator: Callable[[list[str]], str] | None = None,
-    tracked_documents: tuple[str, ...] = (),
+    tracked_documents: tuple[str, ...] | None = None,
 ) -> dict[str, object]:
     """Report docs metadata, structure, and live-command-example health."""
     root = root.resolve()
     try:
         generated_outputs = frozenset(item.output for item in observe_projections(root))
-        registry = build_docs_registry(root, generated_outputs=generated_outputs)
+        registry = build_docs_registry(
+            root, generated_outputs=generated_outputs, selected_documents=tracked_documents
+        )
         states = allowed_states(root)
         roles = allowed_roles(root)
         missing = [
@@ -78,9 +82,9 @@ def docs_health_report(
         )
         unindexed_plans = plan_index_gaps(root, registry)
         readme_disposition = readme_disposition_gaps(root, registry)
-        decision_identity = decision_record_identity_gaps(registry)
+        decision_identity = decision_record_gaps(root, registry)
         length_gaps = current_document_length_gaps(
-            root, registry, generated_outputs, tracked_documents
+            root, registry, generated_outputs, tracked_documents or ()
         )
         required_gaps = (
             missing
@@ -98,7 +102,12 @@ def docs_health_report(
     except ValueError as exc:
         gap = str(exc)
         if gap != INVALID_PROFILE_ERROR and not gap.startswith(
-            ("docs_taxonomy_invalid:", "docs_metadata_invalid:", "projection_")
+            (
+                "docs_taxonomy_invalid:",
+                "docs_metadata_invalid:",
+                "docs_source_unavailable:",
+                "projection_",
+            )
         ):
             raise
         return empty_docs_health_report(gap)
@@ -171,27 +180,6 @@ def current_document_length_gaps(
         count = sum(bool(line.strip()) for line in lines)
         if count > MAX_CURRENT_MARKDOWN_NONBLANK:
             gaps.append(f"docs_length_exceeded:{relative}:{count}>{MAX_CURRENT_MARKDOWN_NONBLANK}")
-    return gaps
-
-
-def decision_record_identity_gaps(registry: list[dict[str, Any]]) -> list[str]:
-    """Keep decision identity stable without another decision registry."""
-    ids: dict[str, list[str]] = {}
-    gaps: list[str] = []
-    for entry in registry:
-        if entry.get("role") != "decision":
-            continue
-        path = str(entry["path"])
-        match = DECISION_RECORD_NAME.fullmatch(PurePosixPath(path).name)
-        if match is None or match[1] == "0000":
-            gaps.append(f"docs_decision_name_invalid:{path}")
-            continue
-        ids.setdefault(match[1], []).append(path)
-    gaps.extend(
-        f"docs_decision_id_duplicate:{number}:{','.join(sorted(paths))}"
-        for number, paths in sorted(ids.items())
-        if len(paths) > 1
-    )
     return gaps
 
 
@@ -274,7 +262,43 @@ def readme_disposition_gaps(root: Path, registry: list[dict[str, Any]]) -> list[
             for _line, link in markdown_links(path)
         ):
             gaps.append(f"docs_readme_without_local_route:{entry['path']}")
-    return gaps
+    return gaps + _normative_route_gaps(root, registry)
+
+
+def _normative_route_gaps(root: Path, registry: list[dict[str, Any]]) -> list[str]:
+    """Join declared normative responsibilities to the real documentation entrance."""
+    profile = load_repository_profile(root)
+    if profile.declaration is None:
+        return []
+    docs = docs_root(root).resolve()
+    required = {
+        (root / relative).resolve()
+        for relative in profile.declaration.normative_sources
+        if (root / relative).resolve().is_relative_to(docs)
+    }
+    if not required:
+        return []
+    documents = {(root / entry["path"]).resolve() for entry in registry}
+    pending = [docs / "README.md"]
+    reached: set[Path] = set()
+    while pending:
+        source = pending.pop()
+        if source in reached or source not in documents:
+            continue
+        reached.add(source)
+        for _line, link in markdown_links(source):
+            target = link.partition("#")[0].partition("?")[0]
+            if not target or target.startswith("/") or ":" in target:
+                continue
+            resolved = (source.parent / unquote(target)).resolve()
+            if resolved in documents:
+                pending.append(resolved)
+            elif resolved / "README.md" in documents:
+                pending.append(resolved / "README.md")
+    return [
+        f"docs_normative_source_unreachable:{path.relative_to(root).as_posix()}"
+        for path in sorted(required - reached)
+    ]
 
 
 def visible_section_gaps_for_registry(root: Path, registry: list[dict[str, Any]]) -> list[str]:

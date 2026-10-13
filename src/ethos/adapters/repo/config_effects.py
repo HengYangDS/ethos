@@ -68,8 +68,11 @@ def replace_config_values(
     *,
     scope: str,
 ) -> None:
-    """Replace exact Git configuration values and prove the postcondition."""
+    """Recognize exact values, replace only differing keys and prove the postcondition."""
+    before = config_values(root, tuple(values), scope=scope)
     for key, expected in values.items():
+        if before[key] == expected:
+            continue
         removed = run_git(root, "config", f"--{scope}", "--unset-all", key, check=False)
         if removed.returncode not in {0, 5}:
             raise ValueError(removed.stderr.strip() or "git_config_effect_failed")

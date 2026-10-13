@@ -82,19 +82,29 @@ def refresh_work_lane_base(
     authorized: bool = False,
     expect_head: str | None = None,
     strategy: Literal["rebase", "merge"] = "rebase",
+    source_ref: str | None = None,
     mode: MergeMode = "inspect",
     expect_state: str | None = None,
     subject: str | None = None,
 ) -> dict[str, object]:
-    if strategy == "merge":
-        return merge_work_lane(
-            root=root,
-            mode=mode,
-            apply=apply,
-            authorized=authorized,
-            expect_head=expect_head,
-            expect_state=expect_state,
-            subject=subject,
+    if strategy == "merge" or source_ref is not None:
+        return (
+            merge_work_lane(
+                root=root,
+                mode=mode,
+                apply=apply,
+                authorized=authorized,
+                expect_head=expect_head,
+                expect_state=expect_state,
+                subject=subject,
+                source_ref=source_ref,
+            )
+            if strategy == "merge"
+            else {
+                "verdict": "block",
+                "state": "blocked",
+                "required_gaps": ["merge_source_ref_requires_merge_strategy"],
+            }
         )
     policy = load_branch_role_policy(root)
     status = workspace_status(root)

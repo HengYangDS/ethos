@@ -69,6 +69,13 @@
 - [x] 4.14 Qualify the actual archive postimage before Git CAS against native formatting, references and OpenSpec findings; compensate avoidable findings with a source repair action, preserve valid new-capability acceptance, and retain post-CAS proof/recovery without weakening repository gates.
 - [x] 4.15 Admit only complete, monotonic final task progress in an official staged archive; retain source/postimage proof boundaries, precise drift diagnostics and public positive/negative regressions.
 
+- [ ] 4.16 Deliver exact native merge continuation without a mutable-candidate dependency; compose explicit peer-source snapshot/CAS with native three-way authoring attribution. Preserve both parents, the complete prospective index, incoming Change progress and lost-ACK recovery.
+  - The sealed minimal repair is bound to accepted baseline `00db3550`, projected tree `ac445154`, and patch SHA-256 `ad0ae012aa8ad85b462ea1ab9c067db3f3fc47ab9dc9a22cafd83390e972e2b6`. Its unchanged complete 109-case owner suite passes on Python 3.14 in 159.02 seconds and Python 3.12 in 154.84 seconds; the two separate-process recovery cases pass. Every one of 1,507 source inputs is unchanged by qualification.
+  - Whole-source semantic closure passes in 2.13 seconds with every category zero; complete Ruff, format, configured Ty with fatal warnings, and all four strict active Changes pass. Canonical incoming Change identity validation rejects the reproduced invalid identity independently of authored paths. Same-attempt RED, GREEN, Allure and incomplete originals are retained.
+  - Native custody: `2a0bc1e33ec760622e5ae0cbd50225c9b203be403d54b7e6afe8edebaa94e226` and `93cbdd397d02895f0eea2d7a46e2dff44549d947cb2aae0266bdbf346e97661d`; exact-id readback verifies all embedded bytes and modes. Successful qualification scratch is retired, while required failed attempts remain.
+  - Current accepted `4fa32c4b` has no product, build or supply-input change from that baseline. The sole user-authorized temporary delivery lane `work/20261013-native-continuation-delivery` starts there natively; the sealed patch is composed with current progress after exact-root/path/PATCH admission. Original pending merge parents and index remain unchanged.
+  - Open: signed exact source, required full repository proof, immutable successor installation, original real merge continuation and temporary-lane retirement. Qualification, custody and native lane creation do not prove acceptance, installation or complete independent CLI delivery.
+
 ## 5. Process Lifetimes and Resource Recovery
 
 - [x] 5.1 Terminate owned POSIX command groups on timeout and cancellation with native regressions.

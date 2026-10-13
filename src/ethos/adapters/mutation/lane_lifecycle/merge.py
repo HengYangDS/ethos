@@ -21,6 +21,7 @@ from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_object_sandbox import isolated_git_objects
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.merge.effect import apply_merge
 from ethos.adapters.repo.merge.effect import recognized_merge
@@ -43,7 +44,14 @@ def _fail(message: str) -> NoReturn:
     raise ValueError(message)
 
 
-def _command(root: Path, mode: str, observed: MergeObservation, token: str, message: str) -> str:
+def _command(
+    root: Path,
+    mode: str,
+    observed: MergeObservation,
+    token: str,
+    message: str,
+    source_ref: str | None = None,
+) -> str:
     return shlex.join(
         (
             "ethos",
@@ -51,6 +59,7 @@ def _command(root: Path, mode: str, observed: MergeObservation, token: str, mess
             "refresh-base",
             "--strategy",
             "merge",
+            *(("--source-ref", source_ref) if source_ref is not None else ()),
             "--mode",
             mode,
             "--expect-head",
@@ -112,7 +121,7 @@ def _mode_gaps(root: Path, observed: MergeObservation, mode: str, incoming: str)
         return ["merge_not_in_progress"]
     if len(observed.parents) != 1:
         return ["merge_multiple_parents_unsupported"]
-    return _continuation_gaps(root, observed, incoming) if mode == "continue" else []
+    return _continuation_gaps(root, observed) if mode == "continue" else []
 
 
 def _ignored_checkout_gaps(root: Path, incoming: str) -> list[str]:
@@ -135,15 +144,8 @@ def _ignored_checkout_gaps(root: Path, incoming: str) -> list[str]:
     return [f"merge_ignored_content_collision:{path}" for path in sorted(collisions)]
 
 
-def _continuation_gaps(root: Path, observed: MergeObservation, incoming: str) -> list[str]:
-    gaps = [
-        gap
-        for failed, gap in (
-            (observed.parents != (incoming,), "merge_candidate_changed"),
-            (bool(observed.conflicts), "merge_unresolved_index"),
-        )
-        if failed
-    ]
+def _continuation_gaps(root: Path, observed: MergeObservation) -> list[str]:
+    gaps = ["merge_unresolved_index"] if observed.conflicts else []
     if not gaps and run_git(root, "diff", "--quiet", check=False, observation=True).returncode:
         gaps.append("merge_unstaged_resolution")
     return gaps
@@ -159,14 +161,23 @@ class _MergeContext:
     candidate_ref: str
     incoming: str
     runtime_digest: str
+    source_head: str
+    explicit_source_ref: str | None = None
 
     def token(self, mode: str, message: str, native: dict[str, object] | None = None) -> str:
         return canonical_json_digest(
             {
                 "native": self.observed.projection() if native is None else native,
                 "lease": self.lease,
-                "candidate_ref": self.candidate_ref,
-                "candidate": self.incoming,
+                **(
+                    {
+                        "candidate_ref": self.candidate_ref,
+                        "candidate": self.incoming,
+                        "source_head": self.source_head,
+                    }
+                    if self.candidate_ref
+                    else {}
+                ),
                 "runtime": self.runtime_digest,
                 "mode": mode,
                 "subject": message,
@@ -179,19 +190,38 @@ class _MergeContext:
             _fail("merge_state_stale")
         if digest != self.runtime_digest:
             _fail("merge_runtime_changed")
-        if self.candidate_ref and ref_head(self.root, self.candidate_ref) != self.incoming:
+        if self.candidate_ref and ref_head(self.root, self.candidate_ref) != self.source_head:
             _fail("merge_candidate_changed")
         if native and observe_merge(self.root) != self.observed:
             _fail("merge_state_stale")
 
 
-def _context(root: Path, observed: MergeObservation, mode: MergeMode) -> _MergeContext:
+def _context(
+    root: Path, observed: MergeObservation, mode: MergeMode, source_ref: str | None = None
+) -> _MergeContext:
     lease, digest = _authority(root, observed)
     policy = load_branch_role_policy(root)
-    candidate_ref = "" if mode == "abort" else f"refs/heads/{policy.candidate_branch}"
-    incoming = ref_head(root, candidate_ref) if candidate_ref else ""
-    if candidate_ref and not incoming:
-        _fail("candidate_branch_missing")
+    if source_ref is not None and (
+        mode == "abort"
+        or not source_ref.startswith("refs/heads/")
+        or run_git(root, "check-ref-format", source_ref, check=False, observation=True).returncode
+        or policy.role_for_branch(source_ref.removeprefix("refs/heads/")) != ROLE_WORK_LANE
+    ):
+        _fail("merge_source_ref_invalid")
+    selected = ("continue" if observed.parents else "start") if mode == "inspect" else mode
+    candidate_ref = (
+        ""
+        if selected == "abort"
+        else source_ref or (f"refs/heads/{policy.candidate_branch}" if selected == "start" else "")
+    )
+    source_head = ref_head(root, candidate_ref) if candidate_ref else ""
+    if candidate_ref and not source_head:
+        _fail("merge_source_ref_missing" if source_ref is not None else "candidate_branch_missing")
+    incoming = source_head or (observed.parents[0] if len(observed.parents) == 1 else "")
+    if source_ref is not None and observed.parents:
+        if len(observed.parents) != 1 or not is_ancestor(root, observed.parents[0], source_head):
+            _fail("merge_source_ref_changed")
+        incoming = observed.parents[0]
     return _MergeContext(
         root,
         observed,
@@ -199,6 +229,8 @@ def _context(root: Path, observed: MergeObservation, mode: MergeMode) -> _MergeC
         candidate_ref,
         incoming,
         digest,
+        source_head,
+        source_ref,
     )
 
 
@@ -212,17 +244,34 @@ def _result(observed: MergeObservation, result: dict[str, object]) -> dict[str, 
     )
 
 
-def _stage_admission(root: Path) -> dict[str, object]:
-    paths = run_git(root, "diff", "--cached", "--name-only", "-z", observation=True).stdout
+def _stage_admission(root: Path, head: str, incoming: str) -> dict[str, object]:
+    """Separate newly authored resolution from the parents' native composition."""
+    index = run_git(root, "write-tree", check=False, observation=True)
+    if index.returncode:
+        _fail("staged_tree_unavailable")
+    with isolated_git_objects(root) as git:
+        merged = git("merge-tree", "--write-tree", head, incoming)
+        baseline = merged.stdout.partition("\n")[0]
+        if merged.returncode not in (0, 1) or not baseline:
+            _fail("merge_authoring_observation_unavailable")
+        verified = git("rev-parse", "--verify", f"{baseline}^{{tree}}")
+        if verified.returncode or verified.stdout.strip() != baseline:
+            _fail("merge_authoring_observation_unavailable")
+        delta = git("diff", "--no-renames", "--name-only", "-z", baseline, index.stdout.strip())
+        if delta.returncode:
+            _fail("merge_authoring_observation_unavailable")
+        paths = tuple(filter(None, delta.stdout.split("\0")))
     admission = prewrite_guard(
         root=root,
-        paths=[Path(path) for path in paths.split("\0") if path],
+        paths=[Path(path) for path in paths],
         editor_root=root,
         require_editor_root=True,
         staged=True,
         require_workspace=True,
     )
     official = string_mapping(admission["openspec"])
+    if gaps := incoming_change_gaps(root, str(official.get("change")), incoming, paths):
+        _fail(gaps[0])
     if official.get("verdict") == "pass" and admission["verdict"] != "pass":
         _fail(next(iter(string_sequence(admission["required_gaps"])), "merge_scope_unavailable"))
     return official
@@ -233,7 +282,7 @@ def _admit_mode(context: _MergeContext, mode: MergeMode) -> None:
         _fail(gaps[0])
     if mode != "abort":
         official = (
-            _stage_admission(context.root)
+            _stage_admission(context.root, context.observed.head, context.incoming)
             if mode == "continue"
             else openspec_governance_report(context.root, lifecycle=True)
         )
@@ -244,10 +293,6 @@ def _admit_mode(context: _MergeContext, mode: MergeMode) -> None:
                     "openspec_scope_unavailable",
                 )
             )
-    if mode == "continue" and (
-        gaps := incoming_change_gaps(context.root, str(official.get("change")), context.incoming)
-    ):
-        _fail(gaps[0])
 
 
 def _preview(context: _MergeContext, mode: MergeMode, message: str) -> dict[str, object]:
@@ -305,7 +350,7 @@ def _preview(context: _MergeContext, mode: MergeMode, message: str) -> dict[str,
         observation=observed.projection(),
         state_digest=token,
         incoming=context.incoming,
-        next_action=_command(root, selected, observed, token, message),
+        next_action=_command(root, selected, observed, token, message, context.explicit_source_ref),
         user_decision_required=True,
     )
 
@@ -350,6 +395,7 @@ def _execute(
             mode=mode,
             incoming=context.incoming,
             candidate_ref=context.candidate_ref,
+            source_head=context.source_head,
             actor=os.environ.get("ETHOS_ACTOR", ""),
             lease=context.lease,
             message=message,
@@ -369,12 +415,13 @@ def merge_work_lane(
     expect_head: str | None = None,
     expect_state: str | None = None,
     subject: str | None = None,
+    source_ref: str | None = None,
 ) -> dict[str, object]:
     """Preview or execute exactly one supported native merge step."""
     observed: MergeObservation | None = None
     try:
         observed = observe_merge(root)
-        context = _context(root, observed, mode)
+        context = _context(root, observed, mode, source_ref)
         message = subject or "chore: merge candidate contribution"
         if not apply:
             return _preview(context, mode, message)

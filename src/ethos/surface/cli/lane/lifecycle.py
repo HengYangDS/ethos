@@ -67,6 +67,7 @@ class _RefreshBase(AppliedLaneCommandOptions):
     authorize: bool = False
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
     strategy: Literal["rebase", "merge"] = "rebase"
+    source_ref: str | None = None
     mode: MergeMode = "inspect"
     expect_state: str | None = None
     subject: str | None = None
@@ -313,6 +314,7 @@ def lane_refresh_base(
         authorized=options.authorize,
         expect_head=options.expect_head,
         strategy=options.strategy,
+        source_ref=options.source_ref,
         mode=options.mode,
         expect_state=options.expect_state,
         subject=options.subject,

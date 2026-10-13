@@ -16,6 +16,16 @@ from tests.support.semantic import occurrence_attestation
 if TYPE_CHECKING:
     from pathlib import Path
 
+_CAPACITY = 1024 * 1024
+
+
+@pytest.fixture(autouse=True)
+def bounded_reuse(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exercise the reuse bound with small inputs instead of production-sized members."""
+    monkeypatch.setattr(
+        attestation_set, "_validated_member", attestation_set.member_validator(_CAPACITY)
+    )
+
 
 @pytest.mark.parametrize("payload_bytes", [0, 131_072])
 def test_attestation_set_reuses_validation_but_not_selected_membership(
@@ -52,7 +62,7 @@ def test_attestation_set_oversized_member_does_not_consume_reuse_capacity(
 ) -> None:
     """A large valid member stays admissible without retaining its bytes or value."""
     repo = init_git_repo(tmp_path / "repo")
-    large = occurrence_attestation(3_007, payload_bytes=64 * 1024 * 1024)
+    large = occurrence_attestation(3_007, payload_bytes=2 * _CAPACITY)
     attestation_set.record_attestations(repo, (large,))
     validate = Mock(wraps=Attestation.model_validate_json)
     monkeypatch.setattr(Attestation, "model_validate_json", validate)
@@ -69,7 +79,7 @@ def test_attestation_set_eviction_changes_work_not_membership_or_meaning(
     repo = init_git_repo(tmp_path / "repo")
     records = tuple(
         sorted(
-            (occurrence_attestation(n, payload_bytes=33 * 1024 * 1024) for n in (4_000, 4_001)),
+            (occurrence_attestation(n, payload_bytes=_CAPACITY * 6 // 10) for n in (4_000, 4_001)),
             key=lambda x: x.id,
         )
     )

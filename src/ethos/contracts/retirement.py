@@ -22,6 +22,7 @@ from ethos.contracts.value import JsonObject
 
 RetirementEffect = Literal["remove_worktree", "delete_ref", "revoke_lease"]
 CarrierState = Literal["expected", "absent", "moved", "unavailable"]
+AcceptedState = Literal["expected", "advanced", "absent", "moved", "unavailable"]
 
 
 def _fail(reason: str) -> None:
@@ -112,7 +113,7 @@ class RetirementObservation(BaseModel):
     worktree_state: CarrierState
     ref_state: CarrierState
     lease_state: CarrierState
-    accepted_state: CarrierState = "expected"
+    accepted_state: AcceptedState = "expected"
 
 
 class RetirementOperation(BaseModel):

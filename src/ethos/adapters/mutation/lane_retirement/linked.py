@@ -10,6 +10,7 @@ from typing import cast
 import ethos.adapters.mutation.lane_retirement.effects as effects
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
+from ethos.adapters.mutation.lane_retirement.continuation import content_review_command
 from ethos.adapters.mutation.lane_retirement.linked_admission import landed_gaps
 from ethos.adapters.mutation.lane_retirement.linked_admission import leased_successor
 from ethos.adapters.mutation.lane_retirement.linked_admission import retirement_target
@@ -17,7 +18,6 @@ from ethos.adapters.mutation.lane_retirement.linked_admission import retirement_
 from ethos.adapters.mutation.lane_retirement.linked_admission import superseded_gaps
 from ethos.adapters.mutation.lane_retirement.linked_effect import compile_retirement_operation
 from ethos.adapters.mutation.lane_retirement.operation import apply_operation
-from ethos.adapters.mutation.lane_retirement.operation import content_review_command
 from ethos.adapters.mutation.lane_retirement.operation import persist_operation
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.status.bindings import leases_by_branch

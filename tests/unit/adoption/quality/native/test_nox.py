@@ -87,7 +87,7 @@ def static(session):
             identity=session.name + "-" + VERSION, configuration=Path(config))
     if OUTCOME == "timeout":
         session.run(EXECUTABLE, "-c",
-            "import time; print('timeout-sentinel', flush=True); time.sleep(10)",
+            "import time; print('timeout-sentinel', flush=True); time.sleep(60)",
             external=True)
     if OUTCOME == "missing":
         (output / "coverage.xml").unlink()
@@ -199,7 +199,7 @@ def static(session):
                 "ethos.adapters.gates.python_quality:static_report",
             ),
             "native_outputs": outputs,
-            "timeout_seconds": 3 if outcome == "timeout" else 45,
+            "timeout_seconds": 15 if outcome == "timeout" else 45,
         }
     )
 

@@ -12,6 +12,10 @@ timeout_seconds = 120
 # Local-development requires exact host, lock, nodes and expiry; it never covers CI.
 # Production-release can authorize the exact artifact across hosts and lock placements.
 # Native adverse findings remain visible; no aggregate-name exclusions.
+# Without a disposition, a finding that no official stable release fixes is reported,
+# not blocking: every locked npm artifact that ships it (the bundling package for an
+# inBundle component) already is its registry latest release, or a Python advisory's
+# native fix versions name no newer stable release. Fixable or unobserved findings block.
 
 # Exact lock binding migration: native Handlebars 4.7.9 -> 4.7.10 only.
 # Original advisory/artifact, host, scope, owner, approval and expiry are unchanged.

@@ -356,9 +356,25 @@
     (dev) and 38323590691 (main) pass every job, including all three Windows host-conformance
     jobs, and CodeQL passes. Deferred, owned by this Change: publish dev/main and the CI supply
     image to GitLab when the intranet is reachable (it refused connections on 2026-10-13), through
-    native `ethos publish --probe-remote --peer gitlab` first; and review the npm 12.2.0 approvals by
-    2026-11-06, replacing them with an official stable npm that removes the findings or renewing
-    them through the audit owner before the 2026-11-13 expiry.
+    native `ethos publish --probe-remote --peer gitlab` first. The npm 12.2.0 approval review
+    is superseded by 11.3.4.
+  - [ ] 11.3.4 Report, without blocking, a finding that no official stable release fixes yet.
+    The user chose this rule on 2026-10-13 over renewing per-advisory approvals. The audit
+    records, with `npm view`, the registry latest release of every locked npm artifact that
+    ships a finding: the package itself, or the bundling package for an `inBundle` component.
+    Evaluation passes a finding whose owning artifacts all already are their latest stable
+    releases, and a Python advisory whose native fix versions name no newer stable release.
+    Fixable findings, missing or malformed observations and adverse Python statuses still
+    block, and an exact disposition keeps precedence. Landing and hooks reevaluate the
+    captured observation without network access. Evaluation now resolves finding identity in
+    every scope, so an unresolvable production identity reports `unknown` instead of an
+    unexamined `block`. The twelve npm 12.2.0 dispositions are redundant under this rule;
+    removing them changes the product policy and waits for the 5.26 owner gap, and after
+    their 2026-11-13 expiry they cannot authorize anything. The native view of `name@latest`
+    is a one-element array; any other shape stays unobserved. A real audit on 2026-10-13
+    observed braces 3.0.3 and npm 12.2.0 as latest; without dispositions, all six advisory
+    packages are reported and none blocks, while the live policy still reports its exact
+    approvals. Exact proof, landing and hosted CI remain open.
 
 - [ ] 11.4 Migrate native developer/CI tool supply to mise locks and retire replaced installers.
 - [x] 11.5 Verify native import-linter and coverage TOML option equivalence; replace their INI owners and consumers without adding a converter.

@@ -359,9 +359,11 @@
     check, because the pinned image predates every refreshed supply input. The first image dispatch
     since then (run 38421416153) stopped because the image build synced the quality-sample fixture
     with `--no-config`, which drops the fixture's prerelease policy; the build now uses the
-    fixture's own settings. Remaining, owned by this Change: bind a dispatch-built image digest,
-    then publish to GitLab and retire its three stale pre-repair proposal branches when the
-    intranet is reachable, through native `ethos publish --probe-remote --peer gitlab` first.
+    fixture's own settings. Dispatch run 38451377593 on `1f5562604` published digest
+    `f45b7bb5…74f21e`; its source, tag, registry digest and all ten embedded input hashes were
+    read back, and GitLab now binds it. Remaining, owned by this Change: publish to GitLab and
+    retire its three stale pre-repair proposal branches when the intranet is reachable, through
+    native `ethos publish --probe-remote --peer gitlab` first, then read back GitLab CI.
     The npm 12.2.0 approval review is superseded by 11.3.4.
   - [ ] 11.3.4 Report, without blocking, a finding that no official stable release fixes yet.
     The user chose this rule on 2026-10-13 over renewing per-advisory approvals. The audit

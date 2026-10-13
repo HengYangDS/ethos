@@ -1,4 +1,4 @@
-"""Bind one public Nox run to its actual launch and retained native output."""
+"""Observe one exact Ruff launch from the Nox session child that owns its environment."""
 
 from __future__ import annotations
 
@@ -12,11 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from collections.abc import Sequence
-    from typing import TextIO
-
-    import nox
 
 _ACTIVE: ContextVar[list[tuple[str, tuple[str, ...], str]] | None] = ContextVar(
     "native_quality_launch", default=None
@@ -46,113 +42,51 @@ def _audit(event: str, arguments: tuple[object, ...]) -> None:
 sys.addaudithook(_audit)
 
 
-def _observe(
-    launch: Callable[[TextIO, TextIO], bool],
-    runtime: dict[str, object],
-    *,
-    runtime_output: Path,
-    identity: str,
-    configuration: Path,
-) -> None:
-    """Retain the launches one call makes, with its output, beside the interpreter.
+def run_ruff(
+    command: tuple[str, ...], *, runtime_output: Path, identity: str, configuration: Path
+) -> int:
+    """Launch one exact Ruff argv and record it beside this interpreter's identity.
 
-    Audit events observe the pre-spawn request under a trusted producer. They do
-    not authenticate hostile process behavior or the runtime distribution bytes.
-    Environment values are deliberately never retained.
+    The session child records its own interpreter, so no detached runtime print
+    precedes the launch and the Nox parent needs no ETHOS. Audit events observe
+    the pre-spawn request under a trusted producer. They do not authenticate
+    hostile process behavior or the runtime distribution bytes. Environment
+    values are deliberately never retained. The exit code is Ruff's own.
     """
     captured: list[tuple[str, tuple[str, ...], str]] = []
     stdout = runtime_output.with_suffix(".stdout")
     stderr = runtime_output.with_suffix(".stderr")
     selected = configuration.resolve()
     digest = hashlib.sha256(selected.read_bytes()).hexdigest()
-    completed = False
+    code: int | None = None
     token = _ACTIVE.set(captured)
     try:
         with stdout.open("w", encoding="utf-8") as out, stderr.open("w", encoding="utf-8") as err:
-            completed = launch(out, err)
+            code = subprocess.run(
+                command, stdin=subprocess.DEVNULL, stdout=out, stderr=err, check=False
+            ).returncode
+        return code
     finally:
         _ACTIVE.reset(token)
         observed = captured[0] if len(captured) == 1 else ("", (), str(Path.cwd()))
-        runtime["ruff"] = {
-            "session": identity,
-            "executable": observed[0],
-            "argv": list(observed[1]),
-            "cwd": observed[2],
-            "configuration": str(selected),
-            "configuration_sha256": digest,
-            "completed": completed,
-            "launches": len(captured),
-            "stdout": stdout.read_text(encoding="utf-8") if stdout.exists() else "",
-            "stderr": stderr.read_text(encoding="utf-8") if stderr.exists() else "",
+        record = {
+            "executable": sys.executable,
+            "version": list(sys.version_info[:3]),
+            "prefix": sys.prefix,
+            "ruff": {
+                "session": identity,
+                "executable": observed[0],
+                "argv": list(observed[1]),
+                "cwd": observed[2],
+                "configuration": str(selected),
+                "configuration_sha256": digest,
+                "completed": code == 0,
+                "launches": len(captured),
+                "stdout": stdout.read_text(encoding="utf-8") if stdout.exists() else "",
+                "stderr": stderr.read_text(encoding="utf-8") if stderr.exists() else "",
+            },
         }
-        runtime_output.write_text(json.dumps(runtime, sort_keys=True) + "\n", encoding="utf-8")
-
-
-def run_ruff(
-    session: nox.Session,
-    command: tuple[str, ...],
-    *,
-    runtime_output: Path,
-    identity: str,
-    configuration: Path,
-) -> str | bool | None:
-    """Add execution custody, not scheduling or authority, around one Session.run.
-
-    The Nox parent calls this with the child's recorded interpreter already at
-    ``runtime_output``. Only explicit zero success is accepted; install-only
-    produces no launch.
-    """
-    runtime = json.loads(runtime_output.read_bytes())
-    if not isinstance(runtime, dict):
-        msg = "python_native_toolchain_unbound"
-        raise TypeError(msg)
-    result: str | bool | None = None
-
-    def launch(out: TextIO, err: TextIO) -> bool:
-        nonlocal result
-        result = session.run(*command, success_codes=(0,), stdout=out, stderr=err, external=True)
-        return result is True
-
-    _observe(
-        launch,
-        runtime,
-        runtime_output=runtime_output,
-        identity=identity,
-        configuration=configuration,
-    )
-    return result
-
-
-def _run_child(
-    command: tuple[str, ...], *, runtime_output: Path, identity: str, configuration: Path
-) -> int:
-    """Launch one exact Ruff argv from the interpreter that owns its environment.
-
-    This child records its own interpreter, so no detached runtime print precedes
-    the launch and the Nox parent needs no ETHOS. The exit code is Ruff's own.
-    """
-    code = 1
-
-    def launch(out: TextIO, err: TextIO) -> bool:
-        nonlocal code
-        code = subprocess.run(
-            command, stdin=subprocess.DEVNULL, stdout=out, stderr=err, check=False
-        ).returncode
-        return code == 0
-
-    runtime: dict[str, object] = {
-        "executable": sys.executable,
-        "version": list(sys.version_info[:3]),
-        "prefix": sys.prefix,
-    }
-    _observe(
-        launch,
-        runtime,
-        runtime_output=runtime_output,
-        identity=identity,
-        configuration=configuration,
-    )
-    return code
+        runtime_output.write_text(json.dumps(record, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def main(arguments: Sequence[str] | None = None) -> int:
@@ -171,7 +105,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if not command:
         parser.error("run requires -- followed by the exact Ruff argv")
     try:
-        return _run_child(
+        return run_ruff(
             command,
             runtime_output=options.runtime_output,
             identity=options.session,

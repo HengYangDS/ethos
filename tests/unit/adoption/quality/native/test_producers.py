@@ -49,32 +49,6 @@ def test_pytest_plugin_binds_the_runtime_to_its_effective_configuration(tmp_path
         pytest_plugin.pytest_sessionstart(_pytest_session(tmp_path, str(output), None))
 
 
-def test_ruff_launch_binds_one_textual_process_request(tmp_path: Path) -> None:
-    """Only the single checker launch inside the wrapper is retained with its output."""
-    configuration = tmp_path / "ruff.toml"
-    configuration.write_text("", encoding="utf-8")
-    runtime = tmp_path / "static-runtime.json"
-    runtime.write_text("{}", encoding="utf-8")
-
-    class Session:
-        def run(self, *command: str, **options: object) -> bool:
-            subprocess.run(command, stdout=options["stdout"], stderr=options["stderr"], check=True)
-            return True
-
-    command = (sys.executable, "-c", "print('checked')")
-    bound = {"runtime_output": runtime, "identity": "static", "configuration": configuration}
-    assert native_nox.run_ruff(Session(), command, **bound) is True
-    recorded = json.loads(runtime.read_text(encoding="utf-8"))["ruff"]
-    assert (recorded["launches"], recorded["completed"], recorded["stdout"]) == (
-        1,
-        True,
-        "checked\n",
-    )
-    runtime.write_text("[]", encoding="utf-8")
-    with pytest.raises(TypeError, match=r"^python_native_toolchain_unbound$"):
-        native_nox.run_ruff(Session(), command, **bound)
-
-
 @pytest.mark.parametrize(
     ("arguments", "textual"),
     [

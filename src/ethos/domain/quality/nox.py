@@ -17,18 +17,24 @@ _ACTIVE: ContextVar[list[tuple[str, tuple[str, ...], str]] | None] = ContextVar(
 )
 
 
-def _audit(event: str, arguments: tuple[object, ...]) -> None:
-    capture = _ACTIVE.get()
-    if capture is None or event != "subprocess.Popen":
-        return
+def popen_request(arguments: tuple[object, ...]) -> tuple[str, tuple[str, ...], str] | None:
+    """Return one textual Popen audit request, or None when any part is not text."""
     executable, argv, cwd, _environment = arguments
     if not isinstance(executable, str) or not isinstance(argv, (tuple, list)):
-        return
+        return None
     if not all(isinstance(item, str) for item in argv):
-        return
+        return None
     if cwd is not None and not isinstance(cwd, str):
-        return
-    capture.append((executable, tuple(argv), str(Path(cwd or Path.cwd()).resolve())))
+        return None
+    return executable, tuple(argv), str(Path(cwd or Path.cwd()).resolve())
+
+
+def _audit(event: str, arguments: tuple[object, ...]) -> None:
+    capture = _ACTIVE.get()
+    if capture is not None and event == "subprocess.Popen":
+        request = popen_request(arguments)
+        if request is not None:
+            capture.append(request)
 
 
 sys.addaudithook(_audit)

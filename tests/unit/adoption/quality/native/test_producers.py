@@ -76,3 +76,24 @@ def test_ruff_launch_binds_one_textual_process_request(tmp_path: Path) -> None:
     runtime.write_text("[]", encoding="utf-8")
     with pytest.raises(TypeError, match=r"^python_native_toolchain_unbound$"):
         native_nox.run_ruff(Session(), command, **bound)
+
+
+@pytest.mark.parametrize(
+    ("arguments", "textual"),
+    [
+        (("ruff", ["ruff", "check"], None, None), True),
+        ((b"ruff", ["ruff"], None, None), False),
+        (("ruff", "ruff check", None, None), False),
+        (("ruff", ["ruff", b"check"], None, None), False),
+        (("ruff", ["ruff"], b"/", None), False),
+    ],
+)
+def test_popen_requests_are_retained_only_as_text(arguments: tuple, *, textual: bool) -> None:
+    """A launch request is retained only when every identity part is text."""
+    assert (native_nox.popen_request(arguments) is not None) is textual
+
+
+def test_popen_request_resolves_its_working_directory(tmp_path: Path) -> None:
+    """The retained request names the resolved directory the child starts in."""
+    request = native_nox.popen_request(("ruff", ("ruff", "check"), str(tmp_path), None))
+    assert request == ("ruff", ("ruff", "check"), str(tmp_path.resolve()))

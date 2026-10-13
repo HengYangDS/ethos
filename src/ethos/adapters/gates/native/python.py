@@ -25,6 +25,7 @@ from ethos.repository.policy.quality_reports import coverage_stream_report
 from ethos.repository.policy.quality_reports import junit_stream_report
 
 if TYPE_CHECKING:
+    from ethos.adapters.gates.verification import NativeEvidence
     from ethos.adapters.gates.verification import NativeExecution
     from ethos.contracts.gates import NativeOutput
 
@@ -259,15 +260,13 @@ class PythonRuntime(BaseModel):
             raise ValueError(msg)
 
 
-def _outputs(execution: NativeExecution, kind: str) -> tuple[tuple[NativeOutput, bytes], ...]:
-    evidence = execution.evidence
-    if evidence is None:
-        msg = "python_native_evidence_unavailable"
-        raise ValueError(msg)
+def _outputs(evidence: NativeEvidence, kind: str) -> tuple[tuple[NativeOutput, bytes], ...]:
     return tuple(item for item in evidence.outputs if item[0].format == kind)
 
 
-def _producer(root: Path, execution: NativeExecution) -> tuple[NoxReport, tuple[str, ...]]:
+def _producer(
+    root: Path, execution: NativeExecution
+) -> tuple[NoxReport, tuple[str, ...], NativeEvidence]:
     """Require complete source-bound output and terminal status from this invocation."""
     evidence = execution.evidence
     if evidence is None:
@@ -298,7 +297,7 @@ def _producer(root: Path, execution: NativeExecution) -> tuple[NoxReport, tuple[
     ):
         msg = "python_native_source_changed"
         raise ValueError(msg)
-    reports = _outputs(execution, "nox-json")
+    reports = _outputs(evidence, "nox-json")
     if len(reports) != 1:
         msg = "python_native_report_missing"
         raise ValueError(msg)
@@ -325,13 +324,14 @@ def _producer(root: Path, execution: NativeExecution) -> tuple[NoxReport, tuple[
     ):
         msg = "python_native_execution_failed"
         raise ValueError(msg)
-    _runtimes(execution, found)
-    return report, tuple(subject.path for subject in subjects if subject.language == "python")
+    _runtimes(execution, evidence, found)
+    selected = tuple(subject.path for subject in subjects if subject.language == "python")
+    return report, selected, evidence
 
 
-def _runtimes(execution: NativeExecution, found: tuple[str, ...]) -> None:
+def _runtimes(execution: NativeExecution, evidence: NativeEvidence, found: tuple[str, ...]) -> None:
     """Each required native session has one actual interpreter observation."""
-    runtimes = _outputs(execution, "python-runtime-json")
+    runtimes = _outputs(evidence, "python-runtime-json")
     runtime_sessions: set[str] = set()
     for output, content in runtimes:
         runtime = PythonRuntime.model_validate_json(content)
@@ -347,17 +347,13 @@ def _runtimes(execution: NativeExecution, found: tuple[str, ...]) -> None:
             msg = "python_native_toolchain_unbound"
             raise ValueError(msg)
         runtime_sessions.update(output.sessions)
-    evidence = execution.evidence
-    checks = evidence.dependency_checks if evidence is not None else ()
+    checks = evidence.dependency_checks
     if tuple(output for output, _ in checks) != tuple(output for output, _ in runtimes):
         msg = "python_native_dependency_floor_unbound"
         raise ValueError(msg)
     for (output, content), (_, check) in zip(runtimes, checks, strict=True):
         runtime = PythonRuntime.model_validate_json(content)
         runtime.require_floor(root=execution.cwd, content=check)
-        if evidence is None:
-            msg = "python_native_evidence_unavailable"
-            raise ValueError(msg)
         runtime.require_checks(execution.cwd, output, evidence.gate.native_outputs)
     if runtime_sessions != set(found):
         msg = "python_native_toolchain_unbound"
@@ -366,11 +362,7 @@ def _runtimes(execution: NativeExecution, found: tuple[str, ...]) -> None:
 
 def report(root: Path, execution: NativeExecution, axis: str) -> dict[str, object]:
     """Consume the sole native attempt; never invoke another test or static tool."""
-    producer, selected = _producer(root, execution)
-    evidence = execution.evidence
-    if evidence is None:
-        msg = "python_native_evidence_unavailable"
-        raise ValueError(msg)
+    producer, selected, evidence = _producer(root, execution)
     native: dict[str, object] = {
         "declared_identity": list(execution.declared_identity),
         "argv": list(execution.argv),
@@ -395,7 +387,7 @@ def report(root: Path, execution: NativeExecution, axis: str) -> dict[str, objec
         },
     }
     if axis == "static-analysis":
-        findings = _outputs(execution, "ruff-json")
+        findings = _outputs(evidence, "ruff-json")
         if not findings:
             msg = "python_native_static_missing"
             raise ValueError(msg)
@@ -404,23 +396,19 @@ def report(root: Path, execution: NativeExecution, axis: str) -> dict[str, objec
                 msg = "python_native_static_diagnostics"
                 raise ValueError(msg)
         return observation
-    return _behavior(root, execution, observation)
+    return _behavior(root, evidence, observation)
 
 
 def _behavior(
-    root: Path, execution: NativeExecution, observation: dict[str, object]
+    root: Path, evidence: NativeEvidence, observation: dict[str, object]
 ) -> dict[str, object]:
     """Conjoin native JUnit and coverage for every declared behavior producer."""
-    evidence = execution.evidence
-    if evidence is None:
-        msg = "python_native_evidence_unavailable"
-        raise ValueError(msg)
     _, subjects = observe_quality_subjects(root, language="python", expected_tree=evidence.tree)
     source = tuple(subject.path for subject in subjects if subject.requires_behavior)
     cast("dict[str, object]", observation["quality_evidence"])["selected_paths"] = list(source)
-    tests = _outputs(execution, "junit-xml")
-    events = _outputs(execution, "pytest-jsonl")
-    coverage = _outputs(execution, "coverage-xml")
+    tests = _outputs(evidence, "junit-xml")
+    events = _outputs(evidence, "pytest-jsonl")
+    coverage = _outputs(evidence, "coverage-xml")
     if not source or not tests or not coverage:
         msg = "python_native_behavior_missing"
         raise ValueError(msg)

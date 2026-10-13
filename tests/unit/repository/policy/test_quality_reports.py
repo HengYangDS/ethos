@@ -11,6 +11,7 @@ from xml.sax.saxutils import escape
 import pytest
 
 from ethos.adapters.process import run_command
+from ethos.repository.policy.quality.pytest import pytest_report
 from ethos.repository.policy.quality_reports import coverage_report
 from ethos.repository.policy.quality_reports import coverage_stream_report
 from ethos.repository.policy.quality_reports import istanbul_coverage_report
@@ -363,3 +364,109 @@ def test_native_coverage_source_roots_require_unique_subject_binding(tmp_path: P
             repository_root=tmp_path.resolve(),
             source_paths=("left/app.py", "right/app.py"),
         )
+
+
+_NODE = "tests/test_answer.py::test_answer"
+
+
+def _event(kind: str, **fields: object) -> str:
+    return json.dumps({"$report_type": kind, **fields})
+
+
+def _events(*events: str) -> str:
+    start = _event("SessionStart", pytest_version="9.1.1")
+    return "\n".join((start, *events, _event("SessionFinish", exitstatus=0)))
+
+
+_SETUP = _event("TestReport", nodeid=_NODE, when="setup", outcome="passed")
+_CALL = _event("TestReport", nodeid=_NODE, when="call", outcome="passed")
+
+
+@pytest.mark.parametrize(
+    ("text", "code"),
+    [
+        ("{", "pytest_event_invalid"),
+        (_event("SessionStart", pytest_version="9.1.1"), "pytest_terminal_missing"),
+        (_events(), "pytest_empty"),
+        (_events(_event("TestReport", nodeid=_NODE, when="call")), "pytest_event_invalid"),
+        (_events(_event("WarningMessage")), "pytest_event_invalid"),
+        (_events(_event("CollectReport")), "pytest_event_invalid"),
+        (
+            _events(_event("TestReport", nodeid="test_answer", when="setup", outcome="passed")),
+            "pytest_nodeid_invalid",
+        ),
+        (_events(_CALL), "pytest_report_order_invalid"),
+        (_events(_SETUP), "pytest_execution_incomplete"),
+        (
+            _events(_SETUP, _event("SubTestReport", nodeid=_NODE, when="call", outcome="passed")),
+            "pytest_subtest_unbound",
+        ),
+    ],
+)
+def test_pytest_events_refuse_incomplete_or_unordered_streams(text: str, code: str) -> None:
+    """Only one complete, ordered official stream can describe a test attempt."""
+    with pytest.raises(ValueError, match=f"^{code}$"):
+        pytest_report(text)
+
+
+def test_pytest_failed_setup_is_an_error_outcome() -> None:
+    """A failed setup is a parent error, not a failed test call."""
+    report = pytest_report(
+        _events(
+            _event("TestReport", nodeid=_NODE, when="setup", outcome="failed"),
+            _event("TestReport", nodeid=_NODE, when="teardown", outcome="passed"),
+        )
+    )
+    assert (report.errors, report.failures, report.failed) == (1, 0, True)
+    assert report.outcomes == (("tests.test_answer", "test_answer", "error"),)
+
+
+_JUNIT = (
+    '<testsuite tests="1" failures="0" errors="0" skipped="0">'
+    '<testcase classname="tests.test_answer" name="test_answer"/></testsuite>'
+)
+
+
+def _coverage(source: str, filename: str = "app.py") -> bytes:
+    return (
+        '<coverage lines-covered="1" lines-valid="1" branches-covered="0" branches-valid="0">'
+        f"<sources><source>{escape(source)}</source></sources>"
+        f'<class filename="{filename}"><line hits="1"/></class></coverage>'
+    ).encode()
+
+
+@pytest.mark.parametrize(
+    ("case", "code"),
+    [
+        ("junit-xml", "junit_invalid"),
+        ("junit-scope", "pytest_junit_scope_mismatch"),
+        ("coverage-xml", "coverage_invalid"),
+        ("coverage-outside", "coverage_source_outside_repository"),
+        ("coverage-parent", "coverage_source_outside_repository"),
+        ("coverage-unbound", "coverage_file_unbound"),
+    ],
+)
+def test_native_report_streams_refuse_unbound_identities(
+    tmp_path: Path, case: str, code: str
+) -> None:
+    """Retained native bytes bind only their exact producer identities and subjects."""
+    root = tmp_path.resolve()
+    scope = {"repository_root": root, "source_paths": ("src/app.py",), "include_files": True}
+    other = _NODE.replace("test_answer", "test_other")
+    other_events = _events(
+        _event("TestReport", nodeid=other, when="setup", outcome="passed"),
+        _event("TestReport", nodeid=other, when="call", outcome="passed"),
+        _event("TestReport", nodeid=other, when="teardown", outcome="passed"),
+    )
+    actions = {
+        "junit-xml": lambda: junit_stream_report("<"),
+        "junit-scope": lambda: junit_stream_report(_JUNIT, pytest_events=other_events),
+        "coverage-xml": lambda: coverage_stream_report(b"<", **scope),
+        "coverage-outside": lambda: coverage_stream_report(
+            _coverage(str(root.parent / "elsewhere")), **scope
+        ),
+        "coverage-parent": lambda: coverage_stream_report(_coverage("../elsewhere"), **scope),
+        "coverage-unbound": lambda: coverage_stream_report(_coverage("src", "other.py"), **scope),
+    }
+    with pytest.raises(ValueError, match=f"^{code}$"):
+        actions[case]()

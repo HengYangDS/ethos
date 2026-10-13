@@ -91,6 +91,15 @@ def static(session):
             external=True)
     if OUTCOME == "missing":
         (output / "coverage.xml").unlink()
+    if OUTCOME == "unsafe-output":
+        (output / "coverage.xml").unlink()
+        (output / "coverage.xml").mkdir()
+    if OUTCOME == "dirty-source":
+        with Path("pyproject.toml").open("a") as stream:
+            stream.write("\\n")
+    if OUTCOME == "advance-head":
+        session.run("git", "-c", "user.name=Test User", "-c", "user.email=test@example.com",
+            "commit", "--allow-empty", "-m", "advance", external=True)
     if OUTCOME == "junit":
         from xml.etree import ElementTree
         target = output / "behavior.xml"
@@ -410,3 +419,106 @@ def test_native_timeout_preserves_partial_output_and_owned_cleanup(tmp_path: Pat
         assert "reports/behavior.xml" in archive.namelist()
     assert metadata["output_root"]
     assert not Path(metadata["output_root"]).exists()
+
+
+def test_native_reports_refuse_an_altered_attempt_record(tmp_path: Path) -> None:
+    """Every field of the retained attempt record stays bound to the original run."""
+    gate = _native_gate(tmp_path)
+    root = tmp_path / "repo"
+    completed, evidence = native_attempt(root, gate, gate.command, timeout=45)
+    execution = retained_execution(
+        NativeExecution(
+            gate_execution_identity(gate),
+            tuple(completed.args),
+            root.resolve(),
+            completed.returncode,
+            completed.stdout,
+            completed.stderr,
+            executable=gate.command[0],
+            evidence=evidence,
+        )
+    )
+    assert execution.evidence is not None
+    outputs = execution.evidence.outputs
+    without_report = tuple(item for item in outputs if item[0].format != "nox-json")
+    without_findings = tuple(item for item in outputs if item[0].format != "ruff-json")
+    altered = {
+        "python_native_evidence_unavailable": replace(execution, evidence=None),
+        "native_output_missing:nox.json": replace(
+            execution,
+            evidence=replace(execution.evidence, gaps=("native_output_missing:nox.json",)),
+        ),
+        "python_native_custody_missing": replace(execution, cwd=tmp_path.resolve()),
+        "python_native_source_changed": replace(
+            execution, evidence=replace(execution.evidence, head="0" * 40)
+        ),
+        "python_native_execution_failed": replace(execution, exit_code=1),
+        "python_native_selection_invalid": replace(
+            execution, evidence=replace(execution.evidence, outputs=without_report)
+        ),
+        "python_native_dependency_floor_unbound": replace(
+            execution, evidence=replace(execution.evidence, dependency_checks=())
+        ),
+    }
+
+    def with_content(kind: str, original: bytes, mutated: bytes) -> NativeExecution:
+        assert execution.evidence is not None
+        changed = []
+        for descriptor, content in outputs:
+            if descriptor.format == kind:
+                assert original in content, (kind, content)
+            changed.append(
+                (
+                    descriptor,
+                    content.replace(original, mutated) if descriptor.format == kind else content,
+                )
+            )
+        return replace(execution, evidence=replace(execution.evidence, outputs=tuple(changed)))
+
+    altered["python_native_coverage_scope_incomplete"] = with_content(
+        "coverage-xml", b'hits="1"', b'hits="0"'
+    )
+    altered["python_native_tests_failed"] = with_content(
+        "pytest-jsonl", b'"exitstatus": 0', b'"exitstatus": 1'
+    )
+    for gap, record in altered.items():
+        report = behavior_report(root, execution=record)
+        assert report["verdict"] == "block", (gap, report)
+        assert gap in json.dumps(report), (gap, report)
+    static = static_report(
+        root,
+        execution=replace(
+            execution, evidence=replace(execution.evidence, outputs=without_findings)
+        ),
+    )
+    assert "python_native_selection_invalid" in json.dumps(static), static
+    diagnosed = with_content("ruff-json", b"[]", b'[{"code": "F401"}]')
+    findings = static_report(root, execution=diagnosed)
+    assert "python_native_static_diagnostics" in json.dumps(findings), findings
+
+
+def test_native_attempt_refuses_uncommitted_source_before_launch(tmp_path: Path) -> None:
+    """A dirty tracked source cannot be measured as the committed subject."""
+    gate = _native_gate(tmp_path)
+    root = tmp_path / "repo"
+    project = root / "pyproject.toml"
+    project.write_text(project.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match=r"^native_source_changed$"):
+        native_attempt(root, gate, gate.command, timeout=45)
+
+
+@pytest.mark.parametrize(
+    ("outcome", "gap"),
+    [
+        ("unsafe-output", "native_output_unsafe:coverage.xml"),
+        ("dirty-source", "native_source_changed"),
+        ("advance-head", "native_source_changed"),
+    ],
+)
+def test_native_attempt_reports_unsafe_output_and_changed_source(
+    tmp_path: Path, outcome: str, gap: str
+) -> None:
+    """A non-regular report or a source edit during the run cannot become evidence."""
+    gate = _native_gate(tmp_path, outcome)
+    _, evidence = native_attempt(tmp_path / "repo", gate, gate.command, timeout=45)
+    assert gap in evidence.gaps, evidence.gaps

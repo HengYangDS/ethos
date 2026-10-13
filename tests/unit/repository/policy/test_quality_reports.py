@@ -126,7 +126,7 @@ def test_native_pytest_subtest_reports_preserve_parent_and_event_counts(
         ),
         timeout=30,
         env={"PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"},
-        remove_env=("PYTEST_ADDOPTS",),
+        remove_env=("PYTEST_ADDOPTS", "PYTHONWARNINGS"),
     )
     assert result.returncode == int(outcome == "fail"), (result.stdout, result.stderr)
     original = xml.read_bytes(), events.read_bytes()

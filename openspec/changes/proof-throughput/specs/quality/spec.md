@@ -1039,6 +1039,32 @@ duplicate, malformed or session-inconsistent outputs SHALL NOT satisfy the gate.
 - **WHEN** a declared report is missing, duplicated, malformed or bound to another session
 - **THEN** the gate cannot pass and reports the exact native output gap
 
+### Requirement: A native attempt supplies its own observer
+
+A native attempt that declares a Python runtime report SHALL give its command the
+invoking immutable runtime's exact wheel as one hashed direct reference in
+`ETHOS_NATIVE_OBSERVER_REQUIREMENT`, and SHALL remove any inherited value. The
+installed observer SHALL run one exact Ruff argv from the session child and record
+that child's interpreter with the launch.
+
+#### Scenario: An installed runtime runs a native gate
+
+- **WHEN** an installed runtime starts an attempt that declares a Python runtime report
+- **THEN** the command receives `ethos @ <wheel file URI>#sha256=<digest>` for that runtime's wheel
+- **AND** the retained attempt receipt names the supplied requirement
+
+#### Scenario: The session child observes its own Ruff launch
+
+- **WHEN** a session child runs `python -m ethos.domain.quality.nox run` with a Ruff argv after `--`
+- **THEN** the operation returns Ruff's exit code and records that interpreter with the single launch
+- **AND** the Nox parent environment needs no ETHOS installation
+
+#### Scenario: No exact wheel is available
+
+- **WHEN** the invoking package is a source checkout
+- **THEN** the attempt supplies no requirement
+- **AND** a selected runtime whose package wheel is absent or changed refuses before launch
+
 ### Requirement: Configuration selection preserves requested coverage
 
 Configuration checks SHALL discover candidate files through native Git and

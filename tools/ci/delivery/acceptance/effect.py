@@ -447,7 +447,7 @@ def run(
             wheel_sha256=wheel_sha256,
             environment=package_environment,
         )
-        runtime = current_runtime(Path(git_common_dir(adopter)), expected_build=build).root
+        runtime = current_runtime(Path(git_common_dir(adopter)), expected_build=build)
         distribution = package_runtime(
             runtime,
             wheel,

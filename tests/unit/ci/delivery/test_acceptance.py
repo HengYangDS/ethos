@@ -380,7 +380,7 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
         payload = json.loads(output.read_text())
         assert (
             cast("Mock", effect.package_runtime).call_args.args[0]
-            == case.sealed_payload.parent.parent
+            is case.selected_runtime.return_value
         )
         case.selected_runtime.assert_called_once_with(
             work / "adopter/.git", expected_build=case.build

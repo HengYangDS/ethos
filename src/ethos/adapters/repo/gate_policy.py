@@ -9,6 +9,7 @@ import ethos
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.repository.policy.code_subjects import CARRIER_ROLES
 from ethos.repository.policy.code_subjects import observed_code_subjects
@@ -84,8 +85,10 @@ def _resolve_policies(
     registry_path = (
         profile.declaration.proof.gate_registry if profile.declaration is not None else None
     )
-    registry_source = _material(root, tree_ref, registry_path) if registry_path else None
-    repository_paths = _repository_paths(root, tree_ref)
+    entries = _repository_material_entries(root, tree_ref) if tree_ref is not None else None
+    repository_paths = tuple(entries) if entries is not None else _repository_paths(root, tree_ref)
+    materials = _materials(root, tree_ref, (registry_path,), entries) if registry_path else {}
+    registry_source = materials.get(registry_path) if registry_path else None
     script_paths = _repository_script_paths(root, tree_ref, repository_paths)
     carrier_roles = _repository_carrier_roles(root, tree_ref, repository_paths)
     python = _repository_python(root)
@@ -105,13 +108,20 @@ def _resolve_policies(
     )
     contracts = profile.declaration.proof.source_contracts if profile.declaration else ()
     selected = tuple(gate for policy in initial for gate in policy.gates)
-    material_modes = _repository_material_modes(root, tree_ref) if contracts else None
-    materials = {
-        relative: _material(root, tree_ref, relative, material_modes=material_modes)
-        for relative in source_paths_for_gates(
-            selected, repository_paths=repository_paths, source_contracts=contracts
-        )
-    }
+    if contracts:
+        entries = entries if entries is not None else _repository_material_entries(root, tree_ref)
+        entries = {
+            path: entry for path, entry in entries.items() if entry[0] in {"100644", "100755"}
+        }
+        materials = {
+            path: material if path in entries else None for path, material in materials.items()
+        }
+    paths = source_paths_for_gates(
+        selected, repository_paths=repository_paths, source_contracts=contracts
+    )
+    materials.update(
+        _materials(root, tree_ref, tuple(path for path in paths if path not in materials), entries)
+    )
     try:
         expanded = source_paths_for_gates(
             selected,
@@ -121,9 +131,11 @@ def _resolve_policies(
         )
     except (ValueError, UnicodeError):
         expanded = ()  # Final native binding reports the invalid source relationship.
-    for relative in expanded:
-        if relative not in materials:
-            materials[relative] = _material(root, tree_ref, relative, material_modes=material_modes)
+    materials.update(
+        _materials(
+            root, tree_ref, tuple(path for path in expanded if path not in materials), entries
+        )
+    )
     return tuple(
         compile_gate_policy(
             profile=profile,
@@ -248,29 +260,54 @@ def _repository_carrier_roles(
     return tuple(roles)
 
 
-def _repository_material_modes(root: Path, tree_ref: str | None) -> dict[str, str]:
-    """Read regular-file identity once from the same selected tree or native index."""
+def _repository_material_entries(root: Path, tree_ref: str | None) -> dict[str, tuple[str, str]]:
+    """Read path, mode and object identity together from one exact tree or index."""
     arguments = ("ls-tree", "-r", "-z", tree_ref) if tree_ref else ("ls-files", "--stage", "-z")
     result = run_git(root, *arguments, check=True, text=False, observation=True)
-    modes: dict[str, str] = {}
+    entries: dict[str, tuple[str, str]] = {}
     for record in result.stdout.split(b"\0"):
         if record:
             metadata, path = record.split(b"\t", 1)
-            mode, _middle, last = metadata.split()
+            mode, middle, last = metadata.split()
             if tree_ref is not None or last == b"0":
-                modes[path.decode("utf-8")] = mode.decode("ascii")
-    return modes
+                entries[path.decode("utf-8")] = (
+                    mode.decode("ascii"),
+                    (last if tree_ref is not None else middle).decode("ascii"),
+                )
+    return entries
 
 
-def _material(
-    root: Path, tree_ref: str | None, relative: str, *, material_modes: dict[str, str] | None = None
-) -> bytes | None:
+def _materials(
+    root: Path,
+    tree_ref: str | None,
+    paths: tuple[str, ...],
+    entries: dict[str, tuple[str, str]] | None,
+) -> dict[str, bytes | None]:
+    """Authenticate selected committed blobs in one batch, without retaining authority."""
+    materials: dict[str, bytes | None] = {}
+    objects: dict[str, str] = {}
+    for path in dict.fromkeys(paths):
+        if path.startswith(PRODUCT_PROVIDER_SOURCE):
+            materials[path] = _material(root, None, path)
+        elif entries is not None and path not in entries:
+            materials[path] = None
+        elif tree_ref is None:
+            materials[path] = _material(root, None, path)
+        elif entries is not None and entries[path][0] in {"100644", "100755", "120000"}:
+            objects[path] = entries[path][1]
+        else:
+            materials[path] = None
+    identities = tuple(dict.fromkeys(objects.values()))
+    contents = dict(zip(identities, read_objects(root, identities), strict=True))
+    materials.update({path: contents[identity] for path, identity in objects.items()})
+    return materials
+
+
+def _material(root: Path, tree_ref: str | None, relative: str) -> bytes | None:
     if relative.startswith(PRODUCT_PROVIDER_SOURCE):
         package = Path(ethos.__file__).resolve().parent
         path = package / relative.removeprefix(PRODUCT_PROVIDER_SOURCE)
         return path.read_bytes() if path.is_file() and not path.is_symlink() else None
-    if material_modes is not None and material_modes.get(relative) not in {"100644", "100755"}:
-        return None
     if tree_ref is not None:
         observed = run_git(
             root, "show", f"{tree_ref}:{relative}", check=False, text=False, observation=True

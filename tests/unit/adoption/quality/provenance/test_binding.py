@@ -6,16 +6,19 @@ import hashlib
 import json
 import tomllib
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
 import tomli_w
 
+import ethos.adapters.repo.gate_policy as gate_policy
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.contracts.gates import Gate
 from ethos.repository.policy.gates import bind_gate_source_digests
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import SourceContract
 from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.proof import declare_quality_profile
 
@@ -83,7 +86,11 @@ def test_gate_identity_binds_complete_native_artifact_materials(tmp_path: Path, 
     ]
     profile.write_text(tomli_w.dumps(payload))
     head = commit_fixture(repo, "declare exact source inputs")
-    before = resolve_gate_policy(repo, tree_ref=head, full=True)
+    with patch.object(gate_policy, "run_git", wraps=gate_policy.run_git) as observed:
+        before = resolve_gate_policy(repo, tree_ref=head, full=True)
+    commands = [call.args[1:] for call in observed.call_args_list]
+    assert sum(arguments[0] == "ls-tree" for arguments in commands) == 1
+    assert not any(arguments[0] == "show" for arguments in commands)
     sources = dict(dict(before.sources)["integrity"])
     assert artifact in sources
     assert consumed in sources
@@ -100,6 +107,57 @@ def test_gate_identity_binds_complete_native_artifact_materials(tmp_path: Path, 
     (repo / consumed).write_text("untracked replacement\n")
     missing = resolve_gate_policy(repo, tree_ref=missing_head, full=True)
     assert f"gate_policy_source_missing:integrity:{consumed}" in missing.gaps
+
+
+def test_registry_observation_cannot_override_source_applicability(tmp_path: Path) -> None:
+    """Registry parsing never certifies a non-regular committed source member."""
+    repo = init_git_repo(tmp_path / "adopter")
+    declare_quality_profile(repo, gate_owner="registry")
+    profile = repo / ".ethos/profile.toml"
+    payload = tomllib.loads(profile.read_text())
+    registry_path = payload["proof"]["gate_registry"]
+    registry = repo / registry_path
+    declaration = tomllib.loads(registry.read_text())
+    declaration["gates"].append(
+        {
+            "id": "integrity",
+            "kind": "integrity",
+            "providers": ["ethos.adapters.gates.provenance.observation:integrity_report"],
+            "profile": "repository",
+            "trust_bearing": True,
+        }
+    )
+    declaration["proof_sets"]["full"].append("integrity")
+    registry.write_text(tomli_w.dumps(declaration))
+    templates = ".config/checks/ci/templates.toml"
+    owner = repo / templates
+    owner.parent.mkdir(parents=True)
+    (repo / "registry-source.toml").write_bytes(registry.read_bytes())
+    owner.write_text(
+        tomli_w.dumps(
+            {
+                "schema": "ethos-ci-template-consistency-v1",
+                "projection": [{"template": "registry-source.toml", "projection": registry_path}],
+            }
+        )
+    )
+    payload["proof"]["source_contracts"] = [
+        {
+            "kind": "generated",
+            "input_refs": [templates],
+            "members": {registry_path: [templates, registry_path]},
+            "integrity_gate": "integrity",
+        }
+    ]
+    profile.write_text(tomli_w.dumps(payload))
+    head = commit_fixture(repo, "bind registry as a regular native source")
+    assert not resolve_gate_policy(repo, tree_ref=head, full=True).gaps
+    blob = git(repo, "rev-parse", f"{head}:{registry_path}")
+    git(repo, "update-index", "--cacheinfo", "120000", blob, registry_path)
+    tree = git(repo, "write-tree")
+    assert git(repo, "ls-tree", tree, registry_path).startswith("120000 blob ")
+    observed = resolve_gate_policy(repo, tree_ref=tree, full=True)
+    assert f"gate_policy_source_missing:integrity:{registry_path}" in observed.gaps
 
 
 def test_gate_identity_binds_native_helper_not_only_python_entry() -> None:

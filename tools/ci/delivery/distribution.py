@@ -18,10 +18,10 @@ from ethos.repository.release.identity import is_release_build
 
 
 def package_runtime(
-    runtime: Path, wheel: Path, destination: Path, *, download_url: str | None = None
+    selected: SelectedRuntime, wheel: Path, destination: Path, *, download_url: str | None = None
 ) -> dict[str, object]:
-    """Archive exact installed bytes; project Homebrew only on supported hosts."""
-    selected = require_selected_runtime(runtime)
+    """Carry fresh runtime validation through construction and recheck custody before publish."""
+    runtime = selected.root
     url = download_url or destination.resolve().as_uri()
     _require_distribution_version(selected, url)
     payload = wheel.read_bytes()
@@ -100,10 +100,10 @@ def _publish_outputs(archive: Path, destination: Path, cask: str | None, work: P
     previous = work / "previous-ethos.rb"
     if cask_path.exists():
         shutil.copy2(cask_path, previous)
-    staged.replace(cask_path)
     try:
+        staged.replace(cask_path)
         archive.replace(destination)
-    except OSError:
+    except BaseException:
         if previous.exists():
             previous.replace(cask_path)
         else:

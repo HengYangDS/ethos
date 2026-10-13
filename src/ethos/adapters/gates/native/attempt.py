@@ -23,6 +23,9 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.runtime.materialization.input_resolution import (
+    invoking_runtime_requirement,
+)
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.semantic import canonical_json_digest
@@ -30,6 +33,8 @@ from ethos.contracts.semantic import canonical_json_digest
 if TYPE_CHECKING:
     from ethos.contracts.gates import Gate
     from ethos.contracts.gates import NativeOutput
+
+OBSERVER_REQUIREMENT = "ETHOS_NATIVE_OBSERVER_REQUIREMENT"
 
 
 def _read_output(directory: Path, name: str) -> bytes:
@@ -81,6 +86,7 @@ def _retain(root: Path, execution: NativeExecution) -> str:
                     "policy_digest": canonical_json_digest(evidence.gate.to_dict()),
                     "gate": evidence.gate.to_dict(),
                     "output_root": evidence.output_root,
+                    "observer_requirement": evidence.observer_requirement,
                     "gaps": evidence.gaps,
                     "dependency_checks": [
                         output.model_dump(mode="json") for output, _ in evidence.dependency_checks
@@ -111,6 +117,12 @@ def native_attempt(
     if run_git(root, "diff", "--quiet", head, "--", check=False).returncode:
         msg = "native_source_changed"
         raise ValueError(msg)
+    # The observer that records a Python runtime is this exact runtime's own wheel.
+    requirement = (
+        invoking_runtime_requirement()
+        if any(output.format == "python-runtime-json" for output in gate.native_outputs)
+        else None
+    )
     with TemporaryDirectory(prefix="ethos-native-gate-") as temporary:
         directory = Path(temporary)
         argv = tuple(item.replace("{native_output}", str(directory)) for item in command)
@@ -123,7 +135,9 @@ def native_attempt(
                 root,
                 argv,
                 timeout=timeout,
-                env={"ETHOS_NATIVE_OUTPUT_DIR": str(directory)},
+                env={"ETHOS_NATIVE_OUTPUT_DIR": str(directory)}
+                | ({OBSERVER_REQUIREMENT: requirement} if requirement else {}),
+                remove_env=(OBSERVER_REQUIREMENT,),
             )
         except subprocess.TimeoutExpired as error:
             stdout = (
@@ -170,6 +184,7 @@ def native_attempt(
             gaps=tuple(gaps),
             artifact="",
             dependency_checks=tuple(checks),
+            observer_requirement=requirement,
         )
         return completed, evidence
 

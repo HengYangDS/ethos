@@ -184,12 +184,29 @@ def run_runtime_tool(
     return completed
 
 
-def _managed_runtime_wheel(source: Path) -> Path | None:
-    selected = selected_runtime_source(source)
+def invoking_runtime_requirement() -> str | None:
+    """Name the invoking immutable runtime's exact wheel as one hashed direct reference.
+
+    A source checkout has no immutable wheel and names none. A selected runtime
+    whose package wheel is absent or changed refuses instead of naming another.
+    """
+    selected = selected_runtime_source(Path(__file__))
     if selected is None:
         return None
-    runtime = selected.root
-    package_root = runtime.parent.parent / "packages" / selected.wheel_sha256
+    try:
+        wheel = _selected_runtime_wheel(selected)
+    except OSError as error:
+        _fail("hook_runtime_wheel_provenance_missing", error)
+    return f"ethos @ {wheel.as_uri()}#sha256={selected.wheel_sha256}"
+
+
+def _managed_runtime_wheel(source: Path) -> Path | None:
+    selected = selected_runtime_source(source)
+    return None if selected is None else _selected_runtime_wheel(selected)
+
+
+def _selected_runtime_wheel(selected: SelectedRuntime) -> Path:
+    package_root = selected.root.parent.parent / "packages" / selected.wheel_sha256
     if package_root.is_symlink() or not package_root.is_dir():
         _fail("hook_runtime_wheel_provenance_missing")
     wheels = tuple(

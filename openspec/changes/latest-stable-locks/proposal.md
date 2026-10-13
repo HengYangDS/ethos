@@ -9,7 +9,9 @@ releases within the ranges their dependents already declare.
 ## What Changes
 
 - Refresh the Python lock to the latest stable releases its declared ranges
-  admit, including pre-commit 4.7.0 and truststore 0.10.5.
+  admit, including pre-commit 4.7.0 and truststore 0.10.5. Raise the declared
+  pre-commit floor to 4.7.0, because dependency hygiene requires each direct
+  dependency's single lower bound to equal its locked version.
 - Refresh the npm lock within declared ranges. Packages bundled inside the
   locked npm 12.2.0, which is already the latest npm release, move only with npm
   itself, and versions a dependent pins exactly stay at that pin.
@@ -33,5 +35,6 @@ None. Lock refresh changes no specified ETHOS behavior.
 
 ## Impact
 
-`uv.lock` and `package-lock.json` only, and through them the next runtime build
-identity. No declaration, policy, source or test changes.
+The pre-commit floor in `pyproject.toml`, `uv.lock` and `package-lock.json`,
+and through them the next runtime build identity. No policy, source or test
+changes.

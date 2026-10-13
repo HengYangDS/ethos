@@ -339,7 +339,7 @@ def test_javascript_test_directory_uses_native_test_identity(tmp_path: Path) -> 
     assert payload["verdict"] == "pass"
 
 
-def test_public_proof_rejects_test_forged_v8_coverage(tmp_path: Path) -> None:
+def test_public_proof_rejects_test_forged_precise_coverage(tmp_path: Path) -> None:
     """A passing test's malformed coverage file cannot qualify an untouched module."""
     if shutil.which("node") is None:
         pytest.skip("node is unavailable on this runner")

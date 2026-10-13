@@ -486,6 +486,8 @@
         Exact-source proof, accepted integration, package/runtime activation and
         adopter readback remain open; native Nox requires the signed source freeze.
 - [x] 11.10 Verify native TOML and mise migrations through focused native checks, exact-source full proof and installed runtime.
+- [ ] 11.11 Accept declared gate `native_outputs` on the accepted line: the profile and gate-registry schema admit them, one owned attempt captures their Nox, JUnit, pytest-event, coverage, Ruff and runtime reports, and the existing Python verification providers consume them. Done when focused contract, report and native-attempt tests and the exact-source full proof pass, and openai-responses-proxy's unchanged profile validates under the resulting runtime.
+- [ ] 11.12 Name the Node precise-coverage contract and the retired rule-key regression by their exact semantics, without version tokens in identifiers. Done when an identifier scan of `src`, `tests` and `tools` finds no version-tagged definitions.
 
 ## 12. Documentation Comprehension and Research Delivery
 

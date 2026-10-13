@@ -337,6 +337,7 @@ def source_paths_for_gate(
                 *[path for _reference, path in providers],
                 *artifacts,
                 *noxfile,
+                *(output.configuration for output in gate.native_outputs if output.configuration),
                 *module_sources,
                 *script,
             )

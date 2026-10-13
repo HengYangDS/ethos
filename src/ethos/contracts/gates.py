@@ -3,6 +3,7 @@
 import re
 import tomllib
 from pathlib import Path
+from pathlib import PurePosixPath
 from typing import Literal
 from typing import Self
 
@@ -34,6 +35,88 @@ def bind_gate_command(command: tuple[str, ...], python_executable: str) -> tuple
     return tuple(python_executable if part == "{python}" else part for part in command)
 
 
+class NativeOutput(BaseModel):
+    """A native report's producer and exact path within one owned attempt."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        strict=True,
+        extra="forbid",
+        json_schema_extra={
+            "allOf": [
+                {
+                    "if": {"properties": {"format": {"const": "python-runtime-json"}}},
+                    "then": {
+                        "required": ["python", "configuration", "dependency_groups"],
+                        "properties": {
+                            "python": {"minLength": 1, "pattern": r"^[0-9]+\.[0-9]+(?:\.[0-9]+)?$"},
+                            "configuration": {"minLength": 1},
+                            "dependency_groups": {"type": "array", "uniqueItems": True},
+                        },
+                    },
+                    "else": {
+                        "not": {"required": ["dependency_groups"]},
+                        "properties": {"python": {"const": ""}, "configuration": {"const": ""}},
+                    },
+                }
+            ],
+        },
+    )
+
+    path: str = Field(min_length=1)
+    format: Literal[
+        "nox-json", "junit-xml", "pytest-jsonl", "coverage-xml", "ruff-json", "python-runtime-json"
+    ]
+    sessions: FrozenTuple[str] = Field(json_schema_extra={"uniqueItems": True, "minItems": 1})
+    python: str = ""
+    configuration: str = ""
+    dependency_groups: FrozenTuple[str] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+
+    @model_validator(mode="after")
+    def validate_output(self) -> Self:
+        """Native paths and session instances are complete, portable identities."""
+        path = PurePosixPath(self.path)
+        if (
+            path.is_absolute()
+            or path.as_posix() != self.path
+            or not path.parts
+            or any(part in {".", ".."} or ":" in part for part in path.parts)
+            or "\\" in self.path
+            or not self.sessions
+            or any(not session for session in self.sessions)
+            or len(set(self.sessions)) != len(self.sessions)
+            or (self.format == "python-runtime-json") != bool(self.python)
+            or (self.format == "python-runtime-json") != bool(self.configuration)
+            or (
+                self.configuration
+                and (
+                    PurePosixPath(self.configuration).is_absolute()
+                    or PurePosixPath(self.configuration).as_posix() != self.configuration
+                    or any(
+                        part in {".", ".."} or ":" in part
+                        for part in PurePosixPath(self.configuration).parts
+                    )
+                    or "\\" in self.configuration
+                )
+            )
+            or (self.format == "python-runtime-json") != (self.dependency_groups is not None)
+            or (
+                self.dependency_groups is not None
+                and (
+                    len(set(self.dependency_groups)) != len(self.dependency_groups)
+                    or any(not group for group in self.dependency_groups)
+                )
+            )
+            or (self.format != "nox-json" and len(self.sessions) != 1)
+            or (self.python and re.fullmatch(r"[0-9]+\.[0-9]+(?:\.[0-9]+)?", self.python) is None)
+        ):
+            msg = "native_output_invalid"
+            raise ValueError(msg)
+        return self
+
+
 class Gate(BaseModel):
     """One immutable gate declaration and executable projection."""
 
@@ -44,6 +127,9 @@ class Gate(BaseModel):
     command: FrozenTuple[str] = ()
     providers: FrozenTuple[str] = ()
     verification_providers: FrozenTuple[str] = ()
+    native_outputs: FrozenTuple[NativeOutput] = Field(
+        default=(), exclude_if=lambda value: not value
+    )
     policy: str = "required"
     profile: str = "product"
     toolchain: str = "quality-adapter"
@@ -87,6 +173,57 @@ class Gate(BaseModel):
             or (self.writes_files and "exclusive" not in self.resource_locks.values())
         ):
             raise ValueError(_GATE_RESOURCES_INVALID)
+        if self.native_outputs:
+            paths = tuple(output.path for output in self.native_outputs)
+            producers = tuple(
+                (output.format, session)
+                for output in self.native_outputs
+                for session in output.sessions
+            )
+            reports = tuple(output for output in self.native_outputs if output.format == "nox-json")
+            report_arguments = tuple(
+                self.command[index + 1]
+                if item == "--report" and index + 1 < len(self.command)
+                else item.partition("=")[2]
+                for index, item in enumerate(self.command)
+                if item == "--report" or item.startswith("--report=")
+            )
+            session_formats = {
+                session: {
+                    output.format for output in self.native_outputs if session in output.sessions
+                }
+                for report in reports
+                for session in report.sessions
+            }
+            if (
+                not self.command
+                or not self.verification_providers
+                or not any("{native_output}" in item for item in self.command)
+                or len(set(paths)) != len(paths)
+                or len(set(producers)) != len(producers)
+                or len(reports) != 1
+                or report_arguments != ("{native_output}/" + reports[0].path,)
+                or any(
+                    not set(output.sessions) <= set(reports[0].sessions)
+                    for output in self.native_outputs
+                )
+                or any(
+                    first.startswith(second + "/")
+                    for first in paths
+                    for second in paths
+                    if first != second
+                )
+                or any(
+                    not (
+                        {"python-runtime-json", "junit-xml", "pytest-jsonl", "coverage-xml"}
+                        <= formats
+                        or {"python-runtime-json", "ruff-json"} <= formats
+                    )
+                    for formats in session_formats.values()
+                )
+            ):
+                msg = "native_output_contract_invalid"
+                raise ValueError(msg)
         return self
 
     def conflicts_with(self, other: Self) -> bool:

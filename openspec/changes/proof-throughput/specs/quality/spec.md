@@ -1021,6 +1021,24 @@ relevant test or hosted acceptance; rendering never changes a test verdict.
 - **AND** empty or informational valid results pass while invalid items, failed execution and unreadable output block
 - **AND** missing official supply blocks without substituting another executable
 
+### Requirement: Declared native outputs bind one gate attempt
+
+A gate MAY declare `native_outputs` that name each report its native command
+writes, with format and producing session. ETHOS SHALL capture them from one
+owned attempt and pass them to the gate's verification providers. Missing,
+duplicate, malformed or session-inconsistent outputs SHALL NOT satisfy the gate.
+
+#### Scenario: An adopter profile declares native reports
+
+- **WHEN** a profile or gate registry declares valid native outputs for a gate
+- **THEN** the declaration validates against the published gate schema
+- **AND** the verification provider receives the reports of that exact attempt
+
+#### Scenario: A declared report is absent or inconsistent
+
+- **WHEN** a declared report is missing, duplicated, malformed or bound to another session
+- **THEN** the gate cannot pass and reports the exact native output gap
+
 ### Requirement: Configuration selection preserves requested coverage
 
 Configuration checks SHALL discover candidate files through native Git and

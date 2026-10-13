@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections import Counter
 from collections.abc import Mapping
 from pathlib import Path
 from pathlib import PurePosixPath
@@ -19,13 +20,17 @@ from pydantic import StrictStr
 from pydantic import TypeAdapter
 from pydantic import ValidationError
 
+from ethos.repository.policy.quality.pytest import pytest_report
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+    from ethos.repository.policy.quality.pytest import PytestReport
 
 _NativeCount = Annotated[int, Field(strict=True, ge=0)]
 
 
-class _V8Range(TypedDict):
+class _PreciseCoverageRange(TypedDict):
     """One native execution counter over a JavaScript source range."""
 
     startOffset: _NativeCount
@@ -33,36 +38,36 @@ class _V8Range(TypedDict):
     count: _NativeCount
 
 
-class _V8Function(TypedDict):
+class _PreciseCoverageFunction(TypedDict):
     """Native function identity, granularity and source counters."""
 
     functionName: StrictStr
     isBlockCoverage: StrictBool
-    ranges: Annotated[list[_V8Range], Field(min_length=1)]
+    ranges: Annotated[list[_PreciseCoverageRange], Field(min_length=1)]
 
 
-class _V8Script(TypedDict):
+class _PreciseCoverageScript(TypedDict):
     """One script identity and its observed function coverage."""
 
     scriptId: StrictStr
     url: StrictStr
-    functions: list[_V8Function]
+    functions: list[_PreciseCoverageFunction]
 
 
-class _V8Process(TypedDict):
+class _PreciseCoverageProcess(TypedDict):
     """One original precise-coverage observation, not an authenticated producer."""
 
-    result: Annotated[list[_V8Script], Field(min_length=1)]
+    result: Annotated[list[_PreciseCoverageScript], Field(min_length=1)]
     timestamp: Annotated[float, Field(strict=True, ge=0)]
 
 
-_V8_ADAPTER = TypeAdapter(_V8Process)
+_PRECISE_COVERAGE_ADAPTER = TypeAdapter(_PreciseCoverageProcess)
 
 
-def validate_native_v8_report(payload: bytes) -> None:
-    """Validate native V8 structure, never mistake valid shape for producer authentication."""
+def validate_node_precise_coverage(payload: bytes) -> None:
+    """Validate one Node precise-coverage file; a valid shape never authenticates its producer."""
     try:
-        report = _V8_ADAPTER.validate_json(payload)
+        report = _PRECISE_COVERAGE_ADAPTER.validate_json(payload)
     except ValidationError as error:
         _invalid("javascript_native_coverage_invalid", error)
     scripts = report["result"]
@@ -91,8 +96,22 @@ def junit_report(paths: Iterable[Path]) -> tuple[dict[str, int], bool]:
     return _junit_roots_report(roots)
 
 
+def junit_stream_report(
+    text: str, *, pytest_events: str | None = None
+) -> tuple[dict[str, int], bool]:
+    """Validate a JUnit report captured from the same native command."""
+    try:
+        root = ElementTree.fromstring(text)
+    except ElementTree.ParseError as error:
+        _invalid("junit_invalid", error)
+    native = pytest_report(pytest_events) if pytest_events is not None else None
+    return _junit_roots_report((root,), native=native)
+
+
 def _junit_roots_report(
     roots: tuple[ElementTree.Element, ...],
+    *,
+    native: PytestReport | None = None,
 ) -> tuple[dict[str, int], bool]:
     if any(root.tag not in {"testsuite", "testsuites"} for root in roots):
         _invalid("junit_root_invalid")
@@ -105,19 +124,42 @@ def _junit_roots_report(
         "errors": sum(case.find("error") is not None for case in cases),
         "skipped": sum(case.find("skipped") is not None for case in cases),
     }
-    declared_failures = _validated_suite_failures(roots)
+    if native is not None:
+        identities = Counter((case.get("classname", ""), case.get("name", "")) for case in cases)
+        if identities != Counter(native.cases):
+            _invalid("pytest_junit_scope_mismatch")
+        outcomes = Counter(
+            (case.get("classname", ""), case.get("name", ""), child.tag)
+            for case in cases
+            for child in case
+            if child.tag in {"failure", "error", "skipped"}
+        )
+        if outcomes != Counter(native.outcomes):
+            _invalid("pytest_junit_outcome_mismatch")
+        counts = {
+            "total": native.total,
+            "failures": native.failures,
+            "errors": native.errors,
+            "skipped": native.skipped,
+        }
+    declared_failures = _validated_suite_failures(roots, native=native)
     failed = bool(
         counts["failures"]
         or counts["errors"]
         or counts["total"] == counts["skipped"]
         or declared_failures
+        or (native is not None and native.failed)
     )
     return counts, failed
 
 
-def _validated_suite_failures(roots: tuple[ElementTree.Element, ...]) -> bool:
+def _validated_suite_failures(
+    roots: tuple[ElementTree.Element, ...], *, native: PytestReport | None = None
+) -> bool:
     """Reject incomplete suite totals and retain suite-level failure evidence."""
     failed = False
+    if native is not None and sum(len(tuple(root.iter("testsuite"))) for root in roots) != 1:
+        _invalid("pytest_junit_scope_mismatch")
     for root in roots:
         for suite in root.iter():
             if suite.tag not in {"testsuite", "testsuites"}:
@@ -127,29 +169,85 @@ def _validated_suite_failures(roots: tuple[ElementTree.Element, ...]) -> bool:
                 "tests": len(cases),
                 "skipped": sum(case.find("skipped") is not None for case in cases),
             }
-            for key in ("tests", "failures", "errors", "skipped"):
-                raw = suite.get(key)
-                if raw is None:
-                    continue
-                try:
-                    value = int(raw)
-                except ValueError as error:
-                    _invalid("junit_suite_count_invalid", error)
-                if value < 0:
-                    _invalid("junit_suite_count_invalid")
-                if key in observed and value != observed[key]:
-                    _invalid("junit_suite_count_mismatch")
-                if key in {"failures", "errors"}:
-                    failed |= value > 0
+            if native is not None:
+                observed = {
+                    "tests": native.total,
+                    "failures": native.failures,
+                    "errors": native.errors,
+                    "skipped": native.skipped,
+                }
+            failed |= _suite_count_failure(suite, observed)
     return failed
 
 
-def coverage_report(path: Path, *, include_files: bool = False) -> dict[str, object]:
+def _suite_count_failure(suite: ElementTree.Element, observed: dict[str, int]) -> bool:
+    """One suite's native declared totals retain their observed count meaning."""
+    failed = False
+    for key in ("tests", "failures", "errors", "skipped"):
+        raw = suite.get(key)
+        if raw is None:
+            continue
+        try:
+            value = int(raw)
+        except ValueError as error:
+            _invalid("junit_suite_count_invalid", error)
+        if value < 0:
+            _invalid("junit_suite_count_invalid")
+        if key in observed and value != observed[key]:
+            _invalid("junit_suite_count_mismatch")
+        if key in {"failures", "errors"}:
+            failed |= value > 0
+    return failed
+
+
+def coverage_report(
+    path: Path,
+    *,
+    include_files: bool = False,
+    repository_root: Path | None = None,
+    source_paths: tuple[str, ...] = (),
+) -> dict[str, object]:
     """Return combined statement-and-branch coverage from native XML counts."""
     try:
         root = ElementTree.parse(path).getroot()
     except ElementTree.ParseError as error:
         _invalid("coverage_invalid", error)
+    return _coverage_root_report(
+        root,
+        include_files=include_files,
+        repository_root=repository_root,
+        source_paths=source_paths,
+    )
+
+
+def coverage_stream_report(
+    payload: bytes,
+    *,
+    include_files: bool = False,
+    repository_root: Path | None = None,
+    source_paths: tuple[str, ...] = (),
+) -> dict[str, object]:
+    """Interpret retained native coverage bytes using the same measurement owner."""
+    try:
+        root = ElementTree.fromstring(payload)
+    except ElementTree.ParseError as error:
+        _invalid("coverage_invalid", error)
+    return _coverage_root_report(
+        root,
+        include_files=include_files,
+        repository_root=repository_root,
+        source_paths=source_paths,
+    )
+
+
+def _coverage_root_report(
+    root: ElementTree.Element,
+    *,
+    include_files: bool = False,
+    repository_root: Path | None = None,
+    source_paths: tuple[str, ...] = (),
+) -> dict[str, object]:
+    """Share identical count and scope validation for native path and stream readers."""
     if root.tag != "coverage":
         _invalid("coverage_root_invalid")
     try:
@@ -171,23 +269,51 @@ def coverage_report(path: Path, *, include_files: bool = False) -> dict[str, obj
         "combined_percent": 100 * covered / total,
     }
     if include_files:
-        report["files"] = _coverage_files(root)
+        report["files"] = _coverage_files(root, repository_root, source_paths)
     return report
 
 
-def _coverage_files(root: ElementTree.Element) -> dict[str, dict[str, int]]:
+def _coverage_source_roots(root: ElementTree.Element, repository_root: Path) -> tuple[str, ...]:
+    """Resolve native XML coordinates within the exact producer's repository."""
+    prefixes: list[str] = []
+    for source in root.findall("sources/source"):
+        native = Path(source.text or ".")
+        try:
+            relative = native.relative_to(repository_root) if native.is_absolute() else native
+        except ValueError as error:
+            _invalid("coverage_source_outside_repository", error)
+        if ".." in relative.parts:
+            _invalid("coverage_source_outside_repository")
+        prefixes.append(relative.as_posix())
+    return tuple(dict.fromkeys(prefixes)) or (".",)
+
+
+def _coverage_files(
+    root: ElementTree.Element,
+    repository_root: Path | None,
+    source_paths: tuple[str, ...],
+) -> dict[str, dict[str, int]]:
     """Expose native covered-source scope without reparsing the XML report."""
     files: dict[str, dict[str, int]] = {}
+    prefixes = _coverage_source_roots(root, repository_root) if repository_root else ()
+    declared = frozenset(source_paths)
     for item in root.iter("class"):
         filename = item.get("filename", "")
         relative = PurePosixPath(filename)
-        if (
-            not filename
-            or relative.is_absolute()
-            or ".." in relative.parts
-            or "\\" in filename
-            or filename in files
-        ):
+        if not filename or relative.is_absolute() or ".." in relative.parts or "\\" in filename:
+            _invalid("coverage_file_invalid")
+        if prefixes:
+            matches = {
+                PurePosixPath(prefix, filename).as_posix()
+                for prefix in prefixes
+                if PurePosixPath(prefix, filename).as_posix() in declared
+            }
+            if not matches:
+                _invalid("coverage_file_unbound")
+            if len(matches) != 1:
+                _invalid("coverage_file_ambiguous")
+            filename = next(iter(matches))
+        if filename in files:
             _invalid("coverage_file_invalid")
         try:
             hits = tuple(int(line.get("hits", "")) for line in item.iter("line"))

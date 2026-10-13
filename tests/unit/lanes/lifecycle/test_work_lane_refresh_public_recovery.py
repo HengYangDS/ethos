@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.work_lane_refresh as refresh
+from ethos.adapters.repo.git import GitExecutionError
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
@@ -55,6 +56,9 @@ def _common(monkeypatch: pytest.MonkeyPatch, *, branch: str = BRANCH) -> None:
     )
     monkeypatch.setattr(refresh, "workspace_status", lambda _root: _status(branch=branch))
     monkeypatch.setattr(refresh, "changed_paths", lambda _path: ())
+    monkeypatch.setattr(
+        refresh, "hook_runtime_binding", lambda _root: {"required_gaps": [], "next_action": ""}
+    )
     monkeypatch.setattr(
         refresh,
         "run_git",
@@ -129,6 +133,22 @@ def test_refresh_public_reader_distinguishes_current_and_ready(
     monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: False)
     ready = refresh.refresh_work_lane_base(root=tmp_path)
     assert ready["state"] == "ready_to_refresh_base"
+
+    unarmed = {
+        "required_gaps": ["write_admission_not_armed:x"],
+        "next_action": "ethos hook install",
+    }
+    monkeypatch.setattr(refresh, "hook_runtime_binding", lambda _root: unarmed)
+    monkeypatch.setattr(refresh, "_refresh_work_lane", lambda *_args: pytest.fail("rewrote"))
+    for apply in (False, True):
+        blocked = refresh.refresh_work_lane_base(
+            root=tmp_path, apply=apply, authorized=apply, expect_head=HEAD if apply else None
+        )
+        assert (blocked["state"], blocked["required_gaps"], blocked["next_action"]) == (
+            "blocked",
+            unarmed["required_gaps"],
+            unarmed["next_action"],
+        )
 
 
 @pytest.mark.parametrize(
@@ -474,10 +494,15 @@ def test_refresh_public_effect_failure_restores_original_checkout(
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
     captured = _stub_refresh_effect(monkeypatch)
     monkeypatch.setattr(refresh, "validate_replayed_commits", lambda *_args, **_kwargs: [])
+    refused = GitExecutionError(
+        "git_effect_cas_rejected",
+        reason="native_exit_nonzero",
+        observation={"stderr": "reference-transaction hook refused"},
+    )
     monkeypatch.setattr(
         refresh,
         "execute_git_effect",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("stale effect")),
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(refused),
     )
     compensated: list[str] = []
     monkeypatch.setattr(
@@ -497,6 +522,7 @@ def test_refresh_public_effect_failure_restores_original_checkout(
     )
 
     assert report["state"] == "blocked"
+    assert report["process_failure"] == refused.evidence()
     assert compensated == [HEAD]
     assert restored == [(BRANCH, HEAD)]
     native = captured["native"]

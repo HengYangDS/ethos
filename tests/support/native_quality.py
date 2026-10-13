@@ -69,11 +69,6 @@ def static(session):
         session.run(EXECUTABLE, "-m", "ruff", "check", "--config", config,
             "--output-format", "json", "--output-file", str(output / "ruff.json"),
             "src", "tests", "noxfile.py", external=True)
-    elif OUTCOME == "static-session":
-        runtime(session)
-        from ethos.domain.quality.nox import run_ruff
-        run_ruff(session, ruff, runtime_output=record,
-            identity=session.name + "-" + VERSION, configuration=Path(config))
     else:
         session.run(EXECUTABLE, "-B", "-I", "-m", "ethos.domain.quality.nox", "run",
             "--runtime-output", str(record), "--session", session.name + "-" + VERSION,

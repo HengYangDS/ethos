@@ -23,10 +23,9 @@ from ethos.repository.policy.gates import gate_execution_identity
 from tests.support.native_quality import native_quality_gate
 
 
-@pytest.mark.parametrize("outcome", ["pass", "static-session"])
-def test_native_nox_reports_qualify_the_original_attempt(tmp_path: Path, outcome: str) -> None:
-    """The child operation and the Nox-parent form each bind one complete observation."""
-    gate = native_quality_gate(tmp_path, outcome)
+def test_native_nox_reports_qualify_the_original_attempt(tmp_path: Path) -> None:
+    """The session child's observer binds one complete, interpreter-bound observation."""
+    gate = native_quality_gate(tmp_path)
     node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
     result = LocalGateRunner().run(node, gate, root=tmp_path / "repo")
     assert result.verdict == "pass", (result.stdout, result.stderr, result.verification)

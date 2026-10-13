@@ -14,6 +14,7 @@ from typing import cast
 
 from uv import find_uv_bin
 
+from ethos.adapters.gates.native.python import report as native_python_report
 from ethos.adapters.gates.verification import NativeExecution
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
@@ -108,6 +109,8 @@ def static_report(root: Path, *, execution: NativeExecution | None = None) -> di
     """Qualify one isolated product-pinned Ruff attempt over exact Python subjects."""
     native = _native_fields(execution) if execution is not None else {}
     try:
+        if execution is not None and execution.evidence is not None:
+            return native_python_report(root, execution, "static-analysis")
         tree, subjects = observe_quality_subjects(root, language="python")
         paths = tuple(subject.path for subject in subjects)
         authored = tuple(subject.path for subject in subjects if subject.requires_authored_analysis)
@@ -245,7 +248,12 @@ def _behavior_evidence(
             if not coverage.is_file():
                 reason = "test_command_failed" if result.returncode else "coverage_report_missing"
                 return {**evidence, **_failure("behavior", reason)}
-            measured = coverage_report(coverage, include_files=True)
+            measured = coverage_report(
+                coverage,
+                include_files=True,
+                repository_root=root.resolve(),
+                source_paths=(*source, *tests),
+            )
             evidence["coverage"] = {key: value for key, value in measured.items() if key != "files"}
             files = cast("dict[str, dict[str, int]]", measured["files"])
             if any(name not in files for name in source):
@@ -266,13 +274,15 @@ def _behavior_evidence(
 
 def behavior_report(root: Path, *, execution: NativeExecution | None = None) -> dict[str, object]:
     """Run locked pytest and verify fresh JUnit and source coverage evidence."""
-    if execution is not None:
+    if execution is not None and execution.evidence is None:
         return {
             **_failure("behavior", "python_native_evidence_unavailable"),
             "native": _native_fields(execution),
         }
     evidence: dict[str, object] = {}
     try:
+        if execution is not None:
+            return native_python_report(root, execution, "behavior")
         tree, subjects = observe_quality_subjects(root, language="python")
         source, tests = _behavior_scope(root, subjects)
         evidence = _behavior_evidence(root, source, tests)

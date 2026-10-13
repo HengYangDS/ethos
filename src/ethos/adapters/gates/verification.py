@@ -22,6 +22,24 @@ from ethos.normalization.coercion import string_sequence
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.contracts.gates import Gate
+    from ethos.contracts.gates import NativeOutput
+
+
+@dataclass(frozen=True, slots=True)
+class NativeEvidence:
+    """Original native bytes and their invocation-local source/producer custody."""
+
+    gate: Gate
+    head: str
+    tree: str
+    subjects: tuple[str, ...]
+    output_root: str
+    outputs: tuple[tuple[NativeOutput, bytes], ...]
+    gaps: tuple[str, ...]
+    artifact: str
+    dependency_checks: tuple[tuple[NativeOutput, bytes], ...] = ()
+
 
 @dataclass(frozen=True, slots=True)
 class NativeExecution:
@@ -35,6 +53,7 @@ class NativeExecution:
     stderr: str
     # Preserve the invocation path: dereferencing Python changes virtual-environment semantics.
     executable: str = ""
+    evidence: NativeEvidence | None = None
 
 
 def provider_reports(

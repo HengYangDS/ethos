@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import ethos.adapters.gates.native.attempt as gate_attempt
 import ethos.adapters.gates.runner as gate_runner
 import ethos.adapters.gates.tool as gate_tool
 import ethos.adapters.gates.verification as gate_verification
@@ -51,7 +52,7 @@ def test_runner_transports_one_deadline_to_native_and_provider_execution(
         budgets.append(timeout)
         return subprocess.CompletedProcess(argv, 0, "", "")
 
-    monkeypatch.setattr(gate_runner, "run_command", command)
+    monkeypatch.setattr(gate_attempt, "run_command", command)
     runner = _runner(monkeypatch, report=provider)
     attributes = (
         {
@@ -464,7 +465,7 @@ def test_canonical_dependency_audit_uses_fresh_release_acceptance(
     monkeypatch.setattr(gate_runner, "captured_dependency_acceptance", accepted)
     monkeypatch.setattr(gate_runner, "current_tracked_head", lambda _root: "a" * 40)
     monkeypatch.setattr(
-        gate_runner,
+        gate_attempt,
         "run_command",
         lambda *_args, **_options: subprocess.CompletedProcess(
             [], 0, '{"command":"dependency-audit","verdict":"block"}', ""

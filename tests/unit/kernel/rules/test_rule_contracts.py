@@ -87,7 +87,7 @@ def test_compiled_rule_projection_omits_unconsumed_digests(tmp_path: Path) -> No
     assert "compiled_policy_digest" not in compiled
 
 
-def test_compile_rules_rejects_v1_keys_without_normalization(tmp_path: Path) -> None:
+def test_compile_rules_rejects_retired_rule_keys_without_normalization(tmp_path: Path) -> None:
     _write_rules(
         tmp_path,
         {

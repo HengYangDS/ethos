@@ -182,6 +182,26 @@ def test_command_scope_conserves_one_deadline_across_native_calls(
     assert budgets == pytest.approx([1.0, 0.4, 10.0])
 
 
+def test_command_scope_expires_at_remaining_native_deadline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A later or nested command cannot renew a caller's finite execution budget."""
+    now = [1_000.0]
+    monkeypatch.setattr(process_adapter, "monotonic", lambda: now[0])
+    with process_adapter.command_scope(timeout_seconds=60):
+        process_adapter.run_command(tmp_path, (sys.executable, "-c", "pass"), timeout=600)
+        now[0] += 59.75
+        with (
+            process_adapter.command_scope(timeout_seconds=600),
+            pytest.raises(subprocess.TimeoutExpired) as expired,
+        ):
+            process_adapter.run_command(
+                tmp_path, (sys.executable, "-c", "import time; time.sleep(60)"), timeout=600
+            )
+    assert expired.value.timeout == pytest.approx(0.25)
+    assert process_adapter.run_command(tmp_path, (sys.executable, "-c", "pass")).returncode == 0
+
+
 def _file_reference_payloads():
     """Declare each observed file-reference counterexample once."""
     payload = b"p12\0\nfcwd\0tDIR\0D0x10\0i31\0\nf3\0tREG\0D0x20\0i31\0\nf4\0tIPv4\0\n"

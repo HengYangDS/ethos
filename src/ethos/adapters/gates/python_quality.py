@@ -23,7 +23,7 @@ from ethos.adapters.toolchain.mise import locked_environment
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.adapters.toolchain.mise import repository_mise_files
 from ethos.repository.policy.quality_reports import coverage_report
-from ethos.repository.policy.quality_reports import junit_report
+from ethos.repository.policy.quality_reports import junit_stream_report
 
 if TYPE_CHECKING:
     from ethos.repository.policy.code_subjects import CodeSubject
@@ -172,6 +172,7 @@ def _behavior_evidence(
     with TemporaryDirectory(prefix="ethos-python-quality-") as temporary, ExitStack() as scope:
         output = Path(temporary)
         junit = output / "junit.xml"
+        events = output / "events.jsonl"
         coverage = output / "coverage.xml"
         targets = tuple(sorted({path.partition("/")[0] for path in tests}))
         mise_files = repository_mise_files(root)
@@ -206,6 +207,7 @@ def _behavior_evidence(
             f"cache_dir={output / 'pytest-cache'}",
             f"--basetemp={output / 'pytest'}",
             f"--junitxml={junit}",
+            f"--report-log={events}",
             "--cov=.",
             "--cov-branch",
             f"--cov-report=xml:{coverage}",
@@ -240,10 +242,21 @@ def _behavior_evidence(
             )
         }
         try:
-            if not junit.is_file():
-                reason = "test_command_failed" if result.returncode else "test_report_missing"
+            missing = next(
+                (
+                    name
+                    for name, path in (("test_report", junit), ("test_event_report", events))
+                    if not path.is_file()
+                ),
+                "",
+            )
+            if missing:
+                reason = "test_command_failed" if result.returncode else f"{missing}_missing"
                 return {**evidence, **_failure("behavior", reason)}
-            counts, failed = junit_report((junit,))
+            counts, failed = junit_stream_report(
+                junit.read_text(encoding="utf-8"),
+                pytest_events=events.read_text(encoding="utf-8"),
+            )
             evidence["tests"] = counts
             if not coverage.is_file():
                 reason = "test_command_failed" if result.returncode else "coverage_report_missing"

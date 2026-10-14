@@ -47,7 +47,18 @@ def _status(*, branch: str = BRANCH) -> dict[str, Any]:
     }
 
 
-def _common(monkeypatch: pytest.MonkeyPatch, *, branch: str = BRANCH) -> None:
+def _git(switched: list[str] | None = None):
+    def run_git(_root: Path, *args: str, **_kwargs: object) -> SimpleNamespace:
+        if switched is not None and args[:2] == ("switch", "--detach"):
+            switched.append(args[2])
+        return _completed(stdout=(HEAD if args[-2:] == ("rev-parse", "HEAD") else CANDIDATE) + "\n")
+
+    return run_git
+
+
+def _common(
+    monkeypatch: pytest.MonkeyPatch, *, branch: str = BRANCH, switched: list[str] | None = None
+) -> None:
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test")
     monkeypatch.setattr(
         refresh,
@@ -59,13 +70,10 @@ def _common(monkeypatch: pytest.MonkeyPatch, *, branch: str = BRANCH) -> None:
     monkeypatch.setattr(
         refresh, "hook_runtime_binding", lambda _root: {"required_gaps": [], "next_action": ""}
     )
-    monkeypatch.setattr(
-        refresh,
-        "run_git",
-        lambda _root, *args, **_kwargs: _completed(
-            stdout=(HEAD if args[-2:] == ("rev-parse", "HEAD") else CANDIDATE) + "\n"
-        ),
-    )
+    for name in ("write_pending_refresh", "clear_pending_refresh"):
+        monkeypatch.setattr(refresh, name, lambda *_args: None)
+    monkeypatch.setattr(refresh, "read_pending_refresh", lambda _root: None)
+    monkeypatch.setattr(refresh, "run_git", _git(switched))
 
 
 def _recovery_plan(
@@ -386,8 +394,11 @@ def test_refresh_admission_failure_restores_before_repository_effects(
         raising=False,
     )
     monkeypatch.setattr(refresh, "commit_environment", lambda *_args: {}, raising=False)
+    switched: list[str] = []
 
     def run_git(_root: Path, *args: str, **_kwargs: object) -> SimpleNamespace:
+        if args[:2] == ("switch", "--detach"):
+            switched.append(args[2])
         if args[-2:] == ("rev-parse", "HEAD"):
             return _completed(stdout=HEAD + "\n")
         if args[-2:] == ("rev-parse", "candidate/dev"):
@@ -414,12 +425,6 @@ def test_refresh_admission_failure_restores_before_repository_effects(
         "execute_git_effect",
         lambda *_args, **_kwargs: pytest.fail("invalid replay must not update refs or Lease"),
     )
-    compensated: list[str] = []
-    monkeypatch.setattr(
-        refresh,
-        "compensate_git_worktree",
-        lambda _root, *, head: compensated.append(head),
-    )
     restored: list[tuple[str, str]] = []
     monkeypatch.setattr(
         refresh,
@@ -433,7 +438,7 @@ def test_refresh_admission_failure_restores_before_repository_effects(
 
     assert report["state"] == "blocked"
     assert report["required_gaps"] == [gap]
-    assert compensated == [HEAD]
+    assert switched == [HEAD]
     assert restored == [(BRANCH, HEAD)]
 
 
@@ -487,7 +492,8 @@ def test_detached_public_recovery_accepts_only_exact_persisted_effect(
 def test_refresh_public_effect_failure_restores_original_checkout(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _common(monkeypatch)
+    switched: list[str] = []
+    _common(monkeypatch, switched=switched)
     ancestry = iter((False, True))
     monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
     heads = iter((HEAD, REBASED, HEAD))
@@ -504,12 +510,6 @@ def test_refresh_public_effect_failure_restores_original_checkout(
         "execute_git_effect",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(refused),
     )
-    compensated: list[str] = []
-    monkeypatch.setattr(
-        refresh,
-        "compensate_git_worktree",
-        lambda _root, *, head: compensated.append(head),
-    )
     restored: list[tuple[str, str]] = []
     monkeypatch.setattr(
         refresh,
@@ -523,7 +523,7 @@ def test_refresh_public_effect_failure_restores_original_checkout(
 
     assert report["state"] == "blocked"
     assert report["process_failure"] == refused.evidence()
-    assert compensated == [HEAD]
+    assert switched == [HEAD]
     assert restored == [(BRANCH, HEAD)]
     native = captured["native"]
     assert isinstance(native, dict)

@@ -321,7 +321,7 @@ Native configs and locks own tool policy and versions. Projections link rather t
 ETHOS and an adopted repository use the same kernel and transaction protocol.
 Profiles and adapters select native carriers, checks, and proof depth; they do
 not create another command plane, ontology, or truth store. This is not product
-cloning: each repository keeps its domain model, product layout and provider shape; the [repository paradigm](../decisions/dr-0012-repository-paradigm.md) fixes only shared carriers.
+cloning: each repository keeps its domain model, product layout and provider shape; the [ETHOS source repository paradigm](../decisions/dr-0012-repository-paradigm.md "source-only") fixes only shared carriers.
 
 The semantic kernel remains independent of OpenSpec types. Complete,
 mutation-capable adoption nevertheless pins verified OpenSpec as the sole

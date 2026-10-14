@@ -168,7 +168,7 @@ successful partial or noncanonical results never replace the required floor.
 Gate storage does not select repository type. Common governance evaluates actual
 OpenSpec observations, commit policy and declared release-role consistency
 for inline profiles and for the packaged ETHOS gate registry. The
-[repository paradigm](../decisions/dr-0012-repository-paradigm.md) requires the
+[ETHOS source repository paradigm](../decisions/dr-0012-repository-paradigm.md "source-only") requires the
 common commit policy and inline adopter gates; a repository-local registry file
 is a paradigm gap, and malformed present policy blocks. Protected branches are
 compared as membership against configured roles, independently of their

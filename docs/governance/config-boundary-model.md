@@ -29,7 +29,7 @@ and machine contracts. No single directory owns every governance fact.
 `.ethos/profile.toml` references `.config/`; it does not replace it.
 
 `.config/` remains the repository-native location for how tools run. The
-[repository paradigm](../decisions/dr-0012-repository-paradigm.md) fixes its
+[ETHOS source repository paradigm](../decisions/dr-0012-repository-paradigm.md "source-only") fixes its
 layout for every governed repository. Tool configuration lives under
 `.config/checks/<owner>/`, `.config/release/<owner>/`, `.config/ci/` or the
 toolchain roots (`.config/mise/` and the package-manager roots it binds).
@@ -72,5 +72,5 @@ repositories with different shapes and toolchains.
 
 See also: [Repository Profile Contract](repository-profile-contract.md),
 [Product Design Contract](product-design-contract.md),
-[DR-0012: Repository paradigm](../decisions/dr-0012-repository-paradigm.md), and
+[ETHOS source DR-0012: Repository paradigm](../decisions/dr-0012-repository-paradigm.md "source-only"), and
 [ETHOS source Terminal Governance Product Design](../plans/terminal-governance-product-design.md "source-only").

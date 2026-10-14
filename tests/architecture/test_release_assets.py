@@ -108,7 +108,7 @@ def test_current_node_package_supply_read_has_one_observed_owner() -> None:
 
 
 def test_python_test_sessions_receive_the_frozen_node_package_supply(tmp_path, monkeypatch) -> None:
-    supply, session = tmp_path / "node_modules", object()
+    supply, session = tmp_path / "node_modules", SimpleNamespace(posargs=())
     factory = Mock()
     monkeypatch.setattr(ProjectRuntime, "node_package_supply", lambda _self: supply)
     monkeypatch.setattr(python_test_gate.PythonTestGate, "from_environment", factory)

@@ -116,6 +116,11 @@ def lint(session) -> None:
 
 
 def tests(session) -> None:
+    if session.posargs:
+        session.error(
+            "tests_session_selection_not_supported: tests runs the complete proof floor; "
+            "use pytest with the repository configuration for focused selection"
+        )
     gate = import_module("tools.ci.python_test_gate").PythonTestGate.from_environment(
         node_package_supply=RUNTIME.node_package_supply()
     )
@@ -231,7 +236,7 @@ def prettier_paths() -> tuple[str, ...]:
     """Select the carriers whose declared format owner is Prettier, as the paradigm names them."""
     paradigm = import_module("ethos.contracts.paradigm.declaration").load_repository_paradigm()
     suffixes = next(item.suffixes for item in paradigm.formatter if item.tool == "prettier")
-    audit = import_module("tools.ci.format_selection").audit(ROOT)
+    audit = import_module("ethos.adapters.gates.format_selection").audit(ROOT)
     return tuple(
         item["path"]
         for item in audit["assignments"]

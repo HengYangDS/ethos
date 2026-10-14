@@ -133,6 +133,28 @@ def test_prose_session_uses_the_shared_native_owner(monkeypatch, verdict: str) -
     assert session.error.called == (verdict == "block")
 
 
+def test_full_test_session_refuses_selectors_before_loading_supply(tmp_path) -> None:
+    """A focused request must not silently start the complete proof floor."""
+    result = run_command(
+        ROOT,
+        (
+            sys.executable,
+            "-B",
+            "-m",
+            "nox",
+            "-s",
+            "tests",
+            "--",
+            str(Path(__file__).relative_to(ROOT)),
+        ),
+        env={"ETHOS_NODE_PACKAGE_SUPPLY": str(tmp_path / "missing")},
+        timeout=30,
+    )
+    assert result.returncode != 0
+    assert "tests_session_selection_not_supported" in result.stderr
+    assert "node_package_supply_unavailable" not in result.stderr
+
+
 @pytest.mark.parametrize(
     ("arguments", "succeeds"),
     [(("--list",), True), (("-s", "lint"), True), (("-s", "markdown_lint"), False)],

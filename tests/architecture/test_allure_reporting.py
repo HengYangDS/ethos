@@ -203,7 +203,7 @@ def test_failing_test_session_still_renders_without_replacing_test_failure(monke
     )
 
     with pytest.raises(RuntimeError, match="original_test_failure"):
-        sessions.tests(SimpleNamespace(log=lambda _message: None))
+        sessions.tests(SimpleNamespace(posargs=(), log=lambda _message: None))
 
     gate.render_report.assert_called_once_with()
 

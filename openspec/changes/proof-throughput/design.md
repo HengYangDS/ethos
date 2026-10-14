@@ -739,8 +739,9 @@ whole-command improvement or resolution of the independent startup delay.
 
 No previous tuple-consumer compatibility path remains. Equivalent policy
 fixtures now share the expected-build setup and use native boolean values
-instead of an extra string-to-boolean translation. The 50,000-test ceiling,
-500-per-file limits and 95-percent combined coverage requirement are unchanged.
+instead of an extra string-to-boolean translation. The then-current
+50,000-test ceiling, 500-per-file limits and 95-percent combined coverage
+requirement are unchanged.
 Complete proof, installed acceptance and the 600-second target remain open.
 
 ### Share Proof Selection Within Each Publication Admission
@@ -784,7 +785,8 @@ The assertion now uses the existing JSON normalizer; all seventeen admission
 cases pass. Six affected public effect/projection cases and three final
 assertion-consolidation cases pass after the budget cleanup. No test obligation
 or production verdict was changed to accommodate that test representation error.
-The type gate and 500-per-file limits pass; product/test ELOC are 45,373/49,999.
+The type gate and the then-current 500-per-file limits pass; product/test ELOC
+are 45,373/49,999.
 
 The same covered public workload now makes thirteen repository-proof selections,
 1,955 subprocess calls and 42 Node calls, versus 51, 2,641 and 118 before.
@@ -2261,8 +2263,9 @@ semantic-preservation review restored an unsigned ancestor inside the introduced
 release range rather than at its excluded baseline; the 24 affected public
 release, refusal and failure-observation cases then passed in 173.90 seconds.
 Owned temporary roots were removed. Product/test ELOC are 46,058/50,000, with
-unchanged 500-per-file limits. Static, type and official specification validation
-passed; exact-HEAD proof and runtime delivery remain separate outstanding claims.
+the then-current 500-per-file limits unchanged. Static, type and official
+specification validation passed; exact-HEAD proof and runtime delivery remain
+separate outstanding claims.
 
 The exact `60124a8e4a71c4f852595d4318be966975cc8826` full proof subsequently
 passed all 35 gates in 806.048 seconds with 3,997 passing tests and one skip.
@@ -3376,8 +3379,9 @@ two such jobs only in its last four minutes. The code after `43ddb6e7a` changed
 only the dependency-audit policy location and the GitLab artifact projection, so
 the slowdown points to host contention rather than a test regression. Over all
 eight runs, the p90 exceeds 900 seconds. Task 1.9 closes on the five consecutive
-runs measured after the repair. Keeping the budget while a landing's CI shares
-the host needs contention admission, which remains with 5.13 and 9.x.
+runs measured after the repair. Each landing's dev and main pipelines verify the
+same commit twice on that host; task 7.15 evaluates verifying it once. No task
+admits other host contention.
 
 Two repairs moved the critical path. Install smoke now proves formation in one
 worker thread beside the other installed-console stages, and the lifecycle waits

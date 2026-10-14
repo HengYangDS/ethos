@@ -220,8 +220,8 @@ architecture; these rules make the claim honest and checkable.
 
 ## 3. Size and split
 
-The single effective-LOC limit for each carrier role lives in
-`.ethos/rules.toml [quality.code_size]` and is enforced by the code-size gate.
+The single effective-LOC ceiling for every Python file is a repository paradigm
+value, enforced by the paradigm report in the repository audit.
 A breach requires semantic review, but only a distinct concept, invariant,
 authority, or reason to change can justify a split; otherwise the module is
 simplified or absorbed.

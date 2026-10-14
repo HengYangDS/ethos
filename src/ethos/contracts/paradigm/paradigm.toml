@@ -31,6 +31,13 @@ planes = ["ci", "mise", "npm"]
 files = ["miserc.toml"]
 policy = "policy.toml"
 
+# Per-file ceilings every governed repository shares; no binding restates them.
+# Exceeding one needs semantic consolidation, never compression, exemptions or a
+# raised ceiling.
+[size]
+python_effective_lines = 512
+markdown_nonblank_lines = 512
+
 [[module]]
 id = "python"
 manifest = "pyproject.toml"

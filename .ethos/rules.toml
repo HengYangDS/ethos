@@ -23,16 +23,6 @@ local_state = "SQLite"
 state_tracked_truth = false
 generated_outputs_tracked_truth = false
 
-[quality.code_size]
-# All Python files share one ceiling; role classification never grants capacity.
-# Exceedance requires semantic consolidation, not role reassignment, cosmetic
-# compression, per-file exemptions or raising the limit to fit existing files.
-default_effective_max_lines = 512
-surface_path_globs = [
-  "src/ethos/cli.py",
-  "src/ethos/surface/**",
-]
-
 [[rule]]
 id = "local-state-boundary"
 owner = "repo-local"

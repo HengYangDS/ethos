@@ -15,6 +15,7 @@ from typing import NamedTuple
 
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import close_verdict
+from ethos.measure import effective_code_lines_for_source
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -57,6 +58,7 @@ def repository_paradigm_report(root: Path, *, tracked_paths: tuple[str, ...]) ->
         *_configuration_gaps(paradigm, tracked),
         *_embedded_policy_gaps(paradigm, root, tracked),
         *_module_gaps(paradigm, root, tracked),
+        *_size_gaps(paradigm, root, tracked),
     ]
     required = [gap.required_gap for gap in gaps]
     return {
@@ -275,6 +277,44 @@ def _module_gaps(
                 module.manifest,
                 f"declare requires-python with the lower bound >={module.floor}",
             )
+
+
+def python_size_gaps(root: Path, tracked_paths: Iterable[str]) -> tuple[ParadigmGap, ...]:
+    """Measure every tracked Python file against the shared effective-line ceiling."""
+    ceiling = load_repository_paradigm().size.python_effective_lines
+    gaps: list[ParadigmGap] = []
+    for path in sorted(entry for entry in set(tracked_paths) if entry.endswith(".py")):
+        carrier = root / path
+        if not carrier.is_file():
+            continue
+        try:
+            effective = effective_code_lines_for_source(carrier.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, SyntaxError, ValueError):
+            repair = f"make {path} readable UTF-8 Python so it can be measured"
+            gaps.append(ParadigmGap("python-size", path, repair))
+            continue
+        if effective > ceiling:
+            repair = f"split {path} by semantic ownership to at most {ceiling} effective lines"
+            gaps.append(ParadigmGap("python-size", path, repair))
+    return tuple(gaps)
+
+
+def _size_gaps(
+    paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
+) -> Iterator[ParadigmGap]:
+    """Hold every tracked Python file to the shared ceiling, which no binding restates."""
+    yield from python_size_gaps(root, tracked)
+    rules = _tracked_text(root, f"{paradigm.binding.root}/rules.toml", tracked)
+    try:
+        quality = tomllib.loads(rules).get("quality", {}) if rules is not None else {}
+    except tomllib.TOMLDecodeError:
+        quality = {}
+    if isinstance(quality, dict) and "code_size" in quality:
+        yield ParadigmGap(
+            "binding-restatement",
+            f"{paradigm.binding.root}/rules.toml:quality.code_size",
+            "remove [quality.code_size]; the repository paradigm owns the size ceilings",
+        )
 
 
 def _requires_lock(module: EcosystemModule, source: str) -> bool:

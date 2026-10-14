@@ -34,6 +34,8 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
     assert owners[".config/checks/vale"][1] is True
     assert ".config/mise" not in owners
     assert {module.id for module in paradigm.module} == {"python", "node", "go"}
+    assert paradigm.size.python_effective_lines == 512
+    assert paradigm.size.markdown_nonblank_lines == 512
 
 
 @pytest.mark.parametrize(
@@ -46,6 +48,7 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
         "scope",
         "duplicate-table",
         "tool-unknown-key",
+        "size-not-positive",
     ],
 )
 def test_paradigm_declaration_fails_closed(mutation: str) -> None:
@@ -71,6 +74,8 @@ def test_paradigm_declaration_fails_closed(mutation: str) -> None:
         tools.append(
             {"id": "copy", "carrier": ".config/checks/copy/copy.toml", "manifest_tables": ["ruff"]}
         )
+    elif mutation == "size-not-positive":
+        payload["size"] = {**payload["size"], "python_effective_lines": 0}
     else:
         tools[0] = {**tools[0], "exceptions": ["mise.toml"]}
     with pytest.raises(ValidationError):

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.surface.cli.root.reference import docs_registry_report
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
@@ -16,15 +17,18 @@ from tests.support.governed_repository import init_git_repo
 if TYPE_CHECKING:
     from pathlib import Path
 
+_CEILING = load_repository_paradigm().size.markdown_nonblank_lines
+_OVER = f"{_CEILING + 1}>{_CEILING}"
+
 
 @pytest.mark.parametrize(
     ("relative", "state", "count"),
     [
-        ("docs/topic.md", "canonical", 500),
-        ("docs/topic.md", "canonical", 501),
-        ("docs/topic.md", "archived", 501),
-        ("README.md", "canonical", 501),
-        ("handbook/topic.md", "canonical", 501),
+        ("docs/topic.md", "canonical", _CEILING),
+        ("docs/topic.md", "canonical", _CEILING + 1),
+        ("docs/topic.md", "archived", _CEILING + 1),
+        ("README.md", "canonical", _CEILING + 1),
+        ("handbook/topic.md", "canonical", _CEILING + 1),
     ],
 )
 def test_current_markdown_uses_physical_nonblank_limit(
@@ -45,9 +49,9 @@ def test_current_markdown_uses_physical_nonblank_limit(
 
     report = docs_registry_report(root)
 
-    expected = [] if count == 500 else [f"docs_length_exceeded:{relative}:501>500"]
+    expected = [] if count == _CEILING else [f"docs_length_exceeded:{relative}:{_OVER}"]
     assert report["required_gaps"] == expected
-    assert report["verdict"] == ("pass" if count == 500 else "block")
+    assert report["verdict"] == ("pass" if count == _CEILING else "block")
 
 
 def test_release_history_is_not_bounded_by_document_length(tmp_path: Path) -> None:
@@ -57,7 +61,7 @@ def test_release_history_is_not_bounded_by_document_length(tmp_path: Path) -> No
     history += "".join(
         f"\n## [{version}.0.0] - 2026-09-29\n" + "- Change.\n" * 600 for version in range(2, 0, -1)
     )
-    assert sum(bool(line.strip()) for line in history.splitlines()) > 500
+    assert sum(bool(line.strip()) for line in history.splitlines()) > _CEILING
     (root / "CHANGELOG.md").write_text(history)
     commit_fixture(root, "sectioned release history")
 
@@ -76,7 +80,7 @@ def test_release_history_is_not_bounded_by_document_length(tmp_path: Path) -> No
     ("relative", "expected"),
     [
         ("CHANGELOG.md", []),
-        ("handbook/CHANGELOG.md", ["docs_length_exceeded:handbook/CHANGELOG.md:501>500"]),
+        ("handbook/CHANGELOG.md", [f"docs_length_exceeded:handbook/CHANGELOG.md:{_OVER}"]),
     ],
 )
 def test_only_release_owned_changelog_is_exempt_from_document_length(
@@ -86,7 +90,7 @@ def test_only_release_owned_changelog_is_exempt_from_document_length(
     root = init_git_repo(tmp_path / "repo")
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("# Changelog\n" + "- Undifferentiated.\n" * 500)
+    path.write_text("# Changelog\n" + "- Undifferentiated.\n" * _CEILING)
     git(root, "add", "--", relative)
 
     report = docs_registry_report(root)
@@ -115,7 +119,7 @@ def test_official_and_owned_generated_markdown_are_not_authored_docs(tmp_path: P
         '[[projection]]\nkind = "copy"\ntemplate = "source.txt"\n'
         'projection = "docs/generated.md"\n'
     )
-    (root / "source.txt").write_text("content\n" * 501)
+    (root / "source.txt").write_text("content\n" * (_CEILING + 1))
     for relative in (
         "docs/generated.md",
         "openspec/specs/quality/spec.md",
@@ -124,7 +128,7 @@ def test_official_and_owned_generated_markdown_are_not_authored_docs(tmp_path: P
     ):
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("content\n" * 501)
+        path.write_text("content\n" * (_CEILING + 1))
     git(
         root,
         "add",
@@ -140,10 +144,10 @@ def test_official_and_owned_generated_markdown_are_not_authored_docs(tmp_path: P
     assert report["verdict"] == "pass", report["required_gaps"]
 
 
-def test_public_docs_gate_rejects_501_nonblank_lines(tmp_path: Path) -> None:
+def test_public_docs_gate_rejects_a_document_over_the_ceiling(tmp_path: Path) -> None:
     """The real prove entrypoint carries the precise failed-document observation."""
     root = init_git_repo(tmp_path / "repo")
-    (root / "README.md").write_text("# Probe\n" + "record\n" * 500)
+    (root / "README.md").write_text("# Probe\n" + "record\n" * _CEILING)
     commit_fixture(root, "long document")
 
     result = run_ethos_raw(
@@ -156,4 +160,4 @@ def test_public_docs_gate_rejects_501_nonblank_lines(tmp_path: Path) -> None:
     assert result.returncode != 0
     assert report["verdict"] == "block"
     assert report["summary"]["proof_attestation_issued"] is False
-    assert provider["required_gaps"] == ["docs_length_exceeded:README.md:501>500"]
+    assert provider["required_gaps"] == [f"docs_length_exceeded:README.md:{_OVER}"]

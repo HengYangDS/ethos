@@ -6,10 +6,14 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.report import repository_paradigm_report
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+_PYTHON_CEILING = load_repository_paradigm().size.python_effective_lines
+_MODULE = "src/sample/module.py"
 
 _CONFORMING = {
     "AGENTS.md": "# Agents\n",
@@ -277,4 +281,51 @@ def test_unreadable_tracked_manifest_is_a_gap(tmp_path: Path, mode: str) -> None
             "carrier": "pyproject.toml",
             "repair": "restore a readable pyproject.toml",
         }
+    ]
+
+
+def _statements(count: int) -> str:
+    return "".join(f"value_{index} = {index}\n" for index in range(count))
+
+
+@pytest.mark.parametrize(
+    ("source", "gaps"),
+    [
+        (_statements(_PYTHON_CEILING), []),
+        (_statements(_PYTHON_CEILING + 1), [f"repository_paradigm_python_size:{_MODULE}"]),
+        ('"""' + "documentation\n" * 600 + '"""\n' + _statements(_PYTHON_CEILING), []),
+        ("def invalid(\n", [f"repository_paradigm_python_size:{_MODULE}"]),
+    ],
+    ids=["at-ceiling", "over-ceiling", "docstring-uncounted", "invalid"],
+)
+def test_every_python_file_shares_one_effective_line_ceiling(
+    tmp_path: Path, source: str, gaps: list[str]
+) -> None:
+    """The ceiling applies without any repository size policy and counts only code."""
+    report = _report(tmp_path, {**_CONFORMING, _MODULE: source})
+    assert report["required_gaps"] == gaps
+    if gaps:
+        assert _MODULE in report["next_action"]
+
+
+@pytest.mark.parametrize("mode", ["undecodable", "absent"])
+def test_python_size_reads_only_what_exists_as_text(tmp_path: Path, mode: str) -> None:
+    """Undecodable source is a gap; a tracked file deleted from the worktree is not measured."""
+    _report(tmp_path, {**_CONFORMING, _MODULE: "value = 1\n"})
+    module = tmp_path / _MODULE
+    if mode == "undecodable":
+        module.write_bytes(b"name = '\xff'\n")
+    else:
+        module.unlink()
+    report = repository_paradigm_report(tmp_path, tracked_paths=(*_CONFORMING, _MODULE))
+    expected = [f"repository_paradigm_python_size:{_MODULE}"] if mode == "undecodable" else []
+    assert report["required_gaps"] == expected
+
+
+def test_a_binding_cannot_restate_the_size_ceiling(tmp_path: Path) -> None:
+    """The ceiling has one owner, so a repository-declared limit is a gap, not a setting."""
+    rules = "[quality.code_size]\ndefault_effective_max_lines = 900\n"
+    report = _report(tmp_path, {**_CONFORMING, ".ethos/rules.toml": rules})
+    assert report["required_gaps"] == [
+        "repository_paradigm_binding_restatement:.ethos/rules.toml:quality.code_size"
     ]

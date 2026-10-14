@@ -14,6 +14,7 @@ from typing import Self
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
+from pydantic import Field
 from pydantic import model_validator
 
 from ethos.contracts.value import FrozenTuple
@@ -81,6 +82,15 @@ class ConfigurationPlane(BaseModel):
     policy: str
 
 
+class SizeCeilings(BaseModel):
+    """Per-file ceilings that every governed repository shares."""
+
+    model_config = _DECLARATION
+
+    python_effective_lines: int = Field(gt=0)
+    markdown_nonblank_lines: int = Field(gt=0)
+
+
 class EcosystemModule(BaseModel):
     """One ecosystem module, applied exactly when its manifest is tracked at the root."""
 
@@ -118,6 +128,7 @@ class RepositoryParadigm(BaseModel):
     binding: BindingFileSet
     normalization: TextNormalization
     configuration: ConfigurationPlane
+    size: SizeCeilings
     module: FrozenTuple[EcosystemModule]
     tool: FrozenTuple[ToolCarrier]
 

@@ -134,7 +134,7 @@ remain at signed source `8878c8406a06fa592c41dbb291578c2f2114de51` and its nativ
 - [ ] 7.12 Qualify semantic CI job partitions and native successful-pipeline merge enforcement.
 - [ ] 7.13 Qualify runner capacity and dependent-pipeline observation with bounded acquire, terminal readback and original-state restoration; distinguish paused, offline and tag mismatch without repository-specific VM control.
 - [x] 7.14 Resolve product remotes from the declared publication topology instead of an implicit `origin`, and declare the GitLab peer remote as `gitlab`; done when focused regressions and the full proof pass.
-- [ ] 7.15 Verify each commit once when one landing publishes dev and main at the same SHA, if each branch's required pipeline result stays observable; done when such a landing runs one `ethos:verify` job, or the record states why both are required. Two such jobs overlapped the full proofs of `dadf4c95b` and `9531c19db`, which ended at 875 and 979 seconds.
+- [x] 7.15 Verify each commit once when one landing publishes dev and main at the same SHA, if each branch's required pipeline result stays observable; done when such a landing runs one `ethos:verify` job, or the record states why both are required. Two such jobs overlapped the full proofs of `dadf4c95b` and `9531c19db`, which ended at 875 and 979 seconds. At `80d53f1ff`, main pipeline 10875 ran only ethos:commit-policy and dev pipeline 10874 ran the single ethos:verify.
 
 ## 8. Trusted Verification and Result Admission
 

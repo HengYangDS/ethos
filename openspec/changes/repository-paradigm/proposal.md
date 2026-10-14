@@ -14,6 +14,7 @@ Beyond that, each repository encodes the same concerns in its own way:
 - four decision-record namings;
 - three `.config/` taxonomies;
 - tool configuration scattered across the root and package manifests;
+- orchestration through native tasks in some repositories and shell scripts in others;
 - hand-maintained CI files for several Forges.
 
 ETHOS documents currently forbid making repository layout universal, so the drift has no owner. The repositories' owner has directed that every ETHOS-managed repository, ETHOS itself included, follow one top-down paradigm. That paradigm contains only what the repositories genuinely share.
@@ -37,6 +38,7 @@ ETHOS documents currently forbid making repository layout universal, so the drif
   - Documents use YAML front matter, and decision records are named `dr-NNNN-<topic>.md`.
   - Markdown and YAML are formatted by Prettier and TOML by taplo. `.editorconfig` and `.gitattributes` are present.
   - One locked toolchain owner exposes the `bootstrap`, `fix` and `check` verbs.
+  - Orchestration runs through native commands and toolchain-owner tasks on every supported platform. The only tracked scripts are official generator output.
   - CI that targets several Forges is defined once in `.config/ci/` and projected.
   - Repository-authored names are lowercase kebab-case.
 - Enforce the paradigm in the same way for every repository:
@@ -68,6 +70,6 @@ Affected areas:
 - a packaged paradigm contract next to the generated-artifact topology contract;
 - greenfield formation, which consumes the contract;
 - three governance documents and one decision record;
-- ETHOS's own root, `.config/`, `.ethos/`, Markdown formatting and file names.
+- ETHOS's own root, `.config/`, `.ethos/`, CI scripts, Markdown formatting and file names.
 
 Every adopter must migrate before it switches runtime. No new command, lifecycle, registry or per-repository exception list is introduced.

@@ -20,6 +20,9 @@ from ethos.repository.policy.gates import bind_gate_source_digests
 from ethos.repository.policy.gates import canonical_gate_command
 from ethos.repository.policy.gates import gate_policy_fields
 from ethos.repository.policy.gates import source_paths_for_gate
+from ethos.repository.policy.quality.tool_configuration import native_gate_tools
+from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
+from ethos.repository.policy.quality.tool_configuration import native_tool_configurations
 from ethos.repository.policy.references.commands import python_module
 
 if TYPE_CHECKING:
@@ -381,3 +384,55 @@ def test_native_output_contract_preserves_exact_producer_selection(binding: str)
     else:
         with pytest.raises(ValidationError):
             Gate.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    ("provider", "tools"),
+    [
+        ("ethos.adapters.gates.tool:markdown_lint_report", ("prettier", "markdownlint-cli2")),
+        ("ethos.adapters.gates.tool:markdown_links_report", ("lychee",)),
+        ("ethos.adapters.gates.tool:external_links_report", ("lychee",)),
+        ("ethos.adapters.gates.tool:prose_report", ("codespell",)),
+        (
+            "ethos.adapters.gates.configuration:configuration_report",
+            ("taplo", "prettier", "yamllint", "python-stdlib-json", "format-selection"),
+        ),
+    ],
+)
+def test_native_provider_binds_every_consumed_configuration(
+    provider: str, tools: tuple[str, ...]
+) -> None:
+    """Executed native policies participate in freshness and exact source identity."""
+    gate = Gate.model_validate({"id": "native-policy", "kind": "test", "providers": (provider,)})
+    assert native_gate_tools(gate) == tools
+    locations = tuple(
+        relative
+        for tool in tools
+        for relative in native_tool_configurations(
+            (
+                ".config/checks/format/prettier.toml",
+                ".config/checks/markdown/markdownlint.yaml",
+                ".config/checks/links/lychee.toml",
+                ".config/checks/prose/codespell.toml",
+                ".config/checks/taplo/taplo.toml",
+                ".config/checks/yaml/yamllint.yaml",
+                ".config/checks/json/format.toml",
+                ".config/checks/format/selection.toml",
+            ),
+            tool,
+        )
+    )
+    assert len(locations) == len(tools)
+    selected = source_paths_for_gate(gate, repository_paths=locations)
+    assert set(locations) <= set(selected)
+    for tool, location in zip(tools, locations, strict=True):
+        assert native_tool_configuration(locations, tool) == location
+        sources = dict.fromkeys(selected, b"original")
+        before = bind_gate_source_digests((gate,), sources, repository_paths=locations)
+        sources[location] = b"changed"
+        assert bind_gate_source_digests((gate,), sources, repository_paths=locations) != before
+        misplaced = "other/" + location.rsplit("/", 1)[-1]
+        with pytest.raises(ValueError, match="native_tool_configuration_location_invalid"):
+            native_tool_configuration((misplaced,), tool)
+        with pytest.raises(ValueError, match="native_tool_configuration_ambiguous"):
+            native_tool_configuration((location, misplaced), tool)

@@ -220,7 +220,7 @@ truth_boundary = "repository-owned public presentation projection"
 [[format]]
 extensions = [".md"]
 carrier = "Markdown"
-owner = ".config/checks/markdown/.markdownlint-cli2.yaml"
+owner = ".config/checks/markdown/markdownlint.yaml"
 execution = "uv run --frozen --offline python -m nox -s markdown_lint"
 truth_boundary = "human docs and plans"
 budget = [{ category = "markdown" }]

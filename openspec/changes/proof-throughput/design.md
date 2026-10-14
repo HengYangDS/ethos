@@ -2619,7 +2619,7 @@ Source proof, reference publication and host qualification remain distinct.
 
 
 Windows trust observation must distinguish unsafe ACLs from missing, failed or
-unparseable native observations. The existing filesystem owner now propagates
+unparsable native observations. The existing filesystem owner now propagates
 bounded native failure details; public trust admission returns that gap without
 authorizing anything. Foreign ownership and write grants retain their rejection
 predicate. This repairs a demonstrated diagnostic loss, not the unproved cause

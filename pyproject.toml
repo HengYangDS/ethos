@@ -21,6 +21,9 @@ dependencies = [
   "ruff>=0.17.0",
   "tomli-w>=1.2.0",
   "uv>=0.13.0",
+  "codespell>=2.4.3",
+  "lychee-bin>=0.24.2",
+  "yamllint>=1.38.0",
 ]
 
 [project.scripts]
@@ -32,13 +35,11 @@ prerelease = "disallow"
 [dependency-groups]
 dev = [
   "allure-pytest>=2.16.2",
-  "codespell>=2.4.3",
   "deptry>=0.25.1",
   "editables>=0.6",
   "hatchling>=1.32.4",
   "hypothesis>=6.169.0",
   "import-linter>=2.15",
-  "lychee-bin>=0.24.2",
   "mutmut>=3.8.0",
   "nox>=2026.8.17",
   "pillow>=12.3.0",
@@ -52,7 +53,6 @@ dev = [
   "shfmt-py>=4.2.0",
   "ty>=0.0.86",
   "uv>=0.13.0",
-  "yamllint>=1.38.0",
 ]
 
 [build-system]
@@ -78,6 +78,14 @@ packages = ["src/ethos"]
 "uv.lock" = "ethos/resources/uv.lock"
 ".config/mise/config.toml" = "ethos/resources/.config/mise/config.toml"
 ".config/mise/mise.lock" = "ethos/resources/.config/mise/mise.lock"
+".config/checks/format/prettier.toml" = "ethos/resources/.config/checks/format/prettier.toml"
+".config/checks/prose/codespell.toml" = "ethos/resources/.config/checks/prose/codespell.toml"
+".config/checks/taplo/taplo.toml" = "ethos/resources/.config/checks/taplo/taplo.toml"
+".config/checks/yaml/yamllint.yaml" = "ethos/resources/.config/checks/yaml/yamllint.yaml"
+".config/checks/json/format.toml" = "ethos/resources/.config/checks/json/format.toml"
+".config/checks/format/selection.toml" = "ethos/resources/.config/checks/format/selection.toml"
+".config/checks/markdown/markdownlint.yaml" = "ethos/resources/.config/checks/markdown/markdownlint.yaml"
+".config/checks/links/lychee.toml" = "ethos/resources/.config/checks/links/lychee.toml"
 "VERSION" = "ethos/resources/VERSION"
 "system/schemas" = "ethos/resources/system/schemas"
 "docs/governance/product-design-contract.md" = "ethos/resources/docs/governance/product-design-contract.md"
@@ -123,6 +131,14 @@ only-include = [
   "uv.lock",
   ".config/mise/config.toml",
   ".config/mise/mise.lock",
+  ".config/checks/format/prettier.toml",
+  ".config/checks/prose/codespell.toml",
+  ".config/checks/taplo/taplo.toml",
+  ".config/checks/yaml/yamllint.yaml",
+  ".config/checks/json/format.toml",
+  ".config/checks/format/selection.toml",
+  ".config/checks/markdown/markdownlint.yaml",
+  ".config/checks/links/lychee.toml",
   "VERSION",
   "tools/ci/openspec_runtime_hook.py",
 ]

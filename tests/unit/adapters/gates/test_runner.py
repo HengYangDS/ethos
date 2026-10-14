@@ -327,7 +327,7 @@ def test_quality_tool_public_failure_matrix(
         assert isinstance(outcome, subprocess.CompletedProcess)
         return outcome
 
-    monkeypatch.setattr(gate_tool.subprocess, "run", run)
+    monkeypatch.setattr(gate_tool, "run_command", run)
     report = gate_tool.quality_tool_report(
         root=tmp_path,
         gate_id="quality",
@@ -341,7 +341,7 @@ def test_quality_tool_public_failure_matrix(
     if state == "skipped":
         assert report["file_count"] == 0
     if state == "failed":
-        assert str(report["stdout"]).endswith("[trimmed 1000 bytes]")
+        assert report["stdout"] == "x" * 5000
 
 
 def test_markdown_link_gate_excludes_deleted_tracked_paths(
@@ -352,16 +352,18 @@ def test_markdown_link_gate_excludes_deleted_tracked_paths(
     monkeypatch.setattr(
         gate_tool,
         "git_files",
-        lambda *_args: ["README.md", "docs/deleted.md"],
+        lambda *_args, **_kwargs: ["README.md", "docs/deleted.md"],
     )
     monkeypatch.setattr(gate_tool.shutil, "which", lambda _tool: "/bin/lychee")
     observed: list[list[str]] = []
 
-    def run(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        observed.append(command)
+    def run(
+        _root: Path, command: tuple[str, ...], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        observed.append(list(command))
         return subprocess.CompletedProcess(command, 0, "", "")
 
-    monkeypatch.setattr(gate_tool.subprocess, "run", run)
+    monkeypatch.setattr(gate_tool, "run_command", run)
 
     report = gate_tool.markdown_links_report(tmp_path)
 

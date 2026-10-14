@@ -17,6 +17,10 @@ configuration plane, not a truth center.
   contents. Missing bound supply is a failure, not an implicit skipped check.
   Editor integration remains a separate acceptance boundary.
 - `.config/checks/<concern>/` holds reusable tool payloads by concern.
+- [Native format selection](checks/format/selection.toml) has one product owner,
+  `ethos.adapters.gates.format_selection`. Nox invokes that owner; the shared
+  configuration provider uses the same assignments. Native generators, locked
+  upstream members and package-manager outputs retain their exact byte owners.
 - Root `noxfile.py` is the native discovery entry for `tools/ci/sessions.py`,
   which owns the executable Python lint proof surface inside the
   single uv-locked `.venv`: unsuppressed Ruff check and Ruff format check,
@@ -35,7 +39,7 @@ configuration plane, not a truth center.
   the pinned OpenSpec validator. CI invokes both owners through their existing
   lifecycle gates.
 - `.config/checks/shell/.shellcheckrc` owns ShellCheck policy; the `shell_lint` Nox session resolves the locked cross-platform `shellcheck-py` executable.
-- `.config/checks/markdown/.markdownlint-cli2.yaml` owns Markdown lint policy;
+- `.config/checks/markdown/markdownlint.yaml` owns Markdown lint policy;
   the `markdown_lint` Nox session executes the exact `package-lock.json`
   dependency without ambient installation. The lint-only gate covers declared
   maintained Markdown, including official OpenSpec artifacts under the native
@@ -73,7 +77,7 @@ configuration plane, not a truth center.
   Actionlint and finite-input ShellCheck, without a shell launcher. Native policy
   and supply remain under `.config/mise/config.toml`, `.config/mise/mise.lock`
   and the bound Python environment; missing supply fails without PATH fallback.
-- `.config/checks/lychee/lychee.toml` owns link-check behavior. Its supply
+- `.config/checks/links/lychee.toml` owns link-check behavior. Its supply
   declaration maps the executable to the official `lychee-bin` wheel; the
   development dependency and `uv.lock` own version and artifact identity.
 - `.config/checks/ci/hosted-observation.toml` owns hosted provider observation envelopes; the `hosted_observation` Nox session records GitHub/GitLab provider facts or tool-discovery state without claiming repository proof, hosted CI success, or remote publication.

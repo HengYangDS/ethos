@@ -514,14 +514,10 @@ def git_common_dir(root: Path) -> str:
     return path.resolve().as_posix()
 
 
-def git_files(root: Path, *patterns: str) -> list[str]:
-    """Return tracked files matching the given pathspec patterns."""
-    completed = run_git(root, "ls-files", *patterns, check=False)
-    return (
-        [line for line in completed.stdout.splitlines() if line]
-        if completed.returncode == 0
-        else []
-    )
+def git_files(root: Path, *patterns: str, check: bool = False) -> list[str]:
+    """Return exact native pathspec matches, optionally preserving inventory failure."""
+    completed = run_git(root, "ls-files", "-z", *patterns, check=check)
+    return list(filter(None, completed.stdout.split("\0"))) if completed.returncode == 0 else []
 
 
 def remote_availability(

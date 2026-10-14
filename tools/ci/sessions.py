@@ -6,7 +6,6 @@ import json
 import os
 import subprocess
 import sys
-import tomllib
 from importlib import import_module
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -199,7 +198,7 @@ def architecture_projection(session) -> None:
 
 
 def format_selection(session) -> None:
-    if import_module("tools.ci.format_selection").main():
+    if import_module("ethos.adapters.gates.format_selection").main():
         session.error("format selection policy did not pass")
 
 
@@ -210,19 +209,9 @@ def repository_hygiene(session) -> None:
 
 
 def prose(session) -> None:
-    policy = ROOT / ".config/checks/prose/codespell.toml"
-    declared = tomllib.loads(policy.read_text(encoding="utf-8")).get("paths", [])
-    paths = tuple(str(path) for path in declared if isinstance(path, str) and path)
-    if not paths:
-        session.error("prose policy paths are missing")
-    session.run(
-        RUNTIME.script("codespell"),
-        "--toml",
-        str(policy),
-        "--count",
-        "--quiet-level=2",
-        *paths,
-    )
+    report = import_module("ethos.adapters.gates.tool").prose_report(ROOT)
+    if report["verdict"] != "pass":
+        session.error("Prose quality failed:\n" + json.dumps(report["required_gaps"], indent=2))
 
 
 def shell_lint(session) -> None:
@@ -235,23 +224,19 @@ def shell_lint(session) -> None:
 
 
 def markdown_lint(session) -> None:
-    node = RUNTIME.node_executable()
-    markdownlint = RUNTIME.node_package_supply() / "markdownlint-cli2/markdownlint-cli2-bin.mjs"
-    if not markdownlint.is_file():
-        session.error("locked markdownlint-cli2 is missing; run npm ci --ignore-scripts")
-    session.run(
-        str(node), str(markdownlint), "--config", ".config/checks/markdown/.markdownlint-cli2.yaml"
-    )
+    report = import_module("ethos.adapters.gates.tool").markdown_lint_report(ROOT)
+    if report["verdict"] != "pass":
+        session.error("Markdown quality failed:\n" + json.dumps(report["required_gaps"], indent=2))
 
 
 def config_quality(session) -> None:
-    failures = import_module("tools.ci.config_quality").run(
-        tuple(session.posargs),
-        node=RUNTIME.node_executable(),
-        package_supply=RUNTIME.node_package_supply(),
+    report = import_module("ethos.adapters.gates.configuration").configuration_report(
+        ROOT, paths=tuple(session.posargs)
     )
-    if failures:
-        session.error("configuration quality failed:\n" + "\n".join(failures))
+    if report["verdict"] != "pass":
+        session.error(
+            "Configuration quality failed:\n" + json.dumps(report["required_gaps"], indent=2)
+        )
     if not session.posargs or PRE_COMMIT_CONFIG in session.posargs:
         session.run(RUNTIME.script("pre-commit"), "validate-config", PRE_COMMIT_CONFIG)
 

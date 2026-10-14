@@ -14,11 +14,12 @@ from unittest.mock import Mock
 import pytest
 import tomli_w
 
+import ethos.adapters.gates.configuration as config_quality
+import ethos.adapters.gates.tool as quality_tools
 import ethos.repository.policy.schema as schema_owner
 from ethos.adapters.process import run_command
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tools.ci import config_quality
 from tools.ci import dependency_hygiene
 from tools.ci import sessions
 
@@ -109,13 +110,21 @@ def test_schema_gate_reuses_repository_validator(monkeypatch: pytest.MonkeyPatch
     session.error.assert_not_called()
 
 
-def test_prose_executor_consumes_only_declared_policy_paths() -> None:
-    calls = []
-    sessions.prose(type("Session", (), {"run": lambda _, *args: calls.append(args)})())
-    expected = [sessions.RUNTIME.script("codespell"), "--toml"]
-    expected += [str(ROOT / ".config/checks/prose/codespell.toml"), "--count"]
-    expected += ["--quiet-level=2", "README.md", "CONTRIBUTING.md", "AGENTS.md"]
-    assert calls[0] == (*expected, "docs", "rules", "openspec/specs")
+@pytest.mark.parametrize("verdict", ["pass", "block"])
+def test_prose_session_uses_the_shared_native_owner(monkeypatch, verdict: str) -> None:
+    """Nox projects the product result without restating policy or native execution."""
+    provider = Mock(
+        return_value={
+            "verdict": verdict,
+            "required_gaps": [] if verdict == "pass" else ["spelling"],
+        }
+    )
+    monkeypatch.setattr(quality_tools, "prose_report", provider)
+    session = Mock()
+    sessions.prose(session)
+    provider.assert_called_once_with(sessions.ROOT)
+    session.run.assert_not_called()
+    assert session.error.called == (verdict == "block")
 
 
 @pytest.mark.parametrize(
@@ -175,9 +184,7 @@ def test_session_discovery_does_not_load_unselected_capabilities() -> None:
         ("external", True, True),
     ],
 )
-def test_config_selection_keeps_native_failures_and_ownership(
-    tmp_path, monkeypatch, state, explicit, fails
-):
+def test_config_selection_keeps_native_failures_and_ownership(tmp_path, state, explicit, fails):
     """Default discovery covers candidates; explicit absent or foreign inputs cannot pass."""
     root = init_git_repo(tmp_path / "repo")
     policy = root / ".config/checks/format/selection.toml"
@@ -200,14 +207,13 @@ def test_config_selection_keeps_native_failures_and_ownership(
         git(root, "add", relative)
     if state in {"missing", "deleted"}:
         target.unlink()
-    monkeypatch.setattr(config_quality, "ROOT", root)
     spellings = (
         (relative, str(target), str(root / ".config" / ".." / relative)) if explicit else (None,)
     )
     for spelling in spellings:
-        failures = config_quality.run(
-            (spelling,) if spelling else (), node=root / "node", package_supply=root
-        )
+        report = config_quality.configuration_report(root, paths=(spelling,) if spelling else ())
+        failures = report["required_gaps"]
+        assert isinstance(failures, list)
         assert bool(failures) is fails, failures
         if fails:
             assert relative in "\n".join(failures)

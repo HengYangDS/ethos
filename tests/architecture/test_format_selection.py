@@ -10,7 +10,12 @@ from pathlib import Path
 import pytest
 import yaml
 
-import tools.ci.format_selection as format_selection
+import ethos.adapters.gates.format_selection as format_selection
+from ethos.adapters.gates.configuration import configuration_report
+from ethos.repository.profile import ProofPolicy
+from ethos.repository.profile import RepositoryProfileDeclaration
+from ethos.repository.profile import SourceContract
+from ethos.repository.profile import render_repository_profile
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
@@ -20,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[2]
 def test_packaged_agent_guidance_is_selected_by_native_markdown_lint() -> None:
     """A new shipped Markdown resource cannot sit outside the executed lint scope."""
     config = yaml.safe_load(
-        (ROOT / ".config/checks/markdown/.markdownlint-cli2.yaml").read_text(encoding="utf-8")
+        (ROOT / ".config/checks/markdown/markdownlint.yaml").read_text(encoding="utf-8")
     )
     path = ROOT / "src/ethos/resources/skills/ethos-repository-work/SKILL.md"
     assert any(path in ROOT.glob(pattern) for pattern in config["globs"])
@@ -30,7 +35,7 @@ def test_packaged_agent_guidance_is_selected_by_native_markdown_lint() -> None:
 def carrier_report():
     return json.loads(
         subprocess.check_output(
-            (sys.executable, "tools/ci/format_selection.py"),
+            (sys.executable, "-B", "-m", "ethos.adapters.gates.format_selection"),
             cwd=ROOT,
             text=True,
         )
@@ -165,7 +170,8 @@ def test_format_selection_rejects_malformed_native_policy(
 )
 def test_carrier_assignment_rejects_malformed_owned_fields(tmp_path, fields: str) -> None:
     """The producer, not each consumer, validates assignment field types."""
-    config = tmp_path / ".config/checks/format/selection.toml"
+    root = init_git_repo(tmp_path / "repo")
+    config = root / ".config/checks/format/selection.toml"
     config.parent.mkdir(parents=True)
     config.write_text(
         '[[ownership]]\npaths = ["example.py"]\nformat_owner = "ruff"\n'
@@ -175,12 +181,13 @@ def test_carrier_assignment_rejects_malformed_owned_fields(tmp_path, fields: str
     )
 
     with pytest.raises(TypeError):
-        format_selection.audit(tmp_path, paths=("example.py",))
+        format_selection.audit(root, paths=("example.py",))
 
 
 def test_unused_malformed_owner_cannot_hide_behind_a_valid_fallback(tmp_path) -> None:
     """Every declaration must be valid even when another owner covers the file."""
-    config = tmp_path / ".config/checks/format/selection.toml"
+    root = init_git_repo(tmp_path / "repo")
+    config = root / ".config/checks/format/selection.toml"
     config.parent.mkdir(parents=True)
     config.write_text(
         '[[ownership]]\nid = "valid"\npaths = ["example.py"]\n'
@@ -191,4 +198,59 @@ def test_unused_malformed_owner_cannot_hide_behind_a_valid_fallback(tmp_path) ->
     )
 
     with pytest.raises(TypeError):
-        format_selection.audit(tmp_path, paths=("example.py",))
+        format_selection.audit(root, paths=("example.py",))
+
+
+def test_native_byte_owners_are_shared_by_format_and_configuration_selection(tmp_path) -> None:
+    """An authored schema is formatted; native output and lock bytes keep their owners."""
+    root = init_git_repo(tmp_path / "repo")
+    policy = root / ".config/checks/format/selection.toml"
+    policy.parent.mkdir(parents=True)
+    policy.write_bytes((ROOT / ".config/checks/format/selection.toml").read_bytes())
+    artifact = "generated/result.json"
+    profile = RepositoryProfileDeclaration(
+        profile_id="native-selection",
+        proof=ProofPolicy(
+            source_contracts=(
+                SourceContract(
+                    kind="generated",
+                    input_refs=(".config/checks/architecture/projection.toml",),
+                    members={artifact: (".config/checks/architecture/projection.toml", artifact)},
+                    integrity_gate="generated-integrity",
+                ),
+            )
+        ),
+    )
+    carrier = root / ".ethos/profile.toml"
+    carrier.parent.mkdir()
+    carrier.write_text(render_repository_profile(profile))
+    inputs = {
+        "system/schemas/contracts/example.schema.json": '{"type":"object"}\n',
+        artifact: '{"native":[1,2]}',
+        "package-lock.json": '{"lockfileVersion":3}',
+    }
+    for relative, content in inputs.items():
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
+    assignments = {
+        item["path"]: item
+        for item in format_selection.audit(root, paths=tuple(inputs))["assignments"]
+    }
+    assert (
+        assignments["system/schemas/contracts/example.schema.json"]["format_owner"]
+        == "python-stdlib-json"
+    )
+    assert (
+        assignments[artifact]["validation_command"]
+        == "ethos prove --gate generated-integrity --json"
+    )
+    assert assignments[artifact]["mutation_policy"] == "forbidden"
+    assert assignments["package-lock.json"]["mutation_policy"] == "package-manager-only"
+    for relative in (artifact, "package-lock.json"):
+        report = configuration_report(root, paths=(relative,))
+        assert report["verdict"] == "block"
+        assert "another owner" in str(report["required_gaps"])
+    report = configuration_report(root, paths=("system/schemas/contracts/example.schema.json",))
+    assert report["verdict"] == "pass", report
+    assert {relative: (root / relative).read_text() for relative in inputs} == inputs

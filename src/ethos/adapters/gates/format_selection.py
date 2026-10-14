@@ -2,7 +2,6 @@
 
 import fnmatch
 import json
-import subprocess
 import sys
 import tomllib
 from datetime import UTC
@@ -13,9 +12,17 @@ from typing import TypedDict
 from typing import TypeGuard
 from typing import cast
 
+from ethos.adapters.gates.tool import native_configurations
 from ethos.adapters.repo.git import current_tracked_head
+from ethos.adapters.repo.git import git_files
+from ethos.domain.source_budget.measurement_policy import policy_for_root
+from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
+from ethos.repository.policy.projections import projection_relations
+from ethos.repository.profile import INVALID_PROFILE_ERROR
+from ethos.repository.profile import load_repository_profile
+from ethos.repository.release.resources import canonical_resource
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = canonical_resource()
 CONFIG_PATH = ROOT / ".config/checks/format/selection.toml"
 
 
@@ -112,7 +119,7 @@ def _ownership_declarations(value: object) -> list[OwnerDeclaration]:
 
 
 def _tracked_files() -> list[str]:
-    return subprocess.check_output(["git", "ls-files"], cwd=ROOT, text=True).splitlines()
+    return git_files(ROOT, check=True)
 
 
 def _load_config() -> dict[str, object]:
@@ -144,7 +151,7 @@ def _owner_matches(path: str, declaration: OwnerDeclaration) -> bool:
 
 
 def _assignment(path: str, declaration: OwnerDeclaration) -> CarrierAssignment:
-    immutable = path.startswith("openspec/changes/archive/")
+    immutable = path.startswith(("openspec/changes/archive/", "evidence/", "docs/archive/"))
     mutation_policy = "forbidden" if immutable else declaration["mutation_policy"]
     format_owner = "immutable-carrier" if immutable else declaration["format_owner"]
     format_command = "not-applicable:immutable" if immutable else declaration["format_command"]
@@ -160,21 +167,79 @@ def _assignment(path: str, declaration: OwnerDeclaration) -> CarrierAssignment:
     }
 
 
+def _native_ownership(root: Path) -> tuple[list[OwnerDeclaration], tuple[str, ...]]:
+    """Compose validated native increments without replacing mandatory owners."""
+    policies = native_configurations(
+        root, "format-selection", ".config/checks/format/selection.toml"
+    )
+    parsed = tuple(tomllib.loads(Path(policy).read_text(encoding="utf-8")) for policy in policies)
+    owners: dict[str, OwnerDeclaration] = {}
+    for policy in parsed:
+        for declaration in _ownership_declarations(policy.get("ownership")):
+            owner = declaration["id"]
+            if owner in owners and owners[owner] != declaration:
+                message = f"format ownership conflicts with mandatory baseline: {owner}"
+                raise ValueError(message)
+            owners[owner] = declaration
+    measurement, gaps = policy_for_root(canonical_resource())
+    if measurement is None or gaps:
+        message = ", ".join(gaps) or "source_budget_policy_invalid"
+        raise ValueError(message)
+    return list(owners.values()), tuple(
+        path
+        for carrier in measurement.carriers
+        if carrier.category == "dependency_resolution"
+        for path in carrier.paths
+    )
+
+
+def _native_sources(root: Path) -> tuple[dict[str, str], dict[str, str]]:
+    """Observe explicit byte owners from the native profile and producer declarations."""
+    profile = load_repository_profile(root)
+    if profile.state == "invalid":
+        raise ValueError(INVALID_PROFILE_ERROR)
+    native_outputs = {
+        path: contract.integrity_gate
+        for contract in (profile.declaration.proof.source_contracts if profile.declaration else ())
+        for path in contract.members
+    }
+    projection_sources = {
+        relative: (root / relative).read_text(encoding="utf-8")
+        for relative in PROJECTION_DECLARATIONS
+        if (root / relative).is_file()
+    }
+    generated = {
+        relation.output: "ethos prove --gate generated-artifacts --json"
+        for relation in projection_relations(projection_sources)
+    }
+    return native_outputs, generated
+
+
 def audit(root: Path = ROOT, *, paths: tuple[str, ...] | None = None) -> CarrierAudit:
     """Compile effective quality ownership for tracked or explicitly selected carriers."""
-    config = tomllib.loads((root / CONFIG_PATH.relative_to(ROOT)).read_text(encoding="utf-8"))
-    declarations = _ownership_declarations(config.get("ownership"))
-    tracked = (
-        paths
-        if paths is not None
-        else subprocess.check_output(["git", "ls-files", "-z"], cwd=root, text=True).split("\0")[
-            :-1
-        ]
-    )
+    declarations, dependency_patterns = _native_ownership(root)
+    native_outputs, generated = _native_sources(root)
+    tracked = paths if paths is not None else git_files(root, check=True)
     assignments: list[CarrierAssignment] = []
     failures: list[dict[str, str]] = []
     unowned = multiply_owned = unverified = 0
     for path in tracked:
+        external = native_outputs.get(path)
+        if external:
+            verification = f"ethos prove --gate {external} --json"
+            assignments.append(
+                {
+                    "path": path,
+                    "format_owner": "native-source-owner",
+                    "format_command": verification,
+                    "format_check": verification,
+                    "validation_owner": external,
+                    "validation_command": verification,
+                    "semantic_companions": [],
+                    "mutation_policy": "forbidden",
+                }
+            )
+            continue
         matches = [item for item in declarations if _owner_matches(path, item)]
         if not matches:
             unowned += 1
@@ -188,6 +253,25 @@ def audit(root: Path = ROOT, *, paths: tuple[str, ...] | None = None) -> Carrier
             failures.append({"path": path, "reason": f"multiple primary quality owners: {owners}"})
             continue
         assignment = _assignment(path, primary[0])
+        if path in generated and assignment["mutation_policy"] != "generator-only":
+            assignment.update(
+                format_owner="native-source-owner",
+                format_command=generated[path],
+                format_check=generated[path],
+                validation_owner="native-projection",
+                validation_command=generated[path],
+                mutation_policy="forbidden",
+            )
+        if _matches_patterns(path, list(dependency_patterns)):
+            assignment["mutation_policy"] = "package-manager-only"
+            if assignment["format_owner"] == "python-stdlib-json":
+                assignment.update(
+                    format_owner="npm",
+                    format_command="npm install --package-lock-only --ignore-scripts",
+                    format_check="npm ci --ignore-scripts",
+                    validation_owner="npm",
+                    validation_command="npm ci --ignore-scripts",
+                )
         required = (
             "format_owner",
             "format_command",

@@ -65,7 +65,7 @@ def test_native_tool_declarations_have_one_locked_supply_identity() -> None:
         assert all(re.fullmatch(r"sha256:[a-f0-9]{64}", value["checksum"]) for value in materials)
 
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())
-    assert any(item.startswith("lychee-bin>=") for item in project["dependency-groups"]["dev"])
+    assert any(item.startswith("lychee-bin>=") for item in project["project"]["dependencies"])
 
 
 def test_python_bootstrap_supplies_the_declared_linux_signing_tool() -> None:
@@ -294,16 +294,17 @@ def test_project_capability_supply_revalidates_each_operation(tmp_path, monkeypa
 
 
 def test_config_quality_consumes_source_bound_node_package_supply(tmp_path, monkeypatch) -> None:
-    supply, node = tmp_path / "node_modules", tmp_path / "node"
-    check = Mock(return_value=())
-    monkeypatch.setattr(ProjectRuntime, "node_executable", lambda _self: node)
-    monkeypatch.setattr(ProjectRuntime, "node_package_supply", lambda _self: supply)
-    monkeypatch.setattr(ci_sessions, "import_module", lambda _name: SimpleNamespace(run=check))
+    """The native product provider owns supply; Nox only projects its selected root."""
+    check = Mock(return_value={"verdict": "pass", "required_gaps": []})
+    monkeypatch.setattr(ci_sessions, "ROOT", tmp_path)
+    monkeypatch.setattr(
+        ci_sessions, "import_module", lambda _name: SimpleNamespace(configuration_report=check)
+    )
     session = SimpleNamespace(posargs=(), run=Mock(), error=pytest.fail)
 
     ci_sessions.config_quality(cast("nox.Session", session))
 
-    check.assert_called_once_with((), node=node, package_supply=supply)
+    check.assert_called_once_with(tmp_path, paths=())
     session.run.assert_called_once_with(
         ci_sessions.RUNTIME.script("pre-commit"), "validate-config", ci_sessions.PRE_COMMIT_CONFIG
     )

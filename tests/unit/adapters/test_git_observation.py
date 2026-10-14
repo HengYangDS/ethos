@@ -313,3 +313,21 @@ def test_git_observations_fail_closed_on_unavailable_or_ambiguous_data(
     monkeypatch.setattr(git_adapter, "git_stdout", lambda *_args, **_kwargs: next(values))
     report = git_adapter.remote_tracking_sync(tmp_path, "dev")
     assert (report["state"], report["ahead"], report["behind"]) == ("synchronized", 0, 0)
+
+
+@pytest.mark.parametrize("state", ["empty", "files", "unavailable"])
+def test_git_file_inventory_preserves_exact_paths_and_native_failures(
+    tmp_path: Path, state: str
+) -> None:
+    root = tmp_path / "repo"
+    if state == "unavailable":
+        with pytest.raises(git_adapter.GitExecutionError):
+            git_adapter.git_files(root, "*.py", check=True)
+        return
+    init_git_repo(root)
+    expected = [] if state == "empty" else ["source with space.py", "source\nline.py"]
+    for relative in expected:
+        (root / relative).write_text("value = 1\n")
+    if expected:
+        git(root, "add", *expected)
+    assert sorted(git_adapter.git_files(root, "*.py", check=True)) == sorted(expected)

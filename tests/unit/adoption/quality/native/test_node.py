@@ -16,7 +16,7 @@ from ethos.adapters.gates.javascript.behavior import behavior_observation
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.code_subjects import CodeSubject
-from ethos.repository.policy.quality_reports import validate_native_v8_report
+from ethos.repository.policy.quality_reports import validate_node_precise_coverage
 from tests.support.governed_repository import committed_source_repo
 
 
@@ -114,7 +114,7 @@ def test_native_selection_preserves_options_and_same_attempt_custody(
     with ZipFile(str(string_mapping(report["artifact"])["path"])) as archive:
         for name, digest in identity.items():
             content = archive.read(f"raw/{name}")
-            validate_native_v8_report(content)
+            validate_node_precise_coverage(content)
             assert hashlib.sha256(content).hexdigest() == digest
 
 

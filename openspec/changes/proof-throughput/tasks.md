@@ -14,7 +14,7 @@ Original pre-refresh commitments and qualification records remain in signed Git 
 - [x] 1.6 Compare identical native boundary cases at two, four and eight workers without retries.
 - [x] 1.7 Measure consolidated full proof and repair merge intent diagnostic precedence.
 - [x] 1.8 Verify the consolidated proof, release and integration regressions with unchanged quality budgets.
-- [ ] 1.9 Restore complete repository proof within 900 seconds, including preparation, every required gate and cleanup. Repair the measured critical path before another full run; preserve unrelated commitments at signed source `f029116881d70612a93a681479a6db3ad231788c`. Latest exact-source attempt `9ba63a763-repository-workers8-proof.execution.json` passed 33 completed gates but timed out with unit-architecture and final coverage incomplete. Temporary local delivery does not supply full acceptance.
+- [ ] 1.9 Restore complete repository proof within 900 seconds, including preparation, every required gate and cleanup; preserve unrelated commitments at signed source `f029116881d70612a93a681479a6db3ad231788c`. Qualify the existing Git-read reuse before one exact-source rerun. Observation `2cbadb508eb8b5917fbac8c9e20a8d8ad3db1dcbf968c914e775a89709ddc291` records source `90f193e4e` interrupted at 900 seconds with 32 gates passed and full tests/coverage incomplete; temporary local delivery is not full acceptance.
 - [ ] 1.10 Evaluate the nonblocking 600-second optimization direction from the measured remaining critical path.
 
 ## 2. Invocation-Scoped Facts and Proof Reuse

@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import pytest
 import tomli_w
 
+import ethos.adapters.process as process_adapter
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.gate_policy import resolve_proof_policies
@@ -250,28 +251,74 @@ def test_scheduler_hint_does_not_reclassify_product_quality_owner(tmp_path: Path
 
 
 @pytest.mark.parametrize("floor", ["full", "default"])
-def test_gate_policy_binds_committed_sources_and_reports_missing_source(tmp_path, floor) -> None:
+@pytest.mark.parametrize(
+    "script",
+    [
+        "tools/check-v2.sh",
+        "tools/audit script.sh",
+        "./tools/check-v2.sh",
+        "./tools/audit script.sh",
+    ],
+)
+def test_gate_policy_binds_committed_sources_and_reports_missing_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, floor: str, script: str
+) -> None:
+    """Fresh typed batches preserve policy bytes, missing inputs and native failures."""
     repo = init_git_repo(tmp_path / "repo")
     write_script_gate_policy(repo, full=True)
-    first = dict(resolve_proof_policies(repo, tree_ref=commit_fixture(repo, "policy")))[floor]
+    registry = repo / "system/gates.toml"
+    publisher = "tools/publish.sh"
+    registry.write_text(registry.read_text().replace('["publish"]', f'["{publisher}"]'))
+    (repo / publisher).write_text("#!/bin/sh\nprintf publish\n")
+    head = commit_fixture(repo, "policy")
+    batches: list[bytes] = []
+    queries: list[tuple[str, ...]] = []
+    native = process_adapter.run_command
+    damaged_blob: Path | None = None
+
+    def observe(root, command, **kwargs):
+        if command[1:2] == ("cat-file",) and "--batch" in command:
+            batches.append(kwargs["stdin"])
+            if damaged_blob is not None:
+                original = damaged_blob.read_bytes()
+                damaged = original[:-1] + bytes([original[-1] ^ 1])
+                assert damaged != original
+                damaged_blob.unlink()
+                damaged_blob.write_bytes(damaged)
+        queries.append(tuple(command[1:]))
+        return native(root, command, **kwargs)
+
+    monkeypatch.setattr(process_adapter, "run_command", observe)
+    first = dict(resolve_proof_policies(repo, tree_ref=head))[floor]
     assert first.gate_ids == (("check", "publish") if floor == "full" else ("check",))
     assert first.gaps == _MISSING_QUALITY
+    objects = {
+        git(repo, "rev-parse", f"{head}:{path}").encode() for path in ("tools/check.sh", publisher)
+    }
+    assert any(set(batch.splitlines()) == objects for batch in batches)
+    assert not any(query[:1] == ("show",) and query[-1].endswith(".sh") for query in queries)
 
-    registry = repo / "system/gates.toml"
-    registry.write_text(registry.read_text().replace("tools/check.sh", "tools/check-v2.sh"))
-    (repo / "tools/check-v2.sh").write_text("#!/bin/sh\nexit 0\n")
+    registry.write_text(registry.read_text().replace("tools/check.sh", script))
+    (repo / script).write_text("#!/bin/sh\nexit 0\n")
     changed = dict(resolve_proof_policies(repo, tree_ref=commit_fixture(repo, "command")))[floor]
+    assert changed.gaps == _MISSING_QUALITY
     assert changed.digest != first.digest
 
-    (repo / "tools/check-v2.sh").unlink()
+    (repo / script).unlink()
     missing = commit_fixture(repo, "missing")
-    (repo / "tools/check-v2.sh").write_text("#!/bin/sh\nexit 0\n")
+    (repo / script).write_text("#!/bin/sh\nexit 0\n")
     selected = dict(resolve_proof_policies(repo, tree_ref=missing))[floor]
     assert selected == resolve_gate_policy(repo, tree_ref=missing, full=floor == "full")
-    assert selected.gaps == (
-        "gate_policy_source_missing:check:tools/check-v2.sh",
-        *_MISSING_QUALITY,
-    )
+    assert selected.gaps == (f"gate_policy_source_missing:check:{script}", *_MISSING_QUALITY)
+
+    object_id = next(iter(objects)).decode()
+    damaged_blob = repo / ".git/objects" / object_id[:2] / object_id[2:]
+    original = damaged_blob.read_bytes()
+    with pytest.raises(ValueError, match="git_object_batch_invalid"):
+        resolve_proof_policies(repo, tree_ref=head)
+    damaged_blob.write_bytes(original)
+    damaged_blob = None
+    assert dict(resolve_proof_policies(repo, tree_ref=head))[floor] == first
 
 
 def test_nox_gate_binds_repository_sources_and_requires_runtime(tmp_path: Path) -> None:

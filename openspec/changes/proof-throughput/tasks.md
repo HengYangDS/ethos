@@ -26,7 +26,7 @@ Original pre-refresh commitments and qualification records remain in signed Git 
 - [x] 2.5 Remove duplicate merge governance observation through exact staged admission. Verify the owning native regression.
 - [x] 2.6 Reuse current invoking source identity with explicit provenance, not digest coincidence. Verify the owning native regression.
 - [x] 2.7 Share exact proof selection within each publication admission while rechecking every effect. Verify the owning native regression.
-- [x] 2.8 Observe shared full/default proof-policy inputs once per fresh admission. Verify the owning native regression.
+- [x] 2.8 Acquire shared full/default policy materials in fresh typed Git batches; preserve raw native paths, source modes, expanded dependencies and corruption refusal. Verify exact output equivalence and reduced native calls at observation `a613b5f3c547b039c9c4637fd649e1b591ec782ffba03632c6fa3e6ff63b18b3`; full proof and installed delivery remain under 1.9.
 - [x] 2.9 Batch canonical set roots with members while retaining native identity and typed-frame checks. Verify the owning native regression.
 - [x] 2.10 Batch effect revision observation and remove duplicate immutable validation while preserving missing-object distinctions. Verify the owning native regression.
 - [x] 2.11 Close invocation-local product-write and exact-proof selection across native consumers. Verify the owning native regression.

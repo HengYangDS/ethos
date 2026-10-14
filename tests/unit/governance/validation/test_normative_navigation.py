@@ -11,7 +11,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.surface.cli.root.reference import docs_registry_report
-from tests.unit.governance.test_docs_health import _document
+from tests.support.documentation import documentation_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -33,19 +33,19 @@ def test_docs_health_requires_reachable_declared_normative_sources(
     topics = handbook / "topics"
     topics.mkdir(parents=True)
     (topics / "contract.md").write_text(
-        _document("sample:contract", "policy", "canonical", "Contract")
+        documentation_fixture("sample:contract", "policy", "canonical", "Contract")
         + "\nRead [Other](../other.md).\n"
     )
     (topics / "README.md").write_text(
-        _document("sample:topics", "index", "canonical", "Topics")
+        documentation_fixture("sample:topics", "index", "canonical", "Topics")
         + "\nRead [Contract](contract.md).\n"
     )
     for name in ("other", "note"):
         (handbook / f"{name}.md").write_text(
-            _document(f"sample:{name}", "policy", "canonical", name.title())
+            documentation_fixture(f"sample:{name}", "policy", "canonical", name.title())
         )
     entry = handbook / "README.md"
-    original = _document("sample:docs", "index", "canonical", "Handbook")
+    original = documentation_fixture("sample:docs", "index", "canonical", "Handbook")
     entry.write_text(original + "\nRead [Note](note.md).\n")
     assert docs_health_report(tmp_path)["readme_disposition"] == [
         f"docs_normative_source_unreachable:{docs}/other.md",
@@ -76,12 +76,14 @@ def test_docs_registry_binds_normative_routes_to_selected_source(tmp_path: Path,
     handbook.mkdir()
     (tmp_path / ".gitignore").write_text(f"{docs}/contract.md\n")
     (handbook / "README.md").write_text(
-        _document("sample:docs", "index", "canonical", "Handbook")
+        documentation_fixture("sample:docs", "index", "canonical", "Handbook")
         + "\nRead [Note](note.md) and [Contract](contract.md).\n"
     )
-    (handbook / "note.md").write_text(_document("sample:note", "policy", "canonical", "Note"))
+    (handbook / "note.md").write_text(
+        documentation_fixture("sample:note", "policy", "canonical", "Note")
+    )
     contract = handbook / "contract.md"
-    contract.write_text(_document("sample:contract", "policy", "canonical", "Contract"))
+    contract.write_text(documentation_fixture("sample:contract", "policy", "canonical", "Contract"))
     run_git(tmp_path, "add", ".gitignore", ".ethos/profile.toml", docs)
     originals = {path: path.read_bytes() for path in handbook.glob("*.md")}
 
@@ -129,7 +131,7 @@ def test_docs_registry_preserves_selected_source_confinement(
     documentation = root / "docs"
     documentation.mkdir()
     original = tmp_path / "outside.md"
-    original.write_text(_document("sample:contract", "policy", "canonical", "Contract"))
+    original.write_text(documentation_fixture("sample:contract", "policy", "canonical", "Contract"))
     alias = documentation / "contract.md"
     try:
         alias.symlink_to(original)

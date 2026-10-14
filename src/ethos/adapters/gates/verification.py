@@ -8,21 +8,27 @@ import json
 import subprocess
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 from time import monotonic
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
+import ethos
+from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import command_scope
 from ethos.adapters.repo.git import current_head
+from ethos.adapters.repo.git import current_tracked_head
+from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.policy.gates import PRODUCT_PROVIDER_SOURCE
+from ethos.repository.policy.gates import provider_module_sources
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from ethos.adapters.gates.javascript.execution import NodeAttempt
     from ethos.contracts.gates import Gate
     from ethos.contracts.gates import NativeOutput
@@ -223,3 +229,35 @@ def _provider_report(
         message = f"gate provider must return a mapping: {reference}"
         raise TypeError(message)
     return cast("Mapping[str, object]", value)
+
+
+def assert_provider_execution_source(root: Path, gates: tuple[Gate, ...]) -> None:
+    """Reject candidate-bound checks running from a different implementation before effects."""
+    bound = tuple(
+        (gate.id, reference)
+        for gate in gates
+        for reference, relative in provider_module_sources(gate)
+        if not relative.startswith(PRODUCT_PROVIDER_SOURCE) and (root / relative).is_file()
+    )
+    package = Path(ethos.__file__).resolve()
+    if not bound or package == (root / "src/ethos/__init__.py").resolve():
+        return
+    try:
+        identity = invoking_build_identity()
+        head = current_tracked_head(root)
+        if head == identity.source_commit and current_tree(root, head) == identity.source_tree:
+            return
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
+        pass
+    gate_id, reference = bound[0]
+    message = f"gate_provider_source_mismatch:{gate_id}:{reference}"
+    raise ProcessExecutionError(
+        message,
+        reason="candidate_provider_execution_requires_matching_source",
+        cwd=str(root),
+        observation={
+            "runner_module_path": str(package),
+            "required_gaps": [f"gate_provider_source_mismatch:{name}:{ref}" for name, ref in bound],
+            "next_action": "run proof from the admitted checkout's locked Python environment",
+        },
+    )

@@ -277,6 +277,15 @@ A repository MAY declare in `.config/checks/eslint/policy.toml` that named track
 - **WHEN** a declaration names the node set, omits its reason or names an untracked file
 - **THEN** the static gate fails closed.
 
+### Requirement: Native Python behavior runs on a declared interpreter
+
+When a Python project selects no mise toolchain, the native behavior gate SHALL run its tests on an interpreter its `requires-python` admits: the runtime interpreter when the declaration admits it, otherwise an installed interpreter that uv selects from the project's declaration.
+
+#### Scenario: A project pins an older interpreter
+
+- **WHEN** a project declares `requires-python = "==3.12.*"` and the runtime interpreter is 3.14
+- **THEN** the gate does not pin the runtime interpreter, and uv selects an installed 3.12 interpreter.
+
 ### Requirement: Ecosystem modules lock their manifests
 
 A repository that tracks `pyproject.toml` SHALL lock it with `uv.lock` and SHALL declare a Python lower bound of 3.12. A repository that declares npm dependencies SHALL lock them with `package-lock.json`, and a repository whose `go.mod` requires modules SHALL track `go.sum`. Tool and runtime versions remain repository-owned under the version policy.

@@ -9,9 +9,9 @@ configuration plane, not a truth center.
   remaining native tool tables are not permission to duplicate policy owned
   by an explicit configuration file.
 - `.config/checks/pytest/pytest.toml` is the pytest config owner and points pytest runtime cache to `build/runtime/tool-cache/pytest`, not `.config/`. Owner scripts pass it with `-c` and `--rootdir=.`. Native `pythonpath` entries are relative to the configuration directory and explicitly resolve to the repository and its `src/`; `--rootdir` does not rebase those entries.
-- [The Ruff policy](checks/ruff/ruff.toml) owns lint and formatting rules. Root
-  `ruff.toml` contains only native inheritance and the repository-relative cache
-  binding; configured CLI, hook and editor consumers retain that discovery entry.
+- [The Ruff policy](checks/ruff/ruff.toml) owns lint and formatting rules. Every
+  consumer passes it explicitly, with the cache under `build/runtime/tool-cache/ruff/`;
+  no root discovery entry exists, and editors point their Ruff setting at this file.
   The package runtime supplies Ruff for selected staged Python checks. These
   checks consume index bytes through native stdin, not uncommitted worktree
   contents. Missing bound supply is a failure, not an implicit skipped check.
@@ -20,7 +20,7 @@ configuration plane, not a truth center.
 - Root `noxfile.py` is the native discovery entry for `tools/ci/sessions.py`,
   which owns the executable Python lint proof surface inside the
   single uv-locked `.venv`: unsuppressed Ruff check and Ruff format check,
-  both bound to root `ruff.toml`. Nox creates no second
+  both bound to `.config/checks/ruff/ruff.toml`. Nox creates no second
   environment, and Ruff caches remain under `build/runtime/tool-cache/ruff/`.
   Root `pyproject.toml` remains free of Ruff policy.
 - `.config/checks/coverage/coverage.toml` owns Python line-and-branch measurement; `.config/checks/coverage/policy.toml` owns the required hard floor. Default proof, full proof, and local CI enforce that same floor against current-HEAD evidence. Generated coverage data and XML go to `build/evidence/quality/tests/coverage/`, pytest JUnit evidence goes to `build/evidence/quality/tests/pytest/`, pytest cache goes to ignored `build/runtime/tool-cache/pytest/`, and pytest temporary directories default outside the repository so fixture roots cannot masquerade as repository truth. Pytest policy stays in `.config/checks/pytest/pytest.toml`; root `pyproject.toml` carries only the pytest discovery cache routing invariant for bare pytest and IDE invocation.
@@ -50,7 +50,7 @@ configuration plane, not a truth center.
   root `pyproject.toml` remains the dependency manifest, not a second policy.
 - `.config/checks/schema/jsonschema.toml` owns JSON Schema metaschema hygiene; `uv run --frozen --offline python -m nox -s schemas` validates tracked schema documents while command payload validation stays in ETHOS command tests and runtime checks.
 - `.config/checks/security/audit.toml` owns the native dependency audit boundary. The `vulnerabilities` Nox session calls `tools/ci/dependency_audit.py` to audit Python and npm locks, retaining bounded native observations and one input-bound verdict. A finding that no official stable release fixes is reported without blocking: every locked npm artifact that ships it is already its registry latest release, or a Python advisory names no newer stable fix version. Fixable or unobserved findings still block. Online security guards package delivery without making offline tests depend on advisory availability; hosted CI and publication remain separate claims.
-- [The secret-scanning policy](checks/secrets/gitleaks.toml) is reached through the root Gitleaks discovery reference; `.config/mise/config.toml` and `.config/mise/mise.lock` own native tool selections and platform artifact digests. `tools/ci/scripts/run-secrets-scan.sh` obtains verified project-local supply through `tools/ci/toolchain/native.py` and passes the policy explicitly. Hosted proof uses the same supply owner; neither path installs system files or trusts ambient scanner bytes.
+- [The secret-scanning policy](checks/gitleaks/gitleaks.toml) is passed explicitly to every scan, including staged pre-commit admission; `.config/mise/config.toml` and `.config/mise/mise.lock` own native tool selections and platform artifact digests. `tools/ci/scripts/run-secrets-scan.sh` obtains verified project-local supply through `tools/ci/toolchain/native.py` and passes the policy explicitly. Hosted proof uses the same supply owner; neither path installs system files or trusts ambient scanner bytes.
 - `tools/ci/repository_hygiene.py`, invoked through the `repository_hygiene` Nox session, owns cross-file hygiene such as tracked-file size, LF endings, final newline, JSON parseability, merge-conflict markers, and the zero-suppression invariant.
 - `.config/mise/config.toml` and `.config/mise/mise.lock` select native developer/CI supply through native discovery. The existing
   Python bootstrap prepares missing mise with tools/ci/scripts/mise-install.sh,
@@ -101,14 +101,9 @@ Placement follows the actual consumer, not a blanket root-file exemption.
 
 - Python and npm manifests remain beside their ecosystem lockfiles at the
   workspace boundary. Native Git metadata and attributes retain their Git scope.
-- `ruff.toml` preserves native discovery through `extend`. Its cache binding
-  stays root-relative because automatic discovery and explicit configuration
-  resolve inherited relative paths differently. Rules exist only in the nested
-  policy; the root entry does not copy them.
 - `noxfile.py` is a small native entrypoint, not another session implementation.
 - `.gitlab-ci.yml` is a generated provider entrypoint. Its meaning comes from
   the CUE source and native inputs, not separately authored YAML.
-- `.gitleaks.toml` contains only a native reference to the nested secret policy.
   It preserves discovery and the installed hook across the cutover without
   duplicating rules. Consumers run from the repository root; a missing or
   malformed referenced policy is rejected.

@@ -335,12 +335,16 @@ def test_pre_commit_requires_only_selected_capabilities_to_prove_clean(
         "ethos.adapters.admission.prewrite.prewrite_guard", lambda **_kwargs: {"verdict": "pass"}
     )
     if capability == "secrets":
-        (repo / ".gitleaks.toml").write_text("title = 'policy'\n")
-        assert git_process(repo, "add", ".gitleaks.toml").returncode == 0
+        policy = repo / ".config/checks/gitleaks/gitleaks.toml"
+        policy.parent.mkdir(parents=True)
+        policy.write_text("title = 'policy'\n")
+        assert git_process(repo, "add", ".config").returncode == 0
         monkeypatch.setattr(hook_runtime, "shutil", SimpleNamespace(which=lambda _name: None))
     elif capability != "absent":
-        (repo / "ruff.toml").write_text("line-length = 100\n")
-        assert git_process(repo, "add", "ruff.toml").returncode == 0
+        policy = repo / ".config/checks/ruff/ruff.toml"
+        policy.parent.mkdir(parents=True)
+        policy.write_text("line-length = 100\n")
+        assert git_process(repo, "add", ".config").returncode == 0
         if capability == "missing-formatter":
             monkeypatch.setattr(hook_runtime, "sys", SimpleNamespace(prefix=str(repo)))
         elif capability == "timeout":
@@ -501,7 +505,7 @@ def test_reference_transition_policy_failure_is_blocked(
     ("kind", "expected"),
     [("git-identity", 0), ("plain", 1), ("local", 1), ("instance", 1), ("legacy", 1)],
 )
-@pytest.mark.parametrize("policy", [".gitleaks.toml", ".config/checks/secrets/gitleaks.toml"])
+@pytest.mark.parametrize("policy", [".config/checks/gitleaks/gitleaks.toml"])
 def test_native_secret_rule_distinguishes_credentials_from_git_identity(
     kind: str, expected: int, policy: str
 ) -> None:

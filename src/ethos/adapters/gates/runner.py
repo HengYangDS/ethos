@@ -20,14 +20,12 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 import ethos
-from ethos.adapters.gates.native.attempt import native_attempt
-from ethos.adapters.gates.native.attempt import retained_execution
-from ethos.adapters.gates.verification import NativeExecution
+from ethos.adapters.gates.native.attempt import gate_attempt
+from ethos.adapters.gates.native.attempt import gate_execution
 from ethos.adapters.gates.verification import diagnostic_gaps_for
 from ethos.adapters.gates.verification import provider_reports
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import command_scope
-from ethos.adapters.process import run_command
 from ethos.adapters.repo.dependency_acceptance import captured_dependency_acceptance
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tracked_head
@@ -155,19 +153,12 @@ class LocalGateRunner:
         )
         native_evidence = None
         try:
-            if gate.native_outputs:
-                completed, native_evidence = native_attempt(
-                    root,
-                    gate,
-                    execution_command,
-                    timeout=max(0, deadline - monotonic()) if deadline else None,
-                )
-            else:
-                completed = run_command(
-                    root,
-                    execution_command,
-                    timeout=max(0, deadline - monotonic()) if deadline else None,
-                )
+            completed, native_evidence = gate_attempt(
+                root,
+                gate,
+                execution_command,
+                timeout=max(0, deadline - monotonic()) if deadline else None,
+            )
         except subprocess.TimeoutExpired as exc:
             return ActionRunResult(
                 action_id=node.id,
@@ -244,17 +235,13 @@ class LocalGateRunner:
             stderr=completed.stderr,
             diagnostics=diagnostics,
         )
-        native = retained_execution(
-            NativeExecution(
-                declared_identity=node.command,
-                argv=completed.args if native_evidence is not None else command,
-                cwd=root.resolve(),
-                exit_code=completed.returncode,
-                stdout=completed.stdout,
-                stderr=completed.stderr,
-                executable=execution_command[0] if executable else "",
-                evidence=native_evidence,
-            )
+        native = gate_execution(
+            root,
+            node.command,
+            command,
+            completed,
+            executable=execution_command[0] if executable else "",
+            evidence=native_evidence,
         )
         verification: dict[str, object] | None = None
         if native.evidence is not None:

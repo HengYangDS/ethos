@@ -186,17 +186,20 @@ def run_runtime_tool(
 
 def runtime_wheel(selected: SelectedRuntime) -> Path:
     """Resolve selected package bytes through their sole private-layout owner."""
-    package_root = selected.root.parent.parent / "packages" / selected.wheel_sha256
-    if package_root.is_symlink() or not package_root.is_dir():
-        _fail("hook_runtime_wheel_provenance_missing")
-    wheels = tuple(
-        path
-        for path in package_root.glob("ethos-*.whl")
-        if path.is_file() and not path.is_symlink()
-    )
-    if len(wheels) != 1 or file_sha256(wheels[0]) != selected.wheel_sha256:
-        _fail("hook_runtime_wheel_provenance_missing")
-    return wheels[0]
+    try:
+        package_root = selected.root.parent.parent / "packages" / selected.wheel_sha256
+        if package_root.is_symlink() or not package_root.is_dir():
+            _fail("hook_runtime_wheel_provenance_missing")
+        wheels = tuple(
+            path
+            for path in package_root.glob("ethos-*.whl")
+            if path.is_file() and not path.is_symlink()
+        )
+        if len(wheels) != 1 or file_sha256(wheels[0]) != selected.wheel_sha256:
+            _fail("hook_runtime_wheel_provenance_missing")
+        return wheels[0]
+    except OSError as error:
+        _fail("hook_runtime_wheel_provenance_missing", error)
 
 
 def selected_runtime_source(source: Path) -> SelectedRuntime | None:

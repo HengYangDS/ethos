@@ -9,12 +9,28 @@ import subprocess
 import sys
 from contextvars import ContextVar
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ethos.domain.quality.observer import runtime_identity
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 _ACTIVE: ContextVar[tuple[tuple[str, ...], list[tuple[str, tuple[str, ...], str]]] | None] = (
     ContextVar("native_quality_launch", default=None)
 )
+
+
+def popen_request(arguments: tuple[object, ...]) -> tuple[str, tuple[str, ...], str] | None:
+    """Return one textual Popen audit request, or None when any part is not text."""
+    executable, argv, cwd, _environment = arguments
+    if not isinstance(executable, str) or not isinstance(argv, (tuple, list)):
+        return None
+    if not all(isinstance(item, str) for item in argv):
+        return None
+    if cwd is not None and not isinstance(cwd, str):
+        return None
+    return executable, tuple(argv), str(Path(cwd or Path.cwd()).resolve())
 
 
 def _audit(event: str, arguments: tuple[object, ...]) -> None:
@@ -65,6 +81,7 @@ def run_ruff(
         with stdout.open("w", encoding="utf-8") as out, stderr.open("w", encoding="utf-8") as err:
             result = subprocess.run(
                 command,
+                stdin=subprocess.DEVNULL,
                 stdout=out,
                 stderr=err,
                 check=False,
@@ -102,27 +119,31 @@ def _write(
     output.write_text(json.dumps(runtime, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def main() -> int:
-    """Expose custody as an installed child operation with explicit original argv."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    run = parser.add_subparsers(dest="operation", required=True).add_parser("run")
+def main(arguments: Sequence[str] | None = None) -> int:
+    """Expose the child launch as one installed operation taking the exact Ruff argv."""
+    selected = list(sys.argv[1:] if arguments is None else arguments)
+    boundary = selected.index("--") if "--" in selected else len(selected)
+    parser = argparse.ArgumentParser(prog="python -m ethos.domain.quality.nox", allow_abbrev=False)
+    run = parser.add_subparsers(dest="operation", required=True).add_parser(
+        "run", allow_abbrev=False
+    )
     run.add_argument("--runtime-output", type=Path, required=True)
     run.add_argument("--session", required=True)
     run.add_argument("--configuration", type=Path, required=True)
-    run.add_argument("command", nargs=argparse.REMAINDER)
-    options = parser.parse_args()
-    if not options.command or options.command[0] != "--" or len(options.command) < 2:
+    options = parser.parse_args(selected[:boundary])
+    command = tuple(selected[boundary + 1 :])
+    if not command:
         parser.error("run requires -- followed by the exact Ruff argv")
     try:
         return run_ruff(
-            tuple(options.command[1:]),
+            command,
             runtime_output=options.runtime_output,
             identity=options.session,
             configuration=options.configuration,
         )
     except (OSError, ValueError) as error:
-        print(str(error), file=sys.stderr)
-        return 1
+        sys.stderr.write(f"{parser.prog}: {error}\n")
+        return 2
 
 
 if __name__ == "__main__":

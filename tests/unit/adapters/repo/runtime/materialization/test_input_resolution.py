@@ -228,6 +228,29 @@ def test_managed_runtime_requires_one_exact_wheel(tmp_path, monkeypatch, content
             runtime_inputs.resolve_runtime_wheel(source, tmp_path / "unused")
 
 
+def test_selected_runtime_supplies_its_exact_verified_wheel(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One selected immutable runtime resolves only its byte-verified package."""
+    source, package_root = _managed_runtime_case(monkeypatch, tmp_path)
+    selected = runtime_inputs.selected_runtime_source(source)
+    assert selected is not None
+    with pytest.raises(ValueError, match=r"^hook_runtime_wheel_provenance_missing$"):
+        runtime_inputs.runtime_wheel(selected)
+    package_root.mkdir(parents=True)
+    wheel = package_root / "ethos-0.2.0+local-py3-none-any.whl"
+    wheel.write_bytes(b"wheel")
+    assert runtime_inputs.runtime_wheel(selected) == wheel
+    assert "ethos-0.2.0%2Blocal-py3-none-any.whl" in wheel.as_uri()
+
+    def unreadable(_path: Path) -> str:
+        raise PermissionError
+
+    monkeypatch.setattr(runtime_inputs, "file_sha256", unreadable)
+    with pytest.raises(ValueError, match=r"^hook_runtime_wheel_provenance_missing$"):
+        runtime_inputs.runtime_wheel(selected)
+
+
 @pytest.mark.parametrize("layout", ["bin/python", "python/python.exe"])
 @pytest.mark.parametrize(
     "operation", [("export",), ("sync",), ("pip", "install", "package.whl"), ("build",)]

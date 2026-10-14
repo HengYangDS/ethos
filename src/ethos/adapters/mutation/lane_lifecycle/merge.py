@@ -261,6 +261,24 @@ def _stage_admission(root: Path, head: str, incoming: str) -> dict[str, object]:
         if delta.returncode:
             _fail("merge_authoring_observation_unavailable")
         paths = tuple(filter(None, delta.stdout.split("\0")))
+        intent = git(
+            "diff",
+            "--no-renames",
+            "--name-only",
+            "-z",
+            incoming,
+            index.stdout.strip(),
+            "--",
+            "openspec/changes",
+        )
+        if intent.returncode:
+            _fail("merge_authoring_observation_unavailable")
+        authored_intent = set(filter(None, intent.stdout.split("\0")))
+        paths = tuple(
+            path
+            for path in paths
+            if not path.startswith("openspec/changes/") or path in authored_intent
+        )
     admission = prewrite_guard(
         root=root,
         paths=[Path(path) for path in paths],

@@ -9,26 +9,42 @@ context: |
   and the Product Design Contract before authoring or projecting content.
 rules:
   proposal:
-    - Explain the problem, intended change, and explicit out-of-scope boundary.
-    - Name affected capabilities and include ETHOS routing metadata.
+    - Follow the selected official proposal template. Keep Why, What Changes,
+      Capabilities, and Impact concise; mark breaking changes and state the
+      out-of-scope boundary without copying implementation or execution history.
+    - Reuse exact existing capability paths. New capabilities name cohesive
+      observable behavior; include the existing ETHOS routing metadata.
   specs:
-    - Use ADDED, MODIFIED, REMOVED, or RENAMED Requirements sections.
-    - Include at least one Scenario with WHEN and THEN clauses for each
-      requirement.
+    - Follow the selected official spec template and exact capability path.
+      Change deltas use native requirement operations; main specs retain Purpose
+      and Requirements, not active-change operations or implementation history.
+    - State observable SHALL or MUST obligations, with a four-level Scenario
+      heading and WHEN and THEN clauses for each requirement. Keep existing
+      MODIFIED requirement blocks complete, including every retained scenario.
     - Keep observable obligations and falsifiers here; reference the rationale
       and implementation design rather than maintaining duplicate contracts.
   tasks:
-    - Describe bounded actions and their completion checks using the official
-      task checkboxes. Record progress here; reference existing evidence when
-      needed instead of copying execution results or debugging narratives.
+    - Use official checkboxes under numbered groups, in dependency order.
+      Keep stable task identities and truthful states; each task states one
+      bounded action and an observable completion check. Group numbering and
+      Markdown nesting express the same hierarchy.
+    - Keep only necessary short dependency or evidence references. Preserve
+      original execution history in Git and native evidence, not in tasks or
+      design prose; never create a parallel progress ledger.
     - Separate implementation tasks from lifecycle preconditions and effects.
       Keep exact-current proof outside the snapshot it verifies; a Change must
       not require its own archive or Lane retirement as a completed task before
-      that effect is admitted. Preserve those obligations and their observable
-      postconditions in design; task completion does not prove closeout.
+      that effect is admitted. Preserve required workflow follow-up as plain
+      bullets under the official optional Workflow follow-up section; task
+      completion does not prove closeout.
   design:
-    - Record architecture, tradeoffs, authority boundaries, and migration risks
-      for non-trivial changes.
+    - Follow the selected official design template for non-trivial changes with
+      Context, Goals / Non-Goals, Decisions, and Risks / Trade-offs. Include
+      Migration Plan when applicable and only genuinely deferrable Open Questions.
+    - Explain architecture, alternatives, rationale and authority boundaries;
+      reference proposal and specs rather than restating them. Split independent
+      long topics into linked semantic subdirectories without losing meaning.
+      Keep execution history and full logs in their existing native evidence owners.
 operations:
   apply:
     guidance:

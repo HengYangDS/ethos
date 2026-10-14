@@ -18,6 +18,7 @@ from zipfile import ZipFile
 
 from ethos.adapters.gates.native.python import PythonRuntime
 from ethos.adapters.gates.verification import NativeEvidence
+from ethos.adapters.gates.verification import NativeExecution
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.git import current_tracked_head
@@ -31,7 +32,6 @@ from ethos.contracts.evidence.observer import ObserverIdentity
 from ethos.contracts.semantic import canonical_json_digest
 
 if TYPE_CHECKING:
-    from ethos.adapters.gates.verification import NativeExecution
     from ethos.contracts.gates import Gate
     from ethos.contracts.gates import NativeOutput
 
@@ -232,3 +232,36 @@ def retained_execution(execution: NativeExecution) -> NativeExecution:
         return execution
     artifact = _retain(execution.cwd, execution)
     return replace(execution, evidence=replace(execution.evidence, artifact=artifact))
+
+
+def gate_attempt(
+    root: Path, gate: Gate, command: tuple[str, ...], *, timeout: float | None
+) -> tuple[subprocess.CompletedProcess[str], NativeEvidence | None]:
+    """Run one gate command; declared native outputs come from that same attempt."""
+    if gate.native_outputs:
+        return native_attempt(root, gate, command, timeout=timeout)
+    return run_command(root, command, timeout=timeout), None
+
+
+def gate_execution(
+    root: Path,
+    declared_identity: tuple[str, ...],
+    command: tuple[str, ...],
+    completed: subprocess.CompletedProcess[str],
+    *,
+    executable: str,
+    evidence: NativeEvidence | None,
+) -> NativeExecution:
+    """Describe one gate attempt and keep its native evidence beyond owned scratch."""
+    return retained_execution(
+        NativeExecution(
+            declared_identity=declared_identity,
+            argv=completed.args if evidence is not None else command,
+            cwd=root.resolve(),
+            exit_code=completed.returncode,
+            stdout=completed.stdout,
+            stderr=completed.stderr,
+            executable=executable,
+            evidence=evidence,
+        )
+    )

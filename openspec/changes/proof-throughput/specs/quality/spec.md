@@ -1,12 +1,13 @@
 ## ADDED Requirements
 
-### Requirement: Native audit observations have explicit finding disposition
+### Requirement: Exact audit dispositions preserve strict delivery
 
-The existing dependency-audit owner SHALL disclose advisory findings without
-blocking ETHOS development, CI, installation, release or distribution. Native
-reports, finding identities, counts and exits SHALL remain unchanged. Observation
-failure, inconsistent output, input drift and non-advisory adverse statuses SHALL
-remain nonpassing. An explicitly strict policy MAY retain exact dispositions.
+The existing dependency-audit owner MAY admit explicitly selected local
+development against a human-authorized disposition for the exact advisory,
+locked package artifact, nodes, dependency snapshot and explicitly approved host.
+Native observations SHALL remain unchanged; unselected development, CI, release,
+installation and distribution SHALL retain the strict decision for every finding
+that an official stable release fixes.
 
 #### Scenario: A bundled component has no independent integrity
 
@@ -17,7 +18,7 @@ remain nonpassing. An explicitly strict policy MAY retain exact dispositions.
 - **AND** missing bundle ownership or artifact integrity remains unavailable,
   never an invented child identity
 
-#### Scenario: An explicitly strict local policy has a finite boundary
+#### Scenario: Local permission has an accountable finite boundary
 
 - **WHEN** the existing owner evaluates an explicitly selected local-development disposition
 - **THEN** it requires an accountable owner, approval reference, rationale,
@@ -25,34 +26,60 @@ remain nonpassing. An explicitly strict policy MAY retain exact dispositions.
 - **AND** native findings, counts, exit status and raw evidence remain unchanged
 - **AND** an absent disposition grants no permission
 
-#### Scenario: Product reporting reaches each delivery consumer
+#### Scenario: Unselected and delivery consumers remain strict
 
-- **WHEN** proof, security, build, CI, installation or distribution consumes
-  the product's declared reporting policy
-- **THEN** complete advisory findings remain visible and do not block delivery
-- **AND** the subject's execution declaration remains unchanged
-- **AND** no advisory approval or expiry registry is required for product reporting
+- **WHEN** default proof, security or build gates, CI, installation or distribution
+  evaluate the source without an explicitly authorized local-development selection
+- **THEN** they retain the same owner's strict production-release decision
+- **AND** declared CI refuses the local-development selector rather than
+  inheriting a host-local approval
 
 #### Scenario: One advisory affects multiple npm package aggregates
 
-- **WHEN** a complete native npm report refers transitively to an advisory
+- **WHEN** a complete native npm report refers transitively to one approved advisory
 - **THEN** the owner resolves every aggregate reference to its concrete advisory roots
-- **AND** reporting preserves the native blocked verdict and exact locked subjects
-- **AND** strict policies still require their explicitly selected exact coverage
+- **AND** exact active coverage may permit local development without changing the native blocked verdict
+- **AND** production and release remain blocked without separate evaluators or package-name exclusions
 
-#### Scenario: Reporting cannot replace a valid observation
+#### Scenario: Authorization or observation cannot establish local permission
 
-- **WHEN** aggregate resolution fails, required observation is unavailable,
-  native output or exits disagree, or inputs change within an attempt
-- **THEN** reporting cannot pass and preserves the distinct observation boundary
-- **AND** a fresh complete scan may report its newly bound locked subjects
+- **WHEN** approval expires, an advisory or locked identity changes, aggregate resolution fails, or required observation is unavailable
+- **THEN** the local decision cannot pass and preserves the distinct expiry, identity or observation boundary
+- **AND** a fresh attempt cannot renew approval through an earlier receipt timestamp
 - **AND** changed source inputs, adverse Python evidence and interrupted attempts remain nonpassing
 
-#### Scenario: Direct native release consumes the same audit owner
+#### Scenario: Direct native release does not inherit local permission
 
 - **WHEN** an explicit release build or install is requested through Nox
-- **THEN** the same audit owner evaluates production-release scope before the effect
-- **AND** advisory reporting does not grant authenticity, credential or release authority
+- **THEN** the same audit owner evaluates strict production-release scope before the release effect
+- **AND** a local-development permission cannot authorize that effect
+
+### Requirement: Findings without a stable upstream fix do not block
+
+The dependency-audit owner SHALL report, without blocking any scope, a native
+finding that no official stable release fixes yet. Fixable or unobserved findings
+SHALL keep blocking until the supply is upgraded or an exact disposition applies.
+Adverse Python package statuses are not advisories and SHALL keep the strict result.
+
+#### Scenario: Every owning artifact already is its latest stable release
+
+- **WHEN** every locked npm artifact that ships a finding, the bundling package for
+  an `inBundle` component, already is its registry latest release, or a Python
+  advisory's native fix versions name no newer stable release
+- **THEN** the decision passes and lists the finding as unfixed upstream
+- **AND** native findings, counts, exit status and raw evidence remain unchanged
+
+#### Scenario: An upgrade can fix the finding or the observation is missing
+
+- **WHEN** an owning artifact is behind its latest stable release, a Python advisory
+  names a newer stable fix version, or the registry observation is missing or malformed
+- **THEN** the finding blocks until the supply is upgraded or an exact disposition applies
+
+#### Scenario: Landing reevaluates the captured observation
+
+- **WHEN** landing or a Git hook reevaluates a captured audit
+- **THEN** it reads the same-attempt upstream observation without network access
+- **AND** an exact disposition keeps precedence over the unfixed-upstream report
 
 ### Requirement: Object coordinates share one typed native observation
 
@@ -993,6 +1020,50 @@ relevant test or hosted acceptance; rendering never changes a test verdict.
 - **AND** governance and gate consumers apply the same native result interpretation
 - **AND** empty or informational valid results pass while invalid items, failed execution and unreadable output block
 - **AND** missing official supply blocks without substituting another executable
+
+### Requirement: Declared native outputs bind one gate attempt
+
+A gate MAY declare `native_outputs` that name each report its native command
+writes, with format and producing session. ETHOS SHALL capture them from one
+owned attempt and pass them to the gate's verification providers. Missing,
+duplicate, malformed or session-inconsistent outputs SHALL NOT satisfy the gate.
+
+#### Scenario: An adopter profile declares native reports
+
+- **WHEN** a profile or gate registry declares valid native outputs for a gate
+- **THEN** the declaration validates against the published gate schema
+- **AND** the verification provider receives the reports of that exact attempt
+
+#### Scenario: A declared report is absent or inconsistent
+
+- **WHEN** a declared report is missing, duplicated, malformed or bound to another session
+- **THEN** the gate cannot pass and reports the exact native output gap
+
+### Requirement: A native attempt supplies its own observer
+
+A native attempt that declares a Python runtime report SHALL give its command the
+invoking immutable runtime's exact wheel as one hashed direct reference in
+`ETHOS_NATIVE_OBSERVER_REQUIREMENT`, and SHALL remove any inherited value. The
+installed observer SHALL run one exact Ruff argv from the session child and record
+that child's interpreter with the launch.
+
+#### Scenario: An installed runtime runs a native gate
+
+- **WHEN** an installed runtime starts an attempt that declares a Python runtime report
+- **THEN** the command receives `ethos @ <wheel file URI>#sha256=<digest>` for that runtime's wheel
+- **AND** the retained attempt receipt names the supplied requirement
+
+#### Scenario: The session child observes its own Ruff launch
+
+- **WHEN** a session child runs `python -m ethos.domain.quality.nox run` with a Ruff argv after `--`
+- **THEN** the operation returns Ruff's exit code and records that interpreter with the single launch
+- **AND** the Nox parent environment needs no ETHOS installation
+
+#### Scenario: No exact wheel is available
+
+- **WHEN** the invoking package is a source checkout
+- **THEN** the attempt supplies no requirement
+- **AND** a selected runtime whose package wheel is absent or changed refuses before launch
 
 ### Requirement: Configuration selection preserves requested coverage
 

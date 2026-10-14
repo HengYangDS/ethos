@@ -18,6 +18,9 @@ from pydantic import field_validator
 from pydantic import model_validator
 
 from ethos.contracts.verdict import reduce_verdicts
+from ethos.repository.policy.quality.upstream_fixes import npm_owners
+from ethos.repository.policy.quality.upstream_fixes import python_findings
+from ethos.repository.policy.quality.upstream_fixes import unfixed_npm_subjects
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -114,7 +117,6 @@ class AuditPolicy(BaseModel):
     summary: str
     runner: str
     timeout_seconds: int = Field(gt=0)
-    finding_action: Literal["block", "report"] = "block"
     dispositions: list[AuditDisposition] = Field(default_factory=list)
 
 
@@ -135,8 +137,7 @@ def compose_audit_policies(subject: AuditPolicy, product: AuditPolicy) -> AuditP
     for record in (*subject.dispositions, *product.dispositions):
         if record not in records:
             records.append(record)
-    action = "report" if "report" in (subject.finding_action, product.finding_action) else "block"
-    return subject.model_copy(update={"dispositions": records, "finding_action": action})
+    return subject.model_copy(update={"dispositions": records})
 
 
 def audit_workspace_manifests(name: str, data: bytes) -> tuple[str, ...]:
@@ -252,6 +253,13 @@ def _npm_subjects(lock_source: bytes, check: dict) -> tuple[set[AuditSubject], i
     return subjects, len(roots)
 
 
+def npm_upstream_owners(lock_source: bytes, check: dict) -> set[str]:
+    """Name the locked artifacts whose latest stable release decides the native npm findings."""
+    subjects, _aggregates = _npm_subjects(lock_source, check)
+    owners = npm_owners(subjects, lock_source).values()
+    return {name for artifacts in owners for name, _version in artifacts}
+
+
 def _count(value: object) -> bool:
     return type(value) is int and value >= 0
 
@@ -340,31 +348,6 @@ def _native_observation_gaps(payload: dict, lock_source: bytes) -> tuple[str, st
     return "pass", ""
 
 
-def _reported_findings(checks: list[dict], lock_source: bytes) -> dict:
-    """Separate advisory disposition from required native observation validity."""
-    if any(
-        check["verdict"] == "unknown"
-        or check["exit_code"] != (0 if check["verdict"] == "pass" else 1)
-        for check in checks
-    ):
-        return {"verdict": "unknown", "reason": "native_execution_failed"}
-    python = json.loads(checks[0]["stdout"])
-    if python["summary"]["adverse_statuses"]:
-        return {"verdict": "block", "reason": "native_adverse_statuses"}
-    findings = python["summary"]["vulnerabilities"]
-    subjects: set[AuditSubject] = set()
-    if checks[1]["verdict"] == "block":
-        subjects, aggregates = _npm_subjects(lock_source, checks[1])
-        findings += aggregates
-    return {
-        "verdict": "pass",
-        "reason": "reported_findings" if findings else "clean",
-        "finding_count": findings,
-        "advisory_count": len({subject[0] for subject in subjects}),
-        "reported_subjects": sorted(subjects),
-    }
-
-
 def evaluate_dependency_acceptance(
     policy: AuditPolicy,
     payload: dict,
@@ -385,21 +368,16 @@ def evaluate_dependency_acceptance(
             return {**decision, "verdict": verdict, "reason": reason}
         decision["verdict"] = payload["verdict"]
         checks = payload["checks"]
-        if policy.finding_action == "report":
-            decision.update(_reported_findings(checks, lock_source))
-        if (
-            policy.finding_action == "report"
-            or payload["verdict"] == "pass"
-            or checks[0]["verdict"] != "pass"
-            or (
-                scope == "production-release"
-                and not any(record.scope == scope for record in policy.dispositions)
-            )
-        ):
+        python = python_findings(checks[0])
+        if payload["verdict"] == "pass" or python is None:
             return decision
-        if checks[1]["verdict"] != "block" or checks[1]["exit_code"] not in (0, 1):
+        if checks[1]["verdict"] not in ("pass", "block") or checks[1]["exit_code"] not in (0, 1):
             return {**decision, "verdict": "unknown", "reason": "native_execution_failed"}
-        subjects, aggregates = _npm_subjects(lock_source, checks[1])
+        subjects, aggregates = (
+            _npm_subjects(lock_source, checks[1]) if checks[1]["verdict"] == "block" else (set(), 0)
+        )
+        upstream = payload.get("upstream", {}).get("npm", {})
+        unfixed = unfixed_npm_subjects(npm_owners(subjects, lock_source), upstream) | python[1]
     except (ValueError, KeyError, TypeError, AttributeError) as error:
         return {
             **decision,
@@ -425,20 +403,24 @@ def evaluate_dependency_acceptance(
             for record in active
         )
     }
-    authorized = subjects <= covered
+    findings = subjects | python[0]
+    reported = (findings - covered) & unfixed
+    blocking = findings - covered - reported
+    reason = "unfixed_upstream_findings_reported" if reported else "authorized_findings"
     return {
         "scope": scope,
-        "verdict": "pass" if authorized else "block",
-        "reason": "authorized_findings" if authorized else "unapproved_or_expired_findings",
+        "verdict": "block" if blocking else "pass",
+        "reason": "unapproved_or_expired_findings" if blocking else reason,
         "evaluated_at": now.isoformat(),
         "host": host,
-        "advisory_count": len({subject[0] for subject in subjects}),
-        "covered_package_count": aggregates if authorized else 0,
+        "advisory_count": len({subject[0] for subject in findings}),
+        "covered_package_count": 0 if blocking else aggregates,
         "approvals": [record.model_dump(mode="json") for record in active],
         "expired_approvals": [
             record.approval_ref
             for record in matching
             if record.expires_at is not None and now >= record.expires_at
         ],
-        "unapproved_subjects": sorted(subjects - covered),
+        "unapproved_subjects": sorted(blocking),
+        "unfixed_upstream_subjects": sorted(reported),
     }

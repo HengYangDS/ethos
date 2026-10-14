@@ -90,10 +90,8 @@ def test_artifact_risk_acceptance_is_portable_without_hiding_native_findings(
     assert payload["decision"]["covered_package_count"] == 6
 
 
-def test_product_policy_reports_exact_findings_without_changing_subject_policy(
-    repository, monkeypatch
-):
-    """Product reporting preserves native evidence and derives each fresh lock subject."""
+def test_product_policy_accepts_only_its_exact_portable_artifact(repository, monkeypatch):
+    """Product-owned release risk is consumed without changing the subject policy."""
     raw = npm_advisories(repository)
     source = Path(tests.__file__).resolve().parent.parent / AUDIT_POLICY_PATH
     resource_owner.canonical_resource(AUDIT_POLICY_PATH).write_bytes(
@@ -106,19 +104,14 @@ def test_product_policy_reports_exact_findings_without_changing_subject_policy(
     assert payload["decision"]["verdict"] == "pass"
     assert payload["product_policy"]["path"] == AUDIT_POLICY_PATH
     assert payload["product_policy"]["build"]["source_commit"]
-    assert payload["decision"]["reason"] == "reported_findings"
-    assert payload["decision"]["finding_count"] == 6
-    assert [record[1] for record in payload["decision"]["reported_subjects"]] == ["braces"]
+    assert [record["package"] for record in payload["decision"]["approvals"]] == ["braces"]
     assert (repository / AUDIT_POLICY_PATH).read_bytes() == subject_before
     assert source.is_file()
 
     locked = json.loads((repository / "package-lock.json").read_text())
     locked["packages"]["node_modules/braces"]["integrity"] = "sha512-Y2hhbmdlZA=="
     (repository / "package-lock.json").write_text(json.dumps(locked) + "\n")
-    fresh = invoke_audit(repository)
-    assert fresh["decision"]["verdict"] == "pass"
-    assert fresh["decision"]["reported_subjects"][0][3] == "sha512-Y2hhbmdlZA=="
-    assert fresh["inputs"]["package-lock.json"] != payload["inputs"]["package-lock.json"]
+    assert invoke_audit(repository)["decision"]["verdict"] == "block"
 
 
 def test_product_policy_composition_preserves_exact_records_and_subject_execution(
@@ -343,75 +336,9 @@ def test_bundled_advisory_uses_owning_lock_artifact(repository, monkeypatch, fau
         else "block"
     )
     strict = invoke_audit(repository)
-    assert strict["decision"]["verdict"] == "block"
+    unresolved = fault in {"unbundled", "owner-missing"}
+    assert strict["decision"]["verdict"] == ("unknown" if unresolved else "block")
     assert strict["decision"]["scope"] == "production-release"
-
-
-@pytest.mark.parametrize(
-    ("scope", "ci"),
-    [("production-release", False), ("production-release", True), ("local-development", False)],
-)
-def test_declared_advisory_reporting_preserves_native_evidence(repository, monkeypatch, scope, ci):
-    """Complete findings are disclosed without blocking an explicitly reporting owner."""
-    raw = npm_advisories(repository)
-    output = json.dumps(raw)
-    policy = repository / audit.POLICY
-    policy.write_text(policy.read_text() + '\nfinding_action = "report"\n')
-    if ci:
-        monkeypatch.setenv("CI", "true")
-    npm_transport(monkeypatch, output)
-    payload = invoke_audit(repository, scope=scope)
-    assert payload["verdict"] == "block"
-    assert payload["checks"][1]["stdout"] == output
-    assert payload["decision"]["verdict"] == "pass"
-    assert payload["decision"]["reason"] == "reported_findings"
-    assert payload["decision"]["finding_count"] == 6
-
-
-def test_reported_advisories_do_not_authorize_inconsistent_observation(repository, monkeypatch):
-    """Advisory disposition never waives native exits or captured manifest identity."""
-    raw = npm_advisories(repository)
-    policy_path = repository / audit.POLICY
-    policy_path.write_text(policy_path.read_text() + '\nfinding_action = "report"\n')
-    npm_transport(monkeypatch, json.dumps(raw))
-    payload = invoke_audit(repository)
-    policy = AuditPolicy.model_validate(tomllib.loads(policy_path.read_text()))
-    options = {
-        "lock_source": (repository / "package-lock.json").read_bytes(),
-        "scope": "production-release",
-        "host": "native-host",
-        "now": datetime.now(UTC),
-        "ci": False,
-    }
-    assert evaluate_dependency_acceptance(policy, payload, **options)["verdict"] == "pass"
-    for exit_code in (0, 2):
-        inconsistent = json.loads(json.dumps(payload))
-        inconsistent["checks"][1]["exit_code"] = exit_code
-        assert evaluate_dependency_acceptance(policy, inconsistent, **options)["verdict"] != "pass"
-    assert (
-        evaluate_dependency_acceptance(policy, payload, **{**options, "lock_source": b"{}"})[
-            "verdict"
-        ]
-        != "pass"
-    )
-
-
-def test_reporting_preserves_non_advisory_python_failure(repository, monkeypatch):
-    """A native quarantine is not a disclosed advisory and remains a refusal."""
-    policy = repository / audit.POLICY
-    policy.write_text(policy.read_text() + '\nfinding_action = "report"\n')
-
-    def respond(_root, command, ecosystem):
-        raw = clean_report(ecosystem)
-        if ecosystem == "python":
-            raw["summary"]["adverse_statuses"] = 1
-            raw["adverse_statuses"] = [{"name": "fixture", "status": "quarantined"}]
-        return subprocess.CompletedProcess(command, int(ecosystem == "python"), json.dumps(raw), "")
-
-    native_transport(monkeypatch, respond)
-    payload = invoke_audit(repository)
-    assert payload["verdict"] == payload["decision"]["verdict"] == "block"
-    assert payload["decision"]["reason"] == "native_adverse_statuses"
 
 
 _EXACT_RISK = {

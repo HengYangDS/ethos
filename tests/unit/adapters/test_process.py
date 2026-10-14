@@ -12,7 +12,6 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 from contextlib import nullcontext
 from contextvars import copy_context
-from time import monotonic
 from unittest.mock import Mock
 
 import pytest
@@ -190,18 +189,21 @@ def test_process_handoff_already_owns_reaping_and_pipes(
             child.__exit__(None, None, None)
 
 
-def test_command_scope_conserves_one_deadline_across_native_calls(tmp_path) -> None:
+def test_command_scope_conserves_one_deadline_across_native_calls(tmp_path, monkeypatch) -> None:
     """A later or nested command cannot renew a caller's finite execution budget."""
-    command = (sys.executable, "-c", "import time; time.sleep(0.6)")
-    started = monotonic()
-    with process_adapter.command_scope(timeout_seconds=1.0):
-        process_adapter.run_command(tmp_path, command, timeout=10)
+    now = [1_000.0]
+    monkeypatch.setattr(process_adapter, "monotonic", lambda: now[0])
+    with process_adapter.command_scope(timeout_seconds=60):
+        process_adapter.run_command(tmp_path, (sys.executable, "-c", "pass"), timeout=600)
+        now[0] += 59.75
         with (
-            process_adapter.command_scope(timeout_seconds=10),
-            pytest.raises(subprocess.TimeoutExpired),
+            process_adapter.command_scope(timeout_seconds=600),
+            pytest.raises(subprocess.TimeoutExpired) as expired,
         ):
-            process_adapter.run_command(tmp_path, command, timeout=10)
-    assert monotonic() - started < 3
+            process_adapter.run_command(
+                tmp_path, (sys.executable, "-c", "import time; time.sleep(60)"), timeout=600
+            )
+    assert expired.value.timeout == pytest.approx(0.25)
     assert process_adapter.run_command(tmp_path, (sys.executable, "-c", "pass")).returncode == 0
 
 

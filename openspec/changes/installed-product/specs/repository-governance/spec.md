@@ -265,6 +265,13 @@ Lease generation. Ordinary cross-identity CAS SHALL remain rejected.
 - **AND** old revisions remain historical or not-yet-transitioned stage inputs
 - **AND** no temporary profile rollback or history rewrite is required
 
+#### Scenario: Retirement deletes a ref that predates a completed rename
+
+- **WHEN** a retirement only deletes a topic ref whose head carries the identity of its common ancestor with every kept ref
+- **THEN** the deletion is admitted under the kept identity without an identity edge, alias or profile rewrite
+- **AND** an identity introduced only by the deleted ref, or a ref without shared history, remains rejected
+- **AND** an integration that moves a ref across identities still requires the explicit transition
+
 #### Scenario: A ref program contains both migration and new publication refs
 
 - **WHEN** an admitted branch identity transition also creates a signed tag or follows a declared accepted-mirror policy

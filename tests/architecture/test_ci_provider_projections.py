@@ -156,10 +156,8 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_pa
         "tests/fixtures/quality-sample/pyproject.toml",
         "tests/fixtures/quality-sample/uv.lock",
     } <= copy_sources
-    assert (
-        "uv --directory /tmp/ethos-quality-sample sync --no-config --locked --group dev"
-        in dockerfile
-    )
+    # The fixture's own uv settings, including its prerelease policy, bind its lock.
+    assert "uv --directory /tmp/ethos-quality-sample sync --locked --group dev" in dockerfile
     native_command = "tools/ci/toolchain/native.py --root . --mise gitleaks scc syft"
     assert f"PYTHONPATH=src .venv/bin/python {native_command}" in dockerfile
     for relative in copy_sources:

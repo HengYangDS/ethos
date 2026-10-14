@@ -57,7 +57,6 @@ def admit_git_effect_state(
         raise ValueError(message)
     if recovering:
         require_lease_generation(root, plan, detached_branch=detached_branch)
-        require_effect_proof(root, plan)
         repository = (
             resolve_git_effect_repository(
                 root, effect, observed, environment=environment, plan=plan
@@ -65,9 +64,9 @@ def admit_git_effect_state(
             if "repository_identity_transitions" in plan.policy
             else ""
         )
+        require_effect_proof(root, plan)
         return observed, True, repository
     require_plan_prestate(root, plan, effect, detached_branch=detached_branch)
-    require_effect_proof(root, plan)
     repository = resolve_git_effect_repository(
         root,
         effect,
@@ -79,6 +78,7 @@ def admit_git_effect_state(
     if refs != expected:
         message = "git_effect_cas_mismatch"
         raise ValueError(message)
+    require_effect_proof(root, plan)
     return observed, False, repository
 
 

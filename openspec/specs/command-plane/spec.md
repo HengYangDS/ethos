@@ -991,3 +991,67 @@ remote state. Observation SHALL not claim repository proof or mutation authority
 - **THEN** the result remains UNKNOWN with exact missing facts and a read-only diagnostic
 - **AND** an independent known destination violation still yields BLOCK
 - **AND** neither result authorizes a repository or remote effect
+
+### Requirement: Archive validation failures carry the native issues
+
+When official strict validation rejects the archive postimage, `ethos lane
+archive-change` SHALL report each blocking native issue of every rejected item
+as a diagnostic with its item, severity, path and message, so the failure is
+diagnosable without repeating the archive.
+
+#### Scenario: Merged canonical spec fails strict validation
+
+- **WHEN** the archive merge leaves a canonical spec that strict validation
+  rejects
+- **THEN** the result blocks with `openspec_validation_failed:spec:<capability>`
+  and compensates the archive effect as before
+- **AND** its diagnostics name the rejected item and the native issue level,
+  path and message
+- **AND** the repair continuation and required gaps are unchanged.
+
+#### Scenario: Validation output is unreadable
+
+- **WHEN** the official validation output cannot be read
+- **THEN** the result carries no invented diagnostics and keeps its existing
+  unreadable gap.
+
+### Requirement: Work Lane refresh is admitted before it rewrites
+
+`ethos lane refresh-base` SHALL check that this repository's write admission
+is armed before any rebase or ref effect that would change the lane, and SHALL
+report the native failure evidence of any refused refresh effect.
+
+#### Scenario: Write admission is not armed
+
+- **WHEN** a lane needs a refresh and the hook runtime binding reports
+  required gaps
+- **THEN** the refresh blocks with those gaps before rebasing or moving refs
+- **AND** its continuation is the binding's own next action.
+
+#### Scenario: A refresh effect is refused
+
+- **WHEN** the native ref transaction or attachment of a refresh is refused
+- **THEN** the result keeps its existing gaps and restoration attempt
+- **AND** it carries the native process failure evidence, including the
+  rejecting command's stderr and post-observation.
+
+### Requirement: Refused and interrupted refreshes restore their Work Lane
+
+`ethos lane refresh-base` SHALL return a lane whose rewritten head was refused to its original head with its branch attached, and SHALL restore a lane left detached by an interrupted refresh from that lane's pending refresh record.
+
+#### Scenario: A refresh effect is refused after the rebase
+
+- **WHEN** replay validation or the lane ref update of a refresh is refused
+- **THEN** the lane's HEAD, index and worktree return to the original head
+- **AND** the lane branch is attached again.
+
+#### Scenario: A refresh was interrupted after the rebase
+
+- **WHEN** a lane is detached with no applied refresh effect and its pending record names a branch that still holds the recorded head
+- **THEN** `refresh-base --apply` restores the lane to that head with its branch attached and reports `base_restored`
+- **AND** its next action is the exact refresh of the restored head.
+
+#### Scenario: The pending record does not match
+
+- **WHEN** the lane is dirty, a rebase is unfinished or the branch no longer holds the recorded head
+- **THEN** the refresh blocks without moving the worktree.

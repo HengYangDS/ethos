@@ -57,21 +57,22 @@ def behavior(session):
 
 @nox.session(python=VERSION, venv_backend="none")
 def static(session):
-    output = runtime(session)
+    output = Path(os.environ["ETHOS_NATIVE_OUTPUT_DIR"])
+    record = output / (session.name + "-runtime.json")
     targets = ("src/app.py",) if OUTCOME == "static-scope" else ("src", "tests", "noxfile.py")
     config = ".config/ruff-alternate.toml" if OUTCOME == "static-config" else ".config/ruff.toml"
+    binary = Path(EXECUTABLE).with_name("ruff.exe" if os.name == "nt" else "ruff")
+    ruff = (str(binary), "check", "--config", config, "--verbose", "--no-cache",
+        "--output-format", "json", "--output-file", str(output / "ruff.json"), *targets)
     if OUTCOME == "static-detached":
+        runtime(session)
         session.run(EXECUTABLE, "-m", "ruff", "check", "--config", config,
             "--output-format", "json", "--output-file", str(output / "ruff.json"),
             "src", "tests", "noxfile.py", external=True)
     else:
-        from ethos.domain.quality.nox import run_ruff
-        binary = Path(EXECUTABLE).with_name("ruff.exe" if os.name == "nt" else "ruff")
-        run_ruff(session, (str(binary), "check", "--config", config, "--verbose", "--no-cache",
-            "--output-format", "json", "--output-file", str(output / "ruff.json"),
-            *targets),
-            runtime_output=output / (session.name + "-runtime.json"),
-            identity=session.name + "-" + VERSION, configuration=Path(config))
+        session.run(EXECUTABLE, "-B", "-I", "-m", "ethos.domain.quality.nox", "run",
+            "--runtime-output", str(record), "--session", session.name + "-" + VERSION,
+            "--configuration", config, "--", *ruff, external=True)
     if OUTCOME == "timeout":
         session.run(EXECUTABLE, "-c",
             "import time; print('timeout-sentinel', flush=True); time.sleep(60)",

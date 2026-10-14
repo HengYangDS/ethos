@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import replace
 from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
 
+import ethos.adapters.gates.native.attempt as gate_attempt
 from ethos.adapters.gates.native.attempt import native_attempt
 from ethos.adapters.gates.native.attempt import retained_execution
 from ethos.adapters.gates.python_quality import behavior_report
@@ -22,7 +24,7 @@ from tests.support.native_quality import native_quality_gate
 
 
 def test_native_nox_reports_qualify_the_original_attempt(tmp_path: Path) -> None:
-    """Two native sessions produce one complete, interpreter-bound observation."""
+    """The session child's observer binds one complete, interpreter-bound observation."""
     gate = native_quality_gate(tmp_path)
     node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
     result = LocalGateRunner().run(node, gate, root=tmp_path / "repo")
@@ -48,6 +50,7 @@ def test_native_nox_reports_qualify_the_original_attempt(tmp_path: Path) -> None
     artifact = Path(artifact_value)
     with ZipFile(artifact) as stored:
         identity = json.loads(stored.read("execution.json"))
+        assert identity["observer_requirement"] is None
         checks = identity["dependency_checks"]
         assert len(checks) == 2
         assert {tuple(item["dependency_groups"]) for item in checks} == {("dev",)}
@@ -357,3 +360,58 @@ def test_native_attempt_reports_unsafe_output_and_changed_source(
     gate = native_quality_gate(tmp_path, outcome)
     _, evidence = native_attempt(tmp_path / "repo", gate, gate.command, timeout=45)
     assert gap in evidence.gaps, evidence.gaps
+
+
+_WHEEL = "ethos @ file:///runtime/packages/ethos.whl#sha256=" + "a" * 64
+
+
+@pytest.mark.parametrize(
+    ("runtime_report", "requirement"), [(True, None), (True, _WHEEL), (False, _WHEEL)]
+)
+def test_native_attempt_supplies_only_its_own_observer(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    runtime_report: bool,
+    requirement: str | None,
+) -> None:
+    """The command sees the invoking runtime's wheel, never an inherited requirement."""
+    script = (
+        "import os, pathlib; "
+        "pathlib.Path(os.environ['ETHOS_NATIVE_OUTPUT_DIR'], 'ruff.json').write_text("
+        f"os.environ.get({gate_attempt.OBSERVER_REQUIREMENT!r}, 'absent'))"
+    )
+    gate = native_quality_gate(tmp_path)
+    outputs = tuple(
+        output
+        for output in gate.native_outputs
+        if runtime_report or output.format != "python-runtime-json"
+    )
+    gate = gate.model_copy(
+        update={"command": (sys.executable, "-c", script), "native_outputs": outputs}
+    )
+    monkeypatch.setattr(gate_attempt, "invoking_runtime_requirement", lambda: requirement)
+    monkeypatch.setenv(gate_attempt.OBSERVER_REQUIREMENT, "ethos @ file:///ambient.whl")
+    _, evidence = native_attempt(tmp_path / "repo", gate, gate.command, timeout=45)
+    supplied = requirement if runtime_report else None
+    observed = next(content for output, content in evidence.outputs if output.path == "ruff.json")
+    assert observed.decode() == (supplied or "absent")
+    assert evidence.observer_requirement == supplied
+
+
+def test_native_attempt_refuses_a_runtime_without_its_wheel_before_launch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A selected runtime that cannot name its exact wheel launches nothing."""
+    gate = native_quality_gate(tmp_path)
+    launched: list[tuple[str, ...]] = []
+
+    def unavailable() -> str:
+        msg = "hook_runtime_wheel_provenance_missing"
+        raise ValueError(msg)
+
+    monkeypatch.setattr(gate_attempt, "invoking_runtime_requirement", unavailable)
+    monkeypatch.setattr(gate_attempt, "run_command", lambda _root, argv, **_: launched.append(argv))
+    with pytest.raises(ValueError, match=r"^hook_runtime_wheel_provenance_missing$"):
+        native_attempt(tmp_path / "repo", gate, gate.command, timeout=45)
+    assert launched == []

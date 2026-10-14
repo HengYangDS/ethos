@@ -11,6 +11,11 @@ from typing import cast
 
 from ethos.adapters.mutation.lane_lifecycle.merge import MergeMode
 from ethos.adapters.mutation.lane_lifecycle.merge import merge_work_lane
+from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_record import PendingRefresh
+from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_record import clear_pending_refresh
+from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_record import read_pending_refresh
+from ethos.adapters.mutation.lane_lifecycle.work_lane_refresh_record import write_pending_refresh
+from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.commit.creation import commit_environment
 from ethos.adapters.repo.commit.integration import validate_replayed_commits
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
@@ -20,8 +25,9 @@ from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import recover_plan
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
-from ethos.adapters.repo.git_effects import compensate_git_worktree
 from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.hook.observation import hook_runtime_binding
+from ethos.adapters.repo.merge.observation import git_path
 from ethos.adapters.repo.merge.observation import pending_merge_heads
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
@@ -36,6 +42,7 @@ from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
+from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.commit import commit_policy_from_text
 
 if TYPE_CHECKING:
@@ -82,19 +89,29 @@ def refresh_work_lane_base(
     authorized: bool = False,
     expect_head: str | None = None,
     strategy: Literal["rebase", "merge"] = "rebase",
+    source_ref: str | None = None,
     mode: MergeMode = "inspect",
     expect_state: str | None = None,
     subject: str | None = None,
 ) -> dict[str, object]:
-    if strategy == "merge":
-        return merge_work_lane(
-            root=root,
-            mode=mode,
-            apply=apply,
-            authorized=authorized,
-            expect_head=expect_head,
-            expect_state=expect_state,
-            subject=subject,
+    if strategy == "merge" or source_ref is not None:
+        return (
+            merge_work_lane(
+                root=root,
+                mode=mode,
+                apply=apply,
+                authorized=authorized,
+                expect_head=expect_head,
+                expect_state=expect_state,
+                subject=subject,
+                source_ref=source_ref,
+            )
+            if strategy == "merge"
+            else {
+                "verdict": "block",
+                "state": "blocked",
+                "required_gaps": ["merge_source_ref_requires_merge_strategy"],
+            }
         )
     policy = load_branch_role_policy(root)
     status = workspace_status(root)
@@ -106,7 +123,11 @@ def refresh_work_lane_base(
     if branch == "detached" and apply:
         try:
             result = _recover_work_lane(
-                root, policy.candidate_branch, candidate_head, candidate_path
+                root,
+                policy.candidate_branch,
+                candidate_head,
+                candidate_path,
+                dirty=bool(status.get("dirty")),
             )
             return _with_action(root, result, apply=apply)
         except ValueError as error:
@@ -157,6 +178,9 @@ def refresh_work_lane_base(
         )
     if is_ancestor(root, candidate_head, current_head):
         result = _report(context, current_head, "base_current", [])
+    elif admission := _write_admission_gaps(root):
+        gaps, action = admission
+        result = _report(context, current_head, "blocked", gaps, next_action=action)
     elif not apply:
         result = _report(context, current_head, "ready_to_refresh_base", [])
     else:
@@ -164,15 +188,30 @@ def refresh_work_lane_base(
     return _with_action(root, result, apply=apply)
 
 
+def _write_admission_gaps(root: Path) -> tuple[list[str], str] | None:
+    """Refuse a rewrite that the armed hooks would reject, before any effect."""
+    runtime = hook_runtime_binding(root)
+    gaps = list(string_sequence(runtime.get("required_gaps")))
+    return (gaps, str(runtime.get("next_action") or "")) if gaps else None
+
+
+def _process_failure(error: Exception) -> dict[str, object]:
+    """Keep native refusal evidence instead of reducing it to its code."""
+    return {"process_failure": error.evidence()} if isinstance(error, ProcessExecutionError) else {}
+
+
+def _exact_refresh(root: Path, head: str) -> str:
+    return (
+        "ethos lane refresh-base --apply --authorize "
+        f"--expect-head {head} --root {shlex.quote(root.resolve().as_posix())} --json"
+    )
+
+
 def _with_action(root: Path, report: dict[str, object], *, apply: bool) -> dict[str, object]:
     """Attach the operation-owned continuation before CLI projection."""
     gaps = tuple(str(item) for item in cast("list[object]", report.get("required_gaps", [])))
     state = str(report.get("state") or "")
-    head = str(report.get("head") or "")
-    exact_refresh = (
-        "ethos lane refresh-base --apply --authorize "
-        f"--expect-head {head} --root {shlex.quote(root.resolve().as_posix())} --json"
-    )
+    exact_refresh = _exact_refresh(root, str(report.get("head") or ""))
     if report.get("next_action"):
         action = str(report["next_action"])
     elif not gaps and state == "ready_to_refresh_base":
@@ -206,7 +245,13 @@ def _refresh_work_lane(
         )
         signing_required = commit_policy is not None and commit_policy.signing_required
         environment = commit_environment(root, None) if signing_required else None
-    except (TypeError, ValueError) as error:
+        write_pending_refresh(
+            root,
+            PendingRefresh(
+                branch=branch, previous_head=current_head, candidate_head=candidate_head
+            ),
+        )
+    except (OSError, TypeError, ValueError) as error:
         return _report(context, current_head, "blocked", [str(error)])
     completed = run_git(
         root,
@@ -225,17 +270,17 @@ def _refresh_work_lane(
             context,
             current_tracked_head(root),
             "blocked",
-            ["refresh_base_failed", *_reattach_original_work_lane(root, branch, current_head)],
+            ["refresh_base_failed", *_restore_original_work_lane(root, branch, current_head)],
             stderr=completed.stderr.strip(),
         )
     rebased_head = current_tracked_head(root)
     if not is_ancestor(root, candidate_head, rebased_head):
-        _attach_work_lane(root, branch, current_head)
+        restore_gaps = _restore_original_work_lane(root, branch, current_head)
         return _report(
             context,
             current_tracked_head(root),
             "blocked",
-            ["refresh_base_postcondition_failed"],
+            ["refresh_base_postcondition_failed", *restore_gaps],
             previous_head=current_head,
             next_action=(f"ethos status --root {shlex.quote(root.resolve().as_posix())} --json"),
             stderr="candidate head is not an ancestor of refreshed work-lane head",
@@ -273,23 +318,21 @@ def _refresh_snapshot_gaps(
     ]
 
 
-def _reattach_original_work_lane(root: Path, branch: str, head: str) -> list[str]:
-    """Restore branch attachment after a native rebase failure."""
-    try:
-        _attach_work_lane(root, branch, head)
-    except (OSError, ValueError):
-        return ["refresh_base_worktree_restore_failed"]
-    return []
-
-
 def _restore_original_work_lane(root: Path, branch: str, head: str) -> list[str]:
-    """Restore the original tree and branch after rejected replay output."""
+    """Return the detached lane to its original head, then re-attach its branch."""
     try:
-        compensate_git_worktree(root, head=head)
+        _detach_at(root, head)
         _attach_work_lane(root, branch, head)
+        clear_pending_refresh(root)
     except (OSError, ValueError):
         return ["refresh_base_worktree_restore_failed"]
     return []
+
+
+def _detach_at(root: Path, head: str) -> None:
+    switched = run_git(root, "switch", "--detach", head, check=False)
+    if switched.returncode:
+        raise ValueError(switched.stderr.strip() or "refresh_base_worktree_restore_failed")
 
 
 def _complete_refresh(
@@ -335,6 +378,7 @@ def _complete_refresh(
             plan_digest=plan.digest,
             previous_head=current_head,
             stderr=str(error),
+            **_process_failure(error),
         )
     attachment_attestation = None
     attachment_error = ""
@@ -358,13 +402,7 @@ def _complete_refresh(
             "blocked",
             post_gaps,
             previous_head=current_head,
-            next_action=(
-                "ethos lane refresh-base --apply --authorize "
-                f"--expect-head {refreshed_head} "
-                f"--root {shlex.quote(root.resolve().as_posix())} --json"
-                if attachment_error
-                else ""
-            ),
+            next_action=_exact_refresh(root, refreshed_head) if attachment_error else "",
             stderr=attachment_error
             or (
                 "work-lane branch advanced after refresh compare-and-swap"
@@ -372,6 +410,7 @@ def _complete_refresh(
                 else ""
             ),
         )
+    clear_pending_refresh(root)
     return _report(
         context,
         refreshed_head,
@@ -419,7 +458,7 @@ def _rebase_attestation(
 
 
 def _recover_work_lane(
-    root: Path, candidate_branch: str, candidate_head: str, candidate_path: str
+    root: Path, candidate_branch: str, candidate_head: str, candidate_path: str, *, dirty: bool
 ) -> dict[str, object]:
     head = current_tracked_head(root)
     plan = recover_plan(
@@ -429,8 +468,8 @@ def _recover_work_lane(
         assertions={f"refs/heads/{candidate_branch}": candidate_head},
     )
     if plan is None:
-        msg = "git_effect_recovery_ambiguous"
-        raise ValueError(msg)
+        candidate = (candidate_branch, candidate_head, candidate_path)
+        return _restore_interrupted_refresh(root, head, candidate, dirty=dirty)
     effect = git_effect_from_plan(plan)
     if len(effect.updates) != 1:
         msg = "git_effect_recovery_unproven"
@@ -448,12 +487,43 @@ def _recover_work_lane(
         detached_branch=branch,
     )
     _attach_work_lane(root, branch, head)
+    clear_pending_refresh(root)
     return _report(
         (branch, candidate_branch, candidate_head, candidate_path),
         head,
         "base_refreshed",
         [],
         previous_head=update.expected,
+    )
+
+
+def _restore_interrupted_refresh(
+    root: Path, head: str, candidate: tuple[str, str, str], *, dirty: bool
+) -> dict[str, object]:
+    """Return a lane left detached by an interrupted refresh to its recorded head."""
+    pending = read_pending_refresh(root)
+    if pending is None:
+        msg = "git_effect_recovery_ambiguous"
+        raise ValueError(msg)
+    if any(git_path(root, name).exists() for name in ("rebase-merge", "rebase-apply")):
+        msg = "refresh_base_rebase_in_progress"
+        raise ValueError(msg)
+    if dirty:
+        msg = "work_lane_dirty"
+        raise ValueError(msg)
+    tip = run_git(root, "rev-parse", "--verify", f"refs/heads/{pending.branch}", check=False)
+    if tip.stdout.strip() != pending.previous_head:
+        msg = "git_effect_recovery_unproven"
+        raise ValueError(msg)
+    if gaps := _restore_original_work_lane(root, pending.branch, pending.previous_head):
+        raise ValueError(gaps[0])
+    return _report(
+        (pending.branch, *candidate),
+        pending.previous_head,
+        "base_restored",
+        [],
+        previous_head=head,
+        next_action=_exact_refresh(root, pending.previous_head),
     )
 
 

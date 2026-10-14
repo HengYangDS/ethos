@@ -38,6 +38,24 @@ Avoid vague subjects such as `Update files` or product claims without evidence.
 
 ## Verification
 
+Use scoped checks while editing and the standard proof at acceptance. A small
+change does not need a full proof after every edit. Choose the path by its
+effect and affected consumers, not only its line count.
+
+| Path                 | Use                                                                                 | Completion boundary                                                         |
+| -------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Standard             | Integration, release, governance changes, or the current admission's required floor | Exact-source proof and a separately authorized effect                       |
+| Routine fast         | Focused repairs, documentation edits, and development feedback                      | Selected tests and gates; omitted acceptance obligations remain open        |
+| Authorized emergency | A human-approved temporary bypass of a specific blocked operation                   | Recorded local effect, preserved recovery and explicit pending verification |
+
+The [verification command reference](docs/reference/command-plane.md#standard-and-fast-verification)
+owns commands, guarantees, escalation and temporary hook bypass. The routine
+fast path is not an emergency exception; neither path silently lowers the
+repository's acceptance floor. Automatic risk-selected small-change acceptance
+is not yet generally available.
+
+### Standard Verification
+
 Start with current `ethos status --json` and its selected owner. Obtain exact-path
 `ethos lane prewrite` admission before editing. For each repair:
 
@@ -59,3 +77,26 @@ Start with current `ethos status --json` and its selected owner. Obtain exact-pa
 Use the current runtime's required proof, archive, acceptance, installation and
 publication decisions. Focused checks, signatures and local source acceptance
 are separate claims, not substitutes for the requested complete delivery.
+
+### Routine Fast Iteration
+
+1. Reuse the owned Work Lane and active Change; do not create another merely
+   for a small edit. Obtain current exact-path prewrite admission.
+2. Run the original formatter and the directly affected tests. Include sibling
+   consumers when the changed contract is shared.
+3. Execute only the selected host gates for development feedback. Inspect their
+   terminal results; a read-only plan or readiness result is not execution.
+4. Freeze and commit the complete source once the slice is ready. Request the
+   required exact-source proof at the acceptance boundary, not after every edit.
+
+Escalate to standard verification when ownership or impact is unresolved, a
+shared contract changes, or current admission requires a broader floor. A
+non-host `--gate` selection cannot accept an omitted required gate.
+
+### Authorized Emergency Operations
+
+Temporary hook bypass is available through Git's command-scoped configuration,
+not a permanent disable or a new ETHOS wrapper. Use it only for the exact
+human-authorized operation, with recovery retained and unproved obligations
+recorded in the existing Change. Keep signing enabled and verify the actual
+effect before retrying. See the [bypass procedure](docs/reference/command-plane.md#authorized-temporary-hook-bypass).

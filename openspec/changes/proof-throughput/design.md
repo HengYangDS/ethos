@@ -3363,10 +3363,21 @@ Graph end is the last gate's completion measured from proof start, so it
 includes graph preparation. Where the enclosing command was observed, attestation
 and cleanup added 16-20 seconds, which keeps every run below 780 seconds.
 Attempts that stopped early on content or network failures, such as root cache
-residue or an unreachable vulnerability service, or that ended when their owner's
-terminal closed, are not latency samples; none ran longer than 900 seconds. Host contention from concurrent proofs and CI
-virtual machines still causes most of the variance; admission of that contention
-remains with 5.13 and 9.x.
+residue or an unreachable vulnerability service, or that ended when their
+owner's terminal closed, are not latency samples; none ran longer than 900
+seconds.
+
+The next three complete proofs ran on the same workstation. `931ca43e7` ended
+at 764 seconds. `dadf4c95b` and `9531c19db` ended at 875 and 979 seconds; the
+preceding landing's dev and main pipelines ran one or two GitLab jobs on the CI
+virtual machine that this workstation hosts throughout each proof, and one- and
+five-minute load averages reached 50-63. The fastest run, `aa79ed28b`, overlapped
+two such jobs only in its last four minutes. The code after `43ddb6e7a` changed
+only the dependency-audit policy location and the GitLab artifact projection, so
+the slowdown points to host contention rather than a test regression. Over all
+eight runs, the p90 exceeds 900 seconds. Task 1.9 closes on the five consecutive
+runs measured after the repair. Keeping the budget while a landing's CI shares
+the host needs contention admission, which remains with 5.13 and 9.x.
 
 Two repairs moved the critical path. Install smoke now proves formation in one
 worker thread beside the other installed-console stages, and the lifecycle waits

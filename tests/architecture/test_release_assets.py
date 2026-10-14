@@ -268,6 +268,7 @@ def test_test_environment_freezes_locked_supply_as_absolute_paths(
     assert observed["ETHOS_NODE_PACKAGE_SUPPLY"] == str(supply)
 
     assert {"--dist=load", "--maxschedchunk=1"} <= set(command)
+    assert command[command.index("-p") + 1] == "tools.ci.python_test_order"
     assert ("-n" in command) is (workers == 8)
     assert set(python_test_gate.TARGETS) <= set(command)
 

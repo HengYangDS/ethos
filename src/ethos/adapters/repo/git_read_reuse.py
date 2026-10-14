@@ -1,15 +1,17 @@
 """Reuse Git reads whose answers are fixed by object names or checkout identity.
 
 A commit, tree or blob name is a content address, so a successful read of a
-named object cannot change. The common directory is fixed by the checkout's Git
-entry. Each answer is keyed by that entry's identity, the exact argv, the output
-mode and the configuration overlay. A linked checkout's Git file is identified
-by its inode, size and modification time. A Git directory is identified by its
-inode and by its object directory's info entry, which a new repository creates
-afresh, so a repository recreated at the same path is not answered from the
-former one even where the file system recycles inode numbers. Reads with an
-environment override or input always run, and failures are never reused: a
-missing object is observed again.
+named object cannot change. The Git directory, common directory, object format
+and Git paths other than hooks are fixed by the checkout's Git entry; the hooks
+path follows core.hooksPath and the top level follows core.worktree, so both
+always run. Each answer is keyed by that entry's identity, the exact argv, the
+output mode and the configuration overlay. A linked checkout's Git file is
+identified by its inode, size and modification time. A Git directory is
+identified by its inode and by its object directory's info entry, which a new
+repository creates afresh, so a repository recreated at the same path is not
+answered from the former one even where the file system recycles inode
+numbers. Reads with an environment override or input always run, and failures
+are never reused: a missing object is observed again.
 """
 
 from __future__ import annotations
@@ -38,8 +40,18 @@ def _named(value: str) -> bool:
 def fixed_answer(args: tuple[str, ...]) -> bool:
     """Return whether one read-only Git query has a single answer for its stated names."""
     match args:
-        case ("version",) | ("rev-parse", "--git-common-dir"):
+        case ("version",) | (
+            "rev-parse",
+            "--git-common-dir" | "--absolute-git-dir" | "--show-object-format",
+        ):
             fixed = True
+        case ("rev-parse", "--git-path", path) | (
+            "rev-parse",
+            "--path-format=absolute",
+            "--git-path",
+            path,
+        ):
+            fixed = path.split("/", 1)[0] != "hooks"
         case ("show", spec):
             name, separator, _path = spec.partition(":")
             fixed = bool(separator) and _named(name)

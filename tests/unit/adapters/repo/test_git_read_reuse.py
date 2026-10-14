@@ -137,6 +137,10 @@ def test_reads_outside_a_checkout_and_beyond_capacity_start_again(
     [
         (("version",), True),
         (("rev-parse", "--git-common-dir"), True),
+        (("rev-parse", "--absolute-git-dir"), True),
+        (("rev-parse", "--show-object-format"), True),
+        (("rev-parse", "--git-path", "ethos/ref-intent"), True),
+        (("rev-parse", "--path-format=absolute", "--git-path", "objects"), True),
         (("show", f"{_NAME}:path/file"), True),
         (("rev-parse", f"{_NAME}^{{tree}}"), True),
         (("cat-file", "commit", _NAME), True),
@@ -147,6 +151,10 @@ def test_reads_outside_a_checkout_and_beyond_capacity_start_again(
         (("show", _NAME), False),
         (("rev-parse", "HEAD"), False),
         (("rev-parse", "HEAD^{tree}"), False),
+        (("rev-parse", "--show-toplevel"), False),
+        (("rev-parse", "--git-path", "hooks"), False),
+        (("rev-parse", "--path-format=absolute", "--git-path", "hooks/pre-commit"), False),
+        (("rev-parse", "--path-format=relative", "--git-path", "objects"), False),
         (("read-tree", _NAME), False),
         (("cat-file", "--batch"), False),
         (("cat-file", "-p", _NAME), False),
@@ -158,5 +166,5 @@ def test_reads_outside_a_checkout_and_beyond_capacity_start_again(
 def test_only_reads_fixed_by_their_stated_names_qualify(
     args: tuple[str, ...], *, fixed: bool
 ) -> None:
-    """Mutable refs, writes, batch input and pathspec-limited listings never qualify."""
+    """Mutable refs, configured paths, writes, batch input and path filters never qualify."""
     assert read_reuse.fixed_answer(args) is fixed

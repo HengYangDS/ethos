@@ -25,4 +25,4 @@
 
 - Each adopter migrates through its own Change and switches runtime in the same batch: the proxy, aigw-cli, data-department-work-guidelines, architecture-publisher, web-ingestion-benchmark, the two films, then architecture-publications.
 - The greenfield-formation Change consumes the paradigm contract when it composes a new repository's foundation.
-- The alphasim and di-effect families migrate in their own later Changes.
+- The alphasim and di-effect families migrate in their own later Changes; those Changes replace their local size thresholds, di-effect's 500, 800 and 1200-line values and alphasim's 800-line test value, with the paradigm's 512 ceilings.

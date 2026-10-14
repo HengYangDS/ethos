@@ -24,6 +24,15 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
     assert paradigm.canonical_carrier("pytest.ini") == ".config/checks/pytest/pytest.toml"
     assert paradigm.canonical_carrier("mise.toml") == ".config/mise/config.toml"
     assert paradigm.canonical_carrier("unrelated.txt") == ""
+    assert paradigm.native_carrier("codespell.toml") == ".config/checks/codespell/codespell.toml"
+    assert paradigm.native_carrier("policy.toml") == ""
+    owners = paradigm.owner_directories()
+    assert owners[".config/checks/gitleaks"] == (
+        frozenset({"gitleaks.toml", "gitleaksignore"}),
+        False,
+    )
+    assert owners[".config/checks/vale"][1] is True
+    assert ".config/mise" not in owners
     assert {module.id for module in paradigm.module} == {"python", "node", "go"}
 
 

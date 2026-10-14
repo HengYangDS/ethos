@@ -7,6 +7,8 @@ names. A gap carries its carrier, the violated obligation and the canonical repa
 from __future__ import annotations
 
 import json
+import posixpath
+import re
 import tomllib
 from typing import TYPE_CHECKING
 from typing import NamedTuple
@@ -15,12 +17,14 @@ from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import close_verdict
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from collections.abc import Iterator
     from pathlib import Path
 
     from ethos.contracts.paradigm.declaration import EcosystemModule
     from ethos.contracts.paradigm.declaration import RepositoryParadigm
 
+_KEBAB = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _NPM_DEPENDENCY_FIELDS = (
     "dependencies",
     "devDependencies",
@@ -50,6 +54,7 @@ def repository_paradigm_report(root: Path, *, tracked_paths: tuple[str, ...]) ->
         *_root_gaps(paradigm, tracked),
         *_binding_gaps(paradigm, tracked),
         *_normalization_gaps(paradigm, root, tracked),
+        *_configuration_gaps(paradigm, tracked),
         *_embedded_policy_gaps(paradigm, root, tracked),
         *_module_gaps(paradigm, root, tracked),
     ]
@@ -63,18 +68,45 @@ def repository_paradigm_report(root: Path, *, tracked_paths: tuple[str, ...]) ->
     }
 
 
-def _root_gaps(paradigm: RepositoryParadigm, tracked: frozenset[str]) -> Iterator[ParadigmGap]:
-    """Admit only catalogued protocol entries at the root; non-dot directories are product-owned."""
+def paradigm_path_gaps(path: str) -> tuple[ParadigmGap, ...]:
+    """Return the paradigm gaps that creating one tracked path would introduce.
+
+    Every module's root entries are admitted here: whether a manifest applies is decided
+    over the whole tree by the report.
+    """
+    paradigm = load_repository_paradigm()
+    tracked = frozenset({path})
+    return (
+        *_root_entry_gaps(paradigm, tracked, _admitted_root_entries(paradigm, paradigm.module)),
+        *_binding_gaps(paradigm, tracked),
+        *_configuration_gaps(paradigm, tracked),
+    )
+
+
+def _admitted_root_entries(
+    paradigm: RepositoryParadigm, modules: Iterable[EcosystemModule]
+) -> frozenset[str]:
+    """Return the catalogued root entries plus the given modules' manifest, lock and runners."""
     catalog = paradigm.root
-    applied = [module for module in paradigm.module if module.manifest in tracked]
-    admitted = {
-        *catalog.entry_documents,
-        *catalog.protocol_files,
-        *catalog.forge_entries,
-        *catalog.governance_roots,
-        *(name for module in applied for name in (module.manifest, module.lock)),
-        *(name for module in applied for name in module.runner_entries),
-    }
+    return frozenset(
+        {
+            *catalog.entry_documents,
+            *catalog.protocol_files,
+            *catalog.forge_entries,
+            *catalog.governance_roots,
+            *(
+                name
+                for module in modules
+                for name in (module.manifest, module.lock, *module.runner_entries)
+            ),
+        }
+    )
+
+
+def _root_entry_gaps(
+    paradigm: RepositoryParadigm, tracked: frozenset[str], admitted: frozenset[str]
+) -> Iterator[ParadigmGap]:
+    """Admit only catalogued protocol entries at the root; non-dot directories are product-owned."""
     entries = {path.split("/", 1)[0]: "/" in path for path in tracked}
     for entry, directory in sorted(entries.items()):
         if entry in admitted or (directory and not entry.startswith(".")):
@@ -86,7 +118,13 @@ def _root_gaps(paradigm: RepositoryParadigm, tracked: frozenset[str]) -> Iterato
             else f"remove {entry} from the root or move it under a product directory"
         )
         yield ParadigmGap("root-catalog", entry, repair)
-    for document in catalog.required_documents:
+
+
+def _root_gaps(paradigm: RepositoryParadigm, tracked: frozenset[str]) -> Iterator[ParadigmGap]:
+    """Report unadmitted root entries and missing required entry documents."""
+    applied = [module for module in paradigm.module if module.manifest in tracked]
+    yield from _root_entry_gaps(paradigm, tracked, _admitted_root_entries(paradigm, applied))
+    for document in paradigm.root.required_documents:
         if document not in tracked:
             yield ParadigmGap("entry-documents", document, f"add {document} at the root")
 
@@ -101,6 +139,62 @@ def _binding_gaps(paradigm: RepositoryParadigm, tracked: frozenset[str]) -> Iter
                 path,
                 f"move {path} into an ETHOS binding file or remove it",
             )
+
+
+def _configuration_gaps(
+    paradigm: RepositoryParadigm, tracked: frozenset[str]
+) -> Iterator[ParadigmGap]:
+    """Admit only consumed configuration, grouped by consuming tool or repository check."""
+    plane = paradigm.configuration
+    prefix = f"{plane.root}/"
+    owners = paradigm.owner_directories()
+    for path in sorted(entry for entry in tracked if entry.startswith(prefix)):
+        parts = path.removeprefix(prefix).split("/")
+        if path.endswith(".md"):
+            yield ParadigmGap(
+                "configuration-carrier", path, f"move {path} out of {prefix} into the documentation"
+            )
+        elif parts[0] in plane.planes or "/".join(parts) in plane.files:
+            continue
+        elif parts[0] not in plane.owner_groups or len(parts) < 3:
+            groups = "|".join(plane.owner_groups)
+            yield ParadigmGap(
+                "configuration-group",
+                path,
+                f"move {path} under {prefix}<{groups}>/<owner>/ or a toolchain root",
+            )
+        elif not _KEBAB.fullmatch(parts[1]):
+            yield ParadigmGap(
+                "configuration-owner", path, f"name {prefix}{parts[0]}/{parts[1]} in kebab-case"
+            )
+        else:
+            yield from _owner_file_gaps(paradigm, owners, path, parts)
+
+
+def _owner_file_gaps(
+    paradigm: RepositoryParadigm,
+    owners: dict[str, tuple[frozenset[str], bool]],
+    path: str,
+    parts: list[str],
+) -> Iterator[ParadigmGap]:
+    """Keep a tool's native names in its own directory and repository parameters in policy."""
+    directory = posixpath.join(paradigm.configuration.root, parts[0], parts[1])
+    admitted, nested = owners.get(directory, (frozenset(), False))
+    basename = parts[-1]
+    if len(parts) == 3 and basename in admitted | {paradigm.configuration.policy}:
+        return
+    if nested and len(parts) > 3:
+        return
+    carrier = paradigm.native_carrier(basename)
+    if carrier and carrier != path:
+        yield ParadigmGap("configuration-owner", path, f"move {path} to {carrier}")
+    else:
+        yield ParadigmGap(
+            "configuration-carrier",
+            path,
+            f"keep only native {parts[1]} configuration or {directory}/"
+            f"{paradigm.configuration.policy} in {directory}/",
+        )
 
 
 def _embedded_policy_gaps(

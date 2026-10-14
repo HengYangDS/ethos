@@ -87,7 +87,7 @@ REFERENCE_CARRIERS = (
             (".ethos/profile.toml", "profile"),
             ("system/surfaces.toml", "surfaces"),
             (".ethos/release.toml", "release"),
-            (".config/checks/ci/templates.toml", "providers"),
+            (".config/checks/ci-projection/policy.toml", "providers"),
         ),
         entrypoints=(".config/checks/pytest/pytest.toml",),
         entrypoint_globs=(".config/ci/**/*.toml",),

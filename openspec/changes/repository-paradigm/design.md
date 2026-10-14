@@ -79,7 +79,7 @@ An obligation enters the core or a module only when every repository where the c
 The obligations are product data in a packaged contract beside `src/ethos/contracts/artifacts/topology.toml`. The contract holds the root catalog, configuration groups, the tool catalog, the binding file set and the common rules. It is evaluated in three places:
 
 - **Whole tree:** a paradigm report in the repository audit composition. It inherits the audit's blocking behaviour in prove, land and publish.
-- **Path level:** prewrite rules in the existing CEL topology vocabulary, so a non-conforming path is refused before it is written.
+- **Path level:** prewrite evaluates each path it would create with the report's own path obligations, so a non-conforming path is refused before it is written.
 - **Staged:** pre-commit admission reads Gitleaks and Ruff configuration from their canonical paths.
 
 Alternatives rejected:
@@ -87,6 +87,7 @@ Alternatives rejected:
 - A per-repository paradigm file: it recreates per-repository improvisation.
 - A new gate or command: the audit already owns profile-independent governance.
 - A documented convention without enforcement: the inventory shows conventions drift without an owner.
+- Restating the path obligations as CEL topology rules: the same obligations would have a second owner that can disagree with the report.
 
 ### 3. Configuration groups by consuming tool, not by concern
 

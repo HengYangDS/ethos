@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 FROM base AS prepare
 
 COPY .config/mise/config.toml .config/mise/mise.lock .config/mise/
-COPY .config/checks/ci/templates.toml .config/checks/ci/templates.toml
+COPY .config/checks/ci-projection/policy.toml .config/checks/ci-projection/policy.toml
 COPY .config/ci/supply/Dockerfile .config/ci/supply/Dockerfile.dockerignore .config/ci/supply/
 COPY tools/ci/scripts/with-python-runtime.sh tools/ci/scripts/mise-install.sh tools/ci/scripts/
 COPY tools/ci/toolchain/native.py tools/ci/toolchain/native.py
@@ -39,7 +39,7 @@ RUN uv python install --no-bin "$(python3 -c 'import platform; print(platform.py
     && rm -rf /tmp/ethos-quality-sample \
     && native_paths="$(PYTHONPATH=src .venv/bin/python tools/ci/toolchain/native.py --root . --mise gitleaks scc syft)" \
     && PATH="$native_paths:$PATH" PYTHONPATH=src .venv/bin/python -c 'import subprocess; from pathlib import Path; from ethos.adapters.repo.runtime.materialization.node.supply import NodeRuntime, NodeSupply; root = Path.cwd(); runtime = NodeRuntime.read(NodeSupply.read(root).installed_root(root), windows=False); subprocess.run([str(runtime.executable), str(runtime.npm), "ci", "--ignore-scripts", "--no-audit", "--no-fund"], stdin=subprocess.DEVNULL, timeout=120, check=True)' \
-    && sha256sum .config/checks/ci/templates.toml \
+    && sha256sum .config/checks/ci-projection/policy.toml \
          .config/mise/config.toml .config/mise/mise.lock \
          .config/ci/supply/Dockerfile .config/ci/supply/Dockerfile.dockerignore \
          uv.lock package-lock.json tests/fixtures/quality-sample/uv.lock \

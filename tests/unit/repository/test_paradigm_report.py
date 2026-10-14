@@ -27,6 +27,18 @@ _CONFORMING = {
     ".ethos/profile.toml": 'profile_id = "sample"\n',
     "cmd/sample/main.go": "package main\n",
     "content/intro.md": "# Intro\n",
+    ".config/miserc.toml": "",
+    ".config/mise/config.toml": "",
+    ".config/npm/npmrc": "",
+    ".config/ci/pipeline.cue": "",
+    ".config/checks/ruff/ruff.toml": "line-length = 100\n",
+    ".config/checks/gitleaks/gitleaksignore": "",
+    ".config/checks/coverage/coverage.toml": "",
+    ".config/checks/coverage/policy.toml": "",
+    ".config/checks/architecture-projection/policy.toml": "",
+    ".config/checks/vale/vale.ini": "",
+    ".config/checks/vale/styles/Plain/Rule.yml": "",
+    ".config/release/goreleaser/.goreleaser.yaml": "",
 }
 
 
@@ -131,6 +143,46 @@ def test_conforming_repository_passes_with_product_owned_layout(tmp_path: Path) 
             "lock go.mod with go.sum",
         ),
         (
+            {".config/README.md": "# Configuration\n"},
+            "repository_paradigm_configuration_carrier:.config/README.md",
+            "into the documentation",
+        ),
+        (
+            {".config/checks/secrets/gitleaks.toml": ""},
+            "repository_paradigm_configuration_owner:.config/checks/secrets/gitleaks.toml",
+            "to .config/checks/gitleaks/gitleaks.toml",
+        ),
+        (
+            {".config/checks/prettier/.prettierrc.json": "{}\n"},
+            "repository_paradigm_configuration_owner:.config/checks/prettier/.prettierrc.json",
+            "to .config/checks/prettier/prettier.toml",
+        ),
+        (
+            {".config/checks/ci-projection/templates.toml": ""},
+            "repository_paradigm_configuration_carrier:.config/checks/ci-projection/templates.toml",
+            "or .config/checks/ci-projection/policy.toml",
+        ),
+        (
+            {".config/checks/coverage/nested/coverage.toml": ""},
+            "repository_paradigm_configuration_owner:.config/checks/coverage/nested/coverage.toml",
+            "to .config/checks/coverage/coverage.toml",
+        ),
+        (
+            {".config/checks/Spelling_Rules/policy.toml": ""},
+            "repository_paradigm_configuration_owner:.config/checks/Spelling_Rules/policy.toml",
+            "in kebab-case",
+        ),
+        (
+            {".config/release/supply-chain.toml": ""},
+            "repository_paradigm_configuration_group:.config/release/supply-chain.toml",
+            "under .config/<checks|release>/<owner>/",
+        ),
+        (
+            {".config/ethos/state.toml": ""},
+            "repository_paradigm_configuration_group:.config/ethos/state.toml",
+            "or a toolchain root",
+        ),
+        (
             {
                 "pyproject.toml": '[project]\nname = "sample"\nrequires-python = ">=3.12"\n'
                 '[tool.pytest.ini_options]\ncache_dir = "build"\n[tool.hatch.version]\npath = "V"\n'
@@ -161,6 +213,14 @@ def test_conforming_repository_passes_with_product_owned_layout(tmp_path: Path) 
         "npm-not-object",
         "npm-invalid",
         "go-unlocked",
+        "configuration-readme",
+        "configuration-by-concern",
+        "configuration-not-toml",
+        "configuration-unconsumed",
+        "configuration-nested",
+        "configuration-owner-name",
+        "configuration-loose",
+        "configuration-group",
         "embedded-manifest-table",
         "embedded-package-key",
     ],

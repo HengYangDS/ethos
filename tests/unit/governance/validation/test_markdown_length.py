@@ -108,7 +108,7 @@ def test_release_history_still_requires_readable_source(tmp_path: Path) -> None:
 def test_official_and_owned_generated_markdown_are_not_authored_docs(tmp_path: Path) -> None:
     """The document limit never mistakes official intent or owned output for prose."""
     root = init_git_repo(tmp_path / "repo")
-    declaration = root / ".config/checks/ci/templates.toml"
+    declaration = root / ".config/checks/ci-projection/policy.toml"
     declaration.parent.mkdir(parents=True)
     declaration.write_text(
         'schema = "ethos-ci-template-consistency-v1"\n'
@@ -129,7 +129,7 @@ def test_official_and_owned_generated_markdown_are_not_authored_docs(tmp_path: P
         root,
         "add",
         "--",
-        ".config/checks/ci/templates.toml",
+        ".config/checks/ci-projection/policy.toml",
         "source.txt",
         "docs",
         "openspec",

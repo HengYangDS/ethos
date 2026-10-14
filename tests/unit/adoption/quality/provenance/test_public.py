@@ -90,7 +90,7 @@ def test_public_quality_gate_requires_native_artifact_integrity(
         "from sample.upstream import VALUE as UPSTREAM\n\n\n"
         "def test_answer() -> None:\n    assert answer() == GENERATED == UPSTREAM == 42\n"
     )
-    declaration = ".config/checks/ci/templates.toml"
+    declaration = ".config/checks/ci-projection/policy.toml"
     owner = repo / declaration
     owner.parent.mkdir(parents=True)
     owner.write_text(
@@ -228,7 +228,7 @@ def _javascript_supply_repository(tmp_path: Path, *, kind: str, role: str, enter
     payload = tomllib.loads(profile.read_text())
     if kind != "authored":
         if kind == "generated":
-            reference = ".config/checks/ci/templates.toml"
+            reference = ".config/checks/ci-projection/policy.toml"
             member = "supply.js"
             (repo / "template.txt").write_bytes(original)
             owner = repo / reference

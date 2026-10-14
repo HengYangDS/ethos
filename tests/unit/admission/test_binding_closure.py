@@ -199,7 +199,9 @@ def test_native_owner_closure_uses_only_selected_existing_authorities() -> None:
         "system/gates.toml": '[[gates]]\ncommand = ["c.sh"]\n',
         "c.sh": '#!/bin/sh\nscript_dir=$(dirname "$0")\ncurl x\n"${script_dir}/i.sh"\n',
         "i.sh": "#!/bin/sh\ntar -xf x\n",
-        ".config/checks/ci/templates.toml": ('projection=[{required_owner_scripts=["p.sh"]}]\n'),
+        ".config/checks/ci-projection/policy.toml": (
+            'projection=[{required_owner_scripts=["p.sh"]}]\n'
+        ),
         "p.sh": "#!/bin/sh\nprovider-lint x\n",
         "u.sh": "#!/bin/sh\nrogue-tool\n",
         "system/surfaces.toml": '[runtime]\nexecutables=["git"]\ninputs=["ETHOS_ACTOR"]\n',

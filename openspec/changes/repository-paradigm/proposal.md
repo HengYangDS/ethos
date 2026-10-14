@@ -43,7 +43,7 @@ ETHOS documents currently forbid making repository layout universal, so the drif
   - Repository-authored names are lowercase kebab-case.
 - Enforce the paradigm in the same way for every repository:
   - The repository audit gains a paradigm report that blocks prove, land and publish.
-  - Prewrite topology rules refuse non-conforming paths.
+  - Prewrite refuses a new path that the paradigm rejects.
   - Pre-commit hooks read secret-scanning and Ruff configuration from canonical `.config/` paths, so moving those files keeps the checks effective.
 - **BREAKING** for adopters: a repository that does not conform fails proof once it runs a runtime carrying this Change. Each repository migrates through its own Change, and the migration and the runtime switch land in the same batch.
 - Amend the Product Design Contract, the Config Boundary Model and the Repository Profile Contract where they forbid a common repository layout. Record the reversal and its limits in DR-0012. ETHOS conforms itself in this Change.
@@ -66,7 +66,7 @@ None.
 
 Affected areas:
 
-- the repository audit composition, prewrite topology rules and pre-commit admission;
+- the repository audit composition, prewrite admission and pre-commit admission;
 - a packaged paradigm contract next to the generated-artifact topology contract;
 - greenfield formation, which consumes the contract;
 - three governance documents and one decision record;

@@ -11,7 +11,7 @@ from ethos.repository.policy.projections import observe_projections
 from ethos.repository.policy.projections import render_architecture
 
 ROOT = Path(__file__).resolve().parents[2]
-CONFIG_PATH = ROOT / ".config/checks/architecture/projection.toml"
+CONFIG_PATH = ROOT / ".config/checks/architecture-projection/policy.toml"
 
 
 def render(source_rel: str) -> str:

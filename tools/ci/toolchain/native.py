@@ -33,6 +33,7 @@ from ethos.adapters.toolchain.mise import native_tool_cache
 from ethos.adapters.toolchain.mise import run_mise
 
 MISE_RELEASE = "https://github.com/jdx/mise/releases/download/v{version}/{name}"
+CI_PROJECTION_POLICY = ".config/checks/ci-projection/policy.toml"
 WINDOWS_MISE_ARCHITECTURES = {"amd64": "x64", "x86_64": "x64", "arm64": "arm64", "aarch64": "arm64"}
 
 
@@ -184,7 +185,7 @@ def validate_mise_installer(root: Path) -> bytes:
         raise ValueError(message)
     try:
         version = tomllib.loads((root / MISE_CONFIG).read_text())["min_version"]
-        record = tomllib.loads((root / ".config/checks/ci/templates.toml").read_text())["bootstrap"]
+        record = tomllib.loads((root / CI_PROJECTION_POLICY).read_text())["bootstrap"]
         content = target.read_bytes()
     except (OSError, KeyError, TypeError, ValueError) as error:
         raise ValueError(message) from error
@@ -208,7 +209,7 @@ def _stage_windows_mise(root: Path, version: str, candidate: Path) -> None:
     if arch is None:
         message = f"mise_windows_architecture_unsupported:{platform.machine()}"
         raise ValueError(message)
-    record = tomllib.loads((root / ".config/checks/ci/templates.toml").read_text())["bootstrap"]
+    record = tomllib.loads((root / CI_PROJECTION_POLICY).read_text())["bootstrap"]
     name = f"mise-v{version}-windows-{arch}.exe"
     url = MISE_RELEASE.format(version=version, name=name)
     command = ("curl", "-fsSL", "--proto", "=https", "--output", str(candidate), url)

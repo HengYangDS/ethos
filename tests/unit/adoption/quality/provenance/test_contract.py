@@ -27,8 +27,8 @@ def test_native_source_contract_round_trips_without_a_second_manifest() -> None:
     """One profile relates artifacts to existing native owners and one integrity gate."""
     relation = {
         "kind": "generated",
-        "input_refs": [".config/checks/ci/templates.toml"],
-        "members": {"generated.py": [".config/checks/ci/templates.toml", "generated.py"]},
+        "input_refs": [".config/checks/ci-projection/policy.toml"],
+        "members": {"generated.py": [".config/checks/ci-projection/policy.toml", "generated.py"]},
         "integrity_gate": "source-integrity",
     }
     declaration = RepositoryProfileDeclaration.model_validate(
@@ -54,8 +54,10 @@ def test_source_contract_rejects_nonrepository_members(artifact: str) -> None:
                     "source_contracts": [
                         {
                             "kind": "generated",
-                            "input_refs": [".config/checks/ci/templates.toml"],
-                            "members": {artifact: [".config/checks/ci/templates.toml", artifact]},
+                            "input_refs": [".config/checks/ci-projection/policy.toml"],
+                            "members": {
+                                artifact: [".config/checks/ci-projection/policy.toml", artifact]
+                            },
                             "integrity_gate": "source-integrity",
                         }
                     ],
@@ -72,7 +74,7 @@ def test_static_selection_preserves_artifact_obligations(tmp_path: Path) -> None
     (repo / "generated.py").write_text(content)
     (repo / "template.txt").write_text(content)
     (repo / ".gitattributes").write_text("generated.py ethos-role=generated\n")
-    owner = ".config/checks/ci/templates.toml"
+    owner = ".config/checks/ci-projection/policy.toml"
     target = repo / owner
     target.parent.mkdir(parents=True)
     target.write_text(
@@ -132,7 +134,7 @@ def test_source_obligation_boundary_rejects_invalid_native_contracts(contracts: 
 
 def test_source_member_type_is_rejected_by_native_validation() -> None:
     """Malformed paths remain declared validation failures through every consumer."""
-    owner = ".config/checks/ci/templates.toml"
+    owner = ".config/checks/ci-projection/policy.toml"
     relation = {
         "kind": "generated",
         "input_refs": [owner],

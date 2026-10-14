@@ -24,6 +24,13 @@ files = ["profile.toml", "release.toml", "rules.toml", "workspace.toml"]
 gitattributes = "* text=auto eol=lf"
 editorconfig = { charset = "utf-8", end_of_line = "lf", insert_final_newline = "true" }
 
+[configuration]
+root = ".config"
+owner_groups = ["checks", "release"]
+planes = ["ci", "mise", "npm"]
+files = ["miserc.toml"]
+policy = "policy.toml"
+
 [[module]]
 id = "python"
 manifest = "pyproject.toml"
@@ -195,6 +202,7 @@ manifest_tables = ["importlinter"]
 id = "vale"
 carrier = ".config/checks/vale/vale.ini"
 root_names = [".vale.ini"]
+nested = true
 
 [[tool]]
 id = "yamllint"
@@ -226,3 +234,8 @@ root_names = [".goreleaser.yaml", ".goreleaser.yml"]
 id = "syft"
 carrier = ".config/release/syft/.syft.yaml"
 root_names = [".syft.yaml"]
+
+[[tool]]
+id = "renovate"
+carrier = ".config/checks/renovate/renovate.json5"
+root_names = ["renovate.json", "renovate.json5", ".renovaterc", ".renovaterc.json", ".renovaterc.json5"]

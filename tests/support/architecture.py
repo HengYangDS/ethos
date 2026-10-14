@@ -53,16 +53,18 @@ def declare_reference_package(root: Path, *, entry_point: str = "") -> None:
 
 def architecture_projection_fixture(root: Path, title: str = "Example") -> tuple[Path, Path, Path]:
     """Declare a literal source/output pair without using the production renderer."""
-    declaration = root / ".config/checks/architecture/projection.toml"
+    declaration = root / ".config/checks/architecture-projection/policy.toml"
     declaration.parent.mkdir(parents=True, exist_ok=True)
     declaration.write_text(
         'schema = "ethos-architecture-projection-v1"\n[[projection]]\n'
-        'id = "view"\nsource = "model.c4"\noutput = "diagram.mmd"\n'
+        'id = "view"\nsource = "docs/model.c4"\noutput = "docs/diagram.mmd"\n'
         'kind = "likec4-to-mermaid"\n',
     )
-    model, output = root / "model.c4", root / "diagram.mmd"
+    model, output = root / "docs/model.c4", root / "docs/diagram.mmd"
+    model.parent.mkdir(exist_ok=True)
     model.write_text(f'system Example "{title}"\n')
     output.write_text(
-        f'%% Generated from model.c4. Do not edit by hand.\nflowchart LR\n  Example["{title}"]\n',
+        "%% Generated from docs/model.c4. Do not edit by hand.\n"
+        f'flowchart LR\n  Example["{title}"]\n',
     )
     return declaration, model, output

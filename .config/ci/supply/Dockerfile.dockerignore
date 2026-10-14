@@ -5,8 +5,8 @@
 !package-lock.json
 !.config/
 !.config/checks/
-!.config/checks/ci/
-!.config/checks/ci/templates.toml
+!.config/checks/ci-projection/
+!.config/checks/ci-projection/policy.toml
 !.config/ci/
 !.config/ci/supply/
 !.config/ci/supply/Dockerfile

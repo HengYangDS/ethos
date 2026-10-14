@@ -138,7 +138,7 @@ def _native_format_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
     if not paths:
         return []
     failures = []
-    configs = native_configurations(root, "prettier", ".config/checks/format/prettier.toml")
+    configs = native_configurations(root, "prettier", ".config/checks/prettier/prettier.toml")
     node = str(resolve_node_runtime().executable)
     prettier = str(product_node_module("prettier") / "bin/prettier.cjs")
     for config in configs:
@@ -170,7 +170,7 @@ def _json_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
     policies = tuple(
         tomllib.loads(Path(config).read_text(encoding="utf-8"))
         for config in native_configurations(
-            root, "python-stdlib-json", ".config/checks/json/format.toml"
+            root, "python-stdlib-json", ".config/checks/config-quality/policy.toml"
         )
     )
     for path in paths:
@@ -201,7 +201,7 @@ def _json_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
 
 def _yaml_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
     failures = []
-    configs = native_configurations(root, "yamllint", ".config/checks/yaml/yamllint.yaml")
+    configs = native_configurations(root, "yamllint", ".config/checks/yamllint/.yamllint.yaml")
     policies = [yamllint_config.YamlLintConfig(Path(config).read_text()) for config in configs]
     semantic_rules = policies[0].rules.keys()
     for path in paths:

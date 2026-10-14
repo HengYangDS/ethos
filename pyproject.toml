@@ -78,14 +78,14 @@ packages = ["src/ethos"]
 "uv.lock" = "ethos/resources/uv.lock"
 ".config/mise/config.toml" = "ethos/resources/.config/mise/config.toml"
 ".config/mise/mise.lock" = "ethos/resources/.config/mise/mise.lock"
-".config/checks/format/prettier.toml" = "ethos/resources/.config/checks/format/prettier.toml"
-".config/checks/prose/codespell.toml" = "ethos/resources/.config/checks/prose/codespell.toml"
+".config/checks/prettier/prettier.toml" = "ethos/resources/.config/checks/prettier/prettier.toml"
+".config/checks/codespell/codespell.toml" = "ethos/resources/.config/checks/codespell/codespell.toml"
 ".config/checks/taplo/taplo.toml" = "ethos/resources/.config/checks/taplo/taplo.toml"
-".config/checks/yaml/yamllint.yaml" = "ethos/resources/.config/checks/yaml/yamllint.yaml"
-".config/checks/json/format.toml" = "ethos/resources/.config/checks/json/format.toml"
-".config/checks/format/selection.toml" = "ethos/resources/.config/checks/format/selection.toml"
-".config/checks/markdown/markdownlint.yaml" = "ethos/resources/.config/checks/markdown/markdownlint.yaml"
-".config/checks/links/lychee.toml" = "ethos/resources/.config/checks/links/lychee.toml"
+".config/checks/yamllint/.yamllint.yaml" = "ethos/resources/.config/checks/yamllint/.yamllint.yaml"
+".config/checks/config-quality/policy.toml" = "ethos/resources/.config/checks/config-quality/policy.toml"
+".config/checks/format-selection/policy.toml" = "ethos/resources/.config/checks/format-selection/policy.toml"
+".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml" = "ethos/resources/.config/checks/markdownlint-cli2/.markdownlint-cli2.yaml"
+".config/checks/lychee/lychee.toml" = "ethos/resources/.config/checks/lychee/lychee.toml"
 "VERSION" = "ethos/resources/VERSION"
 "system/schemas" = "ethos/resources/system/schemas"
 "docs/governance/product-design-contract.md" = "ethos/resources/docs/governance/product-design-contract.md"
@@ -131,20 +131,17 @@ only-include = [
   "uv.lock",
   ".config/mise/config.toml",
   ".config/mise/mise.lock",
-  ".config/checks/format/prettier.toml",
-  ".config/checks/prose/codespell.toml",
+  ".config/checks/prettier/prettier.toml",
+  ".config/checks/codespell/codespell.toml",
   ".config/checks/taplo/taplo.toml",
-  ".config/checks/yaml/yamllint.yaml",
-  ".config/checks/json/format.toml",
-  ".config/checks/format/selection.toml",
-  ".config/checks/markdown/markdownlint.yaml",
-  ".config/checks/links/lychee.toml",
+  ".config/checks/yamllint/.yamllint.yaml",
+  ".config/checks/config-quality/policy.toml",
+  ".config/checks/format-selection/policy.toml",
+  ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
+  ".config/checks/lychee/lychee.toml",
   "VERSION",
   "tools/ci/openspec_runtime_hook.py",
 ]
-
-[tool.pytest.ini_options]
-cache_dir = "build/runtime/tool-cache/pytest"
 
 [tool.mutmut]
 source_paths = ["src/ethos"]

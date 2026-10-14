@@ -196,7 +196,7 @@ replay runtime, shadow model, or debt contract.
 
 #### Scenario: The measurement policy is loaded
 
-- **WHEN** ETHOS loads `.config/checks/format/selection.toml`
+- **WHEN** ETHOS loads `.config/checks/format-selection/policy.toml`
 - **THEN** it requires non-compensating role ceilings and a jointly derived
   global ceiling, one bounded `scc` command with exact non-negative tolerances,
   a fixed canonicalization line width, named aggregate members, and admitted

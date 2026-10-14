@@ -410,14 +410,14 @@ def test_native_provider_binds_every_consumed_configuration(
         for tool in tools
         for relative in native_tool_configurations(
             (
-                ".config/checks/format/prettier.toml",
-                ".config/checks/markdown/markdownlint.yaml",
-                ".config/checks/links/lychee.toml",
-                ".config/checks/prose/codespell.toml",
+                ".config/checks/prettier/prettier.toml",
+                ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
+                ".config/checks/lychee/lychee.toml",
+                ".config/checks/codespell/codespell.toml",
                 ".config/checks/taplo/taplo.toml",
-                ".config/checks/yaml/yamllint.yaml",
-                ".config/checks/json/format.toml",
-                ".config/checks/format/selection.toml",
+                ".config/checks/yamllint/.yamllint.yaml",
+                ".config/checks/config-quality/policy.toml",
+                ".config/checks/format-selection/policy.toml",
             ),
             tool,
         )
@@ -431,7 +431,7 @@ def test_native_provider_binds_every_consumed_configuration(
         before = bind_gate_source_digests((gate,), sources, repository_paths=locations)
         sources[location] = b"changed"
         assert bind_gate_source_digests((gate,), sources, repository_paths=locations) != before
-        misplaced = "other/" + location.rsplit("/", 1)[-1]
+        misplaced = "other/" + "/".join(location.split("/")[-2:])
         with pytest.raises(ValueError, match="native_tool_configuration_location_invalid"):
             native_tool_configuration((misplaced,), tool)
         with pytest.raises(ValueError, match="native_tool_configuration_ambiguous"):

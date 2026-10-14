@@ -181,9 +181,9 @@ def test_source_budget_public_report_blocks_missing_inventory_and_cross_check(
         "source_budget_policy_invalid:"
     )
 
-    selection = tmp_path / ".config/checks/format/selection.toml"
+    selection = tmp_path / ".config/checks/format-selection/policy.toml"
     selection.parent.mkdir(parents=True)
-    shutil.copyfile(ROOT / ".config/checks/format/selection.toml", selection)
+    shutil.copyfile(ROOT / ".config/checks/format-selection/policy.toml", selection)
     rules = tmp_path / ".ethos/rules.toml"
     rules.parent.mkdir(parents=True)
     shutil.copyfile(ROOT / ".ethos/rules.toml", rules)

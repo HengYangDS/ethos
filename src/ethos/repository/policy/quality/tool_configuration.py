@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
+
 if TYPE_CHECKING:
     from ethos.contracts.gates import Gate
 
@@ -54,16 +56,13 @@ def _configuration_carriers(
     repository_paths: tuple[str, ...], tool: str
 ) -> tuple[str | None, tuple[str, ...]]:
     """Select carrier identities once for strict admission and historical observation."""
-    locations = {
-        "lychee": ".config/checks/links/lychee.toml",
-        "markdownlint-cli2": ".config/checks/markdown/markdownlint.yaml",
-        "prettier": ".config/checks/format/prettier.toml",
-        "codespell": ".config/checks/prose/codespell.toml",
-        "taplo": ".config/checks/taplo/taplo.toml",
-        "yamllint": ".config/checks/yaml/yamllint.yaml",
-        "python-stdlib-json": ".config/checks/json/format.toml",
-        "format-selection": ".config/checks/format/selection.toml",
-    }
+    locations = {item.id: item.carrier for item in load_repository_paradigm().tool}
+    locations.update(
+        {
+            "python-stdlib-json": ".config/checks/config-quality/policy.toml",
+            "format-selection": ".config/checks/format-selection/policy.toml",
+        }
+    )
     location = locations.get(tool)
     names = {
         "lychee": {"lychee.toml"},
@@ -80,7 +79,12 @@ def _configuration_carriers(
         "python-stdlib-json": {"format.toml"},
         "format-selection": {"selection.toml"},
     }
-    selected = tuple(path for path in repository_paths if Path(path).name in names.get(tool, set()))
+    identity = Path(location).parts[-2:] if location else ()
+    selected = tuple(
+        path
+        for path in repository_paths
+        if Path(path).name in names.get(tool, set()) or Path(path).parts[-2:] == identity
+    )
     if location in repository_paths and location not in selected:
         selected = (*selected, location)
     return location, selected

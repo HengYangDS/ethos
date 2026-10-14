@@ -57,7 +57,7 @@ Tool configuration SHALL live under `.config/checks/<owner>/`, `.config/release/
 
 #### Scenario: Configuration is grouped by concern
 
-- **WHEN** Gitleaks configuration is tracked as `.config/checks/secrets/policy.toml`
+- **WHEN** Gitleaks configuration is tracked as `.config/checks/secrets/gitleaks.toml`
 - **THEN** the paradigm reports its canonical path `.config/checks/gitleaks/gitleaks.toml`.
 
 #### Scenario: Native and repository parameters share an owner

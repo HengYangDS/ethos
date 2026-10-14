@@ -50,6 +50,7 @@ def repository_paradigm_report(root: Path, *, tracked_paths: tuple[str, ...]) ->
         *_root_gaps(paradigm, tracked),
         *_binding_gaps(paradigm, tracked),
         *_normalization_gaps(paradigm, root, tracked),
+        *_embedded_policy_gaps(paradigm, root, tracked),
         *_module_gaps(paradigm, root, tracked),
     ]
     required = [gap.required_gap for gap in gaps]
@@ -100,6 +101,37 @@ def _binding_gaps(paradigm: RepositoryParadigm, tracked: frozenset[str]) -> Iter
                 path,
                 f"move {path} into an ETHOS binding file or remove it",
             )
+
+
+def _embedded_policy_gaps(
+    paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
+) -> Iterator[ParadigmGap]:
+    """Keep tool policy that a tool reads from an explicit file out of package manifests."""
+    project = _tracked_text(root, "pyproject.toml", tracked)
+    try:
+        tables = tomllib.loads(project).get("tool", {}) if project is not None else {}
+    except tomllib.TOMLDecodeError:
+        tables = {}
+    package = _tracked_text(root, "package.json", tracked)
+    try:
+        keys = json.loads(package) if package is not None else {}
+    except json.JSONDecodeError:
+        keys = {}
+    for tool in paradigm.tool:
+        for table in tool.manifest_tables:
+            if isinstance(tables, dict) and table in tables:
+                yield ParadigmGap(
+                    "embedded-policy",
+                    f"pyproject.toml:tool.{table}",
+                    f"move [tool.{table}] to {tool.carrier} and pass it explicitly",
+                )
+        for key in tool.package_keys:
+            if isinstance(keys, dict) and key in keys:
+                yield ParadigmGap(
+                    "embedded-policy",
+                    f"package.json:{key}",
+                    f"move the package.json {key} key to {tool.carrier} and pass it explicitly",
+                )
 
 
 def _normalization_gaps(

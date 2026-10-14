@@ -18,7 +18,7 @@ from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_stdout
 
 ROOT = Path(__file__).resolve().parents[2]
-CONFIG = ROOT / ".config/checks/ci/hosted-observation.toml"
+CONFIG = ROOT / ".config/checks/hosted-observation/policy.toml"
 COMMANDS = {
     "github": ("gh", "run", "list", "--limit", "1", "--json", "status,conclusion,headSha,url"),
     "gitlab": ("glab", "ci", "list", "--per-page", "1", "--output", "json"),

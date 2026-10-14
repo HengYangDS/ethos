@@ -1,5 +1,5 @@
 # Lychee link-check config — separated from pyproject.toml (SoC).
-# Run: lychee --config .config/checks/links/lychee.toml <paths>
+# Run: lychee --config .config/checks/lychee/lychee.toml <paths>
 # Tool-native TOML so the installed lychee binary reads it directly.
 #
 # A documentation cross-reference is a claim about where truth lives; a broken

@@ -81,8 +81,8 @@ REFERENCE_CARRIERS = (
         suffixes=frozenset({".json", ".mjs", ".toml"}),
         path_declarations=(
             (".config/checks/deptry/policy.toml", "python-import-policy"),
-            (".config/checks/lychee/supply.toml", "tool-supply"),
-            (".config/release/supply-chain.toml", "tool-supply"),
+            (".config/checks/lychee/policy.toml", "tool-supply"),
+            (".config/release/release-sbom/policy.toml", "tool-supply"),
             ("system/gates.toml", "gates"),
             (".ethos/profile.toml", "profile"),
             ("system/surfaces.toml", "surfaces"),

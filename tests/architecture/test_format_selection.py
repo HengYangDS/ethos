@@ -25,7 +25,9 @@ ROOT = Path(__file__).resolve().parents[2]
 def test_packaged_agent_guidance_is_selected_by_native_markdown_lint() -> None:
     """A new shipped Markdown resource cannot sit outside the executed lint scope."""
     config = yaml.safe_load(
-        (ROOT / ".config/checks/markdown/markdownlint.yaml").read_text(encoding="utf-8")
+        (ROOT / ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml").read_text(
+            encoding="utf-8"
+        )
     )
     path = ROOT / "src/ethos/resources/skills/ethos-repository-work/SKILL.md"
     assert any(path in ROOT.glob(pattern) for pattern in config["globs"])
@@ -118,7 +120,7 @@ def test_native_javascript_transport_uses_its_semantic_adapter_home(
     tmp_path, monkeypatch, capsys, home, allowed
 ):
     root = init_git_repo(tmp_path / "repo")
-    relative = ".config/checks/format/selection.toml"
+    relative = ".config/checks/format-selection/policy.toml"
     config = root / relative
     config.parent.mkdir(parents=True)
     config.write_bytes((ROOT / relative).read_bytes())
@@ -171,7 +173,7 @@ def test_format_selection_rejects_malformed_native_policy(
 def test_carrier_assignment_rejects_malformed_owned_fields(tmp_path, fields: str) -> None:
     """The producer, not each consumer, validates assignment field types."""
     root = init_git_repo(tmp_path / "repo")
-    config = root / ".config/checks/format/selection.toml"
+    config = root / ".config/checks/format-selection/policy.toml"
     config.parent.mkdir(parents=True)
     config.write_text(
         '[[ownership]]\npaths = ["example.py"]\nformat_owner = "ruff"\n'
@@ -187,7 +189,7 @@ def test_carrier_assignment_rejects_malformed_owned_fields(tmp_path, fields: str
 def test_unused_malformed_owner_cannot_hide_behind_a_valid_fallback(tmp_path) -> None:
     """Every declaration must be valid even when another owner covers the file."""
     root = init_git_repo(tmp_path / "repo")
-    config = root / ".config/checks/format/selection.toml"
+    config = root / ".config/checks/format-selection/policy.toml"
     config.parent.mkdir(parents=True)
     config.write_text(
         '[[ownership]]\nid = "valid"\npaths = ["example.py"]\n'
@@ -204,9 +206,9 @@ def test_unused_malformed_owner_cannot_hide_behind_a_valid_fallback(tmp_path) ->
 def test_native_byte_owners_are_shared_by_format_and_configuration_selection(tmp_path) -> None:
     """An authored schema is formatted; native output and lock bytes keep their owners."""
     root = init_git_repo(tmp_path / "repo")
-    policy = root / ".config/checks/format/selection.toml"
+    policy = root / ".config/checks/format-selection/policy.toml"
     policy.parent.mkdir(parents=True)
-    policy.write_bytes((ROOT / ".config/checks/format/selection.toml").read_bytes())
+    policy.write_bytes((ROOT / ".config/checks/format-selection/policy.toml").read_bytes())
     artifact = "generated/result.json"
     profile = RepositoryProfileDeclaration(
         profile_id="native-selection",

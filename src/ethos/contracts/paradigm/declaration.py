@@ -82,13 +82,15 @@ class EcosystemModule(BaseModel):
 
 
 class ToolCarrier(BaseModel):
-    """Root names one tool discovers and the canonical carrier they move to."""
+    """One tool's canonical carrier, the names it discovers and where it embeds policy."""
 
     model_config = _DECLARATION
 
     id: str
     carrier: str
-    root_names: FrozenTuple[str]
+    root_names: FrozenTuple[str] = ()
+    manifest_tables: FrozenTuple[str] = ()
+    package_keys: FrozenTuple[str] = ()
 
 
 class RepositoryParadigm(BaseModel):
@@ -111,6 +113,8 @@ class RepositoryParadigm(BaseModel):
             [module.id for module in self.module],
             [tool.id for tool in self.tool],
             [name for tool in self.tool for name in tool.root_names],
+            [table for tool in self.tool for table in tool.manifest_tables],
+            [key for tool in self.tool for key in tool.package_keys],
         )
         if any(len(set(group)) != len(group) for group in groups):
             message = "repository paradigm identities must be unique"

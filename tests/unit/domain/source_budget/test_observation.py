@@ -77,7 +77,7 @@ def test_missing_or_malformed_policy_is_a_closed_report(
     content: str,
     expected: str,
 ) -> None:
-    path = tmp_path / ".config/checks/format/selection.toml"
+    path = tmp_path / ".config/checks/format-selection/policy.toml"
     if content:
         path.parent.mkdir(parents=True)
         path.write_text(content, encoding="utf-8")

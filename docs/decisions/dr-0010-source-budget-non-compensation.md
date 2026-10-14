@@ -3,7 +3,7 @@ subject: ethos:decision:source-budget-non-compensation
 role: decision
 state: canonical
 relations:
-  current_owner: ../../.config/checks/format/selection.toml
+  current_owner: ../../.config/checks/format-selection/policy.toml
 ---
 
 # DR-0010: Source Budget Non-Compensation
@@ -18,7 +18,7 @@ another and why size remains a tripwire rather than a design target.
 
 See also: [Documentation Root](../README.md),
 [Terminal Governance Product Design](../plans/terminal-governance-product-design.md),
-and `.config/checks/format/selection.toml`.
+and `.config/checks/format-selection/policy.toml`.
 
 ## Context
 
@@ -74,7 +74,7 @@ real ownership—not mechanical file fragmentation.
 
 ## Evidence
 
-- `.config/checks/format/selection.toml` owns current classifications,
+- `.config/checks/format-selection/policy.toml` owns current classifications,
   thresholds, native commands, and the independent `scc` cross-check.
 - `src/ethos/domain/source_budget/measurement.py` executes deterministic
   measurement; `src/ethos/repository/policy/quality/measurement.py` owns the

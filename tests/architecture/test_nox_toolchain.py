@@ -187,7 +187,7 @@ def test_session_discovery_does_not_load_unselected_capabilities() -> None:
 def test_config_selection_keeps_native_failures_and_ownership(tmp_path, state, explicit, fails):
     """Default discovery covers candidates; explicit absent or foreign inputs cannot pass."""
     root = init_git_repo(tmp_path / "repo")
-    policy = root / ".config/checks/format/selection.toml"
+    policy = root / ".config/checks/format-selection/policy.toml"
     policy.parent.mkdir(parents=True)
     policy.write_bytes((ROOT / policy.relative_to(root)).read_bytes())
     relative = "openspec/config.yaml" if state == "external" else ".config/new-policy.yaml"

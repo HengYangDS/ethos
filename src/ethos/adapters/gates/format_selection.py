@@ -23,7 +23,7 @@ from ethos.repository.profile import load_repository_profile
 from ethos.repository.release.resources import canonical_resource
 
 ROOT = canonical_resource()
-CONFIG_PATH = ROOT / ".config/checks/format/selection.toml"
+CONFIG_PATH = ROOT / ".config/checks/format-selection/policy.toml"
 
 
 class OwnerDeclaration(TypedDict):
@@ -170,7 +170,7 @@ def _assignment(path: str, declaration: OwnerDeclaration) -> CarrierAssignment:
 def _native_ownership(root: Path) -> tuple[list[OwnerDeclaration], tuple[str, ...]]:
     """Compose validated native increments without replacing mandatory owners."""
     policies = native_configurations(
-        root, "format-selection", ".config/checks/format/selection.toml"
+        root, "format-selection", ".config/checks/format-selection/policy.toml"
     )
     parsed = tuple(tomllib.loads(Path(policy).read_text(encoding="utf-8")) for policy in policies)
     owners: dict[str, OwnerDeclaration] = {}

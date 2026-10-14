@@ -16,7 +16,7 @@ from tools.ci.toolchain.environment import ProjectRuntime
 ROOT = Path(__file__).resolve().parents[2]
 RUNTIME = ProjectRuntime.discover(ROOT)
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
-PRE_COMMIT_CONFIG = ".config/checks/hooks/pre-commit.yaml"
+PRE_COMMIT_CONFIG = ".config/checks/pre-commit/.pre-commit-config.yaml"
 PUBLIC_SESSIONS = (
     "lint",
     "format_check",
@@ -188,6 +188,9 @@ def architecture_projection(session) -> None:
             str(RUNTIME.python),
             "-m",
             "pytest",
+            "-c",
+            ".config/checks/pytest/pytest.toml",
+            "--rootdir=.",
             "tests/unit/projection",
             "-q",
             "-o",
@@ -218,7 +221,7 @@ def shell_lint(session) -> None:
     paths = _paths("*.sh")
     if paths:
         session.run(
-            RUNTIME.script("shellcheck"), "--rcfile=.config/checks/shell/.shellcheckrc", *paths
+            RUNTIME.script("shellcheck"), "--rcfile=.config/checks/shellcheck/.shellcheckrc", *paths
         )
         session.run(RUNTIME.script("shfmt"), "-d", *paths)
 
@@ -268,7 +271,7 @@ def import_boundaries(session) -> None:
         "--cache-dir",
         str(cache),
         "--config",
-        ".config/checks/import-linter/contracts.toml",
+        ".config/checks/import-linter/import-linter.toml",
         env={"PYTHONPATH": str(ROOT / "src")},
     )
 

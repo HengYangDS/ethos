@@ -326,7 +326,7 @@ def observe_runtime_lifecycle(
     build: BuildIdentity,
     wheel_sha256: str,
     environment: Mapping[str, str],
-    bootstrap_users: tuple[Future[object], ...] = (),
+    bootstrap_users: tuple[Future[dict[str, object]], ...] = (),
 ) -> dict[str, Mapping[str, object]]:
     """Execute and post-observe one complete package-only runtime lifecycle.
 
@@ -442,13 +442,17 @@ def run(
         # Formation owns only the repositories it creates, so it runs beside the other
         # installed-console stages; the lifecycle waits for it before retiring the console.
         with ThreadPoolExecutor(max_workers=1) as formation_pool, command_scope():
-            formation_run = formation_pool.submit(
-                copy_context().run,
-                adopter_fixture.prove_formation,
-                installed_ethos,
-                WORK,
-                origin=origin,
-                environment=package_environment,
+            # Ty cannot solve the result type through the generic Context.run.
+            formation_run = cast(
+                "Future[dict[str, object]]",
+                formation_pool.submit(
+                    copy_context().run,
+                    adopter_fixture.prove_formation,
+                    installed_ethos,
+                    WORK,
+                    origin=origin,
+                    environment=package_environment,
+                ),
             )
             independent_host = observe_independent_command_plane(installed_ethos, adopter)
             _run(uv, "pip", "check", "--python", str(_venv_executable(smoke, "python")))

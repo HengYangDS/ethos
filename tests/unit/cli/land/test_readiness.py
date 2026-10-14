@@ -8,11 +8,13 @@ from pathlib import Path
 import pytest
 import tomli_w
 
-import ethos.domain.publication.inspection as publication_domain
+import ethos.domain.publication.readiness as publication_domain
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.domain.publication.inspection import local_ci_owner_scripts
-from ethos.domain.publication.inspection import publication_readiness
+from ethos.domain.publication.inspection import observe_publication
+from ethos.domain.publication.readiness import local_ci_owner_scripts
+from ethos.domain.publication.readiness import publication_readiness
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
@@ -92,39 +94,58 @@ def test_publish_fallback_evidence_matrix(tmp_path: Path, case: str) -> None:
 
 
 @pytest.mark.parametrize("probe_remote", [False, True])
-@pytest.mark.parametrize("mode", ["dual", "local", "single", "tracking"])
+@pytest.mark.parametrize("mode", ["dual", "local", "gitlab", "github", "tracking"])
 def test_publish_peer_topology_matrix(tmp_path: Path, mode: str, *, probe_remote: bool) -> None:
     repo, head = _publish_fixture(tmp_path)
-    peer_count = {"local": 0, "single": 1}.get(mode, 2)
-    if peer_count < 2:
-        release = repo / ".ethos/release.toml"
-        sections = release.read_text().split("[[publication.peers]]")
-        release.write_text("[[publication.peers]]".join(sections[: peer_count + 1]))
-        head = commit_fixture(repo, f"declare {mode} publication")
-        seed_executed_proof(repo, head)
-    observed_peers = peer_count if mode == "dual" else min(peer_count, 1)
-    peers = (("gitlab", "origin"), ("github", "github"))[:observed_peers]
-    for peer, remote in peers:
-        target = tmp_path / f"{peer}.git"
+    release = repo / ".ethos/release.toml"
+    declaration = tomllib.loads(release.read_text())
+    peers = declaration["publication"]["peers"]
+    peers = [peer for peer in peers if mode in {"dual", "tracking"} or peer["id"] == mode]
+    for peer in peers:
+        peer["git_remote"] = peer["id"]
+    declaration["publication"]["peers"] = peers
+    release.write_text(tomli_w.dumps(declaration), encoding="utf-8")
+    head = commit_fixture(repo, f"declare {mode} publication")
+    seed_executed_proof(repo, head)
+    for peer in peers[:1] if mode == "tracking" else peers:
+        target = tmp_path / f"{peer['id']}.git"
         git(tmp_path, "init", "--bare", target.as_posix())
-        git(repo, "remote", "add", remote, target.as_posix())
-        git(repo, "push", "--set-upstream", remote, "dev")
+        git(repo, "remote", "add", peer["git_remote"], target.as_posix())
+        git(repo, "push", "--set-upstream", peer["git_remote"], "dev")
+    assert "origin" not in git(repo, "remote").splitlines()
     args = ("--probe-remote",) if probe_remote else ()
     payload = run_ethos("publish", *args, "--json", cwd=repo)
+    assert payload["summary"]["remote_push"] == "not_performed"
+    assert set(payload["data"]["remote_observations"]) == {peer["id"] for peer in peers}
     if mode == "local":
         assert payload["verdict"] == "pass"
+        assert payload["summary"]["remote_publication_state"] == "local_only"
+        assert payload["summary"]["remote_mutation_allowed"] is False
+        assert payload["data"]["publication_ref_admissions"] == {}
+        if probe_remote:
+            blocked = run_ethos_blocked(
+                "publish",
+                "--ref",
+                "refs/heads/dev",
+                "--probe-remote",
+                "--expect-head",
+                head,
+                "--json",
+                cwd=repo,
+            )
+            assert "publication_peers_missing" in blocked["required_gaps"]
         return
     if not probe_remote:
         expected = f"ethos publish --ref refs/heads/dev --probe-remote --expect-head {head} --json"
         assert payload["next_action"] == expected
     observations = payload["data"]["remote_observations"]
-    expected_peers = {"gitlab", "github"} if mode in {"dual", "tracking"} else {"gitlab"}
-    assert set(observations) == expected_peers
-    assert payload["summary"]["remote_push"] == "not_performed"
+    assert all(
+        observations[peer["id"]]["availability"]["remote"] == peer["git_remote"] for peer in peers
+    )
     if mode == "dual":
         assert observations["github"]["availability"]["remote"] == "github"
         assert not {"remote_availability", "remote_sync"} & set(payload["data"])
-    elif mode == "single":
+    elif mode in {"gitlab", "github"}:
         assert payload["data"]["remote_topology"]["state"] == "ready"
     else:
         assert payload["summary"]["remote_sync_states"] == {
@@ -167,7 +188,7 @@ def test_publish_local_readiness_does_not_project_a_publication_plan(tmp_path: P
     assert publication["source_branch"] == "lane/topic"
     assert publication["source_role"] == "work_lane"
     assert not {"proposal_branch", "local_proposal_package"} & publication.keys()
-    context = publication_domain.observe_publication(
+    context = observe_publication(
         repo, apply=False, authorized=False, expect_head=None, target_refs=()
     )
     observed = publication_domain.publication_readiness_result(

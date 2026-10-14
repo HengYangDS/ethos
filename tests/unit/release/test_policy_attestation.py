@@ -335,17 +335,32 @@ def test_release_topology_uses_declared_repository_native_commands_and_ci_surfac
     ("peers", "expected"),
     [
         ((), {}),
-        ((_peer("gitlab", "gitlab", "origin"),), {"gitlab": "origin"}),
+        ((_peer("gitlab", "gitlab", "gitlab"),), {"gitlab": "gitlab"}),
         ((_peer("github", "github", "github"),), {"github": "github"}),
         (
             (
-                _peer("gitlab", "gitlab", "origin"),
+                _peer("gitlab", "gitlab", "gitlab"),
                 _peer("github", "github", "github"),
             ),
-            {"gitlab": "origin", "github": "github"},
+            {"gitlab": "gitlab", "github": "github"},
+        ),
+        ((_peer("backup", "gitlab", "mirror"),), {"backup": "mirror"}),
+        (
+            (
+                _peer("internal", "gitlab", "github"),
+                _peer("public", "github", "gitlab"),
+            ),
+            {"internal": "github", "public": "gitlab"},
         ),
     ],
-    ids=("local-only", "local-gitlab", "local-github", "local-dual-remote"),
+    ids=(
+        "local-only",
+        "local-gitlab",
+        "local-github",
+        "local-dual-remote",
+        "arbitrary-remote",
+        "independent-peer-coordinates",
+    ),
 )
 def test_release_topology_supports_every_declared_peer_cardinality(
     tmp_path: Path,

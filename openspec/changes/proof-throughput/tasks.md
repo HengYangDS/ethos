@@ -46,7 +46,7 @@ Original pre-refresh commitments and qualification records remain in signed Git 
 - [x] 3.8 Complete multi-contribution lifecycle integration without losing unselected intent. Verify the owning native regression.
 - [x] 3.9 Reproduce and close official batch large-output backpressure through the existing transport.
 - [x] 3.10 Route specification validation through the existing locked official owner and shared result interpretation. Verify the owning native regression.
-- [x] 3.11 Route unprobed publication peers to exact remote observation without repeating local verification or treating cached tracking as live evidence. Verify the owning native regression.
+- [x] 3.11 Route unprobed publication peers to exact remote observation without repeating local verification or treating cached tracking as live evidence. Verify zero, either single, dual and independently named peers; no-peer readiness grants no remote mutation. Runtime delivery remains under 1.9.
 - [x] 3.12 Bind landed-retirement continuation to the observed target HEAD; execute the returned public command and preserve stale, dirty, foreign and locked refusal. Verify the owning native regression.
 - [x] 3.13 Qualify and deliver the retirement-continuation repair through exact proof and installed-runtime replay.
 

@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import itertools
+import tomllib
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
+import tomli_w
 from fastmcp import Client
 
 import ethos.adapters.mutation.proof as proof_owner
@@ -36,16 +38,26 @@ from tests.unit.cli.land.publication.support import branch_publication_fixture
 from tests.unit.cli.land.publication.support import proposal_ref
 
 
+@pytest.mark.parametrize("selected_peer", ["", "gitlab", "github"])
 def test_unfinished_review_reaches_native_pre_push_and_receipt_without_product_proof(
     tmp_path: Path,
+    selected_peer: str,
 ) -> None:
     """Official unfinished intent can enter review without closing accepted truth."""
     repo, remotes, accepted = branch_publication_fixture(
         tmp_path, source_branch="work/review", proof=False
     )
+    git(repo, "remote", "rename", "origin", "gitlab")
+    release = repo / ".ethos/release.toml"
+    declaration = tomllib.loads(release.read_text())
+    for peer in declaration["publication"]["peers"]:
+        peer["git_remote"] = peer["id"]
+    release.write_text(tomli_w.dumps(declaration), encoding="utf-8")
     write_active_commitment(repo, change_id="review-work")
     head = commit_fixture(repo, "declare unfinished review")
     install_fixture_hook_runtime(repo)
+    assert set(git(repo, "remote").splitlines()) == set(remotes)
+    selection = ("--peer", selected_peer) if selected_peer else ()
 
     report = run_ethos(
         "hook",
@@ -55,15 +67,19 @@ def test_unfinished_review_reaches_native_pre_push_and_receipt_without_product_p
         "--remote-head",
         "0" * 40,
         "--remote",
-        "origin",
+        selected_peer or "gitlab",
         "--json",
         cwd=repo,
     )
-    dry_run = branch_publication(repo, head)
+    dry_run = branch_publication(repo, head, *selection)
     cwd = Path.cwd()
     with redirect_stdout(StringIO()) as output:
         direct_preview = publish_repository(
-            repo, target_refs=(PROPOSAL_REF,), probe_remote=True, expect_head=head
+            repo,
+            target_refs=(PROPOSAL_REF,),
+            probe_remote=True,
+            expect_head=head,
+            peer_ids=(selected_peer,) if selected_peer else (),
         ).to_dict()
     assert not output.getvalue()
     assert Path.cwd() == cwd
@@ -74,7 +90,10 @@ def test_unfinished_review_reaches_native_pre_push_and_receipt_without_product_p
 
     assert report["verdict"] == "pass"
     assert applied["state"] == "published"
-    assert {proposal_ref(remote) for remote in remotes.values()} == {head}
+    assert {peer_id: proposal_ref(remote) for peer_id, remote in remotes.items()} == {
+        peer_id: head if not selected_peer or peer_id == selected_peer else ""
+        for peer_id in remotes
+    }
     assert git(repo, "rev-parse", "dev") == accepted
     assert "- [ ]" in (repo / "openspec/changes/review-work/tasks.md").read_text()
 

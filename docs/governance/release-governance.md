@@ -84,6 +84,23 @@ when that peer declares `ci_cd`. ETHOS validates that declared paths remain
 regular files inside the repository and that local commands are executable; it
 never guesses a provider, remote, or tool layout for an adopter.
 
+Git remote names are repository choices: `origin` is conventional, not required.
+`gitlab` and `github`, or other valid names, may be used independently of the
+peer ID and provider. The provider is always declared; its adapter is never
+inferred from a remote name. Merely adding a Git remote does not declare an
+ETHOS publication obligation.
+
+| Declared peers | Local governance          | Remote publication                                                                          |
+| -------------- | ------------------------- | ------------------------------------------------------------------------------------------- |
+| None           | Valid local-only topology | No observation or mutation; an explicit push request reports `publication_peers_missing`    |
+| One            | Unchanged                 | Only the declared peer is a target                                                          |
+| Several        | Unchanged                 | Select any declared ID with `--peer <id>`, repeat it for a subset, or omit it to select all |
+
+For example, `ethos publish --ref refs/heads/dev --peer github --probe-remote
+--expect-head <HEAD> --json` previews only the peer whose ID is `github`.
+Unselected peers are not publication prerequisites. With no peers, local-only
+readiness is not evidence of a completed remote publication.
+
 Host-private API coordinates may instead live in the existing local Git remote
 configuration key `remote.<name>.forgeRepository`. An explicit repository
 declaration takes precedence; absent either, an HTTP Git URL supplies its native

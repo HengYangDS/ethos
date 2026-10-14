@@ -317,7 +317,7 @@ def push_admission_report(
     repo = root.resolve()
     remote_head, remote_name = (
         str(options.get("remote_head") or ""),
-        str(options.get("remote_name") or "origin"),
+        str(options.get("remote_name") or ""),
     )
     if pushed_head in _ZERO_OIDS:
         return proposal_retirement_report(

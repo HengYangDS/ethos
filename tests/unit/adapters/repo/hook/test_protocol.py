@@ -246,10 +246,15 @@ def test_hook_serialization_failure_is_a_machine_readable_block(
     assert result["required_gaps"] == ["hook_report_not_json_native"]
 
 
+@pytest.mark.parametrize(
+    ("args", "remote"), [(("gitlab",), "gitlab"), ((), "")], ids=("named-remote", "no-remote")
+)
 def test_pre_push_evaluates_every_update_and_blocks_the_batch(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
+    args: tuple[str, ...],
+    remote: str,
 ) -> None:
     calls: list[dict[str, object]] = []
     monkeypatch.setattr(hook_admission, "current_runtime", lambda _common: None)
@@ -274,14 +279,14 @@ def test_pre_push_evaluates_every_update_and_blocks_the_batch(
         )
     )
 
-    result = execute_hook(tmp_path, "pre-push", ("gitlab",), stdin=StringIO(updates))
+    result = execute_hook(tmp_path, "pre-push", args, stdin=StringIO(updates))
 
     assert result == 1
     assert [(call["target_ref"], call["remote_head"], call["remote_name"]) for call in calls] == [
-        ("refs/heads/first", "1" * 40, "gitlab"),
-        ("refs/heads/deleted", "2" * 40, "gitlab"),
-        ("refs/heads/rejected", "3" * 40, "gitlab"),
-        ("refs/tags/v1", "4" * 40, "gitlab"),
+        ("refs/heads/first", "1" * 40, remote),
+        ("refs/heads/deleted", "2" * 40, remote),
+        ("refs/heads/rejected", "3" * 40, remote),
+        ("refs/tags/v1", "4" * 40, remote),
     ]
     assert all("reconciliation" not in call for call in calls)
     assert json.loads(capsys.readouterr().err)["required_gaps"] == [

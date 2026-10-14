@@ -129,9 +129,10 @@ remain at signed source `8878c8406a06fa592c41dbb291578c2f2114de51` and its nativ
 - [ ] 7.11 Qualify both CUE-generated Forge projections through current hosted runs.
   - [x] 7.11.1 Qualify compatible operator mise supply and native PowerShell environment isolation through exact source and runtime delivery.
   - [ ] 7.11.2 Qualify the GitHub-hosted-only matrix and source-derived emulator mapping; retire dedicated-runner and inherited-hook projections, verify GitLab digest-bound supply, and distinguish the bootstrap transport failure in 5.11 from version admission and ACL conformance. Fault-test each selected Forge's complete required graph on a cold runner while the peer's registry and release endpoints are unavailable; current ETHOS and AIGW GitLab images depend on GHCR.
-  - [ ] 7.11.3 Keep the GitLab verify archive within the instance artifact-size limit, which the project owner cannot raise, by retaining raw Allure results only on GitHub; done when a dev/main GitLab verify job uploads its archive and passes (refused with 413 at `365fbffda` and `aa79ed28b`).
+  - [x] 7.11.3 Keep the GitLab verify archive within the instance artifact-size limit, which the project owner cannot raise, by retaining raw Allure results only on GitHub; done when a dev/main GitLab verify job uploads its archive and passes (job 52714 at `dadf4c95b` uploaded 60.63 MiB and passed; refused with 413 at `365fbffda` and `aa79ed28b`).
 - [ ] 7.12 Qualify semantic CI job partitions and native successful-pipeline merge enforcement.
 - [ ] 7.13 Qualify runner capacity and dependent-pipeline observation with bounded acquire, terminal readback and original-state restoration; distinguish paused, offline and tag mismatch without repository-specific VM control.
+- [x] 7.14 Resolve product remotes from the declared publication topology instead of an implicit `origin`, and declare the GitLab peer remote as `gitlab`; done when focused regressions and the full proof pass.
 
 ## 8. Trusted Verification and Result Admission
 

@@ -326,7 +326,7 @@ def _check_staged_python_format(
 
 
 def _pre_push(root: Path, args: tuple[str, ...], stdin: IO[str]) -> tuple[dict[str, object], ...]:
-    remote = args[0] if args else "origin"
+    remote = args[0] if args else ""
     reports = []
     for line in stdin:
         fields = line.split()

@@ -414,8 +414,9 @@ def write_publication_topology(
     gitlab_ci_surface: str = ".gitlab-ci.yml",
     github_ci_surface: str = ".github/workflows/verify.yml",
     materialize_commands: bool = True,
+    host_provider: str = "",
 ) -> None:
-    """Declare the canonical independent GitLab and GitHub test peers."""
+    """Declare the canonical independent GitLab and GitHub test peers and optional host."""
     release = repo / ".ethos" / "release.toml"
     release.parent.mkdir(parents=True, exist_ok=True)
     if materialize_commands:
@@ -428,9 +429,11 @@ def write_publication_topology(
         path = repo / surface
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("# repository-native CI\n", encoding="utf-8")
+    host = ("[host_profile]", f'provider = "{host_provider}"', "") if host_provider else ()
     release.write_text(
         "\n".join(
             (
+                *host,
                 "[publication]",
                 f'local_verification_command = "{verification_command}"',
                 f'local_installation_command = "{installation_command}"',

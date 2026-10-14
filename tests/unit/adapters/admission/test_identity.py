@@ -37,6 +37,7 @@ def test_publication_uses_the_declared_identity_and_existing_range(
         target_ref="refs/heads/proposal/identity",
         pushed_head=head,
         remote_head=baseline,
+        remote_name="origin",
     )
     assert report["verdict"] == "block"
     assert f"commit_{role}_identity_mismatch:{head}" in cast("list[str]", report["required_gaps"])

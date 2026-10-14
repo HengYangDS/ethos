@@ -21,11 +21,11 @@ See also: [Documentation Root](../README.md), [Governance Docs](../governance/RE
 History is an index over retained rationale and completed change records; it is
 not a current-state ledger or another evidence store.
 
-| Need | Canonical record |
-| --- | --- |
-| Change carriers retained in the current tree | [OpenSpec archive](../../openspec/changes/archive/) |
-| Retired fixed-path documentation topology | [Documentation Topology Contract, 2026-07-08](docs-topology-contract-20260708.md) |
-| Retired current-tree Change carriers | Recover their exact Git revision as described below; current behavior belongs to [canonical specs](../../openspec/specs/). |
+| Need                                         | Canonical record                                                                                                           |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Change carriers retained in the current tree | [OpenSpec archive](../../openspec/changes/archive/)                                                                        |
+| Retired fixed-path documentation topology    | [Documentation Topology Contract, 2026-07-08](docs-topology-contract-20260708.md)                                          |
+| Retired current-tree Change carriers         | Recover their exact Git revision as described below; current behavior belongs to [canonical specs](../../openspec/specs/). |
 
 An archived Change is history, not a source of current requirements. The
 accepted `97196e96dd115f430e8dbb72af39f50b71d98a90` snapshot retains every

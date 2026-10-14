@@ -795,7 +795,6 @@ SHALL not be mistaken for authored directory entrypoints.
   without fragmenting one cohesive explanation or duplicating authority
 - **AND** a move repairs affected links without changing subject identity
 
-
 ### Requirement: Accepted history repair preserves original acceptance provenance
 
 Accepted-source consumers SHALL resolve original acceptance through validated
@@ -963,4 +962,3 @@ reclamation. Historical provenance alone SHALL NOT pin local executables.
 - **WHEN** selector replacement occurred but its write acknowledgement or post-observation fails
 - **THEN** the selector owner restores original bytes under its existing lock only when this operation still owns the desired selection
 - **AND** a changed or unreadable peer selection remains intact with explicit compensation failure rather than false rollback success
-

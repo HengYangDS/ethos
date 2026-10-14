@@ -84,11 +84,13 @@ not a sequence owned by an agent projection.
   self-blocking state or authorize unrelated product paths
 
 ### Requirement: Skill surfaces remain projections over repository truth
+
 ETHOS SHALL keep repo-local skills as concise procedures over source, tests,
 schemas, docs, OpenSpec, rules, and evidence rather than independent truth
 stores.
 
 #### Scenario: Host skill roots are not canonical
+
 - **WHEN** a host-native skill directory exists
 - **THEN** ETHOS treats it as a projection unless a declared host-native
   artifact contract says otherwise

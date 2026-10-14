@@ -14,3 +14,17 @@ The product Python behavior provider SHALL capture pytest's report-log events wi
 
 - **WHEN** pytest writes JUnit but no event report
 - **THEN** the behavior evidence blocks as `test_event_report_missing`
+
+### Requirement: Provider static analysis uses the shared line width
+
+The product Python static provider SHALL run Ruff isolated from repository configuration with a line length of 100 columns, the shared formatter width of governed repositories.
+
+#### Scenario: A line reaches the shared width
+
+- **WHEN** an authored Python line is 100 columns long
+- **THEN** the static evidence does not report `E501` for it
+
+#### Scenario: A line exceeds the shared width
+
+- **WHEN** an authored Python line is 101 columns long
+- **THEN** the static evidence blocks with `E501`

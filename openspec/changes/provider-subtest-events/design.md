@@ -7,3 +7,4 @@
 1. Reuse `junit_stream_report` instead of relaxing the suite-count check. Without events, an inflated total is indistinguishable from omitted subtests.
 2. Pass `--report-log` without `-p pytest_reportlog.plugin`. The provider run keeps pytest plugin autoload, as it already does for `pytest-cov`, and loading the plugin a second time fails.
 3. A missing event report blocks like a missing JUnit report: as the command failure when pytest failed, and otherwise as a missing report.
+4. Pin the static width as a command argument, not through repository configuration. `--isolated` keeps the product rules from being weakened by an adopter, so the shared width of 100 has to be part of the product command itself.

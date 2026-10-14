@@ -348,6 +348,20 @@ def test_python_static_cannot_waive_product_rules_with_inline_noqa(tmp_path: Pat
     assert "F821" in report["native"]["stdout"]
 
 
+@pytest.mark.parametrize(("width", "verdict"), [(100, "pass"), (101, "block")])
+def test_python_static_measures_lines_at_the_fleet_width(
+    tmp_path: Path, width: int, verdict: str
+) -> None:
+    """Isolated product rules use the shared width, not Ruff's 88-column default."""
+    line = "answer = " + "1" * (width - len("answer = "))
+    repo = committed_source_repo(tmp_path, {"src/app.py": f"{line}\n"})
+
+    report = python_quality.static_report(repo)
+
+    assert report["verdict"] == verdict, report
+    assert ("E501" in report["native"]["stdout"]) is (verdict == "block")
+
+
 @pytest.mark.parametrize("changed_at", ["before", "after"])
 def test_python_static_requires_exact_committed_bytes_before_and_after(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, changed_at: str

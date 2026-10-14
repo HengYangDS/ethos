@@ -28,6 +28,9 @@ from ethos.repository.policy.quality_reports import junit_stream_report
 if TYPE_CHECKING:
     from ethos.repository.policy.code_subjects import CodeSubject
 
+# The shared formatter width of governed repositories; isolation keeps it product-owned.
+_FLEET_LINE_LENGTH = 100
+
 
 def _failure(axis: str, reason: str) -> dict[str, object]:
     return {
@@ -64,6 +67,8 @@ def _static_execution(
         "--ignore-noqa",
         "--output-format",
         "json",
+        "--line-length",
+        str(_FLEET_LINE_LENGTH),
         "--select",
         "E,F,B,I,UP",
         *paths,

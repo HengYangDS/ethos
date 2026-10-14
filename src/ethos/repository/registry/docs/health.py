@@ -19,12 +19,16 @@ from ethos.repository.registry.docs.registry import DEFAULT_ALLOWED_STATES
 from ethos.repository.registry.docs.registry import REQUIRED_FIELDS
 from ethos.repository.registry.docs.registry import allowed_roles
 from ethos.repository.registry.docs.registry import allowed_states
+from ethos.repository.registry.docs.registry import authored_document_paths
 from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.repository.registry.docs.registry import docs_root
+from ethos.repository.registry.docs.registry import intent_document_owner
 from ethos.repository.release.configuration import RELEASE_HISTORY_FILE
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from ethos.repository.registry.docs.registry import DocumentOrigins
 
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 OBSERVATIONAL_ROLES = frozenset({"evidence", "history"})
@@ -37,12 +41,15 @@ def docs_health_report(
     *,
     command_validator: Callable[[list[str]], str] | None = None,
     tracked_documents: tuple[str, ...] = (),
+    retained_origins: DocumentOrigins | None = None,
 ) -> dict[str, object]:
     """Report docs metadata, structure, and live-command-example health."""
     root = root.resolve()
     try:
         generated_outputs = frozenset(item.output for item in observe_projections(root))
-        registry = build_docs_registry(root, generated_outputs=generated_outputs)
+        registry = build_docs_registry(
+            root, generated_outputs=generated_outputs, retained_origins=retained_origins
+        )
         states = allowed_states(root)
         roles = allowed_roles(root)
         missing = [
@@ -77,7 +84,9 @@ def docs_health_report(
             command_example_gaps(root, registry, command_validator) if command_validator else []
         )
         unindexed_plans = plan_index_gaps(root, registry)
-        readme_disposition = readme_disposition_gaps(root, registry)
+        readme_disposition = readme_disposition_gaps(
+            root, registry, generated_outputs=generated_outputs
+        )
         decision_identity = decision_record_identity_gaps(registry)
         length_gaps = current_document_length_gaps(
             root, registry, generated_outputs, tracked_documents
@@ -152,10 +161,11 @@ def current_document_length_gaps(
     tracked_documents: tuple[str, ...],
 ) -> list[str]:
     """Bound authored Markdown, not official intent or owned generated output."""
-    paths = set(tracked_documents) | {str(entry["path"]) for entry in registry}
+    paths = authored_document_paths(registry, tracked_documents, generated_outputs)
+    readable = set(paths) | {str(entry["path"]) for entry in registry if entry.get("origin")}
     gaps: list[str] = []
-    for relative in sorted(paths - generated_outputs):
-        if _official_openspec_carrier(relative):
+    for relative in sorted(readable):
+        if intent_document_owner(relative):
             continue
         path = root / relative
         if path.is_symlink() or not path.is_file() or not path.resolve().is_relative_to(root):
@@ -166,7 +176,7 @@ def current_document_length_gaps(
         except (OSError, UnicodeError):
             gaps.append(f"docs_source_unavailable:{relative}")
             continue
-        if relative == RELEASE_HISTORY_FILE:
+        if relative == RELEASE_HISTORY_FILE or relative not in paths:
             continue
         count = sum(bool(line.strip()) for line in lines)
         if count > MAX_CURRENT_MARKDOWN_NONBLANK:
@@ -195,23 +205,6 @@ def decision_record_identity_gaps(registry: list[dict[str, Any]]) -> list[str]:
     return gaps
 
 
-def _official_openspec_carrier(relative: str) -> bool:
-    """Keep the native spec-driven artifact roots outside document length policy."""
-    parts = PurePosixPath(relative).parts
-    if parts[:3] == ("openspec", "changes", "archive"):
-        return True
-    if len(parts) == 4 and parts[:2] == ("openspec", "specs"):
-        return parts[3] == "spec.md"
-    if len(parts) == 4 and parts[:2] == ("openspec", "changes"):
-        return parts[3] in {"proposal.md", "design.md", "tasks.md"}
-    return (
-        len(parts) == 6
-        and parts[:2] == ("openspec", "changes")
-        and parts[3] == "specs"
-        and parts[5] == "spec.md"
-    )
-
-
 def plan_index_gaps(root: Path, registry: list[dict[str, Any]]) -> list[str]:
     """Return active or planned documents absent from the plan index."""
     docs = docs_root(root)
@@ -236,14 +229,21 @@ def plan_index_gaps(root: Path, registry: list[dict[str, Any]]) -> list[str]:
     ]
 
 
-def readme_disposition_gaps(root: Path, registry: list[dict[str, Any]]) -> list[str]:
+def readme_disposition_gaps(
+    root: Path,
+    registry: list[dict[str, Any]],
+    *,
+    generated_outputs: frozenset[str] = frozenset(),
+) -> list[str]:
     """Require a real directory entrance and reject inert README markers."""
     docs = docs_root(root)
+    authored = set(authored_document_paths(registry, (), generated_outputs))
     by_parent: dict[Path, set[Path]] = {}
     sources = [root / entry["path"] for entry in registry]
     sources.extend(
         path for path in docs.rglob("*.toml") if path.is_file() and not path.is_symlink()
     )
+    sources.extend(_linked_metadata_children(root, registry, generated_outputs))
     for source in sources:
         parent = source.parent
         by_parent.setdefault(parent, set()).add(source)
@@ -253,11 +253,11 @@ def readme_disposition_gaps(root: Path, registry: list[dict[str, Any]]) -> list[
     gaps: list[str] = []
     for directory, entries in sorted(by_parent.items()):
         children = entries - {directory / "README.md"}
-        if len(children) >= 2 and not (directory / "README.md").is_file():
-            relative = (directory / "README.md").relative_to(root).as_posix()
+        relative = (directory / "README.md").relative_to(root).as_posix()
+        if len(children) >= 2 and relative not in authored:
             gaps.append(f"docs_readme_missing:{relative}")
     for entry in registry:
-        if Path(entry["path"]).name != "README.md":
+        if entry["path"] not in authored or Path(entry["path"]).name != "README.md":
             continue
         path = root / entry["path"]
         children = by_parent.get(path.parent, set()) - {path}
@@ -405,7 +405,14 @@ def ethos_command_tokens(command: str) -> list[str]:
 
 def relation_gaps(root: Path, registry: list[dict[str, Any]]) -> list[str]:
     """Resolve local authority and containment references without guessing scope prose."""
-    required = {"current_owner", "projects", "derives", "derives_from", "constrained_by", "part_of"}
+    required = {
+        "current_owner",
+        "projects",
+        "derives",
+        "derives_from",
+        "constrained_by",
+        "part_of",
+    }
     subjects = {entry["subject"] for entry in registry if entry.get("subject")}
     gaps = []
     for entry in registry:
@@ -420,3 +427,33 @@ def relation_gaps(root: Path, registry: list[dict[str, Any]]) -> list[str]:
                 if not path or not resolved.is_file():
                     gaps.append(f"docs_relation_target_missing:{entry['path']}:{relation}:{target}")
     return gaps
+
+
+def _linked_metadata_children(
+    root: Path, registry: list[dict[str, Any]], generated_outputs: frozenset[str]
+) -> list[Path]:
+    """Select only actual safe metadata files routed by a directory entrance."""
+    sources: list[Path] = []
+    for entry in registry:
+        readme = root / entry["path"]
+        if readme.name != "README.md":
+            continue
+        for _line, link in markdown_links(readme):
+            target = link.partition("#")[0].partition("?")[0]
+            if not target or target.startswith("/") or ":" in target:
+                continue
+            source = readme.parent / target
+            resolved = source.resolve()
+            if (
+                source.suffix in {".json", ".toml", ".yaml", ".yml"}
+                and source.is_file()
+                and not any(
+                    parent.is_symlink()
+                    for parent in (source, *source.parents)
+                    if parent.is_relative_to(root)
+                )
+                and resolved.is_relative_to(readme.parent.resolve())
+                and resolved.relative_to(root).as_posix() not in generated_outputs
+            ):
+                sources.append(resolved)
+    return sources

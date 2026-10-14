@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import re
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -25,6 +26,49 @@ DEFAULT_AMBIGUOUS_MODULE_NAMES = frozenset(
         "utils",
     }
 )
+
+
+def identifier_naming_findings(source: str, *, path: str) -> tuple[dict[str, object], ...]:
+    """Require semantic code identities; protocol-version values are not bindings."""
+    try:
+        tree = ast.parse(source, filename=path)
+    except SyntaxError as error:
+        line = error.lineno or 0
+        return ({"gap": f"code_identifier_syntax:{path}:{line}", "path": path, "line": line},)
+    bindings = set()
+    for node in ast.walk(tree):
+        match node:
+            case (
+                ast.FunctionDef(name=name)
+                | ast.AsyncFunctionDef(name=name)
+                | ast.ClassDef(name=name)
+                | ast.arg(arg=name)
+                | ast.Name(id=name, ctx=ast.Store())
+                | ast.Attribute(attr=name, ctx=ast.Store())
+            ):
+                bindings.add((node.lineno, name))
+            case ast.alias(name=imported, asname=alias):
+                bindings.add((node.lineno, alias or imported.split(".")[0]))
+            case (
+                ast.ExceptHandler(name=str() as name)
+                | ast.MatchAs(name=str() as name)
+                | ast.MatchStar(name=str() as name)
+                | ast.MatchMapping(rest=str() as name)
+            ):
+                bindings.add((node.lineno, name))
+    return tuple(
+        {
+            "gap": f"code_identifier_semantics:{path}:{line}:{name}",
+            "path": path,
+            "line": line,
+            "identifier": name,
+        }
+        for line, name in sorted(bindings)
+        if any(
+            re.fullmatch(r"[vV][0-9]+", token)
+            for token in re.split(r"_+|(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z0-9])", name)
+        )
+    )
 
 
 def ambiguous_module_findings(

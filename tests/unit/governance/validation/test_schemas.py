@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import NativeOutput
 from ethos.repository.audit import REQUIRED_SCHEMAS
@@ -37,7 +38,7 @@ def test_schema_loader_uses_active_product_checkout_not_adopter_schema(tmp_path)
 
 
 def test_schema_validation_report_covers_all_ethos_schemas() -> None:
-    report = schema_validation_report()
+    report = schema_validation_report(ROOT, retained_origins=observed_document_origins(ROOT))
 
     assert report["verdict"] == "pass"
     assert "ok" not in report

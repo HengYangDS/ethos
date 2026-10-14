@@ -95,8 +95,16 @@ def test_report_rebuilds_from_one_failed_pytest_attempt_without_rerun(tmp_path: 
     (gate.s.evidence / "allure/head.txt").write_text(head + "\n", encoding="utf-8")
     trial = tmp_path / "test_outcomes.py"
     trial.write_text(
+        "import json\n"
+        "import allure\n"
         "import pytest\n\n"
-        "def test_pass(): assert True\n"
+        "@allure.feature('Proof evidence')\n"
+        "def test_pass():\n"
+        "    with allure.step('Inspect a public proof summary'):\n"
+        "        summary = {'verdict': 'pass', 'required_gaps': []}\n"
+        "        allure.attach(json.dumps(summary), name='Public proof summary',\n"
+        "                      attachment_type=allure.attachment_type.JSON)\n"
+        "        assert summary['verdict'] == 'pass'\n"
         "def test_fail(): assert False, 'deliberate'\n"
         "@pytest.mark.skip(reason='deliberate')\n"
         "def test_skip(): assert False\n"
@@ -149,6 +157,17 @@ def test_report_rebuilds_from_one_failed_pytest_attempt_without_rerun(tmp_path: 
         "broken": 1,
     }
     assert (report / "awesome/index.html").is_file()
+
+    results = [json.loads(path.read_text()) for path in result_dir.glob("*-result.json")]
+    passed = next(result for result in results if result["name"] == "test_pass")
+    assert {"name": "feature", "value": "Proof evidence"} in passed["labels"]
+    assert passed["steps"][0]["name"] == "Inspect a public proof summary"
+    attachment = passed["steps"][0]["attachments"][0]
+    assert attachment["type"] == "application/json"
+    assert json.loads((result_dir / attachment["source"]).read_text()) == {
+        "verdict": "pass",
+        "required_gaps": [],
+    }
     query = run_command(
         root,
         (

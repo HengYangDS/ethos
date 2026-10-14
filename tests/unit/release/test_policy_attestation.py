@@ -111,20 +111,22 @@ def _declared_publication(*peers: dict[str, object]) -> dict[str, object]:
 
 
 def _peer(
-    peer_id: str,
+    peer_id: str | None,
     provider: str,
-    remote: str,
+    remote: str | None,
     *,
     capabilities: tuple[str, ...] = ("repository", "publication"),
     ci_surface: str | None = None,
 ) -> dict[str, object]:
     peer: dict[str, object] = {
-        "id": peer_id,
         "provider": provider,
         "role": "organization_collaboration",
-        "git_remote": remote,
         "capabilities": list(capabilities),
     }
+    if peer_id is not None:
+        peer["id"] = peer_id
+    if remote is not None:
+        peer["git_remote"] = remote
     if ci_surface is not None:
         peer["ci_surface"] = ci_surface
     return peer
@@ -345,6 +347,22 @@ def test_release_topology_uses_declared_repository_native_commands_and_ci_surfac
             {"gitlab": "gitlab", "github": "github"},
         ),
         ((_peer("backup", "gitlab", "mirror"),), {"backup": "mirror"}),
+        ((_peer(None, "gitlab", None),), {"gitlab": "gitlab"}),
+        ((_peer(None, "github", None),), {"github": "github"}),
+        ((_peer("gitlab_a", "gitlab", None),), {"gitlab_a": "gitlab_a"}),
+        ((_peer(None, "gitlab", "mirror"),), {"gitlab": "mirror"}),
+        (
+            (_peer(None, "gitlab", None), _peer(None, "github", None)),
+            {"gitlab": "gitlab", "github": "github"},
+        ),
+        (
+            (
+                _peer("gitlab_a", "gitlab", None),
+                _peer("gitlab_b", "gitlab", None),
+                _peer(None, "github", None),
+            ),
+            {"gitlab_a": "gitlab_a", "gitlab_b": "gitlab_b", "github": "github"},
+        ),
         (
             (
                 _peer("internal", "gitlab", "github"),
@@ -359,6 +377,12 @@ def test_release_topology_uses_declared_repository_native_commands_and_ci_surfac
         "local-github",
         "local-dual-remote",
         "arbitrary-remote",
+        "default-gitlab-name",
+        "default-github-name",
+        "remote-defaults-to-declared-id",
+        "id-defaults-to-provider",
+        "both-default-names",
+        "three-configurable-peers",
         "independent-peer-coordinates",
     ),
 )

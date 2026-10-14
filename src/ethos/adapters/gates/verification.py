@@ -16,6 +16,7 @@ from typing import cast
 import ethos
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import command_scope
+from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.git import current_head
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
@@ -168,6 +169,8 @@ def _provider_report(
     kwargs: dict[str, object] = {}
     if "current_head" in parameters:
         kwargs["current_head"] = current_head(root)
+    if "retained_origins" in parameters:
+        kwargs["retained_origins"] = observed_document_origins(root)
     if execution is not None and "execution" in parameters:
         kwargs["execution"] = execution
     if timeout_seconds is not None and "timeout_seconds" in parameters:

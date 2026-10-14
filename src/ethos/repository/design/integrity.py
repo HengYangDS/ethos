@@ -13,6 +13,8 @@ from ethos.repository.registry.docs.registry import front_matter
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.repository.registry.docs.registry import DocumentOrigins
+
 DESIGN_OWNER = "docs/governance/product-design-contract.md"
 ROOT_AXIOMS = "system/axioms.md"
 REQUIRED_PROJECTIONS = (
@@ -209,12 +211,16 @@ def design_integrity_report(
     root: Path,
     *,
     tracked_documents: tuple[str, ...] = (),
+    retained_origins: DocumentOrigins | None = None,
 ) -> dict[str, object]:
     """Audit design ownership, relation grammar, and derivation boundaries."""
     forbidden_paths = [path for path in FORBIDDEN_ROOT_PATHS if (root / path).exists()]
     gaps = [f"design_integrity_forbidden_projection_path:{path}" for path in forbidden_paths]
     try:
-        registry = {entry["path"]: entry for entry in build_docs_registry(root)}
+        registry = {
+            entry["path"]: entry
+            for entry in build_docs_registry(root, retained_origins=retained_origins)
+        }
     except ValueError as exc:
         if not str(exc).startswith(("docs_metadata_invalid:", "projection_")):
             raise

@@ -13,6 +13,7 @@ from typing import TypeGuard
 from typing import cast
 
 from ethos.adapters.gates.tool import native_configurations
+from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_files
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
@@ -20,6 +21,7 @@ from ethos.repository.policy.projections import projection_relations
 from ethos.repository.policy.quality.measurement import policy_for_root
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
+from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.repository.release.resources import canonical_resource
 
 ROOT = canonical_resource()
@@ -219,6 +221,9 @@ def audit(root: Path = ROOT, *, paths: tuple[str, ...] | None = None) -> Carrier
     """Compile effective quality ownership for tracked or explicitly selected carriers."""
     declarations, dependency_patterns = _native_ownership(root)
     native_outputs, generated = _native_sources(root)
+    registry = build_docs_registry(root, retained_origins=observed_document_origins(root))
+    originals = {entry["path"] for entry in registry if entry.get("origin")}
+    native_outputs.update(dict.fromkeys(originals, "docs-registry"))
     tracked = paths if paths is not None else git_files(root, check=True)
     assignments: list[CarrierAssignment] = []
     failures: list[dict[str, str]] = []

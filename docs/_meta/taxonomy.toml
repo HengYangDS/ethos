@@ -38,3 +38,16 @@ allowed = [
 "docs/plans" = ["plan", "findings", "progress", "index"]
 "docs/research" = ["research", "plan", "index"]
 "docs/guides" = ["how-to", "index"]
+
+[[retained]]
+path = "docs/history/docs-topology-contract-20260708.md"
+subject = "ethos:history:docs-topology-contract-20260708"
+role = "history"
+state = "superseded"
+origin = "a74d01910e0ce01850ca1b2e224cf126230bb3a3:docs/history/docs-topology-contract-20260708.md"
+review_date = "2026-10-15"
+exit_condition = "Retire the current-tree original after the live documentation registry and history entrypoint remove their retrieval dependency; preserve and verify its exact Git origin."
+
+[retained.relations]
+historical_carrier_for = "DR-0004 native documentation topology contract"
+current_owner = "../governance/docs-registry.md"

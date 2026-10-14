@@ -91,6 +91,35 @@ trial; it did not justify indefinite deferral or establish that CUE was already
 an implemented profile compiler. CUE cannot replace fresh authorization,
 effect observation, recovery or accepted OpenSpec intent.
 
+### Implementation Languages And Immutable State
+
+Python owns product decisions and effect coordination. The current source has no
+owned Go or Rust implementation. JavaScript adapters use native Node ecosystem
+APIs for ESLint, coverage, Markdown, npm supply and OpenSpec; the npm launcher is
+an actual distribution boundary, not a second product implementation. CUE is
+declarative CI input, not another imperative product core.
+
+| Choice                          | Benefit                                                                           | Cost and decision                                                                                                                                                                                 |
+| ------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Python-only implementation      | One type/test toolchain, simpler packaging and smaller maintenance surface.       | Reimplementing native Node semantics or adding repeated CLI processes can cost more. Prefer Python for decisions; do not translate official ecosystem APIs mechanically.                          |
+| Bounded native-language adapter | Reuse the original parser, formatter or analyzer and preserve ecosystem behavior. | Extra runtime, supply, licenses, build hooks, platform qualification and interfaces. Keep only an indispensable native boundary or measured net benefit; audit internal OpenSpec APIs separately. |
+| Persistent immutable map        | Structural sharing rebuilds changed paths instead of copying a whole snapshot.    | Hashing, dependencies and interoperability can outweigh the gain for small read-only observations. Benchmark the actual workload before admitting a library.                                      |
+
+The document-origin observation needs an immutable snapshot, not a persistent-map
+framework. Its frozen model now contains copied read-only mappings and immutable
+retained-document values, with serialization only at the metadata boundary.
+Tests distinguish mutation of the caller's map, a nested relation and a value
+field. No third-party immutability dependency is needed for this workload.
+MappingProxyType alone does not recursively freeze arbitrary values; the
+transitive model contract remains necessary.
+
+For update-heavy state, compare tuples, frozen dataclasses, read-only mappings
+and a mature persistent collection against the same cold/warm workload before
+selection. Reuse source facts and stable summaries independently of per-consumer
+observation state; never share mutable provenance or treat cached computation as
+fresh authorization. Pure extraction and evaluation keep effects at named
+adapters, while supported wire protocols retain native identities.
+
 ### Program Meaning Is Not Spelling
 
 The current `python_syntax.py` still constructs a whole-tree string table and

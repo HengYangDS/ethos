@@ -227,14 +227,16 @@ def select_publication_peers(
 def _compile_peer(root: Path, raw: object, *, index: int) -> tuple[dict[str, object], list[str]]:
     if not isinstance(raw, Mapping) or set(raw) - _PEER_FIELDS:
         return {}, [f"publication_topology_peer_declaration_invalid:{index}"]
-    if any(
-        not isinstance(raw.get(field), str) for field in ("id", "provider", "role", "git_remote")
-    ) or not isinstance(raw.get("capabilities"), list):
+    if (
+        any(not isinstance(raw.get(field), str) for field in ("provider", "role"))
+        or any(field in raw and not isinstance(raw[field], str) for field in ("id", "git_remote"))
+        or not isinstance(raw.get("capabilities"), list)
+    ):
         return {}, [f"publication_topology_peer_declaration_invalid:{index}"]
-    peer_id = str(raw.get("id") or "")
-    provider = str(raw.get("provider") or "")
-    role = str(raw.get("role") or "")
-    remote = str(raw.get("git_remote") or "")
+    provider = str(raw["provider"])
+    peer_id = str(raw.get("id", provider))
+    role = str(raw["role"])
+    remote = str(raw.get("git_remote", peer_id))
     raw_capabilities = cast("list[object]", raw.get("capabilities"))
     if any(not isinstance(item, str) for item in raw_capabilities):
         return {}, [f"publication_topology_peer_declaration_invalid:{index}"]

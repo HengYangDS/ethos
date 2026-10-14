@@ -124,7 +124,10 @@ def test_docs_health_routes_nested_topics_from_a_portable_root(tmp_path: Path) -
     ]
 
 
-def test_docs_health_routes_metadata_without_indexing_generated_diagrams(tmp_path: Path) -> None:
+@pytest.mark.parametrize("target", ["taxonomy.toml", "./taxonomy.toml", "../_meta/taxonomy.toml"])
+def test_docs_health_routes_metadata_without_indexing_generated_diagrams(
+    tmp_path: Path, target: str
+) -> None:
     """Document declarations need an entrance; diagram outputs do not."""
     metadata = tmp_path / "docs/_meta"
     metadata.mkdir(parents=True)
@@ -141,7 +144,8 @@ def test_docs_health_routes_metadata_without_indexing_generated_diagrams(tmp_pat
 
     (metadata / "README.md").write_text(
         _document("docs:metadata", "index", "canonical", "Metadata")
-        + "\nRead [Taxonomy](taxonomy.toml).\n"
+        + f"\nRead [Taxonomy]({target}) "
+        + f"and [Stable paths]({target.replace('taxonomy', 'stable_paths')}).\n"
     )
     assert docs_health_report(tmp_path)["readme_disposition"] == []
 
@@ -570,3 +574,24 @@ def test_native_shell_fences_flush_continuations_and_ignore_unrelated_commands(t
     path.write_text(f"{fence}sh\n{command} " + "\\" + "\n" + (fence if closed else "  --verbose"))
     assert shell_commands(path) == [(2, command if closed else command + " --verbose")]
     assert ethos_command_tokens("uv run python -V") == []
+
+
+@pytest.mark.parametrize("kind", ["file", "symlink", "directory"])
+def test_json_navigation_uses_actual_safe_linked_child(tmp_path, kind):
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    child = docs / "report.json"
+    if kind == "file":
+        child.write_text('{"verdict": "pass"}\n')
+    elif kind == "directory":
+        child.mkdir()
+    else:
+        outside = tmp_path / "outside.json"
+        outside.write_text("{}\n")
+        child.symlink_to(outside)
+    (docs / "README.md").write_text(
+        _document("sample:docs", "index", "canonical", "Docs") + "\nRead [Report](report.json).\n"
+    )
+    report = docs_health_report(tmp_path)
+    expected = [] if kind == "file" else ["docs_readme_without_children:docs/README.md"]
+    assert report["readme_disposition"] == expected

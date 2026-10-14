@@ -11,6 +11,7 @@ import pytest
 
 from ethos.adapters.openspec.cli import openspec_base_command
 from ethos.adapters.openspec.cli import run_json
+from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.contracts.semantic import Commitment
 from ethos.repository.audit import REQUIRED_DOCS
 from ethos.repository.design.integrity import design_integrity_report
@@ -252,7 +253,7 @@ def test_semantic_capabilities_keep_their_existing_authority_boundaries() -> Non
         path.startswith("src/ethos/adapters/openspec/change_lineage/") for path in tracked
     )
     assert not any(path.startswith("src/ethos/contracts/change_lineage/") for path in tracked)
-    registry = build_docs_registry(ROOT)
+    registry = build_docs_registry(ROOT, retained_origins=observed_document_origins(ROOT))
     assert not any(entry["path"].startswith("openspec/changes/archive/") for entry in registry)
     assert not any(
         path.startswith("src/ethos/")

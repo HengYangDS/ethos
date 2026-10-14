@@ -14,6 +14,7 @@ from ethos.repository.policy.layout.naming import multiple_command_owner_finding
 from ethos.repository.policy.layout.policy import empty_package_findings
 from ethos.repository.policy.layout.policy import package_python_files
 from ethos.repository.policy.layout.policy import semantic_python_files
+from ethos.repository.policy.layout.report import module_layout_report
 
 
 def _write(root, relative, source):
@@ -219,6 +220,46 @@ def test_native_test_and_tool_names_are_not_treated_as_ambiguous(tmp_path) -> No
     }
 
     assert ambiguous_module_findings(tmp_path, policy) == []
+
+
+@pytest.mark.parametrize(
+    "relative",
+    [
+        "src/ethos/planning.py",
+        "tests/test_planning.py",
+        "tools/planning.py",
+        ".agents/skills/sample/scripts/planning.py",
+    ],
+)
+def test_code_entities_use_semantic_names_in_every_owned_carrier(tmp_path, relative) -> None:
+    _write(
+        tmp_path,
+        relative,
+        "class PlanV2: pass\ndef compile_v3(v4): return v4\nplan_v1 = PlanV2()\n",
+    )
+
+    report = module_layout_report(tmp_path)
+
+    assert report["verdict"] == "block"
+    assert {finding["identifier"] for finding in report["identifier_naming_findings"]} == {
+        "PlanV2",
+        "compile_v3",
+        "v4",
+        "plan_v1",
+    }
+
+
+def test_protocol_values_do_not_define_numbered_code_entities(tmp_path) -> None:
+    _write(
+        tmp_path,
+        "src/ethos/planning.py",
+        'protocol_version = "schema-v2"\n'
+        'ipv4 = "127.0.0.1"\n'
+        "class Revision: pass\n"
+        "def compile_plan(current): return current\n",
+    )
+
+    assert module_layout_report(tmp_path)["verdict"] == "pass"
 
 
 def test_import_policy_finds_package_root_and_private_imports(tmp_path, monkeypatch) -> None:

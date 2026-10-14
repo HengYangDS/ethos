@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.assistants.skills.portfolio import skill_portfolio_report
@@ -23,6 +24,10 @@ from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.release.configuration import REQUIRED_RELEASE_FILES as PRODUCT_RELEASE_FILES
 from ethos.repository.release.configuration import release_role_policy_report
+
+if TYPE_CHECKING:
+    from ethos.repository.registry.docs.registry import DocumentOrigins
+
 
 OpenSpecReporter = Callable[[Path], dict[str, object]]
 CommitPolicyObserver = Callable[[Path, CommitPolicy], dict[str, object]]
@@ -159,6 +164,7 @@ def governance_audit(
     commit_policy_observer: CommitPolicyObserver,
     tracked_documents: tuple[str, ...] = (),
     tracked_paths: tuple[str, ...] = (),
+    retained_origins: DocumentOrigins | None = None,
 ) -> dict[str, object]:
     """Compose applicable repository obligations without product-layout requirements."""
     reports = {
@@ -166,7 +172,9 @@ def governance_audit(
         "openspec": openspec,
         "commit_policy": _commit_policy_report(root, commit_policy_observer),
         "release_policy": release_role_policy_report(root),
-        "docs": docs_health_report(root, tracked_documents=tracked_documents),
+        "docs": docs_health_report(
+            root, tracked_documents=tracked_documents, retained_origins=retained_origins
+        ),
         "paradigm": repository_paradigm_report(root, tracked_paths=tracked_paths),
     }
     gaps = list(
@@ -201,6 +209,7 @@ def repository_audit(
     tracked_documents: tuple[str, ...] = (),
     openspec_shape: dict[str, object] | None = None,
     commit_policy_observer: CommitPolicyObserver | None = None,
+    retained_origins: DocumentOrigins | None = None,
 ) -> dict[str, object]:
     docs_missing = [doc for doc in REQUIRED_DOCS if not (root / doc).exists()]
     docs_without_front_matter = [
@@ -221,10 +230,14 @@ def repository_audit(
         for family in REQUIRED_OPENSPEC_CAPABILITIES
         if not (root / "openspec" / "specs" / family / "spec.md").exists()
     ]
-    schema_report = schema_validation_report(root)
+    schema_report = schema_validation_report(root, retained_origins=retained_origins)
     system_contracts = system_contracts_report(root)
-    semantic_closure = repository_semantic_closure(root, system_contracts=system_contracts)
-    design_integrity = design_integrity_report(root, tracked_documents=tracked_documents)
+    semantic_closure = repository_semantic_closure(
+        root, system_contracts=system_contracts, retained_origins=retained_origins
+    )
+    design_integrity = design_integrity_report(
+        root, tracked_documents=tracked_documents, retained_origins=retained_origins
+    )
     commit_policy = _commit_policy_report(root, commit_policy_observer)
     if openspec_mode == "shape":
         openspec = openspec_shape or {}

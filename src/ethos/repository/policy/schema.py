@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import tomllib
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
 from typing import TypedDict
@@ -20,6 +21,9 @@ from ethos.normalization.coercion import string_list
 from ethos.repository.policy.gates import resolve_gate_policy
 from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.release.resources import canonical_resource
+
+if TYPE_CHECKING:
+    from ethos.repository.registry.docs.registry import DocumentOrigins
 
 
 class SchemaInstanceValidation(TypedDict):
@@ -55,7 +59,9 @@ def load_schema(name: str, *, root: Path | None = None) -> dict[str, Any]:
     return json.loads((schema_source_root() / "kernel" / name).read_text(encoding="utf-8"))
 
 
-def schema_validation_report(root: Path | None = None) -> SchemaValidationReport:
+def schema_validation_report(
+    root: Path | None = None, *, retained_origins: DocumentOrigins | None = None
+) -> SchemaValidationReport:
     repo = root or _repo_root()
     gaps: list[str] = []
     schemas: dict[str, dict[str, str]] = {}
@@ -79,7 +85,7 @@ def schema_validation_report(root: Path | None = None) -> SchemaValidationReport
             schemas[path.name] = {"verdict": "block", "error": str(exc)}
         else:
             schemas[path.name] = {"verdict": "pass", "title": schema.get("title", "")}
-    instances = _instance_validation_report(repo)
+    instances = _instance_validation_report(repo, retained_origins=retained_origins)
     for name, instance in instances.items():
         if report_verdict(instance) != "pass":
             gaps.extend(
@@ -129,9 +135,11 @@ def _bundle_node(value: Any, *, root: Path, seen: frozenset[str]) -> Any:
     return {key: _bundle_node(item, root=root, seen=seen) for key, item in value.items()}
 
 
-def _instance_validation_report(root: Path) -> dict[str, SchemaInstanceValidation]:
+def _instance_validation_report(
+    root: Path, *, retained_origins: DocumentOrigins | None = None
+) -> dict[str, SchemaInstanceValidation]:
     instances: dict[str, SchemaInstanceValidation] = {}
-    docs = docs_health_report(root)
+    docs = docs_health_report(root, retained_origins=retained_origins)
     instances["docs-registry"] = validate_schema_instance(
         "docs-registry.schema.json",
         docs,

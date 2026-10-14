@@ -16,6 +16,7 @@ from tempfile import TemporaryDirectory
 
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_files
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
@@ -23,7 +24,10 @@ from ethos.adapters.repo.runtime.materialization.node_package_supply import prod
 from ethos.contracts.verdict import close_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.layout.report import module_layout_report
+from ethos.repository.policy.projections import observe_projections
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
+from ethos.repository.registry.docs.registry import authored_document_paths
+from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.repository.release.resources import canonical_resource
 
 
@@ -174,12 +178,14 @@ def quality_inventory_failure(
 
 def _markdown_files(root: Path) -> list[str]:
     """Current authored Markdown excludes immutable records and absent paths."""
+    outputs = frozenset(item.output for item in observe_projections(root))
+    registry = build_docs_registry(
+        root, generated_outputs=outputs, retained_origins=observed_document_origins(root)
+    )
     return [
         path
-        for path in quality_source_files(root, "*.md")
-        if path.endswith(".md")
-        and not path.startswith(("evidence/", "docs/archive/", "openspec/changes/archive/"))
-        and (root / path).is_file()
+        for path in authored_document_paths(registry, quality_source_files(root, "*.md"), outputs)
+        if (root / path).is_file()
     ]
 
 

@@ -277,7 +277,12 @@ def import_boundaries(session) -> None:
 
 
 def schemas(session) -> None:
-    report = import_module("ethos.repository.policy.schema").schema_validation_report(ROOT)
+    origins = import_module("ethos.adapters.repo.content.observation").observed_document_origins(
+        ROOT
+    )
+    report = import_module("ethos.repository.policy.schema").schema_validation_report(
+        ROOT, retained_origins=origins
+    )
     session.log(json.dumps(report, sort_keys=True))
     if report["verdict"] != "pass":
         session.error("schema validation failed: " + ", ".join(report["required_gaps"]))

@@ -123,6 +123,17 @@ Completed incidents remain regression boundaries, not a queue to replay.
   latency and maintenance cost. Preserve obligations, functionality, performance
   and effectiveness; remove duplicate explanations and references to stale
   state. Dense formatting, hidden content and omitted acceptance are not savings.
+- Qualify installed user journeys across supported platforms, plus representative
+  end-to-end, integration, property, mutation and failure/recovery coverage.
+  Directory names, plugins and coverage percentages do not prove completeness.
+- Use Allure 3's native hierarchy, steps, safe attachments, environments, history
+  and Agent expectations over the same attempt. Match the intended collection to
+  outcomes; matching JUnit and Allure counts can both omit unexecuted tests.
+- Bind repeatable performance evidence to source, policy, toolchain, workload and
+  environment. Include setup, cold/warm behavior, critical paths, calls, bytes,
+  memory, scaling and cleanup; maintain baselines rather than isolated timers.
+  Tool-depth qualification stays in existing quality owners and must not delay
+  independently qualified shared capabilities reaching adopters.
 
 ### Remaining Dependencies And Delivery Order
 
@@ -474,6 +485,10 @@ decisions merely because a new example uses different filenames.
     support, the standard library, platform primitives, and mature tools before
     custom implementation. Adopt only when the result removes more semantic and
     operational surface than it adds; otherwise keep the direct owner.
+    [Verification research](../research/foundations/verification.md) owns bounded
+    tool comparisons; [semantic research](../research/foundations/semantics.md)
+    owns implementation-language and immutable-state trade-offs. No tool must use
+    every feature: select capabilities by demonstrated outcome and total cost.
 12. **Use collaboration and competition deliberately.** Coordinate overlapping
     owners by default. Run independent alternatives only for a named uncertainty
     whose evidence value exceeds duplicate cost, then select or synthesize once

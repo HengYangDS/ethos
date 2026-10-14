@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.git import git_files
 from ethos.repository.registry.docs.health import docs_health_report
 from ethos.surface.cli.application import app
@@ -30,4 +31,5 @@ def docs_registry_report(root: Path) -> dict[str, object]:
         root,
         command_validator=_live_cyclopts_command,
         tracked_documents=tuple(git_files(root, "*.md")),
+        retained_origins=observed_document_origins(root),
     )

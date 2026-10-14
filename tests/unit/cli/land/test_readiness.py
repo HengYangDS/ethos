@@ -94,16 +94,25 @@ def test_publish_fallback_evidence_matrix(tmp_path: Path, case: str) -> None:
 
 
 @pytest.mark.parametrize("probe_remote", [False, True])
-@pytest.mark.parametrize("mode", ["dual", "local", "gitlab", "github", "tracking"])
+@pytest.mark.parametrize("mode", ["dual", "defaults", "local", "gitlab", "github", "tracking"])
 def test_publish_peer_topology_matrix(tmp_path: Path, mode: str, *, probe_remote: bool) -> None:
     repo, head = _publish_fixture(tmp_path)
     release = repo / ".ethos/release.toml"
     declaration = tomllib.loads(release.read_text())
     peers = declaration["publication"]["peers"]
-    peers = [peer for peer in peers if mode in {"dual", "tracking"} or peer["id"] == mode]
+    peers = [
+        peer for peer in peers if mode in {"dual", "defaults", "tracking"} or peer["id"] == mode
+    ]
     for peer in peers:
         peer["git_remote"] = peer["id"]
-    declaration["publication"]["peers"] = peers
+    declaration["publication"]["peers"] = (
+        [
+            {key: value for key, value in peer.items() if key not in {"id", "git_remote"}}
+            for peer in peers
+        ]
+        if mode == "defaults"
+        else peers
+    )
     release.write_text(tomli_w.dumps(declaration), encoding="utf-8")
     head = commit_fixture(repo, f"declare {mode} publication")
     seed_executed_proof(repo, head)
@@ -142,7 +151,7 @@ def test_publish_peer_topology_matrix(tmp_path: Path, mode: str, *, probe_remote
     assert all(
         observations[peer["id"]]["availability"]["remote"] == peer["git_remote"] for peer in peers
     )
-    if mode == "dual":
+    if mode in {"dual", "defaults"}:
         assert observations["github"]["availability"]["remote"] == "github"
         assert not {"remote_availability", "remote_sync"} & set(payload["data"])
     elif mode in {"gitlab", "github"}:

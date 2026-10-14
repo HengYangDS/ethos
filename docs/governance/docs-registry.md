@@ -80,6 +80,29 @@ its historical explanation or retrieval instructions have a current consumer;
 otherwise cite the exact Git revision. Current architecture, governance,
 reference, guides, and plan surfaces must not retain redirect or locator pages
 for retired concepts. Retirement removes redundant current-surface carriers.
+
+When a genuine original must remain byte-exact, its documentation taxonomy
+declares one `retained` member: exact path, subject, `history` or `evidence`
+role, allowed source state preserved without relabeling, full `commit:path`
+origin, independent live `relations.current_owner`, review date and executable
+exit condition.
+The native Git/content observer verifies a regular blob, complete bytes and
+mode without following links. Missing, changed, unavailable or conflicting
+origins are required gaps; a declaration alone is not verification. The pure
+registry receives that observation rather than importing an IO adapter.
+
+Length, native formatting/lint, prose and links derive current authored inputs
+from that same verified registry and declared generated-output owners. A
+directory name or lifecycle label is not an exemption. Current authored Skill
+references retain their Skill package and formatter owners, not historical
+status. Official intent stays OpenSpec-owned; only exact dated archive members
+are immutable history. The release-owned root changelog keeps release format
+checks but has no document-length ceiling. Retained originals keep registry
+and consumer checks; they are never silently rewritten for presentation.
+Current navigation also uses the shared authored selection: a verified original
+README remains discoverable history, but is not a current entrance or a
+substitute when current children need one.
+
 Official OpenSpec archive bytes remain
 immutable at their Git revisions; their presence in the latest tree is not a
 permanent retention requirement or current authority. Retire an unconsumed

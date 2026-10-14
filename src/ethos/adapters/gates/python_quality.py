@@ -22,6 +22,7 @@ from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.toolchain.mise import locked_environment
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.adapters.toolchain.mise import repository_mise_files
+from ethos.repository.policy.layout.naming import identifier_naming_findings
 from ethos.repository.policy.quality_reports import coverage_report
 from ethos.repository.policy.quality_reports import junit_stream_report
 
@@ -122,6 +123,12 @@ def static_report(root: Path, *, execution: NativeExecution | None = None) -> di
         artifacts = tuple(
             subject.path for subject in subjects if not subject.requires_authored_analysis
         )
+        for path in authored:
+            findings = identifier_naming_findings(
+                (root / path).read_text(encoding="utf-8"), path=path
+            )
+            if findings:
+                return {**_failure("static", str(findings[0]["gap"])), "native": native}
         if authored:
             execution = _static_execution(root, authored, execution)
             native = _native_fields(execution)

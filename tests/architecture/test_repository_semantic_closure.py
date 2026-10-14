@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import ethos.repository.audit as repository_audit_module
+from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.git import git_files
 from ethos.domain.status import product_audit
 
@@ -89,6 +90,7 @@ def test_repository_audit_fails_closed_through_the_unique_commit_policy_compiler
         openspec_mode="shape",
         openspec_shape={"verdict": "pass", "required_gaps": []},
         tracked_documents=TRACKED_DOCUMENTS,
+        retained_origins=observed_document_origins(ROOT),
         commit_policy_observer=observe,
     )
 
@@ -116,6 +118,7 @@ def test_repository_audit_adds_no_constraint_when_commit_policy_is_absent(monkey
         openspec_mode="shape",
         openspec_shape={"verdict": "pass", "required_gaps": []},
         tracked_documents=TRACKED_DOCUMENTS,
+        retained_origins=observed_document_origins(ROOT),
         commit_policy_observer=_passing_commit_observation,
     )
 
@@ -171,6 +174,7 @@ def test_repository_audit_cannot_pass_when_semantic_closure_is_unknown(
         openspec_mode="shape",
         openspec_shape={"verdict": "pass", "required_gaps": []},
         tracked_documents=TRACKED_DOCUMENTS,
+        retained_origins=observed_document_origins(ROOT),
         commit_policy_observer=_passing_commit_observation,
     )
 
@@ -220,6 +224,7 @@ def test_repository_audit_projects_one_copy_of_a_shared_semantic_gap(monkeypatch
         openspec_mode="shape",
         openspec_shape={"verdict": "pass", "required_gaps": []},
         tracked_documents=TRACKED_DOCUMENTS,
+        retained_origins=observed_document_origins(ROOT),
         commit_policy_observer=_passing_commit_observation,
     )
 

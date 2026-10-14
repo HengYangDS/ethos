@@ -26,6 +26,8 @@ from ethos.repository.registry.docs.registry import build_docs_registry
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos.repository.registry.docs.registry import DocumentOrigins
+
 SemanticCategory = Literal[
     "missing",
     "duplicate",
@@ -89,6 +91,7 @@ def repository_semantic_closure(
     root: Path,
     *,
     system_contracts: dict[str, object] | None = None,
+    retained_origins: DocumentOrigins | None = None,
 ) -> dict[str, object]:
     """Prove current native reference ownership and relation closure."""
     observation = observe_repository_references(root)
@@ -111,7 +114,7 @@ def repository_semantic_closure(
         *_missing_command_parents(command_owners),
         *_orphan_consumers(owners, consumption.sources),
         *_retired_reference_consumers(root, files),
-        *_superseded_current_carriers(root, files),
+        *_superseded_current_carriers(root, files, retained_origins=retained_origins),
         *_declaration_findings(contract_report),
         *_unknown_carriers((*observation.unreadable_paths, *consumption.unknown_paths)),
     ]
@@ -403,11 +406,13 @@ def _markdown_link_destinations(text: str) -> tuple[str, ...]:
 def _superseded_current_carriers(
     root: Path,
     files: dict[str, str],
+    *,
+    retained_origins: DocumentOrigins | None = None,
 ) -> list[SemanticClosureFinding]:
     if not (root / "docs").is_dir():
         return []
     try:
-        registry = build_docs_registry(root)
+        registry = build_docs_registry(root, retained_origins=retained_origins)
     except ValueError as exc:
         if not str(exc).startswith(("docs_metadata_invalid:", "projection_")):
             raise
@@ -429,7 +434,9 @@ def _superseded_current_carriers(
             sources=(entry["path"],),
         )
         for entry in registry
-        if entry.get("state") in {"archived", "superseded"} and entry["path"] in files
+        if entry.get("state") in {"archived", "superseded"}
+        and entry["path"] in files
+        and not entry.get("origin")
     ]
 
 

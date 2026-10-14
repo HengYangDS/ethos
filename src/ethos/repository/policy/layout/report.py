@@ -13,12 +13,14 @@ from ethos.repository.policy.layout.imports import package_root_submodule_import
 from ethos.repository.policy.layout.imports import private_import_findings
 from ethos.repository.policy.layout.naming import ambiguous_module_findings
 from ethos.repository.policy.layout.naming import ambiguous_package_findings
+from ethos.repository.policy.layout.naming import identifier_naming_findings
 from ethos.repository.policy.layout.naming import multiple_command_owner_findings
 from ethos.repository.policy.layout.policy import POLICY_PATH
 from ethos.repository.policy.layout.policy import configured_package_paths
 from ethos.repository.policy.layout.policy import configured_semantic_paths
 from ethos.repository.policy.layout.policy import empty_package_findings
 from ethos.repository.policy.layout.policy import load_policy
+from ethos.repository.policy.layout.policy import semantic_python_files
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -32,6 +34,13 @@ def module_layout_report(
     """Report semantic-boundary violations across repository-owned Python."""
     policy = load_policy(root)
     finding_groups: dict[str, list[dict[str, object]]] = {
+        "identifier_naming_findings": [
+            finding
+            for path in semantic_python_files(root, policy, files=files)
+            for finding in identifier_naming_findings(
+                path.read_text(encoding="utf-8"), path=path.relative_to(root).as_posix()
+            )
+        ],
         "ambiguous_module_findings": ambiguous_module_findings(root, policy, files),
         "ambiguous_package_findings": ambiguous_package_findings(root, policy, files),
         "empty_package_findings": empty_package_findings(root, policy, files),

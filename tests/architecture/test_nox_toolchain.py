@@ -16,6 +16,7 @@ import tomli_w
 
 import ethos.adapters.gates.configuration as config_quality
 import ethos.adapters.gates.tool as quality_tools
+import ethos.adapters.repo.content.observation as content_observation
 import ethos.repository.policy.schema as schema_owner
 from ethos.adapters.process import run_command
 from tests.support.governed_repository import git
@@ -100,11 +101,15 @@ def test_quality_inventory_excludes_deleted_worktree_paths(tmp_path, monkeypatch
 
 
 def test_schema_gate_reuses_repository_validator(monkeypatch: pytest.MonkeyPatch) -> None:
+    origins = Mock()
+    observe = Mock(return_value=origins)
     validate = Mock(return_value={"verdict": "pass", "schema_count": 1, "required_gaps": []})
+    monkeypatch.setattr(content_observation, "observed_document_origins", observe)
     monkeypatch.setattr(schema_owner, "schema_validation_report", validate)
     session = Mock()
     sessions.schemas(session)
-    validate.assert_called_once_with(sessions.ROOT)
+    observe.assert_called_once_with(sessions.ROOT)
+    validate.assert_called_once_with(sessions.ROOT, retained_origins=origins)
     session.log.assert_called_once()
     session.run.assert_not_called()
     session.error.assert_not_called()

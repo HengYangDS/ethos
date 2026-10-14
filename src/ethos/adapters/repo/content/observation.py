@@ -4,12 +4,22 @@ from __future__ import annotations
 
 import os
 import stat
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
+from ethos.adapters.repo.git import GitExecutionError
+from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_object import read_objects
+from ethos.repository.registry.docs.registry import DocumentOrigins
+from ethos.repository.registry.docs.registry import docs_root
+from ethos.repository.registry.docs.registry import retained_document_origins
+
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from ethos.repository.registry.docs.registry import RetainedDocument
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +40,7 @@ def read_regular_bytes(
     unstable_gap: str,
     size_gap: str,
     max_bytes: int = 64 * 1024 * 1024,
+    expected_mode: int | None = None,
 ) -> bytes:
     """Observe one stable regular input, refusing unsupported native guarantees.
 
@@ -67,7 +78,9 @@ def read_regular_bytes(
             components[-1], os.O_RDONLY | nofollow | nonblock, dir_fd=directories[-1]
         )
         before = os.fstat(file_descriptor)
-        if not stat.S_ISREG(before.st_mode):
+        if not stat.S_ISREG(before.st_mode) or (
+            expected_mode is not None and stat.S_IMODE(before.st_mode) != expected_mode
+        ):
             raise ValueError(unsafe_gap)
         limit = min(before.st_size, max_bytes)
         if before.st_size > max_bytes:
@@ -96,7 +109,11 @@ def read_regular_bytes(
 
 def _validate_snapshot(snapshot: _ReadSnapshot, gap: str, canonical: Path) -> None:
     before, after = snapshot.before, snapshot.after
-    if _identity(before) != _identity(after) or snapshot.content_length != after.st_size:
+    if (
+        _identity(before) != _identity(after)
+        or before.st_mode != after.st_mode
+        or snapshot.content_length != after.st_size
+    ):
         raise ValueError(gap)
     try:
         for parent, component, child in zip(
@@ -126,3 +143,76 @@ def _validate_snapshot(snapshot: _ReadSnapshot, gap: str, canonical: Path) -> No
 
 def _identity(value: os.stat_result) -> tuple[int, int, int, int, int]:
     return value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns
+
+
+def observed_document_origins(root: Path) -> DocumentOrigins:
+    """Return native original verification or bounded refusal as composition data."""
+    try:
+        return DocumentOrigins(_verified_document_origins(root))
+    except GitExecutionError:
+        raise
+    except ValueError as error:
+        return DocumentOrigins({}, (str(error),))
+
+
+def _verified_document_origins(root: Path) -> dict[str, RetainedDocument]:
+    """Verify declared immutable originals through native Git and safe live reads."""
+    origins = retained_document_origins(root)
+    if not origins:
+        return {}
+    declaration = (docs_root(root) / "_meta/taxonomy.toml").relative_to(root).as_posix()
+    gap = f"docs_metadata_invalid:{declaration}:retained_origin"
+    revisions: dict[str, list[str]] = defaultdict(list)
+    for path, entry in origins.items():
+        revisions[entry.origin.partition(":")[0]].append(path)
+    read_objects(root, tuple(revisions), kind="commit", gap=gap)
+    members = _retained_tree_members(root, revisions, gap)
+    originals = read_objects(root, tuple(oid for _path, _mode, oid in members), gap=gap)
+    for (path, mode, _oid), original in zip(members, originals, strict=True):
+        actual = read_regular_bytes(
+            root,
+            path,
+            unsafe_gap=gap,
+            unstable_gap=gap,
+            size_gap=gap,
+            max_bytes=max(len(original), 1),
+            expected_mode=0o755 if mode == "100755" else 0o644,
+        )
+        if actual != original:
+            raise ValueError(gap)
+    return origins
+
+
+def _retained_tree_members(
+    root: Path, revisions: dict[str, list[str]], gap: str
+) -> list[tuple[str, str, str]]:
+    """Observe exact regular blobs through the existing native Git adapter."""
+    members = []
+    for revision, paths in revisions.items():
+        observed = run_git(
+            root,
+            "ls-tree",
+            "-z",
+            revision,
+            "--",
+            *paths,
+            text=False,
+            check=False,
+            timeout=30,
+            observation=True,
+        )
+        records = {}
+        if observed.returncode:
+            raise ValueError(gap)
+        for raw in observed.stdout.split(b"\0"):
+            if raw:
+                header, member = raw.split(b"\t", 1)
+                records[member.decode()] = header.decode().split()
+        if set(records) != set(paths):
+            raise ValueError(gap)
+        for path in paths:
+            mode, kind, oid = records[path]
+            if kind != "blob" or mode not in {"100644", "100755"}:
+                raise ValueError(gap)
+            members.append((path, mode, oid))
+    return members

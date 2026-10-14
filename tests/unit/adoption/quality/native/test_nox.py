@@ -20,6 +20,7 @@ from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.contracts.evidence.observer import ObserverIdentity
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_execution_identity
+from tests.support.governed_repository import commit_fixture
 from tests.support.native_quality import native_quality_gate
 
 if TYPE_CHECKING:
@@ -83,6 +84,31 @@ def test_native_nox_reports_qualify_the_original_attempt(
     assert refused.gaps == ("hook_runtime_wheel_provenance_missing",)
     assert refused.outputs == ()
     assert not Path(refused.output_root).exists()
+
+
+def test_native_static_quality_requires_semantic_code_identities(
+    tmp_path: Path, native_nox_supply: NativeNoxSupply
+) -> None:
+    """A clean native Ruff result cannot certify a numbered authored identity."""
+    gate = native_quality_gate(tmp_path, native_nox_supply)
+    root = tmp_path / "repo"
+    source = root / "src/app.py"
+    source.write_text(source.read_text() + "\nanswer_v2 = 42\n", encoding="utf-8")
+    commit_fixture(root, "declare a nonsemantic identity")
+    node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
+
+    result = LocalGateRunner().run(node, gate, root=root)
+
+    assert result.exit_code == 0, (result.stdout, result.stderr)
+    assert result.verdict == "block"
+    assert result.verification is not None
+    providers = result.verification["providers"]
+    assert isinstance(providers, list)
+    reports = [item["report"] for item in providers]
+    assert reports[0]["verdict"] == "pass"
+    assert reports[1]["required_gaps"] == [
+        "quality_static_code_identifier_semantics:src/app.py:4:answer_v2"
+    ]
 
 
 @pytest.mark.parametrize(

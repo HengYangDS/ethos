@@ -282,7 +282,7 @@ def test_compile_rules_rejects_unavailable_native_gate_authority(
 
 
 def test_product_starter_rules_keep_product_gates_beside_target_authority(tmp_path: Path) -> None:
-    """Product-owned rules use product gates the target does not own; target rules do not."""
+    """Rules reuse product-owned checks while native descriptors retain target authority."""
     gate = {"id": "native-quality", "kind": "check", "command": ["target-quality"]}
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos/profile.toml").write_text(
@@ -311,8 +311,19 @@ def test_product_starter_rules_keep_product_gates_beside_target_authority(tmp_pa
     assert selected == [packaged["schemas"]]
     assert gaps == []
 
-    _write_rules(tmp_path, _rule(id="custom.product", required_gates=["schemas"]))
-    assert compile_rules(tmp_path)["compile_gaps"] == ["unknown_rule_gate:custom.product:schemas"]
+    _write_rules(
+        tmp_path,
+        _rule(id="custom.governance", required_gates=["openspec", "schemas"]),
+    )
+    compiled = compile_rules(tmp_path)
+    assert compiled["compile_gaps"] == []
+    assert compiled["gate_definitions"]["openspec"] == packaged["openspec"]
+    assert compiled["gate_definitions"]["schemas"] == packaged["schemas"]
+    assert "unit-architecture" not in compiled["gate_definitions"]
+    matched, selected, gaps = matching_rule_gates(tmp_path, ("docs/guide.md",))
+    assert {rule["id"] for rule in matched} == {"starter.docs", "custom.governance"}
+    assert {gate["id"] for gate in selected} == {"docs-registry", "openspec", "schemas"}
+    assert gaps == []
 
 
 def test_public_native_product_composition_binds_target_and_refuses_stale_source(

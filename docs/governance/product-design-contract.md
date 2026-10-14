@@ -70,6 +70,13 @@ DRY shares its implementation; MECE separates complete duties; SOLID preserves
 substitution and dependency direction. Commands, hooks, CI, SDKs, docs and Skills
 project those decisions, retaining distinct authority, lifetime and failure bounds.
 
+Product decisions use Python; another implementation language requires a native
+ecosystem boundary or measured benefit that outweighs packaging and maintenance.
+Immutable snapshots freeze their transitive values, not only object fields;
+structural sharing serves measured update workloads without caching authority.
+Tool adoption requires a reproduced gap, its owning repair, consumer acceptance
+and retirement of equivalent local machinery, not installation or report counts.
+
 Deep modules provide complete capabilities through small, stable interfaces.
 They encapsulate algorithms, policy evaluation and recovery while exposing
 required authority inputs, effects, failure evidence and continuations. Thin
@@ -91,6 +98,9 @@ interpretations. Source commits and digests identify content changes; they do no
 justify a second manual revision counter. Package-local implementation details
 share their package identity. Historical evidence and native external protocols
 retain the identities under which they were created.
+Code bindings, including functions, variables, classes and aliases, must not use
+`v` plus a number as a development-generation token. Protocol values retain their
+native versions; language-aware binding checks do not scan prose or string values.
 
 ## Semantic Kernel
 

@@ -49,8 +49,8 @@ sensitivity. Keep semantic scope separate from resource cost. A pure rule test
 should not install a full runtime; a ref/process/lock boundary needs the real
 resource. Shared fixture code and copied assertions are not independent evidence.
 
-[Allure 3][allure3] deserves a report-only prototype against existing results,
-not rejection as decoration. Its inspected release has a TypeScript implementation,
+[Allure 3][allure3] is used through its native report-only operation over existing
+results, not another test execution. Its inspected release has a TypeScript implementation,
 modular report plugins and human/agent-oriented views. Evaluate useful dimensions:
 requirements/scenarios, steps, attachments, environments, attempts, failure
 classification, history and partial execution. Allure TestOps would introduce a
@@ -126,6 +126,35 @@ Receipts remain under the existing ignored evidence home as
 `scc-capability-audit-20260913.json`, `scc-history-boundary-20260913.json` and
 `authorized-reader-recovery-4dd2/`; their compact conclusions live here, not in a
 second quality-policy or feedback database.
+
+#### October 15 Tool-Depth Qualification
+
+The candidate uses Allure CLI 3.20.1 with allure-pytest 2.16.2; the adapter's
+2.x version does not mean the report generator is Allure 2. The real four-outcome
+regression preserves pass, failure, skip and setup error from one child attempt,
+then rebuilds Awesome HTML and Agent queries. A feature, meaningful step and safe
+JSON attachment are asserted. This is bounded reporting evidence, not a complete
+repository test system or delivered runtime.
+
+| Existing owner            | Remaining effective use and acceptance                                                                                                                                                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Pytest / Allure           | Derive hierarchy from test responsibility; add meaningful journey steps, sanitized attachments, source/runtime/environment binding and retained native history. Compare collection with outcomes and disclose deselection, cancellation and missing results. |
+| Installed delivery tests  | Exercise install, adopt, change, prove, accept, upgrade, rollback and exit across Python 3.12–3.14 and supported operating systems. A smoke test or directory name does not establish end-to-end coverage.                                                   |
+| Hypothesis / mutmut       | Use generated state transitions and targeted mutations at high-risk decision and effect owners; prioritize weak assertions rather than maximizing test count.                                                                                                |
+| Native timing / profiling | Separate preparation, execution, observation and cleanup; measure cold/warm, calls, transferred bytes, peak memory and scaling before changing algorithms or adding caches. Persist workload-bound regression baselines.                                     |
+| OCR / Ponytail / RepoWise | Use complementary reviews for independently diagnosed gaps and deletion opportunities; bind findings to exact source and close them through consumer regressions. An index or model score is not acceptance.                                                 |
+
+The shared Python static owner now rejects development-generation bindings in
+both direct and native Nox paths, without a local adopter validator. The common
+rule compiler permits configured rules to demand packaged provider checks without
+copying descriptors; declared native commands retain target authority and unknown
+checks still fail. These are executable reuse repairs, not broader qualification.
+
+The October 15 Context7 request was refused for quota exhaustion. The available
+RepoWise MCP did not resolve this ETHOS Work Lane; its default index belongs to
+another repository. Neither result is a clean ETHOS audit. Native Allure help,
+the locked package and actual tests provide narrower evidence; no service,
+installer, wrapper or second policy store was added to hide these limitations.
 
 ### September 20 Execution Lessons
 

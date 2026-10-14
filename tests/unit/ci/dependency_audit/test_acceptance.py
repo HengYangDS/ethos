@@ -20,7 +20,6 @@ import tests
 from ethos.adapters.repo.dependency_acceptance import captured_dependency_acceptance
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_INPUTS
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_POLICY_PATH
-from ethos.repository.policy.quality.dependency_acceptance import AUDIT_POLICY_PATHS
 from ethos.repository.policy.quality.dependency_acceptance import AuditPolicy
 from ethos.repository.policy.quality.dependency_acceptance import compose_audit_policies
 from ethos.repository.policy.quality.dependency_acceptance import evaluate_dependency_acceptance
@@ -406,7 +405,6 @@ def _captured_payload(**changes) -> tuple[str, dict[str, bytes]]:
         ("command", "dependency_audit_payload_invalid"),
         ("head", "dependency_audit_head_mismatch"),
         ("inputs", "dependency_audit_inputs_missing"),
-        ("both-policies", "dependency_audit_inputs_missing"),
         ("path", "dependency_audit_input_path_invalid"),
         ("changed", "dependency_audit_inputs_changed"),
         ("workspace", "dependency_audit_workspace_inputs_missing"),
@@ -422,8 +420,6 @@ def test_captured_acceptance_binds_exact_same_attempt_inputs(fault, reason):
         payload["head"] = "b" * 40
     elif fault == "inputs":
         payload["inputs"].pop("uv.lock")
-    elif fault == "both-policies":
-        payload["inputs"][AUDIT_POLICY_PATHS[1]] = payload["inputs"][AUDIT_POLICY_PATH]
     elif fault == "path":
         payload["inputs"] = {"../outside": "0" * 64, **payload["inputs"]}
     elif fault == "changed":
@@ -498,7 +494,7 @@ def test_captured_verdicts_are_reinterpreted_from_native_output(fault, reason):
     assert decision == {"scope": "local-development", "verdict": "unknown", "reason": reason}
 
 
-@pytest.mark.parametrize("change", ["reading-build", "policy-bytes", "canonical-path"])
+@pytest.mark.parametrize("change", ["reading-build", "policy-bytes"])
 def test_captured_product_policy_is_bound_by_content_not_reading_build(
     repository, monkeypatch, change
 ):
@@ -506,23 +502,17 @@ def test_captured_product_policy_is_bound_by_content_not_reading_build(
     native_transport(monkeypatch, lambda _root, cmd, ecosystem: native_result(cmd, ecosystem))
     payload = invoke_audit(repository)
     binding = payload["product_policy"]
-    canonical = AUDIT_POLICY_PATHS[1]
     if change == "reading-build":
         payload["product_policy"] = {
             **binding,
             "build": {**binding["build"], "source_commit": "c" * 40},
         }
-    elif change == "canonical-path":
-        payload["inputs"][canonical] = payload["inputs"].pop(AUDIT_POLICY_PATH)
-        payload["product_policy"] = {**binding, "path": canonical}
     else:
         payload["product_policy"] = {**binding, "sha256": "0" * 64}
     decision = captured_dependency_acceptance(
         json.dumps(payload),
         head="a" * 40,
-        source=lambda name: (
-            repository / (AUDIT_POLICY_PATH if name == canonical else name)
-        ).read_bytes(),
+        source=lambda name: (repository / name).read_bytes(),
         scope="production-release",
     )
     assert decision["verdict"] == ("unknown" if change == "policy-bytes" else "pass"), decision

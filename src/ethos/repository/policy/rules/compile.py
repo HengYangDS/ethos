@@ -7,6 +7,7 @@ from typing import cast
 
 from pydantic import ValidationError
 
+from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.rules import Rule
 from ethos.contracts.rules import RuleSet
 from ethos.repository.policy.gates import resolve_gate_policy
@@ -191,20 +192,28 @@ def compile_rules(root: Path) -> dict[str, object]:
     config = load_rules_config(root)
     profile_stack, profile_gaps = resolve_profile_stack(config)
     rules, rule_gaps = _rules_as_contracts(root, config, profile_stack)
-    product_rules = [rule for rule in rules if rule in STARTER_RULES]
+    reusable = {
+        gate.id
+        for gate in load_gate_registry_declaration().gates
+        if gate.providers and not gate.command
+    }
     policy = _gate_policy(
         root,
         gate_ids=tuple(
-            dict.fromkeys(gate_id for rule in product_rules for gate_id in rule.required_gates)
+            dict.fromkeys(
+                gate_id
+                for rule in rules
+                for gate_id in rule.required_gates
+                if rule in STARTER_RULES or gate_id in reusable
+            )
         ),
     )
-    owned = {gate.id for gate in policy.declaration.gates}
     gate_definitions_by_id = _definitions(policy.registry)
     gate_gaps = [
         f"unknown_rule_gate:{rule.id}:{gate_id}"
         for rule in rules
         for gate_id in rule.required_gates
-        if gate_id not in (gate_definitions_by_id if rule in product_rules else owned)
+        if gate_id not in gate_definitions_by_id
     ]
     compile_gaps = [*profile_gaps, *rule_gaps, *gate_gaps]
     try:

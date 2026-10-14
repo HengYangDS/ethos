@@ -21,6 +21,7 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.repository.policy.gates import gate_execution_identity
+from ethos.repository.policy.layout.naming import identifier_naming_findings
 from ethos.repository.policy.quality_reports import coverage_stream_report
 from ethos.repository.policy.quality_reports import junit_stream_report
 
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
     from ethos.adapters.gates.verification import NativeEvidence
     from ethos.adapters.gates.verification import NativeExecution
     from ethos.contracts.gates import NativeOutput
+    from ethos.repository.policy.code_subjects import CodeSubject
 from ethos.contracts.evidence.observer import ObserverIdentity
 
 
@@ -274,7 +276,7 @@ def _outputs(evidence: NativeEvidence, kind: str) -> tuple[tuple[NativeOutput, b
 
 def _producer(
     root: Path, execution: NativeExecution
-) -> tuple[NoxReport, tuple[str, ...], NativeEvidence]:
+) -> tuple[NoxReport, tuple[CodeSubject, ...], NativeEvidence]:
     """Require complete source-bound output and terminal status from this invocation."""
     evidence = execution.evidence
     if evidence is None:
@@ -333,8 +335,7 @@ def _producer(
         msg = "python_native_execution_failed"
         raise ValueError(msg)
     _runtimes(execution, evidence, found)
-    selected = tuple(subject.path for subject in subjects if subject.language == "python")
-    return report, selected, evidence
+    return report, tuple(subject for subject in subjects if subject.language == "python"), evidence
 
 
 def _runtimes(execution: NativeExecution, evidence: NativeEvidence, found: tuple[str, ...]) -> None:
@@ -371,7 +372,8 @@ def _runtimes(execution: NativeExecution, evidence: NativeEvidence, found: tuple
 
 def report(root: Path, execution: NativeExecution, axis: str) -> dict[str, object]:
     """Consume the sole native attempt; never invoke another test or static tool."""
-    producer, selected, evidence = _producer(root, execution)
+    producer, subjects, evidence = _producer(root, execution)
+    selected = tuple(subject.path for subject in subjects)
     native: dict[str, object] = {
         "declared_identity": list(execution.declared_identity),
         "argv": list(execution.argv),
@@ -396,6 +398,13 @@ def report(root: Path, execution: NativeExecution, axis: str) -> dict[str, objec
         },
     }
     if axis == "static-analysis":
+        for subject in subjects:
+            if subject.requires_authored_analysis:
+                findings = identifier_naming_findings(
+                    (root / subject.path).read_text(encoding="utf-8"), path=subject.path
+                )
+                if findings:
+                    raise ValueError(str(findings[0]["gap"]))
         findings = _outputs(evidence, "ruff-json")
         if not findings:
             msg = "python_native_static_missing"

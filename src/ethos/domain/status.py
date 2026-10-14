@@ -9,6 +9,7 @@ from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.observation import openspec_shape_report
 from ethos.adapters.repo.commit.admission import commit_policy_report
+from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.git import git_files
 from ethos.adapters.repo.git import tracked_paths
 
@@ -36,6 +37,7 @@ def audit_for_root(
         commit_policy_observer=commit_policy_report,
         tracked_documents=tuple(git_files(root, "*.md")),
         tracked_paths=tracked_paths(root),
+        retained_origins=observed_document_origins(root),
     )
 
 
@@ -49,4 +51,5 @@ def product_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, obje
         tracked_documents=tuple(git_files(root, "*.md")),
         openspec_shape=openspec_shape_report(root),
         commit_policy_observer=commit_policy_report,
+        retained_origins=observed_document_origins(root),
     )

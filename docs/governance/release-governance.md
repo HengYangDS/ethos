@@ -84,10 +84,14 @@ when that peer declares `ci_cd`. ETHOS validates that declared paths remain
 regular files inside the repository and that local commands are executable; it
 never guesses a provider, remote, or tool layout for an adopter.
 
-Git remote names are repository choices: `origin` is conventional, not required.
-`gitlab` and `github`, or other valid names, may be used independently of the
-peer ID and provider. The provider is always declared; its adapter is never
-inferred from a remote name. Merely adding a Git remote does not declare an
+Peer IDs and Git remote names are configurable. For each explicitly declared
+peer, an omitted ID defaults to its declared provider; an omitted `git_remote`
+defaults to the resolved ID. Thus GitLab and GitHub normally use `gitlab` and
+`github`, never an implicit `origin`. Multiple peers from the same provider use
+unique names such as `gitlab_a` and `gitlab_b`; explicit IDs and remotes may differ.
+Defaults create no peers, select no provider and rename no existing Git remote.
+Empty, invalid or duplicate names fail closed. The provider is always declared;
+its adapter is never inferred from a name. Adding a Git remote alone declares no
 ETHOS publication obligation.
 
 | Declared peers | Local governance          | Remote publication                                                                          |

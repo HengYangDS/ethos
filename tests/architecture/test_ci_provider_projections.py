@@ -119,7 +119,9 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     }
 
 
-def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_path) -> None:
+def test_linux_supply_image_bakes_native_tools_and_smokes_offline(
+    github, tmp_path, monkeypatch
+) -> None:
     """The immutable image, not a cold GitLab job, supplies every native gate tool."""
     dockerfile = (ROOT / ".config/ci/supply/Dockerfile").read_text(encoding="utf-8")
     context_rules = set(
@@ -168,6 +170,7 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_pa
             shutil.copytree(ROOT / relative, target)
         else:
             target.write_bytes((ROOT / relative).read_bytes())
+    monkeypatch.setenv("ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR", str(tmp_path / "ambient-cache"))
     environment = {
         "PYTHONPATH": str(tmp_path / "src"),
         "ETHOS_CI_TOOL_CACHE_DIR": str(tmp_path / "tool-cache"),
@@ -176,6 +179,7 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_pa
         tmp_path,
         (sys.executable, "-B", "tools/ci/toolchain/native.py", "--help"),
         env=environment,
+        inherit_environment=False,
         timeout=10,
     )
     assert imported.returncode == 0, imported.stderr
@@ -192,6 +196,7 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_pa
             ),
         ),
         env=environment,
+        inherit_environment=False,
         timeout=10,
     )
     assert selected.returncode == 0, selected.stderr

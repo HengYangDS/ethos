@@ -94,7 +94,7 @@ def test_generic_provider_uses_real_locked_python_evidence(
 def test_uv_project_runs_its_tests_on_an_interpreter_it_declares(
     tmp_path: Path, *, admitted: bool
 ) -> None:
-    """Without a mise toolchain, the runtime interpreter is pinned only when the project admits it."""
+    """Without mise, the runtime interpreter is pinned only when the project admits it."""
     fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
     pyproject = (fixture / "pyproject.toml").read_text()
     if not admitted:

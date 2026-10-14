@@ -303,7 +303,6 @@ def _prepare_plan(selection: _Selection, accepted: dict[str, object], proof: Att
         oid = create_signed_tag(
             root, name=selection.tag, head=selection.head, staging=selection.signing
         )
-        release_ref_subject(root, ref=tag_ref, old=zero_oid(root), new=oid, base=selection.base)
     effect = selection.effect(str(accepted["accepted_ref"]), oid)
     plan = _compile_plan(selection, effect, accepted, proof)
     raw = (

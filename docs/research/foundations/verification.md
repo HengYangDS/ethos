@@ -193,6 +193,23 @@ retroactively. Receipts, source hashes, failed attempts and profile comparison
 remain under the existing `source-delivery/tool-depth-publication-reuse-*`
 evidence owner, with Git-native custody before mutable report replacement.
 
+#### First-Time Native Release Qualification
+
+The first-time release journey qualified accepted source three times in one
+process: observation, tag preparation and final execution. The existing test
+spied only one import, so its count missed two real calls. One shared spy over
+both imports, reset after the earlier refused hook, reproduces `3 != 2`.
+Removing only the premature preparation call yields two first-apply calls;
+recovery still performs three fresh calls. Native hook processes remain separate.
+
+Nineteen distinct cases pass: all six version/object-format/mirror journeys,
+four real signer-time source/ref/policy/trust changes, tag immutability, request
+recovery and maintenance proof/Lease freshness. All previous behavior assertions
+remain. This is a measured computation-count reduction, not a paired latency
+claim or complete proof. No cache, waiver, new abstraction or longer timeout was
+added. Execution still validates signed tag identity, source, proof, policy and
+exact effects before CAS. Originals are `source-delivery/tool-depth-first-release-*`.
+
 #### Interrupted Proof And Hermetic Test Inputs
 
 The exact `9251e2de` full attempt reached its 900-second caller deadline after

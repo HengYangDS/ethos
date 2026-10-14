@@ -17,6 +17,7 @@ import ethos.adapters.mutation.accepted.release as release_owner
 import ethos.adapters.repo.commit.creation as signing_owner
 import ethos.adapters.repo.git_effect_attestation as effect_attestation
 import ethos.adapters.repo.git_effects as git_effects
+import ethos.adapters.repo.release as release_source_owner
 from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.mutation.proof import proof_gaps
@@ -201,8 +202,10 @@ def test_public_release_preserves_native_package_and_signed_tag(
     assert git(repo, "show-ref") == refs
     store = Path(git_common_dir(repo)) / "ethos/requests/release"
     store.mkdir(parents=True, exist_ok=True)
-    observed = Mock(wraps=release_owner.accepted_release_source)
+    # Count both in-process imports; native hooks qualify in their own processes.
+    observed = Mock(wraps=release_source_owner.accepted_release_source)
     monkeypatch.setattr(release_owner, "accepted_release_source", observed)
+    monkeypatch.setattr(release_source_owner, "accepted_release_source", observed)
     with FileLock(store / ".lock", timeout=0, preserve_lock_file=True):
         blocked = release_cli(repo, head, previous, "--apply", "--authorize", blocked=True)
     assert (blocked["state"], blocked["required_gaps"]) == ("waiting", ["release_in_progress"])
@@ -219,9 +222,10 @@ def test_public_release_preserves_native_package_and_signed_tag(
     assert "land --release" in rejected["next_action"]
     assert f"--release-head {previous}" in rejected["next_action"]
     assert "--tag v1.2.3" in rejected["next_action"]
+    observed.reset_mock()
     applied = release_cli(repo, head, previous, "--apply", "--authorize")
     assert applied["verdict"] == "pass", applied
-    assert observed.call_count == 1
+    assert observed.call_count == 2
     assert git(repo, "rev-parse", "main") == head
     assert git(main, "status", "--porcelain") == ""
     tag = git(repo, "rev-parse", "refs/tags/v1.2.3")
@@ -230,7 +234,7 @@ def test_public_release_preserves_native_package_and_signed_tag(
     assert (repo / "VERSION").exists() == (native_version == "VERSION")
     repeated = release_cli(repo, head, previous, "--apply", "--authorize")
     assert repeated["verdict"] == "pass", repeated
-    assert observed.call_count == 2
+    assert observed.call_count == 5
     assert git(repo, "rev-parse", "refs/tags/v1.2.3") == tag
 
     peers = publication_peers(repo, tmp_path, f"{old}:refs/heads/main", object_format=object_format)
@@ -248,6 +252,49 @@ def test_public_release_preserves_native_package_and_signed_tag(
     assert report["commit_policy_admission"]["baseline_ref"] == "refs/heads/dev"
     assert report["accepted_closeout_effect"]
     assert_signed_publication(repo, peers, head, tag)
+
+
+@pytest.mark.parametrize("changed_input", ["source", "accepted", "policy", "trust"])
+def test_release_rechecks_exact_inputs_after_signing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, changed_input: str
+) -> None:
+    """An earlier source observation cannot authorize effects after signer-time drift."""
+    repo, main, old, head = accepted_release_fixture(tmp_path)
+    native = release_owner.create_signed_tag
+    before_effect = []
+
+    def sign_then_change(*args, **kwargs):
+        oid = native(*args, **kwargs)
+        if changed_input == "source":
+            commit_fixture_file(repo, "README.md", "Changed source\n", "fix: change source")
+        elif changed_input == "accepted":
+            git(repo, "update-ref", "refs/heads/dev", old, head)
+        elif changed_input == "policy":
+            workspace = repo / ".ethos/workspace.toml"
+            content = workspace.read_text()
+            assert 'release_mirror = "independent"' in content
+            workspace.write_text(
+                content.replace('release_mirror = "independent"', 'release_mirror = "accepted_ff"')
+            )
+        else:
+            anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
+            assert anchor.read_text()
+            anchor.write_text("")
+        before_effect.append(git(repo, "show-ref"))
+        return oid
+
+    monkeypatch.setattr(release_owner, "create_signed_tag", sign_then_change)
+    result = release_cli(repo, head, old, "--apply", "--authorize", blocked=True)
+    gap = (
+        "release_branch_policy_changed"
+        if changed_input == "policy"
+        else "release_tag_source_untrusted"
+    )
+    assert result["required_gaps"] == [gap], result
+    assert len(before_effect) == 1
+    assert git(repo, "show-ref") == before_effect[0]
+    assert git(main, "rev-parse", "HEAD") == old
+    assert "refs/tags/v1.2.3" not in before_effect[0]
 
 
 def test_signed_release_tag_can_publish_only_selected_declared_peer(tmp_path: Path) -> None:

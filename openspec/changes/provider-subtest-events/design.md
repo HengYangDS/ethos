@@ -8,3 +8,4 @@
 2. Pass `--report-log` without `-p pytest_reportlog.plugin`. The provider run keeps pytest plugin autoload, as it already does for `pytest-cov`, and loading the plugin a second time fails.
 3. A missing event report blocks like a missing JUnit report: as the command failure when pytest failed, and otherwise as a missing report.
 4. Pin the static width as a command argument, not through repository configuration. `--isolated` keeps the product rules from being weakened by an adopter, so the shared width of 100 has to be part of the product command itself.
+5. Bind coverage to every committed Python subject instead of only product source and tests. Binding only rejects a measured file that the repository does not commit; it is not the coverage obligation. That obligation stays with the subjects that require behavior evidence, so measured tooling neither blocks the run nor joins the selected product scope.

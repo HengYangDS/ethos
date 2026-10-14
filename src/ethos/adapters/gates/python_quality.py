@@ -171,7 +171,7 @@ def _behavior_scope(
 
 
 def _behavior_evidence(
-    root: Path, source: tuple[str, ...], tests: tuple[str, ...]
+    root: Path, source: tuple[str, ...], tests: tuple[str, ...], bindable: tuple[str, ...]
 ) -> dict[str, object]:
     """Observe one locked native test run and its fresh reports."""
     with TemporaryDirectory(prefix="ethos-python-quality-") as temporary, ExitStack() as scope:
@@ -270,7 +270,7 @@ def _behavior_evidence(
                 coverage,
                 include_files=True,
                 repository_root=root.resolve(),
-                source_paths=(*source, *tests),
+                source_paths=bindable,
             )
             evidence["coverage"] = {key: value for key, value in measured.items() if key != "files"}
             files = cast("dict[str, dict[str, int]]", measured["files"])
@@ -303,7 +303,9 @@ def behavior_report(root: Path, *, execution: NativeExecution | None = None) -> 
             return native_python_report(root, execution, "behavior")
         tree, subjects = observe_quality_subjects(root, language="python")
         source, tests = _behavior_scope(root, subjects)
-        evidence = _behavior_evidence(root, source, tests)
+        # Coverage may measure any committed Python subject; only product source owes coverage.
+        bindable = tuple(subject.path for subject in subjects)
+        evidence = _behavior_evidence(root, source, tests, bindable)
         observe_quality_subjects(root, language="python", expected_tree=tree)
     except ProcessExecutionError as error:
         return {**evidence, **_failure("behavior", error.code), "diagnostics": [error.evidence()]}

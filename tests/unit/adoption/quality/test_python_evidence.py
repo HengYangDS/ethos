@@ -118,6 +118,29 @@ def test_generic_provider_counts_passing_subtests_from_native_events(tmp_path: P
     }
 
 
+def test_generic_provider_binds_exercised_tooling_coverage(tmp_path: Path) -> None:
+    """Tooling that tests execute binds to coverage without owing product coverage."""
+    fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
+    repo = committed_source_repo(
+        tmp_path,
+        {
+            **{name: (fixture / name).read_text() for name in ("pyproject.toml", "uv.lock")},
+            ".gitattributes": "tools/** ethos-role=tooling\n",
+            "src/sample/__init__.py": "def answer() -> int:\n    return 42\n",
+            "tools/helper.py": "def double(value: int) -> int:\n    return value * 2\n",
+            "tests/test_sample.py": "import runpy\nfrom pathlib import Path\n\n"
+            "from sample import answer\n\n\ndef test_tool_doubles_answer() -> None:\n"
+            "    tool = runpy.run_path(str(Path(__file__).parents[1] / 'tools/helper.py'))\n"
+            "    assert tool['double'](answer()) == 84\n",
+        },
+    )
+
+    report = native_quality.behavior_report(repo)
+
+    assert report["verdict"] == "pass", report
+    assert report["native"][0]["tests"]["total"] == 1
+
+
 @pytest.mark.parametrize(
     ("axis", "session", "provider"),
     [

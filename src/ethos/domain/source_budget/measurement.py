@@ -18,11 +18,11 @@ from typing import cast
 import yaml
 
 import ethos.adapters.repo.git as git_adapter
-from ethos.domain.source_budget.measurement_policy import PYTHON_CATEGORIES
-from ethos.domain.source_budget.measurement_policy import Carrier
-from ethos.domain.source_budget.measurement_policy import Policy
-from ethos.domain.source_budget.measurement_policy import policy_for_root
 from ethos.measure import effective_code_lines_for_source
+from ethos.repository.policy.quality.measurement import PYTHON_CATEGORIES
+from ethos.repository.policy.quality.measurement import Carrier
+from ethos.repository.policy.quality.measurement import Policy
+from ethos.repository.policy.quality.measurement import policy_for_root
 
 
 class Inventory(TypedDict):

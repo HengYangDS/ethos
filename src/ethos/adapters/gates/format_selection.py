@@ -15,9 +15,9 @@ from typing import cast
 from ethos.adapters.gates.tool import native_configurations
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_files
-from ethos.domain.source_budget.measurement_policy import policy_for_root
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
 from ethos.repository.policy.projections import projection_relations
+from ethos.repository.policy.quality.measurement import policy_for_root
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.release.resources import canonical_resource

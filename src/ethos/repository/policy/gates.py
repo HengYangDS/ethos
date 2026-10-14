@@ -35,6 +35,7 @@ from ethos.repository.policy.quality.sources import source_contract_paths
 from ethos.repository.policy.quality.tool_configuration import native_gate_tools
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
 from ethos.repository.policy.quality.tool_configuration import native_tool_configurations
+from ethos.repository.policy.references.commands import canonical_gate_command
 from ethos.repository.policy.references.commands import python_module
 from ethos.repository.policy.references.python_syntax import module_source_paths
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -328,12 +329,8 @@ def _selected_declaration(
         pending.extend(gate.depends_on)
     if not extra:
         return declaration
-    return GateRegistryDeclaration(
-        id=declaration.id,
-        schema_version=declaration.schema_version,
-        source_refs=declaration.source_refs,
-        proof_sets=declaration.proof_sets,
-        gates=(*declaration.gates, *extra.values()),
+    return GateRegistryDeclaration.model_validate(
+        dict(declaration) | {"gates": (*declaration.gates, *extra.values())}
     )
 
 
@@ -541,15 +538,6 @@ def resolve_gate_policy(
         carrier_roles,
         acceptance_purpose,
     )
-
-
-def canonical_gate_command(command: tuple[str, ...]) -> tuple[str, ...]:
-    """Remove only a host-specific absolute Python interpreter path."""
-    if not command:
-        return command
-    head, *rest = command
-    name = Path(head).name
-    return ("python", *rest) if Path(head).is_absolute() and name.startswith("python") else command
 
 
 def native_dependency_audit_scope(gate: Mapping[str, object]) -> AuditScope | None:

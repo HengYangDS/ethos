@@ -17,12 +17,12 @@ from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.repository.policy.gates import bind_gate_source_digests
-from ethos.repository.policy.gates import canonical_gate_command
 from ethos.repository.policy.gates import gate_policy_fields
 from ethos.repository.policy.gates import source_paths_for_gate
 from ethos.repository.policy.quality.tool_configuration import native_gate_tools
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
 from ethos.repository.policy.quality.tool_configuration import native_tool_configurations
+from ethos.repository.policy.references.commands import canonical_gate_command
 from ethos.repository.policy.references.commands import python_module
 
 if TYPE_CHECKING:

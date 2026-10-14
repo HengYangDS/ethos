@@ -156,6 +156,43 @@ another repository. Neither result is a clean ETHOS audit. Native Allure help,
 the locked package and actual tests provide narrower evidence; no service,
 installer, wrapper or second policy store was added to hide these limitations.
 
+#### Release Qualification And Review Feedback
+
+Signed source `03392fc38` removes repeated release-source qualification inside
+one publication judgment. The regression wraps the real native observers:
+five provenance reads and two source validations become one of each. Every new
+judgment and peer effect still checks fresh authority; no persistent cache or
+timeout increase was introduced. The complete five-case catch-up, refusal,
+maintenance and immutable-tag selection passes with JUnit and reportlog agreement.
+This is source qualification, not full proof, installed delivery or publication.
+
+Under the original cProfile workload, the previous attempt timed out at 120
+seconds; the successor completes in 70.466 seconds including process overhead.
+Native Git calls fall from 3,761 to 2,607 even though the successor executes an
+extra call-count check and reaches the previously unfinished tail. This is not a
+paired successful-run median or a repository-wide speed claim. Reusing one
+complete source result replaces two duplicate observation paths; effect-boundary
+freshness remains separate from computation reuse.
+
+Native OCR 1.13.0 exercised Claude Opus 5.5 and GPT-6 Astra over the exact two
+source files. Claude exhausted its aggregate token budget with no completed
+items. Astra returned process exit zero but its manifest is partial: one source
+completed, one failed for budget exhaustion. One low-priority candidate remains:
+repeated tag trust observation within the same judgment. Preserve that candidate
+in the existing performance work; do not postpone independent CLI delivery for
+it or call either report a complete clean review. The independent source review
+and Ponytail pass found no further required cut in this patch.
+
+The durable lessons are to read terminal coverage rather than process exit or
+finding count, bind a model review's scope explicitly, and use native per-group
+context limits before adding review workers. A denied authoring decision must
+stop its dependent write in the same checked control flow. This attempt's
+missed refusal was preserved, rolled back under a new passing decision, and
+reapplied only after separate fresh admission; later tests do not authorize it
+retroactively. Receipts, source hashes, failed attempts and profile comparison
+remain under the existing `source-delivery/tool-depth-publication-reuse-*`
+evidence owner, with Git-native custody before mutable report replacement.
+
 ### September 20 Execution Lessons
 
 These conclusions come from the current work-lane failures and bounded replays,

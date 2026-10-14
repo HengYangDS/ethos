@@ -514,9 +514,10 @@ copying a parser. For publication effects use the guarded `publish` surface.
 
 Use the standard path for acceptance and scoped execution for iteration. Select
 the scope from affected contracts and consumers; edit size alone does not
-establish risk. [Contributing](../../CONTRIBUTING.md#verification) is the workflow
-entry point. The installed CLI and current admission own the exact required
-gates; this reference does not create another policy.
+establish risk. The
+[ETHOS source Contributing guide](../../CONTRIBUTING.md#verification "source-only")
+is the workflow entry point. The installed CLI and current admission own the
+exact required gates; this reference does not create another policy.
 
 ### Standard Exact-Source Proof
 

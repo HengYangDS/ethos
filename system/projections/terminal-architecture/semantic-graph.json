@@ -184,7 +184,7 @@
     "command_plane": {
       "path": "openspec/specs/command-plane/spec.md",
       "authority": "current public command and result semantics",
-      "sha256": "0e237568fa6b0268df07d3fa4b09cf87986b7fa2d15931aba3deae6f388d40da"
+      "sha256": "d52fa8d76188a2091551b8530577ddd34997a218bc59258f601fb71f474a7880"
     },
     "learning_relations": {
       "path": "docs/governance/evolution-campaign.md",

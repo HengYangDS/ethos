@@ -1,0 +1,206 @@
+id = "repository-paradigm"
+source_refs = ["src/ethos/contracts/paradigm/paradigm.toml"]
+
+[root]
+entry_documents = [
+  "AGENTS.md",
+  "CHANGELOG.md",
+  "CONTRIBUTING.md",
+  "LICENSE",
+  "NOTICE",
+  "README.md",
+  "VERSION",
+]
+required_documents = ["AGENTS.md", "README.md"]
+protocol_files = [".editorconfig", ".gitattributes", ".gitignore"]
+forge_entries = [".github", ".gitlab", ".gitlab-ci.yml"]
+governance_roots = [".agents", ".config", ".ethos", "openspec"]
+
+[binding]
+root = ".ethos"
+files = ["profile.toml", "release.toml", "rules.toml", "workspace.toml"]
+
+[normalization]
+gitattributes = "* text=auto eol=lf"
+editorconfig = { charset = "utf-8", end_of_line = "lf", insert_final_newline = "true" }
+
+[[module]]
+id = "python"
+manifest = "pyproject.toml"
+lock = "uv.lock"
+lock_scope = "manifest"
+runner_entries = ["noxfile.py"]
+floor = "3.12"
+
+[[module]]
+id = "node"
+manifest = "package.json"
+lock = "package-lock.json"
+lock_scope = "dependencies"
+
+[[module]]
+id = "go"
+manifest = "go.mod"
+lock = "go.sum"
+lock_scope = "manifest"
+
+# Root names a tool discovers, and the canonical carrier each one moves to.
+[[tool]]
+id = "mise"
+carrier = ".config/mise/config.toml"
+root_names = [".mise.toml", ".tool-versions", "mise.toml"]
+
+[[tool]]
+id = "mise-lock"
+carrier = ".config/mise/mise.lock"
+root_names = ["mise.lock"]
+
+[[tool]]
+id = "runtime-version"
+carrier = ".config/mise/config.toml"
+root_names = [".node-version", ".nvmrc", ".python-version"]
+
+[[tool]]
+id = "npm"
+carrier = ".config/npm/npmrc"
+root_names = [".npmrc"]
+
+[[tool]]
+id = "pytest"
+carrier = ".config/checks/pytest/pytest.toml"
+root_names = [".pytest.toml", "pytest.ini", "pytest.toml"]
+
+[[tool]]
+id = "coverage"
+carrier = ".config/checks/coverage/coverage.toml"
+root_names = [".coveragerc"]
+
+[[tool]]
+id = "ruff"
+carrier = ".config/checks/ruff/ruff.toml"
+root_names = [".ruff.toml", "ruff.toml"]
+
+[[tool]]
+id = "ty"
+carrier = ".config/checks/ty/ty.toml"
+root_names = ["ty.toml"]
+
+[[tool]]
+id = "taplo"
+carrier = ".config/checks/taplo/taplo.toml"
+root_names = [".taplo.toml", "taplo.toml"]
+
+[[tool]]
+id = "gitleaks"
+carrier = ".config/checks/gitleaks/gitleaks.toml"
+root_names = [".gitleaks.toml"]
+
+[[tool]]
+id = "gitleaks-ignore"
+carrier = ".config/checks/gitleaks/gitleaksignore"
+root_names = [".gitleaksignore"]
+
+[[tool]]
+id = "lychee"
+carrier = ".config/checks/lychee/lychee.toml"
+root_names = ["lychee.toml"]
+
+[[tool]]
+id = "typos"
+carrier = ".config/checks/typos/typos.toml"
+root_names = [".typos.toml", "_typos.toml", "typos.toml"]
+
+[[tool]]
+id = "codespell"
+carrier = ".config/checks/codespell/codespell.toml"
+root_names = [".codespellrc"]
+
+[[tool]]
+id = "prettier"
+carrier = ".config/checks/prettier/prettier.toml"
+root_names = [
+  ".prettierrc",
+  ".prettierrc.json",
+  ".prettierrc.json5",
+  ".prettierrc.toml",
+  ".prettierrc.yaml",
+  ".prettierrc.yml",
+  "prettier.config.js",
+  "prettier.config.mjs",
+]
+
+[[tool]]
+id = "prettier-ignore"
+carrier = ".config/checks/prettier/prettierignore"
+root_names = [".prettierignore"]
+
+[[tool]]
+id = "markdownlint-cli2"
+carrier = ".config/checks/markdownlint-cli2/markdownlint-cli2.toml"
+root_names = [
+  ".markdownlint-cli2.jsonc",
+  ".markdownlint-cli2.yaml",
+  ".markdownlint.json",
+  ".markdownlint.jsonc",
+  ".markdownlint.yaml",
+]
+
+[[tool]]
+id = "knip"
+carrier = ".config/checks/knip/knip.toml"
+root_names = ["knip.json", "knip.jsonc"]
+
+[[tool]]
+id = "eslint"
+carrier = ".config/checks/eslint/eslint.config.mjs"
+root_names = ["eslint.config.js", "eslint.config.mjs"]
+
+[[tool]]
+id = "golangci-lint"
+carrier = ".config/checks/golangci-lint/golangci-lint.toml"
+root_names = [".golangci.toml", ".golangci.yaml", ".golangci.yml"]
+
+[[tool]]
+id = "osv-scanner"
+carrier = ".config/checks/osv-scanner/osv-scanner.toml"
+root_names = ["osv-scanner.toml"]
+
+[[tool]]
+id = "import-linter"
+carrier = ".config/checks/import-linter/import-linter.toml"
+root_names = [".importlinter"]
+
+[[tool]]
+id = "vale"
+carrier = ".config/checks/vale/vale.ini"
+root_names = [".vale.ini"]
+
+[[tool]]
+id = "yamllint"
+carrier = ".config/checks/yamllint/.yamllint.yaml"
+root_names = [".yamllint", ".yamllint.yaml", ".yamllint.yml"]
+
+[[tool]]
+id = "shellcheck"
+carrier = ".config/checks/shellcheck/.shellcheckrc"
+root_names = [".shellcheckrc"]
+
+[[tool]]
+id = "pre-commit"
+carrier = ".config/checks/pre-commit/.pre-commit-config.yaml"
+root_names = [".pre-commit-config.yaml"]
+
+[[tool]]
+id = "c8"
+carrier = ".config/checks/c8/.c8rc.json"
+root_names = [".c8rc", ".c8rc.json"]
+
+[[tool]]
+id = "goreleaser"
+carrier = ".config/release/goreleaser/.goreleaser.yaml"
+root_names = [".goreleaser.yaml", ".goreleaser.yml"]
+
+[[tool]]
+id = "syft"
+carrier = ".config/release/syft/.syft.yaml"
+root_names = [".syft.yaml"]

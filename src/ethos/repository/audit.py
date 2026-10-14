@@ -15,6 +15,7 @@ from ethos.repository.adoption.fleet import inspect_adopter
 from ethos.repository.context import repository_context
 from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.design.integrity import front_matter_ok
+from ethos.repository.paradigm.report import repository_paradigm_report
 from ethos.repository.policy.commit import CommitPolicy
 from ethos.repository.policy.commit import load_commit_policy
 from ethos.repository.policy.references.closure import repository_semantic_closure
@@ -157,6 +158,7 @@ def governance_audit(
     openspec: dict[str, object],
     commit_policy_observer: CommitPolicyObserver,
     tracked_documents: tuple[str, ...] = (),
+    tracked_paths: tuple[str, ...] = (),
 ) -> dict[str, object]:
     """Compose applicable repository obligations without product-layout requirements."""
     reports = {
@@ -165,6 +167,7 @@ def governance_audit(
         "commit_policy": _commit_policy_report(root, commit_policy_observer),
         "release_policy": release_role_policy_report(root),
         "docs": docs_health_report(root, tracked_documents=tracked_documents),
+        "paradigm": repository_paradigm_report(root, tracked_paths=tracked_paths),
     }
     gaps = list(
         dict.fromkeys(

@@ -253,7 +253,10 @@ def prepare_source(
             "module example.test/native\n" if native_scan else "invalid native manifest\n",
             encoding="utf-8",
         )
-        (repo / "main.go").write_text("package main\n\nfunc main() {}\n", encoding="utf-8")
+        (repo / "cmd/native").mkdir(parents=True)
+        (repo / "cmd/native/main.go").write_text(
+            "package main\n\nfunc main() {}\n", encoding="utf-8"
+        )
         ignore = repo / ".gitignore"
         ignore.write_text(ignore.read_text() + "\nbuild/\n.venv/\n", encoding="utf-8")
     before = commit_fixture(repo, "fixture: native audit declaration")

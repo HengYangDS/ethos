@@ -157,7 +157,8 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(
 ) -> None:
     """Incomplete delivery intent does not split source or peer acceptance."""
     repo, remotes, old = branch_publication_fixture(tmp_path)
-    (repo / "accepted.txt").write_text("accepted projection\n", encoding="utf-8")
+    (repo / "notes").mkdir(exist_ok=True)
+    (repo / "notes/accepted.txt").write_text("accepted projection\n", encoding="utf-8")
     if active_change:
         write_active_commitment(repo, change_id="delivery-work")
     head = commit_fixture(repo, "prepare accepted projection")

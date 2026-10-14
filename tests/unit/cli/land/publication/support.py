@@ -77,7 +77,8 @@ def branch_publication_fixture(
     git(repo, "config", "commit.gpgsign", "true")
     if accepted:
         git(repo, "checkout", "-b", "candidate/dev")
-    (repo / "proposal.txt").write_text("signed proposal source\n", encoding="utf-8")
+    (repo / "notes").mkdir(exist_ok=True)
+    (repo / "notes/proposal.txt").write_text("signed proposal source\n", encoding="utf-8")
     head = commit_fixture(repo, "feat: sign proposal source")
     if proof or accepted:
         seed_executed_proof(repo, head)

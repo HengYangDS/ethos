@@ -130,6 +130,11 @@ capabilities = ["repository", "publication"]
         encoding="utf-8",
     )
     (root / "README.md").write_text("# installed CLI adopter\n", encoding="utf-8")
+    (root / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+    (root / ".editorconfig").write_text(
+        "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n",
+        encoding="utf-8",
+    )
     peer = root.parent / "publication-peer.git"
     run(git, "init", "--quiet", "--bare", str(peer))
     run(git, "remote", "add", "origin", str(peer), cwd=root)
@@ -417,11 +422,13 @@ def prepare_acceptance_topology(
     run(git, "commit", "--quiet", "-m", "complete package smoke change", cwd=root)
     candidate = root.parent / "repo-candidate-dev"
     run(git, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev", cwd=root)
-    (root / "accepted.txt").write_text("accepted\n", encoding="utf-8")
-    run(git, "add", "accepted.txt", cwd=root)
+    (root / "notes").mkdir(exist_ok=True)
+    (root / "notes/accepted.txt").write_text("accepted\n", encoding="utf-8")
+    run(git, "add", "notes/accepted.txt", cwd=root)
     run(git, "commit", "--quiet", "-m", "advance accepted independently", cwd=root)
-    (candidate / "candidate.txt").write_text("candidate\n", encoding="utf-8")
-    run(git, "add", "candidate.txt", cwd=candidate)
+    (candidate / "notes").mkdir(exist_ok=True)
+    (candidate / "notes/candidate.txt").write_text("candidate\n", encoding="utf-8")
+    run(git, "add", "notes/candidate.txt", cwd=candidate)
     run(git, "commit", "--quiet", "-m", "advance candidate independently", cwd=candidate)
     (root / ".ethos/workspace.toml").write_text(
         '[branch_roles]\nrelease_branch = "main"\naccepted_branch = "dev"\n'

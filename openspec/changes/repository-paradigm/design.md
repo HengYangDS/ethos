@@ -182,6 +182,18 @@ The repositories that publish to two Forges and generate both files from `.confi
 
 Repository-authored names use lowercase kebab-case. Exemptions follow the tool catalog and ecosystem modules: Python modules and test files, Go packages and test files, entry documents, and basenames a tool requires.
 
+### 12. Ecosystem modules stay thin
+
+Each module holds only what every repository of that ecosystem shares:
+
+- **Python:** `pyproject.toml` locked by `uv.lock`, and a 3.12 lower bound.
+- **Node:** `package-lock.json` whenever npm dependencies are declared.
+- **Go:** `go.mod` with `go.sum`.
+
+The two films use uv without any linter or formatter. A required Ruff or pytest would therefore impose a tool rather than extract a shared practice. Where a tool is configured, the core rules place it and the tool catalog names its file.
+
+Every explicit formatter width in the fleet is already 100, so a configured formatter keeps 100, and Ruff targets the shared 3.12 floor. Runtime and tool versions stay repository values under the workstation version policy, so a version bump never needs an ETHOS Change.
+
 ## Risks / Trade-offs
 
 - **Churn across every adopter.** Mitigation: each repository migrates in one Change that lands together with its runtime switch. The audit names the canonical repair for every gap.

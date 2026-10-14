@@ -202,6 +202,29 @@ Every governed repository SHALL keep `.editorconfig` and `.gitattributes` that s
 - **WHEN** a governed repository has no `.gitattributes`
 - **THEN** the paradigm reports missing text normalization.
 
+### Requirement: Configured formatters share one width
+
+Every configured formatter SHALL use a line width of 100, including Prettier, taplo and Ruff. A repository that configures Ruff SHALL also target Python 3.12.
+
+#### Scenario: A formatter keeps its default width
+
+- **WHEN** a repository's Ruff configuration sets or defaults to a line length of 88
+- **THEN** the paradigm reports a non-common formatter width.
+
+### Requirement: Ecosystem modules lock their manifests
+
+A repository that tracks `pyproject.toml` SHALL lock it with `uv.lock` and SHALL declare a Python lower bound of 3.12. A repository that declares npm dependencies SHALL lock them with `package-lock.json`, and a repository that tracks `go.mod` SHALL track `go.sum`. Tool and runtime versions remain repository-owned under the version policy.
+
+#### Scenario: A Python manifest is unlocked
+
+- **WHEN** a repository tracks `pyproject.toml` without `uv.lock`
+- **THEN** the paradigm reports an unlocked Python module.
+
+#### Scenario: A manifest without dependencies
+
+- **WHEN** a repository's `package.json` declares only scripts
+- **THEN** no npm lock is required.
+
 ### Requirement: One locked toolchain owner exposes the common verbs
 
 A repository SHALL select its toolchain through one locked owner: `.config/mise/` with locked resolution when it needs tools beyond its package manager, otherwise its package manager and lockfile. That owner SHALL expose `bootstrap`, `fix` and `check` as tasks.

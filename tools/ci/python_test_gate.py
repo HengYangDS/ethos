@@ -394,6 +394,8 @@ class PythonTestGate:
             f"--durations={self.s.durations}",
             "--dist=load",
             "--maxschedchunk=1",
+            "-p",
+            "tools.ci.python_test_order",
         ]
         args[:0] = ["-n", str(self.s.workers)] if self.s.workers not in {None, 1} else []
         args += (

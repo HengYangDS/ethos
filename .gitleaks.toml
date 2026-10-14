@@ -1,2 +1,0 @@
-[extend]
-path = ".config/checks/secrets/gitleaks.toml"

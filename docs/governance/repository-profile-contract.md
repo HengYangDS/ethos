@@ -166,11 +166,13 @@ audit inputs. Proof issuance and consumption re-observe that same source policy;
 successful partial or noncanonical results never replace the required floor.
 
 Gate storage does not select repository type. Common governance evaluates actual
-OpenSpec observations, optional commit policy and declared release-role consistency
-for both inline and registry profiles. Missing optional policy adds no product
-constraint; malformed present policy blocks. Protected branches are compared as
-membership against configured roles, independently of their ordering. Exact Git
-publication policy uses the same compiler as checkout audit.
+OpenSpec observations, commit policy and declared release-role consistency
+for inline profiles and for the packaged ETHOS gate registry. The
+[ETHOS source repository paradigm](../decisions/dr-0012-repository-paradigm.md "source-only") requires the
+common commit policy and inline adopter gates; a repository-local registry file
+is a paradigm gap, and malformed present policy blocks. Protected branches are
+compared as membership against configured roles, independently of their
+ordering. Exact Git publication policy uses the same compiler as checkout audit.
 
 The generic `repository-audit` provider does not require ETHOS documentation,
 schemas, Python packaging or release conventions. ETHOS explicitly composes its

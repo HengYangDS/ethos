@@ -74,6 +74,8 @@ def test_artifact_partition_cannot_replace_integrity_evidence() -> None:
 def test_generated_observer_rebuilds_complete_native_owner(tmp_path: Path, defect: str) -> None:
     """The product compares native outputs, not a producer's verdict or directory label."""
     repo = init_git_repo(tmp_path / "repository")
+    with (repo / ".gitattributes").open("a", encoding="utf-8") as attributes:
+        attributes.write("template.txt -text\ngenerated.py -text\nother.py -text\n")
     content = b"import math\nVALUE = 42\r\n"
     (repo / "template.txt").write_bytes(content)
     (repo / "generated.py").write_bytes(content if defect != "bytes" else content + b"# drift\n")

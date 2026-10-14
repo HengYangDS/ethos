@@ -520,6 +520,18 @@ def git_files(root: Path, *patterns: str, check: bool = False) -> list[str]:
     return list(filter(None, completed.stdout.split("\0"))) if completed.returncode == 0 else []
 
 
+def tracked_paths(root: Path) -> tuple[str, ...]:
+    """Return every index-tracked path exactly, without Git path quoting."""
+    completed = run_git(root, "ls-files", "-z", check=False, text=False, observation=True)
+    if completed.returncode:
+        return ()
+    return tuple(
+        raw.decode("utf-8", errors="surrogateescape")
+        for raw in completed.stdout.split(b"\0")
+        if raw
+    )
+
+
 def remote_availability(
     root: Path, remote: str = "origin", *, timeout_seconds: float = 3.0
 ) -> dict[str, object]:

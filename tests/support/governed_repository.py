@@ -18,6 +18,10 @@ from ethos.repository.profile import render_repository_profile
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
+PARADIGM_EDITORCONFIG = (
+    "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n"
+)
+
 
 class WorkLaneFixture(NamedTuple):
     """A generic adopted repository with its candidate and owned Work Lane."""
@@ -158,6 +162,9 @@ def init_git_repo(path: Path, *, object_format: str = "sha1") -> Path:
     git(path, "config", "core.hooksPath", ".git/test-hooks")
     (path / ".gitignore").write_text("", encoding="utf-8")
     (path / "README.md").write_text("# sample\n", encoding="utf-8")
+    (path / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+    (path / ".gitattributes").write_text("* text=auto eol=lf\n", encoding="utf-8")
+    (path / ".editorconfig").write_text(PARADIGM_EDITORCONFIG, encoding="utf-8")
     commit_fixture(path, "init")
     return path
 

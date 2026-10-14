@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from concurrent.futures import Future
+from concurrent.futures import wait
 from typing import TYPE_CHECKING
 
 from ethos.repository.release.identity import BuildIdentity
@@ -70,6 +72,16 @@ def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
             method,
             lambda *_args, stage=method, result=result, **_kwargs: events.append(stage) or result,
         )
+    settled: list[bool] = []
+
+    def settle(users):
+        events.append("bootstrap_users")
+        settled.append(bootstrap_environment.exists())
+        return wait(users)
+
+    monkeypatch.setattr(effect, "wait", settle)
+    formation: Future[dict[str, object]] = Future()
+    formation.set_result({"state": "passed"})
 
     lifecycle = effect.observe_runtime_lifecycle(
         installed_ethos=tmp_path / "wheel-environment/bin/ethos",
@@ -79,12 +91,15 @@ def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
         build=BuildIdentity("0.2.0-alpha.3", "0.2.0a3.dev0+ga.ta", "a" * 40, "b" * 40),
         wheel_sha256="c" * 64,
         environment={},
+        bootstrap_users=(formation,),
     )
 
     expected = [method for _owner, method, _result in declarations]
     expected.insert(expected.index("activate_from_entrypoint") + 1, "bootstrap_manifest")
     expected.insert(expected.index("activate_from_runtime") + 1, "successor_manifest")
+    expected.insert(expected.index("successor_manifest") + 1, "bootstrap_users")
     assert events == expected
+    assert settled == [True]
     assert set(lifecycle) == receipt.REQUIRED_LIFECYCLE_STAGES
     assert all(observation["state"] == "passed" for observation in lifecycle.values())
     assert not bootstrap_environment.exists()

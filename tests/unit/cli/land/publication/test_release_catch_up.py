@@ -47,7 +47,10 @@ def _released_while_gitlab_was_away(tmp_path: Path) -> tuple[Path, dict[str, Pat
     assert apply_receipt(repo, preview["data"]["request_receipt"], head)["state"] == "published"
     git(repo, "remote", "set-url", "origin", gitlab)
     candidate = tmp_path / "repo"
-    (candidate / "after-release.txt").write_text("accepted after the release\n", encoding="utf-8")
+    (candidate / "notes").mkdir(exist_ok=True)
+    (candidate / "notes/after-release.txt").write_text(
+        "accepted after the release\n", encoding="utf-8"
+    )
     accepted = commit_fixture(candidate, "fix: advance accepted after the release")
     seed_executed_proof(candidate, accepted)
     run_ethos(

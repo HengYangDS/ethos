@@ -54,9 +54,10 @@ def test_shipped_markdown_quality_runs_without_repository_nox(
     path.write_text(content)
     provider = getattr(tool, "markdown_lint_report", None)
     assert callable(provider)
+    originals = {source: source.read_bytes() for source in root.glob("*.md")}
     report = provider(root)
     assert report["verdict"] == verdict, report
-    assert report["file_count"] == 1
+    assert report["file_count"] == len(originals)
     assert bool(report["required_gaps"]) == (verdict == "block")
-    assert path.read_text() == content
+    assert all(source.read_bytes() == original for source, original in originals.items())
     assert not (root / "noxfile.py").exists()

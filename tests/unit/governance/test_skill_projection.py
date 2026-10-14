@@ -123,7 +123,7 @@ def test_skill_activation_compiles_an_ordered_dependency_complete_set() -> None:
             operation="prove",
             path_globs=["src/**/*.py"],
             requires=["repository-governance"],
-            pre_reads=["ruff.toml"],
+            pre_reads=[".config/checks/ruff/ruff.toml"],
         ),
     )
     result = compile_skill_activation(
@@ -141,7 +141,7 @@ def test_skill_activation_compiles_an_ordered_dependency_complete_set() -> None:
         "python-quality",
     ]
     assert result.context.model_dump(mode="json") == {
-        "pre_reads": ["AGENTS.md", "ruff.toml"],
+        "pre_reads": ["AGENTS.md", ".config/checks/ruff/ruff.toml"],
         "during_rules": [],
         "post_checks": ["ethos status --json"],
     }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run the secret-scanning gate through Gitleaks native config inheritance.
-# The root discovery entry references the unique policy under .config/checks/secrets/.
+# The unique secret-scanning policy lives under .config/checks/gitleaks/.
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -62,7 +62,7 @@ PY
 # worktree. `--redact` keeps matched values out of logs and the report.
 gitleaks detect \
 	--source "${scan_root}" \
-	--config "${repo_root}/.gitleaks.toml" \
+	--config "${repo_root}/.config/checks/gitleaks/gitleaks.toml" \
 	--no-git \
 	--redact \
 	--report-format json \

@@ -451,6 +451,22 @@ def test_interruption_completes_owned_terminalization(monkeypatch, acceptance_ca
     assert signal.getsignal(signal.SIGTERM) == previous
 
 
+def test_concurrent_formation_failure_fails_acceptance_and_cleans_owned_work(
+    monkeypatch, acceptance_case
+):
+    def fail_formation(*_args, **_kwargs):
+        message = "expected formation failure"
+        raise RuntimeError(message)
+
+    monkeypatch.setattr(effect.adopter_fixture, "prove_formation", fail_formation)
+    with pytest.raises(RuntimeError, match="expected formation failure"):
+        effect.run(cast("nox.Session", object()))
+    (formation,) = acceptance_case.observed["bootstrap_users"]
+    assert formation.done()
+    assert not effect.WORK.exists()
+    assert not effect.EVIDENCE.exists()
+
+
 @pytest.mark.parametrize("shape", ["missing", "directory", "symlink", "multiple"])
 def test_release_candidate_requires_one_regular_wheel(monkeypatch, tmp_path, shape):
     wheel = tmp_path / "build/artifacts/release/python/ethos-selected.whl"

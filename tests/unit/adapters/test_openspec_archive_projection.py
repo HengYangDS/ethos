@@ -92,6 +92,8 @@ def test_archive_reference_destinations_preserve_other_bytes(
 ):
     """Real Git projection preserves concrete syntax or rejects the exact missing target."""
     root = init_git_repo(tmp_path / "repo")
+    with (root / ".gitattributes").open("a", encoding="utf-8") as attributes:
+        attributes.write("openspec/** -text\n")
     active = root / "openspec/changes/links"
     archived = root / "openspec/changes/archive/2026-09-18-links"
     for relative, content in {

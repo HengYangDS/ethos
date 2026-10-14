@@ -182,7 +182,9 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
                 "head": ("current_tracked_head", "b" * 40),
                 "policy-drift": (
                     "resolve_gate_policy",
-                    replace(policy, sources=(("ruff", (("ruff.toml", "changed"),)),)),
+                    replace(
+                        policy, sources=(("ruff", ((".config/checks/ruff/ruff.toml", "changed"),)),)
+                    ),
                 ),
             }[case]
             monkeypatch.setattr(gate_execution, name, lambda *_a, **_k: value)
@@ -269,6 +271,7 @@ def test_test_environment_freezes_locked_supply_as_absolute_paths(
     assert observed["ETHOS_NODE_PACKAGE_SUPPLY"] == str(supply)
 
     assert {"--dist=load", "--maxschedchunk=1"} <= set(command)
+    assert command[command.index("-p") + 1] == "tools.ci.python_test_order"
     assert ("-n" in command) is (workers == 8)
     assert set(python_test_gate.TARGETS) <= set(command)
 

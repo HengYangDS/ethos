@@ -59,7 +59,7 @@ def test_candidate_preview_checks_selected_runtime_policy_before_cas(
 ) -> None:
     """A source proof cannot turn predecessor policy drift into ready-to-land."""
     fixture = prepared_work_lane(tmp_path)
-    head = commit_fixture_file(fixture.worktree, "FEATURE.md", "# feature\n", "feature work")
+    head = commit_fixture_file(fixture.worktree, "notes/feature.md", "# feature\n", "feature work")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     seed_executed_proof(fixture.worktree, head, full=True)
     proof = proof_attestation(fixture.worktree, head)

@@ -382,13 +382,15 @@ def test_signed_pathspec_commit_admits_only_its_selected_index(
         output = root / ("unselected.py" if checked_owner == "formatter" else "unselected.txt")
         output.write_text("VALUE = 1\n")
         if checked_owner == "formatter":
-            (root / "ruff.toml").write_text("line-length = 100\n")
+            formatter = root / ".config/checks/ruff/ruff.toml"
+            formatter.parent.mkdir(parents=True)
+            formatter.write_text("line-length = 100\n")
             install_fixture_hook_runtime(root, native_executables={"ruff": Path(find_ruff_bin())})
             invalid, gap = "VALUE=1\n", "pre_commit_python_format_failed"
         else:
-            (root / ".gitleaks.toml").write_text(
-                '[[rules]]\nid = "test-selection"\nregex = "AUTHORIZATION_[0-9]+"\n'
-            )
+            secrets = root / ".config/checks/gitleaks/gitleaks.toml"
+            secrets.parent.mkdir(parents=True)
+            secrets.write_text('[[rules]]\nid = "test-selection"\nregex = "AUTHORIZATION_[0-9]+"\n')
             invalid, gap = "AUTHORIZATION_123456789\n", "staged_secret_scan_failed"
     before = output.read_text()
     commit_fixture(root, "declare exact checks")
@@ -434,8 +436,9 @@ def test_signed_commit_preserves_incumbent_native_policy(
     extension = root / ".config" / "native-policy.toml"
     extension.parent.mkdir(exist_ok=True)
     if checked_owner == "formatter":
-        policy = root / "ruff.toml"
-        policy.write_text('extend = ".config/native-policy.toml"\n')
+        policy = root / ".config/checks/ruff/ruff.toml"
+        policy.parent.mkdir(parents=True)
+        policy.write_text('extend = "../../native-policy.toml"\n')
         extension.write_text("line-length = 100\n")
         weakened = "line-length = 1000\n"
         output = root / "selected.py"
@@ -444,7 +447,8 @@ def test_signed_commit_preserves_incumbent_native_policy(
         gap = "pre_commit_python_format_failed"
         install_fixture_hook_runtime(root, native_executables={"ruff": Path(find_ruff_bin())})
     else:
-        policy = root / ".gitleaks.toml"
+        policy = root / ".config/checks/gitleaks/gitleaks.toml"
+        policy.parent.mkdir(parents=True)
         policy.write_text('[extend]\npath = ".config/native-policy.toml"\n')
         extension.write_text('[[rules]]\nid = "test-selection"\nregex = "AUTHORIZATION_[0-9]+"\n')
         weakened = '[[rules]]\nid = "unrelated"\nregex = "UNRELATED_[0-9]+"\n'
@@ -452,7 +456,7 @@ def test_signed_commit_preserves_incumbent_native_policy(
         before, invalid = "safe content\n", "AUTHORIZATION_123456789\n"
         gap = "staged_secret_scan_failed"
     output.write_text(before)
-    ignore = root / ".gitleaksignore"
+    ignore = root / ".config/checks/gitleaks/gitleaksignore"
     if policy_state == "ignore-replaced":
         ignore.write_text("unrelated.txt:test-selection:1\n")
         weakened = "selected.txt:test-selection:1\n"

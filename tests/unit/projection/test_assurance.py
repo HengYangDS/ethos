@@ -48,6 +48,15 @@ _CI_SCHEMA = 'schema = "ethos-ci-template-consistency-v1"\n'
             "[[projection]]\ntemplate = 'a\\b.yml'\nprojection = 'b.yml'\n",
             "projection_path_invalid",
         ),
+        (
+            '[[projection]]\ntemplate = "../source.yml"\nprojection = "b.yml"\n',
+            "projection_path_invalid",
+        ),
+        (
+            '[[projection]]\ntemplate = "/source.yml"\nprojection = "b.yml"\n',
+            "projection_path_invalid",
+        ),
+        ('[[projection]]\ntemplate = "."\nprojection = "b.yml"\n', "projection_path_invalid"),
     ],
     ids=[
         "entry",
@@ -58,6 +67,9 @@ _CI_SCHEMA = 'schema = "ethos-ci-template-consistency-v1"\n'
         "compiler",
         "type",
         "slash",
+        "parent",
+        "absolute",
+        "directory",
     ],
 )
 def test_projection_declarations_keep_one_exact_native_owner(entries: str, reason: str) -> None:

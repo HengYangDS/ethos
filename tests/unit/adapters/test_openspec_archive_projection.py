@@ -7,9 +7,11 @@ from unittest.mock import Mock
 
 import pytest
 
+import ethos.adapters.openspec.archive_projection as projection
 import ethos.adapters.openspec.relocation as relocation
 from ethos.adapters.openspec.archive_projection import normalize_projected_specs
 from ethos.adapters.openspec.archive_projection import refresh_archive_projections
+from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -136,11 +138,141 @@ def test_archive_reference_destinations_preserve_other_bytes(
             refresh_archive_projections(root, source_head=head)
         assert (archived / "design.md").read_bytes() == body.encode()
     else:
+        with observe_worktree_postimage(root, previous=head) as observed:
+            arguments = {
+                "source_head": head,
+                "tree": observed.tree,
+                "changed_paths": observed.changed_paths,
+                "environment": observed.environment,
+            }
+            updates = projection.archive_projection_updates(root, **arguments)
+            assert projection.archive_projection_scope(root, **arguments, allow_pending=True) == (
+                tuple(updates),
+                tuple(updates),
+            )
+            assert projection.archive_projection_scope(root, **arguments, allow_pending=False) == (
+                None if updates else ((), ())
+            )
         for _ in range(2):
             refresh_archive_projections(root, source_head=head)
             assert (archived / "design.md").read_bytes() == (expected or body).encode()
+        with observe_worktree_postimage(root, previous=head) as observed:
+            assert projection.archive_projection_scope(
+                root,
+                source_head=head,
+                tree=observed.tree,
+                changed_paths=observed.changed_paths,
+                environment=observed.environment,
+                allow_pending=False,
+            ) == (tuple(updates), ())
     assert all(
         not observed.args and observed.kwargs == {"execution_probe": False}
         for observed in resolver.call_args_list
     )
+    assert git(root, "rev-parse", "HEAD") == head
+
+
+def test_normalization_preserves_canonical_unavailable_and_nonlocal_carriers(
+    tmp_path: Path,
+) -> None:
+    """Canonical bytes are stable; unavailable or nonlocal paths are not written."""
+    relative = "openspec/specs/contracts/spec.md"
+    canonical = tmp_path / relative
+    canonical.parent.mkdir(parents=True)
+    canonical.write_bytes(b"# Contract\n")
+    assert (
+        normalize_projected_specs(
+            tmp_path,
+            paths=(
+                relative,
+                relative,
+                "openspec/specs/missing/spec.md",
+                "/outside/spec.md",
+                "../spec.md",
+            ),
+        )
+        == ()
+    )
+    assert canonical.read_bytes() == b"# Contract\n"
+
+
+def test_archive_refresh_rechecks_preimage_before_writing(tmp_path: Path, monkeypatch) -> None:
+    """A concurrent edit survives instead of being overwritten by stale relocation."""
+    root = init_git_repo(tmp_path / "repo")
+    relative = "openspec/changes/archive/2026-10-14-links/design.md"
+    target = root / relative
+    target.parent.mkdir(parents=True)
+    target.write_bytes(b"original\n")
+    head = commit_fixture(root, "declare exact preimage")
+    newer = b"concurrent owner edit\n"
+
+    def mutate_after_observation(*_args, **_kwargs):
+        target.write_bytes(newer)
+        return {relative: b"relocated\n"}, {relative: b"original\n"}
+
+    monkeypatch.setattr(projection, "archive_relocation", mutate_after_observation)
+    with pytest.raises(ValueError, match="archive_projection_preimage_changed"):
+        refresh_archive_projections(root, source_head=head)
+    assert target.read_bytes() == newer
+    assert git(root, "rev-parse", "HEAD") == head
+
+
+def test_archive_scope_requires_an_observable_declared_output(tmp_path: Path, monkeypatch) -> None:
+    """Unavailable output cannot acquire archive scope from an asserted identity."""
+    root = init_git_repo(tmp_path / "repo")
+    relative = "openspec/changes/archive/2026-10-14-links/design.md"
+    monkeypatch.setattr(
+        projection,
+        "archive_relocation",
+        lambda *_args, **_kwargs: ({relative: b"relocated\n"}, {relative: b"original\n"}),
+    )
+    with pytest.raises(ValueError, match="archive_projection_input_unavailable"):
+        projection.archive_projection_scope(
+            root,
+            source_head=git(root, "rev-parse", "HEAD"),
+            tree="unavailable",
+            changed_paths=(relative,),
+            environment=None,
+            allow_pending=True,
+        )
+
+
+@pytest.mark.parametrize(
+    ("members", "reason"),
+    [
+        (("ghost",), ""),
+        (("left", "right"), "archive_reference_change_ambiguous"),
+        (("binary",), ""),
+    ],
+)
+def test_archive_selection_requires_one_original_document_owner(tmp_path: Path, members, reason):
+    """Absent and non-document moves are inert; competing Changes cannot share a relocation."""
+    root = init_git_repo(tmp_path / "repo")
+    (root / "README.md").write_bytes(b"# Independent product\n")
+    for name in set(members) - {"ghost"}:
+        file = root / "openspec/changes" / name / "note.txt"
+        file.parent.mkdir(parents=True)
+        file.write_bytes(b"original\n")
+    head = commit_fixture(root, "declare original archive owners")
+    for name in members:
+        source = root / "openspec/changes" / name
+        target = root / "openspec/changes/archive" / f"2026-10-14-{name}"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if name == "ghost":
+            target.mkdir()
+            (target / "note.txt").write_bytes(b"unbound\n")
+        else:
+            source.rename(target)
+    with observe_worktree_postimage(root, previous=head) as observed:
+        arguments = {
+            "source_head": head,
+            "tree": observed.tree,
+            "changed_paths": observed.changed_paths,
+            "environment": observed.environment,
+        }
+        if reason:
+            with pytest.raises(ValueError, match=reason):
+                projection.archive_projection_updates(root, **arguments)
+        else:
+            assert projection.archive_projection_updates(root, **arguments) == {}
     assert git(root, "rev-parse", "HEAD") == head

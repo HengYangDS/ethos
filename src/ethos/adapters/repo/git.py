@@ -17,9 +17,6 @@ from typing import Literal
 from typing import overload
 
 import ethos.adapters.process as process_adapter
-from ethos.adapters.repo.git_read_reuse import answer_key
-from ethos.adapters.repo.git_read_reuse import remember_answer
-from ethos.adapters.repo.git_read_reuse import reused_answer
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -159,21 +156,8 @@ def run_git(
     command = (git_executable(effective_env), *args)
     if timeout is not None and timeout <= 0:
         raise _timeout_error(root, command, subprocess.TimeoutExpired(command, timeout))
-    key = (
-        answer_key(
-            root,
-            command,
-            text=text,
-            observation=observation,
-            overlay=tuple(sorted(config_overlay.items())),
-        )
-        if not env and stdin is None
-        else None
-    )
-    if key is not None and (answer := reused_answer(key)) is not None:
-        return answer
     try:
-        completed = process_adapter.run_command(
+        return process_adapter.run_command(
             root,
             command,
             check=check,
@@ -193,9 +177,6 @@ def run_git(
             cwd=error.cwd,
             cause=error.cause,
         ) from error
-    if key is not None:
-        remember_answer(key, completed)
-    return completed
 
 
 def _timeout_error(

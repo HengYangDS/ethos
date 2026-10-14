@@ -18,6 +18,7 @@ from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import evaluate_mutation
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.repo.commit.integration import peer_publication_baseline
+from ethos.adapters.repo.release import release_publication_head
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
@@ -246,6 +247,7 @@ class PublicationContext:
     root: Path
     governance: dict[str, object]
     head: str
+    proof_head: str
     branch: str
     role_policy: BranchRolePolicy
     topology: dict[str, object]
@@ -363,6 +365,25 @@ def observe_publication(
         admission.update(role=role, proof_selection=publication_proof_selection(role))
         if role == "object_transport":
             admission["remote_mutation_allowed"] = not remote_topology.get("required_gaps")
+    proof_head = current_head
+    source_gaps: list[str] = []
+    release_refs = tuple(
+        ref
+        for ref, admission in ref_admissions.items()
+        if ref.startswith("refs/tags/") and admission["role"] == "release_publication"
+    )
+    if release_refs:
+        try:
+            selected_heads = {
+                release_publication_head(repo, ref=ref, new=git.ref_head(repo, ref))
+                for ref in release_refs
+            }
+            if len(selected_heads) == 1 and len(release_refs) == len(target_refs):
+                proof_head = selected_heads.pop()
+            else:
+                source_gaps.append("publication_source_head_ambiguous")
+        except (OSError, ValueError) as error:
+            source_gaps.append(str(error))
     target_roles = tuple(str(item.get("role") or "other") for item in ref_admissions.values())
     review_only = bool(ref_admissions) and all(
         item["proof_selection"] == "review_object" for item in ref_admissions.values()
@@ -374,7 +395,7 @@ def observe_publication(
     )
     proof_admission = (
         publication_proof_admission(
-            repo, current_head, target_roles or (str(status_payload["role"]),)
+            repo, proof_head, target_roles or (str(status_payload["role"]),)
         )
         if decision.verdict != "block"
         else {
@@ -391,6 +412,7 @@ def observe_publication(
             (
                 *string_sequence(audit.get("required_gaps")),
                 *decision.required_gaps,
+                *source_gaps,
                 *string_sequence(independent_verification.get("required_gaps")),
                 *string_sequence(proof_admission.get("required_gaps")),
                 *string_sequence(remote_topology.get("required_gaps")),
@@ -407,6 +429,7 @@ def observe_publication(
         root=repo,
         governance=governance,
         head=current_head,
+        proof_head=proof_head,
         branch=str(branch),
         role_policy=policy,
         topology=remote_topology,

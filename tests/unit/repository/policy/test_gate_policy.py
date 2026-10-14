@@ -38,59 +38,6 @@ _MISSING_QUALITY = (
 )
 
 
-@pytest.mark.parametrize("registry_owned", [False, True])
-def test_source_acceptance_preserves_floors_and_binds_native_audit(
-    tmp_path: Path, *, registry_owned: bool
-) -> None:
-    """Execution purpose never reclassifies the original declaration's quality owner."""
-    declaration = load_gate_registry_declaration()
-    profile = (
-        RepositoryProfile(
-            root=tmp_path,
-            exists=True,
-            declaration=RepositoryProfileDeclaration(
-                profile_id="product",
-                proof=ProofPolicy(gate_registry="system/gates.toml"),
-            ),
-        )
-        if registry_owned
-        else None
-    )
-    registry_source = tomli_w.dumps(declaration.model_dump(mode="json", exclude_none=True)).encode()
-    strict = compile_gate_policy(
-        full=True,
-        profile=profile,
-        gate_registry_source=registry_source,
-        repository_python="python",
-        repository_paths=("src/main.py",),
-    )
-    source = compile_gate_policy(
-        full=True,
-        profile=profile,
-        gate_registry_source=registry_source,
-        repository_python="python",
-        repository_paths=("src/main.py",),
-        acceptance_purpose="local-source",
-    )
-    assert source.declaration == strict.declaration
-    assert source.projection["owner"] == strict.projection["owner"]
-    assert source.gaps == strict.gaps
-    assert source.gate_ids == strict.gate_ids
-    assert source.digest != strict.digest
-    assert source.projection["acceptance_purpose"] == "local-source"
-    for gate in strict.gates:
-        selected = source.registry[gate.id]
-        if gate.tool_adapter == "vulnerabilities":
-            assert selected.command == (*gate.command, "--", "--scope", "local-development")
-            assert source.nodes[source.gate_ids.index(gate.id)].command != (
-                strict.nodes[strict.gate_ids.index(gate.id)].command
-            )
-        else:
-            assert selected == gate
-    with pytest.raises(ValueError, match="proof_acceptance_purpose_invalid"):
-        compile_gate_policy(full=True, acceptance_purpose="publishing")
-
-
 @pytest.mark.parametrize("requested", [("native",), ("schemas",), ("native", "schemas")])
 def test_gate_composition_retains_native_owner_and_exact_provider_sources(
     tmp_path: Path, requested: tuple[str, ...]
@@ -150,43 +97,6 @@ def test_gate_composition_retains_native_owner_and_exact_provider_sources(
         assert "quality_obligation_unproven:behavior" in selected.gaps
     else:
         assert selected.gaps == baseline.gaps
-
-
-def test_imported_native_audit_honors_source_purpose_without_changing_target_floor(
-    tmp_path: Path,
-) -> None:
-    """Purpose interpretation follows selected closure, including newly imported commands."""
-    profile = RepositoryProfile(
-        root=tmp_path,
-        exists=True,
-        declaration=RepositoryProfileDeclaration(
-            profile_id="target",
-            proof=ProofPolicy(
-                code_correctness_gates=("native",),
-                code_correctness_map={"behavior": "native", "static-analysis": "native"},
-                gates=(Gate(id="native", kind="check", command=("target-check",)),),
-            ),
-        ),
-    )
-    requested = ("native", "dependency-vulnerabilities")
-    strict = compile_gate_policy(profile=profile, gate_ids=requested, repository_python="python")
-    source = compile_gate_policy(
-        profile=profile,
-        gate_ids=requested,
-        repository_python="python",
-        acceptance_purpose="local-source",
-    )
-    assert strict.profile is source.profile is profile
-    assert source.declaration.proof_sets == strict.declaration.proof_sets
-    assert source.gate_ids == strict.gate_ids
-    assert source.registry["native"] == strict.registry["native"]
-    assert source.registry["dependency-vulnerabilities"].command == (
-        *strict.registry["dependency-vulnerabilities"].command,
-        "--",
-        "--scope",
-        "local-development",
-    )
-    assert source.digest != strict.digest
 
 
 def test_quality_axis_conjoins_scoped_evidence_from_distinct_gates() -> None:
@@ -290,7 +200,9 @@ def test_scheduler_hint_does_not_reclassify_product_quality_owner(tmp_path: Path
         ),
     )
 
-    def compiled(declaration: GateRegistryDeclaration) -> ResolvedGatePolicy:
+    def compiled(
+        declaration: GateRegistryDeclaration, *, local_source: bool = False
+    ) -> ResolvedGatePolicy:
         return compile_gate_policy(
             profile=profile,
             gate_registry_source=tomli_w.dumps(
@@ -299,9 +211,14 @@ def test_scheduler_hint_does_not_reclassify_product_quality_owner(tmp_path: Path
             repository_python="python",
             repository_paths=("src/example.py",),
             full=True,
+            acceptance_purpose="local-source" if local_source else "repository",
         )
 
     base = compiled(packaged)
+    scoped = compiled(packaged, local_source=True)
+    assert scoped.projection["owner"] == base.projection["owner"]
+    assert scoped.digest != base.digest
+    assert scoped.gaps == base.gaps
     varied = packaged.model_copy(
         update={
             "gates": tuple(
@@ -315,6 +232,7 @@ def test_scheduler_hint_does_not_reclassify_product_quality_owner(tmp_path: Path
     capacity = compiled(varied)
     assert capacity.projection["owner"] == base.projection["owner"]
     assert capacity.digest != base.digest
+    assert compiled(varied, local_source=True).projection["owner"] == base.projection["owner"]
 
     substantive = packaged.model_copy(
         update={
@@ -548,3 +466,22 @@ def test_quality_observation_retains_committed_roles_and_explicit_test_identity(
     assert subject.requires_behavior
     (repo / ".gitattributes").write_text("test_entry.js ethos-role=test\n")
     assert observe_quality_subjects(repo)[1] == (subject,)
+
+
+def test_rootless_policy_compiles_only_the_product_declaration() -> None:
+    """Without a repository, the product registry compiles without observing materials."""
+    assert resolve_gate_policy(full=True) == compile_gate_policy(full=True)
+
+
+@pytest.mark.parametrize("fault", ["profile", "tree"])
+def test_quality_subjects_bind_one_valid_committed_tree(tmp_path: Path, fault: str) -> None:
+    """An invalid committed profile or another expected tree never yields quality subjects."""
+    repo = init_git_repo(tmp_path / "repo")
+    (repo / "answer.py").write_text("VALUE = 42\n")
+    if fault == "profile":
+        (repo / ".ethos").mkdir()
+        (repo / ".ethos/profile.toml").write_text("profile_id = 1\n")
+    commit_fixture(repo, "record source")
+    message = "repository_profile_invalid" if fault == "profile" else "code_source_changed"
+    with pytest.raises(ValueError, match=message):
+        observe_quality_subjects(repo, expected_tree="0" * 40 if fault == "tree" else "")

@@ -15,14 +15,27 @@ from ethos.repository.policy.code_subjects import observed_code_subjects
 from ethos.repository.policy.code_subjects import source_binding_gaps
 from ethos.repository.policy.gates import PRODUCT_PROVIDER_SOURCE
 from ethos.repository.policy.gates import ResolvedGatePolicy
+from ethos.repository.policy.gates import resolve_gate_declaration as compile_gate_declaration
 from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
 from ethos.repository.policy.gates import source_paths_for_gates
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
+    from ethos.contracts.gates import GateRegistryDeclaration
     from ethos.contracts.proof.plan import AcceptancePurpose
     from ethos.repository.policy.code_subjects import CodeSubject
+
+
+def resolve_committed_gate_declaration(root: Path, tree_ref: str) -> GateRegistryDeclaration:
+    """Observe only the exact committed profile and its declared gate registry."""
+    profile = load_committed_repository_profile(root, tree_ref)
+    registry_path = profile.declaration.proof.gate_registry if profile.declaration else None
+    declaration, _profile = compile_gate_declaration(
+        profile,
+        gate_registry_source=_material(root, tree_ref, registry_path) if registry_path else None,
+    )
+    return declaration
 
 
 def resolve_gate_policy(

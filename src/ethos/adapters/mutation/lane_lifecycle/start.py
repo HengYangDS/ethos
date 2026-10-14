@@ -240,6 +240,15 @@ def _rollback_start(
     return gaps
 
 
+def _start_effect(
+    policy: BranchRolePolicy, branch: str, head: str, candidate_head: str
+) -> GitEffect:
+    return GitEffect(
+        updates={f"refs/heads/{branch}": GitRefUpdate(expected="0" * len(head), desired=head)},
+        assertions={f"refs/heads/{policy.candidate_branch}": candidate_head},
+    )
+
+
 def _create_ref(
     repo: Path,
     *,
@@ -249,10 +258,7 @@ def _create_ref(
     candidate_head: str,
     holder_ref: str,
 ):
-    effect = GitEffect(
-        updates={f"refs/heads/{branch}": GitRefUpdate(expected="0" * len(head), desired=head)},
-        assertions={f"refs/heads/{policy.candidate_branch}": candidate_head},
-    )
+    effect = _start_effect(policy, branch, head, candidate_head)
     plan = compile_observed_git_effect(
         repo,
         None,
@@ -278,11 +284,7 @@ def _delete_started_ref(
     candidate_head: str,
     holder_ref: str,
 ) -> None:
-    zero = "0" * len(head)
-    effect = GitEffect(
-        updates={f"refs/heads/{branch}": GitRefUpdate(expected=head, desired=zero)},
-        assertions={f"refs/heads/{policy.candidate_branch}": candidate_head},
-    )
+    effect = _start_effect(policy, branch, head, candidate_head).inverse()
     plan = compile_observed_git_effect(
         repo,
         None,

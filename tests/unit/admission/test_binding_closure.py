@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import tomli_w
+
+from ethos.contracts.gates import Gate
+from ethos.contracts.gates import GateProofSets
+from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.repository.policy.references.closure import product_reference_gaps
 from ethos.repository.policy.references.closure import repository_semantic_closure
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
@@ -197,7 +202,13 @@ def start() -> None:
 
 def test_native_owner_closure_uses_only_selected_existing_authorities() -> None:
     files = {
-        "system/gates.toml": '[[gates]]\ncommand = ["c.sh"]\n',
+        "system/gates.toml": tomli_w.dumps(
+            GateRegistryDeclaration(
+                id="selected-script",
+                proof_sets=GateProofSets(default=("check",), full=("check",)),
+                gates=(Gate(id="check", kind="check", command=("c.sh",)),),
+            ).model_dump(mode="json", exclude_defaults=True)
+        ),
         "c.sh": '#!/bin/sh\nscript_dir=$(dirname "$0")\ncurl x\n"${script_dir}/i.sh"\n',
         "i.sh": "#!/bin/sh\ntar -xf x\n",
         ".config/checks/ci/templates.toml": 'projection=[{required_owner_scripts=["p.sh"]}]\n',
@@ -217,9 +228,18 @@ def test_native_owner_closure_uses_only_selected_existing_authorities() -> None:
 
 def test_gate_interpreter_binding_preserves_declared_module_ownership() -> None:
     files = {
-        "system/gates.toml": (
-            '[[gates]]\nid="configuration"\nkind="config"\n'
-            'command=["{python}","-m","nox","-s","config_quality"]\n'
+        "system/gates.toml": tomli_w.dumps(
+            GateRegistryDeclaration(
+                id="selected-interpreter",
+                proof_sets=GateProofSets(default=("configuration",), full=("configuration",)),
+                gates=(
+                    Gate(
+                        id="configuration",
+                        kind="config",
+                        command=("{python}", "-m", "nox", "-s", "config_quality"),
+                    ),
+                ),
+            ).model_dump(mode="json", exclude_defaults=True)
         ),
     }
     owned = native_owned_references_from_files(files)

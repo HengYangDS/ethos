@@ -157,6 +157,14 @@ declaration contracts reject missing, duplicate, mismatched, cyclic, or incomple
 descriptors before planning; ETHOS never guesses a command or accepts an unverified
 proof-run ID.
 
+Local-source acceptance derives dependency-audit applicability from the exact
+declared full gate policy. A selected canonical ETHOS audit binds its native
+scope, captured inputs and current dispositions; an omitted required audit
+blocks planning before execution. A repository-owned native floor keeps every
+declared gate and its evidence obligations without acquiring ETHOS's Python
+audit inputs. Proof issuance and consumption re-observe that same source policy;
+successful partial or noncanonical results never replace the required floor.
+
 Gate storage does not select repository type. Common governance evaluates actual
 OpenSpec observations, optional commit policy and declared release-role consistency
 for both inline and registry profiles. Missing optional policy adds no product
@@ -235,11 +243,11 @@ it is an obligation declaration, not evidence of authenticity. Its fields are
 `integrity_gate`. The gate must invoke the product source-integrity provider;
 a trusted-looking name, version, directory or successful command is insufficient.
 
-| Kind | Existing owner | Required observation |
-| --- | --- | --- |
-| Generated | Native projection declaration, including all declared outputs and compiler inputs | Reproduce exact expected bytes from the same committed input group |
-| Upstream | Exact npm lock `#packages/node_modules/...` member and locked SRI | Match authentic archive and selected member bytes without executing or extracting them |
-| Authored | Repository's own maintained code or configuration | Applicable native static and behavior checks; no artifact exemption |
+| Kind      | Existing owner                                                                    | Required observation                                                                   |
+| --------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Generated | Native projection declaration, including all declared outputs and compiler inputs | Reproduce exact expected bytes from the same committed input group                     |
+| Upstream  | Exact npm lock `#packages/node_modules/...` member and locked SRI                 | Match authentic archive and selected member bytes without executing or extracting them |
+| Authored  | Repository's own maintained code or configuration                                 | Applicable native static and behavior checks; no artifact exemption                    |
 
 An exact source relationship can remove inappropriate authored-style inspection,
 not applicable behavior, build-input or integrity obligations. Authored policy

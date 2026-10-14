@@ -167,7 +167,7 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     artifacts.mkdir()
     wheel = artifacts / "ethos-0.2.0a3-py3-none-any.whl"
     wheel.write_bytes(b"wheel")
-    sealed_runtime = work / "adopter/.git/ethos/runtime" / ("f" * 64) / "python"
+    sealed_runtime = work / "shared-installation" / ("f" * 64) / "python"
     sealed_runtime.mkdir(parents=True)
     sealed_payload = sealed_runtime / "sealed.txt"
     sealed_payload.write_text("immutable runtime\n", encoding="utf-8")
@@ -178,6 +178,10 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     build = build_identity(product="0.2.0-alpha.3", source_commit="a" * 40, source_tree="b" * 40)
     lifecycle["successor_activation"]["runtime_digest"] = "f" * 64
     monkeypatch.setattr(effect, "git_common_dir", lambda root: str(root / ".git"))
+    selected_runtime = Mock(
+        return_value=SimpleNamespace(root=sealed_runtime.parent, digest="f" * 64)
+    )
+    monkeypatch.setattr(effect, "current_runtime", selected_runtime)
     observed: dict[str, object] = {}
     logs: list[str] = []
     cleanup_evidence_states: list[bool] = []
@@ -255,6 +259,7 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         logs=logs,
         cleanup=cleanup_evidence_states,
         sealed_payload=sealed_payload,
+        selected_runtime=selected_runtime,
     )
 
 
@@ -302,6 +307,13 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
     else:
         effect.run(cast("nox.Session", session), artifact=artifact, evidence=output)
         payload = json.loads(output.read_text())
+        assert (
+            cast("Mock", effect.package_runtime).call_args.args[0]
+            == case.sealed_payload.parent.parent
+        )
+        case.selected_runtime.assert_called_once_with(
+            work / "adopter/.git", expected_build=case.build
+        )
         assert cast("Mock", effect.package_runtime).call_args.args[2].is_relative_to(work)
         assert payload["distribution"]["retained"] is False
         assert {"path", "homebrew_cask"}.isdisjoint(payload["distribution"])

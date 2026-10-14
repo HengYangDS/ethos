@@ -31,7 +31,7 @@ from tools.ci.delivery.artifact import selected_wheel
 from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
 
     import nox
 
@@ -316,7 +316,7 @@ class PythonTestGate:
             self._stable_head()
 
     @contextmanager
-    def _coverage_lock(self) -> Iterator[None]:
+    def _coverage_lock(self) -> Generator[None]:
         self.coverage.mkdir(parents=True, exist_ok=True)
         try:
             with FileLock(self.coverage / ".write.lock", timeout=self.s.lock_wait):

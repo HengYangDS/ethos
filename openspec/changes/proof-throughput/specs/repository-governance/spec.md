@@ -1,5 +1,80 @@
 ## MODIFIED Requirements
 
+### Requirement: Publication composes historical repair with forward integration
+
+ETHOS SHALL recognize an original peer object through an unambiguous chain of
+completed native history repairs. Each repair SHALL conserve exact payloads,
+ordered parents and trusted signatures under its recorded source policy.
+Only refs named throughout the chain SHALL inherit repaired publication
+provenance. The peer's advertised object SHALL remain the CAS precondition;
+the last verified replacement tip SHALL own forward commit-range validation.
+Current proof, accepted effect, candidate equality and protected publication
+admission SHALL remain independent.
+
+#### Scenario: Signed forward commits follow a verified replacement
+
+- **WHEN** the peer ref holds the recorded repair source and proposed accepted
+  descends from its verified replacement
+- **THEN** publication recognizes the historical segment as repaired
+- **AND THEN** the common range owner checks replacement-to-proposed commits
+  without scanning the repaired historical segment as new integration.
+
+#### Scenario: Peer holds an earlier mapped original commit
+
+- **WHEN** the protected peer ref holds an exact original commit in the
+  completed repair mapping and the repair replaced that same local ref
+- **THEN** pre-push and publication readiness use the verified replacement
+  tip as the forward-validation baseline
+- **AND THEN** the peer's advertised old OID remains the exact CAS precondition
+  rather than being substituted with the mapped or replacement OID.
+
+#### Scenario: A forward commit violates policy
+
+- **WHEN** a descendant after the verified replacement has an invalid subject,
+  identity or required signature
+- **THEN** range admission rejects that descendant despite valid repair
+  provenance.
+
+#### Scenario: Repair provenance does not establish the requested relationship
+
+- **WHEN** the target ref is not in the repair, the peer's old OID is not a
+  mapping key, replacement ancestry is absent, or repair evidence is missing,
+  invalid or ambiguous
+- **THEN** the request is not admitted as a repaired-history publication
+- **AND THEN** no remote or local ref is changed by the observation.
+
+#### Scenario: Accepted publication consumes the verified forward baseline
+
+- **WHEN** public pre-push or publication evaluates accepted descendants after
+  a verified repair of the peer's exact old object or mapped historical prefix
+- **THEN** the accepted topology check evaluates forward ancestry from the
+  verified replacement while still requiring the current candidate head
+- **AND THEN** proposed-object proof and its accepted effect remain required
+- **AND THEN** each peer applies only its observed old-to-proposed ref
+  transaction.
+
+#### Scenario: Repaired ancestry cannot excuse missing current acceptance
+
+- **WHEN** the repair relation is valid but current proof, accepted effect or
+  candidate equality is absent
+- **THEN** publication is rejected without changing either peer.
+
+#### Scenario: An original prefix survives a subsequent repair
+
+- **WHEN** a verified replacement enters a later repair's exact source history
+  and that completed repair replaces its object before current forward work
+- **THEN** original-object provenance composes both native mappings
+- **AND THEN** commit-range admission checks only last-tip descendants, retaining
+  every repair witness and the peer's original CAS object
+- **AND THEN** an invalid forward subject or signature still rejects publication.
+
+#### Scenario: A predecessor or ref relationship is absent
+
+- **WHEN** any necessary completed repair is missing or invalid, multiple paths
+  establish the relation, or a ref is absent from a necessary repair effect
+- **THEN** that repaired-history relationship is not admitted
+- **AND THEN** no local or remote ref changes during observation.
+
 ### Requirement: Release tags preserve native product version authority
 
 ETHOS SHALL create requested signed annotated tags from exact committed native
@@ -328,6 +403,23 @@ checkout and compare-delete its exact ref in a transaction verifying accepted.
   transaction cannot commit
 - **THEN** ETHOS re-observes the ref, worktree, and Lease postconditions
 - **AND** it reports the exact non-terminal state without claiming retirement.
+
+## REMOVED Requirements
+
+### Requirement: Preservation-bound exceptional Work Lane retirement
+
+**Reason**: No command writes, verifies or applies lane-resolution preserve or
+preserve-retire packages; exact retirement owns every remaining disposition.
+**Migration**: Use the existing receipt-bound `ethos lane retire abandon` and
+`ethos lane retire superseded` transitions for divergent or reviewed content.
+
+### Requirement: Durable exceptional-resolution recovery inventory
+
+**Reason**: No inventory, clear or legacy-retention check implements this
+requirement, and the retained local packages have no consumer or unfinished
+transition.
+**Migration**: Recovery material stays with the operation that needs it; the
+unconsumed local `build/artifacts/lane-resolution` residue is removed.
 
 ## ADDED Requirements
 
@@ -871,3 +963,4 @@ reclamation. Historical provenance alone SHALL NOT pin local executables.
 - **WHEN** selector replacement occurred but its write acknowledgement or post-observation fails
 - **THEN** the selector owner restores original bytes under its existing lock only when this operation still owns the desired selection
 - **AND** a changed or unreadable peer selection remains intact with explicit compensation failure rather than false rollback success
+

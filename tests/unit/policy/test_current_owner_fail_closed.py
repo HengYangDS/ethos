@@ -149,7 +149,7 @@ helper
             "tools/run.sh": "#!/usr/bin/env bash\nprintf ok\n",
         },
         declared_commands=("ethos status",),
-    ).references
+    )
     assert {"github", "docker"} <= observed["reference"]
     assert {"python", "bash"} <= observed["executable"]
     assert observed["import"] == {"pytest"}

@@ -28,6 +28,11 @@ def accepted_contribution(root: Path, old: str, accepted: str) -> dict[str, obje
             "old": old,
             "replacement": mapping[old],
             "attestation_id": repair["attestation_id"],
+            **(
+                {"attestation_ids": repair["attestation_ids"]}
+                if "attestation_ids" in repair
+                else {}
+            ),
         }
     report = refreshed_object_provenance(root, old=old, new=accepted) or {
         "state": "not_absorbed",

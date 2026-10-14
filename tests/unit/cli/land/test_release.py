@@ -24,7 +24,6 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.protocol import execute_hook
 from ethos.adapters.repo.release import committed_release_version
 from ethos.adapters.repo.release import release_ref_subject
-from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
@@ -36,6 +35,7 @@ from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import assert_signed_publication
 from tests.unit.cli.land.publication.support import branch_publication
 from tests.unit.cli.land.publication.support import publication_peers
+from tests.unit.cli.land.publication.support import release_cli
 
 
 def test_native_pre_push_rejects_peeled_commit_as_release_tag(tmp_path: Path) -> None:
@@ -137,26 +137,6 @@ def native_failed_result(effect, args, options, *, scope, boundary, root):
             git_effects, "observe_git_effect", Mock(side_effect=ValueError("observer unavailable"))
         )
     return subprocess.CompletedProcess(completed.args, 1, completed.stdout, b"refused-proof ACK")
-
-
-def release_cli(
-    repo: Path, head: str, old: str, *args: str, tag: str = "v1.2.3", blocked: bool = False
-):
-    """Invoke the public release surface with exact fixture coordinates."""
-    runner = run_ethos_blocked if blocked else run_ethos
-    return runner(
-        "land",
-        "--release",
-        "--expect-head",
-        head,
-        "--release-head",
-        old,
-        "--tag",
-        tag,
-        *args,
-        "--json",
-        cwd=repo,
-    )
 
 
 def test_signed_tag_alternates_survive_windows_text_newline_translation(

@@ -23,16 +23,36 @@ SSH signing is required for generated commits in this repository. ETHOS verifies
 the resulting Git object against the configured external trust anchor; it does
 not turn author metadata into mutation authority.
 
-## Commit Names
+## Commit Messages
 
-Use Conventional Commits:
+Use this repository's [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
+convention. The tracked [commit policy](.ethos/workspace.toml) owns the accepted
+subject syntax:
 
 ```text
-feat: add evidence gate runner
-fix: reject cyclic PlanIR dependencies
-docs: refine command-plane reference
+<type>: <description>
+<type>(<scope>): <description>
+```
+
+- `type` identifies the kind of change: `feat`, `fix`, `docs`, `test`,
+  `refactor`, `perf`, `build`, `ci`, `chore` or `revert`.
+- `scope` is optional. When present, keep the literal parentheses and name the
+  affected semantic area, such as `proof`, `lanes` or `cli`. The current policy
+  accepts nonempty lowercase ASCII letters, digits and hyphens in this field.
+- `description` is a nonempty summary after the colon and space.
+
+```text
+feat(proof): add evidence gate runner
+fix(lanes): reject stale integration requests
+docs(cli): clarify fast verification
 ci: add GitLab verification pipeline
 ```
+
+For an incompatible change, add a `BREAKING CHANGE: ...` footer explaining the
+incompatibility and migration. The current subject policy does not accept the
+optional `!` spelling. Commit syntax alone does not establish SemVer or release
+compliance; [release governance](docs/governance/release-governance.md#semantic-versioning-and-changelog)
+owns those obligations.
 
 Avoid vague subjects such as `Update files` or product claims without evidence.
 

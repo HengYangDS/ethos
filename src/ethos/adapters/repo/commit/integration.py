@@ -76,18 +76,37 @@ def commit_range_admission_report(
         baseline_commit=baseline,
         policy_ref=policy_ref or baseline,
     )
-    if gap:
-        return report(state="blocked", required_gaps=[gap])
+    creation = remote_head == native_zero
+    remote_prefix = f"refs/remotes/{remote_name}/"
+    repair_ref = (
+        f"refs/heads/{baseline_ref.removeprefix(remote_prefix)}"
+        if creation and baseline_ref.startswith(remote_prefix)
+        else baseline_ref
+        if creation
+        else target_ref
+    )
     repair = (
-        repaired_peer_ref_provenance(repo, ref=target_ref, old=baseline, new=proposed_commit)
-        if target_ref.startswith("refs/heads/") and not is_ancestor(repo, baseline, proposed_commit)
+        repaired_peer_ref_provenance(repo, ref=repair_ref, old=baseline, new=proposed_commit)
+        if baseline
+        and repair_ref.startswith("refs/heads/")
+        and not is_ancestor(repo, baseline, proposed_commit)
         else None
     )
-    if repair is not None and repair["new"] == proposed_commit:
+    if gap and not (
+        repair is not None and gap.startswith("commit_range_trusted_baseline_not_ancestor:")
+    ):
+        return report(state="blocked", required_gaps=[gap])
+    gap = ""
+    if repair is not None and repair["new"] == proposed_commit and not creation:
         revisions = tuple(cast("Mapping[str, str]", repair["mapping"]).values())
         return {
             **report(state="repaired_history", update_kind="repair", revisions=revisions),
             "repair_attestation": repair["attestation_id"],
+            **(
+                {"repair_attestations": repair["attestation_ids"]}
+                if "attestation_ids" in repair
+                else {}
+            ),
             "signature_verification": "verified_native",
         }
     integration_baseline = str(repair["new"]) if repair is not None else baseline
@@ -131,10 +150,15 @@ def commit_range_admission_report(
     )
     if repair is not None:
         result.update(
-            update_kind="repair",
+            update_kind="create" if creation else "repair",
             repair_attestation=repair["attestation_id"],
             repair_replacement=repair["new"],
             integration_baseline=integration_baseline,
+            **(
+                {"repair_attestations": repair["attestation_ids"]}
+                if "attestation_ids" in repair
+                else {}
+            ),
         )
     return result
 

@@ -16,6 +16,8 @@ from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Facts
 from ethos.repository.policy.quality.obligations import quality_obligation_gaps
+from ethos.repository.policy.quality.obligations import quality_verifier_gaps
+from ethos.repository.policy.quality.obligations import source_verifier_gaps
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import git
@@ -498,3 +500,53 @@ def test_one_gate_can_supply_both_code_axes(tmp_path: Path, evidence_case: str) 
         assert result.returncode != 0
         assert "quality_gate_verifier_missing:static-analysis:quality" in payload["required_gaps"]
         assert payload["data"]["checks"] == []
+
+
+def test_absent_or_empty_quality_owner_declares_no_code_axes() -> None:
+    """No owner or an empty versioned map adds no obligation beyond source integrity."""
+    assert quality_obligation_gaps({"owner": None}, (), source_tree="a" * 40) == ()
+    empty = {"owner": {"quality_floor_version": 1, "code_correctness_map": {}}}
+    assert quality_obligation_gaps(empty, (), source_tree="a" * 40) == ()
+
+
+def test_versioned_floor_requires_exact_nonempty_subjects() -> None:
+    """Version 2 cannot prove an axis whose declared subjects are empty."""
+    owner = {
+        "quality_floor_version": 2,
+        "code_correctness_map": {"behavior": "tests"},
+        "quality_subjects": {"behavior": []},
+    }
+    assert quality_obligation_gaps({"owner": owner, "gates": []}, (), source_tree="a" * 40) == (
+        "quality_obligation_unproven:behavior",
+    )
+
+
+def test_selected_verifiers_must_name_product_quality_providers() -> None:
+    """A malformed provider list or a non-provider identity cannot verify an axis."""
+    gates = (
+        {
+            "id": "tests",
+            "tool_adapter": "ethos",
+            "execution_mode": "verified-command",
+            "verification_providers": "not-a-list",
+        },
+        {
+            "id": "lint",
+            "tool_adapter": "ethos",
+            "execution_mode": "provider",
+            "execution_identity": ["command"],
+            "dimensions": ["behavior"],
+        },
+    )
+    assert quality_verifier_gaps({"code_correctness_map": {"behavior": "tests"}}, gates) == (
+        "quality_gate_verifier_missing:behavior:tests",
+        "quality_gate_verifier_missing:behavior:lint",
+    )
+
+
+@pytest.mark.parametrize("prerequisites", ["not-a-list", ["", "gap"]])
+def test_source_binding_prerequisites_are_exact_gap_names(prerequisites: object) -> None:
+    """Serialized binding prerequisites cannot smuggle blank or scalar gap evidence."""
+    assert source_verifier_gaps({"source_binding_gaps": prerequisites}, ()) == (
+        "source_binding_observation_invalid",
+    )

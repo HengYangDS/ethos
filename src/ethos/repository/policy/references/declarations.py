@@ -108,12 +108,8 @@ def _declared_gates(
     npm_scripts: dict[str, set[str]],
     owned: dict[str, set[str]],
 ) -> None:
-    payload = _toml(_declaration_text(files, "gates"))
-    commands = tuple(
-        tuple(_string_items(gate.get("command"))) for gate in _table_items(payload.get("gates"))
-    )
-    if profiles := declaration_files(files, "profile"):
-        try:
+    try:
+        if profiles := declaration_files(files, "profile"):
             profile = RepositoryProfileDeclaration.model_validate(
                 _toml(next(iter(profiles.values())))
             )
@@ -123,9 +119,13 @@ def _declared_gates(
                 if registry_path
                 else profile.proof.gates
             )
-        except ValidationError:
-            return
-        commands = tuple(gate.command for gate in gates)
+        else:
+            gates = GateRegistryDeclaration.model_validate(
+                _toml(_declaration_text(files, "gates"))
+            ).gates
+    except ValidationError:
+        return
+    commands = tuple(gate.command for gate in gates)
     selected_scripts: set[str] = set()
     for tokens in commands:
         command = bind_gate_command(tokens, "python")

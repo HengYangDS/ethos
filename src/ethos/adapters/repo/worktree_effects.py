@@ -32,7 +32,7 @@ from ethos.adapters.repo.runtime.filesystem import is_junction
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from collections.abc import Iterator
+    from collections.abc import Generator
     from collections.abc import Mapping
 
     from ethos.contracts.semantic import Attestation
@@ -73,7 +73,7 @@ def _release_ref_transaction(scope: CommandScope, process: subprocess.Popen[byte
 @contextmanager
 def hold_worktree_refs(
     root: Path, assertions: Mapping[str, str], *, timeout_seconds: float = 120
-) -> Iterator[None]:
+) -> Generator[None]:
     """Hold exact native ref assertions through a worktree effect without moving refs."""
     _ref_assertions(root, assertions, timeout_seconds)
     deadline = monotonic() + timeout_seconds

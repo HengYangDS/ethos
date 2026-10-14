@@ -12,6 +12,7 @@ from ethos.repository.policy.references.commands import command_identity
 from ethos.repository.policy.references.commands import normalize_command
 from ethos.repository.policy.references.commands import shebang_executable
 from ethos.repository.policy.references.commands import shell_commands
+from ethos.repository.policy.references.commands import shell_configuration_inputs
 from ethos.repository.policy.references.commands import shell_executables
 from ethos.repository.policy.references.observation import product_references_from_files
 
@@ -88,6 +89,8 @@ def test_reference_commands_malformed_public_inputs_fail_closed() -> None:
     assert command_identity(("tool", "unknown"), {"tool run"}, require_declared=True) == (
         "tool unknown"
     )
+    vocabulary = CommandVocabulary.compile({"tool", "tool 'unterminated"})
+    assert [command for _tokens, command in vocabulary.identities] == ["tool"]
 
 
 @pytest.mark.parametrize("executable", ["123", "then", "--native-probe"])
@@ -138,6 +141,12 @@ def test_command_vocabulary_is_reused_across_identity_checks() -> None:
         (("python", "-mpytest"), {"python"}, {"pytest"}),
         (("python", "--version", "-m", "not_imported"), {"python"}, set()),
         (("python", "-m"), {"python"}, set()),
+        (("python", "-B"), {"python"}, set()),
+        (("env", "-i", "python", "-m", "pytest"), {"python"}, {"pytest"}),
+        (("env", "-i"), set(), set()),
+        (("npx", ">log", "prettier"), {"npx"}, set()),
+        (("npx", "--", "prettier", "--check"), {"npx", "prettier"}, set()),
+        (("npx", "--yes"), {"npx"}, set()),
     ],
 )
 def test_reference_commands_canonical_environment_and_package_boundaries(
@@ -146,3 +155,30 @@ def test_reference_commands_canonical_environment_and_package_boundaries(
     observed = product_references_from_files({"tools/run.sh": shlex.join(tokens)}).references
     assert observed["executable"] == expected
     assert observed["import"] == modules
+
+
+@pytest.mark.parametrize(
+    ("text", "inputs", "unknown"),
+    [
+        (
+            "prettier --check --config .prettierrc --ignore-path .prettierignore .",
+            {".prettierrc", ".prettierignore"},
+            False,
+        ),
+        ("npx prettier --config=cfg.json --no-config --ignore-path=ignore .", {"ignore"}, False),
+        ("env -i -- prettier --config cfg.json .", {"cfg.json"}, False),
+        ("uv run prettier --config cfg.json .", {"cfg.json"}, False),
+        ("prettier --check -- --config cfg.json", set(), False),
+        ("prettier --config", set(), True),
+        ("prettier --config --check .", set(), True),
+        ("cd site && prettier --config cfg.json .", set(), True),
+        ("env --chdir=site prettier --config cfg.json .", set(), True),
+        ("prettier --config $CONFIG .", set(), True),
+        ("prettier --check 'unterminated", set(), True),
+    ],
+)
+def test_prettier_configuration_inputs_are_explicit_or_unknown(
+    text: str, inputs: set[str], *, unknown: bool
+) -> None:
+    """Only explicit static options are inputs; dynamic or malformed shell stays unknown."""
+    assert shell_configuration_inputs(text) == (inputs, unknown)

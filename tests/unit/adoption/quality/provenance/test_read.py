@@ -172,3 +172,54 @@ def test_source_profile_is_bounded_before_native_parsing(
     report = source_observation.integrity_report(repo)
     assert report["verdict"] == "unknown"
     assert report["diagnostics"] == [{"reason": "source_member_size_exceeded:.ethos/profile.toml"}]
+
+
+@pytest.mark.parametrize("state", ["unborn", "unprofiled", "invalid"])
+def test_source_observation_reads_only_committed_valid_obligations(
+    tmp_path: Path, state: str
+) -> None:
+    """Unborn history fails closed, no profile has no obligations and invalid policy is unproven."""
+    repo = tmp_path / "repository"
+    if state == "unborn":
+        repo.mkdir()
+        run_git(repo, "init", "--quiet")
+    else:
+        init_git_repo(repo)
+    if state == "invalid":
+        profile = repo / ".ethos/profile.toml"
+        profile.parent.mkdir()
+        profile.write_text("profile_id = 1\n")
+        commit_fixture(repo, "declare invalid profile")
+    report = source_observation.integrity_report(repo)
+    if state == "unprofiled":
+        assert (report["verdict"], report["state"]) == ("pass", "not_applicable")
+    else:
+        reason = "source_head_missing" if state == "unborn" else profile_model.INVALID_PROFILE_ERROR
+        assert report["verdict"] == "unknown", report
+        assert report["diagnostics"] == [{"reason": reason}]
+
+
+@pytest.mark.parametrize("fault", ["absent", "changed", "moved"])
+def test_source_observation_binds_one_unchanged_committed_tree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str
+) -> None:
+    """Absent members, equal-size live edits and a moved HEAD cannot verify committed sources."""
+    repo = init_git_repo(tmp_path / "repository")
+    _bind_source_inputs(repo, (("member.py", "outputs/member.py", b"x"),))
+    if fault == "absent":
+        run_git(repo, "rm", "--quiet", "outputs/member.py")
+        commit_fixture(repo, "remove the declared output")
+    elif fault == "changed":
+        (repo / "member.py").write_bytes(b"y")
+    else:
+        heads = iter((source_observation.current_tracked_head(repo), "0" * 40))
+        monkeypatch.setattr(source_observation, "current_tracked_head", lambda _root: next(heads))
+    report = source_observation.integrity_report(repo)
+    reason = {
+        "absent": "source_member_unavailable:outputs/member.py",
+        "changed": "source_member_changed:member.py",
+        "moved": "source_tree_changed",
+    }[fault]
+    assert report["verdict"] == "unknown", report
+    assert report["required_gaps"] == ["source_integrity_unproven:outputs/member.py"]
+    assert report["diagnostics"] == [{"reason": reason}]

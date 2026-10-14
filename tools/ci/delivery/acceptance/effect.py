@@ -29,6 +29,7 @@ from ethos.adapters.repo.runtime.materialization.dependency_supply import (
     prepare_locked_requirements,
 )
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
+from ethos.adapters.repo.runtime.selection import current_runtime
 from tools.ci.delivery.acceptance.receipt import package_acceptance_evidence
 from tools.ci.delivery.acceptance.receipt import package_failure_evidence
 from tools.ci.delivery.artifact import require_artifact_current
@@ -431,11 +432,7 @@ def _observe_package(
         wheel_sha256=wheel_sha256,
         environment=package_environment,
     )
-    runtime = (
-        Path(git_common_dir(adopter))
-        / "ethos/runtime"
-        / str(lifecycle["successor_activation"]["runtime_digest"])
-    )
+    runtime = current_runtime(Path(git_common_dir(adopter)), expected_build=build).root
     distribution = package_runtime(
         runtime,
         wheel,

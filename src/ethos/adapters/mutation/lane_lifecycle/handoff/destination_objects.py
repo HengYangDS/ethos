@@ -17,7 +17,7 @@ from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
 
 
 def _unbundle(repository: Path, bundle: Path, branch: str, head: str, tree: str) -> None:
@@ -36,7 +36,7 @@ def import_objects(
     destination: Path,
     package: Path,
     manifest: dict[str, Any],
-) -> Iterator[tuple[dict[str, str], list[Path]]]:
+) -> Generator[tuple[dict[str, str], list[Path]]]:
     """Yield verified alternate-object access and an installable quarantined pack."""
     branch, head = str(manifest["source_lane_ref"]), str(manifest["source_head"])
     object_format = run_git(destination, "rev-parse", "--show-object-format").stdout.strip()
@@ -100,7 +100,7 @@ def object_environment(destination: Path, isolated: Path) -> dict[str, str]:
 
 
 @contextmanager
-def _prepared_pack(destination: Path, isolated: Path, head: str) -> Iterator[list[Path]]:
+def _prepared_pack(destination: Path, isolated: Path, head: str) -> Generator[list[Path]]:
     objects = object_directory(destination)
     closure = run_git(
         destination,

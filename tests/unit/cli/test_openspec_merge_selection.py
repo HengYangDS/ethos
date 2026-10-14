@@ -68,7 +68,16 @@ def pending_merge(tmp_path: Path) -> Path:
 
 @pytest.mark.parametrize(
     "case",
-    ["valid", "missing", "corrupt", "unrelated", "historical", "ambiguous", "independent-base"],
+    [
+        "valid",
+        "missing",
+        "corrupt",
+        "unrelated",
+        "historical",
+        "ambiguous",
+        "independent-base",
+        "compensated",
+    ],
 )
 def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     tmp_path, monkeypatch, case
@@ -88,20 +97,21 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     branch = "work/native"
     ref = f"refs/heads/{branch}"
 
-    def start(head):
+    def effect(head):
         candidate_head = side if case == "independent-base" else head
-        git(repo, "update-ref", "refs/heads/candidate/dev", candidate_head)
-        effect = GitEffect(
+        return GitEffect(
             updates={ref: GitRefUpdate(expected="0" * len(head), desired=head)},
             assertions={"refs/heads/candidate/dev": candidate_head},
         )
+
+    def execute(value, operation, head):
         plan = compile_observed_git_effect(
             repo,
             None,
-            effect,
-            head=git(repo, "rev-parse", "HEAD"),
+            value,
+            head=head,
             policy={
-                "operation": "lane.start",
+                "operation": operation,
                 "subject": branch,
                 "holder_ref": "agent:test:case:agent-test",
                 "candidate_branch": "candidate/dev",
@@ -109,9 +119,17 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
         )
         execute_git_effect(repo, plan, issuer="agent:test:case:agent-test")
 
+    def start(head):
+        candidate_head = side if case == "independent-base" else head
+        git(repo, "update-ref", "refs/heads/candidate/dev", candidate_head)
+        execute(effect(head), "lane.start", git(repo, "rev-parse", "HEAD"))
+
     if case == "ambiguous":
         start(base)
         git(repo, "update-ref", "-d", ref, base)
+    elif case == "compensated":
+        start(base)
+        execute(effect(base).inverse(), "lane.start.compensate", base)
     start(merge)
     git(repo, "checkout", branch)
     selected_root, records = read_attestation_set(repo)
@@ -130,7 +148,9 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
             git(repo, "checkout", "-b", "work/other")
     rows = [{"name": "active", "status": "in-progress"}]
     revision = base if case == "historical" else merge
-    expected = "active" if case in {"valid", "historical", "independent-base"} else None
+    expected = (
+        "active" if case in {"valid", "historical", "independent-base", "compensated"} else None
+    )
     selected, gap = resolve_change_selection(rows, None, root=repo, tree_ref=revision)
     assert selected == expected
     gaps = [gap] if gap else []
@@ -352,6 +372,8 @@ def completed_product_work(tmp_path, monkeypatch):
     return repo, candidate, work
 
 
+# One case drives the complete native integration journey; each operation keeps its own deadline.
+@pytest.mark.timeout(240)
 def test_process_intent_carries_product_work_through_native_integration(
     completed_product_work, monkeypatch
 ):

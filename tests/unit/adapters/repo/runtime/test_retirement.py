@@ -7,6 +7,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -79,6 +80,48 @@ def test_source_cleanup_preserves_another_repositorys_selected_runtime(tmp_path:
     assert selection.current_runtime(adopter_common).root == old
     assert old.as_posix() in result["retained"]
     assert result["unproven_removals"] == [old.as_posix()]
+
+
+@pytest.mark.parametrize("unknown_generation", [False, True])
+def test_supply_wheels_follow_retained_generations_releases_and_live_references(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, unknown_generation: bool
+) -> None:
+    """Only a wheel no retained generation, accepted release or live reference names is freed."""
+    repo = init_git_repo(tmp_path / "repo")
+    common = Path(git_common_dir(repo))
+    hooks = common / "ethos/hooks" / ("a" * 64)
+    hooks.mkdir(parents=True)
+    (hooks / "selected").write_bytes(b"selected immutable payload")
+    (common / "ethos/runtime").mkdir(parents=True)
+    runtime = fixture_runtime_generation(common / "ethos/runtime/placeholder", "b" * 64)
+    (runtime.parent / "CURRENT").write_text(runtime.name + "\n", encoding="ascii")
+    if unknown_generation:
+        (common / "ethos/runtime" / ("9" * 64)).mkdir()
+    store = common / "ethos/packages"
+    wheels = {letter: store / (letter * 64) for letter in "fcde"}
+    for letter, path in wheels.items():
+        path.mkdir(parents=True)
+        (path / f"ethos-{letter}.whl").write_bytes(letter.encode())
+    (store / "notes.txt").write_text("foreign", encoding="utf-8")
+    live = f"python -m pip install {wheels['d'] / 'ethos-d.whl'}"
+    monkeypatch.setattr(retirement, "process_commands", lambda _root: live)
+    monkeypatch.setattr(retirement, "read_attestation_set", lambda _root: ("", ()))
+    monkeypatch.setattr(
+        retirement,
+        "accepted_release_identities",
+        lambda _attestations: (SimpleNamespace(wheel_sha256="c" * 64),),
+    )
+
+    result = retirement.retire_generations(repo, hooks=hooks, runtime=runtime)
+
+    assert result["state"] == "complete", result
+    assert wheels["e"].exists() is unknown_generation
+    assert (wheels["e"].as_posix() in result["removed"]) is not unknown_generation
+    assert (wheels["e"].as_posix() in result["unproven_removals"]) is unknown_generation
+    for letter in "fcd":
+        assert (wheels[letter] / f"ethos-{letter}.whl").read_bytes() == letter.encode()
+        assert wheels[letter].as_posix() in result["retained"]
+    assert (store / "notes.txt").read_text(encoding="utf-8") == "foreign"
 
 
 def test_a_later_generation_gets_a_fresh_consumer_observation(
@@ -337,7 +380,18 @@ def test_live_native_process_keeps_generation_until_exit(
     ready = tmp_path / "process-ready"
     script = "import pathlib,sys; pathlib.Path(sys.argv[3]).write_text('ready'); sys.stdin.read(1)"
     with subprocess.Popen(
-        [sys.executable, "-B", "-I", "-c", script, "padding" * 80, str(needed), str(ready)],
+        [
+            sys.executable,
+            "-B",
+            "-I",
+            "-c",
+            script,
+            "padding" * 80,
+            str(needed),
+            str(ready),
+            "-BSServiceDomains",
+            json.dumps({"LaunchArguments": ["service" * 80]}),
+        ],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -446,13 +500,19 @@ def test_generation_reference_preserves_repository_and_path_identity(
     assert (candidate.as_posix() in result["removed"]) is not needed
 
 
+@pytest.mark.parametrize("arguments", ["absent-paths", "native-service-tail"])
 def test_unrelated_command_arguments_do_not_amplify_path_resolution(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, arguments: str
 ) -> None:
-    """Resolver work follows native path components, not all command suffix pairs."""
+    """Resolver work follows native path components, not unbounded command arguments."""
     repo, hooks, runtime = _tree(tmp_path)
     candidate = fixture_runtime_generation(runtime, "b" * 64)
-    command = f"{candidate}/payload " + " ".join(f"/not-present-{i}/arg" for i in range(200))
+    tail = (
+        " ".join(f"/not-present-{i}/arg" for i in range(200))
+        if arguments == "absent-paths"
+        else "-BSServiceDomains " + json.dumps({"LaunchArguments": ["service" * 80]})
+    )
+    command = f"{candidate}/payload {tail}"
     monkeypatch.setattr(retirement, "process_commands", lambda _root: command)
     resolve = Path.resolve
     calls = 0

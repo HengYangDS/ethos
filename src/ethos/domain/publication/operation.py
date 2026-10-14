@@ -259,7 +259,7 @@ def _publish_projection(
             plan = compile_remote_publication_request(root=repo, effect=effect, proof=proof)
             gaps.extend(plan.required_gaps)
             projection_verdict = reduce_verdicts(projection_verdict, plan.verdict)
-    if effect is not None and effect.source.peeled_commit != current_head:
+    if effect is not None and effect.source.peeled_commit != context.proof_head:
         gaps.append("remote_publication_receipt_head_mismatch")
         projection_verdict = "block"
     gaps = list(dict.fromkeys(gaps))

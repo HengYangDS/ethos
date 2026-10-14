@@ -287,7 +287,36 @@ def test_native_tmp_path_policy_reclaims_passed_case_before_next_case(tmp_path: 
         "    assert not Path(MARKER.read_text()).exists()\n",
         encoding="utf-8",
     )
-    result = run_command(
+    result = _run_native_pytest(tmp_path, case)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert marker.is_file()
+
+
+def test_native_failure_report_never_renders_frame_arguments(tmp_path: Path) -> None:
+    """A failure report stays bounded however large the interrupted state is."""
+    marker = tmp_path / "rendered.txt"
+    case = tmp_path / "test_report.py"
+    case.write_text(
+        "from pathlib import Path\n\n"
+        "class State:\n"
+        "    def __repr__(self):\n"
+        f"        Path({marker.as_posix()!r}).touch()\n"
+        "        return 'State()'\n\n"
+        "def observe(state):\n"
+        "    raise RuntimeError('interrupted')\n\n"
+        "def test_interrupted():\n"
+        "    observe(State())\n",
+        encoding="utf-8",
+    )
+    result = _run_native_pytest(tmp_path, case)
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "RuntimeError: interrupted" in result.stdout
+    assert not marker.exists()
+
+
+def _run_native_pytest(tmp_path: Path, case: Path) -> subprocess.CompletedProcess[str]:
+    """Run one isolated case through the selected native pytest policy."""
+    return run_command(
         tmp_path,
         (
             str(python_test_gate.PYTHON),
@@ -305,8 +334,6 @@ def test_native_tmp_path_policy_reclaims_passed_case_before_next_case(tmp_path: 
         timeout=30,
         remove_env=("PYTEST_ADDOPTS", "PYTEST_XDIST_WORKER", "PYTHONPATH"),
     )
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert marker.is_file()
 
 
 @pytest.mark.parametrize("mode", [0o755, 0o555, 0o000, 0o100])

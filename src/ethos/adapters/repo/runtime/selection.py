@@ -25,7 +25,7 @@ from ethos.repository.release.admission import release_identity_admission_gaps
 from ethos.repository.release.identity import is_release_build
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
 
     from ethos.repository.release.identity import BuildIdentity
 
@@ -193,7 +193,7 @@ def runtime_selection_transaction(
     common: Path,
     *,
     expected_current: bytes,
-) -> Iterator[None]:
+) -> Generator[None]:
     """Guard selector-dependent effects with the canonical lock and exact CAS."""
     common_root = common.resolve()
     selector = common_root / "ethos" / "runtime" / _SELECTOR

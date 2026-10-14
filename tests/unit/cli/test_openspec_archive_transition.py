@@ -82,32 +82,41 @@ def test_public_archive_requires_authored_purpose_before_new_capability_cas(monk
     assert "TBD" not in (root / "openspec/specs/new-capability/spec.md").read_text(encoding="utf-8")
 
 
-def test_public_archive_rejects_two_canonical_info_findings_before_git_cas(
+def test_public_archive_rejects_modified_canonical_warnings_before_git_cas(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Native postimage INFO must not first appear after an irreversible Git effect."""
+    """Valid modified deltas cannot hide canonical warnings until after Git CAS."""
     lifecycle = completed_lifecycle(tmp_path, monkeypatch)
     root = lifecycle.worktree
+    canonical = root / "openspec/specs/contracts/spec.md"
+    baseline = canonical.read_text(encoding="utf-8")
+    canonical.write_text(
+        baseline
+        + baseline[baseline.index("### Requirement:") :].replace(
+            "Governed fixture", "Archive repair example"
+        ),
+        encoding="utf-8",
+    )
     repeated = (
         "The fixture SHALL retain its accepted source, exact archive relation and proof identity. "
         * 7
     )
     delta = lifecycle.active / "specs/contracts/spec.md"
     delta.write_text(
-        "## ADDED Requirements\n\n"
-        "### Requirement: Fixture change\n\n"
+        "## MODIFIED Requirements\n\n"
+        "### Requirement: Governed fixture\n\n"
         f"{repeated}\n\n"
-        "#### Scenario: Fixture change is selected\n\n"
+        "#### Scenario: Fixture is exercised\n\n"
         "- **WHEN** the fixture lifecycle selects the change\n"
         "- **THEN** its official artifacts are the single intent carrier\n\n"
         "### Requirement: Archive repair example\n\n"
         f"{repeated}The second requirement retains a distinct audit trail.\n\n"
-        "#### Scenario: Archive repair example is selected\n\n"
+        "#### Scenario: Fixture is exercised\n\n"
         "- **WHEN** the fixture lifecycle archives this requirement\n"
         "- **THEN** its canonical output remains repairable\n",
         encoding="utf-8",
     )
-    commit_fixture(root, "declare two overlong canonical requirements")
+    commit_fixture(root, "modify two canonical requirements")
     monkeypatch.setattr(archive, "proof_gaps", proof_gaps)
     seed_executed_proof(root, lifecycle.head)
     before = lifecycle.head
@@ -122,12 +131,7 @@ def test_public_archive_rejects_two_canonical_info_findings_before_git_cas(
     assert lifecycle.head == before
     assert lifecycle.active.is_dir()
     assert not git(root, "status", "--short")
-    info_gaps = [
-        gap
-        for gap in archived["required_gaps"]
-        if gap.startswith("openspec_validation_issue:INFO:spec:contracts:")
-    ]
-    assert len(info_gaps) == 2
+    assert archived["required_gaps"] == ["openspec_validation_failed:spec:contracts"]
     assert "lane prewrite" in archived["next_action"]
     assert "openspec/changes/fixture-change/specs/contracts/spec.md" in archived["next_action"]
     repair = run_ethos(
@@ -152,14 +156,14 @@ def test_staged_native_archive_preserves_unowned_invalid_postimage(
     delta = lifecycle.active / "specs/contracts/spec.md"
     repeated = "The fixture SHALL preserve accepted meaning and archive proof identity. " * 9
     delta.write_text(
-        "## ADDED Requirements\n\n### Requirement: Fixture change\n\n"
+        "## MODIFIED Requirements\n\n### Requirement: Governed fixture\n\n"
         f"{repeated}\n\n"
-        "#### Scenario: Fixture change is selected\n\n"
+        "#### Scenario: Fixture is exercised\n\n"
         "- **WHEN** the change is archived\n"
         "- **THEN** its meaning remains available\n",
         encoding="utf-8",
     )
-    commit_fixture(root, "declare overlong requirement")
+    commit_fixture(root, "modify canonical requirement")
     monkeypatch.setattr(archive, "proof_gaps", proof_gaps)
     seed_executed_proof(root, lifecycle.head)
     head = lifecycle.head
@@ -170,10 +174,7 @@ def test_staged_native_archive_preserves_unowned_invalid_postimage(
     result = lifecycle.apply_archive()
 
     assert result["state"] == "blocked"
-    assert any(
-        gap.startswith("openspec_validation_issue:INFO:spec:contracts:")
-        for gap in result["required_gaps"]
-    )
+    assert result["required_gaps"] == ["openspec_validation_failed:spec:contracts"]
     assert (result["effect_state"], result["compensation_state"], result["residue_state"]) == (
         "mutated",
         "not_attempted",

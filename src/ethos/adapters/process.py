@@ -26,7 +26,7 @@ from typing import Any
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from collections.abc import Iterator
+    from collections.abc import Generator
     from collections.abc import Mapping
     from types import FrameType
     from types import TracebackType
@@ -157,7 +157,7 @@ _COMMAND_DEADLINE: ContextVar[float | None] = ContextVar("command_deadline", def
 
 
 @contextmanager
-def defer_interruptions() -> Iterator[None]:
+def defer_interruptions() -> Generator[None]:
     """Finish one critical effect before replaying an already-owned signal."""
     if current_thread() is not main_thread():
         yield
@@ -184,7 +184,7 @@ def defer_interruptions() -> Iterator[None]:
 @contextmanager
 def command_scope(
     *, timeout_seconds: float | None = None, handle_termination: bool = False
-) -> Iterator[CommandScope]:
+) -> Generator[CommandScope]:
     """Propagate interruption, optionally owning SIGTERM on the caller's main thread."""
     if handle_termination and current_thread() is not main_thread():
         message = "command_scope_signal_requires_main_thread"
@@ -466,7 +466,7 @@ def _execute_command(
 
 
 @contextmanager
-def _finite_output(*, enabled: bool) -> Iterator[tuple[BinaryIO, BinaryIO] | None]:
+def _finite_output(*, enabled: bool) -> Generator[tuple[BinaryIO, BinaryIO] | None]:
     """Capture both finite streams after owned cleanup, without recovery pipe waits."""
     if not enabled:
         yield None

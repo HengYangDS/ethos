@@ -1,9 +1,7 @@
-"""Verify exact native archive effects, derived bindings and recovery boundaries."""
+"""Verify exact native archive effects, reference relocation and recovery boundaries."""
 
 from __future__ import annotations
 
-import hashlib
-import json
 import sqlite3
 from collections.abc import Mapping
 from contextlib import closing
@@ -333,11 +331,9 @@ def test_archive_common_effect_rejects_cas_drift_before_mutation(
     assert git(lifecycle.worktree, "rev-parse", lifecycle.branch) != target
 
 
-def _declare_archive_binding(root: Path) -> tuple[str, Path, dict[str, object]]:
-    """Bind an authored graph to a real canonical spec for archive scenarios."""
+def _declare_archive_reference(root: Path) -> tuple[str, Path, bytes]:
+    """Exercise real archive links while preserving unrelated product documentation."""
     source = "openspec/specs/contracts/spec.md"
-    projection = root / "system/projections/terminal-architecture"
-    projection.mkdir(parents=True)
     active = root / "openspec/changes/fixture-change"
     target = root / "docs/reference.md"
     target.parent.mkdir(exist_ok=True)
@@ -349,24 +345,8 @@ def _declare_archive_binding(root: Path) -> tuple[str, Path, dict[str, object]]:
             "single intent carrier.", "[reference](../../../../../docs/reference.md)."
         )
     )
-    binding = {
-        "path": source,
-        "authority": "fixture canonical contract",
-        "sha256": hashlib.sha256((root / source).read_bytes()).hexdigest(),
-    }
-    graph = {"sources": {"contract": binding}, "nodes": {"intent": {"label": "Keep meaning"}}}
-    graph_path = projection / "semantic-graph.json"
-    for path, content in {
-        graph_path: graph,
-        projection / "declaration.json": {
-            "schema": "ethos.projection-declaration/v1",
-            "sources": [{"id": "contract", **{k: binding[k] for k in ("path", "authority")}}],
-            "documents": {"semantic_graph": graph_path.relative_to(root).as_posix()},
-        },
-    }.items():
-        path.write_text(json.dumps(content) + "\n", encoding="utf-8")
-    commit_fixture(root, "declare bound projection")
-    return source, graph_path, graph
+    commit_fixture(root, "declare native archive references")
+    return source, target, target.read_bytes()
 
 
 def _inject_archive_failure(monkeypatch, mode, root, head):
@@ -390,9 +370,11 @@ def _inject_archive_failure(monkeypatch, mode, root, head):
         )
 
 
-def _assert_archive_rejects_changed_meaning(root, graph_path, graph, source_head, current_head):
-    """A derived binding cannot authorize changed authored graph meaning."""
-    graph_path.write_text(json.dumps({**graph, "nodes": {}}) + "\n", encoding="utf-8")
+def _assert_archive_rejects_changed_meaning(
+    root: Path, reference: Path, source_head: str, current_head: str
+) -> None:
+    """A reference relocation never authorizes unrelated document edits."""
+    reference.write_bytes(b"# Unrelated changed meaning\n")
     with observe_worktree_postimage(root, previous=source_head) as postimage:
         rejected = archive_postimage_scope_report(
             root,
@@ -417,13 +399,13 @@ def _assert_archive_rejects_changed_meaning(root, graph_path, graph, source_head
         "observation-failure",
     ],
 )
-def test_official_archive_closes_its_exact_source_binding_projection(
+def test_official_archive_closes_exact_references_and_preserves_other_documents(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mode: str
 ) -> None:
-    """Archival must not strand a proven Change behind stale derived hashes."""
+    """Native archive preserves reference meaning and exact failure compensation."""
     lifecycle = completed_lifecycle(tmp_path, monkeypatch)
     root = lifecycle.worktree
-    source, graph_path, graph = _declare_archive_binding(root)
+    source, reference, original_reference = _declare_archive_reference(root)
     head = lifecycle.head
     monkeypatch.setattr(archive, "proof_gaps", proof_gaps)
     monkeypatch.setattr(archive_effect, "proof_gaps", proof_gaps)
@@ -434,7 +416,7 @@ def test_official_archive_closes_its_exact_source_binding_projection(
             git(root, "add", "--all")
     before_index = git(root, "write-tree")
     before_work = git(root, "status", "--porcelain")
-    before_graph = graph_path.read_bytes()
+    before_reference = reference.read_bytes()
     _inject_archive_failure(monkeypatch, mode, root, head)
     arguments = (
         "lane",
@@ -463,7 +445,7 @@ def test_official_archive_closes_its_exact_source_binding_projection(
         assert lifecycle.head == head
         assert git(root, "write-tree") == before_index
         assert git(root, "status", "--porcelain") == before_work
-        assert graph_path.read_bytes() == before_graph
+        assert reference.read_bytes() == before_reference
         return
 
     assert report["required_gaps"] == ["proof_not_proven"], report
@@ -473,11 +455,8 @@ def test_official_archive_closes_its_exact_source_binding_projection(
         "../../../../../../docs/reference.md" in (archived / "specs/contracts/spec.md").read_text()
     )
     assert "../../../docs/reference.md" in (root / source).read_text()
-    digest = hashlib.sha256((root / source).read_bytes()).hexdigest()
-    assert digest != graph["sources"]["contract"]["sha256"]
-    graph["sources"]["contract"]["sha256"] = digest
-    assert json.loads(graph_path.read_bytes()) == graph
-    assert graph_path.relative_to(root).as_posix() in report["changed_paths"]
+    assert reference.read_bytes() == original_reference
+    assert reference.relative_to(root).as_posix() not in report["changed_paths"]
     assert git(root, "status", "--short") == ""
     archived_head = lifecycle.head
     assert f"--expect-head {archived_head}" in report["next_action"]
@@ -488,7 +467,7 @@ def test_official_archive_closes_its_exact_source_binding_projection(
     assert replay["data"]["state"] == "recognized"
     assert replay["data"]["attestation"] == report["attestation"]
 
-    _assert_archive_rejects_changed_meaning(root, graph_path, graph, head, archived_head)
+    _assert_archive_rejects_changed_meaning(root, reference, head, archived_head)
 
 
 def test_archive_change_blocks_when_the_work_lane_lease_is_missing(

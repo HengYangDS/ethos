@@ -49,7 +49,6 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
             assert item["verdict"] == "pass"
             assert "ok" not in item
     assert "evidence-boundaries.schema.json" in report["schemas"]
-    assert "projection-input.schema.json" in report["schemas"]
     assert "container-contract" not in report["schemas"]
     assert "container-contract" not in report["instances"]
     profile = RepositoryProfileDeclaration.bootstrap("example").model_dump(mode="python")

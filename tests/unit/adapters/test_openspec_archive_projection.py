@@ -1,6 +1,5 @@
 """Exercise archive projection closure without turning derived bytes into authority."""
 
-import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -8,13 +7,11 @@ from unittest.mock import Mock
 
 import pytest
 
+import ethos.adapters.openspec.archive_projection as projection
 import ethos.adapters.openspec.relocation as relocation
-from ethos.adapters.openspec.archive_projection import archive_projection_updates
 from ethos.adapters.openspec.archive_projection import normalize_projected_specs
 from ethos.adapters.openspec.archive_projection import refresh_archive_projections
 from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
-from ethos.repository.policy.projections import render_source_bindings
-from ethos.repository.policy.projections import source_binding_inputs
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -38,165 +35,10 @@ def test_normalize_projected_specs_changes_only_terminal_newlines(tmp_path: Path
     assert {path: (tmp_path / path).read_bytes() for path in contents} == contents
 
 
-def _bound_projection(root: Path) -> tuple[Path, Path, Path]:
-    source = root / "openspec/specs/contracts/spec.md"
-    source.parent.mkdir(parents=True)
-    source.write_bytes(b"before\n")
-    declaration = root / "system/projections/terminal-architecture/declaration.json"
-    declaration.parent.mkdir(parents=True)
-    graph = declaration.with_name("semantic-graph.json")
-    binding = {"path": source.relative_to(root).as_posix(), "authority": "contract"}
-    documents = {
-        declaration: {
-            "schema": "ethos.projection-declaration/v1",
-            "sources": [{"id": "contract", **binding}],
-            "documents": {"semantic_graph": graph.relative_to(root).as_posix()},
-        },
-        graph: {
-            "sources": {"contract": {**binding, "sha256": hashlib.sha256(b"before\n").hexdigest()}},
-            "nodes": {"intent": {"label": "Preserve authored meaning"}},
-        },
-    }
-    for path, content in documents.items():
-        path.write_text(json.dumps(content, indent=2) + "\n")
-    return source, declaration, graph
-
-
-@pytest.mark.parametrize(
-    "state", ["valid", "no_change", "stale", "missing", "declaration", "overlay"]
-)
-def test_archive_binding_update_is_exact_and_preserves_preexisting_content(
-    tmp_path: Path, state: str
-) -> None:
-    root = init_git_repo(tmp_path / "repo")
-    source, declaration, graph = _bound_projection(root)
-    if state == "stale":
-        graph.write_text(
-            graph.read_text().replace(hashlib.sha256(b"before\n").hexdigest(), "0" * 64)
-        )
-    head = commit_fixture(root, "declare projection")
-    original_graph = graph.read_bytes()
-    if state != "no_change":
-        source.write_bytes(b"after\n")
-    if state == "missing":
-        source.unlink()
-    elif state == "declaration":
-        declaration.write_bytes(declaration.read_bytes() + b"\n")
-    elif state == "overlay":
-        graph.write_text(graph.read_text().replace("Preserve authored meaning", "author's edit"))
-    overlay = graph.read_bytes()
-    expected = {
-        "stale": "source digest mismatch",
-        "missing": "archive_projection_input_unavailable",
-        "declaration": "archive_projection_declaration_changed",
-        "overlay": "archive_projection_preimage_changed",
-    }
-    if state in expected:
-        with pytest.raises(ValueError, match=expected[state]):
-            refresh_archive_projections(root, source_head=head)
-        assert graph.read_bytes() == overlay
-    else:
-        refresh_archive_projections(root, source_head=head)
-        actual = graph.read_bytes()
-        if state == "no_change":
-            assert actual == original_graph
-        else:
-            expected_graph = json.loads(original_graph)
-            expected_graph["sources"]["contract"]["sha256"] = hashlib.sha256(b"after\n").hexdigest()
-            assert json.loads(actual) == expected_graph
-
-
-@pytest.mark.parametrize(
-    "fault", ["schema", "sources", "entry", "id", "duplicate", "authority", "path", "output"]
-)
-def test_source_binding_declaration_rejects_ambiguous_or_uncontained_inputs(
-    tmp_path: Path, fault: str
-) -> None:
-    _source, declaration, _graph = _bound_projection(tmp_path)
-    value = json.loads(declaration.read_bytes())
-    if fault == "schema":
-        value["schema"] = "unrecognized"
-    elif fault == "sources":
-        value["sources"] = []
-    elif fault == "entry":
-        value["sources"] = [None]
-    elif fault == "duplicate":
-        value["sources"].append(value["sources"][0])
-    elif fault in {"id", "authority"}:
-        value["sources"][0][fault] = ""
-    elif fault == "output":
-        value["sources"][0]["path"] = value["documents"]["semantic_graph"]
-    else:
-        value["sources"][0]["path"] = "../outside"
-    with pytest.raises((TypeError, ValueError)):
-        source_binding_inputs(json.dumps(value).encode())
-
-
-@pytest.mark.parametrize(
-    "fault", ["graph", "row", "missing-before", "missing-after", "authority", "digest", "noop"]
-)
-def test_source_binding_renderer_fails_closed_without_certifying_meaning(
-    tmp_path: Path, fault: str
-) -> None:
-    source, declaration, graph = _bound_projection(tmp_path)
-    _output, bindings = source_binding_inputs(declaration.read_bytes())
-    before = {source.relative_to(tmp_path).as_posix(): b"before\n"}
-    after = dict(before)
-    content = graph.read_bytes()
-    value = json.loads(content)
-    if fault == "graph":
-        value["sources"] = {}
-    elif fault == "row":
-        value["sources"]["contract"] = None
-    elif fault == "missing-before":
-        before = {}
-    elif fault == "missing-after":
-        after = {}
-    elif fault in {"authority", "digest"}:
-        field = "authority" if fault == "authority" else "sha256"
-        value["sources"]["contract"][field] = "different"
-    if fault == "noop":
-        assert render_source_bindings(content, bindings, before, after) == content
-    else:
-        with pytest.raises((TypeError, ValueError)):
-            render_source_bindings(json.dumps(value).encode(), bindings, before, after)
-
-
-def test_archive_projection_does_not_admit_a_nonarchive_source_change(tmp_path: Path) -> None:
-    root = init_git_repo(tmp_path / "repo")
-    source, declaration, graph = _bound_projection(root)
-    outside = root / "README.md"
-    value = json.loads(declaration.read_text())
-    value["sources"][0]["path"] = outside.relative_to(root).as_posix()
-    declaration.write_text(json.dumps(value))
-    value = json.loads(graph.read_text())
-    value["sources"]["contract"].update(
-        path=outside.relative_to(root).as_posix(),
-        sha256=hashlib.sha256(outside.read_bytes()).hexdigest(),
-    )
-    graph.write_text(json.dumps(value))
-    head = commit_fixture(root, "declare nonarchive source")
-    source.write_bytes(b"after\n")
-    outside.write_bytes(b"unrelated change\n")
-    with (
-        observe_worktree_postimage(root, previous=head) as image,
-        pytest.raises(ValueError, match="archive_projection_input_outside_effect"),
-    ):
-        archive_projection_updates(
-            root,
-            source_head=head,
-            tree=image.tree,
-            changed_paths=image.changed_paths,
-            environment=image.environment,
-        )
-
-
-def test_absent_projection_is_a_noop_but_unobservable_git_is_not(tmp_path: Path) -> None:
+def test_absent_archive_is_a_noop_but_unobservable_postimage_is_not(tmp_path: Path) -> None:
     root = init_git_repo(tmp_path / "repo")
     head = git(root, "rev-parse", "HEAD")
     refresh_archive_projections(root, source_head=head)
-    with pytest.raises(ValueError, match="archive_projection_declaration_unavailable"):
-        refresh_archive_projections(root, source_head="unavailable")
     with pytest.raises(ValueError, match="archive_reference_tree_unavailable"):
         relocation.archive_relocation(
             root,
@@ -296,11 +138,141 @@ def test_archive_reference_destinations_preserve_other_bytes(
             refresh_archive_projections(root, source_head=head)
         assert (archived / "design.md").read_bytes() == body.encode()
     else:
+        with observe_worktree_postimage(root, previous=head) as observed:
+            arguments = {
+                "source_head": head,
+                "tree": observed.tree,
+                "changed_paths": observed.changed_paths,
+                "environment": observed.environment,
+            }
+            updates = projection.archive_projection_updates(root, **arguments)
+            assert projection.archive_projection_scope(root, **arguments, allow_pending=True) == (
+                tuple(updates),
+                tuple(updates),
+            )
+            assert projection.archive_projection_scope(root, **arguments, allow_pending=False) == (
+                None if updates else ((), ())
+            )
         for _ in range(2):
             refresh_archive_projections(root, source_head=head)
             assert (archived / "design.md").read_bytes() == (expected or body).encode()
+        with observe_worktree_postimage(root, previous=head) as observed:
+            assert projection.archive_projection_scope(
+                root,
+                source_head=head,
+                tree=observed.tree,
+                changed_paths=observed.changed_paths,
+                environment=observed.environment,
+                allow_pending=False,
+            ) == (tuple(updates), ())
     assert all(
         not observed.args and observed.kwargs == {"execution_probe": False}
         for observed in resolver.call_args_list
     )
+    assert git(root, "rev-parse", "HEAD") == head
+
+
+def test_normalization_preserves_canonical_unavailable_and_nonlocal_carriers(
+    tmp_path: Path,
+) -> None:
+    """Canonical bytes are stable; unavailable or nonlocal paths are not written."""
+    relative = "openspec/specs/contracts/spec.md"
+    canonical = tmp_path / relative
+    canonical.parent.mkdir(parents=True)
+    canonical.write_bytes(b"# Contract\n")
+    assert (
+        normalize_projected_specs(
+            tmp_path,
+            paths=(
+                relative,
+                relative,
+                "openspec/specs/missing/spec.md",
+                "/outside/spec.md",
+                "../spec.md",
+            ),
+        )
+        == ()
+    )
+    assert canonical.read_bytes() == b"# Contract\n"
+
+
+def test_archive_refresh_rechecks_preimage_before_writing(tmp_path: Path, monkeypatch) -> None:
+    """A concurrent edit survives instead of being overwritten by stale relocation."""
+    root = init_git_repo(tmp_path / "repo")
+    relative = "openspec/changes/archive/2026-10-14-links/design.md"
+    target = root / relative
+    target.parent.mkdir(parents=True)
+    target.write_bytes(b"original\n")
+    head = commit_fixture(root, "declare exact preimage")
+    newer = b"concurrent owner edit\n"
+
+    def mutate_after_observation(*_args, **_kwargs):
+        target.write_bytes(newer)
+        return {relative: b"relocated\n"}, {relative: b"original\n"}
+
+    monkeypatch.setattr(projection, "archive_relocation", mutate_after_observation)
+    with pytest.raises(ValueError, match="archive_projection_preimage_changed"):
+        refresh_archive_projections(root, source_head=head)
+    assert target.read_bytes() == newer
+    assert git(root, "rev-parse", "HEAD") == head
+
+
+def test_archive_scope_requires_an_observable_declared_output(tmp_path: Path, monkeypatch) -> None:
+    """Unavailable output cannot acquire archive scope from an asserted identity."""
+    root = init_git_repo(tmp_path / "repo")
+    relative = "openspec/changes/archive/2026-10-14-links/design.md"
+    monkeypatch.setattr(
+        projection,
+        "archive_relocation",
+        lambda *_args, **_kwargs: ({relative: b"relocated\n"}, {relative: b"original\n"}),
+    )
+    with pytest.raises(ValueError, match="archive_projection_input_unavailable"):
+        projection.archive_projection_scope(
+            root,
+            source_head=git(root, "rev-parse", "HEAD"),
+            tree="unavailable",
+            changed_paths=(relative,),
+            environment=None,
+            allow_pending=True,
+        )
+
+
+@pytest.mark.parametrize(
+    ("members", "reason"),
+    [
+        (("ghost",), ""),
+        (("left", "right"), "archive_reference_change_ambiguous"),
+        (("binary",), ""),
+    ],
+)
+def test_archive_selection_requires_one_original_document_owner(tmp_path: Path, members, reason):
+    """Absent and non-document moves are inert; competing Changes cannot share a relocation."""
+    root = init_git_repo(tmp_path / "repo")
+    (root / "README.md").write_bytes(b"# Independent product\n")
+    for name in set(members) - {"ghost"}:
+        file = root / "openspec/changes" / name / "note.txt"
+        file.parent.mkdir(parents=True)
+        file.write_bytes(b"original\n")
+    head = commit_fixture(root, "declare original archive owners")
+    for name in members:
+        source = root / "openspec/changes" / name
+        target = root / "openspec/changes/archive" / f"2026-10-14-{name}"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if name == "ghost":
+            target.mkdir()
+            (target / "note.txt").write_bytes(b"unbound\n")
+        else:
+            source.rename(target)
+    with observe_worktree_postimage(root, previous=head) as observed:
+        arguments = {
+            "source_head": head,
+            "tree": observed.tree,
+            "changed_paths": observed.changed_paths,
+            "environment": observed.environment,
+        }
+        if reason:
+            with pytest.raises(ValueError, match=reason):
+                projection.archive_projection_updates(root, **arguments)
+        else:
+            assert projection.archive_projection_updates(root, **arguments) == {}
     assert git(root, "rev-parse", "HEAD") == head

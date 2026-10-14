@@ -9,8 +9,6 @@ from pathlib import Path
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.repository.policy.projections import observe_projections
 from ethos.repository.policy.projections import render_architecture
-from tools.projection.export_terminal_architecture import ProjectionExportError
-from tools.projection.export_terminal_architecture import export_projection_input
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / ".config/checks/architecture/projection.toml"
@@ -22,24 +20,10 @@ def render(source_rel: str) -> str:
 
 
 def main() -> int:
-    """Check native renderings and the exact committed terminal projection together."""
+    """Check existing product documentation through its declared native producers."""
     head = current_tracked_head(ROOT)
     failures: list[dict[str, str]] = []
     projections: list[dict[str, object]] = []
-    try:
-        exported = export_projection_input(root=ROOT, revision=head)
-    except ProjectionExportError as error:
-        failures.append({"id": "terminal-architecture", "reason": str(error)})
-    else:
-        projections.append(
-            {
-                "id": "terminal-architecture",
-                "source": exported["source"]["git"],
-                "digest": exported["digest"],
-                "matches": True,
-                "truth_boundary": "exact committed projection, not semantic approval",
-            }
-        )
     for relation in observe_projections(ROOT):
         if relation.declaration != CONFIG_PATH.relative_to(ROOT).as_posix():
             continue

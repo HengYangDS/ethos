@@ -28,7 +28,8 @@ Each repository encodes the same concerns differently:
 - tool configuration at the root and inside manifests;
 - four decision-record namings;
 - front matter in YAML or inside HTML comments;
-- hand-maintained CI files for two Forges in three repositories.
+- hand-maintained CI files for two Forges in three repositories;
+- orchestration as native owner tasks, or as shell scripts that run only where a POSIX shell exists.
 
 ETHOS's current documents prevent a common answer:
 
@@ -174,15 +175,25 @@ One locked owner selects tools:
 
 `bootstrap`, `fix` and `check` are tasks of that owner. A uv-only repository uses mise for its tasks, because uv has no task runner.
 
-### 10. CI for several Forges is one model
+### 10. Orchestration is native
+
+Every repository orchestrates its verbs, gates and CI. Six of the nine repositories outside the deferred families already do this through native commands and owner tasks alone. ETHOS, web-ingestion-benchmark and architecture-publisher also track shell scripts, and so do both deferred families. A script runs only where its interpreter exists, so it fails the Windows hosts that the verbs serve. The workstation rule already requires native execution, so the paradigm picks the native encoding:
+
+- Verbs, gates, CI steps and release steps call native tool commands or toolchain-owner tasks. A CI step calls one command; wiring a single native command into CI is not orchestration.
+- A tracked file with a shell or PowerShell suffix or shebang conforms only as the output of an official generator that the packaged tool catalog names, such as `mise generate bootstrap`. Its generator version and output digest are recorded for `check` to verify.
+- No other script class is admitted today. A repository that demonstrates necessary operating-system glue brings an ETHOS Change that adds the class with its owner, necessity, scope and target-platform evidence. There is no repository-local exception list.
+
+Rewriting the same controller in another language does not satisfy this decision. The repair moves the behaviour into the owning product's native command or an owner task.
+
+### 11. CI for several Forges is one model
 
 The repositories that publish to two Forges and generate both files from `.config/ci/pipeline.cue` show the practice works. The others hand-write two files that already drift. The model and its drift check become an obligation only when more than one Forge is targeted.
 
-### 11. Names
+### 12. Names
 
 Repository-authored names use lowercase kebab-case. Exemptions follow the tool catalog and ecosystem modules: Python modules and test files, Go packages and test files, entry documents, and basenames a tool requires.
 
-### 12. Ecosystem modules stay thin
+### 13. Ecosystem modules stay thin
 
 Each module holds only what every repository of that ecosystem shares:
 

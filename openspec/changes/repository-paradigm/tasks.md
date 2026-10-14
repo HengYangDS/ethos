@@ -1,6 +1,6 @@
 ## 1. Contract and authority
 
-- [ ] 1.1 Add the packaged repository paradigm contract beside the generated-artifact topology contract, holding the root catalog, configuration groups, tool catalog, binding file set, common OpenSpec rules and commit grammar; a loader test parses it and rejects unknown keys.
+- [ ] 1.1 Add the packaged repository paradigm contract beside the generated-artifact topology contract, holding the root catalog, configuration groups, the tool catalog with its official generators, the binding file set, common OpenSpec rules and commit grammar; a loader test parses it and rejects unknown keys.
 - [x] 1.2 Record the decision and its limits in DR-0012 and amend the Product Design Contract, Config Boundary Model and Repository Profile Contract statements that forbid a common repository layout; docs health and link checks pass.
 
 ## 2. Evaluation
@@ -16,7 +16,8 @@
 - [ ] 3.2 Make the codespell and vulture configuration effective and fail on a missing configuration; a focused test proves each tool reads its declared file.
 - [ ] 3.3 Bind Prettier for Markdown and YAML and taplo for TOML through `fix` and `check` tasks of the mise toolchain owner, then format the tracked carriers; a second `check` pass is clean.
 - [ ] 3.4 Add `.editorconfig`, rename snake_case repository-authored files such as `rules/module_layout.md` with their references, and adopt the common commit grammar in `.ethos/workspace.toml`; the paradigm report passes on ETHOS.
-- [ ] 3.5 Run the full repository proof on the conforming tree; every required gate passes at the exact head.
+- [ ] 3.5 Replace ETHOS's repository-owned shell scripts (`bootstrap-python.sh`, `run-head-bound-proof.sh`, `run-secrets-scan.sh` and `with-python-runtime.sh`) and inline CI shell programs with native commands and mise tasks in the CI model and gate catalog, keeping only the generated `mise-install.sh`; the Linux, macOS and Windows jobs run the same tasks and the paradigm report shows no orchestration gap.
+- [ ] 3.6 Run the full repository proof on the conforming tree; every required gate passes at the exact head.
 
 ## Workflow follow-up
 

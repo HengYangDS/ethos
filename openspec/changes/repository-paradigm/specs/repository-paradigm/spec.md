@@ -239,6 +239,34 @@ A repository SHALL select its toolchain through one locked owner: `.config/mise/
 - **WHEN** the toolchain owner exposes no `fix` task
 - **THEN** the paradigm reports a missing common verb.
 
+### Requirement: Repository orchestration is native
+
+Repository-owned orchestration, including the common verbs, gates, CI steps and release steps, SHALL run through native tool commands or tasks of the toolchain owner, so that the same invocation works on every platform the repository supports. Each CI step SHALL invoke one such command.
+
+#### Scenario: A gate runs through a repository script
+
+- **WHEN** a repository gate or CI step runs `tools/ci/run-secrets-scan.sh`
+- **THEN** the paradigm reports repository-owned shell orchestration, with a native command or toolchain-owner task as the canonical repair.
+
+#### Scenario: A CI step embeds a shell program
+
+- **WHEN** a CI step contains a shell conditional or loop
+- **THEN** the paradigm reports inline shell orchestration.
+
+### Requirement: Tracked scripts are official generator output
+
+A tracked shell or PowerShell script SHALL exist only as the output of an official generator that the packaged tool catalog names, with its generator version and output digest recorded for `check` to verify. Any other script class SHALL require an ETHOS Change that records its owner, necessity, scope and target-platform evidence.
+
+#### Scenario: Official generator output is tracked
+
+- **WHEN** a repository tracks the output of `mise generate bootstrap` with its recorded generator version and digest
+- **THEN** it conforms.
+
+#### Scenario: A hand-written script is tracked
+
+- **WHEN** a repository tracks a hand-written `build.sh` that no catalogued generator produces
+- **THEN** the paradigm reports an unadmitted script.
+
 ### Requirement: CI for several Forges is one model
 
 A repository that runs CI on more than one Forge SHALL define its pipelines once under `.config/ci/` and generate each Forge file from that model. `check` SHALL fail when a generated Forge file differs from the model.

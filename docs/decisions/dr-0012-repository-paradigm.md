@@ -26,7 +26,8 @@ ETHOS governed thirteen repositories whose shared needs were encoded in incompat
 - three `.config/` taxonomies;
 - four decision-record namings;
 - two front-matter syntaxes;
-- tool configuration spread across roots and manifests.
+- tool configuration spread across roots and manifests;
+- orchestration through native tasks in some repositories and shell scripts in others.
 
 ETHOS documents then said that ETHOS must not make adopter layout universal. As a result, no owner could resolve the drift, and each repository improvised. The repositories' owner directed that all ETHOS-managed repositories, ETHOS included, follow one top-down paradigm that holds only what they genuinely share.
 
@@ -48,6 +49,7 @@ The paradigm standardizes carriers that every governed repository actually has:
 - document metadata and decision-record names;
 - formatters and text normalization;
 - the toolchain owner and its `bootstrap`, `fix` and `check` verbs;
+- native orchestration, where the only tracked scripts are official generator output;
 - the CI model for several Forges;
 - names.
 
@@ -57,6 +59,7 @@ It never requires an empty carrier. Product and domain structure, test organizat
 
 - A gap blocks prove, land and publish, and prewrite refuses a non-conforming path. The audit names the canonical repair.
 - Every adopter migrates through its own Change and switches runtime in the same batch. The deferred alphasim and di-effect families follow later.
+- Shell scripts that orchestrate verbs, gates or CI retire into native commands and owner tasks, so the same invocation runs on Windows, macOS and Linux.
 - Bare tool invocations at a repository root no longer discover project policy. The verbs and documented editor settings carry the explicit paths.
 - DR-0011 remains valid for documentation subject layout. This record only adds the metadata syntax and the decision-record name grammar.
 

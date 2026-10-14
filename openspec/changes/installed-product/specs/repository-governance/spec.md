@@ -43,6 +43,90 @@ adopter SHALL NOT acquire Python audit inputs from an unrelated product floor.
 - **THEN** no passing proof is issued and the candidate ref remains unchanged
 - **AND** canonical audit findings, expiration and source bindings retain their original refusals
 
+### Requirement: Signed object transport preserves non-product meaning
+
+The existing publication declaration SHALL select explicit `transport_tags`
+scopes for non-product signed input objects. Product tag scopes SHALL take
+precedence. Transport SHALL reuse review-object qualification, not product
+version, accepted-release or repository-proof obligations.
+
+#### Scenario: An admitted signed input is transported
+
+- **WHEN** an exact annotated tag matches a scope declared in the trusted peer baseline
+- **THEN** public publication and native pre-push use the same role and introduced-range checks
+- **AND** signature trust, native tag-header identity, declared peer, exact source and immutable-ref CAS remain required
+- **AND** replay observes the same result without authorizing replacement or another peer
+
+#### Scenario: Candidate configuration cannot grant itself transport authority
+
+- **WHEN** the prior trusted policy omits the scope or also selects a product tag
+- **THEN** candidate-authored transport configuration does not override that policy
+- **AND** automatic transport baselines follow native peer HEAD, its committed protected-root policy and the same peer's accepted ref, not a candidate-authored accepted designation
+- **AND** malformed scopes, missing baselines, untrusted signatures, renamed tag headers and tag replacement remain rejected
+
+### Requirement: Explicit repository identity transition
+
+ETHOS SHALL permit a typed, explicitly authorized repository identity transition
+through existing GitEffect, TransitionPlan, Attestation and CAS owners. Each
+authorization SHALL bind one target ref, exact pre/post commits and trees,
+old/new identities, one object database, accepted intent/proof, actor and current
+Lease generation. Ordinary cross-identity CAS SHALL remain rejected.
+
+#### Scenario: Identity changes progress through independently authorized stages
+
+- **WHEN** a proven new-identity work lane explicitly integrates into an old-identity candidate
+- **THEN** only the exact admitted target ref transitions and its result uses the new identity
+- **AND** accepted and release refs may transition later under separate fresh authorizations
+- **AND** unrelated refs are not changed to manufacture a global singleton identity
+
+#### Scenario: Missing or contradictory authority cannot cross identities
+
+- **WHEN** the semantic operation is unsupported or database identity, ancestry, target coordinates, intent/proof, actor or Lease generation is missing, stale or contradictory
+- **THEN** admission preserves all refs and reports the owning refusal
+- **AND** a shared object database does not make different profiles equivalent
+
+#### Scenario: A completed authorization is not consumed twice
+
+- **WHEN** the same exact transition is replayed after completion
+- **THEN** recovery observes the original effect and result without repeating its mutation
+- **AND** the original exact coordinates resolve to the original Attestation while invented coordinates remain rejected
+- **AND** a later target-ref transition requires its own authorization
+- **AND** partial or unknown execution is observed before any further effect
+
+#### Scenario: Ref completion leaves checkout materialization pending
+
+- **WHEN** the exact ref transition succeeds but its linked checkout synchronization fails
+- **THEN** preview reports pending materialization rather than completed acceptance
+- **AND** authorized recovery validates the original result and synchronizes only the admitted preimage without repeating the ref effect
+- **AND** missing authorization, stale coordination and unrelated user edits remain rejected
+- **AND** restored original content remains admissible despite stale stat metadata, without refreshing index bytes during observation
+
+#### Scenario: Renaming does not retain an obsolete current product identity
+
+- **WHEN** a target has completed its admitted old-to-new identity transition
+- **THEN** its current results use the new identity without aliases or compatibility mappings
+- **AND** old revisions remain historical or not-yet-transitioned stage inputs
+- **AND** no temporary profile rollback or history rewrite is required
+
+#### Scenario: Retirement deletes a ref that predates a completed rename
+
+- **WHEN** a retirement only deletes a topic ref whose head carries the identity of its common ancestor with every kept ref
+- **THEN** the deletion is admitted under the kept identity without an identity edge, alias or profile rewrite
+- **AND** an identity introduced only by the deleted ref, or a ref without shared history, remains rejected
+- **AND** an integration that moves a ref across identities still requires the explicit transition
+
+#### Scenario: A ref program contains both migration and new publication refs
+
+- **WHEN** an admitted branch identity transition also creates a signed tag or follows a declared accepted-mirror policy
+- **THEN** only existing branches whose identities change receive identity edges
+- **AND** new tags and unchanged-identity refs remain in the same exact ref program without invented pre-identities
+
+#### Scenario: Preview preserves the selected transition
+
+- **WHEN** an identity transition is previewed before applying it
+- **THEN** no ref changes and its continuation retains the exact root, source, target and explicit identity mode
+- **AND** a future signed tag is distinguished from the branch scope already admitted by that preview
+
 ## MODIFIED Requirements
 
 ### Requirement: Minimal Adoption Binding
@@ -197,89 +281,3 @@ active Change presence, or a historical authoring Lease.
 - **AND** topic role, current accepted OID, no linked worktree, no Lease and exact CAS still apply
 - **AND** missing, invalid or nonconserving evidence blocks deletion; unavailable conservation remains UNKNOWN
 - **AND** failed local effect evidence preserves or compensates the exact original ref
-
-## ADDED Requirements
-
-### Requirement: Signed object transport preserves non-product meaning
-
-The existing publication declaration SHALL select explicit `transport_tags`
-scopes for non-product signed input objects. Product tag scopes SHALL take
-precedence. Transport SHALL reuse review-object qualification, not product
-version, accepted-release or repository-proof obligations.
-
-#### Scenario: An admitted signed input is transported
-
-- **WHEN** an exact annotated tag matches a scope declared in the trusted peer baseline
-- **THEN** public publication and native pre-push use the same role and introduced-range checks
-- **AND** signature trust, native tag-header identity, declared peer, exact source and immutable-ref CAS remain required
-- **AND** replay observes the same result without authorizing replacement or another peer
-
-#### Scenario: Candidate configuration cannot grant itself transport authority
-
-- **WHEN** the prior trusted policy omits the scope or also selects a product tag
-- **THEN** candidate-authored transport configuration does not override that policy
-- **AND** automatic transport baselines follow native peer HEAD, its committed protected-root policy and the same peer's accepted ref, not a candidate-authored accepted designation
-- **AND** malformed scopes, missing baselines, untrusted signatures, renamed tag headers and tag replacement remain rejected
-
-### Requirement: Explicit repository identity transition
-
-ETHOS SHALL permit a typed, explicitly authorized repository identity transition
-through existing GitEffect, TransitionPlan, Attestation and CAS owners. Each
-authorization SHALL bind one target ref, exact pre/post commits and trees,
-old/new identities, one object database, accepted intent/proof, actor and current
-Lease generation. Ordinary cross-identity CAS SHALL remain rejected.
-
-#### Scenario: Identity changes progress through independently authorized stages
-
-- **WHEN** a proven new-identity work lane explicitly integrates into an old-identity candidate
-- **THEN** only the exact admitted target ref transitions and its result uses the new identity
-- **AND** accepted and release refs may transition later under separate fresh authorizations
-- **AND** unrelated refs are not changed to manufacture a global singleton identity
-
-#### Scenario: Missing or contradictory authority cannot cross identities
-
-- **WHEN** the semantic operation is unsupported or database identity, ancestry, target coordinates, intent/proof, actor or Lease generation is missing, stale or contradictory
-- **THEN** admission preserves all refs and reports the owning refusal
-- **AND** a shared object database does not make different profiles equivalent
-
-#### Scenario: A completed authorization is not consumed twice
-
-- **WHEN** the same exact transition is replayed after completion
-- **THEN** recovery observes the original effect and result without repeating its mutation
-- **AND** the original exact coordinates resolve to the original Attestation while invented coordinates remain rejected
-- **AND** a later target-ref transition requires its own authorization
-- **AND** partial or unknown execution is observed before any further effect
-
-#### Scenario: Ref completion leaves checkout materialization pending
-
-- **WHEN** the exact ref transition succeeds but its linked checkout synchronization fails
-- **THEN** preview reports pending materialization rather than completed acceptance
-- **AND** authorized recovery validates the original result and synchronizes only the admitted preimage without repeating the ref effect
-- **AND** missing authorization, stale coordination and unrelated user edits remain rejected
-- **AND** restored original content remains admissible despite stale stat metadata, without refreshing index bytes during observation
-
-#### Scenario: Renaming does not retain an obsolete current product identity
-
-- **WHEN** a target has completed its admitted old-to-new identity transition
-- **THEN** its current results use the new identity without aliases or compatibility mappings
-- **AND** old revisions remain historical or not-yet-transitioned stage inputs
-- **AND** no temporary profile rollback or history rewrite is required
-
-#### Scenario: Retirement deletes a ref that predates a completed rename
-
-- **WHEN** a retirement only deletes a topic ref whose head carries the identity of its common ancestor with every kept ref
-- **THEN** the deletion is admitted under the kept identity without an identity edge, alias or profile rewrite
-- **AND** an identity introduced only by the deleted ref, or a ref without shared history, remains rejected
-- **AND** an integration that moves a ref across identities still requires the explicit transition
-
-#### Scenario: A ref program contains both migration and new publication refs
-
-- **WHEN** an admitted branch identity transition also creates a signed tag or follows a declared accepted-mirror policy
-- **THEN** only existing branches whose identities change receive identity edges
-- **AND** new tags and unchanged-identity refs remain in the same exact ref program without invented pre-identities
-
-#### Scenario: Preview preserves the selected transition
-
-- **WHEN** an identity transition is previewed before applying it
-- **THEN** no ref changes and its continuation retains the exact root, source, target and explicit identity mode
-- **AND** a future signed tag is distinguished from the branch scope already admitted by that preview

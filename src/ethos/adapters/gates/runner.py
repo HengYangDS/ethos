@@ -19,9 +19,9 @@ from time import monotonic
 from typing import TYPE_CHECKING
 from typing import Any
 
-import ethos
 from ethos.adapters.gates.native.attempt import gate_attempt
 from ethos.adapters.gates.native.attempt import gate_execution
+from ethos.adapters.gates.verification import assert_provider_execution_source
 from ethos.adapters.gates.verification import diagnostic_gaps_for
 from ethos.adapters.gates.verification import provider_reports
 from ethos.adapters.process import ProcessExecutionError
@@ -30,7 +30,6 @@ from ethos.adapters.repo.dependency_acceptance import captured_dependency_accept
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
-from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.repo.worktree_postimage import observe_execution_source
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.proof.plan import execution_source_gaps
@@ -38,10 +37,8 @@ from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import execution_succeeded
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
-from ethos.repository.policy.gates import PRODUCT_PROVIDER_SOURCE
 from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.policy.gates import native_dependency_audit_scope
-from ethos.repository.policy.gates import provider_module_sources
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -498,36 +495,4 @@ def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
         exit_code=0 if verdict == "pass" else 1,
         stdout=json.dumps(payload, sort_keys=True, separators=(",", ":")),
         diagnostics=diagnostics,
-    )
-
-
-def assert_provider_execution_source(root: Path, gates: tuple[Gate, ...]) -> None:
-    """Reject candidate-bound checks running from a different implementation before effects."""
-    bound = tuple(
-        (gate.id, reference)
-        for gate in gates
-        for reference, relative in provider_module_sources(gate)
-        if not relative.startswith(PRODUCT_PROVIDER_SOURCE) and (root / relative).is_file()
-    )
-    package = Path(ethos.__file__).resolve()
-    if not bound or package == (root / "src/ethos/__init__.py").resolve():
-        return
-    try:
-        identity = invoking_build_identity()
-        head = current_tracked_head(root)
-        if head == identity.source_commit and current_tree(root, head) == identity.source_tree:
-            return
-    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
-        pass
-    gate_id, reference = bound[0]
-    message = f"gate_provider_source_mismatch:{gate_id}:{reference}"
-    raise ProcessExecutionError(
-        message,
-        reason="candidate_provider_execution_requires_matching_source",
-        cwd=str(root),
-        observation={
-            "runner_module_path": str(package),
-            "required_gaps": [f"gate_provider_source_mismatch:{name}:{ref}" for name, ref in bound],
-            "next_action": "run proof from the admitted checkout's locked Python environment",
-        },
     )

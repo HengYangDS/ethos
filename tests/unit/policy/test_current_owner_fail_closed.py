@@ -135,7 +135,7 @@ helper
     assert {"uv", "python"} <= executables
     assert "helper" not in executables
 
-    observed = product_references_from_files(
+    observation = product_references_from_files(
         {
             "pyproject.toml": "[project\n",
             "package.json": "not-json",
@@ -150,6 +150,9 @@ helper
         },
         declared_commands=("ethos status",),
     )
+    observed = observation.references
+    assert observation.unknown_paths == ("package.json", "pyproject.toml")
+    assert observation.coverage == "unknown"
     assert {"github", "docker"} <= observed["reference"]
     assert {"python", "bash"} <= observed["executable"]
     assert observed["import"] == {"pytest"}

@@ -47,7 +47,9 @@ def test_repository_public_observation_skips_unreadable_reference_carriers(tmp_p
 
     assert observation.files == {".agents/skills/sample/SKILL.md": "good\n"}
     assert observation.unreadable_paths == (".agents/skills/sample/bad.md",)
-    assert observed == _observed()
+    assert observed.references == _observed()
+    assert observed.unknown_paths == ()
+    assert observed.coverage == "evaluated"
 
 
 def test_repository_public_observation_skips_unreadable_python(
@@ -61,30 +63,37 @@ def test_repository_public_observation_skips_unreadable_python(
     observation = observe_repository_references(tmp_path)
     observed = product_references_from_files(observation.files)
 
-    assert observed == _observed()
+    assert observed.references == _observed()
+    assert observed.unknown_paths == ()
+    assert observed.coverage == "evaluated"
     assert observation.unreadable_paths == ("src/ethos/bad.py",)
 
 
 @pytest.mark.parametrize(
-    ("text", "expected"),
+    ("text", "expected", "unknown_paths"),
     [
-        ("[project]\nname = 'Valid_Name'\n", {"valid-name"}),
-        ("[project]\ndependencies = ['Valid_Name>=1', '-invalid']\n", {"valid-name"}),
-        ("[project]\ndependencies = 'not-a-sequence'\n", set()),
-        ("[project]\noptional-dependencies = { test = [7] }\n", set()),
+        ("[project]\nname = 'Valid_Name'\n", {"valid-name"}, ()),
+        ("[project]\ndependencies = ['Valid_Name>=1', '-invalid']\n", {"valid-name"}, ()),
+        ("[project]\ndependencies = 'not-a-sequence'\n", set(), ("pyproject.toml",)),
+        ("[project]\noptional-dependencies = { test = [7] }\n", set(), ("pyproject.toml",)),
     ],
 )
 def test_pyproject_public_observation_accepts_only_normalizable_requirements(
-    text: str, expected: set[str]
+    text: str, expected: set[str], unknown_paths: tuple[str, ...]
 ) -> None:
     observed = product_references_from_files({"pyproject.toml": text})
-    assert observed["distribution"] == expected
+    assert observed.references["distribution"] == expected
+    assert observed.unknown_paths == unknown_paths
+    assert observed.coverage == ("unknown" if unknown_paths else "evaluated")
 
 
 def test_npm_public_observation_ignores_invalid_and_non_object_scripts() -> None:
     assert npm_script_commands({"bad.json": "{"}) == {}
     assert npm_script_commands({"package.json": '{"scripts": []}'}) == {}
-    assert product_references_from_files({"package.json": "[]"}) == _observed()
+    observed = product_references_from_files({"package.json": "[]"})
+    assert observed.references == _observed()
+    assert observed.unknown_paths == ("package.json",)
+    assert observed.coverage == "unknown"
 
 
 def test_npm_public_observation_reads_explicit_manifests() -> None:
@@ -107,7 +116,9 @@ def test_yaml_public_observation_normalizes_action_references(
 ) -> None:
     text = f"jobs:\n  test:\n    steps:\n      - uses: {value!r}\n"
     observed = product_references_from_files({".github/workflows/test.yml": text})
-    assert observed["reference"] == expected
+    assert observed.references["reference"] == expected
+    assert observed.unknown_paths == ()
+    assert observed.coverage == "evaluated"
 
 
 def test_markdown_public_observation_ignores_malformed_inline_shell() -> None:
@@ -115,7 +126,9 @@ def test_markdown_public_observation_ignores_malformed_inline_shell() -> None:
         {"docs/reference/example.md": "`'unterminated`\n"},
         declared_commands=("ethos status",),
     )
-    assert observed == _observed()
+    assert observed.references == _observed()
+    assert observed.unknown_paths == ()
+    assert observed.coverage == "evaluated"
 
 
 def test_consumer_observation_does_not_recompute_command_declarations(

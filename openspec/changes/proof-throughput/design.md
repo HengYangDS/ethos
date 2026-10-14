@@ -3379,8 +3379,11 @@ two such jobs only in its last four minutes. The code after `43ddb6e7a` changed
 only the dependency-audit policy location and the GitLab artifact projection, so
 the slowdown points to host contention rather than a test regression. Over all
 eight runs, the p90 exceeds 900 seconds. Task 1.9 closes on the five consecutive
-runs measured after the repair. Each landing's dev and main pipelines verify the
-same commit twice on that host; task 7.15 evaluates verifying it once. No task
+runs measured after the repair. Each landing's dev and main pipelines verified the
+same commit twice on that host. For task 7.15, a main push at dev's commit now
+leaves the commit-scoped GitLab jobs to the dev pipeline of that commit through
+`rules:changes:compare_to: refs/heads/dev`, while commit-policy still admits each
+pushed ref; GitHub-hosted runs do not use this host and keep both events. No task
 admits other host contention.
 
 Two repairs moved the critical path. Install smoke now proves formation in one

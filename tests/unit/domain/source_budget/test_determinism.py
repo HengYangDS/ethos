@@ -44,7 +44,7 @@ def _repository(tmp_path: Path) -> Path:
 @pytest.mark.parametrize("field", ["terminal", "cross_check"])
 def test_source_budget_public_report_rejects_wrong_policy_container(tmp_path, field):
     root = _repository(tmp_path)
-    path = root / ".config/checks/format/selection.toml"
+    path = root / ".config/checks/format-selection/policy.toml"
     policy = tomllib.loads(path.read_text())
     if field == "terminal":
         policy["source_budget"][field] = []

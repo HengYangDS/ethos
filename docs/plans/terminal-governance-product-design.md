@@ -114,7 +114,7 @@ Completed incidents remain regression boundaries, not a queue to replay.
   not a ceiling. Use faster concurrency only after equivalent-case isolation
   and outcome checks, without retries inside proof or relaxed deadlines.
 - Numeric quality limits belong to
-  [aggregate ownership](../../.config/checks/format/selection.toml),
+  [aggregate ownership](../../.config/checks/format-selection/policy.toml),
   [file policy](../../.ethos/rules.toml) and
   [coverage policy](../../.config/checks/coverage/policy.toml).
   Superseded goal snapshots cannot override them. Tests assert required behavior,

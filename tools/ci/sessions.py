@@ -17,7 +17,7 @@ from tools.ci.toolchain.environment import ProjectRuntime
 ROOT = Path(__file__).resolve().parents[2]
 RUNTIME = ProjectRuntime.discover(ROOT)
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
-PRE_COMMIT_CONFIG = ".config/checks/hooks/pre-commit.yaml"
+PRE_COMMIT_CONFIG = ".config/checks/pre-commit/.pre-commit-config.yaml"
 PUBLIC_SESSIONS = (
     "lint",
     "format_check",
@@ -210,7 +210,7 @@ def repository_hygiene(session) -> None:
 
 
 def prose(session) -> None:
-    policy = ROOT / ".config/checks/prose/codespell.toml"
+    policy = ROOT / ".config/checks/codespell/codespell.toml"
     declared = tomllib.loads(policy.read_text(encoding="utf-8")).get("paths", [])
     paths = tuple(str(path) for path in declared if isinstance(path, str) and path)
     if not paths:
@@ -229,7 +229,7 @@ def shell_lint(session) -> None:
     paths = _paths("*.sh")
     if paths:
         session.run(
-            RUNTIME.script("shellcheck"), "--rcfile=.config/checks/shell/.shellcheckrc", *paths
+            RUNTIME.script("shellcheck"), "--rcfile=.config/checks/shellcheck/.shellcheckrc", *paths
         )
         session.run(RUNTIME.script("shfmt"), "-d", *paths)
 
@@ -240,7 +240,10 @@ def markdown_lint(session) -> None:
     if not markdownlint.is_file():
         session.error("locked markdownlint-cli2 is missing; run npm ci --ignore-scripts")
     session.run(
-        str(node), str(markdownlint), "--config", ".config/checks/markdown/.markdownlint-cli2.yaml"
+        str(node),
+        str(markdownlint),
+        "--config",
+        ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
     )
 
 
@@ -283,7 +286,7 @@ def import_boundaries(session) -> None:
         "--cache-dir",
         str(cache),
         "--config",
-        ".config/checks/import-linter/contracts.toml",
+        ".config/checks/import-linter/import-linter.toml",
         env={"PYTHONPATH": str(ROOT / "src")},
     )
 

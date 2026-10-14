@@ -22,7 +22,7 @@ def write_budget_selection(
     terminal: tuple[int, int, int, int, int] = (1_000, 1_000, 1_000, 1_000, 2_000),
     tolerance: tuple[int, int] = (100, 200),
 ) -> Path:
-    path = root / ".config/checks/format/selection.toml"
+    path = root / ".config/checks/format-selection/policy.toml"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         "[source_budget]\n"

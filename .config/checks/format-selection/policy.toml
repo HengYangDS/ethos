@@ -220,7 +220,7 @@ truth_boundary = "repository-owned public presentation projection"
 [[format]]
 extensions = [".md"]
 carrier = "Markdown"
-owner = ".config/checks/markdown/.markdownlint-cli2.yaml"
+owner = ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml"
 execution = "uv run --frozen --offline python -m nox -s markdown_lint"
 truth_boundary = "human docs and plans"
 budget = [{ category = "markdown" }]
@@ -236,7 +236,7 @@ budget = [{ category = "toml", measure = "structured", baseline_measure = "lines
 [[format]]
 extensions = [".yml", ".yaml"]
 carrier = "YAML"
-owner = ".config/checks/yaml/yamllint.yaml"
+owner = ".config/checks/yamllint/.yamllint.yaml"
 execution = "uv run --frozen --offline python -m nox -s config_quality"
 truth_boundary = "ecosystem-native projections only"
 budget = [
@@ -247,7 +247,7 @@ budget = [
 [[format]]
 extensions = [".json"]
 carrier = "JSON"
-owner = ".config/checks/json/format.toml"
+owner = ".config/checks/config-quality/policy.toml"
 execution = "uv run --frozen --offline python -m nox -s config_quality"
 truth_boundary = "machine output, schemas, and external standards"
 budget = [{ category = "json", measure = "structured", baseline_measure = "lines" }]
@@ -278,7 +278,7 @@ budget = [{ category = "native_bootstrap", paths = ["tools/ci/scripts/mise-insta
 extensions = [".sh", ".bash", ".zsh"]
 shebangs = ["sh", "bash", "zsh"]
 carrier = "Shell"
-owner = ".config/checks/shell/.shellcheckrc"
+owner = ".config/checks/shellcheck/.shellcheckrc"
 execution = "uv run --frozen --offline python -m nox -s shell_lint"
 truth_boundary = "runner adapter scripts"
 budget = [{ category = "shell", comment_prefixes = ["#"] }]

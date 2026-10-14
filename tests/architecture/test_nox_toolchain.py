@@ -113,7 +113,7 @@ def test_prose_executor_consumes_only_declared_policy_paths() -> None:
     calls = []
     sessions.prose(type("Session", (), {"run": lambda _, *args: calls.append(args)})())
     expected = [sessions.RUNTIME.script("codespell"), "--toml"]
-    expected += [str(ROOT / ".config/checks/prose/codespell.toml"), "--count"]
+    expected += [str(ROOT / ".config/checks/codespell/codespell.toml"), "--count"]
     expected += ["--quiet-level=2", "README.md", "CONTRIBUTING.md", "AGENTS.md"]
     assert calls[0] == (*expected, "docs", "rules", "openspec/specs")
 
@@ -180,7 +180,7 @@ def test_config_selection_keeps_native_failures_and_ownership(
 ):
     """Default discovery covers candidates; explicit absent or foreign inputs cannot pass."""
     root = init_git_repo(tmp_path / "repo")
-    policy = root / ".config/checks/format/selection.toml"
+    policy = root / ".config/checks/format-selection/policy.toml"
     policy.parent.mkdir(parents=True)
     policy.write_bytes((ROOT / policy.relative_to(root)).read_bytes())
     relative = "openspec/config.yaml" if state == "external" else ".config/new-policy.yaml"

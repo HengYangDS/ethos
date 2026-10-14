@@ -130,6 +130,19 @@ def test_conforming_repository_passes_with_product_owned_layout(tmp_path: Path) 
             "repository_paradigm_module_lock:go.mod",
             "lock go.mod with go.sum",
         ),
+        (
+            {
+                "pyproject.toml": '[project]\nname = "sample"\nrequires-python = ">=3.12"\n'
+                '[tool.pytest.ini_options]\ncache_dir = "build"\n[tool.hatch.version]\npath = "V"\n'
+            },
+            "repository_paradigm_embedded_policy:pyproject.toml:tool.pytest",
+            "move [tool.pytest] to .config/checks/pytest/pytest.toml",
+        ),
+        (
+            {"package.json": '{"prettier": {"printWidth": 100}, "scripts": {}}\n'},
+            "repository_paradigm_embedded_policy:package.json:prettier",
+            "move the package.json prettier key to .config/checks/prettier/prettier.toml",
+        ),
     ],
     ids=[
         "misplaced-config",
@@ -148,6 +161,8 @@ def test_conforming_repository_passes_with_product_owned_layout(tmp_path: Path) 
         "npm-not-object",
         "npm-invalid",
         "go-unlocked",
+        "embedded-manifest-table",
+        "embedded-package-key",
     ],
 )
 def test_paradigm_gap_names_carrier_obligation_and_repair(
@@ -173,6 +188,15 @@ def test_missing_entries_and_unlocked_runner_are_reported(tmp_path: Path) -> Non
         "repository_paradigm_text_normalization:.gitattributes",
         "repository_paradigm_text_normalization:.editorconfig",
     ]
+
+
+def test_python_module_requires_its_lock(tmp_path: Path) -> None:
+    """A tracked Python manifest always needs uv.lock, whatever it declares."""
+    files = {**_CONFORMING}
+    del files["uv.lock"]
+    report = _report(tmp_path, files)
+    assert report["required_gaps"] == ["repository_paradigm_module_lock:pyproject.toml"]
+    assert report["next_action"] == "lock pyproject.toml with uv.lock"
 
 
 @pytest.mark.parametrize("mode", ["unreadable", "absent"])

@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
     from ethos.contracts.verdict import Verdict
 
-AUDIT_POLICY_PATH = ".config/checks/security/audit.toml"
+AUDIT_POLICY_PATH = ".config/checks/dependency-vulnerabilities/policy.toml"
 AUDIT_INPUTS = (
     "pyproject.toml",
     "uv.lock",

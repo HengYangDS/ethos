@@ -10,19 +10,17 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+_ARCHITECTURE = ("ethos-architecture-projection-v1", "source", "output", "likec4-to-mermaid")
+_CI = ("ethos-ci-template-consistency-v1", "template", "projection", "copy")
+# Each declaration is read from its repository-paradigm owner directory. The incumbent
+# paths stay registered until ETHOS moves the declarations under a runtime that reads both,
+# so the move is admitted without an ownerless output; a declaration present at both
+# paths is a conflicting output owner.
 PROJECTION_DECLARATIONS = {
-    ".config/checks/architecture/projection.toml": (
-        "ethos-architecture-projection-v1",
-        "source",
-        "output",
-        "likec4-to-mermaid",
-    ),
-    ".config/checks/ci/templates.toml": (
-        "ethos-ci-template-consistency-v1",
-        "template",
-        "projection",
-        "copy",
-    ),
+    ".config/checks/architecture-projection/policy.toml": _ARCHITECTURE,
+    ".config/checks/architecture/projection.toml": _ARCHITECTURE,
+    ".config/checks/ci-projection/policy.toml": _CI,
+    ".config/checks/ci/templates.toml": _CI,
 }
 
 

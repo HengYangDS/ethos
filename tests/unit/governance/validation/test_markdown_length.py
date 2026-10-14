@@ -125,7 +125,15 @@ def test_official_and_owned_generated_markdown_are_not_authored_docs(tmp_path: P
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("content\n" * 501)
-    git(root, "add", "--", ".config/checks/ci/templates.toml", "source.txt", "docs", "openspec")
+    git(
+        root,
+        "add",
+        "--",
+        ".config/checks/ci/templates.toml",
+        "source.txt",
+        "docs",
+        "openspec",
+    )
 
     report = docs_registry_report(root)
 

@@ -44,7 +44,8 @@ manifest = "go.mod"
 lock = "go.sum"
 lock_scope = "dependencies"
 
-# Root names a tool discovers, and the canonical carrier each one moves to.
+# Each tool's canonical carrier, the root names it discovers, and the manifest
+# tables or package keys that would embed its policy.
 [[tool]]
 id = "mise"
 carrier = ".config/mise/config.toml"
@@ -69,26 +70,35 @@ root_names = [".npmrc"]
 id = "pytest"
 carrier = ".config/checks/pytest/pytest.toml"
 root_names = [".pytest.toml", "pytest.ini", "pytest.toml"]
+manifest_tables = ["pytest"]
 
 [[tool]]
 id = "coverage"
 carrier = ".config/checks/coverage/coverage.toml"
 root_names = [".coveragerc"]
+manifest_tables = ["coverage"]
 
 [[tool]]
 id = "ruff"
 carrier = ".config/checks/ruff/ruff.toml"
-root_names = [".ruff.toml"]
+root_names = [".ruff.toml", "ruff.toml"]
+manifest_tables = ["ruff"]
 
 [[tool]]
 id = "ty"
 carrier = ".config/checks/ty/ty.toml"
 root_names = ["ty.toml"]
+manifest_tables = ["ty"]
 
 [[tool]]
 id = "taplo"
 carrier = ".config/checks/taplo/taplo.toml"
 root_names = [".taplo.toml", "taplo.toml"]
+
+[[tool]]
+id = "gitleaks"
+carrier = ".config/checks/gitleaks/gitleaks.toml"
+root_names = [".gitleaks.toml"]
 
 [[tool]]
 id = "gitleaks-ignore"
@@ -104,11 +114,23 @@ root_names = ["lychee.toml"]
 id = "typos"
 carrier = ".config/checks/typos/typos.toml"
 root_names = [".typos.toml", "_typos.toml", "typos.toml"]
+manifest_tables = ["typos"]
 
 [[tool]]
 id = "codespell"
 carrier = ".config/checks/codespell/codespell.toml"
 root_names = [".codespellrc"]
+manifest_tables = ["codespell"]
+
+[[tool]]
+id = "deptry"
+carrier = ".config/checks/deptry/policy.toml"
+manifest_tables = ["deptry"]
+
+[[tool]]
+id = "vulture"
+carrier = ".config/checks/vulture/vulture.toml"
+manifest_tables = ["vulture"]
 
 [[tool]]
 id = "prettier"
@@ -123,6 +145,7 @@ root_names = [
   "prettier.config.js",
   "prettier.config.mjs",
 ]
+package_keys = ["prettier"]
 
 [[tool]]
 id = "prettier-ignore"
@@ -131,7 +154,7 @@ root_names = [".prettierignore"]
 
 [[tool]]
 id = "markdownlint-cli2"
-carrier = ".config/checks/markdownlint-cli2/markdownlint-cli2.toml"
+carrier = ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml"
 root_names = [
   ".markdownlint-cli2.jsonc",
   ".markdownlint-cli2.yaml",
@@ -144,11 +167,13 @@ root_names = [
 id = "knip"
 carrier = ".config/checks/knip/knip.toml"
 root_names = ["knip.json", "knip.jsonc"]
+package_keys = ["knip"]
 
 [[tool]]
 id = "eslint"
 carrier = ".config/checks/eslint/eslint.config.mjs"
 root_names = ["eslint.config.js", "eslint.config.mjs"]
+package_keys = ["eslintConfig"]
 
 [[tool]]
 id = "golangci-lint"
@@ -164,6 +189,7 @@ root_names = ["osv-scanner.toml"]
 id = "import-linter"
 carrier = ".config/checks/import-linter/import-linter.toml"
 root_names = [".importlinter"]
+manifest_tables = ["importlinter"]
 
 [[tool]]
 id = "vale"
@@ -189,6 +215,7 @@ root_names = [".pre-commit-config.yaml"]
 id = "c8"
 carrier = ".config/checks/c8/.c8rc.json"
 root_names = [".c8rc", ".c8rc.json"]
+package_keys = ["c8"]
 
 [[tool]]
 id = "goreleaser"

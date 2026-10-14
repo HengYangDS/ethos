@@ -127,9 +127,6 @@ only-include = [
   "tools/ci/openspec_runtime_hook.py",
 ]
 
-[tool.pytest.ini_options]
-cache_dir = "build/runtime/tool-cache/pytest"
-
 [tool.mutmut]
 source_paths = ["src/ethos"]
 only_mutate = ["src/ethos/contracts/verdict.py"]

@@ -29,7 +29,15 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
 
 @pytest.mark.parametrize(
     "mutation",
-    ["unknown-key", "duplicate-root-name", "duplicate-module", "unadmitted-document", "scope"],
+    [
+        "unknown-key",
+        "duplicate-root-name",
+        "duplicate-module",
+        "unadmitted-document",
+        "scope",
+        "duplicate-table",
+        "tool-unknown-key",
+    ],
 )
 def test_paradigm_declaration_fails_closed(mutation: str) -> None:
     """Unknown keys, ambiguous identities and inconsistent documents never load."""
@@ -48,7 +56,13 @@ def test_paradigm_declaration_fails_closed(mutation: str) -> None:
         modules.append(dict(modules[0]))
     elif mutation == "unadmitted-document":
         root["required_documents"] = ["CLAUDE.md"]
-    else:
+    elif mutation == "scope":
         modules[0] = {**modules[0], "lock_scope": "optional"}
+    elif mutation == "duplicate-table":
+        tools.append(
+            {"id": "copy", "carrier": ".config/checks/copy/copy.toml", "manifest_tables": ["ruff"]}
+        )
+    else:
+        tools[0] = {**tools[0], "exceptions": ["mise.toml"]}
     with pytest.raises(ValidationError):
         RepositoryParadigm.model_validate(payload)

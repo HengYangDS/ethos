@@ -108,11 +108,13 @@ def _normalization_gaps(
     """Require UTF-8, LF line endings and a final newline in both declaration carriers."""
     rule = paradigm.normalization.gitattributes
     attributes = _tracked_text(root, ".gitattributes", tracked)
-    if attributes is None or rule not in {
-        " ".join(line.split()) for line in attributes.splitlines()
-    }:
+    declared = [" ".join(line.split()) for line in (attributes or "").splitlines()]
+    catch_all = [line for line in declared if line.split(" ", 1)[0] == "*"]
+    if not catch_all or catch_all[-1] != rule:
         yield ParadigmGap(
-            "text-normalization", ".gitattributes", f"declare `{rule}` in .gitattributes"
+            "text-normalization",
+            ".gitattributes",
+            f"declare `{rule}` as the last pattern for every file in .gitattributes",
         )
     expected = paradigm.normalization.editorconfig.model_dump()
     editor = _tracked_text(root, ".editorconfig", tracked)
@@ -153,6 +155,8 @@ def _requires_lock(module: EcosystemModule, source: str) -> bool:
     """Return whether the manifest declares what its lock must resolve."""
     if module.lock_scope == "manifest":
         return True
+    if module.id == "go":
+        return any(line.strip().startswith("require") for line in source.splitlines())
     try:
         manifest = json.loads(source)
     except json.JSONDecodeError:

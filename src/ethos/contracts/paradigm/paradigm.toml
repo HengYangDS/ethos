@@ -42,7 +42,7 @@ lock_scope = "dependencies"
 id = "go"
 manifest = "go.mod"
 lock = "go.sum"
-lock_scope = "manifest"
+lock_scope = "dependencies"
 
 # Root names a tool discovers, and the canonical carrier each one moves to.
 [[tool]]

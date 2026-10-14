@@ -23,6 +23,7 @@ _CONFORMING = {
     "uv.lock": "version = 1\n",
     "noxfile.py": "",
     "package.json": '{"scripts": {"check": "node check.mjs"}}\n',
+    "go.mod": "module example.com/sample\n",
     ".ethos/profile.toml": 'profile_id = "sample"\n',
     "cmd/sample/main.go": "package main\n",
     "content/intro.md": "# Intro\n",
@@ -80,6 +81,11 @@ def test_conforming_repository_passes_with_product_owned_layout(tmp_path: Path) 
             "declare `* text=auto eol=lf`",
         ),
         (
+            {".gitattributes": "* text=auto eol=lf\n* -text\n"},
+            "repository_paradigm_text_normalization:.gitattributes",
+            "as the last pattern for every file",
+        ),
+        (
             {".editorconfig": "[*]\ncharset = utf-8\nend_of_line = crlf\n"},
             "repository_paradigm_text_normalization:.editorconfig",
             "insert_final_newline = true under [*]",
@@ -120,7 +126,7 @@ def test_conforming_repository_passes_with_product_owned_layout(tmp_path: Path) 
             "lock package.json with package-lock.json",
         ),
         (
-            {"go.mod": "module example.com/sample\n"},
+            {"go.mod": "module example.com/sample\n\nrequire example.com/dependency v1.0.0\n"},
             "repository_paradigm_module_lock:go.mod",
             "lock go.mod with go.sum",
         ),
@@ -132,6 +138,7 @@ def test_conforming_repository_passes_with_product_owned_layout(tmp_path: Path) 
         "legacy-binding",
         "binding-state",
         "gitattributes",
+        "gitattributes-overridden",
         "editorconfig",
         "floor",
         "pyproject-invalid",

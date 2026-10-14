@@ -195,7 +195,7 @@ Markdown and YAML SHALL be formatted by Prettier with preserved prose wrapping a
 
 ### Requirement: Text normalization is declared
 
-Every governed repository SHALL keep `.editorconfig` and `.gitattributes` that select UTF-8, LF line endings and a final newline for tracked text.
+Every governed repository SHALL keep `.editorconfig` and `.gitattributes` that select UTF-8, LF line endings and a final newline for tracked text. The last `.gitattributes` pattern for every file SHALL be `* text=auto eol=lf`; narrower patterns MAY mark specific carriers as binary or byte-exact.
 
 #### Scenario: Line endings are undeclared
 
@@ -213,7 +213,7 @@ Every configured formatter SHALL use a line width of 100, including Prettier, ta
 
 ### Requirement: Ecosystem modules lock their manifests
 
-A repository that tracks `pyproject.toml` SHALL lock it with `uv.lock` and SHALL declare a Python lower bound of 3.12. A repository that declares npm dependencies SHALL lock them with `package-lock.json`, and a repository that tracks `go.mod` SHALL track `go.sum`. Tool and runtime versions remain repository-owned under the version policy.
+A repository that tracks `pyproject.toml` SHALL lock it with `uv.lock` and SHALL declare a Python lower bound of 3.12. A repository that declares npm dependencies SHALL lock them with `package-lock.json`, and a repository whose `go.mod` requires modules SHALL track `go.sum`. Tool and runtime versions remain repository-owned under the version policy.
 
 #### Scenario: A Python manifest is unlocked
 
@@ -222,8 +222,8 @@ A repository that tracks `pyproject.toml` SHALL lock it with `uv.lock` and SHALL
 
 #### Scenario: A manifest without dependencies
 
-- **WHEN** a repository's `package.json` declares only scripts
-- **THEN** no npm lock is required.
+- **WHEN** a repository's `package.json` declares only scripts, or its `go.mod` requires no modules
+- **THEN** no lock is required for that module.
 
 ### Requirement: One locked toolchain owner exposes the common verbs
 

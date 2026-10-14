@@ -199,7 +199,7 @@ Each module holds only what every repository of that ecosystem shares:
 
 - **Python:** `pyproject.toml` locked by `uv.lock`, and a 3.12 lower bound.
 - **Node:** `package-lock.json` whenever npm dependencies are declared.
-- **Go:** `go.mod` with `go.sum`.
+- **Go:** `go.mod` with `go.sum` whenever it requires modules.
 
 The two films use uv without any linter or formatter. A required Ruff or pytest would therefore impose a tool rather than extract a shared practice. Where a tool is configured, the core rules place it and the tool catalog names its file.
 

@@ -25,7 +25,7 @@ let externalLinkCommand = "tools/ci/scripts/with-python-runtime.sh -- \(sourceCL
 // Native subprocess glue consumes the source cache owner, including its selected npm CLI.
 let nativeNpm = "uv run --no-sync python -B -c 'import os, subprocess, sys; from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime; runtime = resolve_node_runtime(); subprocess.run([str(runtime.executable), str(runtime.npm), *sys.argv[1:]], env=dict(os.environ, PATH=str(runtime.executable.parent) + os.pathsep + os.environ[\"PATH\"], npm_config_engine_strict=\"true\", npm_config_audit=\"false\", npm_config_fund=\"false\", npm_config_update_notifier=\"false\"), stdin=subprocess.DEVNULL, timeout=120, check=True)'"
 let nativeNpmSeed = "uv run --no-sync python -B -c 'import os, subprocess, sys; from pathlib import Path; from ethos.adapters.repo.runtime.materialization.node.supply import NodeRuntime, NodeSupply; root = Path.cwd(); runtime = NodeRuntime.read(NodeSupply.read(root).installed_root(root), windows=os.name == \"nt\"); subprocess.run([str(runtime.executable), str(runtime.npm), *sys.argv[1:]], env=dict(os.environ, PATH=str(runtime.executable.parent) + os.pathsep + os.environ[\"PATH\"], npm_config_engine_strict=\"true\", npm_config_audit=\"false\", npm_config_fund=\"false\", npm_config_update_notifier=\"false\"), stdin=subprocess.DEVNULL, timeout=120, check=True)'"
-let gitlabImage = "ghcr.io/hengyangds/ethos-ci-supply@sha256:5c7bf9f64cbd220db36c6ef5926b8fbcfae8bd8966f7dcd86084f53756202dea"
+let gitlabImage = "ghcr.io/hengyangds/ethos-ci-supply@sha256:4f57e89fd8b4dfc70e823f5084717e2addebeb716ddf3226b1b59c38ffb8cb33"
 let githubPythonBootstrap = [{
 	uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 	with: {

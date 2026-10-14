@@ -27,7 +27,10 @@ if TYPE_CHECKING:
 
     from ethos.contracts.verdict import Verdict
 
-AUDIT_POLICY_PATH = ".config/checks/dependency-vulnerabilities/policy.toml"
+AUDIT_POLICY_PATH = ".config/checks/security/audit.toml"
+# The repository-paradigm owner of the same policy. A captured audit may name either path,
+# so the policy can move in a later batch under a runtime that admits both.
+AUDIT_POLICY_PATHS = (AUDIT_POLICY_PATH, ".config/checks/dependency-vulnerabilities/policy.toml")
 AUDIT_INPUTS = (
     "pyproject.toml",
     "uv.lock",

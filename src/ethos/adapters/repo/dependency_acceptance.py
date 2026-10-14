@@ -20,6 +20,7 @@ from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.repository.policy.gates import native_dependency_audit_scope
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_INPUTS
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_POLICY_PATH
+from ethos.repository.policy.quality.dependency_acceptance import AUDIT_POLICY_PATHS
 from ethos.repository.policy.quality.dependency_acceptance import AuditPolicy
 from ethos.repository.policy.quality.dependency_acceptance import audit_workspace_manifests
 from ethos.repository.policy.quality.dependency_acceptance import compose_audit_policies
@@ -61,7 +62,12 @@ def _captured_audit_materials(
         message = "dependency_audit_head_mismatch"
         raise ValueError(message)
     inputs = payload.get("inputs")
-    if not isinstance(inputs, dict) or not set(AUDIT_INPUTS) <= inputs.keys():
+    required = set(AUDIT_INPUTS) - set(AUDIT_POLICY_PATHS)
+    if (
+        not isinstance(inputs, dict)
+        or not required <= inputs.keys()
+        or len(set(AUDIT_POLICY_PATHS) & inputs.keys()) != 1
+    ):
         message = "dependency_audit_inputs_missing"
         raise ValueError(message)
     materials = {}
@@ -97,7 +103,7 @@ def _captured_audit_materials(
 
 def _policy_identity(binding: Mapping[str, object]) -> tuple[object, object]:
     """Bind the exact projected product policy; the build that read it is provenance only."""
-    return binding.get("path"), binding.get("sha256")
+    return binding.get("path") in AUDIT_POLICY_PATHS, binding.get("sha256")
 
 
 def captured_dependency_acceptance(
@@ -110,7 +116,8 @@ def captured_dependency_acceptance(
     """Read same-attempt native facts, never a build receipt or saved permission."""
     try:
         payload, materials, product = _captured_audit_materials(stdout, head, source)
-        policy = AuditPolicy.model_validate(tomllib.loads(materials[AUDIT_POLICY_PATH].decode()))
+        [source_policy] = (materials[name] for name in AUDIT_POLICY_PATHS if name in materials)
+        policy = AuditPolicy.model_validate(tomllib.loads(source_policy.decode()))
         return evaluate_dependency_acceptance(
             compose_audit_policies(policy, product),
             payload,

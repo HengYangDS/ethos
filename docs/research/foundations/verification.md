@@ -193,6 +193,34 @@ retroactively. Receipts, source hashes, failed attempts and profile comparison
 remain under the existing `source-delivery/tool-depth-publication-reuse-*`
 evidence owner, with Git-native custody before mutable report replacement.
 
+#### Interrupted Proof And Hermetic Test Inputs
+
+The exact `9251e2de` full attempt reached its 900-second caller deadline after
+32 gates completed successfully. Its partial JUnit and Allure records agree on
+3,226 outcomes, including one Linux supply-fixture failure. No complete proof
+Attestation exists. A stopped attempt and successful partial cases do not qualify
+installation or publication; a source fix requires fresh acceptance.
+
+The fixture declared a temporary cache but inherited an outer persistent-cache
+selector. Signed source `994a0daa` uses the existing process owner's closed
+initial environment for both child commands, and declares an ambient cache in
+the same regression. Its 38 affected projection and cache-selector cases pass;
+production cache precedence and all original assertions remain unchanged.
+
+Explicit child overrides are not a complete environment. Hermetic fixture
+commands must select the native environment boundary; do not fix this by changing
+production precedence or removing a useful outer supply cache. The one-second
+assertion failure does not explain whole-run cost. Available parallel case
+intervals implicate repeated release and workflow execution, not a single idle
+worker; cumulative case time is not wall time or complete-suite coverage.
+
+Preserved partial reports and the isolated RED/GREEN originals are recoverable
+from non-authorizing Attestation
+`78c29fb36b436dc7c18a3cb49ba1e7f0c6370ca0302b5bd25456d70cb981c8be`.
+Its complete member and every encoded blob were independently checked before
+native scratch retirement. Keep diagnosis, preserved bytes and actual delivered
+behavior separate; retries select changed inputs, not reassurance.
+
 ### September 20 Execution Lessons
 
 These conclusions come from the current work-lane failures and bounded replays,

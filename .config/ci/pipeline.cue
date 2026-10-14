@@ -403,13 +403,13 @@ gitlab: {
 		script: [
 			"tools/ci/scripts/run-head-bound-proof.sh",
 		]
+		// GitHub retains raw Allure results; GitLab's instance artifact limit cannot hold them.
 		artifacts: {
 			when: "always"
 			paths: [
 				"build/evidence/quality/proof/",
 				"build/evidence/quality/tests/pytest/junit*.xml",
 				"build/evidence/quality/tests/coverage/coverage.xml",
-				"build/evidence/quality/tests/allure/",
 				"build/evidence/quality/security/",
 				"build/evidence/quality/secrets/",
 				"build/artifacts/python/",

@@ -128,7 +128,8 @@ def static_observation(
         message = "javascript_static_report_invalid"
         raise ValueError(message)
     if any(
-        (root / entry["path"]).read_text(encoding="utf-8") != entry["source"] for entry in entries
+        (root / path).read_text(encoding="utf-8") != entry["source"]
+        for path, entry in zip(paths, entries, strict=True)
     ):
         message = "javascript_static_source_changed"
         raise ValueError(message)

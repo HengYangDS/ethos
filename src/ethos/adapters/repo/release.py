@@ -156,14 +156,34 @@ def release_tag_policy(root: Path, head: str, name: str) -> dict[str, str]:
 
 
 def accepted_release_source(
-    root: Path, head: str, *, base: str = "", ref: str = "", new: str = ""
+    root: Path, head: str, *, base: str = "", ref: str = "", old: str = "", new: str = ""
 ) -> dict[str, object]:
     """Validate exact accepted content without claiming historical signatures."""
     policy = release_branch_policy(root)
     accepted_ref = f"refs/heads/{policy.accepted_branch}"
     current = ref_head(root, accepted_ref)
+    plan = (
+        release_provenance(root, ref=ref, oid=new) if ref.startswith("refs/tags/") and new else None
+    )
+    maintenance = (
+        str(plan.facts.get("values", {}).get("release_request", {}).get("base") or "")
+        if plan
+        else ""
+    )
+    if ref.startswith("refs/tags/") and new:
+        tag = observe_git_object(root, new, "annotated-tag")
+        require_release(
+            not tag["required_gaps"] and tag["peeled_commit"] == head,
+            "release_tag_source_untrusted",
+        )
+        require_release(head == current or plan is not None or base, "release_tag_source_untrusted")
+    if maintenance:
+        assert plan is not None
+        require_release(plan.facts.get("head") == head, "release_maintenance_source_mismatch")
+        require_release(not base or base == maintenance, "release_base_not_exact_ancestor")
+        base = maintenance
     require_release(
-        bool(base) or release_publication_head(root, ref=ref, new=new) == head,
+        bool(base) or head == current or plan is not None,
         "release_source_not_current_accepted",
     )
     if base:
@@ -200,19 +220,46 @@ def accepted_release_source(
     )
     require_release(closeout is not None, "accepted_closeout_effect_not_attested")
     assert closeout is not None
+    accepted_effect = closeout.attestation.model_dump(mode="json")
+    if maintenance:
+        assert plan is not None
+        require_release(
+            mutable_json(plan.prior_attestations["accepted_effect"]) == accepted_effect,
+            "release_maintenance_accepted_evidence_changed",
+        )
     return {
         "accepted_ref": accepted_ref,
         "head": head,
         **({"base": base} if base else {}),
-        "accepted_effect": closeout.attestation.model_dump(mode="json"),
+        "accepted_effect": accepted_effect,
         "accepted_plan": closeout.plan.digest,
         "provenance": closeout.projection(),
         "source": source,
+        **({"publication": {"ref": ref, "old": old, "new": new}} if ref else {}),
+        **(
+            {
+                "release": {
+                    "plan_digest": plan.digest,
+                    "operation": "release.promote",
+                    "base": base,
+                    "proof_attestation_id": str(plan.prior_attestations["proof"]["id"]),
+                }
+            }
+            if maintenance and plan is not None
+            else {}
+        ),
     }
 
 
 def accepted_delivery_report(
-    root: Path, *, head: str, proposed: str, target: str, remote_head: str, remote: str
+    root: Path,
+    *,
+    head: str,
+    proposed: str,
+    target: str,
+    remote_head: str,
+    remote: str,
+    source: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     """Describe accepted-content reuse without pretending the remote is accepted.
 
@@ -220,7 +267,16 @@ def accepted_delivery_report(
     accepted effect and policy remain independently checked.
     """
     try:
-        accepted = accepted_release_source(root, head, ref=target, new=proposed)
+        accepted = (
+            source
+            if source is not None
+            else accepted_release_source(root, head, ref=target, old=remote_head, new=proposed)
+        )
+        require_release(
+            accepted.get("head") == head
+            and accepted.get("publication") == {"ref": target, "old": remote_head, "new": proposed},
+            "release_source_binding_mismatch",
+        )
         policy = commit_policy_for_revision(root, head)
     except (OSError, TypeError, ValueError) as error:
         return {"verdict": "block", "required_gaps": [str(error)]}
@@ -333,33 +389,6 @@ def release_publication_head(root: Path, *, ref: str = "", new: str = "") -> str
     return selected if plan is not None else current
 
 
-def maintenance_publication_baseline(root: Path, *, ref: str, oid: str, head: str, initial: bool):
-    """Derive publication provenance from the single completed maintenance effect."""
-    plan = release_provenance(root, ref=ref, oid=oid) if ref.startswith("refs/tags/") else None
-    if plan is None or not plan.facts.get("values", {}).get("release_request", {}).get("base"):
-        return None
-    require_release(plan.facts.get("head") == head, "release_maintenance_source_mismatch")
-    base = str(plan.facts["values"]["release_request"]["base"])
-    accepted = accepted_release_source(root, head, base=base)
-    require_release(
-        mutable_json(plan.prior_attestations["accepted_effect"]) == accepted["accepted_effect"],
-        "release_maintenance_accepted_evidence_changed",
-    )
-    return (
-        {
-            "plan_digest": plan.digest,
-            "operation": "release.promote",
-            "base": base,
-            "candidate_head": head,
-            "proof_attestation_id": str(plan.prior_attestations["proof"]["id"]),
-            "provenance": accepted["provenance"],
-        },
-        [],
-        base if initial else "",
-        "accepted_effect" if initial else "",
-    )
-
-
 def _immutable_tag_commit(
     root: Path, *, ref: str, old: str, new: str, allow_identical: bool
 ) -> str:
@@ -373,20 +402,6 @@ def _immutable_tag_commit(
         old == zero_oid(root) or (allow_identical and old == new), "release_tag_immutable"
     )
     return str(source["peeled_commit"])
-
-
-def tag_publication_gaps(root: Path, ref: str, old: str, new: str, *, role: str) -> list[str]:
-    """Check the complete tag object at the native pre-push boundary."""
-    if not ref.startswith("refs/tags/"):
-        return []
-    try:
-        if publication_proof_selection(role) == "review_object":
-            _immutable_tag_commit(root, ref=ref, old=old, new=new, allow_identical=True)
-        else:
-            release_ref_subject(root, ref=ref, old=old, new=new, allow_identical=True)
-    except (OSError, ValueError) as error:
-        return [str(error)]
-    return []
 
 
 def release_checkout_gaps(root: Path, head: str, *, base: str = "") -> list[str]:
@@ -412,27 +427,62 @@ def publication_source_baseline(
     remote_head: str,
     target_ref: str = "",
     source_oid: str = "",
-) -> tuple[dict[str, object], list[str], str, str]:
+) -> tuple[dict[str, object], list[str], str, str, Mapping[str, object] | None]:
     """Resolve one accepted or maintenance source for exact protected publication."""
-    release = role in {"release_root", "release_publication"}
+    release = role in {"release_root", "release_publication"} or (
+        target_ref.startswith("refs/tags/") and publication_proof_selection(role) != "review_object"
+    )
     initial = remote_head in {"0" * 40, "0" * 64}
     try:
-        maintenance = (
-            maintenance_publication_baseline(
-                repo, ref=target_ref, oid=source_oid, head=proof_head, initial=initial
+        if target_ref.startswith("refs/tags/"):
+            selected = _immutable_tag_commit(
+                repo, ref=target_ref, old=remote_head, new=source_oid, allow_identical=True
             )
-            if release
-            else None
-        )
-        if maintenance is not None:
-            return maintenance
+            require_release(selected == proof_head, "release_source_binding_mismatch")
+        if release:
+            accepted = None
+            try:
+                accepted = accepted_release_source(
+                    repo, proof_head, ref=target_ref, old=remote_head, new=source_oid
+                )
+            except ValueError as error:
+                if str(error) != "accepted_closeout_effect_not_attested":
+                    raise
+            if target_ref.startswith("refs/tags/"):
+                release_tag_policy(repo, proof_head, target_ref.removeprefix("refs/tags/"))
+            if accepted is not None:
+                provenance = cast("Mapping[str, object]", accepted["provenance"])
+                maintenance = cast("Mapping[str, object]", accepted.get("release", {}))
+                base = str(maintenance.get("base") or provenance["previous_head"])
+                closeout = (
+                    {**maintenance, "candidate_head": proof_head, "provenance": provenance}
+                    if maintenance
+                    else {
+                        "attestation_id": provenance["attestation_id"],
+                        "plan_digest": provenance["plan_digest"],
+                        "accepted_ref": accepted["accepted_ref"],
+                        "accepted_before": base,
+                        "remote_head": remote_head,
+                        "candidate_head": proof_head,
+                        "provenance": provenance,
+                    }
+                )
+                return (
+                    closeout,
+                    [],
+                    base if initial else "",
+                    ("accepted_effect" if maintenance else "accepted_closeout_effect")
+                    if initial
+                    else "",
+                    accepted,
+                )
         required = (
             branch == policy.accepted_branch
             or release
             or (initial and publication_proof_selection(role) == "repository_transition")
         )
         if not required:
-            return {}, [], "", ""
+            return {}, [], "", "", None
         require_release(
             not release
             or release_publication_head(repo, ref=target_ref, new=source_oid) == proof_head,
@@ -464,6 +514,7 @@ def publication_source_baseline(
                 [],
                 "",
                 "",
+                None,
             )
         return (
             {
@@ -478,6 +529,7 @@ def publication_source_baseline(
             [],
             closeout.previous_head if initial else "",
             "accepted_closeout_effect" if initial else "",
+            None,
         )
-    except ValueError as error:
-        return {}, [str(error)], "", ""
+    except (OSError, ValueError) as error:
+        return {}, [str(error)], "", "", None

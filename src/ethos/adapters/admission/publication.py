@@ -19,7 +19,6 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.release import accepted_delivery_report
 from ethos.adapters.repo.release import publication_source_baseline
-from ethos.adapters.repo.release import tag_publication_gaps
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
@@ -120,6 +119,7 @@ def _ref_update_admission(
     trusted_baseline_source: str = "",
     accepted_policy_ref: str = "",
     accepted_content: bool = False,
+    accepted_source: Mapping[str, object] | None = None,
 ) -> tuple[dict[str, object], BranchRolePolicy]:
     """Observe destination role, introduced commits and exact OpenSpec tree obligations."""
     if accepted_content:
@@ -130,6 +130,7 @@ def _ref_update_admission(
             target=target_ref,
             remote_head=remote_head,
             remote=remote_name,
+            source=accepted_source,
         )
     else:
         commits = commit_range_admission_report(
@@ -358,7 +359,7 @@ def push_admission_report(
         else pushed_head
     )
     branch = target_ref.removeprefix("refs/heads/") if target_ref.startswith("refs/heads/") else ""
-    closeout, closeout_gaps, baseline, baseline_source = publication_source_baseline(
+    closeout, closeout_gaps, baseline, baseline_source, source = publication_source_baseline(
         repo,
         policy=current_policy,
         branch=branch,
@@ -393,6 +394,7 @@ def push_admission_report(
         trusted_baseline_source=baseline_source,
         accepted_policy_ref=proof_head if closeout else "",
         accepted_content=accepted_content,
+        accepted_source=source,
     )
     role = str(observed["role"])
     ref_admission = publication_ref_admission(
@@ -402,8 +404,8 @@ def push_admission_report(
         release_tags=tuple(string_sequence(observed["release_tags"])),
         remote_name=remote_name,
     )
-    if policy != current_policy:
-        closeout, closeout_gaps, _baseline, _source = publication_source_baseline(
+    if policy != current_policy or role != str(preliminary["role"]):
+        closeout, closeout_gaps, _baseline, _baseline_source, _source = publication_source_baseline(
             repo,
             policy=policy,
             branch=branch,
@@ -447,7 +449,6 @@ def push_admission_report(
         else []
     )
     ref_gaps = list(string_sequence(ref_admission.get("enforcement_gaps")))
-    ref_gaps.extend(tag_publication_gaps(repo, target_ref, remote_head, pushed_head, role=role))
     gaps = list(
         dict.fromkeys(
             (

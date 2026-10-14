@@ -179,6 +179,13 @@ rebase for unpublished replay; a pending merge instead routes to its own reader.
 command binding HEAD, parents, index, tracked and untracked content, runtime and
 Lease generation. Apply requires `--authorize`; a preview is not permission.
 
+`--source-ref refs/heads/work/<name>` explicitly selects an existing Work Lane
+for merge strategy only. Preview binds its exact source head; apply refuses
+source movement. During continuation that source must still contain the recorded
+pending parent, which remains the commit parent. Default continuation does not
+assert the mutable candidate ref. Neither selection updates candidate or
+protected refs; their integration remains independent.
+
 Resolve reported conflicts, admit their exact paths and stage the accepted
 resolution before requesting `--mode continue`. The shared commit-policy owner
 checks both parents and the proposed tree. A common Git CAS advances only the

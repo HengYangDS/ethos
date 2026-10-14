@@ -24,6 +24,25 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from ethos.adapters.gates.javascript.execution import NodeAttempt
+    from ethos.contracts.gates import Gate
+    from ethos.contracts.gates import NativeOutput
+
+
+@dataclass(frozen=True, slots=True)
+class NativeEvidence:
+    """Original native bytes and their invocation-local source/producer custody."""
+
+    gate: Gate
+    head: str
+    tree: str
+    subjects: tuple[str, ...]
+    output_root: str
+    outputs: tuple[tuple[NativeOutput, bytes], ...]
+    gaps: tuple[str, ...]
+    artifact: str
+    dependency_checks: tuple[tuple[NativeOutput, bytes], ...] = ()
+    # The exact wheel supplied to this attempt's observers; a source checkout supplies none.
+    observer_requirement: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,16 +58,24 @@ class NativeExecution:
     # Preserve the invocation path: dereferencing Python changes virtual-environment semantics.
     executable: str = ""
     node_attempt: NodeAttempt | None = None
+    evidence: NativeEvidence | None = None
 
 
 def classify_action_result(
     *,
     exit_code: int | None,
     stdout: str,
+    timeout_gap: str | None = None,
 ) -> tuple[Verdict, tuple[dict[str, Any], ...]]:
     """Interpret native command output independently of execution and scheduling."""
-    if exit_code != 0:
-        return "block", ()
+    if exit_code != 0 or timeout_gap is not None:
+        verdict: Verdict = "unknown" if timeout_gap is not None else "block"
+        diagnostics = (
+            ({"kind": "gate_timeout", "required_gaps": [timeout_gap]},)
+            if timeout_gap is not None
+            else ()
+        )
+        return verdict, diagnostics
     try:
         payload = json.loads(stdout)
     except json.JSONDecodeError:

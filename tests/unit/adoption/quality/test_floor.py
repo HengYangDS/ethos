@@ -424,12 +424,11 @@ def test_real_locked_python_checks_qualify_the_selected_source(
         (repo / "uv.lock").write_bytes((fixture / "uv.lock").read_bytes())
     if defect == "lock-drift":
         project = repo / "pyproject.toml"
-        project.write_text(
-            project.read_text(encoding="utf-8").replace(
-                '"pytest-cov>=7.1.0"]', '"pytest-cov>=7.1.0", "pytest-timeout>=2.4.0"]'
-            ),
-            encoding="utf-8",
+        drifted = project.read_text(encoding="utf-8").replace(
+            'dev = ["', 'dev = ["pytest-timeout>=2.4.0", "', 1
         )
+        assert "pytest-timeout" in drifted
+        project.write_text(drifted, encoding="utf-8")
     head = commit_fixture(repo, "bind real native quality")
     if defect == "plugin-disabled":
         monkeypatch.setenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")

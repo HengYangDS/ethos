@@ -33,6 +33,7 @@ from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.domain.land.closeout import closeout_command_from_status
 from ethos.normalization.coercion import integer
+from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_sequence
 from ethos.result import EthosResult
 from ethos.surface.cli.application import app as root_app
@@ -67,6 +68,7 @@ class _RefreshBase(AppliedLaneCommandOptions):
     authorize: bool = False
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
     strategy: Literal["rebase", "merge"] = "rebase"
+    source_ref: str | None = None
     mode: MergeMode = "inspect"
     expect_state: str | None = None
     subject: str | None = None
@@ -313,6 +315,7 @@ def lane_refresh_base(
         authorized=options.authorize,
         expect_head=options.expect_head,
         strategy=options.strategy,
+        source_ref=options.source_ref,
         mode=options.mode,
         expect_state=options.expect_state,
         subject=options.subject,
@@ -340,6 +343,9 @@ def lane_archive_change(
     project_lane_result(
         options.command,
         report,
+        diagnostics=tuple(
+            item for item in object_sequence(report.get("diagnostics")) if isinstance(item, dict)
+        ),
         enforce=options.apply,
         json_output=options.json_output,
     )

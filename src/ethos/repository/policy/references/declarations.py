@@ -7,8 +7,11 @@ import re
 import tomllib
 from typing import TYPE_CHECKING
 
+from pydantic import ValidationError
+
 import ethos.repository.policy.references.commands as command_references
 import ethos.repository.policy.references.python_syntax as python_references
+from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import bind_gate_command
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import declaration_files
@@ -16,6 +19,7 @@ from ethos.repository.policy.references.observation import normalized_distributi
 from ethos.repository.policy.references.observation import npm_script_commands
 from ethos.repository.policy.references.observation import package_json_references
 from ethos.repository.policy.references.observation import pyproject_references
+from ethos.repository.profile import RepositoryProfileDeclaration
 
 if TYPE_CHECKING:
     from ast import AST
@@ -105,9 +109,26 @@ def _declared_gates(
     owned: dict[str, set[str]],
 ) -> None:
     payload = _toml(_declaration_text(files, "gates"))
+    commands = tuple(
+        tuple(_string_items(gate.get("command"))) for gate in _table_items(payload.get("gates"))
+    )
+    if profiles := declaration_files(files, "profile"):
+        try:
+            profile = RepositoryProfileDeclaration.model_validate(
+                _toml(next(iter(profiles.values())))
+            )
+            registry_path = profile.proof.gate_registry
+            gates = (
+                GateRegistryDeclaration.model_validate(_toml(files.get(registry_path, ""))).gates
+                if registry_path
+                else profile.proof.gates
+            )
+        except ValidationError:
+            return
+        commands = tuple(gate.command for gate in gates)
     selected_scripts: set[str] = set()
-    for gate in _table_items(payload.get("gates")):
-        command = bind_gate_command(tuple(_string_items(gate.get("command"))), "python")
+    for tokens in commands:
+        command = bind_gate_command(tokens, "python")
         owned["executable"].update(
             command_references.command_executables(
                 command, npm_scripts, module_imports=owned["import"]

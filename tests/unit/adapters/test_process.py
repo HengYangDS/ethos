@@ -11,7 +11,6 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 from contextvars import copy_context
-from time import monotonic
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -195,18 +194,28 @@ def test_cancelled_command_scope_rejects_creation(tmp_path, monkeypatch, spool_s
 
 
 @pytest.mark.parametrize("spool_stdout", [False, True])
-def test_command_scope_conserves_one_deadline_across_native_calls(tmp_path, spool_stdout) -> None:
+def test_command_scope_conserves_one_deadline_across_native_calls(
+    tmp_path, monkeypatch, spool_stdout
+) -> None:
     """A later or nested command cannot renew a caller's finite execution budget."""
-    command = (sys.executable, "-c", "import time; time.sleep(0.6)")
-    started = monotonic()
-    with process_adapter.command_scope(timeout_seconds=1.0):
-        process_adapter.run_command(tmp_path, command, timeout=10, spool_stdout=spool_stdout)
+    now = [1_000.0]
+    monkeypatch.setattr(process_adapter, "monotonic", lambda: now[0])
+    with process_adapter.command_scope(timeout_seconds=60):
+        process_adapter.run_command(
+            tmp_path, (sys.executable, "-c", "pass"), timeout=600, spool_stdout=spool_stdout
+        )
+        now[0] += 59.75
         with (
-            process_adapter.command_scope(timeout_seconds=10),
-            pytest.raises(subprocess.TimeoutExpired),
+            process_adapter.command_scope(timeout_seconds=600),
+            pytest.raises(subprocess.TimeoutExpired) as expired,
         ):
-            process_adapter.run_command(tmp_path, command, timeout=10, spool_stdout=spool_stdout)
-    assert monotonic() - started < 3
+            process_adapter.run_command(
+                tmp_path,
+                (sys.executable, "-c", "import time; time.sleep(60)"),
+                timeout=600,
+                spool_stdout=spool_stdout,
+            )
+    assert expired.value.timeout == pytest.approx(0.25)
     assert process_adapter.run_command(tmp_path, (sys.executable, "-c", "pass")).returncode == 0
 
 

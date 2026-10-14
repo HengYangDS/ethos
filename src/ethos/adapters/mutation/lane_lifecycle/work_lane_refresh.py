@@ -11,6 +11,7 @@ from typing import cast
 
 from ethos.adapters.mutation.lane_lifecycle.merge import MergeMode
 from ethos.adapters.mutation.lane_lifecycle.merge import merge_work_lane
+from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.commit.creation import commit_environment
 from ethos.adapters.repo.commit.integration import validate_replayed_commits
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
@@ -22,6 +23,7 @@ from ethos.adapters.repo.git_effect_attestation import recover_plan
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import compensate_git_worktree
 from ethos.adapters.repo.git_effects import execute_git_effect
+from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.merge.observation import pending_merge_heads
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
@@ -36,6 +38,7 @@ from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.plan import git_effect_from_plan
+from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.commit import commit_policy_from_text
 
 if TYPE_CHECKING:
@@ -82,19 +85,29 @@ def refresh_work_lane_base(
     authorized: bool = False,
     expect_head: str | None = None,
     strategy: Literal["rebase", "merge"] = "rebase",
+    source_ref: str | None = None,
     mode: MergeMode = "inspect",
     expect_state: str | None = None,
     subject: str | None = None,
 ) -> dict[str, object]:
-    if strategy == "merge":
-        return merge_work_lane(
-            root=root,
-            mode=mode,
-            apply=apply,
-            authorized=authorized,
-            expect_head=expect_head,
-            expect_state=expect_state,
-            subject=subject,
+    if strategy == "merge" or source_ref is not None:
+        return (
+            merge_work_lane(
+                root=root,
+                mode=mode,
+                apply=apply,
+                authorized=authorized,
+                expect_head=expect_head,
+                expect_state=expect_state,
+                subject=subject,
+                source_ref=source_ref,
+            )
+            if strategy == "merge"
+            else {
+                "verdict": "block",
+                "state": "blocked",
+                "required_gaps": ["merge_source_ref_requires_merge_strategy"],
+            }
         )
     policy = load_branch_role_policy(root)
     status = workspace_status(root)
@@ -157,11 +170,26 @@ def refresh_work_lane_base(
         )
     if is_ancestor(root, candidate_head, current_head):
         result = _report(context, current_head, "base_current", [])
+    elif admission := _write_admission_gaps(root):
+        gaps, action = admission
+        result = _report(context, current_head, "blocked", gaps, next_action=action)
     elif not apply:
         result = _report(context, current_head, "ready_to_refresh_base", [])
     else:
         result = _refresh_work_lane(root, context, current_head)
     return _with_action(root, result, apply=apply)
+
+
+def _write_admission_gaps(root: Path) -> tuple[list[str], str] | None:
+    """Refuse a rewrite that the armed hooks would reject, before any effect."""
+    runtime = hook_runtime_binding(root)
+    gaps = list(string_sequence(runtime.get("required_gaps")))
+    return (gaps, str(runtime.get("next_action") or "")) if gaps else None
+
+
+def _process_failure(error: Exception) -> dict[str, object]:
+    """Keep native refusal evidence instead of reducing it to its code."""
+    return {"process_failure": error.evidence()} if isinstance(error, ProcessExecutionError) else {}
 
 
 def _with_action(root: Path, report: dict[str, object], *, apply: bool) -> dict[str, object]:
@@ -335,6 +363,7 @@ def _complete_refresh(
             plan_digest=plan.digest,
             previous_head=current_head,
             stderr=str(error),
+            **_process_failure(error),
         )
     attachment_attestation = None
     attachment_error = ""

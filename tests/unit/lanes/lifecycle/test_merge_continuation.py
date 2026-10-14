@@ -21,7 +21,11 @@ from ethos.adapters.store.state.schema import state_database
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
+from tests.support.governed_repository import start_adopted_candidate
+from tests.support.governed_repository import write_active_commitment
+from tests.support.openspec_lifecycle import HOLDER
 from tests.support.openspec_lifecycle import killed_merge_effect
 from tests.support.openspec_lifecycle import native_merge_fixture
 from tests.support.runtime_scenarios import git_process
@@ -98,6 +102,55 @@ def test_public_merge_continue_preserves_both_parents_and_untracked_work(
     assert official.call_count == 2  # Preview and effect each observe once; replay has no effect.
 
 
+def test_explicit_merge_intent_preserves_unchanged_incoming_change(tmp_path, monkeypatch):
+    """Explicit authoring scope does not adopt the other parent's unchanged intent."""
+    work = native_merge_fixture(tmp_path)
+    monkeypatch.setenv("ETHOS_CHANGE", "publication")
+    (work / "README.md").write_text("# Accepted combined resolution\n")
+    git(work, "add", "README.md")
+    incoming = git(work, "rev-parse", "MERGE_HEAD")
+    path = "openspec/changes/static-delivery/tasks.md"
+    before = git(work, "show", f":{path}")
+    assert before == git(work, "show", f"{incoming}:{path}")
+    preview = _preview(work, "continue")
+    assert preview["data"]["observation"]["parents"] == [incoming]
+    assert git(work, "show", f":{path}") == before
+    assert git(work, "rev-parse", "MERGE_HEAD") == incoming
+
+
+def test_merge_intent_preserves_native_composition_of_prior_change(tmp_path, monkeypatch):
+    """Earlier contributions from both parents are not new continuation authoring."""
+    repo, candidate = start_adopted_candidate(tmp_path)
+    write_active_commitment(candidate, change_id="shared")
+    commit_fixture(candidate, "feat: declare shared intent")
+    work = create_change_source_lane(
+        repo,
+        tmp_path / "work",
+        change_id="publication",
+        holder_ref=HOLDER,
+        base_ref="candidate/dev",
+    )
+    path = "openspec/changes/shared/design.md"
+    own = work / path
+    own.write_text(own.read_text().replace("Test-only governed fixture.", "Local contribution."))
+    (work / "README.md").write_text("# Local contribution\n")
+    commit_fixture(work, "feat: extend local design")
+    other = candidate / path
+    other.write_text(other.read_text().replace("Run focused lifecycle tests.", "Incoming proof."))
+    (candidate / "README.md").write_text("# Incoming contribution\n")
+    incoming = commit_fixture(candidate, "feat: extend incoming proof")
+    assert git_process(work, "merge", "--no-ff", "--no-commit", incoming).returncode == 1
+    (work / "README.md").write_text("# Accepted combined resolution\n")
+    git(work, "add", "README.md")
+    before = git(work, "show", f":{path}")
+    assert "Local contribution." in before
+    assert "Incoming proof." in before
+    monkeypatch.setenv("ETHOS_CHANGE", "publication")
+    preview = _preview(work, "continue")
+    assert preview["data"]["observation"]["parents"] == [incoming]
+    assert git(work, "show", f":{path}") == before
+
+
 @pytest.mark.parametrize("movement", ["before-preview", "before-apply"])
 def test_public_merge_continuation_uses_pending_parent_when_candidate_advances(tmp_path, movement):
     """Candidate integration is separate from finishing an exact pending native merge."""
@@ -132,10 +185,14 @@ def test_public_merge_preparation_is_explicit_and_conflicts_remain_recoverable(t
     assert _preview(work, "abort")["verdict"] == "pass"
 
 
+@pytest.mark.parametrize("mode", ["abort", "continue"])
 @pytest.mark.parametrize("fault", ["content", "index", "holder"])
-def test_public_merge_apply_rejects_changed_observation(tmp_path, monkeypatch, fault):
+def test_public_merge_apply_rejects_changed_observation(tmp_path, monkeypatch, fault, mode):
     work = native_merge_fixture(tmp_path)
-    preview = _preview(work, "abort")
+    if mode == "continue":
+        (work / "README.md").write_text("# Accepted combined resolution\n")
+        git(work, "add", "README.md")
+    preview = _preview(work, mode)
     before = git(work, "rev-parse", "HEAD")
     if fault == "holder":
         monkeypatch.setenv("ETHOS_ACTOR", "agent:other")

@@ -22,7 +22,7 @@ from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.repository.policy.quality_reports import istanbul_coverage_report
 from ethos.repository.policy.quality_reports import node_event_report
-from ethos.repository.policy.quality_reports import validate_native_v8_report
+from ethos.repository.policy.quality_reports import validate_node_precise_coverage
 
 if TYPE_CHECKING:
     from ethos.adapters.gates.verification import NativeExecution
@@ -38,7 +38,7 @@ def _raw_identity(raw: Path, *, validate: bool = False) -> dict[str, str]:
             raise ValueError(message)
         content = path.read_bytes()
         if validate:
-            validate_native_v8_report(content)
+            validate_node_precise_coverage(content)
         identities[path.name] = hashlib.sha256(content).hexdigest()
     return identities
 

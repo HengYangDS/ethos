@@ -3342,3 +3342,92 @@ Task 13.4.3 owns this recovery. Native regressions exercise two actual signed
 repairs, valid and invalid forward contributions, a missing predecessor and a
 successor that no longer names the release ref. Focused source success remains
 distinct from exact product proof, installed acceptance and GitLab delivery.
+
+## Sustained 900-Second Proof And The 600-Second Direction
+
+### Sustained Distribution
+
+Task 1.9 asks for complete proofs within 900 seconds, not one fast run. After
+`e9f253e7c` landed the two scheduling repairs below, five consecutive complete
+exact-source proofs on the reference workstation passed all 36 required gates:
+
+| Head        | Proof Attestation | Graph end | unit-architecture | local-install-smoke |
+| ----------- | ----------------- | --------- | ----------------- | ------------------- |
+| `e9f253e7c` | `e3a0a2a4`        | 701 s     | 646 s             | 524 s               |
+| `bf7c8c83c` | `b20e5ad3`        | 731 s     | 702 s             | 581 s               |
+| `df4000ec5` | `e373dd36`        | 753 s     | 625 s             | 535 s               |
+| `aa79ed28b` | `64b38d6c`        | 659 s     | 627 s             | 509 s               |
+| `43ddb6e7a` | `49a45d32`        | 729 s     | 702 s             | 557 s               |
+
+Graph end is the last gate's completion measured from proof start, so it
+includes graph preparation. Where the enclosing command was observed, attestation
+and cleanup added 16-20 seconds, which keeps every run below 780 seconds.
+Attempts that stopped early on content or network failures, such as root cache
+residue or an unreachable vulnerability service, or that ended when their owner's
+terminal closed, are not latency samples; none ran longer than 900 seconds. Host contention from concurrent proofs and CI
+virtual machines still causes most of the variance; admission of that contention
+remains with 5.13 and 9.x.
+
+Two repairs moved the critical path. Install smoke now proves formation in one
+worker thread beside the other installed-console stages, and the lifecycle waits
+for it before removing the bootstrap environment. Across 46 earlier proofs smoke
+took a median 0.92 of the unit gate's time; it now finishes well before the unit
+gate. The test gate records each test's duration in the Work Lane's pytest cache
+and starts the longest recorded tests first. In the first proof with a record,
+seeded from the preceding proof's report, worker utilization rose from 0.918 to
+0.979. A lane's first proof has no record and keeps collection order.
+
+Process-wide reuse of fixed native Git answers was measured, reviewed and
+withdrawn. It removed a third of the Git launches in the heaviest tests, but
+the independent review in observation `c9cdc131` showed that a cached success
+hides later object loss or corruption, configuration and shallow changes, and
+inherited environment changes. Native reads stay fresh; `f5ca96418` reverts the
+reuse. Batched fresh observation and complete-input pure computation remain the
+admissible reductions.
+
+### 600-Second Direction
+
+The graph end is the unit gate's start plus its duration. The unit gate is
+throughput-bound: its twelve workers are busy 92-98 percent of the session, so
+its duration follows total test work. A 600-second graph end needs these runs
+to finish 60-150 seconds earlier. The measured costs are as follows.
+
+1. Governed reference-transaction hooks cost about 400 ms per updated work-lane
+   ref, against 8 ms without hooks and 158 ms for an ungoverned ref. In one
+   profiled prepared-phase hook, 80 percent of the process was importing the
+   admission graph: pydantic contracts, jsonschema, filelock with asyncio and
+   sqlite3, and the OpenSpec adapter. Loading admission-only modules on demand at
+   their owner would shorten every governed ref update in tests, install smoke
+   and adopters. This belongs to 9.1.
+2. A Git child process is running for about half of each test worker's time in
+   process sampling. The admissible reduction is fewer fresh observations per
+   operation, batched at their callers, not answer reuse.
+3. Official OpenSpec Node processes run for about a tenth of worker time. Other
+   Python subprocesses run for about a quarter and are not yet attributed.
+4. The unit gate starts only after the whole prerequisite phase. The
+   selected-preflight compiler makes every behavior and delivery root wait for
+   all source readiness, and the quality specification keeps behavior and
+   delivery from running when a selected online source check fails, so the
+   network-bound audit, 10-112 seconds in these runs, stays on the critical
+   path. Inside that phase, `dependency-vulnerabilities`, `dependency-hygiene`
+   and `secrets` write files without declared resource locks and hold the
+   global exclusion, and every reader without declared locks holds a global
+   shared lock that conflicts with any exclusive domain. The runner schedules
+   writers first, so the audit runs alone, the two short writers follow, and
+   only then do the readers start. The unit gate started 15-20 seconds after
+   the audit ended in all five runs; the in-process `product-boundary`,
+   `source-budget` and `module-layout` providers bound that reader phase at
+   13-18 seconds. Declaring every readiness gate's read and write domains would
+   let the readers overlap the audit and save about 12-17 seconds per proof.
+   Each declaration must account for its gate's source, outputs, scratch and
+   supply. Run alone, nominal readers also write: `ruff`, `import-boundaries`
+   and `architecture-projection` create tool caches under `build/runtime`, and
+   the last shares the test gate's pytest cache. The change alters the gate
+   registry and its policy digest, so it follows the control-replacement path.
+   Removing the audit wait itself needs a specification decision about online
+   checks before behavior.
+
+Reduce the unit gate's work first: shorten hook startup, then batch fresh
+observations at their callers. Declared readiness locks are a bounded secondary
+repair. The 600-second target remains nonblocking, and none of these directions
+relaxes a gate, coverage or behavioral obligation.

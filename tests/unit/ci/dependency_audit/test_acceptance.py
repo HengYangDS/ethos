@@ -515,6 +515,6 @@ def test_captured_product_policy_is_bound_by_content_not_reading_build(
         source=lambda name: (repository / name).read_bytes(),
         scope="production-release",
     )
-    assert decision["verdict"] == ("unknown" if change == "policy-bytes" else "pass"), decision
+    assert decision["verdict"] == ("pass" if change == "reading-build" else "unknown"), decision
     if change == "policy-bytes":
         assert decision["reason"] == "dependency_audit_product_policy_changed"

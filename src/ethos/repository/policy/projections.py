@@ -10,11 +10,19 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-_ARCHITECTURE = ("ethos-architecture-projection-v1", "source", "output", "likec4-to-mermaid")
-_CI = ("ethos-ci-template-consistency-v1", "template", "projection", "copy")
 PROJECTION_DECLARATIONS = {
-    ".config/checks/architecture/projection.toml": _ARCHITECTURE,
-    ".config/checks/ci/templates.toml": _CI,
+    ".config/checks/architecture-projection/policy.toml": (
+        "ethos-architecture-projection-v1",
+        "source",
+        "output",
+        "likec4-to-mermaid",
+    ),
+    ".config/checks/ci-projection/policy.toml": (
+        "ethos-ci-template-consistency-v1",
+        "template",
+        "projection",
+        "copy",
+    ),
 }
 
 

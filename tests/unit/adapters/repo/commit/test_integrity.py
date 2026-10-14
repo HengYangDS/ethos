@@ -113,12 +113,13 @@ def test_signed_pathspec_commit_reads_only_the_selected_policy(
     policy.write_text(policy.read_text() + "\n" + _POLICY)
     commit_fixture(root, "fix: declare commit policy")
     configure_signer(root, tmp_path)
-    note = root / "NOTES.md"
+    note = root / "notes/selected.md"
+    note.parent.mkdir()
     note.write_text("Selected authored note.\n")
     policy.write_text(policy.read_text().replace("^fix: .+", "^docs: .+"))
-    git(root, "add", ".ethos/workspace.toml", note.name)
+    git(root, "add", ".ethos/workspace.toml", "notes/selected.md")
     head, index = git(root, "rev-parse", "HEAD"), git(root, "write-tree")
-    selected = ".ethos/workspace.toml" if select_policy else note.name
+    selected = ".ethos/workspace.toml" if select_policy else "notes/selected.md"
     result = git_process(root, "commit", "-S", "-m", "fix: selected policy", "--", selected)
     assert result.returncode == int(select_policy), result.stderr
     assert git(root, "write-tree") == index
@@ -377,7 +378,7 @@ def test_signed_pathspec_commit_admits_only_its_selected_index(
     root = prepared_work_lane(tmp_path).worktree
     if checked_owner == "projection":
         _declaration, _model, output = architecture_projection_fixture(root, "Before")
-        invalid, gap = "wrong staged output\n", "generated_projection_drift:diagram.mmd"
+        invalid, gap = "wrong staged output\n", "generated_projection_drift:docs/diagram.mmd"
     else:
         output = root / ("unselected.py" if checked_owner == "formatter" else "unselected.txt")
         output.write_text("VALUE = 1\n")
@@ -395,25 +396,27 @@ def test_signed_pathspec_commit_admits_only_its_selected_index(
     before = output.read_text()
     commit_fixture(root, "declare exact checks")
     configure_signer(root, tmp_path)
-    note = root / ("selected.py" if checked_owner == "formatter" else "NOTES.md")
+    note = root / ("src/selected.py" if checked_owner == "formatter" else "notes/selected.md")
+    note.parent.mkdir(parents=True, exist_ok=True)
     note.write_text("VALUE = 1\n")
     output.write_text(invalid)
-    git(root, "add", note.name, output.name)
+    staged_note, staged_output = (path.relative_to(root).as_posix() for path in (note, output))
+    git(root, "add", staged_note, staged_output)
     head, index = git(root, "rev-parse", "HEAD"), git(root, "write-tree")
 
-    selected = note.name if selected_valid else output.name
+    selected = staged_note if selected_valid else staged_output
     completed = git_process(root, "commit", "-S", "-m", "test: selected index", "--", selected)
 
     assert completed.returncode == (0 if selected_valid else 1), completed.stderr
     assert git(root, "write-tree") == index
-    assert git(root, "show", f":{output.name}") == invalid.rstrip()
+    assert git(root, "show", f":{staged_output}") == invalid.rstrip()
     assert output.read_text() == invalid
-    assert git(root, "show", f"HEAD:{output.name}") == before.rstrip()
+    assert git(root, "show", f"HEAD:{staged_output}") == before.rstrip()
     if selected_valid:
         assert git(root, "rev-parse", "HEAD") != head
         assert git_process(root, "verify-commit", "HEAD").returncode == 0
-        assert git(root, "diff", "--cached", "--name-only") == output.name
-        assert git(root, "show", f"HEAD:{note.name}") == note.read_text().rstrip()
+        assert git(root, "diff", "--cached", "--name-only") == staged_output
+        assert git(root, "show", f"HEAD:{staged_note}") == note.read_text().rstrip()
     else:
         assert gap in completed.stderr
         assert git(root, "rev-parse", "HEAD") == head

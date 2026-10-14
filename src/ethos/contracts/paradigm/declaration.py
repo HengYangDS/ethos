@@ -5,6 +5,7 @@ governed repository shares and the ecosystem modules that apply exactly when
 their manifest is tracked, without encoding one repository or its product layout.
 """
 
+import posixpath
 import tomllib
 from functools import lru_cache
 from importlib import resources
@@ -13,6 +14,7 @@ from typing import Self
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
+from pydantic import Field
 from pydantic import model_validator
 
 from ethos.contracts.value import FrozenTuple
@@ -68,6 +70,27 @@ class TextNormalization(BaseModel):
     editorconfig: EditorDefaults
 
 
+class ConfigurationPlane(BaseModel):
+    """The configuration root, its owner groups, toolchain planes and direct files."""
+
+    model_config = _DECLARATION
+
+    root: str
+    owner_groups: FrozenTuple[str]
+    planes: FrozenTuple[str]
+    files: FrozenTuple[str]
+    policy: str
+
+
+class SizeCeilings(BaseModel):
+    """Per-file ceilings that every governed repository shares."""
+
+    model_config = _DECLARATION
+
+    python_effective_lines: int = Field(gt=0)
+    markdown_nonblank_lines: int = Field(gt=0)
+
+
 class EcosystemModule(BaseModel):
     """One ecosystem module, applied exactly when its manifest is tracked at the root."""
 
@@ -91,6 +114,7 @@ class ToolCarrier(BaseModel):
     root_names: FrozenTuple[str] = ()
     manifest_tables: FrozenTuple[str] = ()
     package_keys: FrozenTuple[str] = ()
+    nested: bool = False
 
 
 class RepositoryParadigm(BaseModel):
@@ -103,6 +127,8 @@ class RepositoryParadigm(BaseModel):
     root: RootCatalog
     binding: BindingFileSet
     normalization: TextNormalization
+    configuration: ConfigurationPlane
+    size: SizeCeilings
     module: FrozenTuple[EcosystemModule]
     tool: FrozenTuple[ToolCarrier]
 
@@ -124,6 +150,33 @@ class RepositoryParadigm(BaseModel):
     def canonical_carrier(self, root_name: str) -> str:
         """Return the canonical carrier of a root name that a catalogued tool discovers."""
         return next((tool.carrier for tool in self.tool if root_name in tool.root_names), "")
+
+    def native_carrier(self, basename: str) -> str:
+        """Return the canonical carrier of a tool-native file name, or an empty string."""
+        if basename == self.configuration.policy:
+            return ""
+        return next(
+            (
+                tool.carrier
+                for tool in self.tool
+                if basename in tool.root_names or basename == posixpath.basename(tool.carrier)
+            ),
+            "",
+        )
+
+    def owner_directories(self) -> dict[str, tuple[frozenset[str], bool]]:
+        """Map each tool owner directory to its admitted file names and nested-tree support."""
+        prefixes = tuple(
+            f"{self.configuration.root}/{group}/" for group in self.configuration.owner_groups
+        )
+        owners: dict[str, tuple[frozenset[str], bool]] = {}
+        for tool in self.tool:
+            directory, name = posixpath.split(tool.carrier)
+            if not directory.startswith(prefixes) or directory.count("/") != 2:
+                continue
+            names, nested = owners.get(directory, (frozenset(), False))
+            owners[directory] = (names | {name}, nested or tool.nested)
+        return owners
 
 
 @lru_cache(maxsize=1)

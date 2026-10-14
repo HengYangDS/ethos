@@ -201,7 +201,7 @@ def test_version_manifest_and_release_policy_project_product_and_host_truth() ->
     _fields(topology, state="ready", local=_LOCAL)
     assert "legacy" not in topology
     peers = {peer["id"]: peer for peer in topology["remotes"]}
-    assert {peer["git_remote"] for peer in peers.values()} == {"origin", "github"}
+    assert {peer["git_remote"] for peer in peers.values()} == {"gitlab", "github"}
     assert all(
         peer["capabilities"] == ["repository", "ci_cd", "publication"] for peer in peers.values()
     )
@@ -225,13 +225,13 @@ def test_release_policy_rejects_duplicate_remote_declaration(tmp_path: Path) -> 
         tmp_path,
         (root / ".ethos/release.toml")
         .read_text()
-        .replace('git_remote = "github"', 'git_remote = "origin"', 1),
+        .replace('git_remote = "github"', 'git_remote = "gitlab"', 1),
     )
     for path in (*_REQUIRED_FILES, "pyproject.toml", ".ethos/workspace.toml"):
         _write(scratch, path, (root / path).read_text())
     assert release_policy_report(root)["publication_topology"]["state"] == "ready"
     assert (
-        "publication_topology_peer_git_remote_duplicate:origin"
+        "publication_topology_peer_git_remote_duplicate:gitlab"
         in release_policy_report(scratch)["required_gaps"]
     )
 

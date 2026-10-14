@@ -40,7 +40,7 @@ def _source(root: Path, *, x64: str) -> None:
     installer = (root / "tools/ci/scripts/mise-install.sh").read_bytes()
     write_reference_source(
         root,
-        ".config/checks/ci/templates.toml",
+        ".config/checks/ci-projection/policy.toml",
         f'[bootstrap]\nversion = "{VERSION}"\n'
         f'sha256 = "{hashlib.sha256(installer).hexdigest()}"\n'
         f'[bootstrap.windows]\narm64 = "{"0" * 64}"\nx64 = "{x64}"\n',
@@ -95,7 +95,7 @@ def test_windows_mise_rejects_unbound_or_unexpected_supply(
     payload = _executable("2026.10.7" if fault == "version" else VERSION)
     _source(tmp_path, x64="f" * 64 if fault == "digest" else hashlib.sha256(payload).hexdigest())
     if fault == "unbound":
-        templates = tmp_path / ".config/checks/ci/templates.toml"
+        templates = tmp_path / ".config/checks/ci-projection/policy.toml"
         templates.write_text(templates.read_text().split("[bootstrap.windows]")[0])
     if fault == "architecture":
         monkeypatch.setattr(native.platform, "machine", lambda: "riscv64")

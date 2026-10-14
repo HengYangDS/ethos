@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-_CI = ".config/checks/ci/templates.toml"
+_CI = ".config/checks/ci-projection/policy.toml"
 _CI_SCHEMA = 'schema = "ethos-ci-template-consistency-v1"\n'
 
 

@@ -67,7 +67,7 @@ configuration plane, not a truth center.
   sole Python distribution and its locked supply. The runner passes the declared
   first-party names, module mapping and per-rule exceptions to native Deptry;
   root `pyproject.toml` remains the dependency manifest, not a second policy.
-- `.config/checks/security/audit.toml` owns the native dependency audit boundary. The `vulnerabilities` Nox session calls `tools/ci/dependency_audit.py` to audit Python and npm locks, retaining bounded native observations and one input-bound verdict. A finding that no official stable release fixes is reported without blocking: every locked npm artifact that ships it is already its registry latest release, or a Python advisory names no newer stable fix version. Fixable or unobserved findings still block. Online security guards package delivery without making offline tests depend on advisory availability; hosted CI and publication remain separate claims.
+- `.config/checks/dependency-vulnerabilities/policy.toml` owns the native dependency audit boundary. The `vulnerabilities` Nox session calls `tools/ci/dependency_audit.py` to audit Python and npm locks, retaining bounded native observations and one input-bound verdict. A finding that no official stable release fixes is reported without blocking: every locked npm artifact that ships it is already its registry latest release, or a Python advisory names no newer stable fix version. Fixable or unobserved findings still block. Online security guards package delivery without making offline tests depend on advisory availability; hosted CI and publication remain separate claims.
 - [The secret-scanning policy](../../.config/checks/gitleaks/gitleaks.toml) is passed explicitly to every scan, including staged pre-commit admission; `.config/mise/config.toml` and `.config/mise/mise.lock` own native tool selections and platform artifact digests. `tools/ci/scripts/run-secrets-scan.sh` obtains verified project-local supply through `tools/ci/toolchain/native.py` and passes the policy explicitly. Hosted proof uses the same supply owner; neither path installs system files or trusts ambient scanner bytes.
 - `tools/ci/repository_hygiene.py`, invoked through the `repository_hygiene` Nox session, owns cross-file hygiene such as tracked-file size, LF endings, final newline, JSON parseability, merge-conflict markers, and the zero-suppression invariant.
 - `.config/mise/config.toml` and `.config/mise/mise.lock` select native developer/CI supply through native discovery. The existing
@@ -84,7 +84,7 @@ configuration plane, not a truth center.
   native compilation, exact output bytes and input bindings.
   `uv run --frozen --offline python tools/ci/ci_templates.py check-templates --render`
   emits both outputs once without writing tracked files.
-- `.config/checks/ci/templates.toml` declares provider emulator selection,
+- `.config/checks/ci-projection/policy.toml` declares provider emulator selection,
   events, jobs, images and time limits. `tools/ci/ci_projection.py` consumes
   that declaration; emulator output is local evidence, not hosted CI status.
 - `python -m tools.ci.ci_projection` validates GitHub workflows through locked
@@ -98,7 +98,7 @@ configuration plane, not a truth center.
 - `.config/checks/format-selection/policy.toml` owns fail-closed executable-carrier
   admission and file-format boundary checks; `uv run --frozen --offline python -m nox -s format_selection`
   is the reusable runner.
-- `.config/checks/architecture/projection.toml` owns architecture projection
+- `.config/checks/architecture-projection/policy.toml` owns architecture projection
   drift checks from the `docs/architecture/models/` source to generated Mermaid. The generated
   diagram is review aid, not architecture truth.
 - `src/ethos/contracts/artifacts/topology.toml` owns generated-state location

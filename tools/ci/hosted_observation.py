@@ -14,8 +14,8 @@ from typing import cast
 
 from cyclopts import App
 
+from ethos.adapters.admission.evidence.external import repository_remote_url
 from ethos.adapters.repo.git import current_tracked_head
-from ethos.adapters.repo.git import git_stdout
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / ".config/checks/hosted-observation/policy.toml"
@@ -174,7 +174,7 @@ def capture_observation(*, execute: bool = False, output: Path | None = None) ->
         "verdict": verdict,
         "state": state,
         "head": current_tracked_head(ROOT),
-        "remote_url": git_stdout(ROOT, "remote", "get-url", "origin"),
+        "remote_url": repository_remote_url(ROOT),
         "config": str(CONFIG.relative_to(ROOT)),
         "generated_at": datetime.now(UTC).isoformat(),
         "execute": execute,

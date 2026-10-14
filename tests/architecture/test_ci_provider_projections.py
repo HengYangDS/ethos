@@ -110,7 +110,8 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     artifacts = gitlab["ethos:verify"]["artifacts"]
     assert artifacts["when"] == gitlab["ethos:external-links"]["artifacts"]["when"] == "always"
     assert "build/evidence/quality/tests/pytest/junit*.xml" in artifacts["paths"]
-    assert allure in artifacts["paths"]
+    # GitHub retains raw Allure results; GitLab's instance artifact limit cannot hold them.
+    assert allure not in artifacts["paths"]
     assert artifacts["reports"]["junit"] == "build/evidence/quality/tests/pytest/junit*.xml"
     assert artifacts["reports"]["coverage_report"] == {
         "coverage_format": "cobertura",

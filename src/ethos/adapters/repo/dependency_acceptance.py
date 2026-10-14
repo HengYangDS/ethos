@@ -97,7 +97,7 @@ def _captured_audit_materials(
 
 def _policy_identity(binding: Mapping[str, object]) -> tuple[object, object]:
     """Bind the exact projected product policy; the build that read it is provenance only."""
-    return binding.get("path") == AUDIT_POLICY_PATH, binding.get("sha256")
+    return binding.get("path"), binding.get("sha256")
 
 
 def captured_dependency_acceptance(
@@ -110,8 +110,7 @@ def captured_dependency_acceptance(
     """Read same-attempt native facts, never a build receipt or saved permission."""
     try:
         payload, materials, product = _captured_audit_materials(stdout, head, source)
-        source_policy = materials[AUDIT_POLICY_PATH]
-        policy = AuditPolicy.model_validate(tomllib.loads(source_policy.decode()))
+        policy = AuditPolicy.model_validate(tomllib.loads(materials[AUDIT_POLICY_PATH].decode()))
         return evaluate_dependency_acceptance(
             compose_audit_policies(policy, product),
             payload,

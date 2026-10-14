@@ -23,6 +23,9 @@ from ethos.contracts.evidence.external import IndependentVerificationReceipt
 from ethos.contracts.semantic import canonical_json_bytes
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.repository.profile import IndependentVerificationPolicy
+from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_publication_topology
 from tests.support.governed_repository import write_test_profile
 from tests.support.literal_cases import literal_case
 
@@ -153,12 +156,13 @@ def test_profile_policy_is_valid_action_scoped_and_default_disabled(
 def test_request_binds_exact_revision_and_policy_without_provider_identity(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, gates: tuple[str, ...]
 ) -> None:
+    write_publication_topology(tmp_path, host_provider="gitlab")
     monkeypatch.setattr(external.git, "current_head", lambda _root: "a" * 40)
     monkeypatch.setattr(
         external.git,
         "git_stdout",
         lambda _root, *args: (
-            "b" * 40 if args[:2] == ("rev-parse", "a" * 40 + "^{tree}") else "origin-url"
+            "b" * 40 if args[:2] == ("rev-parse", "a" * 40 + "^{tree}") else "host-remote-url"
         ),
     )
 
@@ -171,7 +175,7 @@ def test_request_binds_exact_revision_and_policy_without_provider_identity(
     if gates == ("tests", "lint"):
         assert expected_digest == "bdd89b540b1199629ad5bcfc89e847d489408875c99944bd17b6aefcd80a5297"
     assert independent_verification_request(root=tmp_path, action="publish") == {
-        "remote": "origin-url",
+        "remote": "host-remote-url",
         "commit": "a" * 40,
         "tree": "b" * 40,
         "action": "publish",
@@ -183,6 +187,20 @@ def test_request_binds_exact_revision_and_policy_without_provider_identity(
     monkeypatch.setattr(external.git, "current_head", lambda _root: "")
     empty = independent_verification_request(root=tmp_path, action="publish")
     assert (empty["tree"], empty["policy_digest"], empty["implementation_digest"]) == ("", "", "")
+
+
+def test_request_binds_the_host_peer_remote_instead_of_origin(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    write_publication_topology(repo, gitlab_remote="gitlab", host_provider="gitlab")
+    git(repo, "remote", "add", "origin", "https://origin.example.invalid/ethos.git")
+    git(repo, "remote", "add", "gitlab", "https://gitlab.example.invalid/ethos.git")
+    monkeypatch.setattr(external, "resolve_gate_policy", lambda _root, **_kwargs: None)
+
+    request = independent_verification_request(root=repo, action="publish")
+
+    assert request["remote"] == "https://gitlab.example.invalid/ethos.git"
 
 
 def _write_provider_config(root: Path, provider: IndependentVerificationProvider) -> Path:

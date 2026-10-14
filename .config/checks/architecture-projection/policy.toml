@@ -5,7 +5,7 @@ runner = "uv run --frozen --offline python -m nox -s architecture_projection"
 
 [[projection]]
 id = "ethos-repository"
-source = ".config/checks/architecture/models/ethos_repository.c4"
+source = "docs/architecture/models/ethos-repository.c4"
 output = "docs/architecture/_generated/ethos-repository.mmd"
 kind = "likec4-to-mermaid"
 truth_boundary = "generated diagram must not override system/docs/OpenSpec truth"

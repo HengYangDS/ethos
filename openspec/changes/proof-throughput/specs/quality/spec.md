@@ -280,7 +280,8 @@ not ETHOS-specific paths, tools or code budgets.
 ### Requirement: Current Markdown stays within one navigable topic
 
 Every tracked, current, hand-authored Markdown documentation file in ETHOS or a
-governed repository SHALL contain at most 512 nonblank physical lines.
+governed repository SHALL contain at most 512 nonblank physical lines, the
+repository paradigm's Markdown ceiling.
 The release-contract changelog, official OpenSpec artifacts and archive, and
 declared generated output SHALL retain their own carrier-specific checks rather
 than inherit this documentation ceiling.

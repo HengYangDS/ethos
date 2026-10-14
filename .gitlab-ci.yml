@@ -86,7 +86,6 @@ ethos:verify:
       - build/evidence/quality/proof/
       - build/evidence/quality/tests/pytest/junit*.xml
       - build/evidence/quality/tests/coverage/coverage.xml
-      - build/evidence/quality/tests/allure/
       - build/evidence/quality/security/
       - build/evidence/quality/secrets/
       - build/artifacts/python/

@@ -115,7 +115,7 @@ def test_selected_native_script_owns_its_executable_only_while_declared_and_pres
     interpreter = tmp_path / "system/surfaces.toml"
     interpreter.parent.mkdir(parents=True)
     interpreter.write_text('[runtime]\nexecutables = ["sh"]\n', encoding="utf-8")
-    policy = tmp_path / ".config/checks/ci/templates.toml"
+    policy = tmp_path / ".config/checks/ci-projection/policy.toml"
     policy.parent.mkdir(parents=True)
     declaration = (
         '[[projection]]\nprovider = "github"\n'

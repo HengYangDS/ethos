@@ -32,7 +32,7 @@ def test_gate_identity_binds_complete_native_artifact_materials(tmp_path: Path, 
     artifact = "snapshot.txt"
     (repo / artifact).write_text("original\n")
     if kind == "generated":
-        declaration = ".config/checks/ci/templates.toml"
+        declaration = ".config/checks/ci-projection/policy.toml"
         owner = repo / declaration
         owner.parent.mkdir(parents=True)
         (repo / "input.txt").write_text("original\n")
@@ -134,7 +134,7 @@ def test_gate_identity_binds_native_helper_not_only_python_entry() -> None:
 
 def test_generated_source_binding_preserves_compiler_inputs_and_complete_outputs() -> None:
     """Native CUE group identity includes auxiliary inputs, supply, and every output."""
-    declaration = ".config/checks/ci/templates.toml"
+    declaration = ".config/checks/ci-projection/policy.toml"
     outputs = [".github/workflows/ci.yml", ".gitlab-ci.yml"]
     contract = SourceContract.model_validate(
         {

@@ -79,7 +79,7 @@ An obligation enters the core or a module only when every repository where the c
 The obligations are product data in a packaged contract beside `src/ethos/contracts/artifacts/topology.toml`. The contract holds the root catalog, configuration groups, the tool catalog, the binding file set and the common rules. It is evaluated in three places:
 
 - **Whole tree:** a paradigm report in the repository audit composition. It inherits the audit's blocking behaviour in prove, land and publish.
-- **Path level:** prewrite rules in the existing CEL topology vocabulary, so a non-conforming path is refused before it is written.
+- **Path level:** prewrite evaluates each path it would create with the report's own path obligations, so a non-conforming path is refused before it is written.
 - **Staged:** pre-commit admission reads Gitleaks and Ruff configuration from their canonical paths.
 
 Alternatives rejected:
@@ -87,6 +87,7 @@ Alternatives rejected:
 - A per-repository paradigm file: it recreates per-repository improvisation.
 - A new gate or command: the audit already owns profile-independent governance.
 - A documented convention without enforcement: the inventory shows conventions drift without an owner.
+- Restating the path obligations as CEL topology rules: the same obligations would have a second owner that can disagree with the report.
 
 ### 3. Configuration groups by consuming tool, not by concern
 
@@ -169,6 +170,10 @@ The workstation rule names the common formatters:
 
 Both are bound through `fix` and `check`. ETHOS adopts Prettier for its own Markdown in this Change; today it only lints it. `.editorconfig` and `.gitattributes` declare UTF-8, LF and a final newline in every repository, because every repository holds text that agents and editors write.
 
+The workstation blank-line rule applies to every repository, so blank lines are what the formatters write for the parsed structure. Ruff formats Python wherever Python is tracked, because it is the only Python formatter in the fleet and the rule has no other enforcer.
+
+The size ceilings are shared too: 512 effective lines for each Python file and 512 nonblank lines for each current authored Markdown document. The Python ceiling was a value in ETHOS's own `.ethos/rules.toml` that no adopter declared, so adopters had none. The Markdown ceiling was a product constant of 500, while task 12.4 of the proof-throughput Change records 512. The contract now holds both values. The paradigm report measures Python files, and docs health reads the Markdown value from the contract. The Markdown requirement itself stays in the proof-throughput quality specification. ETHOS's `python-size` gate stays as a projection of the paradigm measurement until the gate registry can change through ordinary landing (task 2.6).
+
 ### 9. Toolchain owner and verbs
 
 One locked owner selects tools:
@@ -204,7 +209,7 @@ Each module holds only what every repository of that ecosystem shares:
 - **Node:** `package-lock.json` whenever npm dependencies are declared.
 - **Go:** `go.mod` with `go.sum` whenever it requires modules.
 
-The two films use uv without any linter or formatter. A required Ruff or pytest would therefore impose a tool rather than extract a shared practice. Where a tool is configured, the core rules place it and the tool catalog names its file.
+The two films use uv without any linter or formatter. A required Ruff linter or pytest would therefore impose a tool rather than extract a shared practice. Ruff's formatter is the exception, because the shared blank-line rule needs it (decision 8). Where a tool is configured, the core rules place it and the tool catalog names its file.
 
 Every explicit formatter width in the fleet is already 100, so a configured formatter keeps 100, and Ruff targets the shared 3.12 floor. Runtime and tool versions stay repository values under the workstation version policy, so a version bump never needs an ETHOS Change.
 

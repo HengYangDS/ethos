@@ -6,10 +6,14 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.report import repository_paradigm_report
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+_PYTHON_CEILING = load_repository_paradigm().size.python_effective_lines
+_MODULE = "src/sample/module.py"
 
 _CONFORMING = {
     "AGENTS.md": "# Agents\n",
@@ -27,6 +31,18 @@ _CONFORMING = {
     ".ethos/profile.toml": 'profile_id = "sample"\n',
     "cmd/sample/main.go": "package main\n",
     "content/intro.md": "# Intro\n",
+    ".config/miserc.toml": "",
+    ".config/mise/config.toml": "",
+    ".config/npm/npmrc": "",
+    ".config/ci/pipeline.cue": "",
+    ".config/checks/ruff/ruff.toml": "line-length = 100\n",
+    ".config/checks/gitleaks/gitleaksignore": "",
+    ".config/checks/coverage/coverage.toml": "",
+    ".config/checks/coverage/policy.toml": "",
+    ".config/checks/architecture-projection/policy.toml": "",
+    ".config/checks/vale/vale.ini": "",
+    ".config/checks/vale/styles/Plain/Rule.yml": "",
+    ".config/release/goreleaser/.goreleaser.yaml": "",
 }
 
 
@@ -131,6 +147,46 @@ def test_conforming_repository_passes_with_product_owned_layout(tmp_path: Path) 
             "lock go.mod with go.sum",
         ),
         (
+            {".config/README.md": "# Configuration\n"},
+            "repository_paradigm_configuration_carrier:.config/README.md",
+            "into the documentation",
+        ),
+        (
+            {".config/checks/secrets/gitleaks.toml": ""},
+            "repository_paradigm_configuration_owner:.config/checks/secrets/gitleaks.toml",
+            "to .config/checks/gitleaks/gitleaks.toml",
+        ),
+        (
+            {".config/checks/prettier/.prettierrc.json": "{}\n"},
+            "repository_paradigm_configuration_owner:.config/checks/prettier/.prettierrc.json",
+            "to .config/checks/prettier/prettier.toml",
+        ),
+        (
+            {".config/checks/ci-projection/templates.toml": ""},
+            "repository_paradigm_configuration_carrier:.config/checks/ci-projection/templates.toml",
+            "or .config/checks/ci-projection/policy.toml",
+        ),
+        (
+            {".config/checks/coverage/nested/coverage.toml": ""},
+            "repository_paradigm_configuration_owner:.config/checks/coverage/nested/coverage.toml",
+            "to .config/checks/coverage/coverage.toml",
+        ),
+        (
+            {".config/checks/Spelling_Rules/policy.toml": ""},
+            "repository_paradigm_configuration_owner:.config/checks/Spelling_Rules/policy.toml",
+            "in kebab-case",
+        ),
+        (
+            {".config/release/supply-chain.toml": ""},
+            "repository_paradigm_configuration_group:.config/release/supply-chain.toml",
+            "under .config/<checks|release>/<owner>/",
+        ),
+        (
+            {".config/ethos/state.toml": ""},
+            "repository_paradigm_configuration_group:.config/ethos/state.toml",
+            "or a toolchain root",
+        ),
+        (
             {
                 "pyproject.toml": '[project]\nname = "sample"\nrequires-python = ">=3.12"\n'
                 '[tool.pytest.ini_options]\ncache_dir = "build"\n[tool.hatch.version]\npath = "V"\n'
@@ -161,6 +217,14 @@ def test_conforming_repository_passes_with_product_owned_layout(tmp_path: Path) 
         "npm-not-object",
         "npm-invalid",
         "go-unlocked",
+        "configuration-readme",
+        "configuration-by-concern",
+        "configuration-not-toml",
+        "configuration-unconsumed",
+        "configuration-nested",
+        "configuration-owner-name",
+        "configuration-loose",
+        "configuration-group",
         "embedded-manifest-table",
         "embedded-package-key",
     ],
@@ -217,4 +281,51 @@ def test_unreadable_tracked_manifest_is_a_gap(tmp_path: Path, mode: str) -> None
             "carrier": "pyproject.toml",
             "repair": "restore a readable pyproject.toml",
         }
+    ]
+
+
+def _statements(count: int) -> str:
+    return "".join(f"value_{index} = {index}\n" for index in range(count))
+
+
+@pytest.mark.parametrize(
+    ("source", "gaps"),
+    [
+        (_statements(_PYTHON_CEILING), []),
+        (_statements(_PYTHON_CEILING + 1), [f"repository_paradigm_python_size:{_MODULE}"]),
+        ('"""' + "documentation\n" * 600 + '"""\n' + _statements(_PYTHON_CEILING), []),
+        ("def invalid(\n", [f"repository_paradigm_python_size:{_MODULE}"]),
+    ],
+    ids=["at-ceiling", "over-ceiling", "docstring-uncounted", "invalid"],
+)
+def test_every_python_file_shares_one_effective_line_ceiling(
+    tmp_path: Path, source: str, gaps: list[str]
+) -> None:
+    """The ceiling applies without any repository size policy and counts only code."""
+    report = _report(tmp_path, {**_CONFORMING, _MODULE: source})
+    assert report["required_gaps"] == gaps
+    if gaps:
+        assert _MODULE in report["next_action"]
+
+
+@pytest.mark.parametrize("mode", ["undecodable", "absent"])
+def test_python_size_reads_only_what_exists_as_text(tmp_path: Path, mode: str) -> None:
+    """Undecodable source is a gap; a tracked file deleted from the worktree is not measured."""
+    _report(tmp_path, {**_CONFORMING, _MODULE: "value = 1\n"})
+    module = tmp_path / _MODULE
+    if mode == "undecodable":
+        module.write_bytes(b"name = '\xff'\n")
+    else:
+        module.unlink()
+    report = repository_paradigm_report(tmp_path, tracked_paths=(*_CONFORMING, _MODULE))
+    expected = [f"repository_paradigm_python_size:{_MODULE}"] if mode == "undecodable" else []
+    assert report["required_gaps"] == expected
+
+
+def test_a_binding_cannot_restate_the_size_ceiling(tmp_path: Path) -> None:
+    """The ceiling has one owner, so a repository-declared limit is a gap, not a setting."""
+    rules = "[quality.code_size]\ndefault_effective_max_lines = 900\n"
+    report = _report(tmp_path, {**_CONFORMING, ".ethos/rules.toml": rules})
+    assert report["required_gaps"] == [
+        "repository_paradigm_binding_restatement:.ethos/rules.toml:quality.code_size"
     ]

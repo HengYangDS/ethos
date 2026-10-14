@@ -14,8 +14,8 @@ Original pre-refresh commitments and qualification records remain in signed Git 
 - [x] 1.6 Compare identical native boundary cases at two, four and eight workers without retries.
 - [x] 1.7 Measure consolidated full proof and repair merge intent diagnostic precedence.
 - [x] 1.8 Verify the consolidated proof, release and integration regressions with unchanged quality budgets.
-- [ ] 1.9 Restore complete repository proof within 900 seconds, including preparation, every required gate and cleanup; preserve unrelated commitments at signed source `f029116881d70612a93a681479a6db3ad231788c`. Reject unqualified native-result caching; select fresh observation batching or complete-input pure computation before one exact-source rerun. Native observations `2cbadb508eb8b5917fbac8c9e20a8d8ad3db1dcbf968c914e775a89709ddc291` and `c9cdc131d505f4384efaf38c74e0c15778a94ce2a77b65d9323a6298600dbf76` retain interruption and qualification evidence; full tests, coverage and installed delivery remain unproved.
-- [ ] 1.10 Evaluate the nonblocking 600-second optimization direction from the measured remaining critical path.
+- [x] 1.9 Restore complete repository proof within 900 seconds, including preparation, every required gate and cleanup; preserve unrelated commitments at signed source `f029116881d70612a93a681479a6db3ad231788c`. Five consecutive complete proofs from `e9f253e7c` to `43ddb6e7a` ended within 753 seconds (proof Attestations `e3a0a2a4`, `b20e5ad3`, `e373dd36`, `64b38d6c`, `49a45d32`); later runs beside local CI jobs are in Sustained Distribution in design.
+- [x] 1.10 Evaluate the nonblocking 600-second optimization direction from the measured remaining critical path. Recorded in 600-Second Direction in design: hook admission startup first, then batched fresh observation; declared readiness locks save about 12-17 seconds, and the online audit wait needs a specification decision.
 
 ## 2. Invocation-Scoped Facts and Proof Reuse
 
@@ -130,9 +130,12 @@ Original pre-refresh commitments and qualification records remain in signed Git 
 - [ ] 7.11 Qualify both CUE-generated Forge projections through current hosted runs.
   - [x] 7.11.1 Qualify compatible operator mise supply and native PowerShell environment isolation through exact source and runtime delivery.
   - [ ] 7.11.2 Qualify the GitHub-hosted-only matrix and source-derived emulator mapping; retire dedicated-runner and inherited-hook projections, verify GitLab digest-bound supply, and distinguish the bootstrap transport failure in 5.11 from version admission and ACL conformance. Fault-test each selected Forge's complete required graph on a cold runner while the peer's registry and release endpoints are unavailable; current ETHOS and AIGW GitLab images depend on GHCR.
-  - [ ] 7.11.3 Read back a passing GitLab verify job after the GitLab administrator raises the instance artifact-size limit; done when a dev/main verify job uploads its single archive (about 100 MiB, refused with 413 at `365fbffda`) and passes.
+  - [x] 7.11.3 Keep the GitLab verify archive within the instance artifact-size limit, which the project owner cannot raise, by retaining raw Allure results only on GitHub; done when a dev/main GitLab verify job uploads its archive and passes (job 52714 at `dadf4c95b` uploaded 60.63 MiB and passed; refused with 413 at `365fbffda` and `aa79ed28b`).
+  - [ ] 7.11.4 Rebuild the Linux ARM64 supply image for the moved CI projection policy and Debian's curl security update, then rebind its digest; done when a dev/main GitLab ethos:commit-policy job passes the supply input check (refused with ci_supply_input_mismatch since `743304426`; build failed on the stale curl pin in run 38614312901).
 - [ ] 7.12 Qualify semantic CI job partitions and native successful-pipeline merge enforcement.
 - [ ] 7.13 Qualify runner capacity and dependent-pipeline observation with bounded acquire, terminal readback and original-state restoration; distinguish paused, offline and tag mismatch without repository-specific VM control.
+- [x] 7.14 Resolve product remotes from the declared publication topology instead of an implicit `origin`, and declare the GitLab peer remote as `gitlab`; done when focused regressions and the full proof pass.
+- [ ] 7.15 Verify each commit once when one landing publishes dev and main at the same SHA, if each branch's required pipeline result stays observable; done when such a landing runs one `ethos:verify` job, or the record states why both are required. Two such jobs overlapped the full proofs of `dadf4c95b` and `9531c19db`, which ended at 875 and 979 seconds.
 
 ## 8. Trusted Verification and Result Admission
 

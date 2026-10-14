@@ -302,7 +302,7 @@ budget = [{ category = "js", comment_prefixes = ["//"] }]
 [[format]]
 extensions = [".c4"]
 carrier = "LikeC4 model"
-owner = ".config/checks/architecture/projection.toml"
+owner = ".config/checks/architecture-projection/policy.toml"
 execution = "uv run --frozen --offline python -m nox -s architecture_projection"
 truth_boundary = "architecture source projection input"
 budget = [{ category = "diagram", comment_prefixes = ["#", "//", "%%"] }]
@@ -310,7 +310,7 @@ budget = [{ category = "diagram", comment_prefixes = ["#", "//", "%%"] }]
 [[format]]
 extensions = [".mmd"]
 carrier = "Mermaid diagram"
-owner = ".config/checks/architecture/projection.toml"
+owner = ".config/checks/architecture-projection/policy.toml"
 execution = "uv run --frozen --offline python -m nox -s architecture_projection"
 truth_boundary = "generated architecture projection output"
 budget = [{ category = "diagram", comment_prefixes = ["#", "//", "%%"], accounting = "generated_evidence" }]
@@ -346,7 +346,7 @@ yaml_allowed_roots = [
   "src/ethos/adapters/",
   "tests/architecture/",
 ] }
-".c4" = { roots = [".config/checks/architecture/models/"] }
+".c4" = { roots = ["docs/architecture/models/"] }
 ".mmd" = { roots = ["docs/architecture/_generated/"] }
 ".svg" = { roots = ["assets/brand/"] }
 ".png" = { roots = ["assets/brand/"] }

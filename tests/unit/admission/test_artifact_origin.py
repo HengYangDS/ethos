@@ -107,13 +107,13 @@ def test_declared_output_requires_patch_but_its_source_does_not(tmp_path: Path) 
     root = fixture.worktree
     _declaration, _model, output = architecture_projection_fixture(root)
     output.unlink()
-    result = _prewrite(root, ("diagram.mmd",))
+    result = _prewrite(root, ("docs/diagram.mmd",))
     assert result["verdict"] == "block", result
     assert result["data"]["paths"][0]["origin"] == "projection"
     assert result["data"]["paths"][0]["existence"] == "absent"
     assert "--patch" in result["next_action"]
     assert root.as_posix() in result["next_action"]
-    assert _prewrite(root, ("model.c4",))["verdict"] == "pass"
+    assert _prewrite(root, ("docs/model.c4",))["verdict"] == "pass"
 
 
 @pytest.mark.parametrize("selected_owner", [True, False])
@@ -126,7 +126,7 @@ def test_public_projection_admission_reads_committed_native_owner(
     script = "tools/ci/scripts/bootstrap.sh"
     original = "jobs:\n  check:\n    steps:\n      - run: ultraviolet --version\n"
     files = {
-        ".config/checks/ci/templates.toml": (
+        ".config/checks/ci-projection/policy.toml": (
             'schema = "ethos-ci-template-consistency-v1"\n[[projection]]\n'
             'provider = "github"\n'
             f'template = "{source}"\nprojection = "{output}"\n'
@@ -282,7 +282,7 @@ def test_path_only_admission_cannot_erase_a_committed_producer(tmp_path: Path) -
     output.write_text("old output\n")
     commit_fixture(root, "declare producer")
     declaration.unlink()
-    report = _prewrite(root, ("diagram.mmd",))
+    report = _prewrite(root, ("docs/diagram.mmd",))
     assert report["verdict"] == "block", report
     assert "generated_projection_patch_required" in report["required_gaps"][0], report
 
@@ -310,20 +310,20 @@ def test_repeated_native_ignore_inputs_are_not_last_value_only() -> None:
 def test_invalid_projection_ownership_is_unknown(tmp_path: Path, declaration: str) -> None:
     fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
-    path = root / ".config/checks/architecture/projection.toml"
+    path = root / ".config/checks/architecture-projection/policy.toml"
     path.parent.mkdir(parents=True)
     path.write_text(declaration)
-    report = _prewrite(root, ("model.c4",))
+    report = _prewrite(root, ("docs/model.c4",))
     assert report["verdict"] == "unknown", report
     assert "projection_ownership_unknown" in report["required_gaps"][0], report
-    assert "projection.toml" in report["next_action"], report
+    assert "architecture-projection/policy.toml" in report["next_action"], report
 
 
 def test_exact_patch_repairs_uncommitted_invalid_projection_declaration(tmp_path: Path) -> None:
     """Unknown current syntax permits a validated repair, not unrestricted authoring."""
     fixture = prepared_work_lane(tmp_path)
     root = fixture.worktree
-    relative = ".config/checks/architecture/projection.toml"
+    relative = ".config/checks/architecture-projection/policy.toml"
     declaration = root / relative
     declaration.parent.mkdir(parents=True)
     good = 'schema = "ethos-architecture-projection-v1"\nprojection = []\n'
@@ -387,7 +387,7 @@ def test_precommit_validates_index_projection_not_working_copy(
     model.write_text('system Example "After"\n')
     after = before.replace('"Before"', '"After"')
     output.write_text(after if staged_valid else "wrong staged output\n")
-    git(root, "add", "model.c4", "diagram.mmd")
+    git(root, "add", "docs/model.c4", "docs/diagram.mmd")
     output.write_text("wrong work copy\n" if staged_valid else after)
     if work_copy == "outside-symlink":
         target = tmp_path / "outside-output"
@@ -398,7 +398,7 @@ def test_precommit_validates_index_projection_not_working_copy(
     completed = git_process(root, "hook", "run", "pre-commit")
     assert completed.returncode == (0 if staged_valid else 1), completed.stderr
     if not staged_valid:
-        assert "generated_projection_drift:diagram.mmd" in completed.stderr
+        assert "generated_projection_drift:docs/diagram.mmd" in completed.stderr
     assert git(root, "write-tree") == index_before
     assert output.read_text() == ("wrong work copy\n" if staged_valid else after)
 
@@ -416,7 +416,7 @@ def test_staged_retirement_preserves_exact_output_existence(tmp_path: Path, effe
         else:
             output.unlink()
     elif effect == "unlink-source":
-        (root / "model.c4").unlink()
+        (root / "docs/model.c4").unlink()
     else:
         output.unlink()
         output.symlink_to("model.c4")
@@ -425,7 +425,7 @@ def test_staged_retirement_preserves_exact_output_existence(tmp_path: Path, effe
     result = staged_artifact_admission(root, baseline)
     assert result["verdict"] == ("pass" if effect == "retire" else "block"), result
     if effect == "disguise":
-        assert result["reason"] == "generated_projection_owner_removed:diagram.mmd"
+        assert result["reason"] == "generated_projection_owner_removed:docs/diagram.mmd"
     assert git(root, "write-tree") == index
     assert git(root, "rev-parse", "HEAD") == baseline
 
@@ -469,7 +469,7 @@ def test_index_admission_rejects_coordinate_drift(
 def test_cue_index_admission_uses_exact_transitive_inputs(tmp_path, selected):
     """Staged CUE and TOML, not a repaired checkout, decide output admission."""
     root = init_git_repo(tmp_path / "repo")
-    declaration = ".config/checks/ci/templates.toml"
+    declaration = ".config/checks/ci-projection/policy.toml"
     files = {
         declaration: (
             'schema = "ethos-ci-template-consistency-v1"\n'

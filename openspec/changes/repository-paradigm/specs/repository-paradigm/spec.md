@@ -186,12 +186,22 @@ A repository that keeps decision records SHALL name each `dr-NNNN-<topic>.md`, w
 
 ### Requirement: Text formatting uses the common formatters
 
-Markdown and YAML SHALL be formatted by Prettier with preserved prose wrapping and a print width of 100, and TOML by taplo. Both SHALL be bound through the repository's `fix` and `check` verbs with configuration under `.config/checks/`.
+Markdown and YAML SHALL be formatted by Prettier with preserved prose wrapping and a print width of 100, TOML by taplo and Python by Ruff. Blank lines SHALL be what these formatters write for the parsed structure: one blank line between Markdown blocks, including after front matter, and Ruff's separation of Python declarations. Each formatter SHALL be bound through the repository's `fix` and `check` verbs with configuration under `.config/checks/`.
 
 #### Scenario: Markdown is only linted
 
 - **WHEN** a repository tracks Markdown and has no Prettier configuration in the configuration plane
 - **THEN** the paradigm reports a missing Markdown formatter binding.
+
+#### Scenario: Python is not formatted
+
+- **WHEN** a repository tracks Python and has no Ruff configuration in the configuration plane
+- **THEN** the paradigm reports a missing Python formatter binding.
+
+#### Scenario: Blank lines pad a document
+
+- **WHEN** a Markdown document separates two paragraphs with two blank lines
+- **THEN** the `check` verb fails, and `fix` leaves one blank line.
 
 ### Requirement: Text normalization is declared
 
@@ -210,6 +220,20 @@ Every configured formatter SHALL use a line width of 100, including Prettier, ta
 
 - **WHEN** a repository's Ruff configuration sets or defaults to a line length of 88
 - **THEN** the paradigm reports a non-common formatter width.
+
+### Requirement: Python files stay within the common size ceiling
+
+Every tracked Python file SHALL have at most 512 effective lines, counted without blank lines, comments and docstrings. The paradigm contract SHALL hold this ceiling and the value of the Markdown documentation ceiling, and a repository binding SHALL NOT restate, raise or lower either.
+
+#### Scenario: A Python file outgrows the ceiling
+
+- **WHEN** a governed repository tracks a Python file with 600 effective lines
+- **THEN** the paradigm reports the file and the 512-line ceiling, whether or not the repository declares a size policy.
+
+#### Scenario: A binding restates a ceiling
+
+- **WHEN** `.ethos/rules.toml` declares `[quality.code_size]`
+- **THEN** the paradigm reports a binding that restates a paradigm value.
 
 ### Requirement: Ecosystem modules lock their manifests
 

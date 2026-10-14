@@ -24,7 +24,18 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
     assert paradigm.canonical_carrier("pytest.ini") == ".config/checks/pytest/pytest.toml"
     assert paradigm.canonical_carrier("mise.toml") == ".config/mise/config.toml"
     assert paradigm.canonical_carrier("unrelated.txt") == ""
+    assert paradigm.native_carrier("codespell.toml") == ".config/checks/codespell/codespell.toml"
+    assert paradigm.native_carrier("policy.toml") == ""
+    owners = paradigm.owner_directories()
+    assert owners[".config/checks/gitleaks"] == (
+        frozenset({"gitleaks.toml", "gitleaksignore"}),
+        False,
+    )
+    assert owners[".config/checks/vale"][1] is True
+    assert ".config/mise" not in owners
     assert {module.id for module in paradigm.module} == {"python", "node", "go"}
+    assert paradigm.size.python_effective_lines == 512
+    assert paradigm.size.markdown_nonblank_lines == 512
 
 
 @pytest.mark.parametrize(
@@ -37,6 +48,7 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
         "scope",
         "duplicate-table",
         "tool-unknown-key",
+        "size-not-positive",
     ],
 )
 def test_paradigm_declaration_fails_closed(mutation: str) -> None:
@@ -62,6 +74,8 @@ def test_paradigm_declaration_fails_closed(mutation: str) -> None:
         tools.append(
             {"id": "copy", "carrier": ".config/checks/copy/copy.toml", "manifest_tables": ["ruff"]}
         )
+    elif mutation == "size-not-positive":
+        payload["size"] = {**payload["size"], "python_effective_lines": 0}
     else:
         tools[0] = {**tools[0], "exceptions": ["mise.toml"]}
     with pytest.raises(ValidationError):

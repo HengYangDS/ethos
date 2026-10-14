@@ -235,7 +235,3 @@ Every explicit formatter width in the fleet is already 100, so a configured form
 3. The alphasim and di-effect families follow in their own later migrations.
 
 Rollback: before an adopter switches runtime, its migration reverts by an ordinary revert. After the switch, the previous runtime stays selectable through `ethos hook install --runtime`.
-
-## Open Questions
-
-- Root ignore files that only agent indexers read, such as `.cbmignore`: admit them to the root catalog, or move the indexers to explicit configuration. Decide when the first adopter migration meets one.

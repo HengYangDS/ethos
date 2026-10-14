@@ -39,6 +39,7 @@ from ethos.contracts.branch.roles import ROLE_CANDIDATE
 from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import report_verdict
 
 if TYPE_CHECKING:
@@ -48,7 +49,6 @@ if TYPE_CHECKING:
 _SECRET_POLICY = ".config/checks/gitleaks/gitleaks.toml"
 _SECRET_IGNORE = ".config/checks/gitleaks/gitleaksignore"
 _FORMAT_POLICY = ".config/checks/ruff/ruff.toml"
-_NONCANONICAL_POLICIES = (".gitleaks.toml", ".gitleaksignore", "ruff.toml")
 
 
 def admit_hook(
@@ -150,9 +150,14 @@ def _native_configuration_dependency(path: str, source: bytes, *, owner: str) ->
 
 def _reject_noncanonical_policy(root: Path, *, index_env: Mapping[str, str] | None) -> None:
     """Name native policy left at the root instead of silently skipping its check."""
-    retained = run_git(
-        root, "ls-files", "--", *_NONCANONICAL_POLICIES, timeout=30, env=index_env
-    ).stdout.split()
+    carriers = {_SECRET_POLICY, _SECRET_IGNORE, _FORMAT_POLICY}
+    names = tuple(
+        name
+        for tool in load_repository_paradigm().tool
+        if tool.carrier in carriers
+        for name in tool.root_names
+    )
+    retained = run_git(root, "ls-files", "--", *names, timeout=30, env=index_env).stdout.split()
     if retained:
         message = f"pre_commit_native_policy_noncanonical:{retained[0]}"
         raise RuntimeError(message)

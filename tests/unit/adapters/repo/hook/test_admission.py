@@ -87,7 +87,7 @@ def test_pre_commit_projects_the_exact_staged_formatter_closure(
     assert (gap in error) if gap else not error
 
 
-@pytest.mark.parametrize("retained", [".gitleaks.toml", "ruff.toml", ".gitleaksignore"])
+@pytest.mark.parametrize("retained", [".gitleaksignore", ".ruff.toml"])
 def test_pre_commit_names_native_policy_left_at_the_root(
     repo: Path, capsys: pytest.CaptureFixture[str], retained: str
 ) -> None:

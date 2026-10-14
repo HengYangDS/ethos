@@ -7,7 +7,7 @@
 
 - [ ] 2.1 Add the paradigm report to the repository audit composition, naming each gap's carrier, obligation and canonical repair; focused tests cover every scenario in `specs/repository-paradigm/spec.md`.
 - [ ] 2.2 Refuse non-conforming root, configuration-plane and binding paths in prewrite through the CEL topology rules, naming the canonical path; predicate tests cover each refusal.
-- [x] 2.3 Read Gitleaks and Ruff configuration in pre-commit admission from their canonical `.config/checks/` paths and report configuration found elsewhere; hook admission tests cover both cases.
+- [ ] 2.3 Read Gitleaks and Ruff configuration in pre-commit admission from their canonical `.config/checks/` paths and report the root names that the paradigm tool catalog lists for them; hook admission tests cover both cases. The retired root names `.gitleaks.toml` and `ruff.toml` join the catalog after ETHOS's removal of those files has landed.
 - [ ] 2.4 Make sibling Work Lane worktrees under `<repository>-worktrees/<yyyymmdd>-<slug>/` the default and retire the opt-in; lane start tests cover the default path.
 
 ## 3. ETHOS conformance

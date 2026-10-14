@@ -78,7 +78,7 @@ root_names = [".coveragerc"]
 [[tool]]
 id = "ruff"
 carrier = ".config/checks/ruff/ruff.toml"
-root_names = [".ruff.toml", "ruff.toml"]
+root_names = [".ruff.toml"]
 
 [[tool]]
 id = "ty"
@@ -89,11 +89,6 @@ root_names = ["ty.toml"]
 id = "taplo"
 carrier = ".config/checks/taplo/taplo.toml"
 root_names = [".taplo.toml", "taplo.toml"]
-
-[[tool]]
-id = "gitleaks"
-carrier = ".config/checks/gitleaks/gitleaks.toml"
-root_names = [".gitleaks.toml"]
 
 [[tool]]
 id = "gitleaks-ignore"

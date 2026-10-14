@@ -2,7 +2,6 @@
 globs:
   - "*.md"
   - ".config/README.md"
-  - ".config/checks/secrets/README.md"
   - ".agents/**/*.md"
   - ".github/**/*.md"
   - ".gitlab/**/*.md"

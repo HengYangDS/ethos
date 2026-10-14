@@ -129,7 +129,7 @@
     "product_contract": {
       "path": "docs/governance/product-design-contract.md",
       "authority": "canonical product meaning and semantic kernel",
-      "sha256": "d2be76b07e2dca95b7beb7f5f5dfbb993df62fbef32fbfe8071905c06092b185"
+      "sha256": "210cd19fa597fd41186b126edaa8452dd22105b52d9e23eec6eda7c00c21d030"
     },
     "axioms": {
       "path": "system/axioms.md",

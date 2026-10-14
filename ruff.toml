@@ -1,2 +1,0 @@
-extend = ".config/checks/ruff/ruff.toml"
-cache-dir = "build/runtime/tool-cache/ruff"

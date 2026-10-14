@@ -182,7 +182,9 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
                 "head": ("current_tracked_head", "b" * 40),
                 "policy-drift": (
                     "resolve_gate_policy",
-                    replace(policy, sources=(("ruff", (("ruff.toml", "changed"),)),)),
+                    replace(
+                        policy, sources=(("ruff", ((".config/checks/ruff/ruff.toml", "changed"),)),)
+                    ),
                 ),
             }[case]
             monkeypatch.setattr(gate_execution, name, lambda *_a, **_k: value)

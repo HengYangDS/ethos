@@ -311,17 +311,17 @@ newer transport, worktree or ref receipts cannot substitute.
 
 ### Configuration Boundaries
 
-Repository source owns behavior, `system/` machine contracts,
-`.config/checks/<concern>/` native inputs and provider files provider syntax.
-`system/gates.toml` owns gate execution, evidence and floor; native configs and
-locks own tool policy and versions. Projections link rather than copy.
+Repository source owns behavior, `system/` machine contracts, tool-named
+`.config/checks/<owner>/` native inputs and provider files provider syntax.
+The packaged `system/gates.toml` owns ETHOS gates; adopters declare gates inline.
+Native configs and locks own tool policy and versions. Projections link rather than copy.
 
 ## Isomorphic Adopter Governance
 
 ETHOS and an adopted repository use the same kernel and transaction protocol.
 Profiles and adapters select native carriers, checks, and proof depth; they do
 not create another command plane, ontology, or truth store. This is not product
-cloning: each repository retains its domain model, layout, and provider shape.
+cloning: each repository keeps its domain model, product layout and provider shape; the [repository paradigm](../decisions/dr-0012-repository-paradigm.md) fixes only shared carriers.
 
 The semantic kernel remains independent of OpenSpec types. Complete,
 mutation-capable adoption nevertheless pins verified OpenSpec as the sole
@@ -468,9 +468,9 @@ still-valid obligations.
 [Module Layout Rules](../../rules/module_layout.md) own physical source shape.
 Each quality property has one executable owner, using native tools where they
 suffice. Documentation explains contracts and reasons rather than copying
-policy. Configuration lives by concern; root placement needs a native
-integration or total-cost reason. Commands, editors, hooks and CI evaluate the
-same policy and base.
+policy. Configuration lives in the configuration plane, grouped by consuming
+tool, and the root carries only the repository paradigm's protocol entries.
+Commands, editors, hooks and CI evaluate the same policy and base.
 
 Quality requirements precede observed results. Combined Python line-and-branch
 coverage is at least 95 percent over the declared product surface, enforced by

@@ -102,7 +102,7 @@ def candidate_to_accepted(
 def accepted_transition_policy(root: Path, head: str) -> BranchRolePolicy:
     """Read the incumbent policy; use defaults only for a provably absent carrier."""
     if workspace := committed_file_text(root, head, ".ethos/workspace.toml"):
-        return strict_branch_role_policy_from_text(workspace, allow_legacy_sibling_default=True)
+        return strict_branch_role_policy_from_text(workspace, allow_predecessor_defaults=True)
     present = run_git(
         root,
         "ls-tree",

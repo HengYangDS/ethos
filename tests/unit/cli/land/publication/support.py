@@ -220,7 +220,7 @@ def maintenance_release_fixture(tmp_path: Path, *, release_mirror: str = "indepe
     candidate = tmp_path / "repo"
     successor = commit_fixture_file(
         candidate,
-        "successor.txt",
+        "notes/successor.txt",
         "current train continues\n",
         "fix: continue current accepted train",
     )

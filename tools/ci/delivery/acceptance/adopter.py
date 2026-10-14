@@ -135,6 +135,13 @@ capabilities = ["repository", "publication"]
         "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n",
         encoding="utf-8",
     )
+    for relative, content in (
+        (".config/checks/prettier/prettier.toml", 'printWidth = 100\nproseWrap = "preserve"\n'),
+        (".config/checks/taplo/taplo.toml", "[formatting]\ncolumn_width = 100\n"),
+    ):
+        carrier = root / relative
+        carrier.parent.mkdir(parents=True, exist_ok=True)
+        carrier.write_text(content, encoding="utf-8")
     peer = root.parent / "publication-peer.git"
     run(git, "init", "--quiet", "--bare", str(peer))
     run(git, "remote", "add", "origin", str(peer), cwd=root)

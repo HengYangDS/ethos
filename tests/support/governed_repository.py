@@ -21,6 +21,11 @@ from tests.support.runtime_scenarios import install_fixture_hook_runtime
 PARADIGM_EDITORCONFIG = (
     "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n"
 )
+PARADIGM_FORMATTERS = {
+    ".config/checks/prettier/prettier.toml": 'printWidth = 100\nproseWrap = "preserve"\n',
+    ".config/checks/taplo/taplo.toml": "[formatting]\ncolumn_width = 100\n",
+    ".config/checks/ruff/ruff.toml": 'line-length = 100\ntarget-version = "py312"\n',
+}
 
 
 class WorkLaneFixture(NamedTuple):
@@ -165,6 +170,10 @@ def init_git_repo(path: Path, *, object_format: str = "sha1") -> Path:
     (path / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
     (path / ".gitattributes").write_text("* text=auto eol=lf\n", encoding="utf-8")
     (path / ".editorconfig").write_text(PARADIGM_EDITORCONFIG, encoding="utf-8")
+    for relative, content in PARADIGM_FORMATTERS.items():
+        carrier = path / relative
+        carrier.parent.mkdir(parents=True, exist_ok=True)
+        carrier.write_text(content, encoding="utf-8")
     commit_fixture(path, "init")
     return path
 

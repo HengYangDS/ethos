@@ -17,6 +17,7 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import model_validator
 
+from ethos.contracts.value import FrozenMapping
 from ethos.contracts.value import FrozenTuple
 
 _DECLARATION = ConfigDict(frozen=True, strict=True, extra="forbid")
@@ -82,6 +83,16 @@ class ConfigurationPlane(BaseModel):
     policy: str
 
 
+class FormatterBinding(BaseModel):
+    """The formatter one carrier class uses and the settings its binding declares."""
+
+    model_config = _DECLARATION
+
+    tool: str
+    suffixes: FrozenTuple[str]
+    settings: FrozenMapping[str | int | bool]
+
+
 class SizeCeilings(BaseModel):
     """Per-file ceilings that every governed repository shares."""
 
@@ -128,6 +139,8 @@ class RepositoryParadigm(BaseModel):
     binding: BindingFileSet
     normalization: TextNormalization
     configuration: ConfigurationPlane
+    immutable_roots: FrozenTuple[str]
+    formatter: FrozenTuple[FormatterBinding]
     size: SizeCeilings
     module: FrozenTuple[EcosystemModule]
     tool: FrozenTuple[ToolCarrier]
@@ -137,6 +150,8 @@ class RepositoryParadigm(BaseModel):
         """Reject duplicate module or tool identities and ambiguous root names."""
         groups = (
             [module.id for module in self.module],
+            [formatter.tool for formatter in self.formatter],
+            [suffix for formatter in self.formatter for suffix in formatter.suffixes],
             [tool.id for tool in self.tool],
             [name for tool in self.tool for name in tool.root_names],
             [table for tool in self.tool for table in tool.manifest_tables],

@@ -26,12 +26,12 @@ non-prerelease tags at collection. These are observations, not permanent pins or
 an authorization to auto-upgrade. A selected dependency needs supported-platform,
 license, integrity, locked-supply and failure-path verification.
 
-| Candidate | Verified capability | Replacement test |
-| --- | --- | --- |
+| Candidate    | Verified capability                                                                                                                                                                             | Replacement test                                                                                                                                                                                                                                             |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [mise][mise] | Release documentation separates requested versions from resolved tool artifacts and supported checksums; [security controls][mise-security] distinguish config trust from artifact verification | Strong candidate for developer/CI tool bootstrap. Replace duplicated binary discovery/download/version checks only where its backend guarantees suffice. Keep ecosystem locks for package dependencies; mise's lock does not lock every external dependency. |
-| [Pixi][pixi] | Cross-platform, multi-language environment management; [environment contract][pixi-environment] binds synchronization to its lock | Compare an integrated native tool environment against the present Python/Node supply. Require offline installation, exact platform closure and coexistence with a separately distributed ETHOS package. A Pixi environment is not ETHOS runtime activation. |
-| [uv][uv] | Python project, interpreter and package management with a shared cache | Treat as a strong baseline for Python, not a mandated permanent choice. Remove local dependency-resolution substitutes while retaining ETHOS acceptance, immutable inventory and selector responsibilities. |
-| [Nix][nix] | Declarative build/package foundation | Reference candidate for reproducible supply and content-addressed builds. Native Windows delivery and user adoption cost need independent evidence; no blanket cross-platform claim. |
+| [Pixi][pixi] | Cross-platform, multi-language environment management; [environment contract][pixi-environment] binds synchronization to its lock                                                               | Compare an integrated native tool environment against the present Python/Node supply. Require offline installation, exact platform closure and coexistence with a separately distributed ETHOS package. A Pixi environment is not ETHOS runtime activation.  |
+| [uv][uv]     | Python project, interpreter and package management with a shared cache                                                                                                                          | Treat as a strong baseline for Python, not a mandated permanent choice. Remove local dependency-resolution substitutes while retaining ETHOS acceptance, immutable inventory and selector responsibilities.                                                  |
+| [Nix][nix]   | Declarative build/package foundation                                                                                                                                                            | Reference candidate for reproducible supply and content-addressed builds. Native Windows delivery and user adoption cost need independent evidence; no blanket cross-platform claim.                                                                         |
 
 mise's [artifact cache][mise-cache] is explicitly experimental in the inspected
 release; ordinary freshness checks use modification times. Neither is an
@@ -143,5 +143,4 @@ marketing claims were not used as evidence of comparative performance.
 [nix]: https://github.com/NixOS/nix/blob/203f85b2e851fc52e253e8e33eff5fb92936736a/README.md
 [pixi-environment]: https://github.com/prefix-dev/pixi/blob/56ae6f39b887a954242002deeda5372f80b34a87/docs/workspace/environment.md
 [mise-native-install]: https://github.com/jdx/mise/blob/v2026.9.11/src/backend/mod.rs
-
 [mise-generator]: https://github.com/jdx/mise/blob/v2026.9.11/src/cli/generate/install_script.rs

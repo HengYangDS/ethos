@@ -384,7 +384,7 @@ def test_signed_pathspec_commit_admits_only_its_selected_index(
         output.write_text("VALUE = 1\n")
         if checked_owner == "formatter":
             formatter = root / ".config/checks/ruff/ruff.toml"
-            formatter.parent.mkdir(parents=True)
+            formatter.parent.mkdir(parents=True, exist_ok=True)
             formatter.write_text("line-length = 100\n")
             install_fixture_hook_runtime(root, native_executables={"ruff": Path(find_ruff_bin())})
             invalid, gap = "VALUE=1\n", "pre_commit_python_format_failed"
@@ -440,7 +440,7 @@ def test_signed_commit_preserves_incumbent_native_policy(
     extension.parent.mkdir(exist_ok=True)
     if checked_owner == "formatter":
         policy = root / ".config/checks/ruff/ruff.toml"
-        policy.parent.mkdir(parents=True)
+        policy.parent.mkdir(parents=True, exist_ok=True)
         policy.write_text('extend = "../../native-policy.toml"\n')
         extension.write_text("line-length = 100\n")
         weakened = "line-length = 1000\n"

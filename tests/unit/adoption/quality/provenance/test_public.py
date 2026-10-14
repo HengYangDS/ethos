@@ -199,7 +199,7 @@ def _javascript_supply_repository(tmp_path: Path, *, kind: str, role: str, enter
         )
     )
     config = repo / ".config/coverage.json"
-    config.parent.mkdir(parents=True)
+    config.parent.mkdir(parents=True, exist_ok=True)
     config.write_text(
         json.dumps(
             {

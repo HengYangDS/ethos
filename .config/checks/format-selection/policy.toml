@@ -69,10 +69,11 @@ mutation_policy = "native-formatter"
 [[ownership]]
 id = "markdownlint-cli2"
 extensions = [".md"]
-format_owner = "markdownlint-cli2"
+format_owner = "prettier"
 format_command = "uv run --frozen --offline python -m nox -s format -- markdown"
 format_check = "uv run --frozen --offline python -m nox -s markdown_lint"
 validation_owner = "markdownlint-cli2"
+semantic_companions = ["markdownlint-cli2"]
 validation_command = "uv run --frozen --offline python -m nox -s markdown_lint"
 mutation_policy = "native-formatter"
 
@@ -179,7 +180,16 @@ mutation_policy = "source-or-generator"
 
 [[ownership]]
 id = "repository-hygiene"
-paths = ["LICENSE", "VERSION", ".editorconfig", ".gitattributes", ".gitignore", "**/.gitignore", "**/.gitkeep", "**/.shellcheckrc"]
+paths = [
+  "LICENSE",
+  "VERSION",
+  ".editorconfig",
+  ".gitattributes",
+  ".gitignore",
+  "**/.gitignore",
+  "**/.gitkeep",
+  "**/.shellcheckrc",
+]
 format_owner = "repository-canonical-text"
 format_command = "uv run --frozen --offline python -m nox -s format -- hygiene"
 format_check = "uv run --frozen --offline python -m nox -s repository_hygiene"
@@ -220,7 +230,7 @@ truth_boundary = "repository-owned public presentation projection"
 [[format]]
 extensions = [".md"]
 carrier = "Markdown"
-owner = ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml"
+owner = ".config/checks/prettier/prettier.toml"
 execution = "uv run --frozen --offline python -m nox -s markdown_lint"
 truth_boundary = "human docs and plans"
 budget = [{ category = "markdown" }]

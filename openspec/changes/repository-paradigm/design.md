@@ -172,6 +172,8 @@ Both are bound through `fix` and `check`. ETHOS adopts Prettier for its own Mark
 
 The workstation blank-line rule applies to every repository, so blank lines are what the formatters write for the parsed structure. Ruff formats Python wherever Python is tracked, because it is the only Python formatter in the fleet and the rule has no other enforcer.
 
+The contract holds each formatter's common settings, so a repository cannot keep its own width or wrapping. Carrier ownership is unchanged: a carrier class whose only files are archived needs no formatter, and a carrier with another declared owner keeps it. ETHOS's own `openspec/**` is official-owner-only in its format-selection policy, so the Prettier binding excludes it and markdownlint remains its checker. Whether official OpenSpec artifacts should have a formatter is a separate question for their owner (task 3.7).
+
 The size ceilings are shared too: 512 effective lines for each Python file and 512 nonblank lines for each current authored Markdown document. The Python ceiling was a value in ETHOS's own `.ethos/rules.toml` that no adopter declared, so adopters had none. The Markdown ceiling was a product constant of 500, while task 12.4 of the proof-throughput Change records 512. The contract now holds both values. The paradigm report measures Python files, and docs health reads the Markdown value from the contract. The Markdown requirement itself stays in the proof-throughput quality specification. ETHOS's `python-size` gate stays as a projection of the paradigm measurement until the gate registry can change through ordinary landing (task 2.6).
 
 ### 9. Toolchain owner and verbs

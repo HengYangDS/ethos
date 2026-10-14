@@ -46,12 +46,12 @@ The [product contract](product-design-contract.md#recursive-domain-feedback)
 owns this capability. Self-hosted quality improvement and adopted-domain
 improvement follow the same protocol without sharing business authority.
 
-| Lens | Question | Existing carrier to revise |
-| --- | --- | --- |
-| Actual use | Does the delivered result satisfy the repository's real need? | Domain-owned intent, outcome evidence and user-facing behavior. |
-| Methods | Are implementation, tools and procedures effective and economical? | Implementation, native configuration and applicable Skills. |
-| Governing models | Do the abstraction, rules and acceptance model preserve necessary distinctions? | The owning model and its executable consumers. |
-| Purpose and assumptions | Are the problem framing and success criteria still justified? | Authorized intent alignment and the repository's product contract. |
+| Lens                    | Question                                                                        | Existing carrier to revise                                         |
+| ----------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Actual use              | Does the delivered result satisfy the repository's real need?                   | Domain-owned intent, outcome evidence and user-facing behavior.    |
+| Methods                 | Are implementation, tools and procedures effective and economical?              | Implementation, native configuration and applicable Skills.        |
+| Governing models        | Do the abstraction, rules and acceptance model preserve necessary distinctions? | The owning model and its executable consumers.                     |
+| Purpose and assumptions | Are the problem framing and success criteria still justified?                   | Authorized intent alignment and the repository's product contract. |
 
 A failed implementation is not automatically a model gap. Repeated failure,
 incompatible constraints or technically green but ineffective outcomes require
@@ -73,20 +73,20 @@ The [terminal plan](../plans/terminal-governance-product-design.md) owns scope,
 order and exits. These lenses select durable knowledge carriers, not another
 plan or a claim that each area is complete.
 
-| Learning subject | Existing place to change | Distinguishing evidence |
-| --- | --- | --- |
-| Mission, research, interpretation, accepted intent and benefit | Product contract, bounded OpenSpec intent and domain outcome observer. | Original constraints, challenged assumptions and actual-use observations remain distinct. |
-| Semantic observation, types, module ownership and public/private boundaries | Responsible implementation, native declarations and regression tests. | Binding, program point, valid behavior and relevant UNKNOWN survive the public consumer. |
-| Shared repository structure, documentation and quality floor | Profile-selected contracts, docs registry, native policy and applicable rules. | Greenfield and brownfield conformance enforce the common floor without taking business ownership. |
-| Cooperation, competition, exploration, integration and recovery | Native effect, resource, selection and recovery owners; necessary immutable receipts. | Composition, zero/one or multiple selections, all-drop preservation, fresh admission and lost-ack recovery. |
-| Iteration speed, token use and repeated work | Owning inventory, preparation, executor, cache and selected procedure. | Matched cold/warm/drift workloads; reuse computation, never current permission. |
-| Installation, CLI, MCP, SDK, Skills, scaffold and ecosystem | Shipped interfaces, resources, native package and capability contracts. | Independent install, real consumer use, upgrade, handoff and exit on the declared platforms. |
-| CI, reports, observability, supply, signing and release | Native declarations, lockfiles, shared executor and release/evidence owners. | Complete same-attempt diagnostics; local, each forge, distribution and installed claims checked separately. |
-| UX, DX, context and reading | Deep interfaces, canonical docs topics, README navigation and applicable Skills. | A person or fresh Agent finds sufficient context and acts correctly without loading the old session. |
-| Tool and framework selection | Attributed research; a necessary stable-numbered Decision Record; the capability owner. | Measured net benefit, limitations and maintenance cost; remove equivalent complexity when replacing it. |
-| Attribution, retention and housekeeping | Native identity, artifact lifecycle and retirement owners. | Selected identity repair, bounded growth, liveness-safe and idempotent cleanup; preserved foreign and unique evidence. |
-| Architecture and visual communication | Source-bound projection and renderer-owned acceptance. | Visible semantic witnesses, honest current/terminal/optional claims and actual rendering. |
-| Recursive improvement in ETHOS and adopters | The same feedback contract applied to each repository's domain. | Revised methods or models improve outcomes; ineffective feedback safeguards themselves reopen. |
+| Learning subject                                                            | Existing place to change                                                                | Distinguishing evidence                                                                                                |
+| --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Mission, research, interpretation, accepted intent and benefit              | Product contract, bounded OpenSpec intent and domain outcome observer.                  | Original constraints, challenged assumptions and actual-use observations remain distinct.                              |
+| Semantic observation, types, module ownership and public/private boundaries | Responsible implementation, native declarations and regression tests.                   | Binding, program point, valid behavior and relevant UNKNOWN survive the public consumer.                               |
+| Shared repository structure, documentation and quality floor                | Profile-selected contracts, docs registry, native policy and applicable rules.          | Greenfield and brownfield conformance enforce the common floor without taking business ownership.                      |
+| Cooperation, competition, exploration, integration and recovery             | Native effect, resource, selection and recovery owners; necessary immutable receipts.   | Composition, zero/one or multiple selections, all-drop preservation, fresh admission and lost-ack recovery.            |
+| Iteration speed, token use and repeated work                                | Owning inventory, preparation, executor, cache and selected procedure.                  | Matched cold/warm/drift workloads; reuse computation, never current permission.                                        |
+| Installation, CLI, MCP, SDK, Skills, scaffold and ecosystem                 | Shipped interfaces, resources, native package and capability contracts.                 | Independent install, real consumer use, upgrade, handoff and exit on the declared platforms.                           |
+| CI, reports, observability, supply, signing and release                     | Native declarations, lockfiles, shared executor and release/evidence owners.            | Complete same-attempt diagnostics; local, each forge, distribution and installed claims checked separately.            |
+| UX, DX, context and reading                                                 | Deep interfaces, canonical docs topics, README navigation and applicable Skills.        | A person or fresh Agent finds sufficient context and acts correctly without loading the old session.                   |
+| Tool and framework selection                                                | Attributed research; a necessary stable-numbered Decision Record; the capability owner. | Measured net benefit, limitations and maintenance cost; remove equivalent complexity when replacing it.                |
+| Attribution, retention and housekeeping                                     | Native identity, artifact lifecycle and retirement owners.                              | Selected identity repair, bounded growth, liveness-safe and idempotent cleanup; preserved foreign and unique evidence. |
+| Architecture and visual communication                                       | Source-bound projection and renderer-owned acceptance.                                  | Visible semantic witnesses, honest current/terminal/optional claims and actual rendering.                              |
+| Recursive improvement in ETHOS and adopters                                 | The same feedback contract applied to each repository's domain.                         | Revised methods or models improve outcomes; ineffective feedback safeguards themselves reopen.                         |
 
 One finding need not produce a rule, Skill, document and framework. Strengthen
 the smallest effective owner; add a reference only when another reader needs it.

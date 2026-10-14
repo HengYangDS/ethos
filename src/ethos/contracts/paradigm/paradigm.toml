@@ -1,6 +1,9 @@
 id = "repository-paradigm"
 source_refs = ["src/ethos/contracts/paradigm/paradigm.toml"]
 
+# Immutable record roots keep their captured bytes; they are not formatter inputs.
+immutable_roots = ["openspec/changes/archive/"]
+
 [root]
 entry_documents = [
   "AGENTS.md",
@@ -37,6 +40,23 @@ policy = "policy.toml"
 [size]
 python_effective_lines = 512
 markdown_nonblank_lines = 512
+
+# One formatter per text carrier class, with the settings every binding declares.
+# Ruff formats Python because the common blank-line policy has no other enforcer.
+[[formatter]]
+tool = "prettier"
+suffixes = [".md", ".yaml", ".yml"]
+settings = { proseWrap = "preserve", printWidth = 100 }
+
+[[formatter]]
+tool = "taplo"
+suffixes = [".toml"]
+settings = { "formatting.column_width" = 100 }
+
+[[formatter]]
+tool = "ruff"
+suffixes = [".py", ".pyi"]
+settings = { line-length = 100, target-version = "py312" }
 
 [[module]]
 id = "python"

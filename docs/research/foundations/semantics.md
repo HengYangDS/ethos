@@ -135,25 +135,25 @@ The fixed October 4 trial used RepoWise 0.55.0, upstream
 `e34b3a286510d43eb622b401dbc3f228446c6509`. Its original fast run and completed
 health run did not assess subsequent dirty candidate bytes.
 
-| Capability | Actual observation | Limit |
-| --- | --- | --- |
-| Index and symbol context | Init 34.083 seconds; queries 2–6 seconds | Derived structural navigation, not behavior completeness |
-| Dead-code candidates | Two exports received `safe_to_delete=true` | Dynamic/external consumers remain unclosed; neither was deleted |
-| Impacted tests | 809 inferred entries, five unknown files, `run_all=true` | No coverage map or justified test reduction |
-| Health | Completed in 44.842 seconds: 671 metric rows, 1,817 findings, 1,165 product findings | Supersedes the first 35-second timeout; coverage is null, findings are hypotheses |
-| Installed tool | Official independent UV installation and structural index/query/update accepted | Live project and Agent MCP rollout, model answers and byte-current health remain unaccepted |
+| Capability               | Actual observation                                                                   | Limit                                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Index and symbol context | Init 34.083 seconds; queries 2–6 seconds                                             | Derived structural navigation, not behavior completeness                                    |
+| Dead-code candidates     | Two exports received `safe_to_delete=true`                                           | Dynamic/external consumers remain unclosed; neither was deleted                             |
+| Impacted tests           | 809 inferred entries, five unknown files, `run_all=true`                             | No coverage map or justified test reduction                                                 |
+| Health                   | Completed in 44.842 seconds: 671 metric rows, 1,817 findings, 1,165 product findings | Supersedes the first 35-second timeout; coverage is null, findings are hypotheses           |
+| Installed tool           | Official independent UV installation and structural index/query/update accepted      | Live project and Agent MCP rollout, model answers and byte-current health remain unaccepted |
 
 #### Mechanism Decisions
 
-| Mechanism | Decision and reason |
-| --- | --- |
-| [Graph construction][repowise-graph] | Introduce derived symbol/import/call navigation. Explicit imports help; unique-name fallback and confidence filters do not prove runtime callees, ownership or absent consumers. |
-| [Parse reuse][repowise-parse-cache] and [edge persistence][repowise-persist] | Borrow content-bound reuse and parser-fingerprint invalidation. A parser change widens reconciliation to unchanged files; a warm update still reads and resolves source. Watch alone does not prove freshness. |
+| Mechanism                                                                      | Decision and reason                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Graph construction][repowise-graph]                                           | Introduce derived symbol/import/call navigation. Explicit imports help; unique-name fallback and confidence filters do not prove runtime callees, ownership or absent consumers.                                 |
+| [Parse reuse][repowise-parse-cache] and [edge persistence][repowise-persist]   | Borrow content-bound reuse and parser-fingerprint invalidation. A parser change widens reconciliation to unchanged files; a warm update still reads and resolves source. Watch alone does not prove freshness.   |
 | [Batched context][repowise-context] and [index identity][repowise-index-state] | Borrow bounded owner/caller selection and reusable immutable computation. Bind project/store, source snapshot, analyzer and configuration; preserve omitted/unknown scope and never cache current authorization. |
-| [I/O markers][repowise-io] | Adapt as performance leads, not redundant-work verdicts. They recognize sinks inside supported loop bodies, not repeated input identities or a measured execution cost. |
-| [Clone markers][repowise-dry] | Borrow refactoring candidates, not semantic equivalence. Cross-file token clones and co-change cannot establish shared responsibility; same-file clones are not this marker's scope. |
-| [Primitive signatures][repowise-primitive] | Borrow model-review leads. File size, parameter counts and lexical type names do not prove an absent domain model or require a dataclass. |
-| [Scoring][repowise-score] | Reject as acceptance or deletion authority. Ranking prioritizes investigation; a zero result can mean unsupported syntax or no extracted signal. |
+| [I/O markers][repowise-io]                                                     | Adapt as performance leads, not redundant-work verdicts. They recognize sinks inside supported loop bodies, not repeated input identities or a measured execution cost.                                          |
+| [Clone markers][repowise-dry]                                                  | Borrow refactoring candidates, not semantic equivalence. Cross-file token clones and co-change cannot establish shared responsibility; same-file clones are not this marker's scope.                             |
+| [Primitive signatures][repowise-primitive]                                     | Borrow model-review leads. File size, parameter counts and lexical type names do not prove an absent domain model or require a dataclass.                                                                        |
+| [Scoring][repowise-score]                                                      | Reject as acceptance or deletion authority. Ranking prioritizes investigation; a zero result can mean unsupported syntax or no extracted signal.                                                                 |
 
 The October 5 native in-memory probe did not execute sample code or index a
 Lane. The committed projection reader produced one I/O marker; the repaired

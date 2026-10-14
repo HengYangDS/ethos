@@ -13,6 +13,7 @@ import yaml
 import tools.ci.format_selection as format_selection
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tools.ci import sessions
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -105,6 +106,19 @@ def test_native_carriers_separate_canonicalization_from_validation(carrier_repor
     assert assignments[".config/checks/pytest/pytest.toml"]["validation_command"].endswith(
         "-s config_quality"
     )
+
+
+def test_prettier_inputs_are_the_carriers_it_is_declared_to_own() -> None:
+    """The Markdown check formats only Prettier-owned carriers, never official or archived ones."""
+    selected = set(sessions.prettier_paths())
+    assert "docs/README.md" in selected
+    assert ".config/checks/pre-commit/.pre-commit-config.yaml" in selected
+    assert ".gitlab-ci.yml" not in selected, "generated projections keep their producer"
+    assert not {
+        path for path in selected if path.startswith(("openspec/specs/", "openspec/changes/"))
+    }
+    assert "openspec/config.yaml" not in selected
+    assert not {path for path in selected if path.endswith((".js", ".mjs", ".cjs"))}
 
 
 @pytest.mark.parametrize(

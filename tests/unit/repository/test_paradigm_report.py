@@ -35,7 +35,9 @@ _CONFORMING = {
     ".config/mise/config.toml": "",
     ".config/npm/npmrc": "",
     ".config/ci/pipeline.cue": "",
-    ".config/checks/ruff/ruff.toml": "line-length = 100\n",
+    ".config/checks/ruff/ruff.toml": 'line-length = 100\ntarget-version = "py312"\n',
+    ".config/checks/prettier/prettier.toml": 'printWidth = 100\nproseWrap = "preserve"\n',
+    ".config/checks/taplo/taplo.toml": "[formatting]\ncolumn_width = 100\n",
     ".config/checks/gitleaks/gitleaksignore": "",
     ".config/checks/coverage/coverage.toml": "",
     ".config/checks/coverage/policy.toml": "",
@@ -329,3 +331,46 @@ def test_a_binding_cannot_restate_the_size_ceiling(tmp_path: Path) -> None:
     assert report["required_gaps"] == [
         "repository_paradigm_binding_restatement:.ethos/rules.toml:quality.code_size"
     ]
+
+
+@pytest.mark.parametrize(
+    ("changes", "gap", "repair"),
+    [
+        ({".config/checks/prettier/prettier.toml": None}, "formatter_binding", "bind prettier"),
+        (
+            {".config/checks/prettier/prettier.toml": 'printWidth = 80\nproseWrap = "always"\n'},
+            "formatter_setting",
+            "set proseWrap to 'preserve'",
+        ),
+        (
+            {".config/checks/taplo/taplo.toml": "[formatting]\n"},
+            "formatter_setting",
+            "column_width",
+        ),
+        ({".config/checks/ruff/ruff.toml": "line-length = 100\n"}, "formatter_setting", "py312"),
+    ],
+    ids=["unbound", "settings", "nested-setting", "python-target"],
+)
+def test_each_tracked_carrier_class_names_its_common_formatter(
+    tmp_path: Path, changes: dict[str, str | None], gap: str, repair: str
+) -> None:
+    """A carrier class present in the tree needs its formatter bound with common settings."""
+    files = {key: value for key, value in {**_CONFORMING, **changes}.items() if value is not None}
+    report = _report(tmp_path, files)
+    assert report["verdict"] == "block"
+    assert [item for item in report["required_gaps"] if gap in item], report["required_gaps"]
+    assert any(repair in detail["repair"] for detail in report["gaps"]), report["gaps"]
+
+
+def test_a_carrier_class_only_inside_an_immutable_root_needs_no_formatter(
+    tmp_path: Path,
+) -> None:
+    """A repository with no current Python needs no Ruff binding, archived files aside."""
+    files = {
+        key: value
+        for key, value in _CONFORMING.items()
+        if key not in {"pyproject.toml", "uv.lock", "noxfile.py", ".config/checks/ruff/ruff.toml"}
+    }
+    archived = "openspec/changes/archive/2026-01-01-old/probe.py"
+    report = _report(tmp_path, {**files, archived: "value = 1\n"})
+    assert report["required_gaps"] == [], report["required_gaps"]

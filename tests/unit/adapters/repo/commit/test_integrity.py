@@ -327,8 +327,8 @@ def test_native_hooks_reject_commit_or_push_without_parallel_policy(tmp_path, mo
     remote = tmp_path / "remote.git"
     remote.mkdir()
     git(remote, "init", "--bare")
-    git(repo, "remote", "add", "origin", str(remote))
-    git(repo, "push", "origin", "refs/heads/topic:refs/heads/proposal/test")
+    git(repo, "remote", "add", "gitlab", str(remote))
+    git(repo, "push", "gitlab", "refs/heads/topic:refs/heads/proposal/test")
     install_fixture_hook_runtime(repo)
     if case == "identity":
         monkeypatch.setenv("GIT_AUTHOR_EMAIL", "wrong@example.invalid")
@@ -346,7 +346,7 @@ def test_native_hooks_reject_commit_or_push_without_parallel_policy(tmp_path, mo
         "fix: exact range",
     )
     assert committed.returncode == 0, committed.stderr
-    pushed = git_process(repo, "push", "origin", "refs/heads/topic:refs/heads/proposal/test")
+    pushed = git_process(repo, "push", "gitlab", "refs/heads/topic:refs/heads/proposal/test")
     if case == "valid":
         assert pushed.returncode == 0, pushed.stderr
         assert git(remote, "rev-parse", "refs/heads/proposal/test") == git(

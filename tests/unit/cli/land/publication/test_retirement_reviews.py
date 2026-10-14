@@ -37,7 +37,7 @@ def test_review_observation_is_bound_and_does_not_default_unknown_to_closed(
     """Exercise parsing and disposition; replace only the external provider process."""
     repo, _peers, _proposal, _accepted = retirement_fixture(tmp_path)
     target = f"https://{provider}.example/team/repository.git"
-    git(repo, "remote", "set-url", "origin", target)
+    git(repo, "remote", "set-url", "gitlab", target)
     branch = PROPOSAL_REF.removeprefix("refs/heads/")
     key = "headRefName" if provider == "github" else "source_branch"
     row = {key: branch, "state": "OPEN" if provider == "github" else "opened"}
@@ -64,7 +64,7 @@ def test_review_observation_is_bound_and_does_not_default_unknown_to_closed(
         return subprocess.CompletedProcess(command, 1 if case == "denied" else 0, output, "")
 
     monkeypatch.setattr(retirement.process, "run_command", provider_process)
-    result = retirement.observe_proposal_review(repo, "origin", provider, branch)
+    result = retirement.observe_proposal_review(repo, "gitlab", provider, branch)
 
     assert result["verdict"] == wanted
     assert result["state"] == {"pass": "closed", "block": "open", "unknown": "unavailable"}[wanted]
@@ -73,9 +73,9 @@ def test_review_observation_is_bound_and_does_not_default_unknown_to_closed(
 def test_review_endpoint_is_explicit_when_git_transport_cannot_identify_the_api(tmp_path: Path):
     """An SSH port or alias cannot silently become a Forge API endpoint."""
     repo, _peers, _proposal, _accepted = retirement_fixture(tmp_path)
-    git(repo, "remote", "set-url", "origin", "ssh://git@example.test:2222/team/repo.git")
+    git(repo, "remote", "set-url", "gitlab", "ssh://git@example.test:2222/team/repo.git")
     result = retirement.observe_proposal_review(
-        repo, "origin", "gitlab", PROPOSAL_REF.removeprefix("refs/heads/")
+        repo, "gitlab", "gitlab", PROPOSAL_REF.removeprefix("refs/heads/")
     )
     assert result["verdict"] == "unknown"
     assert result["reason"] == "forge_repository_required"
@@ -92,7 +92,7 @@ def test_peer_declaration_carries_api_coordinates_without_rewriting_git_transpor
         "id": "review",
         "provider": "gitlab",
         "role": "collaboration",
-        "git_remote": "origin",
+        "git_remote": "gitlab",
         "capabilities": ["repository", "publication"],
         "forge_repository": target,
     }
@@ -129,7 +129,7 @@ def test_explicit_gitlab_api_endpoint_reaches_native_client(tmp_path: Path, monk
 
     monkeypatch.setattr(retirement.process, "run_command", provider_process)
     result = retirement.observe_proposal_review(
-        repo, "origin", "gitlab", "proposal/finished", repository=target
+        repo, "gitlab", "gitlab", "proposal/finished", repository=target
     )
     assert result["verdict"] == "pass"
     assert result["state"] == "closed"
@@ -141,7 +141,7 @@ def test_local_remote_api_locator_does_not_need_a_tracked_private_address(
     """Local connection metadata feeds the native client without becoming repository policy."""
     repo, _peers, _proposal, _accepted = retirement_fixture(tmp_path)
     target = "http://forge.example:18086/team/repo"
-    git(repo, "config", "--local", "remote.origin.forgeRepository", target)
+    git(repo, "config", "--local", "remote.gitlab.forgeRepository", target)
     native = retirement.process.run_command
 
     def provider_process(root, command, **kwargs):
@@ -152,6 +152,6 @@ def test_local_remote_api_locator_does_not_need_a_tracked_private_address(
         return subprocess.CompletedProcess(command, 0, "[]", "")
 
     monkeypatch.setattr(retirement.process, "run_command", provider_process)
-    result = retirement.observe_proposal_review(repo, "origin", "gitlab", "proposal/finished")
+    result = retirement.observe_proposal_review(repo, "gitlab", "gitlab", "proposal/finished")
     assert result["verdict"] == "pass"
     assert result["state"] == "closed"

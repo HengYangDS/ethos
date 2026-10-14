@@ -103,7 +103,7 @@ def test_publish_peer_topology_matrix(tmp_path: Path, mode: str, *, probe_remote
         head = commit_fixture(repo, f"declare {mode} publication")
         seed_executed_proof(repo, head)
     observed_peers = peer_count if mode == "dual" else min(peer_count, 1)
-    peers = (("gitlab", "origin"), ("github", "github"))[:observed_peers]
+    peers = (("gitlab", "gitlab"), ("github", "github"))[:observed_peers]
     for peer, remote in peers:
         target = tmp_path / f"{peer}.git"
         git(tmp_path, "init", "--bare", target.as_posix())

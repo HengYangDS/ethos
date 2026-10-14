@@ -152,6 +152,15 @@ Every governed repository SHALL use the release branch `main`, the accepted bran
 - **WHEN** a workspace declares `submit/` as its proposal prefix
 - **THEN** the paradigm reports a non-standard branch role.
 
+### Requirement: Publication peers name their Git remotes after themselves
+
+Each publication peer declared in `.ethos/release.toml` SHALL name its Git remote by its own peer id, so a GitLab peer `gitlab` uses the remote `gitlab` and a GitHub peer `github` uses `github`. No peer SHALL rely on the implicit remote `origin`.
+
+#### Scenario: A peer keeps the implicit remote name
+
+- **WHEN** the release binding declares the peer `gitlab` with `git_remote = "origin"`
+- **THEN** the paradigm reports the peer and the rename to `gitlab`.
+
 ### Requirement: Released products keep one version source
 
 A repository that publishes releases SHALL keep `VERSION` as its only version source and SHALL tag releases as `v` followed by a Semantic Versioning version. `CHANGELOG.md` SHALL follow Keep a Changelog 1.1.0 with an `[Unreleased]` section and bracketed version headings.

@@ -374,3 +374,31 @@ def test_a_carrier_class_only_inside_an_immutable_root_needs_no_formatter(
     archived = "openspec/changes/archive/2026-01-01-old/probe.py"
     report = _report(tmp_path, {**files, archived: "value = 1\n"})
     assert report["required_gaps"] == [], report["required_gaps"]
+
+
+_RELEASE = (
+    '[[publication.peers]]\nid = "gitlab"\nprovider = "gitlab"\ngit_remote = "{gitlab}"\n'
+    '[[publication.peers]]\nid = "github"\nprovider = "github"\ngit_remote = "github"\n'
+)
+
+
+@pytest.mark.parametrize(
+    ("remote", "gaps"),
+    [
+        ("gitlab", []),
+        (
+            "origin",
+            ["repository_paradigm_peer_remote:.ethos/release.toml:publication.peers.gitlab"],
+        ),
+    ],
+    ids=["peer-named", "implicit-origin"],
+)
+def test_each_publication_peer_names_its_git_remote(
+    tmp_path: Path, remote: str, gaps: list[str]
+) -> None:
+    """A peer's Git remote carries the peer's own id, never the implicit origin."""
+    release = _RELEASE.format(gitlab=remote)
+    report = _report(tmp_path, {**_CONFORMING, ".ethos/release.toml": release})
+    assert report["required_gaps"] == gaps
+    if gaps:
+        assert "git remote rename origin gitlab" in report["next_action"]

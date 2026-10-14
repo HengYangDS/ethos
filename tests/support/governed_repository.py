@@ -416,7 +416,7 @@ def render_branch_policy(
 def write_publication_topology(
     repo: Path,
     *,
-    gitlab_remote: str = "origin",
+    gitlab_remote: str = "gitlab",
     github_remote: str = "github",
     verification_command: str = "dev/verify",
     installation_command: str = "dev/install",

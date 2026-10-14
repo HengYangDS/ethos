@@ -11,6 +11,7 @@
 - [ ] 2.4 Make sibling Work Lane worktrees under `<repository>-worktrees/<yyyymmdd>-<slug>/` the default and retire the opt-in; lane start tests cover the default path.
 - [x] 2.5 Add the 512 Python effective-line and Markdown nonblank-line ceilings to the paradigm contract: the paradigm report measures every tracked Python file and reports a `[quality.code_size]` binding, docs health reads the Markdown ceiling of proof-throughput task 12.4 from the contract, the rules policy retires and the `python-size` gate reports the paradigm measurement; focused tests cover both ceilings, the reported binding and the gate projection.
 - [ ] 2.6 Retire the `python-size` gate through an ordinarily landed lane. Today the installed runtime compares a candidate's `system/gates.toml` with its own packaged copy, treats any changed ETHOS registry as an adopter registry and applies the adopter quality floor, so `land` reports `proof_attestation_repository_policy_mismatch`; done when that comparison no longer depends on the installed copy and the gate is removed.
+- [x] 2.7 Report each publication peer whose `git_remote` differs from its peer id, naming the rename; focused tests cover a peer-named remote and the implicit `origin`.
 
 ## 3. ETHOS conformance
 

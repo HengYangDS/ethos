@@ -223,7 +223,7 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(
         target_ref="refs/heads/dev",
         pushed_head=candidate_head,
         remote_head=accepted_head,
-        remote_name="origin",
+        remote_name="gitlab",
     )
     effect = push["accepted_closeout_effect"]
     assert isinstance(effect, dict)
@@ -295,7 +295,7 @@ def test_status_plan_closeout_and_hook_share_exact_apply_command(
         "refs/heads/dev",
         candidate_head,
         options=hook_commands.PushOptions(
-            remote_head=accepted_head, remote="origin", json_output=True
+            remote_head=accepted_head, remote="gitlab", json_output=True
         ),
     )
     expected = closeout["next_action"]

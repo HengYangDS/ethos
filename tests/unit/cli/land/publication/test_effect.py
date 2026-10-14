@@ -55,7 +55,7 @@ def test_unfinished_review_reaches_native_pre_push_and_receipt_without_product_p
         "--remote-head",
         "0" * 40,
         "--remote",
-        "origin",
+        "gitlab",
         "--json",
         cwd=repo,
     )
@@ -175,7 +175,7 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(
     assert proof_reads.call_count == 1
     assert [call.args[1:] for call in network.call_args_list if call.args[1] == "ls-remote"] == [
         ("ls-remote", remote, "refs/heads/main", "refs/heads/dev")
-        for remote in ("origin", "github")
+        for remote in ("gitlab", "github")
     ]
     receipt = dry_run["data"]["request_receipt"]
     targets = dry_run["data"]["remote_effect"]["targets"]

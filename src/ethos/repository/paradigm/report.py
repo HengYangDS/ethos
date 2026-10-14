@@ -60,6 +60,7 @@ def repository_paradigm_report(root: Path, *, tracked_paths: tuple[str, ...]) ->
         *_module_gaps(paradigm, root, tracked),
         *_size_gaps(paradigm, root, tracked),
         *_formatter_gaps(paradigm, root, tracked),
+        *_peer_remote_gaps(paradigm, root, tracked),
     ]
     required = [gap.required_gap for gap in gaps]
     return {
@@ -330,6 +331,30 @@ def _formatter_gaps(
                     f"{carrier}:{key}",
                     f"set {key} to {expected!r} in {carrier}",
                 )
+
+
+def _peer_remote_gaps(
+    paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
+) -> Iterator[ParadigmGap]:
+    """Name each publication peer's Git remote after the peer itself."""
+    release = f"{paradigm.binding.root}/release.toml"
+    source = _tracked_text(root, release, tracked)
+    try:
+        declared = tomllib.loads(source) if source is not None else {}
+    except tomllib.TOMLDecodeError:
+        return  # The release policy report owns an unreadable release binding.
+    publication = declared.get("publication", {})
+    peers = publication.get("peers", []) if isinstance(publication, dict) else []
+    for peer in peers if isinstance(peers, list) else ():
+        if not isinstance(peer, dict) or not isinstance(peer.get("id"), str):
+            continue
+        identity, remote = peer["id"], peer.get("git_remote")
+        if remote != identity:
+            yield ParadigmGap(
+                "peer-remote",
+                f"{release}:publication.peers.{identity}",
+                f'set git_remote = "{identity}" and run git remote rename {remote} {identity}',
+            )
 
 
 def _declared_setting(declared: object, key: str) -> object:

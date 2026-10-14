@@ -90,7 +90,7 @@ local_installation_command = "git --version"
 id = "file"
 provider = "git"
 role = "package_smoke"
-git_remote = "origin"
+git_remote = "file"
 capabilities = ["repository", "publication"]
 """,
         encoding="utf-8",
@@ -144,7 +144,7 @@ capabilities = ["repository", "publication"]
         carrier.write_text(content, encoding="utf-8")
     peer = root.parent / "publication-peer.git"
     run(git, "init", "--quiet", "--bare", str(peer))
-    run(git, "remote", "add", "origin", str(peer), cwd=root)
+    run(git, "remote", "add", "file", str(peer), cwd=root)
     run(git, "add", ".", cwd=root)
     run(git, "commit", "--quiet", "-m", "initialize installed CLI adopter", cwd=root)
     return run(git, "rev-parse", "HEAD", cwd=root)

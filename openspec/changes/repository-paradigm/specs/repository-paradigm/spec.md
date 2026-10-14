@@ -186,7 +186,7 @@ A repository that keeps decision records SHALL name each `dr-NNNN-<topic>.md`, w
 
 ### Requirement: Text formatting uses the common formatters
 
-Markdown and YAML SHALL be formatted by Prettier with preserved prose wrapping and a print width of 100, TOML by taplo and Python by Ruff. Blank lines SHALL be what these formatters write for the parsed structure: one blank line between Markdown blocks, including after front matter, and Ruff's separation of Python declarations. Each formatter SHALL be bound through the repository's `fix` and `check` verbs with configuration under `.config/checks/`.
+Markdown and YAML SHALL be formatted by Prettier, TOML by taplo and Python by Ruff. Each formatter SHALL be bound through the repository's `fix` and `check` verbs, with configuration under `.config/checks/` declaring the common settings. Blank lines SHALL be what these formatters write for the parsed structure.
 
 #### Scenario: Markdown is only linted
 
@@ -202,6 +202,25 @@ Markdown and YAML SHALL be formatted by Prettier with preserved prose wrapping a
 
 - **WHEN** a Markdown document separates two paragraphs with two blank lines
 - **THEN** the `check` verb fails, and `fix` leaves one blank line.
+
+#### Scenario: A formatter setting differs
+
+- **WHEN** a repository's Prettier configuration sets `proseWrap` to `always`
+- **THEN** the paradigm reports the carrier and the common setting it must declare.
+
+#### Scenario: Only archived files use a carrier class
+
+- **WHEN** a repository's only Python files sit under its immutable OpenSpec archive
+- **THEN** the paradigm requires no Ruff binding.
+
+### Requirement: Formatter inputs respect declared carrier ownership
+
+A formatter's declared inputs SHALL exclude carriers that already have another declared owner, such as official OpenSpec artifacts. Those carriers SHALL keep their own owner and checks.
+
+#### Scenario: A carrier has an official owner
+
+- **WHEN** a repository declares its OpenSpec artifacts official-owner-only
+- **THEN** the Markdown formatter's inputs exclude them, and their own checks still run.
 
 ### Requirement: Text normalization is declared
 

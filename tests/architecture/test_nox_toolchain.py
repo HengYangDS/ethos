@@ -19,6 +19,7 @@ import ethos.adapters.gates.tool as quality_tools
 import ethos.adapters.repo.content.observation as content_observation
 import ethos.repository.policy.schema as schema_owner
 from ethos.adapters.process import run_command
+from tests.support.governed_repository import PARADIGM_FORMATTERS
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tools.ci import dependency_hygiene
@@ -192,6 +193,8 @@ def test_session_discovery_does_not_load_unselected_capabilities() -> None:
 def test_config_selection_keeps_native_failures_and_ownership(tmp_path, state, explicit, fails):
     """Default discovery covers candidates; explicit absent or foreign inputs cannot pass."""
     root = init_git_repo(tmp_path / "repo")
+    # The fixture's TOML formatter bindings are not this YAML selection case's subject.
+    git(root, "rm", "-q", *PARADIGM_FORMATTERS)
     policy = root / ".config/checks/format-selection/policy.toml"
     policy.parent.mkdir(parents=True)
     policy.write_bytes((ROOT / policy.relative_to(root)).read_bytes())

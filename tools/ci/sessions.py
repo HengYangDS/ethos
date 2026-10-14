@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 RUNTIME = ProjectRuntime.discover(ROOT)
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
 PRE_COMMIT_CONFIG = ".config/checks/pre-commit/.pre-commit-config.yaml"
+PRETTIER_CONFIG = ".config/checks/prettier/prettier.toml"
 PUBLIC_SESSIONS = (
     "lint",
     "format_check",
@@ -226,10 +227,41 @@ def shell_lint(session) -> None:
         session.run(RUNTIME.script("shfmt"), "-d", *paths)
 
 
+def prettier_paths() -> tuple[str, ...]:
+    """Select the carriers whose declared format owner is Prettier, as the paradigm names them."""
+    paradigm = import_module("ethos.contracts.paradigm.declaration").load_repository_paradigm()
+    suffixes = next(item.suffixes for item in paradigm.formatter if item.tool == "prettier")
+    audit = import_module("tools.ci.format_selection").audit(ROOT)
+    return tuple(
+        item["path"]
+        for item in audit["assignments"]
+        if item["format_owner"] == "prettier" and item["path"].endswith(suffixes)
+    )
+
+
+def _prettier(session, *paths: str, write: bool = False) -> None:
+    """Format or check the declared Prettier carriers with the locked binary."""
+    if not paths:
+        return
+    node = RUNTIME.node_executable()
+    prettier = RUNTIME.node_package_supply() / "prettier/bin/prettier.cjs"
+    if not prettier.is_file():
+        session.error("locked prettier is missing; run npm ci --ignore-scripts")
+    session.run(
+        str(node),
+        str(prettier),
+        "--config",
+        PRETTIER_CONFIG,
+        "--write" if write else "--check",
+        *paths,
+    )
+
+
 def markdown_lint(session) -> None:
     report = import_module("ethos.adapters.gates.tool").markdown_lint_report(ROOT)
     if report["verdict"] != "pass":
         session.error("Markdown quality failed:\n" + json.dumps(report["required_gaps"], indent=2))
+    _prettier(session, *(path for path in prettier_paths() if not path.endswith(".md")))
 
 
 def config_quality(session) -> None:

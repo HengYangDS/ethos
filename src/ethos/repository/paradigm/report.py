@@ -59,6 +59,7 @@ def repository_paradigm_report(root: Path, *, tracked_paths: tuple[str, ...]) ->
         *_embedded_policy_gaps(paradigm, root, tracked),
         *_module_gaps(paradigm, root, tracked),
         *_size_gaps(paradigm, root, tracked),
+        *_formatter_gaps(paradigm, root, tracked),
     ]
     required = [gap.required_gap for gap in gaps]
     return {
@@ -297,6 +298,45 @@ def python_size_gaps(root: Path, tracked_paths: Iterable[str]) -> tuple[Paradigm
             repair = f"split {path} by semantic ownership to at most {ceiling} effective lines"
             gaps.append(ParadigmGap("python-size", path, repair))
     return tuple(gaps)
+
+
+def _formatter_gaps(
+    paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
+) -> Iterator[ParadigmGap]:
+    """Bind each tracked authored carrier class to its common formatter and settings."""
+    carriers = {tool.id: tool.carrier for tool in paradigm.tool}
+    authored = [path for path in tracked if not path.startswith(paradigm.immutable_roots)]
+    for formatter in paradigm.formatter:
+        if not any(path.endswith(formatter.suffixes) for path in authored):
+            continue
+        carrier = carriers[formatter.tool]
+        source = _tracked_text(root, carrier, tracked)
+        if source is None:
+            classes = "/".join(formatter.suffixes)
+            yield ParadigmGap(
+                "formatter-binding",
+                carrier,
+                f"bind {formatter.tool} at {carrier} for the tracked {classes} carriers",
+            )
+            continue
+        try:
+            declared = tomllib.loads(source)
+        except tomllib.TOMLDecodeError:
+            declared = {}
+        for key, expected in formatter.settings.items():
+            if _declared_setting(declared, key) != expected:
+                yield ParadigmGap(
+                    "formatter-setting",
+                    f"{carrier}:{key}",
+                    f"set {key} to {expected!r} in {carrier}",
+                )
+
+
+def _declared_setting(declared: object, key: str) -> object:
+    """Read one dotted formatter setting from its native declaration."""
+    for part in key.split("."):
+        declared = declared.get(part) if isinstance(declared, dict) else None
+    return declared
 
 
 def _size_gaps(

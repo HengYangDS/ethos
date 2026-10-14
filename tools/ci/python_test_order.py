@@ -14,15 +14,18 @@ because workers must collect the same sequence.
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING
+from typing import Protocol
 
 import pytest
 
-if TYPE_CHECKING:
-    from xdist.workermanage import WorkerController
-
 _RECORD = "ethos/test-durations"
 _SNAPSHOT = "ethos_test_durations"
+
+
+class _WorkerNode(Protocol):
+    """The part of an xdist worker controller that carries startup input."""
+
+    workerinput: dict[str, object]
 
 
 def _seconds(record: object) -> dict[str, float]:
@@ -49,7 +52,7 @@ class DurationOrder:
         self._measured: dict[str, float] = {}
 
     @pytest.hookimpl(optionalhook=True)
-    def pytest_configure_node(self, node: WorkerController) -> None:
+    def pytest_configure_node(self, node: _WorkerNode) -> None:
         """Give every xdist worker the controller's snapshot of the record."""
         node.workerinput[_SNAPSHOT] = self._recorded
 

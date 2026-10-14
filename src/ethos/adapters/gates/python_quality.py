@@ -23,10 +23,13 @@ from ethos.adapters.toolchain.mise import locked_environment
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.adapters.toolchain.mise import repository_mise_files
 from ethos.repository.policy.quality_reports import coverage_report
-from ethos.repository.policy.quality_reports import junit_report
+from ethos.repository.policy.quality_reports import junit_stream_report
 
 if TYPE_CHECKING:
     from ethos.repository.policy.code_subjects import CodeSubject
+
+# The shared formatter width of governed repositories; isolation keeps it product-owned.
+_FLEET_LINE_LENGTH = 100
 
 
 def _failure(axis: str, reason: str) -> dict[str, object]:
@@ -64,6 +67,8 @@ def _static_execution(
         "--ignore-noqa",
         "--output-format",
         "json",
+        "--line-length",
+        str(_FLEET_LINE_LENGTH),
         "--select",
         "E,F,B,I,UP",
         *paths,
@@ -166,12 +171,13 @@ def _behavior_scope(
 
 
 def _behavior_evidence(
-    root: Path, source: tuple[str, ...], tests: tuple[str, ...]
+    root: Path, source: tuple[str, ...], tests: tuple[str, ...], bindable: tuple[str, ...]
 ) -> dict[str, object]:
     """Observe one locked native test run and its fresh reports."""
     with TemporaryDirectory(prefix="ethos-python-quality-") as temporary, ExitStack() as scope:
         output = Path(temporary)
         junit = output / "junit.xml"
+        events = output / "events.jsonl"
         coverage = output / "coverage.xml"
         targets = tuple(sorted({path.partition("/")[0] for path in tests}))
         mise_files = repository_mise_files(root)
@@ -206,6 +212,7 @@ def _behavior_evidence(
             f"cache_dir={output / 'pytest-cache'}",
             f"--basetemp={output / 'pytest'}",
             f"--junitxml={junit}",
+            f"--report-log={events}",
             "--cov=.",
             "--cov-branch",
             f"--cov-report=xml:{coverage}",
@@ -240,10 +247,21 @@ def _behavior_evidence(
             )
         }
         try:
-            if not junit.is_file():
-                reason = "test_command_failed" if result.returncode else "test_report_missing"
+            missing = next(
+                (
+                    name
+                    for name, path in (("test_report", junit), ("test_event_report", events))
+                    if not path.is_file()
+                ),
+                "",
+            )
+            if missing:
+                reason = "test_command_failed" if result.returncode else f"{missing}_missing"
                 return {**evidence, **_failure("behavior", reason)}
-            counts, failed = junit_report((junit,))
+            counts, failed = junit_stream_report(
+                junit.read_text(encoding="utf-8"),
+                pytest_events=events.read_text(encoding="utf-8"),
+            )
             evidence["tests"] = counts
             if not coverage.is_file():
                 reason = "test_command_failed" if result.returncode else "coverage_report_missing"
@@ -252,7 +270,7 @@ def _behavior_evidence(
                 coverage,
                 include_files=True,
                 repository_root=root.resolve(),
-                source_paths=(*source, *tests),
+                source_paths=bindable,
             )
             evidence["coverage"] = {key: value for key, value in measured.items() if key != "files"}
             files = cast("dict[str, dict[str, int]]", measured["files"])
@@ -285,7 +303,9 @@ def behavior_report(root: Path, *, execution: NativeExecution | None = None) -> 
             return native_python_report(root, execution, "behavior")
         tree, subjects = observe_quality_subjects(root, language="python")
         source, tests = _behavior_scope(root, subjects)
-        evidence = _behavior_evidence(root, source, tests)
+        # Coverage may measure any committed Python subject; only product source owes coverage.
+        bindable = tuple(subject.path for subject in subjects)
+        evidence = _behavior_evidence(root, source, tests, bindable)
         observe_quality_subjects(root, language="python", expected_tree=tree)
     except ProcessExecutionError as error:
         return {**evidence, **_failure("behavior", error.code), "diagnostics": [error.evidence()]}

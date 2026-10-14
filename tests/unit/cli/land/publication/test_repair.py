@@ -173,15 +173,16 @@ def _historical_peer_fixture(
 ) -> tuple[Path, Path, str, str, str]:
     """Accept forward content after repairing a lagging peer's original history."""
     repo, old, candidate = signature_repository(tmp_path, coupled=True)
-    (repo / "peer-prefix.txt").write_text("peer prefix\n", encoding="utf-8")
-    git(repo, "add", "peer-prefix.txt")
+    (repo / "notes").mkdir(exist_ok=True)
+    (repo / "notes/peer-prefix.txt").write_text("peer prefix\n", encoding="utf-8")
+    git(repo, "add", "notes/peer-prefix.txt")
     with monkeypatch.context() as scope:
         scope.setenv("GIT_AUTHOR_NAME", "Wrong")
         scope.setenv("GIT_AUTHOR_EMAIL", "wrong@example.invalid")
         git(repo, "commit", "-S", "-m", "legacy peer prefix")
     peer_old = git(repo, "rev-parse", "HEAD")
-    (repo / "old-tip.txt").write_text("old tip\n", encoding="utf-8")
-    git(repo, "add", "old-tip.txt")
+    (repo / "notes/old-tip.txt").write_text("old tip\n", encoding="utf-8")
+    git(repo, "add", "notes/old-tip.txt")
     git(repo, "commit", "-S", "-m", "fix: old tip")
     old_tip = git(repo, "rev-parse", "HEAD")
     git(candidate, "reset", "--hard", old_tip)

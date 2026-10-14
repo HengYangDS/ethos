@@ -62,7 +62,7 @@ def test_brownfield_public_adopt_remains_two_binding_only(tmp_path: Path) -> Non
     assert status["verdict"] == "block"
     assert "candidate_branch_missing" in status["required_gaps"]
     assert "lane candidate" not in status["next_action"]
-    assert not (root / "AGENTS.md").exists()
+    assert (root / "AGENTS.md").read_text(encoding="utf-8") == "# Agents\n"
 
 
 def test_greenfield_preview_has_no_target_effect(tmp_path: Path) -> None:

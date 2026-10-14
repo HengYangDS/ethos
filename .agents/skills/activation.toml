@@ -124,7 +124,7 @@ path_globs = [
   "pyproject.toml",
   "uv.lock",
   "pytest.toml",
-  "ruff.toml",
+  ".config/checks/ruff/ruff.toml",
   "system/gates.toml",
   "tools/ci/**",
   "src/ethos/repository/policy/gates.py",

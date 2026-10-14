@@ -161,14 +161,14 @@ The former plan mixed these duties with dated execution narratives. Their
 complete bytes remain at the [history retrieval boundary](../history/README.md#terminal-plan-observations).
 The current ownership disposition is:
 
-| Meaning | Current owner |
-| --- | --- |
-| Product mission and invariants | [Product Design Contract](../governance/product-design-contract.md) |
-| Accepted capability behavior | [OpenSpec specs](../../openspec/specs/) |
-| Bounded progress and proof duties | The three active Change task/spec artifacts linked above |
-| Stable mechanism explanation | [Architecture](../architecture/README.md) and native contracts |
-| Tool comparisons and source findings | [Research](../research/README.md) |
-| Dated executions and retired schedules | Git revision linked from History; not a current queue |
+| Meaning                                | Current owner                                                       |
+| -------------------------------------- | ------------------------------------------------------------------- |
+| Product mission and invariants         | [Product Design Contract](../governance/product-design-contract.md) |
+| Accepted capability behavior           | [OpenSpec specs](../../openspec/specs/)                             |
+| Bounded progress and proof duties      | The three active Change task/spec artifacts linked above            |
+| Stable mechanism explanation           | [Architecture](../architecture/README.md) and native contracts      |
+| Tool comparisons and source findings   | [Research](../research/README.md)                                   |
+| Dated executions and retired schedules | Git revision linked from History; not a current queue               |
 
 Open gaps remain open in their official owners. The Git snapshot makes
 observations recoverable; it does not prove that a requirement was satisfied.
@@ -205,15 +205,6 @@ through existing consumers, not another rule declaration in this plan.
    without a second parser or repository-wide permanent block. The same
    reference owner must also consume trusted native profile and release
    command fields as executable declarations, not infer ownership from names.
-
-The terminal architecture declaration under
-`system/projections/terminal-architecture/` selects the complete visual
-assertion set and its absence reasons. It is not a second product ontology: the
-product contract remains semantic authority. The read-only exporter binds that
-declaration and every selected source to one exact Git commit and tree, emits a
-content-addressed `projection.input/v2`, and grants no repository-effect
-authority. Renderers and diagram tools consume the export; they never write
-back or become an authority root.
 
 The five effect owners are Git refs, worktree/filesystem, Lease/state, remote
 publication, and runtime/package. Each observes a fresh pre-state, compiles a

@@ -781,46 +781,6 @@ phase registry.
 - **THEN** all selected tests and existing coverage and delivery obligations remain required
 - **AND** dry-run still projects unknown rather than claiming executed success
 
-### Requirement: Terminal projection export preserves complete source meaning
-
-The terminal exporter SHALL bind one exact commit and tree, retain semantic
-attributes and graph contracts, and reject stale source bindings. The product
-contract remains the sole product meaning owner. The target design SHALL be
-identified as a target rather than an implementation claim.
-
-#### Scenario: Whole-product meaning survives export
-
-- **WHEN** the current terminal architecture is exported
-- **THEN** interpretation, formation and adoption, capability contracts,
-  collaboration outcomes, bounded verification and integration, actual-use
-  feedback, recovery and exit remain represented with source provenance
-- **AND** Commitment remains transient and accepted intent remains OpenSpec-owned
-
-#### Scenario: Native source drift is not hidden by fixtures
-
-- **WHEN** any selected source changes without semantic reconciliation
-- **THEN** the actual-source export regression rejects the digest mismatch
-- **AND** isolated synthetic fixture success cannot substitute for that result
-
-### Requirement: Required visual assertions have readable static witnesses
-
-Every required node and relation SHALL select a main-static copy witness or a
-meaning-preserving aggregate. Export SHALL reject missing and hidden-only
-witnesses. Renderer acceptance SHALL measure actual painted glyphs, transforms,
-strokes and arrowheads; metadata or hover alone SHALL NOT satisfy coverage.
-
-#### Scenario: Hidden witness cannot satisfy required meaning
-
-- **WHEN** a required assertion is omitted or its only witness is hidden
-- **THEN** source export rejects the disposition
-- **AND** a readable aggregate is allowed without duplicating every kernel node
-
-#### Scenario: Compression never erases product meaning
-
-- **WHEN** an old text-count budget conflicts with complete product meaning
-- **THEN** readability and semantic completeness remain hard constraints
-- **AND** word or object reduction is only an optimization among feasible layouts
-
 ### Requirement: Package identity tests consume locked build supply
 
 Package identity and source-distribution tests SHALL execute with the declared
@@ -1417,3 +1377,41 @@ authority. The superseded transport SHALL be removed.
 
 - **WHEN** the selected runtime or required admission dependency is unavailable
 - **THEN** the native hook rejects the update rather than using a notification fast path.
+
+### Requirement: Provider behavior evidence counts native subtests
+
+The product Python behavior provider SHALL capture pytest's report-log events with its JUnit and coverage reports, and SHALL validate JUnit totals against those events, so passing subtests that JUnit counts but does not emit are explained rather than rejected.
+
+#### Scenario: A test passes its subtests
+
+- **WHEN** the locked pytest run passes a test with subtests
+- **THEN** the behavior evidence verifies
+- **AND** its test total counts each subtest
+
+#### Scenario: The event report is missing
+
+- **WHEN** pytest writes JUnit but no event report
+- **THEN** the behavior evidence blocks as `test_event_report_missing`
+
+### Requirement: Provider coverage binds every committed Python subject
+
+The product Python behavior provider SHALL bind each file in its coverage report to a committed Python subject of the repository, and SHALL require coverage only of product source subjects, so tests that execute committed tooling do not block the behavior evidence.
+
+#### Scenario: A test executes committed tooling
+
+- **WHEN** a passing test executes a committed Python file whose role is tooling
+- **THEN** the behavior evidence verifies
+
+### Requirement: Provider static analysis uses the shared line width
+
+The product Python static provider SHALL run Ruff isolated from repository configuration with a line length of 100 columns, the shared formatter width of governed repositories.
+
+#### Scenario: A line reaches the shared width
+
+- **WHEN** an authored Python line is 100 columns long
+- **THEN** the static evidence does not report `E501` for it
+
+#### Scenario: A line exceeds the shared width
+
+- **WHEN** an authored Python line is 101 columns long
+- **THEN** the static evidence blocks with `E501`

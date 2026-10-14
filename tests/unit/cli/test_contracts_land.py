@@ -69,7 +69,7 @@ def _land(root: Path, head: str | None = None, *, blocked: bool = False) -> dict
 
 def _proved_lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, full: bool = False):
     fixture = prepared_work_lane(tmp_path)
-    commit_fixture_file(fixture.worktree, "FEATURE.md", "# feature\n", "feature work")
+    commit_fixture_file(fixture.worktree, "notes/feature.md", "# feature\n", "feature work")
     head = _archive(monkeypatch, fixture.worktree, full=full)
     seed_executed_proof(fixture.worktree, head, full=full)
     return fixture, head
@@ -202,7 +202,7 @@ def test_land_readiness_claim_matrix(
         commit_fixture_file(
             fixture.worktree, "system/gates.toml", FULL_GATES, "declare split proof floors"
         )
-    commit_fixture_file(fixture.worktree, "FEATURE.md", "# feature\n", "feature work")
+    commit_fixture_file(fixture.worktree, "notes/feature.md", "# feature\n", "feature work")
     if claim in LAND_CASES[4:6]:
         _assert_active_change_is_admitted(claim, fixture)
         return
@@ -271,7 +271,7 @@ def test_refresh_base_claim_matrix(
     if claim == REFRESH_CASES[0]:
         generation = leases_by_branch(fixture.worktree)["work/feature"]["generation"]
         commit_fixture_file(fixture.candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
-        commit_fixture_file(fixture.worktree, "FEATURE.md", "# feature\n", "feature work")
+        commit_fixture_file(fixture.worktree, "notes/feature.md", "# feature\n", "feature work")
         previous = git(fixture.worktree, "rev-parse", "HEAD")
         candidate = git(fixture.candidate, "rev-parse", "HEAD")
         git(fixture.worktree, "config", "commit.gpgsign", "true")
@@ -311,7 +311,7 @@ def test_refresh_base_claim_matrix(
         prewrite = run_ethos(
             "lane",
             "prewrite",
-            "FEATURE.md",
+            "notes/feature.md",
             "--editor-root",
             fixture.worktree.as_posix(),
             "--require-editor-root",

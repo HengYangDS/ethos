@@ -1,0 +1,130 @@
+"""Repository paradigm contract.
+
+The contract is repository-neutral. It names the protocol carriers that every
+governed repository shares and the ecosystem modules that apply exactly when
+their manifest is tracked, without encoding one repository or its product layout.
+"""
+
+import tomllib
+from functools import lru_cache
+from importlib import resources
+from typing import Literal
+from typing import Self
+
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import model_validator
+
+from ethos.contracts.value import FrozenTuple
+
+_DECLARATION = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+
+class RootCatalog(BaseModel):
+    """Protocol entries a governed repository may track at its root."""
+
+    model_config = _DECLARATION
+
+    entry_documents: FrozenTuple[str]
+    required_documents: FrozenTuple[str]
+    protocol_files: FrozenTuple[str]
+    forge_entries: FrozenTuple[str]
+    governance_roots: FrozenTuple[str]
+
+    @model_validator(mode="after")
+    def require_admitted_documents(self) -> Self:
+        """Keep every required document inside the admitted entry documents."""
+        if not set(self.required_documents) <= set(self.entry_documents):
+            message = "required paradigm documents must be admitted entry documents"
+            raise ValueError(message)
+        return self
+
+
+class BindingFileSet(BaseModel):
+    """The ETHOS-defined files a repository binding may track."""
+
+    model_config = _DECLARATION
+
+    root: str
+    files: FrozenTuple[str]
+
+
+class EditorDefaults(BaseModel):
+    """EditorConfig values every governed repository selects for all files."""
+
+    model_config = _DECLARATION
+
+    charset: str
+    end_of_line: str
+    insert_final_newline: str
+
+
+class TextNormalization(BaseModel):
+    """Declarations that select UTF-8, LF line endings and a final newline."""
+
+    model_config = _DECLARATION
+
+    gitattributes: str
+    editorconfig: EditorDefaults
+
+
+class EcosystemModule(BaseModel):
+    """One ecosystem module, applied exactly when its manifest is tracked at the root."""
+
+    model_config = _DECLARATION
+
+    id: Literal["python", "node", "go"]
+    manifest: str
+    lock: str
+    lock_scope: Literal["manifest", "dependencies"]
+    runner_entries: FrozenTuple[str] = ()
+    floor: str = ""
+
+
+class ToolCarrier(BaseModel):
+    """Root names one tool discovers and the canonical carrier they move to."""
+
+    model_config = _DECLARATION
+
+    id: str
+    carrier: str
+    root_names: FrozenTuple[str]
+
+
+class RepositoryParadigm(BaseModel):
+    """Executable repository paradigm declaration."""
+
+    model_config = _DECLARATION
+
+    id: Literal["repository-paradigm"]
+    source_refs: FrozenTuple[str]
+    root: RootCatalog
+    binding: BindingFileSet
+    normalization: TextNormalization
+    module: FrozenTuple[EcosystemModule]
+    tool: FrozenTuple[ToolCarrier]
+
+    @model_validator(mode="after")
+    def require_unique_identities(self) -> Self:
+        """Reject duplicate module or tool identities and ambiguous root names."""
+        groups = (
+            [module.id for module in self.module],
+            [tool.id for tool in self.tool],
+            [name for tool in self.tool for name in tool.root_names],
+        )
+        if any(len(set(group)) != len(group) for group in groups):
+            message = "repository paradigm identities must be unique"
+            raise ValueError(message)
+        return self
+
+    def canonical_carrier(self, root_name: str) -> str:
+        """Return the canonical carrier of a root name that a catalogued tool discovers."""
+        return next((tool.carrier for tool in self.tool if root_name in tool.root_names), "")
+
+
+@lru_cache(maxsize=1)
+def load_repository_paradigm() -> RepositoryParadigm:
+    """Load the paradigm from the same package as its interpreting code."""
+    source = resources.files(__package__).joinpath("paradigm.toml")
+    payload = tomllib.loads(source.read_text(encoding="utf-8"))
+    return RepositoryParadigm.model_validate(payload)

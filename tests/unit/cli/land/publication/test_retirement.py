@@ -71,7 +71,7 @@ def retirement_fixture(tmp_path: Path, *, object_format: str = "sha1", refreshed
             "--json",
             cwd=repo,
         )
-        git(work, "mv", "proposal.txt", "renamed.txt")
+        git(work, "mv", "notes/proposal.txt", "notes/renamed.txt")
         (work / "contribution.bin").write_bytes(b"\x00preserved contribution\xff")
         git(work, "add", "-A")
         git(work, "commit", "-m", "feat: preserve renamed and binary contribution")

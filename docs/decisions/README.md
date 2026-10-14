@@ -23,3 +23,4 @@ Historical `DR-0009` was reserved for budget calibration and is not reassigned.
 - [DR-0006: Proof trust boundary](dr-0006-proof-trust-boundary.md): why local proof and independent assurance are separate claims.
 - [DR-0010: Source-budget non-compensation](dr-0010-source-budget-non-compensation.md): why resource budgets cannot offset quality failures.
 - [DR-0011: Documentation portability](dr-0011-documentation-portability.md): why semantic discovery does not mandate one physical tree.
+- [DR-0012: Repository paradigm](dr-0012-repository-paradigm.md): why every governed repository follows one common repository contract and which structure stays repository-owned.

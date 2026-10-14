@@ -90,6 +90,57 @@ def test_generic_provider_uses_real_locked_python_evidence(
         assert set(selected_tools) == {"python", "uv"}
 
 
+def test_generic_provider_counts_passing_subtests_from_native_events(tmp_path: Path) -> None:
+    """Passing subtests count from pytest events that the JUnit parent omits."""
+    fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
+    repo = committed_source_repo(
+        tmp_path,
+        {
+            **{name: (fixture / name).read_text() for name in ("pyproject.toml", "uv.lock")},
+            "src/sample/__init__.py": "def answer() -> int:\n    return 42\n",
+            "tests/test_sample.py": "import unittest\n\nfrom sample import answer\n\n\n"
+            "class SampleTests(unittest.TestCase):\n"
+            "    def test_answers(self) -> None:\n"
+            "        for value in (1, 2):\n"
+            "            with self.subTest(value=value):\n"
+            "                self.assertEqual(answer(), 42)\n",
+        },
+    )
+
+    report = native_quality.behavior_report(repo)
+
+    assert report["verdict"] == "pass", report
+    assert report["native"][0]["tests"] == {
+        "total": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+    }
+
+
+def test_generic_provider_binds_exercised_tooling_coverage(tmp_path: Path) -> None:
+    """Tooling that tests execute binds to coverage without owing product coverage."""
+    fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
+    repo = committed_source_repo(
+        tmp_path,
+        {
+            **{name: (fixture / name).read_text() for name in ("pyproject.toml", "uv.lock")},
+            ".gitattributes": "tools/** ethos-role=tooling\n",
+            "src/sample/__init__.py": "def answer() -> int:\n    return 42\n",
+            "tools/helper.py": "def double(value: int) -> int:\n    return value * 2\n",
+            "tests/test_sample.py": "import runpy\nfrom pathlib import Path\n\n"
+            "from sample import answer\n\n\ndef test_tool_doubles_answer() -> None:\n"
+            "    tool = runpy.run_path(str(Path(__file__).parents[1] / 'tools/helper.py'))\n"
+            "    assert tool['double'](answer()) == 84\n",
+        },
+    )
+
+    report = native_quality.behavior_report(repo)
+
+    assert report["verdict"] == "pass", report
+    assert report["native"][0]["tests"]["total"] == 1
+
+
 @pytest.mark.parametrize(
     ("axis", "session", "provider"),
     [
@@ -215,19 +266,32 @@ def test_native_static_adapter_distinguishes_report_from_diagnostics(
 
 
 @pytest.mark.parametrize(
-    ("exit_code", "reason"), [(0, "test_report_missing"), (1, "test_command_failed")]
+    ("exit_code", "written", "reason"),
+    [
+        (0, (), "test_report_missing"),
+        (1, (), "test_command_failed"),
+        (0, ("--junitxml=",), "test_event_report_missing"),
+        (1, ("--junitxml=",), "test_command_failed"),
+    ],
 )
 def test_python_behavior_distinguishes_command_failure_from_missing_report(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, exit_code: int, reason: str
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    exit_code: int,
+    written: tuple[str, ...],
+    reason: str,
 ) -> None:
     """A failed locked tool must not masquerade as a filesystem-only failure."""
-    monkeypatch.setattr(
-        python_quality,
-        "run_command",
-        lambda *_args, **_kwargs: SimpleNamespace(
+
+    def run_command(_root: Path, command: tuple[str, ...], **_kwargs: object) -> SimpleNamespace:
+        for argument in command:
+            if argument.startswith(written):
+                Path(argument.partition("=")[2]).write_text("<testsuites/>", encoding="utf-8")
+        return SimpleNamespace(
             returncode=exit_code, stdout="native result\n", stderr="native diagnostic\n"
-        ),
-    )
+        )
+
+    monkeypatch.setattr(python_quality, "run_command", run_command)
     repo = committed_source_repo(
         tmp_path,
         {
@@ -305,6 +369,20 @@ def test_python_static_cannot_waive_product_rules_with_inline_noqa(tmp_path: Pat
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["quality_static_diagnostics"]
     assert "F821" in report["native"]["stdout"]
+
+
+@pytest.mark.parametrize(("width", "verdict"), [(100, "pass"), (101, "block")])
+def test_python_static_measures_lines_at_the_fleet_width(
+    tmp_path: Path, width: int, verdict: str
+) -> None:
+    """Isolated product rules use the shared width, not Ruff's 88-column default."""
+    line = "answer = " + "1" * (width - len("answer = "))
+    repo = committed_source_repo(tmp_path, {"src/app.py": f"{line}\n"})
+
+    report = python_quality.static_report(repo)
+
+    assert report["verdict"] == verdict, report
+    assert ("E501" in report["native"]["stdout"]) is (verdict == "block")
 
 
 @pytest.mark.parametrize("changed_at", ["before", "after"])

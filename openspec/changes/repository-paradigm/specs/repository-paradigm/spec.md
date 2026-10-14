@@ -263,6 +263,20 @@ Every tracked Python file SHALL have at most 512 effective lines, counted withou
 - **WHEN** `.ethos/rules.toml` declares `[quality.code_size]`
 - **THEN** the paradigm reports a binding that restates a paradigm value.
 
+### Requirement: JavaScript execution environments are declared and validated
+
+A repository MAY declare in `.config/checks/eslint/policy.toml` that named tracked JavaScript files run in a browser, worker or service worker, with a stated reason. The native static gate SHALL admit only those standard global sets, for exactly those files, and SHALL NOT read repository ESLint configuration or inline directives.
+
+#### Scenario: A browser callback is declared
+
+- **WHEN** `render.mjs` evaluates `() => window.innerWidth` in a page and declares the browser set with a reason
+- **THEN** the static gate passes for that file, and the same code in an undeclared file still fails.
+
+#### Scenario: A declaration is not admissible
+
+- **WHEN** a declaration names the node set, omits its reason or names an untracked file
+- **THEN** the static gate fails closed.
+
 ### Requirement: Ecosystem modules lock their manifests
 
 A repository that tracks `pyproject.toml` SHALL lock it with `uv.lock` and SHALL declare a Python lower bound of 3.12. A repository that declares npm dependencies SHALL lock them with `package-lock.json`, and a repository whose `go.mod` requires modules SHALL track `go.sum`. Tool and runtime versions remain repository-owned under the version policy.

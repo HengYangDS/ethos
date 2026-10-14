@@ -3,11 +3,59 @@
 from __future__ import annotations
 
 import json
+import tomllib
 from pathlib import Path
+from pathlib import PurePosixPath
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
+
+ENVIRONMENT_POLICY = ".config/checks/eslint/policy.toml"
+# Standard global sets a repository may declare for code that runs outside Node, such as
+# callbacks a test driver evaluates in a browser page.
+DECLARABLE_ENVIRONMENTS = frozenset({"browser", "serviceworker", "worker"})
+
+
+def declared_environments(root: Path) -> dict[str, tuple[str, ...]]:
+    """Read the declared execution environments, validating every name and path."""
+    policy = root / ENVIRONMENT_POLICY
+    if not policy.is_file():
+        return {}
+    message = "javascript_environment_policy_invalid"
+    try:
+        entries = tomllib.loads(policy.read_text(encoding="utf-8")).get("environment")
+    except (tomllib.TOMLDecodeError, UnicodeError) as error:
+        raise ValueError(message) from error
+    if not isinstance(entries, list) or not entries:
+        raise ValueError(message)
+    environments: dict[str, tuple[str, ...]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict) or set(entry) != {"paths", "globals", "reason"}:
+            raise ValueError(message)
+        paths, names, reason = entry["paths"], entry["globals"], entry["reason"]
+        if (
+            not isinstance(reason, str)
+            or not reason.strip()
+            or not isinstance(names, list)
+            or not names
+            or not set(names) <= DECLARABLE_ENVIRONMENTS
+            or not isinstance(paths, list)
+            or not paths
+        ):
+            raise ValueError(message)
+        for path in paths:
+            relative = PurePosixPath(path) if isinstance(path, str) else None
+            if (
+                relative is None
+                or relative.is_absolute()
+                or ".." in relative.parts
+                or not (root / relative).is_file()
+                or path in environments
+            ):
+                raise ValueError(message)
+            environments[path] = tuple(sorted(names))
+    return environments
 
 
 def _source_type(root: Path, relative: str) -> str:
@@ -40,11 +88,13 @@ def static_observation(
     if not (root / "package.json").is_file():
         message = "javascript_package_missing"
         raise ValueError(message)
+    environments = declared_environments(root)
     entries = [
         {
             "path": path,
             "source": (root / path).read_text(encoding="utf-8"),
             "sourceType": _source_type(root, path),
+            "environments": list(environments.get(path, ())),
         }
         for path in paths
     ]
@@ -95,6 +145,7 @@ def static_observation(
         "tool": "eslint",
         "verdict": "block" if failed else "pass",
         "checked_paths": len(paths),
+        "environments": {path: list(names) for path, names in sorted(environments.items())},
         "reports": reports,
         "stdout": result.stdout,
         "stderr": result.stderr,

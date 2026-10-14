@@ -3,10 +3,13 @@
 A commit, tree or blob name is a content address, so a successful read of a
 named object cannot change. The common directory is fixed by the checkout's Git
 entry. Each answer is keyed by that entry's identity, the exact argv, the output
-mode and the configuration overlay, so a repository recreated at the same path
-is never answered from the former one. Reads with an environment override or
-input always run, and failures are never reused: a missing object is observed
-again.
+mode and the configuration overlay. A linked checkout's Git file is identified
+by its inode, size and modification time. A Git directory is identified by its
+inode and by its object directory's info entry, which a new repository creates
+afresh, so a repository recreated at the same path is not answered from the
+former one even where the file system recycles inode numbers. Reads with an
+environment override or input always run, and failures are never reused: a
+missing object is observed again.
 """
 
 from __future__ import annotations
@@ -64,17 +67,24 @@ def answer_key(
     """Key one fixed-answer read by its checkout identity, or None when it must run."""
     if not fixed_answer(command[1:]):
         return None
+    identity = _checkout_identity(root / ".git")
+    if identity is None:
+        return None
+    return (root.resolve().as_posix(), identity, command, text, observation, overlay)
+
+
+def _checkout_identity(git: Path) -> tuple[int, ...] | None:
+    """Identify one checkout's Git file or directory; links and incomplete entries have none."""
     try:
-        entry = (root / ".git").lstat()
+        entry = git.lstat()
+        info = (git / "objects" / "info").lstat() if stat.S_ISDIR(entry.st_mode) else None
     except OSError:
         return None
-    # A Git directory keeps its inode; a linked checkout's Git file may be rewritten in place.
-    identity = (
-        (entry.st_dev, entry.st_ino)
-        if stat.S_ISDIR(entry.st_mode)
-        else (entry.st_dev, entry.st_ino, entry.st_size, entry.st_mtime_ns)
-    )
-    return (root.resolve().as_posix(), identity, command, text, observation, overlay)
+    if info is not None:
+        return (entry.st_dev, entry.st_ino, info.st_ino, info.st_mtime_ns)
+    if stat.S_ISREG(entry.st_mode):
+        return (entry.st_dev, entry.st_ino, entry.st_size, entry.st_mtime_ns)
+    return None
 
 
 def reused_answer(key: tuple[object, ...]) -> subprocess.CompletedProcess[Any] | None:

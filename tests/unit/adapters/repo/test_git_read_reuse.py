@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 from collections import OrderedDict
 from typing import TYPE_CHECKING
@@ -86,6 +87,29 @@ def test_recreated_checkout_is_not_answered_from_the_former_repository(
     init_git_repo(repo)
     assert run_git(repo, "show", f"{former}:only.txt", check=False).returncode != 0
     assert launches.count(("show", f"{former}:only.txt")) == 2
+
+
+def test_git_directory_identity_includes_its_object_info_entry(tmp_path: Path) -> None:
+    """A recycled directory inode is told apart by object info; links and gaps never qualify."""
+    repo = init_git_repo(tmp_path / "repo")
+
+    def key(root: Path) -> tuple[object, ...] | None:
+        return read_reuse.answer_key(
+            root, ("git", "version"), text=True, observation=False, overlay=()
+        )
+
+    former = key(repo)
+    info = repo / ".git" / "objects" / "info"
+    later = info.stat().st_mtime_ns + 1_000_000_000
+    os.utime(info, ns=(later, later))
+    assert former is not None
+    assert key(repo) not in {None, former}
+    alias = tmp_path / "alias"
+    alias.mkdir()
+    (alias / ".git").symlink_to(repo / ".git", target_is_directory=True)
+    assert key(alias) is None
+    shutil.rmtree(info)
+    assert key(repo) is None
 
 
 def test_reads_outside_a_checkout_and_beyond_capacity_start_again(

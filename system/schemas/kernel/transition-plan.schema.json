@@ -5,10 +5,7 @@
       "description": "Exact inputs bound by one public TransitionPlan projection.",
       "properties": {
         "commitment": {
-          "anyOf": [
-            { "pattern": "^[a-f0-9]{64}$", "type": "string" },
-            { "type": "null" }
-          ],
+          "anyOf": [{ "pattern": "^[a-f0-9]{64}$", "type": "string" }, { "type": "null" }],
           "title": "Commitment"
         },
         "effect": {
@@ -77,10 +74,7 @@
       "type": "object"
     },
     "commitment": {
-      "anyOf": [
-        { "additionalProperties": {}, "type": "object" },
-        { "type": "null" }
-      ],
+      "anyOf": [{ "additionalProperties": {}, "type": "object" }, { "type": "null" }],
       "title": "Commitment"
     },
     "compensations": {
@@ -90,10 +84,7 @@
       "type": "array"
     },
     "continuation": {
-      "anyOf": [
-        { "additionalProperties": {}, "type": "object" },
-        { "type": "null" }
-      ],
+      "anyOf": [{ "additionalProperties": {}, "type": "object" }, { "type": "null" }],
       "default": null,
       "title": "Continuation"
     },

@@ -63,7 +63,7 @@ def _reacquire_coordinates(root: Path, path: Path) -> dict[str, str]:
                 committed_file_text(repo, row["head"], ".ethos/workspace.toml") if declared else ""
             )
             policy = (
-                strict_branch_role_policy_from_text(workspace, allow_legacy_sibling_default=True)
+                strict_branch_role_policy_from_text(workspace, allow_predecessor_defaults=True)
                 if "branch_roles" in tomllib.loads(workspace)
                 else BranchRolePolicy()
             )

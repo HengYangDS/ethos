@@ -126,6 +126,7 @@ def _trusted_receipt(request: dict[str, object], **updates: object) -> Path:
 
 def test_control_subject_and_request_bind_exact_signed_git_state(tmp_path: Path) -> None:
     candidate, accepted, head = _control_change(tmp_path)
+    git(candidate, "remote", "add", "origin", "https://origin.example.invalid/ethos.git")
     seed_executed_proof(candidate, head)
     report = _report(candidate, accepted, head)
     subject = cast("dict[str, object]", report["subject"])
@@ -507,13 +508,13 @@ def test_axis_remapping_changes_the_floor_without_changing_gate_commands(
 @pytest.mark.parametrize(
     ("locations", "expected_gap"),
     [
-        ((".config/checks/markdown/markdownlint.yaml",), ""),
-        ((".config/checks/markdown/markdownlint.toml",), "location_invalid"),
+        ((".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",), ""),
+        ((".config/checks/markdownlint-cli2/.markdownlint-cli2.jsonc",), "location_invalid"),
         ((".markdownlint-cli2.yaml",), "location_invalid"),
         (
             (
-                ".config/checks/markdown/markdownlint.yaml",
-                ".config/checks/markdown/markdownlint.toml",
+                ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
+                ".config/checks/markdownlint-cli2/.markdownlint-cli2.jsonc",
             ),
             "ambiguous",
         ),
@@ -524,7 +525,7 @@ def test_predecessor_configuration_is_observed_without_admitting_candidate_drift
 ) -> None:
     """Bind historical bytes; only the strictly valid successor reaches trusted verification."""
     candidate, _accepted, _head = _control_change(tmp_path)
-    legacy = ".config/checks/markdown/markdownlint.toml"
+    legacy = ".config/checks/markdownlint-cli2/.markdownlint-cli2.jsonc"
     content = "[rules]\nMD013 = false\n"
     accepted = commit_fixture_file(candidate, legacy, content, "historical native configuration")
     (candidate / legacy).unlink()

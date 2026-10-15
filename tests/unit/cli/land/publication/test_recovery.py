@@ -33,7 +33,7 @@ def test_selected_peer_can_publish_when_other_declared_peer_is_unavailable(
     tmp_path: Path,
 ) -> None:
     repo, peers, head = branch_publication_fixture(tmp_path, accepted=True)
-    git(repo, "remote", "set-url", "origin", str(tmp_path / "unavailable-gitlab.git"))
+    git(repo, "remote", "set-url", "gitlab", str(tmp_path / "unavailable-gitlab.git"))
 
     default = branch_publication(repo, head, target_ref="refs/heads/main")
     assert default["verdict"] == "unknown"
@@ -152,7 +152,7 @@ def test_unavailable_remote_preserves_unknown_without_false_divergence(
     else:
         assert result["required_gaps"] == [
             f"publication_remote_observation_unavailable:{peer}:{remote}:refs/heads/dev"
-            for peer, remote in (("gitlab", "origin"), ("github", "github"))
+            for peer, remote in (("gitlab", "gitlab"), ("github", "github"))
         ]
         assert result["data"]["push_admission"] == {}
         assert not any("non_fast_forward" in gap for gap in result["required_gaps"])
@@ -161,7 +161,7 @@ def test_unavailable_remote_preserves_unknown_without_false_divergence(
 @pytest.mark.parametrize(
     ("failed_remote", "state", "applied", "pending"),
     [
-        ("origin", "outcome_unknown", [], ["gitlab", "github"]),
+        ("gitlab", "outcome_unknown", [], ["gitlab", "github"]),
         ("github", "partial", ["gitlab"], ["github"]),
     ],
 )
@@ -185,7 +185,7 @@ def test_publish_unknown_observation_preserves_exact_effect_progress(
         if args and args[0] == "ls-remote" and args[1] == failed_remote and origin_push_applied:
             raise subprocess.TimeoutExpired(("git", *args), 30, output="", stderr=error)
         completed = original(root, *args, **options)
-        if args[0] == "push" and "origin" in args and completed.returncode == 0:
+        if args[0] == "push" and "gitlab" in args and completed.returncode == 0:
             origin_push_applied = True
         return completed
 
@@ -226,7 +226,7 @@ def test_publish_branch_receipt_rejects_remote_drift_before_any_push(tmp_path: P
     receipt = branch_publication(repo, head)["data"]["request_receipt"]
     (repo / "drift.txt").write_text("remote drift\n", encoding="utf-8")
     drift = commit_fixture(repo, "remote drift")
-    git(repo, "push", "origin", f"{drift}:{PROPOSAL_REF}")
+    git(repo, "push", "gitlab", f"{drift}:{PROPOSAL_REF}")
     git(repo, "reset", "--hard", head)
     blocked = apply_receipt(repo, receipt, head, blocked=True)
     assert blocked["required_gaps"] == [f"publication_target_drift:gitlab:proposal/{PROPOSAL}"]
@@ -301,7 +301,7 @@ def test_publication_rechecks_authority_between_independent_peer_effects(
     def observe(root, remote, refs):
         nonlocal mutated
         result = original(root, remote, refs)
-        if remote == "origin" and result[target].get("object_oid") == head and not mutated:
+        if remote == "gitlab" and result[target].get("object_oid") == head and not mutated:
             if case == "trust":
                 Path(
                     git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile")
@@ -372,7 +372,7 @@ def test_publication_keeps_unavailable_intent_observation_unknown(
             "--remote-head",
             "0" * 40,
             "--remote",
-            "origin",
+            "gitlab",
             "--json",
             cwd=repo,
         )

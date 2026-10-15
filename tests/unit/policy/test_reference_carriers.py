@@ -28,8 +28,8 @@ def test_reference_carriers_have_one_deterministic_dispatch(path: str, carrier: 
 @pytest.mark.parametrize(
     "declaration",
     [
-        ".config/checks/links/supply.toml",
-        ".config/release/supply-chain.toml",
+        ".config/checks/lychee/policy.toml",
+        ".config/release/release-sbom/policy.toml",
     ],
 )
 def test_native_supply_owns_its_executable_without_an_installer(

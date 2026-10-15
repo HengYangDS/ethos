@@ -141,12 +141,7 @@
         "metrics": {
           "type": "array",
           "items": {
-            "enum": [
-              "pass_at_k",
-              "pass_power_k",
-              "weighted_score",
-              "instability_gap"
-            ],
+            "enum": ["pass_at_k", "pass_power_k", "weighted_score", "instability_gap"],
             "x-ethos-gap": "skill_package_eval_metric_unknown:{skill_id}:{value}"
           },
           "minItems": 1,

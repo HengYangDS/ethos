@@ -122,8 +122,7 @@ assert importlib.util.find_spec("pytest") is None
 with TemporaryDirectory(prefix="ethos-installed-format-") as temporary:
     root = Path(temporary)
     subprocess.run(["git", "init", "--quiet", str(root)], check=True)
-    configuration = root
-    policy = configuration / ".config/checks/ruff/ruff.toml"
+    policy = root / ".config/checks/ruff/ruff.toml"
     policy.parent.mkdir(parents=True)
     policy.write_text("line-length = 100\\n")
     source = root / "change.py"
@@ -133,7 +132,7 @@ with TemporaryDirectory(prefix="ethos-installed-format-") as temporary:
         subprocess.run(["git", "-C", str(root), "add", "change.py"], check=True)
         source.write_text(working)
         try:
-            _check_staged_python_format(root, ("change.py",), configuration=configuration)
+            _check_staged_python_format(root, ("change.py",), configuration=root)
         except RuntimeError as error:
             assert rejected and "pre_commit_python_format_failed" in str(error), str(error)
         else:

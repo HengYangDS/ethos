@@ -21,6 +21,7 @@ from ethos.contracts.plan import PlanNode
 from ethos.surface.cli.proof.report import summarize_checks
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
@@ -97,9 +98,10 @@ def test_native_markdown_consumes_literal_tracked_and_untracked_authored_inputs(
     pending = "docs/pending-\u03b2-[literal].md"
     (repo / pending).write_text("# Pending\n\n[Empty]()\n")
     report = gate_tool.markdown_lint_report(repo)
-    assert (report["verdict"], report["file_count"]) == ("block", 2)
+    expected = {"AGENTS.md", "docs/usage-\u03b1-[literal].md", pending}
+    assert (report["verdict"], report["file_count"]) == ("block", len(expected))
     assert "MD042" in report["native"][1]["stderr"]
-    assert set(report["native"][0]["files"]) == {"docs/usage-\u03b1-[literal].md", pending}
+    assert set(report["native"][0]["files"]) == expected
     accepted, _ignored = formatting_gate.render_source_content(
         repo, pending, "prettier", b"# Pending\n\nWords.\n"
     )
@@ -116,9 +118,11 @@ def test_native_configuration_consumes_untracked_repository_increment(tmp_path: 
     repo = init_git_repo(tmp_path / "repo")
     source = repo / "source.json"
     source.write_text('{\n  "value": 1\n}\n')
-    commit_fixture(repo, "record configuration")
-    increment = repo / ".config/checks/format/prettier.toml"
-    increment.parent.mkdir(parents=True)
+    relative = ".config/checks/prettier/prettier.toml"
+    git(repo, "rm", relative)
+    commit_fixture(repo, "record configuration without repository increment")
+    increment = repo / relative
+    increment.parent.mkdir(parents=True, exist_ok=True)
     policy = "tabWidth = "
     increment.write_text(policy + "4\n")
     refused = configuration_gate.configuration_report(repo, paths=("source.json",))
@@ -138,7 +142,8 @@ def test_native_configuration_consumes_untracked_repository_increment(tmp_path: 
 def test_native_markdown_verified_empty_inventory_still_passes(tmp_path: Path, provider: str):
     """An actual empty Git inventory remains legal without quality-tool execution."""
     repo = init_git_repo(tmp_path / "repo")
-    (repo / "README.md").unlink()
+    for relative in ("AGENTS.md", "README.md"):
+        (repo / relative).unlink()
     commit_fixture(repo, "record empty Markdown inventory")
     report = getattr(gate_tool, provider)(repo)
     assert (report["verdict"], report["file_count"]) == ("pass", 0)

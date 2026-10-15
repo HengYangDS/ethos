@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 _NativeCount = Annotated[int, Field(strict=True, ge=0)]
 
 
-class _V8Range(TypedDict):
+class _PreciseCoverageRange(TypedDict):
     """One native execution counter over a JavaScript source range."""
 
     startOffset: _NativeCount
@@ -38,36 +38,36 @@ class _V8Range(TypedDict):
     count: _NativeCount
 
 
-class _V8Function(TypedDict):
+class _PreciseCoverageFunction(TypedDict):
     """Native function identity, granularity and source counters."""
 
     functionName: StrictStr
     isBlockCoverage: StrictBool
-    ranges: Annotated[list[_V8Range], Field(min_length=1)]
+    ranges: Annotated[list[_PreciseCoverageRange], Field(min_length=1)]
 
 
-class _V8Script(TypedDict):
+class _PreciseCoverageScript(TypedDict):
     """One script identity and its observed function coverage."""
 
     scriptId: StrictStr
     url: StrictStr
-    functions: list[_V8Function]
+    functions: list[_PreciseCoverageFunction]
 
 
-class _V8Process(TypedDict):
+class _PreciseCoverageProcess(TypedDict):
     """One original precise-coverage observation, not an authenticated producer."""
 
-    result: Annotated[list[_V8Script], Field(min_length=1)]
+    result: Annotated[list[_PreciseCoverageScript], Field(min_length=1)]
     timestamp: Annotated[float, Field(strict=True, ge=0)]
 
 
-_V8_ADAPTER = TypeAdapter(_V8Process)
+_PRECISE_COVERAGE_ADAPTER = TypeAdapter(_PreciseCoverageProcess)
 
 
-def validate_native_v8_report(payload: bytes) -> None:
-    """Validate native V8 structure, never mistake valid shape for producer authentication."""
+def validate_node_precise_coverage(payload: bytes) -> None:
+    """Validate one Node precise-coverage file; a valid shape never authenticates its producer."""
     try:
-        report = _V8_ADAPTER.validate_json(payload)
+        report = _PRECISE_COVERAGE_ADAPTER.validate_json(payload)
     except ValidationError as error:
         _invalid("javascript_native_coverage_invalid", error)
     scripts = report["result"]

@@ -76,6 +76,7 @@ def test_native_semantic_yaml_rejects_invalid_relations_without_layout_policy(
 
 def test_native_dependency_resolution_keeps_its_byte_owner(tmp_path: Path) -> None:
     root = init_git_repo(tmp_path / "repo")
+    baseline = configuration_report(root)
     relative = ".mise/locks/npm/fixture/aube-lock.yaml"
     path = root / relative
     path.parent.mkdir(parents=True)
@@ -83,7 +84,8 @@ def test_native_dependency_resolution_keeps_its_byte_owner(tmp_path: Path) -> No
     path.write_text(content)
     git(root, "add", relative)
     report = configuration_report(root)
-    assert (report["verdict"], report["file_count"]) == ("pass", 0), report
+    assert report["verdict"] == baseline["verdict"] == "pass", report
+    assert report["file_count"] == baseline["file_count"], report
     refused = configuration_report(root, paths=(relative,))
     assert refused["verdict"] == "block"
     assert "another owner" in str(refused["required_gaps"])
@@ -105,7 +107,7 @@ def test_native_formatter_fix_and_check_are_one_idempotent_path(
         str(resolve_node_runtime().executable),
         str(product_node_module("prettier") / "bin/prettier.cjs"),
         "--config",
-        str(canonical_resource(".config/checks/format/prettier.toml")),
+        str(canonical_resource(".config/checks/prettier/prettier.toml")),
         "--no-editorconfig",
         "--write",
         "--",

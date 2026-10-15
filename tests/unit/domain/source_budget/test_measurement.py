@@ -86,10 +86,8 @@ def test_product_generated_projection_is_not_maintained_source(
 ) -> None:
     selection, _ = budget_repository(tmp_path)
     root = Path(__file__).resolve().parents[4]
-    selection.write_bytes((root / ".config/checks/format/selection.toml").read_bytes())
-    tracked_budget_file(
-        tmp_path, ".config/checks/architecture/models/model.c4", "model { system x }\n"
-    )
+    selection.write_bytes((root / ".config/checks/format-selection/policy.toml").read_bytes())
+    tracked_budget_file(tmp_path, "docs/architecture/models/model.c4", "model { system x }\n")
     before = measure_budget(monkeypatch, tmp_path)
     tracked_budget_file(tmp_path, "docs/architecture/_generated/model.mmd", "graph TD; A-->B\n")
     tracked_budget_file(tmp_path, "openspec/changes/archive/closed/design.md", "## Past intent\n")
@@ -136,7 +134,7 @@ def test_record_measurement_preserves_totals_and_tracks_growth(tmp_path, monkeyp
         tmp_path, "openspec/changes/archive/closed/receipt.json", '{"closed": true}\n'
     )
     counts = {
-        ".config/checks/format/selection.toml": 15,
+        ".config/checks/format-selection/policy.toml": 15,
         ".ethos/rules.toml": 1,
         "src/ethos/demo.py": 2,
         "openspec/changes/archive/closed/decision.py": 1,
@@ -312,7 +310,11 @@ def test_native_counter_preserves_file_coverage_and_comparison_direction(
 ):
     budget_repository(tmp_path, tolerance=(0, 0))
     counts = (
-        {".config/checks/format/selection.toml": 20, ".ethos/rules.toml": 1, "src/ethos/demo.py": 2}
+        {
+            ".config/checks/format-selection/policy.toml": 20,
+            ".ethos/rules.toml": 1,
+            "src/ethos/demo.py": 2,
+        }
         if complete
         else {"src/ethos/demo.py": 4}
     )

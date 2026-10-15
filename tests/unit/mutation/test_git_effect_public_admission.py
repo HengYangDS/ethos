@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 
@@ -10,6 +11,7 @@ import ethos.adapters.repo.git_effect_admission as admission
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+from tests.support.git_effect import fixture as effect_fixture
 from tests.support.git_effect import plan
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -125,6 +127,37 @@ def test_recovery_accepts_the_same_minimal_lease_generation(
     )
 
     admission.require_lease_generation(root, carried)
+
+
+@pytest.mark.parametrize("identity_changed", [False, True])
+def test_effect_identity_is_resolved_before_expensive_proof(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, identity_changed: bool
+) -> None:
+    """Reject known identity conflicts early while still requiring proof for valid state."""
+    case = effect_fixture(tmp_path)
+    if identity_changed:
+        write_test_profile(case.repo, profile_id="different")
+        git(case.repo, "add", ".ethos/profile.toml")
+        tree = git(case.repo, "write-tree")
+        changed = git(case.repo, "commit-tree", tree, "-p", case.old, "-m", "change identity")
+        case.effect = GitEffect(
+            updates={"refs/heads/dev": GitRefUpdate(expected=case.old, desired=changed)}
+        )
+    carried = plan(case.repo, case.effect)
+    resolve = Mock(wraps=admission.resolve_git_effect_repository)
+    proof = Mock(side_effect=ValueError("proof_required"))
+    monkeypatch.setattr(admission, "resolve_git_effect_repository", resolve)
+    monkeypatch.setattr(admission, "require_effect_proof", proof)
+
+    reason = "git_effect_repository_identity_mismatch" if identity_changed else "proof_required"
+    with pytest.raises(ValueError, match=reason):
+        admission.admit_git_effect_state(
+            case.repo, carried, case.effect, environment=None, detached_branch=""
+        )
+
+    assert resolve.call_count == 1
+    assert proof.call_count == (0 if identity_changed else 1)
+    assert git(case.repo, "rev-parse", "dev") == case.old
 
 
 @pytest.mark.parametrize("drift", ["refs", "assertions", "head", "tree"])

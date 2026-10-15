@@ -39,6 +39,7 @@ from ethos.contracts.branch.roles import ROLE_CANDIDATE
 from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import report_verdict
 from ethos.repository.policy.quality.tool_configuration import NATIVE_TOOL_LOCATIONS
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
@@ -144,6 +145,21 @@ def _native_configuration_dependency(path: str, source: bytes, *, owner: str) ->
     return relative
 
 
+def _reject_noncanonical_policy(root: Path, *, index_env: Mapping[str, str] | None) -> None:
+    """Name native policy left at the root instead of silently skipping its check."""
+    carriers = {NATIVE_TOOL_LOCATIONS[tool] for tool in ("gitleaks", "gitleaks-ignore", "ruff")}
+    names = tuple(
+        name
+        for tool in load_repository_paradigm().tool
+        if tool.carrier in carriers
+        for name in tool.root_names
+    )
+    retained = run_git(root, "ls-files", "--", *names, timeout=30, env=index_env).stdout.split()
+    if retained:
+        message = f"pre_commit_native_policy_noncanonical:{retained[0]}"
+        raise RuntimeError(message)
+
+
 @contextmanager
 def _native_hook_configuration(
     root: Path, *, index_env: Mapping[str, str] | None
@@ -151,6 +167,7 @@ def _native_hook_configuration(
     """Project incumbent native policy and its include closure without working-tree reads."""
     observed = run_git(root, "rev-parse", "--verify", "HEAD", check=False, timeout=30)
     head = observed.stdout.strip() if not observed.returncode else ""
+    _reject_noncanonical_policy(root, index_env=index_env)
     incumbent = _git_paths(root, "ls-tree", "-r", "--name-only", head) if head else ()
     indexed = _git_paths(root, "ls-files", index_env=index_env)
     policies = {
@@ -292,7 +309,7 @@ def _check_staged_python_format(
 
 
 def _pre_push(root: Path, args: tuple[str, ...], stdin: IO[str]) -> tuple[dict[str, object], ...]:
-    remote = args[0] if args else "origin"
+    remote = args[0] if args else ""
     reports = []
     for line in stdin:
         fields = line.split()

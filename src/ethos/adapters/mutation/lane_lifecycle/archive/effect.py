@@ -20,6 +20,7 @@ from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.governance import openspec_validation_report
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage_scope_report
+from ethos.adapters.openspec.lifecycle.validation import validation_issue_diagnostics
 from ethos.adapters.openspec.lifecycle.validation import validation_items
 from ethos.adapters.repo.commit.creation import create_git_commit
 from ethos.adapters.repo.git import current_tracked_head
@@ -199,12 +200,18 @@ def commit_archive_postimage(
     if native_gaps:
         restore_failure_boundary()
         repair_action = _archive_source_repair_action(root, change, native, staged_paths)
+        validation = native.get("validation")
         return lifecycle_report(
             branch,
             previous_head,
             "blocked",
             native_gaps,
             change=change,
+            diagnostics=list(
+                validation_issue_diagnostics(
+                    validation.get("json") if isinstance(validation, dict) else None
+                )
+            ),
             **lifecycle_effect_outcome(
                 kind="mutation_compensated" if owned_mutation else "mutation_uncompensated",
                 next_action=repair_action or "ethos lane status --json",

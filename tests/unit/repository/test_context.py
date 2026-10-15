@@ -175,13 +175,13 @@ def test_packaged_resource_requires_a_contained_relative_input(tmp_path: Path) -
 @pytest.mark.parametrize(
     "relative",
     [
-        ".config/checks/format/prettier.toml",
-        ".config/checks/prose/codespell.toml",
+        ".config/checks/prettier/prettier.toml",
+        ".config/checks/codespell/codespell.toml",
         ".config/checks/taplo/taplo.toml",
-        ".config/checks/yaml/yamllint.yaml",
-        ".config/checks/format/selection.toml",
-        ".config/checks/markdown/markdownlint.yaml",
-        ".config/checks/links/lychee.toml",
+        ".config/checks/yamllint/.yamllint.yaml",
+        ".config/checks/format-selection/policy.toml",
+        ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
+        ".config/checks/lychee/lychee.toml",
     ],
 )
 def test_installed_document_quality_preserves_shipped_native_policy(

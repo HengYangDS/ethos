@@ -11,6 +11,7 @@ from typing import Any
 
 from markdown_it import MarkdownIt
 
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.policy.projections import observe_projections
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -28,7 +29,6 @@ if TYPE_CHECKING:
 
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 OBSERVATIONAL_ROLES = frozenset({"evidence", "history"})
-MAX_CURRENT_MARKDOWN_NONBLANK = 512
 DECISION_RECORD_NAME = re.compile(r"^dr-([0-9]{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
 DECISION_REQUIRED_SECTIONS = ("context", "decision", "consequences", "revisit")
 DECISION_SECTION_ALIASES = {"follow-ups": "revisit"}
@@ -155,6 +155,7 @@ def current_document_length_gaps(
 ) -> list[str]:
     """Bound authored Markdown, not official intent or owned generated output."""
     paths = set(tracked_documents) | {str(entry["path"]) for entry in registry}
+    ceiling = load_repository_paradigm().size.markdown_nonblank_lines
     gaps: list[str] = []
     for relative in sorted(paths - generated_outputs):
         if _official_openspec_carrier(relative):
@@ -171,8 +172,8 @@ def current_document_length_gaps(
         if relative == RELEASE_HISTORY_FILE:
             continue
         count = sum(bool(line.strip()) for line in lines)
-        if count > MAX_CURRENT_MARKDOWN_NONBLANK:
-            gaps.append(f"docs_length_exceeded:{relative}:{count}>{MAX_CURRENT_MARKDOWN_NONBLANK}")
+        if count > ceiling:
+            gaps.append(f"docs_length_exceeded:{relative}:{count}>{ceiling}")
     return gaps
 
 

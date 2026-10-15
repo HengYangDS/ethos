@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 ROOT = Path(__file__).resolve().parents[2]
-CONFIG_RELATIVE_PATH = ".config/checks/ci/templates.toml"
+CONFIG_RELATIVE_PATH = ".config/checks/ci-projection/policy.toml"
 CONFIG_PATH = ROOT / CONFIG_RELATIVE_PATH
 EMULATOR_REQUIRED_FIELDS = (
     "emulator_tool",
@@ -247,7 +247,7 @@ def compile_providers(
 def projection_entries() -> list[dict[str, Any]]:
     entries = tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8")).get("projection", [])
     if not isinstance(entries, list):
-        message = ".config/checks/ci/templates.toml projection must be a list"
+        message = ".config/checks/ci-projection/policy.toml projection must be a list"
         raise SystemExit(message)
     return entries
 
@@ -255,7 +255,7 @@ def projection_entries() -> list[dict[str, Any]]:
 def _surface_entries() -> list[dict[str, Any]]:
     entries = tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8")).get("forge_surface", [])
     if not isinstance(entries, list):
-        message = ".config/checks/ci/templates.toml forge_surface must be a list"
+        message = ".config/checks/ci-projection/policy.toml forge_surface must be a list"
         raise SystemExit(message)
     return entries
 

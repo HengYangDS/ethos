@@ -26,6 +26,7 @@ from ethos.contracts.semantic import canonical_json_digest
 from ethos.repository.profile import IndependentVerificationPolicy
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_required_gaps
+from ethos.repository.release.configuration import host_git_remote
 
 _SYSTEM_PROVIDER_CONFIGS = (
     Path("/Library/Application Support/ETHOS/independent-verification.toml"),
@@ -241,6 +242,12 @@ def independent_verification_policy(
     return IndependentVerificationPolicy(mode=action_policy.mode if action_policy else selected)
 
 
+def repository_remote_url(root: Path) -> str:
+    """Return the URL of the host profile's declared Git remote, or '' when none is declared."""
+    remote = host_git_remote(root)
+    return git.git_stdout(root, "remote", "get-url", remote) if remote else ""
+
+
 def independent_verification_request(*, root: Path, action: str) -> dict[str, object]:
     """Bind an external re-execution receipt to the current Git proof subject.
 
@@ -254,7 +261,7 @@ def independent_verification_request(*, root: Path, action: str) -> dict[str, ob
     policy = resolve_gate_policy(root, tree_ref=commit) if commit else None
     floor = policy.gate_ids if policy else ()
     return {
-        "remote": git.git_stdout(root, "remote", "get-url", "origin"),
+        "remote": repository_remote_url(root),
         "commit": commit,
         "tree": tree,
         "action": action,

@@ -440,10 +440,10 @@ def exact_rename_target(root: Path, old_ref: str, new_ref: str, source: str) -> 
     return targets[0] if len(targets) == 1 else ""
 
 
-def remote_tracking_sync(root: Path, branch: str, remote: str = "origin") -> dict[str, object]:
+def remote_tracking_sync(root: Path, branch: str, remote: str) -> dict[str, object]:
     """Project local HEAD versus the local remote-tracking ref without network IO."""
     branch_name = branch.strip()
-    remote_name = remote.strip() or "origin"
+    remote_name = remote.strip()
     remote_ref = f"{remote_name}/{branch_name}" if branch_name else remote_name
     result: dict[str, object] = {
         "kind": "git_remote_tracking_sync",
@@ -520,8 +520,20 @@ def git_files(root: Path, *patterns: str, check: bool = False) -> list[str]:
     )
 
 
+def tracked_paths(root: Path) -> tuple[str, ...]:
+    """Return every index-tracked path exactly, without Git path quoting."""
+    completed = run_git(root, "ls-files", "-z", check=False, text=False, observation=True)
+    if completed.returncode:
+        return ()
+    return tuple(
+        raw.decode("utf-8", errors="surrogateescape")
+        for raw in completed.stdout.split(b"\0")
+        if raw
+    )
+
+
 def remote_availability(
-    root: Path, remote: str = "origin", *, timeout_seconds: float = 3.0
+    root: Path, remote: str, *, timeout_seconds: float = 3.0
 ) -> dict[str, object]:
     """Probe whether a configured Git remote is reachable without mutating state."""
     result = remote_availability_not_probed(root, remote)
@@ -557,7 +569,7 @@ def remote_availability(
     }
 
 
-def remote_availability_not_probed(root: Path, remote: str = "origin") -> dict[str, object]:
+def remote_availability_not_probed(root: Path, remote: str) -> dict[str, object]:
     """Describe a configured remote without performing a network reachability probe."""
     url = git_stdout(root, "remote", "get-url", remote)
     if not url:

@@ -21,7 +21,7 @@ from tests.support.governed_repository import init_git_repo
 from tools.ci.ci_projection import compile_providers
 
 ROOT = Path(__file__).resolve().parents[3]
-DECLARATION = ".config/checks/ci/templates.toml"
+DECLARATION = ".config/checks/ci-projection/policy.toml"
 MODEL = ".config/ci/pipeline.cue"
 SUPPLY = {"config": ".config/mise/config.toml", "lock": ".config/mise/mise.lock"}
 PACKAGE = {"engines": {"node": "26.x"}, "private": True, "optional": None, "values": [1, 2.5]}

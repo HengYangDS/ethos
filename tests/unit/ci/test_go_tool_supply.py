@@ -16,7 +16,15 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.parametrize(
-    "fault", ["none", "missing-gofmt", "wrong-version", "offline-ready", "offline-missing"]
+    "fault",
+    [
+        "none",
+        "windows-suffix",
+        "missing-gofmt",
+        "wrong-version",
+        "offline-ready",
+        "offline-missing",
+    ],
 )
 def test_declared_go_enters_native_quality_path_only_after_locked_supply(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], fault: str
@@ -28,12 +36,13 @@ def test_declared_go_enters_native_quality_path_only_after_locked_supply(
     (config / "mise.lock").write_text("lockfile_version = 2\n", encoding="utf-8")
     binary = tmp_path / "mise-data/installs/go/1.27.1/bin"
     binary.mkdir(parents=True)
-    go = binary / "go"
+    suffix = ".exe" if fault == "windows-suffix" else ""
+    go = binary / f"go{suffix}"
     observed = "1.27.0" if fault == "wrong-version" else "1.27.1"
     go.write_text(f"#!/bin/sh\necho 'go version go{observed} fixture/arch'\n")
     go.chmod(0o755)
     if fault != "missing-gofmt":
-        gofmt = binary / "gofmt"
+        gofmt = binary / f"gofmt{suffix}"
         gofmt.write_text("#!/bin/sh\nexit 0\n")
         gofmt.chmod(0o755)
     mise = tmp_path / "mise"
@@ -64,13 +73,14 @@ def test_declared_go_enters_native_quality_path_only_after_locked_supply(
     monkeypatch.setattr(native, "run_mise", locked_mise)
     monkeypatch.setattr(sys, "argv", ["native", "--root", str(tmp_path), "--mise"])
 
-    assert native.main() == (0 if fault in {"none", "offline-ready"} else 1)
+    accepted = fault in {"none", "windows-suffix", "offline-ready"}
+    assert native.main() == (0 if accepted else 1)
     captured = capsys.readouterr()
     if fault.startswith("offline-"):
         assert not any(command[0] == "install" for command in calls)
     else:
         assert any(command[:2] == ("install", "--locked") and "go" in command for command in calls)
-    if fault in {"none", "offline-ready"}:
+    if accepted:
         assert captured.out.strip().split(os.pathsep) == [str(node), str(binary), str(tmp_path)]
     else:
         assert captured.out == ""

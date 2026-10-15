@@ -30,6 +30,7 @@ from ethos.repository.policy.quality.dependency_acceptance import audit_workspac
 from ethos.repository.policy.quality.dependency_acceptance import compose_audit_policies
 from ethos.repository.policy.quality.dependency_acceptance import evaluate_dependency_acceptance
 from ethos.repository.policy.quality.dependency_acceptance import interpret_native_audit
+from ethos.repository.policy.quality.dependency_acceptance import npm_upstream_owners
 from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
@@ -185,6 +186,32 @@ def _observe(root: Path, ecosystem: str, timeout: int) -> dict:
         }
 
 
+def _upstream(root: Path, checks: list[dict], lock_source: bytes, timeout: int) -> dict:
+    """Observe each npm finding owner's latest stable release; any failure stays unobserved."""
+    observation: dict = {"npm": {}, "observed_at": datetime.now(UTC).isoformat()}
+    try:
+        adverse = checks[1]["verdict"] == "block"
+        owners = sorted(npm_upstream_owners(lock_source, checks[1])) if adverse else []
+        runtime = input_resolution.resolve_node_runtime() if owners else None
+    except (IndexError, KeyError, TypeError, ValueError, OSError, RuntimeError):
+        return observation
+    if runtime is None:
+        return observation
+    for name in owners:
+        command = (str(runtime.executable), str(runtime.npm), "view", f"{name}@latest", "version")
+        try:
+            completed = run_command(
+                root, (*command, "--json"), timeout=timeout, remove_env_prefixes=("GIT_",)
+            )
+            value = json.loads(completed.stdout) if completed.returncode == 0 else None
+        except (OSError, ValueError, ProcessExecutionError, subprocess.TimeoutExpired):
+            value = None
+        # The native `name@latest` view is a one-element array; any other shape stays unobserved.
+        if isinstance(value, list) and len(value) == 1 and isinstance(value[0], str) and value[0]:
+            observation["npm"][name] = value[0]
+    return observation
+
+
 def _write(path: Path, payload: dict) -> None:
     """Replace the diagnostic receipt atomically; old success cannot survive a new attempt."""
     temporary = path.with_suffix(".tmp")
@@ -261,12 +288,14 @@ def _run(session: nox.Session, *, root: Path = ROOT, scope: str = "production-re
             if check["verdict"] != "pass"
         ]
         verdict = reduce_verdicts(*(check["verdict"] for check in checks))
+        lock_source = before[2].get("package-lock.json", b"")
+        payload["upstream"] = _upstream(root, checks, lock_source, timeout)
         payload.update(verdict=verdict, state="finished", required_gaps=gaps)
         payload["decision"] = _local_decision(
             compose_audit_policies(policy, product),
             payload,
             scope,
-            lock_source=before[2].get("package-lock.json", b""),
+            lock_source=lock_source,
         )
         if head != current_tracked_head(root) or before != _inputs(root):
             payload["verdict"] = "block"

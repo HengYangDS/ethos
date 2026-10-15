@@ -36,7 +36,6 @@ REQUIRED_OWNER_ANCHORS = frozenset(
 REQUIRED_PROJECTION_ANCHOR = "semantic-kernel"
 FORBIDDEN_ROOT_PATHS = (
     "CLAUDE.md",
-    ".claude",
     ".ethos/decomp-recipes",
     ".gitnexus",
     "docs/superpowers",

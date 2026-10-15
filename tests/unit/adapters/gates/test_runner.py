@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import ethos.adapters.gates.native.attempt as gate_attempt
 import ethos.adapters.gates.native.inputs as native_inputs
 import ethos.adapters.gates.runner as gate_runner
 import ethos.adapters.gates.tool as gate_tool
@@ -57,7 +58,7 @@ def test_runner_transports_one_deadline_to_native_and_provider_execution(
         budgets.append(timeout)
         return subprocess.CompletedProcess(argv, 0, "", "")
 
-    monkeypatch.setattr(gate_runner, "run_command", command)
+    monkeypatch.setattr(gate_attempt, "run_command", command)
     runner = _runner(monkeypatch, report=provider)
     attributes = (
         {
@@ -354,7 +355,7 @@ def test_markdown_link_gate_excludes_deleted_tracked_paths(
 ) -> None:
     """The selected native config and live tracked files define link-check input."""
     (tmp_path / "README.md").write_text("# Current\n", encoding="utf-8")
-    config = tmp_path / ".config/checks/links/lychee.toml"
+    config = tmp_path / ".config/checks/lychee/lychee.toml"
     config.parent.mkdir(parents=True)
     config.write_text("offline = true\n")
     _quality_files(monkeypatch, "README.md", "docs/deleted.md", str(config.relative_to(tmp_path)))
@@ -383,7 +384,7 @@ def test_packaged_markdown_gate_uses_shipped_node_tools_and_selected_native_conf
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Markdown proof needs no adopter Python recipe or dependency installation."""
-    config = tmp_path / ".config/checks/markdown/markdownlint.yaml"
+    config = tmp_path / ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml"
     config.parent.mkdir(parents=True)
     config.write_text("noInlineConfig: true\nconfig:\n  default: false\n")
     (tmp_path / "README.md").write_text("# Current\n\n[Empty link]()\n")
@@ -405,7 +406,7 @@ def test_native_markdown_configuration_preserves_nested_rule_parameters(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The official CLI consumes nested native parameters, not just Boolean rules."""
-    config = tmp_path / ".config/checks/markdown/markdownlint.yaml"
+    config = tmp_path / ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml"
     config.parent.mkdir(parents=True)
     config.write_text(
         "config:\n  default: false\n  MD024: {siblings_only: true}\n", encoding="utf-8"
@@ -477,7 +478,7 @@ def test_prose_gate_keeps_native_spelling_without_adopter_toolchain(tmp_path, mo
     assert gate.providers == ("ethos.adapters.gates.tool:prose_report",)
     assert not gate.command
     document = tmp_path / "README.md"
-    local = tmp_path / ".config/checks/prose/codespell.toml"
+    local = tmp_path / ".config/checks/codespell/codespell.toml"
     local.parent.mkdir(parents=True)
     local.write_text('[tool.codespell]\nignore-words-list = "teh"\n')
     (tmp_path / "pyproject.toml").write_text('[tool.codespell]\nskip = "*"\n')
@@ -597,7 +598,7 @@ def test_canonical_dependency_audit_uses_fresh_release_acceptance(
     monkeypatch.setattr(gate_runner, "captured_dependency_acceptance", accepted)
     monkeypatch.setattr(gate_runner, "current_tracked_head", lambda _root: "a" * 40)
     monkeypatch.setattr(
-        gate_runner,
+        gate_attempt,
         "run_command",
         lambda *_args, **_options: subprocess.CompletedProcess(
             [], 0, '{"command":"dependency-audit","verdict":"block"}', ""

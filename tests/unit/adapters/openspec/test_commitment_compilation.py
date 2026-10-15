@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import shutil
 from contextlib import nullcontext
 from functools import partial
@@ -64,8 +65,7 @@ def compilation_root(tmp_path, monkeypatch):
     return root
 
 
-@pytest.mark.parametrize("removed", [False, True])
-def test_official_projection_compiles_minimal_commitment(*, removed: bool) -> None:
+def test_official_projection_compiles_minimal_commitment() -> None:
     projection = _requirement_projection()
     requirements = projection["deltas"][0]["requirements"]
     requirements.append(
@@ -80,12 +80,6 @@ def test_official_projection_compiles_minimal_commitment(*, removed: bool) -> No
             ],
         }
     )
-    if removed:
-        removed = _requirement_projection(
-            {"text": "Retired parallel authority remains supported.", "scenarios": []}
-        )["deltas"][0] | {"operation": "REMOVED"}
-        projection["deltas"].insert(0, removed)
-        projection["deltas"][1]["operation"] = "ADDED"
 
     commitment = commitment_from_projection("minimal-authority", projection)
 
@@ -118,6 +112,88 @@ def test_official_projection_compiles_minimal_commitment(*, removed: bool) -> No
     )
     with pytest.raises(ValidationError, match="extra_forbidden"):
         Commitment.model_validate(commitment.model_dump() | {"predecessors": ()})
+
+
+@pytest.mark.parametrize("with_requirement", [False, True])
+def test_native_removal_compiles_its_target_without_fabricated_scenarios(
+    *, with_requirement: bool
+) -> None:
+    """Removal is a named operation, not a continuing requirement or spec-free intent."""
+    removal = {
+        "spec": "authority",
+        "operation": "REMOVED",
+        "requirements": [
+            {
+                "name": "Retired parallel authority",
+                "text": "**Reason**: The unique owner replaces this mechanism.",
+                "scenarios": [],
+            }
+        ],
+    }
+    added = _requirement_projection()["deltas"][0] | {"operation": "ADDED"}
+    projection = {
+        "id": "minimal-authority",
+        "deltas": [removal, *([added] if with_requirement else [])],
+    }
+
+    result = commitment_from_projection("minimal-authority", projection)
+
+    expected = (f"authority:remove:{json.dumps(removal['requirements'][0], sort_keys=True)}",)
+    if with_requirement:
+        expected += commitment_from_projection(
+            "minimal-authority", {"id": "minimal-authority", "deltas": [added]}
+        ).acceptance
+    assert result == Commitment(
+        schema_version=3, id="change:minimal-authority", acceptance=expected
+    )
+    removal["requirements"][0]["name"] = "Another retired authority"
+    assert commitment_from_projection("minimal-authority", projection).digest() != result.digest()
+    removal["requirements"][0]["name"] = "Retired parallel authority"
+    removal["requirements"][0]["text"] = "**Migration**: Preserve the original evidence."
+    assert commitment_from_projection("minimal-authority", projection).digest() != result.digest()
+
+
+def test_native_removal_requires_the_official_target_name() -> None:
+    """A removal body cannot substitute for the name native archive matches."""
+    projection = _requirement_projection({"text": "Remove an unnamed rule", "scenarios": []})
+    projection["deltas"][0]["operation"] = "REMOVED"
+
+    with pytest.raises(ValueError, match="openspec_show_invalid:minimal-authority"):
+        commitment_from_projection("minimal-authority", projection)
+
+
+@pytest.mark.parametrize("header", [True, False])
+def test_native_removal_loads_real_working_and_exact_tree_intent(
+    tmp_path: Path, *, header: bool
+) -> None:
+    """Keep official header and bullet removal targets through the actual native reader."""
+    root = init_git_repo(tmp_path / "repo")
+    write_active_commitment(root, change_id="fixture-removal")
+    spec = root / "openspec/changes/fixture-removal/specs/contracts/spec.md"
+    removed = (
+        "### Requirement: Governed fixture\n\n"
+        "**Reason**: A new owner replaces this fixture obligation.\n\n"
+        "**Migration**: Preserve prior proof through Git.\n"
+        if header
+        else "- `### Requirement: Governed fixture`\n"
+    )
+    spec.write_text("## REMOVED Requirements\n\n" + removed)
+    (projection,) = compilation.openspec_cli.run_json_batch(
+        root, None, (("show", "fixture-removal", "--type", "change", "--json"),)
+    )
+    assert projection["exit_code"] == 0
+    assert not projection["parse_error"]
+    delta = projection["json"]["deltas"][0]
+    assert delta["operation"] == "REMOVED"
+    assert delta["requirements"][0]["name"] == "Governed fixture"
+    expected = commitment_from_projection("fixture-removal", projection["json"])
+
+    observed = compilation.load_openspec_commitment(root, change_id="fixture-removal")
+    head = commit_fixture(root, "declare removal-only intent")
+    exact = compilation.load_openspec_commitment(root, tree_ref=head, change_id="fixture-removal")
+
+    assert observed == exact == expected
+    assert all(item.startswith("contracts:remove:") for item in observed.acceptance)
 
 
 @pytest.mark.parametrize("with_requirement", [False, True])

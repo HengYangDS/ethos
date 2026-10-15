@@ -58,7 +58,7 @@ rewrite, tag recreation, history mapping, or tree-only parity.
 1. **Homomorphic semantics**: GitHub and GitLab SHALL cover the same required
    contract capabilities, thresholds, and evidence boundaries for a given
    profile. A provider-specific execution path is valid only when its reason is
-   declared in `.config/checks/ci/templates.toml` and the shared capability is
+   declared in `.config/checks/ci-projection/policy.toml` and the shared capability is
    still proved exactly once by an owner script.
 1. **Template ownership**: provider YAML SHALL be generated or checked from
    tracked provider templates. Hand-edited drift in hosted files is a governance

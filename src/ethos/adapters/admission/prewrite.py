@@ -35,6 +35,7 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
+from ethos.repository.paradigm.report import paradigm_path_gaps
 from ethos.repository.policy.projections import observe_projections
 from ethos.repository.policy.projections import projection_relations
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -158,6 +159,8 @@ def prewrite_guard(
                 f"ethos lane prewrite <path> --editor-root {editor['expected']} "
                 "--require-editor-root --json"
             )
+        if not next_action:
+            next_action = next((str(path["repair"]) for path in blocked if path.get("repair")), "")
         if not next_action:
             next_action = patch_repair_action(root, requested, patch_report)
     return {
@@ -472,24 +475,26 @@ def _check_path(
     }
     ignored = False if indexed_effects is not None else _is_ignored(root_path, relative)
     tracked = not ignored
+    created = (
+        indexed_effects.get(relative) == "create" if indexed_effects is not None else not present
+    )
+    decision: dict[str, object] = {}
     if topology["decision"] == "deny":
-        return _path_report(
-            resolved.as_posix(),
-            relative_path=relative,
-            **observed,
-            ignored=ignored,
-            tracked_candidate=tracked,
-            reason=str(topology.get("required_gap") or "generated_artifact_topology_denied"),
-        )
-    protected = role in PROTECTED_WRITE_ROLES and tracked
+        reason = str(topology.get("required_gap") or "generated_artifact_topology_denied")
+    elif created and tracked and (paradigm := paradigm_path_gaps(relative)):
+        reason, decision["repair"] = paradigm[0].required_gap, paradigm[0].repair
+    else:
+        protected = role in PROTECTED_WRITE_ROLES and tracked
+        reason = "protected_lane_tracked_write" if protected else "allowed"
+        decision["allowed"] = not protected
     return _path_report(
         resolved.as_posix(),
         relative_path=relative,
         **observed,
         ignored=ignored,
         tracked_candidate=tracked,
-        allowed=not protected,
-        reason="protected_lane_tracked_write" if protected else "allowed",
+        reason=reason,
+        **decision,
     )
 
 

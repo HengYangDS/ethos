@@ -224,8 +224,8 @@ marketing claims were not used as evidence of comparative performance.
 [repowise-graph]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/core/src/repowise/core/ingestion/graph/builder.py
 [repowise-parse-cache]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/core/src/repowise/core/ingestion/parse_cache.py
 [repowise-persist]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/core/src/repowise/core/pipeline/persist.py
-[repowise-context]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/core/src/repowise/server/mcp_server/tool_context/context.py
-[repowise-index-state]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/core/src/repowise/server/mcp_server/_index_state.py
+[repowise-context]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/server/src/repowise/server/mcp_server/tool_context/context.py
+[repowise-index-state]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/server/src/repowise/server/mcp_server/_index_state.py
 [repowise-io]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/core/src/repowise/core/analysis/health/biomarkers/io_in_loop.py
 [repowise-dry]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/core/src/repowise/core/analysis/health/biomarkers/dry_violation.py
 [repowise-primitive]: https://github.com/repowise-dev/repowise/blob/e829775bfd18f22ff2f9522d514d3b94c1fde2b6/packages/core/src/repowise/core/analysis/health/biomarkers/primitive_obsession.py

@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import urllib.request
+import venv
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -228,6 +230,32 @@ def test_managed_runtime_requires_one_exact_wheel(tmp_path, monkeypatch, content
             runtime_inputs.resolve_runtime_wheel(source, tmp_path / "unused")
 
 
+def test_invoking_runtime_names_its_exact_wheel_as_one_hashed_requirement(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only a selected runtime holding its exact package wheel names a requirement."""
+    assert runtime_inputs.invoking_runtime_requirement() is None
+    source, package_root = _managed_runtime_case(monkeypatch, tmp_path)
+    monkeypatch.setattr(runtime_inputs, "__file__", str(source / "ethos/input_resolution.py"))
+    with pytest.raises(ValueError, match=r"^hook_runtime_wheel_provenance_missing$"):
+        runtime_inputs.invoking_runtime_requirement()
+    package_root.mkdir(parents=True)
+    wheel = package_root / "ethos-0.2.0+local-py3-none-any.whl"
+    wheel.write_bytes(b"wheel")
+    digest = hashlib.sha256(b"wheel").hexdigest()
+    requirement = runtime_inputs.invoking_runtime_requirement()
+    assert requirement == f"ethos @ {wheel.as_uri()}#sha256={digest}"
+    assert requirement.startswith("ethos @ file:///")
+    assert "ethos-0.2.0%2Blocal-py3-none-any.whl#sha256=" in requirement
+
+    def unreadable(_path: Path) -> str:
+        raise PermissionError
+
+    monkeypatch.setattr(runtime_inputs, "file_sha256", unreadable)
+    with pytest.raises(ValueError, match=r"^hook_runtime_wheel_provenance_missing$"):
+        runtime_inputs.invoking_runtime_requirement()
+
+
 @pytest.mark.parametrize("layout", ["bin/python", "python/python.exe"])
 @pytest.mark.parametrize(
     "operation", [("export",), ("sync",), ("pip", "install", "package.whl"), ("build",)]
@@ -278,6 +306,28 @@ def test_runtime_tool_preserves_interpreter_supply_and_environment(
     }
     assert not {"UV_CACHE_DIR", "ETHOS_UV_CACHE_DIR"} & env.keys()
     assert env.get("ETHOS_NODE_PACKAGE_SUPPLY") == (str(supply) if building else None)
+
+
+def test_runtime_tool_targets_a_selected_environment_on_the_invoking_interpreter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two environments over one base interpreter remain distinct uv targets."""
+    selected = tmp_path / "selected"
+    venv.EnvBuilder(symlinks=os.name != "nt", with_pip=False).create(selected)
+    python = selected / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    native = subprocess.run
+    targets: list[str] = []
+
+    def run(command, **kwargs):
+        if tuple(command[1:5]) != ("-B", "-I", "-m", "uv"):
+            return native(command, **kwargs)
+        targets.append(kwargs["env"]["VIRTUAL_ENV"])
+        return _completed(0)
+
+    monkeypatch.setattr(runtime_inputs.subprocess, "run", run)
+    runtime_inputs.run_runtime_tool(tmp_path, "sync", python=python)
+    assert len(targets) == 1
+    assert Path(targets[0]).samefile(selected)
 
 
 def test_runtime_project_selects_complete_source_or_complete_packaged_resources(

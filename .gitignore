@@ -15,6 +15,7 @@ build/artifacts/
 node_modules/
 npm-debug.log*
 .claude/
+.codex/
 
 .coverage
 coverage.xml

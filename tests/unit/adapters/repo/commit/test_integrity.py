@@ -113,12 +113,13 @@ def test_signed_pathspec_commit_reads_only_the_selected_policy(
     policy.write_text(policy.read_text() + "\n" + _POLICY)
     commit_fixture(root, "fix: declare commit policy")
     configure_signer(root, tmp_path)
-    note = root / "NOTES.md"
+    note = root / "notes/selected.md"
+    note.parent.mkdir()
     note.write_text("Selected authored note.\n")
     policy.write_text(policy.read_text().replace("^fix: .+", "^docs: .+"))
-    git(root, "add", ".ethos/workspace.toml", note.name)
+    git(root, "add", ".ethos/workspace.toml", "notes/selected.md")
     head, index = git(root, "rev-parse", "HEAD"), git(root, "write-tree")
-    selected = ".ethos/workspace.toml" if select_policy else note.name
+    selected = ".ethos/workspace.toml" if select_policy else "notes/selected.md"
     result = git_process(root, "commit", "-S", "-m", "fix: selected policy", "--", selected)
     assert result.returncode == int(select_policy), result.stderr
     assert git(root, "write-tree") == index
@@ -273,7 +274,7 @@ def test_generated_commit_uses_exact_parent_and_target_not_checkout(tmp_path, ca
     if case in {"parent", "identity"}:
         workspace.write_text("")
     elif case == "malformed":
-        workspace.write_text("[commit_policy]\nsigning_required = 42\n")
+        workspace.write_text("[commit_policy]\nsubject_pattern = 42\n")
     git(repo, "add", ".ethos/workspace.toml")
     tree = git(repo, "write-tree")
     # The editable checkout is not the tree passed to commit-tree.
@@ -326,8 +327,8 @@ def test_native_hooks_reject_commit_or_push_without_parallel_policy(tmp_path, mo
     remote = tmp_path / "remote.git"
     remote.mkdir()
     git(remote, "init", "--bare")
-    git(repo, "remote", "add", "origin", str(remote))
-    git(repo, "push", "origin", "refs/heads/topic:refs/heads/proposal/test")
+    git(repo, "remote", "add", "gitlab", str(remote))
+    git(repo, "push", "gitlab", "refs/heads/topic:refs/heads/proposal/test")
     install_fixture_hook_runtime(repo)
     if case == "identity":
         monkeypatch.setenv("GIT_AUTHOR_EMAIL", "wrong@example.invalid")
@@ -345,7 +346,7 @@ def test_native_hooks_reject_commit_or_push_without_parallel_policy(tmp_path, mo
         "fix: exact range",
     )
     assert committed.returncode == 0, committed.stderr
-    pushed = git_process(repo, "push", "origin", "refs/heads/topic:refs/heads/proposal/test")
+    pushed = git_process(repo, "push", "gitlab", "refs/heads/topic:refs/heads/proposal/test")
     if case == "valid":
         assert pushed.returncode == 0, pushed.stderr
         assert git(remote, "rev-parse", "refs/heads/proposal/test") == git(
@@ -377,43 +378,45 @@ def test_signed_pathspec_commit_admits_only_its_selected_index(
     root = prepared_work_lane(tmp_path).worktree
     if checked_owner == "projection":
         _declaration, _model, output = architecture_projection_fixture(root, "Before")
-        invalid, gap = "wrong staged output\n", "generated_projection_drift:diagram.mmd"
+        invalid, gap = "wrong staged output\n", "generated_projection_drift:docs/diagram.mmd"
     else:
         output = root / ("unselected.py" if checked_owner == "formatter" else "unselected.txt")
         output.write_text("VALUE = 1\n")
         if checked_owner == "formatter":
-            policy = root / ".config/checks/ruff/ruff.toml"
-            policy.parent.mkdir(parents=True)
-            policy.write_text("line-length = 100\n")
+            formatter = root / ".config/checks/ruff/ruff.toml"
+            formatter.parent.mkdir(parents=True, exist_ok=True)
+            formatter.write_text("line-length = 100\n")
             install_fixture_hook_runtime(root, native_executables={"ruff": Path(find_ruff_bin())})
             invalid, gap = "VALUE=1\n", "pre_commit_python_format_failed"
         else:
-            policy = root / ".config/checks/gitleaks/gitleaks.toml"
-            policy.parent.mkdir(parents=True)
-            policy.write_text('[[rules]]\nid = "test-selection"\nregex = "AUTHORIZATION_[0-9]+"\n')
+            secrets = root / ".config/checks/gitleaks/gitleaks.toml"
+            secrets.parent.mkdir(parents=True)
+            secrets.write_text('[[rules]]\nid = "test-selection"\nregex = "AUTHORIZATION_[0-9]+"\n')
             invalid, gap = "AUTHORIZATION_123456789\n", "staged_secret_scan_failed"
     before = output.read_text()
     commit_fixture(root, "declare exact checks")
     configure_signer(root, tmp_path)
-    note = root / ("selected.py" if checked_owner == "formatter" else "NOTES.md")
+    note = root / ("src/selected.py" if checked_owner == "formatter" else "notes/selected.md")
+    note.parent.mkdir(parents=True, exist_ok=True)
     note.write_text("VALUE = 1\n")
     output.write_text(invalid)
-    git(root, "add", note.name, output.name)
+    staged_note, staged_output = (path.relative_to(root).as_posix() for path in (note, output))
+    git(root, "add", staged_note, staged_output)
     head, index = git(root, "rev-parse", "HEAD"), git(root, "write-tree")
 
-    selected = note.name if selected_valid else output.name
+    selected = staged_note if selected_valid else staged_output
     completed = git_process(root, "commit", "-S", "-m", "test: selected index", "--", selected)
 
     assert completed.returncode == (0 if selected_valid else 1), completed.stderr
     assert git(root, "write-tree") == index
-    assert git(root, "show", f":{output.name}") == invalid.rstrip()
+    assert git(root, "show", f":{staged_output}") == invalid.rstrip()
     assert output.read_text() == invalid
-    assert git(root, "show", f"HEAD:{output.name}") == before.rstrip()
+    assert git(root, "show", f"HEAD:{staged_output}") == before.rstrip()
     if selected_valid:
         assert git(root, "rev-parse", "HEAD") != head
         assert git_process(root, "verify-commit", "HEAD").returncode == 0
-        assert git(root, "diff", "--cached", "--name-only") == output.name
-        assert git(root, "show", f"HEAD:{note.name}") == note.read_text().rstrip()
+        assert git(root, "diff", "--cached", "--name-only") == staged_output
+        assert git(root, "show", f"HEAD:{staged_note}") == note.read_text().rstrip()
     else:
         assert gap in completed.stderr
         assert git(root, "rev-parse", "HEAD") == head
@@ -437,7 +440,7 @@ def test_signed_commit_preserves_incumbent_native_policy(
     extension.parent.mkdir(exist_ok=True)
     if checked_owner == "formatter":
         policy = root / ".config/checks/ruff/ruff.toml"
-        policy.parent.mkdir(parents=True)
+        policy.parent.mkdir(parents=True, exist_ok=True)
         policy.write_text('extend = "../../native-policy.toml"\n')
         extension.write_text("line-length = 100\n")
         weakened = "line-length = 1000\n"

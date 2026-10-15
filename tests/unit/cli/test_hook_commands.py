@@ -159,3 +159,24 @@ def test_pre_push_preserves_remote_and_never_upgrades_unknown_admission(
     assert result.next_action == (
         "" if verdict == "pass" else f"ethos status --root {tmp_path} --json"
     )
+
+
+def test_pre_push_names_no_remote_unless_one_is_given(
+    monkeypatch: pytest.MonkeyPatch, emitted: list[EthosResult]
+) -> None:
+    remotes: list[object] = []
+
+    def admit(**coordinates: object) -> dict[str, object]:
+        remotes.append(coordinates["remote_name"])
+        return {
+            "verdict": "block",
+            "state": "blocked",
+            "target_branch": "dev",
+            "role": "accepted_root",
+            "required_gaps": ["publication_remote_name_missing"],
+        }
+
+    monkeypatch.setattr(commands, "push_admission_report", admit)
+    commands.pre_push("refs/heads/dev", "a" * 40)
+    assert remotes == [""]
+    assert emitted[-1].summary["remote"] == ""

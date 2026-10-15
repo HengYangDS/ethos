@@ -81,8 +81,10 @@ def _unselected_gap(names: set[str]) -> str:
     )
 
 
-def incoming_change_gaps(root: Path, selected: str, incoming: str) -> list[str]:
-    """Imported official Change content is not owned by the selected lane intent."""
+def incoming_change_gaps(
+    root: Path, selected: str, incoming: str, authored_paths: tuple[str, ...]
+) -> list[str]:
+    """New resolution authoring does not own other imported Change progress."""
     changes = _change_trees(root, incoming)
     if changes is None:
         return ["openspec_incoming_change_observation_unavailable"]
@@ -93,18 +95,7 @@ def incoming_change_gaps(root: Path, selected: str, incoming: str) -> list[str]:
     return [
         f"openspec_incoming_change_modified:{name}"
         for name in sorted(changes.keys() - {selected})
-        if changes[name] != base.get(name)
-        and run_git(
-            root,
-            "diff",
-            "--cached",
-            "--quiet",
-            incoming,
-            "--",
-            f"openspec/changes/{name}",
-            check=False,
-            observation=True,
-        ).returncode
+        if any(path.startswith(f"{active_change_root(name)}/") for path in authored_paths)
     ]
 
 
@@ -143,13 +134,14 @@ def _change_trees(root: Path, revision: str) -> dict[str, str] | None:
     result = run_git(root, "ls-tree", "-z", tree, check=False, observation=True)
     if result.returncode:
         return None
-    return {
+    changes = {
         name: metadata.split()[2]
         for entry in result.stdout.split("\0")
         if entry
         for metadata, name in (entry.split("\t", 1),)
         if name != "archive" and metadata.split()[1] == "tree"
     }
+    return None if any(logical_change_identifier_issue(name) for name in changes) else changes
 
 
 def _lane_contribution(root: Path, names: set[str], tree_ref: str | None) -> set[str] | None:

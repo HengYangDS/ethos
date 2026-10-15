@@ -160,15 +160,16 @@ Check the largest independently readable section and whether readers can find
 a current decision, its rationale and the next action without scanning unrelated
 history. A short but fragmented or duplicated document can still fail that test.
 
-The portable hard ceiling is 512 nonblank physical lines per tracked, current,
-authored Markdown document, including root entrypoints, rules, Skills and a
-repository's native documentation root. Frontmatter, tables, code fences and
-quotes count; blank-line padding and a metadata state of `archived` do not
-exempt an otherwise current document. The release contract's root
-`CHANGELOG.md` is cumulative release history: neither its total nor its
-Unreleased or version sections have a document-length ceiling. Release format
-and version meaning belong to release governance, not this length check. A
-same-named document elsewhere is still ordinary authored documentation.
+The portable hard ceiling is the repository paradigm's 512 nonblank physical
+lines per tracked, current, authored Markdown document, including root
+entrypoints, rules, Skills and a repository's native documentation root.
+Frontmatter, tables, code fences and quotes count; blank-line padding and a
+metadata state of `archived` do not exempt an otherwise current document.
+The release contract's root `CHANGELOG.md` is cumulative release history:
+neither its total nor its Unreleased or version sections have a
+document-length ceiling. Release format and version meaning belong to release
+governance, not this length check. A same-named document elsewhere is still
+ordinary authored documentation.
 Official OpenSpec artifacts and their archive, and outputs with a declared
 producer, are separate carriers with their own checks.
 

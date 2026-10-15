@@ -58,17 +58,11 @@
       "type": "array"
     },
     "commitment_digest": {
-      "anyOf": [
-        { "pattern": "^[a-f0-9]{64}$", "type": "string" },
-        { "type": "null" }
-      ],
+      "anyOf": [{ "pattern": "^[a-f0-9]{64}$", "type": "string" }, { "type": "null" }],
       "title": "Commitment Digest"
     },
     "effect_digest": {
-      "anyOf": [
-        { "pattern": "^[a-f0-9]{64}$", "type": "string" },
-        { "type": "null" }
-      ],
+      "anyOf": [{ "pattern": "^[a-f0-9]{64}$", "type": "string" }, { "type": "null" }],
       "title": "Effect Digest"
     },
     "evidence_refs": {
@@ -77,10 +71,7 @@
       "type": "array"
     },
     "facts_digest": {
-      "anyOf": [
-        { "pattern": "^[a-f0-9]{64}$", "type": "string" },
-        { "type": "null" }
-      ],
+      "anyOf": [{ "pattern": "^[a-f0-9]{64}$", "type": "string" }, { "type": "null" }],
       "title": "Facts Digest"
     },
     "id": { "pattern": "^[a-f0-9]{64}$", "title": "Id", "type": "string" },
@@ -96,17 +87,11 @@
     },
     "payload": { "$ref": "#/$defs/_AttestationPayload" },
     "plan_digest": {
-      "anyOf": [
-        { "pattern": "^[a-f0-9]{64}$", "type": "string" },
-        { "type": "null" }
-      ],
+      "anyOf": [{ "pattern": "^[a-f0-9]{64}$", "type": "string" }, { "type": "null" }],
       "title": "Plan Digest"
     },
     "policy_digest": {
-      "anyOf": [
-        { "pattern": "^[a-f0-9]{64}$", "type": "string" },
-        { "type": "null" }
-      ],
+      "anyOf": [{ "pattern": "^[a-f0-9]{64}$", "type": "string" }, { "type": "null" }],
       "title": "Policy Digest"
     },
     "predicate": {
@@ -126,17 +111,11 @@
     },
     "subject": { "minLength": 1, "title": "Subject", "type": "string" },
     "valid_from": {
-      "anyOf": [
-        { "format": "date-time", "type": "string" },
-        { "type": "null" }
-      ],
+      "anyOf": [{ "format": "date-time", "type": "string" }, { "type": "null" }],
       "title": "Valid From"
     },
     "valid_until": {
-      "anyOf": [
-        { "format": "date-time", "type": "string" },
-        { "type": "null" }
-      ],
+      "anyOf": [{ "format": "date-time", "type": "string" }, { "type": "null" }],
       "title": "Valid Until"
     },
     "verdict": {

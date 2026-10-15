@@ -8,6 +8,9 @@ import os
 import shutil
 import tomllib
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import wait
+from contextvars import copy_context
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -19,6 +22,7 @@ import tools.ci.delivery.acceptance.brownfield as brownfield_acceptance
 import tools.ci.delivery.acceptance.invocation as cli_invocation
 import tools.ci.delivery.acceptance.lane as lane_acceptance
 import tools.ci.delivery.acceptance.runtime as runtime_acceptance
+from ethos.adapters.process import command_scope
 from ethos.adapters.process import run_command
 from ethos.adapters.process import windows_powershell
 from ethos.adapters.repo.git import current_tracked_head
@@ -39,6 +43,7 @@ from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+    from concurrent.futures import Future
 
     import nox
 
@@ -322,8 +327,13 @@ def observe_runtime_lifecycle(
     build: BuildIdentity,
     wheel_sha256: str,
     environment: Mapping[str, str],
+    bootstrap_users: tuple[Future[dict[str, object]], ...] = (),
 ) -> dict[str, Mapping[str, object]]:
-    """Execute and post-observe one complete package-only runtime lifecycle."""
+    """Execute and post-observe one complete package-only runtime lifecycle.
+
+    Work that still runs the installed console finishes before the bootstrap
+    environment is removed; a failed activation removes it at once.
+    """
     adopter_fixture.materialize_bootstrap_repository(bootstrap_repository, run=_run)
     candidate = adopter_fixture.prepare_acceptance_topology(repository, run=_run)
     try:
@@ -349,6 +359,7 @@ def observe_runtime_lifecycle(
             build=build,
             wheel_sha256=wheel_sha256,
         )
+        wait(bootstrap_users)
     finally:
         if bootstrap_environment.exists():
             shutil.rmtree(bootstrap_environment)
@@ -427,32 +438,42 @@ def run(
         line_endings = adopter_fixture.line_ending_conformance(adopter, run=_run)
         origin, version, command_plane = observe_installed_package(smoke, adopter)
         installed_ethos = _venv_executable(smoke, "ethos")
-        independent_host = observe_independent_command_plane(installed_ethos, adopter)
-        _run(uv, "pip", "check", "--python", str(_venv_executable(smoke, "python")))
-        resources = _verify_resources(wheel)
         build, wheel_sha256 = selected.build, selected.sha256
-        package_environment, _git = independent_host_environment()
-        package_environment["UV_OFFLINE"] = "1"
-        formation = adopter_fixture.prove_formation(
-            installed_ethos,
-            WORK,
-            origin=origin,
-            build=build,
-            wheel_sha256=wheel_sha256,
-            environment=package_environment,
-        )
-        brownfield = brownfield_acceptance.prove_brownfield(
-            installed_ethos, WORK, environment=package_environment, run=_run
-        )
-        lifecycle = observe_runtime_lifecycle(
-            installed_ethos=installed_ethos,
-            bootstrap_environment=smoke,
-            bootstrap_repository=WORK / "bootstrap-repository",
-            repository=adopter,
-            build=build,
-            wheel_sha256=wheel_sha256,
-            environment=package_environment,
-        )
+        package_environment = {**independent_host_environment()[0], "UV_OFFLINE": "1"}
+        # Formation owns only the repositories it creates, so it runs beside the other
+        # installed-console stages; the lifecycle waits for it before retiring the console.
+        with ThreadPoolExecutor(max_workers=1) as formation_pool, command_scope():
+            # Ty cannot solve the result type through the generic Context.run.
+            formation_run = cast(
+                "Future[dict[str, object]]",
+                formation_pool.submit(
+                    copy_context().run,
+                    adopter_fixture.prove_formation,
+                    installed_ethos,
+                    WORK,
+                    origin=origin,
+                    build=build,
+                    wheel_sha256=wheel_sha256,
+                    environment=package_environment,
+                ),
+            )
+            independent_host = observe_independent_command_plane(installed_ethos, adopter)
+            _run(uv, "pip", "check", "--python", str(_venv_executable(smoke, "python")))
+            resources = _verify_resources(wheel)
+            brownfield = brownfield_acceptance.prove_brownfield(
+                installed_ethos, WORK, environment=package_environment, run=_run
+            )
+            lifecycle = observe_runtime_lifecycle(
+                installed_ethos=installed_ethos,
+                bootstrap_environment=smoke,
+                bootstrap_repository=WORK / "bootstrap-repository",
+                repository=adopter,
+                build=build,
+                wheel_sha256=wheel_sha256,
+                environment=package_environment,
+                bootstrap_users=(formation_run,),
+            )
+            formation = formation_run.result()
         runtime = current_runtime(Path(git_common_dir(adopter)), expected_build=build).root
         distribution = package_runtime(
             runtime,

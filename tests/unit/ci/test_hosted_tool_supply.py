@@ -231,9 +231,10 @@ def _bootstrap_source(root: Path, script: str, version: str = "2026.9.11") -> Pa
     write_reference_source(root, "tools/ci/scripts/mise-install.sh", script)
     write_reference_source(
         root,
-        ".config/checks/ci/templates.toml",
+        ".config/checks/ci-projection/policy.toml",
         f'[bootstrap]\nversion = "{version}"\n'
-        f'sha256 = "{hashlib.sha256(installer.read_bytes()).hexdigest()}"\n',
+        f'sha256 = "{hashlib.sha256(installer.read_bytes()).hexdigest()}"\n'
+        f'[bootstrap.windows]\narm64 = "{"0" * 64}"\nx64 = "{"1" * 64}"\n',
     )
     return installer
 

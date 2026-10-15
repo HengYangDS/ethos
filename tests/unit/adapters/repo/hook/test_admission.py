@@ -16,6 +16,10 @@ from tests.support.runtime_scenarios import git_process
 if TYPE_CHECKING:
     from pathlib import Path
 
+_FORMAT_POLICY = ".config/checks/ruff/ruff.toml"
+_SECRET_POLICY = ".config/checks/gitleaks/gitleaks.toml"
+_SECRET_IGNORE = ".config/checks/gitleaks/gitleaksignore"
+
 
 @pytest.fixture
 def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
@@ -89,15 +93,16 @@ def test_pre_commit_projects_the_exact_staged_formatter_closure(
 
 
 @pytest.mark.parametrize(
-    ("tool", "canonical", "retained"),
+    ("canonical", "retained"),
     [
-        ("ruff", ".config/checks/ruff/ruff.toml", "ruff.toml"),
-        ("gitleaks", ".config/checks/gitleaks/gitleaks.toml", ".gitleaks.toml"),
-        ("gitleaks-ignore", ".config/checks/gitleaks/gitleaksignore", ".gitleaksignore"),
+        (".config/checks/ruff/ruff.toml", "ruff.toml"),
+        (".config/checks/gitleaks/gitleaks.toml", ".gitleaks.toml"),
+        (".config/checks/gitleaks/gitleaksignore", ".gitleaksignore"),
     ],
+    ids=["ruff", "gitleaks", "gitleaks-ignore"],
 )
 def test_pre_commit_requires_the_single_canonical_native_policy(
-    repo: Path, capsys: pytest.CaptureFixture[str], tool: str, canonical: str, retained: str
+    repo: Path, capsys: pytest.CaptureFixture[str], canonical: str, retained: str
 ) -> None:
     """Canonical nested selection rejects a competing root policy before execution."""
     path = repo / canonical
@@ -107,7 +112,7 @@ def test_pre_commit_requires_the_single_canonical_native_policy(
     assert git_process(repo, "add", ".").returncode == 0
     before = {p: p.read_bytes() for p in repo.rglob("*") if p.is_file()}
     assert execute_hook(repo, "pre-commit", (), stdin=StringIO()) == 1
-    assert f"native_tool_configuration_ambiguous:{tool}" in capsys.readouterr().err
+    assert f"pre_commit_native_policy_noncanonical:{retained}" in capsys.readouterr().err
     assert {p: p.read_bytes() for p in repo.rglob("*") if p.is_file()} == before
 
 

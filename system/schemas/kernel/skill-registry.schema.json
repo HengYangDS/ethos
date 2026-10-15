@@ -164,14 +164,7 @@
     "schema_version": { "const": 2 },
     "source": { "minLength": 1, "type": "string" }
   },
-  "required": [
-    "schema_version",
-    "source",
-    "meta",
-    "coverage",
-    "retired",
-    "records"
-  ],
+  "required": ["schema_version", "source", "meta", "coverage", "retired", "records"],
   "title": "ETHOS Normalized Skill Registry",
   "type": "object"
 }

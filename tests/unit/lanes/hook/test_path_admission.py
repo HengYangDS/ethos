@@ -284,13 +284,13 @@ P_COMMAND = _patch(
     "@app.command\ndef external_operation():\n    return None",
     new=True,
 )
-P_CONSUMER = _patch("GUIDE.md", "`ethos external-operation`", new=True)
+P_CONSUMER = _patch("docs/guide.md", "`ethos external-operation`", new=True)
 P_NEW = _patch(*A, "VALUE = 1", new=True)
 PATCH_CASES = [
     ((), M, P_IMPORT, E_IMPORT),
     ((), M, P_EXEC, E_EXEC),
     (("cyclopts",), C, P_COMMAND, "pass"),
-    (("cyclopts",), (*C, "GUIDE.md"), P_COMMAND + P_CONSUMER, E_COMMAND),
+    (("cyclopts",), (*C, "docs/guide.md"), P_COMMAND + P_CONSUMER, E_COMMAND),
     (("external_sdk",), M, P_IMPORT, "head"),
     ((), A, P_NEW, "pass"),
     ((), T + M, DECL + P_EXEC, E_EXEC),

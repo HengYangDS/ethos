@@ -427,3 +427,60 @@ def test_prewrite_projects_only_minimal_lease_and_fresh_git_coordinates(
         "current_head",
         "current_tree",
     }
+
+
+@pytest.mark.parametrize(
+    ("relative", "reason", "repair"),
+    [
+        (
+            "pytest.ini",
+            "repository_paradigm_root_catalog:pytest.ini",
+            "move pytest.ini to .config/checks/pytest/pytest.toml",
+        ),
+        (
+            ".config/checks/secrets/gitleaks.toml",
+            "repository_paradigm_configuration_owner:.config/checks/secrets/gitleaks.toml",
+            "move .config/checks/secrets/gitleaks.toml to .config/checks/gitleaks/gitleaks.toml",
+        ),
+        (
+            ".ethos/gates.toml",
+            "repository_paradigm_binding_files:.ethos/gates.toml",
+            "move .ethos/gates.toml into an ETHOS binding file",
+        ),
+        ("src/code.py", "", ""),
+        ("pyproject.toml", "", ""),
+    ],
+    ids=["root-config", "config-owner", "binding", "product", "manifest"],
+)
+def test_prewrite_refuses_a_new_path_the_paradigm_rejects(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relative: str, reason: str, repair: str
+) -> None:
+    """Creating a non-conforming carrier is refused with its canonical repair."""
+    _bind_common(monkeypatch, tmp_path, role="accepted_root")
+    report = prewrite.prewrite_guard(
+        root=tmp_path, paths=[tmp_path / relative], editor_root=tmp_path
+    )
+    [path] = report["paths"]
+    assert isinstance(path, dict)
+    if reason:
+        assert path["reason"] == reason
+        assert repair in str(path["repair"])
+        assert report["verdict"] == "block"
+        assert reason in report["required_gaps"]
+        assert repair in str(report["next_action"])
+    else:
+        assert not str(path["reason"]).startswith("repository_paradigm")
+
+
+def test_prewrite_admits_edits_to_an_existing_non_conforming_carrier(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A repository mid-migration may still edit or delete what it already tracks."""
+    _bind_common(monkeypatch, tmp_path, role="accepted_root")
+    (tmp_path / "pytest.ini").write_text("[pytest]\n", encoding="utf-8")
+    report = prewrite.prewrite_guard(
+        root=tmp_path, paths=[tmp_path / "pytest.ini"], editor_root=tmp_path
+    )
+    [path] = report["paths"]
+    assert isinstance(path, dict)
+    assert not str(path["reason"]).startswith("repository_paradigm")

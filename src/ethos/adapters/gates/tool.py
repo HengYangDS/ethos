@@ -119,7 +119,7 @@ def external_links_report(root: Path) -> dict[str, object]:
 def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, object]:
     try:
         files = _markdown_files(root)
-        configs = native_configurations(root, "lychee", ".config/checks/links/lychee.toml")
+        configs = native_configurations(root, "lychee", ".config/checks/lychee/lychee.toml")
     except (GitExecutionError, subprocess.CalledProcessError) as error:
         return quality_inventory_failure(root, gate_id, error)
     except (OSError, ValueError) as error:
@@ -154,7 +154,9 @@ def prose_report(root: Path) -> dict[str, object]:
     """Run native spelling on exact copies without ambient policy or source writes."""
     try:
         files = _markdown_files(root)
-        configs = native_configurations(root, "codespell", ".config/checks/prose/codespell.toml")
+        configs = native_configurations(
+            root, "codespell", ".config/checks/codespell/codespell.toml"
+        )
         sources = {relative: (root / relative).read_bytes() for relative in files}
         if any((root / relative).is_symlink() for relative in files):
             return _configuration_failure("prose", ValueError("native_prose_input_invalid"))
@@ -224,7 +226,7 @@ def markdown_lint_report(root: Path) -> dict[str, object]:
         node = str(resolve_node_runtime().executable)
         markdownlint = str(product_node_module("markdownlint-cli2") / "markdownlint-cli2.mjs")
         lint_configs = native_configurations(
-            root, "markdownlint-cli2", ".config/checks/markdown/markdownlint.yaml"
+            root, "markdownlint-cli2", ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml"
         )
     except (GitExecutionError, subprocess.CalledProcessError) as error:
         return quality_inventory_failure(root, "markdown-lint", error)

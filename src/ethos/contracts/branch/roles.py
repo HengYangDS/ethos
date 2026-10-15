@@ -35,6 +35,11 @@ _STRICT_BRANCH_ROLE_FIELDS = {
     "release_mirror",
     "canonical_sibling_worktrees",
 }
+# Historical table generations and the meaning the lenient reader always gave their absent fields.
+_PREDECESSOR_BRANCH_ROLE_DEFAULTS = (
+    {"canonical_sibling_worktrees": False},
+    {"canonical_sibling_worktrees": False, "release_mirror": "independent"},
+)
 PROTECTED_WRITE_ROLES = frozenset(
     {
         ROLE_RELEASE_ROOT,
@@ -176,17 +181,23 @@ def branch_role_policy_from_text(text: str) -> BranchRolePolicy:
 
 
 def strict_branch_role_policy_from_text(
-    text: str, *, allow_legacy_sibling_default: bool = False
+    text: str, *, allow_predecessor_defaults: bool = False
 ) -> BranchRolePolicy:
-    """Parse complete branch roles, optionally recognizing one predecessor schema."""
+    """Parse complete branch roles, optionally recognizing predecessor schemas.
+
+    A workspace that declares no branch-role table keeps the standard roles.
+    """
     payload = tomllib.loads(text)
-    raw_policy = payload.get("branch_roles")
+    if "branch_roles" not in payload:
+        return BranchRolePolicy()
+    raw_policy = payload["branch_roles"]
     if type(raw_policy) is not dict:
         raise ValueError(_STRICT_BRANCH_ROLE_TABLE_ERROR)
-    if allow_legacy_sibling_default and set(raw_policy) == (
-        _STRICT_BRANCH_ROLE_FIELDS - {"canonical_sibling_worktrees"}
-    ):
-        raw_policy["canonical_sibling_worktrees"] = False
+    if allow_predecessor_defaults:
+        for defaults in _PREDECESSOR_BRANCH_ROLE_DEFAULTS:
+            if set(raw_policy) == _STRICT_BRANCH_ROLE_FIELDS - set(defaults):
+                raw_policy.update(defaults)
+                break
     if set(raw_policy) != _STRICT_BRANCH_ROLE_FIELDS:
         raise ValueError(_STRICT_BRANCH_ROLE_TABLE_ERROR)
     text_fields = _STRICT_BRANCH_ROLE_FIELDS - {"canonical_sibling_worktrees"}

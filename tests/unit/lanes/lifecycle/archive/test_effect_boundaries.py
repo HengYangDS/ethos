@@ -210,19 +210,48 @@ def test_archive_effect_owns_postimage_commit_and_reuses_resolved_intent(
     assert observed["completion"] == {"apply": True, "result": None}
 
 
+_LONG_REQUIREMENT = {
+    "level": "WARNING",
+    "path": "requirements[27]",
+    "message": "Requirement text is very long (>500 characters).",
+}
+
+
 @pytest.mark.parametrize(
-    ("gap", "payload"),
+    ("gap", "payload", "diagnostics"),
     [
-        ("openspec_validation_unreadable", {}),
-        ("openspec_validation_unreadable", {"items": [None]}),
+        ("openspec_validation_unreadable", {}, []),
+        ("openspec_validation_unreadable", {"items": [None]}, []),
         (
             "openspec_validation_failed:spec:unrelated",
-            {"items": [{"id": "unrelated", "type": "spec", "valid": False, "issues": []}]},
+            {
+                "items": [
+                    {
+                        "id": "unrelated",
+                        "type": "spec",
+                        "valid": False,
+                        "issues": [_LONG_REQUIREMENT, {**_LONG_REQUIREMENT, "level": "INFO"}],
+                    }
+                ]
+            },
+            [
+                {
+                    "kind": "openspec_validation_issue",
+                    "item": "spec:unrelated",
+                    "severity": "warning",
+                    "path": "requirements[27]",
+                    "message": "Requirement text is very long (>500 characters).",
+                }
+            ],
         ),
     ],
 )
 def test_unrepairable_native_postimage_compensates_without_inventing_repair(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, gap: str, payload: dict[str, object]
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    gap: str,
+    payload: dict[str, object],
+    diagnostics: list[dict[str, str]],
 ) -> None:
     """Unreadable or unrelated native findings cannot name a false Change delta."""
     lifecycle = completed_lifecycle(tmp_path, monkeypatch)
@@ -243,6 +272,7 @@ def test_unrepairable_native_postimage_compensates_without_inventing_repair(
     )
 
     assert result["required_gaps"] == [gap]
+    assert result["diagnostics"] == diagnostics
     assert result["next_action"] == "ethos lane status --json"
     assert (result["effect_state"], result["compensation_state"]) == ("mutated", "completed")
     assert result["user_decision_required"] is True

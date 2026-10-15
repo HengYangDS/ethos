@@ -98,8 +98,8 @@ def test_required_common_verifier_cannot_be_replaced_by_same_named_native_comman
 def test_native_configuration_uses_one_shared_directory_shape() -> None:
     """Historical alternative paths cannot silently select a second policy owner."""
     with pytest.raises(ValueError, match="native_tool_configuration_location_invalid:lychee"):
-        native_tool_configuration((".config/checks/lychee/lychee.toml",), "lychee")
-    expected = ".config/checks/links/lychee.toml"
+        native_tool_configuration((".config/checks/links/lychee.toml",), "lychee")
+    expected = ".config/checks/lychee/lychee.toml"
     assert native_tool_configuration((expected,), "lychee") == expected
 
     assert native_tool_configuration((".config/checks/ruff/ruff.toml",), "ruff") == (
@@ -114,8 +114,8 @@ def test_native_configuration_uses_one_shared_directory_shape() -> None:
 def test_invalid_configuration_is_bound_as_evidence_not_admitted_policy(tmp_path: Path) -> None:
     """Discovery retains every observed carrier, while normal compilation stays strict."""
     paths = (
-        ".config/checks/markdown/markdownlint.yaml",
-        ".config/checks/markdown/markdownlint.toml",
+        ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
+        ".config/checks/markdownlint-cli2/.markdownlint-cli2.jsonc",
     )
     gate = Gate(
         id="markdown-lint",

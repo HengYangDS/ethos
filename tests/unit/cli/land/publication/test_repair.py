@@ -137,7 +137,7 @@ def test_publication_consumes_repaired_forward_baseline_at_every_boundary(tmp_pa
         "--remote-head",
         old,
         "--remote",
-        "origin",
+        "gitlab",
         "--json",
         cwd=repo,
     )
@@ -173,15 +173,16 @@ def _historical_peer_fixture(
 ) -> tuple[Path, Path, str, str, str]:
     """Accept forward content after repairing a lagging peer's original history."""
     repo, old, candidate = signature_repository(tmp_path, coupled=True)
-    (repo / "peer-prefix.txt").write_text("peer prefix\n", encoding="utf-8")
-    git(repo, "add", "peer-prefix.txt")
+    (repo / "notes").mkdir(exist_ok=True)
+    (repo / "notes/peer-prefix.txt").write_text("peer prefix\n", encoding="utf-8")
+    git(repo, "add", "notes/peer-prefix.txt")
     with monkeypatch.context() as scope:
         scope.setenv("GIT_AUTHOR_NAME", "Wrong")
         scope.setenv("GIT_AUTHOR_EMAIL", "wrong@example.invalid")
         git(repo, "commit", "-S", "-m", "legacy peer prefix")
     peer_old = git(repo, "rev-parse", "HEAD")
-    (repo / "old-tip.txt").write_text("old tip\n", encoding="utf-8")
-    git(repo, "add", "old-tip.txt")
+    (repo / "notes/old-tip.txt").write_text("old tip\n", encoding="utf-8")
+    git(repo, "add", "notes/old-tip.txt")
     git(repo, "commit", "-S", "-m", "fix: old tip")
     old_tip = git(repo, "rev-parse", "HEAD")
     git(candidate, "reset", "--hard", old_tip)
@@ -236,7 +237,7 @@ def test_historical_peer_prefix_uses_verified_replacement_tip(
         "--remote-head",
         peer_old,
         "--remote",
-        "origin",
+        "gitlab",
         "--json",
         cwd=repo,
     )
@@ -251,7 +252,7 @@ def test_historical_peer_prefix_uses_verified_replacement_tip(
         target_ref="refs/heads/dev",
         proposed_head=bad,
         remote_head=peer_old,
-        remote_name="origin",
+        remote_name="gitlab",
     )["commit_policy_admission"]
     assert isinstance(bad_range, dict)
     assert bad_range["integration_baseline"] == replacement
@@ -289,7 +290,7 @@ def test_historical_peer_prefix_uses_verified_replacement_tip(
             "--remote-head",
             peer_old,
             "--remote",
-            "origin",
+            "gitlab",
             "--json",
             cwd=repo,
         )
@@ -314,7 +315,7 @@ def _require_independent_admission(
         "--remote-head",
         old,
         "--remote",
-        "origin",
+        "gitlab",
         "--json",
     )
     selected, records = read_attestation_set(repo)
@@ -337,7 +338,7 @@ def _require_independent_admission(
                 code = execute_hook(
                     repo,
                     "pre-push",
-                    ("origin",),
+                    ("gitlab",),
                     stdin=StringIO(f"refs/heads/dev {head} refs/heads/dev {old}\n"),
                 )
             assert code == 1

@@ -468,13 +468,17 @@ def _compensate_git_effect(
 def _ref_operation(root: Path, plan: TransitionPlan, ref_name: str, update: GitRefUpdate) -> str:
     operation = str(plan.policy.get("transition") or plan.policy.get("operation") or "")
     if operation == "candidate.integrate":
-        return ref_transition_operation(
+        resolved = ref_transition_operation(
             root,
             resolve_ref_move_policy(root, ref_name, update.expected, update.desired),
             ref_name,
             update.expected,
             update.desired,
         )
+        if not resolved:
+            message = f"ref_transition_operation_unresolved:{ref_name}"
+            raise ValueError(message)
+        return resolved
     release_ref = f"refs/heads/{plan.policy.get('release_branch') or ''}"
     return (
         "release.tag"

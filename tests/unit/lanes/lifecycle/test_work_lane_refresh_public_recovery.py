@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.work_lane_refresh as refresh
+from ethos.adapters.repo.git import GitExecutionError
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
@@ -46,7 +47,18 @@ def _status(*, branch: str = BRANCH) -> dict[str, Any]:
     }
 
 
-def _common(monkeypatch: pytest.MonkeyPatch, *, branch: str = BRANCH) -> None:
+def _git(switched: list[str] | None = None):
+    def run_git(_root: Path, *args: str, **_kwargs: object) -> SimpleNamespace:
+        if switched is not None and args[:2] == ("switch", "--detach"):
+            switched.append(args[2])
+        return _completed(stdout=(HEAD if args[-2:] == ("rev-parse", "HEAD") else CANDIDATE) + "\n")
+
+    return run_git
+
+
+def _common(
+    monkeypatch: pytest.MonkeyPatch, *, branch: str = BRANCH, switched: list[str] | None = None
+) -> None:
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test")
     monkeypatch.setattr(
         refresh,
@@ -56,12 +68,12 @@ def _common(monkeypatch: pytest.MonkeyPatch, *, branch: str = BRANCH) -> None:
     monkeypatch.setattr(refresh, "workspace_status", lambda _root: _status(branch=branch))
     monkeypatch.setattr(refresh, "changed_paths", lambda _path: ())
     monkeypatch.setattr(
-        refresh,
-        "run_git",
-        lambda _root, *args, **_kwargs: _completed(
-            stdout=(HEAD if args[-2:] == ("rev-parse", "HEAD") else CANDIDATE) + "\n"
-        ),
+        refresh, "hook_runtime_binding", lambda _root: {"required_gaps": [], "next_action": ""}
     )
+    for name in ("write_pending_refresh", "clear_pending_refresh"):
+        monkeypatch.setattr(refresh, name, lambda *_args: None)
+    monkeypatch.setattr(refresh, "read_pending_refresh", lambda _root: None)
+    monkeypatch.setattr(refresh, "run_git", _git(switched))
 
 
 def _recovery_plan(
@@ -129,6 +141,22 @@ def test_refresh_public_reader_distinguishes_current_and_ready(
     monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: False)
     ready = refresh.refresh_work_lane_base(root=tmp_path)
     assert ready["state"] == "ready_to_refresh_base"
+
+    unarmed = {
+        "required_gaps": ["write_admission_not_armed:x"],
+        "next_action": "ethos hook install",
+    }
+    monkeypatch.setattr(refresh, "hook_runtime_binding", lambda _root: unarmed)
+    monkeypatch.setattr(refresh, "_refresh_work_lane", lambda *_args: pytest.fail("rewrote"))
+    for apply in (False, True):
+        blocked = refresh.refresh_work_lane_base(
+            root=tmp_path, apply=apply, authorized=apply, expect_head=HEAD if apply else None
+        )
+        assert (blocked["state"], blocked["required_gaps"], blocked["next_action"]) == (
+            "blocked",
+            unarmed["required_gaps"],
+            unarmed["next_action"],
+        )
 
 
 @pytest.mark.parametrize(
@@ -366,8 +394,11 @@ def test_refresh_admission_failure_restores_before_repository_effects(
         raising=False,
     )
     monkeypatch.setattr(refresh, "commit_environment", lambda *_args: {}, raising=False)
+    switched: list[str] = []
 
     def run_git(_root: Path, *args: str, **_kwargs: object) -> SimpleNamespace:
+        if args[:2] == ("switch", "--detach"):
+            switched.append(args[2])
         if args[-2:] == ("rev-parse", "HEAD"):
             return _completed(stdout=HEAD + "\n")
         if args[-2:] == ("rev-parse", "candidate/dev"):
@@ -394,12 +425,6 @@ def test_refresh_admission_failure_restores_before_repository_effects(
         "execute_git_effect",
         lambda *_args, **_kwargs: pytest.fail("invalid replay must not update refs or Lease"),
     )
-    compensated: list[str] = []
-    monkeypatch.setattr(
-        refresh,
-        "compensate_git_worktree",
-        lambda _root, *, head: compensated.append(head),
-    )
     restored: list[tuple[str, str]] = []
     monkeypatch.setattr(
         refresh,
@@ -413,7 +438,7 @@ def test_refresh_admission_failure_restores_before_repository_effects(
 
     assert report["state"] == "blocked"
     assert report["required_gaps"] == [gap]
-    assert compensated == [HEAD]
+    assert switched == [HEAD]
     assert restored == [(BRANCH, HEAD)]
 
 
@@ -467,23 +492,23 @@ def test_detached_public_recovery_accepts_only_exact_persisted_effect(
 def test_refresh_public_effect_failure_restores_original_checkout(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    _common(monkeypatch)
+    switched: list[str] = []
+    _common(monkeypatch, switched=switched)
     ancestry = iter((False, True))
     monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
     heads = iter((HEAD, REBASED, HEAD))
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
     captured = _stub_refresh_effect(monkeypatch)
     monkeypatch.setattr(refresh, "validate_replayed_commits", lambda *_args, **_kwargs: [])
+    refused = GitExecutionError(
+        "git_effect_cas_rejected",
+        reason="native_exit_nonzero",
+        observation={"stderr": "reference-transaction hook refused"},
+    )
     monkeypatch.setattr(
         refresh,
         "execute_git_effect",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("stale effect")),
-    )
-    compensated: list[str] = []
-    monkeypatch.setattr(
-        refresh,
-        "compensate_git_worktree",
-        lambda _root, *, head: compensated.append(head),
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(refused),
     )
     restored: list[tuple[str, str]] = []
     monkeypatch.setattr(
@@ -497,7 +522,8 @@ def test_refresh_public_effect_failure_restores_original_checkout(
     )
 
     assert report["state"] == "blocked"
-    assert compensated == [HEAD]
+    assert report["process_failure"] == refused.evidence()
+    assert switched == [HEAD]
     assert restored == [(BRANCH, HEAD)]
     native = captured["native"]
     assert isinstance(native, dict)

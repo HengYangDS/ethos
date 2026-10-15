@@ -35,10 +35,7 @@
           "type": "string"
         },
         "dependency_groups": {
-          "anyOf": [
-            { "items": { "type": "string" }, "type": "array" },
-            { "type": "null" }
-          ],
+          "anyOf": [{ "items": { "type": "string" }, "type": "array" }, { "type": "null" }],
           "default": null,
           "title": "Dependency Groups"
         },

@@ -72,7 +72,8 @@ def test_native_workflow_gate_preserves_large_input_and_semantic_rejections(
     native_run = owner.run_command
 
     def bounded_run(root: Path, command: tuple[str, ...], **kwargs):
-        kwargs["timeout"] = min(kwargs.get("timeout", 5), 5)
+        # Bound a deadlocked child, not a loaded runner: shellcheck needs seconds for this input.
+        kwargs["timeout"] = min(kwargs.get("timeout", 30), 30)
         return native_run(root, command, **kwargs)
 
     monkeypatch.setattr(owner, "run_command", bounded_run)

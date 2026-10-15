@@ -46,8 +46,7 @@ def _configuration_inventory(root: Path) -> tuple[Path, ...]:
 
 def _candidate_paths(root: Path, requested: tuple[str, ...]) -> dict[str, tuple[Path, ...]]:
     inventory = tuple(map(Path, requested)) or _configuration_inventory(root)
-    authored = set(authored_source_files(root, paths=tuple(path.as_posix() for path in inventory)))
-    selected = []
+    candidates = []
     for raw in inventory:
         path = root / raw
         if raw.suffix.lower() not in SUPPORTED_SUFFIXES:
@@ -61,7 +60,10 @@ def _candidate_paths(root: Path, requested: tuple[str, ...]) -> dict[str, tuple[
                 message = f"config target missing or not a file: {raw}"
                 raise ValueError(message)
             continue
-        relative = path.resolve().relative_to(root.resolve()).as_posix()
+        candidates.append(path.resolve().relative_to(root.resolve()).as_posix())
+    authored = set(authored_source_files(root, paths=tuple(candidates))) if candidates else set()
+    selected = []
+    for relative in candidates:
         owned_elsewhere = (
             relative not in authored
             or relative.startswith(("openspec/changes/", "openspec/specs/"))
@@ -144,7 +146,7 @@ def _json_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
 
 def _yaml_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
     failures = []
-    configs = native_configurations(root, "yamllint", ".config/checks/yaml/yamllint.yaml")
+    configs = native_configurations(root, "yamllint", ".config/checks/yamllint/.yamllint.yaml")
     policies = [yamllint_config.YamlLintConfig(Path(config).read_text()) for config in configs]
     semantic_rules = policies[0].rules.keys()
     for path in paths:

@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 from pathlib import PurePosixPath
 from threading import Condition
+from typing import TYPE_CHECKING
 
 from cachetools import LRUCache
 from cachetools import cached
@@ -15,21 +16,33 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
 from ethos.contracts.semantic import Attestation
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 ATTESTATION_SET_REF = "refs/ethos/attestations-set"
 _MEMBER_ROOT = "evidence/attestations"
 _AUTHOR = "ETHOS Attestation Set <attestations@example.invalid> 0 +0000"
 _COMMIT_MESSAGE = "ETHOS Attestation Set\n"
 _MAX_CAS_ATTEMPTS = 16
-_MEMBER_REUSE_BYTES = 64 * 1024 * 1024
+# Retained serialized input; the 2026-10-13 selected set already holds 280 MiB.
+_MEMBER_REUSE_BYTES = 512 * 1024 * 1024
 
 
-@cached(
-    cache=LRUCache(maxsize=_MEMBER_REUSE_BYTES, getsizeof=lambda value: len(value[0])),
-    condition=Condition(),
-)
-def _validated_member(raw: bytes) -> tuple[bytes, Attestation]:
-    """Reuse pure canonical validation, never membership or current authority."""
-    return raw, Attestation.model_validate_json(raw)
+def member_validator(capacity: int) -> Callable[[bytes], tuple[bytes, Attestation]]:
+    """Bound pure canonical member validation reuse by retained serialized bytes."""
+
+    @cached(
+        cache=LRUCache(maxsize=capacity, getsizeof=lambda value: len(value[0])),
+        condition=Condition(),
+    )
+    def validate(raw: bytes) -> tuple[bytes, Attestation]:
+        """Reuse pure canonical validation, never membership or current authority."""
+        return raw, Attestation.model_validate_json(raw)
+
+    return validate
+
+
+_validated_member = member_validator(_MEMBER_REUSE_BYTES)
 
 
 def _attestation_member_path(identity: str) -> str:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import itertools
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
@@ -54,7 +55,7 @@ def test_unfinished_review_reaches_native_pre_push_and_receipt_without_product_p
         "--remote-head",
         "0" * 40,
         "--remote",
-        "origin",
+        "gitlab",
         "--json",
         cwd=repo,
     )
@@ -156,7 +157,8 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(
 ) -> None:
     """Incomplete delivery intent does not split source or peer acceptance."""
     repo, remotes, old = branch_publication_fixture(tmp_path)
-    (repo / "accepted.txt").write_text("accepted projection\n", encoding="utf-8")
+    (repo / "notes").mkdir(exist_ok=True)
+    (repo / "notes/accepted.txt").write_text("accepted projection\n", encoding="utf-8")
     if active_change:
         write_active_commitment(repo, change_id="delivery-work")
     head = commit_fixture(repo, "prepare accepted projection")
@@ -173,7 +175,7 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(
     assert proof_reads.call_count == 1
     assert [call.args[1:] for call in network.call_args_list if call.args[1] == "ls-remote"] == [
         ("ls-remote", remote, "refs/heads/main", "refs/heads/dev")
-        for remote in ("origin", "github")
+        for remote in ("gitlab", "github")
     ]
     receipt = dry_run["data"]["request_receipt"]
     targets = dry_run["data"]["remote_effect"]["targets"]
@@ -201,8 +203,14 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(
 
     admissions = Mock(wraps=publication_execution.push_admission_report)
     monkeypatch.setattr(publication_execution, "push_admission_report", admissions)
+    clock = itertools.count(step=30.0)
+    monkeypatch.setattr(publication_execution, "monotonic", lambda: next(clock))
     blocked = apply_receipt(repo, receipt, head, blocked=True)
     assert admissions.call_count == 8  # Four preflight refs, then two per peer.
+    pushes = [call for call in network.call_args_list if call.args[1] == "push"]
+    # Each push covers transfer plus twice the 30 s admission its hook repeats.
+    assert pushes
+    assert {call.kwargs["timeout"] for call in pushes} == {180.0}
     assert proof_reads.call_count == 5  # One CLI observation, preflight and two peer boundaries.
     assert blocked["data"]["remote_effect"]["partial_effects"] == {
         "applied_peers": ["gitlab"],

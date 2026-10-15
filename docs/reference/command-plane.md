@@ -219,6 +219,13 @@ merge strategy and does not apply to abort.
 command binding HEAD, parents, index, tracked and untracked content, runtime and
 Lease generation. Apply requires `--authorize`; a preview is not permission.
 
+`--source-ref refs/heads/work/<name>` explicitly selects an existing Work Lane
+for merge strategy only. Preview binds its exact source head; apply refuses
+source movement. During continuation that source must still contain the recorded
+pending parent, which remains the commit parent. Default continuation does not
+assert the mutable candidate ref. Neither selection updates candidate or
+protected refs; their integration remains independent.
+
 Resolve reported conflicts, admit their exact paths and stage the accepted
 resolution before requesting `--mode continue`. The shared commit-policy owner
 checks both parents and the proposed tree. A common Git CAS advances only the
@@ -497,6 +504,98 @@ use detached checkout identity or a changed candidate declaration to evade
 their stronger obligations. Results include `boundary`, `why`, exact coordinates
 and a single diagnostic `next_action`; CI consumes the result rather than
 copying a parser. For publication effects use the guarded `publish` surface.
+
+## Standard And Fast Verification
+
+Use the standard path for acceptance and scoped execution for iteration. Select
+the scope from affected contracts and consumers; edit size alone does not
+establish risk. The
+[ETHOS source Contributing guide](../../CONTRIBUTING.md#verification "source-only")
+is the workflow entry point. The installed CLI and current admission own the
+exact required gates; this reference does not create another policy.
+
+### Standard Exact-Source Proof
+
+Start in the owned Work Lane. Bind its existing actor and select the active
+Change explicitly when several Changes make intent ambiguous. Check status,
+obtain prewrite admission, run focused checks, then commit all non-ignored source
+inputs before the exact-source proof:
+
+```bash
+ethos status --json
+ethos lane prewrite <path> --root <worktree> --editor-root <worktree> --require-editor-root --json
+ethos plan --changed --json
+ethos prove --full --execute --change <change-id> --expect-head <head> --json
+ethos land --json
+```
+
+`<head>` is the actual frozen commit, not a branch name. Inspect every terminal
+result and follow the current landing continuation; proof does not execute or
+authorize landing, installation or publication. Preserve failed reports. Repair
+the smallest failing owner before retrying the complete proof. Changing source
+bytes, including docs or task progress, requires a new source binding.
+
+### Routine Scoped Execution
+
+Run the repository's original focused tests and formatters first. For a declared
+host gate, use the existing product executor without minting a repository proof:
+
+```bash
+ethos prove --host --execute --gate <gate-id> --json
+```
+
+Omit `--expect-head` for working-tree feedback. Supply it when the check must bind
+to a clean frozen source. Repeat `--gate` to select several gates. Host execution
+does not issue a proof Attestation or grant tracked-write or landing authority.
+
+For repository-bound selected proof, use the non-host surface:
+
+```bash
+ethos prove --execute --gate <gate-id> --change <change-id> --expect-head <head> --json
+```
+
+The policy resolves prerequisites and validates that selection. Passing selected
+gates does not satisfy an omitted canonical landing floor. Default proof is not
+a universal cheap path: it can still include full unit and coverage obligations.
+When default and full policy differ, current acceptance can require full proof.
+There is no general automatic risk-selected small-change acceptance or `--fast`
+option; use scoped iteration without describing it as completed acceptance.
+
+`--acceptance-purpose local-source` selects the dependency-audit boundary for
+local development. It does not skip tests, disable hooks, or authorize CI,
+installation, public release or distribution. Runtime reuse avoids redundant
+package preparation; it does not reuse unrelated proof or waive fresh effects.
+
+### Authorized Temporary Hook Bypass
+
+Use a temporary bypass only for an explicitly human-authorized operation. Record
+the exact repository, operation, reason, skipped checks, recovery coordinates,
+owner and exit condition in the existing Change and evidence owner. This is an
+emergency path, not the routine fast path or a transferable permission.
+
+Git provides command-scoped hook configuration:
+
+```bash
+git -c core.hooksPath="<absolute-empty-hooks-directory>" commit -S -m "<type>: <subject>"
+```
+
+Resolve and inspect an actual empty directory on the target platform first.
+On POSIX hosts, Git also supports `git -c core.hooksPath=/dev/null <command>`;
+`/dev/null` is not a Windows path. The override applies only to that command and
+its children; it leaves persistent hook configuration unchanged. Keep the
+repository's required signer and identity. Never treat a skipped hook as pass.
+
+`git commit --no-verify` skips its applicable commit hooks, not every hook.
+`git push --no-verify` skips local pre-push, not remote protection, status checks
+or authorization. Bypassing a Git hook does not disable ETHOS's direct effect
+admission or authorize a protected ref update by itself.
+
+After the bounded command, inspect its actual refs, index, worktree and signature
+as applicable, then run `ethos status --json` to verify normal arming. Retain
+failed evidence and state which proof, installation or publication obligations
+remain unproved. A timeout is not rollback: reobserve before retrying. Retire an
+owned temporary directory only after checking it is unused and still empty.
+Do not write a global hook disable, fabricated proof or permanent waiver.
 
 ## Assurance And Evidence Boundary
 

@@ -31,6 +31,50 @@ ETHOS does not reproduce those operations as public roots. `ethos plan --changed
 current OpenSpec projection and compile its acceptance into a transient
 Commitment.
 
+## Official Artifact Contract
+
+The selected official schema, templates and artifact graph own artifact names,
+dependencies and syntax. Use their native instructions and validation; a copied
+ETHOS parser or adopter-specific implementation is not a substitute. Shared
+governance applies equally to ETHOS and mutation-capable adopters, while each
+repository owns its capability taxonomy and business requirements.
+
+| Artifact     | Meaning                                            | Required preservation                                                         |
+| ------------ | -------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Main specs   | Accepted observable capability behavior            | Exact capability paths, Purpose, requirements and their scenarios             |
+| Change specs | Proposed behavior differences                      | Native delta operations and complete retained MODIFIED blocks                 |
+| Proposal     | Problem, intended change, capabilities and impact  | Official sections, explicit scope and breaking-change disclosure              |
+| Design       | Approach, alternatives, decisions and risks        | Official sections when required, authority boundaries and migration rationale |
+| Tasks        | Dependency-ordered implementation and verification | Stable numbered checkboxes, truthful states and observable completion checks  |
+
+The official spec-driven design includes Context, Goals / Non-Goals, Decisions
+and Risks / Trade-offs. Migration Plan is conditional; Open Questions contain
+only deferrable unknowns that do not change the requirements, chosen approach or
+task breakdown. Simple work need not invent a design when its selected official
+schema does not require one.
+
+Each task records one bounded action and how its completion is observed. Native
+checkbox parsing owns progress; group numbering and nesting express the same
+dependency hierarchy. A task group includes the tests and documentation its
+work requires. Archive and other post-archive actions use the official untracked
+Workflow follow-up bullets, not circular conditions on completed checkboxes.
+
+Official validation is necessary, not evidence of semantic completeness. Review
+requirement/scenario conservation, capability cohesion, cross-artifact alignment
+and actionable prose separately. Preserve exact originals through Git and native
+evidence before editing. Use the original Markdown formatter with target width
+100 and preserved prose wrapping; never truncate meaning to satisfy formatting.
+Long mixed topics split into navigable semantic subdirectories. Artifact syntax
+and record retention remain with OpenSpec; ordinary documentation follows its
+own [reading and ownership contract](docs-registry.md).
+
+Use native project context and artifact rules for bounded repository guidance.
+Do not introduce a second template, schema, progress ledger or business policy
+merely to make repositories look alike. Common behavior belongs in ETHOS's
+existing governance and quality owners, not repeated adopter tools.
+
+## Current Change Selection
+
 For authoring, exact prewrite paths entirely inside one existing active Change
 identify the intended Change without a separate selector. The official artifact
 graph bounds incomplete-Change writes; ordinary Commitment attribution replaces

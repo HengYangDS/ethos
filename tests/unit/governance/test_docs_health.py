@@ -454,7 +454,7 @@ def test_invalid_generated_owner_is_a_structured_gap_for_every_docs_consumer(
 ) -> None:
     """A broken producer declaration never becomes a traceback or authored-doc waiver."""
     write_active_doc(tmp_path, "ethos status --json")
-    declaration = tmp_path / ".config/checks/ci/templates.toml"
+    declaration = tmp_path / ".config/checks/ci-projection/policy.toml"
     declaration.parent.mkdir(parents=True)
     if content is None:
         declaration.mkdir()

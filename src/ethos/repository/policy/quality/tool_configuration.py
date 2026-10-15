@@ -5,20 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
+
 if TYPE_CHECKING:
     from ethos.contracts.gates import Gate
 
-NATIVE_TOOL_LOCATIONS = {
-    "ruff": ".config/checks/ruff/ruff.toml",
-    "gitleaks": ".config/checks/gitleaks/gitleaks.toml",
-    "gitleaks-ignore": ".config/checks/gitleaks/gitleaksignore",
-    "lychee": ".config/checks/links/lychee.toml",
-    "markdownlint-cli2": ".config/checks/markdown/markdownlint.yaml",
-    "prettier": ".config/checks/format/prettier.toml",
-    "codespell": ".config/checks/prose/codespell.toml",
-    "taplo": ".config/checks/taplo/taplo.toml",
-    "yamllint": ".config/checks/yaml/yamllint.yaml",
-}
+NATIVE_TOOL_LOCATIONS = {tool.id: tool.carrier for tool in load_repository_paradigm().tool}
 
 
 def native_gate_tools(gate: Gate) -> tuple[str, ...]:
@@ -66,23 +58,11 @@ def _configuration_carriers(
 ) -> tuple[str | None, tuple[str, ...]]:
     """Select carrier identities once for strict admission and historical observation."""
     location = NATIVE_TOOL_LOCATIONS.get(tool)
-    names = {
-        "ruff": {"ruff.toml", ".ruff.toml"},
-        "gitleaks": {"gitleaks.toml", ".gitleaks.toml"},
-        "gitleaks-ignore": {"gitleaksignore", ".gitleaksignore"},
-        "lychee": {"lychee.toml"},
-        "markdownlint-cli2": {
-            "markdownlint.toml",
-            "markdownlint.yaml",
-            ".markdownlint-cli2.yaml",
-            ".markdownlint-cli2.jsonc",
-        },
-        "prettier": {"prettier.toml", ".prettierrc.toml", ".prettierrc.json", ".prettierrc.yaml"},
-        "codespell": {"codespell.toml", ".codespellrc"},
-        "taplo": {"taplo.toml", ".taplo.toml"},
-        "yamllint": {"yamllint.yaml", ".yamllint", ".yamllint.yaml", ".yamllint.yml"},
-    }
-    selected = tuple(path for path in repository_paths if Path(path).name in names.get(tool, set()))
+    declaration = next((item for item in load_repository_paradigm().tool if item.id == tool), None)
+    names = set(declaration.root_names) if declaration is not None else set()
+    if location:
+        names.add(Path(location).name)
+    selected = tuple(path for path in repository_paths if Path(path).name in names)
     if location in repository_paths and location not in selected:
         selected = (*selected, location)
     return location, selected

@@ -66,7 +66,7 @@ def _selected_files(root: Path, requested: tuple[str, ...]) -> tuple[tuple[str, 
     ownership = audit(
         root,
         paths=tuple(dict.fromkeys(files)),
-        configuration=canonical_resource(".config/checks/format/selection.toml"),
+        configuration=canonical_resource(".config/checks/format-selection/policy.toml"),
     )
     if ownership["verdict"] != "pass":
         raise ValueError(str(ownership["failures"]))
@@ -153,9 +153,9 @@ def _prettier(
     if ignored:
         return content, True
     configurations = (
-        native_configurations(root, "prettier", ".config/checks/format/prettier.toml")
+        native_configurations(root, "prettier", ".config/checks/prettier/prettier.toml")
         if repository_policy
-        else (str(canonical_resource(".config/checks/format/prettier.toml")),)
+        else (str(canonical_resource(".config/checks/prettier/prettier.toml")),)
     )
     rendered = [
         _run(

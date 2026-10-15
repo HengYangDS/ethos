@@ -32,6 +32,10 @@ from ethos.adapters.toolchain.mise import mise_executable
 from ethos.adapters.toolchain.mise import native_tool_cache
 from ethos.adapters.toolchain.mise import run_mise
 
+MISE_RELEASE = "https://github.com/jdx/mise/releases/download/v{version}/{name}"
+CI_PROJECTION_POLICY = ".config/checks/ci-projection/policy.toml"
+WINDOWS_MISE_ARCHITECTURES = {"amd64": "x64", "x86_64": "x64", "arm64": "arm64", "aarch64": "arm64"}
+
 
 @dataclass(frozen=True, slots=True)
 class NativeSupply:
@@ -148,6 +152,11 @@ def _directory(path: Path) -> None:
         component.mkdir(exist_ok=True)
 
 
+def _windows_host() -> bool:
+    """Select the official Windows executable instead of the POSIX shell installer."""
+    return os.name == "nt"
+
+
 def _immutable_hosted_supply() -> bool:
     """Hosted image jobs may verify cached tools but never download replacements."""
     return bool(os.environ.get("ETHOS_CI_SUPPLY_MANIFEST"))
@@ -176,18 +185,38 @@ def validate_mise_installer(root: Path) -> bytes:
         raise ValueError(message)
     try:
         version = tomllib.loads((root / MISE_CONFIG).read_text())["min_version"]
-        record = tomllib.loads((root / ".config/checks/ci/templates.toml").read_text())["bootstrap"]
+        record = tomllib.loads((root / CI_PROJECTION_POLICY).read_text())["bootstrap"]
         content = target.read_bytes()
     except (OSError, KeyError, TypeError, ValueError) as error:
         raise ValueError(message) from error
+    windows = record.get("windows") if isinstance(record, dict) else None
     if (
         not isinstance(record, dict)
-        or record.keys() != {"version", "sha256"}
+        or record.keys() != {"version", "sha256", "windows"}
         or record["version"] != version
         or record["sha256"] != hashlib.sha256(content).hexdigest()
+        or not isinstance(windows, dict)
+        or windows.keys() != set(WINDOWS_MISE_ARCHITECTURES.values())
+        or not all(re.fullmatch(r"[0-9a-f]{64}", str(digest)) for digest in windows.values())
     ):
         raise ValueError(message)
     return content
+
+
+def _stage_windows_mise(root: Path, version: str, candidate: Path) -> None:
+    """Stage the bound official executable; the shell installer supports only Linux and macOS."""
+    arch = WINDOWS_MISE_ARCHITECTURES.get(platform.machine().lower())
+    if arch is None:
+        message = f"mise_windows_architecture_unsupported:{platform.machine()}"
+        raise ValueError(message)
+    record = tomllib.loads((root / CI_PROJECTION_POLICY).read_text())["bootstrap"]
+    name = f"mise-v{version}-windows-{arch}.exe"
+    url = MISE_RELEASE.format(version=version, name=name)
+    command = ("curl", "-fsSL", "--proto", "=https", "--output", str(candidate), url)
+    download(command, root=candidate.parent)
+    if hashlib.sha256(candidate.read_bytes()).hexdigest() != record["windows"][arch]:
+        message = f"mise_windows_executable_digest_mismatch:{name}"
+        raise ValueError(message)
 
 
 def prepare_mise(root: Path) -> Path:
@@ -227,7 +256,7 @@ def prepare_mise(root: Path) -> Path:
         / "bin"
     )
     _directory(home)
-    executable = home / "mise"
+    executable = home / ("mise.exe" if _windows_host() else "mise")
     with FileLock(home / ".bootstrap.lock", timeout=30):
         if executable.is_file() and not executable.is_symlink() and os.access(executable, os.X_OK):
             verify(executable)
@@ -237,7 +266,12 @@ def prepare_mise(root: Path) -> Path:
             raise ValueError(message)
         with TemporaryDirectory(prefix=".bootstrap-", dir=home) as directory:
             isolated = Path(directory)
-            candidate = isolated / "mise"
+            candidate = isolated / executable.name
+            if _windows_host():
+                _stage_windows_mise(root, version, candidate)
+                verify(candidate)
+                candidate.replace(executable)
+                return executable
             installer = isolated / "mise-install.sh"
             installer.write_bytes(content)
             result = run_command(
@@ -393,7 +427,7 @@ def locked_go_bin(root: Path, mise: Path, version: str) -> Path:
         )
         raise ValueError(msg)
     go = Path(selected.stdout.strip())
-    gofmt = go.with_name("gofmt")
+    gofmt = go.with_name(f"gofmt{go.suffix}")
     if not (
         go.is_absolute()
         and go.is_file()
@@ -487,10 +521,23 @@ def main() -> int:
                         if isinstance(output, bytes)
                         else output
                     )
-        print(f"native_tool_supply_failed:{error}", file=sys.stderr)
+        print(f"native_tool_supply_failed:{_failure_chain(error)}", file=sys.stderr)
         return 1
     print(os.pathsep.join(str(path) for path in paths))
     return 0
+
+
+def _failure_chain(error: BaseException) -> str:
+    """Name a failure with the earlier failures it wrapped or masked, newest first."""
+    chain = [error]
+    while True:
+        current = chain[-1]
+        earlier = current.__cause__ or (
+            None if current.__suppress_context__ else current.__context__
+        )
+        if earlier is None or earlier in chain:
+            return " <- ".join(str(item) for item in chain)
+        chain.append(earlier)
 
 
 if __name__ == "__main__":

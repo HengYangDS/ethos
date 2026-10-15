@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import shlex
-import tomllib
 from collections.abc import Mapping
 from dataclasses import asdict
 from typing import TYPE_CHECKING
@@ -72,13 +71,7 @@ def _committed_target_policy(
     texts = dict(
         zip(entries, (b.decode() for b in read_objects(root, tuple(entries.values()))), strict=True)
     )
-    workspace = texts.get(_POLICY_PATHS[0], "")
-    values = tomllib.loads(workspace)
-    policy = (
-        strict_branch_role_policy_from_text(workspace)
-        if "branch_roles" in values
-        else BranchRolePolicy()
-    )
+    policy = strict_branch_role_policy_from_text(texts.get(_POLICY_PATHS[0], ""))
     release = release_config_from_text(texts.get(_POLICY_PATHS[1], ""))
     protected = release.get("protected_refs", {})
     return (
@@ -335,7 +328,7 @@ def push_admission_report(
     repo = root.resolve()
     remote_head, remote_name = (
         str(options.get("remote_head") or ""),
-        str(options.get("remote_name") or "origin"),
+        str(options.get("remote_name") or ""),
     )
     if pushed_head in _ZERO_OIDS:
         return proposal_retirement_report(

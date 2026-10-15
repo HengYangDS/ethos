@@ -3,7 +3,7 @@ name = "ethos"
 dynamic = ["version"]
 description = "Repository change trust protocol"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.15"
 dependencies = [
   "anyio>=4.15.1",
   "cachetools>=7.2.1",
@@ -11,7 +11,7 @@ dependencies = [
   "codespell>=2.4.3",
   "cyclopts>=5.2.0",
   "fastmcp>=4.1.0",
-  "filelock>=4.1.1",
+  "filelock>=4.2.0",
   "jsonschema>=4.26.0",
   "lychee-bin>=0.24.2",
   "markdown-it-py>=4.2.0",
@@ -23,7 +23,7 @@ dependencies = [
   "ruff>=0.17.0",
   "shfmt-py>=4.2.0",
   "tomli-w>=1.2.0",
-  "uv>=0.13.0",
+  "uv>=0.13.1",
   "yamllint>=1.38.0",
 ]
 
@@ -39,20 +39,20 @@ dev = [
   "deptry>=0.25.1",
   "editables>=0.6",
   "hatchling>=1.32.4",
-  "hypothesis>=6.169.0",
+  "hypothesis>=6.169.3",
   "import-linter>=2.15",
   "mutmut>=3.8.0",
   "nox>=2026.8.17",
   "pillow>=12.3.0",
-  "pre-commit>=4.6.2",
+  "pre-commit>=4.7.0",
   "pytest>=9.1.1",
   "pytest-cov>=7.1.0",
   "pytest-reportlog>=1.0.0",
   "pytest-timeout>=2.4.0",
   "pytest-xdist>=3.8.0",
   "shellcheck-py>=0.11.0.1",
-  "ty>=0.0.86",
-  "uv>=0.13.0",
+  "ty>=0.0.87",
+  "uv>=0.13.1",
 ]
 
 [build-system]
@@ -78,14 +78,14 @@ packages = ["src/ethos"]
 "uv.lock" = "ethos/resources/uv.lock"
 ".config/mise/config.toml" = "ethos/resources/.config/mise/config.toml"
 ".config/mise/mise.lock" = "ethos/resources/.config/mise/mise.lock"
-".config/checks/format/prettier.toml" = "ethos/resources/.config/checks/format/prettier.toml"
+".config/checks/prettier/prettier.toml" = "ethos/resources/.config/checks/prettier/prettier.toml"
 ".config/checks/ruff/ruff.toml" = "ethos/resources/.config/checks/ruff/ruff.toml"
-".config/checks/prose/codespell.toml" = "ethos/resources/.config/checks/prose/codespell.toml"
+".config/checks/codespell/codespell.toml" = "ethos/resources/.config/checks/codespell/codespell.toml"
 ".config/checks/taplo/taplo.toml" = "ethos/resources/.config/checks/taplo/taplo.toml"
-".config/checks/yaml/yamllint.yaml" = "ethos/resources/.config/checks/yaml/yamllint.yaml"
-".config/checks/format/selection.toml" = "ethos/resources/.config/checks/format/selection.toml"
-".config/checks/markdown/markdownlint.yaml" = "ethos/resources/.config/checks/markdown/markdownlint.yaml"
-".config/checks/links/lychee.toml" = "ethos/resources/.config/checks/links/lychee.toml"
+".config/checks/yamllint/.yamllint.yaml" = "ethos/resources/.config/checks/yamllint/.yamllint.yaml"
+".config/checks/format-selection/policy.toml" = "ethos/resources/.config/checks/format-selection/policy.toml"
+".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml" = "ethos/resources/.config/checks/markdownlint-cli2/.markdownlint-cli2.yaml"
+".config/checks/lychee/lychee.toml" = "ethos/resources/.config/checks/lychee/lychee.toml"
 "VERSION" = "ethos/resources/VERSION"
 "system/schemas" = "ethos/resources/system/schemas"
 "docs/governance/product-design-contract.md" = "ethos/resources/docs/governance/product-design-contract.md"
@@ -131,20 +131,17 @@ only-include = [
   "uv.lock",
   ".config/mise/config.toml",
   ".config/mise/mise.lock",
-  ".config/checks/format/prettier.toml",
+  ".config/checks/prettier/prettier.toml",
   ".config/checks/ruff/ruff.toml",
-  ".config/checks/prose/codespell.toml",
+  ".config/checks/codespell/codespell.toml",
   ".config/checks/taplo/taplo.toml",
-  ".config/checks/yaml/yamllint.yaml",
-  ".config/checks/format/selection.toml",
-  ".config/checks/markdown/markdownlint.yaml",
-  ".config/checks/links/lychee.toml",
+  ".config/checks/yamllint/.yamllint.yaml",
+  ".config/checks/format-selection/policy.toml",
+  ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
+  ".config/checks/lychee/lychee.toml",
   "VERSION",
   "tools/ci/openspec_runtime_hook.py",
 ]
-
-[tool.pytest.ini_options]
-cache_dir = "build/runtime/tool-cache/pytest"
 
 [tool.mutmut]
 source_paths = ["src/ethos"]

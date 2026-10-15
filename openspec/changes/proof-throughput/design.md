@@ -739,8 +739,9 @@ whole-command improvement or resolution of the independent startup delay.
 
 No previous tuple-consumer compatibility path remains. Equivalent policy
 fixtures now share the expected-build setup and use native boolean values
-instead of an extra string-to-boolean translation. The 50,000-test ceiling,
-500-per-file limits and 95-percent combined coverage requirement are unchanged.
+instead of an extra string-to-boolean translation. The then-current
+50,000-test ceiling, 500-per-file limits and 95-percent combined coverage
+requirement are unchanged.
 Complete proof, installed acceptance and the 600-second target remain open.
 
 ### Share Proof Selection Within Each Publication Admission
@@ -784,7 +785,8 @@ The assertion now uses the existing JSON normalizer; all seventeen admission
 cases pass. Six affected public effect/projection cases and three final
 assertion-consolidation cases pass after the budget cleanup. No test obligation
 or production verdict was changed to accommodate that test representation error.
-The type gate and 500-per-file limits pass; product/test ELOC are 45,373/49,999.
+The type gate and the then-current 500-per-file limits pass; product/test ELOC
+are 45,373/49,999.
 
 The same covered public workload now makes thirteen repository-proof selections,
 1,955 subprocess calls and 42 Node calls, versus 51, 2,641 and 118 before.
@@ -2261,8 +2263,9 @@ semantic-preservation review restored an unsigned ancestor inside the introduced
 release range rather than at its excluded baseline; the 24 affected public
 release, refusal and failure-observation cases then passed in 173.90 seconds.
 Owned temporary roots were removed. Product/test ELOC are 46,058/50,000, with
-unchanged 500-per-file limits. Static, type and official specification validation
-passed; exact-HEAD proof and runtime delivery remain separate outstanding claims.
+the then-current 500-per-file limits unchanged. Static, type and official
+specification validation passed; exact-HEAD proof and runtime delivery remain
+separate outstanding claims.
 
 The exact `60124a8e4a71c4f852595d4318be966975cc8826` full proof subsequently
 passed all 35 gates in 806.048 seconds with 3,997 passing tests and one skip.
@@ -3342,3 +3345,107 @@ Task 13.4.3 owns this recovery. Native regressions exercise two actual signed
 repairs, valid and invalid forward contributions, a missing predecessor and a
 successor that no longer names the release ref. Focused source success remains
 distinct from exact product proof, installed acceptance and GitLab delivery.
+
+## Sustained 900-Second Proof And The 600-Second Direction
+
+### Sustained Distribution
+
+Task 1.9 asks for complete proofs within 900 seconds, not one fast run. After
+`e9f253e7c` landed the two scheduling repairs below, five consecutive complete
+exact-source proofs on the reference workstation passed all 36 required gates:
+
+| Head        | Proof Attestation | Graph end | unit-architecture | local-install-smoke |
+| ----------- | ----------------- | --------- | ----------------- | ------------------- |
+| `e9f253e7c` | `e3a0a2a4`        | 701 s     | 646 s             | 524 s               |
+| `bf7c8c83c` | `b20e5ad3`        | 731 s     | 702 s             | 581 s               |
+| `df4000ec5` | `e373dd36`        | 753 s     | 625 s             | 535 s               |
+| `aa79ed28b` | `64b38d6c`        | 659 s     | 627 s             | 509 s               |
+| `43ddb6e7a` | `49a45d32`        | 729 s     | 702 s             | 557 s               |
+
+Graph end is the last gate's completion measured from proof start, so it
+includes graph preparation. Where the enclosing command was observed, attestation
+and cleanup added 16-20 seconds, which keeps every run below 780 seconds.
+Attempts that stopped early on content or network failures, such as root cache
+residue or an unreachable vulnerability service, or that ended when their
+owner's terminal closed, are not latency samples; none ran longer than 900
+seconds.
+
+The next three complete proofs ran on the same workstation. `931ca43e7` ended
+at 764 seconds. `dadf4c95b` and `9531c19db` ended at 875 and 979 seconds; the
+preceding landing's dev and main pipelines ran one or two GitLab jobs on the CI
+virtual machine that this workstation hosts throughout each proof, and one- and
+five-minute load averages reached 50-63. The fastest run, `aa79ed28b`, overlapped
+two such jobs only in its last four minutes. The code after `43ddb6e7a` changed
+only the dependency-audit policy location and the GitLab artifact projection, so
+the slowdown points to host contention rather than a test regression. Over all
+eight runs, the p90 exceeds 900 seconds. Task 1.9 closes on the five consecutive
+runs measured after the repair. Each landing's dev and main pipelines verified the
+same commit twice on that host. For task 7.15, a main push at dev's commit now
+leaves the commit-scoped GitLab jobs to the dev pipeline of that commit through
+`rules:changes:compare_to: refs/heads/dev`, while commit-policy still admits each
+pushed ref; GitHub-hosted runs do not use this host and keep both events. No task
+admits other host contention.
+
+Two repairs moved the critical path. Install smoke now proves formation in one
+worker thread beside the other installed-console stages, and the lifecycle waits
+for it before removing the bootstrap environment. Across 46 earlier proofs smoke
+took a median 0.92 of the unit gate's time; it now finishes well before the unit
+gate. The test gate records each test's duration in the Work Lane's pytest cache
+and starts the longest recorded tests first. In the first proof with a record,
+seeded from the preceding proof's report, worker utilization rose from 0.918 to
+0.979. A lane's first proof has no record and keeps collection order.
+
+Process-wide reuse of fixed native Git answers was measured, reviewed and
+withdrawn. It removed a third of the Git launches in the heaviest tests, but
+the independent review in observation `c9cdc131` showed that a cached success
+hides later object loss or corruption, configuration and shallow changes, and
+inherited environment changes. Native reads stay fresh; `f5ca96418` reverts the
+reuse. Batched fresh observation and complete-input pure computation remain the
+admissible reductions.
+
+### 600-Second Direction
+
+The graph end is the unit gate's start plus its duration. The unit gate is
+throughput-bound: its twelve workers are busy 92-98 percent of the session, so
+its duration follows total test work. A 600-second graph end needs these runs
+to finish 60-150 seconds earlier. The measured costs are as follows.
+
+1. Governed reference-transaction hooks cost about 400 ms per updated work-lane
+   ref, against 8 ms without hooks and 158 ms for an ungoverned ref. In one
+   profiled prepared-phase hook, 80 percent of the process was importing the
+   admission graph: pydantic contracts, jsonschema, filelock with asyncio and
+   sqlite3, and the OpenSpec adapter. Loading admission-only modules on demand at
+   their owner would shorten every governed ref update in tests, install smoke
+   and adopters. This belongs to 9.1.
+2. A Git child process is running for about half of each test worker's time in
+   process sampling. The admissible reduction is fewer fresh observations per
+   operation, batched at their callers, not answer reuse.
+3. Official OpenSpec Node processes run for about a tenth of worker time. Other
+   Python subprocesses run for about a quarter and are not yet attributed.
+4. The unit gate starts only after the whole prerequisite phase. The
+   selected-preflight compiler makes every behavior and delivery root wait for
+   all source readiness, and the quality specification keeps behavior and
+   delivery from running when a selected online source check fails, so the
+   network-bound audit, 10-112 seconds in these runs, stays on the critical
+   path. Inside that phase, `dependency-vulnerabilities`, `dependency-hygiene`
+   and `secrets` write files without declared resource locks and hold the
+   global exclusion, and every reader without declared locks holds a global
+   shared lock that conflicts with any exclusive domain. The runner schedules
+   writers first, so the audit runs alone, the two short writers follow, and
+   only then do the readers start. The unit gate started 15-20 seconds after
+   the audit ended in all five runs; the in-process `product-boundary`,
+   `source-budget` and `module-layout` providers bound that reader phase at
+   13-18 seconds. Declaring every readiness gate's read and write domains would
+   let the readers overlap the audit and save about 12-17 seconds per proof.
+   Each declaration must account for its gate's source, outputs, scratch and
+   supply. Run alone, nominal readers also write: `ruff`, `import-boundaries`
+   and `architecture-projection` create tool caches under `build/runtime`, and
+   the last shares the test gate's pytest cache. The change alters the gate
+   registry and its policy digest, so it follows the control-replacement path.
+   Removing the audit wait itself needs a specification decision about online
+   checks before behavior.
+
+Reduce the unit gate's work first: shorten hook startup, then batch fresh
+observations at their callers. Declared readiness locks are a bounded secondary
+repair. The 600-second target remains nonblocking, and none of these directions
+relaxes a gate, coverage or behavioral obligation.

@@ -60,7 +60,7 @@ def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = (
     ownership = audit(
         root,
         paths=tuple(selected),
-        configuration=canonical_resource(".config/checks/format/selection.toml"),
+        configuration=canonical_resource(".config/checks/format-selection/policy.toml"),
     )
     captured = {
         item["path"] for item in ownership["assignments"] if item["mutation_policy"] == "forbidden"

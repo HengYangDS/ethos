@@ -178,6 +178,30 @@ def validation_result_gaps(result: dict[str, Any]) -> list[str]:
     return list(dict.fromkeys(gaps))
 
 
+def validation_issue_diagnostics(payload: object) -> tuple[dict[str, str], ...]:
+    """Carry the blocking native issues of rejected items without reinterpreting them."""
+    items = validation_items(payload) if isinstance(payload, dict) else None
+    diagnostics: list[dict[str, str]] = []
+    for item in items or ():
+        if not isinstance(item, dict) or item.get("valid") is not False:
+            continue
+        issues = item.get("issues")
+        diagnostics.extend(
+            {
+                "kind": "openspec_validation_issue",
+                "item": f"{item.get('type')}:{item.get('id')}",
+                "severity": str(issue["level"]).lower(),
+                "path": str(issue["path"]) or "root",
+                "message": str(issue.get("message") or ""),
+            }
+            for issue in (issues if isinstance(issues, list) else [])
+            if isinstance(issue, dict)
+            and issue.get("level") in {"ERROR", "WARNING"}
+            and isinstance(issue.get("path"), str)
+        )
+    return tuple(diagnostics)
+
+
 def valid_canonical_info_capabilities(official: dict[str, object]) -> tuple[str, ...] | None:
     """Bind blocking INFO gaps to unique valid native spec items, not gap text alone."""
     gaps = string_sequence(official.get("required_gaps"))

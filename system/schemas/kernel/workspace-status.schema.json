@@ -31,14 +31,7 @@
         "worktree_binding": { "$ref": "#/$defs/worktreeBinding" },
         "worktree_path": { "type": "string" }
       },
-      "required": [
-        "branch",
-        "role",
-        "head",
-        "worktree_path",
-        "worktree_binding",
-        "lease_state"
-      ],
+      "required": ["branch", "role", "head", "worktree_path", "worktree_binding", "lease_state"],
       "type": "object"
     },
     "candidate": {
@@ -238,14 +231,7 @@
       "type": "object"
     },
     "role": {
-      "enum": [
-        "release_root",
-        "accepted_root",
-        "candidate",
-        "work_lane",
-        "detached",
-        "other"
-      ],
+      "enum": ["release_root", "accepted_root", "candidate", "work_lane", "detached", "other"],
       "type": "string"
     },
     "rolePolicy": {
@@ -332,12 +318,7 @@
         "accepted_closeout_allowed": { "type": "boolean" },
         "authoring_allowed": { "type": "boolean" },
         "blocked_stage": {
-          "enum": [
-            "authoring",
-            "candidate_integration",
-            "accepted_closeout",
-            ""
-          ]
+          "enum": ["authoring", "candidate_integration", "accepted_closeout", ""]
         },
         "blocker_owner": { "type": "string" },
         "integration_allowed": { "type": "boolean" },
@@ -414,15 +395,7 @@
         "role": { "$ref": "#/$defs/role" },
         "worktree_binding": { "enum": ["current", "linked", "missing"] }
       },
-      "required": [
-        "path",
-        "head",
-        "branch",
-        "role",
-        "worktree_binding",
-        "locked",
-        "lock_reason"
-      ],
+      "required": ["path", "head", "branch", "role", "worktree_binding", "locked", "lock_reason"],
       "type": "object"
     },
     "worktreeBinding": {

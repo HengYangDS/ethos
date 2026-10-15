@@ -328,8 +328,8 @@ def test_git_observations_fail_closed_on_unavailable_or_ambiguous_data(
         )
         assert git_adapter.exact_rename_target(tmp_path, "old", "new", "source") == ""
     monkeypatch.setattr(git_adapter, "current_tracked_head", lambda _root: "a" * 40)
-    assert git_adapter.remote_tracking_sync(tmp_path, "")["state"] == "branch_unknown"
+    assert git_adapter.remote_tracking_sync(tmp_path, "", "origin")["state"] == "branch_unknown"
     values = iter(("b" * 40, "not counts"))
     monkeypatch.setattr(git_adapter, "git_stdout", lambda *_args, **_kwargs: next(values))
-    report = git_adapter.remote_tracking_sync(tmp_path, "dev")
+    report = git_adapter.remote_tracking_sync(tmp_path, "dev", "origin")
     assert (report["state"], report["ahead"], report["behind"]) == ("synchronized", 0, 0)

@@ -110,7 +110,8 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     artifacts = gitlab["ethos:verify"]["artifacts"]
     assert artifacts["when"] == gitlab["ethos:external-links"]["artifacts"]["when"] == "always"
     assert "build/evidence/quality/tests/pytest/junit*.xml" in artifacts["paths"]
-    assert allure in artifacts["paths"]
+    # GitHub retains raw Allure results; GitLab's instance artifact limit cannot hold them.
+    assert allure not in artifacts["paths"]
     assert artifacts["reports"]["junit"] == "build/evidence/quality/tests/pytest/junit*.xml"
     assert artifacts["reports"]["coverage_report"] == {
         "coverage_format": "cobertura",
@@ -156,10 +157,8 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_pa
         "tests/fixtures/quality-sample/pyproject.toml",
         "tests/fixtures/quality-sample/uv.lock",
     } <= copy_sources
-    assert (
-        "uv --directory /tmp/ethos-quality-sample sync --no-config --locked --group dev"
-        in dockerfile
-    )
+    # The fixture's own uv settings, including its prerelease policy, bind its lock.
+    assert "uv --directory /tmp/ethos-quality-sample sync --locked --group dev" in dockerfile
     native_command = "tools/ci/toolchain/native.py --root . --mise gitleaks scc syft"
     assert f"PYTHONPATH=src .venv/bin/python {native_command}" in dockerfile
     for relative in copy_sources:
@@ -421,7 +420,7 @@ def _offline_generation(root, command, **kwargs):
         ("unformatted", "model", 'name: "ETHOS CI"', 'name:    "ETHOS CI"'),
         ("bootstrap", "bootstrap", None, "#!/bin/sh\nexit 0\n"),
         ("missing-output", "output", None, None),
-        ("bootstrap-version", "mise", "2026.10.8", "0.0.0"),
+        ("bootstrap-version", "mise", "2026.10.10", "0.0.0"),
         ("bootstrap-lock", "declaration", "sha256 =", "unsupported ="),
         ("bootstrap-missing", "bootstrap", None, None),
         ("bootstrap-link", "bootstrap", "", ""),

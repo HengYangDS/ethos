@@ -8,10 +8,11 @@ const globals = require("globals");
 const entries = JSON.parse(readFileSync(0, "utf8"));
 const reports = [];
 const engines = new Map();
-for (const { path, source, sourceType } of entries) {
-  if (!engines.has(sourceType))
+for (const { path, source, sourceType, environments } of entries) {
+  const engine = [sourceType, ...environments].join(":");
+  if (!engines.has(engine))
     engines.set(
-      sourceType,
+      engine,
       new ESLint({
         overrideConfigFile: true,
         ignore: false,
@@ -22,14 +23,18 @@ for (const { path, source, sourceType } of entries) {
             languageOptions: {
               ecmaVersion: "latest",
               sourceType,
-              globals: sourceType === "commonjs" ? globals.node : globals.nodeBuiltin,
+              globals: Object.assign(
+                {},
+                sourceType === "commonjs" ? globals.node : globals.nodeBuiltin,
+                ...environments.map((name) => globals[name]),
+              ),
             },
             rules: configs.recommended.rules,
           },
         ],
       }),
     );
-  reports.push(...(await engines.get(sourceType).lintText(source, { filePath: path })));
+  reports.push(...(await engines.get(engine).lintText(source, { filePath: path })));
 }
 process.stdout.write(JSON.stringify(reports) + "\n");
 process.exitCode = reports.some(({ errorCount, warningCount }) => errorCount || warningCount)

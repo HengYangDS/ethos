@@ -94,6 +94,43 @@ def test_system_axioms_do_not_inherit_docs_only_comment_syntax(tmp_path: Path) -
     assert report["required_gaps"] == ["design_axioms_derivation_metadata_invalid"]
 
 
+@pytest.mark.parametrize(
+    ("root_entry", "gaps"),
+    [
+        (".claude/.cc-writes/", []),
+        ("CLAUDE.md", ["design_integrity_forbidden_projection_path:CLAUDE.md"]),
+    ],
+)
+def test_design_integrity_admits_agent_host_state_but_not_a_second_entry_point(
+    tmp_path: Path, root_entry: str, gaps: list[str]
+) -> None:
+    """Host-local agent state is ignored content; a root CLAUDE.md would rival AGENTS.md."""
+    for relative in DESIGN_DOCUMENTS:
+        destination = tmp_path / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / relative, destination)
+    entry = tmp_path / root_entry
+    if root_entry.endswith("/"):
+        entry.mkdir(parents=True)
+    else:
+        entry.write_text("# A second agent entry point\n", encoding="utf-8")
+
+    report = design_integrity_report(tmp_path, tracked_documents=DESIGN_DOCUMENTS)
+
+    assert report["required_gaps"] == gaps
+    assert report["verdict"] == ("block" if gaps else "pass")
+
+
+def test_repository_ignores_agent_host_state() -> None:
+    """The admitted host-local directory cannot become tracked content by accident."""
+    ignored = subprocess.run(
+        ["git", "check-ignore", "--quiet", ".claude/settings.local.json"],
+        cwd=ROOT,
+        check=False,
+    )
+    assert ignored.returncode == 0
+
+
 def test_current_change_uses_only_the_official_openspec_artifact_shape() -> None:
     changes = _active_change_carriers()
 

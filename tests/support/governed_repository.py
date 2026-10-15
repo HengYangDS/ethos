@@ -15,8 +15,21 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import LaneLease
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
+from ethos.repository.release.resources import canonical_resource
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
+
+PARADIGM_EDITORCONFIG = (
+    "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n"
+)
+PARADIGM_FORMATTERS = {
+    relative: canonical_resource(relative).read_text(encoding="utf-8")
+    for relative in (
+        ".config/checks/prettier/prettier.toml",
+        ".config/checks/taplo/taplo.toml",
+        ".config/checks/ruff/ruff.toml",
+    )
+}
 
 
 class WorkLaneFixture(NamedTuple):
@@ -158,6 +171,13 @@ def init_git_repo(path: Path, *, object_format: str = "sha1") -> Path:
     git(path, "config", "core.hooksPath", ".git/test-hooks")
     (path / ".gitignore").write_text("", encoding="utf-8")
     (path / "README.md").write_text("# sample\n", encoding="utf-8")
+    (path / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+    (path / ".gitattributes").write_text("* text=auto eol=lf\n", encoding="utf-8")
+    (path / ".editorconfig").write_text(PARADIGM_EDITORCONFIG, encoding="utf-8")
+    for relative, content in PARADIGM_FORMATTERS.items():
+        carrier = path / relative
+        carrier.parent.mkdir(parents=True, exist_ok=True)
+        carrier.write_text(content, encoding="utf-8")
     commit_fixture(path, "init")
     return path
 
@@ -400,15 +420,16 @@ def render_branch_policy(
 def write_publication_topology(
     repo: Path,
     *,
-    gitlab_remote: str = "origin",
+    gitlab_remote: str = "gitlab",
     github_remote: str = "github",
     verification_command: str = "dev/verify",
     installation_command: str = "dev/install",
     gitlab_ci_surface: str = ".gitlab-ci.yml",
     github_ci_surface: str = ".github/workflows/verify.yml",
     materialize_commands: bool = True,
+    host_provider: str = "",
 ) -> None:
-    """Declare the canonical independent GitLab and GitHub test peers."""
+    """Declare the canonical independent GitLab and GitHub test peers and optional host."""
     release = repo / ".ethos" / "release.toml"
     release.parent.mkdir(parents=True, exist_ok=True)
     if materialize_commands:
@@ -421,9 +442,11 @@ def write_publication_topology(
         path = repo / surface
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("# repository-native CI\n", encoding="utf-8")
+    host = ("[host_profile]", f'provider = "{host_provider}"', "") if host_provider else ()
     release.write_text(
         "\n".join(
             (
+                *host,
                 "[publication]",
                 f'local_verification_command = "{verification_command}"',
                 f'local_installation_command = "{installation_command}"',

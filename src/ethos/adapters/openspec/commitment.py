@@ -184,9 +184,26 @@ def _acceptance_items(change: str, delta: object) -> tuple[str, ...]:
     if not isinstance(delta, dict):
         msg = f"openspec_show_invalid:{change}"
         raise TypeError(msg)
-    if str(delta.get("operation") or "").strip().upper() == "REMOVED":
-        return ()
     spec = str(delta.get("spec") or "").strip()
+    if str(delta.get("operation") or "").strip().upper() == "REMOVED":
+        requirements = delta.get("requirements")
+        if (
+            not spec
+            or not isinstance(requirements, list)
+            or not requirements
+            or any(
+                not isinstance(requirement, dict)
+                or not isinstance(requirement.get("name"), str)
+                or not requirement["name"].strip()
+                for requirement in requirements
+            )
+        ):
+            msg = f"openspec_show_invalid:{change}"
+            raise ValueError(msg)
+        return tuple(
+            f"{spec}:remove:{json.dumps(requirement, sort_keys=True, ensure_ascii=False)}"
+            for requirement in requirements
+        )
     if str(delta.get("operation") or "").strip().upper() == "RENAMED":
         rename = delta.get("rename")
         if (

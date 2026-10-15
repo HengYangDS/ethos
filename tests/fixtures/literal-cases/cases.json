@@ -154,10 +154,7 @@
             "type": "tuple"
           },
           {
-            "items": [
-              "[receipt_store\n",
-              "independent_verification_provider_config_invalid"
-            ],
+            "items": ["[receipt_store\n", "independent_verification_provider_config_invalid"],
             "type": "tuple"
           },
           {
@@ -414,17 +411,11 @@
       "value": {
         "items": [
           {
-            "items": [
-              "git_executable_unavailable",
-              "not_found_on_effective_path"
-            ],
+            "items": ["git_executable_unavailable", "not_found_on_effective_path"],
             "type": "tuple"
           },
           {
-            "items": [
-              "git_process_spawn_failed",
-              "working_directory_unavailable"
-            ],
+            "items": ["git_process_spawn_failed", "working_directory_unavailable"],
             "type": "tuple"
           }
         ],
@@ -625,21 +616,11 @@
             "type": "tuple"
           },
           {
-            "items": [
-              "yaml",
-              ".yaml",
-              "a: 1\nb: [2, 3]\n",
-              "b:\n  - 2\n  - 3\na: 1\n"
-            ],
+            "items": ["yaml", ".yaml", "a: 1\nb: [2, 3]\n", "b:\n  - 2\n  - 3\na: 1\n"],
             "type": "tuple"
           },
           {
-            "items": [
-              "ini",
-              ".ini",
-              "[section]\na = 1\nb = 2\n",
-              "[section]\nb=2\na=1\n"
-            ],
+            "items": ["ini", ".ini", "[section]\na = 1\nb = 2\n", "[section]\nb=2\na=1\n"],
             "type": "tuple"
           }
         ],
@@ -658,17 +639,11 @@
       "value": {
         "items": [
           {
-            "items": [
-              "ethos quality provenance --json",
-              "ethos quality provenance"
-            ],
+            "items": ["ethos quality provenance --json", "ethos quality provenance"],
             "type": "tuple"
           },
           {
-            "items": [
-              "ethos lane lease migrate --json",
-              "ethos lane lease migrate"
-            ],
+            "items": ["ethos lane lease migrate --json", "ethos lane lease migrate"],
             "type": "tuple"
           },
           {
@@ -715,11 +690,7 @@
             "type": "tuple"
           },
           {
-            "items": [
-              "sha256:",
-              "md5:",
-              "skill_package_expected_digest_invalid:sample-skill"
-            ],
+            "items": ["sha256:", "md5:", "skill_package_expected_digest_invalid:sample-skill"],
             "type": "tuple"
           },
           {
@@ -781,11 +752,7 @@
             "type": "tuple"
           },
           {
-            "items": [
-              "build/runtime/report.json",
-              "build/runtime/work",
-              "no-match"
-            ],
+            "items": ["build/runtime/report.json", "build/runtime/work", "no-match"],
             "type": "tuple"
           },
           {
@@ -895,11 +862,7 @@
             "type": "tuple"
           },
           {
-            "items": [
-              "boundary",
-              "other",
-              "proof_attestation_boundary_mismatch"
-            ],
+            "items": ["boundary", "other", "proof_attestation_boundary_mismatch"],
             "type": "tuple"
           },
           {
@@ -1293,14 +1256,8 @@
           ["id", "local"],
           ["role", "local_verification_install"],
           ["mode", "offline"],
-          [
-            "verification_command",
-            "uv run --frozen --offline python -m nox -s local_ci"
-          ],
-          [
-            "installation_command",
-            "uv run --frozen --offline python -m nox -s install_smoke"
-          ]
+          ["verification_command", "uv run --frozen --offline python -m nox -s local_ci"],
+          ["installation_command", "uv run --frozen --offline python -m nox -s install_smoke"]
         ],
         "type": "dict"
       },
@@ -1456,10 +1413,7 @@
             "proof_floor_digest",
             "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
           ],
-          [
-            "policy_digest",
-            "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-          ],
+          ["policy_digest", "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"],
           [
             "implementation_digest",
             "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
@@ -1479,10 +1433,7 @@
       },
       "value": {
         "items": [
-          [
-            "local_verification_command",
-            "uv run --frozen --offline python -m nox -s local_ci"
-          ],
+          ["local_verification_command", "uv run --frozen --offline python -m nox -s local_ci"],
           [
             "local_installation_command",
             "uv run --frozen --offline python -m nox -s install_smoke"

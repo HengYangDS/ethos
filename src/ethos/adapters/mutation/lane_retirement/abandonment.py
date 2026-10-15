@@ -8,8 +8,8 @@ from typing import cast
 
 import ethos.adapters.mutation.lane_retirement.effects as effects
 from ethos.adapters.mutation.lane_retirement.content import unreviewed_content
+from ethos.adapters.mutation.lane_retirement.continuation import content_review_command
 from ethos.adapters.mutation.lane_retirement.linked_effect import compile_retirement_operation
-from ethos.adapters.mutation.lane_retirement.operation import content_review_command
 from ethos.adapters.mutation.lane_retirement.operation import persist_operation
 from ethos.adapters.mutation.lane_retirement.operation import retirement_failure
 from ethos.adapters.repo.git import current_tree

@@ -1,15 +1,21 @@
+# Tasks
+
 ## 1. Shared Application Boundary
 
 - [x] 1.1 Move status and adoption result composition out of CLI handlers; verify direct SDK calls and CLI results agree without stdout or working-directory effects.
 - [x] 1.2 Preserve valid, denied, stale and conflicting adoption cases through the same shared admission owner.
 - [ ] 1.3 Route the remaining command family through typed application operations; verify public compatibility and remove replaced CLI-local composition.
 - [x] 1.4 Centralize root-bound adoption continuation; distinguish preview, applied, conflict, stale request and missing authorization through SDK/CLI with no planner-owned competing action.
-- [ ] 1.5 Deliver version-matched installed Skills/context and verify a fresh Agent-equivalent discovery, admitted change, failure, recovery and handoff without ETHOS source or user retelling.
-      Evidence: `build/evidence/native-adopter-repair-20261011/{formed-runtime-*,installed-format-probe-*,first-change-resource-*}`.
+- [ ] 1.5 Deliver source-free, version-matched Skills/context through fresh Agent discovery, governed change, refusal, recovery and handoff; verify one native resources closure, offline executable modes and CLI/SDK/MCP agreement without user retelling.
+      Evidence: signed Git `69910fdabcf8` and `build/evidence/native-adopter-repair-20261011/{formed-runtime-*,installed-format-probe-*,first-change-resource-*}`; source-only maintenance links are not adopter obligations.
 - [x] 1.6 Add an explicit typed repository identity transition through the existing effect and Attestation owners; preserve ordinary cross-identity refusal and verify exact intent/proof, object-database continuity, target-ref coordinates, actor/Lease generation, per-effect one-shot recovery, independently authorized later stages and absence of compatibility aliases.
 - [x] 1.7 Reconcile the sole ETHOS binding with official OpenSpec initialization and verified mutation readiness at the shared adoption owner; preserve preview, existing customizations, precise conflicts, bounded recovery and CLI/SDK/MCP agreement without hand-rendered native configuration or a second lifecycle.
-- [ ] 1.8 Deliver the minimum native-audit applicability correction through exact-source local acceptance and the installed runtime; preserve every declared native gate and canonical audit input, scope, finding and expiry check. Qualify a native adopter's proof and candidate transition, reject failed native checks and an omitted required product audit before execution, then verify the actual AIGW consumer without coupling this repair to unrelated ETHOS work. Resolve the newly observed Handlebars advisories with the official patch and rebind the unchanged local npm dispositions to its reviewed lock, without broadening their subjects, hosts, scopes or deadlines.
-      Retained failure custody: `b73ee412b05cf49ec4367f49613cdc9220cf121a781cda5b4a1d24d729083397`; qualify the measured semantic-closure owner before full-proof rerun.
+- [ ] 1.8 Deliver profile-bound native-audit applicability through exact-source acceptance, installed runtime, native adopter proof/candidate transition and actual AIGW use independently of unrelated changes. Preserve every declared gate and canonical audit input, scope, finding and expiry; refuse failed or omitted required checks before execution. Apply the official Handlebars patch and bind unchanged npm dispositions to its reviewed lock without widening subject, host, scope or expiry.
+      Retain failed custody `b73ee412b05cf49ec4367f49613cdc9220cf121a781cda5b4a1d24d729083397`; qualify the semantic-closure owner before full proof. Source-purpose proof grants no closeout authority; responsibility transfers only after reviewed native Lease handoff.
+- [x] 1.9 Permit pure retirement deletion of pre-rename refs only when their common ancestor with every retained ref carries the inherited identity; verify introduced or unrelated identities still fail and cross-identity integration requires its explicit transition.
+      Evidence: signed Git `69910fdabcf8` at this path.
+- [x] 1.10 Permit ignored Claude Code host-local state without admitting a second agent entry point; verify `.claude/.cc-writes` can coexist with proof, remains untracked, and root `CLAUDE.md` stays refused.
+      Evidence: signed Git `69910fdabcf8` at this path.
 
 ## 2. Installed MCP Transport
 
@@ -36,6 +42,7 @@
 - [ ] 3.7 Connect explicit release construction and identity admission at the existing owners; enforce SemVer compatibility and Keep a Changelog target-entry validation, reject development publication and version reuse, verify immutable version/notes/source/artifact/tag correspondence, and reconcile unpublished targets and historical release evidence.
       Qualify native metadata applicability, target entry, date and category checks; DDWG reuse and actual signed transport remain unqualified.
 - [ ] 3.8 Move native trust preflight before package work, preserve precise failure reasons, and qualify direct SID admission through real Windows installed acceptance.
+- [x] 3.9 Bind uv to the selected locked environment rather than an invoking environment that shares its base interpreter, so `ethos hook install` from a separately installed CLI checks the repository environment; done when a focused regression with two environments on one interpreter targets the selected one and the full proof passes.
 
 ## 4. Delivery
 

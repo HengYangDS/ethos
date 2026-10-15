@@ -347,7 +347,8 @@ def test_bundled_advisory_uses_owning_lock_artifact(repository, monkeypatch, fau
         else "block"
     )
     strict = invoke_audit(repository)
-    assert strict["decision"]["verdict"] == "block"
+    unresolved = fault in {"unbundled", "owner-missing"}
+    assert strict["decision"]["verdict"] == ("unknown" if unresolved else "block")
     assert strict["decision"]["scope"] == "production-release"
 
 

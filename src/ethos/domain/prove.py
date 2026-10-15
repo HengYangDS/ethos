@@ -1,144 +1,44 @@
-"""Prove-stage domain reducers — pure report logic fed by adapters.
-
-The code-size report is a pure reducer over (one declared ceiling, native source inventory,
-per-file effective LOC). Roles describe source ownership without changing capacity;
-the same limit applies to every file and derives the gate verdict. Rules own
-strict optional policy compilation, Git supplies inventory, and measure owns
-the shared metric. Invalid policy or syntax never becomes a smaller measurement.
-"""
+"""Prove-stage domain reducers — pure report logic fed by adapters."""
 
 from __future__ import annotations
 
-import fnmatch
-import shlex
-import subprocess
 from typing import TYPE_CHECKING
 from typing import cast
 
-import ethos.adapters.repo.git as git_adapter
-from ethos.measure import effective_code_lines
-from ethos.repository.policy.rules.config import code_size_policy
-from ethos.repository.policy.rules.config import load_rules_config
+from ethos.adapters.repo.git import GitExecutionError
+from ethos.adapters.repo.git import git_files
+from ethos.contracts.verdict import close_verdict
+from ethos.repository.paradigm.report import python_size_gaps
 from ethos.repository.policy.schema import validate_schema_instance
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _role_for(relative: str, surface_globs: list[str]) -> str:
-    """Classify source ownership for reporting, never size-policy capacity."""
-    if relative.startswith("tests/") or "/tests/" in relative:
-        return "test"
-    if any(fnmatch.fnmatchcase(relative, pattern) for pattern in surface_globs):
-        return "surface"
-    return "logic"
-
-
 def code_size_report(root: Path) -> dict[str, object]:
-    """Derive the code-size gate verdict against one uniform declared ceiling."""
+    """Project the paradigm's Python size obligation for the gate that still names it."""
     try:
-        policy = code_size_policy(load_rules_config(root))
-    except (ValueError, TypeError, OSError) as error:
-        state = "policy_unavailable" if isinstance(error, OSError) else "policy_invalid"
-        return {
-            "verdict": "unknown" if isinstance(error, OSError) else "block",
-            "state": state,
-            "files": [],
-            "required_gaps": [f"code_size_{state}"],
-            "errors": [{"path": ".ethos/rules.toml", "reason": str(error)}],
-            "next_action": _size_repair_command(root, ".ethos/rules.toml"),
-        }
-    if policy is None:
-        return {
-            "verdict": "block",
-            "state": "policy_missing",
-            "files": [],
-            "required_gaps": ["code_size_policy_missing"],
-            "next_action": _size_repair_command(root, ".ethos/rules.toml"),
-        }
-    try:
-        files = git_adapter.git_files(
+        sources = git_files(
             root, "--cached", "--others", "--exclude-standard", "--", "*.py", check=True
         )
-    except (git_adapter.GitExecutionError, subprocess.CalledProcessError, OSError) as error:
+    except (GitExecutionError, OSError) as error:
         return {
             "verdict": "unknown",
             "state": "inventory_unavailable",
-            "files": [],
             "required_gaps": ["code_size_inventory_unavailable"],
             "errors": [
-                error.evidence()
-                if isinstance(error, git_adapter.GitExecutionError)
-                else {
-                    "reason": str(error),
-                    "stdout": getattr(error, "stdout", None),
-                    "stderr": getattr(error, "stderr", None),
-                }
+                error.evidence() if isinstance(error, GitExecutionError) else {"reason": str(error)}
             ],
             "next_action": "restore the native Git source inventory and rerun the size gate",
         }
-    limit = policy.default_effective_max_lines
-    records: list[dict[str, object]] = []
-    gaps: list[str] = []
-    errors: list[dict[str, str]] = []
-    verdict = "pass"
-    repair_path = ""
-    for relative in files:
-        path = root / relative
-        if not path.exists():
-            continue
-        try:
-            effective = effective_code_lines(path)
-        except (SyntaxError, UnicodeError, OSError) as error:
-            invalid = isinstance(error, (SyntaxError, UnicodeError))
-            verdict = "block" if invalid or verdict == "block" else "unknown"
-            gaps.append(f"code_size_source_{'invalid' if invalid else 'unavailable'}:{relative}")
-            errors.append({"path": relative, "reason": str(error)})
-            repair_path = repair_path or relative
-            continue
-        role = _role_for(relative, policy.surface_path_globs)
-        within_limit = effective <= limit
-        records.append(
-            {
-                "path": relative,
-                "effective_lines": effective,
-                "limit": limit,
-                "role": role,
-                "category": "test" if role == "test" else "product",
-                "within_limit": within_limit,
-            }
-        )
-        if not within_limit:
-            verdict = "block"
-            gaps.append(f"code_size_exceeded:{relative}:{effective}>{limit}")
-            repair_path = repair_path or relative
+    gaps = python_size_gaps(root, sources)
+    required = [gap.required_gap for gap in gaps]
     return {
-        "verdict": verdict,
+        "verdict": close_verdict("pass", required_gaps=tuple(required)),
         "state": "evaluated",
-        "default_effective_max_lines": limit,
-        "required_gaps": gaps,
-        "errors": errors,
-        "next_action": _size_repair_command(root, repair_path) if repair_path else "",
-        "files": records,
+        "required_gaps": required,
+        "next_action": gaps[0].repair if gaps else "",
     }
-
-
-def _size_repair_command(root: Path, relative: str) -> str:
-    """Derive admission for the exact failed carrier, not permission to edit it."""
-    return shlex.join(
-        [
-            "ethos",
-            "lane",
-            "prewrite",
-            relative,
-            "--root",
-            str(root),
-            "--editor-root",
-            str(root),
-            "--require-editor-root",
-            "--json",
-        ]
-    )
 
 
 def command_data_validation(

@@ -21,6 +21,7 @@ from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_object_sandbox import isolated_git_objects
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.merge.effect import apply_merge
 from ethos.adapters.repo.merge.effect import recognized_merge
@@ -243,17 +244,34 @@ def _result(observed: MergeObservation, result: dict[str, object]) -> dict[str, 
     )
 
 
-def _stage_admission(root: Path) -> dict[str, object]:
-    paths = run_git(root, "diff", "--cached", "--name-only", "-z", observation=True).stdout
+def _stage_admission(root: Path, head: str, incoming: str) -> dict[str, object]:
+    """Separate newly authored resolution from the parents' native composition."""
+    index = run_git(root, "write-tree", check=False, observation=True)
+    if index.returncode:
+        _fail("staged_tree_unavailable")
+    with isolated_git_objects(root) as git:
+        merged = git("merge-tree", "--write-tree", head, incoming)
+        baseline = merged.stdout.partition("\n")[0]
+        if merged.returncode not in (0, 1) or not baseline:
+            _fail("merge_authoring_observation_unavailable")
+        verified = git("rev-parse", "--verify", f"{baseline}^{{tree}}")
+        if verified.returncode or verified.stdout.strip() != baseline:
+            _fail("merge_authoring_observation_unavailable")
+        delta = git("diff", "--no-renames", "--name-only", "-z", baseline, index.stdout.strip())
+        if delta.returncode:
+            _fail("merge_authoring_observation_unavailable")
+        paths = tuple(filter(None, delta.stdout.split("\0")))
     admission = prewrite_guard(
         root=root,
-        paths=[Path(path) for path in paths.split("\0") if path],
+        paths=[Path(path) for path in paths],
         editor_root=root,
         require_editor_root=True,
         staged=True,
         require_workspace=True,
     )
     official = string_mapping(admission["openspec"])
+    if gaps := incoming_change_gaps(root, str(official.get("change")), incoming, paths):
+        _fail(gaps[0])
     if official.get("verdict") == "pass" and admission["verdict"] != "pass":
         _fail(next(iter(string_sequence(admission["required_gaps"])), "merge_scope_unavailable"))
     return official
@@ -264,7 +282,7 @@ def _admit_mode(context: _MergeContext, mode: MergeMode) -> None:
         _fail(gaps[0])
     if mode != "abort":
         official = (
-            _stage_admission(context.root)
+            _stage_admission(context.root, context.observed.head, context.incoming)
             if mode == "continue"
             else openspec_governance_report(context.root, lifecycle=True)
         )
@@ -275,10 +293,6 @@ def _admit_mode(context: _MergeContext, mode: MergeMode) -> None:
                     "openspec_scope_unavailable",
                 )
             )
-    if mode == "continue" and (
-        gaps := incoming_change_gaps(context.root, str(official.get("change")), context.incoming)
-    ):
-        _fail(gaps[0])
 
 
 def _preview(context: _MergeContext, mode: MergeMode, message: str) -> dict[str, object]:

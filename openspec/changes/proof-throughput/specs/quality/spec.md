@@ -6,7 +6,8 @@ The existing dependency-audit owner MAY admit explicitly selected local
 development against a human-authorized disposition for the exact advisory,
 locked package artifact, nodes, dependency snapshot and explicitly approved host.
 Native observations SHALL remain unchanged; unselected development, CI, release,
-installation and distribution SHALL retain the strict decision.
+installation and distribution SHALL retain the strict decision for every finding
+that an official stable release fixes.
 
 #### Scenario: A bundled component has no independent integrity
 
@@ -52,6 +53,33 @@ installation and distribution SHALL retain the strict decision.
 - **WHEN** an explicit release build or install is requested through Nox
 - **THEN** the same audit owner evaluates strict production-release scope before the release effect
 - **AND** a local-development permission cannot authorize that effect
+
+### Requirement: Findings without a stable upstream fix do not block
+
+The dependency-audit owner SHALL report, without blocking any scope, a native
+finding that no official stable release fixes yet. Fixable or unobserved findings
+SHALL keep blocking until the supply is upgraded or an exact disposition applies.
+Adverse Python package statuses are not advisories and SHALL keep the strict result.
+
+#### Scenario: Every owning artifact already is its latest stable release
+
+- **WHEN** every locked npm artifact that ships a finding, the bundling package for
+  an `inBundle` component, already is its registry latest release, or a Python
+  advisory's native fix versions name no newer stable release
+- **THEN** the decision passes and lists the finding as unfixed upstream
+- **AND** native findings, counts, exit status and raw evidence remain unchanged
+
+#### Scenario: An upgrade can fix the finding or the observation is missing
+
+- **WHEN** an owning artifact is behind its latest stable release, a Python advisory
+  names a newer stable fix version, or the registry observation is missing or malformed
+- **THEN** the finding blocks until the supply is upgraded or an exact disposition applies
+
+#### Scenario: Landing reevaluates the captured observation
+
+- **WHEN** landing or a Git hook reevaluates a captured audit
+- **THEN** it reads the same-attempt upstream observation without network access
+- **AND** an exact disposition keeps precedence over the unfixed-upstream report
 
 ### Requirement: Object coordinates share one typed native observation
 
@@ -252,14 +280,15 @@ not ETHOS-specific paths, tools or code budgets.
 ### Requirement: Current Markdown stays within one navigable topic
 
 Every tracked, current, hand-authored Markdown documentation file in ETHOS or a
-governed repository SHALL contain at most 500 nonblank physical lines.
+governed repository SHALL contain at most 512 nonblank physical lines, the
+repository paradigm's Markdown ceiling.
 The release-contract changelog, official OpenSpec artifacts and archive, and
 declared generated output SHALL retain their own carrier-specific checks rather
 than inherit this documentation ceiling.
 
 #### Scenario: A current topic exceeds the ceiling
 
-- **WHEN** a tracked current authored Markdown document exceeds 500 nonblank lines
+- **WHEN** a tracked current authored Markdown document exceeds 512 nonblank lines
 - **THEN** the quality floor reports that exact source and blocks acceptance
 - **AND** frontmatter, code fences, tables and quoted material count
 - **AND** adding blank lines or relabeling current content as history does not
@@ -267,15 +296,15 @@ than inherit this documentation ceiling.
 
 #### Scenario: Release history grows without a document-length limit
 
-- **WHEN** the release-contract changelog exceeds 500 nonblank lines in total
+- **WHEN** the release-contract changelog exceeds 512 nonblank lines in total
   or within a single version section
 - **THEN** the documentation length rule does not block that release history
 - **AND** release-format obligations remain independent; a same-named ordinary
-  document still exceeds the ceiling at 501 nonblank lines
+  document still exceeds the ceiling at 513 nonblank lines
 
 #### Scenario: A normative OpenSpec carrier exceeds the document ceiling
 
-- **WHEN** an accepted specification or active Change artifact exceeds 500
+- **WHEN** an accepted specification or active Change artifact exceeds 512
   nonblank lines
 - **THEN** the documentation length rule does not block it solely for that count
 - **AND** official OpenSpec validation, warnings, and semantic capability review
@@ -992,6 +1021,50 @@ relevant test or hosted acceptance; rendering never changes a test verdict.
 - **AND** governance and gate consumers apply the same native result interpretation
 - **AND** empty or informational valid results pass while invalid items, failed execution and unreadable output block
 - **AND** missing official supply blocks without substituting another executable
+
+### Requirement: Declared native outputs bind one gate attempt
+
+A gate MAY declare `native_outputs` that name each report its native command
+writes, with format and producing session. ETHOS SHALL capture them from one
+owned attempt and pass them to the gate's verification providers. Missing,
+duplicate, malformed or session-inconsistent outputs SHALL NOT satisfy the gate.
+
+#### Scenario: An adopter profile declares native reports
+
+- **WHEN** a profile or gate registry declares valid native outputs for a gate
+- **THEN** the declaration validates against the published gate schema
+- **AND** the verification provider receives the reports of that exact attempt
+
+#### Scenario: A declared report is absent or inconsistent
+
+- **WHEN** a declared report is missing, duplicated, malformed or bound to another session
+- **THEN** the gate cannot pass and reports the exact native output gap
+
+### Requirement: A native attempt supplies its own observer
+
+A native attempt that declares a Python runtime report SHALL give its command the
+invoking immutable runtime's exact wheel as one hashed direct reference in
+`ETHOS_NATIVE_OBSERVER_REQUIREMENT`, and SHALL remove any inherited value. The
+installed observer SHALL run one exact Ruff argv from the session child and record
+that child's interpreter with the launch.
+
+#### Scenario: An installed runtime runs a native gate
+
+- **WHEN** an installed runtime starts an attempt that declares a Python runtime report
+- **THEN** the command receives `ethos @ <wheel file URI>#sha256=<digest>` for that runtime's wheel
+- **AND** the retained attempt receipt names the supplied requirement
+
+#### Scenario: The session child observes its own Ruff launch
+
+- **WHEN** a session child runs `python -m ethos.domain.quality.nox run` with a Ruff argv after `--`
+- **THEN** the operation returns Ruff's exit code and records that interpreter with the single launch
+- **AND** the Nox parent environment needs no ETHOS installation
+
+#### Scenario: No exact wheel is available
+
+- **WHEN** the invoking package is a source checkout
+- **THEN** the attempt supplies no requirement
+- **AND** a selected runtime whose package wheel is absent or changed refuses before launch
 
 ### Requirement: Configuration selection preserves requested coverage
 

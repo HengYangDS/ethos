@@ -10,6 +10,7 @@ from typing import cast
 import ethos.adapters.repo.git as git
 from ethos.adapters.admission.evidence.external import configured_verification_report
 from ethos.adapters.admission.evidence.external import independent_verification_policy
+from ethos.adapters.admission.evidence.external import repository_remote_url
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.contracts.semantic import canonical_json_digest
@@ -218,7 +219,7 @@ def _verification_subject(
         **({"verification_floor": floor} if floor else {}),
     }
     request = {
-        "remote": git.git_stdout(root, "remote", "get-url", "origin") or "local",
+        "remote": repository_remote_url(root) or "local",
         "commit": candidate_head,
         "tree": candidate_tree,
         "action": "control-replacement",

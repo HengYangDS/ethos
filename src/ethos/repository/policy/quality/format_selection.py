@@ -12,7 +12,7 @@ from typing import cast
 
 from ethos.repository.policy.projections import observe_projections
 
-POLICY_PATH = Path(".config/checks/format/selection.toml")
+POLICY_PATH = Path(".config/checks/format-selection/policy.toml")
 
 
 class OwnerDeclaration(TypedDict):

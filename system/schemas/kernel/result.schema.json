@@ -18,10 +18,7 @@
       "type": "array"
     },
     "governance_context": {
-      "anyOf": [
-        { "additionalProperties": {}, "type": "object" },
-        { "type": "null" }
-      ],
+      "anyOf": [{ "additionalProperties": {}, "type": "object" }, { "type": "null" }],
       "default": null,
       "title": "Governance Context"
     },

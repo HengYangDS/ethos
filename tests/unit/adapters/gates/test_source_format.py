@@ -128,7 +128,7 @@ def test_native_markdown_and_formatting_share_declared_authored_inputs(tmp_path:
             **preserved,
             "docs/current.md": "# Current\n\nWords.\n",
             "package-lock.json": "{}\n",
-            ".config/checks/ci/templates.toml": (
+            ".config/checks/ci-projection/policy.toml": (
                 'schema = "ethos-ci-template-consistency-v1"\n'
                 '[[projection]]\ntemplate = "docs/current.md"\n'
                 'projection = "docs/projected.md"\nkind = "copy"\n'
@@ -136,7 +136,7 @@ def test_native_markdown_and_formatting_share_declared_authored_inputs(tmp_path:
         },
     )
     upstream = "package-lock.json#packages/node_modules/example"
-    producer = ".config/checks/ci/templates.toml"
+    producer = ".config/checks/ci-projection/policy.toml"
     write_test_profile(
         root,
         proof=ProofPolicy(
@@ -156,7 +156,7 @@ def test_native_markdown_and_formatting_share_declared_authored_inputs(tmp_path:
             ),
         ),
     )
-    expected = {"README.md", "docs/current.md"}
+    expected = {"AGENTS.md", "README.md", "docs/current.md"}
     formatted = {item.path for item in prepare_source_format(root) if item.path.endswith(".md")}
     report = gate_tool.markdown_lint_report(root)
     assert formatted == expected
@@ -241,7 +241,7 @@ def test_native_policy_warning_refuses_postimages_and_preserves_original_diagnos
     lane: Path,
 ) -> None:
     sources = {"src/product.py": "value=1\n", "source.json": '{"value":true}\n'}
-    _write(lane, {**sources, ".config/checks/format/prettier.toml": "unknownFormat = true\n"})
+    _write(lane, {**sources, ".config/checks/prettier/prettier.toml": "unknownFormat = true\n"})
     code, result = _command(
         lane,
         *sources,
@@ -324,7 +324,7 @@ def test_conflicting_native_increment_refuses_all_postimages(lane: Path) -> None
         "source.json": '{"nested":{"value":"' + "x" * 100 + '"}}\n',
         "src/valid.py": "value=1\n",
     }
-    _write(lane, {**sources, ".config/checks/format/prettier.toml": "tabWidth = 4\n"})
+    _write(lane, {**sources, ".config/checks/prettier/prettier.toml": "tabWidth = 4\n"})
     code, result = _command(lane, *sources, "--check")
     assert (code, result["verdict"]) == (1, "block"), result
     assert all((lane / path).read_text() == content for path, content in sources.items())

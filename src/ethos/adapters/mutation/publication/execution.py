@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from collections.abc import Mapping
+from time import monotonic
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -32,6 +33,8 @@ if TYPE_CHECKING:
 
     from ethos.contracts.plan import TransitionPlan
 
+_PUSH_TRANSFER_SECONDS = 120.0
+
 
 def _transaction_refs(observation: Mapping[str, object]) -> dict[str, dict[str, object]]:
     """Return one typed peer observation's full-ref mapping."""
@@ -44,7 +47,9 @@ def _push_remote_ref_set_exact(
     *,
     remote: str,
     updates: tuple[PublicationUpdate, ...],
+    admission_seconds: float,
 ) -> dict[str, object]:
+    """Push one atomic exact-lease set; the native pre-push hook repeats its admission."""
     leases = tuple(
         f"--force-with-lease={update.target_ref}:{update.expected}" for update in updates
     )
@@ -53,7 +58,14 @@ def _push_remote_ref_set_exact(
     )
     try:
         completed = git.run_network_git(
-            root, "push", "--porcelain", "--atomic", *leases, remote, *refspecs, timeout=120
+            root,
+            "push",
+            "--porcelain",
+            "--atomic",
+            *leases,
+            remote,
+            *refspecs,
+            timeout=_PUSH_TRANSFER_SECONDS + 2 * admission_seconds,
         )
     except (subprocess.TimeoutExpired, git.GitExecutionError) as error:
         return {"state": "unknown", "exit_code": None, "stdout": "", "stderr": str(error)}
@@ -92,9 +104,11 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
     for index, target in enumerate(effect.targets):
         observations[target.id] = _observe_peer(root, target)
         peer_verdict, peer_gaps = _peer_admission(target, observations[target.id])
+        started = monotonic()
         authority_verdict, authority_gaps = _publication_authority(
             root, plan=plan, effect=effect, target=target
         )
+        admission_seconds = monotonic() - started
         verdict = reduce_verdicts(peer_verdict, authority_verdict)
         if verdict != "pass":
             return terminal_publication_result(
@@ -134,6 +148,7 @@ def apply_remote_publication_effect(*, root: Path, plan: TransitionPlan) -> dict
             root,
             remote=target.remote,
             updates=target.updates,
+            admission_seconds=admission_seconds,
         )
         attempts.append({"id": target.id, "remote": target.remote, **result})
         post_observed = _observe_peer(root, target)

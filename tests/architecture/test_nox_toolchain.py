@@ -165,7 +165,7 @@ def test_source_format_gate_is_supplied_by_the_installed_product() -> None:
 def test_configuration_owner_preserves_the_common_floor_and_exact_inputs(tmp_path) -> None:
     """Local ignores and ambient configuration cannot weaken installed native checks."""
     root = init_git_repo(tmp_path / "repo")
-    yaml_policy = root / ".config/checks/yaml/yamllint.yaml"
+    yaml_policy = root / ".config/checks/yamllint/.yamllint.yaml"
     yaml_policy.parent.mkdir(parents=True)
     yaml_policy.write_text("---\nextends: default\nignore: '*.yaml'\n")
     yaml_input = root / "example.yaml"
@@ -203,8 +203,8 @@ def test_configuration_owner_validates_native_formatter_policy_before_checking(t
     target = root / "example.json"
     content = '{\n  "value": true\n}\n'
     target.write_text(content)
-    policy = root / ".config/checks/format/prettier.toml"
-    policy.parent.mkdir(parents=True)
+    policy = root / ".config/checks/prettier/prettier.toml"
+    policy.parent.mkdir(parents=True, exist_ok=True)
     git(root, "add", target.name)
     for declaration, verdict in (
         ({"tabWidth": 2}, "pass"),
@@ -284,7 +284,7 @@ def test_session_discovery_does_not_load_unselected_capabilities() -> None:
 def test_config_selection_keeps_native_failures_and_ownership(tmp_path, state, explicit, fails):
     """Default discovery covers candidates; explicit absent or foreign inputs cannot pass."""
     root = init_git_repo(tmp_path / "repo")
-    (root / ".config").mkdir()
+    (root / ".config").mkdir(exist_ok=True)
     relative = "openspec/config.yaml" if state == "external" else ".config/new-policy.yaml"
     target = root / relative
     target.parent.mkdir(parents=True, exist_ok=True)

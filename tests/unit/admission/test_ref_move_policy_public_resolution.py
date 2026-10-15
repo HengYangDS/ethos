@@ -132,11 +132,13 @@ def test_candidate_destination_uses_resolved_strict_policy(tmp_path: Path, candi
     roles = resolve_ref_move_policy(repo, ref, head, head)
     path = repo / ".ethos/workspace.toml"
     original = path.read_text()
-    changed = original.replace(
-        'candidate_branch = "candidate/dev"', f'candidate_branch = "{candidate}"'
+    path.write_text(
+        original.replace(
+            "[branch_roles]\n",
+            f'[branch_roles]\ncandidate_branch = "{candidate}"\n'
+            'accepted_branch = "missing-accepted"\n',
+        )
     )
-    changed = changed.replace('accepted_branch = "dev"', 'accepted_branch = "missing-accepted"')
-    path.write_text(changed)
     assert (
         candidate_destination_gaps(
             repo, ref, GitRefUpdate(expected=head, desired=head), policy=roles

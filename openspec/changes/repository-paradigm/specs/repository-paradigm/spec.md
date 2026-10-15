@@ -158,6 +158,11 @@ The repository paradigm SHALL fix the branch role names: release `main`, accepte
 - **THEN** the paradigm reports a legacy branch-role name
 - **AND** ETHOS still uses `proposal/`.
 
+#### Scenario: A workspace declares a standard name
+
+- **WHEN** `[branch_roles]` declares `accepted_branch = "dev"`
+- **THEN** the paradigm reports the declared name and names its removal.
+
 #### Scenario: A workspace declares only the settings
 
 - **WHEN** `[branch_roles]` declares only `release_mirror = "accepted_ff"`

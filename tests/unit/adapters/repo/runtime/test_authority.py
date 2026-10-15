@@ -20,7 +20,7 @@ def _repository(tmp_path: Path, *, version: bool) -> tuple[Path, Path]:
     repo, lane = init_git_repo(tmp_path / "ethos"), tmp_path / "lane"
     (repo / ".ethos").mkdir()
     (repo / ".ethos/profile.toml").write_text('profile_id = "ethos"\n')
-    (repo / ".ethos/workspace.toml").write_text('[branch_roles]\naccepted_branch = "dev"\n')
+    (repo / ".ethos/workspace.toml").write_text('[branch_roles]\nrelease_mirror = "independent"\n')
     if version:
         (repo / "VERSION").write_text("0.2.0-alpha.2\n")
     commit_fixture(repo, "accepted")

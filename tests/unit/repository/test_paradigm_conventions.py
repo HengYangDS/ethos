@@ -42,26 +42,36 @@ def test_each_publication_peer_names_its_git_remote(
 
 
 @pytest.mark.parametrize(
-    ("roles", "gaps"),
+    ("roles", "gaps", "repair"),
     [
-        ("", []),
-        ('release_branch = "main"\nproposal_branch_prefix = "proposal/"\n', []),
+        ("", [], ""),
+        ('release_mirror = "accepted_ff"\ncanonical_sibling_worktrees = true\n', [], ""),
+        (
+            'release_branch = "main"\n',
+            ["repository_paradigm_branch_roles:.ethos/workspace.toml:branch_roles.release_branch"],
+            "remove release_branch; the repository paradigm fixes it as main",
+        ),
         (
             'proposal_branch_prefix = "submit/"\n',
             [
                 "repository_paradigm_branch_roles:.ethos/workspace.toml:branch_roles.proposal_branch_prefix"
             ],
+            (
+                "remove proposal_branch_prefix after closeout renames the ref; "
+                "the repository paradigm fixes it as proposal/"
+            ),
         ),
     ],
-    ids=["defaults", "standard-declared", "review-prefix"],
+    ids=["defaults", "settings-only", "standard-declared", "review-prefix"],
 )
-def test_branch_roles_keep_the_standard_names(tmp_path: Path, roles: str, gaps: list[str]) -> None:
-    """A declared branch role must use the name the branch-role contract defaults to."""
+def test_branch_roles_declare_only_the_settings(
+    tmp_path: Path, roles: str, gaps: list[str], repair: str
+) -> None:
+    """Every declared role name is reported; a legacy name waits for the closeout rename."""
     workspace = f"[branch_roles]\n{roles}" if roles else ""
     report = paradigm_report(tmp_path, {**CONFORMING, ".ethos/workspace.toml": workspace})
     assert report["required_gaps"] == gaps
-    if gaps:
-        assert "fixes it as proposal/" in report["next_action"]
+    assert report["next_action"] == repair
 
 
 @pytest.mark.parametrize(

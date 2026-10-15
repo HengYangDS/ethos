@@ -338,11 +338,6 @@ def write_role_policy(repo: Path, *, release_mirror: str = "independent") -> Non
     workspace_path.parent.mkdir(parents=True, exist_ok=True)
     workspace_path.write_text(
         render_branch_policy(
-            release_branch="main",
-            accepted_branch="dev",
-            candidate_branch="candidate/dev",
-            work_branch_prefix="work/",
-            proposal_branch_prefix="proposal/",
             release_mirror=release_mirror,
         ),
         encoding="utf-8",
@@ -357,11 +352,6 @@ def adopt_and_commit(
     initialize_adopted_fixture(repo)
     (repo / ".ethos" / "workspace.toml").write_text(
         render_branch_policy(
-            release_branch="main",
-            accepted_branch="dev",
-            candidate_branch="candidate/dev",
-            work_branch_prefix="work/",
-            proposal_branch_prefix="proposal/",
             release_mirror=release_mirror,
         ),
         encoding="utf-8",
@@ -379,24 +369,11 @@ def adopt_and_commit(
     return commit_fixture(repo, "adopt ethos governance")
 
 
-def render_branch_policy(
-    *,
-    release_branch: str,
-    accepted_branch: str,
-    candidate_branch: str,
-    work_branch_prefix: str,
-    proposal_branch_prefix: str,
-    release_mirror: str,
-) -> str:
-    """Render the complete branch-role policy shared by repository fixtures."""
+def render_branch_policy(*, release_mirror: str) -> str:
+    """Render the branch-role settings for fixtures; the paradigm fixes the role names."""
     return "\n".join(
         (
             "[branch_roles]",
-            f'release_branch = "{release_branch}"',
-            f'accepted_branch = "{accepted_branch}"',
-            f'candidate_branch = "{candidate_branch}"',
-            f'work_branch_prefix = "{work_branch_prefix}"',
-            f'proposal_branch_prefix = "{proposal_branch_prefix}"',
             f'release_mirror = "{release_mirror}"',
             "canonical_sibling_worktrees = false",
             "",

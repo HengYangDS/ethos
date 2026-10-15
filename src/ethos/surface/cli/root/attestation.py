@@ -10,6 +10,7 @@ from typing import cast
 from cyclopts import App
 from cyclopts import Parameter
 
+from ethos.adapters.repo.attestation_set import MEMBER_BYTES_LIMIT
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.contracts.semantic import Attestation
@@ -35,10 +36,18 @@ def _input_attestation(path: Path) -> Attestation:
         message = "attestation_input_object_required"
         raise TypeError(message)
     if "id" in payload:
-        return Attestation.model_validate_json(raw)
+        return _bounded(Attestation.model_validate_json(raw))
     attestation = Attestation.issue(payload)
     if raw != attestation.canonical_json(exclude_id=True).encode():
         message = "semantic_json_noncanonical"
+        raise ValueError(message)
+    return _bounded(attestation)
+
+
+def _bounded(attestation: Attestation) -> Attestation:
+    """Refuse a member above the set bound before any read or effect."""
+    if len(attestation.canonical_json().encode()) > MEMBER_BYTES_LIMIT:
+        message = f"attestation_member_too_large:{attestation.id}"
         raise ValueError(message)
     return attestation
 
@@ -50,7 +59,11 @@ def _input_failure(command: str, error: Exception) -> EthosResult:
         verdict="block",
         state="gapped",
         required_gaps=(code,),
-        next_action="provide one canonical Attestation v2 JSON input",
+        next_action=(
+            "store file bytes with --evidence and bind them as custody:sha256:<digest>"
+            if code.startswith("attestation_member_too_large:")
+            else "provide one canonical Attestation v2 JSON input"
+        ),
         data={"error_boundary": "attestation_input"},
     )
 

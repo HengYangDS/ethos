@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
+from ethos.adapters.repo.attestation_set import MEMBER_BYTES_LIMIT
 from ethos.adapters.repo.git import run_git
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
@@ -60,6 +61,30 @@ def test_attestation_record_dry_run_then_apply_is_idempotent(tmp_path: Path) -> 
         "unchanged",
         applied["data"]["set_root"],
     )
+
+
+def test_attestation_record_refuses_oversized_input_before_any_effect(tmp_path: Path) -> None:
+    """File bytes above the member bound are refused and routed to custody evidence."""
+    repo = init_git_repo(tmp_path / "repo")
+    input_path = tmp_path / "attestation.json"
+    record = attestation_fixture(
+        predicate="observation:repository",
+        verifier="agent:test:attestation-command",
+        subject="input:occurrence:oversized",
+        issued_at=datetime(2026, 8, 14, tzinfo=UTC),
+        payload_kind="input:future-feedback",
+        payload_body={"text": "x" * MEMBER_BYTES_LIMIT},
+        evidence_refs=("evidence:test:oversized",),
+    )
+    input_path.write_text(record.canonical_json(exclude_id=True), encoding="utf-8")
+
+    for arguments in ((), ("--apply",)):
+        result = _command(
+            repo, "record", "--input", input_path.as_posix(), *arguments, blocked=True
+        )
+        assert result["required_gaps"] == [f"attestation_member_too_large:{record.id}"]
+        assert "--evidence" in result["next_action"]
+    assert not run_git(repo, "for-each-ref", ATTESTATION_SET_REF).stdout
 
 
 def test_attestation_query_returns_exact_unknown_values_without_authority_claim(

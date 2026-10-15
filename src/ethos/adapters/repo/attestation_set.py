@@ -8,6 +8,7 @@ from pathlib import Path
 from pathlib import PurePosixPath
 from threading import Lock
 from typing import TYPE_CHECKING
+from typing import Final
 
 from cachetools import LRUCache
 
@@ -24,6 +25,8 @@ _MEMBER_ROOT = "evidence/attestations"
 _AUTHOR = "ETHOS Attestation Set <attestations@example.invalid> 0 +0000"
 _COMMIT_MESSAGE = "ETHOS Attestation Set\n"
 _MAX_CAS_ATTEMPTS = 16
+# A member is a claim; file bytes belong to custody evidence bound by digest.
+MEMBER_BYTES_LIMIT: Final = 1024 * 1024
 # Retained validated members by serialized size; the 2026-10-15 selected set holds 560 MiB.
 _MEMBER_REUSE_BYTES = 1024 * 1024 * 1024
 
@@ -218,6 +221,9 @@ def _canonical_inputs(attestations: tuple[Attestation, ...]) -> dict[str, bytes]
     members: dict[str, bytes] = {}
     for attestation in attestations:
         raw = attestation.canonical_json().encode()
+        if len(raw) > MEMBER_BYTES_LIMIT:
+            message = f"attestation_member_too_large:{attestation.id}"
+            raise ValueError(message)
         if previous := members.get(attestation.id):
             if previous != raw:
                 message = f"attestation_set_identity_collision:{attestation.id}"

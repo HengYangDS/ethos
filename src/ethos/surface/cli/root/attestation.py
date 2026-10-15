@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Annotated
@@ -13,6 +14,9 @@ from cyclopts import Parameter
 from ethos.adapters.repo.attestation_set import MEMBER_BYTES_LIMIT
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
+from ethos.adapters.store.custody import custody_digests
+from ethos.adapters.store.custody import require_custody
+from ethos.adapters.store.custody import store_custody
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import validate_attestation_selector
 from ethos.result import EthosResult
@@ -68,21 +72,45 @@ def _input_failure(command: str, error: Exception) -> EthosResult:
     )
 
 
+def _supplied_evidence(
+    repo: Path, attestation: Attestation, paths: tuple[str, ...]
+) -> dict[str, bytes]:
+    """Match supplied files to declared custody digests; each declared digest needs bytes."""
+    declared = custody_digests(attestation)
+    supplied = {
+        hashlib.sha256(payload).hexdigest(): payload
+        for payload in (Path(path).read_bytes() for path in paths)
+    }
+    for digest in supplied:
+        if digest not in declared:
+            message = f"attestation_custody_undeclared:{digest}"
+            raise ValueError(message)
+    require_custody(repo, (digest for digest in declared if digest not in supplied))
+    return supplied
+
+
 @_app.command
 def record(
     input_path: Annotated[str, Parameter(name="--input")],
     *,
+    evidence: Annotated[tuple[str, ...], Parameter(name="--evidence")] = (),
     root: RootOption | None = None,
     apply: bool = False,
     json_output: JsonFlag = False,
 ) -> None:
-    """Validate or issue one Attestation, then exact-CAS union it when applied."""
+    """Validate or issue one Attestation with its custody evidence, then exact-CAS union it."""
     command = "attestation record"
     repo = resolve_root(root)
     try:
         attestation = _input_attestation(Path(input_path))
+        supplied = _supplied_evidence(repo, attestation, evidence)
         if apply:
+            for payload in supplied.values():
+                store_custody(repo, payload)
             result = record_attestations(repo, (attestation,))
+            # Restore bytes that a concurrent release of the same digest may have deleted.
+            for payload in supplied.values():
+                store_custody(repo, payload)
             set_root = str(result["root"])
             added = cast("tuple[str, ...]", result["added"])
             state = "recorded" if added else "unchanged"
@@ -105,6 +133,7 @@ def record(
                 "set_root": set_root,
                 "added": list(added),
                 "attestation": attestation.model_dump(mode="json"),
+                "custody": list(custody_digests(attestation)),
                 "authorizes_effects": False,
             },
         ),

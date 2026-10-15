@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import MEMBER_BYTES_LIMIT
+from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
@@ -15,8 +18,6 @@ from tests.support.governed_repository import init_git_repo
 from tests.support.semantic import attestation_fixture
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from ethos.contracts.semantic import Attestation
 
 
@@ -84,6 +85,58 @@ def test_attestation_record_refuses_oversized_input_before_any_effect(tmp_path: 
         )
         assert result["required_gaps"] == [f"attestation_member_too_large:{record.id}"]
         assert "--evidence" in result["next_action"]
+    assert not run_git(repo, "for-each-ref", ATTESTATION_SET_REF).stdout
+
+
+def _custody_input(path: Path, digest: str) -> Attestation:
+    record = attestation_fixture(
+        predicate="observation:repository",
+        verifier="agent:test:attestation-command",
+        subject="input:occurrence:custody",
+        issued_at=datetime(2026, 10, 16, tzinfo=UTC),
+        payload_kind="input:future-feedback",
+        payload_body={"claim": "preserved failed receipt"},
+        evidence_refs=(f"custody:sha256:{digest}",),
+    )
+    path.write_text(record.canonical_json(exclude_id=True), encoding="utf-8")
+    return record
+
+
+def test_attestation_record_stores_declared_custody_evidence(tmp_path: Path) -> None:
+    """Declared evidence is stored byte-exact without touching the index or tracked tree."""
+    repo = init_git_repo(tmp_path / "repo")
+    evidence = tmp_path / "receipt.bin"
+    evidence.write_bytes(b"failed receipt\n\x00")
+    digest = hashlib.sha256(evidence.read_bytes()).hexdigest()
+    record = _custody_input(tmp_path / "attestation.json", digest)
+    arguments = ("--input", (tmp_path / "attestation.json").as_posix(), "--evidence")
+
+    preview = _command(repo, "record", *arguments, evidence.as_posix())
+    applied = _command(repo, "record", *arguments, evidence.as_posix(), "--apply")
+
+    assert (preview["state"], applied["state"]) == ("ready", "recorded")
+    assert applied["data"]["custody"] == [digest]
+    stored = Path(git_common_dir(repo)) / "ethos/custody/sha256" / digest
+    assert stored.read_bytes() == evidence.read_bytes()
+    assert applied["data"]["attestation"]["id"] == record.id
+    assert run_git(repo, "status", "--porcelain").stdout == ""
+
+
+def test_attestation_record_refuses_missing_or_undeclared_custody(tmp_path: Path) -> None:
+    """A declared digest needs its exact bytes and every supplied file must be declared."""
+    repo = init_git_repo(tmp_path / "repo")
+    other = tmp_path / "other.bin"
+    other.write_bytes(b"other")
+    digest = hashlib.sha256(b"declared").hexdigest()
+    _custody_input(tmp_path / "attestation.json", digest)
+    arguments = ("record", "--input", (tmp_path / "attestation.json").as_posix())
+
+    missing = _command(repo, *arguments, "--apply", blocked=True)
+    undeclared = _command(repo, *arguments, "--evidence", other.as_posix(), "--apply", blocked=True)
+
+    assert missing["required_gaps"] == [f"attestation_custody_missing:{digest}"]
+    other_digest = hashlib.sha256(b"other").hexdigest()
+    assert undeclared["required_gaps"] == [f"attestation_custody_undeclared:{other_digest}"]
     assert not run_git(repo, "for-each-ref", ATTESTATION_SET_REF).stdout
 
 

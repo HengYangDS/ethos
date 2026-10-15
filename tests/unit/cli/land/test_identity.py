@@ -77,6 +77,9 @@ def test_identity_transition_is_explicit_and_target_scoped(
     tasks = work / "openspec/changes/fixture-change/tasks.md"
     tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
     (work / "VERSION").write_text("1.2.3\n")
+    (work / "CHANGELOG.md").write_text(
+        "# Changelog\n\n## [Unreleased]\n\n## [1.2.3] - 2026-10-15\n"
+    )
     workspace = work / ".ethos/workspace.toml"
     workspace.write_text(
         workspace.read_text() + '\n[commit_policy]\nsubject_pattern = ".+"\n'
@@ -93,7 +96,15 @@ def test_identity_transition_is_explicit_and_target_scoped(
         "assert tomllib.loads(Path('.ethos/profile.toml').read_text())"
         "['profile_id'] == 'renamed-product'",
     )
-    git(work, "add", tasks.relative_to(work).as_posix(), "VERSION", ".ethos", "system/gates.toml")
+    git(
+        work,
+        "add",
+        tasks.relative_to(work).as_posix(),
+        "VERSION",
+        "CHANGELOG.md",
+        ".ethos",
+        "system/gates.toml",
+    )
     profile = work / ".ethos/profile.toml"
     old_profile = tomllib.loads(profile.read_text())["profile_id"]
     head = commit_fixture_file(

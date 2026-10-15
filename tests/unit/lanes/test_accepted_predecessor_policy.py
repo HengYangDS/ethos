@@ -34,6 +34,14 @@ def test_closeout_reads_a_five_field_incumbent_with_predecessor_defaults(tmp_pat
     )
 
 
+def test_closeout_reads_the_standard_roles_when_the_workspace_omits_them(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    workspace = "[commit_policy]\nsigning_required = true\n"
+    head = commit_fixture_file(repo, ".ethos/workspace.toml", workspace, "record commit policy")
+
+    assert accepted_transition_policy(repo, head) == BranchRolePolicy()
+
+
 @pytest.mark.parametrize("field", ["release_branch", "work_branch_prefix"])
 def test_closeout_rejects_any_other_incomplete_incumbent(tmp_path: Path, field: str) -> None:
     repo = init_git_repo(tmp_path / "repo")

@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.repo.git import tracked_paths
 from ethos.contracts.verdict import report_verdict
+from ethos.normalization.coercion import object_sequence
+from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.paradigm.gap import ParadigmGap
 from ethos.repository.paradigm.repair import paradigm_repair_plan
@@ -26,7 +28,10 @@ def repair_paradigm(*, root: Path, apply: bool = False) -> dict[str, object]:
     repo = root.resolve()
     tracked = tracked_paths(repo)
     report = repository_paradigm_report(repo, tracked_paths=tracked)
-    gaps = [ParadigmGap(**gap) for gap in report["gaps"]]  # type: ignore[arg-type]
+    gaps = [
+        ParadigmGap(str(gap.get("obligation")), str(gap.get("carrier")), str(gap.get("repair")))
+        for gap in map(string_mapping, object_sequence(report["gaps"]))
+    ]
     plan = paradigm_repair_plan(repo, gaps)
     planned: dict[str, object] = {
         "verdict": "pass",

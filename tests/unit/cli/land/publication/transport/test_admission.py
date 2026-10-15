@@ -35,8 +35,8 @@ def test_declared_signed_transport_shares_publish_and_native_push_admission(
     baseline = commit_fixture_file(
         repo, ".ethos/release.toml", text, "test: declare object transport"
     )
-    for remote in ("origin", "github"):
-        accepted = prior if historical and remote == "origin" else baseline
+    for remote in peers:
+        accepted = prior if historical and remote == "gitlab" else baseline
         git(repo, "push", "--no-verify", remote, f"{accepted}:refs/heads/dev")
         git(repo, "push", "--no-verify", remote, f"{prior}:refs/heads/main")
         git(repo, "symbolic-ref", f"refs/remotes/{remote}/HEAD", f"refs/remotes/{remote}/main")
@@ -70,7 +70,7 @@ def test_declared_signed_transport_shares_publish_and_native_push_admission(
             target_ref=ref,
             pushed_head=tag,
             remote_head=zero_oid(repo),
-            remote_name="origin",
+            remote_name="gitlab",
         )
         assert unselected["verdict"] == "block", unselected
     receipt = report["data"]["request_receipt"]

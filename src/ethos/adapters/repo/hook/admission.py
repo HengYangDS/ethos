@@ -20,6 +20,7 @@ from ruff import find_ruff_bin
 
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.ref_move_policy import signature_repair_ref_report
+from ethos.adapters.admission.role_rename import role_rename_ref_report
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.commit.admission import commit_message_report
@@ -347,7 +348,9 @@ def _prepared_reference_report(
     *,
     selected_runtime: SelectedRuntime,
 ) -> dict[str, object]:
-    repair = signature_repair_ref_report(root, ref_name, old_value, new_value, phase="prepared")
+    repair = signature_repair_ref_report(
+        root, ref_name, old_value, new_value, phase="prepared"
+    ) or role_rename_ref_report(root, ref_name, old_value, new_value)
     if repair is not None:
         return repair
     branch = ref_name.removeprefix("refs/heads/")

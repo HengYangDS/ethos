@@ -6,7 +6,6 @@ import os
 import shlex
 import sqlite3
 import subprocess
-import tomllib
 from dataclasses import asdict
 from datetime import UTC
 from datetime import datetime
@@ -63,9 +62,7 @@ def _reacquire_coordinates(root: Path, path: Path) -> dict[str, str]:
                 committed_file_text(repo, row["head"], ".ethos/workspace.toml") if declared else ""
             )
             policy = (
-                strict_branch_role_policy_from_text(workspace, allow_predecessor_defaults=True)
-                if "branch_roles" in tomllib.loads(workspace)
-                else BranchRolePolicy()
+                strict_branch_role_policy_from_text(workspace) if declared else BranchRolePolicy()
             )
         except ValueError:
             continue

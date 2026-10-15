@@ -291,12 +291,12 @@
         "items": [
           "test_closeout_first_cas_uses_the_accepted_policy_when_candidate_changes_topology",
           "test_closeout_uses_default_policy_when_profile_has_no_workspace",
-          "test_closeout_rejects_an_explicit_incomplete_workspace",
+          "test_closeout_rejects_an_explicit_invalid_workspace",
           "test_closeout_uses_committed_accepted_policy_when_worktree_masks_release_mirror"
         ],
         "type": "tuple"
       },
-      "value_sha256": "8b27f96e744c26affaaed1789848ad50a1f4774253316f3c884f9ee820d43988"
+      "value_sha256": "86e141c9e0a11f20b3e6c5c5e49d4182a02482f88af910330739e25023d8ba2f"
     },
     {
       "id": "cli.test_contracts_land:assign:CAS_CASES:5",

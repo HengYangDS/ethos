@@ -473,7 +473,7 @@ def prepare_acceptance_topology(
         'candidate_branch = "candidate/dev"\nrelease_mirror = "independent"\n'
         'work_branch_prefix = "work/"\nproposal_branch_prefix = "proposal/"\n'
         "canonical_sibling_worktrees = false\n"
-        '[commit_policy]\nsubject_pattern = ".+"\nsigning_required = true\n'
+        "[commit_policy]\nsigning_required = true\n"
         'signing_format = "ssh"\n',
         encoding="utf-8",
     )
@@ -512,7 +512,7 @@ def prepare_acceptance_topology(
         "commit",
         "--quiet",
         "-m",
-        "require accepted signature repair",
+        "chore: require accepted signature repair",
         cwd=root,
     )
     return candidate

@@ -380,6 +380,19 @@ For a tracked write, bind the exact checkout and paths before editing:
 ethos lane prewrite <paths> --editor-root <worktree> --require-editor-root --json
 ```
 
+To close the paradigm gaps whose repair follows from their carriers alone,
+preview the repairs, then apply them inside the Work Lane:
+
+```bash
+ethos lane repair-paradigm --json
+ethos lane repair-paradigm --apply --json
+```
+
+The preview names each carrier with its diff, the follow-up commands such as a
+peer remote rename, and every gap that needs judgment with its canonical repair.
+Apply writes only after exact-path prewrite admission and plans nothing on a
+repaired tree. It neither runs the follow-up commands nor commits.
+
 Authoring permission and resource retirement are distinct. An explicitly named
 local topic ref may retire after exact accepted absorption even if its name is
 not `work/*`. Use `ethos lane retire absorbed-ref --branch <branch> --expect-head

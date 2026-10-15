@@ -69,14 +69,8 @@ def _target(
         branch = policy.work_branch(_slug(name))
         return branch, (path or default_worktree_path(repo, branch)).resolve(), None
     lane_id = f"{observed_at.astimezone(UTC):%Y%m%d}-{_slug(name)}"
-    branch = f"work/{lane_id}"
+    branch = policy.work_branch(lane_id)
     target = (repo.parent / f"{repo.name}-worktrees" / lane_id).resolve()
-    if policy.work_branch_prefix != "work/":
-        return (
-            branch,
-            target,
-            _blocked(branch, target, "repository_family_profile_requires_work_branch_prefix"),
-        )
     if path is not None and path.resolve() != target:
         return (
             branch,

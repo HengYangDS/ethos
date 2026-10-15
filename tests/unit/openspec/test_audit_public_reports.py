@@ -140,19 +140,20 @@ def test_active_change_reports_ignore_archives_and_reject_invalid_identifiers(tm
     assert audit.active_change_names(tmp_path / "absent") == []
 
 
-@pytest.mark.parametrize("release", ["main", "release"])
+@pytest.mark.parametrize("declared", ["main", "release"])
 @pytest.mark.parametrize(
     ("ref_unknown", "tree_unknown", "current"),
     [(True, True, "dev"), (False, False, "dev"), (True, False, "work/current")],
 )
 def test_governed_branch_report_preserves_partial_knowledge_and_unique_intent(
-    tmp_path, release, ref_unknown, tree_unknown, current
+    tmp_path, declared, ref_unknown, tree_unknown, current
 ):
-    """Native branch policy and independent observations preserve known intent amid gaps."""
+    """Paradigm role names and independent observations preserve known intent amid gaps."""
     _write(
         tmp_path / ".ethos/workspace.toml",
-        tomli_w.dumps({"branch_roles": asdict(BranchRolePolicy(release_branch=release))}),
+        tomli_w.dumps({"branch_roles": asdict(BranchRolePolicy(release_branch=declared))}),
     )
+    release = "main"
     present = {"verdict": "pass", "state": "present", "required_gaps": []}
     active = {"verdict": "pass", "changes": ["active", "active"], "required_gaps": []}
     ref_gaps = ["release-unavailable"] if ref_unknown else []

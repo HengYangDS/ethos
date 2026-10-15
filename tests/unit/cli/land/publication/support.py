@@ -172,7 +172,7 @@ def accepted_release_fixture(
     workspace = repo / ".ethos/workspace.toml"
     workspace.write_text(
         workspace.read_text()
-        + '\n[commit_policy]\nsubject_pattern = "^fix: .+"\n'
+        + "\n[commit_policy]\n"
         + 'signing_required = true\nsigning_format = "ssh"\n'
     )
     (repo / native_version).write_text(
@@ -223,7 +223,7 @@ def maintenance_release_fixture(tmp_path: Path, *, release_mirror: str = "indepe
     candidate = tmp_path / "repo"
     successor = commit_fixture_file(
         candidate,
-        "successor.txt",
+        "resources/successor.txt",
         "current train continues\n",
         "fix: continue current accepted train",
     )

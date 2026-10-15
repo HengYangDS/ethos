@@ -326,7 +326,7 @@ def test_reacquire_rejects_unproved_control_roles_or_historical_identity(
     relative, content, gap = (
         (
             ".ethos/workspace.toml",
-            '[branch_roles]\naccepted_branch = "dev"\n',
+            '[branch_roles]\nrelease_mirror = "invalid"\n',
             "lease_reacquire_control_root_unavailable",
         )
         if invalid_owner == "roles"

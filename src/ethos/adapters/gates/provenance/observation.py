@@ -14,9 +14,9 @@ from ethos.adapters.process import command_scope
 from ethos.adapters.process import run_command
 from ethos.adapters.projections.cue import compile_projections
 from ethos.adapters.repo.content.observation import read_regular_bytes
-from ethos.adapters.repo.git import current_tracked_head
-from ethos.adapters.repo.git import current_tree
-from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.content.source import MAX_MEMBER_BYTES
+from ethos.adapters.repo.content.source import MAX_OBSERVATION_BYTES
+from ethos.adapters.repo.content.source import SourceTree
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.repository.policy.quality.sources import generated_relations
 from ethos.repository.policy.quality.sources import locked_archive
@@ -28,11 +28,9 @@ if TYPE_CHECKING:
 
     from ethos.repository.profile import SourceContract
 
-_MAX_MEMBER_BYTES = 64 * 1024 * 1024
-_MAX_OBSERVATION_BYTES = 128 * 1024 * 1024
 _ARCHIVE_LIMITS = {
-    "archive_bytes": _MAX_MEMBER_BYTES,
-    "raw_bytes": _MAX_OBSERVATION_BYTES,
+    "archive_bytes": MAX_MEMBER_BYTES,
+    "raw_bytes": MAX_OBSERVATION_BYTES,
     "input_bytes": 192 * 1024 * 1024,
     "expanded_bytes": 256 * 1024 * 1024,
     "metadata_bytes": 1024 * 1024,
@@ -41,73 +39,7 @@ _ARCHIVE_LIMITS = {
 }
 
 
-@dataclass(frozen=True, slots=True)
-class _SourceTree:
-    root: Path
-    head: str
-    tree: str
-    entries: Mapping[str, tuple[str, int]]
-    observed: dict[str, bytes] = field(default_factory=dict)
-
-    @classmethod
-    def observe(cls, root: Path) -> _SourceTree:
-        head = current_tracked_head(root)
-        if not head:
-            message = "source_head_missing"
-            raise ValueError(message)
-        raw = run_git(root, "ls-tree", "-rlz", head, text=False, check=True).stdout
-        entries = {}
-        for record in raw.split(b"\0"):
-            if not record:
-                continue
-            metadata, path = record.split(b"\t", 1)
-            mode, kind, _oid, size = metadata.split()
-            if kind == b"blob":
-                entries[path.decode("utf-8")] = (mode.decode("ascii"), int(size))
-        return cls(root.resolve(), head, current_tree(root, head), entries)
-
-    def read(self, relative: str) -> bytes:
-        """Reuse exact Git bytes within this observation and reject changed live inputs."""
-        metadata = self.entries.get(relative)
-        if metadata is None or metadata[0] not in {"100644", "100755"}:
-            message = f"source_member_unavailable:{relative}"
-            raise ValueError(message)
-        if metadata[1] > _MAX_MEMBER_BYTES:
-            message = f"source_member_size_exceeded:{relative}"
-            raise ValueError(message)
-        if relative not in self.observed:
-            if (
-                sum(map(len, self.observed.values())) + metadata[1] > _MAX_OBSERVATION_BYTES
-                or len(self.observed) >= _ARCHIVE_LIMITS["entries"]
-            ):
-                message = "source_observation_size_exceeded"
-                raise ValueError(message)
-            self.observed[relative] = run_git(
-                self.root, "show", f"{self.head}:{relative}", text=False, check=True
-            ).stdout
-        expected = self.observed[relative]
-        actual = read_regular_bytes(
-            self.root,
-            relative,
-            max_bytes=metadata[1],
-            unsafe_gap=f"source_member_link_or_type_forbidden:{relative}",
-            unstable_gap=f"source_member_changed:{relative}",
-            size_gap=f"source_member_size_exceeded:{relative}",
-        )
-        if actual != expected:
-            message = f"source_member_changed:{relative}"
-            raise ValueError(message)
-        return expected
-
-    def recheck(self) -> None:
-        if current_tracked_head(self.root) != self.head:
-            message = "source_tree_changed"
-            raise ValueError(message)
-        for relative in tuple(self.observed):
-            self.read(relative)
-
-
-def _generated(snapshot: _SourceTree, contracts: tuple[SourceContract, ...]) -> None:
+def _generated(snapshot: SourceTree, contracts: tuple[SourceContract, ...]) -> None:
     if not contracts:
         return
     references = {reference for contract in contracts for reference in contract.input_refs}
@@ -178,7 +110,7 @@ class _ArchiveInput:
 
 
 def _native_archives(
-    snapshot: _SourceTree, node: Path, npm: Path, request: dict[str, object]
+    snapshot: SourceTree, node: Path, npm: Path, request: dict[str, object]
 ) -> Mapping[str, object]:
     """Invoke only the selected product helper and bounded native input protocol."""
     request["limits"] = _ARCHIVE_LIMITS
@@ -204,7 +136,7 @@ def _native_archives(
 
 
 def _read_archive_cache(
-    snapshot: _SourceTree, node: Path, npm: Path, archives: dict[str, _ArchiveInput]
+    snapshot: SourceTree, node: Path, npm: Path, archives: dict[str, _ArchiveInput]
 ) -> None:
     """Native availability selects a digest; one safe reader verifies its fresh bytes."""
     cached = [entry for entry in archives.values() if entry.data is None]
@@ -257,7 +189,7 @@ def _read_archive_cache(
         entry.selected_integrity = identity["integrity"]
 
 
-def _upstream(snapshot: _SourceTree, contracts: tuple[SourceContract, ...]) -> None:
+def _upstream(snapshot: SourceTree, contracts: tuple[SourceContract, ...]) -> None:
     """Read once, then conjoin native SRI and bounded framing/member observations."""
     archives: dict[str, _ArchiveInput] = {}
     for contract in contracts:
@@ -289,7 +221,7 @@ def _upstream(snapshot: _SourceTree, contracts: tuple[SourceContract, ...]) -> N
         raise ValueError(message)
 
 
-def _contracts(snapshot: _SourceTree) -> tuple[SourceContract, ...]:
+def _contracts(snapshot: SourceTree) -> tuple[SourceContract, ...]:
     """Read obligations only from the same unchanged committed native profile."""
     relative = ".ethos/profile.toml"
     if relative not in snapshot.entries:
@@ -308,7 +240,7 @@ def integrity_report(root: Path, *, timeout_seconds: float | None = None) -> dic
     contracts = ()
     try:
         with command_scope(timeout_seconds=timeout_seconds):
-            snapshot = _SourceTree.observe(root)
+            snapshot = SourceTree.observe(root)
             contracts = _contracts(snapshot)
             _generated(
                 snapshot, tuple(contract for contract in contracts if contract.kind == "generated")

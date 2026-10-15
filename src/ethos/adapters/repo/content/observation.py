@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import os
 import stat
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from pathlib import Path
 
 
@@ -39,12 +41,79 @@ def read_regular_bytes(
     Native aliases above the selected root resolve once; its canonical descriptor
     chain and repository-relative components are opened without following links.
     """
+    nonblock = getattr(os, "O_NONBLOCK", 0)
+    if not nonblock:
+        raise ValueError(unsafe_gap)
+    file_descriptor: int | None = None
+    try:
+        with _parent_descriptors(root, relative, unsafe_gap) as (
+            canonical,
+            components,
+            directories,
+        ):
+            file_descriptor = os.open(
+                components[-1], os.O_RDONLY | os.O_NOFOLLOW | nonblock, dir_fd=directories[-1]
+            )
+            before = os.fstat(file_descriptor)
+            if not stat.S_ISREG(before.st_mode):
+                raise ValueError(unsafe_gap)
+            limit = min(before.st_size, max_bytes)
+            if before.st_size > max_bytes:
+                raise ValueError(size_gap)
+            with os.fdopen(file_descriptor, "rb", closefd=True) as source:
+                file_descriptor = None
+                content = source.read(limit + 1)
+                after = os.fstat(source.fileno())
+            if len(content) > limit:
+                raise ValueError(size_gap)
+            _validate_snapshot(
+                _ReadSnapshot(root, tuple(directories), components, before, after, len(content)),
+                unstable_gap,
+                canonical,
+            )
+    except (OSError, NotImplementedError) as error:
+        raise ValueError(unsafe_gap) from error
+    else:
+        return content
+    finally:
+        if file_descriptor is not None:
+            os.close(file_descriptor)
+
+
+def read_link_target(root: Path, relative: str, *, unsafe_gap: str, unstable_gap: str) -> str:
+    """Read a stable alias through the same no-follow parent chain as regular input."""
+    try:
+        with _parent_descriptors(root, relative, unsafe_gap) as (
+            canonical,
+            components,
+            directories,
+        ):
+            before = os.stat(components[-1], dir_fd=directories[-1], follow_symlinks=False)
+            if not stat.S_ISLNK(before.st_mode):
+                raise ValueError(unsafe_gap)
+            target = os.readlink(components[-1], dir_fd=directories[-1])
+            after = os.stat(components[-1], dir_fd=directories[-1], follow_symlinks=False)
+            _validate_snapshot(
+                _ReadSnapshot(
+                    root, tuple(directories), components, before, after, len(os.fsencode(target))
+                ),
+                unstable_gap,
+                canonical,
+            )
+            return target
+    except (OSError, NotImplementedError) as error:
+        raise ValueError(unsafe_gap) from error
+
+
+@contextmanager
+def _parent_descriptors(
+    root: Path, relative: str, gap: str
+) -> Generator[tuple[Path, tuple[str, ...], list[int]]]:
     path = PurePosixPath(relative)
     nofollow = getattr(os, "O_NOFOLLOW", 0)
     directory = getattr(os, "O_DIRECTORY", 0)
-    nonblock = getattr(os, "O_NONBLOCK", 0)
     if (
-        not all((nofollow, directory, nonblock))
+        not all((nofollow, directory))
         or path.is_absolute()
         or not path.parts
         or ".." in path.parts
@@ -52,9 +121,8 @@ def read_regular_bytes(
         or "\0" in relative
         or root.is_symlink()
     ):
-        raise ValueError(unsafe_gap)
+        raise ValueError(gap)
     directories: list[int] = []
-    file_descriptor: int | None = None
     try:
         canonical = root.resolve(strict=True)
         components = (*canonical.parts[1:], *path.parts)
@@ -63,33 +131,8 @@ def read_regular_bytes(
             directories.append(
                 os.open(component, os.O_RDONLY | directory | nofollow, dir_fd=directories[-1])
             )
-        file_descriptor = os.open(
-            components[-1], os.O_RDONLY | nofollow | nonblock, dir_fd=directories[-1]
-        )
-        before = os.fstat(file_descriptor)
-        if not stat.S_ISREG(before.st_mode):
-            raise ValueError(unsafe_gap)
-        limit = min(before.st_size, max_bytes)
-        if before.st_size > max_bytes:
-            raise ValueError(size_gap)
-        with os.fdopen(file_descriptor, "rb", closefd=True) as source:
-            file_descriptor = None
-            content = source.read(limit + 1)
-            after = os.fstat(source.fileno())
-        if len(content) > limit:
-            raise ValueError(size_gap)
-        _validate_snapshot(
-            _ReadSnapshot(root, tuple(directories), components, before, after, len(content)),
-            unstable_gap,
-            canonical,
-        )
-    except (OSError, NotImplementedError) as error:
-        raise ValueError(unsafe_gap) from error
-    else:
-        return content
+        yield canonical, components, directories
     finally:
-        if file_descriptor is not None:
-            os.close(file_descriptor)
         for descriptor in reversed(directories):
             os.close(descriptor)
 
@@ -114,7 +157,7 @@ def _validate_snapshot(snapshot: _ReadSnapshot, gap: str, canonical: Path) -> No
         root_current = snapshot.root.stat(follow_symlinks=False)
         root_descriptor = snapshot.directories[len(canonical.parts) - 1]
         if (
-            not stat.S_ISREG(current.st_mode)
+            stat.S_IFMT(current.st_mode) != stat.S_IFMT(after.st_mode)
             or _identity(current) != _identity(after)
             or not stat.S_ISDIR(root_current.st_mode)
             or _identity(root_current)[:2] != _identity(os.fstat(root_descriptor))[:2]

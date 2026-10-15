@@ -10,7 +10,7 @@
     "test:npm": "node --test tests/architecture/npm-package.test.mjs"
   },
   "dependencies": {
-    "@fission-ai/openspec": "1.14.1",
+    "@fission-ai/openspec": "1.14.2",
     "c8": "12.0.0",
     "micromark": "4.0.3",
     "micromark-util-decode-string": "2.0.1",

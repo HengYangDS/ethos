@@ -80,9 +80,9 @@ inputs = { gate_registry = "system/gates.toml", node = ".config/mise/config.toml
 # Windows digests come from the same release's official SHASUMS256.txt, because the
 # shell installer supports only Linux and macOS.
 [bootstrap]
-version = "2026.10.8"
-sha256 = "891db2f217ec3d64768167f655a8afc925983969711286408f60ec3e5fd77525"
+version = "2026.10.10"
+sha256 = "8411f09ba367b35901b38c86d22e44d0f10f2fad945a32d2760aa514e9844f00"
 
 [bootstrap.windows]
-arm64 = "37fb631c501e8bb6a96e72914a5066f3c8d87a0c5e3aa0b42acffad714752db3"
-x64 = "9147c464c607be2444b4a6f0684dd253ecf0a0ec5d1fe9db639005a8c81fe013"
+arm64 = "bad5e1f21ddcc0e586856c4dc92888238003df4258452d8e8f3c3de90a8c5fd1"
+x64 = "4989b35bff0e23fe6121b798c77bb4cfe9dbf0c8ac8a3469631b7c9b6a438c47"

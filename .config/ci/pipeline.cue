@@ -52,7 +52,7 @@ let githubPythonBootstrap = [{
 	with: "python-version": "3.14"
 }, {
 	uses: "astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884"
-	with: version: "0.13.0"
+	with: version: "0.13.1"
 }, {
 	name: "Bootstrap Python and OpenSpec"
 	run:  "tools/ci/scripts/bootstrap-python.sh"
@@ -171,7 +171,7 @@ github: {
 			}, {
 				uses: "astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884"
 				with: {
-					version:          "0.13.0"
+					version:          "0.13.1"
 					"python-version": "${{ matrix.python }}"
 				}
 			}, {

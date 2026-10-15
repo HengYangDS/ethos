@@ -147,7 +147,7 @@ ethos:npm:
       when: never
     - when: on_success
   variables:
-    NODE_VERSION: 26.11.1
+    NODE_VERSION: 26.12.0
   image: ghcr.io/hengyangds/ethos-ci-supply@sha256:4f57e89fd8b4dfc70e823f5084717e2addebeb716ddf3226b1b59c38ffb8cb33
   script:
     - tools/ci/scripts/bootstrap-python.sh

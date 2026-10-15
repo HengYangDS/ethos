@@ -45,6 +45,14 @@ policy = "policy.toml"
 # Per-file ceilings every governed repository shares; no binding restates them.
 # Exceeding one needs semantic consolidation, never compression, exemptions or a
 # raised ceiling.
+# A repository that declares release tags keeps one version source and one
+# changelog grammar (Keep a Changelog 1.1.0, bracketed headings).
+[release]
+version_file = "VERSION"
+tag_pattern = "v*"
+changelog = "CHANGELOG.md"
+changelog_heading = '^## \[(Unreleased|\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?)\]( - \d{4}-\d{2}-\d{2})?$'
+
 [size]
 python_effective_lines = 512
 markdown_nonblank_lines = 512

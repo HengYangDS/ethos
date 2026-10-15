@@ -163,7 +163,7 @@ def test_signed_tag_alternates_survive_windows_text_newline_translation(
 
 @pytest.mark.parametrize(
     ("object_format", "native_version"),
-    [("sha1", "package.json"), ("sha256", "package.json"), ("sha1", "VERSION")],
+    [("sha1", "VERSION"), ("sha256", "VERSION")],
 )
 @pytest.mark.parametrize("release_mirror", ["independent", "accepted_ff"])
 def test_public_release_preserves_native_package_and_signed_tag(

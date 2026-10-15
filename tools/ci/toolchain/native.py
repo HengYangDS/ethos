@@ -521,10 +521,23 @@ def main() -> int:
                         if isinstance(output, bytes)
                         else output
                     )
-        print(f"native_tool_supply_failed:{error}", file=sys.stderr)
+        print(f"native_tool_supply_failed:{_failure_chain(error)}", file=sys.stderr)
         return 1
     print(os.pathsep.join(str(path) for path in paths))
     return 0
+
+
+def _failure_chain(error: BaseException) -> str:
+    """Name a failure with the earlier failures it wrapped or masked, newest first."""
+    chain = [error]
+    while True:
+        current = chain[-1]
+        earlier = current.__cause__ or (
+            None if current.__suppress_context__ else current.__context__
+        )
+        if earlier is None or earlier in chain:
+            return " <- ".join(str(item) for item in chain)
+        chain.append(earlier)
 
 
 if __name__ == "__main__":

@@ -94,6 +94,17 @@ class FormatterBinding(BaseModel):
     settings: FrozenMapping[str | int | bool]
 
 
+class ReleaseConventions(BaseModel):
+    """The version source, tag pattern and changelog grammar of a releasing repository."""
+
+    model_config = _DECLARATION
+
+    version_file: str
+    tag_pattern: str
+    changelog: str
+    changelog_heading: str
+
+
 class SizeCeilings(BaseModel):
     """Per-file ceilings that every governed repository shares."""
 
@@ -142,6 +153,7 @@ class RepositoryParadigm(BaseModel):
     configuration: ConfigurationPlane
     immutable_roots: FrozenTuple[str]
     formatter: FrozenTuple[FormatterBinding]
+    release: ReleaseConventions
     size: SizeCeilings
     module: FrozenTuple[EcosystemModule]
     tool: FrozenTuple[ToolCarrier]

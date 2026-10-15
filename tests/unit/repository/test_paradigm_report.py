@@ -425,3 +425,120 @@ def test_branch_roles_keep_the_standard_names(tmp_path: Path, roles: str, gaps: 
     assert report["required_gaps"] == gaps
     if gaps:
         assert 'proposal_branch_prefix = "proposal/"' in report["next_action"]
+
+
+_RELEASING = {
+    ".ethos/release.toml": '[protected_refs]\ntags = ["v*"]\n',
+    "VERSION": "1.2.0\n",
+    "CHANGELOG.md": "# Changelog\n\n## [Unreleased]\n\n## [1.2.0] - 2026-10-15\n",
+}
+
+
+@pytest.mark.parametrize(
+    ("changes", "gaps"),
+    [
+        ({}, []),
+        (
+            {"CHANGELOG.md": "# Changelog\n\n## Unreleased\n\n## 1.2.0 - 2026-10-15\n"},
+            ["repository_paradigm_changelog:CHANGELOG.md"],
+        ),
+        ({"VERSION": None}, ["repository_paradigm_version_source:VERSION"]),
+        (
+            {"package.json": '{"version": "1.2.0", "scripts": {}}\n'},
+            ["repository_paradigm_version_source:package.json:version"],
+        ),
+        (
+            {".ethos/release.toml": '[protected_refs]\ntags = ["release-*"]\n'},
+            ["repository_paradigm_release_tags:.ethos/release.toml:protected_refs.tags"],
+        ),
+        ({".ethos/release.toml": "", "VERSION": None, "CHANGELOG.md": None}, []),
+    ],
+    ids=[
+        "conforming",
+        "unbracketed",
+        "no-version",
+        "package-version",
+        "tag-pattern",
+        "not-released",
+    ],
+)
+def test_a_releasing_repository_keeps_one_version_source_and_changelog(
+    tmp_path: Path, changes: dict[str, str | None], gaps: list[str]
+) -> None:
+    """Release tags require VERSION alone, v-tags and a bracketed Keep a Changelog history."""
+    merged = {**_CONFORMING, **_RELEASING, **changes}
+    files = {key: value for key, value in merged.items() if value is not None}
+    report = _report(tmp_path, files)
+    assert report["required_gaps"] == gaps
+
+
+@pytest.mark.parametrize(
+    ("changes", "gaps"),
+    [
+        ({".ethos/release.toml": "[broken\n"}, []),
+        ({".ethos/workspace.toml": "[broken\n"}, []),
+        ({".ethos/workspace.toml": 'branch_roles = "main"\n'}, []),
+        ({".ethos/rules.toml": "[broken\n"}, []),
+        (
+            {".config/checks/ruff/ruff.toml": "[broken\n"},
+            [
+                "repository_paradigm_formatter_setting:.config/checks/ruff/ruff.toml:line-length",
+                "repository_paradigm_formatter_setting:.config/checks/ruff/ruff.toml:target-version",
+            ],
+        ),
+        ({".ethos/release.toml": '[publication]\npeers = ["gitlab", {git_remote = "x"}]\n'}, []),
+        ({".ethos/release.toml": "publication = 1\n"}, []),
+    ],
+    ids=[
+        "release-unreadable",
+        "workspace-unreadable",
+        "roles-not-table",
+        "rules-unreadable",
+        "formatter-unreadable",
+        "peers-malformed",
+        "publication-not-table",
+    ],
+)
+def test_malformed_bindings_leave_their_owner_to_report_them(
+    tmp_path: Path, changes: dict[str, str], gaps: list[str]
+) -> None:
+    """A binding the paradigm cannot parse is its native owner's gap, not a guessed one."""
+    report = _report(tmp_path, {**_CONFORMING, **changes})
+    assert report["required_gaps"] == gaps
+
+
+@pytest.mark.parametrize(
+    ("changes", "gaps"),
+    [
+        (
+            {
+                "pyproject.toml": (
+                    '[project]\nname = "sample"\nversion = "1.2.0"\nrequires-python = ">=3.12"\n'
+                )
+            },
+            ["repository_paradigm_version_source:pyproject.toml:project.version"],
+        ),
+        ({"package.json": "{broken\n"}, ["repository_paradigm_module_lock:package.json"]),
+        ({"pyproject.toml": "[broken\n"}, ["repository_paradigm_module_floor:pyproject.toml"]),
+        ({"CHANGELOG.md": None}, ["repository_paradigm_changelog:CHANGELOG.md"]),
+        (
+            {"CHANGELOG.md": "# Changelog\n\n## [1.2.0] - 2026-10-15\n"},
+            ["repository_paradigm_changelog:CHANGELOG.md"],
+        ),
+    ],
+    ids=[
+        "pyproject-version",
+        "package-unreadable",
+        "pyproject-unreadable",
+        "no-changelog",
+        "no-unreleased",
+    ],
+)
+def test_releasing_repository_version_and_changelog_edges(
+    tmp_path: Path, changes: dict[str, str | None], gaps: list[str]
+) -> None:
+    """Literal manifest versions, an unreadable manifest and a missing history are each reported."""
+    merged = {**_CONFORMING, **_RELEASING, **changes}
+    files = {key: value for key, value in merged.items() if value is not None}
+    report = _report(tmp_path, files)
+    assert report["required_gaps"] == gaps

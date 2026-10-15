@@ -21,6 +21,9 @@ from ethos.adapters.gates.provenance.observation import integrity_report
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
+from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
+from ethos.repository.release.resources import canonical_resource
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
 from tests.support.proof import declare_quality_profile
@@ -74,11 +77,10 @@ def test_public_quality_gate_requires_native_artifact_integrity(
     )
     original = b"import math\nVALUE = 42\n"
     (repo / "template.txt").write_bytes(original)
-    generated_path = "src/sample/generated.py"
+    generated_path, upstream_path = "src/sample/generated.py", "src/sample/upstream.py"
     (repo / generated_path).write_bytes(
         original + b"# drift\n" if defect == "artifact-drift" else original
     )
-    upstream_path = "src/sample/upstream.py"
     (repo / upstream_path).write_bytes(
         original + b"# drift\n" if defect == "upstream-drift" else original
     )
@@ -131,6 +133,22 @@ def test_public_quality_gate_requires_native_artifact_integrity(
             },
         ]
     profile.write_text(tomli_w.dumps(payload))
+    run_command(
+        repo,
+        (
+            str(resolve_node_runtime().executable),
+            str(product_node_module("@taplo/cli") / "dist/cli.js"),
+            "format",
+            "--no-auto-config",
+            "--config",
+            str(canonical_resource(".config/checks/taplo/taplo.toml")),
+            declaration,
+            profile.relative_to(repo).as_posix(),
+        ),
+        timeout=30,
+        check=True,
+        remove_env=("NODE_OPTIONS", "NODE_PATH"),
+    )
     head = commit_fixture(repo, "declare complete mixed native quality obligations")
     result = run_quality_proof(repo, head)
     report = json.loads(result.stdout)

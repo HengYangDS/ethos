@@ -392,7 +392,7 @@ CLOSEOUT_CASES = literal_case("cli.test_contracts_land:assign:CLOSEOUT_CASES:4")
 def _assert_first_cas_uses_accepted_policy(fixture, monkeypatch: pytest.MonkeyPatch) -> None:
     repo, candidate, worktree = fixture
     accepted = git(repo, "rev-parse", "HEAD")
-    git(repo, "branch", "candidate-selected-accepted", accepted)
+    release = git(repo, "branch", "--list", "main")
     target = worktree / ".ethos/workspace.toml"
     target.write_text(CHANGED_TOPOLOGY)
     git(worktree, "add", target.as_posix())
@@ -407,7 +407,9 @@ def _assert_first_cas_uses_accepted_policy(fixture, monkeypatch: pytest.MonkeyPa
     )
     assert report["verdict"] == "pass", report
     assert git(repo, "rev-parse", "dev") == head
-    assert git(repo, "rev-parse", "candidate-selected-accepted") == accepted
+    # The accepted policy mirrors main independently, so the candidate's accepted_ff
+    # mirror does not move main in the closeout that first accepts it.
+    assert git(repo, "branch", "--list", "main") == release
 
 
 def _assert_declared_closeout_policy(

@@ -402,3 +402,26 @@ def test_each_publication_peer_names_its_git_remote(
     assert report["required_gaps"] == gaps
     if gaps:
         assert "git remote rename origin gitlab" in report["next_action"]
+
+
+@pytest.mark.parametrize(
+    ("roles", "gaps"),
+    [
+        ("", []),
+        ('release_branch = "main"\nproposal_branch_prefix = "proposal/"\n', []),
+        (
+            'proposal_branch_prefix = "submit/"\n',
+            [
+                "repository_paradigm_branch_roles:.ethos/workspace.toml:branch_roles.proposal_branch_prefix"
+            ],
+        ),
+    ],
+    ids=["defaults", "standard-declared", "review-prefix"],
+)
+def test_branch_roles_keep_the_standard_names(tmp_path: Path, roles: str, gaps: list[str]) -> None:
+    """A declared branch role must use the name the branch-role contract defaults to."""
+    workspace = f"[branch_roles]\n{roles}" if roles else ""
+    report = _report(tmp_path, {**_CONFORMING, ".ethos/workspace.toml": workspace})
+    assert report["required_gaps"] == gaps
+    if gaps:
+        assert 'proposal_branch_prefix = "proposal/"' in report["next_action"]

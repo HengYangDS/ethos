@@ -22,6 +22,14 @@ governance_roots = [".agents", ".config", ".ethos", "openspec"]
 [binding]
 root = ".ethos"
 files = ["profile.toml", "release.toml", "rules.toml", "workspace.toml"]
+# Branch roles whose names are the branch-role contract defaults in every repository.
+standard_branch_roles = [
+  "release_branch",
+  "accepted_branch",
+  "candidate_branch",
+  "work_branch_prefix",
+  "proposal_branch_prefix",
+]
 
 [normalization]
 gitattributes = "* text=auto eol=lf"

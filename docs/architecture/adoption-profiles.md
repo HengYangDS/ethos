@@ -51,9 +51,10 @@ Docs, Skills and provider CI remain optional, separately owned capabilities.
 
 The declaration may point at existing repository-owned `rules/`, `openspec/`,
 `docs/`, and `.agents/skills/` roots. Their
-presence is capability state, not a bootstrap prerequisite. Branch-role names,
-domain gates, provider state, and tool-native configuration remain adopter
-facts; adoption does not generate or normalize them.
+presence is capability state, not a bootstrap prerequisite. Domain gates,
+provider state, and tool-native configuration remain adopter facts; adoption
+does not generate or normalize them. The repository paradigm fixes the
+branch-role names.
 
 An adopted repository uses the same result and continuation semantics as the
 product. The profile selects repository-owned facts and gates; it does not

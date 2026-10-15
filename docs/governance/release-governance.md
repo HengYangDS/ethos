@@ -131,6 +131,12 @@ does not grant release or credential authority. Product reporting replaces the
 former advisory approval and expiry list; explicitly strict subject policies
 retain their exact disposition contracts.
 
+The same command retires a published legacy role ref, such as the old accepted
+branch that accepted closeout renamed to `dev`. It is admitted only when the
+table committed at the ref's remote head declares that name as a legacy accepted
+or candidate name and the name has no current role; the same absorption and
+review checks apply.
+
 Release readiness is proven with:
 
 ```bash

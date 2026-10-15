@@ -22,8 +22,9 @@
 - [x] 2.15 Report a `subject_pattern` declared in `[commit_policy]` as a restated commit grammar, once the installed runtime carries 2.14, and remove ETHOS's own pattern and the fixture owners' patterns; focused tests cover a derived grammar, declared scopes and a restated pattern.
 - [ ] 2.16 Retire the docs registry's comment-wrapped metadata reader for documents under the docs root once no adopter tracks such a document; docs health tests cover plain front matter only.
 - [x] 2.17 Fix the branch role names in the paradigm: the readers take only `release_mirror` and `canonical_sibling_worktrees` from `[branch_roles]`, and accepted closeout renames legacy role refs in one ref transaction, rebinds their worktrees, and leaves Git admission refusing any other move of a legacy role ref; focused tests cover legacy names, settings-only tables, the rename, an interrupted binding, refused renames and refused direct moves.
-- [ ] 2.18 Once the runtime carrying 2.17 is installed, report every declared branch role name, standard or legacy, and remove the names from ETHOS's workspace and from the fixture tables.
-- [ ] 2.19 Retire the legacy role rename and its Git admission once no adopter declares a legacy role name.
+- [x] 2.18 Report every declared branch role name, standard or legacy, naming the closeout rename a legacy name waits for, and remove the names from ETHOS's workspace, the routing contract and the fixture tables; focused tests cover a settings-only table, a standard name and a legacy name.
+- [x] 2.20 Retire a published legacy role ref through `ethos publish --retire` and the pre-push hook when the table committed at its remote head declares that name as a legacy accepted or candidate name and the accepted head, locally and on the peer, contains that head; focused tests cover a retired legacy ref and a refused undeclared name.
+- [ ] 2.19 Retire the legacy role rename, its Git admission and the legacy role ref retirement once no adopter declares a legacy role name or publishes a legacy role ref.
 
 ## 3. ETHOS conformance
 
@@ -39,7 +40,7 @@
 
 - [x] 4.1 Add `ethos lane repair-paradigm`: it previews by default, applies only in a Work Lane after exact-path prewrite admission, and plans nothing on a repaired tree; it derives each repair from the gap's obligation and the carrier's current text and reports gaps that need judgment. Focused tests cover preview, apply, refused admission, repetition and a report-only gap. `tests/unit/cli/test_lane_paradigm_repair.py` covers the command; the repaired tree plans no edit in `tests/unit/repository/test_paradigm_repair.py`.
 - [x] 4.2 Repair text normalization, formatter bindings and settings, comment-wrapped front matter and a peer's `git_remote`, naming the remote rename as the next action; focused tests cover each repair. An unreadable carrier, a setting whose rewrite would not parse and a front matter without its complete wrapper stay report-only; the three new modules have full line and branch coverage.
-- [ ] 4.3 Repair branch-role name fields and a restated commit grammar after 2.15 lands, under the gap formats it defines; focused tests cover each repair.
+- [x] 4.3 Repair branch-role name fields and a restated commit grammar: the repair deletes a field whose value equals the one the paradigm fixes, `BranchRolePolicy()` for the names in `ROLE_NAME_FIELDS` and the shared subject grammar, and keeps a legacy role name or a repository's own grammar report-only. The deletion must leave the parsed binding equal to the original without that field. Focused tests in `tests/unit/repository/test_paradigm_repair.py` cover deletion, a legacy name, a repository grammar and fields the plan cannot isolate.
 
 ## Workflow follow-up
 

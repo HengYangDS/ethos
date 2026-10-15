@@ -125,9 +125,8 @@ def test_candidate_policy_cannot_reclassify_predecessor_accepted_destination(tmp
     """Prior committed role meaning remains the floor when proposed policy changes."""
     repo, baseline, _proposed = _fixture(tmp_path)
     policy = repo / ".ethos/workspace.toml"
-    policy.write_text(
-        policy.read_text().replace('accepted_branch = "dev"', 'accepted_branch = "new-dev"')
-    )
+    declared = '[branch_roles]\naccepted_branch = "new-dev"\n'
+    policy.write_text(policy.read_text().replace("[branch_roles]\n", declared))
     proposed = commit_fixture(repo, "rename candidate accepted role")
 
     report = _observe(repo, "refs/heads/dev", proposed, baseline)

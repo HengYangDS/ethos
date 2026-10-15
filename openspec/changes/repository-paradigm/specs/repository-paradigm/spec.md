@@ -158,6 +158,11 @@ The repository paradigm SHALL fix the branch role names: release `main`, accepte
 - **THEN** the paradigm reports a legacy branch-role name
 - **AND** ETHOS still uses `proposal/`.
 
+#### Scenario: A workspace declares a standard name
+
+- **WHEN** `[branch_roles]` declares `accepted_branch = "dev"`
+- **THEN** the paradigm reports the declared name and names its removal.
+
 #### Scenario: A workspace declares only the settings
 
 - **WHEN** `[branch_roles]` declares only `release_mirror = "accepted_ff"`
@@ -177,6 +182,20 @@ When the accepted root is bound to a ref that its committed table declares as a 
 
 - **WHEN** a user runs `git branch -m accepted/train dev`
 - **THEN** Git admission refuses the update with `legacy_role_ref_protected`.
+
+### Requirement: Publication retires published legacy role refs
+
+Publication retirement SHALL delete a published ref whose name the table committed at its remote head declares as a legacy accepted or candidate name only when that name has no current role and the accepted head, locally and on the peer, contains the remote head.
+
+#### Scenario: A renamed accepted ref is still published
+
+- **WHEN** a peer still carries `accepted/train` at a head whose table declares `accepted_branch = "accepted/train"` and the peer's `dev` contains that head
+- **THEN** `ethos publish --retire --ref refs/heads/accepted/train` deletes it on each peer.
+
+#### Scenario: The table at the head declares another name
+
+- **WHEN** a peer carries `topic` at a head whose table declares no `topic` role name
+- **THEN** publication retirement refuses `refs/heads/topic` as not a proposal.
 
 ### Requirement: Publication peers name their Git remotes after themselves
 
@@ -433,3 +452,8 @@ ETHOS SHALL derive a repair for every paradigm gap whose fix follows from the ga
 
 - **WHEN** the `gitlab` peer declares `git_remote = "origin"`
 - **THEN** the repair sets `git_remote = "gitlab"` and names `git remote rename origin gitlab` as the next action without running it.
+
+#### Scenario: A restated paradigm value is deleted
+
+- **WHEN** a workspace binding declares a standard branch-role name at the name the paradigm fixes, or a commit subject pattern equal to the shared grammar
+- **THEN** the repair deletes that field and keeps every comment and other key, while a legacy role name or a repository's own grammar stays report-only.

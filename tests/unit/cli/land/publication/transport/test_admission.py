@@ -10,7 +10,6 @@ import ethos.repository.release.publication as release_publication
 from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.admission.publication import ref_update_admission_report
 from ethos.adapters.repo.git_object import zero_oid
-from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.normalization.coercion import string_sequence
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
@@ -112,13 +111,12 @@ def test_transport_uses_only_the_peer_standard_accepted_authority(
     )
     if redirect_accepted_ref:
         workspace = repo / ".ethos/workspace.toml"
-        accepted_branch = load_branch_role_policy(repo).accepted_branch
         head = commit_fixture_file(
             repo,
             ".ethos/workspace.toml",
             workspace.read_text().replace(
-                f'accepted_branch = "{accepted_branch}"',
-                'accepted_branch = "proposal/transport-authority"',
+                "[branch_roles]\n",
+                '[branch_roles]\naccepted_branch = "proposal/transport-authority"\n',
             ),
             "test: propose alternate accepted designation",
         )

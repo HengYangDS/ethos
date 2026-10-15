@@ -100,11 +100,6 @@ def test_reacquire_recognizes_previous_complete_accepted_policy(tmp_path, monkey
     workspace.parent.mkdir(parents=True, exist_ok=True)
     workspace.write_text(
         render_branch_policy(
-            release_branch="main",
-            accepted_branch="dev",
-            candidate_branch="candidate/dev",
-            work_branch_prefix="work/",
-            proposal_branch_prefix="proposal/",
             release_mirror="independent",
         ).replace("canonical_sibling_worktrees = false\n", "")
     )

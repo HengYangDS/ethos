@@ -10,9 +10,9 @@ import json
 import posixpath
 import re
 import tomllib
-from dataclasses import fields
 from typing import TYPE_CHECKING
 
+from ethos.contracts.branch.roles import ROLE_NAME_FIELDS
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import close_verdict
@@ -363,14 +363,15 @@ def _workspace_gaps(
     except tomllib.TOMLDecodeError:
         return  # The workspace policy owners report an unreadable binding.
     roles = declared.get("branch_roles", {})
-    standard = {field.name: field.default for field in fields(BranchRolePolicy)}
-    for role in paradigm.binding.standard_branch_roles if isinstance(roles, dict) else ():
-        if role in roles and roles[role] != standard[role]:
+    standard = BranchRolePolicy()
+    for role in ROLE_NAME_FIELDS if isinstance(roles, dict) else ():
+        if role in roles:
+            name = getattr(standard, role)
+            rename = "" if roles[role] == name else " after closeout renames the ref"
             yield ParadigmGap(
                 "branch-roles",
                 f"{workspace}:branch_roles.{role}",
-                f"remove {role} after closeout renames the ref; "
-                f"the repository paradigm fixes it as {standard[role]}",
+                f"remove {role}{rename}; the repository paradigm fixes it as {name}",
             )
     policy = declared.get("commit_policy", {})
     if isinstance(policy, dict) and "subject_pattern" in policy:

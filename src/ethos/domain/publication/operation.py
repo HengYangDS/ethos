@@ -219,6 +219,7 @@ def _publish_projection(
         expect_head=expect_head,
         target_refs=target_refs,
         peer_ids=selected_ids,
+        retire=retirement,
     )
     current_head = context.head
     gaps.extend(context.required_gaps)

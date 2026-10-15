@@ -17,6 +17,7 @@ import tests
 import tools.ci.sessions as ci_sessions
 from ethos.adapters.gates.code_quality import behavior_report
 from ethos.adapters.gates.code_quality import static_report
+from ethos.adapters.gates.formatting import render_source_content
 from ethos.adapters.gates.provenance.observation import integrity_report
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
@@ -93,13 +94,18 @@ def test_public_quality_gate_requires_native_artifact_integrity(
     declaration = ".config/checks/ci-projection/policy.toml"
     owner = repo / declaration
     owner.parent.mkdir(parents=True)
-    owner.write_text(
-        tomli_w.dumps(
-            {
-                "schema": "ethos-ci-template-consistency-v1",
-                "projection": [{"template": "template.txt", "projection": generated_path}],
-            }
-        )
+    owner.write_bytes(
+        render_source_content(
+            repo,
+            declaration,
+            "taplo",
+            tomli_w.dumps(
+                {
+                    "schema": "ethos-ci-template-consistency-v1",
+                    "projection": [{"template": "template.txt", "projection": generated_path}],
+                }
+            ).encode(),
+        )[0]
     )
     (repo / ".gitattributes").write_text(f"{generated_path} ethos-role=generated\n")
     profile = repo / ".ethos/profile.toml"
@@ -130,7 +136,11 @@ def test_public_quality_gate_requires_native_artifact_integrity(
                 "integrity_gate": "integrity",
             },
         ]
-    profile.write_text(tomli_w.dumps(payload))
+    profile.write_bytes(
+        render_source_content(
+            repo, profile.relative_to(repo).as_posix(), "taplo", tomli_w.dumps(payload).encode()
+        )[0]
+    )
     head = commit_fixture(repo, "declare complete mixed native quality obligations")
     result = run_quality_proof(repo, head)
     report = json.loads(result.stdout)

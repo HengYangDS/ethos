@@ -258,8 +258,8 @@ def maintenance_release_fixture(tmp_path: Path, *, release_mirror: str = "indepe
     assert started["verdict"] == "pass", started
     head = commit_fixture_file(
         lane,
-        "package.json",
-        '{"name":"sample","version":"1.2.4"}\n',
+        "VERSION",
+        "1.2.4\n",
         "fix: maintain historical accepted release",
     )
     seed_executed_proof(lane, head)

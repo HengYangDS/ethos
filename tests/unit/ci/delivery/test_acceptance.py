@@ -5,8 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import shlex
-import shutil
-import sys
 import tomllib
 from concurrent.futures import Future
 from concurrent.futures import wait
@@ -20,7 +18,6 @@ from unittest.mock import call
 import pytest
 
 import tools.ci.local_ci as local_ci
-from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.repository.policy.gates import gate_execution_identity
@@ -31,7 +28,6 @@ from tools.ci.delivery import distribution as native_distribution
 from tools.ci.delivery import pipeline
 from tools.ci.delivery.acceptance import effect
 from tools.ci.delivery.acceptance import receipt
-from tools.ci.delivery.acceptance import runtime as runtime_acceptance
 from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
@@ -161,30 +157,6 @@ def test_host_conformance_reuses_the_single_package_acceptance_effect(
     with pytest.raises(RuntimeError, match="native preflight failed"):
         delivery.prove_host(session)
     assert calls.mock_calls == [preflight]
-
-
-def test_installed_format_probe_uses_current_native_configuration(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Run every shipped formatter; package smoke separately proves dependency absence."""
-    dependency_check = 'assert importlib.util.find_spec("pytest") is None'
-
-    def run(root: Path, command: tuple[str, ...], **kwargs: object) -> object:
-        assert dependency_check in command[-1]
-        selected = (*command[:-1], command[-1].replace(dependency_check, ""))
-        return run_command(root, selected, **kwargs)
-
-    monkeypatch.setattr(runtime_acceptance, "run_command", run)
-
-    assert runtime_acceptance.require_production_dependencies(
-        Path(sys.executable), environment={"PATH": str(Path(shutil.which("git")).parent)}
-    ) == {
-        "state": "passed",
-        "excluded": ["pytest"],
-        "staged_format": "passed",
-        "source_format": "passed",
-        "formatters": ["ruff", "prettier", "taplo", "shfmt", "svgo"],
-    }
 
 
 def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(

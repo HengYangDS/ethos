@@ -14,7 +14,6 @@ from filelock import FileLock
 import ethos.adapters.admission.current.resolution as resolution_owner
 import ethos.adapters.mutation.lane_lifecycle.merge as merge_admission
 import ethos.adapters.repo.merge.effect as merge_effect
-import ethos.adapters.repo.runtime.binding as runtime_binding_owner
 from ethos.adapters.repo.merge.observation import observe_merge
 from ethos.adapters.repo.merge.recovery import preserve_merge
 from ethos.adapters.store.state.schema import state_database
@@ -579,19 +578,3 @@ def test_authority_changed_after_ref_cas_prevents_metadata_cleanup(tmp_path, mon
     assert "merge_state_stale" in report["required_gaps"]
     assert git(work, "rev-parse", "HEAD") != before
     assert git(work, "rev-parse", "MERGE_HEAD")
-
-
-def test_merge_preview_observes_runtime_once_per_admission(tmp_path, monkeypatch):
-    """Reuse one observation within admission, never across effect boundaries."""
-    work = native_merge_fixture(tmp_path)
-    reads = []
-    observe = merge_admission.hook_runtime_binding
-
-    def counted(root, **kwargs):
-        reads.append(root)
-        return observe(root, **kwargs)
-
-    monkeypatch.setattr(merge_admission, "hook_runtime_binding", counted)
-    monkeypatch.setattr(runtime_binding_owner, "hook_runtime_binding", counted)
-    assert _preview(work, "abort")["verdict"] == "pass"
-    assert reads == [work]

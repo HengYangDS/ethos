@@ -101,6 +101,12 @@ peers have no Forge review system. Failed or unavailable queries remain unknown.
 Each peer is reobserved before exact-old deletion, with partial outcomes and
 already-absent replay recorded by the existing publication Attestation.
 
+The same command retires a published legacy role ref, such as the old accepted
+branch that accepted closeout renamed to `dev`. It is admitted only when the
+table committed at the ref's remote head declares that name as a legacy accepted
+or candidate name and the name has no current role; the same absorption and
+review checks apply.
+
 The dependency-audit owner's product policy discloses advisory findings without
 blocking development, CI, installation, release or distribution. Raw reports,
 finding identities, counts and native exit evidence remain intact. Missing or

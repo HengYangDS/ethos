@@ -308,11 +308,6 @@ def test_native_hooks_reject_commit_or_push_without_parallel_policy(tmp_path, mo
     write_publication_topology(repo)
     (repo / ".ethos/workspace.toml").write_text(
         render_branch_policy(
-            release_branch="main",
-            accepted_branch="dev",
-            candidate_branch="candidate/dev",
-            work_branch_prefix="work/",
-            proposal_branch_prefix="proposal/",
             release_mirror="independent",
         )
         + "\n"

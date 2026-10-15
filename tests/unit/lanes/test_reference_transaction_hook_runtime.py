@@ -52,11 +52,6 @@ def _unavailable_runtime_repo(tmp_path: Path):
     (workspace := tmp_path / ".ethos/workspace.toml").parent.mkdir()
     workspace.write_text(
         render_branch_policy(
-            release_branch="main",
-            accepted_branch="dev",
-            candidate_branch="candidate/dev",
-            work_branch_prefix="work/",
-            proposal_branch_prefix="proposal/",
             release_mirror="independent",
         ),
         encoding="utf-8",
@@ -267,11 +262,6 @@ def test_reference_transaction_hook_fails_closed_on_empty_release_mirror_verdict
     workspace.parent.mkdir(parents=True)
     workspace.write_text(
         render_branch_policy(
-            release_branch="main",
-            accepted_branch="dev",
-            candidate_branch="candidate/dev",
-            work_branch_prefix="work/",
-            proposal_branch_prefix="proposal/",
             release_mirror="accepted_ff",
         ),
         encoding="utf-8",
@@ -319,11 +309,6 @@ def test_reference_transaction_reads_only_git_common_lease_state(
     workspace.parent.mkdir(parents=True)
     workspace.write_text(
         render_branch_policy(
-            release_branch="main",
-            accepted_branch="dev",
-            candidate_branch="candidate/dev",
-            work_branch_prefix="work/",
-            proposal_branch_prefix="proposal/",
             release_mirror="independent",
         ),
         encoding="utf-8",

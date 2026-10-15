@@ -22,9 +22,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _LEGACY = (
-    ('accepted_branch = "dev"', 'accepted_branch = "accepted/train"'),
-    ('candidate_branch = "candidate/dev"', 'candidate_branch = "candidate/train"'),
-    ('proposal_branch_prefix = "proposal/"', 'proposal_branch_prefix = "submit/"'),
+    'accepted_branch = "accepted/train"\n'
+    'candidate_branch = "candidate/train"\n'
+    'proposal_branch_prefix = "submit/"\n'
 )
 
 # After the rename, the next step is the Work Lane that removes the legacy declarations.
@@ -38,10 +38,9 @@ def _legacy_repository(tmp_path: Path) -> tuple[Path, Path, str]:
     """Adopt a repository whose committed table and refs still use legacy role names."""
     repo, candidate = start_adopted_candidate(tmp_path)
     workspace = repo / ".ethos/workspace.toml"
-    text = workspace.read_text()
-    for old, new in _LEGACY:
-        text = text.replace(old, new)
-    workspace.write_text(text)
+    workspace.write_text(
+        workspace.read_text().replace("[branch_roles]\n", f"[branch_roles]\n{_LEGACY}")
+    )
     git(repo, "add", workspace.as_posix())
     git(repo, "commit", "-m", "declare legacy branch roles")
     git(repo, "branch", "-m", "dev", "accepted/train")

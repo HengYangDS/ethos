@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import itertools
-import tomllib
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
-import tomli_w
 from fastmcp import Client
 
 import ethos.adapters.mutation.proof as proof_owner
@@ -47,12 +45,6 @@ def test_unfinished_review_reaches_native_pre_push_and_receipt_without_product_p
     repo, remotes, accepted = branch_publication_fixture(
         tmp_path, source_branch="work/review", proof=False
     )
-    git(repo, "remote", "rename", "origin", "gitlab")
-    release = repo / ".ethos/release.toml"
-    declaration = tomllib.loads(release.read_text())
-    for peer in declaration["publication"]["peers"]:
-        peer["git_remote"] = peer["id"]
-    release.write_text(tomli_w.dumps(declaration), encoding="utf-8")
     write_active_commitment(repo, change_id="review-work")
     head = commit_fixture(repo, "declare unfinished review")
     install_fixture_hook_runtime(repo)
@@ -194,7 +186,7 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(
     assert proof_reads.call_count == 1
     assert [call.args[1:] for call in network.call_args_list if call.args[1] == "ls-remote"] == [
         ("ls-remote", remote, "refs/heads/main", "refs/heads/dev")
-        for remote in ("origin", "github")
+        for remote in ("gitlab", "github")
     ]
     receipt = dry_run["data"]["request_receipt"]
     targets = dry_run["data"]["remote_effect"]["targets"]

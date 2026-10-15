@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import subprocess
 import sys
+import tomllib
 from contextlib import ExitStack
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 from typing import cast
 
+from packaging.specifiers import InvalidSpecifier
+from packaging.specifiers import SpecifierSet
 from uv import find_uv_bin
 
 from ethos.adapters.gates.native.python import report as native_python_report
@@ -177,6 +181,27 @@ def _behavior_scope(
     return source, tests
 
 
+def _interpreter_pin(root: Path) -> tuple[str, ...]:
+    """Pin the runtime interpreter only where the project's requires-python admits it.
+
+    Otherwise uv, the project's own toolchain owner, selects an installed interpreter
+    that the project declares.
+    """
+    try:
+        project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError):
+        return ()
+    section = project.get("project")
+    declared = section.get("requires-python") if isinstance(section, dict) else None
+    if isinstance(declared, str):
+        try:
+            if platform.python_version() not in SpecifierSet(declared):
+                return ()
+        except InvalidSpecifier:
+            return ()
+    return ("--python", sys.executable)
+
+
 def _behavior_evidence(
     root: Path, source: tuple[str, ...], tests: tuple[str, ...], bindable: tuple[str, ...]
 ) -> dict[str, object]:
@@ -206,7 +231,7 @@ def _behavior_evidence(
                 str(locked_tool(root, "python", files=mise_files)),
             )
         else:
-            prefix = (find_uv_bin(), "run", "--locked", "--offline", "--python", sys.executable)
+            prefix = (find_uv_bin(), "run", "--locked", "--offline", *_interpreter_pin(root))
         command = (
             *prefix,
             "python",

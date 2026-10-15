@@ -94,7 +94,7 @@ def retirement_fixture(tmp_path: Path, *, object_format: str = "sha1", refreshed
         git(repo, "reset", "--hard", accepted)
         git(repo, "commit", "--allow-empty", "-S", "-m", "chore: accept refreshed contribution")
         accepted = git(repo, "rev-parse", "HEAD")
-    for remote in ("origin", "github"):
+    for remote in ("gitlab", "github"):
         git(repo, "push", remote, "HEAD:refs/heads/dev", f"{proposal}:{PROPOSAL_REF}")
     return repo, peers, proposal, accepted
 
@@ -187,7 +187,7 @@ def test_retirement_rejects_local_unaccepted_and_raw_hook_deletion(tmp_path: Pat
     git(repo, "commit", "-m", "feat: unaccepted proposal")
     future = git(repo, "rev-parse", "HEAD")
     git(repo, "reset", "--hard", accepted)
-    for name in ("origin", "github"):
+    for name in ("gitlab", "github"):
         git(repo, "push", name, f"{future}:{PROPOSAL_REF}")
     report = run_ethos_blocked(
         "hook",
@@ -197,7 +197,7 @@ def test_retirement_rejects_local_unaccepted_and_raw_hook_deletion(tmp_path: Pat
         "--remote-head",
         future,
         "--remote",
-        "origin",
+        "gitlab",
         "--json",
         cwd=repo,
     )
@@ -271,7 +271,7 @@ def test_native_pre_push_consumes_deletions_instead_of_skipping_them(tmp_path: P
         code = execute_hook(
             repo,
             "pre-push",
-            ("origin",),
+            ("gitlab",),
             stdin=StringIO(f"(delete) {'0' * 40} refs/heads/dev {accepted}\n"),
         )
     assert code == 1

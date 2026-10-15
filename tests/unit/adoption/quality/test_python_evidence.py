@@ -90,6 +90,35 @@ def test_generic_provider_uses_real_locked_python_evidence(
         assert set(selected_tools) == {"python", "uv"}
 
 
+@pytest.mark.parametrize("admitted", [True, False], ids=["runtime-admitted", "runtime-excluded"])
+def test_uv_project_runs_its_tests_on_an_interpreter_it_declares(
+    tmp_path: Path, *, admitted: bool
+) -> None:
+    """Without mise, the runtime interpreter is pinned only when the project admits it."""
+    fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
+    pyproject = (fixture / "pyproject.toml").read_text()
+    if not admitted:
+        pyproject = pyproject.replace(
+            'requires-python = ">=3.12,<3.15"', 'requires-python = "==3.11.*"'
+        )
+    repo = committed_source_repo(
+        tmp_path,
+        {
+            "pyproject.toml": pyproject,
+            "uv.lock": (fixture / "uv.lock").read_text(),
+            "src/sample/__init__.py": "def answer() -> int:\n    return 42\n",
+            "tests/test_sample.py": "from sample import answer\n\n\ndef test_answer() -> None:\n"
+            "    assert answer() == 42\n",
+        },
+    )
+    report = native_quality.behavior_report(repo)
+    command = report["native"][0]["native"]["command"]
+    assert ("--python" in command) is admitted, command
+    if admitted:
+        assert command[command.index("--python") + 1] == sys.executable
+        assert report["verdict"] == "pass", report
+
+
 def test_generic_provider_counts_passing_subtests_from_native_events(tmp_path: Path) -> None:
     """Passing subtests count from pytest events that the JUnit parent omits."""
     fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"

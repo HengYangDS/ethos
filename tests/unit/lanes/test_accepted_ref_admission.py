@@ -202,7 +202,7 @@ def _call(state: State, plane: str, target: str, old: str, new: str, **extra: st
             target_ref=f"refs/heads/{target}",
             pushed_head=new,
             remote_head=old,
-            remote_name="origin",
+            remote_name="gitlab",
         )
     return admission.ref_move_admission_report(
         root=state.repo, ref_name=f"refs/heads/{target}", old_value=old, new_value=new, **extra

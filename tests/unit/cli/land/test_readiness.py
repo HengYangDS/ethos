@@ -103,8 +103,6 @@ def test_publish_peer_topology_matrix(tmp_path: Path, mode: str, *, probe_remote
     peers = [
         peer for peer in peers if mode in {"dual", "defaults", "tracking"} or peer["id"] == mode
     ]
-    for peer in peers:
-        peer["git_remote"] = peer["id"]
     declaration["publication"]["peers"] = (
         [
             {key: value for key, value in peer.items() if key not in {"id", "git_remote"}}

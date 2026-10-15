@@ -137,7 +137,7 @@ def test_publication_consumes_repaired_forward_baseline_at_every_boundary(tmp_pa
         "--remote-head",
         old,
         "--remote",
-        "origin",
+        "gitlab",
         "--json",
         cwd=repo,
     )
@@ -237,7 +237,7 @@ def test_historical_peer_prefix_uses_verified_replacement_tip(
         "--remote-head",
         peer_old,
         "--remote",
-        "origin",
+        "gitlab",
         "--json",
         cwd=repo,
     )
@@ -252,7 +252,7 @@ def test_historical_peer_prefix_uses_verified_replacement_tip(
         target_ref="refs/heads/dev",
         proposed_head=bad,
         remote_head=peer_old,
-        remote_name="origin",
+        remote_name="gitlab",
     )["commit_policy_admission"]
     assert isinstance(bad_range, dict)
     assert bad_range["integration_baseline"] == replacement
@@ -290,7 +290,7 @@ def test_historical_peer_prefix_uses_verified_replacement_tip(
             "--remote-head",
             peer_old,
             "--remote",
-            "origin",
+            "gitlab",
             "--json",
             cwd=repo,
         )
@@ -315,7 +315,7 @@ def _require_independent_admission(
         "--remote-head",
         old,
         "--remote",
-        "origin",
+        "gitlab",
         "--json",
     )
     selected, records = read_attestation_set(repo)
@@ -338,7 +338,7 @@ def _require_independent_admission(
                 code = execute_hook(
                     repo,
                     "pre-push",
-                    ("origin",),
+                    ("gitlab",),
                     stdin=StringIO(f"refs/heads/dev {head} refs/heads/dev {old}\n"),
                 )
             assert code == 1

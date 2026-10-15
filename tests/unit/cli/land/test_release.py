@@ -49,7 +49,7 @@ def test_native_pre_push_rejects_peeled_commit_as_release_tag(tmp_path: Path) ->
         code = execute_hook(
             repo,
             "pre-push",
-            ("origin",),
+            ("gitlab",),
             stdin=StringIO(f"refs/heads/dev {head} refs/tags/v1.2.3 {zero}\n"),
         )
     assert code == 1
@@ -71,7 +71,7 @@ def test_native_pre_push_preserves_signed_tag_noop_and_immutability(tmp_path: Pa
             code = execute_hook(
                 repo,
                 "pre-push",
-                ("origin",),
+                ("gitlab",),
                 stdin=StringIO(f"refs/tags/v1.2.3 {tag} refs/tags/v1.2.3 {remote_oid}\n"),
             )
         assert (code, stream.getvalue()) == (0, "")
@@ -80,7 +80,7 @@ def test_native_pre_push_preserves_signed_tag_noop_and_immutability(tmp_path: Pa
         code = execute_hook(
             repo,
             "pre-push",
-            ("origin",),
+            ("gitlab",),
             stdin=StringIO(f"refs/tags/v1.2.3 {tag} refs/tags/v1.2.3 {old}\n"),
         )
     assert code == 1
@@ -96,7 +96,7 @@ def test_native_pre_push_preserves_signed_tag_noop_and_immutability(tmp_path: Pa
             code = execute_hook(
                 repo,
                 "pre-push",
-                ("origin",),
+                ("gitlab",),
                 stdin=StringIO(f"refs/tags/v9.9.9 {wrong} {target} {zero}\n"),
             )
         assert code == 1
@@ -110,7 +110,7 @@ def test_native_pre_push_preserves_signed_tag_noop_and_immutability(tmp_path: Pa
             code = execute_hook(
                 repo,
                 "pre-push",
-                ("origin",),
+                ("gitlab",),
                 stdin=StringIO(f"refs/tags/v1.2.3 {tag} refs/tags/v1.2.3 {zero}\n"),
             )
         assert code == 1
@@ -243,7 +243,7 @@ def test_public_release_preserves_native_package_and_signed_tag(
         target_ref="refs/heads/main",
         pushed_head=head,
         remote_head=old,
-        remote_name="origin",
+        remote_name="gitlab",
     )
     assert report["verdict"] == "pass", report
     assert report["commit_policy_admission"]["state"] == "accepted_content"
@@ -302,7 +302,7 @@ def test_signed_release_tag_can_publish_only_selected_declared_peer(tmp_path: Pa
     released = release_cli(repo, head, head, "--apply", "--authorize")
     assert released["verdict"] == "pass"
     peers = publication_peers(repo, tmp_path, f"{old}:refs/heads/main")
-    git(repo, "remote", "set-url", "origin", str(tmp_path / "unavailable-gitlab.git"))
+    git(repo, "remote", "set-url", "gitlab", str(tmp_path / "unavailable-gitlab.git"))
 
     preview = branch_publication(repo, head, "--peer", "github", target_ref="refs/tags/v1.2.3")
     assert preview["verdict"] == "pass"

@@ -152,6 +152,15 @@ Every governed repository SHALL use the release branch `main`, the accepted bran
 - **WHEN** a workspace declares `submit/` as its proposal prefix
 - **THEN** the paradigm reports a non-standard branch role.
 
+### Requirement: Publication peers name their Git remotes after themselves
+
+Each publication peer declared in `.ethos/release.toml` SHALL name its Git remote by its own peer id, so a GitLab peer `gitlab` uses the remote `gitlab` and a GitHub peer `github` uses `github`. No peer SHALL rely on the implicit remote `origin`.
+
+#### Scenario: A peer keeps the implicit remote name
+
+- **WHEN** the release binding declares the peer `gitlab` with `git_remote = "origin"`
+- **THEN** the paradigm reports the peer and the rename to `gitlab`.
+
 ### Requirement: Released products keep one version source
 
 A repository that publishes releases SHALL keep `VERSION` as its only version source and SHALL tag releases as `v` followed by a Semantic Versioning version. `CHANGELOG.md` SHALL follow Keep a Changelog 1.1.0 with an `[Unreleased]` section and bracketed version headings.
@@ -253,6 +262,29 @@ Every tracked Python file SHALL have at most 512 effective lines, counted withou
 
 - **WHEN** `.ethos/rules.toml` declares `[quality.code_size]`
 - **THEN** the paradigm reports a binding that restates a paradigm value.
+
+### Requirement: JavaScript execution environments are declared and validated
+
+A repository MAY declare in `.config/checks/eslint/policy.toml` that named tracked JavaScript files run in a browser, worker or service worker, with a stated reason. The native static gate SHALL admit only those standard global sets, for exactly those files, and SHALL NOT read repository ESLint configuration or inline directives.
+
+#### Scenario: A browser callback is declared
+
+- **WHEN** `render.mjs` evaluates `() => window.innerWidth` in a page and declares the browser set with a reason
+- **THEN** the static gate passes for that file, and the same code in an undeclared file still fails.
+
+#### Scenario: A declaration is not admissible
+
+- **WHEN** a declaration names the node set, omits its reason or names an untracked file
+- **THEN** the static gate fails closed.
+
+### Requirement: Native Python behavior runs on a declared interpreter
+
+When a Python project selects no mise toolchain, the native behavior gate SHALL run its tests on an interpreter its `requires-python` admits: the runtime interpreter when the declaration admits it, otherwise an installed interpreter that uv selects from the project's declaration.
+
+#### Scenario: A project pins an older interpreter
+
+- **WHEN** a project declares `requires-python = "==3.12.*"` and the runtime interpreter is 3.14
+- **THEN** the gate does not pin the runtime interpreter, and uv selects an installed 3.12 interpreter.
 
 ### Requirement: Ecosystem modules lock their manifests
 

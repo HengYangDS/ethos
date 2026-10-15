@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from ethos.contracts.paradigm.declaration import EcosystemModule
+    from ethos.contracts.paradigm.declaration import ReleaseConventions
     from ethos.contracts.paradigm.declaration import RepositoryParadigm
 
 _KEBAB = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
@@ -64,6 +65,7 @@ def repository_paradigm_report(root: Path, *, tracked_paths: tuple[str, ...]) ->
         *_formatter_gaps(paradigm, root, tracked),
         *_peer_remote_gaps(paradigm, root, tracked),
         *_branch_role_gaps(paradigm, root, tracked),
+        *_release_gaps(paradigm, root, tracked),
     ]
     required = [gap.required_gap for gap in gaps]
     return {
@@ -380,6 +382,78 @@ def _branch_role_gaps(
                 f"{workspace}:branch_roles.{role}",
                 f'set {role} = "{standard[role]}" or remove it to use the standard name',
             )
+
+
+def _release_gaps(
+    paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
+) -> Iterator[ParadigmGap]:
+    """Keep one version source and one changelog grammar in a repository that tags releases."""
+    release = f"{paradigm.binding.root}/release.toml"
+    source = _tracked_text(root, release, tracked)
+    try:
+        declared = tomllib.loads(source) if source is not None else {}
+    except tomllib.TOMLDecodeError:
+        return  # The release policy report owns an unreadable release binding.
+    protected = declared.get("protected_refs", {})
+    tags = protected.get("tags") if isinstance(protected, dict) else None
+    if not tags:
+        return
+    conventions = paradigm.release
+    if tags != [conventions.tag_pattern]:
+        yield ParadigmGap(
+            "release-tags",
+            f"{release}:protected_refs.tags",
+            f'tag releases as ["{conventions.tag_pattern}"] followed by a SemVer version',
+        )
+    if conventions.version_file not in tracked:
+        yield ParadigmGap(
+            "version-source",
+            conventions.version_file,
+            f"add {conventions.version_file} as the only version source",
+        )
+    project = _tracked_text(root, "pyproject.toml", tracked)
+    try:
+        section = tomllib.loads(project).get("project", {}) if project is not None else {}
+    except tomllib.TOMLDecodeError:
+        section = {}
+    if isinstance(section, dict) and "version" in section:
+        yield ParadigmGap(
+            "version-source",
+            "pyproject.toml:project.version",
+            f"declare the version dynamic and read it from {conventions.version_file}",
+        )
+    package = _tracked_text(root, "package.json", tracked)
+    try:
+        manifest = json.loads(package) if package is not None else {}
+    except json.JSONDecodeError:
+        manifest = {}
+    if isinstance(manifest, dict) and "version" in manifest:
+        yield ParadigmGap(
+            "version-source",
+            "package.json:version",
+            f"remove the literal version; {conventions.version_file} is the only version source",
+        )
+    yield from _changelog_gaps(conventions, _tracked_text(root, conventions.changelog, tracked))
+
+
+def _changelog_gaps(conventions: ReleaseConventions, text: str | None) -> Iterator[ParadigmGap]:
+    """Require Keep a Changelog with an Unreleased section and bracketed version headings."""
+    if text is None:
+        yield ParadigmGap(
+            "changelog", conventions.changelog, f"add {conventions.changelog} (Keep a Changelog)"
+        )
+        return
+    heading = re.compile(conventions.changelog_heading)
+    headings = [line for line in text.splitlines() if line.startswith("## ")]
+    malformed = [line for line in headings if not heading.match(line)]
+    if malformed or "## [Unreleased]" not in headings:
+        first = malformed[0] if malformed else "## [Unreleased] is missing"
+        yield ParadigmGap(
+            "changelog",
+            conventions.changelog,
+            f"use bracketed headings such as ## [Unreleased] and ## [1.2.0] - 2026-10-15 "
+            f"({len(malformed)} malformed, first: {first})",
+        )
 
 
 def _declared_setting(declared: object, key: str) -> object:

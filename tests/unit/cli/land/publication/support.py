@@ -151,7 +151,7 @@ def accepted_release_fixture(
     tmp_path: Path,
     object_format: str = "sha1",
     *,
-    native_version: str = "package.json",
+    native_version: str = "VERSION",
     retired_source: bool = False,
     release_mirror: str = "independent",
 ):
@@ -176,6 +176,9 @@ def accepted_release_fixture(
     )
     (repo / native_version).write_text(
         "1.2.3\n" if native_version == "VERSION" else '{"name":"sample","version":"1.2.3"}\n'
+    )
+    (repo / "CHANGELOG.md").write_text(
+        "# Changelog\n\n## [Unreleased]\n\n## [1.2.3] - 2026-10-15\n"
     )
     if retired_source:
         write_active_commitment(repo)

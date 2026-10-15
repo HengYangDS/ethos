@@ -425,3 +425,48 @@ def test_branch_roles_keep_the_standard_names(tmp_path: Path, roles: str, gaps: 
     assert report["required_gaps"] == gaps
     if gaps:
         assert 'proposal_branch_prefix = "proposal/"' in report["next_action"]
+
+
+_RELEASING = {
+    ".ethos/release.toml": '[protected_refs]\ntags = ["v*"]\n',
+    "VERSION": "1.2.0\n",
+    "CHANGELOG.md": "# Changelog\n\n## [Unreleased]\n\n## [1.2.0] - 2026-10-15\n",
+}
+
+
+@pytest.mark.parametrize(
+    ("changes", "gaps"),
+    [
+        ({}, []),
+        (
+            {"CHANGELOG.md": "# Changelog\n\n## Unreleased\n\n## 1.2.0 - 2026-10-15\n"},
+            ["repository_paradigm_changelog:CHANGELOG.md"],
+        ),
+        ({"VERSION": None}, ["repository_paradigm_version_source:VERSION"]),
+        (
+            {"package.json": '{"version": "1.2.0", "scripts": {}}\n'},
+            ["repository_paradigm_version_source:package.json:version"],
+        ),
+        (
+            {".ethos/release.toml": '[protected_refs]\ntags = ["release-*"]\n'},
+            ["repository_paradigm_release_tags:.ethos/release.toml:protected_refs.tags"],
+        ),
+        ({".ethos/release.toml": "", "VERSION": None, "CHANGELOG.md": None}, []),
+    ],
+    ids=[
+        "conforming",
+        "unbracketed",
+        "no-version",
+        "package-version",
+        "tag-pattern",
+        "not-released",
+    ],
+)
+def test_a_releasing_repository_keeps_one_version_source_and_changelog(
+    tmp_path: Path, changes: dict[str, str | None], gaps: list[str]
+) -> None:
+    """Release tags require VERSION alone, v-tags and a bracketed Keep a Changelog history."""
+    merged = {**_CONFORMING, **_RELEASING, **changes}
+    files = {key: value for key, value in merged.items() if value is not None}
+    report = _report(tmp_path, files)
+    assert report["required_gaps"] == gaps

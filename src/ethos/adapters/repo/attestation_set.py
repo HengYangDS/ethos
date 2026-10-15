@@ -12,9 +12,12 @@ from typing import Final
 
 from cachetools import LRUCache
 
+from ethos.adapters.repo.attestation_lifetime import lifetime
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
+from ethos.adapters.store.custody import custody_digests
+from ethos.adapters.store.custody import release_custody
 from ethos.contracts.semantic import Attestation
 
 if TYPE_CHECKING:
@@ -233,14 +236,30 @@ def _canonical_inputs(attestations: tuple[Attestation, ...]) -> dict[str, bytes]
     return members
 
 
-def _write_tree(repo: Path, members: dict[str, bytes], *, observed: str = "") -> str:
-    """Extend an observed tree through one native batch and an isolated index."""
+def _write_tree(
+    repo: Path,
+    members: dict[str, bytes],
+    *,
+    observed: str = "",
+    removed: tuple[str, ...] = (),
+) -> str:
+    """Change an observed tree through one native batch and an isolated index."""
     common = Path(git_common_dir(repo))
     with tempfile.TemporaryDirectory(prefix="attestation-set-", dir=common) as directory:
         staging = Path(directory)
         environment = {"GIT_INDEX_FILE": (staging / "index").as_posix()}
         if observed:
             run_git(repo, "read-tree", observed, env=environment)
+        if removed:
+            run_git(
+                repo,
+                "update-index",
+                "-z",
+                "--force-remove",
+                "--stdin",
+                stdin="".join(f"{_attestation_member_path(identity)}\0" for identity in removed),
+                env=environment,
+            )
         identities = sorted(members)
         paths: list[str] = []
         for identity in identities:
@@ -360,5 +379,47 @@ def record_attestation_once(repo: Path, attestation: Attestation) -> Attestation
         desired = _root_identity(repo, _write_tree(repo, incoming, observed=observed))
         if _compare_and_swap_root(repo, desired=desired, observed=observed):
             return attestation
+    message = "attestation_set_cas_retry_exhausted"
+    raise ValueError(message)
+
+
+def release_attestation(
+    repo: Path, identity: str, *, actor: str, review: str = "", apply: bool = True
+) -> dict[str, object]:
+    """Exact-CAS remove one open-predicate member and the custody bytes it alone bound.
+
+    The member's verifier may release it; another actor needs a non-blank review reason.
+    """
+    for _attempt in range(_MAX_CAS_ATTEMPTS):
+        observed = _selected_root(repo)
+        _current, members = _validated_members(repo, observed)
+        target = next((member for member in members if member.id == identity), None)
+        if target is None:
+            message = f"attestation_release_member_absent:{identity}"
+            raise ValueError(message)
+        if lifetime(target)[0] != "open-predicate":
+            message = f"attestation_release_product_lifetime:{identity}"
+            raise ValueError(message)
+        if actor != target.verifier and not review.strip():
+            message = "attestation_release_actor_unadmitted"
+            raise ValueError(message)
+        if not apply:
+            return {"previous_root": observed, "root": observed, "released": identity}
+        tree = _write_tree(repo, {}, observed=observed, removed=(identity,))
+        desired = _root_identity(repo, tree)
+        if _compare_and_swap_root(repo, desired=desired, observed=observed):
+            bound = {
+                digest
+                for member in members
+                if member.id != identity
+                for digest in custody_digests(member)
+            }
+            unbound = tuple(digest for digest in custody_digests(target) if digest not in bound)
+            return {
+                "previous_root": observed,
+                "root": desired,
+                "released": identity,
+                "custody_deleted": release_custody(repo, unbound),
+            }
     message = "attestation_set_cas_retry_exhausted"
     raise ValueError(message)

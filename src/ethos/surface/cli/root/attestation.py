@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Annotated
 from typing import cast
@@ -14,6 +15,7 @@ from cyclopts import Parameter
 from ethos.adapters.repo.attestation_set import MEMBER_BYTES_LIMIT
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
+from ethos.adapters.repo.attestation_set import release_attestation
 from ethos.adapters.store.custody import custody_digests
 from ethos.adapters.store.custody import require_custody
 from ethos.adapters.store.custody import store_custody
@@ -56,6 +58,17 @@ def _bounded(attestation: Attestation) -> Attestation:
     return attestation
 
 
+_NEXT_ACTIONS = {
+    "attestation_member_too_large": (
+        "store file bytes with --evidence and bind them as custody:sha256:<digest>"
+    ),
+    "attestation_release_actor_unadmitted": (
+        "release as the member's verifier, or name reviewed content with --review-content"
+        " and --reason"
+    ),
+}
+
+
 def _input_failure(command: str, error: Exception) -> EthosResult:
     code = str(error) or "attestation_input_invalid"
     return EthosResult(
@@ -63,10 +76,8 @@ def _input_failure(command: str, error: Exception) -> EthosResult:
         verdict="block",
         state="gapped",
         required_gaps=(code,),
-        next_action=(
-            "store file bytes with --evidence and bind them as custody:sha256:<digest>"
-            if code.startswith("attestation_member_too_large:")
-            else "provide one canonical Attestation v2 JSON input"
+        next_action=_NEXT_ACTIONS.get(
+            code.split(":", 1)[0], "provide one canonical Attestation v2 JSON input"
         ),
         data={"error_boundary": "attestation_input"},
     )
@@ -184,6 +195,50 @@ def query(
             data={
                 "set_root": root_identity,
                 "attestations": [item.model_dump(mode="json") for item in selected],
+                "authorizes_effects": False,
+            },
+        ),
+        json_output=json_output,
+        artifact_root=repo,
+    )
+
+
+@_app.command
+def release(
+    *,
+    identity: Annotated[str, Parameter(name="--id")],
+    reason: str = "",
+    review_content: Annotated[bool, Parameter(name="--review-content")] = False,
+    root: RootOption | None = None,
+    apply: bool = False,
+    json_output: JsonFlag = False,
+) -> None:
+    """Release one open-predicate member and its unbound custody bytes by exact CAS."""
+    command = "attestation release"
+    repo = resolve_root(root)
+    try:
+        identity = validate_attestation_selector("id", identity)
+        result = release_attestation(
+            repo,
+            identity,
+            actor=os.environ.get("ETHOS_ACTOR", "").strip(),
+            review=reason if review_content else "",
+            apply=apply,
+        )
+    except (OSError, ValueError) as error:
+        emit(_input_failure(command, error), json_output=json_output)
+        return
+    emit(
+        EthosResult(
+            command=command,
+            verdict="pass",
+            state="released" if apply else "ready",
+            data={
+                **{
+                    key: list(value) if isinstance(value, tuple) else value
+                    for key, value in result.items()
+                },
+                "apply": apply,
                 "authorizes_effects": False,
             },
         ),

@@ -7,7 +7,11 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Any
 
+import pytest
+
+import ethos.surface.cli.root.attestation as attestation_command
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import MEMBER_BYTES_LIMIT
 from ethos.adapters.repo.git import git_common_dir
@@ -138,6 +142,67 @@ def test_attestation_record_refuses_missing_or_undeclared_custody(tmp_path: Path
     other_digest = hashlib.sha256(b"other").hexdigest()
     assert undeclared["required_gaps"] == [f"attestation_custody_undeclared:{other_digest}"]
     assert not run_git(repo, "for-each-ref", ATTESTATION_SET_REF).stdout
+
+
+def test_attestation_record_restores_evidence_a_concurrent_release_deleted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Bytes deleted by a racing release of the same digest are stored again after the CAS."""
+    repo = init_git_repo(tmp_path / "repo")
+    evidence = tmp_path / "receipt.bin"
+    evidence.write_bytes(b"shared receipt")
+    digest = hashlib.sha256(evidence.read_bytes()).hexdigest()
+    _custody_input(tmp_path / "attestation.json", digest)
+    stored = Path(git_common_dir(repo)) / "ethos/custody/sha256" / digest
+    record = attestation_command.record_attestations
+
+    def racing_release(*arguments: Any, **options: Any) -> dict[str, object]:
+        result = record(*arguments, **options)
+        stored.unlink()
+        return result
+
+    monkeypatch.setattr(attestation_command, "record_attestations", racing_release)
+    input_path = (tmp_path / "attestation.json").as_posix()
+    _command(repo, "record", "--input", input_path, "--evidence", evidence.as_posix(), "--apply")
+
+    assert stored.read_bytes() == b"shared receipt"
+
+
+def test_attestation_release_previews_then_removes_an_owned_member(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The verifier releases its open-predicate member by exact CAS after a preview."""
+    repo = init_git_repo(tmp_path / "repo")
+    input_path = tmp_path / "attestation.json"
+    record = _input(input_path, 7, carried_id=False)
+    recorded = _command(repo, "record", "--input", input_path.as_posix(), "--apply")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:attestation-command")
+
+    preview = _command(repo, "release", "--id", record.id)
+    applied = _command(repo, "release", "--id", record.id, "--apply")
+
+    assert (preview["state"], applied["state"]) == ("ready", "released")
+    assert applied["data"]["previous_root"] == recorded["data"]["set_root"]
+    assert applied["data"]["root"] != applied["data"]["previous_root"]
+    assert _command(repo, "query", "--id", record.id)["data"]["attestations"] == []
+
+
+def test_attestation_release_needs_review_from_another_actor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Another actor is refused until it names reviewed content and a reason."""
+    repo = init_git_repo(tmp_path / "repo")
+    input_path = tmp_path / "attestation.json"
+    record = _input(input_path, 8, carried_id=False)
+    _command(repo, "record", "--input", input_path.as_posix(), "--apply")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:other")
+    release = ("release", "--id", record.id, "--apply")
+
+    for extra in ((), ("--review-content",), ("--reason", "consumer closed")):
+        blocked = _command(repo, *release, *extra, blocked=True)
+        assert blocked["required_gaps"] == ["attestation_release_actor_unadmitted"]
+    reviewed = _command(repo, *release, "--review-content", "--reason", "consumer closed")
+    assert reviewed["state"] == "released"
 
 
 def test_attestation_query_returns_exact_unknown_values_without_authority_claim(

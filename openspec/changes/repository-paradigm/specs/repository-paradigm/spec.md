@@ -433,3 +433,8 @@ ETHOS SHALL derive a repair for every paradigm gap whose fix follows from the ga
 
 - **WHEN** the `gitlab` peer declares `git_remote = "origin"`
 - **THEN** the repair sets `git_remote = "gitlab"` and names `git remote rename origin gitlab` as the next action without running it.
+
+#### Scenario: A restated paradigm value is deleted
+
+- **WHEN** a workspace binding declares a standard branch-role name at the name the paradigm fixes, or a commit subject pattern equal to the shared grammar
+- **THEN** the repair deletes that field and keeps every comment and other key, while a legacy role name or a repository's own grammar stays report-only.

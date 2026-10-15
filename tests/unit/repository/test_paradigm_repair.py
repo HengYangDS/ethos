@@ -5,7 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+import tomli_w
 
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.gap import ParadigmGap
 from ethos.repository.paradigm.repair import paradigm_repair_plan
 from tests.support.paradigm import CONFORMING
@@ -233,3 +235,93 @@ def test_gaps_without_a_deterministic_repair_stay_report_only(tmp_path: Path) ->
     plan = paradigm_repair_plan(tmp_path, gaps)
     assert plan.edits == plan.repaired == plan.actions == ()
     assert plan.report_only == tuple(gaps)
+
+
+_WORKSPACE = ".ethos/workspace.toml"
+
+
+def _workspace_plan(root: Path, workspace: str, gaps: list[ParadigmGap]) -> RepairPlan:
+    """Plan repairs for the given gaps over one workspace binding."""
+    (root / ".ethos").mkdir()
+    (root / _WORKSPACE).write_text(workspace, encoding="utf-8")
+    return paradigm_repair_plan(root, gaps)
+
+
+def test_restated_standard_role_names_are_deleted(tmp_path: Path) -> None:
+    """Standard role names go; the fields the paradigm leaves open and every comment stay."""
+    workspace = (
+        '# The native train.\n[branch_roles]\nrelease_branch = "main"\n'
+        'accepted_branch = "dev"\nrelease_mirror = "accepted_ff"\n'
+        'work_branch_prefix = "work/"\n\n[commit_policy]\nsigning_required = true\n'
+    )
+    gaps = [
+        ParadigmGap("branch-roles", f"{_WORKSPACE}:branch_roles.{role}", "remove it")
+        for role in ("release_branch", "accepted_branch", "work_branch_prefix")
+    ]
+    plan = _workspace_plan(tmp_path, workspace, gaps)
+    repaired = (
+        '# The native train.\n[branch_roles]\nrelease_mirror = "accepted_ff"\n\n'
+        "[commit_policy]\nsigning_required = true\n"
+    )
+    assert [(edit.path, edit.after) for edit in plan.edits] == [(_WORKSPACE, repaired)]
+    assert plan.repaired == tuple(gaps)
+
+
+def test_legacy_role_names_stay_until_closeout_renames_the_refs(tmp_path: Path) -> None:
+    """A legacy name is still the ref closeout renames, so its gap stays report-only."""
+    plan, _ = _plan(tmp_path, {_WORKSPACE: '[branch_roles]\naccepted_branch = "accepted/x"\n'})
+    assert plan.edits == ()
+    assert [gap.carrier for gap in plan.report_only] == [
+        f"{_WORKSPACE}:branch_roles.accepted_branch"
+    ]
+
+
+def test_a_restated_shared_commit_grammar_is_deleted(tmp_path: Path) -> None:
+    """A subject pattern equal to the shared grammar goes, and the report no longer names it."""
+    grammar = load_repository_paradigm().commit.subject_pattern()
+    policy = {"commit_policy": {"subject_pattern": grammar, "signing_required": True}}
+    plan, files = _plan(tmp_path, {_WORKSPACE: tomli_w.dumps(policy)})
+    assert [(edit.path, edit.after) for edit in plan.edits] == [
+        (_WORKSPACE, "[commit_policy]\nsigning_required = true\n")
+    ]
+    assert not [
+        gap
+        for gap in _apply(tmp_path, plan, files)["required_gaps"]
+        if gap.startswith("repository_paradigm_commit_grammar")
+    ]
+
+
+def test_a_repository_commit_grammar_stays_report_only(tmp_path: Path) -> None:
+    """A grammar of the repository's own needs judgment, so its gap keeps the canonical repair."""
+    workspace = "[commit_policy]\nsubject_pattern = '^(feat|fix): .+'\n"
+    plan, _ = _plan(tmp_path, {_WORKSPACE: workspace})
+    assert plan.edits == ()
+    assert [gap.obligation for gap in plan.report_only] == ["commit-grammar"]
+
+
+@pytest.mark.parametrize(
+    "workspace",
+    [
+        '[branch_roles]\nrelease_branch = "main"\nrelease_branch = "main"\n',
+        'branch_roles.release_branch = "main"\n',
+        '[branch_roles]\n"release\\u005fbranch" = "main"\n',
+        '[branch_roles]\nnote = """\nrelease_branch = "x"\n"""\nrelease_branch = "main"\n',
+        '[branch_roles]\nrelease_branch = """\nmain"""\n',
+    ],
+)
+def test_a_standard_name_the_plan_cannot_isolate_stays_report_only(
+    tmp_path: Path, workspace: str
+) -> None:
+    """A field that is not one plain line of its own table keeps its gap."""
+    gap = ParadigmGap("branch-roles", f"{_WORKSPACE}:branch_roles.release_branch", "remove it")
+    plan = _workspace_plan(tmp_path, workspace, [gap])
+    assert plan.edits == ()
+    assert plan.report_only == (gap,)
+
+
+def test_a_field_the_paradigm_leaves_open_is_never_deleted(tmp_path: Path) -> None:
+    """The paradigm fixes standard role names and the shared grammar; other fields stay."""
+    gap = ParadigmGap("branch-roles", f"{_WORKSPACE}:branch_roles.release_mirror", "remove it")
+    plan = _workspace_plan(tmp_path, '[branch_roles]\nrelease_mirror = "independent"\n', [gap])
+    assert plan.edits == ()
+    assert plan.report_only == (gap,)

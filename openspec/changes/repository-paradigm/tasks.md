@@ -39,7 +39,7 @@
 
 - [x] 4.1 Add `ethos lane repair-paradigm`: it previews by default, applies only in a Work Lane after exact-path prewrite admission, and plans nothing on a repaired tree; it derives each repair from the gap's obligation and the carrier's current text and reports gaps that need judgment. Focused tests cover preview, apply, refused admission, repetition and a report-only gap. `tests/unit/cli/test_lane_paradigm_repair.py` covers the command; the repaired tree plans no edit in `tests/unit/repository/test_paradigm_repair.py`.
 - [x] 4.2 Repair text normalization, formatter bindings and settings, comment-wrapped front matter and a peer's `git_remote`, naming the remote rename as the next action; focused tests cover each repair. An unreadable carrier, a setting whose rewrite would not parse and a front matter without its complete wrapper stay report-only; the three new modules have full line and branch coverage.
-- [ ] 4.3 Repair branch-role name fields and a restated commit grammar after 2.15 lands, under the gap formats it defines; focused tests cover each repair.
+- [x] 4.3 Repair branch-role name fields and a restated commit grammar: the repair deletes a field whose value equals the one the paradigm fixes, `BranchRolePolicy()` for the names in `ROLE_NAME_FIELDS` and the shared subject grammar, and keeps a legacy role name or a repository's own grammar report-only. The deletion must leave the parsed binding equal to the original without that field. Focused tests in `tests/unit/repository/test_paradigm_repair.py` cover deletion, a legacy name, a repository grammar and fields the plan cannot isolate.
 
 ## Workflow follow-up
 

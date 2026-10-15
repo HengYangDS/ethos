@@ -15,6 +15,8 @@ from typing import NamedTuple
 
 import tomli_w
 
+from ethos.contracts.branch.roles import ROLE_NAME_FIELDS
+from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 
 if TYPE_CHECKING:
@@ -29,6 +31,8 @@ if TYPE_CHECKING:
 _TABLE = re.compile(r"\s*\[\s*([^\[\]]+?)\s*\]\s*(?:#.*)?")
 _PEERS = re.compile(r"\s*\[\[\s*publication\.peers\s*\]\]\s*(?:#.*)?")
 _PEER_KEY = "publication.peers."
+_STANDARD_ROLES = BranchRolePolicy()
+_UNFIXED = object()
 
 Repair = tuple[str, str]
 
@@ -284,10 +288,55 @@ def _peer_remote(
     return None
 
 
+def _restated_field(
+    paradigm: RepositoryParadigm, gap: ParadigmGap, text: str | None
+) -> Repair | None:
+    """Delete a workspace field that restates the value the paradigm fixes.
+
+    Any other value needs judgment; a legacy branch name in particular stays until
+    closeout has renamed its ref.
+    """
+    table, _, name = gap.carrier.partition(":")[2].partition(".")
+    try:
+        declared = tomllib.loads(text or "")
+    except tomllib.TOMLDecodeError:
+        return None
+    section = declared.get(table)
+    if not isinstance(section, dict) or section.get(name) != _fixed(paradigm, table, name):
+        return None
+    lines = (text or "").rstrip("\n").split("\n")
+    start = next((index for index, line in enumerate(lines) if _table(line) == table), len(lines))
+    end = next(
+        (index for index in range(start + 1, len(lines)) if lines[index].lstrip().startswith("[")),
+        len(lines),
+    )
+    found = [index for index in range(start + 1, end) if _key(lines[index]) == name]
+    # Only a field on exactly one line of its own table is deleted. Any other shape leaves
+    # the text as it was, which the comparison below refuses.
+    repaired = "\n".join(line for index, line in enumerate(lines) if found != [index]) + "\n"
+    expected = {**declared, table: {key: value for key, value in section.items() if key != name}}
+    try:
+        exact = tomllib.loads(repaired) == expected
+    except tomllib.TOMLDecodeError:
+        return None
+    return (repaired, "") if exact else None
+
+
+def _fixed(paradigm: RepositoryParadigm, table: str, name: str) -> object:
+    """Return the value the paradigm fixes for one workspace field, or one nothing equals."""
+    if table == "branch_roles" and name in ROLE_NAME_FIELDS:
+        return getattr(_STANDARD_ROLES, name)
+    if (table, name) == ("commit_policy", "subject_pattern"):
+        return paradigm.commit.subject_pattern()
+    return _UNFIXED
+
+
 _HANDLERS: dict[str, Callable[[RepositoryParadigm, ParadigmGap, str | None], Repair | None]] = {
     "text-normalization": _normalization,
     "formatter-binding": _formatter,
     "formatter-setting": _formatter,
     "front-matter": _front_matter,
     "peer-remote": _peer_remote,
+    "branch-roles": _restated_field,
+    "commit-grammar": _restated_field,
 }

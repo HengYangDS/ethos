@@ -207,13 +207,18 @@ def accepted_release_source(
     root: Path, head: str, *, base: str = "", ref: str = "", new: str = ""
 ) -> dict[str, object]:
     """Validate exact accepted content without claiming historical signatures."""
-    policy = release_branch_policy(root)
-    accepted_ref = f"refs/heads/{policy.accepted_branch}"
-    current = ref_head(root, accepted_ref)
     require_release(
         bool(base) or release_publication_head(root, ref=ref, new=new) == head,
         "release_source_not_current_accepted",
     )
+    return _accepted_release_content(root, head, base=base)
+
+
+def _accepted_release_content(root: Path, head: str, *, base: str) -> dict[str, object]:
+    """Validate selected content; source selection belongs to the caller's fresh observation."""
+    policy = release_branch_policy(root)
+    accepted_ref = f"refs/heads/{policy.accepted_branch}"
+    current = ref_head(root, accepted_ref)
     if base:
         require_release(
             ref_head(root, base) == base and is_ancestor(root, base, head),
@@ -312,7 +317,8 @@ def release_ref_subject(
     may instead deliver the accepted commit of its attested release.
     """
     policy = release_branch_policy(root)
-    head = ref_head(root, policy.accepted_branch)
+    accepted_head = ref_head(root, policy.accepted_branch)
+    head = accepted_head
     published = {"ref": ref, "new": new} if publication else {}
     if ref.startswith("refs/tags/"):
         selected = _immutable_tag_commit(
@@ -331,7 +337,11 @@ def release_ref_subject(
         require_release(
             old == zero_oid(root) or is_ancestor(root, old, new), "release_not_fast_forward"
         )
-    accepted_release_source(root, head, base=base, **published)
+    _accepted_release_content(root, head, base=base)
+    require_release(
+        ref_head(root, policy.accepted_branch) == accepted_head,
+        "release_source_not_current_accepted",
+    )
     return head
 
 

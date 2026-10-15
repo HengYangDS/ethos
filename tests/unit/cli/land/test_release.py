@@ -17,6 +17,7 @@ import ethos.adapters.mutation.accepted.release as release_owner
 import ethos.adapters.repo.commit.creation as signing_owner
 import ethos.adapters.repo.git_effect_attestation as effect_attestation
 import ethos.adapters.repo.git_effects as git_effects
+import ethos.adapters.repo.release as release_source
 from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.mutation.proof import proof_gaps
@@ -56,7 +57,9 @@ def test_native_pre_push_rejects_peeled_commit_as_release_tag(tmp_path: Path) ->
     assert "release_tag_source_untrusted" in report["required_gaps"]
 
 
-def test_native_pre_push_preserves_signed_tag_noop_and_immutability(tmp_path: Path) -> None:
+def test_native_pre_push_preserves_signed_tag_noop_and_immutability(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A real release tag is eligible, but cannot replace a different peer tag."""
     repo, _main, old, head = accepted_release_fixture(tmp_path)
     publication_peers(repo, tmp_path)
@@ -64,6 +67,10 @@ def test_native_pre_push_preserves_signed_tag_noop_and_immutability(tmp_path: Pa
     assert applied["verdict"] == "pass", applied
     tag = git(repo, "rev-parse", "refs/tags/v1.2.3")
     zero = "0" * len(head)
+    observed = Mock(wraps=release_source.release_publication_head)
+    monkeypatch.setattr(release_source, "release_publication_head", observed)
+    assert release_ref_subject(repo, ref="refs/tags/v1.2.3", old=zero, new=tag) == head
+    assert observed.call_count == 1
     for remote_oid in (zero, tag):
         stream = StringIO()
         with redirect_stderr(stream):

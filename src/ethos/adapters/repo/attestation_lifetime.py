@@ -178,31 +178,70 @@ def _lineage_ended(key: str, facts: LifetimeFacts) -> bool:
     return False
 
 
+def _landing(attestation: Attestation) -> tuple[str, str] | None:
+    """The transition and branch of an integration or acceptance record, if it is one."""
+    if attestation.predicate != "effect:git-ref-update":
+        return None
+    policy = _mapping(attestation.payload.body, "plan", "policy")
+    transition = policy.get("transition")
+    if not isinstance(transition, str) or transition not in _HEAD_BRANCH_FIELDS:
+        return None
+    return transition, _text(policy, _HEAD_BRANCH_FIELDS[transition])
+
+
+@dataclass(frozen=True)
+class _Evidence:
+    """Positive evidence gathered once from all members before each member is judged."""
+
+    retired: Mapping[str, datetime]
+    landed: Mapping[tuple[str, str], datetime]
+    selected: frozenset[str]
+
+
+def _evidence(
+    classified: Sequence[tuple[Attestation, Lifetime, str]], facts: LifetimeFacts
+) -> _Evidence:
+    retired: dict[str, datetime] = {}
+    landed: dict[tuple[str, str], datetime] = {}
+    for member, kind, key in classified:
+        transition = _mapping(member.payload.body, "plan", "policy").get("transition")
+        if kind == "operation" and transition == "lane.retire":
+            retired[key] = max(retired.get(key, member.issued_at), member.issued_at)
+        if kind == "head" and (landing := _landing(member)):
+            landed[landing] = max(landed.get(landing, member.issued_at), member.issued_at)
+    publications = _latest_publications([member for member, _kind, _key in classified])
+    return _Evidence(
+        retired=retired,
+        landed=landed,
+        selected=frozenset(facts.refs.values()) | facts.peeled | publications,
+    )
+
+
+def _has_ended(
+    member: Attestation, kind: Lifetime, key: str, facts: LifetimeFacts, evidence: _Evidence
+) -> bool:
+    if kind == "window":
+        return member.valid_until is not None and member.valid_until < facts.now
+    if kind == "operation":
+        return (
+            key in evidence.retired
+            and f"refs/heads/{key}" not in facts.refs
+            and member.issued_at <= evidence.retired[key]
+        )
+    if kind == "head":
+        # A landing record may precede its ref move; only a later landing supersedes it.
+        landing = _landing(member)
+        superseded = landing is None or member.issued_at < evidence.landed[landing]
+        return bool(facts.refs) and key not in evidence.selected and superseded
+    return kind == "lineage" and _lineage_ended(key, facts)
+
+
 def ended(members: Sequence[Attestation], facts: LifetimeFacts) -> frozenset[str]:
     """Return the identities whose lifetime has ended by evidence in the members and facts."""
     classified = [(member, *lifetime(member)) for member in members]
-    retired: dict[str, datetime] = {}
-    for member, kind, lane in classified:
-        transition = _mapping(member.payload.body, "plan", "policy").get("transition")
-        if kind == "operation" and transition == "lane.retire":
-            retired[lane] = max(retired.get(lane, member.issued_at), member.issued_at)
-    selected = frozenset(facts.refs.values()) | facts.peeled | _latest_publications(members)
-    finished: set[str] = set()
-    for member, kind, key in classified:
-        if kind == "window":
-            end = member.valid_until is not None and member.valid_until < facts.now
-        elif kind == "operation":
-            end = (
-                key in retired
-                and f"refs/heads/{key}" not in facts.refs
-                and member.issued_at <= retired[key]
-            )
-        elif kind == "head":
-            end = bool(facts.refs) and key not in selected
-        elif kind == "lineage":
-            end = _lineage_ended(key, facts)
-        else:
-            end = False
-        if end:
-            finished.add(member.id)
-    return frozenset(finished)
+    evidence = _evidence(classified, facts)
+    return frozenset(
+        member.id
+        for member, kind, key in classified
+        if _has_ended(member, kind, key, facts, evidence)
+    )

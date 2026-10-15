@@ -161,6 +161,9 @@ def test_superseded_heads_end_unless_a_ref_or_latest_publication_selects_them() 
     )
     current = (
         _member("proof:execution", subject=f"git:commit:{_C2}"),
+        _ref_update(
+            "candidate.accept", {"refs/heads/dev": (_C1, _C2)}, hour=2, accepted_branch="dev"
+        ),
         _publication(_C2, "gitlab", hour=2),
     )
     caught_up = _publication(_C2, "github", hour=3)
@@ -168,6 +171,19 @@ def test_superseded_heads_end_unless_a_ref_or_latest_publication_selects_them() 
     assert ended((*old, *current), _facts()) == frozenset()
     assert ended((*old, *current, caught_up), _facts()) == {member.id for member in old}
     assert ended((*old, *current, caught_up), _facts(peeled=(_C1,))) == frozenset()
+
+
+def test_latest_landing_record_stays_while_its_ref_has_not_moved() -> None:
+    """A transition recorded before its ref moves ends only once a later one supersedes it."""
+    in_flight = _ref_update(
+        "candidate.accept", {"refs/heads/dev": (_C2, _C1)}, hour=5, accepted_branch="dev"
+    )
+    later = _ref_update(
+        "candidate.accept", {"refs/heads/dev": (_C1, _C2)}, hour=6, accepted_branch="dev"
+    )
+
+    assert ended((in_flight,), _facts()) == frozenset()
+    assert ended((in_flight, later), _facts()) == {in_flight.id}
 
 
 def test_lineage_ends_only_when_its_key_no_longer_exists() -> None:

@@ -35,6 +35,7 @@
 - [ ] 3.6 Qualify native macOS and Linux release targets, including hooks, recovery and credential-backed delivery. Verify shared-publisher project isolation, altered-request denial, bounded UNKNOWN recovery and consumer-safe credential transitions. Attempt native Windows without blocking required platforms; report unqualified targets explicitly.
 - [ ] 3.7 Connect explicit release construction and identity admission at the existing owners; enforce SemVer compatibility and Keep a Changelog target-entry validation, reject development publication and version reuse, verify immutable version/notes/source/artifact/tag correspondence, and reconcile unpublished targets and historical release evidence.
 - [ ] 3.8 Move native trust preflight before package work, preserve precise failure reasons, and qualify direct SID admission through real Windows installed acceptance.
+- [x] 3.9 Bind uv to the selected locked environment rather than an invoking environment that shares its base interpreter, so `ethos hook install` from a separately installed CLI checks the repository environment; done when a focused regression with two environments on one interpreter targets the selected one and the full proof passes.
 
 ## 4. Delivery
 

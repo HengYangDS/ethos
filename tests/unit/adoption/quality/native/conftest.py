@@ -15,6 +15,7 @@ import pytest
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.runtime.manifest import runtime_digest
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
 from ethos.adapters.repo.runtime.manifest import runtime_manifest_bytes
@@ -112,7 +113,8 @@ def native_nox_supply(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Nati
         parent = scratch / "parent"
         project = scratch / "floor"
         project.mkdir()
-        fixture = Path(__file__).resolve().parents[4] / "fixtures/quality-sample"
+        source_root = repository_root(Path(__file__).resolve().parent)
+        fixture = source_root / "tests/fixtures/quality-sample"
         for name in ("pyproject.toml", "uv.lock"):
             shutil.copyfile(fixture / name, project / name)
         run_command(
@@ -122,9 +124,38 @@ def native_nox_supply(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Nati
             check=True,
         )
         python = parent / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+        constraints = scratch / "nox-constraints.txt"
         run_command(
             scratch,
-            (uv, "pip", "install", "--offline", "--python", str(python), f"nox=={version('nox')}"),
+            (
+                uv,
+                "export",
+                "--directory",
+                str(source_root),
+                "--locked",
+                "--offline",
+                "--only-dev",
+                "--no-emit-project",
+                "--no-emit-local",
+                "--output-file",
+                str(constraints),
+            ),
+            timeout=30,
+            check=True,
+        )
+        run_command(
+            scratch,
+            (
+                uv,
+                "pip",
+                "install",
+                "--offline",
+                "--python",
+                str(python),
+                "--constraints",
+                str(constraints),
+                f"nox=={version('nox')}",
+            ),
             timeout=30,
             check=True,
         )

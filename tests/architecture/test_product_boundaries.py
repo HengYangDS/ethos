@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.contracts.admission import ethos_command_is_readonly
 from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos.repository.policy.references.closure import repository_semantic_closure
@@ -65,7 +66,7 @@ def test_current_product_boundary_reports_close_without_unowned_references() -> 
     reports = (product_boundary_report(ROOT),)
 
     assert all(report["verdict"] == "pass" for report in reports), reports
-    closure = repository_semantic_closure(ROOT)
+    closure = repository_semantic_closure(ROOT, retained_origins=observed_document_origins(ROOT))
     assert closure["verdict"] == "pass", closure["required_gaps"]
 
 

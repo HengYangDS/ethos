@@ -8,10 +8,8 @@ relations:
 
 # Command Plane
 
-Status: active projection.
-
-Purpose: explain public ETHOS command behavior and ownership boundaries. The
-installed CLI command tree owns the exact root inventory.
+Purpose: explain public ETHOS command behavior and ownership boundaries as an active projection.
+The installed CLI command tree owns the exact root inventory.
 
 Canonical owner: [Product Design Contract](../governance/product-design-contract.md#semantic-kernel).
 

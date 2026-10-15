@@ -10,7 +10,6 @@ import ethos.repository.release.publication as release_publication
 from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.admission.publication import ref_update_admission_report
 from ethos.adapters.repo.git_object import zero_oid
-from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.normalization.coercion import string_sequence
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
@@ -35,8 +34,8 @@ def test_declared_signed_transport_shares_publish_and_native_push_admission(
     baseline = commit_fixture_file(
         repo, ".ethos/release.toml", text, "test: declare object transport"
     )
-    for remote in ("origin", "github"):
-        accepted = prior if historical and remote == "origin" else baseline
+    for remote in peers:
+        accepted = prior if historical and remote == "gitlab" else baseline
         git(repo, "push", "--no-verify", remote, f"{accepted}:refs/heads/dev")
         git(repo, "push", "--no-verify", remote, f"{prior}:refs/heads/main")
         git(repo, "symbolic-ref", f"refs/remotes/{remote}/HEAD", f"refs/remotes/{remote}/main")
@@ -70,7 +69,7 @@ def test_declared_signed_transport_shares_publish_and_native_push_admission(
             target_ref=ref,
             pushed_head=tag,
             remote_head=zero_oid(repo),
-            remote_name="origin",
+            remote_name="gitlab",
         )
         assert unselected["verdict"] == "block", unselected
     receipt = report["data"]["request_receipt"]
@@ -92,12 +91,12 @@ def test_declared_signed_transport_shares_publish_and_native_push_admission(
 
 @pytest.mark.parametrize(
     ("redirect_accepted_ref", "peer_root"),
-    [(False, "native"), (True, "native"), (True, "missing"), (True, "mismatched")],
+    [(False, "native"), (True, "native"), (True, "missing"), (True, "accepted")],
 )
-def test_transport_candidate_cannot_select_its_own_prior_authority(
+def test_transport_uses_only_the_peer_standard_accepted_authority(
     tmp_path: Path, *, redirect_accepted_ref: bool, peer_root: str
 ) -> None:
-    """A proposed scope and branch designation cannot turn a proposal into accepted policy."""
+    """Proposals cannot redirect authority; the peer's standard accepted ref supplies policy."""
     repo, peers, prior = branch_publication_fixture(tmp_path, proof=False)
     git(repo, "push", "--no-verify", "github", f"{prior}:refs/heads/main")
     git(repo, "symbolic-ref", "refs/remotes/github/HEAD", "refs/remotes/github/main")
@@ -112,13 +111,12 @@ def test_transport_candidate_cannot_select_its_own_prior_authority(
     )
     if redirect_accepted_ref:
         workspace = repo / ".ethos/workspace.toml"
-        accepted = load_branch_role_policy(repo).accepted_branch
         head = commit_fixture_file(
             repo,
             ".ethos/workspace.toml",
             workspace.read_text().replace(
-                f'accepted_branch = "{accepted}"',
-                'accepted_branch = "proposal/transport-authority"',
+                "[branch_roles]\n",
+                '[branch_roles]\naccepted_branch = "proposal/transport-authority"\n',
             ),
             "test: propose alternate accepted designation",
         )
@@ -130,18 +128,26 @@ def test_transport_candidate_cannot_select_its_own_prior_authority(
         git(repo, "symbolic-ref", "--delete", "refs/remotes/github/HEAD")
         for branch in ("dev", "main"):
             git(repo, "update-ref", "-d", f"refs/remotes/github/{branch}")
-    elif peer_root == "mismatched":
+    elif peer_root == "accepted":
         git(repo, "push", "--no-verify", "github", f"{head}:refs/heads/dev")
     ref = f"refs/tags/evidence-{head}"
-    git(repo, "tag", "-s", "-m", "Unaccepted signed input", ref.removeprefix("refs/tags/"), head)
+    git(repo, "tag", "-s", "-m", "Signed policy-bound input", ref.removeprefix("refs/tags/"), head)
     tag = git(repo, "rev-parse", ref)
     native = push_admission_report(
         root=repo, target_ref=ref, pushed_head=tag, remote_head=zero_oid(repo), remote_name="github"
     )
-    assert native["verdict"] == "block", native
-    assert native["policy_ref"] != head, native
-    report = branch_publication(repo, head, "--peer", "github", target_ref=ref, blocked=True)
-    assert report["verdict"] == "block", report
+    accepted = peer_root == "accepted"
+    expected_verdict = "pass" if accepted else "block"
+    assert native["verdict"] == expected_verdict, native
+    if accepted:
+        assert native["role"] == "object_transport", native
+        assert native["policy_ref"] == head, native
+    else:
+        assert native["policy_ref"] != head, native
+    report = branch_publication(
+        repo, head, "--peer", "github", target_ref=ref, blocked=not accepted
+    )
+    assert report["verdict"] == expected_verdict, report
     assert git(peers["github"], "for-each-ref", "--format=%(objectname)", ref) == ""
 
 

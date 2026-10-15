@@ -377,7 +377,11 @@ def observe_publication(
         if review_only
         else repository_audit_after_admission(repo, decision)
     )
-    proof_head = publication_proof_head(repo, target_refs, current_head)
+    proof_head = (
+        publication_proof_head(repo, target_refs, current_head)
+        if target_roles and all(role == "release_publication" for role in target_roles)
+        else current_head
+    )
     proof_admission = (
         publication_proof_admission(
             repo, proof_head, target_roles or (str(status_payload["role"]),)

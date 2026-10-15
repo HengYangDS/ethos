@@ -16,7 +16,7 @@ from typing import cast
 from ethos.adapters.repo.git import current_tracked_head
 
 ROOT = Path(__file__).resolve().parents[2]
-CONFIG_PATH = ROOT / ".config/checks/format/selection.toml"
+CONFIG_PATH = ROOT / ".config/checks/format-selection/policy.toml"
 
 
 class OwnerDeclaration(TypedDict):

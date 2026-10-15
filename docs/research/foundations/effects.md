@@ -72,12 +72,12 @@ no assumed pre-status hook. Pre-tool events, where a host supports them, should
 call the existing owner for early failure and context selection. They are not
 an agent-independent security boundary for writes made outside that host.
 
-| Layer | Suitable foundation | Required distinction |
-| --- | --- | --- |
-| Pure legal transitions | Small typed transition model; [pytransitions][pytransitions] or [SCXML][scxml] where hierarchy/events reduce code | A legal transition does not establish fresh facts, permission or effect completion. Do not persist another copy of repository state. |
-| UI interaction | XState | [Restoration][xstate] does not rerun completed actions but restarts invocations. It therefore does not guarantee exactly-once external effects. |
-| Local process lifetime | Standard-library task groups/timeouts; [AnyIO][anyio-mechanism] if it replaces repeated supervision | Cancellation of a coroutine is not proof that its external process tree stopped. Threads may require cooperation; cover real process death and cleanup. |
-| Long-lived external operations | [Temporal][temporal] as an optional execution backend | Durable orchestration can own its attempts/history, not repository intent, Lease or authorization. Require idempotent/observed effects and fresh admission on each effect. |
+| Layer                          | Suitable foundation                                                                                               | Required distinction                                                                                                                                                       |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pure legal transitions         | Small typed transition model; [pytransitions][pytransitions] or [SCXML][scxml] where hierarchy/events reduce code | A legal transition does not establish fresh facts, permission or effect completion. Do not persist another copy of repository state.                                       |
+| UI interaction                 | XState                                                                                                            | [Restoration][xstate] does not rerun completed actions but restarts invocations. It therefore does not guarantee exactly-once external effects.                            |
+| Local process lifetime         | Standard-library task groups/timeouts; [AnyIO][anyio-mechanism] if it replaces repeated supervision               | Cancellation of a coroutine is not proof that its external process tree stopped. Threads may require cooperation; cover real process death and cleanup.                    |
+| Long-lived external operations | [Temporal][temporal] as an optional execution backend                                                             | Durable orchestration can own its attempts/history, not repository intent, Lease or authorization. Require idempotent/observed effects and fresh admission on each effect. |
 
 Prefer a small explicit model and native effects for local repository governance.
 A durable engine becomes justified by measured long-lived external coordination,
@@ -128,7 +128,6 @@ marketing claims were not used as evidence of comparative performance.
 [xstate]: https://github.com/statelyai/docs/blob/54827bcf6591935ae1dc13484eafca88d3b4cf7a/content/docs/persistence.mdx
 [anyio-mechanism]: https://github.com/agronholm/anyio/blob/4e72d8667818d4a972a549cd910a4e4340c504a0/docs/cancellation.rst
 [temporal]: https://github.com/temporalio/sdk-python/blob/ab25ed693f7ec77589346e66c98db299a8c9c9fe/README.md
-
 [pywin32-security]: https://github.com/mhammond/pywin32/blob/2a277cb5552756c2b4d42b524dc36d25e0bb6354/win32/src/win32security.i
 [windows-security-read]: https://mhammond.github.io/pywin32/win32security__GetNamedSecurityInfo_meth.html
 [windows-security-write]: https://mhammond.github.io/pywin32/win32security__SetNamedSecurityInfo_meth.html

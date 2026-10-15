@@ -55,7 +55,7 @@ def test_unfinished_review_reaches_native_pre_push_and_receipt_without_product_p
         "--remote-head",
         "0" * 40,
         "--remote",
-        "origin",
+        "gitlab",
         "--json",
         cwd=repo,
     )
@@ -157,7 +157,8 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(
 ) -> None:
     """Incomplete delivery intent does not split source or peer acceptance."""
     repo, remotes, old = branch_publication_fixture(tmp_path)
-    (repo / "accepted.txt").write_text("accepted projection\n", encoding="utf-8")
+    (repo / "notes").mkdir(exist_ok=True)
+    (repo / "notes/accepted.txt").write_text("accepted projection\n", encoding="utf-8")
     if active_change:
         write_active_commitment(repo, change_id="delivery-work")
     head = commit_fixture(repo, "prepare accepted projection")
@@ -174,7 +175,7 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(
     assert proof_reads.call_count == 1
     assert [call.args[1:] for call in network.call_args_list if call.args[1] == "ls-remote"] == [
         ("ls-remote", remote, "refs/heads/main", "refs/heads/dev")
-        for remote in ("origin", "github")
+        for remote in ("gitlab", "github")
     ]
     receipt = dry_run["data"]["request_receipt"]
     targets = dry_run["data"]["remote_effect"]["targets"]

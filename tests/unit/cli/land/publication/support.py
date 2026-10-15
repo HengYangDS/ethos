@@ -31,7 +31,7 @@ PROPOSAL_REF = f"refs/heads/proposal/{PROPOSAL}"
 def publication_peers(repo: Path, root: Path, *refs: str, object_format: str = "sha1"):
     """Create two independent native peers with the caller's exact initial refs."""
     peers = {}
-    for peer_id, remote in (("gitlab", "origin"), ("github", "github")):
+    for peer_id, remote in (("gitlab", "gitlab"), ("github", "github")):
         target = root / f"{peer_id}.git"
         git(root, "init", "--bare", f"--object-format={object_format}", str(target))
         git(repo, "remote", "add", remote, str(target))
@@ -77,7 +77,8 @@ def branch_publication_fixture(
     git(repo, "config", "commit.gpgsign", "true")
     if accepted:
         git(repo, "checkout", "-b", "candidate/dev")
-    (repo / "proposal.txt").write_text("signed proposal source\n", encoding="utf-8")
+    (repo / "notes").mkdir(exist_ok=True)
+    (repo / "notes/proposal.txt").write_text("signed proposal source\n", encoding="utf-8")
     head = commit_fixture(repo, "feat: sign proposal source")
     if proof or accepted:
         seed_executed_proof(repo, head)
@@ -249,7 +250,7 @@ def assert_signed_publication(repo: Path, peers: dict[str, Path], head: str, tag
             root=repo,
             source_ref=ref,
             target_refs=(ref,),
-            remotes={"gitlab": "origin"},
+            remotes={"gitlab": "gitlab"},
             ref_admissions={},
         ) == (None, {}, (f"publication_source_{gap}",))
     blocked = apply_receipt(repo, receipt, head, blocked=True)

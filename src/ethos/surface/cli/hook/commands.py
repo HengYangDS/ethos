@@ -63,7 +63,7 @@ class PushOptions:
     """CLI-only fields for one push admission observation."""
 
     remote_head: Annotated[str, Parameter(name="--remote-head", group=_PUSH_OPTIONS)] = ""
-    remote: Annotated[str, Parameter(name="--remote", group=_PUSH_OPTIONS)] = "origin"
+    remote: Annotated[str, Parameter(name="--remote", group=_PUSH_OPTIONS)] = ""
     root: RootOption | None = None
     json_output: JsonFlag = False
 

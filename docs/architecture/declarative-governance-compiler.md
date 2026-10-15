@@ -37,14 +37,14 @@ and reducers are deterministic transformations over supplied values.
 
 ## Spine
 
-| Concern | Sole mechanism | Output |
-| --- | --- | --- |
-| Validated contracts | strict frozen Pydantic v2 models | compiled values and checked JSON Schema |
-| Transient values | tuples, mappings, enums, and small frozen stdlib values | immutable facts and decisions |
-| Predicates | typed facts plus CEL where plain declarations are insufficient | explained `pass`, `block`, or `unknown` verdicts |
-| Dependency order | `TransitionPlan` and direct `graphlib.TopologicalSorter` | deterministic `Check`, `Decision`, and `Effect` order |
-| CLI | Cyclopts declarations at the composition root | one human and machine command surface |
-| Projections | pure reducers and native serializers | bounded status, protocol, and external carrier views |
+| Concern             | Sole mechanism                                                 | Output                                                |
+| ------------------- | -------------------------------------------------------------- | ----------------------------------------------------- |
+| Validated contracts | strict frozen Pydantic v2 models                               | compiled values and checked JSON Schema               |
+| Transient values    | tuples, mappings, enums, and small frozen stdlib values        | immutable facts and decisions                         |
+| Predicates          | typed facts plus CEL where plain declarations are insufficient | explained `pass`, `block`, or `unknown` verdicts      |
+| Dependency order    | `TransitionPlan` and direct `graphlib.TopologicalSorter`       | deterministic `Check`, `Decision`, and `Effect` order |
+| CLI                 | Cyclopts declarations at the composition root                  | one human and machine command surface                 |
+| Projections         | pure reducers and native serializers                           | bounded status, protocol, and external carrier views  |
 
 Schemas may generate language bindings and externally required projections when
 the schema is the sole owner and drift is checked. Generated output never

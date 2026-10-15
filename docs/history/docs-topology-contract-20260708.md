@@ -28,27 +28,27 @@ were neither valid state values nor valid documentation roots.
 
 The former required paths were:
 
-| Path | Historical boundary |
-| --- | --- |
-| `docs/README.md` | documentation navigation and semantic lane map |
-| `docs/decisions/README.md` | durable decision-record entrypoint |
-| `docs/decisions/decision-index.md` | accepted ruling index |
-| `docs/decisions/decision-dependency-map.md` | dependencies between durable rulings |
-| `docs/decisions/decision-code-links.md` | links from rulings to code, tests, commands, and evidence |
-| `docs/decisions/accepted/README.md` | accepted decision records |
-| `docs/decisions/superseded/README.md` | superseded decision records |
-| `docs/decisions/templates/README.md` | decision-record template index |
-| `docs/decisions/templates/decision-record.md` | decision-record template |
-| `docs/evidence/README.md` | dated proof and scoped evidence summaries |
-| `docs/history/README.md` | retired rationale and archival logs |
-| `docs/reference/README.md` | stable vocabulary, boundaries, and governance references |
+| Path                                          | Historical boundary                                       |
+| --------------------------------------------- | --------------------------------------------------------- |
+| `docs/README.md`                              | documentation navigation and semantic lane map            |
+| `docs/decisions/README.md`                    | durable decision-record entrypoint                        |
+| `docs/decisions/decision-index.md`            | accepted ruling index                                     |
+| `docs/decisions/decision-dependency-map.md`   | dependencies between durable rulings                      |
+| `docs/decisions/decision-code-links.md`       | links from rulings to code, tests, commands, and evidence |
+| `docs/decisions/accepted/README.md`           | accepted decision records                                 |
+| `docs/decisions/superseded/README.md`         | superseded decision records                               |
+| `docs/decisions/templates/README.md`          | decision-record template index                            |
+| `docs/decisions/templates/decision-record.md` | decision-record template                                  |
+| `docs/evidence/README.md`                     | dated proof and scoped evidence summaries                 |
+| `docs/history/README.md`                      | retired rationale and archival logs                       |
+| `docs/reference/README.md`                    | stable vocabulary, boundaries, and governance references  |
 
 The former forbidden roots were:
 
-| Path | Historical reason |
-| --- | --- |
-| `docs/current/` | encoded present truth in topology instead of state metadata and HEAD-bound evidence |
-| `docs/future/` | encoded unlanded intent in topology instead of OpenSpec, plans, research, or promotion status |
+| Path            | Historical reason                                                                             |
+| --------------- | --------------------------------------------------------------------------------------------- |
+| `docs/current/` | encoded present truth in topology instead of state metadata and HEAD-bound evidence           |
+| `docs/future/`  | encoded unlanded intent in topology instead of OpenSpec, plans, research, or promotion status |
 
 There was no compatibility policy, mapped status vocabulary, alternate root set,
 or repository-form exception. Single repositories, monorepos, and
@@ -62,25 +62,25 @@ executed. Product or domain roots such as `docs/architecture/`,
 Retirement was the last step of semantic convergence, not a substitute for it.
 Every source carrier followed this ordered lifecycle:
 
-| Phase | Required result |
-| --- | --- |
-| Preserve | Inventory the carrier and protect immutable history and evidence. |
-| Extract | Identify each independent rule, decision, fact, rationale, scenario, and unresolved question. |
-| Place | Bind every extracted item to one current authority owner or historical carrier. |
+| Phase     | Required result                                                                                             |
+| --------- | ----------------------------------------------------------------------------------------------------------- |
+| Preserve  | Inventory the carrier and protect immutable history and evidence.                                           |
+| Extract   | Identify each independent rule, decision, fact, rationale, scenario, and unresolved question.               |
+| Place     | Bind every extracted item to one current authority owner or historical carrier.                             |
 | Integrate | Rewrite the owner so the useful meaning was coherent in its current taxonomy, vocabulary, and organization. |
-| Verify | Prove semantic coverage, valid links, scenario preservation, and absence of conflicting current owners. |
-| Retire | Remove only the residual carrier that had no independent current, historical, or evidentiary value. |
+| Verify    | Prove semantic coverage, valid links, scenario preservation, and absence of conflicting current owners.     |
+| Retire    | Remove only the residual carrier that had no independent current, historical, or evidentiary value.         |
 
 The historical allowed destinations were:
 
-| Meaning | Destination |
-| --- | --- |
-| current normative contract | canonical architecture, governance, reference, or start documentation |
-| durable ruling | accepted or superseded decision record |
-| factual chronology or retired rationale | `docs/history/`, explicitly non-normative |
-| change proposal and delta history | active or archived OpenSpec carrier |
-| execution or recovery proof | repository-family evidence or recovery record |
-| fully absorbed repetition | deletion after verification |
+| Meaning                                 | Destination                                                           |
+| --------------------------------------- | --------------------------------------------------------------------- |
+| current normative contract              | canonical architecture, governance, reference, or start documentation |
+| durable ruling                          | accepted or superseded decision record                                |
+| factual chronology or retired rationale | `docs/history/`, explicitly non-normative                             |
+| change proposal and delta history       | active or archived OpenSpec carrier                                   |
+| execution or recovery proof             | repository-family evidence or recovery record                         |
+| fully absorbed repetition               | deletion after verification                                           |
 
 An item that did not fit the current taxonomy without semantic loss was a model
 gap, not deletion residue. Retirement stopped while the responsible ontology,

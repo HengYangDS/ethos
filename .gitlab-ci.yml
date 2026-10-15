@@ -29,7 +29,7 @@ default:
       - api_failure
       - scheduler_failure
 ethos:commit-policy:
-  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:f45b7bb576621b77b233f562e868b02a0e85ccc641b8591649fdc79a0c74f21e
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:4f57e89fd8b4dfc70e823f5084717e2addebeb716ddf3226b1b59c38ffb8cb33
   before_script:
     - tools/ci/scripts/bootstrap-python.sh
   stage: quality
@@ -55,10 +55,19 @@ ethos:commit-policy:
   script:
     - uv run --frozen --offline python -B -I -m ethos.cli hook commit-range --target-ref "${ETHOS_COMMIT_TARGET_REF}" --proposed-head "${ETHOS_COMMIT_PROPOSED_HEAD}" --remote-head "${ETHOS_COMMIT_REMOTE_HEAD}" --remote origin --root . --json
 ethos:host-conformance:
-  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:f45b7bb576621b77b233f562e868b02a0e85ccc641b8591649fdc79a0c74f21e
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:4f57e89fd8b4dfc70e823f5084717e2addebeb716ddf3226b1b59c38ffb8cb33
   before_script:
     - tools/ci/scripts/bootstrap-python.sh
   stage: verify
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        paths:
+          - '**/*'
+        compare_to: refs/heads/dev
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: never
+    - when: on_success
   script:
     - uv run --frozen --offline python -m nox -s host_conformance
   artifacts:
@@ -67,7 +76,7 @@ ethos:host-conformance:
       - build/evidence/local-install/smoke.json
 ethos:verify:
   image:
-    name: ghcr.io/hengyangds/ethos-ci-supply@sha256:f45b7bb576621b77b233f562e868b02a0e85ccc641b8591649fdc79a0c74f21e
+    name: ghcr.io/hengyangds/ethos-ci-supply@sha256:4f57e89fd8b4dfc70e823f5084717e2addebeb716ddf3226b1b59c38ffb8cb33
     entrypoint:
       - bash
       - -c
@@ -75,6 +84,15 @@ ethos:verify:
       - ethos-ci-entrypoint
   before_script: []
   stage: verify
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        paths:
+          - '**/*'
+        compare_to: refs/heads/dev
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: never
+    - when: on_success
   variables:
     GIT_STRATEGY: clone
     ETHOS_TEST_WORKERS: "4"
@@ -86,7 +104,6 @@ ethos:verify:
       - build/evidence/quality/proof/
       - build/evidence/quality/tests/pytest/junit*.xml
       - build/evidence/quality/tests/coverage/coverage.xml
-      - build/evidence/quality/tests/allure/
       - build/evidence/quality/security/
       - build/evidence/quality/secrets/
       - build/artifacts/python/
@@ -97,8 +114,17 @@ ethos:verify:
         coverage_format: cobertura
         path: build/evidence/quality/tests/coverage/coverage.xml
 ethos:external-links:
-  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:f45b7bb576621b77b233f562e868b02a0e85ccc641b8591649fdc79a0c74f21e
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:4f57e89fd8b4dfc70e823f5084717e2addebeb716ddf3226b1b59c38ffb8cb33
   stage: verify
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        paths:
+          - '**/*'
+        compare_to: refs/heads/dev
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: never
+    - when: on_success
   allow_failure: true
   before_script:
     - tools/ci/scripts/bootstrap-python.sh
@@ -111,9 +137,18 @@ ethos:external-links:
       - build/evidence/quality/external-links/report.json
 ethos:npm:
   stage: verify
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        paths:
+          - '**/*'
+        compare_to: refs/heads/dev
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: never
+    - when: on_success
   variables:
     NODE_VERSION: 26.11.1
-  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:f45b7bb576621b77b233f562e868b02a0e85ccc641b8591649fdc79a0c74f21e
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:4f57e89fd8b4dfc70e823f5084717e2addebeb716ddf3226b1b59c38ffb8cb33
   script:
     - tools/ci/scripts/bootstrap-python.sh
     - uv run --no-sync python -B -c 'import os, subprocess, sys; from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime; runtime = resolve_node_runtime(); subprocess.run([str(runtime.executable), str(runtime.npm), *sys.argv[1:]], env=dict(os.environ, PATH=str(runtime.executable.parent) + os.pathsep + os.environ["PATH"], npm_config_engine_strict="true", npm_config_audit="false", npm_config_fund="false", npm_config_update_notifier="false"), stdin=subprocess.DEVNULL, timeout=120, check=True)' run ethos -- --version

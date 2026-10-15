@@ -86,22 +86,26 @@ def test_branch_role_current_schema_maps_exactly() -> None:
     )
 
 
-def test_previous_complete_policy_requires_explicit_incumbent_compatibility() -> None:
+def test_predecessor_policies_require_explicit_incumbent_compatibility() -> None:
     previous = CURRENT.replace("canonical_sibling_worktrees = false\n", "")
+    oldest = previous.replace('release_mirror = "independent"\n', "")
 
-    with pytest.raises(ValueError, match="complete and exact"):
-        strict_branch_role_policy_from_text(previous)
-    assert strict_branch_role_policy_from_text(
-        previous, allow_legacy_sibling_default=True
-    ) == BranchRolePolicy(canonical_sibling_worktrees=False)
+    for table in (previous, oldest):
+        with pytest.raises(ValueError, match="complete and exact"):
+            strict_branch_role_policy_from_text(table)
+        assert strict_branch_role_policy_from_text(
+            table, allow_predecessor_defaults=True
+        ) == BranchRolePolicy(canonical_sibling_worktrees=False)
+    custom = oldest.replace('"candidate/dev"', '"candidate/train"')
+    assert (
+        strict_branch_role_policy_from_text(custom, allow_predecessor_defaults=True)
+    ).candidate_branch == "candidate/train"
 
     incomplete = previous.replace('release_branch = "main"\n', "")
-    with pytest.raises(ValueError, match="complete and exact"):
-        strict_branch_role_policy_from_text(incomplete, allow_legacy_sibling_default=True)
-    with pytest.raises(ValueError, match="complete and exact"):
-        strict_branch_role_policy_from_text(
-            previous + "unknown = true\n", allow_legacy_sibling_default=True
-        )
+    mirrorless = CURRENT.replace('release_mirror = "independent"\n', "")
+    for table in (incomplete, mirrorless, previous + "unknown = true\n"):
+        with pytest.raises(ValueError, match="complete and exact"):
+            strict_branch_role_policy_from_text(table, allow_predecessor_defaults=True)
 
 
 @pytest.mark.parametrize(

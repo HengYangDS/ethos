@@ -22,7 +22,7 @@ def _bind_source_inputs(
     repo: Path, relations: tuple[tuple[str, str, bytes], ...]
 ) -> tuple[Path, Path]:
     """Declare complete native copy relationships for the public integrity observer."""
-    declaration = ".config/checks/ci/templates.toml"
+    declaration = ".config/checks/ci-projection/policy.toml"
     owner = repo / declaration
     owner.parent.mkdir(parents=True)
     projections = []

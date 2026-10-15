@@ -2,13 +2,13 @@
 
 Purpose: define how agents load repository truth and avoid stale context.
 
-| Field | Rule |
-| --- | --- |
-| Authority | [Product Design Contract](../docs/governance/product-design-contract.md), `ethos status --json` |
-| Trigger | Starting work in this repository or crossing into this repository from another root. |
-| Action | Load `AGENTS.md`, observe current status, obey the current result, then expand only into the selected owner. |
-| Evidence | `ethos status --json` reports the target root, branch role, decision, gaps, and continuation. |
-| Stop | Target path belongs to a different Git root whose `AGENTS.md` has not been loaded. |
+| Field     | Rule                                                                                                         |
+| --------- | ------------------------------------------------------------------------------------------------------------ |
+| Authority | [Product Design Contract](../docs/governance/product-design-contract.md), `ethos status --json`              |
+| Trigger   | Starting work in this repository or crossing into this repository from another root.                         |
+| Action    | Load `AGENTS.md`, observe current status, obey the current result, then expand only into the selected owner. |
+| Evidence  | `ethos status --json` reports the target root, branch role, decision, gaps, and continuation.                |
+| Stop      | Target path belongs to a different Git root whose `AGENTS.md` has not been loaded.                           |
 
 ## Rules
 

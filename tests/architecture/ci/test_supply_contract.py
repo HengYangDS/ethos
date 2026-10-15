@@ -30,7 +30,7 @@ def test_image_manifest_binds_supply_declarations_not_build_only_product_code() 
     inputs = set(_image_input_paths())
 
     assert {
-        ".config/checks/ci/templates.toml",
+        ".config/checks/ci-projection/policy.toml",
         ".config/mise/config.toml",
         ".config/mise/mise.lock",
         ".config/ci/supply/Dockerfile",

@@ -52,7 +52,7 @@ def test_exact_publication_policy_rejects_inconsistent_release_roles(
         target_ref="refs/heads/dev",
         proposed_head=head,
         remote_head=before,
-        remote_name="origin",
+        remote_name="gitlab",
     )
     assert report["verdict"] == ("pass" if valid else "block"), report
     if not valid:
@@ -85,7 +85,7 @@ def test_publication_contract_failure_matrix(tmp_path: Path) -> None:
         "id": "gitlab",
         "provider": "gitlab",
         "role": "review",
-        "git_remote": "origin",
+        "git_remote": "gitlab",
         "capabilities": ["repository", "publication"],
     }
     (tmp_path / "folder").mkdir()
@@ -118,9 +118,9 @@ def test_publication_contract_failure_matrix(tmp_path: Path) -> None:
     assert release_publication.publication_source_version_gaps(
         source_ref="refs/tags/v1", annotated_tag=True, version_text=None
     ) == ("publication_source_version_invalid:v1",)
-    topology = {"required_gaps": [], "remotes": [{"id": "gitlab", "git_remote": "origin"}]}
+    topology = {"required_gaps": [], "remotes": [{"id": "gitlab", "git_remote": "gitlab"}]}
     for ref, remote, gap in (
-        ("invalid", "origin", "ref_unavailable"),
+        ("invalid", "gitlab", "ref_unavailable"),
         ("refs/heads/dev", "", "name_missing"),
         ("refs/heads/dev", "other", "target_unknown"),
     ):
@@ -180,7 +180,7 @@ def test_ordinary_commit_range_does_not_validate_history_repair(
             target_ref="refs/heads/dev",
             proposed_head=source,
             remote_head=remote,
-            remote_name="origin",
+            remote_name="gitlab",
             trusted_baseline=trusted_baseline,
         )
         assert report["verdict"] == "pass", report
@@ -200,7 +200,7 @@ def test_publication_remote_failure_matrix(tmp_path: Path, monkeypatch: pytest.M
             root=repo, source_ref=head, target_refs=targets, remotes={}, ref_admissions={}
         )[2] == ("publication_target_ref_kind_mismatch",)
     refs = ("refs/heads/dev", "refs/heads/main")
-    command = ("git", "ls-remote", "origin", *refs)
+    command = ("git", "ls-remote", "gitlab", *refs)
     row = f"{head}\t{refs[0]}\n"
     faults = (
         (subprocess.TimeoutExpired(command, 30, stderr="transport stalled"), "timeout"),
@@ -226,12 +226,12 @@ def test_publication_remote_failure_matrix(tmp_path: Path, monkeypatch: pytest.M
             root=repo,
             source_ref=head,
             target_refs=refs,
-            remotes={"gitlab": "origin"},
+            remotes={"gitlab": "gitlab"},
             ref_admissions={},
         )
         assert effect is None
         assert gaps == tuple(
-            f"publication_remote_observation_unavailable:gitlab:origin:{ref}" for ref in refs
+            f"publication_remote_observation_unavailable:gitlab:gitlab:{ref}" for ref in refs
         )
         for observed in observations["gitlab"]["refs"].values():
             assert [observed[k] for k in ("state", "reason", "object_oid")] == [
@@ -297,7 +297,7 @@ def test_publish_rejects_invalid_peer_selection_before_remote_observation(
 
 def test_selected_proposal_peer_does_not_borrow_repository_proof(tmp_path: Path) -> None:
     repo, peers, head = branch_publication_fixture(tmp_path, proof=False)
-    git(repo, "remote", "set-url", "origin", str(tmp_path / "unavailable-gitlab.git"))
+    git(repo, "remote", "set-url", "gitlab", str(tmp_path / "unavailable-gitlab.git"))
 
     payload = branch_publication(repo, head, "--peer", "github", "--apply", "--authorize")
 

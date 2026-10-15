@@ -17,7 +17,8 @@ from tools.ci.toolchain.environment import ProjectRuntime
 ROOT = Path(__file__).resolve().parents[2]
 RUNTIME = ProjectRuntime.discover(ROOT)
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
-PRE_COMMIT_CONFIG = ".config/checks/hooks/pre-commit.yaml"
+PRE_COMMIT_CONFIG = ".config/checks/pre-commit/.pre-commit-config.yaml"
+PRETTIER_CONFIG = ".config/checks/prettier/prettier.toml"
 PUBLIC_SESSIONS = (
     "lint",
     "format_check",
@@ -109,7 +110,7 @@ def format_check(session) -> None:
 def lint(session) -> None:
     paths = _python_paths(session)
     RUFF_CACHE.mkdir(parents=True, exist_ok=True)
-    common = ("--cache-dir", str(RUFF_CACHE), "--config", "ruff.toml")
+    common = ("--cache-dir", str(RUFF_CACHE), "--config", ".config/checks/ruff/ruff.toml")
     executable = RUNTIME.script("ruff")
     session.run(executable, "check", "--ignore-noqa", *common, *paths)
     session.run(executable, "format", *common, "--check", *paths)
@@ -189,6 +190,9 @@ def architecture_projection(session) -> None:
             str(RUNTIME.python),
             "-m",
             "pytest",
+            "-c",
+            ".config/checks/pytest/pytest.toml",
+            "--rootdir=.",
             "tests/unit/projection",
             "-q",
             "-o",
@@ -210,7 +214,7 @@ def repository_hygiene(session) -> None:
 
 
 def prose(session) -> None:
-    policy = ROOT / ".config/checks/prose/codespell.toml"
+    policy = ROOT / ".config/checks/codespell/codespell.toml"
     declared = tomllib.loads(policy.read_text(encoding="utf-8")).get("paths", [])
     paths = tuple(str(path) for path in declared if isinstance(path, str) and path)
     if not paths:
@@ -229,9 +233,39 @@ def shell_lint(session) -> None:
     paths = _paths("*.sh")
     if paths:
         session.run(
-            RUNTIME.script("shellcheck"), "--rcfile=.config/checks/shell/.shellcheckrc", *paths
+            RUNTIME.script("shellcheck"), "--rcfile=.config/checks/shellcheck/.shellcheckrc", *paths
         )
         session.run(RUNTIME.script("shfmt"), "-d", *paths)
+
+
+def prettier_paths() -> tuple[str, ...]:
+    """Select the carriers whose declared format owner is Prettier, as the paradigm names them."""
+    paradigm = import_module("ethos.contracts.paradigm.declaration").load_repository_paradigm()
+    suffixes = next(item.suffixes for item in paradigm.formatter if item.tool == "prettier")
+    audit = import_module("tools.ci.format_selection").audit(ROOT)
+    return tuple(
+        item["path"]
+        for item in audit["assignments"]
+        if item["format_owner"] == "prettier" and item["path"].endswith(suffixes)
+    )
+
+
+def _prettier(session, *paths: str, write: bool = False) -> None:
+    """Format or check the declared Prettier carriers with the locked binary."""
+    if not paths:
+        return
+    node = RUNTIME.node_executable()
+    prettier = RUNTIME.node_package_supply() / "prettier/bin/prettier.cjs"
+    if not prettier.is_file():
+        session.error("locked prettier is missing; run npm ci --ignore-scripts")
+    session.run(
+        str(node),
+        str(prettier),
+        "--config",
+        PRETTIER_CONFIG,
+        "--write" if write else "--check",
+        *paths,
+    )
 
 
 def markdown_lint(session) -> None:
@@ -240,8 +274,12 @@ def markdown_lint(session) -> None:
     if not markdownlint.is_file():
         session.error("locked markdownlint-cli2 is missing; run npm ci --ignore-scripts")
     session.run(
-        str(node), str(markdownlint), "--config", ".config/checks/markdown/.markdownlint-cli2.yaml"
+        str(node),
+        str(markdownlint),
+        "--config",
+        ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
     )
+    _prettier(session, *prettier_paths())
 
 
 def config_quality(session) -> None:
@@ -283,7 +321,7 @@ def import_boundaries(session) -> None:
         "--cache-dir",
         str(cache),
         "--config",
-        ".config/checks/import-linter/contracts.toml",
+        ".config/checks/import-linter/import-linter.toml",
         env={"PYTHONPATH": str(ROOT / "src")},
     )
 

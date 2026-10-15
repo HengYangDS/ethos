@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     import nox
 
 ROOT = Path(__file__).resolve().parents[2]
-POLICY = ROOT / ".config/release/supply-chain.toml"
+POLICY = ROOT / ".config/release/release-sbom/policy.toml"
 
 
 def _digest(path: Path) -> str:

@@ -32,7 +32,7 @@ check_templates = _projection.check_templates
 _emulator_declaration = _projection.emulator_declaration
 _provider_entry = _projection.provider_entry
 materialize_emulator_source = _materialization.materialize_emulator_source
-CONFIG_RELATIVE_PATH = ".config/checks/ci/templates.toml"
+CONFIG_RELATIVE_PATH = ".config/checks/ci-projection/policy.toml"
 UNTRACKED_PREVIEW_LIMIT = 12
 EVIDENCE_FIELDS = (
     "schema_version",

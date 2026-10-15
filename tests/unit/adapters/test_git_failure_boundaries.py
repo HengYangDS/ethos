@@ -64,7 +64,7 @@ def test_git_command_and_remote_failures_preserve_stable_surfaces(
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     git(repo, "remote", "add", "origin", "ssh://example.invalid/repo.git")
-    baseline = git_adapter.remote_availability_not_probed(repo)
+    baseline = git_adapter.remote_availability_not_probed(repo, "origin")
     assert baseline["state"] == "not_probed"
 
     monkeypatch.setattr(git_adapter, "remote_availability_not_probed", lambda *_args: baseline)
@@ -75,7 +75,7 @@ def test_git_command_and_remote_failures_preserve_stable_surfaces(
             subprocess.TimeoutExpired(("git", "ls-remote"), 0.01)
         ),
     )
-    timed_out = git_adapter.remote_availability(repo, timeout_seconds=0.01)
+    timed_out = git_adapter.remote_availability(repo, "origin", timeout_seconds=0.01)
     assert (timed_out["state"], timed_out["reason"]) == ("unavailable", "timeout")
 
 
@@ -91,7 +91,7 @@ def test_remote_availability_classifies_git_exit_status(
 ) -> None:
     repo = init_git_repo(tmp_path / str(returncode))
     git(repo, "remote", "add", "origin", "ssh://example.invalid/repo.git")
-    baseline = git_adapter.remote_availability_not_probed(repo)
+    baseline = git_adapter.remote_availability_not_probed(repo, "origin")
     monkeypatch.setattr(git_adapter, "remote_availability_not_probed", lambda *_args: baseline)
     monkeypatch.setattr(
         process_adapter,
@@ -101,7 +101,7 @@ def test_remote_availability_classifies_git_exit_status(
         ),
     )
 
-    observed = git_adapter.remote_availability(repo)
+    observed = git_adapter.remote_availability(repo, "origin")
 
     assert observed["state"] == state
     assert observed["available"] is (returncode == 0)

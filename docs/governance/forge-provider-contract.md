@@ -58,7 +58,7 @@ rewrite, tag recreation, history mapping, or tree-only parity.
 1. **Homomorphic semantics**: GitHub and GitLab SHALL cover the same required
    contract capabilities, thresholds, and evidence boundaries for a given
    profile. A provider-specific execution path is valid only when its reason is
-   declared in `.config/checks/ci/templates.toml` and the shared capability is
+   declared in `.config/checks/ci-projection/policy.toml` and the shared capability is
    still proved exactly once by an owner script.
 1. **Template ownership**: provider YAML SHALL be generated or checked from
    tracked provider templates. Hand-edited drift in hosted files is a governance
@@ -90,16 +90,16 @@ rewrite, tag recreation, history mapping, or tree-only parity.
 
 ## Provider Surfaces
 
-| Surface | GitHub | GitLab | Truth boundary |
-| --- | --- | --- | --- |
-| Composition source | `.config/ci/pipeline.cue` | Same source | Consumes native gate and runtime declarations |
-| Hosted projection | `.github/workflows/ci.yml` | `.gitlab-ci.yml` | Generated or checked provider file |
-| Syntax gate | `actionlint` | YAML/config lint plus GitLab template checks | Provider syntax, not repository proof |
-| Local emulator | `act` wrapper | `gitlab-ci-local` wrapper | Local provider emulation only |
-| Hosted observation | GitHub Checks / Actions artifacts | GitLab pipeline/job/artifacts | Hosted provider evidence only |
-| Issue intake | `.github/ISSUE_TEMPLATE/task.md` | `.gitlab/issue_templates/task.md` | `forge_surface.required_sections` |
-| Proposed change | `.github/PULL_REQUEST_TEMPLATE.md` | `.gitlab/merge_request_templates/default.md` | `forge_surface.required_sections` |
-| ETHOS gate | `ethos prove`, `ethos status`, owner scripts | Same | Repository governance truth |
+| Surface            | GitHub                                       | GitLab                                       | Truth boundary                                |
+| ------------------ | -------------------------------------------- | -------------------------------------------- | --------------------------------------------- |
+| Composition source | `.config/ci/pipeline.cue`                    | Same source                                  | Consumes native gate and runtime declarations |
+| Hosted projection  | `.github/workflows/ci.yml`                   | `.gitlab-ci.yml`                             | Generated or checked provider file            |
+| Syntax gate        | `actionlint`                                 | YAML/config lint plus GitLab template checks | Provider syntax, not repository proof         |
+| Local emulator     | `act` wrapper                                | `gitlab-ci-local` wrapper                    | Local provider emulation only                 |
+| Hosted observation | GitHub Checks / Actions artifacts            | GitLab pipeline/job/artifacts                | Hosted provider evidence only                 |
+| Issue intake       | `.github/ISSUE_TEMPLATE/task.md`             | `.gitlab/issue_templates/task.md`            | `forge_surface.required_sections`             |
+| Proposed change    | `.github/PULL_REQUEST_TEMPLATE.md`           | `.gitlab/merge_request_templates/default.md` | `forge_surface.required_sections`             |
+| ETHOS gate         | `ethos prove`, `ethos status`, owner scripts | Same                                         | Repository governance truth                   |
 
 The checked parity inventory covers CI, issue intake, proposed-change review,
 ownership, security intake, dependency updates, and release publication. A
@@ -111,15 +111,15 @@ fabricated `CODEOWNERS` entry.
 
 Provider evidence MUST declare one of these classes:
 
-| Evidence class | Meaning | Forbidden claim |
-| --- | --- | --- |
-| `local_owner_gate` | Repository-owned scripts or `ethos prove --execute` ran locally. | Hosted CI passed. |
-| `local_github_emulator` | GitHub Actions projection was emulated locally through an ETHOS wrapper. | GitHub hosted status passed. |
-| `local_gitlab_emulator` | GitLab CI projection was emulated locally through an ETHOS wrapper. | GitLab hosted status passed. |
-| `hosted_github_observation` | GitHub provider reported a concrete workflow/check/artifact fact. | GitLab status or repository proof. |
-| `hosted_gitlab_observation` | GitLab provider reported a concrete pipeline/job/artifact fact. | GitHub status or repository proof. |
+| Evidence class                | Meaning                                                                                       | Forbidden claim                                          |
+| ----------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `local_owner_gate`            | Repository-owned scripts or `ethos prove --execute` ran locally.                              | Hosted CI passed.                                        |
+| `local_github_emulator`       | GitHub Actions projection was emulated locally through an ETHOS wrapper.                      | GitHub hosted status passed.                             |
+| `local_gitlab_emulator`       | GitLab CI projection was emulated locally through an ETHOS wrapper.                           | GitLab hosted status passed.                             |
+| `hosted_github_observation`   | GitHub provider reported a concrete workflow/check/artifact fact.                             | GitLab status or repository proof.                       |
+| `hosted_gitlab_observation`   | GitLab provider reported a concrete pipeline/job/artifact fact.                               | GitHub status or repository proof.                       |
 | `hosted_provider_observation` | A provider-neutral envelope captured GitHub/GitLab observation state or tool-discovery state. | Repository proof, hosted success, or remote publication. |
-| `remote_publication` | A remote ref or release artifact was observed after publication. | Local proof sufficiency. |
+| `remote_publication`          | A remote ref or release artifact was observed after publication.                              | Local proof sufficiency.                                 |
 
 Local emulator evidence MUST include provider, source path, projected file,
 job or workflow scope, command, start/end Git head, dirty state, return code,

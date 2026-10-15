@@ -39,11 +39,16 @@ from ethos.contracts.branch.roles import ROLE_CANDIDATE
 from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import report_verdict
 
 if TYPE_CHECKING:
     from collections.abc import Generator
     from collections.abc import Mapping
+
+_SECRET_POLICY = ".config/checks/gitleaks/gitleaks.toml"
+_SECRET_IGNORE = ".config/checks/gitleaks/gitleaksignore"
+_FORMAT_POLICY = ".config/checks/ruff/ruff.toml"
 
 
 def admit_hook(
@@ -123,10 +128,11 @@ def _pre_commit(
 
 def _native_configuration_dependency(path: str, source: bytes, *, owner: str) -> str | None:
     """Resolve one native include within its exact repository-relative policy closure."""
-    if owner == ".gitleaksignore":
+    if owner == _SECRET_IGNORE:
         return None
     document = tomllib.loads(source.decode("utf-8"))
-    policy = document.get("tool", {}).get("ruff", document) if owner == "ruff.toml" else document
+    formatter = owner == _FORMAT_POLICY
+    policy = document.get("tool", {}).get("ruff", document) if formatter else document
     extension = policy.get("extend")
     dependency = extension.get("path") if isinstance(extension, dict) else extension
     if dependency is None:
@@ -134,12 +140,27 @@ def _native_configuration_dependency(path: str, source: bytes, *, owner: str) ->
     if not isinstance(dependency, str):
         message = f"pre_commit_native_policy_invalid_dependency:{path}"
         raise TypeError(message)
-    base = posixpath.dirname(path) if owner == "ruff.toml" else ""
+    base = posixpath.dirname(path) if formatter else ""
     relative = posixpath.normpath(posixpath.join(base, dependency))
     if relative.startswith(("/", "../")) or relative == "..":
         message = f"pre_commit_native_policy_outside_root:{path}"
         raise ValueError(message)
     return relative
+
+
+def _reject_noncanonical_policy(root: Path, *, index_env: Mapping[str, str] | None) -> None:
+    """Name native policy left at the root instead of silently skipping its check."""
+    carriers = {_SECRET_POLICY, _SECRET_IGNORE, _FORMAT_POLICY}
+    names = tuple(
+        name
+        for tool in load_repository_paradigm().tool
+        if tool.carrier in carriers
+        for name in tool.root_names
+    )
+    retained = run_git(root, "ls-files", "--", *names, timeout=30, env=index_env).stdout.split()
+    if retained:
+        message = f"pre_commit_native_policy_noncanonical:{retained[0]}"
+        raise RuntimeError(message)
 
 
 @contextmanager
@@ -149,7 +170,8 @@ def _native_hook_configuration(
     """Project incumbent native policy and its include closure without working-tree reads."""
     observed = run_git(root, "rev-parse", "--verify", "HEAD", check=False, timeout=30)
     head = observed.stdout.strip() if not observed.returncode else ""
-    names = (".gitleaks.toml", "ruff.toml", ".gitleaksignore")
+    _reject_noncanonical_policy(root, index_env=index_env)
+    names = (_SECRET_POLICY, _FORMAT_POLICY, _SECRET_IGNORE)
     listed = (
         run_git(root, "ls-tree", "--name-only", head, "--", *names, timeout=30).stdout
         if head
@@ -204,7 +226,7 @@ def _native_hook_configuration(
 def _scan_staged_secrets(
     root: Path, *, configuration: Path, index_env: Mapping[str, str] | None = None
 ) -> None:
-    policy = configuration / ".gitleaks.toml"
+    policy = configuration / _SECRET_POLICY
     if not policy.is_file():
         return
     executable = shutil.which("gitleaks")
@@ -230,7 +252,7 @@ def _scan_staged_secrets(
             "--config",
             str(policy),
             "--gitleaks-ignore-path",
-            str(configuration / ".gitleaksignore"),
+            str(configuration / _SECRET_IGNORE),
             "--redact=100",
             "--no-banner",
             configuration.as_posix(),
@@ -251,7 +273,7 @@ def _check_staged_python_format(
     index_env: Mapping[str, str] | None = None,
 ) -> None:
     paths = tuple(path for path in staged if path.endswith((".py", ".pyi")))
-    if not paths or not (configuration / "ruff.toml").is_file():
+    if not paths or not (configuration / _FORMAT_POLICY).is_file():
         return
     indexed = set(
         _git_paths(
@@ -284,7 +306,7 @@ def _check_staged_python_format(
                     "format",
                     "--no-cache",
                     "--config",
-                    "ruff.toml",
+                    _FORMAT_POLICY,
                     "--check",
                     "--stdin-filename",
                     path,
@@ -304,7 +326,7 @@ def _check_staged_python_format(
 
 
 def _pre_push(root: Path, args: tuple[str, ...], stdin: IO[str]) -> tuple[dict[str, object], ...]:
-    remote = args[0] if args else "origin"
+    remote = args[0] if args else ""
     reports = []
     for line in stdin:
         fields = line.split()

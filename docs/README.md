@@ -21,31 +21,31 @@ and [Command Plane](reference/command-plane.md).
 
 ## Start Here
 
-| Need | Read |
-| --- | --- |
-| First governed change | [Quickstart](guides/quickstart.md) |
-| Current product meaning | [Product Design Contract](governance/product-design-contract.md) |
-| Remaining convergence work | [Terminal Governance Product Design](plans/terminal-governance-product-design.md) |
-| Public commands | [Command Plane](reference/command-plane.md) |
-| Agent entry | [AGENTS.md](../AGENTS.md) and [Rules](../rules/README.md) |
-| Architecture and adoption | [Architecture](architecture/README.md) |
-| Engineering foundation evaluation | [Research](research/README.md) |
-| Durable decisions | [Decisions](decisions/README.md) |
+| Need                              | Read                                                                              |
+| --------------------------------- | --------------------------------------------------------------------------------- |
+| First governed change             | [Quickstart](guides/quickstart.md)                                                |
+| Current product meaning           | [Product Design Contract](governance/product-design-contract.md)                  |
+| Remaining convergence work        | [Terminal Governance Product Design](plans/terminal-governance-product-design.md) |
+| Public commands                   | [Command Plane](reference/command-plane.md)                                       |
+| Agent entry                       | [AGENTS.md](../AGENTS.md) and [Rules](../rules/README.md)                         |
+| Architecture and adoption         | [Architecture](architecture/README.md)                                            |
+| Engineering foundation evaluation | [Research](research/README.md)                                                    |
+| Durable decisions                 | [Decisions](decisions/README.md)                                                  |
 
 ## ETHOS Documentation Shape
 
-| Lane | Owns |
-| --- | --- |
+| Lane         | Owns                                                                                |
+| ------------ | ----------------------------------------------------------------------------------- |
 | `decisions/` | Durable reasons for accepted or superseded design choices; never runtime authority. |
-| `reference/` | Stable vocabulary, boundaries, and governance references. |
-| `history/` | Retired rationale and archival logs. |
+| `reference/` | Stable vocabulary, boundaries, and governance references.                           |
+| `history/`   | Retired rationale and archival logs.                                                |
 
 ## ETHOS Product Extensions
 
-| Root | Owns |
-| --- | --- |
-| `architecture/` | Product architecture and contract explanations. |
-| `governance/` | Product governance models and policies. |
+| Root                                          | Owns                                                              |
+| --------------------------------------------- | ----------------------------------------------------------------- |
+| `architecture/`                               | Product architecture and contract explanations.                   |
+| `governance/`                                 | Product governance models and policies.                           |
 | `concepts/`, `plans/`, `research/`, `guides/` | Product-specific explanation, planning, research, and onboarding. |
 
 Additional routes: [Governance](governance/README.md),

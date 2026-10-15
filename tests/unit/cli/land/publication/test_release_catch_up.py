@@ -29,7 +29,7 @@ def _pre_push(repo: Path, tag: str, remote_oid: str) -> tuple[int, list[str]]:
         code = execute_hook(
             repo,
             "pre-push",
-            ("origin",),
+            ("gitlab",),
             stdin=StringIO(f"{TAG_REF} {tag} {TAG_REF} {remote_oid}\n"),
         )
     output = stream.getvalue()
@@ -41,13 +41,16 @@ def _released_while_gitlab_was_away(tmp_path: Path) -> tuple[Path, dict[str, Pat
     repo, _main, old, head = accepted_release_fixture(tmp_path, release_mirror="accepted_ff")
     assert release_cli(repo, head, head, "--apply", "--authorize")["verdict"] == "pass"
     peers = publication_peers(repo, tmp_path, f"{old}:refs/heads/main")
-    gitlab = git(repo, "remote", "get-url", "origin")
-    git(repo, "remote", "set-url", "origin", str(tmp_path / "unavailable-gitlab.git"))
+    gitlab = git(repo, "remote", "get-url", "gitlab")
+    git(repo, "remote", "set-url", "gitlab", str(tmp_path / "unavailable-gitlab.git"))
     preview = branch_publication(repo, head, "--peer", "github", target_ref=TAG_REF)
     assert apply_receipt(repo, preview["data"]["request_receipt"], head)["state"] == "published"
-    git(repo, "remote", "set-url", "origin", gitlab)
+    git(repo, "remote", "set-url", "gitlab", gitlab)
     candidate = tmp_path / "repo"
-    (candidate / "after-release.txt").write_text("accepted after the release\n", encoding="utf-8")
+    (candidate / "notes").mkdir(exist_ok=True)
+    (candidate / "notes/after-release.txt").write_text(
+        "accepted after the release\n", encoding="utf-8"
+    )
     accepted = commit_fixture(candidate, "fix: advance accepted after the release")
     seed_executed_proof(candidate, accepted)
     run_ethos(
@@ -113,7 +116,7 @@ def test_catch_up_refuses_replaced_untrusted_divergent_or_unaccepted_tags(tmp_pa
         assert (code, "release_tag_source_untrusted" in gaps) == (1, True), gaps
     git(repo, "update-ref", TAG_REF, tag)
 
-    git(repo, "push", "origin", f"{replacements[0]}:{TAG_REF}")
+    git(repo, "push", "gitlab", f"{replacements[0]}:{TAG_REF}")
     code, gaps = _pre_push(repo, tag, replacements[0])
     assert (code, "release_tag_immutable" in gaps) == (1, True), gaps
     blocked = branch_publication(

@@ -25,7 +25,22 @@ let externalLinkCommand = "tools/ci/scripts/with-python-runtime.sh -- \(sourceCL
 // Native subprocess glue consumes the source cache owner, including its selected npm CLI.
 let nativeNpm = "uv run --no-sync python -B -c 'import os, subprocess, sys; from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime; runtime = resolve_node_runtime(); subprocess.run([str(runtime.executable), str(runtime.npm), *sys.argv[1:]], env=dict(os.environ, PATH=str(runtime.executable.parent) + os.pathsep + os.environ[\"PATH\"], npm_config_engine_strict=\"true\", npm_config_audit=\"false\", npm_config_fund=\"false\", npm_config_update_notifier=\"false\"), stdin=subprocess.DEVNULL, timeout=120, check=True)'"
 let nativeNpmSeed = "uv run --no-sync python -B -c 'import os, subprocess, sys; from pathlib import Path; from ethos.adapters.repo.runtime.materialization.node.supply import NodeRuntime, NodeSupply; root = Path.cwd(); runtime = NodeRuntime.read(NodeSupply.read(root).installed_root(root), windows=os.name == \"nt\"); subprocess.run([str(runtime.executable), str(runtime.npm), *sys.argv[1:]], env=dict(os.environ, PATH=str(runtime.executable.parent) + os.pathsep + os.environ[\"PATH\"], npm_config_engine_strict=\"true\", npm_config_audit=\"false\", npm_config_fund=\"false\", npm_config_update_notifier=\"false\"), stdin=subprocess.DEVNULL, timeout=120, check=True)'"
-let gitlabImage = "ghcr.io/hengyangds/ethos-ci-supply@sha256:f45b7bb576621b77b233f562e868b02a0e85ccc641b8591649fdc79a0c74f21e"
+let gitlabImage = "ghcr.io/hengyangds/ethos-ci-supply@sha256:4f57e89fd8b4dfc70e823f5084717e2addebeb716ddf3226b1b59c38ffb8cb33"
+
+// Commit-scoped GitLab jobs verify a commit once: a main push at dev's commit leaves them to
+// the dev pipeline of the same commit, while commit-policy still admits every pushed ref.
+let commitScopedRules = [{
+	if: "$CI_COMMIT_BRANCH == \"main\""
+	changes: {
+		paths: ["**/*"]
+		compare_to: "refs/heads/dev"
+	}
+}, {
+	if:   "$CI_COMMIT_BRANCH == \"main\""
+	when: "never"
+}, {
+	when: "on_success"
+}]
 let githubPythonBootstrap = [{
 	uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 	with: {
@@ -371,6 +386,7 @@ gitlab: {
 		image: gitlabImage
 		before_script: ["tools/ci/scripts/bootstrap-python.sh"]
 		stage: "verify"
+		rules: commitScopedRules
 		script: ["uv run --frozen --offline python -m nox -s host_conformance"]
 		artifacts: {
 			when: "always"
@@ -389,6 +405,7 @@ gitlab: {
 		}
 		before_script: []
 		stage: "verify"
+		rules: commitScopedRules
 		variables: {
 			// GIT_DEPTH=0 does not repair a runner checkout that was previously
 			// shallow. Reclone this history-sensitive execution owner so replay can
@@ -403,13 +420,13 @@ gitlab: {
 		script: [
 			"tools/ci/scripts/run-head-bound-proof.sh",
 		]
+		// GitHub retains raw Allure results; GitLab's instance artifact limit cannot hold them.
 		artifacts: {
 			when: "always"
 			paths: [
 				"build/evidence/quality/proof/",
 				"build/evidence/quality/tests/pytest/junit*.xml",
 				"build/evidence/quality/tests/coverage/coverage.xml",
-				"build/evidence/quality/tests/allure/",
 				"build/evidence/quality/security/",
 				"build/evidence/quality/secrets/",
 				"build/artifacts/python/",
@@ -427,6 +444,7 @@ gitlab: {
 	"ethos:external-links": {
 		image:         gitlabImage
 		stage:         "verify"
+		rules:         commitScopedRules
 		allow_failure: true
 		before_script: ["tools/ci/scripts/bootstrap-python.sh"]
 		script: [
@@ -440,6 +458,7 @@ gitlab: {
 	}
 	"ethos:npm": {
 		stage: "verify"
+		rules: commitScopedRules
 		variables: NODE_VERSION: _inputs.node.tools.node
 		// The shared cache preparer owns Node; Nox owns package test execution.
 		image: gitlabImage

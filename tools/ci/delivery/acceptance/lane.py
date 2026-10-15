@@ -240,7 +240,7 @@ def prove_signature_repair(
     """Exercise installed repair, exact reproof continuation and replay without publication."""
     old = run_git(repo, "rev-parse", "HEAD").stdout.strip()
     candidate = run_git(repo, "rev-parse", "candidate/dev").stdout.strip()
-    remote_refs = run_git(repo, "ls-remote", "origin").stdout
+    remote_refs = run_git(repo, "ls-remote", "file").stdout
     prefix = (python.as_posix(), "-B", "-I", "-m", "ethos.cli")
     command = (
         *prefix,
@@ -316,7 +316,7 @@ def prove_signature_repair(
         or (
             run_git(repo, "rev-parse", "HEAD").stdout.strip() != new
             or run_git(repo, "rev-parse", "candidate/dev").stdout.strip() != candidate
-            or run_git(repo, "ls-remote", "origin").stdout != remote_refs
+            or run_git(repo, "ls-remote", "file").stdout != remote_refs
         )
     ):
         message = f"package_signature_replay_failed:{diagnostic}"

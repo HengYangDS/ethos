@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 
 ROOT = Path(__file__).resolve().parents[2]
 TAPLO_CONFIG = ROOT / ".config/checks/taplo/taplo.toml"
-YAML_CONFIG = ROOT / ".config/checks/yaml/yamllint.yaml"
-JSON_CONFIG = ROOT / ".config/checks/json/format.toml"
+YAML_CONFIG = ROOT / ".config/checks/yamllint/.yamllint.yaml"
+JSON_CONFIG = ROOT / ".config/checks/config-quality/policy.toml"
 SUPPORTED_SUFFIXES = frozenset({".toml", ".yaml", ".yml", ".json", ".ini", ".cfg"})
 
 

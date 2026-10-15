@@ -42,7 +42,9 @@ def test_self_hosted_expectation_binds_accepted_objects_not_checkout_overlay(tmp
             b"0.2.0-alpha.2\r\n" if mode == "crlf" else b"invalid version\n"
         )
         git(repo, "config", "core.autocrlf", "false")
-        git(repo, "add", "VERSION")
+        with (repo / ".gitattributes").open("a", encoding="utf-8") as attributes:
+            attributes.write("VERSION -text\n")
+        git(repo, "add", ".gitattributes", "VERSION")
         if mode != "staged":
             commit_fixture(repo, "invalid version")
     elif mode == "detached":

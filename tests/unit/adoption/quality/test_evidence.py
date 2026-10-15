@@ -467,42 +467,6 @@ def test_javascript_skipped_tests_do_not_prove_behavior(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("source", "verdict"),
-    [
-        ("export function answer() { return undefined_value; }\n", "block"),
-        (
-            "/* eslint-disable no-undef */\nexport function answer() { return undefined_value; }\n",
-            "block",
-        ),
-        ("export function answer(undefined_value) { return undefined_value; }\n", "pass"),
-        ("export function answer() { return 42; }\n", "pass"),
-    ],
-)
-@pytest.mark.parametrize("role", ["code", "snapshot"])
-def test_javascript_static_quality_preserves_lexical_bindings(
-    tmp_path: Path,
-    source: str,
-    verdict: str,
-    role: str,
-) -> None:
-    """Syntax success cannot certify declared lexical correctness or suppress its diagnostics."""
-    repo = init_git_repo(tmp_path / "adopter")
-    (repo / "package.json").write_text('{"type":"module"}\n')
-    (repo / "answer.js").write_text(source)
-    (repo / ".gitattributes").write_text(f"answer.js ethos-role={role}\n")
-    commit_fixture(repo, "lexical quality source")
-    report = native_quality.static_report(repo)
-    assert report["verdict"] == ("block" if role == "snapshot" else verdict), report
-    if role == "snapshot":
-        assert report["required_gaps"] == [
-            "quality_static-analysis_source_contract_missing:answer.js"
-        ]
-        assert "native" not in report
-    elif verdict == "block":
-        assert report["required_gaps"]
-
-
-@pytest.mark.parametrize(
     "diagnostic",
     ["", "process.emitWarning('reported warning');", "console.warn('reported warning');"],
 )

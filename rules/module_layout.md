@@ -9,13 +9,13 @@ it may be depended upon.
 Derived from the parsimony axiom in `system/axioms.md` and the
 general module-layout boundary study and `system/axioms.md`.
 
-| Field | Rule |
-| --- | --- |
-| Authority | [Product Design Contract](../docs/governance/product-design-contract.md), `system/axioms.md`, `.config/checks/module-layout/policy.toml` |
-| Trigger | Creating, moving, renaming, splitting, importing, or deleting repository-owned Python. |
-| Action | Model one narrow concept per owner, preserve carrier-native syntax, and choose absorb, precise rename, semantic split, or delete for mixed ownership. |
-| Evidence | `uv run --frozen --offline python -m nox -s module_layout` and focused contract tests. |
-| Stop | Ambiguous ownership, duplicate command owners, facades, private cross-module imports, or a split justified only by a metric. |
+| Field     | Rule                                                                                                                                                  |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Authority | [Product Design Contract](../docs/governance/product-design-contract.md), `system/axioms.md`, `.config/checks/module-layout/policy.toml`              |
+| Trigger   | Creating, moving, renaming, splitting, importing, or deleting repository-owned Python.                                                                |
+| Action    | Model one narrow concept per owner, preserve carrier-native syntax, and choose absorb, precise rename, semantic split, or delete for mixed ownership. |
+| Evidence  | `uv run --frozen --offline python -m nox -s module_layout` and focused contract tests.                                                                |
+| Stop      | Ambiguous ownership, duplicate command owners, facades, private cross-module imports, or a split justified only by a metric.                          |
 
 ## 1. Physical organization — semantic boundaries, not metric shapes
 
@@ -211,7 +211,7 @@ architecture; these rules make the claim honest and checkable.
   2. a module is bound as a namespace and its dotted path is too long to repeat
      (`import ethos_repository.repository_audit as repository_audit_module`).
 - **Do NOT use `as` to add a `_` prefix** (`emit as _emit`, `resolve_root as
-  _root`). That is compatibility residue — it exists only to preserve old
+_root`). That is compatibility residue — it exists only to preserve old
   call sites. Use the real public name (`emit`, `resolve_root`) and update callers.
   A leading `_` marks a definition private in ITS OWN module; it is not an import
   decoration.
@@ -220,8 +220,8 @@ architecture; these rules make the claim honest and checkable.
 
 ## 3. Size and split
 
-The single effective-LOC limit for each carrier role lives in
-`.ethos/rules.toml [quality.code_size]` and is enforced by the code-size gate.
+The single effective-LOC ceiling for every Python file is a repository paradigm
+value, enforced by the paradigm report in the repository audit.
 A breach requires semantic review, but only a distinct concept, invariant,
 authority, or reason to change can justify a split; otherwise the module is
 simplified or absorbed.

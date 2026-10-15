@@ -125,6 +125,7 @@ def _trusted_receipt(request: dict[str, object], **updates: object) -> Path:
 
 def test_control_subject_and_request_bind_exact_signed_git_state(tmp_path: Path) -> None:
     candidate, accepted, head = _control_change(tmp_path)
+    git(candidate, "remote", "add", "origin", "https://origin.example.invalid/ethos.git")
     seed_executed_proof(candidate, head)
     report = _report(candidate, accepted, head)
     subject = cast("dict[str, object]", report["subject"])

@@ -14,7 +14,7 @@ from pydantic import Field
 from pydantic import ValidationError
 from pydantic import model_validator
 
-POLICY_PATH = Path(".config/checks/format/selection.toml")
+POLICY_PATH = Path(".config/checks/format-selection/policy.toml")
 PYTHON_CATEGORIES = ("python_product", "python_tests", "python_tools", "python_other")
 AGGREGATE_TOTALS = ("python_total", "global_total")
 IMMUTABLE_RECORD_ROOTS = ("openspec/changes/archive/",)

@@ -5,6 +5,7 @@ from __future__ import annotations
 import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import cast
 
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import close_verdict
@@ -163,6 +164,20 @@ def _host_profile(config: dict[str, Any]) -> dict[str, Any]:
             },
         }
     return {"provider": "", "layer": "profile_config", "surfaces": {}}
+
+
+def host_git_remote(root: Path) -> str:
+    """Return the Git remote of the sole publication peer on the host profile's provider."""
+    try:
+        config = release_config(root)
+    except ValueError:
+        return ""
+    provider = _host_profile(config)["provider"]
+    peers = cast("list[dict[str, object]]", publication_topology(root, config)["remotes"])
+    remotes = [
+        str(peer["git_remote"]) for peer in peers if provider and peer.get("provider") == provider
+    ]
+    return remotes[0] if len(remotes) == 1 else ""
 
 
 def release_policy_report(root: Path) -> dict[str, Any]:

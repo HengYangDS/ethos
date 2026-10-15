@@ -48,7 +48,7 @@
 
 - [ ] 4.1 Update installation, CLI/MCP and canonical plan projections after 4.2 acceptance; preserve explicit unverified platform and hosted boundaries.
 - [ ] 4.2 Consolidate repetitive test setup without removing distinct assertions; qualify one signed final source through full proof, its exact package and installed clients, then complete native integration and required publication.
-      Dependency: merge-refresh the signed repair onto the current candidate before exact-source full proof; preserve failed fixture receipts under `build/evidence/native-adopter-repair-20261011/timeout-*-20261015*`.
+      Dependency: freeze the merged repair after native prerequisite acceptance, then run exact-source full proof; preserve `build/evidence/native-adopter-repair-20261011/timeout-merged-full-proof-a0092abf0-20261016.*` and `timeout-prerequisites-native-gate-acceptance-20261016.json`.
   - [x] 4.2.1 Preserve retained member validation across over-budget scans and reuse native finite-output capture; verify unchanged strict semantics, failure cleanup and the same immutable-set read before and after without raising capacity or deadlines.
         Evidence: `build/evidence/native-adopter-repair-20261011/{attestation-repeat-integrated-20261015.json,timeout-canonical-set-final-20261015.junit.xml,timeout-process-capture-acceptance-20261015.junit.xml,timeout-merge-effect-acceptance-20261015.junit.xml}`.
   - [x] 4.2.2 Bind both native automatic ref-packing paths to the shared hook activation contract; verify real maintenance preserves refs without invoking packing, linked override removal and exact failure rollback within existing limits.

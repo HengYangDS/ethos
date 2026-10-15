@@ -274,7 +274,7 @@ budget = [
 [[format]]
 extensions = [".json"]
 carrier = "JSON"
-owner = ".config/checks/config-quality/policy.toml"
+owner = ".config/checks/prettier/prettier.toml"
 execution = "uv run --frozen --offline python -m nox -s config_quality"
 truth_boundary = "machine output, schemas, and external standards"
 budget = [{ category = "json", measure = "structured", baseline_measure = "lines" }]

@@ -61,7 +61,7 @@ configuration plane, not a truth center.
 - `.config/checks/yamllint/.yamllint.yaml` owns native YAML semantic lint, including CI,
   hook and quality configurations. OpenSpec YAML remains under the pinned
   official validator. CI invokes both owners through their existing gates.
-- [The Gitleaks policy](checks/gitleaks/gitleaks.toml) owns custom rules and
+- [The Gitleaks policy](../../.config/checks/gitleaks/gitleaks.toml) owns custom rules and
   extension of native defaults. Hook and CI select it explicitly. Mise owns
   its locked supply; `tools/ci/toolchain/native.py` verifies the installed bytes.
   `tools/ci/scripts/run-secrets-scan.sh` scans an isolated `git ls-files` mirror,

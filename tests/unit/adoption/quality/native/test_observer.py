@@ -321,7 +321,6 @@ def test_native_fixture_reclaims_scratch_when_setup_copy_fails(tmp_path, monkeyp
     scratch.mkdir()
     monkeypatch.setenv("ETHOS_TEST_OBSERVER_WHEEL", str(wheel))
     monkeypatch.setattr(native_fixture, "wheel_build_identity", lambda _: None)
-    monkeypatch.setattr(native_fixture.shutil, "which", lambda _: "uv")
 
     def failed_copy(*_args) -> None:
         message = "fixture_copy_failed"

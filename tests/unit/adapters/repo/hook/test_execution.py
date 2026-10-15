@@ -37,6 +37,7 @@ def repo(tmp_path: Path) -> Path:
     ("name", "arguments", "stdin", "gap"),
     [
         ("pre-commit", (), "", ""),
+        ("commit-msg", (), "", "commit_message_file_missing"),
         ("unknown", (), "", "hook_name_invalid"),
         ("pre-push", ("origin",), "invalid\n", "push_update_invalid"),
         (
@@ -334,12 +335,16 @@ def test_pre_commit_requires_only_selected_capabilities_to_prove_clean(
         "ethos.adapters.admission.prewrite.prewrite_guard", lambda **_kwargs: {"verdict": "pass"}
     )
     if capability == "secrets":
-        (repo / ".gitleaks.toml").write_text("title = 'policy'\n")
-        assert git_process(repo, "add", ".gitleaks.toml").returncode == 0
+        policy = repo / ".config/checks/gitleaks/gitleaks.toml"
+        policy.parent.mkdir(parents=True)
+        policy.write_text("title = 'policy'\n")
+        assert git_process(repo, "add", str(policy)).returncode == 0
         monkeypatch.setattr(hook_runtime, "shutil", SimpleNamespace(which=lambda _name: None))
     elif capability != "absent":
-        (repo / "ruff.toml").write_text("line-length = 100\n")
-        assert git_process(repo, "add", "ruff.toml").returncode == 0
+        policy = repo / ".config/checks/ruff/ruff.toml"
+        policy.parent.mkdir(parents=True)
+        policy.write_text("line-length = 100\n")
+        assert git_process(repo, "add", str(policy)).returncode == 0
         if capability == "missing-formatter":
             monkeypatch.setattr(hook_runtime, "sys", SimpleNamespace(prefix=str(repo)))
         elif capability == "timeout":
@@ -500,9 +505,8 @@ def test_reference_transition_policy_failure_is_blocked(
     ("kind", "expected"),
     [("git-identity", 0), ("plain", 1), ("local", 1), ("instance", 1), ("legacy", 1)],
 )
-@pytest.mark.parametrize("policy", [".gitleaks.toml", ".config/checks/secrets/gitleaks.toml"])
 def test_native_secret_rule_distinguishes_credentials_from_git_identity(
-    kind: str, expected: int, policy: str
+    kind: str, expected: int
 ) -> None:
     """Native rules reject credential evidence without suppressing research source IDs."""
     executable = shutil.which("gitleaks")
@@ -523,7 +527,7 @@ def test_native_secret_rule_distinguishes_credentials_from_git_identity(
             executable,
             "stdin",
             "--config",
-            str(REPOSITORY_ROOT / policy),
+            str(REPOSITORY_ROOT / ".config/checks/gitleaks/gitleaks.toml"),
             "--redact=100",
             "--no-banner",
             "--timeout=20",

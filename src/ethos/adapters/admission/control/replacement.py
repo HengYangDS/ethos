@@ -84,7 +84,7 @@ def control_replacement_report(
         report.update(verdict="block", required_gaps=list(proposed.gaps))
         return report
     changed_obligations = _changed_obligations(prior, proposed)
-    floor = (
+    floor: dict[str, object] = (
         {
             "accepted_policy_digest": prior.digest,
             "candidate_policy_digest": proposed.digest,

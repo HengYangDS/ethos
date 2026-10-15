@@ -36,8 +36,8 @@ let githubPythonBootstrap = [{
 	uses: "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
 	with: "python-version": "3.14"
 }, {
-	uses: "astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7"
-	with: version: "0.12.23"
+	uses: "astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884"
+	with: version: "0.13.0"
 }, {
 	name: "Bootstrap Python and OpenSpec"
 	run:  "tools/ci/scripts/bootstrap-python.sh"
@@ -154,9 +154,9 @@ github: {
 					ref:           githubSourceSHA
 				}
 			}, {
-				uses: "astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7"
+				uses: "astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884"
 				with: {
-					version:          "0.12.23"
+					version:          "0.13.0"
 					"python-version": "${{ matrix.python }}"
 				}
 			}, {
@@ -188,7 +188,7 @@ github: {
 			}, {
 				name: "Upload host conformance receipt"
 				if:   "always()"
-				uses: "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+				uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 				with: {
 					name:                "host-conformance-${{ matrix.os }}-py${{ matrix.python }}"
 					path:                "build/evidence/local-install/smoke.json"
@@ -217,7 +217,7 @@ github: {
 			}, {
 				name: "Upload proof receipt"
 				if:   "always()"
-				uses: "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+				uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 				with: {
 					name: "ethos-proof-receipt"
 					path: """
@@ -230,7 +230,7 @@ github: {
 					"if-no-files-found": "error"
 				}
 			}, {
-				uses: "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+				uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 				with: {
 					name:                "python-distributions"
 					"if-no-files-found": "error"
@@ -253,7 +253,7 @@ github: {
 			}, {
 				name: "Upload external link observation"
 				if:   "always()"
-				uses: "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+				uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
 				with: {
 					name:                "ethos-external-link-health"
 					path:                "build/evidence/quality/external-links/report.json"

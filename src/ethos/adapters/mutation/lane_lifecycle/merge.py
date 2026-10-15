@@ -120,7 +120,7 @@ def _mode_gaps(root: Path, observed: MergeObservation, mode: str, incoming: str)
         return ["merge_not_in_progress"]
     if len(observed.parents) != 1:
         return ["merge_multiple_parents_unsupported"]
-    return _continuation_gaps(root, observed, incoming) if mode == "continue" else []
+    return _continuation_gaps(root, observed) if mode == "continue" else []
 
 
 def _ignored_checkout_gaps(root: Path, incoming: str) -> list[str]:
@@ -143,15 +143,8 @@ def _ignored_checkout_gaps(root: Path, incoming: str) -> list[str]:
     return [f"merge_ignored_content_collision:{path}" for path in sorted(collisions)]
 
 
-def _continuation_gaps(root: Path, observed: MergeObservation, incoming: str) -> list[str]:
-    gaps = [
-        gap
-        for failed, gap in (
-            (observed.parents != (incoming,), "merge_candidate_changed"),
-            (bool(observed.conflicts), "merge_unresolved_index"),
-        )
-        if failed
-    ]
+def _continuation_gaps(root: Path, observed: MergeObservation) -> list[str]:
+    gaps = ["merge_unresolved_index"] if observed.conflicts else []
     if not gaps and run_git(root, "diff", "--quiet", check=False, observation=True).returncode:
         gaps.append("merge_unstaged_resolution")
     return gaps
@@ -175,9 +168,15 @@ class _MergeContext:
             {
                 "native": self.observed.projection() if native is None else native,
                 "lease": self.lease,
-                "candidate_ref": self.candidate_ref,
-                "candidate": self.incoming,
-                "source_head": self.source_head,
+                **(
+                    {
+                        "candidate_ref": self.candidate_ref,
+                        "candidate": self.incoming,
+                        "source_head": self.source_head,
+                    }
+                    if self.candidate_ref
+                    else {}
+                ),
                 "runtime": self.runtime_digest,
                 "mode": mode,
                 "subject": message,
@@ -208,11 +207,16 @@ def _context(
         or policy.role_for_branch(source_ref.removeprefix("refs/heads/")) != ROLE_WORK_LANE
     ):
         _fail("merge_source_ref_invalid")
-    candidate_ref = "" if mode == "abort" else source_ref or f"refs/heads/{policy.candidate_branch}"
+    selected = ("continue" if observed.parents else "start") if mode == "inspect" else mode
+    candidate_ref = (
+        ""
+        if selected == "abort"
+        else source_ref or (f"refs/heads/{policy.candidate_branch}" if selected == "start" else "")
+    )
     source_head = ref_head(root, candidate_ref) if candidate_ref else ""
     if candidate_ref and not source_head:
         _fail("merge_source_ref_missing" if source_ref is not None else "candidate_branch_missing")
-    incoming = source_head
+    incoming = source_head or (observed.parents[0] if len(observed.parents) == 1 else "")
     if source_ref is not None and observed.parents:
         if len(observed.parents) != 1 or not is_ancestor(root, observed.parents[0], source_head):
             _fail("merge_source_ref_changed")

@@ -16,7 +16,7 @@ from ethos.adapters.process import run_command
 
 if TYPE_CHECKING:
     import subprocess
-    from collections.abc import Iterator
+    from collections.abc import Generator
     from collections.abc import Mapping
 
 
@@ -203,7 +203,7 @@ def locked_tool(root: Path, name: str, files: Mapping[str, str] | None = None) -
 
 
 @contextmanager
-def locked_environment(root: Path, files: Mapping[str, str]) -> Iterator[dict[str, str]]:
+def locked_environment(root: Path, files: Mapping[str, str]) -> Generator[dict[str, str]]:
     """Expose locked tools and the selected mise only for the child lifetime."""
     executable = mise_executable()
     selected = run_mise(root, ("env", "--json"), files=files, executable=executable, offline=True)

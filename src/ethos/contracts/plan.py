@@ -103,6 +103,10 @@ class GitRefUpdate(_PlanModel):
     expected: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
     desired: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
 
+    def inverse(self) -> Self:
+        """Return the exact reverse compare-and-swap."""
+        return type(self)(expected=self.desired, desired=self.expected)
+
 
 class GitEffect(_PlanModel):
     """One typed, permission-bounded Git ref transaction."""
@@ -155,6 +159,11 @@ class GitEffect(_PlanModel):
                 "",
             )
         ).encode()
+
+    def inverse(self) -> Self:
+        """Return the exact compensating transaction under the same assertions."""
+        updates = {ref: update.inverse() for ref, update in self.updates.items()}
+        return type(self)(updates=updates, assertions=self.assertions)
 
 
 class TransitionPlan(_PlanModel):

@@ -12,21 +12,15 @@ from pathlib import Path
 
 from ruff import find_ruff_bin
 
+from ethos.adapters.gates.native.inputs import authored_source_files
 from ethos.adapters.gates.native.inputs import native_configurations
 from ethos.adapters.gates.native.inputs import quality_inventory_failure
-from ethos.adapters.gates.native.inputs import quality_source_files
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.runtime.filesystem import runtime_scripts
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
-from ethos.domain.source_budget.measurement_policy import policy_for_root
-from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
-from ethos.repository.policy.projections import projection_relations
 from ethos.repository.policy.quality.format_selection import audit
-from ethos.repository.policy.rules.config import path_matches
-from ethos.repository.profile import INVALID_PROFILE_ERROR
-from ethos.repository.profile import load_repository_profile
 from ethos.repository.release.resources import canonical_resource
 
 _SUFFIXES = frozenset(
@@ -46,7 +40,6 @@ _SUFFIXES = frozenset(
         ".svg",
     }
 )
-_IMMUTABLE = ("evidence/", "docs/archive/", "openspec/changes/archive/")
 
 
 @dataclass(frozen=True)
@@ -61,35 +54,15 @@ class FormattedFile:
 
 
 def _selected_files(root: Path, requested: tuple[str, ...]) -> tuple[tuple[str, str], ...]:
-    profile = load_repository_profile(root)
-    if profile.state == "invalid":
-        raise ValueError(INVALID_PROFILE_ERROR)
-    foreign = profile.declaration.proof.source_kinds if profile.declaration else {}
-    declarations = {
-        path: (root / path).read_text(encoding="utf-8")
-        for path in PROJECTION_DECLARATIONS
-        if (root / path).is_file()
-    }
-    generated = {item.output for item in projection_relations(declarations)}
-    policy, gaps = policy_for_root(canonical_resource())
-    if policy is None or gaps:
-        raise ValueError(gaps[0] if gaps else "source_budget_policy_invalid")
-    dependencies = tuple(
-        pattern
-        for item in policy.carriers
-        if item.category == "dependency_resolution"
-        for pattern in item.paths
-    )
-    files = []
-    for relative in requested or tuple(quality_source_files(root)):
-        excluded = (
-            relative in foreign
-            or relative in generated
-            or relative.startswith(_IMMUTABLE)
-            or path_matches(relative, dependencies)
+    authored = authored_source_files(root, paths=requested)
+    selected_paths = set(authored)
+    files = [
+        relative
+        for relative in requested or authored
+        if _candidate_path(
+            root, relative, excluded=relative not in selected_paths, explicit=bool(requested)
         )
-        if _candidate_path(root, relative, excluded=excluded, explicit=bool(requested)):
-            files.append(relative)
+    ]
     ownership = audit(
         root,
         paths=tuple(dict.fromkeys(files)),

@@ -25,7 +25,7 @@ from ethos.adapters.repo.git import git_stdout
 from ethos.contracts.semantic import canonical_json_digest
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
 
     from ethos.contracts.plan import GitRefUpdate
 
@@ -111,7 +111,7 @@ def write_ref_intent(
 
 
 @contextmanager
-def _locked_intents(directory: Path) -> Iterator[None]:
+def _locked_intents(directory: Path) -> Generator[None]:
     # One stable inode per intent directory, not per transaction.
     lock = FileLock(
         directory / ".lock",

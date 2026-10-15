@@ -23,11 +23,7 @@
     },
     "authority": {
       "type": "object",
-      "required": [
-        "semantic_owner",
-        "scope",
-        "effect_authority"
-      ],
+      "required": ["semantic_owner", "scope", "effect_authority"],
       "properties": {
         "semantic_owner": {
           "type": "string",
@@ -45,13 +41,7 @@
     },
     "source": {
       "type": "object",
-      "required": [
-        "id",
-        "revision",
-        "git",
-        "bindings",
-        "documents"
-      ],
+      "required": ["id", "revision", "git", "bindings", "documents"],
       "properties": {
         "id": {
           "type": "string",
@@ -62,10 +52,7 @@
         },
         "git": {
           "type": "object",
-          "required": [
-            "commit",
-            "tree"
-          ],
+          "required": ["commit", "tree"],
           "properties": {
             "commit": {
               "$ref": "#/$defs/gitObject"
@@ -95,11 +82,7 @@
     },
     "documents": {
       "type": "object",
-      "required": [
-        "copy",
-        "view_profile",
-        "quality_contract"
-      ],
+      "required": ["copy", "view_profile", "quality_contract"],
       "properties": {
         "copy": {
           "type": "object"
@@ -116,11 +99,7 @@
     },
     "semantics": {
       "type": "object",
-      "required": [
-        "nodes",
-        "relations",
-        "contracts"
-      ],
+      "required": ["nodes", "relations", "contracts"],
       "properties": {
         "nodes": {
           "type": "object",
@@ -143,10 +122,7 @@
     },
     "view": {
       "type": "object",
-      "required": [
-        "nodes",
-        "relations"
-      ],
+      "required": ["nodes", "relations"],
       "properties": {
         "nodes": {
           "type": "object",
@@ -178,12 +154,7 @@
     },
     "sourceBinding": {
       "type": "object",
-      "required": [
-        "id",
-        "path",
-        "authority",
-        "sha256"
-      ],
+      "required": ["id", "path", "authority", "sha256"],
       "properties": {
         "id": {
           "type": "string",
@@ -206,19 +177,10 @@
     },
     "documentBinding": {
       "type": "object",
-      "required": [
-        "id",
-        "path",
-        "sha256"
-      ],
+      "required": ["id", "path", "sha256"],
       "properties": {
         "id": {
-          "enum": [
-            "semantic_graph",
-            "copy",
-            "view_profile",
-            "quality_contract"
-          ]
+          "enum": ["semantic_graph", "copy", "view_profile", "quality_contract"]
         },
         "path": {
           "type": "string",
@@ -232,12 +194,7 @@
     },
     "node": {
       "type": "object",
-      "required": [
-        "label",
-        "kind",
-        "provenance",
-        "attributes"
-      ],
+      "required": ["label", "kind", "provenance", "attributes"],
       "properties": {
         "label": {
           "type": "string",
@@ -264,14 +221,7 @@
     },
     "relation": {
       "type": "object",
-      "required": [
-        "id",
-        "from",
-        "to",
-        "kind",
-        "provenance",
-        "attributes"
-      ],
+      "required": ["id", "from", "to", "kind", "provenance", "attributes"],
       "properties": {
         "id": {
           "type": "string",
@@ -308,9 +258,7 @@
       "oneOf": [
         {
           "type": "object",
-          "required": [
-            "project"
-          ],
+          "required": ["project"],
           "properties": {
             "project": {
               "type": "object"
@@ -320,10 +268,7 @@
         },
         {
           "type": "object",
-          "required": [
-            "omit",
-            "reason"
-          ],
+          "required": ["omit", "reason"],
           "properties": {
             "omit": {
               "const": true

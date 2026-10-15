@@ -23,6 +23,8 @@ if TYPE_CHECKING:
     [
         ("source.json", '{ "values": [1, 2], "nested": { "valid": true } }\n'),
         ("source.yaml", "value: [one, two]\n"),
+        (".gitlab-ci.yml", "value: [one, two]\n"),
+        (".github/workflows/ci.yml", "value: [one, two]\n"),
         ("source.yaml", "command: " + "word " * 48 + "end\n"),
         ("source.yaml", "value: |\n  first\n\n\n  second\n"),
     ],
@@ -32,6 +34,7 @@ def test_native_prettier_accepted_layout_preserves_authored_bytes(
 ) -> None:
     root = init_git_repo(tmp_path / "repo")
     path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content)
     report = configuration_report(root, paths=(relative,))
     assert report["verdict"] == "pass", report
@@ -39,10 +42,13 @@ def test_native_prettier_accepted_layout_preserves_authored_bytes(
     assert path.read_text() == content
 
 
-@pytest.mark.parametrize("relative", ["source.json", "source.yaml"])
+@pytest.mark.parametrize(
+    "relative", ["source.json", "source.yaml", ".gitlab-ci.yml", ".github/workflows/ci.yml"]
+)
 def test_native_format_refusal_is_not_a_write(tmp_path: Path, relative: str) -> None:
     root = init_git_repo(tmp_path / "repo")
     path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
     content = '{"value":true}\n' if relative.endswith("json") else "value: [ one,two ]\n"
     path.write_text(content)
     report = configuration_report(root, paths=(relative,))
@@ -84,12 +90,15 @@ def test_native_dependency_resolution_keeps_its_byte_owner(tmp_path: Path) -> No
     assert path.read_text() == content
 
 
-@pytest.mark.parametrize("relative", ["source.json", "source.yaml"])
+@pytest.mark.parametrize(
+    "relative", ["source.json", "source.yaml", ".gitlab-ci.yml", ".github/workflows/ci.yml"]
+)
 def test_native_formatter_fix_and_check_are_one_idempotent_path(
     tmp_path: Path, relative: str
 ) -> None:
     root = init_git_repo(tmp_path / "repo")
     path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
     content = '{"value":true}\n' if relative.endswith("json") else "value: [ one,two ]\n"
     path.write_text(content)
     command = (

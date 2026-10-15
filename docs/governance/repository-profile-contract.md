@@ -168,6 +168,14 @@ declaration contracts reject missing, duplicate, mismatched, cyclic, or incomple
 descriptors before planning; ETHOS never guesses a command or accepts an unverified
 proof-run ID.
 
+Local-source acceptance derives dependency-audit applicability from the exact
+declared full gate policy. A selected canonical ETHOS audit binds its native
+scope, captured inputs and current dispositions; an omitted required audit
+blocks planning before execution. A repository-owned native floor keeps every
+declared gate and its evidence obligations without acquiring ETHOS's Python
+audit inputs. Proof issuance and consumption re-observe that same source policy;
+successful partial or noncanonical results never replace the required floor.
+
 Gate storage does not select repository type. Common governance evaluates actual
 OpenSpec observations, optional commit policy and declared release-role consistency
 for both inline and registry profiles. Missing optional policy adds no product

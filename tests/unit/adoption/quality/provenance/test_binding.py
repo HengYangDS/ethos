@@ -13,6 +13,7 @@ import tomli_w
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.contracts.gates import Gate
 from ethos.repository.policy.gates import bind_gate_source_digests
+from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import SourceContract
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
@@ -194,3 +195,61 @@ def test_generated_source_binding_preserves_compiler_inputs_and_complete_outputs
     )
     _sources, gaps = bind_gate_source_digests((gate,), material, source_contracts=(partial,))
     assert any("source_producer_group_incomplete" in gap for gap in gaps)
+
+
+@pytest.mark.parametrize(
+    ("contract", "message"),
+    [
+        (
+            {"input_refs": ["a.toml"], "members": {"out.js": ["b.toml", "out.js"]}},
+            "use each distinct input reference",
+        ),
+        (
+            {"input_refs": ["a//b.toml"], "members": {"out.js": ["a//b.toml", "out.js"]}},
+            "exact repository path",
+        ),
+        (
+            {"input_refs": ["a.toml#x"], "members": {"out.js": ["a.toml#x", "out.js"]}},
+            "no supported native meaning",
+        ),
+        (
+            {"input_refs": ["a.toml"], "members": {"out.js": ["a.toml", "other.js"]}},
+            "exact native identity",
+        ),
+    ],
+)
+def test_source_contract_preserves_exact_native_relations(contract: dict, message: str) -> None:
+    """A generated obligation binds each exact input once to its exact output member."""
+    with pytest.raises(ValueError, match=message):
+        SourceContract.model_validate(
+            {"kind": "generated", "integrity_gate": "integrity", **contract}
+        )
+
+
+@pytest.mark.parametrize(
+    ("policy", "message"),
+    [
+        (
+            {
+                "source_contracts": [
+                    {
+                        "kind": "generated",
+                        "input_refs": [reference],
+                        "members": {"out.js": [reference, "out.js"]},
+                        "integrity_gate": "integrity",
+                    }
+                    for reference in ("a.toml", "b.toml")
+                ]
+            },
+            "source artifact has parallel owners",
+        ),
+        (
+            {"gate_registry": "system/gates.toml", "code_correctness_gates": ["tests"]},
+            "proof policy has parallel gate owners",
+        ),
+    ],
+)
+def test_proof_policy_keeps_one_owner_per_artifact_and_gate(policy: dict, message: str) -> None:
+    """Artifacts and the proof floor each keep exactly one declared owner."""
+    with pytest.raises(ValueError, match=message):
+        ProofPolicy.model_validate(policy)

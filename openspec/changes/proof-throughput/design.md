@@ -238,12 +238,12 @@ Throughput and parallel safety share a structural requirement: ownership and
 reuse follow semantic inputs and lifetimes, not test names or process count.
 The existing owners retain four distinct boundaries:
 
-| Boundary          | Owner responsibility                                                                                                          | Acceptance                                                                                               |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Candidate         | Build one exact candidate; its consumers and native children execute that identity. Mutable-source tests retain source mode.  | Reject mixed source/package execution; include build and preparation in timings.                         |
-| Observation       | Resolve relevant facts once within an explicit observation; reuse only unchanged immutable computation.                       | Fresh authorization, refs, Lease, trust and source at each effect; cache removal cannot alter verdict.   |
-| Test              | Prepare independent real prerequisites for the tested obligation. Exercise full journeys where composition is the obligation. | Preserve each original behavioral claim; no shared mutable repo, hidden mocks or dropped coverage.       |
-| Resource lifetime | The owner outlives fallible workers and owns admission, cancellation, descendant cleanup and temporary roots.                 | Worker loss, nested effects and owner loss are separate fault cases; unknown containment is not success. |
+| Boundary | Owner responsibility | Acceptance |
+| --- | --- | --- |
+| Candidate | Build one exact candidate; its consumers and native children execute that identity. Mutable-source tests retain source mode. | Reject mixed source/package execution; include build and preparation in timings. |
+| Observation | Resolve relevant facts once within an explicit observation; reuse only unchanged immutable computation. | Fresh authorization, refs, Lease, trust and source at each effect; cache removal cannot alter verdict. |
+| Test | Prepare independent real prerequisites for the tested obligation. Exercise full journeys where composition is the obligation. | Preserve each original behavioral claim; no shared mutable repo, hidden mocks or dropped coverage. |
+| Resource lifetime | The owner outlives fallible workers and owns admission, cancellation, descendant cleanup and temporary roots. | Worker loss, nested effects and owner loss are separate fault cases; unknown containment is not success. |
 
 Current native profiling at `ad33fdc15` finds 682 product Git and 36 Node
 invocations in one closeout-policy case, including ten source-build observations.
@@ -300,30 +300,30 @@ The exact source proof at `26405d4d8f57d48f6d6a1603d738b06a688fcd7f`
 passed 35 gates. `throughput-baseline-breakdown.json` contains all 35 gate
 observations, every test module, source hashes and the profile comparisons.
 
-| Layer                   | Measurement                        | Interpretation                                                                      |
-| ----------------------- | ---------------------------------- | ----------------------------------------------------------------------------------- |
-| Whole command           | 2,171.662 seconds                  | Includes command preparation and cleanup                                            |
-| Pytest                  | 1,925.089 seconds, 88.6 percent    | Primary wall-time bottleneck                                                        |
-| Remaining work          | 246.573 seconds                    | Installation, other gates and orchestration; exact historical subphases unavailable |
-| Installed acceptance    | Approximately three minutes in Nox | Rounded, not an exact timer                                                         |
-| Projection prerequisite | Approximately ten seconds in Nox   | Repeats 69 projection cases later included in full pytest                           |
-| Summed test durations   | 3,808.545 seconds                  | Concurrent case time, not command wall time                                         |
+| Layer | Measurement | Interpretation |
+| --- | --- | --- |
+| Whole command | 2,171.662 seconds | Includes command preparation and cleanup |
+| Pytest | 1,925.089 seconds, 88.6 percent | Primary wall-time bottleneck |
+| Remaining work | 246.573 seconds | Installation, other gates and orchestration; exact historical subphases unavailable |
+| Installed acceptance | Approximately three minutes in Nox | Rounded, not an exact timer |
+| Projection prerequisite | Approximately ten seconds in Nox | Repeats 69 projection cases later included in full pytest |
+| Summed test durations | 3,808.545 seconds | Concurrent case time, not command wall time |
 
 The summed test duration divided by two workers and pytest wall time is 98.9
 percent. This is occupancy evidence, not CPU utilization. It argues against
 idle scheduling being the dominant suite cost; calls may still be waiting on
 native children, locks or I/O.
 
-| Test family                   | Cases | Summed seconds | Share of summed time |
-| ----------------------------- | ----- | -------------- | -------------------- |
-| CLI                           | 487   | 1,787.107      | 46.92 percent        |
-| Lane lifecycle and retirement | 536   | 663.070        | 17.41 percent        |
-| Repository and other adapters | 826   | 400.561        | 10.52 percent        |
-| Mutation                      | 239   | 374.018        | 9.82 percent         |
-| Kernel                        | 328   | 200.587        | 5.27 percent         |
-| Admission                     | 298   | 194.239        | 5.10 percent         |
-| Architecture                  | 143   | 43.352         | 1.14 percent         |
-| Projection                    | 69    | 13.744         | 0.36 percent         |
+| Test family | Cases | Summed seconds | Share of summed time |
+| --- | --- | --- | --- |
+| CLI | 487 | 1,787.107 | 46.92 percent |
+| Lane lifecycle and retirement | 536 | 663.070 | 17.41 percent |
+| Repository and other adapters | 826 | 400.561 | 10.52 percent |
+| Mutation | 239 | 374.018 | 9.82 percent |
+| Kernel | 328 | 200.587 | 5.27 percent |
+| Admission | 298 | 194.239 | 5.10 percent |
+| Architecture | 143 | 43.352 | 1.14 percent |
+| Projection | 69 | 13.744 | 0.36 percent |
 
 These disjoint families do not exhaust the suite; the machine breakdown retains
 all remaining modules. CLI, lanes and mutation together account for 74.1 percent.
@@ -440,24 +440,24 @@ passed in 173.53 seconds on that source. The following exclusive accounting is
 derived from nested monotonic spans, not rounded Nox summaries. It does not
 overwrite the historical full-proof remainder or constitute full proof itself.
 
-| Installed acceptance phase                                            | Exclusive seconds |
-| --------------------------------------------------------------------- | ----------------: |
-| Native merge preparation, conflict, abort, replay and signed continue |            70.399 |
-| Other lane bootstrap, rejected prewrite and retirement recovery       |            19.972 |
-| Historical signature repair and reproof                               |            17.289 |
-| First runtime activation                                              |            13.739 |
-| Successor runtime activation                                          |            12.675 |
-| Relocation and runtime repair                                         |            12.531 |
-| Installed CLI, SDK and OpenSpec checks                                |             5.812 |
-| Initial locked dependency and wheel installation                      |             5.808 |
-| Host-independent command-plane checks                                 |             5.457 |
-| Both owned-tree cleanup stages                                        |             4.010 |
-| Candidate topology preparation                                        |             1.899 |
-| Adopter preparation                                                   |             1.382 |
-| Immutable version check                                               |             1.056 |
-| Fresh wheel build                                                     |             0.703 |
-| Other measured setup, validation and orchestration                    |             0.653 |
-| Unattributed inter-span time                                          |             0.142 |
+| Installed acceptance phase | Exclusive seconds |
+| --- | ---: |
+| Native merge preparation, conflict, abort, replay and signed continue | 70.399 |
+| Other lane bootstrap, rejected prewrite and retirement recovery | 19.972 |
+| Historical signature repair and reproof | 17.289 |
+| First runtime activation | 13.739 |
+| Successor runtime activation | 12.675 |
+| Relocation and runtime repair | 12.531 |
+| Installed CLI, SDK and OpenSpec checks | 5.812 |
+| Initial locked dependency and wheel installation | 5.808 |
+| Host-independent command-plane checks | 5.457 |
+| Both owned-tree cleanup stages | 4.010 |
+| Candidate topology preparation | 1.899 |
+| Adopter preparation | 1.382 |
+| Immutable version check | 1.056 |
+| Fresh wheel build | 0.703 |
+| Other measured setup, validation and orchestration | 0.653 |
+| Unattributed inter-span time | 0.142 |
 
 `throughput-install-timeline-bound.json` retains every phase and child-command
 span; its acceptance receipt records every required lifecycle stage. The entire
@@ -668,10 +668,10 @@ it is not complete proof or coverage acceptance. Fixture roots were fresh, but
 host/tool caches were not cleared and order was not counterbalanced.
 
 | Workers | Whole invocation seconds | Summed case seconds | Cases passed |
-| ------- | -----------------------: | ------------------: | -----------: |
-| 2       |                   31.159 |              50.470 |           52 |
-| 4       |                   23.475 |              58.809 |           52 |
-| 8       |                   22.479 |              76.563 |           52 |
+| --- | ---: | ---: | ---: |
+| 2 | 31.159 | 50.470 | 52 |
+| 4 | 23.475 | 58.809 | 52 |
+| 8 | 22.479 | 76.563 | 52 |
 
 The sample does not reproduce a high-concurrency failure. Four to eight workers
 saves only about one second while aggregate case duration grows; that suggests
@@ -1123,6 +1123,7 @@ and report cold-computation and warm results separately. Initial installation
 or network acquisition not included by the command must be disclosed separately.
 The active staged target is defined above; partial speedups do not satisfy it.
 
+
 ### Exact Full-Proof Readback And Cancellation Race
 
 The immutable `2acfe4a080d6c1c6f82b692d0a54144f87e179f9` proof passes all 35
@@ -1132,16 +1133,16 @@ gates with 3,797 passed and one skipped case. Combined line/branch coverage is
 accounting, artifact hashes and the case ranking are in
 `throughput-post-batch-breakdown.json`; this unchanged proof was not rerun.
 
-| Exclusive phase                   |   Seconds |
-| --------------------------------- | --------: |
-| Pytest                            | 1,622.028 |
-| Installed acceptance              |   165.104 |
-| Test setup, reporting and cleanup |    18.597 |
-| Prerequisite critical path        |    17.246 |
-| Outside the gate graph            |    12.891 |
-| Coverage and artifact processing  |     1.081 |
-| Build                             |     1.427 |
-| SBOM                              |     2.522 |
+| Exclusive phase | Seconds |
+| --- | ---: |
+| Pytest | 1,622.028 |
+| Installed acceptance | 165.104 |
+| Test setup, reporting and cleanup | 18.597 |
+| Prerequisite critical path | 17.246 |
+| Outside the gate graph | 12.891 |
+| Coverage and artifact processing | 1.081 |
+| Build | 1.427 |
+| SBOM | 2.522 |
 
 A native land-policy case still makes 885 product subprocess calls, including
 849 Git calls, thirteen source observations and 36 Node calls. Repeated native
@@ -1185,6 +1186,7 @@ its own process death. The prior same-group survivor probe remains valid
 counterevidence. Next repairs must preserve a surviving lifetime owner, nested
 command boundaries and healthy concurrent work; no global process scan or
 permanent serial test policy substitutes for that guarantee.
+
 
 ### Batched Native Effect Observation
 
@@ -1255,6 +1257,7 @@ it does not justify whole-suite migration or a source-currentness cache.
 `throughput-packaged-hotspot.json` binds the wheel to exact source/tree. The
 owned wheel/install tree was removed. The 600-second complete-proof goal and
 surviving-worker resource ownership remain open.
+
 
 ### Prepare State Without Repeating An Unrelated Workflow
 
@@ -1726,13 +1729,13 @@ source 7f81088fe65768d56390eaca36dbc7426034ac57. Raw reports and source bindings
 retained in `build/evidence/quality/commit-integrity/quality-committee.json`.
 They are design evidence, not independent execution or product acceptance.
 
-| Alternative                                       | Disposition and evidence                                                                                                                                                                                                        |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Retain the current native closure                 | Operational containment only. Filelock 3 remains an unresolved latest-stable gap; no exception or completion is inferred.                                                                                                       |
-| Remove Nox and the pre-commit framework           | Not selected without capability-preserving evidence. Eight modules consume Session operations; twenty declared gates and both Forge projections use Nox. A new Session clone would transfer complexity, not remove it.          |
-| Separate launcher and checks with native tooling  | Feasible in the isolated probe, not qualified on real consumers. Import-time project dependencies and invoking-interpreter capture remain obstacles. Filelock 3 in the launcher would still leave comprehensive freshness open. |
-| Repair the upstream constraint owner              | Preferred supply path: supported stable metadata and behavior, native resolution, dependency health and repository acceptance. Local overrides or relabeled rebuilt metadata do not establish upstream support.                 |
-| Remove measured redundant work at existing owners | Selected bounded performance direction: operation-local runtime observation first, then demand-driven setup and measured lifecycle work. No full-cycle speedup is inferred from a profile.                                      |
+| Alternative | Disposition and evidence |
+| --- | --- |
+| Retain the current native closure | Operational containment only. Filelock 3 remains an unresolved latest-stable gap; no exception or completion is inferred. |
+| Remove Nox and the pre-commit framework | Not selected without capability-preserving evidence. Eight modules consume Session operations; twenty declared gates and both Forge projections use Nox. A new Session clone would transfer complexity, not remove it. |
+| Separate launcher and checks with native tooling | Feasible in the isolated probe, not qualified on real consumers. Import-time project dependencies and invoking-interpreter capture remain obstacles. Filelock 3 in the launcher would still leave comprehensive freshness open. |
+| Repair the upstream constraint owner | Preferred supply path: supported stable metadata and behavior, native resolution, dependency health and repository acceptance. Local overrides or relabeled rebuilt metadata do not establish upstream support. |
+| Remove measured redundant work at existing owners | Selected bounded performance direction: operation-local runtime observation first, then demand-driven setup and measured lifecycle work. No full-cycle speedup is inferred from a profile. |
 
 Nox is not a second proof scheduler. It supplies used output capture, accepted
 exit codes, environment changes, positional arguments and failure behavior.
@@ -1828,7 +1831,8 @@ Session behavior, command registry, gate coverage and thresholds are unchanged.
 Six alternating fresh-process discovery pairs use the committed baseline
 013e13226 and candidate modules with the same interpreter, source root and
 prepared supply. Session names and runtime coordinates agree. Median discovery
-falls from 0.224650 to 0.027287 seconds; imported module count falls from 482 to 146. All five unselected capability owners are observed in every baseline and
+falls from 0.224650 to 0.027287 seconds; imported module count falls from 482 to
+146. All five unselected capability owners are observed in every baseline and
 absent in every candidate. The tracked import regression additionally requires
 the session module itself, preventing an empty observation from passing.
 This warm-filesystem import measurement is not whole-proof or cold-setup timing.
@@ -1929,7 +1933,7 @@ The native comparison exercises small and large frames, official early exit and
 unexecuted tail. A stopped reader reaches a bounded write-timeout; a closed reader
 fails with EPIPE; neither duplicates a frame. POSIX pipe-failure probes do not
 qualify native Windows behavior. Raw evidence is retained in the existing
-commit-integrity evidence root under operation-intent-_, batch-backpressure-_ and
+commit-integrity evidence root under operation-intent-*, batch-backpressure-* and
 batch-native-failures. Focused evidence is not exact-source full proof, installed
 acceptance, publication, Change archive or Work Lane retirement.
 
@@ -2276,15 +2280,15 @@ evidence that the quality requirements are complete. The earlier hosted
 consolidation acceptance is reopened; prior successful source delivery remains
 historical evidence, not current completeness.
 
-| Obligation                   | Observed implementation                                                                                                                                                                            | Disposition                                                                                                                  |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Whole-source documentation   | The docstring owner reports 101/101 while 27 of 278 tracked product Python modules lack module docstrings. A module and public function with no docstrings produce zero selected symbols and pass. | Confirmed scope defect against the user requirement; restore native whole-module enforcement.                                |
-| Warning rejection            | Real command gates with explicit stdout or stderr warnings exit zero and pass. An ETHOS command envelope with warnings blocks.                                                                     | Confirmed inconsistent command boundary; native adapters must settle diagnostics, not arbitrary JSON or log spelling.        |
-| Complete hosted results      | The real wrapper accepts three check results for a declared full invocation. Existing tests also accept missing, malformed and failing JUnit reports.                                              | Confirmed receipt admission defect; compare with the existing exact-source policy compiler and validate required artifacts.  |
-| Required platform acceptance | Active GitHub ruleset 19657652 requires quality gates, repository proof and package artifacts. The last two depend only on quality; host-conformance is outside those required dependencies.       | Verified enforcement gap; bind required capability results without duplicate executions.                                     |
-| Honest observation           | The hosted-observation session defaults to a nonexecuted UNKNOWN envelope and succeeds unless execution is explicitly enabled.                                                                     | Configuration observation is not a completed hosted check; separate actual post-run readback from pipeline self-observation. |
-| Local provider coverage      | Emulator selection is quality for GitHub and ethos:verify for GitLab. Native local CI selects the full registry, not the independent provider workloads.                                           | Selected-job emulation is not complete provider parity; qualify declared local and platform-specific boundaries.             |
-| Check effectiveness          | Projection tests check source equality, command presence and aggregate status. Those assertions do not reject missing semantic obligations or narrowed tool coverage.                              | Replace completeness claims with per-property positive and falsifying execution evidence.                                    |
+| Obligation | Observed implementation | Disposition |
+| --- | --- | --- |
+| Whole-source documentation | The docstring owner reports 101/101 while 27 of 278 tracked product Python modules lack module docstrings. A module and public function with no docstrings produce zero selected symbols and pass. | Confirmed scope defect against the user requirement; restore native whole-module enforcement. |
+| Warning rejection | Real command gates with explicit stdout or stderr warnings exit zero and pass. An ETHOS command envelope with warnings blocks. | Confirmed inconsistent command boundary; native adapters must settle diagnostics, not arbitrary JSON or log spelling. |
+| Complete hosted results | The real wrapper accepts three check results for a declared full invocation. Existing tests also accept missing, malformed and failing JUnit reports. | Confirmed receipt admission defect; compare with the existing exact-source policy compiler and validate required artifacts. |
+| Required platform acceptance | Active GitHub ruleset 19657652 requires quality gates, repository proof and package artifacts. The last two depend only on quality; host-conformance is outside those required dependencies. | Verified enforcement gap; bind required capability results without duplicate executions. |
+| Honest observation | The hosted-observation session defaults to a nonexecuted UNKNOWN envelope and succeeds unless execution is explicitly enabled. | Configuration observation is not a completed hosted check; separate actual post-run readback from pipeline self-observation. |
+| Local provider coverage | Emulator selection is quality for GitHub and ethos:verify for GitLab. Native local CI selects the full registry, not the independent provider workloads. | Selected-job emulation is not complete provider parity; qualify declared local and platform-specific boundaries. |
+| Check effectiveness | Projection tests check source equality, command presence and aggregate status. Those assertions do not reject missing semantic obligations or narrowed tool coverage. | Replace completeness claims with per-property positive and falsifying execution evidence. |
 
 The warning probes exercised LocalGateRunner with real bounded subprocesses, not
 a full repository promotion. The wrapper probes used isolated external-tool
@@ -2368,14 +2372,14 @@ versioned capabilities select applicable obligations; repository deltas supply
 irreducible choices. Native tools own execution facts. Independent verification
 remains risk/profile-selected, not an unconditional external broker.
 
-| Boundary                 | Existing owner and remaining work                                                                                                                                                                                                                                                                                         |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Identity                 | Rule already carries id/version/owner/evidence and hardness metadata. RuleSet must reject duplicate active identities; repository deltas cannot shadow a baseline id. Structural JSON Schema validity is not that semantic check.                                                                                         |
-| Capability composition   | The current profile resolver admits generic/python/strict labels. Composable versioned capabilities and native repository-gate mappings still need conformance; do not call the current labels the completed baseline.                                                                                                    |
-| Carrier applicability    | Gate asset classes and format ownership exist, but extension selection does not prove native build scope. Consume exhaustive source-bound assignments from the repository's native role owner; Git attributes may project them, not replace that owner. Reconcile with native build selection without copying its parser. |
-| Evidence and waiver      | Existing evidence requirements and non-waivable markers are not a complete waiver implementation. Reuse Attestation/authority validity for owner, reason, scope, expiry and evidence; absent or invalid required evidence cannot authorize a waiver.                                                                      |
-| Repository choices       | Python 3.12 support, 95-percent coverage, Nox and uv are self-profile choices. Common obligations concern supported versions, explicit floors, locked supply and reproducible evidence, not those particular values.                                                                                                      |
-| Failure and continuation | Keep current facts, native failures, normalized evidence, applicable verification and one admission result in the existing chain. No parallel lifecycle, task ledger or graph authority is introduced.                                                                                                                    |
+| Boundary | Existing owner and remaining work |
+| --- | --- |
+| Identity | Rule already carries id/version/owner/evidence and hardness metadata. RuleSet must reject duplicate active identities; repository deltas cannot shadow a baseline id. Structural JSON Schema validity is not that semantic check. |
+| Capability composition | The current profile resolver admits generic/python/strict labels. Composable versioned capabilities and native repository-gate mappings still need conformance; do not call the current labels the completed baseline. |
+| Carrier applicability | Gate asset classes and format ownership exist, but extension selection does not prove native build scope. Consume exhaustive source-bound assignments from the repository's native role owner; Git attributes may project them, not replace that owner. Reconcile with native build selection without copying its parser. |
+| Evidence and waiver | Existing evidence requirements and non-waivable markers are not a complete waiver implementation. Reuse Attestation/authority validity for owner, reason, scope, expiry and evidence; absent or invalid required evidence cannot authorize a waiver. |
+| Repository choices | Python 3.12 support, 95-percent coverage, Nox and uv are self-profile choices. Common obligations concern supported versions, explicit floors, locked supply and reproducible evidence, not those particular values. |
+| Failure and continuation | Keep current facts, native failures, normalized evidence, applicable verification and one admission result in the existing chain. No parallel lifecycle, task ledger or graph authority is introduced. |
 
 An exact-HEAD public host observation on September 25 exposed the missing
 boundary: an adopter mapped `behavior` and `static-analysis` to two commands
@@ -2433,27 +2437,27 @@ package acceptance, reports and Forge merge settings. Historical source deliveri
 are not current acceptance. Rows describe observed coverage, not an exhaustive
 claim that every implementation is correct.
 
-| Quality obligation              | Current owner and observed coverage                                                                                                                    | Terminal disposition and falsifier                                                                                                                                                   |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Requirement preservation        | OpenSpec quality requirements and Change scenarios; graph membership alone cannot establish sufficiency                                                | Keep each distinct requirement and its falsifier; deletion of a check must retain the obligation through a demonstrated replacement                                                  |
-| Execution-source identity       | Repository proof has native worktree/index correspondence; host full proof ignores policy gaps and executes dirty bytes                                | Reuse the existing source observer before and after exact execution; reject a missing committed script restored untracked and a committed failing script replaced with passing bytes |
-| Declaration/result completeness | Local CI checks closure membership; hosted wrapper formerly checked only a subset                                                                      | One policy compiler and closed verdict semantics; reject missing, duplicate, unknown or identity-mismatched results                                                                  |
-| Python lint and formatting      | Ruff native lint/format runs over tracked and admitted untracked Python                                                                                | Keep native rules and rule ownership; verify all selected files and failed native outcomes                                                                                           |
-| Docstrings                      | Custom owner counts packages and decorated commands, not ordinary modules; 27/278 product, 92/230 test and 4/32 tool modules lack module documentation | Native Ruff D rules own presence/style; preserve necessary signature semantics without another style parser; reject missing module documentation throughout authoring surfaces       |
-| Type correctness                | Ty currently selects src only and infers results from prose                                                                                            | Use supported native diagnostic output and warning failure; qualify product and quality-tool/test policy explicitly rather than claiming all Python is typed                         |
-| Architecture and visibility     | Import-linter declares one layer contract; layout rules cover several paths                                                                            | Test allowed and forbidden cross-boundary imports, private access and dependency direction; names and diagrams alone are not enforcement                                             |
-| Carrier coverage                | Format selection requires nonempty command strings; default YAML input is a fixed list and missing requested files are filtered                        | Derive current candidates from ownership and native discovery; distinguish admitted deletion, absent required carrier and empty applicable set                                       |
-| Shell quality                   | ShellCheck is executed; declared shfmt ownership has no call in shell_lint                                                                             | Invoke both native owners for their distinct properties and reject syntax/semantic/format defects without rewriting during proof                                                     |
-| JavaScript quality              | javascript_lint invokes Prettier; npm test:npm only packs a dry-run manifest                                                                           | Separate formatting, semantic lint and launcher behavior; add real launcher positive/negative execution, not more packaging counters                                                 |
-| Schemas and configuration       | Schema metaschemas and selected live instances are checked; parser success is not consumer conformance                                                 | Verify required instance coverage and consumer rejection; remove copied/disconnected configs and nonfunctional command claims                                                        |
-| Behavioral testing              | Unit/architecture, property and native-effect cases execute; combined coverage floor is 95 percent                                                     | Preserve fault/recovery/adopter obligations; use targeted mutation or distinguishing cases for critical verdicts, not coverage as correctness proof                                  |
-| Warning semantics               | Provider/ETHOS envelopes reject warnings; plain command success can hide explicit warnings; emulator regexes do not cover other planes                 | Tool-native warnings-as-errors or native structured findings at the owning adapter; unknown required interpretation cannot pass; informational output remains valid                  |
-| Security and supply             | Python/npm dependency audits, tracked-secret scan and SPDX generation exist; these are not full SAST or provenance                                     | Distinguish vulnerability, secret, source-security, artifact identity and provenance claims; qualify each required owner and avoid asserting an unearned SLSA level                  |
-| Package and installation        | Wheel/package-only acceptance exists; host matrix exercises package behavior plus two portability tests                                                | Declare exact platform/tool/behavior scope; package conformance does not imply the complete source-quality graph ran on that OS                                                      |
-| Local provider emulation        | One selected GitHub job and one selected GitLab job                                                                                                    | Expose exact selected scope; support required dependency closure without claiming remote success or unavailable platforms                                                            |
-| Provider enforcement            | GitHub required statuses omit native conformance; GitLab only_allow_merge_if_pipeline_succeeds is false                                                | Bind final required admission to every mandatory result, turn on native pipeline success requirement, verify with a denied invalid candidate and normal valid path                   |
-| Reports and diagnostics         | JUnit/coverage mostly originate in verify; aggregate receipt previously tolerated invalid artifacts                                                    | Native test reports, per-check diagnostics, coverage and artifact identity remain separate; missing, stale or contradictory required reports block acceptance                        |
-| Resource and latency bounds     | Reference proof target is 900 seconds; historical GitLab verify took 1716 seconds; supervisor-loss boundaries remain open                              | Measure critical path, input transfer, queue/startup and cleanup; retain owned deadlines and no retry of unchanged failures; do not trade quality for elapsed time                   |
+| Quality obligation | Current owner and observed coverage | Terminal disposition and falsifier |
+| --- | --- | --- |
+| Requirement preservation | OpenSpec quality requirements and Change scenarios; graph membership alone cannot establish sufficiency | Keep each distinct requirement and its falsifier; deletion of a check must retain the obligation through a demonstrated replacement |
+| Execution-source identity | Repository proof has native worktree/index correspondence; host full proof ignores policy gaps and executes dirty bytes | Reuse the existing source observer before and after exact execution; reject a missing committed script restored untracked and a committed failing script replaced with passing bytes |
+| Declaration/result completeness | Local CI checks closure membership; hosted wrapper formerly checked only a subset | One policy compiler and closed verdict semantics; reject missing, duplicate, unknown or identity-mismatched results |
+| Python lint and formatting | Ruff native lint/format runs over tracked and admitted untracked Python | Keep native rules and rule ownership; verify all selected files and failed native outcomes |
+| Docstrings | Custom owner counts packages and decorated commands, not ordinary modules; 27/278 product, 92/230 test and 4/32 tool modules lack module documentation | Native Ruff D rules own presence/style; preserve necessary signature semantics without another style parser; reject missing module documentation throughout authoring surfaces |
+| Type correctness | Ty currently selects src only and infers results from prose | Use supported native diagnostic output and warning failure; qualify product and quality-tool/test policy explicitly rather than claiming all Python is typed |
+| Architecture and visibility | Import-linter declares one layer contract; layout rules cover several paths | Test allowed and forbidden cross-boundary imports, private access and dependency direction; names and diagrams alone are not enforcement |
+| Carrier coverage | Format selection requires nonempty command strings; default YAML input is a fixed list and missing requested files are filtered | Derive current candidates from ownership and native discovery; distinguish admitted deletion, absent required carrier and empty applicable set |
+| Shell quality | ShellCheck is executed; declared shfmt ownership has no call in shell_lint | Invoke both native owners for their distinct properties and reject syntax/semantic/format defects without rewriting during proof |
+| JavaScript quality | javascript_lint invokes Prettier; npm test:npm only packs a dry-run manifest | Separate formatting, semantic lint and launcher behavior; add real launcher positive/negative execution, not more packaging counters |
+| Schemas and configuration | Schema metaschemas and selected live instances are checked; parser success is not consumer conformance | Verify required instance coverage and consumer rejection; remove copied/disconnected configs and nonfunctional command claims |
+| Behavioral testing | Unit/architecture, property and native-effect cases execute; combined coverage floor is 95 percent | Preserve fault/recovery/adopter obligations; use targeted mutation or distinguishing cases for critical verdicts, not coverage as correctness proof |
+| Warning semantics | Provider/ETHOS envelopes reject warnings; plain command success can hide explicit warnings; emulator regexes do not cover other planes | Tool-native warnings-as-errors or native structured findings at the owning adapter; unknown required interpretation cannot pass; informational output remains valid |
+| Security and supply | Python/npm dependency audits, tracked-secret scan and SPDX generation exist; these are not full SAST or provenance | Distinguish vulnerability, secret, source-security, artifact identity and provenance claims; qualify each required owner and avoid asserting an unearned SLSA level |
+| Package and installation | Wheel/package-only acceptance exists; host matrix exercises package behavior plus two portability tests | Declare exact platform/tool/behavior scope; package conformance does not imply the complete source-quality graph ran on that OS |
+| Local provider emulation | One selected GitHub job and one selected GitLab job | Expose exact selected scope; support required dependency closure without claiming remote success or unavailable platforms |
+| Provider enforcement | GitHub required statuses omit native conformance; GitLab only_allow_merge_if_pipeline_succeeds is false | Bind final required admission to every mandatory result, turn on native pipeline success requirement, verify with a denied invalid candidate and normal valid path |
+| Reports and diagnostics | JUnit/coverage mostly originate in verify; aggregate receipt previously tolerated invalid artifacts | Native test reports, per-check diagnostics, coverage and artifact identity remain separate; missing, stale or contradictory required reports block acceptance |
+| Resource and latency bounds | Reference proof target is 900 seconds; historical GitLab verify took 1716 seconds; supervisor-loss boundaries remain open | Measure critical path, input transfer, queue/startup and cleanup; retain owned deadlines and no retry of unchanged failures; do not trade quality for elapsed time |
 
 ### Implemented Boundary And Remaining Qualification
 
@@ -2550,6 +2554,7 @@ cases. Receipts are mise-bootstrap-real-cold-ci.json,
 mise-bootstrap-boundary-green.log and mise-reference-discovery-green.log under
 the same evidence root; none is full-proof or hosted qualification.
 
+
 #### Authenticated Bootstrap Supply And Offline Checking
 
 Native mise generation is an acquisition operation: it downloads a versioned
@@ -2611,6 +2616,7 @@ quality/diagnostic obligations in this Change. The completed GitHub run passed
 quality, repository-proof and package jobs plus every Linux/macOS conformance
 case, but failed all three Windows versions. Its aggregate conclusion is failure.
 Source proof, reference publication and host qualification remain distinct.
+
 
 Windows trust observation must distinguish unsafe ACLs from missing, failed or
 unparseable native observations. The existing filesystem owner now propagates
@@ -2804,6 +2810,7 @@ framework mechanisms remain research inputs pending a named consumer, measured
 benefit and source verification; this repair introduces no additional platform,
 persistent graph, task ledger or permission authority.
 
+
 ### Provider Execution Identity And Failure Left Shift
 
 The exact full proof at 449b43fcd4c2b34ad758b0125d424970e28ba75f failed.
@@ -2967,6 +2974,7 @@ separately. Retain partial-staging positive and negative cases and execute the
 installed runtime owner during package acceptance. This boundary does not claim
 all format-policy discovery layouts or hostile concurrent index writers solved.
 
+
 ### Package Runtime File Closure
 
 Installed staged-format acceptance exposed a second supply path: copying an
@@ -2977,6 +2985,7 @@ The [installed-project file record](https://packaging.python.org/en/latest/speci
 supplies ownership; no Ruff-specific filename list or second installer is added.
 Source identity and import success alone do not prove executable capability.
 Keep missing-tool refusal and installed partial-staging cases in package acceptance.
+
 
 ### Dependency Result Preservation
 
@@ -3137,6 +3146,7 @@ still validates authorization. Cache loss or eviction may change work, not verdi
 Promote the already locked cachetools dependency to direct ownership; do not add
 another cache engine, selector, provenance record or lifecycle.
 
+
 The real 1,704-member set retained the same acceptance and plan identities.
 Its original query took 9.27 seconds, coordinate preselection alone took 4.50,
 and the byte-budgeted implementation took 5.49 cold and 0.23/0.22 seconds warm.
@@ -3146,12 +3156,14 @@ Native capacity, eviction, changed-membership and corrupt-byte tests use the
 production budget, not private cache access or quality suppressions. Fixture
 extension preserves the existing canonical bytes and fixed-root examples.
 
+
 The source preflight caught the previous skills-document update's stale terminal
 graph binding before starting behavior tests or builds. Source review preserved
 all product entities, relations and maturity labels, clarified structural skill
 qualification versus demonstrated learning at the existing nodes, and refreshed
 the sole changed source digest. Required rendering remains renderer-owned;
 export success does not establish visible or behavioral qualification.
+
 
 One full native attempt lost the identity-history worker and stopped before
 completing the suite. No ordinary assertion or macOS crash report established
@@ -3207,6 +3219,7 @@ current selector still equals this operation's desired bytes; a different or
 unreadable selection is preserved as a failed compensation. A CAS rejection
 before replacement never starts compensation. The caller handles only later
 hook/state failures after the selector owner returns a verified selection.
+
 
 ### Native Workflow Input And Portable Entry
 

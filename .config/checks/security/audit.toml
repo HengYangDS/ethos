@@ -13,6 +13,10 @@ timeout_seconds = 120
 # Production-release can authorize the exact artifact across hosts and lock placements.
 # Native adverse findings remain visible; no aggregate-name exclusions.
 
+# Exact lock binding migration: native Handlebars 4.7.9 -> 4.7.10 only.
+# Original advisory/artifact, host, scope, owner, approval and expiry are unchanged.
+# Reviewed original evidence: attestation 7ee295c767f57c1c8a7cdeb462c48f56744f6d2fa2a0be208cb1b572e8824060.
+
 [[dispositions]]
 ecosystem = "npm"
 advisory_url = "https://github.com/advisories/GHSA-rj75-hqrm-r3gf"
@@ -20,13 +24,11 @@ package = "postcss-selector-parser"
 version = "7.1.4"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/postcss-selector-parser"]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-06:npm-12.2.0-parser-7.1.4-GHSA-rj75-hqrm-r3gf-local-development-through-2026-10-18"
-rationale = "Human-approved controlled local development on this host through 2026-10-18. This exact inBundle component uses the containing npm 12.2.0 locked artifact integrity. Native audit fix cannot change the bundled component. CI, installation delivery, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
+rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -36,8 +38,9 @@ version = "3.0.3"
 integrity = "sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA=="
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-06:braces-GHSA-vfj7-8cjw-p6xm-all-downstream-boundaries"
-rationale = "The user explicitly accepts this exact braces 3.0.3 artifact risk for ETHOS and downstream development, CI, installation, release and distribution. Retain native adverse evidence and replace this disposition when an official stable fix removes the finding. Other advisories are not authorized."
+approval_ref = "user:2026-10-15:explicit-renewal:braces-GHSA-vfj7-8cjw-p6xm:expires-2026-11-13T00:00:00+08:00"
+rationale = "The user explicitly renews acceptance of this same braces 3.0.3 artifact risk for ETHOS and downstream development, CI, installation, release and distribution until 2026-11-13 00:00:00 UTC+08:00. Risk acceptance does not establish vulnerability remediation or a clean audit. Retain native adverse evidence and replace this disposition when an official stable fix removes the finding. Other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -46,13 +49,11 @@ package = "brace-expansion"
 version = "5.0.9"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/brace-expansion"]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
+rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -61,13 +62,11 @@ package = "brace-expansion"
 version = "5.0.9"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/brace-expansion"]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
+rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -76,13 +75,11 @@ package = "brace-expansion"
 version = "5.0.9"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/brace-expansion"]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
+rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -91,13 +88,11 @@ package = "http-cache-semantics"
 version = "4.2.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/http-cache-semantics"]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
+rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -106,13 +101,11 @@ package = "ip-address"
 version = "10.5.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/ip-address"]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
+rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -121,13 +114,11 @@ package = "ip-address"
 version = "10.5.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/ip-address"]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
+rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -136,13 +127,11 @@ package = "ip-address"
 version = "10.5.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/ip-address"]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
+rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -151,13 +140,11 @@ package = "ip-address"
 version = "10.5.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/ip-address"]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
+rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -166,13 +153,11 @@ package = "undici"
 version = "6.28.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/undici"]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
+rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -181,13 +166,11 @@ package = "undici"
 version = "6.28.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/undici"]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
+scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
+approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
+rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
 ecosystem = "npm"
@@ -196,202 +179,8 @@ package = "undici"
 version = "6.28.0"
 integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
 nodes = ["node_modules/npm/node_modules/undici"]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "local-development"
-host = "yheng-macbook-pro.local"
-owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-05:npm-controlled-local-development-through-2026-10-18"
-rationale = "Human-approved npm 12.2.0 controlled local development on this host through 2026-10-18. This exact component is bundled in node_modules/npm and bound to its locked artifact integrity. CI, production, public release and distribution remain blocked."
-expires_at = 2026-10-19T00:00:00+08:00
-
-[[dispositions]]
-ecosystem = "npm"
-advisory_url = "https://github.com/advisories/GHSA-2vr4-cq9g-pvrc"
-package = "ip-address"
-version = "10.5.0"
-integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
-nodes = [
-  "node_modules/npm/node_modules/ip-address",
-]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
-rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
-expires_at = 2026-10-19 00:00:00+08:00
-
-[[dispositions]]
-ecosystem = "npm"
-advisory_url = "https://github.com/advisories/GHSA-3wwx-pv8p-q78v"
-package = "undici"
-version = "6.28.0"
-integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
-nodes = [
-  "node_modules/npm/node_modules/undici",
-]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "production-release"
-owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
-rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
-expires_at = 2026-10-19 00:00:00+08:00
-
-[[dispositions]]
-ecosystem = "npm"
-advisory_url = "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p"
-package = "brace-expansion"
-version = "5.0.9"
-integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
-nodes = [
-  "node_modules/npm/node_modules/brace-expansion",
-]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "production-release"
-owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
-rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
-expires_at = 2026-10-19 00:00:00+08:00
-
-[[dispositions]]
-ecosystem = "npm"
-advisory_url = "https://github.com/advisories/GHSA-ch52-4w7c-c8xp"
-package = "http-cache-semantics"
-version = "4.2.0"
-integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
-nodes = [
-  "node_modules/npm/node_modules/http-cache-semantics",
-]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "production-release"
-owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
-rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
-expires_at = 2026-10-19 00:00:00+08:00
-
-[[dispositions]]
-ecosystem = "npm"
-advisory_url = "https://github.com/advisories/GHSA-h3mg-xc3c-68pw"
-package = "ip-address"
-version = "10.5.0"
-integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
-nodes = [
-  "node_modules/npm/node_modules/ip-address",
-]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "production-release"
-owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
-rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
-expires_at = 2026-10-19 00:00:00+08:00
-
-[[dispositions]]
-ecosystem = "npm"
-advisory_url = "https://github.com/advisories/GHSA-j6r3-76f7-8jcv"
-package = "ip-address"
-version = "10.5.0"
-integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
-nodes = [
-  "node_modules/npm/node_modules/ip-address",
-]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "production-release"
-owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
-rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
-expires_at = 2026-10-19 00:00:00+08:00
-
-[[dispositions]]
-ecosystem = "npm"
-advisory_url = "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr"
-package = "brace-expansion"
-version = "5.0.9"
-integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
-nodes = [
-  "node_modules/npm/node_modules/brace-expansion",
-]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "production-release"
-owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
-rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
-expires_at = 2026-10-19 00:00:00+08:00
-
-[[dispositions]]
-ecosystem = "npm"
-advisory_url = "https://github.com/advisories/GHSA-qhr7-859c-m2p7"
-package = "brace-expansion"
-version = "5.0.9"
-integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
-nodes = [
-  "node_modules/npm/node_modules/brace-expansion",
-]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "production-release"
-owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
-rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
-expires_at = 2026-10-19 00:00:00+08:00
-
-[[dispositions]]
-ecosystem = "npm"
-advisory_url = "https://github.com/advisories/GHSA-r53p-7pc4-xj5r"
-package = "undici"
-version = "6.28.0"
-integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
-nodes = [
-  "node_modules/npm/node_modules/undici",
-]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "production-release"
-owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
-rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
-expires_at = 2026-10-19 00:00:00+08:00
-
-[[dispositions]]
-ecosystem = "npm"
-advisory_url = "https://github.com/advisories/GHSA-rfgv-xxqx-mfg5"
-package = "undici"
-version = "6.28.0"
-integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
-nodes = [
-  "node_modules/npm/node_modules/undici",
-]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "production-release"
-owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
-rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
-expires_at = 2026-10-19 00:00:00+08:00
-
-[[dispositions]]
-ecosystem = "npm"
-advisory_url = "https://github.com/advisories/GHSA-rj75-hqrm-r3gf"
-package = "postcss-selector-parser"
-version = "7.1.4"
-integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
-nodes = [
-  "node_modules/npm/node_modules/postcss-selector-parser",
-]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "production-release"
-owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
-rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
-expires_at = 2026-10-19 00:00:00+08:00
-
-[[dispositions]]
-ecosystem = "npm"
-advisory_url = "https://github.com/advisories/GHSA-rpw4-54j3-4h4q"
-package = "ip-address"
-version = "10.5.0"
-integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
-nodes = [
-  "node_modules/npm/node_modules/ip-address",
-]
-lock_sha256 = "fd57cced1ee214ee9029b65879549784f0151086aa620cbb1a808f28c477e469"
-scope = "production-release"
-owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-08:thread-019f4fbf-b0b7-7e22-85ea-9c546512972e:npm-12.2.0-exact-12-gitlab-ci-installation-distribution-through-2026-10-18"
-rationale = "The user temporarily approves this exact locked npm 12.2.0 bundled advisory and artifact for GitLab CI, installation and distribution through 2026-10-18 in Asia/Shanghai. Retain native adverse findings; other advisories and artifacts remain unapproved. Replace the disposition when an official stable fix removes the finding."
-expires_at = 2026-10-19 00:00:00+08:00
+approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
+rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+expires_at = 2026-11-13T00:00:00+08:00

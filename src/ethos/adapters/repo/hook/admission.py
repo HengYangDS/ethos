@@ -40,9 +40,11 @@ from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import report_verdict
+from ethos.repository.policy.quality.tool_configuration import NATIVE_TOOL_LOCATIONS
+from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
     from collections.abc import Mapping
 
 
@@ -123,10 +125,10 @@ def _pre_commit(
 
 def _native_configuration_dependency(path: str, source: bytes, *, owner: str) -> str | None:
     """Resolve one native include within its exact repository-relative policy closure."""
-    if owner == ".gitleaksignore":
+    if owner == "gitleaks-ignore":
         return None
     document = tomllib.loads(source.decode("utf-8"))
-    policy = document.get("tool", {}).get("ruff", document) if owner == "ruff.toml" else document
+    policy = document.get("tool", {}).get("ruff", document) if owner == "ruff" else document
     extension = policy.get("extend")
     dependency = extension.get("path") if isinstance(extension, dict) else extension
     if dependency is None:
@@ -134,7 +136,7 @@ def _native_configuration_dependency(path: str, source: bytes, *, owner: str) ->
     if not isinstance(dependency, str):
         message = f"pre_commit_native_policy_invalid_dependency:{path}"
         raise TypeError(message)
-    base = posixpath.dirname(path) if owner == "ruff.toml" else ""
+    base = posixpath.dirname(path) if owner == "ruff" else ""
     relative = posixpath.normpath(posixpath.join(base, dependency))
     if relative.startswith(("/", "../")) or relative == "..":
         message = f"pre_commit_native_policy_outside_root:{path}"
@@ -145,36 +147,21 @@ def _native_configuration_dependency(path: str, source: bytes, *, owner: str) ->
 @contextmanager
 def _native_hook_configuration(
     root: Path, *, index_env: Mapping[str, str] | None
-) -> Iterator[Path]:
+) -> Generator[Path]:
     """Project incumbent native policy and its include closure without working-tree reads."""
     observed = run_git(root, "rev-parse", "--verify", "HEAD", check=False, timeout=30)
     head = observed.stdout.strip() if not observed.returncode else ""
-    names = (".gitleaks.toml", "ruff.toml", ".gitleaksignore")
-    listed = (
-        run_git(root, "ls-tree", "--name-only", head, "--", *names, timeout=30).stdout
-        if head
-        else ""
-    )
-    incumbent = set(listed.splitlines())
+    incumbent = _git_paths(root, "ls-tree", "-r", "--name-only", head) if head else ()
+    indexed = _git_paths(root, "ls-files", index_env=index_env)
+    policies = {
+        tool: native_tool_configuration(indexed, tool) or native_tool_configuration(incumbent, tool)
+        for tool in ("gitleaks", "ruff", "gitleaks-ignore")
+    }
     with TemporaryDirectory(prefix="ethos-hook-config-") as temporary:
         configuration = Path(temporary)
-        for name in names:
-            if name not in incumbent:
-                introduced = run_git(
-                    root,
-                    "ls-files",
-                    "--error-unmatch",
-                    "--",
-                    name,
-                    check=False,
-                    timeout=30,
-                    env=index_env,
-                )
-                if introduced.returncode == 1:
-                    continue
-                if introduced.returncode:
-                    message = f"pre_commit_native_policy_unavailable:{name}"
-                    raise RuntimeError(message)
+        for tool, name in policies.items():
+            if name is None:
+                continue
             pending, visited = [name], set()
             while pending:
                 path = pending.pop()
@@ -191,7 +178,7 @@ def _native_hook_configuration(
                 destination = configuration / path
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 destination.write_bytes(source.stdout)
-                dependency = _native_configuration_dependency(path, source.stdout, owner=name)
+                dependency = _native_configuration_dependency(path, source.stdout, owner=tool)
                 if dependency is not None:
                     pending.append(dependency)
         yield configuration
@@ -204,7 +191,7 @@ def _native_hook_configuration(
 def _scan_staged_secrets(
     root: Path, *, configuration: Path, index_env: Mapping[str, str] | None = None
 ) -> None:
-    policy = configuration / ".gitleaks.toml"
+    policy = configuration / NATIVE_TOOL_LOCATIONS["gitleaks"]
     if not policy.is_file():
         return
     executable = shutil.which("gitleaks")
@@ -230,7 +217,7 @@ def _scan_staged_secrets(
             "--config",
             str(policy),
             "--gitleaks-ignore-path",
-            str(configuration / ".gitleaksignore"),
+            str(configuration / NATIVE_TOOL_LOCATIONS["gitleaks-ignore"]),
             "--redact=100",
             "--no-banner",
             configuration.as_posix(),
@@ -251,7 +238,8 @@ def _check_staged_python_format(
     index_env: Mapping[str, str] | None = None,
 ) -> None:
     paths = tuple(path for path in staged if path.endswith((".py", ".pyi")))
-    if not paths or not (configuration / "ruff.toml").is_file():
+    policy = NATIVE_TOOL_LOCATIONS["ruff"]
+    if not paths or not (configuration / policy).is_file():
         return
     indexed = set(
         _git_paths(
@@ -284,7 +272,7 @@ def _check_staged_python_format(
                     "format",
                     "--no-cache",
                     "--config",
-                    "ruff.toml",
+                    policy,
                     "--check",
                     "--stdin-filename",
                     path,

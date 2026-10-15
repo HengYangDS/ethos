@@ -15,7 +15,7 @@ from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
 from ethos.repository.policy.references.manifests import NodeManifest
-from ethos.repository.policy.references.observation import product_references_from_files
+from ethos.repository.policy.references.observation import reference_consumer_sources_from_files
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
@@ -38,7 +38,7 @@ def test_native_package_manager_declares_npm_without_duplicate(manager: object) 
 
     assert manifest is not None
     assert native_owned_references_from_files({"package.json": text})["executable"] == {"npm"}
-    assert product_references_from_files({"package.json": text}).unknown_paths == ()
+    assert reference_consumer_sources_from_files({"package.json": text}).unknown_paths == ()
 
 
 @pytest.mark.parametrize(
@@ -50,7 +50,7 @@ def test_absent_native_package_manager_remains_undeclared(payload: dict[str, obj
 
     assert NodeManifest.read(text) is not None
     assert native_owned_references_from_files({"package.json": text})["executable"] == set()
-    assert product_references_from_files({"package.json": text}).unknown_paths == ()
+    assert reference_consumer_sources_from_files({"package.json": text}).unknown_paths == ()
 
 
 @pytest.mark.parametrize(
@@ -77,7 +77,9 @@ def test_invalid_native_package_manager_preserves_unknown_carrier(engines: objec
 
     assert NodeManifest.read(text) is None
     assert native_owned_references_from_files({"package.json": text})["executable"] == set()
-    assert product_references_from_files({"package.json": text}).unknown_paths == ("package.json",)
+    assert reference_consumer_sources_from_files({"package.json": text}).unknown_paths == (
+        "package.json",
+    )
 
 
 def test_native_package_manager_alternatives_and_legacy_declaration() -> None:

@@ -1,12 +1,12 @@
 ## ADDED Requirements
 
-### Requirement: Native audit observations have explicit finding disposition
+### Requirement: Exact audit dispositions preserve strict delivery
 
-The existing dependency-audit owner SHALL disclose advisory findings without
-blocking ETHOS development, CI, installation, release or distribution. Native
-reports, finding identities, counts and exits SHALL remain unchanged. Observation
-failure, inconsistent output, input drift and non-advisory adverse statuses SHALL
-remain nonpassing. An explicitly strict policy MAY retain exact dispositions.
+The existing dependency-audit owner MAY admit explicitly selected local
+development against a human-authorized disposition for the exact advisory,
+locked package artifact, nodes, dependency snapshot and explicitly approved host.
+Native observations SHALL remain unchanged; unselected development, CI, release,
+installation and distribution SHALL retain the strict decision.
 
 #### Scenario: A bundled component has no independent integrity
 
@@ -17,7 +17,7 @@ remain nonpassing. An explicitly strict policy MAY retain exact dispositions.
 - **AND** missing bundle ownership or artifact integrity remains unavailable,
   never an invented child identity
 
-#### Scenario: An explicitly strict local policy has a finite boundary
+#### Scenario: Local permission has an accountable finite boundary
 
 - **WHEN** the existing owner evaluates an explicitly selected local-development disposition
 - **THEN** it requires an accountable owner, approval reference, rationale,
@@ -25,34 +25,33 @@ remain nonpassing. An explicitly strict policy MAY retain exact dispositions.
 - **AND** native findings, counts, exit status and raw evidence remain unchanged
 - **AND** an absent disposition grants no permission
 
-#### Scenario: Product reporting reaches each delivery consumer
+#### Scenario: Unselected and delivery consumers remain strict
 
-- **WHEN** proof, security, build, CI, installation or distribution consumes
-  the product's declared reporting policy
-- **THEN** complete advisory findings remain visible and do not block delivery
-- **AND** the subject's execution declaration remains unchanged
-- **AND** no advisory approval or expiry registry is required for product reporting
+- **WHEN** default proof, security or build gates, CI, installation or distribution
+  evaluate the source without an explicitly authorized local-development selection
+- **THEN** they retain the same owner's strict production-release decision
+- **AND** declared CI refuses the local-development selector rather than
+  inheriting a host-local approval
 
 #### Scenario: One advisory affects multiple npm package aggregates
 
-- **WHEN** a complete native npm report refers transitively to an advisory
+- **WHEN** a complete native npm report refers transitively to one approved advisory
 - **THEN** the owner resolves every aggregate reference to its concrete advisory roots
-- **AND** reporting preserves the native blocked verdict and exact locked subjects
-- **AND** strict policies still require their explicitly selected exact coverage
+- **AND** exact active coverage may permit local development without changing the native blocked verdict
+- **AND** production and release remain blocked without separate evaluators or package-name exclusions
 
-#### Scenario: Reporting cannot replace a valid observation
+#### Scenario: Authorization or observation cannot establish local permission
 
-- **WHEN** aggregate resolution fails, required observation is unavailable,
-  native output or exits disagree, or inputs change within an attempt
-- **THEN** reporting cannot pass and preserves the distinct observation boundary
-- **AND** a fresh complete scan may report its newly bound locked subjects
+- **WHEN** approval expires, an advisory or locked identity changes, aggregate resolution fails, or required observation is unavailable
+- **THEN** the local decision cannot pass and preserves the distinct expiry, identity or observation boundary
+- **AND** a fresh attempt cannot renew approval through an earlier receipt timestamp
 - **AND** changed source inputs, adverse Python evidence and interrupted attempts remain nonpassing
 
-#### Scenario: Direct native release consumes the same audit owner
+#### Scenario: Direct native release does not inherit local permission
 
 - **WHEN** an explicit release build or install is requested through Nox
-- **THEN** the same audit owner evaluates production-release scope before the effect
-- **AND** advisory reporting does not grant authenticity, credential or release authority
+- **THEN** the same audit owner evaluates strict production-release scope before the release effect
+- **AND** a local-development permission cannot authorize that effect
 
 ### Requirement: Object coordinates share one typed native observation
 
@@ -253,14 +252,14 @@ not ETHOS-specific paths, tools or code budgets.
 ### Requirement: Current Markdown stays within one navigable topic
 
 Every tracked, current, hand-authored Markdown documentation file in ETHOS or a
-governed repository SHALL contain at most 512 nonblank physical lines.
+governed repository SHALL contain at most 500 nonblank physical lines.
 The release-contract changelog, official OpenSpec artifacts and archive, and
 declared generated output SHALL retain their own carrier-specific checks rather
 than inherit this documentation ceiling.
 
 #### Scenario: A current topic exceeds the ceiling
 
-- **WHEN** a tracked current authored Markdown document exceeds 512 nonblank lines
+- **WHEN** a tracked current authored Markdown document exceeds 500 nonblank lines
 - **THEN** the quality floor reports that exact source and blocks acceptance
 - **AND** frontmatter, code fences, tables and quoted material count
 - **AND** adding blank lines or relabeling current content as history does not
@@ -268,15 +267,15 @@ than inherit this documentation ceiling.
 
 #### Scenario: Release history grows without a document-length limit
 
-- **WHEN** the release-contract changelog exceeds 512 nonblank lines in total
+- **WHEN** the release-contract changelog exceeds 500 nonblank lines in total
   or within a single version section
 - **THEN** the documentation length rule does not block that release history
 - **AND** release-format obligations remain independent; a same-named ordinary
-  document still exceeds the ceiling at 513 nonblank lines
+  document still exceeds the ceiling at 501 nonblank lines
 
 #### Scenario: A normative OpenSpec carrier exceeds the document ceiling
 
-- **WHEN** an accepted specification or active Change artifact exceeds 512
+- **WHEN** an accepted specification or active Change artifact exceeds 500
   nonblank lines
 - **THEN** the documentation length rule does not block it solely for that count
 - **AND** official OpenSpec validation, warnings, and semantic capability review
@@ -1172,39 +1171,3 @@ metadata SHALL reference the executable owner, not imply execution by listing it
 - **WHEN** JavaScript behavior and Python or package checks use disjoint owned outputs
 - **THEN** the gate scheduler may execute them concurrently after their real prerequisites pass
 - **AND** a writer that claims the shared supply still excludes the JavaScript behavior gate
-
-## MODIFIED Requirements
-
-### Requirement: Declared file-size policy is strict and observable
-
-ETHOS SHALL compile an optional file-size policy through the rules configuration
-owner. Declared ceilings SHALL be strict positive integers,
-without coercion, unknown fields or per-file exemptions. Omitted role limits
-SHALL inherit the declared default. An absent declaration SHALL impose no hidden
-generic ceiling; malformed declarations SHALL block rather than become absent.
-
-#### Scenario: Invalid or coercible policy
-
-- **WHEN** a present declaration has invalid TOML, shape, field names or limits
-- **THEN** the public size gate blocks with a policy-path-bound cause
-- **AND** booleans, strings, floats, zero and negative values are not limits
-- **AND** continuation derives exact prewrite without granting write authority
-
-#### Scenario: Optional policy is absent
-
-- **WHEN** a generic repository has no file-size declaration
-- **THEN** the report states not configured without imposing a runtime ceiling
-- **AND** this does not authorize removing repository-required governance policy
-
-#### Scenario: Valid ceiling is enforced
-
-- **WHEN** a measured file equals its declared role ceiling, including 512
-- **THEN** that boundary passes and one additional effective line blocks
-- **AND** unused capacity elsewhere cannot compensate for the violation
-
-#### Scenario: Invalid and unavailable source differ
-
-- **WHEN** a source has invalid Python syntax or encoding
-- **THEN** the report blocks with the path and cause rather than a fallback count
-- **AND** an inaccessible required source or policy remains unknown
-- **AND** neither failure is reported as measured zero or a valid absent input

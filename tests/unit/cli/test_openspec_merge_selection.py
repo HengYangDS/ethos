@@ -19,12 +19,14 @@ from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.selection import incoming_change_gaps
 from ethos.adapters.openspec.selection import resolve_change_selection
 from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.value import mutable_json
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
@@ -71,7 +73,16 @@ def pending_merge(tmp_path: Path) -> Path:
 
 @pytest.mark.parametrize(
     "case",
-    ["valid", "missing", "corrupt", "unrelated", "historical", "ambiguous", "independent-base"],
+    [
+        "valid",
+        "missing",
+        "corrupt",
+        "unrelated",
+        "historical",
+        "ambiguous",
+        "independent-base",
+        "compensated",
+    ],
 )
 def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     tmp_path, monkeypatch, case
@@ -110,11 +121,27 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
                 "candidate_branch": "candidate/dev",
             },
         )
-        execute_git_effect(repo, plan, issuer="agent:test:case:agent-test")
+        return execute_git_effect(repo, plan, issuer="agent:test:case:agent-test")
 
     if case == "ambiguous":
         start(base)
         git(repo, "update-ref", "-d", ref, base)
+    elif case == "compensated":
+        record = start(base)
+        plan = plan_from_attestation(record)
+        compensation = compile_observed_git_effect(
+            repo,
+            None,
+            git_effect_from_plan(plan).inverse(),
+            head=base,
+            policy={
+                "operation": "lane.start.compensate",
+                "subject": branch,
+                "holder_ref": "agent:test:case:agent-test",
+                "candidate_branch": "candidate/dev",
+            },
+        )
+        execute_git_effect(repo, compensation, issuer="agent:test:case:agent-test")
     start(merge)
     git(repo, "checkout", branch)
     selected_root, records = read_attestation_set(repo)
@@ -133,7 +160,9 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
             git(repo, "checkout", "-b", "work/other")
     rows = [{"name": "active", "status": "in-progress"}]
     revision = base if case == "historical" else merge
-    expected = "active" if case in {"valid", "historical", "independent-base"} else None
+    expected = (
+        "active" if case in {"valid", "historical", "independent-base", "compensated"} else None
+    )
     selected, gap = resolve_change_selection(rows, None, root=repo, tree_ref=revision)
     assert selected == expected
     gaps = [gap] if gap else []
@@ -334,7 +363,7 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
         {"path": "openspec/changes/static-delivery/tasks.md", "changes": ["static-delivery"]}
     ]
     for arguments in (("plan",), ("plan", "--change", "static-delivery")):
-        planned = run_ethos(*arguments, "--json", cwd=next_lane)
+        planned = run_ethos(*arguments, "--json", cwd=next_lane, full_payload=True)
         assert planned["verdict"] == "pass", planned
         assert planned["data"]["commitment"]["id"] == "change:static-delivery"
     assert proof_gaps(next_lane, head) == ["proof_lane_mismatch"]
@@ -424,6 +453,8 @@ def completed_product_work(tmp_path, monkeypatch):
     return repo, candidate, work
 
 
+# One case drives the complete native integration journey; each operation keeps its own deadline.
+@pytest.mark.timeout(240)
 def test_process_intent_carries_product_work_through_native_integration(
     completed_product_work, monkeypatch
 ):
@@ -439,7 +470,7 @@ def test_process_intent_carries_product_work_through_native_integration(
         ((), "second-local"),
         (("--change", "fixture-change"), "fixture-change"),
     ):
-        planned = run_ethos("plan", *choice, "--json", cwd=work)
+        planned = run_ethos("plan", *choice, "--json", cwd=work, full_payload=True)
         assert planned["data"]["commitment"]["id"] == f"change:{expected}"
     _prove(work, head)
     assert (selected := proof_attestation(work, head)) is not None
@@ -516,5 +547,5 @@ def test_process_intent_carries_product_work_through_native_integration(
     )
     assert git(repo, "rev-parse", "HEAD") == git(candidate, "rev-parse", "HEAD") == head
     monkeypatch.delenv("ETHOS_CHANGE")
-    planned = run_ethos("plan", "--change", "second-local", "--json", cwd=work)
+    planned = run_ethos("plan", "--change", "second-local", "--json", cwd=work, full_payload=True)
     assert planned["data"]["commitment"]["id"] == "change:second-local"

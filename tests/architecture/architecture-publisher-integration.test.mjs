@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
@@ -100,6 +101,20 @@ test("the migration baseline binds exact Publisher and ETHOS inputs", () => {
     scope:
       "Exact migration inputs only; no generated artifact, acceptance, publication, or off-host recovery claim.",
   });
+});
+
+test("captured Edition manifests retain the exact original source members", () => {
+  const edition = join(INTEGRATION, "src", "edition");
+  for (const authoring of [join(edition, "authoring"), join(edition, "static", "authoring")]) {
+    const manifest = readJson(join(authoring, "manifest.json"));
+    assert.equal(manifest.schema, "architecture.source-bundle/v1");
+    assert.equal(manifest.files.length > 0, true);
+    for (const member of manifest.files) {
+      const bytes = readFileSync(join(authoring, member.path));
+      assert.equal(bytes.length, member.bytes, member.path);
+      assert.equal(createHash("sha256").update(bytes).digest("hex"), member.sha256, member.path);
+    }
+  }
 });
 
 test("the launcher package exposes only its declared transport", (t) => {

@@ -127,6 +127,26 @@ def proposal_ref(remote: Path) -> str:
     return git(remote, "for-each-ref", "--format=%(objectname)", PROPOSAL_REF)
 
 
+def release_cli(
+    repo: Path, head: str, old: str, *args: str, tag: str = "v1.2.3", blocked: bool = False
+):
+    """Invoke the public release surface with exact fixture coordinates."""
+    runner = run_ethos_blocked if blocked else run_ethos
+    return runner(
+        "land",
+        "--release",
+        "--expect-head",
+        head,
+        "--release-head",
+        old,
+        "--tag",
+        tag,
+        *args,
+        "--json",
+        cwd=repo,
+    )
+
+
 def accepted_release_fixture(
     tmp_path: Path,
     object_format: str = "sha1",

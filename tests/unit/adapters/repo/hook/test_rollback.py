@@ -175,91 +175,38 @@ def test_repairing_invalid_local_predecessor_preserves_uncertainty_and_bytes(
     assert damaged.read_bytes() == b"damaged predecessor\n"
 
 
-@pytest.mark.parametrize("predecessor", ["missing", "damaged", "unreadable"])
-def test_external_predecessor_recovery_requires_proven_absence(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, predecessor: str
+@pytest.mark.parametrize("missing", [True, False])
+def test_valid_successor_repairs_unavailable_external_predecessor_without_deleting_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, missing: bool
 ) -> None:
-    """Recover an absent external payload without treating damaged or unknown bytes as absent."""
+    """An admitted successor does not depend on damaged or absent rollback supply."""
     repo, previous, supplied = _upgrade_case(tmp_path, monkeypatch)
     common = Path(git_common_dir(repo))
-    external = tmp_path / "external/runtime" / previous.name
-    if predecessor != "missing":
+    external = tmp_path / "external" / "runtime" / previous.name
+    if not missing:
         shutil.copytree(previous, external)
-        damaged = external / "python/lib/python3.14/site-packages/ethos/module.py"
-        damaged.chmod(0o644)
-        damaged.write_bytes(b"external predecessor\n")
+        manifest = external / "manifest.json"
+        manifest.chmod(0o644)
+        manifest.write_bytes(b"damaged predecessor\n")
     selector = common / "ethos/runtime/CURRENT"
     selector.write_bytes(runtime_selection_bytes(common, external))
-    before = selector.read_bytes()
-    if predecessor == "unreadable":
-        native = Path.lstat
 
-        def refuse_external(path: Path):
-            if path == external:
-                message = "external predecessor unavailable"
-                raise PermissionError(message)
-            return native(path)
+    result = activation.install_hook_launchers(repo, installed_runtime=supplied)
 
-        monkeypatch.setattr(Path, "lstat", refuse_external)
-
-    if predecessor == "missing":
-        result = activation.install_hook_launchers(repo, installed_runtime=supplied)
-        assert result["required_gaps"] == []
-        assert current_runtime(common).digest == supplied.name
-        assert result["rollback_supply"]["state"] == "unavailable"
-        assert result["rollback_supply"]["runtime"] == external.as_posix()
+    assert result["required_gaps"] == []
+    assert current_runtime(common).digest == supplied.name
+    assert result["rollback_supply"] == {
+        "state": "unavailable",
+        "runtime": external.as_posix(),
+        "reason": "hook_runtime_current_target_invalid"
+        if missing
+        else "hook_runtime_manifest_invalid",
+    }
+    assert str(external) not in result["generation_cleanup"]["removed"]
+    if missing:
         assert not external.exists()
     else:
-        failure = PermissionError if predecessor == "unreadable" else ValueError
-        with pytest.raises(failure):
-            activation.install_hook_launchers(repo, installed_runtime=supplied)
-        assert selector.read_bytes() == before
-        assert damaged.read_bytes() == b"external predecessor\n"
-        assert require_selected_runtime(previous).digest == previous.name
-
-
-@pytest.mark.parametrize("fail_activation", [False, True])
-def test_explicit_supply_recovers_malformed_selection_without_guessing_predecessor(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, fail_activation: bool
-) -> None:
-    """Valid supply repairs damaged selection or restores its exact failed preimage."""
-    repo, previous, supplied = _upgrade_case(tmp_path, monkeypatch)
-    installed = activation.install_hook_launchers(repo, installed_runtime=supplied)
-    common = Path(git_common_dir(repo))
-    selected = current_runtime(common)
-    rollback = Path(installed["rollback_supply"]["runtime"])
-    selector = common / "ethos/runtime/CURRENT"
-    original = selector.read_bytes()
-    malformed = b"invalid\n"
-    selector.write_bytes(malformed)
-
-    with pytest.raises(ValueError, match="hook_runtime_current_invalid"):
-        activation.install_hook_launchers(repo)
-    assert selector.read_bytes() == malformed
-
-    if fail_activation:
-
-        def reject_config(*_args: object, **_kwargs: object) -> None:
-            message = "injected activation config failure"
-            raise ValueError(message)
-
-        monkeypatch.setattr(activation.config_effects, "set_common_config", reject_config)
-        with pytest.raises(ValueError, match="injected activation config failure"):
-            activation.install_hook_launchers(repo, installed_runtime=supplied)
-        assert selector.read_bytes() == malformed
-    else:
-        repaired = activation.install_hook_launchers(repo, installed_runtime=supplied)
-        assert repaired["required_gaps"] == []
-        assert selector.read_bytes() == original
-        assert current_runtime(common) == selected
-        assert repaired["rollback_supply"] == {
-            "state": "unavailable",
-            "selection": selector.as_posix(),
-            "reason": "hook_runtime_current_invalid",
-        }
-
-    assert require_selected_runtime(selected.root) == selected
-    assert require_selected_runtime(rollback).digest == previous.name
+        assert (external / "manifest.json").read_bytes() == b"damaged predecessor\n"
 
 
 @pytest.mark.parametrize("selection", [b"", b"invalid\n\n", b"\xff\n"])
@@ -277,7 +224,6 @@ def test_admitted_successor_repairs_malformed_selection_without_reading_it(
     assert current_runtime(common).digest == supplied.name
     assert result["rollback_supply"] == {
         "state": "unavailable",
-        "selection": (common / "ethos/runtime/CURRENT").as_posix(),
         "reason": "hook_runtime_current_invalid",
     }
     cleanup = result["generation_cleanup"]

@@ -1,9 +1,7 @@
 {
   "schema": "ethos.terminal-copy/v2",
   "language": "English with one bounded Chinese brand mark",
-  "allowed_han_sequences": [
-    "问道"
-  ],
+  "allowed_han_sequences": ["问道"],
   "brand": "ETHOS · 问道",
   "title": "RELIABLE REPOSITORY EVOLUTION",
   "subtitle": "Understand intent. Compose capabilities. Evolve repositories. Verify real outcomes.",

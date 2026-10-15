@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 
-import ethos.repository.policy.references.commands.invocation as command_references
-import ethos.repository.policy.references.python.syntax as python_references
+import ethos.repository.policy.references.commands as command_references
+import ethos.repository.policy.references.python_syntax as python_references
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import bind_gate_command
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS

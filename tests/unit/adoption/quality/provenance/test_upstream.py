@@ -42,6 +42,10 @@ from tests.support.governed_repository import init_git_repo
         "expanded-budget",
         "long-path",
         "metadata-budget",
+        "input-budget",
+        "raw-budget",
+        "native-list",
+        "native-unmatched",
     ],
 )
 def test_upstream_archive_qualification_uses_native_sri_and_complete_tar(
@@ -95,11 +99,25 @@ def test_upstream_archive_qualification_uses_native_sri_and_complete_tar(
     )
     commit_fixture(repo, "declare exact locked archive member")
     observer = importlib.import_module("ethos.adapters.gates.provenance.observation")
-    if defect in {"expanded-budget", "metadata-budget"}:
-        limits = dict(vars(observer)["_ARCHIVE_LIMITS"])
-        key = "expanded_bytes" if defect == "expanded-budget" else "metadata_bytes"
-        limits[key] = 512 if defect == "expanded-budget" else 1
-        monkeypatch.setattr(observer, "_ARCHIVE_LIMITS", limits)
+    budgets = {
+        "expanded-budget": ("expanded_bytes", 512),
+        "metadata-budget": ("metadata_bytes", 1),
+        "input-budget": ("input_bytes", 1),
+        "raw-budget": ("raw_bytes", 1),
+    }
+    if defect in budgets:
+        key, value = budgets[defect]
+        monkeypatch.setattr(
+            observer, "_ARCHIVE_LIMITS", {**vars(observer)["_ARCHIVE_LIMITS"], key: value}
+        )
+    if defect in {"native-list", "native-unmatched"}:
+        monkeypatch.setattr(
+            observer,
+            "run_command",
+            lambda _root, command, **_options: subprocess.CompletedProcess(
+                command, 0, "[]" if defect == "native-list" else '{"matched": []}', ""
+            ),
+        )
     report = observer.integrity_report(repo)
     if defect in {"none", "cache-multihash", "long-path"}:
         assert report["verdict"] == "pass", report
@@ -111,6 +129,10 @@ def test_upstream_archive_qualification_uses_native_sri_and_complete_tar(
     else:
         assert report["verdict"] != "pass", report
         assert report["required_gaps"]
+    if defect in {"input-budget", "raw-budget"}:
+        assert report["diagnostics"] == [{"reason": "source_upstream_request_size_exceeded"}]
+    if defect in {"native-list", "native-unmatched"}:
+        assert report["diagnostics"] == [{"reason": "source_upstream_native_result_invalid"}]
 
 
 def _archive_data(archive: Path, member: str, content: bytes, defect: str) -> bytes:
@@ -278,6 +300,49 @@ def test_native_cache_growth_is_rejected_before_allocating(
     assert len(native_selections) == 1
     assert report["verdict"] == "unknown", report
     assert report["diagnostics"] == [{"reason": "archive_size_exceeded"}]
+
+
+@pytest.mark.parametrize(
+    ("fault", "reason"),
+    [
+        ("count", "source_upstream_native_selection_invalid"),
+        ("identity", "source_upstream_native_selection_invalid"),
+        ("budget", "source_upstream_request_size_exceeded"),
+        ("shrunk", "archive_content_changed"),
+    ],
+)
+def test_native_cache_selection_is_exact_bounded_and_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str, reason: str
+) -> None:
+    """Only one exact selection within the remaining budget can supply unchanged cache bytes."""
+    repo = init_git_repo(tmp_path / "repository")
+    archive = tmp_path / "cache-input"
+    raw = b"xx"
+    archive.write_bytes(raw)
+    integrity = "sha512-" + base64.b64encode(hashlib.sha512(raw).digest()).decode()
+    cached = _cache_metadata(tmp_path, archive, raw, integrity, monkeypatch)
+    _write_source_relationships(repo, {"node_modules/cached": cached})
+
+    def select(*args, **kwargs):
+        result = run_command(*args, **kwargs)
+        assert result.returncode == 0, result.stderr
+        observed = json.loads(result.stdout)
+        selected = observed["selected"]
+        if fault == "count":
+            selected.clear()
+        elif fault == "identity":
+            selected[0]["reference"] = "package-lock.json#packages/node_modules/other"
+        elif fault == "budget":
+            limits = vars(source_observation)["_ARCHIVE_LIMITS"]
+            monkeypatch.setattr(source_observation, "_ARCHIVE_LIMITS", {**limits, "raw_bytes": 15})
+        else:
+            Path(selected[0]["path"]).write_bytes(b"x")
+        return subprocess.CompletedProcess(result.args, 0, json.dumps(observed), result.stderr)
+
+    monkeypatch.setattr(source_observation, "run_command", select)
+    report = source_observation.integrity_report(repo)
+    assert report["verdict"] == "unknown", report
+    assert report["diagnostics"] == [{"reason": reason}]
 
 
 def _write_source_relationships(repo: Path, packages: dict[str, dict[str, str]]) -> None:

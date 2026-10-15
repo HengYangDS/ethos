@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
 import tomllib
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
@@ -17,9 +18,12 @@ from pydantic import Field
 from pydantic import field_validator
 from pydantic import model_validator
 
+from ethos.contracts.gates import bind_gate_command
 from ethos.contracts.verdict import reduce_verdicts
+from ethos.repository.policy.quality.gate_composition import canonical_gate_command
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from datetime import datetime
 
     from ethos.contracts.verdict import Verdict
@@ -442,3 +446,17 @@ def evaluate_dependency_acceptance(
         ],
         "unapproved_subjects": sorted(subjects - covered),
     }
+
+
+def native_dependency_audit_scope(gate: Mapping[str, object]) -> AuditScope | None:
+    """Select only the canonical audit owner and its explicit execution scope."""
+    command = gate.get("execution_identity", gate.get("command"))
+    if gate.get("tool_adapter") != "vulnerabilities" or not isinstance(command, tuple | list):
+        return None
+    identity = canonical_gate_command(bind_gate_command(tuple(command), sys.executable))
+    native = ("python", "-m", "nox", "-s", "vulnerabilities")
+    if identity in (native, (*native, "--", "--scope", "production-release")):
+        return "production-release"
+    return (
+        "local-development" if identity == (*native, "--", "--scope", "local-development") else None
+    )

@@ -8,10 +8,16 @@ from typing import Any
 
 import pytest
 
+import ethos.adapters.gates.tool as gate_tool
 import ethos.adapters.mutation.source_format as mutation
+from ethos.adapters.gates.formatting import prepare_source_format
+from ethos.repository.profile import ProofPolicy
+from ethos.repository.profile import SourceContract
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import prepared_work_lane
+from tests.support.governed_repository import write_test_profile
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -70,6 +76,7 @@ def test_public_native_fix_and_check_share_literal_inputs(lane: Path) -> None:
         },
     )
     (lane / "src/product.py").chmod(0o755)
+    (lane / "docs/new.md").chmod(0o640)
     git(lane, "add", "-f", "src/ignored.py")
     head, index = git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")
     paths = tuple(sources)
@@ -88,6 +95,7 @@ def test_public_native_fix_and_check_share_literal_inputs(lane: Path) -> None:
     assert (lane / "source.json").read_text() == '{ "value": true }\n'
     assert (lane / "source.yaml").read_text() == "value: [one, two]\n"
     assert (lane / "src/product.py").stat().st_mode & 0o777 == 0o755
+    assert (lane / "docs/new.md").stat().st_mode & 0o777 == 0o640
     accepted = {path: (lane / path).read_bytes() for path in paths}
     code, checked = _command(lane, *paths, "--check")
     assert (code, checked["verdict"]) == (0, "pass"), checked
@@ -106,6 +114,99 @@ def test_public_native_fix_and_check_share_literal_inputs(lane: Path) -> None:
     assert inventory["data"]["ignored_paths"] == ["docs/untouched.md"]
 
 
+def test_native_markdown_and_formatting_share_declared_authored_inputs(tmp_path: Path) -> None:
+    root = init_git_repo(tmp_path / "repo")
+    preserved = {
+        "docs/upstream.md": "# Upstream\n\ntext   \n",
+        "docs/generated.md": "# Generated\n\ntext   \n",
+        "docs/projected.md": "# Projection\n\ntext   \n",
+        "docs/archive/captured.md": "# Captured\n\ntext   \n",
+    }
+    _write(
+        root,
+        {
+            **preserved,
+            "docs/current.md": "# Current\n\nWords.\n",
+            "package-lock.json": "{}\n",
+            ".config/checks/ci/templates.toml": (
+                'schema = "ethos-ci-template-consistency-v1"\n'
+                '[[projection]]\ntemplate = "docs/current.md"\n'
+                'projection = "docs/projected.md"\nkind = "copy"\n'
+            ),
+        },
+    )
+    upstream = "package-lock.json#packages/node_modules/example"
+    producer = ".config/checks/ci/templates.toml"
+    write_test_profile(
+        root,
+        proof=ProofPolicy(
+            source_contracts=(
+                SourceContract(
+                    kind="upstream",
+                    input_refs=(upstream,),
+                    members={"docs/upstream.md": (upstream, "package/README.md")},
+                    integrity_gate="upstream-integrity",
+                ),
+                SourceContract(
+                    kind="generated",
+                    input_refs=(producer,),
+                    members={"docs/generated.md": (producer, "docs/generated.md")},
+                    integrity_gate="generated-integrity",
+                ),
+            ),
+        ),
+    )
+    expected = {"README.md", "docs/current.md"}
+    formatted = {item.path for item in prepare_source_format(root) if item.path.endswith(".md")}
+    report = gate_tool.markdown_lint_report(root)
+    assert formatted == expected
+    assert set(report["native"][0]["files"]) == expected, report
+    assert report["native"][0]["verdict"] == "pass", report
+    assert all((root / path).read_text() == content for path, content in preserved.items())
+
+
+def test_captured_source_bundles_share_native_selection(lane: Path) -> None:
+    """Captured bundle bytes have one owner across fix, check and Markdown lint."""
+    integration = "integrations/architecture-publisher/"
+    captured = {
+        integration + "src/edition/authoring/edition.json": '{"captured":true}\n',
+        integration + "src/edition/authoring/source.md": "# Captured\n\nOriginal text   \n",
+        integration + "src/edition/static/authoring/metrics.json": '{"captured":[1,2]}\n',
+        integration + "migration-baseline.json": '{"migration":true}\n',
+        integration + "src/edition/refresh.json": '{"bound-request":true}\n',
+        integration + "src/edition/verification-policy.json": '{"bound-request":true}\n',
+    }
+    source = "integrations/architecture-publisher/src/adapter/source.json"
+    _write(lane, {**captured, source: '{"value":true}\n', "docs/current.md": "# Current\n"})
+    for path in captured:
+        (lane / path).chmod(0o640)
+    head, index = git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")
+
+    selected = {item.path for item in prepare_source_format(lane)}
+    assert not set(captured) & selected
+    assert source in selected
+    linted = gate_tool.markdown_lint_report(lane)
+    assert linted["verdict"] == "pass", linted
+    assert "docs/current.md" in linted["native"][0]["files"]
+    assert not set(captured) & set(linted["native"][0]["files"])
+
+    code, refused = _command(
+        lane, source, *captured, "--apply", "--authorize", "--expect-head", head
+    )
+    assert (code, refused["verdict"]) == (1, "block"), refused
+    assert (lane / source).read_text() == '{"value":true}\n'
+    code, applied = _command(lane, "--apply", "--authorize", "--expect-head", head)
+    assert (code, applied["verdict"]) == (0, "pass"), applied
+    assert (lane / source).read_text() == '{ "value": true }\n'
+    code, checked = _command(lane, "--check")
+    assert (code, checked["verdict"]) == (0, "pass"), checked
+    code, repeated = _command(lane, "--apply", "--authorize", "--expect-head", head)
+    assert (code, repeated["data"]["changed_paths"]) == (0, [])
+    assert all((lane / path).read_text() == content for path, content in captured.items())
+    assert all((lane / path).stat().st_mode & 0o777 == 0o640 for path in captured)
+    assert (git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")) == (head, index)
+
+
 @pytest.mark.parametrize(
     "arguments", [("--apply",), ("--apply", "--authorize", "--expect-head", "0" * 40)]
 )
@@ -114,9 +215,11 @@ def test_public_fix_refuses_missing_or_stale_authority_without_writes(
 ) -> None:
     relative, original = "src/product.py", "value=1\n"
     _write(lane, {relative: original})
+    (lane / relative).chmod(0o640)
     code, result = _command(lane, relative, *arguments)
     assert (code, result["verdict"]) == (1, "block"), result
     assert (lane / relative).read_text() == original
+    assert (lane / relative).stat().st_mode & 0o777 == 0o640
 
 
 def test_native_parse_refusal_preserves_every_selected_file(lane: Path) -> None:
@@ -229,7 +332,10 @@ def test_conflicting_native_increment_refuses_all_postimages(lane: Path) -> None
 
 def test_conflicting_python_formatter_increment_cannot_replace_shared_policy(lane: Path) -> None:
     content = 'value = {"native": "' + "x" * 90 + '"}\n'
-    _write(lane, {"src/valid.py": content, "ruff.toml": "line-length = 200\n"})
+    _write(
+        lane,
+        {"src/valid.py": content, ".config/checks/ruff/ruff.toml": "line-length = 200\n"},
+    )
     code, result = _command(lane, "src/valid.py", "--check")
     assert (code, result["verdict"]) == (1, "block"), result
     assert "native_formatter_policy_conflict" in str(result["required_gaps"])

@@ -32,8 +32,6 @@ None.
 - `quality`: measured complete-proof throughput with unchanged assurance.
 - `repository-governance`: exact official-artifact continuation and documentation
   authority without parallel intent.
-- `adapters`: an explicit trusted immutable Work Lane base under current authority,
-  preserving candidate state and native birth, Lease and rollback semantics.
 
 ## Impact
 

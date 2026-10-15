@@ -13,7 +13,7 @@ from typing import Any
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Generator
     from types import ModuleType
 
 
@@ -92,7 +92,7 @@ def get_build_hook() -> type[OpenSpecRuntimeHook]:
 
 
 @contextmanager
-def _source_module(root: Path, name: str) -> Iterator[ModuleType]:
+def _source_module(root: Path, name: str) -> Generator[ModuleType]:
     """Scope import lookup in a fresh build process and restore it afterward."""
     source_path = (root / "src").as_posix()
     inserted = source_path not in sys.path

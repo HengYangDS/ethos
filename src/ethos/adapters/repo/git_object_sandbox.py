@@ -18,13 +18,13 @@ from ethos.adapters.repo.runtime.filesystem import remove_owned_path
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from collections.abc import Iterator
+    from collections.abc import Generator
 
 
 @contextmanager
 def isolated_git_objects(
     root: Path, *, timeout: float = 30
-) -> Iterator[Callable[..., subprocess.CompletedProcess[Any]]]:
+) -> Generator[Callable[..., subprocess.CompletedProcess[Any]]]:
     """Expose one temporary native object store with source objects read-only."""
     deadline = monotonic() + timeout
 

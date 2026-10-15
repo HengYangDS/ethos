@@ -123,7 +123,9 @@ with TemporaryDirectory(prefix="ethos-installed-format-") as temporary:
     root = Path(temporary)
     subprocess.run(["git", "init", "--quiet", str(root)], check=True)
     configuration = root
-    (configuration / "ruff.toml").write_text("line-length = 100\\n")
+    policy = configuration / ".config/checks/ruff/ruff.toml"
+    policy.parent.mkdir(parents=True)
+    policy.write_text("line-length = 100\\n")
     source = root / "change.py"
     for staged, working, rejected in (("VALUE=1\\n", "VALUE = 1\\n", True),
                                       ("VALUE = 1\\n", "VALUE=1\\n", False)):

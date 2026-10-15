@@ -8,11 +8,7 @@
     "rationale_documents_are_non_normative": true
   },
   "principle": {
-    "order": [
-      "faithfulness",
-      "intelligibility",
-      "elegance"
-    ],
+    "order": ["faithfulness", "intelligibility", "elegance"],
     "comparison": "lexicographic_feasibility_then_epsilon_pareto",
     "rule": "a later tier cannot compensate for an earlier failure"
   },
@@ -123,9 +119,7 @@
     "typography_and_accessibility": {
       "non_brand_han_codepoints": 0,
       "primary_language": "English with one bounded Chinese brand mark",
-      "allowed_han_sequences": [
-        "问道"
-      ],
+      "allowed_han_sequences": ["问道"],
       "chinese_epigraph_present": false,
       "effective_font_px_min_at_reference": 12,
       "normal_text_contrast_min": 4.5,
@@ -156,11 +150,7 @@
       "positive_fixtures_min": 1,
       "metamorphic_fixtures_min": 1,
       "differential_cases_min": 1,
-      "required_oracles": [
-        "analytic",
-        "browser_ctm",
-        "raster"
-      ],
+      "required_oracles": ["analytic", "browser_ctm", "raster"],
       "max_endpoint_delta_px_at_reference": 1.0,
       "max_tangent_delta_deg": 6.0,
       "exemptions_max": 0
@@ -170,9 +160,7 @@
       "exhaustive_claim_forbidden": true,
       "required_risk_classes": {
         "authority_non_amplification": {
-          "required_mutation_ids": [
-            "capability_authorizes_effect"
-          ]
+          "required_mutation_ids": ["capability_authorizes_effect"]
         },
         "two_stage_cas_integrity": {
           "required_mutation_ids": [
@@ -181,24 +169,16 @@
           ]
         },
         "projection_witness_coverage": {
-          "required_mutation_ids": [
-            "required_witness_removed"
-          ]
+          "required_mutation_ids": ["required_witness_removed"]
         },
         "semantic_endpoint_integrity": {
-          "required_mutation_ids": [
-            "semantic_edge_detached"
-          ]
+          "required_mutation_ids": ["semantic_edge_detached"]
         },
         "text_geometry_clearance": {
-          "required_mutation_ids": [
-            "text_line_collision"
-          ]
+          "required_mutation_ids": ["text_line_collision"]
         },
         "structural_endpoint_integrity": {
-          "required_mutation_ids": [
-            "structural_endpoint_detached"
-          ]
+          "required_mutation_ids": ["structural_endpoint_detached"]
         },
         "static_required_meaning": {
           "required_mutation_ids": [
@@ -215,11 +195,7 @@
     "machine_may_set_decision": false,
     "review_state_when_ready": "READY_FOR_REVIEW",
     "default_decision": "PENDING",
-    "allowed_decisions": [
-      "PENDING",
-      "ACCEPTED",
-      "REJECTED"
-    ]
+    "allowed_decisions": ["PENDING", "ACCEPTED", "REJECTED"]
   },
   "soft_metrics": {
     "guidance": "retain only epsilon-Pareto-nondominated feasible candidates; do not collapse to one weighted score",
@@ -297,10 +273,7 @@
           "G43"
         ],
         "scope": "Every selected semantic entity, relation, interpretation stage and obligation owner.",
-        "source_ids": [
-          "product_contract",
-          "axioms"
-        ],
+        "source_ids": ["product_contract", "axioms"],
         "evidence": [
           "Exact source-to-graph and graph-to-view disposition for identity, type, lifetime, ownership and source constraints.",
           "Positive and negative interpretation examples, including accepted versus unresolved source meaning and pure decision versus effect.",
@@ -314,19 +287,9 @@
         "applicability": "declared_medium_and_state"
       },
       "claim_boundaries": {
-        "invariants": [
-          "G03",
-          "G10",
-          "G11",
-          "G13",
-          "G34",
-          "G36"
-        ],
+        "invariants": ["G03", "G10", "G11", "G13", "G34", "G36"],
         "scope": "Each claim of capability, evidence, current implementation, delivery or observed benefit.",
-        "source_ids": [
-          "product_contract",
-          "independent_verification"
-        ],
+        "source_ids": ["product_contract", "independent_verification"],
         "evidence": [
           "Claim subject, predicate, scope, evidence plane, exact bindings, validity and verifier provenance.",
           "Actual observations for current implementation and benefit claims; an explicit source rule for any composed claim."
@@ -368,18 +331,9 @@
         "applicability": "declared_medium_and_state"
       },
       "authority_non_amplification": {
-        "invariants": [
-          "G07",
-          "G17",
-          "G18",
-          "G19"
-        ],
+        "invariants": ["G07", "G17", "G18", "G19"],
         "scope": "All capability, evidence, projection, adopter and cross-repository authority relationships.",
-        "source_ids": [
-          "product_contract",
-          "adoption",
-          "projections"
-        ],
+        "source_ids": ["product_contract", "adoption", "projections"],
         "evidence": [
           "Declared typed paths with exact source authority, subject and boundaries.",
           "Counterexamples that connect a capability, report, projection or exchanged artifact directly to an effect."
@@ -392,16 +346,9 @@
         "applicability": "declared_medium_and_state"
       },
       "recovery_and_conservation": {
-        "invariants": [
-          "G12",
-          "G14",
-          "G27"
-        ],
+        "invariants": ["G12", "G14", "G27"],
         "scope": "Unknown outcomes, interruptions and actor/session/host loss for every declared effect.",
-        "source_ids": [
-          "product_contract",
-          "runner_mutation"
-        ],
+        "source_ids": ["product_contract", "runner_mutation"],
         "evidence": [
           "Recovery traces distinguishing no attempt, observed failure and unknown effect outcome.",
           "Exact surviving Git/result identities and a fresh-observation/recompilation path before a subsequent effect."
@@ -413,20 +360,9 @@
         "applicability": "declared_medium_and_state"
       },
       "collaboration_and_integration": {
-        "invariants": [
-          "G15",
-          "G16",
-          "G28",
-          "G29",
-          "G30",
-          "G32",
-          "G37"
-        ],
+        "invariants": ["G15", "G16", "G28", "G29", "G30", "G32", "G37"],
         "scope": "All work lanes, their individual admission, collaboration selection, review and two integration boundaries.",
-        "source_ids": [
-          "product_contract",
-          "runner_mutation"
-        ],
+        "source_ids": ["product_contract", "runner_mutation"],
         "evidence": [
           "Per-lane Lease and fresh source facts; composition checks for the exact accepted object and changed baseline.",
           "Cooperation with multiple contributions, competition with zero or one, exploration and all-drop traces with conserved useful results.",
@@ -440,17 +376,9 @@
         "applicability": "declared_medium_and_state"
       },
       "product_and_adoption": {
-        "invariants": [
-          "G26",
-          "G33",
-          "G38",
-          "G44"
-        ],
+        "invariants": ["G26", "G33", "G38", "G44"],
         "scope": "The complete product path, greenfield and brownfield origins, runtime family and independent publication targets.",
-        "source_ids": [
-          "product_contract",
-          "adoption"
-        ],
+        "source_ids": ["product_contract", "adoption"],
         "evidence": [
           "Source-backed complete path from value/research/interpretation through accepted intent, capability composition, work, verification, delivery, actual use, learning and exit.",
           "Distinct formation, gradual adoption, customization, upgrade, handoff and exit with runtime activation and rollback boundaries.",
@@ -464,13 +392,9 @@
         "applicability": "declared_medium_and_state"
       },
       "visible_semantic_preservation": {
-        "invariants": [
-          "G35"
-        ],
+        "invariants": ["G35"],
         "scope": "Every required proposition in the declared rendered medium and view scope.",
-        "source_ids": [
-          "product_contract"
-        ],
+        "source_ids": ["product_contract"],
         "evidence": [
           "The exact visible text, typed relationship or intelligible aggregate supporting each source obligation.",
           "Actual glyph/paint and navigation observations at required viewports plus independent source-to-artifact review."
@@ -484,10 +408,7 @@
     },
     "principle_review": {
       "scope": "The original root constraint, engineering axioms and construction discipline as applied to this exact projection.",
-      "source_ids": [
-        "product_contract",
-        "axioms"
-      ],
+      "source_ids": ["product_contract", "axioms"],
       "evidence": [
         "Exact source sections, a reasoned source-to-design assessment and counterexamples that would change the judgment.",
         "Review of authority, preserved distinctions, one owner, minimum necessary structure and native capability boundaries."
@@ -502,16 +423,12 @@
           "Construction And Evolution Discipline",
           "Projection Homomorphism"
         ],
-        "axioms": [
-          "Engineering Axioms"
-        ]
+        "axioms": ["Engineering Axioms"]
       }
     },
     "faithfulness": {
       "scope": "Semantic preservation of the complete declared source scope on each exact delivered medium; not an extra product component.",
-      "source_ids": [
-        "product_contract"
-      ],
+      "source_ids": ["product_contract"],
       "evidence": [
         "Independent source-to-artifact review with exact reviewer identity/boundary, artifact and source bindings, observed assertions and counterexamples.",
         "The reviewer evaluates original propositions and visible relationships rather than trusting a renderer's self-report or shared test implementation.",
@@ -525,9 +442,7 @@
       "media": {
         "static_overview": {
           "scope": "One static overview at every required viewport; its main view is the complete reading surface.",
-          "source_ids": [
-            "product_contract"
-          ],
+          "source_ids": ["product_contract"],
           "evidence": [
             "Visible witness or intelligible aggregate for every required assertion and typed relationship.",
             "Observed glyphs, all paint envelopes and whole-view reading order on the exact SVG/raster artifact."
@@ -536,16 +451,11 @@
             "A required predicate, scope, outcome or causal direction can be recovered only from metadata, hover or another unannounced artifact.",
             "Compression changes meaning, disguises an omission or makes required text unreadable."
           ],
-          "states": [
-            "document",
-            "static_export"
-          ]
+          "states": ["document", "static_export"]
         },
         "navigable_atlas": {
           "scope": "The explicitly selected atlas including its overview, named pages, visible navigation and every required route.",
-          "source_ids": [
-            "product_contract"
-          ],
+          "source_ids": ["product_contract"],
           "evidence": [
             "A visible scope map and navigation route from each overview aggregate to its exact detailed witness.",
             "Page-specific glyph/paint/interaction evidence and complete source-to-page disposition; the overview preserves essential authority and causal distinctions."
@@ -554,23 +464,12 @@
             "Unvisited, unreachable or unnamed pages are counted as coverage.",
             "Page-local success is generalized to the entire atlas, or interaction hides a distinction required for understanding an overview relation."
           ],
-          "states": [
-            "document",
-            "navigation"
-          ]
+          "states": ["document", "navigation"]
         },
         "scoped_view": {
           "scope": "An explicitly bounded guided story, presentation, shared view, excerpt or export; the currently visible state is its reading surface.",
-          "states": [
-            "guided_story",
-            "present",
-            "share",
-            "export",
-            "excerpt"
-          ],
-          "source_ids": [
-            "product_contract"
-          ],
+          "states": ["guided_story", "present", "share", "export", "excerpt"],
+          "source_ids": ["product_contract"],
           "evidence": [
             "The visible declared scope and all necessary identity, authority, conditions and outcome distinctions of every expressed relationship.",
             "State-specific source-to-artifact review and painted evidence; a route to a complete document does not substitute for conditions needed to interpret the current view."
@@ -585,9 +484,7 @@
     },
     "predecessor": {
       "scope": "Comparison with a specific prior artifact under compatible source scope and applicable acceptance policy; never product or effect authority.",
-      "source_ids": [
-        "product_contract"
-      ],
+      "source_ids": ["product_contract"],
       "evidence": [
         "Exact prior artifact/source/quality identities, observed evidence, review decision and statement-by-statement applicability to the candidate.",
         "Trusted prestate policy plus explicit source review for changed quality meaning; comparable metric definitions, medium, viewport and evidence plane."

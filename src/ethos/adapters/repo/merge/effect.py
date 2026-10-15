@@ -317,7 +317,7 @@ def _continue(
         updates={
             f"refs/heads/{observed.branch}": GitRefUpdate(expected=observed.head, desired=desired)
         },
-        assertions={candidate_ref: source_head},
+        assertions={candidate_ref: source_head} if candidate_ref else {},
     )
     plan = compile_observed_git_effect(
         root,

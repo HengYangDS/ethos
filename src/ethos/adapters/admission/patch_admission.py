@@ -25,9 +25,9 @@ from ethos.repository.policy.projections import projection_relations
 from ethos.repository.policy.references.carriers import REFERENCE_CARRIERS
 from ethos.repository.policy.references.closure import product_reference_gaps
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
-from ethos.repository.policy.references.observation import ProductReferences
 from ethos.repository.policy.references.observation import deleted_input_gaps
 from ethos.repository.policy.references.observation import product_references_from_files
+from ethos.repository.policy.references.observation import reference_consumer_sources_from_files
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 
 if TYPE_CHECKING:
@@ -50,8 +50,6 @@ def patch_admission(
             "baseline_head": baseline_head,
             "paths": [],
             "references": {},
-            "reference_coverage": "not_evaluated",
-            "uncertainties": [],
         }
     changes, parse_gap = unified_patch_changes(root, patch)
     patch_paths = sorted({str(change["path"]) for change in changes})
@@ -68,14 +66,13 @@ def patch_admission(
     effects: dict[str, str] = {}
     outputs: list[str] = []
     profile = ProfilePostimage(gap="", profile_id="", metadata_repair=False)
-    observation: ProductReferences | None = None
     root_repair: dict[str, object] = {}
     if not reason:
         try:
             baseline_files = _baseline_reference_files(root, baseline_head)
             baseline_references = native_owned_references_from_files(baseline_files)
             (
-                observation,
+                references,
                 effect_gaps,
                 unknown,
                 effects,
@@ -89,7 +86,6 @@ def patch_admission(
                 context_files=baseline_files,
                 declared_commands=baseline_references["command"],
             )
-            references = observation.references
             reason = effect_gaps[0] if effect_gaps else ""
         except (OSError, UnicodeError, ValueError):
             reason = "prewrite_patch_postimage_failed"
@@ -108,13 +104,8 @@ def patch_admission(
         "effects": effects,
         "origin_outputs": outputs,
         "unknown_inputs": unknown,
-        "reference_coverage": observation.coverage if observation is not None else "not_evaluated",
-        "uncertainties": (
-            [item.to_dict() for item in observation.uncertainties]
-            if observation is not None
-            else []
-        ),
         "coverage": "changed_references_and_explicit_native_inputs",
+        "reference_coverage": "unknown" if unknown else "evaluated",
         "baseline_head": baseline_head,
         "paths": patch_paths,
         "references": {key: sorted(value) for key, value in references.items() if value},
@@ -378,7 +369,7 @@ def _patch_references(
     context_files: dict[str, str],
     declared_commands: tuple[str, ...] | frozenset[str] = (),
 ) -> tuple[
-    ProductReferences,
+    dict[str, set[str]],
     list[str],
     list[str],
     dict[str, str],
@@ -422,19 +413,17 @@ def _patch_references(
         }
         context = {path: text for path, text in context_files.items() if path not in postimages}
         context.update(files)
-        observation = product_references_from_files(
+        references = product_references_from_files(
             files,
             context_files=context,
             declared_commands=declared_commands,
             include_declarations=False,
         )
         gaps, unknown, outputs = _source_effect_gaps(root, context_files, postimages)
-        unknown.extend(f"reference_carrier_unknown:{path}" for path in observation.unknown_paths)
-        unknown.extend(
-            f"reference_consumer_unknown:{item.kind}:{item.path}:{item.line}:{item.column}"
-            for item in observation.uncertainties
-            if item.state == "unknown"
+        consumption = reference_consumer_sources_from_files(
+            files, declared_commands=declared_commands
         )
+        unknown.extend(f"reference_carrier_unknown:{path}" for path in consumption.unknown_paths)
         profile = profile_postimage(root, postimages)
         if profile.gap:
             gaps.insert(0, profile.gap)
@@ -447,7 +436,7 @@ def _patch_references(
             for change in changes
         }
         root_repair = supporting_file_relocation(root, postimages, postimage_root=workspace)
-        return observation, gaps, unknown, effects, outputs, profile, root_repair
+        return references, gaps, unknown, effects, outputs, profile, root_repair
 
 
 def _source_effect_gaps(

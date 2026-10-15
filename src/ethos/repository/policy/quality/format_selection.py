@@ -10,6 +10,8 @@ from typing import TypedDict
 from typing import TypeGuard
 from typing import cast
 
+from ethos.repository.policy.projections import observe_projections
+
 POLICY_PATH = Path(".config/checks/format/selection.toml")
 
 
@@ -28,6 +30,7 @@ class OwnerDeclaration(TypedDict):
     extensions: NotRequired[list[str]]
     semantic_companions: NotRequired[list[str]]
     priority: NotRequired[int]
+    projection_kind: NotRequired[str]
 
 
 class CarrierAssignment(TypedDict):
@@ -98,6 +101,9 @@ def _ownership_declarations(value: object) -> list[OwnerDeclaration]:
             if not _strings(declaration.get(field, [])):
                 message = f"format ownership selector is not a string list: {owner}:{field}"
                 raise TypeError(message)
+        if "projection_kind" in declaration and not _required_text(declaration, "projection_kind"):
+            message = f"format ownership projection kind is empty: {owner}"
+            raise ValueError(message)
         priority = declaration.get("priority", 0)
         if isinstance(priority, bool) or not isinstance(priority, int):
             message = f"format ownership priority is not an integer: {owner}"
@@ -150,12 +156,25 @@ def audit(root: Path, *, paths: tuple[str, ...], configuration: Path | None = No
     """Compile effective quality ownership for tracked or explicitly selected carriers."""
     config = tomllib.loads((configuration or root / POLICY_PATH).read_text(encoding="utf-8"))
     declarations = _ownership_declarations(config.get("ownership"))
+    projection_kinds = (
+        {item.output: item.kind for item in observe_projections(root)}
+        if any("projection_kind" in item for item in declarations)
+        else {}
+    )
     tracked = paths
     assignments: list[CarrierAssignment] = []
     failures: list[dict[str, str]] = []
     unowned = multiply_owned = unverified = 0
     for path in tracked:
-        matches = [item for item in declarations if _owner_matches(path, item)]
+        matches = [
+            item
+            for item in declarations
+            if _owner_matches(path, item)
+            and (
+                "projection_kind" not in item
+                or projection_kinds.get(path) == item["projection_kind"]
+            )
+        ]
         if not matches:
             unowned += 1
             failures.append({"path": path, "reason": "tracked carrier has no quality owner"})

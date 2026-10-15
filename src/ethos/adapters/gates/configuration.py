@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import configparser
-import fnmatch
 import json
 import subprocess
 import tomllib
@@ -13,6 +12,7 @@ from yamllint import config as yamllint_config
 from yamllint import linter as yamllint_linter
 
 from ethos.adapters.gates.formatting import source_format_report
+from ethos.adapters.gates.native.inputs import authored_source_files
 from ethos.adapters.gates.native.inputs import native_configurations
 from ethos.adapters.gates.native.inputs import quality_inventory_failure
 from ethos.adapters.process import ProcessExecutionError
@@ -21,13 +21,7 @@ from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.contracts.verdict import close_verdict
-from ethos.domain.source_budget.measurement_policy import policy_for_root
 from ethos.normalization.coercion import string_sequence
-from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
-from ethos.repository.policy.projections import projection_relations
-from ethos.repository.profile import INVALID_PROFILE_ERROR
-from ethos.repository.profile import load_repository_profile
-from ethos.repository.release.resources import canonical_resource
 
 SUPPORTED_SUFFIXES = frozenset({".toml", ".yaml", ".yml", ".json", ".ini", ".cfg"})
 
@@ -51,28 +45,10 @@ def _configuration_inventory(root: Path) -> tuple[Path, ...]:
 
 
 def _candidate_paths(root: Path, requested: tuple[str, ...]) -> dict[str, tuple[Path, ...]]:
-    profile = load_repository_profile(root)
-    if profile.state == "invalid":
-        raise ValueError(INVALID_PROFILE_ERROR)
-    artifacts = profile.declaration.proof.source_kinds if profile.declaration else {}
-    declarations = {
-        relative: (root / relative).read_text(encoding="utf-8")
-        for relative in PROJECTION_DECLARATIONS
-        if (root / relative).is_file()
-    }
-    generated = {relation.output for relation in projection_relations(declarations)}
-    selection, gaps = policy_for_root(canonical_resource())
-    if selection is None or gaps:
-        message = ", ".join(gaps) or "source_budget_policy_invalid"
-        raise ValueError(message)
-    dependency_patterns = tuple(
-        pattern
-        for carrier in selection.carriers
-        if carrier.category == "dependency_resolution"
-        for pattern in carrier.paths
-    )
+    inventory = tuple(map(Path, requested)) or _configuration_inventory(root)
+    authored = set(authored_source_files(root, paths=tuple(path.as_posix() for path in inventory)))
     selected = []
-    for raw in tuple(map(Path, requested)) or _configuration_inventory(root):
+    for raw in inventory:
         path = root / raw
         if raw.suffix.lower() not in SUPPORTED_SUFFIXES:
             message = f"unsupported config lint targets: {raw}"
@@ -87,13 +63,9 @@ def _candidate_paths(root: Path, requested: tuple[str, ...]) -> dict[str, tuple[
             continue
         relative = path.resolve().relative_to(root.resolve()).as_posix()
         owned_elsewhere = (
-            relative in artifacts
-            or relative in generated
-            or relative.startswith(
-                ("evidence/", "docs/archive/", "openspec/changes/", "openspec/specs/")
-            )
+            relative not in authored
+            or relative.startswith(("openspec/changes/", "openspec/specs/"))
             or relative in {"openspec/config.yaml", "openspec/config.yml"}
-            or any(fnmatch.fnmatchcase(relative, pattern) for pattern in dependency_patterns)
         )
         if owned_elsewhere:
             if requested:

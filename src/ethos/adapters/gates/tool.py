@@ -142,13 +142,11 @@ def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, objec
 
 
 def _markdown_files(root: Path) -> list[str]:
-    """Current authored Markdown excludes immutable records and absent paths."""
+    """Use the common authored-input join while preserving absent-path filtering."""
     return [
         path
-        for path in native_inputs.quality_source_files(root, "*.md")
-        if path.endswith(".md")
-        and not path.startswith(("evidence/", "docs/archive/", "openspec/changes/archive/"))
-        and (root / path).is_file()
+        for path in native_inputs.authored_source_files(root, "*.md")
+        if path.endswith(".md") and (root / path).is_file()
     ]
 
 

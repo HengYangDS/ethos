@@ -42,8 +42,8 @@ from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.gates import PRODUCT_PROVIDER_SOURCE
 from ethos.repository.policy.gates import gate_execution_identity
-from ethos.repository.policy.gates import native_dependency_audit_scope
 from ethos.repository.policy.gates import provider_module_sources
+from ethos.repository.policy.quality.dependency_acceptance import native_dependency_audit_scope
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -166,7 +166,7 @@ class LocalGateRunner:
                 completed = run_command(
                     root,
                     execution_command,
-                    **({"timeout": max(0, deadline - monotonic())} if deadline else {}),
+                    timeout=max(0, deadline - monotonic()) if deadline else None,
                 )
         except subprocess.TimeoutExpired as exc:
             return ActionRunResult(

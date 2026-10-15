@@ -9,14 +9,12 @@ from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
-from ethos.contracts.gates import bind_gate_command
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
@@ -26,6 +24,8 @@ from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.verdict import execution_succeeded
 from ethos.repository.policy.code_subjects import observed_code_subjects
 from ethos.repository.policy.code_subjects import source_binding_gaps
+from ethos.repository.policy.quality.dependency_acceptance import native_dependency_audit_scope
+from ethos.repository.policy.quality.gate_composition import canonical_gate_command
 from ethos.repository.policy.quality.gate_composition import select_gate_declaration
 from ethos.repository.policy.quality.obligations import INTEGRITY_PROVIDER
 from ethos.repository.policy.quality.obligations import QUALITY_PROVIDERS
@@ -36,14 +36,11 @@ from ethos.repository.policy.quality.sources import source_contract_paths
 from ethos.repository.policy.quality.tool_configuration import native_gate_tools
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
 from ethos.repository.policy.quality.tool_configuration import native_tool_configurations
-from ethos.repository.policy.references.commands.invocation import python_module
-from ethos.repository.policy.references.python.syntax import module_source_paths
+from ethos.repository.policy.references.commands import python_module
+from ethos.repository.policy.references.python_syntax import module_source_paths
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import SourceContract
-
-if TYPE_CHECKING:
-    from ethos.repository.policy.quality.dependency_acceptance import AuditScope
 
 _PACKAGED_GATE_DECLARATION = load_gate_registry_declaration()
 PRODUCT_PROVIDER_SOURCE = "@ethos/"
@@ -230,9 +227,20 @@ def _owner_projection(
 
 
 def _same_packaged_quality_floor(declaration: GateRegistryDeclaration) -> bool:
-    """Keep scheduler capacity out of quality ownership, but bind it in proof policy."""
+    """Bind capacity and audit scope in proof without changing quality ownership."""
     exclusion = {"gates": {"__all__": {"cpu_reservation"}}}
-    return declaration.model_dump(mode="json", exclude=exclusion) == (
+    normalized = declaration.model_copy(
+        update={
+            "gates": tuple(
+                gate.model_copy(update={"command": gate.command[:-3]})
+                if native_dependency_audit_scope(gate.model_dump(mode="python"))
+                == "local-development"
+                else gate
+                for gate in declaration.gates
+            )
+        }
+    )
+    return normalized.model_dump(mode="json", exclude=exclusion) == (
         _PACKAGED_GATE_DECLARATION.model_dump(mode="json", exclude=exclusion)
     )
 
@@ -270,11 +278,12 @@ def _profile_declaration(profile: RepositoryProfile) -> GateRegistryDeclaration:
     )
 
 
-def _gate_declaration(
+def resolve_gate_declaration(
     profile: RepositoryProfile | None,
     *,
     gate_registry_source: bytes | None = None,
 ) -> tuple[GateRegistryDeclaration, RepositoryProfile | None]:
+    """Validate the selected native declaration without observing execution materials."""
     if profile is None:
         return _PACKAGED_GATE_DECLARATION, None
     if profile.state == "invalid":
@@ -442,7 +451,7 @@ def resolve_gate_policy(
 ) -> ResolvedGatePolicy:
     acceptance_purpose = proof_acceptance_purpose({"acceptance_purpose": acceptance_purpose})
     selected_obligations = selected_obligations and bool(gate_ids) and not full
-    declaration, profile = _gate_declaration(
+    declaration, profile = resolve_gate_declaration(
         profile,
         gate_registry_source=gate_registry_source,
     )
@@ -483,6 +492,13 @@ def resolve_gate_policy(
         if profile is not None and profile.declaration is not None
         else ((), ())
     )
+    selected_ids = {gate.id for gate in gates}
+    if acceptance_purpose == "local-source" and any(
+        gate.id not in selected_ids
+        and native_dependency_audit_scope(gate.model_dump(mode="python"))
+        for gate in declaration.proof_gates(full=True, python_executable=python_executable)
+    ):
+        gaps = (*gaps, "proof_dependency_acceptance_audit_missing")
     if (
         profile is not None
         and repository_python is None
@@ -519,29 +535,6 @@ def resolve_gate_policy(
         carrier_roles,
         acceptance_purpose,
         selected_obligations,
-    )
-
-
-def canonical_gate_command(command: tuple[str, ...]) -> tuple[str, ...]:
-    """Remove only a host-specific absolute Python interpreter path."""
-    if not command:
-        return command
-    head, *rest = command
-    name = Path(head).name
-    return ("python", *rest) if Path(head).is_absolute() and name.startswith("python") else command
-
-
-def native_dependency_audit_scope(gate: Mapping[str, object]) -> AuditScope | None:
-    """Select only the canonical audit owner and its explicit execution scope."""
-    command = gate.get("execution_identity", gate.get("command"))
-    if gate.get("tool_adapter") != "vulnerabilities" or not isinstance(command, tuple | list):
-        return None
-    identity = canonical_gate_command(bind_gate_command(tuple(command), sys.executable))
-    native = ("python", "-m", "nox", "-s", "vulnerabilities")
-    if identity in (native, (*native, "--", "--scope", "production-release")):
-        return "production-release"
-    return (
-        "local-development" if identity == (*native, "--", "--scope", "local-development") else None
     )
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from contextlib import nullcontext
 from pathlib import Path
@@ -26,6 +27,7 @@ from ethos.domain.plan import plan_repository
 from ethos.domain.publication.operation import publish_repository
 from ethos.result import EthosResult
 from ethos.result import apply_payload_budget
+from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import init_repo_with_candidate
 from tests.support.literal_cases import literal_case
 
@@ -83,7 +85,7 @@ def test_invalid_profilecommand_name_detection_skips_option_values(
     assert root_command(argv) == expected
 
 
-def test_plan_payload_budget_externalizes_oversized_detail(tmp_path: Path) -> None:
+def test_plan_payload_budget_externalizes_oversized_detail(tmp_path: Path, monkeypatch) -> None:
     result = EthosResult(
         command="plan",
         verdict="block",
@@ -106,6 +108,15 @@ def test_plan_payload_budget_externalizes_oversized_detail(tmp_path: Path) -> No
     assert reference["sha256"].startswith("sha256:")
     assert reference["size_bytes"] == artifact.stat().st_size
     assert json.loads(artifact.read_text(encoding="utf-8"))["data"] == result.data
+    monkeypatch.setattr(
+        "tests.support.ethos_cli_runner.run_ethos_raw",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, bounded.to_json(), ""),
+    )
+    assert run_ethos("plan", "--json", cwd=tmp_path) == bounded.to_dict()
+    assert run_ethos("plan", "--json", cwd=tmp_path, full_payload=True) == result.to_dict()
+    artifact.write_bytes(artifact.read_bytes() + b" ")
+    with pytest.raises(AssertionError, match="payload_artifact_mismatch"):
+        run_ethos("plan", "--json", cwd=tmp_path, full_payload=True)
 
 
 @pytest.mark.parametrize(

@@ -8,6 +8,18 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ethos.contracts.gates import Gate
 
+NATIVE_TOOL_LOCATIONS = {
+    "ruff": ".config/checks/ruff/ruff.toml",
+    "gitleaks": ".config/checks/gitleaks/gitleaks.toml",
+    "gitleaks-ignore": ".config/checks/gitleaks/gitleaksignore",
+    "lychee": ".config/checks/links/lychee.toml",
+    "markdownlint-cli2": ".config/checks/markdown/markdownlint.yaml",
+    "prettier": ".config/checks/format/prettier.toml",
+    "codespell": ".config/checks/prose/codespell.toml",
+    "taplo": ".config/checks/taplo/taplo.toml",
+    "yamllint": ".config/checks/yaml/yamllint.yaml",
+}
+
 
 def native_gate_tools(gate: Gate) -> tuple[str, ...]:
     """Select the native policy owners invoked by this gate's providers."""
@@ -53,18 +65,11 @@ def _configuration_carriers(
     repository_paths: tuple[str, ...], tool: str
 ) -> tuple[str | None, tuple[str, ...]]:
     """Select carrier identities once for strict admission and historical observation."""
-    locations = {
-        "ruff": "ruff.toml",
-        "lychee": ".config/checks/links/lychee.toml",
-        "markdownlint-cli2": ".config/checks/markdown/markdownlint.yaml",
-        "prettier": ".config/checks/format/prettier.toml",
-        "codespell": ".config/checks/prose/codespell.toml",
-        "taplo": ".config/checks/taplo/taplo.toml",
-        "yamllint": ".config/checks/yaml/yamllint.yaml",
-    }
-    location = locations.get(tool)
+    location = NATIVE_TOOL_LOCATIONS.get(tool)
     names = {
-        "ruff": {"ruff.toml"},
+        "ruff": {"ruff.toml", ".ruff.toml"},
+        "gitleaks": {"gitleaks.toml", ".gitleaks.toml"},
+        "gitleaks-ignore": {"gitleaksignore", ".gitleaksignore"},
         "lychee": {"lychee.toml"},
         "markdownlint-cli2": {
             "markdownlint.toml",
@@ -78,8 +83,6 @@ def _configuration_carriers(
         "yamllint": {"yamllint.yaml", ".yamllint", ".yamllint.yaml", ".yamllint.yml"},
     }
     selected = tuple(path for path in repository_paths if Path(path).name in names.get(tool, set()))
-    if tool == "ruff" and location in selected:
-        selected = (location,)
     if location in repository_paths and location not in selected:
         selected = (*selected, location)
     return location, selected

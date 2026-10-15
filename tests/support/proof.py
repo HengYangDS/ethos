@@ -205,7 +205,8 @@ def declare_native_proof_checks(root: Path, *, test: str, typecheck: str) -> Non
                 "id": "fixture-native-checks",
                 "proof_sets": {"default": ids, "full": ids},
                 "gates": gates,
-            }
+            },
+            indent=2,
         ),
         encoding="utf-8",
     )

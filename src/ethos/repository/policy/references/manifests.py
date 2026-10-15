@@ -14,7 +14,7 @@ from pydantic import Field
 from pydantic import ValidationError
 
 from ethos.repository.policy.references.carriers import reference_carrier
-from ethos.repository.policy.references.commands.invocation import shell_executables
+from ethos.repository.policy.references.commands import shell_executables
 
 
 class ProjectFields(BaseModel):

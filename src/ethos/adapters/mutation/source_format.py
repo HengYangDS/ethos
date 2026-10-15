@@ -138,6 +138,8 @@ def _format_source(
         if result.returncode:
             message = "source_format_apply_refused:" + result.stderr
             raise ValueError(message)
+        for item in changed:
+            (root / item.path).chmod(item.mode)
     if (
         any(
             (root / item.path).read_bytes() != item.after

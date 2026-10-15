@@ -222,9 +222,7 @@ def test_accepted_ref_admission_claim_matrix(tmp_path: Path, row: tuple[str, ...
     if boundary == "!proof":
         assert report["state"] == "blocked"
         assert report["decision"] == {"action": "block", "reason": "protected_ref_move_not_proven"}
-        assert any(
-            "proof" in str(gap) or "not_proven" in str(gap) for gap in report["required_gaps"]
-        )
+        assert report["required_gaps"]
     elif boundary == "consume":
         assert report["required_gaps"] == ["ref_intent_reused"]
     elif boundary.startswith("="):

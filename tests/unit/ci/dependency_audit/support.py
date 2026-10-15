@@ -17,6 +17,7 @@ from unittest.mock import Mock
 import pytest
 
 import ethos.adapters.repo.runtime.materialization.input_resolution as input_resolution
+from ethos.repository.policy.quality.dependency_acceptance import AUDIT_INPUTS
 from tools.ci import dependency_audit as audit
 
 if TYPE_CHECKING:
@@ -156,3 +157,45 @@ def authorize_fixture(root: Path, **changes) -> None:
         rendered.append(f"{key} = {text}")
     policy = root / audit.POLICY
     policy.write_text(policy.read_text().replace("dispositions = []\n", "") + "\n".join(rendered))
+
+
+def captured_audit_payload(**changes) -> tuple[str, dict[str, bytes]]:
+    sources = {name: f"captured {name}\n".encode() for name in AUDIT_INPUTS}
+    payload = {
+        "command": "dependency-audit",
+        "head": "a" * 40,
+        "inputs": {name: hashlib.sha256(value).hexdigest() for name, value in sources.items()},
+    }
+    payload.update(changes)
+    return json.dumps(payload), sources
+
+
+def native_audit_observation(fault: str) -> tuple[dict, bytes]:
+    lock = b'{"packages": {"": {}}}\n'
+    checks = [
+        {
+            "ecosystem": ecosystem,
+            "exit_code": 0,
+            "stdout": json.dumps(clean_report(ecosystem)),
+            "verdict": "pass",
+            "reason": "clean",
+        }
+        for ecosystem in ("python", "npm")
+    ]
+    payload = {
+        "state": "finished",
+        "required_gaps": [],
+        "checks": checks,
+        "verdict": "pass",
+        "inputs": {"package-lock.json": hashlib.sha256(lock).hexdigest()},
+    }
+    if fault == "incomplete":
+        payload["state"] = "running"
+    elif fault == "verdict":
+        checks[0]["verdict"] = "block"
+    elif fault == "reduction":
+        payload["verdict"] = "block"
+    else:
+        checks[1].update(exit_code=1, verdict="unknown", reason="native_execution_failed")
+        payload.update(verdict="unknown", required_gaps=["npm:native_execution_failed"])
+    return payload, lock

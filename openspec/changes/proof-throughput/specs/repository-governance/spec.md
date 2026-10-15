@@ -75,13 +75,6 @@ admission SHALL remain independent.
 - **THEN** that repaired-history relationship is not admitted
 - **AND THEN** no local or remote ref changes during observation.
 
-#### Scenario: An unselected peer ref has no historical validation obligation
-
-- **WHEN** no completed repair names the requested peer ref
-- **THEN** the existing relation owner selects no unrelated historical repair
-- **AND THEN** selected repair chains retain all payload, trust, missing-evidence
-  and ambiguity checks before admitting a repaired relationship.
-
 ### Requirement: Release tags preserve native product version authority
 
 ETHOS SHALL create requested signed annotated tags from exact committed native
@@ -410,6 +403,23 @@ checkout and compare-delete its exact ref in a transaction verifying accepted.
   transaction cannot commit
 - **THEN** ETHOS re-observes the ref, worktree, and Lease postconditions
 - **AND** it reports the exact non-terminal state without claiming retirement.
+
+## REMOVED Requirements
+
+### Requirement: Preservation-bound exceptional Work Lane retirement
+
+**Reason**: No command writes, verifies or applies lane-resolution preserve or
+preserve-retire packages; exact retirement owns every remaining disposition.
+**Migration**: Use the existing receipt-bound `ethos lane retire abandon` and
+`ethos lane retire superseded` transitions for divergent or reviewed content.
+
+### Requirement: Durable exceptional-resolution recovery inventory
+
+**Reason**: No inventory, clear or legacy-retention check implements this
+requirement, and the retained local packages have no consumer or unfinished
+transition.
+**Migration**: Recovery material stays with the operation that needs it; the
+unconsumed local `build/artifacts/lane-resolution` residue is removed.
 
 ## ADDED Requirements
 
@@ -784,6 +794,7 @@ SHALL not be mistaken for authored directory entrypoints.
 - **AND** semantic hierarchy and meaningful links preserve progressive detail
   without fragmenting one cohesive explanation or duplicating authority
 - **AND** a move repairs affected links without changing subject identity
+
 
 ### Requirement: Accepted history repair preserves original acceptance provenance
 

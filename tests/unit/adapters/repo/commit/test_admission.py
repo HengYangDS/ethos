@@ -383,6 +383,7 @@ def test_object_policy_and_optional_trust_matrix(
         "verify_git_object_trust",
         lambda _root, value, _kind: verified.append(value) or {"required_gaps": trust or []},
     )
+    monkeypatch.setattr(integration, "verify_commit_trust", admission.verify_commit_trust)
 
     report = admission.commit_policy_report(
         tmp_path,

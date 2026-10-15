@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 import pytest
@@ -15,13 +14,12 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-_CARRIER_CASES = literal_case(
-    "policy.test_reference_carriers:parametrize:test_reference_carriers_have_one_deterministic_dispatch:0"
+@pytest.mark.parametrize(
+    ("path", "carrier"),
+    literal_case(
+        "policy.test_reference_carriers:parametrize:test_reference_carriers_have_one_deterministic_dispatch:0"
+    ),
 )
-assert isinstance(_CARRIER_CASES, Iterable)
-
-
-@pytest.mark.parametrize(("path", "carrier"), _CARRIER_CASES)
 def test_reference_carriers_have_one_deterministic_dispatch(path: str, carrier: str) -> None:
     """Every supported path resolves through the one ordered carrier table."""
     assert reference_carrier(path).name == carrier

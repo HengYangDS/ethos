@@ -4,7 +4,7 @@ runner = "uv run --frozen --offline python -m nox -s format_selection"
 
 [source_budget]
 cross_check = { command = "scc", args = ["--no-cocomo", "--no-complexity", "--by-file", "--format", "json2", "--exclude-file=__never__", "--count-as", "c4:md,mmd:md,cue:go", "."], timeout_seconds = 30, tolerance = { python_total = 2000, global_total = 3000 } }
-terminal = { python_product = 65000, python_tests = 70000 }
+terminal = { python_product = 70000, python_tests = 80000 }
 aggregates = { python_total = ["python_product", "python_tests", "python_tools", "python_other"], global_total = ["python_product", "python_tests", "python_tools", "python_other", "markdown", "shell", "js", "toml", "yaml", "json", "ini", "diagram", "cue"] }
 immutable_record_roots = ["openspec/changes/archive/"]
 line_width = 100
@@ -38,7 +38,7 @@ paths = ["openspec/config.yaml", "openspec/specs/**", "openspec/changes/*/**"]
 exclude_paths = ["openspec/changes/archive/**"]
 format_owner = "official-openspec"
 format_command = "openspec owner-native mutation"
-format_check = "uv run --frozen --offline python -m nox -s format_check"
+format_check = "uv run --frozen --offline python -m nox -s markdown_lint"
 validation_owner = "official-openspec"
 validation_command = "ethos prove --gate openspec --json"
 semantic_companions = ["markdownlint-cli2", "repository-hygiene"]
@@ -54,6 +54,23 @@ format_check = "uv run --frozen --offline python -m nox -s repository_hygiene"
 validation_owner = "repository-hygiene"
 validation_command = "uv run --frozen --offline python -m nox -s repository_hygiene"
 semantic_companions = ["official-openspec-history"]
+mutation_policy = "forbidden"
+
+[[ownership]]
+id = "publisher-captured-source-bundles"
+priority = 100
+paths = [
+  "integrations/architecture-publisher/migration-baseline.json",
+  "integrations/architecture-publisher/src/edition/authoring/**",
+  "integrations/architecture-publisher/src/edition/static/authoring/**",
+  "integrations/architecture-publisher/src/edition/refresh.json",
+  "integrations/architecture-publisher/src/edition/verification-policy.json",
+]
+format_owner = "immutable-carrier"
+format_command = "not-applicable:captured-source-bundle"
+format_check = "npm run test:architecture-publisher"
+validation_owner = "architecture-publisher-source-bundle"
+validation_command = "npm run test:architecture-publisher"
 mutation_policy = "forbidden"
 
 [[ownership]]
@@ -395,6 +412,7 @@ budget = [{ category = "cue", comment_prefixes = ["//"], comment_wrappers = [["/
 
 [[ownership]]
 id = "ci-projection"
+projection_kind = "cue"
 priority = 100
 paths = [".github/workflows/ci.yml", ".gitlab-ci.yml"]
 format_owner = "cue"

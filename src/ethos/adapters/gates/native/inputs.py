@@ -6,7 +6,14 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_files
+from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
+from ethos.repository.policy.projections import projection_relations
+from ethos.repository.policy.quality.format_selection import audit
+from ethos.repository.policy.quality.source_budget import policy_for_root
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
+from ethos.repository.policy.rules.config import path_matches
+from ethos.repository.profile import INVALID_PROFILE_ERROR
+from ethos.repository.profile import load_repository_profile
 from ethos.repository.release.resources import canonical_resource
 
 if TYPE_CHECKING:
@@ -19,6 +26,46 @@ def quality_source_files(root: Path, *patterns: str) -> list[str]:
     return git_files(
         root, "--cached", "--others", "--exclude-standard", "--", *patterns, check=True
     )
+
+
+def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = ()) -> list[str]:
+    """Join authored inputs once, preserving producer, upstream and immutable ownership."""
+    profile = load_repository_profile(root)
+    if profile.state == "invalid":
+        raise ValueError(INVALID_PROFILE_ERROR)
+    foreign = profile.declaration.proof.source_kinds if profile.declaration else {}
+    declarations = {
+        path: (root / path).read_text(encoding="utf-8")
+        for path in PROJECTION_DECLARATIONS
+        if (root / path).is_file()
+    }
+    generated = {item.output for item in projection_relations(declarations)}
+    policy, gaps = policy_for_root(canonical_resource())
+    if policy is None or gaps:
+        raise ValueError(gaps[0] if gaps else "source_budget_policy_invalid")
+    dependencies = tuple(
+        pattern
+        for item in policy.carriers
+        if item.category == "dependency_resolution"
+        for pattern in item.paths
+    )
+    selected = [
+        relative
+        for relative in paths or quality_source_files(root, *patterns)
+        if relative not in foreign
+        and relative not in generated
+        and not relative.startswith(("evidence/", "docs/archive/", "openspec/changes/archive/"))
+        and not path_matches(relative, dependencies)
+    ]
+    ownership = audit(
+        root,
+        paths=tuple(selected),
+        configuration=canonical_resource(".config/checks/format/selection.toml"),
+    )
+    captured = {
+        item["path"] for item in ownership["assignments"] if item["mutation_policy"] == "forbidden"
+    }
+    return [relative for relative in selected if relative not in captured]
 
 
 def quality_inventory_failure(

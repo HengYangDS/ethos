@@ -1,1 +1,26 @@
-{"$id":"https://ethos.local/schemas/commitment.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"description":"Acceptance semantics compiled from one exact official OpenSpec Change.","properties":{"acceptance":{"items":{"type":"string"},"title":"Acceptance","type":"array"},"id":{"pattern":"^[a-z][a-z0-9-]*(?::[a-z0-9][a-z0-9-]*)+$","title":"Id","type":"string"},"schema_version":{"const":3,"title":"Schema Version","type":"integer"}},"required":["schema_version","id","acceptance"],"title":"ETHOS Commitment","type":"object"}
+{
+  "$id": "https://ethos.local/schemas/commitment.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Acceptance semantics compiled from one exact official OpenSpec Change.",
+  "properties": {
+    "acceptance": {
+      "items": { "type": "string" },
+      "title": "Acceptance",
+      "type": "array"
+    },
+    "id": {
+      "pattern": "^[a-z][a-z0-9-]*(?::[a-z0-9][a-z0-9-]*)+$",
+      "title": "Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 3,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": ["schema_version", "id", "acceptance"],
+  "title": "ETHOS Commitment",
+  "type": "object"
+}

@@ -76,11 +76,11 @@ real ownership—not mechanical file fragmentation.
 
 - `.config/checks/format/selection.toml` owns current classifications,
   thresholds, native commands, and the independent `scc` cross-check.
-- `src/ethos/domain/source_budget/measurement.py` and
-  `measurement_policy.py` implement direct deterministic measurement.
-- `tests/unit/domain/test_source_budget.py` and
-  `test_source_budget_public_determinism.py` cover non-compensation,
-  classification, and deterministic output.
+- `src/ethos/domain/source_budget/measurement.py` owns direct deterministic
+  measurement; `src/ethos/repository/policy/quality/source_budget.py` owns its
+  typed policy and native declaration parser.
+- `tests/unit/domain/source_budget/` covers non-compensation, classification,
+  and deterministic output.
 - [Module Layout And Visibility Rules](../../rules/module_layout.md) prevents
   size thresholds from authorizing suffix-flat or metric-driven splits.
 

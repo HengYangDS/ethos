@@ -201,7 +201,11 @@ def test_public_preview_distinguishes_operation_and_source_prerequisites(
 ):
     """A visible lane is not a pending operation or permission to invent one."""
     root = native_merge_fixture(tmp_path, pending=boundary in {"pending-start", "invalid-intent"})
-    mode = "start" if boundary in {"pending-start", "current-base"} else "continue"
+    mode = (
+        "start"
+        if boundary in {"pending-start", "missing-candidate", "current-base"}
+        else "continue"
+    )
     if boundary == "missing-candidate":
         git(root, "update-ref", "-d", "refs/heads/candidate/dev")
     elif boundary == "current-base":

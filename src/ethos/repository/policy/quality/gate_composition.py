@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
@@ -85,3 +87,12 @@ def select_gate_declaration(
         proof_sets=proof_sets,
         gates=(*gates, *extra.values()),
     )
+
+
+def canonical_gate_command(command: tuple[str, ...]) -> tuple[str, ...]:
+    """Remove only a host-specific absolute Python interpreter path."""
+    if not command:
+        return command
+    head, *rest = command
+    name = Path(head).name
+    return ("python", *rest) if Path(head).is_absolute() and name.startswith("python") else command

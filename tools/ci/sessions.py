@@ -128,7 +128,7 @@ SESSION_IMPLEMENTATIONS = {"format": source_format}
 def lint(session) -> None:
     paths = _python_paths(session)
     RUFF_CACHE.mkdir(parents=True, exist_ok=True)
-    common = ("--cache-dir", str(RUFF_CACHE), "--config", "ruff.toml")
+    common = ("--cache-dir", str(RUFF_CACHE), "--config", ".config/checks/ruff/ruff.toml")
     executable = RUNTIME.script("ruff")
     session.run(executable, "check", "--ignore-noqa", *common, *paths)
     session.run(executable, "format", *common, "--check", *paths)

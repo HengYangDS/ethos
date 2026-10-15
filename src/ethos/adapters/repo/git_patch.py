@@ -57,8 +57,7 @@ def _update_patch_change(change: dict[str, object], line: str) -> None:
     elif line.startswith("+++ "):
         path = _patch_path(line[4:].split("\t", 1)[0])
         change["deleted"] = path == "/dev/null"
-        if path != "/dev/null":
-            change["path"] = path
+        change["path"] = change["old_path"] if change["deleted"] else path
     elif line.startswith(("rename from ", "copy from ")):
         change["old_path"] = _patch_path(line.split(" ", 2)[2])
 

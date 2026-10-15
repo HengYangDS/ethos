@@ -63,6 +63,9 @@ def test_current_openspec_markdown_has_generic_and_semantic_validation(carrier_r
     for relative in sorted(selected):
         assignment = assignments[relative]
         assert assignment["format_owner"] == "official-openspec"
+        assert assignment["format_check"] == (
+            "uv run --frozen --offline python -m nox -s markdown_lint"
+        )
         assert assignment["validation_owner"] == "official-openspec"
         assert assignment["validation_command"] == "ethos prove --gate openspec --json"
         assert assignment["semantic_companions"]
@@ -82,7 +85,9 @@ def test_immutable_markdown_is_linted_without_rewrite_authority(carrier_report) 
     assert {entry["validation_owner"] for entry in immutable} == {"markdownlint-cli2"}
 
 
-def test_native_carriers_separate_canonicalization_from_validation(carrier_report) -> None:
+def test_native_carriers_separate_canonicalization_from_validation(
+    carrier_report, tmp_path
+) -> None:
     assignments = {entry["path"]: entry for entry in carrier_report["assignments"]}
 
     expected = {
@@ -104,6 +109,39 @@ def test_native_carriers_separate_canonicalization_from_validation(carrier_repor
     assert assignments[".config/checks/pytest/pytest.toml"]["validation_command"].endswith(
         "-s config_quality"
     )
+    adopter = init_git_repo(tmp_path / "adopter")
+    provider_paths = (".github/workflows/ci.yml", ".gitlab-ci.yml")
+    report = audit(adopter, paths=provider_paths, configuration=format_selection.CONFIG_PATH)
+    assert report["verdict"] == "pass", report
+    assert len(report["assignments"]) == len(provider_paths)
+    assert all(
+        (entry["format_owner"], entry["mutation_policy"]) == ("prettier", "native-formatter")
+        for entry in report["assignments"]
+    )
+    declaration = adopter / ".config/checks/ci/templates.toml"
+    declaration.parent.mkdir(parents=True)
+    declaration.write_text(
+        'schema = "ethos-ci-template-consistency-v1"\n'
+        '[[projection]]\nkind = "cue"\nprovider = "gitlab"\n'
+        'projection = ".gitlab-ci.yml"\n'
+        '[compiler]\nsource = ".config/ci/pipeline.cue"\n'
+        'inputs = { gates = "system/gates.toml" }\n'
+        'supply = { config = ".config/mise/config.toml", lock = ".config/mise/mise.lock" }\n'
+    )
+    projected = audit(adopter, paths=provider_paths, configuration=format_selection.CONFIG_PATH)
+    owners = {entry["path"]: entry for entry in projected["assignments"]}
+    assert projected["verdict"] == "pass", projected
+    assert (
+        owners[".gitlab-ci.yml"]["format_owner"],
+        owners[".gitlab-ci.yml"]["mutation_policy"],
+    ) == (
+        "cue",
+        "generator-only",
+    )
+    assert owners[".github/workflows/ci.yml"]["mutation_policy"] == "native-formatter"
+    declaration.write_text("not = [valid\n")
+    with pytest.raises(ValueError, match="projection_declaration_invalid"):
+        audit(adopter, paths=provider_paths, configuration=format_selection.CONFIG_PATH)
 
 
 @pytest.mark.parametrize(

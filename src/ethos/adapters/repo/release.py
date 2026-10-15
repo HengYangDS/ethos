@@ -17,6 +17,7 @@ from ethos.adapters.repo.commit.signature import completed_signature_repair
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import current_tracked_head
+from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
@@ -154,12 +155,65 @@ def release_tag_policy(root: Path, head: str, name: str) -> dict[str, str]:
     return version
 
 
-def accepted_release_source(root: Path, head: str, *, base: str = "") -> dict[str, object]:
+def release_publication_head(root: Path, *, ref: str = "", new: str = "") -> str:
+    """Return the accepted commit that publishing one ref object delivers.
+
+    Branches and new release tags deliver the current accepted head. An existing
+    tag object delivers the earlier accepted commit at which its attested release
+    effect created it, so a peer that missed that release can still receive it.
+    """
+    policy = load_branch_role_policy(root)
+    accepted_ref = f"refs/heads/{policy.accepted_branch}"
+    head = ref_head(root, accepted_ref)
+    if not ref.startswith("refs/tags/") or not new:
+        return head
+    released = git_stdout(root, "rev-parse", "--verify", "--quiet", f"{new}^{{commit}}")
+    if not released or released == head or not is_ancestor(root, released, head):
+        return head
+    plan = recover_plan(
+        root,
+        operation="release.promote",
+        desired=new,
+        ref_name=ref,
+        current_postconditions=False,
+    )
+    if plan is None:
+        return head
+    effect = git_effect_from_plan(plan)
+    update = effect.updates.get(ref)
+    attested = (
+        update is not None
+        and (update.expected, update.desired) == (zero_oid(root), new)
+        and effect.assertions.get(accepted_ref) == released
+    )
+    return released if attested else head
+
+
+def publication_proof_head(root: Path, refs: tuple[str, ...], head: str) -> str:
+    """Prove a tag's release commit; every other publication proves the checkout head."""
+    if not refs or not all(ref.startswith("refs/tags/") for ref in refs):
+        return head
+    tag = ref_head(root, refs[0])
+    try:
+        maintenance = release_provenance(root, ref=refs[0], oid=tag) if tag else None
+        if maintenance is not None:
+            return str(maintenance.facts["head"])
+        return release_publication_head(root, ref=refs[0], new=tag) if tag else head
+    except ValueError:
+        return head
+
+
+def accepted_release_source(
+    root: Path, head: str, *, base: str = "", ref: str = "", new: str = ""
+) -> dict[str, object]:
     """Validate exact accepted content without claiming historical signatures."""
     policy = release_branch_policy(root)
     accepted_ref = f"refs/heads/{policy.accepted_branch}"
     current = ref_head(root, accepted_ref)
-    require_release(bool(base) or current == head, "release_source_not_current_accepted")
+    require_release(
+        bool(base) or release_publication_head(root, ref=ref, new=new) == head,
+        "release_source_not_current_accepted",
+    )
     if base:
         require_release(
             ref_head(root, base) == base and is_ancestor(root, base, head),
@@ -214,7 +268,7 @@ def accepted_delivery_report(
     accepted effect and policy remain independently checked.
     """
     try:
-        accepted = accepted_release_source(root, head)
+        accepted = accepted_release_source(root, head, ref=target, new=proposed)
         policy = commit_policy_for_revision(root, head)
     except (OSError, TypeError, ValueError) as error:
         return {"verdict": "block", "required_gaps": [str(error)]}
@@ -243,15 +297,28 @@ def accepted_delivery_report(
 
 
 def release_ref_subject(
-    root: Path, *, ref: str, old: str, new: str, allow_identical: bool = False, base: str = ""
+    root: Path,
+    *,
+    ref: str,
+    old: str,
+    new: str,
+    allow_identical: bool = False,
+    base: str = "",
+    publication: bool = False,
 ) -> str:
-    """Require native release identity; callers separately admit proof and intent."""
+    """Require native release identity; callers separately admit proof and intent.
+
+    Creation selects the current accepted head. Publishing an existing tag object
+    may instead deliver the accepted commit of its attested release.
+    """
     policy = release_branch_policy(root)
     head = ref_head(root, policy.accepted_branch)
+    published = {"ref": ref, "new": new} if publication else {}
     if ref.startswith("refs/tags/"):
         selected = _immutable_tag_commit(
-            root, ref=ref, old=old, new=new, allow_identical=allow_identical
+            root, ref=ref, old=old, new=new, allow_identical=allow_identical or publication
         )
+        head = release_publication_head(root, **published)
         if selected != head:
             plan = release_provenance(root, ref=ref, oid=new)
             base = base or (str(plan.facts["values"]["release_request"]["base"]) if plan else "")
@@ -264,7 +331,7 @@ def release_ref_subject(
         require_release(
             old == zero_oid(root) or is_ancestor(root, old, new), "release_not_fast_forward"
         )
-    accepted_release_source(root, head, base=base)
+    accepted_release_source(root, head, base=base, **published)
     return head
 
 
@@ -337,7 +404,7 @@ def tag_publication_gaps(root: Path, ref: str, old: str, new: str, *, role: str)
         if publication_proof_selection(role) == "review_object":
             _immutable_tag_commit(root, ref=ref, old=old, new=new, allow_identical=True)
         else:
-            release_ref_subject(root, ref=ref, old=old, new=new, allow_identical=True)
+            release_ref_subject(root, ref=ref, old=old, new=new, publication=True)
     except (OSError, ValueError) as error:
         return [str(error)]
     return []
@@ -388,7 +455,8 @@ def publication_source_baseline(
         if not required:
             return {}, [], "", ""
         require_release(
-            not release or ref_head(repo, policy.accepted_branch) == proof_head,
+            not release
+            or release_publication_head(repo, ref=target_ref, new=source_oid) == proof_head,
             "release_source_not_current_accepted",
         )
         accepted_ref = f"refs/heads/{policy.accepted_branch}"

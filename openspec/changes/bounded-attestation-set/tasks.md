@@ -1,8 +1,8 @@
 ## 1. Claims and Released Custody
 
 - [x] 1.1 Refuse members above 1 MiB in the set writer and `attestation record` before any effect; verify `attestation_member_too_large` and an unchanged root.
-- [ ] 1.2 Store declared `custody:sha256:<digest>` evidence byte-exact in the Git-common custody store; verify readback, refusal of a missing or mismatched file, and an unchanged index, tracked tree and remote.
-- [ ] 1.3 Derive one lifetime for every product predicate and transition in one pure owner; verify one regression per lifetime and open-predicate treatment of unknown predicates.
+- [x] 1.2 Store declared `custody:sha256:<digest>` evidence byte-exact in the Git-common custody store; verify readback, refusal of a missing or mismatched file, and an unchanged index, tracked tree and remote.
+- [x] 1.3 Derive one lifetime for every product predicate and transition in one pure owner; verify one regression per lifetime and open-predicate treatment of unknown predicates.
 - [ ] 1.4 Add `ethos attestation release` for open-predicate members; verify verifier and reviewed-owner release by exact CAS, deletion of unbound custody bytes, and refusal for other actors and product lifetimes.
 
 ## 2. Lifetime-Bounded Members

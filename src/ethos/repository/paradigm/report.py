@@ -10,9 +10,11 @@ import json
 import posixpath
 import re
 import tomllib
+from dataclasses import fields
 from typing import TYPE_CHECKING
 from typing import NamedTuple
 
+from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import close_verdict
 from ethos.measure import effective_code_lines_for_source
@@ -61,6 +63,7 @@ def repository_paradigm_report(root: Path, *, tracked_paths: tuple[str, ...]) ->
         *_size_gaps(paradigm, root, tracked),
         *_formatter_gaps(paradigm, root, tracked),
         *_peer_remote_gaps(paradigm, root, tracked),
+        *_branch_role_gaps(paradigm, root, tracked),
     ]
     required = [gap.required_gap for gap in gaps]
     return {
@@ -354,6 +357,28 @@ def _peer_remote_gaps(
                 "peer-remote",
                 f"{release}:publication.peers.{identity}",
                 f'set git_remote = "{identity}" and run git remote rename {remote} {identity}',
+            )
+
+
+def _branch_role_gaps(
+    paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
+) -> Iterator[ParadigmGap]:
+    """Keep each standard branch role at the name the branch-role contract defaults to."""
+    workspace = f"{paradigm.binding.root}/workspace.toml"
+    source = _tracked_text(root, workspace, tracked)
+    try:
+        declared = tomllib.loads(source).get("branch_roles", {}) if source is not None else {}
+    except tomllib.TOMLDecodeError:
+        return  # The workspace policy owner reports an unreadable binding.
+    if not isinstance(declared, dict):
+        return
+    standard = {field.name: field.default for field in fields(BranchRolePolicy)}
+    for role in paradigm.binding.standard_branch_roles:
+        if role in declared and declared[role] != standard[role]:
+            yield ParadigmGap(
+                "branch-roles",
+                f"{workspace}:branch_roles.{role}",
+                f'set {role} = "{standard[role]}" or remove it to use the standard name',
             )
 
 

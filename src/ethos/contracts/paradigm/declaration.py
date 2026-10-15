@@ -50,6 +50,7 @@ class BindingFileSet(BaseModel):
 
     root: str
     files: FrozenTuple[str]
+    standard_branch_roles: FrozenTuple[str]
 
 
 class EditorDefaults(BaseModel):

@@ -105,3 +105,26 @@ def test_windows_mise_rejects_unbound_or_unexpected_supply(
         native.prepare_mise(tmp_path)
     assert not list(tmp_path.rglob("mise.exe"))
     assert not list(tmp_path.rglob(".bootstrap-*"))
+
+
+def test_supply_failure_reports_the_failure_its_cleanup_masked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A staging cleanup error never hides the bootstrap failure that preceded it."""
+    payload = _executable("2026.10.7")
+    _source(tmp_path, x64=hashlib.sha256(payload).hexdigest())
+    _serve(monkeypatch, payload)
+
+    class LockedStaging(native.TemporaryDirectory):
+        def __exit__(self, *details: object) -> None:
+            super().__exit__(*details)
+            message = "[WinError 32] The process cannot access the file: 'mise.exe'"
+            raise PermissionError(message)
+
+    monkeypatch.setattr(native, "TemporaryDirectory", LockedStaging)
+    monkeypatch.setattr(sys, "argv", ["native.py", "--root", str(tmp_path), "--mise"])
+
+    assert native.main() == 1
+    error = capsys.readouterr().err
+    assert "WinError 32" in error
+    assert "mise_version_mismatch" in error

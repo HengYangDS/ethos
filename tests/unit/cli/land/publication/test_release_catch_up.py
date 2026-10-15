@@ -91,7 +91,7 @@ def test_peer_that_missed_a_release_receives_the_attested_tag(tmp_path: Path) ->
             target_ref=TAG_REF,
             pushed_head=tag,
             remote_head="0" * len(head),
-            remote_name="origin",
+            remote_name="gitlab",
         )
         assert admitted["verdict"] == "pass", admitted
         assert (provenance.call_count, source.call_count) == (1, 1)

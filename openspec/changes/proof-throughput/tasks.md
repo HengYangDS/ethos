@@ -119,6 +119,7 @@ Original pre-refresh commitments and qualification records remain in signed Git 
 - [x] 7.1 Remove stale hosted defaults at the template and assert projection consistency.
 - [x] 7.2 Restore vendor runner resource policy through drained cutover and verify routing, old-process cleanup and new-job consumption.
 - [ ] 7.3 Requalify hosted supply failure after repairing lost timeout output; retain native diagnostics and clear prior reports before any proof.
+  - [x] 7.3.1 Report the bootstrap failure that a staging cleanup error masks in native tool supply; done when a supply failure followed by a cleanup failure reports both (windows-latest run 38658885061 printed only the cleanup's WinError 32 on the staged `mise.exe`).
 - [ ] 7.4 Consolidate hosted full execution and fail-closed required checks; observe external-link health separately without starving proof reports or hiding its failure.
   - [ ] 7.4.1 Decide how GitLab external-links handles intermittent github.com 503 responses from the intranet egress (different links each run in pipelines 10526/10575/10576; GitHub-hosted runs pass); done when GitLab external-links passes or its provider scope is recorded with a rationale.
 - [ ] 7.5 Qualify and deliver the exact single-execution CI candidate.

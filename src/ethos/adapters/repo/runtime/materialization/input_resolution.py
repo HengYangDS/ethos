@@ -149,9 +149,11 @@ def run_runtime_tool(
 ) -> subprocess.CompletedProcess[str]:
     """Run locked uv; only a source build requires full native Node supply."""
     executable = python or Path(sys.executable)
+    # An environment is its prefix: two environments can share one base interpreter file.
+    invoking = os.path.normcase(Path(sys.executable).absolute())
     prefix = (
         Path(sys.prefix)
-        if same_python_path(executable.resolve(), Path(sys.executable).resolve())
+        if os.path.normcase(executable.absolute()) == invoking
         else Path(observe_python_facts(executable)["prefix"])
     )
     environment: dict[str, str] = {

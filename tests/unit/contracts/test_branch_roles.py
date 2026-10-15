@@ -86,6 +86,18 @@ def test_branch_role_current_schema_maps_exactly() -> None:
     )
 
 
+def test_a_workspace_without_the_table_keeps_the_standard_roles() -> None:
+    workspace = "[commit_policy]\nsigning_required = true\n"
+
+    assert strict_branch_role_policy_from_text(workspace) == BranchRolePolicy()
+    assert (
+        strict_branch_role_policy_from_text(workspace, allow_predecessor_defaults=True)
+        == BranchRolePolicy()
+    )
+    with pytest.raises(ValueError, match="complete and exact"):
+        strict_branch_role_policy_from_text('branch_roles = "main"\n')
+
+
 def test_predecessor_policies_require_explicit_incumbent_compatibility() -> None:
     previous = CURRENT.replace("canonical_sibling_worktrees = false\n", "")
     oldest = previous.replace('release_mirror = "independent"\n', "")

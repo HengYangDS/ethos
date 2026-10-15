@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import urllib.request
+import venv
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -301,6 +303,28 @@ def test_runtime_tool_preserves_interpreter_supply_and_environment(
     }
     assert not {"UV_CACHE_DIR", "ETHOS_UV_CACHE_DIR"} & env.keys()
     assert env.get("ETHOS_NODE_PACKAGE_SUPPLY") == (str(supply) if building else None)
+
+
+def test_runtime_tool_targets_a_selected_environment_on_the_invoking_interpreter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two environments over one base interpreter remain distinct uv targets."""
+    selected = tmp_path / "selected"
+    venv.EnvBuilder(symlinks=os.name != "nt", with_pip=False).create(selected)
+    python = selected / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    native = subprocess.run
+    targets: list[str] = []
+
+    def run(command, **kwargs):
+        if tuple(command[1:5]) != ("-B", "-I", "-m", "uv"):
+            return native(command, **kwargs)
+        targets.append(kwargs["env"]["VIRTUAL_ENV"])
+        return _completed(0)
+
+    monkeypatch.setattr(runtime_inputs.subprocess, "run", run)
+    runtime_inputs.run_runtime_tool(tmp_path, "sync", python=python)
+    assert len(targets) == 1
+    assert Path(targets[0]).samefile(selected)
 
 
 def test_runtime_project_selects_complete_source_or_complete_packaged_resources(

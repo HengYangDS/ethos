@@ -13,6 +13,7 @@ from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import canonical_json_digest
 from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_role_policy
@@ -40,6 +41,18 @@ def test_ref_policy_rejects_transition_without_strict_or_profile_authority(tmp_p
 
     with pytest.raises(ValueError, match="ref_move_policy_unavailable"):
         resolve_ref_move_policy(repo, "refs/heads/arbitrary", head, head)
+
+
+def test_ref_policy_reads_standard_roles_from_a_workspace_without_the_table(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    workspace = "[commit_policy]\nsigning_required = true\n"
+    head = commit_fixture_file(repo, ".ethos/workspace.toml", workspace, "record commit policy")
+
+    policy = resolve_ref_move_policy(repo, "refs/heads/arbitrary", head, head)
+
+    assert policy == BranchRolePolicy()
 
 
 def test_release_ref_uses_current_accepted_fast_forward_policy(tmp_path: Path) -> None:

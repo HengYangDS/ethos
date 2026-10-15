@@ -1,17 +1,21 @@
 """Exact native merge recovery cannot infer success from incomplete historical evidence."""
 
 import shlex
+import sqlite3
+from contextlib import closing
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 
 import pytest
 
+import ethos.adapters.repo.git_effects as ref_effect
 import ethos.adapters.repo.merge.effect as effect
 from ethos.adapters.openspec.selection import incoming_change_gaps
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.merge.observation import observe_merge
+from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.semantic import Attestation
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
@@ -64,6 +68,7 @@ def _prepare(root: Path, mode: str):
             recheck=interrupt_before_effect,
             recheck_authority=lambda: None,
             state_digest=before.digest,
+            request={},
         )
     return before
 
@@ -71,7 +76,11 @@ def _prepare(root: Path, mode: str):
 def _recover(root: Path, before, mode: str, *, matches: bool = True):
     """Exercise result recognition independently of outer authority admission."""
     return effect.recognized_merge(
-        root, before.digest, mode, recheck=lambda: None, request_matches=lambda _: matches
+        root,
+        before.digest,
+        mode,
+        recheck=lambda: None,
+        request_matches=lambda _before, _request: matches,
     )
 
 
@@ -137,16 +146,50 @@ def test_lost_abort_ack_requires_exact_clean_native_rollback(tmp_path: Path, fau
     assert observe_merge(root) == current
 
 
-def test_continue_without_ref_attestation_does_not_infer_cas_success(tmp_path: Path):
-    """A native commit alone is not evidence of the admitted reference effect."""
-    root = _pending(tmp_path)
+def test_authority_changed_after_ref_cas_prevents_metadata_cleanup(tmp_path, monkeypatch):
+    """An observed ref effect cannot grant the following cleanup current authority."""
+    work = native_merge_fixture(tmp_path)
+    (work / "README.md").write_text("accepted resolution\n")
+    git(work, "add", "README.md")
+    preview = run_ethos(
+        "lane", "refresh-base", "--strategy", "merge", "--mode", "continue", "--json", cwd=work
+    )
+    before = git(work, "rev-parse", "HEAD")
+    execute = effect.execute_git_effect
+
+    def changed_authority(*args, **kwargs):
+        result = execute(*args, **kwargs)
+        with closing(sqlite3.connect(state_database(work))) as db, db:
+            db.execute("update leases set generation = generation + 1")
+        return result
+
+    monkeypatch.setattr(effect, "execute_git_effect", changed_authority)
+    report = run_ethos_blocked(*shlex.split(preview["next_action"])[1:], cwd=work)
+    assert "merge_state_stale" in report["required_gaps"]
+    assert git(work, "rev-parse", "HEAD") != before
+    assert git(work, "rev-parse", "MERGE_HEAD")
+
+
+def test_unexecuted_preparation_does_not_replay_prior_reference_effect(tmp_path, monkeypatch):
+    """An exact prepared plan cannot grant recovery while its CAS remains unexecuted."""
+    root = native_merge_fixture(tmp_path)
     (root / "README.md").write_text("combined\n")
     git(root, "add", "README.md")
-    before = _prepare(root, "continue")
-    commit_fixture(root, "feat: native combined result")
+    preview = run_ethos(
+        "lane", "refresh-base", "--strategy", "merge", "--mode", "continue", "--json", cwd=root
+    )
+
+    def interrupt_before_cas(*_args, **_kwargs):
+        raise SystemExit(2)
+
+    monkeypatch.setattr(ref_effect, "_apply_git_ref_transaction", interrupt_before_cas)
+    with pytest.raises(AssertionError):
+        run_ethos(*shlex.split(preview["next_action"])[1:], cwd=root)
     current = observe_merge(root)
-    with pytest.raises(ValueError, match="merge_outcome_unknown"):
-        _recover(root, before, "continue")
+    recovered = run_ethos_blocked(*shlex.split(preview["next_action"])[1:], cwd=root)
+    assert recovered["required_gaps"] == ["merge_outcome_unknown"]
+    inspected = run_ethos("lane", "refresh-base", "--strategy", "merge", "--json", cwd=root)
+    assert inspected["verdict"] == "unknown"
     assert observe_merge(root) == current
 
 
@@ -183,6 +226,9 @@ def test_metadata_finish_refuses_a_changed_post_cas_projection(tmp_path, monkeyp
     monkeypatch.setattr(effect, "execute_git_effect", change_after_cas)
     result = run_ethos_blocked(*shlex.split(preview["next_action"])[1:], cwd=root)
     assert "merge_projection_stale" in result["required_gaps"]
+    assert observe_merge(root) == changed[0]
+    inspected = run_ethos("lane", "refresh-base", "--strategy", "merge", "--json", cwd=root)
+    assert inspected["required_gaps"] == ["merge_outcome_unknown"]
     assert observe_merge(root) == changed[0]
     assert git(root, "rev-parse", "MERGE_HEAD")
 

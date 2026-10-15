@@ -24,6 +24,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object_sandbox import isolated_git_objects
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.merge.effect import apply_merge
+from ethos.adapters.repo.merge.effect import prepared_merge
 from ethos.adapters.repo.merge.effect import recognized_merge
 from ethos.adapters.repo.merge.observation import MergeObservation
 from ethos.adapters.repo.merge.observation import git_path
@@ -33,6 +34,7 @@ from ethos.adapters.repo.runtime.binding import runtime_binding_check
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
@@ -45,12 +47,7 @@ def _fail(message: str) -> NoReturn:
 
 
 def _command(
-    root: Path,
-    mode: str,
-    observed: MergeObservation,
-    token: str,
-    message: str,
-    source_ref: str | None = None,
+    root: Path, mode: str, head: str, token: str, message: str, source_ref: str | None = None
 ) -> str:
     return shlex.join(
         (
@@ -63,7 +60,7 @@ def _command(
             "--mode",
             mode,
             "--expect-head",
-            observed.head,
+            head,
             "--expect-state",
             token,
             "--subject",
@@ -164,23 +161,40 @@ class _MergeContext:
     source_head: str
     explicit_source_ref: str | None = None
 
+    def request(
+        self,
+        mode: str,
+        message: str,
+        *,
+        runtime: str | None = None,
+        native: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        """Bind original request semantics independently of later runtime selection."""
+        parents = (
+            self.observed.parents if native is None else string_sequence(native.get("parents"))
+        )
+        incoming = parents[0] if mode == "continue" and len(parents) == 1 else self.incoming
+        return {
+            "lease": self.lease,
+            **(
+                {
+                    "candidate_ref": self.candidate_ref,
+                    "candidate": incoming,
+                    "source_head": self.source_head,
+                }
+                if self.candidate_ref
+                else {}
+            ),
+            "runtime": self.runtime_digest if runtime is None else runtime,
+            "mode": mode,
+            "subject": message,
+        }
+
     def token(self, mode: str, message: str, native: dict[str, object] | None = None) -> str:
         return canonical_json_digest(
             {
                 "native": self.observed.projection() if native is None else native,
-                "lease": self.lease,
-                **(
-                    {
-                        "candidate_ref": self.candidate_ref,
-                        "candidate": self.incoming,
-                        "source_head": self.source_head,
-                    }
-                    if self.candidate_ref
-                    else {}
-                ),
-                "runtime": self.runtime_digest,
-                "mode": mode,
-                "subject": message,
+                **self.request(mode, message, native=native),
             }
         )
 
@@ -197,7 +211,11 @@ class _MergeContext:
 
 
 def _context(
-    root: Path, observed: MergeObservation, mode: MergeMode, source_ref: str | None = None
+    root: Path,
+    observed: MergeObservation,
+    mode: MergeMode,
+    source_ref: str | None = None,
+    prepared: Attestation | None = None,
 ) -> _MergeContext:
     lease, digest = _authority(root, observed)
     policy = load_branch_role_policy(root)
@@ -222,15 +240,10 @@ def _context(
         if len(observed.parents) != 1 or not is_ancestor(root, observed.parents[0], source_head):
             _fail("merge_source_ref_changed")
         incoming = observed.parents[0]
+    if prepared is not None:
+        incoming = str(prepared.payload.body["observation"]["parents"][0])
     return _MergeContext(
-        root,
-        observed,
-        lease,
-        candidate_ref,
-        incoming,
-        digest,
-        source_head,
-        source_ref,
+        root, observed, lease, candidate_ref, incoming, digest, source_head, source_ref
     )
 
 
@@ -313,7 +326,9 @@ def _admit_mode(context: _MergeContext, mode: MergeMode) -> None:
             )
 
 
-def _preview(context: _MergeContext, mode: MergeMode, message: str) -> dict[str, object]:
+def _preview(
+    context: _MergeContext, mode: MergeMode, message: str, prepared: Attestation | None
+) -> dict[str, object]:
     observed, root = context.observed, context.root
     if mode == "inspect" and observed.parents and observed.conflicts:
         return lifecycle_report(
@@ -354,12 +369,25 @@ def _preview(context: _MergeContext, mode: MergeMode, message: str) -> dict[str,
             user_decision_required=True,
         )
     selected = ("continue" if observed.parents else "start") if mode == "inspect" else mode
-    _admit_mode(context, selected)
-    if selected == "start" and is_ancestor(root, context.incoming, observed.head):
-        return lifecycle_report(
-            observed.branch, observed.head, "base_current", [], next_action="ethos land --json"
+    head = observed.head
+    if prepared is not None:
+        body = prepared.payload.body
+        request = body["request"]
+        if request != context.request("continue", message, runtime=str(request["runtime"])):
+            _fail("merge_request_stale")
+        head, token, selected = (
+            str(body["observation"]["head"]),
+            str(body["subject"]["state_digest"]),
+            "continue",
         )
-    token = context.token(selected, message)
+        context.recheck()
+    else:
+        _admit_mode(context, selected)
+        if selected == "start" and is_ancestor(root, context.incoming, observed.head):
+            return lifecycle_report(
+                observed.branch, observed.head, "base_current", [], next_action="ethos land --json"
+            )
+        token = context.token(selected, message)
     return lifecycle_report(
         observed.branch,
         observed.head,
@@ -368,7 +396,7 @@ def _preview(context: _MergeContext, mode: MergeMode, message: str) -> dict[str,
         observation=observed.projection(),
         state_digest=token,
         incoming=context.incoming,
-        next_action=_command(root, selected, observed, token, message, context.explicit_source_ref),
+        next_action=_command(root, selected, head, token, message, context.explicit_source_ref),
         user_decision_required=True,
     )
 
@@ -394,9 +422,11 @@ def _execute(
             expect_state,
             mode,
             recheck=lambda: context.recheck(native=False),
-            request_matches=lambda before: (
+            request_matches=lambda before, request: (
                 before.get("head") == expect_head
-                and context.token(mode, message, before) == expect_state
+                and request
+                == context.request(mode, message, runtime=str(request["runtime"]), native=before)
+                and canonical_json_digest({"native": before, **request}) == expect_state
             ),
         )
         if previous is not None:
@@ -420,6 +450,7 @@ def _execute(
             recheck=context.recheck,
             recheck_authority=lambda: context.recheck(native=False),
             state_digest=token,
+            request=context.request(mode, message),
         )
     return _result(observed, result)
 
@@ -439,10 +470,23 @@ def merge_work_lane(
     observed: MergeObservation | None = None
     try:
         observed = observe_merge(root)
-        context = _context(root, observed, mode, source_ref)
+        prepared = (
+            prepared_merge(root, observed)
+            if not apply and mode in {"inspect", "continue"}
+            else None
+        )
+        if prepared is not None:
+            request = prepared.payload.body["request"]
+            source_ref = source_ref or (
+                str(request["candidate_ref"]) if request.get("candidate_ref") else None
+            )
+            subject = subject or str(request["subject"])
+        context = _context(
+            root, observed, "continue" if prepared is not None else mode, source_ref, prepared
+        )
         message = subject or "chore: merge candidate contribution"
         if not apply:
-            return _preview(context, mode, message)
+            return _preview(context, mode, message, prepared)
         return _execute(
             context,
             mode,

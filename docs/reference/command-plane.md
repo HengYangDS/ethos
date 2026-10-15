@@ -253,6 +253,14 @@ completion of incoming intent. Continue rejects newly authored edits to incoming
 Change artifacts, while preserving the original parents' native composition. Archiving the local Change retains its archive attribution instead
 of selecting an unchanged incoming Change merely because it is still active.
 
+If a merge CAS completed but its acknowledgement or metadata cleanup did not,
+inspect returns the original exact request from its prepared Attestation. It
+does not mint a new request from the advanced HEAD or a later selected runtime.
+Recovery verifies that original plan, parents, index and metadata against current
+observations, rechecks the current Lease and runtime, and finishes only the
+already observed effect. A preparation whose CAS is unexecuted, ambiguous or
+unproven remains UNKNOWN; neither preview nor retry replays its prior CAS.
+
 `--mode abort` does not depend on candidate-ref existence or valid Change
 compilation. It first retains affected files, modes, stages and native metadata
 in content-addressed Git-private recovery material, then invokes native abort.

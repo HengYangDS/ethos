@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -55,6 +56,47 @@ def test_attestation_set_reuses_validation_but_not_selected_membership(
     assert attestation_set.read_attestation_set(repo) == (first["root"], (one,))
     git(repo, "update-ref", "-d", attestation_set.ATTESTATION_SET_REF)
     assert attestation_set.read_attestation_set(repo) == ("", ())
+
+
+def test_attestation_set_rereads_members_without_repeated_validation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Warm pure validation still freshly reads every selected immutable object."""
+    repo = init_git_repo(tmp_path / "repo")
+    one, two = occurrence_attestation(3_101), occurrence_attestation(3_102)
+    first = attestation_set.record_attestations(repo, (one,))
+    attestation_set.read_attestation_set(repo)
+    second = attestation_set.record_attestations(repo, (two,))
+    requested: list[tuple[str, ...]] = []
+    read = attestation_set.read_objects
+
+    def observed(
+        repository: Path, object_ids: tuple[str, ...], **options: Any
+    ) -> tuple[bytes, ...]:
+        requested.append(object_ids)
+        return read(repository, object_ids, **options)
+
+    monkeypatch.setattr(attestation_set, "read_objects", observed)
+    validate = Mock(wraps=Attestation.model_validate_json)
+    monkeypatch.setattr(Attestation, "model_validate_json", validate)
+    records = tuple(sorted((one, two), key=lambda item: item.id))
+    expected = (
+        second["root"],
+        *(
+            git(
+                repo,
+                "rev-parse",
+                f"{second['root']}:evidence/attestations/{item.id[:2]}/{item.id}.json",
+            )
+            for item in records
+        ),
+    )
+
+    for _ in range(2):
+        assert attestation_set.read_attestation_set(repo) == (second["root"], records)
+    assert requested == [expected, expected]
+    assert validate.call_count == 1
+    assert first["root"] != second["root"]
 
 
 def test_attestation_set_oversized_member_does_not_consume_reuse_capacity(

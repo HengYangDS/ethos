@@ -32,6 +32,7 @@ remain at signed source `8878c8406a06fa592c41dbb291578c2f2114de51` and its nativ
 - [ ] 2.12 Share exact-source intent compilation within each proof query; retain fresh queries, archive withdrawal, contradictory evidence and per-effect admission, then measure the native release consumer before delivery.
 - [ ] 2.13 Bind native typed object frames and exact set selection at their owners; remove redundant root hashing and ref probes, then verify unchanged set, fresh membership, faults and native release cost before delivery.
 - [ ] 2.14 Observe release application once under its existing operation lock; preserve effect-time checks, lock contention, drift, refusal and interruption recovery, then measure the native release journey before delivery.
+- [x] 2.15 Reconcile native finite-output capture and pure Attestation validation reuse with the canonical fresh-byte contract and unchanged 512 MiB bound; verify bulk output, descendant cleanup, current membership and corruption assertions. Evidence: `build/evidence/native-adopter-repair-20261011/{timeout-oid-canonical-read-invariant-red-20261016.json,timeout-canonical-owners-isolated-green-20261016.json}`.
 
 ## 3. OpenSpec Compilation and Continuation
 

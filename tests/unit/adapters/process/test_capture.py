@@ -18,6 +18,25 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+@pytest.mark.timeout(30)
+def test_native_output_is_captured_through_regular_files(tmp_path: Path) -> None:
+    """Explicit finite output never waits for a caller to drain its native pipes."""
+    body = (
+        "import os,stat,sys; "
+        "assert os.name!='posix' or all(stat.S_ISREG(os.fstat(fd).st_mode) for fd in (1,2)); "
+        "sys.stdout.buffer.write(b'o' * 8388608); sys.stderr.buffer.write(b'e' * 65536)"
+    )
+    result = process_adapter.run_command(
+        tmp_path,
+        (sys.executable, "-c", body),
+        text=False,
+        check=True,
+        timeout=20,
+        spool_stdout=True,
+    )
+    assert (result.stdout, result.stderr) == (b"o" * 8388608, b"e" * 65536)
+
+
 @pytest.mark.parametrize("text", [False, True])
 @pytest.mark.parametrize("outcome", ["success", "nonzero", "timeout"])
 def test_bulk_stdout_preserves_native_output_and_closes_capture(

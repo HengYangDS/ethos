@@ -32,6 +32,12 @@
 - [ ] 3.5 Replace ETHOS's repository-owned shell scripts (`bootstrap-python.sh`, `run-head-bound-proof.sh`, `run-secrets-scan.sh` and `with-python-runtime.sh`) and inline CI shell programs with native commands and mise tasks in the CI model and gate catalog, keeping only the generated `mise-install.sh`; the Linux, macOS and Windows jobs run the same tasks and the paradigm report shows no orchestration gap.
 - [ ] 3.6 Run the full repository proof on the conforming tree; every required gate passes at the exact head.
 
+## 4. Repair
+
+- [x] 4.1 Add `ethos lane repair-paradigm`: it previews by default, applies only in a Work Lane after exact-path prewrite admission, and plans nothing on a repaired tree; it derives each repair from the gap's obligation and the carrier's current text and reports gaps that need judgment. Focused tests cover preview, apply, refused admission, repetition and a report-only gap. `tests/unit/cli/test_lane_paradigm_repair.py` covers the command; the repaired tree plans no edit in `tests/unit/repository/test_paradigm_repair.py`.
+- [x] 4.2 Repair text normalization, formatter bindings and settings, comment-wrapped front matter and a peer's `git_remote`, naming the remote rename as the next action; focused tests cover each repair. An unreadable carrier, a setting whose rewrite would not parse and a front matter without its complete wrapper stay report-only; the three new modules have full line and branch coverage.
+- [ ] 4.3 Repair branch-role name fields and a restated commit grammar after 2.15 lands, under the gap formats it defines; focused tests cover each repair.
+
 ## Workflow follow-up
 
 - Each adopter migrates through its own Change and switches runtime in the same batch. A repository without foreign Work Lanes or other blockers goes first; otherwise the order follows dependencies and current lane state. The adopters are the proxy, aigw-cli, data-department-work-guidelines, architecture-publisher, web-ingestion-benchmark, the two films and architecture-publications.

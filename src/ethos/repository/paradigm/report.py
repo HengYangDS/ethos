@@ -243,7 +243,7 @@ def _normalization_gaps(
         )
     expected = paradigm.normalization.editorconfig.model_dump()
     editor = tracked_text(root, ".editorconfig", tracked)
-    defaults = _editor_defaults(editor) if editor is not None else {}
+    defaults = editor_defaults(editor) if editor is not None else {}
     if any(defaults.get(key) != value for key, value in expected.items()):
         settings = ", ".join(f"{key} = {value}" for key, value in expected.items())
         yield ParadigmGap(
@@ -501,7 +501,7 @@ def _python_floor(source: str) -> str:
     return bounds[0] if len(bounds) == 1 else ""
 
 
-def _editor_defaults(source: str) -> dict[str, str]:
+def editor_defaults(source: str) -> dict[str, str]:
     """Return the lowercased properties of the EditorConfig section that matches every file."""
     section = ""
     values: dict[str, str] = {}

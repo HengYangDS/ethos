@@ -59,11 +59,11 @@ def test_generic_release_role_membership(
     [
         None,
         "[protected_refs]\ntags = []\n",
-        '[protected_refs]\nbranches = ["integration", "stable"]\n',
+        '[protected_refs]\nbranches = ["dev", "main"]\n',
     ],
 )
-def test_generic_roles_follow_configured_names(tmp_path: Path, source: str | None) -> None:
-    """Absent or redundant release carriers never own branch protection or packaging."""
+def test_generic_roles_follow_the_paradigm_names(tmp_path: Path, source: str | None) -> None:
+    """Absent or redundant release carriers and legacy role names never move protection."""
     (tmp_path / ".ethos").mkdir()
     if source is not None:
         _release(tmp_path, source)
@@ -74,7 +74,7 @@ def test_generic_roles_follow_configured_names(tmp_path: Path, source: str | Non
     report = configuration.release_role_policy_report(tmp_path)
     assert report["verdict"] == "pass"
     assert report["required_gaps"] == []
-    assert report["protected_refs"] == {"branches": ["stable", "integration"], "tags": []}
+    assert report["protected_refs"] == {"branches": ["main", "dev"], "tags": []}
     assert source is not None or configuration.release_config(tmp_path) == {}
     assert "version" not in report
 

@@ -61,7 +61,7 @@ def test_branch_roles_keep_the_standard_names(tmp_path: Path, roles: str, gaps: 
     report = paradigm_report(tmp_path, {**CONFORMING, ".ethos/workspace.toml": workspace})
     assert report["required_gaps"] == gaps
     if gaps:
-        assert 'proposal_branch_prefix = "proposal/"' in report["next_action"]
+        assert "fixes it as proposal/" in report["next_action"]
 
 
 @pytest.mark.parametrize(

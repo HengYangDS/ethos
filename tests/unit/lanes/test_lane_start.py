@@ -223,14 +223,13 @@ def test_unreceipted_worktree_creation_is_retained_for_recovery(start_case, monk
         assert (target / "retained.txt").read_text() == "unowned residue\n"
 
 
-@pytest.mark.parametrize("mode", ["canonical", "noncanonical", "prefix"])
+@pytest.mark.parametrize("mode", ["canonical", "noncanonical"])
 def test_start_honors_repository_topology_without_parallel_lanes(start_case, mode):
     repo, _candidate, target, start = start_case
-    prefix = 'work_branch_prefix = "topic/"\n' if mode == "prefix" else ""
     commit_fixture_file(
         repo,
         ".ethos/workspace.toml",
-        "[branch_roles]\ncanonical_sibling_worktrees = true\n" + prefix,
+        "[branch_roles]\ncanonical_sibling_worktrees = true\n",
         "configure Work Lanes",
     )
     report = start(name="semantic lane", path=target if mode == "noncanonical" else None)
@@ -239,12 +238,7 @@ def test_start_honors_repository_topology_without_parallel_lanes(start_case, mod
         assert lane_id.endswith("-semantic-lane")
         assert report["path"] == (repo.parent / f"{repo.name}-worktrees" / lane_id).as_posix()
     else:
-        gap = (
-            "work_lane_path_not_canonical"
-            if mode == "noncanonical"
-            else "repository_family_profile_requires_work_branch_prefix"
-        )
-        assert report["required_gaps"] == [gap]
+        assert report["required_gaps"] == ["work_lane_path_not_canonical"]
     assert _observe(repo, target) == ("", False, None)
 
 

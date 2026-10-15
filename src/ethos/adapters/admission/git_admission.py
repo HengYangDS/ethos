@@ -16,6 +16,7 @@ from ethos.adapters.admission.ref_move_policy import prepared_ref_intent_gaps
 from ethos.adapters.admission.ref_move_policy import ref_transition_operation
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
 from ethos.adapters.admission.ref_move_policy import signature_repair_ref_report
+from ethos.adapters.admission.role_rename import role_rename_ref_report
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.mutation.proof import proof_for_repository_transition
@@ -174,7 +175,11 @@ def ref_move_admission_report(
     base.update(decision={"action": "allow", "reason": "ref_move_admitted"}, required_gaps=[])
     if new_value == old_value:
         return base
-    repair = signature_repair_ref_report(repo, ref_name, old_value, new_value, phase=phase)
+    repair = signature_repair_ref_report(repo, ref_name, old_value, new_value, phase=phase) or (
+        role_rename_ref_report(repo, ref_name, old_value, new_value)
+        if phase == "prepared"
+        else None
+    )
     if repair is not None:
         return repair
     mirror = branch == policy.release_branch and policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF

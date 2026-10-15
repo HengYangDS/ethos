@@ -355,7 +355,7 @@ def _peer_remote_gaps(
 def _workspace_gaps(
     paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
 ) -> Iterator[ParadigmGap]:
-    """Keep the standard branch role names and leave the commit grammar to the paradigm."""
+    """Leave the branch role names and the commit grammar, which it fixes, to the paradigm."""
     workspace = f"{paradigm.binding.root}/workspace.toml"
     source = tracked_text(root, workspace, tracked)
     try:
@@ -369,7 +369,8 @@ def _workspace_gaps(
             yield ParadigmGap(
                 "branch-roles",
                 f"{workspace}:branch_roles.{role}",
-                f'set {role} = "{standard[role]}" or remove it to use the standard name',
+                f"remove {role} after closeout renames the ref; "
+                f"the repository paradigm fixes it as {standard[role]}",
             )
     policy = declared.get("commit_policy", {})
     if isinstance(policy, dict) and "subject_pattern" in policy:

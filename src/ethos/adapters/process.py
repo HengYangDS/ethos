@@ -13,16 +13,24 @@ from contextlib import ExitStack
 from contextlib import contextmanager
 from contextlib import suppress
 from contextvars import ContextVar
+from functools import partial
+from io import TextIOWrapper
 from pathlib import Path
 from tempfile import TemporaryFile
 from threading import Lock
+from threading import current_thread
+from threading import main_thread
 from time import monotonic
 from typing import TYPE_CHECKING
 from typing import Any
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from collections.abc import Generator
     from collections.abc import Mapping
+    from types import FrameType
+    from types import TracebackType
+    from typing import BinaryIO
 
 PROCESS_CREATION_FAILED = "process_creation_failed"
 NATIVE_WINDOWS_POWERSHELL_UNAVAILABLE = "native_windows_powershell_unavailable"
@@ -70,8 +78,10 @@ class CommandScope:
         self._processes: set[subprocess.Popen[Any]] = set()
         self._cancelled = False
 
-    def start(self, command: tuple[str, ...], **kwargs: Any) -> subprocess.Popen[Any]:
-        """Fence creation against cancellation, retaining the actual process handle."""
+    def start(
+        self, command: tuple[str, ...], *, resources: ExitStack, **kwargs: Any
+    ) -> subprocess.Popen[Any]:
+        """Bind caller cleanup before a created child can leave its owning scope."""
         with self._lock:
             if self._cancelled:
                 message = "process_cancelled"
@@ -81,9 +91,38 @@ class CommandScope:
                     command=command,
                     cwd=str(kwargs.get("cwd", "")),
                 )
-            process = subprocess.Popen(command, **kwargs)
-            self._processes.add(process)
-            return process
+            process: subprocess.Popen[Any] | None = None
+            try:
+                with defer_interruptions():
+                    process = subprocess.Popen(command, **kwargs)
+                    self._processes.add(process)
+                    resources.push(partial(self.release, process))
+            except BaseException:
+                if process is not None:
+                    with defer_interruptions():
+                        _terminate_command(process)
+                        process.__exit__(None, None, None)
+                        self._processes.discard(process)
+                raise
+        return process
+
+    def release(
+        self,
+        process: subprocess.Popen[Any],
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        _traceback: TracebackType | None,
+    ) -> None:
+        """Finish the registered native lifetime even when handle handoff is interrupted."""
+        with defer_interruptions():
+            if exc_type is not None or process.returncode is None:
+                self.terminate(process)
+            try:
+                if os.name == "nt" and isinstance(exc, subprocess.TimeoutExpired):
+                    exc.stdout, exc.stderr = process.communicate()
+                process.__exit__(None, None, None)
+            finally:
+                self.discard(process)
 
     def discard(self, process: subprocess.Popen[Any]) -> None:
         """Release a completed command without retaining historical process IDs."""
@@ -118,8 +157,38 @@ _COMMAND_DEADLINE: ContextVar[float | None] = ContextVar("command_deadline", def
 
 
 @contextmanager
-def command_scope(*, timeout_seconds: float | None = None) -> Generator[CommandScope]:
-    """Propagate caller interruption through one transient native command owner."""
+def defer_interruptions() -> Generator[None]:
+    """Finish one critical effect before replaying an already-owned signal."""
+    if current_thread() is not main_thread():
+        yield
+        return
+    pending: tuple[int, FrameType | None] | None = None
+    handlers: dict[int, Callable[[int, FrameType | None], object]] = {}
+
+    def postpone(signum: int, frame: FrameType | None) -> None:
+        nonlocal pending
+        pending = signum, frame
+
+    with ExitStack() as restoration:
+        for signum in (signal.SIGINT, signal.SIGTERM):
+            handler = signal.getsignal(signum)
+            if callable(handler):
+                handlers[signum] = handler
+                restoration.callback(signal.signal, signum, handler)
+                signal.signal(signum, postpone)
+        yield
+    if pending is not None:
+        handlers[pending[0]](*pending)
+
+
+@contextmanager
+def command_scope(
+    *, timeout_seconds: float | None = None, handle_termination: bool = False
+) -> Generator[CommandScope]:
+    """Propagate interruption, optionally owning SIGTERM on the caller's main thread."""
+    if handle_termination and current_thread() is not main_thread():
+        message = "command_scope_signal_requires_main_thread"
+        raise ValueError(message)
     scope = _COMMAND_SCOPE.get() or CommandScope()
     token = _COMMAND_SCOPE.set(scope)
     deadline = _COMMAND_DEADLINE.get()
@@ -127,11 +196,22 @@ def command_scope(*, timeout_seconds: float | None = None) -> Generator[CommandS
         proposed = monotonic() + timeout_seconds
         deadline = min(deadline, proposed) if deadline is not None else proposed
     deadline_token = _COMMAND_DEADLINE.set(deadline)
+
+    def interrupt(_signum: int, _frame: FrameType | None) -> None:
+        raise KeyboardInterrupt
+
     try:
-        yield scope
-    except BaseException:
-        scope.cancel()
-        raise
+        with ExitStack() as restoration:
+            if handle_termination:
+                handler = signal.getsignal(signal.SIGTERM)
+                restoration.callback(signal.signal, signal.SIGTERM, handler)
+                signal.signal(signal.SIGTERM, interrupt)
+            try:
+                yield scope
+            except BaseException:
+                with defer_interruptions():
+                    scope.cancel()
+                raise
     finally:
         _COMMAND_DEADLINE.reset(deadline_token)
         _COMMAND_SCOPE.reset(token)
@@ -285,6 +365,7 @@ def run_command(
     remove_env_prefixes: tuple[str, ...] = (),
     inherit_environment: bool = True,
     stdin: str | bytes | None = None,
+    spool_stdout: bool = False,
 ) -> subprocess.CompletedProcess[Any]:
     """Run one exact argv command and preserve process-creation evidence."""
     resolved_root = root.resolve()
@@ -311,11 +392,17 @@ def run_command(
         env=effective_env,
         input=stdin,
         timeout=timeout,
+        spool_stdout=spool_stdout,
     )
 
 
 def _execute_command(
-    command: tuple[str, ...], *, check: bool, timeout: float | None, **kwargs: Any
+    command: tuple[str, ...],
+    *,
+    check: bool,
+    timeout: float | None,
+    spool_stdout: bool,
+    **kwargs: Any,
 ) -> subprocess.CompletedProcess[Any]:
     """Separate creation failures from communication and owned-process cleanup."""
     deadline = _COMMAND_DEADLINE.get()
@@ -325,6 +412,7 @@ def _execute_command(
         if timeout <= 0:
             raise subprocess.TimeoutExpired(command, timeout)
     stdin = kwargs.pop("input")
+    text_mode = kwargs["text"]
     scope = _COMMAND_SCOPE.get() or CommandScope()
     with ExitStack() as resources:
         finite_input = None
@@ -334,12 +422,17 @@ def _execute_command(
             )
             finite_input.write(stdin)
             finite_input.seek(0)
+        finite_output = resources.enter_context(
+            _finite_output(enabled=spool_stdout and os.name == "posix")
+        )
+        kwargs["text"] = text_mode and finite_output is None
         try:
             process = scope.start(
                 command,
+                resources=resources,
                 stdin=finite_input if finite_input is not None else subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=finite_output[0] if finite_output is not None else subprocess.PIPE,
+                stderr=finite_output[1] if finite_output is not None else subprocess.PIPE,
                 **({"process_group": 0} if os.name == "posix" else {}),
                 **kwargs,
             )
@@ -351,22 +444,42 @@ def _execute_command(
                 cwd=kwargs["cwd"].as_posix(),
                 cause=f"{error.__class__.__name__}: {error}",
             ) from error
-        with process:
-            try:
-                stdout, stderr = process.communicate(timeout=timeout)
-            except BaseException as error:
-                scope.terminate(process)
-                if os.name == "nt" and isinstance(error, subprocess.TimeoutExpired):
-                    error.stdout, error.stderr = process.communicate()
-                process.wait()
-                raise
-            finally:
-                if process.returncode is not None:
-                    scope.discard(process)
-            result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
-            if check:
-                result.check_returncode()
-            return result
+        stdout, stderr = process.communicate(timeout=timeout)
+        if finite_output is not None:
+            scope.terminate(process)
+            for output in finite_output:
+                output.seek(0)
+            if text_mode:
+                with (
+                    TextIOWrapper(finite_output[0]) as reader,
+                    TextIOWrapper(finite_output[1]) as diagnostic_reader,
+                ):
+                    stdout = reader.read()
+                    stderr = diagnostic_reader.read()
+            else:
+                stdout = finite_output[0].read()
+                stderr = finite_output[1].read()
+        result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+        if check:
+            result.check_returncode()
+        return result
+
+
+@contextmanager
+def _finite_output(*, enabled: bool) -> Generator[tuple[BinaryIO, BinaryIO] | None]:
+    """Capture both finite streams after owned cleanup, without recovery pipe waits."""
+    if not enabled:
+        yield None
+        return
+    with TemporaryFile(mode="w+b") as output, TemporaryFile(mode="w+b") as diagnostic:
+        try:
+            yield output, diagnostic
+        except subprocess.TimeoutExpired as error:
+            output.seek(0)
+            diagnostic.seek(0)
+            error.stdout = output.read()
+            error.stderr = diagnostic.read()
+            raise
 
 
 def _terminate_command(process: subprocess.Popen[Any]) -> None:

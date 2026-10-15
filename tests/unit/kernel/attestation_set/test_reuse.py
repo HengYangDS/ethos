@@ -72,6 +72,32 @@ def test_attestation_set_oversized_member_does_not_consume_reuse_capacity(
     assert validate.call_count == 2
 
 
+def test_attestation_set_reuses_retained_members_before_scan_admission(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A set larger than the byte budget reuses every retained current member."""
+    repo = init_git_repo(tmp_path / "repo")
+    records = tuple(
+        sorted(
+            (
+                occurrence_attestation(ordinal, payload_bytes=_CAPACITY * 3 // 10)
+                for ordinal in range(5_000, 5_004)
+            ),
+            key=lambda item: item.id,
+        )
+    )
+    selected = attestation_set.record_attestations(repo, records)["root"]
+    validate = Mock(wraps=Attestation.model_validate_json)
+    monkeypatch.setattr(Attestation, "model_validate_json", validate)
+
+    assert attestation_set.read_attestation_set(repo) == (selected, records)
+    assert validate.call_count == len(records)
+    for _ in range(3):
+        before = validate.call_count
+        assert attestation_set.read_attestation_set(repo) == (selected, records)
+        assert validate.call_count - before == 1
+
+
 def test_attestation_set_eviction_changes_work_not_membership_or_meaning(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

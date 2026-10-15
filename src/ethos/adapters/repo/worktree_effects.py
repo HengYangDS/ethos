@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+from contextlib import ExitStack
 from contextlib import contextmanager
 from contextlib import suppress
 from pathlib import Path
@@ -67,24 +68,25 @@ def _release_ref_transaction(scope: CommandScope, process: subprocess.Popen[byte
     except subprocess.TimeoutExpired:
         scope.terminate(process)
         process.wait()
-    scope.discard(process)
-    for stream in (process.stdin, process.stdout):
-        if stream is not None:
-            stream.close()
 
 
 @contextmanager
 def hold_worktree_refs(
     root: Path, assertions: Mapping[str, str], *, timeout_seconds: float = 120
-) -> Generator[None, None, None]:
+) -> Generator[None]:
     """Hold exact native ref assertions through a worktree effect without moving refs."""
     _ref_assertions(root, assertions, timeout_seconds)
     deadline = monotonic() + timeout_seconds
     environment = git_environment()
     command = (git_executable(environment), "update-ref", "--stdin")
-    with command_scope(timeout_seconds=timeout_seconds) as scope, TemporaryFile() as errors:
+    with (
+        command_scope(timeout_seconds=timeout_seconds) as scope,
+        TemporaryFile() as errors,
+        ExitStack() as resources,
+    ):
         process: subprocess.Popen[bytes] = scope.start(
             command,
+            resources=resources,
             cwd=root,
             env=environment,
             stdin=subprocess.PIPE,

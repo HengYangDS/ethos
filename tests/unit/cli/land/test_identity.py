@@ -82,7 +82,7 @@ def test_identity_transition_is_explicit_and_target_scoped(
     )
     workspace = work / ".ethos/workspace.toml"
     workspace.write_text(
-        workspace.read_text() + '\n[commit_policy]\nsubject_pattern = ".+"\n'
+        workspace.read_text() + "\n[commit_policy]\n"
         'signing_required = true\nsigning_format = "ssh"\n'
     )
     release = work / ".ethos/release.toml"

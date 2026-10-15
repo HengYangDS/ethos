@@ -150,18 +150,33 @@ Every governed repository SHALL use the commit subject grammar that the paradigm
 
 ### Requirement: Branch roles and Work Lanes use the standard names
 
-Every governed repository SHALL use the release branch `main`, the accepted branch `dev`, the candidate branch `candidate/dev`, the Work Lane prefix `work/` and the proposal prefix `proposal/`. Work Lane worktrees SHALL be siblings at `<repository>-worktrees/<yyyymmdd>-<slug>/`.
+The repository paradigm SHALL fix the branch role names: release `main`, accepted `dev`, candidate `candidate/dev`, Work Lanes under `work/` and proposals under `proposal/`. ETHOS SHALL read no role name from `[branch_roles]`, which MAY declare only `release_mirror` and `canonical_sibling_worktrees`. Work Lane worktrees SHALL be siblings at `<repository>-worktrees/<yyyymmdd>-<slug>/`.
 
 #### Scenario: A review prefix differs
 
 - **WHEN** a workspace declares `submit/` as its proposal prefix
-- **THEN** the paradigm reports a non-standard branch role.
+- **THEN** the paradigm reports a legacy branch-role name
+- **AND** ETHOS still uses `proposal/`.
 
-#### Scenario: A workspace omits the branch-role table
+#### Scenario: A workspace declares only the settings
 
-- **WHEN** `.ethos/workspace.toml` declares no `branch_roles` table
-- **THEN** the paradigm reports no branch-role gap
-- **AND** accepted closeout, publication and ref admission read the standard names.
+- **WHEN** `[branch_roles]` declares only `release_mirror = "accepted_ff"`
+- **THEN** accepted closeout, publication and ref admission read the standard names with an accepted fast-forward release mirror.
+
+### Requirement: Accepted closeout renames legacy role refs
+
+When the accepted root is bound to a ref that its committed table declares as a legacy accepted name, accepted closeout SHALL, in one ref transaction, create each standard role ref at the head of the legacy ref it replaces and delete that legacy ref, and SHALL bind every worktree on a renamed ref to its new name. Git admission SHALL refuse any other move of a legacy role ref.
+
+#### Scenario: A repository adopted under legacy names
+
+- **WHEN** the committed table names `accepted/train` and `candidate/train` and the accepted root is bound to `accepted/train`
+- **THEN** closeout leaves `dev` and `candidate/dev` at the heads those refs had and removes the legacy refs
+- **AND** the accepted and candidate worktrees are bound to `dev` and `candidate/dev`.
+
+#### Scenario: A legacy role ref is moved directly
+
+- **WHEN** a user runs `git branch -m accepted/train dev`
+- **THEN** Git admission refuses the update with `legacy_role_ref_protected`.
 
 ### Requirement: Publication peers name their Git remotes after themselves
 

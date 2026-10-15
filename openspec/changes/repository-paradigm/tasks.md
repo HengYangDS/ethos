@@ -19,8 +19,11 @@
 - [x] 2.12 Read a `.ethos/workspace.toml` without a `branch_roles` table as the standard roles in the strict branch-role reader, as the paradigm report does, so accepted closeout, publication and ref admission no longer reject it; focused tests cover the reader, closeout and ref admission.
 - [x] 2.13 Report a document under the profile docs root that does not begin with plain YAML front matter, naming the comment wrapper to remove, and a decision record outside an immutable root not named `dr-NNNN-<topic>.md`, naming its canonical name; focused tests cover both scenarios, a declared docs root and an archived record.
 - [x] 2.14 Hold the commit subject grammar in the paradigm contract and apply it, restricted to a declared `scopes` list, when `[commit_policy]` declares no `subject_pattern`; focused tests cover the breaking marker, declared scopes and invalid scope lists.
-- [ ] 2.15 Report a `subject_pattern` declared in `[commit_policy]` as a restated commit grammar, once the installed runtime carries 2.14; ETHOS removes its own pattern in the same lane (3.4).
+- [x] 2.15 Report a `subject_pattern` declared in `[commit_policy]` as a restated commit grammar, once the installed runtime carries 2.14, and remove ETHOS's own pattern and the fixture owners' patterns; focused tests cover a derived grammar, declared scopes and a restated pattern.
 - [ ] 2.16 Retire the docs registry's comment-wrapped metadata reader for documents under the docs root once no adopter tracks such a document; docs health tests cover plain front matter only.
+- [x] 2.17 Fix the branch role names in the paradigm: the readers take only `release_mirror` and `canonical_sibling_worktrees` from `[branch_roles]`, and accepted closeout renames legacy role refs in one ref transaction, rebinds their worktrees, and leaves Git admission refusing any other move of a legacy role ref; focused tests cover legacy names, settings-only tables, the rename, an interrupted binding, refused renames and refused direct moves.
+- [ ] 2.18 Once the runtime carrying 2.17 is installed, report every declared branch role name, standard or legacy, and remove the names from ETHOS's workspace and from the fixture tables.
+- [ ] 2.19 Retire the legacy role rename and its Git admission once no adopter declares a legacy role name.
 
 ## 3. ETHOS conformance
 

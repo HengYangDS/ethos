@@ -153,8 +153,8 @@ def _archive_verification_lane(tmp_path):
     configure_signer(repo, tmp_path)
     workspace = repo / ".ethos/workspace.toml"
     workspace.write_text(
-        workspace.read_text() + '\n[commit_policy]\nsubject_pattern = ".+"\n'
-        'signing_required = true\nsigning_format = "ssh"\n'
+        workspace.read_text()
+        + '\n[commit_policy]\nsigning_required = true\nsigning_format = "ssh"\n'
     )
     declare_native_proof_checks(
         repo,
@@ -186,7 +186,7 @@ def test_archive_resolution_follows_only_completed_repair_provenance(
     (root / "openspec/changes/fixture-change/tasks.md").write_text(
         "- [x] Complete native change.\n"
     )
-    head = commit_fixture(root, "complete source")
+    head = commit_fixture(root, "feat: complete source")
     seed_executed_proof(root, head)
     archived = run_ethos_blocked(
         "lane",
@@ -238,7 +238,7 @@ def test_archive_resolution_follows_only_completed_repair_provenance(
     if continuation != "immediate":
         tree = git(repo, "rev-parse", f"{repaired_head}^{{tree}}")
         descendant = git(
-            repo, "commit-tree", "-S", tree, "-p", repaired_head, "-m", "later maintenance"
+            repo, "commit-tree", "-S", tree, "-p", repaired_head, "-m", "chore: later maintenance"
         )
         git(repo, "update-ref", "refs/heads/dev", descendant, repaired_head)
         repaired_head = descendant

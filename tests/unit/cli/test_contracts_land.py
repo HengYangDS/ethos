@@ -427,9 +427,9 @@ def _assert_declared_closeout_policy(
         assert (repo / ".ethos/profile.toml").is_file()
         assert not workspace.exists()
     elif claim == CLOSEOUT_CASES[2]:
-        workspace.write_text('[branch_roles]\naccepted_branch = "dev"\n')
+        workspace.write_text('[branch_roles]\nrelease_mirror = "mirror"\n')
         git(repo, "add", workspace.as_posix())
-        git(repo, "commit", "-m", "record incomplete branch roles")
+        git(repo, "commit", "-m", "record an invalid release mirror")
         accepted = git(repo, "rev-parse", "HEAD")
         git(candidate, "reset", "--hard", accepted)
         report = accepted_admission.candidate_to_accepted(

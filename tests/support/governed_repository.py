@@ -202,7 +202,7 @@ def create_change_source_lane(
     base_branch = base_ref or load_branch_role_policy(repo).accepted_branch
     git(repo, "worktree", "add", "-b", branch, path.as_posix(), base_branch)
     _write_active_change_carrier(path, change_id=change_id)
-    commit_fixture(path, f"declare {change_id}")
+    commit_fixture(path, f"docs(openspec): declare {change_id}")
     now = datetime.now(UTC)
     acquire_lease(
         state_database(repo),
@@ -315,7 +315,7 @@ def commit_active_change(
     """Commit one official active OpenSpec Change and return its exact HEAD."""
     write_active_commitment(repo, change_id=change_id)
     if git(repo, "status", "--short"):
-        commit_fixture(repo, "declare active change")
+        commit_fixture(repo, "docs(openspec): declare the active change")
     return git(repo, "rev-parse", "HEAD")
 
 
@@ -332,26 +332,17 @@ def _enable_openspec_profile(repo: Path) -> None:
         )
 
 
-def write_role_policy(
-    repo: Path,
-    *,
-    release_branch: str = "main",
-    accepted_branch: str = "dev",
-    candidate_branch: str = "stage/dev",
-    work_branch_prefix: str = "lane/",
-    proposal_branch_prefix: str = "review/",
-    release_mirror: str = "independent",
-) -> None:
-    """Write and commit a branch-role policy fixture."""
+def write_role_policy(repo: Path, *, release_mirror: str = "independent") -> None:
+    """Write and commit a branch-role policy fixture; the paradigm fixes the role names."""
     workspace_path = repo / ".ethos" / "workspace.toml"
     workspace_path.parent.mkdir(parents=True, exist_ok=True)
     workspace_path.write_text(
         render_branch_policy(
-            release_branch=release_branch,
-            accepted_branch=accepted_branch,
-            candidate_branch=candidate_branch,
-            work_branch_prefix=work_branch_prefix,
-            proposal_branch_prefix=proposal_branch_prefix,
+            release_branch="main",
+            accepted_branch="dev",
+            candidate_branch="candidate/dev",
+            work_branch_prefix="work/",
+            proposal_branch_prefix="proposal/",
             release_mirror=release_mirror,
         ),
         encoding="utf-8",

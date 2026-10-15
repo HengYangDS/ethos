@@ -54,7 +54,7 @@ def repository_paradigm_report(root: Path, *, tracked_paths: tuple[str, ...]) ->
         *_formatter_gaps(paradigm, root, tracked),
         *document_gaps(paradigm, root, tracked),
         *_peer_remote_gaps(paradigm, root, tracked),
-        *_branch_role_gaps(paradigm, root, tracked),
+        *_workspace_gaps(paradigm, root, tracked),
         *_release_gaps(paradigm, root, tracked),
     ]
     required = [gap.required_gap for gap in gaps]
@@ -352,26 +352,34 @@ def _peer_remote_gaps(
             )
 
 
-def _branch_role_gaps(
+def _workspace_gaps(
     paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
 ) -> Iterator[ParadigmGap]:
-    """Keep each standard branch role at the name the branch-role contract defaults to."""
+    """Leave the branch role names and the commit grammar, which it fixes, to the paradigm."""
     workspace = f"{paradigm.binding.root}/workspace.toml"
     source = tracked_text(root, workspace, tracked)
     try:
-        declared = tomllib.loads(source).get("branch_roles", {}) if source is not None else {}
+        declared = tomllib.loads(source) if source is not None else {}
     except tomllib.TOMLDecodeError:
-        return  # The workspace policy owner reports an unreadable binding.
-    if not isinstance(declared, dict):
-        return
+        return  # The workspace policy owners report an unreadable binding.
+    roles = declared.get("branch_roles", {})
     standard = {field.name: field.default for field in fields(BranchRolePolicy)}
-    for role in paradigm.binding.standard_branch_roles:
-        if role in declared and declared[role] != standard[role]:
+    for role in paradigm.binding.standard_branch_roles if isinstance(roles, dict) else ():
+        if role in roles and roles[role] != standard[role]:
             yield ParadigmGap(
                 "branch-roles",
                 f"{workspace}:branch_roles.{role}",
-                f'set {role} = "{standard[role]}" or remove it to use the standard name',
+                f"remove {role} after closeout renames the ref; "
+                f"the repository paradigm fixes it as {standard[role]}",
             )
+    policy = declared.get("commit_policy", {})
+    if isinstance(policy, dict) and "subject_pattern" in policy:
+        yield ParadigmGap(
+            "commit-grammar",
+            f"{workspace}:commit_policy.subject_pattern",
+            "remove subject_pattern; the repository paradigm owns the commit grammar, "
+            "and scopes = [...] restricts its scopes",
+        )
 
 
 def _release_gaps(

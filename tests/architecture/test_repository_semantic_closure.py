@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import ethos.repository.audit as repository_audit_module
 from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.git import git_files
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.domain.status import product_audit
 
 if TYPE_CHECKING:
@@ -59,10 +60,7 @@ def test_current_repository_audit_proves_complete_semantic_closure() -> None:
     assert isinstance(commit_policy, dict)
     assert commit_policy["state"] == "current"
     assert commit_policy["declaration"] == {
-        "subject_pattern": (
-            "^(feat|fix|docs|test|refactor|perf|build|ci|chore|revert)"
-            r"(\([a-z0-9-]+\))?: .+"
-        ),
+        "subject_pattern": load_repository_paradigm().commit.subject_pattern(),
         "signing_required": True,
         "signing_format": "ssh",
     }

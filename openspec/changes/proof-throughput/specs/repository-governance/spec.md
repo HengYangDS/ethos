@@ -795,7 +795,6 @@ SHALL not be mistaken for authored directory entrypoints.
   without fragmenting one cohesive explanation or duplicating authority
 - **AND** a move repairs affected links without changing subject identity
 
-
 ### Requirement: Accepted history repair preserves original acceptance provenance
 
 Accepted-source consumers SHALL resolve original acceptance through validated

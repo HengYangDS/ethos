@@ -8,12 +8,14 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Literal
 
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from pathlib import Path
 
 _FIELDS = frozenset(
-    {"subject_pattern", "signing_required", "signing_format", "author", "committer"}
+    {"subject_pattern", "scopes", "signing_required", "signing_format", "author", "committer"}
 )
 
 
@@ -36,6 +38,7 @@ class CommitPolicy:
     subject_pattern: str
     signing_required: bool
     signing_format: Literal["ssh"]
+    scopes: tuple[str, ...] = ()
     author: CommitIdentity | None = None
     committer: CommitIdentity | None = None
 
@@ -58,6 +61,7 @@ class CommitPolicy:
             "subject_pattern": self.subject_pattern,
             "signing_required": self.signing_required,
             "signing_format": self.signing_format,
+            **({"scopes": list(self.scopes)} if self.scopes else {}),
             **{
                 role: identity.projection()
                 for role in ("author", "committer")
@@ -94,6 +98,37 @@ def _identity(raw: dict[str, object], role: str) -> CommitIdentity | None:
     return CommitIdentity(name=value["name"], email=value["email"])
 
 
+def _scopes(raw: dict[str, object]) -> tuple[str, ...]:
+    """Read the optional scope list that restricts the shared commit grammar."""
+    if "scopes" not in raw:
+        return ()
+    value = raw["scopes"]
+    scope = re.compile(load_repository_paradigm().commit.scope)
+    if (
+        "subject_pattern" in raw
+        or not isinstance(value, list)
+        or not value
+        or any(not isinstance(name, str) or not scope.fullmatch(name) for name in value)
+        or len(set(value)) != len(value)
+    ):
+        message = "commit_policy_invalid:scopes"
+        raise ValueError(message)
+    return tuple(value)
+
+
+def _subject_pattern(raw: dict[str, object], scopes: tuple[str, ...]) -> str:
+    """Return a declared subject pattern, or the shared grammar the paradigm defines."""
+    if "subject_pattern" not in raw:
+        return load_repository_paradigm().commit.subject_pattern(scopes)
+    subject_pattern = _required_text(raw, "subject_pattern")
+    try:
+        re.compile(subject_pattern)
+    except re.error as error:
+        message = f"commit_policy_subject_pattern_invalid:{error}"
+        raise ValueError(message) from error
+    return subject_pattern
+
+
 def commit_policy_from_text(text: str) -> CommitPolicy | None:
     """Compile an already-observed commit policy, failing closed when present."""
     try:
@@ -111,12 +146,8 @@ def commit_policy_from_text(text: str) -> CommitPolicy | None:
     if unknown:
         message = f"commit_policy_unknown_fields:{','.join(unknown)}"
         raise ValueError(message)
-    subject_pattern = _required_text(raw, "subject_pattern")
-    try:
-        re.compile(subject_pattern)
-    except re.error as error:
-        message = f"commit_policy_subject_pattern_invalid:{error}"
-        raise ValueError(message) from error
+    scopes = _scopes(raw)
+    subject_pattern = _subject_pattern(raw, scopes)
     signing_required = raw.get("signing_required")
     if not isinstance(signing_required, bool):
         message = "commit_policy_invalid:signing_required"
@@ -129,6 +160,7 @@ def commit_policy_from_text(text: str) -> CommitPolicy | None:
         subject_pattern=subject_pattern,
         signing_required=signing_required,
         signing_format="ssh",
+        scopes=scopes,
         author=_identity(raw, "author"),
         committer=_identity(raw, "committer"),
     )

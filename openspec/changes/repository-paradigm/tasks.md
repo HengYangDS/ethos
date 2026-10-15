@@ -17,6 +17,10 @@
 - [x] 2.10 Confirm where coverage thresholds come from: the JavaScript behavior gate passes the adopter's own c8 configuration (`.config/checks/c8/.c8rc.json`) through, requires every behavior subject to be selected, and the Python gate sets no threshold of its own. No product change; an adopter declares its threshold, and c8's 90% line default applies only when it declares none.
 - [x] 2.11 Report, for a repository that declares release tags, a version source other than `VERSION`, a tag pattern other than `v*` and a changelog without `## [Unreleased]` or with unbracketed version headings; focused tests cover each case and a repository that does not release.
 - [x] 2.12 Read a `.ethos/workspace.toml` without a `branch_roles` table as the standard roles in the strict branch-role reader, as the paradigm report does, so accepted closeout, publication and ref admission no longer reject it; focused tests cover the reader, closeout and ref admission.
+- [x] 2.13 Report a document under the profile docs root that does not begin with plain YAML front matter, naming the comment wrapper to remove, and a decision record outside an immutable root not named `dr-NNNN-<topic>.md`, naming its canonical name; focused tests cover both scenarios, a declared docs root and an archived record.
+- [x] 2.14 Hold the commit subject grammar in the paradigm contract and apply it, restricted to a declared `scopes` list, when `[commit_policy]` declares no `subject_pattern`; focused tests cover the breaking marker, declared scopes and invalid scope lists.
+- [ ] 2.15 Report a `subject_pattern` declared in `[commit_policy]` as a restated commit grammar, once the installed runtime carries 2.14; ETHOS removes its own pattern in the same lane (3.4).
+- [ ] 2.16 Retire the docs registry's comment-wrapped metadata reader for documents under the docs root once no adopter tracks such a document; docs health tests cover plain front matter only.
 
 ## 3. ETHOS conformance
 

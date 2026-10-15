@@ -8,6 +8,8 @@ import pytest
 
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.report import repository_paradigm_report
+from tests.support.paradigm import CONFORMING
+from tests.support.paradigm import paradigm_report
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -15,51 +17,10 @@ if TYPE_CHECKING:
 _PYTHON_CEILING = load_repository_paradigm().size.python_effective_lines
 _MODULE = "src/sample/module.py"
 
-_CONFORMING = {
-    "AGENTS.md": "# Agents\n",
-    "README.md": "# Sample\n",
-    ".gitattributes": "* text=auto eol=lf\n",
-    ".editorconfig": (
-        "root = true\n\n# all files\n[*]\ncharset = UTF-8\nend_of_line = lf\n"
-        "insert_final_newline = true\n\n[*.py]\nindent_size = 4\n"
-    ),
-    "pyproject.toml": '[project]\nname = "sample"\nrequires-python = ">=3.12,<3.15"\n',
-    "uv.lock": "version = 1\n",
-    "noxfile.py": "",
-    "package.json": '{"scripts": {"check": "node check.mjs"}}\n',
-    "go.mod": "module example.com/sample\n",
-    ".ethos/profile.toml": 'profile_id = "sample"\n',
-    "cmd/sample/main.go": "package main\n",
-    "content/intro.md": "# Intro\n",
-    ".config/miserc.toml": "",
-    ".config/mise/config.toml": "",
-    ".config/npm/npmrc": "",
-    ".config/ci/pipeline.cue": "",
-    ".config/checks/ruff/ruff.toml": 'line-length = 100\ntarget-version = "py312"\n',
-    ".config/checks/prettier/prettier.toml": 'printWidth = 100\nproseWrap = "preserve"\n',
-    ".config/checks/taplo/taplo.toml": "[formatting]\ncolumn_width = 100\n",
-    ".config/checks/gitleaks/gitleaksignore": "",
-    ".config/checks/coverage/coverage.toml": "",
-    ".config/checks/coverage/policy.toml": "",
-    ".config/checks/architecture-projection/policy.toml": "",
-    ".config/checks/vale/vale.ini": "",
-    ".config/checks/vale/styles/Plain/Rule.yml": "",
-    ".config/release/goreleaser/.goreleaser.yaml": "",
-}
-
-
-def _report(root: Path, files: dict[str, str], *, untracked: tuple[str, ...] = ()) -> dict:
-    for relative, content in files.items():
-        path = root / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
-    tracked = tuple(path for path in files if path not in untracked)
-    return repository_paradigm_report(root, tracked_paths=tracked)
-
 
 def test_conforming_repository_passes_with_product_owned_layout(tmp_path: Path) -> None:
     """Different product trees conform when every protocol carrier is in place."""
-    report = _report(tmp_path, _CONFORMING)
+    report = paradigm_report(tmp_path, CONFORMING)
     assert report["verdict"] == "pass", report
     assert report["required_gaps"] == []
     assert report["next_action"] == ""
@@ -235,7 +196,7 @@ def test_paradigm_gap_names_carrier_obligation_and_repair(
     tmp_path: Path, changes: dict[str, str], gap: str, repair: str
 ) -> None:
     """Each non-conforming carrier yields one named gap with its canonical repair."""
-    report = _report(tmp_path, {**_CONFORMING, **changes})
+    report = paradigm_report(tmp_path, {**CONFORMING, **changes})
     assert report["verdict"] == "block"
     assert report["required_gaps"] == [gap]
     [detail] = report["gaps"]
@@ -245,9 +206,11 @@ def test_paradigm_gap_names_carrier_obligation_and_repair(
 
 def test_missing_entries_and_unlocked_runner_are_reported(tmp_path: Path) -> None:
     """A runner entry needs its module, and entry documents and carriers must be tracked."""
-    files = {**_CONFORMING}
+    files = {**CONFORMING}
     del files["pyproject.toml"], files["uv.lock"]
-    report = _report(tmp_path, files, untracked=("AGENTS.md", ".gitattributes", ".editorconfig"))
+    report = paradigm_report(
+        tmp_path, files, untracked=("AGENTS.md", ".gitattributes", ".editorconfig")
+    )
     assert report["required_gaps"] == [
         "repository_paradigm_root_catalog:noxfile.py",
         "repository_paradigm_entry_documents:AGENTS.md",
@@ -258,9 +221,9 @@ def test_missing_entries_and_unlocked_runner_are_reported(tmp_path: Path) -> Non
 
 def test_python_module_requires_its_lock(tmp_path: Path) -> None:
     """A tracked Python manifest always needs uv.lock, whatever it declares."""
-    files = {**_CONFORMING}
+    files = {**CONFORMING}
     del files["uv.lock"]
-    report = _report(tmp_path, files)
+    report = paradigm_report(tmp_path, files)
     assert report["required_gaps"] == ["repository_paradigm_module_lock:pyproject.toml"]
     assert report["next_action"] == "lock pyproject.toml with uv.lock"
 
@@ -268,13 +231,13 @@ def test_python_module_requires_its_lock(tmp_path: Path) -> None:
 @pytest.mark.parametrize("mode", ["unreadable", "absent"])
 def test_unreadable_tracked_manifest_is_a_gap(tmp_path: Path, mode: str) -> None:
     """A tracked manifest that cannot be read never passes as unlocked or unfloored."""
-    _report(tmp_path, _CONFORMING)
+    paradigm_report(tmp_path, CONFORMING)
     manifest = tmp_path / "pyproject.toml"
     if mode == "unreadable":
         manifest.write_bytes(b"\xff\xfe")
     else:
         manifest.unlink()
-    tracked = tuple(_CONFORMING)
+    tracked = tuple(CONFORMING)
     report = repository_paradigm_report(tmp_path, tracked_paths=tracked)
     assert report["required_gaps"] == ["repository_paradigm_module_lock:pyproject.toml"]
     assert report["gaps"] == [
@@ -304,7 +267,7 @@ def test_every_python_file_shares_one_effective_line_ceiling(
     tmp_path: Path, source: str, gaps: list[str]
 ) -> None:
     """The ceiling applies without any repository size policy and counts only code."""
-    report = _report(tmp_path, {**_CONFORMING, _MODULE: source})
+    report = paradigm_report(tmp_path, {**CONFORMING, _MODULE: source})
     assert report["required_gaps"] == gaps
     if gaps:
         assert _MODULE in report["next_action"]
@@ -313,13 +276,13 @@ def test_every_python_file_shares_one_effective_line_ceiling(
 @pytest.mark.parametrize("mode", ["undecodable", "absent"])
 def test_python_size_reads_only_what_exists_as_text(tmp_path: Path, mode: str) -> None:
     """Undecodable source is a gap; a tracked file deleted from the worktree is not measured."""
-    _report(tmp_path, {**_CONFORMING, _MODULE: "value = 1\n"})
+    paradigm_report(tmp_path, {**CONFORMING, _MODULE: "value = 1\n"})
     module = tmp_path / _MODULE
     if mode == "undecodable":
         module.write_bytes(b"name = '\xff'\n")
     else:
         module.unlink()
-    report = repository_paradigm_report(tmp_path, tracked_paths=(*_CONFORMING, _MODULE))
+    report = repository_paradigm_report(tmp_path, tracked_paths=(*CONFORMING, _MODULE))
     expected = [f"repository_paradigm_python_size:{_MODULE}"] if mode == "undecodable" else []
     assert report["required_gaps"] == expected
 
@@ -327,7 +290,7 @@ def test_python_size_reads_only_what_exists_as_text(tmp_path: Path, mode: str) -
 def test_a_binding_cannot_restate_the_size_ceiling(tmp_path: Path) -> None:
     """The ceiling has one owner, so a repository-declared limit is a gap, not a setting."""
     rules = "[quality.code_size]\ndefault_effective_max_lines = 900\n"
-    report = _report(tmp_path, {**_CONFORMING, ".ethos/rules.toml": rules})
+    report = paradigm_report(tmp_path, {**CONFORMING, ".ethos/rules.toml": rules})
     assert report["required_gaps"] == [
         "repository_paradigm_binding_restatement:.ethos/rules.toml:quality.code_size"
     ]
@@ -355,8 +318,8 @@ def test_each_tracked_carrier_class_names_its_common_formatter(
     tmp_path: Path, changes: dict[str, str | None], gap: str, repair: str
 ) -> None:
     """A carrier class present in the tree needs its formatter bound with common settings."""
-    files = {key: value for key, value in {**_CONFORMING, **changes}.items() if value is not None}
-    report = _report(tmp_path, files)
+    files = {key: value for key, value in {**CONFORMING, **changes}.items() if value is not None}
+    report = paradigm_report(tmp_path, files)
     assert report["verdict"] == "block"
     assert [item for item in report["required_gaps"] if gap in item], report["required_gaps"]
     assert any(repair in detail["repair"] for detail in report["gaps"]), report["gaps"]
@@ -368,177 +331,9 @@ def test_a_carrier_class_only_inside_an_immutable_root_needs_no_formatter(
     """A repository with no current Python needs no Ruff binding, archived files aside."""
     files = {
         key: value
-        for key, value in _CONFORMING.items()
+        for key, value in CONFORMING.items()
         if key not in {"pyproject.toml", "uv.lock", "noxfile.py", ".config/checks/ruff/ruff.toml"}
     }
     archived = "openspec/changes/archive/2026-01-01-old/probe.py"
-    report = _report(tmp_path, {**files, archived: "value = 1\n"})
+    report = paradigm_report(tmp_path, {**files, archived: "value = 1\n"})
     assert report["required_gaps"] == [], report["required_gaps"]
-
-
-_RELEASE = (
-    '[[publication.peers]]\nid = "gitlab"\nprovider = "gitlab"\ngit_remote = "{gitlab}"\n'
-    '[[publication.peers]]\nid = "github"\nprovider = "github"\ngit_remote = "github"\n'
-)
-
-
-@pytest.mark.parametrize(
-    ("remote", "gaps"),
-    [
-        ("gitlab", []),
-        (
-            "origin",
-            ["repository_paradigm_peer_remote:.ethos/release.toml:publication.peers.gitlab"],
-        ),
-    ],
-    ids=["peer-named", "implicit-origin"],
-)
-def test_each_publication_peer_names_its_git_remote(
-    tmp_path: Path, remote: str, gaps: list[str]
-) -> None:
-    """A peer's Git remote carries the peer's own id, never the implicit origin."""
-    release = _RELEASE.format(gitlab=remote)
-    report = _report(tmp_path, {**_CONFORMING, ".ethos/release.toml": release})
-    assert report["required_gaps"] == gaps
-    if gaps:
-        assert "git remote rename origin gitlab" in report["next_action"]
-
-
-@pytest.mark.parametrize(
-    ("roles", "gaps"),
-    [
-        ("", []),
-        ('release_branch = "main"\nproposal_branch_prefix = "proposal/"\n', []),
-        (
-            'proposal_branch_prefix = "submit/"\n',
-            [
-                "repository_paradigm_branch_roles:.ethos/workspace.toml:branch_roles.proposal_branch_prefix"
-            ],
-        ),
-    ],
-    ids=["defaults", "standard-declared", "review-prefix"],
-)
-def test_branch_roles_keep_the_standard_names(tmp_path: Path, roles: str, gaps: list[str]) -> None:
-    """A declared branch role must use the name the branch-role contract defaults to."""
-    workspace = f"[branch_roles]\n{roles}" if roles else ""
-    report = _report(tmp_path, {**_CONFORMING, ".ethos/workspace.toml": workspace})
-    assert report["required_gaps"] == gaps
-    if gaps:
-        assert 'proposal_branch_prefix = "proposal/"' in report["next_action"]
-
-
-_RELEASING = {
-    ".ethos/release.toml": '[protected_refs]\ntags = ["v*"]\n',
-    "VERSION": "1.2.0\n",
-    "CHANGELOG.md": "# Changelog\n\n## [Unreleased]\n\n## [1.2.0] - 2026-10-15\n",
-}
-
-
-@pytest.mark.parametrize(
-    ("changes", "gaps"),
-    [
-        ({}, []),
-        (
-            {"CHANGELOG.md": "# Changelog\n\n## Unreleased\n\n## 1.2.0 - 2026-10-15\n"},
-            ["repository_paradigm_changelog:CHANGELOG.md"],
-        ),
-        ({"VERSION": None}, ["repository_paradigm_version_source:VERSION"]),
-        (
-            {"package.json": '{"version": "1.2.0", "scripts": {}}\n'},
-            ["repository_paradigm_version_source:package.json:version"],
-        ),
-        (
-            {".ethos/release.toml": '[protected_refs]\ntags = ["release-*"]\n'},
-            ["repository_paradigm_release_tags:.ethos/release.toml:protected_refs.tags"],
-        ),
-        ({".ethos/release.toml": "", "VERSION": None, "CHANGELOG.md": None}, []),
-    ],
-    ids=[
-        "conforming",
-        "unbracketed",
-        "no-version",
-        "package-version",
-        "tag-pattern",
-        "not-released",
-    ],
-)
-def test_a_releasing_repository_keeps_one_version_source_and_changelog(
-    tmp_path: Path, changes: dict[str, str | None], gaps: list[str]
-) -> None:
-    """Release tags require VERSION alone, v-tags and a bracketed Keep a Changelog history."""
-    merged = {**_CONFORMING, **_RELEASING, **changes}
-    files = {key: value for key, value in merged.items() if value is not None}
-    report = _report(tmp_path, files)
-    assert report["required_gaps"] == gaps
-
-
-@pytest.mark.parametrize(
-    ("changes", "gaps"),
-    [
-        ({".ethos/release.toml": "[broken\n"}, []),
-        ({".ethos/workspace.toml": "[broken\n"}, []),
-        ({".ethos/workspace.toml": 'branch_roles = "main"\n'}, []),
-        ({".ethos/rules.toml": "[broken\n"}, []),
-        (
-            {".config/checks/ruff/ruff.toml": "[broken\n"},
-            [
-                "repository_paradigm_formatter_setting:.config/checks/ruff/ruff.toml:line-length",
-                "repository_paradigm_formatter_setting:.config/checks/ruff/ruff.toml:target-version",
-            ],
-        ),
-        ({".ethos/release.toml": '[publication]\npeers = ["gitlab", {git_remote = "x"}]\n'}, []),
-        ({".ethos/release.toml": "publication = 1\n"}, []),
-    ],
-    ids=[
-        "release-unreadable",
-        "workspace-unreadable",
-        "roles-not-table",
-        "rules-unreadable",
-        "formatter-unreadable",
-        "peers-malformed",
-        "publication-not-table",
-    ],
-)
-def test_malformed_bindings_leave_their_owner_to_report_them(
-    tmp_path: Path, changes: dict[str, str], gaps: list[str]
-) -> None:
-    """A binding the paradigm cannot parse is its native owner's gap, not a guessed one."""
-    report = _report(tmp_path, {**_CONFORMING, **changes})
-    assert report["required_gaps"] == gaps
-
-
-@pytest.mark.parametrize(
-    ("changes", "gaps"),
-    [
-        (
-            {
-                "pyproject.toml": (
-                    '[project]\nname = "sample"\nversion = "1.2.0"\nrequires-python = ">=3.12"\n'
-                )
-            },
-            ["repository_paradigm_version_source:pyproject.toml:project.version"],
-        ),
-        ({"package.json": "{broken\n"}, ["repository_paradigm_module_lock:package.json"]),
-        ({"pyproject.toml": "[broken\n"}, ["repository_paradigm_module_floor:pyproject.toml"]),
-        ({"CHANGELOG.md": None}, ["repository_paradigm_changelog:CHANGELOG.md"]),
-        (
-            {"CHANGELOG.md": "# Changelog\n\n## [1.2.0] - 2026-10-15\n"},
-            ["repository_paradigm_changelog:CHANGELOG.md"],
-        ),
-    ],
-    ids=[
-        "pyproject-version",
-        "package-unreadable",
-        "pyproject-unreadable",
-        "no-changelog",
-        "no-unreleased",
-    ],
-)
-def test_releasing_repository_version_and_changelog_edges(
-    tmp_path: Path, changes: dict[str, str | None], gaps: list[str]
-) -> None:
-    """Literal manifest versions, an unreadable manifest and a missing history are each reported."""
-    merged = {**_CONFORMING, **_RELEASING, **changes}
-    files = {key: value for key, value in merged.items() if value is not None}
-    report = _report(tmp_path, files)
-    assert report["required_gaps"] == gaps

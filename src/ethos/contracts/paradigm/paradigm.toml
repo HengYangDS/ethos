@@ -42,9 +42,6 @@ planes = ["ci", "mise", "npm"]
 files = ["miserc.toml"]
 policy = "policy.toml"
 
-# Per-file ceilings every governed repository shares; no binding restates them.
-# Exceeding one needs semantic consolidation, never compression, exemptions or a
-# raised ceiling.
 # A repository that declares release tags keeps one version source and one
 # changelog grammar (Keep a Changelog 1.1.0, bracketed headings).
 [release]
@@ -53,9 +50,24 @@ tag_pattern = "v*"
 changelog = "CHANGELOG.md"
 changelog_heading = '^## \[(Unreleased|\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?)\]( - \d{4}-\d{2}-\d{2})?$'
 
+# Per-file ceilings every governed repository shares; no binding restates them.
+# Exceeding one needs semantic consolidation, never compression, exemptions or a
+# raised ceiling.
 [size]
 python_effective_lines = 512
 markdown_nonblank_lines = 512
+
+# Documents under the profile docs root begin with plain YAML front matter.
+# A repository that keeps numbered decision records names each with one grammar.
+[documents]
+decision_record_name = '^dr-\d{4}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$'
+
+# The commit subject grammar every governed repository shares. A repository may
+# restrict scopes to a declared list; the type set does not vary.
+[commit]
+types = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor", "revert", "test"]
+scope = '[a-z0-9]+(?:-[a-z0-9]+)*'
+breaking_marker = "!"
 
 # One formatter per text carrier class, with the settings every binding declares.
 # Ruff formats Python because the common blank-line policy has no other enforcer.

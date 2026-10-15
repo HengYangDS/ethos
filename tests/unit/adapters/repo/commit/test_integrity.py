@@ -274,7 +274,7 @@ def test_generated_commit_uses_exact_parent_and_target_not_checkout(tmp_path, ca
     if case in {"parent", "identity"}:
         workspace.write_text("")
     elif case == "malformed":
-        workspace.write_text("[commit_policy]\nsigning_required = 42\n")
+        workspace.write_text("[commit_policy]\nsubject_pattern = 42\n")
     git(repo, "add", ".ethos/workspace.toml")
     tree = git(repo, "write-tree")
     # The editable checkout is not the tree passed to commit-tree.

@@ -131,12 +131,17 @@ Every governed repository SHALL use the `spec-driven` schema and include the ETH
 
 ### Requirement: Commits follow one grammar
 
-Every governed repository SHALL declare the common commit policy: the Conventional Commit types build, chore, ci, docs, feat, fix, perf, refactor, revert and test, an optional lowercase kebab-case scope, an optional breaking marker, and required SSH signing. A declared scope list SHALL restrict scopes; the type set SHALL NOT vary.
+Every governed repository SHALL use the commit subject grammar that the paradigm contract holds: the Conventional Commit types build, chore, ci, docs, feat, fix, perf, refactor, revert and test, an optional lowercase kebab-case scope and an optional breaking marker `!`. `[commit_policy]` SHALL declare SSH signing and MAY declare `scopes` to restrict scopes; it SHALL NOT restate the grammar.
+
+#### Scenario: The binding declares no subject grammar
+
+- **WHEN** `[commit_policy]` declares signing and no `subject_pattern`
+- **THEN** commit admission accepts `feat(cli)!: drop the legacy flag` and rejects `style: reformat`.
 
 #### Scenario: A repository adds a type
 
-- **WHEN** a repository commit policy admits a `spec` or `style` type
-- **THEN** the paradigm reports a non-common commit grammar.
+- **WHEN** a repository commit policy declares its own `subject_pattern`, for example one that admits a `spec` or `style` type
+- **THEN** the paradigm reports a restated commit grammar.
 
 #### Scenario: A scope list is declared
 

@@ -64,6 +64,29 @@ def test_branch_roles_keep_the_standard_names(tmp_path: Path, roles: str, gaps: 
         assert 'proposal_branch_prefix = "proposal/"' in report["next_action"]
 
 
+@pytest.mark.parametrize(
+    ("policy", "gaps"),
+    [
+        ('signing_required = true\nsigning_format = "ssh"\n', []),
+        ('scopes = ["cli"]\nsigning_required = true\nsigning_format = "ssh"\n', []),
+        (
+            'subject_pattern = "^(fix|spec): .+"\nsigning_required = true\n',
+            [
+                "repository_paradigm_commit_grammar:.ethos/workspace.toml:commit_policy.subject_pattern"
+            ],
+        ),
+    ],
+    ids=["derived", "declared-scopes", "restated"],
+)
+def test_the_commit_grammar_is_not_restated(tmp_path: Path, policy: str, gaps: list[str]) -> None:
+    """A binding declares signing and may restrict scopes, but never its own subject grammar."""
+    workspace = f"[commit_policy]\n{policy}"
+    report = paradigm_report(tmp_path, {**CONFORMING, ".ethos/workspace.toml": workspace})
+    assert report["required_gaps"] == gaps
+    if gaps:
+        assert "scopes = [...] restricts its scopes" in report["next_action"]
+
+
 _RELEASING = {
     ".ethos/release.toml": '[protected_refs]\ntags = ["v*"]\n',
     "VERSION": "1.2.0\n",

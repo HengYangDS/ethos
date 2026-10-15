@@ -6,6 +6,7 @@ receive the structured report and stay free of subprocess concerns.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -128,11 +129,7 @@ def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, objec
             "--offline=false" if online else "--offline",
         )
         inputs = tuple(str(source.root / relative) for relative in files)
-        selected = run_command(source.root, (*command, "--dump-inputs", "--", *inputs), timeout=60)
-        _require_native_link_output(selected)
-        if sorted(selected.stdout.splitlines()) != sorted(inputs):
-            message = "markdown_link_input_selection_unproven"
-            return _link_observation_failure(gate_id, files, "unknown", message)
+        _require_native_link_selection(source.root, command, inputs)
         mode = (
             ("--scheme", "http", "--scheme", "https")
             if online
@@ -195,7 +192,31 @@ def _require_link_inputs(files: list[str]) -> None:
         raise ValueError(message)
 
 
-def _require_native_link_output(result: subprocess.CompletedProcess[str]) -> None:
+def _require_native_link_selection(
+    root: Path, command: tuple[str, ...], inputs: tuple[str, ...]
+) -> None:
+    """Bind native line-framed output to whole input identities without guessing splits."""
+    ordinary = tuple(path for path in inputs if len(path.splitlines()) == 1)
+    groups = ((ordinary,) if ordinary else ()) + tuple(
+        (path,) for path in inputs if len(path.splitlines()) != 1
+    )
+    for group in groups:
+        selected = run_command(
+            root, (*command, "--dump-inputs", "--", *group), text=False, timeout=60
+        )
+        _require_native_link_output(selected)
+        expected = tuple(os.fsencode(path) for path in group)
+        matches = (
+            selected.stdout == expected[0] + b"\n"
+            if len(group) == 1
+            else sorted(selected.stdout.splitlines()) == sorted(expected)
+        )
+        if not matches:
+            message = "markdown_link_input_selection_unproven"
+            raise ValueError(message)
+
+
+def _require_native_link_output(result: subprocess.CompletedProcess[str | bytes]) -> None:
     if result.returncode or result.stderr.strip():
         message = "markdown_link_extraction_unproven"
         raise ValueError(message)

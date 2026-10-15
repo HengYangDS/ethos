@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 import pytest
@@ -79,6 +80,44 @@ def test_native_delivered_routes_remain_valid(tmp_path: Path, route: str) -> Non
     report = markdown_links_report(repo)
 
     assert report["verdict"] == "pass", report
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["guide\u2028member.md"]
+    if os.name == "nt"
+    else ["guide\nmember.md", "guide\rmember.md", "guide\u2028member.md"],
+)
+def test_native_input_identity_preserves_literal_line_separators(tmp_path: Path, name: str) -> None:
+    """Native input selection preserves each committed path as one complete identity."""
+    repo = _repository(tmp_path, "# Guide\n\n[Member](member.txt)\n")
+    (repo / "README.md").rename(repo / name)
+    (repo / "member.txt").write_text("Delivered member.\n")
+    commit_fixture(repo, "declare one literal-path input")
+    expected = sum(path.endswith((".md", ".markdown")) for path in SourceTree.observe(repo).entries)
+
+    report = markdown_links_report(repo)
+
+    assert report["verdict"] == "pass", report
+    assert report["file_count"] == expected
+
+
+def test_native_selection_cannot_join_distinct_line_separated_inputs(tmp_path: Path) -> None:
+    """Full record verification refuses exclusions despite ambiguous aggregate output."""
+    repo = _repository(tmp_path, "# Guide\n")
+    name = "guide\u2028member.md" if os.name == "nt" else "guide\nmember.md"
+    (repo / "README.md").rename(repo / name)
+    (repo / "guide").write_text("# Separate input\n")
+    (repo / "member.md").write_text("# Separate input\n")
+    (repo / ".config/checks/lychee/lychee.toml").write_text(
+        'offline = true\nno_progress = true\nexclude_path = ["member"]\n'
+    )
+    commit_fixture(repo, "declare excluded literal-path input")
+
+    report = markdown_links_report(repo)
+
+    assert report["verdict"] == "unknown", report
+    assert report["required_gaps"] == ["markdown_link_input_selection_unproven"]
 
 
 @pytest.mark.timeout(2)

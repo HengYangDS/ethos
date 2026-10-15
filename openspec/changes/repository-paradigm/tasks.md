@@ -14,7 +14,7 @@
 - [x] 2.7 Report each publication peer whose `git_remote` differs from its peer id, naming the rename; focused tests cover a peer-named remote and the implicit `origin`.
 - [ ] 2.8 Let the native static gate admit an explicitly declared, product-validated execution environment for adopter code that runs in a browser callback, such as `page.evaluate`, without reading candidate ESLint configuration. Today ethos-introduction-film cannot switch runtime: ESLint reports `no-undef` for `window` at `src/motion/render.mjs:347` and `:349`, and render receipts bind that file's bytes. Done when the film's full proof passes under the switched runtime with `render.mjs` unchanged.
 - [x] 2.9 Run a uv-only project's native behavior tests on an interpreter its `requires-python` admits, instead of always pinning the runtime interpreter; focused tests cover an admitted and an excluded runtime interpreter.
-- [ ] 2.10 Take JavaScript and Python coverage thresholds from a declaration, not from c8's built-in 90% default, and let a repository declare, with a reason and the gate that executes them, integration-only sources that unit tests cannot cover. Done when ethos-introduction-film's native behavior passes with `src/motion/render.mjs` unchanged.
+- [x] 2.10 Confirm where coverage thresholds come from: the JavaScript behavior gate passes the adopter's own c8 configuration (`.config/checks/c8/.c8rc.json`) through, requires every behavior subject to be selected, and the Python gate sets no threshold of its own. No product change; an adopter declares its threshold, and c8's 90% line default applies only when it declares none.
 
 ## 3. ETHOS conformance
 

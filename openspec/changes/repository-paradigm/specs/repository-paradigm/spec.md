@@ -384,3 +384,37 @@ The repository audit SHALL report every paradigm gap with its carrier, the viola
 
 - **WHEN** a Work Lane requests prewrite admission for a new root `pytest.ini`
 - **THEN** admission refuses the path and names `.config/checks/pytest/pytest.toml`.
+
+### Requirement: Deterministic paradigm gaps carry a native repair
+
+ETHOS SHALL derive a repair for every paradigm gap whose fix follows from the gap's obligation and the carrier's current text alone, and SHALL apply it only inside a Work Lane after exact-path prewrite admission. Each new obligation SHALL ship with its repair or SHALL declare its gaps report-only. A gap that needs judgment, such as a Python file over the size ceiling, a changelog, a version source or a decision record rename, SHALL stay report-only. Repeating a repair SHALL change nothing.
+
+#### Scenario: A repair is previewed
+
+- **WHEN** a repository lacks `.editorconfig` and wraps a document's front matter in `<!--` and `-->`
+- **THEN** the repair preview names both carriers and their repaired text, and writes nothing.
+
+#### Scenario: A repair is applied in a Work Lane
+
+- **WHEN** the repair is applied in a Work Lane whose prewrite admits every repaired path
+- **THEN** each carrier holds its repaired text and the paradigm report no longer names those gaps.
+
+#### Scenario: Prewrite refuses a repaired path
+
+- **WHEN** the repair is applied where prewrite admission refuses a repaired path
+- **THEN** the repair writes nothing and reports the admission gaps.
+
+#### Scenario: A repair is repeated
+
+- **WHEN** the repair is applied a second time to the repaired tree
+- **THEN** it plans no edit.
+
+#### Scenario: A gap needs judgment
+
+- **WHEN** a tracked Python file exceeds the size ceiling
+- **THEN** the repair reports the gap with its canonical repair and plans no edit for it.
+
+#### Scenario: A remote follows a peer rename
+
+- **WHEN** the `gitlab` peer declares `git_remote = "origin"`
+- **THEN** the repair sets `git_remote = "gitlab"` and names `git remote rename origin gitlab` as the next action without running it.

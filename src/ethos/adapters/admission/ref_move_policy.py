@@ -264,8 +264,7 @@ def _strict_ref_policy(repo: Path, revision: str) -> BranchRolePolicy | None:
     if revision in _ZERO_OIDS:
         return None
     try:
-        return strict_branch_role_policy_from_text(
-            committed_file_text(repo, revision, ".ethos/workspace.toml")
-        )
+        workspace = committed_file_text(repo, revision, ".ethos/workspace.toml")
+        return strict_branch_role_policy_from_text(workspace) if workspace else None
     except (TypeError, ValueError):
         return None

@@ -183,9 +183,14 @@ def branch_role_policy_from_text(text: str) -> BranchRolePolicy:
 def strict_branch_role_policy_from_text(
     text: str, *, allow_predecessor_defaults: bool = False
 ) -> BranchRolePolicy:
-    """Parse complete branch roles, optionally recognizing predecessor schemas."""
+    """Parse complete branch roles, optionally recognizing predecessor schemas.
+
+    A workspace that declares no branch-role table keeps the standard roles.
+    """
     payload = tomllib.loads(text)
-    raw_policy = payload.get("branch_roles")
+    if "branch_roles" not in payload:
+        return BranchRolePolicy()
+    raw_policy = payload["branch_roles"]
     if type(raw_policy) is not dict:
         raise ValueError(_STRICT_BRANCH_ROLE_TABLE_ERROR)
     if allow_predecessor_defaults:

@@ -237,7 +237,7 @@ Every explicit formatter width in the fleet is already 100, so a configured form
    - land;
    - switch the repository's runtime.
 
-   Order: the proxy, aigw-cli, data-department-work-guidelines, architecture-publisher (which also gains `AGENTS.md`), web-ingestion-benchmark, the two films, then architecture-publications. A repository with foreign Work Lanes migrates after its holders land or agree.
+   Order: a repository without foreign Work Lanes or other blockers migrates first; otherwise the order follows dependencies and current lane state, and a repository with foreign Work Lanes migrates after its holders land or agree. The adopters are the proxy, aigw-cli, data-department-work-guidelines, architecture-publisher (which also gains `AGENTS.md`), web-ingestion-benchmark, the two films and architecture-publications.
 
 3. The alphasim and di-effect families follow in their own later migrations.
 

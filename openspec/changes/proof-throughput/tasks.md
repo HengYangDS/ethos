@@ -32,6 +32,7 @@ remain at signed source `8878c8406a06fa592c41dbb291578c2f2114de51` and its nativ
 - [ ] 2.12 Share exact-source intent compilation within each proof query; retain fresh queries, archive withdrawal, contradictory evidence and per-effect admission, then measure the native release consumer before delivery.
 - [ ] 2.13 Bind native typed object frames and exact set selection at their owners; remove redundant root hashing and ref probes, then verify unchanged set, fresh membership, faults and native release cost before delivery.
 - [ ] 2.14 Observe release application once under its existing operation lock; preserve effect-time checks, lock contention, drift, refusal and interruption recovery, then measure the native release journey before delivery.
+- [x] 2.15 Capture native stdout through a file and reuse Attestation-set members validated in this process by blob id, reading only new members; verify bulk capture, descendant cleanup, membership and fault regressions. The 3253-member set's first read fell from 47.3 to 30.1 s and a repeated read from 53.5 to 0.2 s.
 
 ## 3. OpenSpec Compilation and Continuation
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import locale
 import os
 import re
 import shutil
@@ -23,6 +24,7 @@ from typing import Any
 if TYPE_CHECKING:
     from collections.abc import Generator
     from collections.abc import Mapping
+    from typing import IO
 
 PROCESS_CREATION_FAILED = "process_creation_failed"
 NATIVE_WINDOWS_POWERSHELL_UNAVAILABLE = "native_windows_powershell_unavailable"
@@ -334,11 +336,14 @@ def _execute_command(
             )
             finite_input.write(stdin)
             finite_input.seek(0)
+        # A pipe hands over one small block per scheduling round, so bulk output goes to a file.
+        # Stderr stays a pipe: its end-of-file still waits for descendants that inherited it.
+        captured = resources.enter_context(TemporaryFile())
         try:
             process = scope.start(
                 command,
                 stdin=finite_input if finite_input is not None else subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
+                stdout=captured,
                 stderr=subprocess.PIPE,
                 **({"process_group": 0} if os.name == "posix" else {}),
                 **kwargs,
@@ -353,20 +358,37 @@ def _execute_command(
             ) from error
         with process:
             try:
-                stdout, stderr = process.communicate(timeout=timeout)
+                _unpiped, stderr = process.communicate(timeout=timeout)
             except BaseException as error:
                 scope.terminate(process)
                 if os.name == "nt" and isinstance(error, subprocess.TimeoutExpired):
-                    error.stdout, error.stderr = process.communicate()
+                    _unpiped, error.stderr = process.communicate()
                 process.wait()
+                if isinstance(error, subprocess.TimeoutExpired):
+                    error.stdout = _written(captured)
                 raise
             finally:
                 if process.returncode is not None:
                     scope.discard(process)
+            stdout = _decoded(_written(captured), text=kwargs["text"])
             result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
             if check:
                 result.check_returncode()
             return result
+
+
+def _written(output: IO[bytes]) -> bytes:
+    """Read one captured native stream from its start."""
+    output.seek(0)
+    return output.read()
+
+
+def _decoded(data: bytes, *, text: bool) -> str | bytes:
+    """Decode captured output exactly as a default text-mode pipe would."""
+    if not text:
+        return data
+    encoding = "utf-8" if sys.flags.utf8_mode else locale.getencoding()
+    return data.decode(encoding).replace("\r\n", "\n").replace("\r", "\n")
 
 
 def _terminate_command(process: subprocess.Popen[Any]) -> None:

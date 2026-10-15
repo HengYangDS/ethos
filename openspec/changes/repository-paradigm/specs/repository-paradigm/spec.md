@@ -150,7 +150,7 @@ Every governed repository SHALL use the commit subject grammar that the paradigm
 
 ### Requirement: Branch roles and Work Lanes use the standard names
 
-The repository paradigm SHALL fix the branch role names: release `main`, accepted `dev`, candidate `candidate/dev`, Work Lanes under `work/` and proposals under `proposal/`. ETHOS SHALL read no role name from `[branch_roles]`, which MAY declare only `release_mirror` and `canonical_sibling_worktrees`. Work Lane worktrees SHALL be siblings at `<repository>-worktrees/<yyyymmdd>-<slug>/`.
+The repository paradigm SHALL fix the branch role names: release `main`, accepted `dev`, candidate `candidate/dev`, Work Lanes under `work/` and proposals under `proposal/`. ETHOS SHALL read no role name from `[branch_roles]`, which MAY declare only `release_mirror`. Every Work Lane worktree SHALL be a sibling at `<repository>-worktrees/<yyyymmdd>-<slug>/`, and ETHOS SHALL read no worktree setting from `[branch_roles]`.
 
 #### Scenario: A review prefix differs
 
@@ -162,6 +162,12 @@ The repository paradigm SHALL fix the branch role names: release `main`, accepte
 
 - **WHEN** `[branch_roles]` declares `accepted_branch = "dev"`
 - **THEN** the paradigm reports the declared name and names its removal.
+
+#### Scenario: A workspace declares the retired sibling-worktree setting
+
+- **WHEN** `[branch_roles]` declares `canonical_sibling_worktrees = false`
+- **THEN** `ethos lane start feature` still places the Work Lane at `<repository>-worktrees/<yyyymmdd>-feature/`
+- **AND** the paradigm reports the setting and the repair deletes it.
 
 #### Scenario: A workspace declares only the settings
 

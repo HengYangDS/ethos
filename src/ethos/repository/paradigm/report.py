@@ -12,7 +12,8 @@ import re
 import tomllib
 from typing import TYPE_CHECKING
 
-from ethos.contracts.branch.roles import ROLE_NAME_FIELDS
+from ethos.contracts.branch.roles import RETIRED_BRANCH_ROLE_FIELDS
+from ethos.contracts.branch.roles import SIBLING_WORKTREE_FIELD
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import close_verdict
@@ -363,15 +364,12 @@ def _workspace_gaps(
     except tomllib.TOMLDecodeError:
         return  # The workspace policy owners report an unreadable binding.
     roles = declared.get("branch_roles", {})
-    standard = BranchRolePolicy()
-    for role in ROLE_NAME_FIELDS if isinstance(roles, dict) else ():
-        if role in roles:
-            name = getattr(standard, role)
-            rename = "" if roles[role] == name else " after closeout renames the ref"
+    for field in RETIRED_BRANCH_ROLE_FIELDS if isinstance(roles, dict) else ():
+        if field in roles:
             yield ParadigmGap(
                 "branch-roles",
-                f"{workspace}:branch_roles.{role}",
-                f"remove {role}{rename}; the repository paradigm fixes it as {name}",
+                f"{workspace}:branch_roles.{field}",
+                _retired_field_repair(field, roles[field]),
             )
     policy = declared.get("commit_policy", {})
     if isinstance(policy, dict) and "subject_pattern" in policy:
@@ -381,6 +379,15 @@ def _workspace_gaps(
             "remove subject_pattern; the repository paradigm owns the commit grammar, "
             "and scopes = [...] restricts its scopes",
         )
+
+
+def _retired_field_repair(field: str, value: object) -> str:
+    """Name the removal of one retired branch-role field and what the paradigm fixes instead."""
+    if field == SIBLING_WORKTREE_FIELD:
+        return f"remove {field}; the repository paradigm places Work Lanes in sibling worktrees"
+    name = getattr(BranchRolePolicy(), field)
+    rename = "" if value == name else " after closeout renames the ref"
+    return f"remove {field}{rename}; the repository paradigm fixes it as {name}"
 
 
 def _release_gaps(

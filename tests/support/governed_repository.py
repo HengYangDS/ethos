@@ -79,12 +79,11 @@ def prepared_work_lane(
 
 def lane_start_arguments(
     repository: Path,
-    worktree: Path,
     *,
     name: str = "feature",
     holder_ref: str = "agent:test:case:agent-test",
 ) -> tuple[str, ...]:
-    """Build canonical CLI arguments for an applied test Work Lane start."""
+    """Build CLI arguments for an applied test Work Lane start at its dated sibling path."""
     commit_openspec_baseline(repository)
     return (
         "lane",
@@ -92,8 +91,6 @@ def lane_start_arguments(
         name,
         "--root",
         repository.as_posix(),
-        "--path",
-        worktree.as_posix(),
         "--holder-ref",
         holder_ref,
         "--apply",
@@ -375,7 +372,6 @@ def render_branch_policy(*, release_mirror: str) -> str:
         (
             "[branch_roles]",
             f'release_mirror = "{release_mirror}"',
-            "canonical_sibling_worktrees = false",
             "",
         )
     )

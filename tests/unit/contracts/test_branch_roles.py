@@ -74,17 +74,13 @@ coupled_with = "candidate.accept"
 """
     )
 
-    assert branch_role_policy_from_text(historical) == BranchRolePolicy(
-        canonical_sibling_worktrees=False
-    )
+    assert branch_role_policy_from_text(historical) == BranchRolePolicy()
     with pytest.raises(ValueError, match="unknown fields"):
         strict_branch_role_policy_from_text(historical)
 
 
 def test_branch_role_current_schema_maps_exactly() -> None:
-    assert strict_branch_role_policy_from_text(CURRENT) == BranchRolePolicy(
-        canonical_sibling_worktrees=False
-    )
+    assert strict_branch_role_policy_from_text(CURRENT) == BranchRolePolicy()
 
 
 def test_a_workspace_without_the_table_keeps_the_standard_roles() -> None:
@@ -97,7 +93,7 @@ def test_a_workspace_without_the_table_keeps_the_standard_roles() -> None:
 
 
 def test_the_paradigm_fixes_every_role_name() -> None:
-    """A table declares the mirror and worktree settings; declared names stay legacy data."""
+    """A table declares the release mirror; declared names and the sibling setting are retired."""
     legacy = CURRENT.replace('"candidate/dev"', '"candidate/train"').replace(
         'proposal_branch_prefix = "proposal/"', 'proposal_branch_prefix = "submit/"'
     )
@@ -109,6 +105,9 @@ def test_the_paradigm_fixes_every_role_name() -> None:
     assert strict_branch_role_policy_from_text(partial) == BranchRolePolicy(
         release_mirror="accepted_ff"
     )
+    assert strict_branch_role_policy_from_text(
+        partial + "canonical_sibling_worktrees = true\n"
+    ) == BranchRolePolicy(release_mirror="accepted_ff")
     with pytest.raises(ValueError, match="unknown fields"):
         strict_branch_role_policy_from_text(partial + "unknown = true\n")
 

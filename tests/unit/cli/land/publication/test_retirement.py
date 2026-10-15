@@ -7,7 +7,7 @@ import shlex
 import subprocess
 from contextlib import redirect_stderr
 from io import StringIO
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
@@ -36,9 +36,6 @@ from tests.unit.cli.land.publication.support import branch_publication_fixture
 from tests.unit.cli.land.publication.support import git
 from tests.unit.cli.land.publication.support import proposal_ref
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
 
 def retirement_fixture(tmp_path: Path, *, object_format: str = "sha1", refreshed: bool = False):
     """Give plain Git peers accepted content without a Forge review system."""
@@ -56,21 +53,20 @@ def retirement_fixture(tmp_path: Path, *, object_format: str = "sha1", refreshed
     git(repo, "commit", "-m", "chore: declare plain Git peers")
     accepted = git(repo, "rev-parse", "HEAD")
     if refreshed:
-        candidate, work = tmp_path / "candidate", tmp_path / "work"
+        candidate = tmp_path / "candidate"
         git(repo, "worktree", "add", "-b", "candidate/dev", str(candidate), accepted)
         install_fixture_hook_runtime(repo)
-        run_ethos(
+        started = run_ethos(
             "lane",
             "start",
             "replayed",
-            "--path",
-            str(work),
             "--holder-ref",
             "agent:test:case:agent-test",
             "--apply",
             "--json",
             cwd=repo,
         )
+        work = Path(started["data"]["path"])
         git(work, "mv", "notes/proposal.txt", "notes/renamed.txt")
         (work / "contribution.bin").write_bytes(b"\x00preserved contribution\xff")
         git(work, "add", "-A")

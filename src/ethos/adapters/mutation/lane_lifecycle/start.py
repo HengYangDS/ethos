@@ -50,7 +50,7 @@ def _slug(name: str) -> str:
 
 
 def default_worktree_path(repo: Path, branch: str) -> Path:
-    """Return the default sibling worktree path for one branch."""
+    """Return the default sibling worktree path for one role branch."""
     return repo.with_name(f"{repo.name}-{_slug(branch)}")
 
 
@@ -62,9 +62,7 @@ def _target(
     path: Path | None,
     observed_at: datetime,
 ) -> tuple[str, Path, dict[str, object] | None]:
-    if not policy.canonical_sibling_worktrees:
-        branch = policy.work_branch(_slug(name))
-        return branch, (path or default_worktree_path(repo, branch)).resolve(), None
+    """Place every Work Lane at `<repository>-worktrees/<yyyymmdd>-<slug>/`."""
     lane_id = f"{observed_at.astimezone(UTC):%Y%m%d}-{_slug(name)}"
     branch = policy.work_branch(lane_id)
     target = (repo.parent / f"{repo.name}-worktrees" / lane_id).resolve()

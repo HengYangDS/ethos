@@ -99,9 +99,7 @@ def test_reacquire_recognizes_previous_complete_accepted_policy(tmp_path, monkey
     workspace = repo / ".ethos/workspace.toml"
     workspace.parent.mkdir(parents=True, exist_ok=True)
     workspace.write_text(
-        render_branch_policy(
-            release_mirror="independent",
-        ).replace("canonical_sibling_worktrees = false\n", "")
+        render_branch_policy(release_mirror="independent") + "canonical_sibling_worktrees = true\n"
     )
     git(repo, "add", workspace.as_posix())
     git(repo, "commit", "-m", "retain previous complete policy")

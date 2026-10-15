@@ -16,6 +16,7 @@ from typing import NamedTuple
 import tomli_w
 
 from ethos.contracts.branch.roles import ROLE_NAME_FIELDS
+from ethos.contracts.branch.roles import SIBLING_WORKTREE_FIELD
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 
@@ -33,6 +34,8 @@ _PEERS = re.compile(r"\s*\[\[\s*publication\.peers\s*\]\]\s*(?:#.*)?")
 _PEER_KEY = "publication.peers."
 _STANDARD_ROLES = BranchRolePolicy()
 _UNFIXED = object()
+# Fields no reader consults any more, so every value they hold can go.
+_RETIRED_FIELDS = frozenset({("branch_roles", SIBLING_WORKTREE_FIELD)})
 
 Repair = tuple[str, str]
 
@@ -291,7 +294,7 @@ def _peer_remote(
 def _restated_field(
     paradigm: RepositoryParadigm, gap: ParadigmGap, text: str | None
 ) -> Repair | None:
-    """Delete a workspace field that restates the value the paradigm fixes.
+    """Delete a workspace field that restates the value the paradigm fixes, or that is retired.
 
     Any other value needs judgment; a legacy branch name in particular stays until
     closeout has renamed its ref.
@@ -302,7 +305,9 @@ def _restated_field(
     except tomllib.TOMLDecodeError:
         return None
     section = declared.get(table)
-    if not isinstance(section, dict) or section.get(name) != _fixed(paradigm, table, name):
+    if not isinstance(section, dict) or name not in section:
+        return None
+    if (table, name) not in _RETIRED_FIELDS and section[name] != _fixed(paradigm, table, name):
         return None
     lines = (text or "").rstrip("\n").split("\n")
     start = next((index for index, line in enumerate(lines) if _table(line) == table), len(lines))

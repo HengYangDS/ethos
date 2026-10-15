@@ -233,7 +233,6 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
     for target in (repo, candidate):
         git(target, "reset", "--hard", head)
     install_fixture_hook_runtime(repo)
-    next_lane = work.parent / "next-lane"
     with monkeypatch.context() as supply:
         supply.setattr(lane_start, "require_runtime_wheel_provenance", lambda: None)
         supply.setattr(lane_start, "install_hook_launchers", install_fixture_hook_runtime)
@@ -241,8 +240,6 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
             "lane",
             "start",
             "next",
-            "--path",
-            str(next_lane),
             "--holder-ref",
             "agent:test:case:agent-test",
             "--apply",
@@ -250,6 +247,7 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
             cwd=repo,
         )
     assert started["verdict"] == "pass", started
+    next_lane, next_branch = Path(started["data"]["path"]), started["data"]["branch"]
     assert git(next_lane, "rev-parse", "HEAD") == head
     report = run_ethos(
         "lane",
@@ -281,7 +279,7 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
         assert attestation.id != previous.id
         plan = mutable_json(attestation.payload.body["plan"])
         assert plan["commitment"]["id"] == "change:static-delivery"
-        expected = lease_generation(leases_by_branch(next_lane)["work/next"])
+        expected = lease_generation(leases_by_branch(next_lane)[next_branch])
         assert plan["facts"]["values"]["lease_generation"] == mutable_json(expected)
         assert plan["facts"]["values"]["change_id"] == "static-delivery"
         assert proof_gaps(next_lane, head) == []

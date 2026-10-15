@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.repo.git_effect_attestation as ref_evidence
 import ethos.adapters.repo.git_effects as ref_effect
 import ethos.adapters.repo.merge.effect as effect
 from ethos.adapters.openspec.selection import incoming_change_gaps
@@ -191,6 +192,63 @@ def test_unexecuted_preparation_does_not_replay_prior_reference_effect(tmp_path,
     inspected = run_ethos("lane", "refresh-base", "--strategy", "merge", "--json", cwd=root)
     assert inspected["verdict"] == "unknown"
     assert observe_merge(root) == current
+
+
+@pytest.mark.parametrize("carrier", ["original", "request", "plan", "plan_digest"])
+def test_original_merge_custody_requires_a_complete_recovery_contract(
+    tmp_path, monkeypatch, carrier
+):
+    """Missing original bindings remain UNKNOWN without rewriting custody or replaying CAS."""
+    root = native_merge_fixture(tmp_path)
+    (root / "README.md").write_text("qualified resolution\n")
+    git(root, "add", "README.md")
+    preview = run_ethos(
+        "lane", "refresh-base", "--strategy", "merge", "--mode", "continue", "--json", cwd=root
+    )
+
+    record = ref_evidence.records
+
+    def interrupt_after_cas(root, plan, attestation=None, **kwargs):
+        if attestation is not None:
+            message = "lost native merge acknowledgement"
+            raise SystemExit(message)
+        return record(root, plan, attestation, **kwargs)
+
+    with monkeypatch.context() as interruption:
+        interruption.setattr(ref_evidence, "records", interrupt_after_cas)
+        with pytest.raises(AssertionError):
+            run_ethos(*shlex.split(preview["next_action"])[1:], cwd=root)
+    selected, records = read_attestation_set(root)
+    original = next(item for item in records if item.predicate == "observation:git-merge-prepared")
+    value = original.model_dump(mode="python", exclude={"id"})
+    if carrier == "original":
+        value["payload"]["body"].pop("request")
+        value["payload"]["body"].pop("plan")
+        value["plan_digest"] = None
+    elif carrier == "plan_digest":
+        value["plan_digest"] = None
+    else:
+        value["payload"]["body"].pop(carrier)
+    incomplete = Attestation.issue(value)
+    monkeypatch.setattr(
+        effect,
+        "read_attestation_set",
+        lambda _root: (
+            selected,
+            tuple(incomplete if item.id == original.id else item for item in records),
+        ),
+    )
+    current = observe_merge(root)
+    index = effect.git_path(root, "index").read_bytes()
+    inspected = run_ethos("lane", "refresh-base", "--strategy", "merge", "--json", cwd=root)
+    assert inspected["verdict"] == "unknown"
+    assert inspected["required_gaps"] == ["merge_outcome_unknown"]
+    recovered = run_ethos_blocked(*shlex.split(preview["next_action"])[1:], cwd=root)
+    assert recovered["verdict"] == "unknown"
+    assert recovered["required_gaps"] == ["merge_outcome_unknown"]
+    assert observe_merge(root) == current
+    assert effect.git_path(root, "index").read_bytes() == index
+    assert read_attestation_set(root) == (selected, records)
 
 
 @pytest.mark.parametrize("fault", ["metadata", "index", "unstaged", "untracked", "competing"])

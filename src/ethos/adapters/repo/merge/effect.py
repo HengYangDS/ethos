@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -98,9 +99,14 @@ def _prepared_plan(
 ) -> TransitionPlan:
     """Validate the original plan against its custody and the already completed CAS."""
     body = prepared.payload.body
-    before, request = body["observation"], body["request"]
-    plan = TransitionPlan.model_validate(mutable_json(body.get("plan")))
-    effect = git_effect_from_plan(plan)
+    before, request = body["observation"], body.get("request")
+    if not isinstance(request, Mapping) or prepared.plan_digest is None:
+        _fail("merge_outcome_unknown")
+    try:
+        plan = TransitionPlan.model_validate(mutable_json(body.get("plan")))
+        effect = git_effect_from_plan(plan)
+    except ValueError:
+        _fail("merge_outcome_unknown")
     update = effect.updates.get(f"refs/heads/{before['branch']}")
     if (
         body["subject"] != _subject(root, str(body["subject"]["state_digest"]), "continue")
@@ -167,10 +173,12 @@ def recognized_merge(
         return None
     if len(prepared) != 1:
         _fail("merge_preparation_ambiguous")
-    before = cast("dict[str, object]", mutable_json(prepared[0].payload.body["observation"]))
-    if not request_matches(
-        before, cast("dict[str, object]", mutable_json(prepared[0].payload.body.get("request", {})))
-    ):
+    body = prepared[0].payload.body
+    before = cast("dict[str, object]", mutable_json(body["observation"]))
+    request = body.get("request", {})
+    if mode == "continue" and not isinstance(body.get("request"), Mapping):
+        _fail("merge_outcome_unknown")
+    if not request_matches(before, cast("dict[str, object]", mutable_json(request))):
         _fail("merge_request_stale")
     recheck()
     return _recover_prepared(root, prepared[0], mode, state, recheck)

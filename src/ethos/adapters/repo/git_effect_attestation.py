@@ -353,22 +353,24 @@ def recover_plan(
     for attestation in attestations:
         if attestation.predicate != "effect:git-ref-update":
             continue
+        carried = attestation.payload.body.get("plan")
+        policy = carried.get("policy") if isinstance(carried, Mapping) else None
+        effect_value = carried.get("effect") if isinstance(carried, Mapping) else None
+        if not (
+            isinstance(policy, Mapping)
+            and (policy.get("transition") or policy.get("operation")) == operation
+            and isinstance(effect_value, Mapping)
+            and isinstance(updates := effect_value.get("updates"), Mapping)
+        ):
+            continue
+        selected = (updates.get(ref_name),) if ref_name else updates.values()
+        if not any(
+            isinstance(update, Mapping) and update.get("desired") == desired for update in selected
+        ) or (assertions is not None and effect_value.get("assertions") != assertions):
+            continue
         try:
             plan = plan_from_attestation(attestation)
             effect = git_effect_from_plan(plan)
-            updates = (
-                ((ref_name, effect.updates.get(ref_name)),)
-                if ref_name
-                else tuple(effect.updates.items())
-            )
-            if (
-                (plan.policy.get("transition") or plan.policy.get("operation")) != operation
-                or not any(
-                    update is not None and update.desired == desired for _, update in updates
-                )
-                or (assertions is not None and effect.assertions != assertions)
-            ):
-                continue
             validate(
                 root,
                 effect,

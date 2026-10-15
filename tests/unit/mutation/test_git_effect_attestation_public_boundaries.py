@@ -84,7 +84,9 @@ def _record(
     )
 
 
-def test_git_effect_attestation_binds_exact_plan_effect_and_observations(tmp_path: Path) -> None:
+def test_git_effect_attestation_binds_exact_plan_effect_and_observations(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     repo, effect, plan, before, after = _case(tmp_path)
     record = _record(effect, plan, before, after)
     update = effect.updates["refs/heads/dev"]
@@ -105,11 +107,27 @@ def test_git_effect_attestation_binds_exact_plan_effect_and_observations(tmp_pat
     }
     assert record.payload.body["output"] == {name: after[name] for name in ("head", "tree", "refs")}
     assert record.mints_authority is False
-    record_attestations(repo, (record,))
+    unrelated = compile_git_effect_plan(
+        commitment_fixture(id="authority:test:attestation", acceptance=("acceptance:fixture",)),
+        Facts(
+            repository="repository:repo",
+            head=before["head"],
+            tree=before["tree"],
+            observed_at=datetime.fromisoformat(before["observed_at"]),
+            values={"refs": before["refs"], "assertions": before["assertions"]},
+        ),
+        prior_attestations={},
+        policy={"operation": "git.ref.compare-and-swap", "transition": "lane.unrelated"},
+        effect=effect,
+    )
+    record_attestations(repo, (record, _record(effect, unrelated, before, after)))
+    decoded = Mock(wraps=attest.plan_from_attestation)
+    monkeypatch.setattr(attest, "plan_from_attestation", decoded)
     assert (
         attest.recover_plan(repo, operation="git.ref.compare-and-swap", desired=update.desired)
         == plan
     )
+    assert decoded.call_count == 1
 
 
 @pytest.mark.parametrize(

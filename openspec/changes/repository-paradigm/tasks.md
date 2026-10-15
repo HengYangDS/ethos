@@ -23,7 +23,8 @@
 - [ ] 2.16 Retire the docs registry's comment-wrapped metadata reader for documents under the docs root once no adopter tracks such a document; docs health tests cover plain front matter only.
 - [x] 2.17 Fix the branch role names in the paradigm: the readers take only `release_mirror` and `canonical_sibling_worktrees` from `[branch_roles]`, and accepted closeout renames legacy role refs in one ref transaction, rebinds their worktrees, and leaves Git admission refusing any other move of a legacy role ref; focused tests cover legacy names, settings-only tables, the rename, an interrupted binding, refused renames and refused direct moves.
 - [x] 2.18 Report every declared branch role name, standard or legacy, naming the closeout rename a legacy name waits for, and remove the names from ETHOS's workspace, the routing contract and the fixture tables; focused tests cover a settings-only table, a standard name and a legacy name.
-- [ ] 2.19 Retire the legacy role rename and its Git admission once no adopter declares a legacy role name.
+- [x] 2.20 Retire a published legacy role ref through `ethos publish --retire` and the pre-push hook when the table committed at its remote head declares that name as a legacy accepted or candidate name and the accepted head, locally and on the peer, contains that head; focused tests cover a retired legacy ref and a refused undeclared name.
+- [ ] 2.19 Retire the legacy role rename, its Git admission and the legacy role ref retirement once no adopter declares a legacy role name or publishes a legacy role ref.
 
 ## 3. ETHOS conformance
 

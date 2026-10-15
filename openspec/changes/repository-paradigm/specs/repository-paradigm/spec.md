@@ -183,6 +183,20 @@ When the accepted root is bound to a ref that its committed table declares as a 
 - **WHEN** a user runs `git branch -m accepted/train dev`
 - **THEN** Git admission refuses the update with `legacy_role_ref_protected`.
 
+### Requirement: Publication retires published legacy role refs
+
+Publication retirement SHALL delete a published ref whose name the table committed at its remote head declares as a legacy accepted or candidate name only when that name has no current role and the accepted head, locally and on the peer, contains the remote head.
+
+#### Scenario: A renamed accepted ref is still published
+
+- **WHEN** a peer still carries `accepted/train` at a head whose table declares `accepted_branch = "accepted/train"` and the peer's `dev` contains that head
+- **THEN** `ethos publish --retire --ref refs/heads/accepted/train` deletes it on each peer.
+
+#### Scenario: The table at the head declares another name
+
+- **WHEN** a peer carries `topic` at a head whose table declares no `topic` role name
+- **THEN** publication retirement refuses `refs/heads/topic` as not a proposal.
+
 ### Requirement: Publication peers name their Git remotes after themselves
 
 Each publication peer declared in `.ethos/release.toml` SHALL name its Git remote by its own peer id, so a GitLab peer `gitlab` uses the remote `gitlab` and a GitHub peer `github` uses `github`. No peer SHALL rely on the implicit remote `origin`.

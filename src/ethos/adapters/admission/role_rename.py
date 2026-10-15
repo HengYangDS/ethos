@@ -27,16 +27,25 @@ RENAMED_ROLES = ("accepted_branch", "candidate_branch")
 _ZERO_OIDS = {"0" * 40, "0" * 64}
 
 
+def legacy_role_names(text: str) -> dict[str, str]:
+    """Map each renamed role that a workspace table declares under a legacy name to that name."""
+    declared, standard = declared_role_names(text), BranchRolePolicy()
+    return {
+        role: name
+        for role in RENAMED_ROLES
+        if (name := declared.get(role, "")) and name != getattr(standard, role)
+    }
+
+
 def legacy_role_renames(root: Path, head: str) -> dict[str, tuple[str, str]]:
     """Map each legacy role ref the committed table at head declares to its standard ref."""
-    declared = declared_role_names(committed_file_text(root, head, ".ethos/workspace.toml"))
+    names = legacy_role_names(committed_file_text(root, head, ".ethos/workspace.toml"))
     standard = BranchRolePolicy()
-    renames: dict[str, tuple[str, str]] = {}
-    for role in RENAMED_ROLES:
-        legacy, target = declared.get(role, ""), getattr(standard, role)
-        if legacy and legacy != target and (value := ref_head(root, f"refs/heads/{legacy}")):
-            renames[f"refs/heads/{legacy}"] = (f"refs/heads/{target}", value)
-    return renames
+    return {
+        f"refs/heads/{legacy}": (f"refs/heads/{getattr(standard, role)}", value)
+        for role, legacy in names.items()
+        if (value := ref_head(root, f"refs/heads/{legacy}"))
+    }
 
 
 def role_rename_ref_report(

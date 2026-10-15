@@ -202,7 +202,7 @@ def create_change_source_lane(
     base_branch = base_ref or load_branch_role_policy(repo).accepted_branch
     git(repo, "worktree", "add", "-b", branch, path.as_posix(), base_branch)
     _write_active_change_carrier(path, change_id=change_id)
-    commit_fixture(path, f"declare {change_id}")
+    commit_fixture(path, f"docs(openspec): declare {change_id}")
     now = datetime.now(UTC)
     acquire_lease(
         state_database(repo),
@@ -315,7 +315,7 @@ def commit_active_change(
     """Commit one official active OpenSpec Change and return its exact HEAD."""
     write_active_commitment(repo, change_id=change_id)
     if git(repo, "status", "--short"):
-        commit_fixture(repo, "declare active change")
+        commit_fixture(repo, "docs(openspec): declare the active change")
     return git(repo, "rev-parse", "HEAD")
 
 

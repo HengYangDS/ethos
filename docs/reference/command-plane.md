@@ -48,9 +48,8 @@ unselected peers. A successful selected-peer result does not claim that
 another declared peer received the object, and an unavailable peer is never
 skipped automatically.
 
-The workflow roots are `status`, `plan`, `prove`, `land`, `publish`, and
-`adopt`. The additional `mcp` root launches a transport, not a seventh lifecycle.
-Its current tools are status, planning, adoption and integration over the same typed application owners;
+`status`, `plan`, `prove`, `land`, `publish`, `adopt` are workflow roots; `format` and `mcp` are not.
+MCP tools project status, planning, adoption and integration over the same typed owners;
 it does not yet project every operation. Root and process actor bind at startup.
 Strict tool inputs cannot replace either binding. Diagnostics stay on stderr;
 stdout is reserved for the protocol. Cancellation and deadline expiry do not
@@ -63,6 +62,8 @@ record; `--apply` unions it by exact Git CAS. Neither operation grants effect
 authority. `ethos lane` and `ethos hook` are operational roots described below,
 not extra workflow lifecycles. Use the installed `ethos --help` and each root's
 `--help` for the current command inventory; this page is its semantic guide.
+
+Native formatting uses [the installed formatter operation](../guides/quickstart.md#native-source-formatting), preserving preview/check/apply and runtime selection.
 
 ## Shared SDK Operations
 

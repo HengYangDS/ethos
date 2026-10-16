@@ -74,6 +74,15 @@ fast path is not an emergency exception; neither path silently lowers the
 repository's acceptance floor. Automatic risk-selected small-change acceptance
 is not yet generally available.
 
+### Shared Source Formatting
+
+Use the selected installed runtime's `ethos format` operation for authored
+Markdown, YAML and TOML rather than copying a formatter controller into the
+repository. See [native source formatting](docs/guides/quickstart.md#native-source-formatting)
+for literal selection, preview, nonmutating check and admitted apply. Formatting
+is not complete quality proof; official OpenSpec, generated files and lockfiles
+retain their native owners.
+
 ### Standard Verification
 
 Start with current `ethos status --json` and its selected owner. Obtain exact-path

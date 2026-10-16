@@ -254,7 +254,11 @@ def prove_formation(
     ).read_bytes()
     expected_guidance = hashlib.sha256(package_guidance).hexdigest()
     formed: list[dict[str, object]] = []
-    journey = {"first_change": "not_attempted", "agent_handoff": "not_attempted"}
+    journey = {
+        "first_change": "not_attempted",
+        "agent_handoff": "not_attempted",
+        "formatting": "not_attempted",
+    }
     for starter in ("foundation", "python-library"):
         target = work / f"formed-{starter}"
         command = (

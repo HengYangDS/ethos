@@ -19,6 +19,7 @@ from ethos.repository.release.identity import build_identity
 from ethos.repository.release.identity import build_identity_bytes
 from ethos.repository.release.resources import BUILD_IDENTITY_RESOURCE
 from ethos.repository.release.resources import WHEEL_RESOURCE_ROOT
+from tools.ci.delivery import pipeline
 from tools.ci.delivery.artifact import require_artifact_current
 from tools.ci.delivery.artifact import selected_wheel
 
@@ -231,3 +232,20 @@ def test_artifact_reobservation_retains_explicit_distribution_identity(
     )
     monkeypatch.setattr("tools.ci.delivery.artifact.source_build_identity", lambda _: source)
     require_artifact_current(selected, head=source.source_commit, repo=tmp_path)
+
+
+@pytest.mark.parametrize("shape", ["missing", "directory", "symlink", "multiple"])
+def test_release_candidate_requires_one_regular_wheel(monkeypatch, tmp_path, shape):
+    wheel = tmp_path / "build/artifacts/release/python/ethos-selected.whl"
+    wheel.parent.mkdir(parents=True)
+    if shape == "directory":
+        wheel.mkdir()
+    elif shape == "symlink":
+        wheel.symlink_to("absent")
+    elif shape == "multiple":
+        wheel.touch()
+        wheel.with_name("ethos-other.whl").touch()
+    monkeypatch.setattr(pipeline, "_release_source_identity", lambda *_: object())
+    with pytest.raises(ValueError, match="release_wheel_output_invalid"):
+        pipeline.prepare_release_candidate(tmp_path, "a" * 40)
+    assert not (tmp_path / ".git").exists()

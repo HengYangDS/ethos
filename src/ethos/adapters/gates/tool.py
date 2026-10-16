@@ -180,7 +180,10 @@ def _markdown_files(root: Path) -> list[str]:
     """Current authored Markdown excludes immutable records and absent paths."""
     outputs = frozenset(item.output for item in observe_projections(root))
     registry = build_docs_registry(
-        root, generated_outputs=outputs, retained_origins=observed_document_origins(root)
+        root,
+        generated_outputs=outputs,
+        retained_origins=observed_document_origins(root),
+        selected_documents=tuple(quality_source_files(root, "*.md")),
     )
     return [
         path
@@ -265,37 +268,58 @@ def prose_report(root: Path) -> dict[str, object]:
         return _configuration_failure("prose", error)
 
 
-def format_markdown_content(root: Path, relative: str, content: bytes) -> bytes:
-    """Render one declared Markdown input with the mandatory native formatter."""
-    command = (
-        str(resolve_node_runtime().executable),
-        str(product_node_module("prettier") / "bin/prettier.cjs"),
-        "--config",
-        str(canonical_resource(".config/checks/prettier/prettier.toml")),
-        "--no-editorconfig",
-        "--prose-wrap",
-        "preserve",
-        "--ignore-path",
-        os.devnull,
-        "--stdin-filepath",
-        relative,
-    )
-    try:
-        completed = run_command(
-            root,
-            command,
-            text=False,
-            stdin=content,
-            timeout=20,
-            remove_env=("NODE_OPTIONS", "NODE_PATH"),
-        )
-    except (OSError, ProcessExecutionError, subprocess.TimeoutExpired) as error:
-        message = f"native_markdown_format_unavailable:{relative}:{error}"
-        raise ValueError(message) from error
-    if completed.returncode:
-        message = f"native_markdown_format_failed:{relative}:{completed.stderr.decode()}"
+def format_source_contents(root: Path, owner: str, sources: dict[str, bytes]) -> dict[str, bytes]:
+    """Render literal source copies in one native batch, without source writes.
+
+    Product policy remains mandatory. A repository increment must have the same
+    fixed point; conflicting native policies refuse rather than oscillate.
+    """
+    if not sources:
+        return {}
+    node = str(resolve_node_runtime().executable)
+    if owner == "prettier":
+        executable = str(product_node_module(owner) / "bin/prettier.cjs")
+        configs = native_configurations(root, owner, ".config/checks/prettier/prettier.toml")
+        options = ("--write", "--no-editorconfig", "--ignore-path", os.devnull)
+    elif owner == "taplo":
+        executable = str(product_node_module("@taplo/cli") / "dist/cli.js")
+        configs = native_configurations(root, owner, ".config/checks/taplo/taplo.toml")
+        options = ("format", "--no-auto-config", "--colors", "never")
+    else:
+        message = f"native_format_owner_unsupported:{owner}"
         raise ValueError(message)
-    return completed.stdout
+    with TemporaryDirectory(prefix="ethos-native-format-") as temporary:
+        work = Path(temporary)
+        for relative, content in sources.items():
+            target = work / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
+        rendered: dict[str, bytes] = {}
+        for ordinal, config in enumerate(configs):
+            command = (node, executable, *options, "--config", config)
+            if owner == "prettier":
+                command += ("--print-width", "100", "--prose-wrap", "preserve")
+            command += tuple(str(work / relative) for relative in sources)
+            try:
+                completed = run_command(
+                    work,
+                    command,
+                    timeout=120,
+                    remove_env=("NODE_OPTIONS", "NODE_PATH", "TAPLO_CONFIG"),
+                )
+            except (OSError, ProcessExecutionError, subprocess.TimeoutExpired) as error:
+                message = f"native_format_unavailable:{owner}:{error}"
+                raise ValueError(message) from error
+            if completed.returncode:
+                message = completed.stderr or completed.stdout
+                message = f"native_format_failed:{owner}:{message.strip()}"
+                raise ValueError(message)
+            observed = {relative: (work / relative).read_bytes() for relative in sources}
+            if ordinal and observed != rendered:
+                message = f"native_format_policy_conflict:{owner}"
+                raise ValueError(message)
+            rendered = observed
+        return rendered
 
 
 def _configuration_failure(gate_id: str, error: Exception) -> dict[str, object]:
@@ -312,7 +336,12 @@ def markdown_lint_report(root: Path) -> dict[str, object]:
     try:
         files = _markdown_files(root)
         if not files:
-            return {"verdict": "pass", "state": "skipped", "file_count": 0, "required_gaps": []}
+            return {
+                "verdict": "pass",
+                "state": "skipped",
+                "file_count": 0,
+                "required_gaps": [],
+            }
         node = str(resolve_node_runtime().executable)
         prettier = str(product_node_module("prettier") / "bin/prettier.cjs")
         markdownlint = str(product_node_module("markdownlint-cli2") / "markdownlint-cli2.mjs")
@@ -320,7 +349,9 @@ def markdown_lint_report(root: Path) -> dict[str, object]:
             root, "prettier", ".config/checks/prettier/prettier.toml"
         )
         lint_configs = native_configurations(
-            root, "markdownlint-cli2", ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml"
+            root,
+            "markdownlint-cli2",
+            ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
         )
     except (GitExecutionError, subprocess.CalledProcessError) as error:
         return quality_inventory_failure(root, "markdown-lint", error)
@@ -348,7 +379,10 @@ def markdown_lint_report(root: Path) -> dict[str, object]:
     ]
     adapter = str(Path(__file__).with_name("markdown.mjs"))
     commands.extend(
-        ("markdown-lint", [node, adapter, markdownlint, config, str(root), json.dumps(files)])
+        (
+            "markdown-lint",
+            [node, adapter, markdownlint, config, str(root), json.dumps(files)],
+        )
         for config in lint_configs
     )
     native = [

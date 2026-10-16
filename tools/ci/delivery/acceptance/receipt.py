@@ -59,6 +59,9 @@ def package_acceptance_evidence(
     if formation.get("agent_handoff") != "passed":
         message = "package_agent_handoff_incomplete"
         raise ValueError(message)
+    if formation.get("formatting") != "passed":
+        message = "package_source_format_incomplete"
+        raise ValueError(message)
     if (
         brownfield.get("state") != "passed"
         or brownfield.get("authored_content_preserved") is not True

@@ -1289,3 +1289,30 @@ generic ceiling; malformed declarations SHALL block rather than become absent.
 - **THEN** the report blocks with the path and cause rather than a fallback count
 - **AND** an inaccessible required source or policy remains unknown
 - **AND** neither failure is reported as measured zero or a valid absent input
+
+### Requirement: Installed source formatting preserves native ownership
+
+ETHOS SHALL expose one installed public format operation for exact tracked authored
+Markdown, YAML and TOML selection. Prettier SHALL preserve prose wrapping at width
+100; Taplo SHALL preserve native TOML values. Preview and check SHALL NOT mutate
+source. Apply SHALL require fresh exact-root/path admission, stable source/index
+bindings and verified postimages. Native generated output, dependency locks,
+retained originals and official OpenSpec artifacts SHALL retain their owners.
+
+#### Scenario: A literal authored file needs formatting
+
+- **WHEN** the caller checks an exact tracked source with spaces or glob metacharacters
+- **THEN** the native formatter processes that literal source without expanding aliases
+- **AND** formatting drift is reported without writing bytes or changing an unselected sibling
+
+#### Scenario: Source or authority changes before apply
+
+- **WHEN** admission refuses or the selected source or Git index changes after rendering
+- **THEN** no stale candidate is accepted or substituted for the concurrent source
+- **AND** tool unavailability, policy conflicts and failed partial effects remain explicit
+
+#### Scenario: The invoking console is newer than the repository selection
+
+- **WHEN** a caller invokes a console whose version differs from the selected immutable runtime
+- **THEN** repository runtime selection still determines the public command implementation
+- **AND** source tests do not establish installed, cold/offline or platform acceptance

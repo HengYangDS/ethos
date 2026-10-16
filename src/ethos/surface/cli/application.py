@@ -15,6 +15,7 @@ _COMMAND_MODULES = {
     "status": "ethos.surface.cli.root.inspection",
     "plan": "ethos.surface.cli.root.planning",
     "prove": "ethos.surface.cli.root.proof",
+    "format": "ethos.surface.cli.root.formatting",
     "land": "ethos.surface.cli.root.land",
     "publish": "ethos.surface.cli.root.publish",
     "mcp": "ethos.surface.cli.root.mcp",

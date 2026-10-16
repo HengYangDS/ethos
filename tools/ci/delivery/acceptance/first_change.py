@@ -151,6 +151,74 @@ def _handoff(
     return current, successor_env
 
 
+_FORMAT_SOURCES = {
+    "format [draft].md": b"# Format  \n\n\n| A | B |\n|---|---|\n| 1 | 2 |\n",
+    "format [draft].toml": b"key   =   'value'\n",
+    "format [draft].yaml": b"key:    value\n",
+}
+
+
+def _prove_format(lane: Path, executable: Path, environment: Mapping[str, str]) -> None:
+    """Qualify native preview/check/apply against one real installed, admitted source."""
+    git = shutil.which("git")
+    if git is None:
+        message = "installed_source_format_unproven:native_git_missing"
+        raise RuntimeError(message)
+    _admitted(lane, executable, environment, *_FORMAT_SOURCES)
+    for relative, content in _FORMAT_SOURCES.items():
+        (lane / relative).write_bytes(content)
+    staged = run_command(
+        lane,
+        (git, "add", "--", *_FORMAT_SOURCES),
+        env=environment,
+        inherit_environment=False,
+        timeout=30,
+    )
+    if staged.returncode:
+        message = "installed_source_format_unproven:source_not_tracked"
+        raise RuntimeError(message)
+    authored = {path: (lane / path).read_bytes() for path in _CONTENT}
+    command = (str(executable), "format", *_FORMAT_SOURCES, "--root", str(lane), "--json")
+    preview_code, preview, _detail = invoke(lane, command, environment=environment)
+    check_code, check, _detail = invoke(lane, (*command, "--check"), environment=environment)
+    preview_data, check_data = preview.get("data"), check.get("data")
+    unchanged = all(
+        (lane / path).read_bytes() == content for path, content in _FORMAT_SOURCES.items()
+    )
+    if (
+        preview_code
+        or preview.get("verdict") != "pass"
+        or not isinstance(preview_data, dict)
+        or preview_data.get("applied") is not False
+        or not check_code
+        or check.get("verdict") != "block"
+        or not isinstance(check_data, dict)
+        or set(check_data.get("changed_paths", ())) != set(_FORMAT_SOURCES)
+        or not unchanged
+    ):
+        message = "installed_source_format_unproven:preview_or_check"
+        raise RuntimeError(message)
+    apply_code, applied, _detail = invoke(lane, (*command, "--apply"), environment=environment)
+    after = {path: (lane / path).read_bytes() for path in _FORMAT_SOURCES}
+    fixed_code, fixed, _detail = invoke(lane, (*command, "--check"), environment=environment)
+    applied_data, fixed_data = applied.get("data"), fixed.get("data")
+    if (
+        apply_code
+        or applied.get("verdict") != "pass"
+        or not isinstance(applied_data, dict)
+        or applied_data.get("applied") is not True
+        or not all(after[path] != content for path, content in _FORMAT_SOURCES.items())
+        or fixed_code
+        or fixed.get("verdict") != "pass"
+        or not isinstance(fixed_data, dict)
+        or fixed_data.get("changed_paths") != []
+        or any((lane / path).read_bytes() != content for path, content in after.items())
+        or any((lane / path).read_bytes() != content for path, content in authored.items())
+    ):
+        message = "installed_source_format_unproven:apply_or_fixed_point"
+        raise RuntimeError(message)
+
+
 def prove_first_change(
     executable: Path,
     target: Path,
@@ -234,4 +302,5 @@ def prove_first_change(
         message = f"installed_first_change_validation_failed:{validated.stderr[-256:]}"
         raise RuntimeError(message)
     _admitted(lane, executable, selected, f"{_ROOT}/specs/foundation/spec.md")
-    return {"first_change": "lane_admitted", "agent_handoff": "passed"}
+    _prove_format(lane, executable, selected)
+    return {"first_change": "lane_admitted", "agent_handoff": "passed", "formatting": "passed"}

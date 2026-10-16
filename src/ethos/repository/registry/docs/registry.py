@@ -95,7 +95,8 @@ class _UniqueSafeLoader(yaml.SafeLoader):
         ]
         if any(key in keys[:index] for index, key in enumerate(keys)):
             message = "duplicate mapping key"
-            raise ConstructorError(None, None, message, node.start_mark)
+            message = None
+            raise ConstructorError(message)
         return super().construct_mapping(node, deep=deep)
 
 
@@ -136,6 +137,7 @@ def build_docs_registry(
     *,
     generated_outputs: frozenset[str] | None = None,
     retained_origins: DocumentOrigins | None = None,
+    selected_documents: tuple[str, ...] | None = None,
 ) -> list[dict[str, Any]]:
     """Retain typed metadata and reject invalid native declarations."""
     root = root.resolve()
@@ -143,11 +145,24 @@ def build_docs_registry(
     if outputs is None:
         outputs = frozenset(item.output for item in observe_projections(root))
     retained = _observed_retained_origins(root, retained_origins)
+    documentation = docs_root(root)
+    sources = (
+        documentation.rglob("*.md")
+        if selected_documents is None
+        else {
+            root / relative
+            for relative in selected_documents
+            if relative.endswith(".md") and (root / relative).is_relative_to(documentation)
+        }
+    )
     entries = []
-    for path in sorted(docs_root(root).rglob("*.md")):
+    for path in sorted(sources):
         relative = path.relative_to(root).as_posix()
         if relative in outputs:
             continue
+        if path.is_symlink() or not path.is_file() or not path.resolve().is_relative_to(root):
+            message = f"docs_source_unavailable:{relative}"
+            raise ValueError(message)
         try:
             metadata = front_matter(path, allow_html_comment=True)
         except ValueError as exc:
@@ -197,7 +212,9 @@ def _observed_retained_origins(
     return retained
 
 
-def intent_document_owner(relative: str) -> Literal["openspec", "openspec-history"] | None:
+def intent_document_owner(
+    relative: str,
+) -> Literal["openspec", "openspec-history"] | None:
     """Recognize exact official Markdown carriers through the existing archive grammar."""
     parts = PurePosixPath(relative).parts
     if len(parts) == 4 and parts[:2] == ("openspec", "specs") and parts[3] == "spec.md":

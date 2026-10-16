@@ -228,7 +228,12 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         (
             effect.adopter_fixture,
             "prove_formation",
-            {"state": "passed", "first_change": "lane_admitted", "agent_handoff": "passed"},
+            {
+                "state": "passed",
+                "first_change": "lane_admitted",
+                "agent_handoff": "passed",
+                "formatting": "passed",
+            },
         ),
         (
             effect,
@@ -493,23 +498,6 @@ def test_concurrent_formation_failure_fails_acceptance_and_cleans_owned_work(
     assert not effect.EVIDENCE.exists()
 
 
-@pytest.mark.parametrize("shape", ["missing", "directory", "symlink", "multiple"])
-def test_release_candidate_requires_one_regular_wheel(monkeypatch, tmp_path, shape):
-    wheel = tmp_path / "build/artifacts/release/python/ethos-selected.whl"
-    wheel.parent.mkdir(parents=True)
-    if shape == "directory":
-        wheel.mkdir()
-    elif shape == "symlink":
-        wheel.symlink_to("absent")
-    elif shape == "multiple":
-        wheel.touch()
-        wheel.with_name("ethos-other.whl").touch()
-    monkeypatch.setattr(pipeline, "_release_source_identity", lambda *_: object())
-    with pytest.raises(ValueError, match="release_wheel_output_invalid"):
-        pipeline.prepare_release_candidate(tmp_path, "a" * 40)
-    assert not (tmp_path / ".git").exists()
-
-
 def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact):
     """Check the real producer's binding and the negative incomplete-stage contract."""
     assert payload["build_identity"] == case.build.projection()
@@ -537,6 +525,13 @@ def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact):
         (
             "package_agent_handoff_incomplete",
             {"formation": {"state": "passed", "first_change": "lane_admitted"}},
+        ),
+        (
+            "package_source_format_incomplete",
+            {
+                "formation": case.receipt.call_args.kwargs["formation"]
+                | {"formatting": "not_attempted"}
+            },
         ),
         ("package_command_plane_incomplete", {"command_plane": {"state": "blocked"}}),
     ):

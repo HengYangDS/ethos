@@ -380,7 +380,52 @@ def test_independent_cli_checks_do_not_replace_a_blocked_request(
     assert not any(command[1] == "plan" and "--changed" not in command for command in commands[1:])
 
 
-@pytest.mark.parametrize("projection", ["resources", "data", "outside", "digest"])
+def _format_response(root: Path, request: tuple[str, ...], *, fail_apply: bool):
+    """Simulate one native command result while preserving the actual consumer protocol."""
+    paths = [part for part in request[2 : request.index("--root")] if not part.startswith("--")]
+    candidates = {
+        path: (root / path).read_bytes().replace(b"   ", b" ").replace(b"  \n", b"\n")
+        for path in paths
+    }
+    changed = [path for path in paths if candidates[path] != (root / path).read_bytes()]
+    applying = "--apply" in request
+    if applying and not fail_apply:
+        for path, content in candidates.items():
+            (root / path).write_bytes(content)
+    refusal = bool(changed) and "--check" in request
+    state = "format_required" if refusal else "formatted" if applying else "planned"
+    return (
+        int(refusal),
+        {
+            "verdict": "block" if refusal else "pass",
+            "data": {
+                "state": state if changed else "conforming",
+                "applied": applying and not fail_apply,
+                "changed_paths": changed,
+                "selected_paths": paths,
+            },
+        },
+        "",
+    )
+
+
+def _first_change_effect(lane, executable, command, effects, request, **kwargs):
+    """Execute the synthetic official artifact boundary or its independent native Git staging."""
+    if request[1] == "add":
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+    effects.append(request)
+    assert request[:2] == (str(executable), str(command))
+    assert not kwargs["inherit_environment"]
+    assert kwargs["env"]["ETHOS_ACTOR"].endswith(":successor")
+    if request[2] == "new":
+        metadata = lane / "openspec/changes/first-change/.openspec.yaml"
+        metadata.parent.mkdir(parents=True)
+        metadata.write_text("schema: spec-driven\n", encoding="utf-8")
+    report = {"summary": {"totals": {"items": 1, "passed": 1, "failed": 0}}}
+    return SimpleNamespace(returncode=0, stdout=json.dumps(report), stderr="")
+
+
+@pytest.mark.parametrize("projection", ["resources", "data", "outside", "digest", "format_failure"])
 def test_first_change_uses_native_packaged_resource_ownership(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, projection: str
 ) -> None:
@@ -469,20 +514,13 @@ def test_first_change_uses_native_packaged_resource_ownership(
                 },
                 "",
             )
+        if request[1] == "format":
+            return _format_response(lane_root, request, fail_apply=projection == "format_failure")
         assert request[1:3] == ("lane", "prewrite")
         return 0, {"verdict": "pass"}, ""
 
     def run(_root: Path, request: tuple[str, ...], **kwargs):
-        effects.append(request)
-        assert request[:2] == (str(executable), str(command))
-        assert not kwargs["inherit_environment"]
-        assert kwargs["env"]["ETHOS_ACTOR"].endswith(":successor")
-        if request[2] == "new":
-            metadata = lane_root / "openspec/changes/first-change/.openspec.yaml"
-            metadata.parent.mkdir(parents=True)
-            metadata.write_text("schema: spec-driven\n", encoding="utf-8")
-        report = {"summary": {"totals": {"items": 1, "passed": 1, "failed": 0}}}
-        return SimpleNamespace(returncode=0, stdout=json.dumps(report), stderr="")
+        return _first_change_effect(lane_root, executable, command, effects, request, **kwargs)
 
     monkeypatch.setattr(first_change, "invoke", invoke)
     monkeypatch.setattr(first_change, "run_command", run)
@@ -490,13 +528,17 @@ def test_first_change_uses_native_packaged_resource_ownership(
         assert first_change.prove_first_change(executable, tmp_path, environment={"PATH": ""}) == {
             "first_change": "lane_admitted",
             "agent_handoff": "passed",
+            "formatting": "passed",
         }
         assert [request[2] for request in effects] == ["new", "validate"]
-        assert sum(request[1:3] == ("lane", "prewrite") for request in calls) == 3
+        assert sum(request[1:3] == ("lane", "prewrite") for request in calls) == 4
         assert (lane_root / "openspec/changes/first-change/specs/foundation/spec.md").is_file()
     else:
         with pytest.raises(
-            RuntimeError, match=r"installed_(first_change_tool_unavailable|agent_guidance_invalid)"
+            RuntimeError,
+            match=r"installed_(first_change_tool_unavailable|agent_guidance_invalid|source_format_unproven)",
         ):
             first_change.prove_first_change(executable, tmp_path, environment={"PATH": ""})
-        assert effects == []
+        assert [request[2] for request in effects] == {"format_failure": ["new", "validate"]}.get(
+            projection, []
+        )

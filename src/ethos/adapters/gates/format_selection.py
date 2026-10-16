@@ -221,7 +221,11 @@ def audit(root: Path = ROOT, *, paths: tuple[str, ...] | None = None) -> Carrier
     """Compile effective quality ownership for tracked or explicitly selected carriers."""
     declarations, dependency_patterns = _native_ownership(root)
     native_outputs, generated = _native_sources(root)
-    registry = build_docs_registry(root, retained_origins=observed_document_origins(root))
+    registry = build_docs_registry(
+        root,
+        retained_origins=observed_document_origins(root),
+        selected_documents=tuple(git_files(root, check=True)) if paths is not None else None,
+    )
     originals = {entry["path"] for entry in registry if entry.get("origin")}
     native_outputs.update(dict.fromkeys(originals, "docs-registry"))
     tracked = paths if paths is not None else git_files(root, check=True)

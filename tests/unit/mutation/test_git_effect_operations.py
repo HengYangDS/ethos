@@ -8,7 +8,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.repo.git as git_adapter
 import ethos.adapters.repo.git_effects as git_effects
+import ethos.adapters.repo.worktree_postimage as postimage
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
 from ethos.contracts.plan import GitEffect
@@ -78,6 +80,103 @@ def test_worktree_postimage_is_exact_and_does_not_mutate_the_real_index(
     assert not temporary_objects.exists()
     assert git(repo, "write-tree") == index_tree
     assert git(repo, "status", "--short") == status
+
+
+@pytest.mark.parametrize("state", ["clean", "unstaged", "staged", "mixed"])
+def test_execution_source_reads_only_its_consumed_native_projection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, state: str
+) -> None:
+    """Tree-only consumers retain fresh content and index checks without a path scan."""
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    readme = repo / "README.md"
+    if state != "clean":
+        readme.write_text("selected source\n")
+    if state in {"staged", "mixed"}:
+        git(repo, "add", "README.md")
+    if state == "mixed":
+        readme.write_text("unstaged overlay\n")
+    index_tree = git(repo, "write-tree")
+    status = git(repo, "status", "--short")
+    index = repo / ".git/index"
+    index_bytes = index.read_bytes()
+    with observe_worktree_postimage(repo, previous=head) as observed:
+        expected_tree = observed.tree
+        assert observed.changed_paths == (() if state == "clean" else ("README.md",))
+    observed_git = postimage.run_git
+    commands: list[tuple[str, ...]] = []
+    scratch: set[Path] = set()
+
+    def observe(root: Path, *args: str, **kwargs):
+        commands.append(args)
+        environment = kwargs.get("env") or {}
+        scratch.update(
+            Path(environment[name])
+            for name in ("GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY")
+            if name in environment
+        )
+        return observed_git(root, *args, **kwargs)
+
+    monkeypatch.setattr(postimage, "run_git", observe)
+    monkeypatch.setattr(git_adapter, "run_git", observe)
+    expected_index = "" if state in {"staged", "mixed"} else index_tree
+
+    assert postimage.observe_execution_source(repo, head, index_tree) == {
+        "worktree": expected_tree,
+        "index": expected_index,
+    }
+    assert len(commands) == 5
+    assert ("add", "--all") in commands
+    assert ("write-tree",) in commands
+    assert not any("--name-only" in args for args in commands)
+    assert scratch
+    assert all(not path.exists() for path in scratch)
+    assert index.read_bytes() == index_bytes
+    assert git(repo, "status", "--short") == status
+
+    commands.clear()
+    readme.write_text("later observed source\n")
+    refreshed = postimage.observe_execution_source(repo, head, index_tree)
+    assert refreshed["worktree"] != expected_tree
+    assert refreshed["index"] == expected_index
+    assert len(commands) == 5
+    assert all(not path.exists() for path in scratch)
+    assert index.read_bytes() == index_bytes
+
+
+@pytest.mark.parametrize("failure", ["index", "stage"])
+def test_execution_source_failure_preserves_index_and_releases_owned_scratch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    """A narrower result projection retains native refusal and quarantine cleanup."""
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    tree = git(repo, "write-tree")
+    index = repo / ".git/index"
+    if failure == "index":
+        index.write_bytes(b"invalid native index\n")
+    original = index.read_bytes()
+    observed_git = postimage.run_git
+    scratch: set[Path] = set()
+
+    def observe(root: Path, *args: str, **kwargs):
+        environment = kwargs.get("env") or {}
+        scratch.update(
+            Path(environment[name])
+            for name in ("GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY")
+            if name in environment
+        )
+        if failure == "stage" and args == ("add", "--all"):
+            return subprocess.CompletedProcess(args, 1, "", "native stage rejected")
+        return observed_git(root, *args, **kwargs)
+
+    monkeypatch.setattr(postimage, "run_git", observe)
+    with pytest.raises(ValueError, match="proof_execution_source_unavailable"):
+        postimage.observe_execution_source(repo, head, tree)
+
+    assert scratch
+    assert all(not path.exists() for path in scratch)
+    assert index.read_bytes() == original
 
 
 def test_move_and_compensation_refuse_unsafe_paths_and_restore_exact_tree(

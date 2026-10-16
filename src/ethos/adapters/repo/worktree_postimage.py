@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 class WorktreePostimage(NamedTuple):
-    """One isolated Git index projection of the current working content."""
+    """One isolated content tree and its explicitly requested changed-path projection."""
 
     tree: str
     changed_paths: tuple[str, ...]
@@ -25,8 +25,10 @@ class WorktreePostimage(NamedTuple):
 
 
 @contextmanager
-def observe_worktree_postimage(root: Path, *, previous: str) -> Generator[WorktreePostimage]:
-    """Project the complete worktree through a quarantined index and object store."""
+def observe_worktree_postimage(
+    root: Path, *, previous: str, include_paths: bool = True
+) -> Generator[WorktreePostimage]:
+    """Project complete native content; enumerate changed paths only when requested."""
     common = Path(git_common_dir(root))
     with tempfile.TemporaryDirectory(prefix="ethos-postimage-") as temporary:
         workspace = Path(temporary)
@@ -42,15 +44,19 @@ def observe_worktree_postimage(root: Path, *, previous: str) -> Generator[Worktr
         if staged.returncode:
             raise ValueError(staged.stderr.strip() or "git_effect_postimage_stage_failed")
         tree = run_git(root, "write-tree", env=environment).stdout.strip()
-        changed = tuple(
-            run_git(
-                root,
-                "diff",
-                "--cached",
-                "--name-only",
-                "--diff-filter=ACMRTD",
-                env=environment,
-            ).stdout.splitlines()
+        changed = (
+            tuple(
+                run_git(
+                    root,
+                    "diff",
+                    "--cached",
+                    "--name-only",
+                    "--diff-filter=ACMRTD",
+                    env=environment,
+                ).stdout.splitlines()
+            )
+            if include_paths
+            else ()
         )
         yield WorktreePostimage(tree, changed, environment)
 
@@ -69,7 +75,7 @@ def observe_execution_source(root: Path, head: str, tree: str) -> dict[str, str]
             check=False,
             observation=True,
         )
-        with observe_worktree_postimage(root, previous=head) as observed:
+        with observe_worktree_postimage(root, previous=head, include_paths=False) as observed:
             worktree = observed.tree
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         message = f"proof_execution_source_unavailable:{error}"

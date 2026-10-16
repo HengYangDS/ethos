@@ -40,5 +40,5 @@
 ## 4. Delivery
 
 - [ ] 4.1 Update installation, CLI/MCP and canonical plan projections from actual acceptance; keep unverified platform and hosted claims explicit.
-- [ ] 4.2 Consolidate repetitive test setup without removing distinct assertions; keep the declared test budget, then run exact-source full proof, package and installed-client acceptance before normal integration and required publication.
+- [ ] 4.2 Consolidate repetitive test setup without removing distinct assertions; keep the declared test budget and repository-external scratch, synthesize signed timeout-owner repairs `0deed1d3` and `d2e61dfcb`, then qualify one exact source, package and installed client before native integration and required publication. Preserve failed proof originals; focused acceptance is not delivery.
 - [ ] 4.3 Update poster/social semantics while retaining the original mark, whitespace, proportions, palette and composition; verify faithful wording, readable rendering and aesthetic acceptance separately from format checks and hosted publication.

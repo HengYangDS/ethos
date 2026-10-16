@@ -118,11 +118,13 @@ File-backed native output capture stays: it repairs a general transport defect.
 ## Migration Plan
 
 1. Land custody, the size bound, release and lifetimes in one landing. Lifetimes never touch
-   open-predicate members, so foreign custody evidence stays until its owner releases it. Before
-   the landing, record the selected root of each plane in the landing commit: Git keeps no reflog
-   for this ref, and a replaced root stays selectable by exact CAS only until Git prunes it.
+   open-predicate members, so foreign custody evidence stays until its owner releases it. The
+   landing's own proof is the first update by the new code, so record the selected root just
+   before that proof starts: the set ref is local, Git keeps no reflog for it, and a replaced root
+   stays readable only until Git prunes it.
 2. Obtain each custody owner's decision, then migrate or release their members.
 3. Measure size and cold read time, update the product design contract and remove the temporary
    reuse.
 
-Rollback reverts the landing and selects the recorded root again by exact CAS until it is pruned.
+Rollback reverts the landing and records the members of the recorded root again until Git prunes
+it.

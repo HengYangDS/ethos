@@ -2,12 +2,14 @@
 
 from pathlib import Path
 from unittest.mock import Mock
+from unittest.mock import patch
 
 import pytest
 
 import ethos.adapters.mutation.accepted.release as release_owner
 import ethos.adapters.repo.git_effect_attestation as effect_attestation
 import ethos.adapters.repo.git_effects as git_effects
+import ethos.adapters.repo.release as release_source
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
@@ -30,6 +32,17 @@ def test_public_maintenance_release_preserves_shared_trains(
 ) -> None:
     """A new proved maintenance contribution releases only its immutable signed tag."""
     repo, main, base, head = maintenance_release_fixture(tmp_path, release_mirror=release_mirror)
+    with patch.object(
+        release_source,
+        "commit_policy_for_revision",
+        wraps=release_source.commit_policy_for_revision,
+    ) as policy:
+        for count in (1, 2):
+            source = release_source.accepted_release_source(repo, head, base=base)
+            assert source["head"] == head
+            assert source["base"] == base
+            assert policy.call_count == count
+            assert policy.call_args.args == (repo, git(repo, "rev-parse", "dev"))
     branches = git(repo, "for-each-ref", "--format=%(refname) %(objectname)", "refs/heads")
     previous = git(main, "rev-parse", "HEAD")
     result = release_cli(

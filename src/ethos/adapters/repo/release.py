@@ -195,19 +195,20 @@ def accepted_release_source(
             not observe_git_object(root, base, "commit")["required_gaps"],
             "release_base_signature_untrusted",
         )
+        commit_policy = commit_policy_for_revision(root, current)
         gaps = list(
             cast(
                 "list[str]",
-                commit_policy_report(
-                    root, commit_policy_for_revision(root, current), base, verify_trust=False
-                )["required_gaps"],
+                commit_policy_report(root, commit_policy, base, verify_trust=False)[
+                    "required_gaps"
+                ],
             )
         )
         gaps += validate_replayed_commits(
             root,
             baseline_commit=base,
             proposed_commit=head,
-            policy=commit_policy_for_revision(root, current),
+            policy=commit_policy,
         )
         require_release(not gaps, gaps[0] if gaps else "")
     source = observe_git_object(root, head, "commit")

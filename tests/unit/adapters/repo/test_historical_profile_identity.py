@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import cProfile
 from datetime import UTC
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -11,7 +12,10 @@ import pytest
 import ethos.adapters.repo.git_effect_attestation as attest
 from ethos.adapters.repo.git_effect_observation import resolve_git_effect_repository
 from ethos.adapters.repo.profile import historical_repository_identity
+from ethos.adapters.repo.profile import repository_identities
 from ethos.adapters.repo.profile import repository_identity
+from ethos.contracts.plan import GitEffect
+from ethos.contracts.plan import GitRefUpdate
 from tests.support.git_effect import effect
 from tests.support.git_effect import fixture
 from tests.support.git_effect import plan
@@ -23,6 +27,100 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 ISSUER = "agent:test:case:one"
+
+
+@pytest.mark.parametrize("historical", [False, True], ids=["current", "recorded"])
+@pytest.mark.parametrize("count", [2, 8], ids=["small-subject", "multi-ref"])
+def test_effect_profile_observation_batches_fresh_native_reads(
+    tmp_path: Path, historical, count: int
+) -> None:
+    """Keep small subjects native; larger subjects need two fresh reads, not eight launches."""
+    case = fixture(tmp_path)
+    revisions = tuple(
+        git(case.repo, "commit-tree", "HEAD^{tree}", "-p", case.old, "-m", f"peer-{index}")
+        for index in range(count - 2)
+    )
+    value = GitEffect(
+        updates={"refs/heads/dev": GitRefUpdate(expected=case.old, desired=case.new)},
+        assertions={
+            f"refs/heads/peer-{index}": revision for index, revision in enumerate(revisions)
+        },
+    )
+    profile = cProfile.Profile()
+    result = profile.runcall(
+        resolve_git_effect_repository,
+        case.repo,
+        value,
+        {"head": case.old},
+        plan=plan(case.repo, value) if historical else None,
+        historical_identity=historical,
+    )
+
+    assert result == "repository:repo"
+    launches = sum(
+        entry.callcount
+        for entry in profile.getstats()
+        if hasattr(entry.code, "co_name") and entry.code.co_name == "run_git"
+    )
+    assert launches == 2
+    assert git(case.repo, "rev-parse", "HEAD") == case.old
+    assert git(case.repo, "status", "--porcelain") == ""
+
+
+def test_effect_profile_batch_uses_the_selected_object_store_and_fresh_material(tmp_path: Path):
+    """All profile reads share quarantine context and reject later object disappearance."""
+    case = fixture(tmp_path / "target")
+    source = fixture(tmp_path / "source", "repository:isolated")
+    third = git(source.repo, "commit-tree", "HEAD^{tree}", "-p", source.new, "-m", "third")
+    value = GitEffect(
+        updates={"refs/heads/dev": GitRefUpdate(expected=source.old, desired=source.new)},
+        assertions={"refs/heads/third": third},
+    )
+    environment = {"GIT_ALTERNATE_OBJECT_DIRECTORIES": (source.repo / ".git/objects").as_posix()}
+    before: dict[str, object] = {"head": source.old}
+    assert (
+        resolve_git_effect_repository(case.repo, value, before, environment=environment)
+        == "repository:isolated"
+    )
+    profile = git(source.repo, "rev-parse", "HEAD:.ethos/profile.toml")
+    (source.repo / ".git/objects" / profile[:2] / profile[2:]).unlink()
+    with pytest.raises(ValueError, match="invalid"):
+        resolve_git_effect_repository(case.repo, value, before, environment=environment)
+    assert git(case.repo, "rev-parse", "HEAD") == case.old
+    assert git(case.repo, "status", "--porcelain") == ""
+
+
+def test_effect_profile_observation_reads_current_bytes_after_ref_change(tmp_path: Path):
+    """A second observation cannot authorize from a previous profile answer."""
+    case = fixture(tmp_path)
+    selected = ("HEAD", case.old, case.new)
+    assert repository_identities(case.repo, selected) == dict.fromkeys(selected, "repository:repo")
+    profile = case.repo / ".ethos/profile.toml"
+    profile.write_text('profile_id = "changed"\n', encoding="utf-8")
+    git(case.repo, "add", ".ethos/profile.toml")
+    git(case.repo, "commit", "-m", "change current profile")
+    assert repository_identities(case.repo, selected) == {
+        "HEAD": "repository:changed",
+        case.old: "repository:repo",
+        case.new: "repository:repo",
+    }
+
+
+def test_effect_profile_prestate_optional_scope_does_not_cover_new_refs(tmp_path: Path):
+    """Deletion tolerance applies only to exact former revisions, never proposed ones."""
+    case = fixture(tmp_path)
+    profile = case.repo / ".ethos/profile.toml"
+    profile.write_text("profile_id = 7\n", encoding="utf-8")
+    git(case.repo, "add", ".ethos/profile.toml")
+    git(case.repo, "commit", "-m", "malformed former profile")
+    former = git(case.repo, "rev-parse", "HEAD")
+    selected = (former, case.old, case.new)
+    assert repository_identities(case.repo, selected, optional=frozenset({former})) == {
+        case.old: "repository:repo",
+        case.new: "repository:repo",
+    }
+    with pytest.raises(ValueError, match="repository_profile_invalid"):
+        repository_identities(case.repo, selected, optional=frozenset({case.old}))
 
 
 def _reject(error: str, call: Callable[[], object]) -> None:
@@ -58,9 +156,12 @@ def test_exact_historical_profile_reader_keeps_only_stable_identity(
     git(repo, "add", "-A", ".ethos/profile.toml")
     git(repo, "commit", "-m", "fix: change former profile")
     old = git(repo, "rev-parse", "HEAD")
+    selected = ("HEAD", old, f"{old}~0")
     if expected_gap:
         with pytest.raises(ValueError, match=expected_gap):
             historical_repository_identity(repo, tree_ref=old)
+        with pytest.raises(ValueError, match=expected_gap):
+            repository_identities(repo, selected, historical=True)
     else:
         expected = (
             "repository:other"
@@ -68,6 +169,9 @@ def test_exact_historical_profile_reader_keeps_only_stable_identity(
             else "repository:signature-fixture"
         )
         assert historical_repository_identity(repo, tree_ref=old) == expected
+        assert repository_identities(repo, selected, historical=True) == dict.fromkeys(
+            selected, expected
+        )
         if expected == "repository:signature-fixture":
             with pytest.raises(ValueError, match="repository_profile_invalid"):
                 repository_identity(repo)
@@ -103,7 +207,7 @@ def test_recorded_effect_replay_uses_stable_historical_identity(
         "current profile",
     )
     value = effect(former, replacement)
-    before = {"head": former}
+    before: dict[str, object] = {"head": former}
     carried = plan(
         case.repo,
         value,

@@ -29,6 +29,10 @@ historical bindings are governed by [Release Governance](docs/governance/release
 - Composed one declared Node test attempt with official c8 coverage reporting,
   retaining preload, concurrency, coverage configuration, failures and warnings.
   Invalid raw evidence is rejected; custody excludes symbolic-link targets.
+- Moved locked native tool preparation from CI into the product supply owner.
+  Packages include the locked Vale executable, publisher license and common
+  prose policy; source and installed consumers use those owned bytes without
+  falling back to an ambient executable.
 
 ### Removed
 

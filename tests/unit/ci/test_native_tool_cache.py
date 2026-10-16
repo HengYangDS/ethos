@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-import tools.ci.toolchain.native as native
+import ethos.adapters.repo.runtime.materialization.native_supply as native_supply
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.materialization.native_supply import NativeSupply
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
@@ -51,6 +51,9 @@ def test_linked_worktrees_reuse_one_locked_native_download(
         member = tarfile.TarInfo("gitleaks")
         member.size, member.mode = len(body), 0o755
         archive.addfile(member, io.BytesIO(body))
+        license_member = tarfile.TarInfo("LICENSE")
+        license_member.size = len(b"Publisher license\n")
+        archive.addfile(license_member, io.BytesIO(b"Publisher license\n"))
     checksum = hashlib.sha256(package.read_bytes()).hexdigest()
     config = repo / ".config/mise"
     config.mkdir(parents=True)
@@ -74,11 +77,13 @@ def test_linked_worktrees_reuse_one_locked_native_download(
         destination.parent.mkdir(parents=True)
         shutil.copyfile(package, destination)
 
-    monkeypatch.setattr(native, "download", supply_download)
+    monkeypatch.setattr(native_supply, "download_tool", supply_download)
     with ThreadPoolExecutor(max_workers=2) as pool:
         caches = tuple(
             pool.map(
-                lambda worktree: native.prepare(worktree, "gitleaks", mise=tmp_path / "mise"),
+                lambda worktree: native_supply.materialize_tool(
+                    worktree, "gitleaks", mise=tmp_path / "mise"
+                ),
                 (repo, linked),
             )
         )
@@ -158,11 +163,11 @@ def test_linked_worktrees_prepare_one_complete_node_runtime(
         target.parent.mkdir(parents=True)
         shutil.copyfile(package, target)
 
-    monkeypatch.setattr(native, "download", download)
+    monkeypatch.setattr(native_supply, "download_tool", download)
     with ThreadPoolExecutor(max_workers=2) as pool:
         paths = tuple(
             pool.map(
-                lambda root: native.prepare(root, "node", mise=tmp_path / "mise"),
+                lambda root: native_supply.materialize_tool(root, "node", mise=tmp_path / "mise"),
                 (repo, linked),
             )
         )
@@ -176,14 +181,16 @@ def test_linked_worktrees_prepare_one_complete_node_runtime(
     assert supply.installed_root(repo) == runtime
     assert not list(supply.cache(repo).glob(".prepare-*"))
     monkeypatch.setenv("ETHOS_CI_SUPPLY_MANIFEST", str(tmp_path / "immutable-inputs"))
-    assert native.prepare(repo, "node") == runtime / "bin"
+    assert native_supply.materialize_tool(repo, "node") == runtime / "bin"
     assert len(calls) == 1
     npm = runtime / "lib/node_modules/npm/bin/npm-cli.js"
     npm.write_bytes(b"untrusted npm bytes\n")
     monkeypatch.setattr(
-        native, "run_command", lambda *_args, **_kwargs: pytest.fail("unverified runtime executed")
+        native_supply,
+        "run_command",
+        lambda *_args, **_kwargs: pytest.fail("unverified runtime executed"),
     )
     with pytest.raises(ValueError, match="native_node_cached_runtime_invalid"):
-        native.prepare(repo, "node")
+        native_supply.materialize_tool(repo, "node")
     assert npm.read_bytes() == b"untrusted npm bytes\n"
     assert not list(supply.cache(repo).glob(".prepare-*"))

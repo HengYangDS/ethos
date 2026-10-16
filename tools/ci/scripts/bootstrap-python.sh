@@ -110,7 +110,7 @@ fi
 # Build-only dependencies make the current source verifier available before Hatch runs.
 uv --version
 uv sync --locked --no-install-project --group dev
-native_tools=(--mise)
+native_tools=(--mise vale)
 if [[ -n ${ETHOS_CI_SUPPLY_MANIFEST:-} ]]; then native_tools+=(gitleaks scc syft); fi
 native_paths="$(
 	PYTHONPATH="${repo_root}/src" "${UV_PROJECT_ENVIRONMENT}/bin/python" -B \

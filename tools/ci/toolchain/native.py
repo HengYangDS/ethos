@@ -21,12 +21,11 @@ from filelock import Timeout
 from packaging.version import Version
 
 from ethos.adapters.process import run_command
-from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
-from ethos.adapters.repo.runtime.materialization.native_supply import NativeSupply
-from ethos.adapters.repo.runtime.materialization.node.supply import NodeRuntime
-from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
+from ethos.adapters.repo.runtime.materialization.native_supply import download_tool
+from ethos.adapters.repo.runtime.materialization.native_supply import ensure_native_directory
+from ethos.adapters.repo.runtime.materialization.native_supply import materialize_tool
+from ethos.adapters.repo.runtime.materialization.native_supply import native_supply_is_offline
 from ethos.adapters.toolchain.mise import MISE_CONFIG
-from ethos.adapters.toolchain.mise import MISE_LOCK
 from ethos.adapters.toolchain.mise import mise_executable
 from ethos.adapters.toolchain.mise import native_tool_cache
 from ethos.adapters.toolchain.mise import run_mise
@@ -36,27 +35,9 @@ CI_PROJECTION_POLICY = ".config/checks/ci-projection/policy.toml"
 WINDOWS_MISE_ARCHITECTURES = {"amd64": "x64", "x86_64": "x64", "arm64": "arm64", "aarch64": "arm64"}
 
 
-def _directory(path: Path) -> None:
-    """Create only ordinary directories without following cache redirections."""
-    for component in (*reversed(path.parents), path):
-        if (
-            component.is_symlink()
-            or component.is_junction()
-            or (component.exists() and not component.is_dir())
-        ):
-            msg = f"native_tool_cache_path_unsafe:{component}"
-            raise ValueError(msg)
-        component.mkdir(exist_ok=True)
-
-
 def _windows_host() -> bool:
     """Select the official Windows executable instead of the POSIX shell installer."""
     return os.name == "nt"
-
-
-def _immutable_hosted_supply() -> bool:
-    """Hosted image jobs may verify cached tools but never download replacements."""
-    return bool(os.environ.get("ETHOS_CI_SUPPLY_MANIFEST"))
 
 
 def render_mise_installer(root: Path) -> str:
@@ -110,7 +91,7 @@ def _stage_windows_mise(root: Path, version: str, candidate: Path) -> None:
     name = f"mise-v{version}-windows-{arch}.exe"
     url = MISE_RELEASE.format(version=version, name=name)
     command = ("curl", "-fsSL", "--proto", "=https", "--output", str(candidate), url)
-    download(command, root=candidate.parent)
+    download_tool(command, root=candidate.parent)
     if hashlib.sha256(candidate.read_bytes()).hexdigest() != record["windows"][arch]:
         message = f"mise_windows_executable_digest_mismatch:{name}"
         raise ValueError(message)
@@ -152,13 +133,13 @@ def prepare_mise(root: Path) -> Path:
         / f"{platform.system()}_{platform.machine()}"
         / "bin"
     )
-    _directory(home)
+    ensure_native_directory(home)
     executable = home / ("mise.exe" if _windows_host() else "mise")
     with FileLock(home / ".bootstrap.lock", timeout=30):
         if executable.is_file() and not executable.is_symlink() and os.access(executable, os.X_OK):
             verify(executable)
             return executable
-        if _immutable_hosted_supply():
+        if native_supply_is_offline():
             message = "native_tool_offline_cache_missing:mise"
             raise ValueError(message)
         with TemporaryDirectory(prefix=".bootstrap-", dir=home) as directory:
@@ -193,113 +174,6 @@ def prepare_mise(root: Path) -> Path:
     return executable
 
 
-def download(command: tuple[str, ...], *, root: Path, timeout: float = 180) -> None:
-    """Run native provisioning through the shared bounded process owner."""
-    result = run_command(
-        root,
-        command,
-        timeout=timeout,
-        remove_env_prefixes=("MISE_",),
-        env={
-            "MISE_SAFE": "1",
-            "MISE_DISABLE_UPDATE_WARNING": "1",
-            "MISE_LOCKED": "1",
-            "MISE_YES": "0",
-            "MISE_ALWAYS_KEEP_DOWNLOAD": "1",
-            "MISE_DATA_DIR": str(root / "data"),
-            "MISE_CACHE_DIR": str(root / "cache"),
-            "MISE_GLOBAL_CONFIG_FILE": str(root / "absent-global.toml"),
-            "MISE_SYSTEM_CONFIG_DIR": str(root / "absent-system"),
-        },
-    )
-    sys.stderr.write(result.stdout + result.stderr)
-    result.check_returncode()
-
-
-def prepare(root: Path, name: str, *, lock_timeout: float = 30, mise: Path | None = None) -> Path:
-    """Converge one declared identity without privileged writes or duplicate effects."""
-    root = root.resolve(strict=True)
-    supply = NodeSupply.read(root) if name == "node" else NativeSupply.read(root, name)
-    cache = supply.cache(root)
-    _directory(cache)
-    lock = cache / ".prepare.lock"
-    if lock.is_symlink() or (lock.exists() and not lock.is_file()):
-        msg = f"native_tool_cache_path_unsafe:{lock}"
-        raise ValueError(msg)
-    with FileLock(lock, timeout=lock_timeout):
-        _directory(cache)
-        executable = name if isinstance(supply, NodeSupply) else supply.executable_name
-        archive, target = cache / supply.archive, cache / executable
-        with TemporaryDirectory(prefix=".prepare-", dir=cache) as scratch:
-            selected = archive
-            if not archive.exists() and not archive.is_symlink():
-                if _immutable_hosted_supply():
-                    message = f"native_tool_offline_cache_missing:{name}"
-                    raise ValueError(message)
-                isolated = Path(scratch)
-                for source in (MISE_CONFIG, MISE_LOCK):
-                    target_config = isolated / source
-                    target_config.parent.mkdir(parents=True, exist_ok=True)
-                    target_config.write_bytes((root / source).read_bytes())
-                download(
-                    (
-                        str(mise or mise_executable()),
-                        "install",
-                        "--locked",
-                        "node" if isinstance(supply, NodeSupply) else supply.backend,
-                    ),
-                    root=isolated,
-                )
-                candidates = list((isolated / "data/downloads").rglob(supply.archive))
-                if len(candidates) != 1:
-                    msg = f"native_tool_download_unresolved:{name}"
-                    raise ValueError(msg)
-                selected = candidates[0]
-            if isinstance(supply, NodeSupply):
-                return _prepare_node(supply, selected, cache, Path(scratch))
-            expected = supply.executable_bytes(selected)
-            if selected != archive:
-                selected.replace(archive)
-            if (
-                not target.is_symlink()
-                and target.is_file()
-                and os.access(target, os.X_OK)
-                and target.read_bytes() == expected
-            ):
-                supply.verify(target)
-            else:
-                prepared = Path(scratch) / supply.executable_name
-                prepared.write_bytes(expected)
-                prepared.chmod(0o755)
-                supply.verify(prepared)
-                prepared.replace(target)
-    return cache
-
-
-def _prepare_node(supply: NodeSupply, archive: Path, cache: Path, scratch: Path) -> Path:
-    """Compare complete retained bytes before native execution and atomic publication."""
-    prepared = supply.project(archive, scratch / "native")
-    expected_archive = cache / supply.archive
-    if archive != expected_archive:
-        archive.replace(expected_archive)
-    runtime = cache / "runtime"
-    if runtime.is_symlink() or runtime.is_junction():
-        message = f"native_tool_cache_path_unsafe:{runtime}"
-        raise ValueError(message)
-    if runtime.exists():
-        if runtime_file_inventory(runtime) != runtime_file_inventory(prepared):
-            message = "native_node_cached_runtime_invalid"
-            raise ValueError(message)
-    else:
-        prepared.replace(runtime)
-    executable = NodeRuntime.read(runtime, windows=supply.target.startswith("windows-")).executable
-    observed = run_command(scratch, (str(executable), "--version"), timeout=15)
-    if observed.returncode or observed.stderr or observed.stdout.strip() != f"v{supply.version}":
-        message = "native_node_cached_runtime_invalid"
-        raise ValueError(message)
-    return executable.parent
-
-
 def declared_go_version(root: Path) -> str | None:
     """Read the one project declaration without inferring an ambient Go tool."""
     declared = tomllib.loads((root / MISE_CONFIG).read_text()).get("tools", {})
@@ -316,7 +190,7 @@ def locked_go_bin(root: Path, mise: Path, version: str) -> Path:
     if selected.returncode or selected.stderr:
         msg = (
             "native_tool_offline_cache_missing:go"
-            if _immutable_hosted_supply()
+            if native_supply_is_offline()
             else f"native_tool_supply_unavailable:go:{selected.stderr.strip()}"
         )
         raise ValueError(msg)
@@ -359,7 +233,7 @@ def require_cached_mise_tools(root: Path, mise: Path) -> None:
 def mise_tool_paths(root: Path, mise: Path) -> list[Path]:
     """Prepare declared tools online or verify the image's existing supply."""
     go_version = declared_go_version(root)
-    if _immutable_hosted_supply():
+    if native_supply_is_offline():
         require_cached_mise_tools(root, mise)
     else:
         result = run_mise(
@@ -371,7 +245,7 @@ def mise_tool_paths(root: Path, mise: Path) -> list[Path]:
         )
         sys.stderr.write(result.stdout + result.stderr)
         result.check_returncode()
-    node = prepare(root, "node", mise=mise)
+    node = materialize_tool(root, "node", mise=mise)
     return [node] + ([locked_go_bin(root, mise, go_version)] if go_version is not None else [])
 
 
@@ -392,7 +266,8 @@ def main() -> int:
         if mise is not None:
             paths.extend(mise_tool_paths(arguments.root, mise))
         paths.extend(
-            prepare(arguments.root, tool, mise=mise) for tool in dict.fromkeys(arguments.tools)
+            materialize_tool(arguments.root, tool, mise=mise)
+            for tool in dict.fromkeys(arguments.tools)
         )
         if mise is not None:
             paths.append(mise.parent)

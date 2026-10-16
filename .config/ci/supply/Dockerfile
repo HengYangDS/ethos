@@ -37,7 +37,7 @@ RUN uv python install --no-bin "$(python3 -c 'import platform; print(platform.py
     && touch /tmp/ethos-quality-sample/src/sample/__init__.py \
     && uv --directory /tmp/ethos-quality-sample sync --locked --group dev \
     && rm -rf /tmp/ethos-quality-sample \
-    && native_paths="$(PYTHONPATH=src .venv/bin/python tools/ci/toolchain/native.py --root . --mise gitleaks scc syft)" \
+    && native_paths="$(PYTHONPATH=src .venv/bin/python tools/ci/toolchain/native.py --root . --mise gitleaks scc syft vale)" \
     && PATH="$native_paths:$PATH" PYTHONPATH=src .venv/bin/python -c 'import subprocess; from pathlib import Path; from ethos.adapters.repo.runtime.materialization.node.supply import NodeRuntime, NodeSupply; root = Path.cwd(); runtime = NodeRuntime.read(NodeSupply.read(root).installed_root(root), windows=False); subprocess.run([str(runtime.executable), str(runtime.npm), "ci", "--ignore-scripts", "--no-audit", "--no-fund"], stdin=subprocess.DEVNULL, timeout=120, check=True)' \
     && sha256sum .config/checks/ci-projection/policy.toml \
          .config/mise/config.toml .config/mise/mise.lock \

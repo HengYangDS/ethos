@@ -68,7 +68,7 @@ def test_declared_go_enters_native_quality_path_only_after_locked_supply(
     node = tmp_path / "node-supply/bin"
     monkeypatch.setattr(native, "prepare_mise", lambda _root: mise)
     monkeypatch.setattr(
-        native, "prepare", lambda _root, tool, **_kwargs: node if tool == "node" else None
+        native, "materialize_tool", lambda _root, tool, **_kwargs: node if tool == "node" else None
     )
     monkeypatch.setattr(native, "run_mise", locked_mise)
     monkeypatch.setattr(sys, "argv", ["native", "--root", str(tmp_path), "--mise"])

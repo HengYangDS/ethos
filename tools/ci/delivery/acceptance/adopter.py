@@ -33,9 +33,10 @@ def _required_executable(name: str) -> str:
 
 
 def _configure_product_signer(root: Path, *, git: str, run: CommandRunner) -> None:
+    """Give one repository its own trusted SSH signer beside it, as every governed one needs."""
     ssh_keygen = _required_executable("ssh-keygen")
-    signer = root.parent / "product-signer"
-    trust_root = root.parent / "trust"
+    signer = root.parent / f"{root.name}-signer"
+    trust_root = root.parent / f"{root.name}-trust"
     trust_root.mkdir(mode=0o700)
     trust_anchor = trust_root / "allowed-signers"
     run(ssh_keygen, "-q", "-t", "ed25519", "-N", "", "-f", str(signer))
@@ -245,6 +246,7 @@ def prove_formation(
     *,
     origin: str,
     environment: Mapping[str, str],
+    run: CommandRunner,
 ) -> dict[str, object]:
     """Form both starters from the installed CLI without a source checkout."""
     package_guidance = packaged_resource(
@@ -317,6 +319,9 @@ def prove_formation(
                 f"gaps={applied.get('required_gaps')}:detail={applied_detail[-256:]}"
             )
             raise RuntimeError(message)
+        # Formation leaves the signer to the creator (task 2.26), and every governed
+        # repository needs a trusted SSH signer before status passes.
+        _configure_product_signer(target, git=_required_executable("git"), run=run)
         status_command = (str(executable), "status", "--root", str(target), "--json")
         head = verify_formed(
             target,

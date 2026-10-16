@@ -302,7 +302,7 @@ def _file_identities(payload: bytes) -> frozenset[tuple[int, int]]:
 
 
 def process_file_identities(root: Path, *, tree: Path, index: Path) -> frozenset[tuple[int, int]]:
-    """Observe surviving retirement targets, including the external Git index."""
+    """Observe complete native identities; the reviewed manifest selects retirement consumers."""
     command: tuple[str, ...] = ()
     try:
         executable = shutil.which("lsof", path=os.defpath + os.pathsep + "/usr/sbin")
@@ -320,22 +320,13 @@ def process_file_identities(root: Path, *, tree: Path, index: Path) -> frozenset
             or not index.is_file()
         ):
             _file_observation_failure("file_observation_scope_unavailable")
-        command = (
-            str(executable),
-            "-nP",
-            "-F0pftDin",
-            *(("+D", str(tree)) if tree_status is not None else ()),
-            str(index),
-        )
+        command = (str(executable), "-nP", "-F0pftDin")
         result = run_command(root, command, text=False, timeout=30, remove_env_prefixes=("GIT_",))
-        # Scoped lsof exits 1 when a selected path has no open match.
-        if result.returncode not in {0, 1} or result.stderr:
+        if result.returncode != 0 or result.stderr:
             _file_observation_failure(
                 result.stderr.decode(errors="replace") or "file_observation_incomplete"
             )
         if not result.stdout:
-            if result.returncode == 1:
-                return frozenset()
             _file_observation_failure("file_observation_empty_success")
         return _file_identities(result.stdout)
     except (OSError, ValueError, subprocess.TimeoutExpired) as error:

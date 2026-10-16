@@ -369,7 +369,9 @@ checkout and compare-delete its exact ref in a transaction verifying accepted.
 #### Scenario: Unrelated native file-descriptor churn is not a retirement consumer
 
 - **WHEN** unrelated processes close descriptors during selected content retirement
-- **THEN** the native observer scopes its search to the worktree and external Git index
+- **THEN** the native observer intersects one complete current device/inode observation
+  with the existing reviewed worktree and external Git index identities, without
+  repeating the worktree traversal
 - **AND** cwd, file, mapping, writer, hardlink and index holders still block deletion
 - **AND** an already absent reviewed worktree is not a deletion target; its surviving index remains observed
 - **AND** a present unsafe worktree, missing index, incomplete output, permission failure or timeout remains unknown

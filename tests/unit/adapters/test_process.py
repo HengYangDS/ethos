@@ -273,10 +273,10 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
 
     def capture(root, command, **kwargs):
         assert root == tmp_path
-        assert command == (str(executable), "-nP", "-F0pftDin", "+D", str(root), str(executable))
+        assert command == (str(executable), "-nP", "-F0pftDin")
         assert 0 < kwargs["timeout"] <= 30
         assert kwargs["text"] is False
-        if fault == "timeout" or (fault == "slow-scan" and kwargs["timeout"] < 12):
+        if fault == "timeout" or (fault == "slow-scan" and "+D" in command):
             raise subprocess.TimeoutExpired(command, kwargs["timeout"])
         status = 2 if fault == "fatal" else 1 if fault in {"status", "no-match"} else 0
         stderr = b"permission denied" if fault == "stderr" else b""
@@ -286,7 +286,6 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
     observe = process_adapter.process_file_identities
     if fault in {
         "valid",
-        "status",
         "fd-gone",
         "process-gone",
         "named-live-file",
@@ -294,8 +293,6 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
         "slow-scan",
     }:
         assert observe(tmp_path, tree=tmp_path, index=executable) == frozenset({(16, 31), (32, 31)})
-    elif fault == "no-match":
-        assert observe(tmp_path, tree=tmp_path, index=executable) == frozenset()
     else:
         with pytest.raises(process_adapter.ProcessExecutionError) as error:
             observe(tmp_path, tree=tmp_path, index=executable)

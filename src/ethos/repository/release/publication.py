@@ -17,7 +17,7 @@ from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_OTHER
 from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
 from ethos.contracts.branch.roles import BranchRolePolicy
-from ethos.repository.release.identity import product_version_from_text
+from ethos.repository.release.changelog import semver_from_text
 
 _REMOTE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
@@ -49,7 +49,7 @@ def publication_source_version_gaps(
     if version_text is None:
         return (f"publication_source_version_invalid:{tag_name}",)
     try:
-        version = product_version_from_text(version_text)
+        version = semver_from_text(version_text)
     except ValueError:
         return (f"publication_source_version_invalid:{tag_name}",)
     expected_tag = f"v{version}"

@@ -78,7 +78,8 @@ def test_identity_transition_is_explicit_and_target_scoped(
     tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
     (work / "VERSION").write_text("1.2.3\n")
     (work / "CHANGELOG.md").write_text(
-        "# Changelog\n\n## [Unreleased]\n\n## [1.2.3] - 2026-10-15\n"
+        "# Changelog\n\n## [Unreleased]\n\n## [1.2.3] - 2026-10-15\n\n"
+        "### Fixed\n\n- Preserve identity-scoped release delivery.\n"
     )
     release = work / ".ethos/release.toml"
     release.write_text(

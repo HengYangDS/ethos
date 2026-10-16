@@ -43,7 +43,7 @@ policy = "policy.toml"
 version_file = "VERSION"
 tag_pattern = "v*"
 changelog = "CHANGELOG.md"
-changelog_heading = '^## \[(Unreleased|\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?)\]( - \d{4}-\d{2}-\d{2})?$'
+changelog_heading = '^## \[(?P<version>Unreleased|[^\]\r\n]+)\](?: - (?P<date>\d{4}-\d{2}-\d{2}))?$'
 
 # Per-file ceilings every governed repository shares; no binding restates them.
 # Exceeding one needs semantic consolidation, never compression, exemptions or a

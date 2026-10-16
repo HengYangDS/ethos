@@ -6,8 +6,7 @@ The public command plane SHALL expose one narrow record, query and release surfa
 Attestation set. Record SHALL issue from explicit canonical input or validate an existing
 Attestation, store its declared custody evidence, then exact-CAS union it. Query SHALL filter the
 selected set by exact semantic fields without creating selection, workflow, or task state. Release
-SHALL remove one open-predicate member by exact CAS at the request of its verifier, or of another
-actor that names reviewed content and a reason.
+SHALL remove one open-predicate member by exact CAS.
 
 #### Scenario: An input occurrence is recorded
 

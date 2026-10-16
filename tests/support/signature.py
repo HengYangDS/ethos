@@ -68,14 +68,9 @@ def signature_repository(tmp_path: Path, *, coupled: bool = False) -> tuple[Path
     (repo / ".ethos/profile.toml").write_text('profile_id = "signature-fixture"\n')
     (repo / ".ethos/workspace.toml").write_text(
         render_branch_policy(
-            release_branch="main",
-            accepted_branch="dev",
-            candidate_branch="candidate/dev",
-            work_branch_prefix="work/",
-            proposal_branch_prefix="proposal/",
             release_mirror="accepted_ff" if coupled else "independent",
         )
-        + '\n[commit_policy]\nsubject_pattern = "^fix: .+"\n'
+        + "\n[commit_policy]\n"
         + 'signing_required = true\nsigning_format = "ssh"\n'
     )
     git(repo, "add", ".ethos")

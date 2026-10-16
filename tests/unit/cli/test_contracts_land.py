@@ -80,8 +80,7 @@ LAND_CASES = literal_case("cli.test_contracts_land:assign:LAND_CASES:0")
 
 def _assert_dirty_land_is_blocked(tmp_path: Path) -> None:
     repo, _ = start_adopted_candidate(tmp_path)
-    root = tmp_path / "repo-work-feature"
-    run_ethos(*lane_start_arguments(repo, root), cwd=repo)
+    root = Path(run_ethos(*lane_start_arguments(repo), cwd=repo)["data"]["path"])
     (root / "README.md").write_text("# dirty\n")
     payload = _land(root)
     assert (payload["verdict"], payload["state"]) == ("block", "blocked")
@@ -427,9 +426,9 @@ def _assert_declared_closeout_policy(
         assert (repo / ".ethos/profile.toml").is_file()
         assert not workspace.exists()
     elif claim == CLOSEOUT_CASES[2]:
-        workspace.write_text('[branch_roles]\naccepted_branch = "dev"\n')
+        workspace.write_text('[branch_roles]\nrelease_mirror = "mirror"\n')
         git(repo, "add", workspace.as_posix())
-        git(repo, "commit", "-m", "record incomplete branch roles")
+        git(repo, "commit", "-m", "record an invalid release mirror")
         accepted = git(repo, "rev-parse", "HEAD")
         git(candidate, "reset", "--hard", accepted)
         report = accepted_admission.candidate_to_accepted(

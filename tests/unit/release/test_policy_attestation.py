@@ -454,24 +454,22 @@ def test_release_topology_rejects_invalid_declared_paths(
 
 
 @pytest.mark.parametrize("declared", [False, True])
-def test_release_policy_uses_configured_branch_roles_for_protected_refs(
+def test_release_policy_protects_the_paradigm_role_branches(
     tmp_path: Path, *, declared: bool
 ) -> None:
-    """Role projection needs neither copied branches nor unrelated release metadata."""
-    release = _PROTECTED_REFS.replace('["main", "dev"]', '["release", "integration"]')
+    """Legacy role names in the workspace do not move the protected branches."""
+    release = _PROTECTED_REFS
     if not declared:
-        release = release.replace('branches = ["release", "integration"]\n', "")
+        release = release.replace('branches = ["main", "dev"]\n', "")
     workspace = """[branch_roles]
 release_branch = "release"
 accepted_branch = "integration"
 candidate_branch = "stage/integration"
-work_branch_prefix = "lane/"
-proposal_branch_prefix = "review/"
 """
     root = _root(tmp_path, release + "\n" + _HOST_SURFACES, workspace, ".gitlab-ci.yml")
     report = release_policy_report(root)
     assert "protected_branches_policy_missing" not in report["required_gaps"]
-    assert report["protected_refs"]["branches"] == ["release", "integration"]
+    assert report["protected_refs"]["branches"] == ["main", "dev"]
     assert report["host_profile"]["provider"] == "gitlab"
 
 

@@ -7,7 +7,7 @@ import shlex
 import subprocess
 from contextlib import redirect_stderr
 from io import StringIO
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
@@ -36,9 +36,6 @@ from tests.unit.cli.land.publication.support import branch_publication_fixture
 from tests.unit.cli.land.publication.support import git
 from tests.unit.cli.land.publication.support import proposal_ref
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
 
 def retirement_fixture(tmp_path: Path, *, object_format: str = "sha1", refreshed: bool = False):
     """Give plain Git peers accepted content without a Forge review system."""
@@ -56,21 +53,20 @@ def retirement_fixture(tmp_path: Path, *, object_format: str = "sha1", refreshed
     git(repo, "commit", "-m", "chore: declare plain Git peers")
     accepted = git(repo, "rev-parse", "HEAD")
     if refreshed:
-        candidate, work = tmp_path / "candidate", tmp_path / "work"
+        candidate = tmp_path / "candidate"
         git(repo, "worktree", "add", "-b", "candidate/dev", str(candidate), accepted)
         install_fixture_hook_runtime(repo)
-        run_ethos(
+        started = run_ethos(
             "lane",
             "start",
             "replayed",
-            "--path",
-            str(work),
             "--holder-ref",
             "agent:test:case:agent-test",
             "--apply",
             "--json",
             cwd=repo,
         )
+        work = Path(started["data"]["path"])
         git(work, "mv", "notes/proposal.txt", "notes/renamed.txt")
         (work / "contribution.bin").write_bytes(b"\x00preserved contribution\xff")
         git(work, "add", "-A")
@@ -166,6 +162,46 @@ def test_retirement_never_deletes_an_integration_or_release_resource(tmp_path: P
     assert report["state"] != "retired"
     assert {proposal_ref(peer) for peer in peers.values()} == {proposal}
     assert {git(peer, "rev-parse", "dev") for peer in peers.values()} == {accepted}
+
+
+@pytest.mark.parametrize(("target", "admitted"), [("accepted/train", True), ("topic", False)])
+def test_retirement_retires_a_published_legacy_role_ref(
+    tmp_path: Path, monkeypatch, target: str, *, admitted: bool
+) -> None:
+    """A role ref that the table at its head names under a legacy name retires once accepted."""
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    repo, peers, _proposal, _accepted = retirement_fixture(tmp_path)
+    workspace = repo / ".ethos/workspace.toml"
+    settings = workspace.read_text()
+    declared = '[branch_roles]\naccepted_branch = "accepted/train"\n'
+    workspace.write_text(settings.replace("[branch_roles]\n", declared))
+    git(repo, "commit", "-am", "chore: declare the legacy accepted name")
+    legacy = git(repo, "rev-parse", "HEAD")
+    workspace.write_text(settings)
+    git(repo, "commit", "-am", "chore: remove the renamed role name")
+    accepted = git(repo, "rev-parse", "HEAD")
+    for remote in ("gitlab", "github"):
+        git(repo, "push", remote, "HEAD:refs/heads/dev", f"{legacy}:refs/heads/{target}")
+
+    preview = branch_publication(
+        repo, accepted, "--retire", target_ref=f"refs/heads/{target}", blocked=not admitted
+    )
+
+    remaining = {
+        git(peer, "for-each-ref", "--format=%(objectname)", f"refs/heads/{target}")
+        for peer in peers.values()
+    }
+    if not admitted:
+        assert "proposal_retirement_target_not_proposal" in str(preview["required_gaps"])
+        assert remaining == {legacy}
+        return
+    assert preview["state"] == "ready_to_retire"
+    applied = apply_receipt(repo, preview["data"]["request_receipt"], accepted)
+    assert applied["state"] == "retired"
+    assert {
+        git(peer, "for-each-ref", "--format=%(objectname)", f"refs/heads/{target}")
+        for peer in peers.values()
+    } == {""}
 
 
 def test_retirement_rechecks_peer_absorption_between_preview_and_effect(tmp_path: Path):

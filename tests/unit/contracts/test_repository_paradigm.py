@@ -36,6 +36,10 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
     assert {module.id for module in paradigm.module} == {"python", "node", "go"}
     assert paradigm.size.python_effective_lines == 512
     assert paradigm.size.markdown_nonblank_lines == 512
+    assert paradigm.documents.decision_record_name.startswith("^dr-")
+    grammar = paradigm.commit.subject_pattern(("cli",))
+    assert grammar.startswith("^(build|chore|ci|docs|feat|fix|perf|refactor|revert|test)")
+    assert grammar.endswith(r"(\((cli)\))?!?: .+")
 
 
 @pytest.mark.parametrize(
@@ -78,5 +82,18 @@ def test_paradigm_declaration_fails_closed(mutation: str) -> None:
         payload["size"] = {**payload["size"], "python_effective_lines": 0}
     else:
         tools[0] = {**tools[0], "exceptions": ["mise.toml"]}
+    with pytest.raises(ValidationError):
+        RepositoryParadigm.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "commit",
+    [{"types": ["fix", "fix"]}, {"types": []}, {"scope": "[a-z"}, {"breaking_marker": "!!"}],
+    ids=["duplicate-type", "no-types", "uncompilable-scope", "marker-length"],
+)
+def test_commit_grammar_fails_closed(commit: dict[str, object]) -> None:
+    """Duplicate or missing types, an uncompilable scope or a long marker never load."""
+    payload = _packaged()
+    payload["commit"] = {**payload["commit"], **commit}
     with pytest.raises(ValidationError):
         RepositoryParadigm.model_validate(payload)

@@ -28,8 +28,10 @@ _PEER_FIELDS = frozenset(
 )
 _REQUIRED_CAPABILITIES = frozenset(("repository", "publication"))
 _ALLOWED_CAPABILITIES = frozenset((*_REQUIRED_CAPABILITIES, "ci_cd"))
-_PROPOSAL_REF = "proposal_ref"
-_BRANCH_PUBLICATION_ROLES = frozenset((ROLE_ACCEPTED_ROOT, _PROPOSAL_REF, ROLE_RELEASE_ROOT))
+PROPOSAL_REF = "proposal_ref"
+LEGACY_ROLE_REF = "legacy_role_ref"
+_BRANCH_PUBLICATION_ROLES = frozenset((ROLE_ACCEPTED_ROOT, PROPOSAL_REF, ROLE_RELEASE_ROOT))
+_REVIEW_OBJECT_ROLES = frozenset((PROPOSAL_REF, LEGACY_ROLE_REF))
 _RELEASE_PUBLICATION = "release_publication"
 _REPOSITORY_PROOF_ROLES = frozenset((ROLE_ACCEPTED_ROOT, ROLE_RELEASE_ROOT, _RELEASE_PUBLICATION))
 
@@ -60,7 +62,7 @@ def publication_source_version_gaps(
 
 def publication_proof_selection(role: str) -> str:
     """Return the sole proof selection mode for one publication lifecycle role."""
-    if role == _PROPOSAL_REF:
+    if role in _REVIEW_OBJECT_ROLES:
         return "review_object"
     return "repository_transition" if role in _REPOSITORY_PROOF_ROLES else "current_commitment"
 
@@ -77,7 +79,7 @@ def publication_ref_role(
             and policy.proposal_branch_prefix
             and branch.startswith(policy.proposal_branch_prefix)
         ):
-            role = _PROPOSAL_REF
+            role = PROPOSAL_REF
         return "branch", role, role in _BRANCH_PUBLICATION_ROLES
     if target_ref.startswith("refs/tags/"):
         tag = target_ref.removeprefix("refs/tags/")
@@ -121,10 +123,17 @@ def publication_ref_admission(
     target_ref: str,
     release_tags: tuple[str, ...],
     remote_name: str,
+    retire: bool = False,
 ) -> dict[str, object]:
-    """Resolve and admit one complete remote ref through the positive topology."""
+    """Resolve and admit one complete remote ref through the positive topology.
+
+    A retirement may name a branch with no current role. Each peer's retirement admission
+    deletes it only as a legacy role ref, so it binds no content proof here.
+    """
     gaps = _strings(topology.get("required_gaps"))
     ref_kind, role, allowed = publication_ref_role(policy, target_ref, release_tags)
+    if retire and ref_kind == "branch" and role == ROLE_OTHER:
+        role, allowed = LEGACY_ROLE_REF, True
     if not allowed:
         gaps.append(f"publication_ref_unavailable:{ref_kind}:{role}:{target_ref}")
     elif not remote_name:

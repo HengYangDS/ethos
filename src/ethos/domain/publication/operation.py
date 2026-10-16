@@ -212,7 +212,12 @@ def _publish_projection(
     retirement = effect.retirement if effect is not None else retire
     projection_verdict: Verdict = "block" if gaps else "pass"
     context = observe_publication(
-        repo, apply=False, authorized=authorize, expect_head=expect_head, target_refs=target_refs
+        repo,
+        apply=False,
+        authorized=authorize,
+        expect_head=expect_head,
+        target_refs=target_refs,
+        retire=retirement,
     )
     current_head = context.head
     gaps.extend(context.required_gaps)

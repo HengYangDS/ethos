@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import tempfile
 from pathlib import Path
 from pathlib import PurePosixPath
-from threading import Condition
+from threading import Lock
 from typing import TYPE_CHECKING
 
 from cachetools import LRUCache
-from cachetools import cached
 
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
@@ -17,32 +17,43 @@ from ethos.adapters.repo.git_object import read_objects
 from ethos.contracts.semantic import Attestation
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Iterable
 
 ATTESTATION_SET_REF = "refs/ethos/attestations-set"
 _MEMBER_ROOT = "evidence/attestations"
 _AUTHOR = "ETHOS Attestation Set <attestations@example.invalid> 0 +0000"
 _COMMIT_MESSAGE = "ETHOS Attestation Set\n"
 _MAX_CAS_ATTEMPTS = 16
-# Retained serialized input; the 2026-10-13 selected set already holds 280 MiB.
-_MEMBER_REUSE_BYTES = 512 * 1024 * 1024
+# Retained validated members by serialized size; the 2026-10-15 selected set holds 560 MiB.
+_MEMBER_REUSE_BYTES = 1024 * 1024 * 1024
 
 
-def member_validator(capacity: int) -> Callable[[bytes], tuple[bytes, Attestation]]:
-    """Bound pure canonical member validation reuse by retained serialized bytes."""
+class MemberReuse:
+    """Reuse pure member validation by immutable Git blob id, never membership or authority."""
 
-    @cached(
-        cache=LRUCache(maxsize=capacity, getsizeof=lambda value: len(value[0])),
-        condition=Condition(),
-    )
-    def validate(raw: bytes) -> tuple[bytes, Attestation]:
-        """Reuse pure canonical validation, never membership or current authority."""
-        return raw, Attestation.model_validate_json(raw)
+    def __init__(self, capacity: int) -> None:
+        self._members: LRUCache[str, tuple[int, Attestation]] = LRUCache(
+            maxsize=capacity, getsizeof=lambda value: value[0]
+        )
+        self._lock = Lock()
 
-    return validate
+    def known(self, object_ids: Iterable[str]) -> dict[str, Attestation]:
+        """Return members already validated from exactly these blob ids."""
+        with self._lock:
+            return {
+                object_id: self._members[object_id][1]
+                for object_id in object_ids
+                if object_id in self._members
+            }
+
+    def remember(self, object_id: str, size: int, attestation: Attestation) -> None:
+        """Retain one validated member while its serialized size fits the bound."""
+        if size <= self._members.maxsize:
+            with self._lock:
+                self._members[object_id] = (size, attestation)
 
 
-_validated_member = member_validator(_MEMBER_REUSE_BYTES)
+_member_reuse = MemberReuse(_MEMBER_REUSE_BYTES)
 
 
 def _attestation_member_path(identity: str) -> str:
@@ -132,7 +143,8 @@ def _tree_entries(repo: Path, root: str) -> tuple[tuple[str, str, str, str], ...
     return tuple(entries)
 
 
-def _validated_members(repo: Path, root: str) -> tuple[dict[str, bytes], tuple[Attestation, ...]]:
+def _validated_members(repo: Path, root: str) -> tuple[dict[str, str], tuple[Attestation, ...]]:
+    """Map member identities to blob ids, reading only members not yet validated."""
     if not root:
         return {}, ()
     tree_paths: set[str] = set()
@@ -144,10 +156,12 @@ def _validated_members(repo: Path, root: str) -> tuple[dict[str, bytes], tuple[A
         else:
             _require_entry(valid=mode == "100644" and kind == "blob")
             files.append((object_id, path))
+    known = _member_reuse.known(object_id for object_id, _path in files)
+    unread = tuple(dict.fromkeys(object_id for object_id, _path in files if object_id not in known))
     raw_root, *raw_members = read_objects(
         repo,
-        (root, *(object_id for object_id, _path in files)),
-        kind=("commit", *("blob" for _ in files)),
+        (root, *unread),
+        kind=("commit", *("blob" for _ in unread)),
         gap="attestation_set_root_invalid",
     )
     tree_bytes = raw_root[5 : 5 + len(root)]
@@ -156,19 +170,33 @@ def _validated_members(repo: Path, root: str) -> tuple[dict[str, bytes], tuple[A
     )
     tree = tree_bytes.decode("ascii")
     _require_entry(valid=raw_root == _root_payload(tree))
-    members: dict[str, bytes] = {}
+    raw_by_id = dict(zip(unread, raw_members, strict=True))
+    members: dict[str, str] = {}
     attestations: list[Attestation] = []
-    for (_object_id, path), raw in zip(files, raw_members, strict=True):
-        try:
-            _, attestation = _validated_member(raw)
-        except ValueError as error:
-            message = f"attestation_set_member_invalid:{path}"
-            raise ValueError(message) from error
+    for object_id, path in files:
+        attestation = known.get(object_id)
+        if attestation is None:
+            raw = raw_by_id[object_id]
+            try:
+                attestation = Attestation.model_validate_json(raw)
+            except ValueError as error:
+                message = f"attestation_set_member_invalid:{path}"
+                raise ValueError(message) from error
+            known[object_id] = attestation
+            _member_reuse.remember(object_id, len(raw), attestation)
         _require_entry(valid=path == _attestation_member_path(attestation.id))
-        members[attestation.id] = raw
+        members[attestation.id] = object_id
         attestations.append(attestation)
     _require_entry(valid=tree_paths == _member_tree_paths(members))
     return members, tuple(attestations)
+
+
+def _blob_id(raw: bytes, *, like: str) -> str:
+    """Return the Git blob id of exact bytes in the object format of an observed id."""
+    digest = hashlib.new({40: "sha1", 64: "sha256"}[len(like)], usedforsecurity=False)
+    digest.update(b"blob %d\0" % len(raw))
+    digest.update(raw)
+    return digest.hexdigest()
 
 
 def _require_entry(*, valid: bool) -> None:
@@ -177,10 +205,10 @@ def _require_entry(*, valid: bool) -> None:
         raise ValueError(message)
 
 
-def _member_tree_paths(members: dict[str, bytes]) -> set[str]:
+def _member_tree_paths(identities: Iterable[str]) -> set[str]:
     return {
         parent.as_posix()
-        for identity in members
+        for identity in identities
         for parent in PurePosixPath(_attestation_member_path(identity)).parents
         if parent.as_posix() != "."
     }
@@ -293,7 +321,7 @@ def record_attestations(
         observed = _selected_root(repo)
         current, _attestations = _validated_members(repo, observed)
         for identity, raw in incoming.items():
-            if identity in current and current[identity] != raw:
+            if identity in current and current[identity] != _blob_id(raw, like=current[identity]):
                 message = f"attestation_set_identity_collision:{identity}"
                 raise ValueError(message)
         added = tuple(sorted(incoming.keys() - current.keys()))

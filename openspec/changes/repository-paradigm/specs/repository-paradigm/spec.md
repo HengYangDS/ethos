@@ -131,12 +131,17 @@ Every governed repository SHALL use the `spec-driven` schema and include the ETH
 
 ### Requirement: Commits follow one grammar
 
-Every governed repository SHALL declare the common commit policy: the Conventional Commit types build, chore, ci, docs, feat, fix, perf, refactor, revert and test, an optional lowercase kebab-case scope, an optional breaking marker, and required SSH signing. A declared scope list SHALL restrict scopes; the type set SHALL NOT vary.
+Every governed repository SHALL use the commit subject grammar that the paradigm contract holds: the Conventional Commit types build, chore, ci, docs, feat, fix, perf, refactor, revert and test, an optional lowercase kebab-case scope and an optional breaking marker `!`. `[commit_policy]` SHALL declare SSH signing and MAY declare `scopes` to restrict scopes; it SHALL NOT restate the grammar.
+
+#### Scenario: The binding declares no subject grammar
+
+- **WHEN** `[commit_policy]` declares signing and no `subject_pattern`
+- **THEN** commit admission accepts `feat(cli)!: drop the legacy flag` and rejects `style: reformat`.
 
 #### Scenario: A repository adds a type
 
-- **WHEN** a repository commit policy admits a `spec` or `style` type
-- **THEN** the paradigm reports a non-common commit grammar.
+- **WHEN** a repository commit policy declares its own `subject_pattern`, for example one that admits a `spec` or `style` type
+- **THEN** the paradigm reports a restated commit grammar.
 
 #### Scenario: A scope list is declared
 
@@ -145,18 +150,58 @@ Every governed repository SHALL declare the common commit policy: the Convention
 
 ### Requirement: Branch roles and Work Lanes use the standard names
 
-Every governed repository SHALL use the release branch `main`, the accepted branch `dev`, the candidate branch `candidate/dev`, the Work Lane prefix `work/` and the proposal prefix `proposal/`. Work Lane worktrees SHALL be siblings at `<repository>-worktrees/<yyyymmdd>-<slug>/`.
+The repository paradigm SHALL fix the branch role names: release `main`, accepted `dev`, candidate `candidate/dev`, Work Lanes under `work/` and proposals under `proposal/`. ETHOS SHALL read no role name from `[branch_roles]`, which MAY declare only `release_mirror`. Every Work Lane worktree SHALL be a sibling at `<repository>-worktrees/<yyyymmdd>-<slug>/`, and ETHOS SHALL read no worktree setting from `[branch_roles]`.
 
 #### Scenario: A review prefix differs
 
 - **WHEN** a workspace declares `submit/` as its proposal prefix
-- **THEN** the paradigm reports a non-standard branch role.
+- **THEN** the paradigm reports a legacy branch-role name
+- **AND** ETHOS still uses `proposal/`.
 
-#### Scenario: A workspace omits the branch-role table
+#### Scenario: A workspace declares a standard name
 
-- **WHEN** `.ethos/workspace.toml` declares no `branch_roles` table
-- **THEN** the paradigm reports no branch-role gap
-- **AND** accepted closeout, publication and ref admission read the standard names.
+- **WHEN** `[branch_roles]` declares `accepted_branch = "dev"`
+- **THEN** the paradigm reports the declared name and names its removal.
+
+#### Scenario: A workspace declares the retired sibling-worktree setting
+
+- **WHEN** `[branch_roles]` declares `canonical_sibling_worktrees = false`
+- **THEN** `ethos lane start feature` still places the Work Lane at `<repository>-worktrees/<yyyymmdd>-feature/`
+- **AND** the paradigm reports the setting and the repair deletes it.
+
+#### Scenario: A workspace declares only the settings
+
+- **WHEN** `[branch_roles]` declares only `release_mirror = "accepted_ff"`
+- **THEN** accepted closeout, publication and ref admission read the standard names with an accepted fast-forward release mirror.
+
+### Requirement: Accepted closeout renames legacy role refs
+
+When the accepted root is bound to a ref that its committed table declares as a legacy accepted name, accepted closeout SHALL, in one ref transaction, create each standard role ref at the head of the legacy ref it replaces and delete that legacy ref, and SHALL bind every worktree on a renamed ref to its new name. Git admission SHALL refuse any other move of a legacy role ref.
+
+#### Scenario: A repository adopted under legacy names
+
+- **WHEN** the committed table names `accepted/train` and `candidate/train` and the accepted root is bound to `accepted/train`
+- **THEN** closeout leaves `dev` and `candidate/dev` at the heads those refs had and removes the legacy refs
+- **AND** the accepted and candidate worktrees are bound to `dev` and `candidate/dev`.
+
+#### Scenario: A legacy role ref is moved directly
+
+- **WHEN** a user runs `git branch -m accepted/train dev`
+- **THEN** Git admission refuses the update with `legacy_role_ref_protected`.
+
+### Requirement: Publication retires published legacy role refs
+
+Publication retirement SHALL delete a published ref whose name the table committed at its remote head declares as a legacy accepted or candidate name only when that name has no current role and the accepted head, locally and on the peer, contains the remote head.
+
+#### Scenario: A renamed accepted ref is still published
+
+- **WHEN** a peer still carries `accepted/train` at a head whose table declares `accepted_branch = "accepted/train"` and the peer's `dev` contains that head
+- **THEN** `ethos publish --retire --ref refs/heads/accepted/train` deletes it on each peer.
+
+#### Scenario: The table at the head declares another name
+
+- **WHEN** a peer carries `topic` at a head whose table declares no `topic` role name
+- **THEN** publication retirement refuses `refs/heads/topic` as not a proposal.
 
 ### Requirement: Publication peers name their Git remotes after themselves
 
@@ -379,3 +424,42 @@ The repository audit SHALL report every paradigm gap with its carrier, the viola
 
 - **WHEN** a Work Lane requests prewrite admission for a new root `pytest.ini`
 - **THEN** admission refuses the path and names `.config/checks/pytest/pytest.toml`.
+
+### Requirement: Deterministic paradigm gaps carry a native repair
+
+ETHOS SHALL derive a repair for every paradigm gap whose fix follows from the gap's obligation and the carrier's current text alone, and SHALL apply it only inside a Work Lane after exact-path prewrite admission. Each new obligation SHALL ship with its repair or SHALL declare its gaps report-only. A gap that needs judgment, such as a Python file over the size ceiling, a changelog, a version source or a decision record rename, SHALL stay report-only. Repeating a repair SHALL change nothing.
+
+#### Scenario: A repair is previewed
+
+- **WHEN** a repository lacks `.editorconfig` and wraps a document's front matter in `<!--` and `-->`
+- **THEN** the repair preview names both carriers and their repaired text, and writes nothing.
+
+#### Scenario: A repair is applied in a Work Lane
+
+- **WHEN** the repair is applied in a Work Lane whose prewrite admits every repaired path
+- **THEN** each carrier holds its repaired text and the paradigm report no longer names those gaps.
+
+#### Scenario: Prewrite refuses a repaired path
+
+- **WHEN** the repair is applied where prewrite admission refuses a repaired path
+- **THEN** the repair writes nothing and reports the admission gaps.
+
+#### Scenario: A repair is repeated
+
+- **WHEN** the repair is applied a second time to the repaired tree
+- **THEN** it plans no edit.
+
+#### Scenario: A gap needs judgment
+
+- **WHEN** a tracked Python file exceeds the size ceiling
+- **THEN** the repair reports the gap with its canonical repair and plans no edit for it.
+
+#### Scenario: A remote follows a peer rename
+
+- **WHEN** the `gitlab` peer declares `git_remote = "origin"`
+- **THEN** the repair sets `git_remote = "gitlab"` and names `git remote rename origin gitlab` as the next action without running it.
+
+#### Scenario: A restated paradigm value is deleted
+
+- **WHEN** a workspace binding declares a standard branch-role name at the name the paradigm fixes, or a commit subject pattern equal to the shared grammar
+- **THEN** the repair deletes that field and keeps every comment and other key, while a legacy role name or a repository's own grammar stays report-only.

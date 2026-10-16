@@ -1,4 +1,4 @@
-"""Accepted closeout reads a committed predecessor branch-role incumbent."""
+"""Accepted closeout reads the incumbent's committed branch-role settings."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from tests.support.governed_repository import init_git_repo
 if TYPE_CHECKING:
     from pathlib import Path
 
-OLDEST = """[branch_roles]
+LEGACY = """[branch_roles]
 release_branch = "main"
 accepted_branch = "accepted/train"
 candidate_branch = "candidate/train"
@@ -23,30 +23,31 @@ proposal_branch_prefix = "submit/"
 """
 
 
-def test_closeout_reads_a_five_field_incumbent_with_predecessor_defaults(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("workspace", "expected"),
+    [
+        (LEGACY, BranchRolePolicy()),
+        (
+            '[branch_roles]\nrelease_mirror = "accepted_ff"\n',
+            BranchRolePolicy(release_mirror="accepted_ff"),
+        ),
+        ("[commit_policy]\nsigning_required = true\n", BranchRolePolicy()),
+    ],
+    ids=["legacy-names", "settings-only", "no-table"],
+)
+def test_closeout_reads_the_settings_and_the_paradigm_names(
+    tmp_path: Path, workspace: str, expected: BranchRolePolicy
+) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    head = commit_fixture_file(repo, ".ethos/workspace.toml", OLDEST, "record predecessor roles")
+    head = commit_fixture_file(repo, ".ethos/workspace.toml", workspace, "record branch roles")
 
-    assert accepted_transition_policy(repo, head) == BranchRolePolicy(
-        accepted_branch="accepted/train",
-        candidate_branch="candidate/train",
-        proposal_branch_prefix="submit/",
-    )
+    assert accepted_transition_policy(repo, head) == expected
 
 
-def test_closeout_reads_the_standard_roles_when_the_workspace_omits_them(tmp_path: Path) -> None:
+def test_closeout_rejects_an_invalid_incumbent(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    workspace = "[commit_policy]\nsigning_required = true\n"
-    head = commit_fixture_file(repo, ".ethos/workspace.toml", workspace, "record commit policy")
+    table = LEGACY.replace('release_branch = "main"', "release_branch = 1")
+    head = commit_fixture_file(repo, ".ethos/workspace.toml", table, "record invalid roles")
 
-    assert accepted_transition_policy(repo, head) == BranchRolePolicy()
-
-
-@pytest.mark.parametrize("field", ["release_branch", "work_branch_prefix"])
-def test_closeout_rejects_any_other_incomplete_incumbent(tmp_path: Path, field: str) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    table = "".join(line for line in OLDEST.splitlines(keepends=True) if not line.startswith(field))
-    head = commit_fixture_file(repo, ".ethos/workspace.toml", table, "record incomplete roles")
-
-    with pytest.raises(ValueError, match="complete and exact"):
+    with pytest.raises(ValueError, match="canonical strings"):
         accepted_transition_policy(repo, head)

@@ -10,14 +10,17 @@ import json
 import posixpath
 import re
 import tomllib
-from dataclasses import fields
 from typing import TYPE_CHECKING
-from typing import NamedTuple
 
+from ethos.contracts.branch.roles import RETIRED_BRANCH_ROLE_FIELDS
+from ethos.contracts.branch.roles import SIBLING_WORKTREE_FIELD
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import close_verdict
 from ethos.measure import effective_code_lines_for_source
+from ethos.repository.paradigm.documents import document_gaps
+from ethos.repository.paradigm.gap import ParadigmGap
+from ethos.repository.paradigm.gap import tracked_text
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -37,19 +40,6 @@ _NPM_DEPENDENCY_FIELDS = (
 )
 
 
-class ParadigmGap(NamedTuple):
-    """One paradigm gap with its carrier, violated obligation and canonical repair."""
-
-    obligation: str
-    carrier: str
-    repair: str
-
-    @property
-    def required_gap(self) -> str:
-        """Return the stable gap identity that proof, land and publish report."""
-        return f"repository_paradigm_{self.obligation.replace('-', '_')}:{self.carrier}"
-
-
 def repository_paradigm_report(root: Path, *, tracked_paths: tuple[str, ...]) -> dict[str, object]:
     """Evaluate the shared repository paradigm over one repository's tracked paths."""
     paradigm = load_repository_paradigm()
@@ -63,8 +53,9 @@ def repository_paradigm_report(root: Path, *, tracked_paths: tuple[str, ...]) ->
         *_module_gaps(paradigm, root, tracked),
         *_size_gaps(paradigm, root, tracked),
         *_formatter_gaps(paradigm, root, tracked),
+        *document_gaps(paradigm, root, tracked),
         *_peer_remote_gaps(paradigm, root, tracked),
-        *_branch_role_gaps(paradigm, root, tracked),
+        *_workspace_gaps(paradigm, root, tracked),
         *_release_gaps(paradigm, root, tracked),
     ]
     required = [gap.required_gap for gap in gaps]
@@ -210,12 +201,12 @@ def _embedded_policy_gaps(
     paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
 ) -> Iterator[ParadigmGap]:
     """Keep tool policy that a tool reads from an explicit file out of package manifests."""
-    project = _tracked_text(root, "pyproject.toml", tracked)
+    project = tracked_text(root, "pyproject.toml", tracked)
     try:
         tables = tomllib.loads(project).get("tool", {}) if project is not None else {}
     except tomllib.TOMLDecodeError:
         tables = {}
-    package = _tracked_text(root, "package.json", tracked)
+    package = tracked_text(root, "package.json", tracked)
     try:
         keys = json.loads(package) if package is not None else {}
     except json.JSONDecodeError:
@@ -242,7 +233,7 @@ def _normalization_gaps(
 ) -> Iterator[ParadigmGap]:
     """Require UTF-8, LF line endings and a final newline in both declaration carriers."""
     rule = paradigm.normalization.gitattributes
-    attributes = _tracked_text(root, ".gitattributes", tracked)
+    attributes = tracked_text(root, ".gitattributes", tracked)
     declared = [" ".join(line.split()) for line in (attributes or "").splitlines()]
     catch_all = [line for line in declared if line.split(" ", 1)[0] == "*"]
     if not catch_all or catch_all[-1] != rule:
@@ -252,8 +243,8 @@ def _normalization_gaps(
             f"declare `{rule}` as the last pattern for every file in .gitattributes",
         )
     expected = paradigm.normalization.editorconfig.model_dump()
-    editor = _tracked_text(root, ".editorconfig", tracked)
-    defaults = _editor_defaults(editor) if editor is not None else {}
+    editor = tracked_text(root, ".editorconfig", tracked)
+    defaults = editor_defaults(editor) if editor is not None else {}
     if any(defaults.get(key) != value for key, value in expected.items()):
         settings = ", ".join(f"{key} = {value}" for key, value in expected.items())
         yield ParadigmGap(
@@ -268,7 +259,7 @@ def _module_gaps(
     for module in paradigm.module:
         if module.manifest not in tracked:
             continue
-        source = _tracked_text(root, module.manifest, tracked)
+        source = tracked_text(root, module.manifest, tracked)
         if source is None:
             yield ParadigmGap(
                 "module-lock", module.manifest, f"restore a readable {module.manifest}"
@@ -316,7 +307,7 @@ def _formatter_gaps(
         if not any(path.endswith(formatter.suffixes) for path in authored):
             continue
         carrier = carriers[formatter.tool]
-        source = _tracked_text(root, carrier, tracked)
+        source = tracked_text(root, carrier, tracked)
         if source is None:
             classes = "/".join(formatter.suffixes)
             yield ParadigmGap(
@@ -343,7 +334,7 @@ def _peer_remote_gaps(
 ) -> Iterator[ParadigmGap]:
     """Name each publication peer's Git remote after the peer itself."""
     release = f"{paradigm.binding.root}/release.toml"
-    source = _tracked_text(root, release, tracked)
+    source = tracked_text(root, release, tracked)
     try:
         declared = tomllib.loads(source) if source is not None else {}
     except tomllib.TOMLDecodeError:
@@ -362,26 +353,41 @@ def _peer_remote_gaps(
             )
 
 
-def _branch_role_gaps(
+def _workspace_gaps(
     paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
 ) -> Iterator[ParadigmGap]:
-    """Keep each standard branch role at the name the branch-role contract defaults to."""
+    """Leave the branch role names and the commit grammar, which it fixes, to the paradigm."""
     workspace = f"{paradigm.binding.root}/workspace.toml"
-    source = _tracked_text(root, workspace, tracked)
+    source = tracked_text(root, workspace, tracked)
     try:
-        declared = tomllib.loads(source).get("branch_roles", {}) if source is not None else {}
+        declared = tomllib.loads(source) if source is not None else {}
     except tomllib.TOMLDecodeError:
-        return  # The workspace policy owner reports an unreadable binding.
-    if not isinstance(declared, dict):
-        return
-    standard = {field.name: field.default for field in fields(BranchRolePolicy)}
-    for role in paradigm.binding.standard_branch_roles:
-        if role in declared and declared[role] != standard[role]:
+        return  # The workspace policy owners report an unreadable binding.
+    roles = declared.get("branch_roles", {})
+    for field in RETIRED_BRANCH_ROLE_FIELDS if isinstance(roles, dict) else ():
+        if field in roles:
             yield ParadigmGap(
                 "branch-roles",
-                f"{workspace}:branch_roles.{role}",
-                f'set {role} = "{standard[role]}" or remove it to use the standard name',
+                f"{workspace}:branch_roles.{field}",
+                _retired_field_repair(field, roles[field]),
             )
+    policy = declared.get("commit_policy", {})
+    if isinstance(policy, dict) and "subject_pattern" in policy:
+        yield ParadigmGap(
+            "commit-grammar",
+            f"{workspace}:commit_policy.subject_pattern",
+            "remove subject_pattern; the repository paradigm owns the commit grammar, "
+            "and scopes = [...] restricts its scopes",
+        )
+
+
+def _retired_field_repair(field: str, value: object) -> str:
+    """Name the removal of one retired branch-role field and what the paradigm fixes instead."""
+    if field == SIBLING_WORKTREE_FIELD:
+        return f"remove {field}; the repository paradigm places Work Lanes in sibling worktrees"
+    name = getattr(BranchRolePolicy(), field)
+    rename = "" if value == name else " after closeout renames the ref"
+    return f"remove {field}{rename}; the repository paradigm fixes it as {name}"
 
 
 def _release_gaps(
@@ -389,7 +395,7 @@ def _release_gaps(
 ) -> Iterator[ParadigmGap]:
     """Keep one version source and one changelog grammar in a repository that tags releases."""
     release = f"{paradigm.binding.root}/release.toml"
-    source = _tracked_text(root, release, tracked)
+    source = tracked_text(root, release, tracked)
     try:
         declared = tomllib.loads(source) if source is not None else {}
     except tomllib.TOMLDecodeError:
@@ -411,7 +417,7 @@ def _release_gaps(
             conventions.version_file,
             f"add {conventions.version_file} as the only version source",
         )
-    project = _tracked_text(root, "pyproject.toml", tracked)
+    project = tracked_text(root, "pyproject.toml", tracked)
     try:
         section = tomllib.loads(project).get("project", {}) if project is not None else {}
     except tomllib.TOMLDecodeError:
@@ -422,7 +428,7 @@ def _release_gaps(
             "pyproject.toml:project.version",
             f"declare the version dynamic and read it from {conventions.version_file}",
         )
-    package = _tracked_text(root, "package.json", tracked)
+    package = tracked_text(root, "package.json", tracked)
     try:
         manifest = json.loads(package) if package is not None else {}
     except json.JSONDecodeError:
@@ -433,7 +439,7 @@ def _release_gaps(
             "package.json:version",
             f"remove the literal version; {conventions.version_file} is the only version source",
         )
-    yield from _changelog_gaps(conventions, _tracked_text(root, conventions.changelog, tracked))
+    yield from _changelog_gaps(conventions, tracked_text(root, conventions.changelog, tracked))
 
 
 def _changelog_gaps(conventions: ReleaseConventions, text: str | None) -> Iterator[ParadigmGap]:
@@ -468,7 +474,7 @@ def _size_gaps(
 ) -> Iterator[ParadigmGap]:
     """Hold every tracked Python file to the shared ceiling, which no binding restates."""
     yield from python_size_gaps(root, tracked)
-    rules = _tracked_text(root, f"{paradigm.binding.root}/rules.toml", tracked)
+    rules = tracked_text(root, f"{paradigm.binding.root}/rules.toml", tracked)
     try:
         quality = tomllib.loads(rules).get("quality", {}) if rules is not None else {}
     except tomllib.TOMLDecodeError:
@@ -511,7 +517,7 @@ def _python_floor(source: str) -> str:
     return bounds[0] if len(bounds) == 1 else ""
 
 
-def _editor_defaults(source: str) -> dict[str, str]:
+def editor_defaults(source: str) -> dict[str, str]:
     """Return the lowercased properties of the EditorConfig section that matches every file."""
     section = ""
     values: dict[str, str] = {}
@@ -525,13 +531,3 @@ def _editor_defaults(source: str) -> dict[str, str]:
             key, _, value = line.partition("=")
             values[key.strip().lower()] = value.strip().lower()
     return values
-
-
-def _tracked_text(root: Path, path: str, tracked: frozenset[str]) -> str | None:
-    """Read one tracked carrier as UTF-8 text, or return None when it is absent or unreadable."""
-    if path not in tracked:
-        return None
-    try:
-        return (root / path).read_text(encoding="utf-8")
-    except (OSError, UnicodeError):
-        return None

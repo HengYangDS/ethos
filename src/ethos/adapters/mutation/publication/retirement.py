@@ -10,6 +10,7 @@ from typing import cast
 from urllib.parse import urlsplit
 
 import ethos.adapters.process as process
+from ethos.adapters.admission.role_rename import legacy_role_names
 from ethos.adapters.mutation.lane_retirement.absorbed import retire_absorbed_ref
 from ethos.adapters.mutation.publication.observation import observe_remote_ref
 from ethos.adapters.repo.commit.conservation import accepted_contribution
@@ -20,12 +21,16 @@ from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import zero_oid
+from ethos.contracts.branch.roles import ROLE_OTHER
+from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import branch_role_policy_from_text
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.release.configuration import release_config_from_text
+from ethos.repository.release.publication import LEGACY_ROLE_REF
+from ethos.repository.release.publication import PROPOSAL_REF
 from ethos.repository.release.publication import publication_ref_role
 from ethos.repository.release.publication import publication_topology
 
@@ -132,7 +137,21 @@ def observe_proposal_review(
     return result
 
 
-def _retirement_context(root: Path, target_ref: str, remote: str) -> tuple[str, str, str, str]:
+def _retirement_role(root: Path, policy: BranchRolePolicy, target_ref: str, old: str) -> str:
+    """Admit a proposal ref, or a role ref that the table committed at its head names as legacy."""
+    _, role, _ = publication_ref_role(policy, target_ref, ())
+    if role != ROLE_OTHER:
+        return role
+    try:
+        names = legacy_role_names(committed_file_text(root, old, ".ethos/workspace.toml"))
+    except (TypeError, ValueError):
+        return role
+    return LEGACY_ROLE_REF if target_ref.removeprefix("refs/heads/") in names.values() else role
+
+
+def _retirement_context(
+    root: Path, target_ref: str, remote: str, old: str
+) -> tuple[str, str, str, str, str]:
     """Read the accepted policy rather than letting unaccepted configuration grant deletion."""
     policy = load_branch_role_policy(root)
     accepted = ref_head(root, policy.accepted_branch)
@@ -150,9 +169,9 @@ def _retirement_context(root: Path, target_ref: str, remote: str) -> tuple[str, 
     gap = "proposal_retirement_topology_invalid"
     if topology["required_gaps"]:
         raise ValueError(gap)
-    _, role, _ = publication_ref_role(policy, target_ref, ())
+    role = _retirement_role(root, policy, target_ref, old)
     gap = "proposal_retirement_target_not_proposal"
-    if role != "proposal_ref":
+    if role not in {PROPOSAL_REF, LEGACY_ROLE_REF}:
         raise ValueError(gap)
     peers = [
         peer
@@ -167,6 +186,7 @@ def _retirement_context(root: Path, target_ref: str, remote: str) -> tuple[str, 
         policy.accepted_branch,
         str(peers[0]["provider"]),
         str(peers[0].get("forge_repository", "")),
+        role,
     )
 
 
@@ -174,14 +194,16 @@ def _retirement_observations(
     root: Path, *, target_ref: str, old: str, remote: str
 ) -> dict[str, object]:
     """Keep absorption failures separate from unavailable peer/review observations."""
-    accepted, accepted_branch, provider, repository = _retirement_context(root, target_ref, remote)
+    accepted, accepted_branch, provider, repository, role = _retirement_context(
+        root, target_ref, remote, old
+    )
     zero = zero_oid(root)
     contribution = (
         {"verdict": "pass", "state": "already_absent", "replacement": zero}
         if old == zero
         else accepted_contribution(root, old, accepted)
     )
-    result: dict[str, object] = {"accepted": accepted, "contribution": contribution}
+    result: dict[str, object] = {"accepted": accepted, "contribution": contribution, "role": role}
     if report_verdict(contribution) == "unknown":
         return {
             **result,
@@ -294,11 +316,13 @@ def proposal_retirement_report(
     except (OSError, ValueError) as error:
         observed = {"verdict": "block", "required_gaps": [str(error)]}
     verdict = report_verdict(observed)
+    role = str(observed.get("role") or PROPOSAL_REF)
+    reason = "legacy_role_retirement" if role == LEGACY_ROLE_REF else "proposal_retirement"
     return {
         **observed,
         "verdict": verdict,
         "state": "admitted" if verdict == "pass" else verdict,
-        "role": "proposal_ref",
+        "role": role,
         "target_ref": target_ref,
         "target_branch": target_ref.removeprefix("refs/heads/"),
         "remote_name": remote,
@@ -307,7 +331,7 @@ def proposal_retirement_report(
         "proof_admission": {"selection": "review_object", "attestation": {}},
         "decision": {
             "action": "allow" if verdict == "pass" else "block",
-            "reason": "proposal_retirement",
+            "reason": reason,
         },
         "next_action": observed.get("next_action")
         or shlex.join(

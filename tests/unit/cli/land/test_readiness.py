@@ -159,12 +159,12 @@ def test_publication_readiness_selects_fallback_or_admitted_proposal_observation
 def test_publish_local_readiness_does_not_project_a_publication_plan(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     write_role_policy(repo)
-    git(repo, "checkout", "-b", "lane/topic")
+    git(repo, "checkout", "-b", "work/topic")
 
     payload = run_ethos("publish", "--root", repo.as_posix(), "--json", cwd=repo)
 
     publication = payload["data"]["publication"]
-    assert publication["source_branch"] == "lane/topic"
+    assert publication["source_branch"] == "work/topic"
     assert publication["source_role"] == "work_lane"
     assert not {"proposal_branch", "local_proposal_package"} & publication.keys()
     context = publication_domain.observe_publication(

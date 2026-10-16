@@ -438,12 +438,7 @@ def prepare_acceptance_topology(
     run(git, "add", "notes/candidate.txt", cwd=candidate)
     run(git, "commit", "--quiet", "-m", "advance candidate independently", cwd=candidate)
     (root / ".ethos/workspace.toml").write_text(
-        '[branch_roles]\nrelease_branch = "main"\naccepted_branch = "dev"\n'
-        'candidate_branch = "candidate/dev"\nrelease_mirror = "independent"\n'
-        'work_branch_prefix = "work/"\nproposal_branch_prefix = "proposal/"\n'
-        "canonical_sibling_worktrees = false\n"
-        '[commit_policy]\nsubject_pattern = ".+"\nsigning_required = true\n'
-        'signing_format = "ssh"\n',
+        '[commit_policy]\nsigning_required = true\nsigning_format = "ssh"\n',
         encoding="utf-8",
     )
     profile = root / ".ethos/profile.toml"
@@ -481,7 +476,7 @@ def prepare_acceptance_topology(
         "commit",
         "--quiet",
         "-m",
-        "require accepted signature repair",
+        "chore: require accepted signature repair",
         cwd=root,
     )
     return candidate

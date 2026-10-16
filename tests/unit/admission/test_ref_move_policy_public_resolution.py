@@ -79,7 +79,7 @@ def test_absorbed_legacy_ref_requires_exact_current_policy_intent(
     legacy = git(repo, "rev-parse", "HEAD")
     write_role_policy(repo)
     accepted = git(repo, "rev-parse", "HEAD")
-    ref_name = "refs/heads/lane/legacy"
+    ref_name = "refs/heads/work/legacy"
     old, new = (legacy, _ZERO) if operation == "lane.retire" else (_ZERO, legacy)
     write_ref_intent(
         root=repo,
@@ -92,7 +92,7 @@ def test_absorbed_legacy_ref_requires_exact_current_policy_intent(
     policy = resolve_ref_move_policy(repo, ref_name, old, new)
 
     assert git(repo, "rev-parse", "HEAD") == accepted
-    assert policy.role_for_branch("lane/legacy") == "work_lane"
+    assert policy.role_for_branch("work/legacy") == "work_lane"
 
 
 @pytest.mark.parametrize("case", ["missing-intent", "wrong-role", "head-drift"])
@@ -102,7 +102,7 @@ def test_absorbed_legacy_ref_fails_closed_without_exact_current_authority(
     repo = init_git_repo(tmp_path / "repo")
     legacy = git(repo, "rev-parse", "HEAD")
     write_role_policy(repo)
-    ref_name = "refs/heads/lane/legacy"
+    ref_name = "refs/heads/work/legacy"
     if case != "missing-intent":
         write_ref_intent(
             root=repo,
@@ -126,17 +126,19 @@ def test_absorbed_legacy_ref_fails_closed_without_exact_current_authority(
 def test_candidate_destination_uses_resolved_strict_policy(tmp_path: Path, candidate: str) -> None:
     """Uncommitted role/ancestry edits cannot change exact hook destination admission."""
     repo = init_git_repo(tmp_path / "repo")
-    write_role_policy(repo, candidate_branch="candidate/dev")
+    write_role_policy(repo)
     head = git(repo, "rev-parse", "HEAD")
     ref = "refs/heads/candidate/dev"
     roles = resolve_ref_move_policy(repo, ref, head, head)
     path = repo / ".ethos/workspace.toml"
     original = path.read_text()
-    changed = original.replace(
-        'candidate_branch = "candidate/dev"', f'candidate_branch = "{candidate}"'
+    path.write_text(
+        original.replace(
+            "[branch_roles]\n",
+            f'[branch_roles]\ncandidate_branch = "{candidate}"\n'
+            'accepted_branch = "missing-accepted"\n',
+        )
     )
-    changed = changed.replace('accepted_branch = "dev"', 'accepted_branch = "missing-accepted"')
-    path.write_text(changed)
     assert (
         candidate_destination_gaps(
             repo, ref, GitRefUpdate(expected=head, desired=head), policy=roles

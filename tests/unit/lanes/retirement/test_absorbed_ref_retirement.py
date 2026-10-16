@@ -221,13 +221,7 @@ def test_installed_hook_retires_two_refs_under_exact_accepted_policy(
     source = git(repo, "rev-parse", "HEAD")
     adopt_and_commit(repo)
     accepted_policy = """[branch_roles]
-release_branch = "main"
-accepted_branch = "dev"
-candidate_branch = "candidate/dev"
 release_mirror = "accepted_ff"
-work_branch_prefix = "work/"
-proposal_branch_prefix = "proposal/"
-canonical_sibling_worktrees = true
 """
     workspace = repo / ".ethos/workspace.toml"
     workspace.write_text(accepted_policy, encoding="utf-8")

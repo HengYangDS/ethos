@@ -110,25 +110,13 @@ def test_repair_keeps_unrelated_candidate_and_independent_release(tmp_path):
     assert git(repo, "rev-parse", "main") == old
 
 
-@pytest.mark.parametrize("accepted_branch", ["dev", "integration"])
-def test_repair_supports_local_only_without_candidate_or_release_refs(tmp_path, accepted_branch):
+def test_repair_supports_local_only_without_candidate_or_release_refs(tmp_path):
     repo, old, candidate = signature_repository(tmp_path)
     git(repo, "worktree", "remove", str(candidate))
     git(repo, "branch", "-D", "candidate/dev", "main")
-    if accepted_branch != "dev":
-        policy = repo / ".ethos/workspace.toml"
-        policy.write_text(
-            policy.read_text().replace('accepted_branch = "dev"', 'accepted_branch = "integration"')
-        )
-        git(repo, "add", ".ethos/workspace.toml")
-        git(repo, "commit", "-m", "fix: declare integration role")
-        git(repo, "branch", "-m", "integration")
-        old = git(repo, "rev-parse", "HEAD")
     result = repair.repair_signature(root=repo, expect_head=old, apply=True, authorized=True)
     assert result["state"] == "signature_repaired", result
-    assert git(repo, "for-each-ref", "--format=%(refname)", "refs/heads") == (
-        f"refs/heads/{accepted_branch}"
-    )
+    assert git(repo, "for-each-ref", "--format=%(refname)", "refs/heads") == "refs/heads/dev"
     assert git(repo, "remote") == ""
 
 

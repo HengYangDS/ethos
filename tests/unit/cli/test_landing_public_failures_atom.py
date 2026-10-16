@@ -208,7 +208,10 @@ def test_closeout_accepts_exact_previous_policy_schema(
 ) -> None:
     repo, candidate = start_adopted_candidate(tmp_path)
     workspace = repo / ".ethos/workspace.toml"
-    previous = workspace.read_text().replace("canonical_sibling_worktrees = false\n", "")
+    current = workspace.read_text()
+    previous = current.replace(
+        "[branch_roles]\n", "[branch_roles]\ncanonical_sibling_worktrees = true\n"
+    )
     workspace.write_text(previous)
     git(repo, "add", workspace.as_posix())
     git(repo, "commit", "-m", "retain previous complete policy")
@@ -224,8 +227,8 @@ def test_closeout_accepts_exact_previous_policy_schema(
     head = commit_fixture_file(
         worktree,
         ".ethos/workspace.toml",
-        previous + "canonical_sibling_worktrees = false\n",
-        "upgrade declared branch roles",
+        current,
+        "remove the retired sibling worktree setting",
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     seed_executed_proof(worktree, head)

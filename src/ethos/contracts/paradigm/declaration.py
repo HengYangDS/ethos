@@ -6,6 +6,7 @@ their manifest is tracked, without encoding one repository or its product layout
 """
 
 import posixpath
+import re
 import tomllib
 from functools import lru_cache
 from importlib import resources
@@ -50,7 +51,6 @@ class BindingFileSet(BaseModel):
 
     root: str
     files: FrozenTuple[str]
-    standard_branch_roles: FrozenTuple[str]
 
 
 class EditorDefaults(BaseModel):
@@ -114,6 +114,43 @@ class SizeCeilings(BaseModel):
     markdown_nonblank_lines: int = Field(gt=0)
 
 
+class DocumentConventions(BaseModel):
+    """The name grammar of a repository's numbered decision records."""
+
+    model_config = _DECLARATION
+
+    decision_record_name: str
+
+
+class CommitGrammar(BaseModel):
+    """The commit subject grammar every governed repository shares."""
+
+    model_config = _DECLARATION
+
+    types: FrozenTuple[str]
+    scope: str
+    breaking_marker: str = Field(min_length=1, max_length=1)
+
+    @model_validator(mode="after")
+    def require_compilable_grammar(self) -> Self:
+        """Reject duplicate types and a grammar that does not compile."""
+        if not self.types or len(set(self.types)) != len(self.types):
+            message = "commit grammar types must be unique and non-empty"
+            raise ValueError(message)
+        try:
+            re.compile(self.subject_pattern())
+        except re.error as error:
+            message = f"commit grammar does not compile: {error}"
+            raise ValueError(message) from error
+        return self
+
+    def subject_pattern(self, scopes: tuple[str, ...] = ()) -> str:
+        """Compile the subject grammar, restricting scopes to a declared list when present."""
+        scope = "|".join(re.escape(name) for name in scopes) if scopes else self.scope
+        types = "|".join(self.types)
+        return rf"^({types})(\(({scope})\))?{re.escape(self.breaking_marker)}?: .+"
+
+
 class EcosystemModule(BaseModel):
     """One ecosystem module, applied exactly when its manifest is tracked at the root."""
 
@@ -155,6 +192,8 @@ class RepositoryParadigm(BaseModel):
     formatter: FrozenTuple[FormatterBinding]
     release: ReleaseConventions
     size: SizeCeilings
+    documents: DocumentConventions
+    commit: CommitGrammar
     module: FrozenTuple[EcosystemModule]
     tool: FrozenTuple[ToolCarrier]
 

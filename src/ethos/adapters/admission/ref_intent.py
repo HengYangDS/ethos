@@ -220,6 +220,32 @@ def _identity_gap(
     return next((gap for failed, gap in checks if failed), "")
 
 
+def plan_ref_intents(
+    root: Path, *, ref_name: str, update: GitRefUpdate, operation: str
+) -> tuple[tuple[str, str, str], ...]:
+    """Return every update of the one plan whose intent names this exact update and operation."""
+    directory = ref_intent_dir(root)
+    intents = [
+        intent
+        for intent in map(_read, sorted(directory.glob("*.json")) if directory.is_dir() else ())
+        if intent is not None and intent.operation == operation
+    ]
+    digests = {
+        intent.plan_digest
+        for intent in intents
+        if intent.ref_name == ref_name
+        and not _identity_gap(intent, update=update, operation=operation, plan_digest=None)
+    }
+    if len(digests) != 1:
+        return ()
+    digest = digests.pop()
+    return tuple(
+        (intent.ref_name, intent.old_value, intent.new_value)
+        for intent in intents
+        if intent.plan_digest == digest
+    )
+
+
 def committed_ref_intent(
     *,
     root: Path,

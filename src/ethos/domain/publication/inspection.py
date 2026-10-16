@@ -311,6 +311,7 @@ def observe_publication(
     authorized: bool,
     expect_head: str | None,
     target_refs: tuple[str, ...],
+    retire: bool = False,
 ) -> PublicationContext:
     """Observe local admission once for readiness or exact remote publication."""
     governance = repository_context(repo)
@@ -341,6 +342,7 @@ def observe_publication(
             target_ref=ref,
             release_tags=release_tags,
             remote_name=next(iter(configured_remotes.values()), ""),
+            retire=retire,
         )
         for ref in target_refs
     }

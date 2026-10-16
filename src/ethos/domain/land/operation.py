@@ -33,6 +33,7 @@ from ethos.domain.land.closeout import closeout_bootstrap_package
 from ethos.domain.land.closeout import closeout_resolution
 from ethos.domain.land.closeout import land_next_action
 from ethos.domain.land.closeout import repository_audit_after_admission
+from ethos.domain.land.legacy_roles import legacy_role_rename_result
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
@@ -490,6 +491,13 @@ def land_repository(
             next_action=str(report["next_action"]),
             data=cast("dict[str, object]", report["data"]),
         )
+    renamed = (
+        legacy_role_rename_result(repo, apply=apply, authorize=authorize, expect_head=expect_head)
+        if closeout
+        else None
+    )
+    if renamed is not None:
+        return renamed
     current_head = git.current_head(repo)
     command = "closeout" if closeout else "land"
     return (

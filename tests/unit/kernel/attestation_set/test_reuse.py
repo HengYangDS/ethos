@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -22,9 +23,7 @@ _CAPACITY = 1024 * 1024
 @pytest.fixture(autouse=True)
 def bounded_reuse(monkeypatch: pytest.MonkeyPatch) -> None:
     """Exercise the reuse bound with small inputs instead of production-sized members."""
-    monkeypatch.setattr(
-        attestation_set, "_validated_member", attestation_set.member_validator(_CAPACITY)
-    )
+    monkeypatch.setattr(attestation_set, "_member_reuse", attestation_set.MemberReuse(_CAPACITY))
 
 
 @pytest.mark.parametrize("payload_bytes", [0, 131_072])
@@ -55,6 +54,34 @@ def test_attestation_set_reuses_validation_but_not_selected_membership(
     assert attestation_set.read_attestation_set(repo) == (first["root"], (one,))
     git(repo, "update-ref", "-d", attestation_set.ATTESTATION_SET_REF)
     assert attestation_set.read_attestation_set(repo) == ("", ())
+
+
+def test_attestation_set_rereads_only_new_member_objects(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A repeated read fetches only the selected root and members not yet validated."""
+    repo = init_git_repo(tmp_path / "repo")
+    one, two = occurrence_attestation(3_101), occurrence_attestation(3_102)
+    attestation_set.record_attestations(repo, (one,))
+    attestation_set.read_attestation_set(repo)
+    second = attestation_set.record_attestations(repo, (two,))
+    requested: list[tuple[str, ...]] = []
+    read = attestation_set.read_objects
+
+    def observed(
+        repository: Path, object_ids: tuple[str, ...], **options: Any
+    ) -> tuple[bytes, ...]:
+        requested.append(object_ids)
+        return read(repository, object_ids, **options)
+
+    monkeypatch.setattr(attestation_set, "read_objects", observed)
+
+    assert attestation_set.read_attestation_set(repo) == (
+        second["root"],
+        tuple(sorted((one, two), key=lambda item: item.id)),
+    )
+    member = f"{second['root']}:evidence/attestations/{two.id[:2]}/{two.id}.json"
+    assert requested == [(second["root"], git(repo, "rev-parse", member))]
 
 
 def test_attestation_set_oversized_member_does_not_consume_reuse_capacity(

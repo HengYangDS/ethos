@@ -6,6 +6,7 @@ import pytest
 
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import branch_role_policy_from_text
+from ethos.contracts.branch.roles import declared_role_names
 from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
 
 CURRENT = """[branch_roles]
@@ -73,51 +74,42 @@ coupled_with = "candidate.accept"
 """
     )
 
-    assert branch_role_policy_from_text(historical) == BranchRolePolicy(
-        canonical_sibling_worktrees=False
-    )
-    with pytest.raises(ValueError, match="complete and exact"):
+    assert branch_role_policy_from_text(historical) == BranchRolePolicy()
+    with pytest.raises(ValueError, match="unknown fields"):
         strict_branch_role_policy_from_text(historical)
 
 
 def test_branch_role_current_schema_maps_exactly() -> None:
-    assert strict_branch_role_policy_from_text(CURRENT) == BranchRolePolicy(
-        canonical_sibling_worktrees=False
-    )
+    assert strict_branch_role_policy_from_text(CURRENT) == BranchRolePolicy()
 
 
 def test_a_workspace_without_the_table_keeps_the_standard_roles() -> None:
     workspace = "[commit_policy]\nsigning_required = true\n"
 
     assert strict_branch_role_policy_from_text(workspace) == BranchRolePolicy()
-    assert (
-        strict_branch_role_policy_from_text(workspace, allow_predecessor_defaults=True)
-        == BranchRolePolicy()
-    )
-    with pytest.raises(ValueError, match="complete and exact"):
+    assert declared_role_names(workspace) == {}
+    with pytest.raises(ValueError, match="must be a table"):
         strict_branch_role_policy_from_text('branch_roles = "main"\n')
 
 
-def test_predecessor_policies_require_explicit_incumbent_compatibility() -> None:
-    previous = CURRENT.replace("canonical_sibling_worktrees = false\n", "")
-    oldest = previous.replace('release_mirror = "independent"\n', "")
+def test_the_paradigm_fixes_every_role_name() -> None:
+    """A table declares the release mirror; declared names and the sibling setting are retired."""
+    legacy = CURRENT.replace('"candidate/dev"', '"candidate/train"').replace(
+        'proposal_branch_prefix = "proposal/"', 'proposal_branch_prefix = "submit/"'
+    )
+    partial = '[branch_roles]\nrelease_mirror = "accepted_ff"\n'
 
-    for table in (previous, oldest):
-        with pytest.raises(ValueError, match="complete and exact"):
-            strict_branch_role_policy_from_text(table)
-        assert strict_branch_role_policy_from_text(
-            table, allow_predecessor_defaults=True
-        ) == BranchRolePolicy(canonical_sibling_worktrees=False)
-    custom = oldest.replace('"candidate/dev"', '"candidate/train"')
-    assert (
-        strict_branch_role_policy_from_text(custom, allow_predecessor_defaults=True)
-    ).candidate_branch == "candidate/train"
-
-    incomplete = previous.replace('release_branch = "main"\n', "")
-    mirrorless = CURRENT.replace('release_mirror = "independent"\n', "")
-    for table in (incomplete, mirrorless, previous + "unknown = true\n"):
-        with pytest.raises(ValueError, match="complete and exact"):
-            strict_branch_role_policy_from_text(table, allow_predecessor_defaults=True)
+    assert strict_branch_role_policy_from_text(legacy) == BranchRolePolicy()
+    assert branch_role_policy_from_text(legacy) == BranchRolePolicy()
+    assert declared_role_names(legacy)["candidate_branch"] == "candidate/train"
+    assert strict_branch_role_policy_from_text(partial) == BranchRolePolicy(
+        release_mirror="accepted_ff"
+    )
+    assert strict_branch_role_policy_from_text(
+        partial + "canonical_sibling_worktrees = true\n"
+    ) == BranchRolePolicy(release_mirror="accepted_ff")
+    with pytest.raises(ValueError, match="unknown fields"):
+        strict_branch_role_policy_from_text(partial + "unknown = true\n")
 
 
 @pytest.mark.parametrize(

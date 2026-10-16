@@ -19,7 +19,6 @@ from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import write_role_policy
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -126,9 +125,8 @@ def test_candidate_policy_cannot_reclassify_predecessor_accepted_destination(tmp
     """Prior committed role meaning remains the floor when proposed policy changes."""
     repo, baseline, _proposed = _fixture(tmp_path)
     policy = repo / ".ethos/workspace.toml"
-    policy.write_text(
-        policy.read_text().replace('accepted_branch = "dev"', 'accepted_branch = "new-dev"')
-    )
+    declared = '[branch_roles]\naccepted_branch = "new-dev"\n'
+    policy.write_text(policy.read_text().replace("[branch_roles]\n", declared))
     proposed = commit_fixture(repo, "rename candidate accepted role")
 
     report = _observe(repo, "refs/heads/dev", proposed, baseline)
@@ -167,22 +165,6 @@ def test_malformed_prior_policy_cannot_be_replaced_with_candidate_defaults(tmp_p
 
     assert any(gap.startswith("publication_policy_invalid:") for gap in report["required_gaps"])
     assert report["data"]["policy_ref"] == baseline
-
-
-def test_exact_accepted_role_precedes_an_overlapping_review_prefix(tmp_path: Path):
-    """A configured accepted name inside a review prefix is still protected."""
-    repo, _baseline, _proposed = _fixture(tmp_path)
-    write_role_policy(repo, accepted_branch="review/dev", proposal_branch_prefix="review/")
-    baseline = git(repo, "rev-parse", "HEAD")
-    (repo / "readme.txt").write_text("candidate\n")
-    proposed = commit_fixture(repo, "new candidate")
-
-    report = _observe(repo, "refs/heads/review/dev", proposed, baseline)
-
-    assert report["data"]["role"] == "accepted_root"
-    assert report["verdict"] == "pass"
-    assert report["required_gaps"] == []
-    assert report["data"]["satisfies_repository_proof"] is False
 
 
 def test_native_detached_cli_observes_exact_objects_without_a_state_directory(tmp_path: Path):

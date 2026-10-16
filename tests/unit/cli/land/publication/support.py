@@ -171,7 +171,7 @@ def accepted_release_fixture(
     workspace = repo / ".ethos/workspace.toml"
     workspace.write_text(
         workspace.read_text()
-        + '\n[commit_policy]\nsubject_pattern = "^fix: .+"\n'
+        + "\n[commit_policy]\n"
         + 'signing_required = true\nsigning_format = "ssh"\n'
     )
     (repo / native_version).write_text(

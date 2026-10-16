@@ -79,12 +79,11 @@ def prepared_work_lane(
 
 def lane_start_arguments(
     repository: Path,
-    worktree: Path,
     *,
     name: str = "feature",
     holder_ref: str = "agent:test:case:agent-test",
 ) -> tuple[str, ...]:
-    """Build canonical CLI arguments for an applied test Work Lane start."""
+    """Build CLI arguments for an applied test Work Lane start at its dated sibling path."""
     commit_openspec_baseline(repository)
     return (
         "lane",
@@ -92,8 +91,6 @@ def lane_start_arguments(
         name,
         "--root",
         repository.as_posix(),
-        "--path",
-        worktree.as_posix(),
         "--holder-ref",
         holder_ref,
         "--apply",
@@ -202,7 +199,7 @@ def create_change_source_lane(
     base_branch = base_ref or load_branch_role_policy(repo).accepted_branch
     git(repo, "worktree", "add", "-b", branch, path.as_posix(), base_branch)
     _write_active_change_carrier(path, change_id=change_id)
-    commit_fixture(path, f"declare {change_id}")
+    commit_fixture(path, f"docs(openspec): declare {change_id}")
     now = datetime.now(UTC)
     acquire_lease(
         state_database(repo),
@@ -315,7 +312,7 @@ def commit_active_change(
     """Commit one official active OpenSpec Change and return its exact HEAD."""
     write_active_commitment(repo, change_id=change_id)
     if git(repo, "status", "--short"):
-        commit_fixture(repo, "declare active change")
+        commit_fixture(repo, "docs(openspec): declare the active change")
     return git(repo, "rev-parse", "HEAD")
 
 
@@ -332,26 +329,12 @@ def _enable_openspec_profile(repo: Path) -> None:
         )
 
 
-def write_role_policy(
-    repo: Path,
-    *,
-    release_branch: str = "main",
-    accepted_branch: str = "dev",
-    candidate_branch: str = "stage/dev",
-    work_branch_prefix: str = "lane/",
-    proposal_branch_prefix: str = "review/",
-    release_mirror: str = "independent",
-) -> None:
-    """Write and commit a branch-role policy fixture."""
+def write_role_policy(repo: Path, *, release_mirror: str = "independent") -> None:
+    """Write and commit a branch-role policy fixture; the paradigm fixes the role names."""
     workspace_path = repo / ".ethos" / "workspace.toml"
     workspace_path.parent.mkdir(parents=True, exist_ok=True)
     workspace_path.write_text(
         render_branch_policy(
-            release_branch=release_branch,
-            accepted_branch=accepted_branch,
-            candidate_branch=candidate_branch,
-            work_branch_prefix=work_branch_prefix,
-            proposal_branch_prefix=proposal_branch_prefix,
             release_mirror=release_mirror,
         ),
         encoding="utf-8",
@@ -366,11 +349,6 @@ def adopt_and_commit(
     initialize_adopted_fixture(repo)
     (repo / ".ethos" / "workspace.toml").write_text(
         render_branch_policy(
-            release_branch="main",
-            accepted_branch="dev",
-            candidate_branch="candidate/dev",
-            work_branch_prefix="work/",
-            proposal_branch_prefix="proposal/",
             release_mirror=release_mirror,
         ),
         encoding="utf-8",
@@ -388,26 +366,12 @@ def adopt_and_commit(
     return commit_fixture(repo, "adopt ethos governance")
 
 
-def render_branch_policy(
-    *,
-    release_branch: str,
-    accepted_branch: str,
-    candidate_branch: str,
-    work_branch_prefix: str,
-    proposal_branch_prefix: str,
-    release_mirror: str,
-) -> str:
-    """Render the complete branch-role policy shared by repository fixtures."""
+def render_branch_policy(*, release_mirror: str) -> str:
+    """Render the branch-role settings for fixtures; the paradigm fixes the role names."""
     return "\n".join(
         (
             "[branch_roles]",
-            f'release_branch = "{release_branch}"',
-            f'accepted_branch = "{accepted_branch}"',
-            f'candidate_branch = "{candidate_branch}"',
-            f'work_branch_prefix = "{work_branch_prefix}"',
-            f'proposal_branch_prefix = "{proposal_branch_prefix}"',
             f'release_mirror = "{release_mirror}"',
-            "canonical_sibling_worktrees = false",
             "",
         )
     )

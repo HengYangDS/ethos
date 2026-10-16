@@ -24,7 +24,8 @@
 - [x] 2.17 Fix the branch role names in the paradigm: the readers take only `release_mirror` and `canonical_sibling_worktrees` from `[branch_roles]`, and accepted closeout renames legacy role refs in one ref transaction, rebinds their worktrees, and leaves Git admission refusing any other move of a legacy role ref; focused tests cover legacy names, settings-only tables, the rename, an interrupted binding, refused renames and refused direct moves.
 - [x] 2.18 Report every declared branch role name, standard or legacy, naming the closeout rename a legacy name waits for, and remove the names from ETHOS's workspace, the routing contract and the fixture tables; focused tests cover a settings-only table, a standard name and a legacy name.
 - [x] 2.20 Retire a published legacy role ref through `ethos publish --retire` and the pre-push hook when the table committed at its remote head declares that name as a legacy accepted or candidate name and the accepted head, locally and on the peer, contains that head; focused tests cover a retired legacy ref and a refused undeclared name.
-- [ ] 2.19 Retire the legacy role rename, its Git admission and the legacy role ref retirement once no adopter declares a legacy role name or publishes a legacy role ref.
+- [ ] 2.21 Extend the legacy role migration to a legacy release root and legacy topic prefixes before di-effect rebinds to the paradigm runtime: accepted closeout renames a declared legacy release branch such as `master` to `main` with its worktree, and publication retirement deletes a published legacy release ref and refs under a legacy proposal prefix such as `submit/`, each judged from the committed table; focused tests cover both.
+- [ ] 2.19 Retire the legacy role rename, its Git admission and the legacy role ref retirement after 2.21, once no adopter declares a legacy role name or publishes a legacy role ref.
 
 ## 3. ETHOS conformance
 

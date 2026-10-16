@@ -50,12 +50,12 @@ _REPAIR_RECORDS = frozenset({"effect:commit-signature", "observation:signature-r
 class LifetimeFacts:
     """Fresh repository facts that can end a lifetime; an absent ref alone never does.
 
-    `packages` is None when no runtime package store was observed, which ends no generation.
+    `pinned` holds commits that something other than a direct ref keeps: fully peeled tags
+    and worktree HEADs.
     """
 
     refs: Mapping[str, str]
-    peeled: frozenset[str]
-    packages: frozenset[str] | None
+    pinned: frozenset[str]
     absent_objects: frozenset[str]
     now: datetime
 
@@ -84,7 +84,8 @@ def _ref_update_lifetime(attestation: Attestation) -> tuple[Lifetime, str]:
     updates = _updates(body)
     lane = ""
     if transition in _LANE_SUBJECT_TRANSITIONS:
-        lane = _text(policy, "subject")
+        # Absorbed-ref and handoff retirements name the lane as `branch`.
+        lane = _text(policy, "subject") or _text(policy, "branch")
     elif transition in _LANE_EXECUTION_TRANSITIONS:
         lane = _text(policy, "execution_branch")
     elif transition in _LANE_REF_TRANSITIONS and len(updates) == 1:
@@ -172,11 +173,13 @@ def _latest_publications(members: Sequence[Attestation]) -> frozenset[str]:
 
 
 def _lineage_ended(key: str, facts: LifetimeFacts) -> bool:
-    """A lineage ends on its own absence; a tag and the starter never end by observation."""
+    """Only repair lineage ends, once its pre-repair objects are gone.
+
+    Release tags may still exist on a peer, version admission refuses rollback against every
+    accepted identity, and the starter formation describes the repository itself.
+    """
     if key.startswith("repair:"):
         return all(old in facts.absent_objects for old in key.removeprefix("repair:").split())
-    if key.startswith("runtime:"):
-        return facts.packages is not None and key.removeprefix("runtime:") not in facts.packages
     return False
 
 
@@ -195,7 +198,6 @@ def _landing(attestation: Attestation) -> tuple[str, str] | None:
 class _Evidence:
     """Positive evidence gathered once from all members before each member is judged."""
 
-    retired: Mapping[str, datetime]
     landed: Mapping[tuple[str, str], datetime]
     selected: frozenset[str]
 
@@ -203,19 +205,14 @@ class _Evidence:
 def _evidence(
     classified: Sequence[tuple[Attestation, Lifetime, str]], facts: LifetimeFacts
 ) -> _Evidence:
-    retired: dict[str, datetime] = {}
     landed: dict[tuple[str, str], datetime] = {}
-    for member, kind, key in classified:
-        transition = _mapping(member.payload.body, "plan", "policy").get("transition")
-        if kind == "operation" and transition == "lane.retire":
-            retired[key] = max(retired.get(key, member.issued_at), member.issued_at)
+    for member, kind, _key in classified:
         if kind == "head" and (landing := _landing(member)):
             landed[landing] = max(landed.get(landing, member.issued_at), member.issued_at)
     publications = _latest_publications([member for member, _kind, _key in classified])
     return _Evidence(
-        retired=retired,
         landed=landed,
-        selected=frozenset(facts.refs.values()) | facts.peeled | publications,
+        selected=frozenset(facts.refs.values()) | facts.pinned | publications,
     )
 
 
@@ -224,12 +221,8 @@ def _has_ended(
 ) -> bool:
     if kind == "window":
         return member.valid_until is not None and member.valid_until < facts.now
-    if kind == "operation":
-        return (
-            key in evidence.retired
-            and f"refs/heads/{key}" not in facts.refs
-            and member.issued_at <= evidence.retired[key]
-        )
+    # Lane records outlive the lane: accepted proofs resolve archived intent through a retired
+    # lane's archive and refresh records, so no retirement alone ends an operation lifetime.
     if kind == "head":
         # A landing record may precede its ref move; only a later landing supersedes it.
         landing = _landing(member)

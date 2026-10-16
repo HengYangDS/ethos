@@ -64,3 +64,9 @@ member binds their digest.
 - **WHEN** the last selected member that binds a custody digest leaves the set
 - **THEN** the stored bytes for that digest are deleted
 - **AND** bytes still bound by another member remain
+
+#### Scenario: A record races the deletion of its evidence
+
+- **WHEN** a record binds bytes that a concurrent update is deleting
+- **THEN** the record waits for the deletion and stores its bytes again
+- **AND** a cleanup failure after a swap is reported without failing the update

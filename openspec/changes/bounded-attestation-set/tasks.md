@@ -7,7 +7,7 @@
 
 ## 2. Lifetime-Bounded Members
 
-- [x] 2.1 Remove ended members in the set writer's exact-CAS update; verify concurrent writers, retired versus live lanes, superseded versus current heads, and retained release, repair, runtime and starter lineage.
+- [x] 2.1 Remove ended members in the set writer's exact-CAS update; verify concurrent writers, the custody lock, kept lane records, superseded versus pinned heads, repair lineage, and retained release, runtime and starter lineage.
 - [ ] 2.2 Verify the public land, closeout, publish, retire, release catch-up, signature repair and starter journeys with historical members removed.
 
 ## 3. Existing Members
@@ -25,4 +25,5 @@
 ## Workflow follow-up
 
 - Each landing needs its own exact-head full proof, closeout and publication to both peers.
+- Lane records keep accumulating until a follow-up Change bounds them by their consumers; owner a225c731, next action drafting that Change after this one lands, review 2026-10-23.
 - Custody owners: `agent:codex:ethos:semantic-observation`, Codex threads 019f3a1b, 019fa96d, 01a00063 and 01a11a05, and the verifier of `evidence:historical-lane-preservation`. Pause notices were queued on 2026-10-15 with the user's authorization; 019f3a1b, 019fa96d and 01a00063 paused new embedding and reported no member releasable yet.

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import subprocess
 import tempfile
+from contextlib import nullcontext
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -20,13 +22,16 @@ from ethos.adapters.repo.attestation_lifetime import lifetime
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
+from ethos.adapters.store.custody import binds_custody
 from ethos.adapters.store.custody import custody_digests
+from ethos.adapters.store.custody import custody_lock
 from ethos.adapters.store.custody import release_custody
-from ethos.adapters.store.state.schema import local_state_root
+from ethos.adapters.store.custody import store_custody
 from ethos.contracts.semantic import Attestation
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from contextlib import AbstractContextManager
 
 ATTESTATION_SET_REF = "refs/ethos/attestations-set"
 _MEMBER_ROOT = "evidence/attestations"
@@ -228,10 +233,8 @@ def _member_tree_paths(identities: Iterable[str]) -> set[str]:
 def _canonical_inputs(attestations: tuple[Attestation, ...]) -> dict[str, bytes]:
     members: dict[str, bytes] = {}
     for attestation in attestations:
+        custody_digests(attestation)
         raw = attestation.canonical_json().encode()
-        if len(raw) > MEMBER_BYTES_LIMIT:
-            message = f"attestation_member_too_large:{attestation.id}"
-            raise ValueError(message)
         if previous := members.get(attestation.id):
             if previous != raw:
                 message = f"attestation_set_identity_collision:{attestation.id}"
@@ -239,6 +242,21 @@ def _canonical_inputs(attestations: tuple[Attestation, ...]) -> dict[str, bytes]
         else:
             members[attestation.id] = raw
     return members
+
+
+def _require_bounded(incoming: dict[str, bytes], identities: Iterable[str]) -> None:
+    """Refuse oversized members among those being added; replaying a member stays a no-op."""
+    for identity in identities:
+        if len(incoming[identity]) > MEMBER_BYTES_LIMIT:
+            message = f"attestation_member_too_large:{identity}"
+            raise ValueError(message)
+
+
+def _require_known_bytes(incoming: dict[str, bytes], current: dict[str, str]) -> None:
+    for identity, raw in incoming.items():
+        if identity in current and current[identity] != _blob_id(raw, like=current[identity]):
+            message = f"attestation_set_identity_collision:{identity}"
+            raise ValueError(message)
 
 
 def _write_tree(
@@ -334,25 +352,22 @@ def _compare_and_swap_root(repo: Path, *, desired: str, observed: str) -> bool:
 
 
 def _lifetime_facts(repo: Path, members: tuple[Attestation, ...]) -> LifetimeFacts:
-    """Observe the refs, runtime packages and pre-repair objects that can end lifetimes."""
+    """Observe the refs, pinned commits and pre-repair objects that can end lifetimes."""
+    shown = run_git(repo, "show-ref", "--dereference", check=False, observation=True)
+    if shown.returncode not in {0, 1} or shown.stderr:
+        message = "attestation_lifetime_refs_unavailable"
+        raise ValueError(message)
     refs: dict[str, str] = {}
-    peeled: set[str] = set()
-    listed = run_git(
-        repo,
-        "for-each-ref",
-        "--format=%(refname)%00%(objectname)%00%(*objectname)",
-        observation=True,
-    ).stdout
-    for row in listed.splitlines():
-        name, object_id, target = row.split("\0")
-        refs[name] = object_id
-        if target:
-            peeled.add(target)
-    store = local_state_root(repo) / "packages"
-    packages = (
-        frozenset(path.name for path in store.iterdir() if path.is_dir())
-        if store.is_dir()
-        else None
+    pinned: set[str] = set()
+    for row in shown.stdout.splitlines():
+        object_id, name = row.split(" ", maxsplit=1)
+        if name.endswith("^{}"):
+            pinned.add(object_id)
+        else:
+            refs[name] = object_id
+    worktrees = run_git(repo, "worktree", "list", "--porcelain", observation=True).stdout
+    pinned.update(
+        line.removeprefix("HEAD ") for line in worktrees.splitlines() if line.startswith("HEAD ")
     )
     olds = sorted(
         {
@@ -375,11 +390,30 @@ def _lifetime_facts(repo: Path, members: tuple[Attestation, ...]) -> LifetimeFac
     )
     return LifetimeFacts(
         refs=refs,
-        peeled=frozenset(peeled),
-        packages=packages,
+        pinned=frozenset(pinned),
         absent_objects=frozenset(line.split()[0] for line in checked if line.endswith(" missing")),
         now=datetime.now(UTC),
     )
+
+
+def _ended_members(
+    repo: Path, members: tuple[Attestation, ...], recorded: Iterable[str]
+) -> tuple[frozenset[str], str]:
+    """Return the members an update removes, or none and the gap when facts are unobservable."""
+    try:
+        finished = ended(members, _lifetime_facts(repo, members))
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        return frozenset(), str(error)
+    return finished - frozenset(recorded), ""
+
+
+def _custody_guard(
+    repo: Path, removed: Iterable[Attestation], custody: tuple[bytes, ...]
+) -> AbstractContextManager[object]:
+    """Hold custody across a swap that stores bytes or may delete them."""
+    if custody or any(binds_custody(member) for member in removed):
+        return custody_lock(repo)
+    return nullcontext()
 
 
 def _release_unbound_custody(
@@ -387,18 +421,27 @@ def _release_unbound_custody(
     members: tuple[Attestation, ...],
     removed: frozenset[str],
     recorded: tuple[Attestation, ...] = (),
-) -> tuple[str, ...]:
-    """Delete custody bytes that only removed members bound."""
-    bound = {
-        digest
-        for member in (*members, *recorded)
-        if member.id not in removed
-        for digest in custody_digests(member)
-    }
-    unbound = {
-        digest for member in members if member.id in removed for digest in custody_digests(member)
-    } - bound
-    return release_custody(repo, sorted(unbound))
+) -> tuple[tuple[str, ...], str]:
+    """Delete custody bytes that only removed members bound; report, never raise, a failure.
+
+    The swap has already happened, so a failure here must not read as a failed update.
+    """
+    try:
+        bound = {
+            digest
+            for member in (*members, *recorded)
+            if member.id not in removed
+            for digest in custody_digests(member)
+        }
+        unbound = {
+            digest
+            for member in members
+            if member.id in removed
+            for digest in custody_digests(member)
+        } - bound
+        return release_custody(repo, sorted(unbound)), ""
+    except (OSError, ValueError) as error:
+        return (), str(error)
 
 
 def read_attestation_set(repo: Path) -> tuple[str, tuple[Attestation, ...]]:
@@ -412,34 +455,42 @@ def read_attestation_set(repo: Path) -> tuple[str, tuple[Attestation, ...]]:
 def record_attestations(
     repo: Path,
     attestations: tuple[Attestation, ...],
+    *,
+    custody: tuple[bytes, ...] = (),
 ) -> dict[str, object]:
     """Exact-CAS union canonical Attestations into the sole selected set.
 
-    The update removes the members whose lifetime ended, never the members it records.
+    The update removes the members whose lifetime ended, never the members it records, and
+    stores the custody bytes its members bind under the lock that deletions hold.
     """
     incoming = _canonical_inputs(attestations)
     for _attempt in range(_MAX_CAS_ATTEMPTS):
         observed = _selected_root(repo)
         current, members = _validated_members(repo, observed)
-        for identity, raw in incoming.items():
-            if identity in current and current[identity] != _blob_id(raw, like=current[identity]):
-                message = f"attestation_set_identity_collision:{identity}"
-                raise ValueError(message)
+        _require_known_bytes(incoming, current)
         added = tuple(sorted(incoming.keys() - current.keys()))
         if not added:
             return {"root": observed, "previous_root": observed, "added": (), "removed": ()}
-        finished = ended(members, _lifetime_facts(repo, members)) - incoming.keys()
+        _require_bounded(incoming, added)
+        finished, lifetime_gap = _ended_members(repo, members, incoming)
         new_members = {identity: incoming[identity] for identity in added}
         tree = _write_tree(repo, new_members, observed=observed, removed=tuple(sorted(finished)))
         desired = _root_identity(repo, tree)
-        if _compare_and_swap_root(repo, desired=desired, observed=observed):
-            _release_unbound_custody(repo, members, finished, attestations)
-            return {
-                "root": desired,
-                "previous_root": observed,
-                "added": added,
-                "removed": tuple(sorted(finished)),
-            }
+        removed = tuple(member for member in members if member.id in finished)
+        with _custody_guard(repo, removed, custody):
+            for payload in custody:
+                store_custody(repo, payload)
+            if not _compare_and_swap_root(repo, desired=desired, observed=observed):
+                continue
+            _released, custody_gap = _release_unbound_custody(repo, members, finished, attestations)
+        gaps = {"lifetime_gap": lifetime_gap, "custody_gap": custody_gap}
+        return {
+            "root": desired,
+            "previous_root": observed,
+            "added": added,
+            "removed": tuple(sorted(finished)),
+            **{key: value for key, value in gaps.items() if value},
+        }
     message = "attestation_set_cas_retry_exhausted"
     raise ValueError(message)
 
@@ -460,12 +511,16 @@ def record_attestation_once(repo: Path, attestation: Attestation) -> Attestation
         if matches:
             return matches[0]
         incoming = _canonical_inputs((attestation,))
-        finished = ended(members, _lifetime_facts(repo, members)) - incoming.keys()
+        _require_bounded(incoming, incoming)
+        finished, _lifetime_gap = _ended_members(repo, members, incoming)
         tree = _write_tree(repo, incoming, observed=observed, removed=tuple(sorted(finished)))
         desired = _root_identity(repo, tree)
-        if _compare_and_swap_root(repo, desired=desired, observed=observed):
+        removed = tuple(member for member in members if member.id in finished)
+        with _custody_guard(repo, removed, ()):
+            if not _compare_and_swap_root(repo, desired=desired, observed=observed):
+                continue
             _release_unbound_custody(repo, members, finished, (attestation,))
-            return attestation
+        return attestation
     message = "attestation_set_cas_retry_exhausted"
     raise ValueError(message)
 
@@ -494,12 +549,16 @@ def release_attestation(
             return {"previous_root": observed, "root": observed, "released": identity}
         tree = _write_tree(repo, {}, observed=observed, removed=(identity,))
         desired = _root_identity(repo, tree)
-        if _compare_and_swap_root(repo, desired=desired, observed=observed):
-            return {
-                "previous_root": observed,
-                "root": desired,
-                "released": identity,
-                "custody_deleted": _release_unbound_custody(repo, members, frozenset({identity})),
-            }
+        with _custody_guard(repo, (target,), ()):
+            if not _compare_and_swap_root(repo, desired=desired, observed=observed):
+                continue
+            released, custody_gap = _release_unbound_custody(repo, members, frozenset({identity}))
+        return {
+            "previous_root": observed,
+            "root": desired,
+            "released": identity,
+            "custody_deleted": released,
+            **({"custody_gap": custody_gap} if custody_gap else {}),
+        }
     message = "attestation_set_cas_retry_exhausted"
     raise ValueError(message)

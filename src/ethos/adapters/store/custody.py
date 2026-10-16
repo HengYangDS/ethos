@@ -7,6 +7,8 @@ import re
 from typing import TYPE_CHECKING
 from typing import Final
 
+from filelock import FileLock
+
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.schema import local_state_root
 
@@ -18,6 +20,12 @@ if TYPE_CHECKING:
 
 CUSTODY_PREFIX: Final = "custody:sha256:"
 _DIGEST = re.compile(r"[0-9a-f]{64}")
+_LOCK_SECONDS: Final = 300
+
+
+def binds_custody(attestation: Attestation) -> bool:
+    """Return whether an Attestation names any custody binding, valid or not."""
+    return any(reference.startswith(CUSTODY_PREFIX) for reference in attestation.evidence_refs)
 
 
 def custody_digests(attestation: Attestation) -> tuple[str, ...]:
@@ -36,6 +44,13 @@ def custody_digests(attestation: Attestation) -> tuple[str, ...]:
 
 def _custody_path(repo: Path, digest: str) -> Path:
     return local_state_root(repo) / "custody" / "sha256" / digest
+
+
+def custody_lock(repo: Path) -> FileLock:
+    """Serialize custody stores and deletions with the set swaps that bind or unbind them."""
+    path = local_state_root(repo) / "custody" / "lock"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return FileLock(path, timeout=_LOCK_SECONDS, mode=0o600, preserve_lock_file=True)
 
 
 def store_custody(repo: Path, payload: bytes) -> str:

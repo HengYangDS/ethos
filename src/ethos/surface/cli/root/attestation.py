@@ -18,7 +18,6 @@ from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.attestation_set import release_attestation
 from ethos.adapters.store.custody import custody_digests
 from ethos.adapters.store.custody import require_custody
-from ethos.adapters.store.custody import store_custody
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import validate_attestation_selector
 from ethos.result import EthosResult
@@ -116,12 +115,7 @@ def record(
         attestation = _input_attestation(Path(input_path))
         supplied = _supplied_evidence(repo, attestation, evidence)
         if apply:
-            for payload in supplied.values():
-                store_custody(repo, payload)
-            result = record_attestations(repo, (attestation,))
-            # Restore bytes that a concurrent release of the same digest may have deleted.
-            for payload in supplied.values():
-                store_custody(repo, payload)
+            result = record_attestations(repo, (attestation,), custody=tuple(supplied.values()))
             set_root = str(result["root"])
             previous_set_root = str(result["previous_root"])
             added = cast("tuple[str, ...]", result["added"])

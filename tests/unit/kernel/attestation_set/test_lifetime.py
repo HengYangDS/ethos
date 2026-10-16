@@ -64,14 +64,12 @@ def _publication(commit: str, peer: str, *, hour: int) -> Attestation:
 def _facts(
     refs: dict[str, str] | None = None,
     *,
-    packages: tuple[str, ...] | None = (),
     absent: tuple[str, ...] = (),
-    peeled: tuple[str, ...] = (),
+    pinned: tuple[str, ...] = (),
 ) -> LifetimeFacts:
     return LifetimeFacts(
         refs=refs or {"refs/heads/dev": _C2},
-        peeled=frozenset(peeled),
-        packages=None if packages is None else frozenset(packages),
+        pinned=frozenset(pinned),
         absent_objects=frozenset(absent),
         now=datetime(2026, 10, 16, tzinfo=UTC),
     )
@@ -87,6 +85,7 @@ def test_lifetime_classifies_product_members() -> None:
         ),
         (_ref_update("lane.refresh", {}, execution_branch="work/a"), ("operation", "work/a")),
         (_ref_update("lane.retire", {}, subject="work/a"), ("operation", "work/a")),
+        (_ref_update("lane.retire", {}, branch="work/a"), ("operation", "work/a")),
         (_member("proof:execution", subject=f"git:commit:{_C1}"), ("head", _C1)),
         (
             _ref_update("candidate.accept", {"refs/heads/dev": (_C0, _C1)}, accepted_branch="dev"),
@@ -137,19 +136,16 @@ def test_unknown_or_malformed_members_are_open_predicate(member: Attestation) ->
     assert ended((member,), _facts()) == frozenset()
 
 
-def test_retired_lane_ends_only_its_earlier_operation_members() -> None:
-    """A completed retirement ends earlier members; a reused lane name starts fresh."""
+def test_lane_records_outlive_their_retirement() -> None:
+    """Accepted proofs still resolve archive intent through a retired lane's records."""
     members = (
         _ref_update("lane.start", {}, hour=1, subject="work/a"),
         _ref_update("lane.refresh", {}, hour=2, execution_branch="work/a"),
-        _ref_update("lane.retire", {}, hour=3, subject="work/a"),
-        _ref_update("lane.start", {}, hour=4, subject="work/a"),
-        _ref_update("lane.start", {}, hour=1, subject="work/b"),
+        _ref_update("openspec.archive", {}, hour=3, execution_branch="work/a"),
+        _ref_update("lane.retire", {}, hour=4, subject="work/a"),
     )
 
-    assert ended(members, _facts()) == {member.id for member in members[:3]}
-    unfinished = _facts({"refs/heads/dev": _C2, "refs/heads/work/a": _C1})
-    assert ended(members, unfinished) == frozenset()
+    assert ended(members, _facts()) == frozenset()
 
 
 def test_superseded_heads_end_unless_a_ref_or_latest_publication_selects_them() -> None:
@@ -170,7 +166,7 @@ def test_superseded_heads_end_unless_a_ref_or_latest_publication_selects_them() 
 
     assert ended((*old, *current), _facts()) == frozenset()
     assert ended((*old, *current, caught_up), _facts()) == {member.id for member in old}
-    assert ended((*old, *current, caught_up), _facts(peeled=(_C1,))) == frozenset()
+    assert ended((*old, *current, caught_up), _facts(pinned=(_C1,))) == frozenset()
 
 
 def test_latest_landing_record_stays_while_its_ref_has_not_moved() -> None:
@@ -186,17 +182,17 @@ def test_latest_landing_record_stays_while_its_ref_has_not_moved() -> None:
     assert ended((in_flight, later), _facts()) == {in_flight.id}
 
 
-def test_lineage_ends_only_when_its_key_no_longer_exists() -> None:
-    """Repair and runtime lineage end on their own absence; tags and starter never do."""
+def test_only_repair_lineage_ends_by_observation() -> None:
+    """Repair lineage ends once its pre-repair objects are gone; the other lineages never do."""
     release = _ref_update("release.promote", {"refs/tags/v1": (_C0, _C1)})
     repair = _member("effect:commit-signature", body={"coordinates": {"old": _C0}})
     runtime = _member("release:accepted-identity", body={"identity": {"wheel_sha256": "f" * 64}})
     starter = _member("effect:starter-formation")
     members = (release, repair, runtime, starter)
-    present = _facts({"refs/heads/dev": _C2, "refs/tags/v1": _C1}, packages=("f" * 64,))
+    present = _facts({"refs/heads/dev": _C2, "refs/tags/v1": _C1})
 
     assert ended(members, present) == frozenset()
-    assert ended(members, _facts(absent=(_C0,))) == {repair.id, runtime.id}
+    assert ended(members, _facts(absent=(_C0,))) == {repair.id}
 
 
 def test_release_lineage_outlives_a_deleted_local_tag() -> None:
@@ -206,12 +202,11 @@ def test_release_lineage_outlives_a_deleted_local_tag() -> None:
     assert ended((release,), _facts()) == frozenset()
 
 
-def test_runtime_lineage_keeps_members_while_no_package_store_is_observed() -> None:
-    """An unobserved package store is no evidence that a release generation left."""
+def test_every_accepted_release_identity_outlives_its_package() -> None:
+    """Version admission refuses rollback against every accepted identity, kept or not."""
     runtime = _member("release:accepted-identity", body={"identity": {"wheel_sha256": "f" * 64}})
 
-    assert ended((runtime,), _facts(packages=None)) == frozenset()
-    assert ended((runtime,), _facts(packages=())) == {runtime.id}
+    assert ended((runtime,), _facts()) == frozenset()
 
 
 def test_window_ends_after_valid_until() -> None:
@@ -229,8 +224,7 @@ def test_heads_never_end_without_observed_refs() -> None:
     proof = _member("proof:execution", subject=f"git:commit:{_C1}")
     facts = LifetimeFacts(
         refs={},
-        peeled=frozenset(),
-        packages=None,
+        pinned=frozenset(),
         absent_objects=frozenset(),
         now=datetime(2026, 10, 16, tzinfo=UTC),
     )

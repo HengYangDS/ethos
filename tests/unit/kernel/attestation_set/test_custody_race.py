@@ -1,0 +1,79 @@
+"""Custody bytes survive a deletion that races a record binding the same digest."""
+
+from __future__ import annotations
+
+import threading
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
+from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import Any
+
+import ethos.adapters.repo.attestation_set as attestation_set
+from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.store.custody import store_custody
+from tests.support.governed_repository import init_git_repo
+from tests.support.semantic import attestation_fixture
+from tests.support.semantic import occurrence_attestation
+
+if TYPE_CHECKING:
+    import pytest
+
+    from ethos.contracts.semantic import Attestation
+
+_START = datetime(2026, 10, 1, tzinfo=UTC)
+
+
+def _binder(digest: str, *, expired: bool) -> Attestation:
+    return attestation_fixture(
+        predicate="observation:evidence-custody",
+        verifier="agent:test:custody-race",
+        subject=f"input:custody:{'expired' if expired else 'successor'}",
+        issued_at=_START,
+        payload_kind="observation:evidence-custody",
+        payload_body={"preserved": "shared"},
+        valid_until=_START + timedelta(hours=1) if expired else None,
+        evidence_refs=(f"custody:sha256:{digest}",),
+    )
+
+
+def test_a_record_cannot_bind_bytes_while_their_deletion_is_in_flight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A record that binds bytes being deleted waits for the deletion, then stores them again."""
+    repo = init_git_repo(tmp_path / "repo")
+    payload = b"shared custody evidence"
+    digest = store_custody(repo, payload)
+    attestation_set.record_attestations(repo, (_binder(digest, expired=True),))
+    successor = _binder(digest, expired=False)
+    progressed = threading.Event()
+    recorder = threading.Thread(
+        target=lambda: (
+            attestation_set.record_attestations(repo, (successor,), custody=(payload,)),
+            progressed.set(),
+        )
+    )
+    original_lock, original_release = attestation_set.custody_lock, attestation_set.release_custody
+
+    def observed_lock(root: Path) -> Any:
+        if threading.current_thread() is recorder:
+            progressed.set()
+        return original_lock(root)
+
+    def racing_release(root: Path, digests: list[str]) -> tuple[str, ...]:
+        if digest in digests and not recorder.is_alive():
+            recorder.start()
+            # The recorder either finishes its swap or reaches the custody lock first.
+            assert progressed.wait(timeout=120)
+        return original_release(root, digests)
+
+    monkeypatch.setattr(attestation_set, "custody_lock", observed_lock)
+    monkeypatch.setattr(attestation_set, "release_custody", racing_release)
+    attestation_set.record_attestations(repo, (occurrence_attestation(6_101),))
+    recorder.join(timeout=120)
+
+    assert not recorder.is_alive()
+    assert successor.id in {item.id for item in attestation_set.read_attestation_set(repo)[1]}
+    stored = Path(git_common_dir(repo)) / "ethos/custody/sha256" / digest
+    assert stored.read_bytes() == payload

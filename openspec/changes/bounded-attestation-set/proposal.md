@@ -16,9 +16,10 @@ the real set.
   published. A member binds each file as `custody:sha256:<digest>`, and
   `ethos attestation record --evidence` stores and binds the declared files.
 - **BREAKING** Every member has one lifetime derived from its existing bindings. A set update
-  removes the members whose lifetime ended by positive evidence: a completed lane retirement, a
-  superseded accepted head, an expired validity window, an absent release tag or runtime generation,
-  or an explicit release.
+  removes the members whose lifetime ended by positive evidence: a superseded head that no ref,
+  peeled tag, worktree or peer's latest publication selects, an expired validity window, a repair
+  whose pre-repair objects are gone, or an explicit release. Lane records, release tags, accepted
+  release identities and the starter formation stay, because current readers still select them.
 - New `ethos attestation release` removes one open-predicate member at the request of its verifier
   or of a reviewed owner, and deletes custody bytes that no remaining member binds.
 - Existing custody members migrate only after their owners decide. Each file moves byte-exact and is
@@ -26,9 +27,11 @@ the real set.
 - The temporary in-process member reuse (proof-throughput 2.15) is removed once reads are bounded;
   file-backed native output capture stays.
 
-Out of scope: deduplicating copies inside live routine records, an archive of ended members, a
-predicate index, and other carriers. Git history, Forge CI and release records keep the history that
-ended members no longer hold.
+Out of scope: lifetimes for lane records, which need consumer-indexed evidence (archive intent
+through proof commitments, refresh provenance through peer proposal retirement); deduplicating
+copies inside live routine records; an archive of ended members; a predicate index; and other
+carriers. Git history, Forge CI and release records keep the history that ended members no longer
+hold.
 
 ## Capabilities
 

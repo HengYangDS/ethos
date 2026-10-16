@@ -20,7 +20,7 @@ Every product reader selects members for an in-flight transition or a small line
 | Reader                                                                         | Selects                                                   | Lifetime          |
 | ------------------------------------------------------------------------------ | --------------------------------------------------------- | ----------------- |
 | Proof admission, OpenSpec archive transition                                   | proof and archive records of the head being admitted      | head              |
-| Lane Change selection, refresh provenance, merge recognition, lease resolution | records bound to a live lane                              | operation, window |
+| Lane Change selection, refresh provenance, merge recognition, lease resolution | records bound to a lane, live or retired                  | operation, window |
 | Ref-effect idempotence and recovery                                            | the effect of one unfinished transition                   | operation, head   |
 | Accepted provenance                                                            | the latest acceptance of the accepted head, repairs since | head              |
 | Release catch-up                                                               | `release.promote` of an existing tag                      | lineage           |
@@ -69,9 +69,13 @@ Lifetimes derive from existing fields: predicate, transition, subject, relations
 No field is added. The set writer evaluates them against the observed set and fresh ref facts on
 every update and removes ended members in the same exact-CAS update.
 
-A lifetime ends only on positive evidence: a selected retirement effect, a superseding acceptance,
-an absent tag or generation, an expired window or an explicit release. A missing branch is not
-evidence, so a lane that is starting never loses its records.
+A lifetime ends only on positive evidence: a superseding landing with no ref, fully peeled tag,
+worktree HEAD or peer's latest publication selecting the head, absent pre-repair objects, an expired
+window or an explicit release. A missing branch, tag or package is not evidence. Operation records
+outlive their lane: proof admission resolves archived intent and proposal retirement resolves
+refresh provenance through a retired lane's records. Version admission refuses rollback against
+every accepted release identity, so runtime lineage never ends by observation. When the facts cannot
+be observed, the update removes nothing and reports the gap.
 
 Alternative considered: let each ending operation remove its own members. That spreads one rule over
 many commands and misses members whose operation never runs again.
@@ -104,9 +108,12 @@ File-backed native output capture stays: it repairs a general transport defect.
   structure, Forge CI and release records remain.
 - [Foreign evidence] → Custody members change only through their owners' decisions; bytes move
   byte-exact and are verified before release.
-- [A concurrent writer binds a digest that a release is deleting] → A record stores its supplied
-  file before its CAS; a reader that finds a bound digest without bytes fails closed with
-  `attestation_custody_missing`.
+- [A concurrent writer binds a digest that a release is deleting] → One Git-common custody lock
+  covers storing bytes through the swap and the swap through deletion, so a record waits for an
+  in-flight deletion and then stores its bytes again. Cleanup after a swap is reported, never raised
+  as a failed update.
+- [Lane records accumulate] → They are small (943 members, about 6 MiB on 2026-10-16) but grow with
+  every lane. Bounding them needs consumer-indexed lifetimes and is left to a follow-up Change.
 
 ## Migration Plan
 

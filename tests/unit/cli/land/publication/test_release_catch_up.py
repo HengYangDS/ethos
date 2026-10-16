@@ -86,6 +86,15 @@ def test_peer_that_missed_a_release_receives_the_attested_tag(tmp_path: Path) ->
             release_owner, "accepted_release_source", wraps=release_owner.accepted_release_source
         ) as source,
     ):
+        assert (
+            release_owner.release_ref_subject(
+                repo, ref=TAG_REF, old="0" * len(head), new=tag, allow_identical=True
+            )
+            == head
+        )
+        assert (provenance.call_count, source.call_count) == (1, 1)
+        provenance.reset_mock()
+        source.reset_mock()
         admitted = push_admission_report(
             root=repo,
             target_ref=TAG_REF,

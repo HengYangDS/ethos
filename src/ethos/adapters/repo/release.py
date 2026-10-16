@@ -314,15 +314,9 @@ def release_ref_subject(
         selected = _immutable_tag_commit(
             root, ref=ref, old=old, new=new, allow_identical=allow_identical
         )
-        if selected != head:
-            plan = release_provenance(root, ref=ref, oid=new) if allow_identical else None
-            if plan is not None:
-                base = base or str(
-                    plan.facts.get("values", {}).get("release_request", {}).get("base") or ""
-                )
-            if plan is None and not base:
-                base = lane_creation_boundary(root, selected) if not allow_identical else ""
-                require_release(base, "release_tag_source_untrusted")
+        if selected != head and not allow_identical and not base:
+            base = lane_creation_boundary(root, selected)
+            require_release(base, "release_tag_source_untrusted")
         head = selected
         release_tag_policy(root, head, ref.removeprefix("refs/tags/"))
     else:

@@ -233,10 +233,14 @@ worker; cumulative case time is not wall time or complete-suite coverage.
 
 Preserved partial reports and the isolated RED/GREEN originals are recoverable
 from non-authorizing Attestation
-`78c29fb36b436dc7c18a3cb49ba1e7f0c6370ca0302b5bd25456d70cb981c8be`.
-Its complete member and every encoded blob were independently checked before
-native scratch retirement. Keep diagnosis, preserved bytes and actual delivered
-behavior separate; retries select changed inputs, not reassurance.
+`195989b97aea802b126b601d529badabc2f2312f8a6e7ffcf4b1a7e97d852054`.
+It binds the complete original JSON as
+`custody:sha256:82582d791a4b75c7d46783b4273a4ae67ed19b385f45cc74f738d9e2d9d107f4`.
+The original failure state and unmet release conditions remain preserved. Its
+complete member and every encoded blob were independently checked before native
+scratch retirement and again during carrier migration. Keep diagnosis, preserved
+bytes and actual delivered behavior separate; retries select changed inputs, not
+reassurance.
 
 ### September 20 Execution Lessons
 

@@ -164,7 +164,9 @@ def test_commit_trust_public_report_rejects_invalid_anchor_location(tmp_path, co
         anchor.write_text("untrusted\n")
         anchor.chmod(0o666)
     value = "relative/allowed-signers" if configured == "relative" else str(anchor)
-    if configured != "absent":
+    if configured == "absent":
+        git(repo, "config", "--unset", "gpg.ssh.allowedSignersFile")
+    else:
         git(repo, "config", "gpg.ssh.allowedSignersFile", value)
     report = verification.verify_commit_trust(repo, git(repo, "rev-parse", "HEAD"))
     assert report["required_gaps"] == [expected]

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from typing import Literal
 
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.system.contracts import system_contracts_report
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS
@@ -350,7 +351,11 @@ def _retired_paths_since_candidate(root: Path) -> tuple[str, ...]:
             return ()
         retired.append(fields[index])
         index += 2 if status.startswith("R") else 1
-    return tuple(sorted(set(retired)))
+    # A repository may remove its own optional ETHOS binding; the binding contract that
+    # product code reads stays current, so no binding file counts as retired here.
+    binding = load_repository_paradigm().binding
+    carriers = {f"{binding.root}/{name}" for name in binding.files}
+    return tuple(sorted(set(retired) - carriers))
 
 
 def _retired_path_sources(

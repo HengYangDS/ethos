@@ -47,9 +47,7 @@ ARCHIVE_PATH = "openspec/changes/archive/2026-09-10-fixture-change"
 )
 def test_archive_subject_is_admitted_before_native_mutation(monkeypatch, tmp_path, subject, gap):
     stub_archive_public(monkeypatch, tmp_path)
-    policy = CommitPolicy(
-        subject_pattern=r"^release: .+", signing_required=True, signing_format="ssh"
-    )
+    policy = CommitPolicy(subject_pattern=r"^release: .+", signing_format="ssh")
     monkeypatch.setattr(archive, "load_commit_policy", lambda _root: policy)
     observed = {}
     monkeypatch.setattr(

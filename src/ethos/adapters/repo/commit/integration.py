@@ -89,19 +89,17 @@ def commit_range_admission_report(
     )
     if revisions is None:
         gap = f"commit_range_unreadable:{baseline}:{proposed_commit}"
-    try:
-        candidate = commit_policy_for_revision(repo, proposed_commit)
-        incumbent = commit_policy_for_revision(repo, integration_baseline)
-    except (TypeError, ValueError) as error:
-        gap = str(error)
-        candidate = incumbent = None
-    if gap:
-        return report(state="blocked", required_gaps=[gap])
+    policies, policy_gap = _range_policies(
+        repo, proposed_commit=proposed_commit, baseline_commit=integration_baseline
+    )
+    if policy_gap or gap:
+        return report(state="blocked", required_gaps=[policy_gap or gap])
     assert revisions is not None
+    assert policies is not None
+    candidate, incumbent = policies
     violations: list[dict[str, object]] = []
     gaps: list[str] = []
-    policies = tuple(dict.fromkeys(policy for policy in (candidate, incumbent) if policy))
-    for policy in policies:
+    for policy in dict.fromkeys(policies):
         found, failed = _validate_commit_revisions(
             repo, revisions, policy=policy, verify_trust=True
         )
@@ -109,18 +107,16 @@ def commit_range_admission_report(
         gaps.extend(gap for gap in failed if gap not in gaps)
     result = report(
         state="blocked" if gaps else "admitted",
-        policy=candidate.projection() if candidate else None,
+        policy=candidate.projection(),
         revisions=revisions,
         violations=violations,
         required_gaps=gaps,
     )
     result["policy_sources"] = {
-        integration_baseline: incumbent.projection() if incumbent else None,
-        proposed_commit: candidate.projection() if candidate else None,
+        integration_baseline: incumbent.projection(),
+        proposed_commit: candidate.projection(),
     }
-    result["signature_verification"] = (
-        "required_native" if any(policy.signing_required for policy in policies) else "not_required"
-    )
+    result["signature_verification"] = "required_native"
     if repair is not None:
         result.update(
             update_kind="create" if creation else "repair",
@@ -136,21 +132,28 @@ def commit_range_admission_report(
     return result
 
 
+def _range_policies(
+    repo: Path, *, proposed_commit: str, baseline_commit: str
+) -> tuple[tuple[CommitPolicy, CommitPolicy] | None, str]:
+    """Compile the candidate and incumbent policies, or name the gap that stops admission."""
+    try:
+        return (
+            commit_policy_for_revision(repo, proposed_commit),
+            commit_policy_for_revision(repo, baseline_commit),
+        ), ""
+    except (TypeError, ValueError) as error:
+        return None, str(error)
+
+
 def validate_replayed_commits(
     root: Path,
     *,
     baseline_commit: str,
     proposed_commit: str,
-    policy: CommitPolicy | None,
+    policy: CommitPolicy,
 ) -> list[str]:
     """Admit replay against its trusted baseline and explicitly selected policy."""
-    policies = tuple(
-        dict.fromkeys(
-            item for item in (commit_policy_for_revision(root, baseline_commit), policy) if item
-        )
-    )
-    if not policies:
-        return []
+    policies = tuple(dict.fromkeys((commit_policy_for_revision(root, baseline_commit), policy)))
     revisions = _introduced_commit_revisions(
         root, proposed_commit=proposed_commit, baseline_commit=baseline_commit
     )
@@ -171,12 +174,10 @@ def _validate_commit_revisions(
     root: Path,
     revisions: tuple[str, ...],
     *,
-    policy: CommitPolicy | None,
+    policy: CommitPolicy,
     verify_trust: bool = False,
 ) -> tuple[list[dict[str, object]], list[str]]:
     """Validate one already-derived oldest-first commit sequence."""
-    if policy is None:
-        return [], []
     reports = [
         (revision, commit_policy_report(root, policy, revision, verify_trust=False))
         for revision in revisions
@@ -184,9 +185,7 @@ def _validate_commit_revisions(
     selected = tuple(
         revision
         for revision, report in reports
-        if verify_trust
-        and policy.signing_required
-        and not cast("dict[str, object]", report["signature"])["required_gaps"]
+        if verify_trust and not cast("dict[str, object]", report["signature"])["required_gaps"]
     )
     trust = (
         verify_commit_trust(root, selected[0] if len(selected) == 1 else selected)

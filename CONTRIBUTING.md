@@ -9,8 +9,8 @@ Use your own organization-approved Git identity. ETHOS does not require a
 single built-in author or a tracked identity allowlist. Git author and committer,
 the Work Lane actor, the trusted signing principal, transport credentials, and
 forge verification are separate facts. Configure your local identity and signer
-through Git; the repository's tracked `[commit_policy]` owns only subject syntax
-and whether generated commits require SSH signing.
+through Git; the repository paradigm requires an SSH signature on every commit,
+and a tracked `[commit_policy]` only restricts commit scopes and identities.
 
 ```bash
 git config user.name "<your-name-or-team>"
@@ -19,7 +19,7 @@ git config commit.gpgsign true
 git config gpg.format ssh
 ```
 
-SSH signing is required for generated commits in this repository. ETHOS verifies
+SSH signing is required for every commit in a governed repository. ETHOS verifies
 the resulting Git object against the configured external trust anchor; it does
 not turn author metadata into mutation authority.
 

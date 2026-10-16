@@ -113,12 +113,22 @@ When a repository configures secret scanning or the staged Python format check, 
 
 ### Requirement: The binding uses only ETHOS-defined files
 
-The tracked `.ethos/` binding SHALL contain only `profile.toml`, `workspace.toml`, `release.toml` and `rules.toml`. A repository SHALL declare its proof gates in `profile.toml` or select the packaged ETHOS gate registry; repository-local registry files SHALL NOT exist.
+The tracked `.ethos/` binding SHALL contain only `profile.toml`, `workspace.toml`, `release.toml` and `rules.toml`. A repository SHALL declare its proof gates in `profile.toml` or select the packaged ETHOS gate registry; repository-local registry files SHALL NOT exist. `workspace.toml` SHALL declare only `[commit_policy]`, and a repository that declares none SHALL NOT track it.
 
 #### Scenario: A legacy binding file is tracked
 
 - **WHEN** `.ethos/assistants.toml`, `.ethos/project.toml` or `.ethos/gates.toml` is tracked
 - **THEN** the paradigm reports a binding file outside the ETHOS schema set.
+
+#### Scenario: A workspace declares a table no reader consults
+
+- **WHEN** `.ethos/workspace.toml` declares `[[package]]`
+- **THEN** the paradigm reports the table and the repair deletes it.
+
+#### Scenario: A workspace binding declares nothing else
+
+- **WHEN** `.ethos/workspace.toml` declares only `[branch_roles]` with `release_mirror = "independent"`
+- **THEN** the repair deletes `.ethos/workspace.toml`.
 
 ### Requirement: OpenSpec carries the common rules
 
@@ -144,19 +154,31 @@ Every governed repository that tracks OpenSpec artifacts SHALL select the `spec-
 - **WHEN** a repository tracks no path under `openspec/`
 - **THEN** the paradigm reports no OpenSpec gap.
 
-### Requirement: Commits follow one grammar
+### Requirement: Commits follow one grammar and carry an SSH signature
 
-Every governed repository SHALL use the commit subject grammar that the paradigm contract holds: the Conventional Commit types build, chore, ci, docs, feat, fix, perf, refactor, revert and test, an optional lowercase kebab-case scope and an optional breaking marker `!`. `[commit_policy]` SHALL declare SSH signing and MAY declare `scopes` to restrict scopes; it SHALL NOT restate the grammar.
+Every governed repository SHALL use the commit subject grammar that the paradigm contract holds: the Conventional Commit types build, chore, ci, docs, feat, fix, perf, refactor, revert and test, an optional lowercase kebab-case scope and an optional breaking marker `!`. Every commit SHALL carry an SSH signature. `[commit_policy]` MAY restrict scopes and constrain identities; it SHALL NOT restate the grammar or the signature.
 
 #### Scenario: The binding declares no subject grammar
 
-- **WHEN** `[commit_policy]` declares signing and no `subject_pattern`
+- **WHEN** `[commit_policy]` declares no `subject_pattern`
 - **THEN** commit admission accepts `feat(cli)!: drop the legacy flag` and rejects `style: reformat`.
+
+#### Scenario: A repository declares no commit policy
+
+- **WHEN** a repository tracks no `[commit_policy]`
+- **THEN** commit admission requires the shared grammar and a trusted SSH signature on every introduced commit
+- **AND** ETHOS signs the commits it creates.
 
 #### Scenario: A repository adds a type
 
 - **WHEN** a repository commit policy declares its own `subject_pattern`, for example one that admits a `spec` or `style` type
 - **THEN** the paradigm reports a restated commit grammar.
+
+#### Scenario: A binding restates the signature
+
+- **WHEN** `[commit_policy]` declares `signing_required` or `signing_format`, with any value
+- **THEN** the paradigm reports a restated signature declaration and the repair deletes it
+- **AND** commit admission still requires an SSH signature.
 
 #### Scenario: A scope list is declared
 
@@ -165,7 +187,7 @@ Every governed repository SHALL use the commit subject grammar that the paradigm
 
 ### Requirement: Branch roles and Work Lanes use the standard names
 
-The repository paradigm SHALL fix the branch role names: release `main`, accepted `dev`, candidate `candidate/dev`, Work Lanes under `work/` and proposals under `proposal/`. ETHOS SHALL read no role name from `[branch_roles]`, which MAY declare only `release_mirror`. Every Work Lane worktree SHALL be a sibling at `<repository>-worktrees/<yyyymmdd>-<slug>/`, and ETHOS SHALL read no worktree setting from `[branch_roles]`.
+The repository paradigm SHALL fix the branch role names: release `main`, accepted `dev`, candidate `candidate/dev`, Work Lanes under `work/` and proposals under `proposal/`. ETHOS SHALL read nothing from `[branch_roles]`. A repository whose release branch follows its accepted branch SHALL declare `[release] mirror = "accepted_ff"` in `.ethos/release.toml`; otherwise the release mirror is independent. Every Work Lane worktree SHALL be a sibling at `<repository>-worktrees/<yyyymmdd>-<slug>/`.
 
 #### Scenario: A review prefix differs
 
@@ -184,10 +206,16 @@ The repository paradigm SHALL fix the branch role names: release `main`, accepte
 - **THEN** `ethos lane start feature` still places the Work Lane at `<repository>-worktrees/<yyyymmdd>-feature/`
 - **AND** the paradigm reports the setting and the repair deletes it.
 
-#### Scenario: A workspace declares only the settings
+#### Scenario: The release binding declares the mirror
 
-- **WHEN** `[branch_roles]` declares only `release_mirror = "accepted_ff"`
+- **WHEN** `.ethos/release.toml` declares `[release] mirror = "accepted_ff"`
 - **THEN** accepted closeout, publication and ref admission read the standard names with an accepted fast-forward release mirror.
+
+#### Scenario: A workspace still declares the mirror
+
+- **WHEN** `[branch_roles]` declares `release_mirror = "accepted_ff"` and `.ethos/release.toml` declares no mirror
+- **THEN** ETHOS reads an independent release mirror
+- **AND** the paradigm reports both carriers and the repair moves the mirror to `[release] mirror`.
 
 ### Requirement: Accepted closeout renames legacy role refs
 

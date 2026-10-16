@@ -24,6 +24,8 @@ def _release(root: Path, source: str) -> None:
         '[protected_refs]\nbranches = [" dev"]\n',
         "[protected_refs]\ntags = [1]\n",
         '[protected_refs]\ntags = ["v*", "v*"]\n',
+        'release = "accepted_ff"\n',
+        '[release]\nmirror = "mirror"\n',
     ],
 )
 def test_present_invalid_release_is_not_absent(tmp_path: Path, source: str) -> None:

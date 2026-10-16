@@ -151,11 +151,6 @@ def _archive_verification_lane(tmp_path):
     """Prepare native verification at the trusted base before authoring begins."""
     repo, candidate = start_adopted_candidate(tmp_path)
     configure_signer(repo, tmp_path)
-    workspace = repo / ".ethos/workspace.toml"
-    workspace.write_text(
-        workspace.read_text()
-        + '\n[commit_policy]\nsigning_required = true\nsigning_format = "ssh"\n'
-    )
     declare_native_proof_checks(
         repo,
         test="from pathlib import Path; "
@@ -186,7 +181,8 @@ def test_archive_resolution_follows_only_completed_repair_provenance(
     (root / "openspec/changes/fixture-change/tasks.md").write_text(
         "- [x] Complete native change.\n"
     )
-    head = commit_fixture(root, "feat: complete source")
+    # A signature repair needs an unsigned accepted source object.
+    head = commit_fixture(root, "feat: complete source", signed=False)
     seed_executed_proof(root, head)
     archived = run_ethos_blocked(
         "lane",

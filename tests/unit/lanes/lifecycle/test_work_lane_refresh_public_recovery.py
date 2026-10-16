@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 
 
 HEAD = "a" * 40
+_PARADIGM_POLICY = CommitPolicy(subject_pattern=r"^chore: .+", signing_format="ssh")
 CANDIDATE = "b" * 40
 REBASED = "c" * 40
 BRANCH = "work/feature"
@@ -73,6 +74,8 @@ def _common(
     for name in ("write_pending_refresh", "clear_pending_refresh"):
         monkeypatch.setattr(refresh, name, lambda *_args: None)
     monkeypatch.setattr(refresh, "read_pending_refresh", lambda _root: None)
+    # Every replay signs, so each case binds the signing environment it would project.
+    monkeypatch.setattr(refresh, "commit_environment", lambda *_args: {}, raising=False)
     monkeypatch.setattr(refresh, "run_git", _git(switched))
 
 
@@ -284,11 +287,7 @@ def test_refresh_validates_the_complete_replay_range_before_repository_effects(
     monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
     heads = iter((HEAD, REBASED, REBASED))
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
-    policy = CommitPolicy(
-        subject_pattern=r"^fix: .+",
-        signing_required=True,
-        signing_format="ssh",
-    )
+    policy = CommitPolicy(subject_pattern=r"^fix: .+", signing_format="ssh")
     observed_policy: list[tuple[str, str]] = []
     monkeypatch.setattr(
         refresh,
@@ -359,26 +358,22 @@ def test_refresh_validates_the_complete_replay_range_before_repository_effects(
 
 
 @pytest.mark.parametrize(
-    ("signing", "gap"),
+    "gap",
     [
-        (True, f"commit_subject_invalid:{'d' * 40}:invalid subject"),
-        (False, f"commit_range_unreadable:{CANDIDATE}:{REBASED}"),
+        f"commit_subject_invalid:{'d' * 40}:invalid subject",
+        f"commit_range_unreadable:{CANDIDATE}:{REBASED}",
     ],
     ids=["policy-rejected", "range-unreadable"],
 )
 def test_refresh_admission_failure_restores_before_repository_effects(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, signing: bool, gap: str
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, gap: str
 ) -> None:
     _common(monkeypatch)
     ancestry = iter((False, True))
     monkeypatch.setattr(refresh, "is_ancestor", lambda *_args: next(ancestry))
     heads = iter((HEAD, REBASED, HEAD))
     monkeypatch.setattr(refresh, "current_tracked_head", lambda _root: next(heads))
-    policy = CommitPolicy(
-        subject_pattern=r"^fix: .+",
-        signing_required=signing,
-        signing_format="ssh",
-    )
+    policy = CommitPolicy(subject_pattern=r"^fix: .+", signing_format="ssh")
     monkeypatch.setattr(
         refresh,
         "committed_file_text",
@@ -390,10 +385,9 @@ def test_refresh_admission_failure_restores_before_repository_effects(
     monkeypatch.setattr(
         refresh,
         "commit_policy_from_text",
-        lambda text: policy if text == "candidate policy" else None,
+        lambda text: policy if text == "candidate policy" else _PARADIGM_POLICY,
         raising=False,
     )
-    monkeypatch.setattr(refresh, "commit_environment", lambda *_args: {}, raising=False)
     switched: list[str] = []
 
     def run_git(_root: Path, *args: str, **_kwargs: object) -> SimpleNamespace:

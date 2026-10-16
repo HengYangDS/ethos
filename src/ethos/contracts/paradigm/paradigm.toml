@@ -22,6 +22,9 @@ governance_roots = [".agents", ".config", ".ethos", "openspec"]
 [binding]
 root = ".ethos"
 files = ["profile.toml", "release.toml", "rules.toml", "workspace.toml"]
+# The only table a workspace binding declares. The paradigm fixes every branch
+# role, and the release binding declares the release mirror.
+workspace_tables = ["commit_policy"]
 
 [normalization]
 gitattributes = "* text=auto eol=lf"
@@ -54,12 +57,14 @@ markdown_nonblank_lines = 512
 [documents]
 decision_record_name = '^dr-\d{4}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$'
 
-# The commit subject grammar every governed repository shares. A repository may
-# restrict scopes to a declared list; the type set does not vary.
+# The commit subject grammar and signature every governed repository shares. A
+# repository may restrict scopes to a declared list; the type set does not vary, and
+# every commit carries an SSH signature.
 [commit]
 types = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor", "revert", "test"]
 scope = '[a-z0-9]+(?:-[a-z0-9]+)*'
 breaking_marker = "!"
+signature = "ssh"
 
 # A repository that tracks OpenSpec artifacts selects the spec-driven schema, and each
 # artifact's rules in openspec/config.yaml begin with these common rules; its own rules

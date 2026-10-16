@@ -145,3 +145,25 @@ def test_a_gap_that_needs_judgment_leads_the_next_action(
     assert data["edits"] == []
     assert [gap["obligation"] for gap in data["report_only"]] == ["python-size"]
     assert data["next_action"] == data["report_only"][0]["repair"]
+
+
+def test_apply_removes_a_binding_left_with_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A workspace binding that held only a default mirror is previewed and applied as removed."""
+    workspace = '[branch_roles]\nrelease_mirror = "independent"\n'
+    repo = _repository(tmp_path, {".ethos/workspace.toml": workspace})
+    calls: list[list[str]] = []
+    monkeypatch.setattr(paradigm_repair, "prewrite_guard", _admission("pass", calls))
+    preview = run_ethos("lane", "repair-paradigm", "--root", repo.as_posix(), "--json")["data"]
+    assert [(edit["path"], edit["created"], edit["removed"]) for edit in preview["edits"]] == [
+        (".ethos/workspace.toml", False, True)
+    ]
+    assert "+++ /dev/null" in preview["edits"][0]["diff"]
+    data = run_ethos("lane", "repair-paradigm", "--apply", "--root", repo.as_posix(), "--json")[
+        "data"
+    ]
+    assert calls == [[".ethos/workspace.toml"]]
+    assert data["state"] == "repaired"
+    assert not (repo / ".ethos/workspace.toml").exists()
+    assert data["remaining_gaps"] == []

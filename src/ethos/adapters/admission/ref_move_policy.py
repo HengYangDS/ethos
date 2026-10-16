@@ -21,7 +21,7 @@ from ethos.adapters.repo.profile import load_committed_repository_profile
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
+from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.verdict import report_verdict
@@ -264,7 +264,7 @@ def _strict_ref_policy(repo: Path, revision: str) -> BranchRolePolicy | None:
     if revision in _ZERO_OIDS:
         return None
     try:
-        workspace = committed_file_text(repo, revision, ".ethos/workspace.toml")
-        return strict_branch_role_policy_from_text(workspace) if workspace else None
+        release = committed_file_text(repo, revision, ".ethos/release.toml")
+        return strict_branch_role_policy_from_release_text(release) if release else None
     except (TypeError, ValueError):
         return None

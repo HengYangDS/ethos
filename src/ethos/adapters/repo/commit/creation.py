@@ -1,4 +1,4 @@
-"""Create repository commits through the declared subject and signing policy."""
+"""Create repository commits through the compiled subject grammar and SSH signature."""
 
 from __future__ import annotations
 
@@ -103,12 +103,11 @@ def create_git_commit(
     environment: Mapping[str, str] | None = None,
     runner: Callable[..., Any] = run_git,
 ) -> Any:
-    """Create and verify one commit object under repository signing policy."""
+    """Create and verify one signed commit object under the repository commit policy."""
     policies = tuple(
         dict.fromkeys(
-            policy
+            commit_policy_for_revision(root, revision)
             for revision in (parent, *additional_parents, tree)
-            if (policy := commit_policy_for_revision(root, revision)) is not None
         )
     )
     for policy in policies:
@@ -116,11 +115,10 @@ def create_git_commit(
             raise ValueError(gap)
         if gaps := prospective_identity_gaps(root, policy, environment=dict(environment or {})):
             raise ValueError(gaps[0])
-    sign = any(policy.signing_required for policy in policies)
     completed = runner(
         root,
         "commit-tree",
-        *(("-S",) if sign else ()),
+        "-S",
         tree,
         "-p",
         parent,
@@ -128,9 +126,9 @@ def create_git_commit(
         "-m",
         message,
         check=False,
-        env=commit_environment(root, environment) if sign else environment,
+        env=commit_environment(root, environment),
     )
-    if completed.returncode or not policies:
+    if completed.returncode:
         return completed
     revision = completed.stdout.strip()
     gaps = (
@@ -163,9 +161,6 @@ def create_signed_replacement(root: Path, revision: str) -> str:
         error = "signature_repair_source_not_unsigned"
         raise ValueError(error)
     policy = commit_policy_from_text(committed_file_text(root, revision, ".ethos/workspace.toml"))
-    if policy is None or not policy.signing_required:
-        error = "signature_repair_policy_required"
-        raise ValueError(error)
     if gap := commit_subject_gap(policy, str(source["subject"]), revision=revision):
         raise ValueError(gap)
     payload = commit_payload(root, revision)

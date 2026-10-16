@@ -254,7 +254,7 @@ def accepted_delivery_report(
         "baseline_source": "accepted_effect",
         "accepted_plan": accepted["accepted_plan"],
         "accepted_provenance": accepted["provenance"],
-        "policy": policy.projection() if policy else None,
+        "policy": policy.projection(),
         "revisions": [],
         "checked_commit_count": 0,
         "violations": [],

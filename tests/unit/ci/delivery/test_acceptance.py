@@ -55,9 +55,11 @@ def test_package_lifecycle_has_one_execution_owner() -> None:
     assert gates["unit-architecture"]["depends_on"][0] == "build"
     assert set(gates["local-install-smoke"]["depends_on"]) == {
         "build",
-        "coverage-floor",
         "dependency-vulnerabilities",
     }
+    assert "coverage-floor" in full
+    assert gates["coverage-floor"]["depends_on"] == ["unit-architecture"]
+    assert "local-install-smoke" not in declaration["proof_sets"]["default"]
     assert gates["unit-architecture"]["resource_locks"]["artifacts/python"] == "shared"
     assert gates["local-install-smoke"]["network_policy"] == "offline"
     assert gates["local-install-smoke"]["writes_files"] is True
@@ -66,6 +68,12 @@ def test_package_lifecycle_has_one_execution_owner() -> None:
         shlex.join(gate_execution_identity(expected.registry[node.id])) for node in expected.nodes
     ]
     assert expected.gate_ids.count("local-install-smoke") == 1
+    assert not expected.registry["unit-architecture"].conflicts_with(
+        expected.registry["local-install-smoke"]
+    )
+    assert expected.registry["generated-artifacts"].conflicts_with(
+        expected.registry["local-install-smoke"]
+    )
 
 
 @pytest.mark.parametrize("release_head", ["", "a" * 40])

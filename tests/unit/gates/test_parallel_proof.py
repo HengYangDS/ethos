@@ -20,6 +20,7 @@ from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Facts
+from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import execution_succeeded
 from ethos.repository.policy.gates import ResolvedGatePolicy
 from tests.support.governed_repository import git
@@ -205,6 +206,99 @@ def test_ready_child_does_not_wait_for_unrelated_slow_reader(
     assert [result.action_id for result in results] == [node.id for node in nodes]
     assert not concurrent or order.index(release_by) < order.index("slow")
     assert not concurrent or release_by != "queued" or order.index("slow") < order.index("child")
+
+
+@pytest.mark.parametrize("capacity", [1, 2, 4, 8])
+def test_full_proof_overlaps_independent_install_and_test_branches(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys, capacity: int
+) -> None:
+    """One declared wheel serves sibling checks without moving the final proof floor."""
+    repo = init_git_repo(tmp_path / "repo")
+    declaration = load_gate_registry_declaration()
+    selected = declaration.proof_gates(full=True)
+    policy = ResolvedGatePolicy(declaration, None, selected)
+    plan = _proof_plan(repo, policy.nodes, policy)
+    siblings = {"unit-architecture", "local-install-smoke"}
+    started = threading.Barrier(2)
+
+    class Runner(gate_runner.LocalGateRunner):
+        def run(self, node, gate, *, root):
+            assert root == repo
+            assert gate.id == node.id
+            if capacity >= 4 and node.id in siblings:
+                started.wait(timeout=2)
+            return ActionRunResult(node.id, node.command, "pass", 0)
+
+    monkeypatch.setattr(proof_cli, "resolve_gate_policy", lambda *_a, **_k: policy)
+    monkeypatch.setattr(proof_cli, "LocalGateRunner", Runner)
+    checks, passed = proof_cli.run_plan_checks(
+        repo=repo, plan=plan, execute=True, capacity=capacity
+    )
+    assert passed is True
+    assert [check["action_id"] for check in checks] == [node.id for node in policy.nodes]
+    events = [json.loads(line) for line in capsys.readouterr().err.splitlines()]
+    scheduled = {
+        event["action_id"]: index
+        for index, event in enumerate(events)
+        if event["event"] == "gate_scheduled"
+    }
+    completed = {
+        event["action_id"]: index
+        for index, event in enumerate(events)
+        if event["event"] == "gate_completed"
+    }
+    if capacity >= 4:
+        assert max(scheduled[name] for name in siblings) < min(completed[name] for name in siblings)
+    else:
+        assert min(completed[name] for name in siblings) < max(scheduled[name] for name in siblings)
+    assert completed["build"] < min(scheduled[name] for name in siblings)
+    assert completed["dependency-vulnerabilities"] < scheduled["local-install-smoke"]
+    assert max(completed[name] for name in siblings) < scheduled["generated-artifacts"]
+    assert completed["unit-architecture"] < scheduled["coverage-floor"]
+    assert "local-install-smoke" not in {gate.id for gate in declaration.proof_gates()}
+
+
+@pytest.mark.parametrize("verdict", ["block", "unknown"])
+@pytest.mark.parametrize(
+    "failed_gate", ["unit-architecture", "coverage-floor", "local-install-smoke"]
+)
+def test_full_proof_requires_every_independent_acceptance_branch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, verdict: Verdict, failed_gate: str
+) -> None:
+    """Sibling execution cannot turn a failed or incomplete final obligation into PASS."""
+    repo = init_git_repo(tmp_path / "repo")
+    declaration = load_gate_registry_declaration()
+    policy = ResolvedGatePolicy(declaration, None, declaration.proof_gates(full=True))
+    plan = _proof_plan(repo, policy.nodes, policy)
+    executed = []
+
+    class Runner(gate_runner.LocalGateRunner):
+        def run(self, node, gate, *, root):
+            assert root == repo
+            assert gate.id == node.id
+            executed.append(node.id)
+            exit_code = {"pass": 0, "block": 1, "unknown": None}[verdict]
+            return ActionRunResult(
+                node.id,
+                node.command,
+                verdict if node.id == failed_gate else "pass",
+                exit_code if node.id == failed_gate else 0,
+            )
+
+    monkeypatch.setattr(proof_cli, "resolve_gate_policy", lambda *_a, **_k: policy)
+    monkeypatch.setattr(proof_cli, "LocalGateRunner", Runner)
+    checks, passed = proof_cli.run_plan_checks(repo=repo, plan=plan, execute=True, capacity=4)
+    by_id = {check["action_id"]: check for check in checks}
+    assert passed is False
+    assert len(checks) == len(policy.nodes)
+    assert by_id[failed_gate]["verdict"] == verdict
+    assert "local-install-smoke" in executed
+    assert by_id["local-install-smoke"]["verdict"] == (
+        verdict if failed_gate == "local-install-smoke" else "pass"
+    )
+    if failed_gate == "unit-architecture":
+        assert "coverage-floor" not in executed
+        assert not execution_succeeded(by_id["coverage-floor"])
 
 
 @pytest.mark.parametrize("verdict", ["block", "unknown"])

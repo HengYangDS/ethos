@@ -65,8 +65,10 @@ Hidden content and a prior PASS cannot repair an unsupported current claim.
   obligations may compensate for a failing requirement.
 - Failed or unknown prerequisite results block dependent checks without executing
   them. Independent diagnostics can continue. Offline candidate construction
-  supplies tests; package acceptance depends on passing coverage and declared
-  security checks. A successful build is not acceptance or delivery.
+  supplies tests and installed-wheel validation, which may run beside each other
+  after their actual prerequisites pass. Final proof requires both branches,
+  coverage and declared security checks. Artifact observation excludes active
+  writers. A successful build or installation is not complete proof or delivery.
 - Before selecting a gate as inexpensive, inspect its transitive dependencies in
   the current registry. A focused selection is not necessarily a small workload.
   Carry the declared resource envelope into every native process explicitly;

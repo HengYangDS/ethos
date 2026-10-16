@@ -442,6 +442,15 @@ executor's observed capacity; they are scheduling claims, not CPU affinity.
 - **AND** construction need not wait for unrelated test output it does not consume
 - **AND** every selected source preflight and final proof obligation remains required
 
+#### Scenario: Installed-wheel validation is independent of coverage execution
+
+- **WHEN** construction supplies one exact source-bound wheel and declared supply checks pass
+- **THEN** installed-wheel validation may run beside tests with compatible resource claims
+- **AND** neither branch consumes or replaces the other's result
+- **AND** complete proof still requires tests, coverage and installation to pass
+- **AND** low capacity serializes the branches without imposing a particular execution order
+- **AND** final artifact observation excludes active writers without adding installation to default proof
+
 #### Scenario: Native resource claims require bounded qualification
 
 - **WHEN** a gate declares complete resource coordination domains

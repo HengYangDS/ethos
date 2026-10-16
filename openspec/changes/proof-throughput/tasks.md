@@ -14,7 +14,7 @@ Original pre-refresh commitments and qualification records remain in signed Git 
 - [x] 1.6 Compare identical native boundary cases at two, four and eight workers without retries.
 - [x] 1.7 Measure consolidated full proof and repair merge intent diagnostic precedence.
 - [x] 1.8 Verify the consolidated proof, release and integration regressions with unchanged quality budgets.
-- [x] 1.9 Restore complete repository proof within 900 seconds, including preparation, every required gate and cleanup; preserve unrelated commitments at signed source `f029116881d70612a93a681479a6db3ad231788c`. Five consecutive complete proofs from `e9f253e7c` to `43ddb6e7a` ended within 753 seconds (proof Attestations `e3a0a2a4`, `b20e5ad3`, `e373dd36`, `64b38d6c`, `49a45d32`); later runs beside local CI jobs are in Sustained Distribution in design.
+- [ ] 1.9 Restore complete repository proof within 900 seconds, including preparation, every required gate and cleanup; preserve unrelated commitments at signed source `f029116881d70612a93a681479a6db3ad231788c`. Current dependency: source `c3410b3e` timed out before test completion; earlier accepted timings remain in signed Git and their original proof Attestations.
 - [x] 1.10 Evaluate the nonblocking 600-second optimization direction from the measured remaining critical path. Recorded in 600-Second Direction in design: hook admission startup first, then batched fresh observation; declared readiness locks save about 12-17 seconds, and the online audit wait needs a specification decision.
 
 ## 2. Invocation-Scoped Facts and Proof Reuse
@@ -174,7 +174,7 @@ Original pre-refresh commitments and qualification records remain in signed Git 
 ## 10. Native Quality Rules and Early Failure
 
 - [x] 10.1 Replace Ty prose parsing and execute both declared native shell checks. Verify the owning native regression.
-- [ ] 10.2 Complete source-side readiness and observer delivery before behavior and delivery; retain qualified readiness ordering, offline selection and transitive post-execution checks. Remaining installed-consumer acceptance is 10.2.2.
+- [ ] 10.2 Complete source-side readiness and observer delivery before behavior and delivery; verify same-wheel test and installation branches, final coverage conjunction and writer exclusion without expanding default proof. Exact-source proof and delivery remain under 1.9; remaining observer acceptance is 10.2.2.
   - [ ] 10.2.2 Complete selected-wheel observer delivery through exact-source full proof, accepted integration, selected-runtime activation and the adopter-owned fresh full proxy proof. Verify R1–R4 with exact wheel bytes, no Nox-parent ETHOS installation and unchanged adopter locks; reuse the qualified child-only interface in 11.13–11.14. Keep the Proxy consumer with its owner; emulated attempts are not proof.
 - [x] 10.3 Ship native configuration and Markdown checks through shared product owners; preserve canonical JSON, YAML scalar meaning, exact native byte owners and consumed-policy identity without repository Nox copies. Verify the owning native regressions; complete proof and installed acceptance remain under 1.9 and 11.14.
 - [ ] 10.4 Restore shared product-pinned JavaScript semantic quality and native launchers; verify authored/generated/upstream applicability, exact proof and installed delivery without treating carrier labels as provenance. Original focused and failed evidence remains retained.

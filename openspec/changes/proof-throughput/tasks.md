@@ -38,7 +38,7 @@ Original pre-refresh commitments and qualification records remain in signed Git 
 ## 3. OpenSpec Compilation and Continuation
 
 - [x] 3.1 Remove absent archived-Change projection work while preserving active reopen precedence. Verify the owning native regression.
-- [x] 3.2 Reuse one official command and status observation in current intent compilation. Verify the owning native regression.
+- [x] 3.2 Reuse one official command/status observation and preserve named requirement/scenario identity in current intent compilation; verify repeated bodies remain distinct, reorder preserves the digest, changed meaning changes it, and native removal/rename remain intact. Supplier: signed `906b9c111`; exact-source proof and installed adopter acceptance remain under 1.9.
 - [x] 3.3 Close official read batching through public, fault, package and native acceptance. Verify the owning native regression.
 - [x] 3.4 Repair exact official-artifact continuation after a second Change is created. Verify the owning native regression.
 - [x] 3.5 Preserve explicit choice and eliminate recursive status recovery for ambiguous ordinary work. Verify the owning native regression.

@@ -39,8 +39,11 @@ def _requirement_projection(*requirements: object, spec: str = "authority") -> d
     """Share native carrier structure while leaving expected observations independent."""
     values = requirements or (
         {
+            "name": "One native intent",
             "text": "Official OpenSpec is the sole tracked intent carrier.",
-            "scenarios": [{"rawText": "- **WHEN** selected\n- **THEN** compile"}],
+            "scenarios": [
+                {"name": "Selected intent", "rawText": "- **WHEN** selected\n- **THEN** compile"}
+            ],
         },
     )
     return {"id": "minimal-authority", "deltas": [{"spec": spec, "requirements": list(values)}]}
@@ -64,13 +67,48 @@ def compilation_root(tmp_path, monkeypatch):
 
 def test_official_projection_compiles_minimal_commitment() -> None:
     projection = _requirement_projection()
+    requirements = projection["deltas"][0]["requirements"]
+    requirements.append(
+        {
+            "name": "Profile routing",
+            "text": "Native policy SHALL preserve the original gate priority.",
+            "scenarios": [
+                {
+                    "name": "Official validation remains primary",
+                    "rawText": "- **WHEN** selected\n- **THEN** compile",
+                }
+            ],
+        }
+    )
 
     commitment = commitment_from_projection("minimal-authority", projection)
 
     assert commitment.id == "change:minimal-authority"
     assert commitment.acceptance == (
-        "authority:requirement:Official OpenSpec is the sole tracked intent carrier.",
-        "authority:scenario:- **WHEN** selected\n- **THEN** compile",
+        (
+            'authority:requirement:["One native intent",'
+            '"Official OpenSpec is the sole tracked intent carrier."]'
+        ),
+        (
+            'authority:requirement:["Profile routing",'
+            '"Native policy SHALL preserve the original gate priority."]'
+        ),
+        (
+            'authority:scenario:["One native intent","Selected intent",'
+            '"- **WHEN** selected\\n- **THEN** compile"]'
+        ),
+        (
+            'authority:scenario:["Profile routing","Official validation remains primary",'
+            '"- **WHEN** selected\\n- **THEN** compile"]'
+        ),
+    )
+    requirements.reverse()
+    assert (
+        commitment_from_projection("minimal-authority", projection).digest() == commitment.digest()
+    )
+    requirements[0]["scenarios"][0]["rawText"] += "\n- **AND** preserve the declared profile"
+    assert (
+        commitment_from_projection("minimal-authority", projection).digest() != commitment.digest()
     )
     with pytest.raises(ValidationError, match="extra_forbidden"):
         Commitment.model_validate(commitment.model_dump() | {"predecessors": ()})
@@ -102,10 +140,9 @@ def test_native_removal_compiles_its_target_without_fabricated_scenarios(
 
     expected = (f"authority:remove:{json.dumps(removal['requirements'][0], sort_keys=True)}",)
     if with_requirement:
-        expected += (
-            "authority:requirement:Official OpenSpec is the sole tracked intent carrier.",
-            "authority:scenario:- **WHEN** selected\n- **THEN** compile",
-        )
+        expected += commitment_from_projection(
+            "minimal-authority", {"id": "minimal-authority", "deltas": [added]}
+        ).acceptance
     assert result == Commitment(
         schema_version=3, id="change:minimal-authority", acceptance=expected
     )
@@ -171,9 +208,13 @@ def test_native_rename_compiles_a_bound_relation_without_fabricated_requirements
     }
     requirement = _requirement_projection(
         {
+            "name": "Native supply",
             "text": "Native supply SHALL be rootless.",
             "scenarios": [
-                {"rawText": "- **WHEN** unprivileged\n- **THEN** materialize in owned cache"}
+                {
+                    "name": "Rootless supply",
+                    "rawText": "- **WHEN** unprivileged\n- **THEN** materialize in owned cache",
+                }
             ],
         },
         spec="quality",
@@ -289,6 +330,25 @@ def test_official_spec_free_projection_compiles_minimal_commitment(*, complete, 
         ),
         (
             _requirement_projection({"text": "required", "scenarios": [{}]}),
+            "openspec_acceptance_missing",
+        ),
+        (
+            _requirement_projection(
+                {
+                    "text": "Native validation SHALL run first.",
+                    "scenarios": [{"name": "Native input", "rawText": "WHEN ready THEN validate"}],
+                }
+            ),
+            "openspec_acceptance_missing",
+        ),
+        (
+            _requirement_projection(
+                {
+                    "name": "Native validation",
+                    "text": "Native validation SHALL run first.",
+                    "scenarios": [{"rawText": "WHEN ready THEN validate"}],
+                }
+            ),
             "openspec_acceptance_missing",
         ),
     ],

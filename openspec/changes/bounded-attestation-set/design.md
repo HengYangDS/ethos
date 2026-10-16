@@ -130,5 +130,8 @@ File-backed native output capture stays: it repairs a general transport defect.
 3. Measure size and cold read time, update the product design contract and remove the temporary
    reuse.
 
+Step 2 and the reuse removal in step 3 wait on custody owners and continue in Change
+`retained-attestation-members`, together with lane records bounded by their consumers.
+
 Rollback reverts the landing and records the members of the recorded root again until Git prunes
 it.

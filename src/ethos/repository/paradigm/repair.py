@@ -19,6 +19,8 @@ from ethos.contracts.branch.roles import ROLE_NAME_FIELDS
 from ethos.contracts.branch.roles import SIBLING_WORKTREE_FIELD
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
+from ethos.repository.paradigm.openspec import common_rules_repair
+from ethos.repository.paradigm.openspec import schema_repair
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -344,4 +346,6 @@ _HANDLERS: dict[str, Callable[[RepositoryParadigm, ParadigmGap, str | None], Rep
     "peer-remote": _peer_remote,
     "branch-roles": _restated_field,
     "commit-grammar": _restated_field,
+    "openspec-schema": schema_repair,
+    "openspec-rules": common_rules_repair,
 }

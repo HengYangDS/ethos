@@ -215,6 +215,20 @@ The two films use uv without any linter or formatter. A required Ruff linter or 
 
 Every explicit formatter width in the fleet is already 100, so a configured formatter keeps 100, and Ruff targets the shared 3.12 floor. Runtime and tool versions stay repository values under the workstation version policy, so a version bump never needs an ETHOS Change.
 
+### 14. Common OpenSpec rules
+
+A repository that tracks OpenSpec artifacts selects `spec-driven`, and each artifact's rules begin with the contract's common rules. Those rules keep only what every adopter's rules already require:
+
+- the official templates and native delta operations;
+- falsifiable requirements;
+- one semantic owner per behavior;
+- truthful, dependency-ordered tasks;
+- execution history kept with its native evidence owners.
+
+A repository's own rules follow them. The repair keeps those rules, their lines and their comments, and drops only exact copies of a common rule. Whether an own rule restates a common one in other words is a judgment for the repository's migration Change.
+
+A repository that selects another schema keeps that gap report-only, because its Changes are written against that schema's artifacts.
+
 ## Risks / Trade-offs
 
 - **Churn across every adopter.** Mitigation: each repository migrates in one Change that lands together with its runtime switch. The audit names the canonical repair for every gap.

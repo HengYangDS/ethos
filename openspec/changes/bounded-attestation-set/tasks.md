@@ -8,7 +8,7 @@
 ## 2. Lifetime-Bounded Members
 
 - [x] 2.1 Remove ended members in the set writer's exact-CAS update; verify concurrent writers, the custody lock, kept lane records, superseded versus pinned heads, repair lineage, and retained release, runtime and starter lineage.
-- [ ] 2.2 Verify the public land, closeout, publish, retire, release catch-up, signature repair and starter journeys with historical members removed.
+- [x] 2.2 Verify the public land, closeout, publish, retire, release catch-up, signature repair and starter journeys with historical members removed.
 
 ## 3. Existing Members
 

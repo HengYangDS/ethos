@@ -466,6 +466,7 @@ def _effect_drift_gaps(
     return [
         gap
         for failed, gap in (
+            (status.get("role") != ROLE_ACCEPTED_ROOT, "absorbed_ref_requires_accepted_root"),
             (ref_head(repo, branch) != expect_head, "absorbed_ref_head_drift"),
             (ref_head(repo, accepted_branch) != accepted_head, "accepted_head_drift"),
             (

@@ -361,7 +361,7 @@ def test_absorbed_ref_fails_closed_when_ref_is_not_an_accepted_ancestor(tmp_path
     assert git(repo, "rev-parse", "work/absorbed") == changed
 
 
-@pytest.mark.parametrize("boundary", ["worktree", "conservation"])
+@pytest.mark.parametrize("boundary", ["worktree", "conservation", "root"])
 def test_absorbed_ref_reobserves_before_delete(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str
 ) -> None:
@@ -369,20 +369,23 @@ def test_absorbed_ref_reobserves_before_delete(
     original = absorbed_retirement.workspace_status
     calls = 0
 
-    def worktree_appeared(root: Path) -> dict[str, object]:
+    def workspace_drifted(root: Path) -> dict[str, object]:
         nonlocal calls
         calls += 1
         status = original(root)
         if calls == 2:
-            worktrees = cast("list[dict[str, object]]", status["worktrees"])
-            status["worktrees"] = [
-                *worktrees,
-                {"branch": "work/absorbed", "path": "/appeared"},
-            ]
+            if boundary == "root":
+                status["role"] = "work_lane"
+            else:
+                worktrees = cast("list[dict[str, object]]", status["worktrees"])
+                status["worktrees"] = [
+                    *worktrees,
+                    {"branch": "work/absorbed", "path": "/appeared"},
+                ]
         return status
 
-    if boundary == "worktree":
-        monkeypatch.setattr(absorbed_retirement, "workspace_status", worktree_appeared)
+    if boundary in {"worktree", "root"}:
+        monkeypatch.setattr(absorbed_retirement, "workspace_status", workspace_drifted)
     else:
         contribution = absorbed_retirement.accepted_contribution
 
@@ -400,12 +403,12 @@ def test_absorbed_ref_reobserves_before_delete(
         blocked=True,
     )
 
-    expected_verdict = "block" if boundary == "worktree" else "unknown"
-    gap = (
-        "absorbed_ref_worktree_appeared"
-        if boundary == "worktree"
-        else "absorbed_ref_conservation_unknown"
-    )
+    expected_verdict = "unknown" if boundary == "conservation" else "block"
+    gap = {
+        "worktree": "absorbed_ref_worktree_appeared",
+        "conservation": "absorbed_ref_conservation_unknown",
+        "root": "absorbed_ref_requires_accepted_root",
+    }[boundary]
     assert payload["verdict"] == expected_verdict
     assert payload["required_gaps"] == [gap]
     data = payload["data"]

@@ -10,6 +10,7 @@ from importlib import import_module
 from pathlib import Path
 
 from ethos.adapters.process import ProcessExecutionError
+from ethos.adapters.process import command_scope
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import repository_root
@@ -64,27 +65,28 @@ def main() -> None:
     """Run the ETHOS CLI."""
     argv = sys.argv[1:]
     command = "version" if "--version" in argv else root_command(argv) or "ethos"
-    try:
-        if "--version" in argv:
-            sys.stdout.write(f"{version_text()}\n")
-            return
-        commands = import_module("ethos.surface.cli.application")
-        commands.load_command_groups(argv)
-        commands.app(commands.dispatch_arguments(argv))
-    except ProcessExecutionError as exc:
-        import_module("ethos.surface.cli.output").emit_process_execution_failure(
-            command=command,
-            error=exc,
-            json_output="--json" in argv,
-            root=_argument_root(argv),
-        )
-    except ValueError as exc:
-        if str(exc) == INVALID_PROFILE_ERROR:
-            _emit_invalid_profile(command, argv)
-        else:
+    with command_scope(handle_termination=True):
+        try:
+            if "--version" in argv:
+                sys.stdout.write(f"{version_text()}\n")
+                return
+            commands = import_module("ethos.surface.cli.application")
+            commands.load_command_groups(argv)
+            commands.app(commands.dispatch_arguments(argv))
+        except ProcessExecutionError as exc:
+            import_module("ethos.surface.cli.output").emit_process_execution_failure(
+                command=command,
+                error=exc,
+                json_output="--json" in argv,
+                root=_argument_root(argv),
+            )
+        except ValueError as exc:
+            if str(exc) == INVALID_PROFILE_ERROR:
+                _emit_invalid_profile(command, argv)
+            else:
+                _emit_contract_failure(command, argv, exc)
+        except RuntimeError as exc:
             _emit_contract_failure(command, argv, exc)
-    except RuntimeError as exc:
-        _emit_contract_failure(command, argv, exc)
 
 
 def _emit_invalid_profile(command: str, argv: list[str]) -> None:

@@ -72,7 +72,7 @@ Original pre-refresh commitments and qualification records remain in signed Git 
 
 ## 5. Process Lifetimes and Resource Recovery
 
-- [x] 5.1 Terminate owned POSIX command groups on timeout and cancellation with native regressions. Verify the owning native regression.
+- [x] 5.1 Close owned POSIX groups on timeout and public CLI cancellation through native Nox/pytest; verify one cancellation budget, bounded hard-kill fallback, unchanged timeout bytes and sibling isolation. Supplier: signed `0deed1d3`; exact-source proof and delivery remain under 1.9.
 - [x] 5.2 Route command gates through the process owner and verify native cancellation and failure reporting.
 - [x] 5.3 Distinguish process creation from communication and cleanup failures at the process owner. Verify the owning native regression.
 - [x] 5.4 Resolve exited-group cancellation races without suppressing live-group cleanup failures. Verify the owning native regression.
@@ -84,7 +84,7 @@ Original pre-refresh commitments and qualification records remain in signed Git 
 - [x] 5.9 Route native executable verification through the process owner and reproduce descendant cleanup at the supply boundary.
 - [x] 5.10 Share owned-output removal, preserve external referents and verify minimal permission effects.
 - [ ] 5.11 Close native bootstrap identity wiring and tool transport timeouts; retain failed output, reuse verified supply across disposable checkouts, scope offline flags to bootstrap, and qualify cold and warm hosted consumers without increasing the deadline.
-- [ ] 5.12 Reproduce ignored durable-custody loss at retirement; consume existing artifact declarations to distinguish retained, active, foreign, unknown and proved disposable resources before deletion.
+- [ ] 5.12 Reproduce ignored durable-custody loss at retirement; intersect fresh native device/inode observation with the reviewed manifest without another traversal; qualify live consumers and preserve required custody before disposal. Supplier: signed `d2e61dfcb`; exact-source proof and installed retirement remain open.
   - [ ] 5.12.1 Preserve exact predecessor runtime and wheel through the existing shared-installation owner before local reclamation; bind cutover to the original selector CAS, verify failure/no-op/concurrency boundaries, then qualify package and real-adopter rollback custody.
     - [x] 5.12.1.1 Close predecessor custody, post-selector failure and exact-CAS compensation at the existing owners; qualify the signed minimal wheel, immutable runtime and isolated public upgrade/rollback/no-op with independent byte review. Live-adopter adoption and full-source proof remain open.
     - [x] 5.12.1.2 Deliver the qualified minimal package through the Publisher owner's public activation; verify exact prior-runtime/wheel custody and the original implicit prewrite without user retelling. Keep whole-source proof, release and host-store reclamation distinct.

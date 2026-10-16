@@ -4,18 +4,18 @@ from __future__ import annotations
 
 import os
 import signal
+import socket
 import subprocess
 import sys
+from contextlib import ExitStack
+from contextlib import nullcontext
 from contextlib import suppress
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
 import ethos.adapters.process as process_adapter
 from tests.support.subprocesses import ready_descendant
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 @pytest.mark.parametrize("text", [False, True])
@@ -144,8 +144,9 @@ def test_native_command_owns_its_handle_without_an_outer_scope(
 
         def observed_group_termination(pid: int, signum: int) -> None:
             child = next(child for _, child in started if child.pid == pid)
-            assert signum == signal.SIGKILL
-            terminated.append(child)
+            assert signum in {signal.SIGINT, signal.SIGKILL}
+            if signum == signal.SIGKILL:
+                terminated.append(child)
             killpg(pid, signum)
 
         monkeypatch.setattr(os, "killpg", observed_group_termination)
@@ -196,3 +197,189 @@ def test_native_command_owns_its_handle_without_an_outer_scope(
     assert terminated == (
         [child] if outcome != "success" or (spool_stdout and os.name == "posix") else []
     )
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX nested command-group signals")
+@pytest.mark.parametrize("boundary", ["command-timeout", "cli-termination"])
+def test_catchable_cancellation_closes_nested_registered_groups(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str
+) -> None:
+    """A live nested owner gets cancellation before its caller can hard-kill it."""
+    marker = tmp_path / "owned-child.pid"
+
+    def after_ready(parent, _options):
+        if boundary == "cli-termination":
+            parent.send_signal(signal.SIGTERM)
+
+    with ready_descendant(monkeypatch, after_ready) as (body, closed):
+        child = (
+            "import os; from pathlib import Path; "
+            f"Path({str(marker)!r}).write_text(str(os.getpid())); " + body
+        )
+        launch = (
+            "import sys; from pathlib import Path; from types import SimpleNamespace; "
+            f"sys.path.insert(0, {str(Path(process_adapter.__file__).resolve().parents[2])!r}); "
+            "from ethos.adapters.process import run_command; from ethos import cli; "
+            f"command = (sys.executable, '-B', '-I', '-c', {child!r}); "
+            "application = SimpleNamespace(load_command_groups=lambda _: None, "
+            "dispatch_arguments=lambda args: args, "
+            "app=lambda _: run_command(Path.cwd(), command, timeout=10)); "
+            "native_import = cli.import_module; "
+            "cli.import_module = lambda name: application if "
+            "name == 'ethos.surface.cli.application' else native_import(name); "
+            "sys.argv = ['ethos', 'probe']; cli.main()"
+        )
+        try:
+            failure = (
+                pytest.raises(subprocess.TimeoutExpired)
+                if boundary == "command-timeout"
+                else nullcontext()
+            )
+            with failure:
+                result = process_adapter.run_command(
+                    tmp_path,
+                    (sys.executable, "-B", "-I", "-c", launch),
+                    timeout=0.2 if boundary == "command-timeout" else 10,
+                )
+                assert result.returncode != 0
+            assert closed(), "catchable cancellation left the registered child's socket open"
+        finally:
+            if marker.exists():
+                with suppress(ProcessLookupError):
+                    os.killpg(int(marker.read_text()), signal.SIGKILL)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX native execution-group cancellation")
+def test_cancellation_reaches_native_nox_pytest_worker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Official executors can release a worker's separately registered native child."""
+    source_root = str(Path(process_adapter.__file__).resolve().parents[2])
+    marker = tmp_path / "owned-child.pid"
+    with ready_descendant(monkeypatch, lambda *_: None) as (body, closed):
+        child = (
+            "import os; from pathlib import Path; "
+            f"Path({str(marker)!r}).write_text(str(os.getpid())); " + body
+        )
+        (tmp_path / "test_owned.py").write_text(
+            "import sys\nfrom pathlib import Path\n"
+            f"sys.path.insert(0, {source_root!r})\n"
+            "from ethos.adapters.process import command_scope, run_command\n"
+            "def test_owned():\n"
+            "    with command_scope(handle_termination=True):\n"
+            f"        run_command(Path.cwd(), (sys.executable, '-B', '-I', '-c', {child!r}), "
+            "timeout=20)\n"
+        )
+        (tmp_path / "noxfile.py").write_text(
+            "import nox, sys\n"
+            "nox.options.default_venv_backend = 'none'\n"
+            "@nox.session(python=False)\n"
+            "def tests(session):\n"
+            "    session.run(sys.executable, '-B', '-m', 'pytest', '-n', '1', "
+            "'--max-worker-restart=0', '-q', 'test_owned.py')\n"
+        )
+        command = (sys.executable, "-B", "-m", "nox", "-s", "tests")
+        launch = (
+            "import sys; from pathlib import Path; from types import SimpleNamespace; "
+            f"sys.path.insert(0, {source_root!r}); "
+            "from ethos.adapters.process import run_command; from ethos import cli; "
+            "application = SimpleNamespace(load_command_groups=lambda _: None, "
+            "dispatch_arguments=lambda args: args, "
+            f"app=lambda _: run_command(Path.cwd(), {command!r}, timeout=20, spool_stdout=True)); "
+            "native_import = cli.import_module; "
+            "cli.import_module = lambda name: application if "
+            "name == 'ethos.surface.cli.application' else native_import(name); "
+            "sys.argv = ['ethos', 'probe']; cli.main()"
+        )
+        try:
+            with pytest.raises(subprocess.TimeoutExpired):
+                process_adapter.run_command(
+                    tmp_path,
+                    (sys.executable, "-B", "-I", "-c", launch),
+                    timeout=0.2,
+                    spool_stdout=True,
+                )
+            assert closed(), "executor interruption lost the worker's registered child"
+        finally:
+            if marker.exists():
+                with suppress(ProcessLookupError):
+                    os.killpg(int(marker.read_text()), signal.SIGKILL)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX catchable-signal fallback")
+def test_uncooperative_native_command_is_killed_and_reaped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ignoring cooperative interruption cannot retain the owned group or its socket."""
+    children = []
+    with ready_descendant(monkeypatch, lambda child, _: children.append(child)) as (body, closed):
+        command = "import signal; signal.signal(signal.SIGINT, signal.SIG_IGN); " + body
+        with pytest.raises(subprocess.TimeoutExpired) as caught:
+            process_adapter.run_command(
+                tmp_path, (sys.executable, "-c", command), timeout=0.1, spool_stdout=True
+            )
+        assert caught.value.timeout == 0.1
+        assert children[0].returncode == -signal.SIGKILL
+        assert closed()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX shared cancellation budget")
+def test_nested_scope_cancels_all_registered_groups_with_one_budget(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An outer deadline cannot strand later groups while the first consumes its grace."""
+    count = 3
+    source_root = str(Path(process_adapter.__file__).resolve().parents[2])
+    native_communicate = subprocess.Popen.communicate
+    with ExitStack() as resources:
+        listener = resources.enter_context(socket.create_server(("127.0.0.1", 0)))
+        listener.settimeout(10)
+        connections = []
+        child = (
+            "import os,socket,signal,sys; from pathlib import Path; "
+            "signal.signal(signal.SIGINT, signal.SIG_IGN); "
+            "Path(sys.argv[1]).write_text(str(os.getpid())); "
+            f"s=socket.create_connection({listener.getsockname()!r},timeout=10); "
+            "s.settimeout(None); s.sendall(b'R'); s.recv(1)"
+        )
+        markers = [tmp_path / f"owned-{i}.pid" for i in range(count)]
+        commands = [(sys.executable, "-B", "-I", "-c", child, str(m)) for m in markers]
+        launch = (
+            "import sys; from pathlib import Path; from types import SimpleNamespace; "
+            "from concurrent.futures import ThreadPoolExecutor; "
+            "from contextvars import copy_context; "
+            f"sys.path.insert(0, {source_root!r}); "
+            "from ethos.adapters.process import command_scope, run_command; from ethos import cli\n"
+            "def app(_):\n"
+            f"    with ThreadPoolExecutor(max_workers={count}) as pool, command_scope():\n"
+            f"        futures=[pool.submit(copy_context().run, run_command, Path.cwd(), c, "
+            f"timeout=10) for c in {commands!r}]\n"
+            "        for future in futures: future.result()\n"
+            "application=SimpleNamespace(load_command_groups=lambda _: None, "
+            "dispatch_arguments=lambda args: args, app=app)\n"
+            "native_import=cli.import_module\n"
+            "cli.import_module=lambda name: application if "
+            "name=='ethos.surface.cli.application' else native_import(name)\n"
+            "sys.argv=['ethos','probe']; cli.main()"
+        )
+
+        def ready(process, *args, **kwargs):
+            for _ in range(count):
+                connection = resources.enter_context(listener.accept()[0])
+                connection.settimeout(2)
+                assert connection.recv(1) == b"R"
+                connections.append(connection)
+            return native_communicate(process, *args, **kwargs)
+
+        monkeypatch.setattr(subprocess.Popen, "communicate", ready)
+        try:
+            with pytest.raises(subprocess.TimeoutExpired):
+                process_adapter.run_command(
+                    tmp_path, (sys.executable, "-B", "-I", "-c", launch), timeout=0.1
+                )
+            assert all(connection.recv(1) == b"" for connection in connections)
+        finally:
+            for marker in markers:
+                if marker.exists():
+                    with suppress(ProcessLookupError):
+                        os.killpg(int(marker.read_text()), signal.SIGKILL)

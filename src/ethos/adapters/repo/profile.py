@@ -75,19 +75,25 @@ def repository_identities(
 ) -> dict[str, str]:
     """Read every selected relationship afresh, then decode each complete profile once."""
     selected = tuple(dict.fromkeys(tree_refs))
-    if len(selected) <= 2 or optional:
-        reader = historical_repository_identity if historical else repository_identity
-        identities = {}
-        for revision in selected:
-            try:
-                identities[revision] = reader(root, tree_ref=revision, environment=environment)
-            except ValueError:
-                if revision not in optional:
-                    raise
+    required = tuple(revision for revision in selected if revision not in optional)
+    reader = historical_repository_identity if historical else repository_identity
+    identities = {}
+    unbatched = (
+        selected
+        if len(required) <= 2
+        else tuple(revision for revision in selected if revision in optional)
+    )
+    for revision in unbatched:
+        try:
+            identities[revision] = reader(root, tree_ref=revision, environment=environment)
+        except ValueError:
+            if revision not in optional:
+                raise
+    if len(required) <= 2:
         return identities
     observed = resolve_revisions(
         root,
-        tuple(f"{revision}:.ethos/profile.toml" for revision in selected),
+        tuple(f"{revision}:.ethos/profile.toml" for revision in required),
         environment=environment,
     )
     object_ids = tuple(dict.fromkeys(identity for identity in observed.values() if identity))
@@ -95,8 +101,7 @@ def repository_identities(
         zip(object_ids, read_objects(root, object_ids, environment=environment), strict=True)
     )
     decoded: dict[str, str] = {}
-    identities: dict[str, str] = {}
-    for revision in selected:
+    for revision in required:
         identity = observed[f"{revision}:.ethos/profile.toml"]
         if identity not in decoded:
             payload = payloads.get(identity, b"")
@@ -110,7 +115,7 @@ def repository_identities(
                 )
             )
         identities[revision] = decoded[identity]
-    return identities
+    return {revision: identities[revision] for revision in selected if revision in identities}
 
 
 def _profile_identity(profile: RepositoryProfile) -> str:

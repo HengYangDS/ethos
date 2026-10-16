@@ -27,10 +27,7 @@ from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 from tests.support.signature import configure_signer
 
-_POLICY = (
-    '[commit_policy]\nsubject_pattern = "^fix: .+"\n'
-    'signing_required = true\nsigning_format = "ssh"\n'
-)
+_POLICY = '[commit_policy]\nsubject_pattern = "^fix: .+"\n'
 _IDENTITY = (
     '[commit_policy.author]\nname = "ETHOS Test"\nemail = "test@example.invalid"\n'
     '[commit_policy.committer]\nname = "ETHOS Test"\nemail = "test@example.invalid"\n'
@@ -352,7 +349,10 @@ def test_replayed_commits_cannot_waive_trusted_baseline_signatures(tmp_path):
     repo, baseline, tree = _repository(tmp_path)
     revision = git(repo, "commit-tree", tree, "-p", baseline, "-m", "fix: unsigned replay")
     assert validate_replayed_commits(
-        repo, baseline_commit=baseline, proposed_commit=revision, policy=None
+        repo,
+        baseline_commit=baseline,
+        proposed_commit=revision,
+        policy=commit_policy_from_text(""),
     ) == [f"commit_signature_missing:{revision}"]
 
 

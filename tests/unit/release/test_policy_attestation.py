@@ -225,7 +225,7 @@ def test_release_policy_rejects_duplicate_remote_declaration(tmp_path: Path) -> 
         .read_text()
         .replace('git_remote = "github"', 'git_remote = "gitlab"', 1),
     )
-    for path in (*_REQUIRED_FILES, "pyproject.toml", ".ethos/workspace.toml"):
+    for path in (*_REQUIRED_FILES, "pyproject.toml"):
         _write(scratch, path, (root / path).read_text())
     assert release_policy_report(root)["publication_topology"]["state"] == "ready"
     assert (

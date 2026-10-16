@@ -17,6 +17,7 @@ from ethos.contracts.coordination import LaneLease
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.paradigm import PARADIGM_OPENSPEC_CONFIG
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
@@ -162,7 +163,7 @@ def write_test_profile(root: Path, **updates: object) -> Path:
 def init_git_repo(path: Path, *, object_format: str = "sha1") -> Path:
     path.mkdir(parents=True)
     git(path, "init", "--object-format=" + object_format, "-b", "dev")
-    git(path, "config", "commit.gpgsign", "false")
+    configure_fixture_signer(path)
     git(path, "config", "core.hooksPath", ".git/test-hooks")
     (path / ".gitignore").write_text("", encoding="utf-8")
     (path / "README.md").write_text("# sample\n", encoding="utf-8")
@@ -173,7 +174,7 @@ def init_git_repo(path: Path, *, object_format: str = "sha1") -> Path:
         carrier = path / relative
         carrier.parent.mkdir(parents=True, exist_ok=True)
         carrier.write_text(content, encoding="utf-8")
-    commit_fixture(path, "init")
+    commit_fixture(path, "chore: initialize the fixture repository")
     return path
 
 
@@ -181,7 +182,7 @@ def init_repo_with_candidate(tmp_path: Path) -> tuple[Path, Path]:
     """Create a minimal accepted root and its linked candidate checkout."""
     repo = init_git_repo(tmp_path / "repo")
     initialize_adopted_fixture(repo)
-    commit_fixture(repo, "adopt ethos governance")
+    commit_fixture(repo, "chore: adopt ethos governance")
     commit_openspec_baseline(repo)
     candidate = tmp_path / "repo-candidate-dev"
     git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
@@ -256,7 +257,7 @@ def commit_openspec_baseline(repo: Path) -> None:
     _write_openspec_baseline(repo)
     if git(repo, "status", "--short", "--", "openspec", ".ethos/profile.toml"):
         git(repo, "add", "openspec/config.yaml", "openspec/specs", ".ethos/profile.toml")
-        _commit_fixture(repo, "seed OpenSpec baseline")
+        _commit_fixture(repo, "docs(openspec): seed the baseline")
 
 
 def _write_active_change_carrier(
@@ -327,7 +328,7 @@ def _enable_openspec_profile(repo: Path) -> None:
 def write_role_policy(repo: Path, *, release_mirror: str = "independent") -> None:
     """Write and commit an explicit release mirror; the paradigm fixes the role names."""
     write_release_mirror(repo, release_mirror)
-    commit_fixture(repo, "configure branch roles")
+    commit_fixture(repo, "chore: configure the release mirror")
 
 
 def write_release_mirror(repo: Path, release_mirror: str) -> None:
@@ -359,7 +360,7 @@ def adopt_and_commit(
     if release_mirror != "independent":
         write_release_mirror(repo, release_mirror)
     _write_openspec_baseline(repo)
-    return commit_fixture(repo, "adopt ethos governance")
+    return commit_fixture(repo, "chore: adopt ethos governance")
 
 
 def render_release_mirror(release_mirror: str) -> str:
@@ -452,10 +453,14 @@ def write_script_gate_policy(root: Path, *, full: bool = False) -> None:
     (root / "tools/check.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
 
 
-def commit_fixture(root: Path, message: str) -> str:
-    """Commit all fixture changes and return the resulting HEAD."""
+def commit_fixture(root: Path, message: str, *, signed: bool = True) -> str:
+    """Commit all fixture changes and return the resulting HEAD.
+
+    Fixtures sign like every governed repository; a test that needs an unsigned
+    source object, such as a signature repair, asks for one explicitly.
+    """
     git(root, "add", ".")
-    return _commit_fixture(root, message)
+    return _commit_fixture(root, message, signed=signed)
 
 
 def committed_source_repo(tmp_path: Path, files: dict[str, str]) -> Path:
@@ -465,11 +470,13 @@ def committed_source_repo(tmp_path: Path, files: dict[str, str]) -> Path:
         target = repo / path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
-    commit_fixture(repo, "record native source")
+    commit_fixture(repo, "chore: record native source")
     return repo
 
 
-def _commit_fixture(root: Path, message: str, *, hooks_path: Path | None = None) -> str:
+def _commit_fixture(
+    root: Path, message: str, *, hooks_path: Path | None = None, signed: bool = True
+) -> str:
     """Commit the staged fixture index with deterministic test identity."""
     hook_arguments = ("-c", f"core.hooksPath={hooks_path.as_posix()}") if hooks_path else ()
     git(
@@ -479,6 +486,7 @@ def _commit_fixture(root: Path, message: str, *, hooks_path: Path | None = None)
         "user.name=Test User",
         "-c",
         "user.email=test@example.com",
+        *(() if signed else ("-c", "commit.gpgsign=false")),
         "commit",
         "-m",
         message,

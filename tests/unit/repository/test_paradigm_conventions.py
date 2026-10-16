@@ -124,7 +124,7 @@ def test_every_branch_role_field_is_retired(
 @pytest.mark.parametrize(
     ("workspace", "gaps"),
     [
-        ('[commit_policy]\nsigning_required = true\nsigning_format = "ssh"\n', []),
+        ('[commit_policy]\nscopes = ["cli"]\n', []),
         (
             '[[package]]\nname = "root"\npath = "."\n',
             ["repository_paradigm_workspace_binding:.ethos/workspace.toml:package"],
@@ -156,10 +156,10 @@ def test_a_workspace_binding_declares_only_the_commit_policy(
 @pytest.mark.parametrize(
     ("policy", "gaps"),
     [
-        ('signing_required = true\nsigning_format = "ssh"\n', []),
-        ('scopes = ["cli"]\nsigning_required = true\nsigning_format = "ssh"\n', []),
+        ("", []),
+        ('scopes = ["cli"]\n', []),
         (
-            'subject_pattern = "^(fix|spec): .+"\nsigning_required = true\n',
+            'subject_pattern = "^(fix|spec): .+"\n',
             [
                 "repository_paradigm_commit_grammar:.ethos/workspace.toml:commit_policy.subject_pattern"
             ],
@@ -168,12 +168,26 @@ def test_a_workspace_binding_declares_only_the_commit_policy(
     ids=["derived", "declared-scopes", "restated"],
 )
 def test_the_commit_grammar_is_not_restated(tmp_path: Path, policy: str, gaps: list[str]) -> None:
-    """A binding declares signing and may restrict scopes, but never its own subject grammar."""
+    """A binding may restrict scopes, but never declares its own subject grammar."""
     workspace = f"[commit_policy]\n{policy}"
     report = paradigm_report(tmp_path, {**CONFORMING, ".ethos/workspace.toml": workspace})
     assert report["required_gaps"] == gaps
     if gaps:
         assert "scopes = [...] restricts its scopes" in report["next_action"]
+
+
+@pytest.mark.parametrize("value", ["true", "false"])
+def test_the_signature_is_not_restated(tmp_path: Path, value: str) -> None:
+    """The paradigm fixes the SSH signature, so either signing field restates it."""
+    workspace = f'[commit_policy]\nsigning_required = {value}\nsigning_format = "ssh"\n'
+    report = paradigm_report(tmp_path, {**CONFORMING, ".ethos/workspace.toml": workspace})
+    assert report["required_gaps"] == [
+        f"repository_paradigm_commit_signature:.ethos/workspace.toml:commit_policy.{field}"
+        for field in ("signing_required", "signing_format")
+    ]
+    assert report["next_action"] == (
+        "remove signing_required; the repository paradigm requires an SSH signature on every commit"
+    )
 
 
 _RELEASING = {
@@ -227,6 +241,7 @@ def test_a_releasing_repository_keeps_one_version_source_and_changelog(
         ({".ethos/release.toml": "[broken\n"}, []),
         ({".ethos/workspace.toml": "[broken\n"}, []),
         ({".ethos/workspace.toml": 'branch_roles = "main"\n'}, []),
+        ({".ethos/workspace.toml": 'commit_policy = "signed"\n'}, []),
         ({".ethos/rules.toml": "[broken\n"}, []),
         (
             {".config/checks/ruff/ruff.toml": "[broken\n"},
@@ -242,6 +257,7 @@ def test_a_releasing_repository_keeps_one_version_source_and_changelog(
         "release-unreadable",
         "workspace-unreadable",
         "roles-not-table",
+        "commit-policy-not-table",
         "rules-unreadable",
         "formatter-unreadable",
         "peers-malformed",

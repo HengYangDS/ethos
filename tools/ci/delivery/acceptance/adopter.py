@@ -437,10 +437,6 @@ def prepare_acceptance_topology(
     (candidate / "notes/candidate.txt").write_text("candidate\n", encoding="utf-8")
     run(git, "add", "notes/candidate.txt", cwd=candidate)
     run(git, "commit", "--quiet", "-m", "advance candidate independently", cwd=candidate)
-    (root / ".ethos/workspace.toml").write_text(
-        '[commit_policy]\nsigning_required = true\nsigning_format = "ssh"\n',
-        encoding="utf-8",
-    )
     profile = root / ".ethos/profile.toml"
     profile.write_text(
         profile.read_text(encoding="utf-8") + '\n[proof]\ngate_registry = "system/gates.toml"\n',
@@ -468,7 +464,7 @@ def prepare_acceptance_topology(
         'version_source = "git"\n',
         encoding="utf-8",
     )
-    run(git, "add", ".ethos/workspace.toml", ".ethos/profile.toml", "system/gates.toml", cwd=root)
+    run(git, "add", ".ethos/profile.toml", "system/gates.toml", cwd=root)
     run(
         git,
         "-c",

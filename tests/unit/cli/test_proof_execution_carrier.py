@@ -47,7 +47,7 @@ def _staged_archive(
     lifecycle = completed_lifecycle(tmp_path, monkeypatch)
     authoring = lifecycle.worktree
     declare_native_proof_checks(authoring, test=test_program, typecheck="print('static green')")
-    commit_fixture(authoring, "declare current proof gates")
+    commit_fixture(authoring, "ci: declare current proof gates")
     head = git(authoring, "rev-parse", "HEAD")
     lifecycle.stage_official_archive()
     git(authoring, "add", "--all")
@@ -441,7 +441,7 @@ def test_stale_expected_head_blocks_before_in_place_checks(
         test=f"from pathlib import Path; Path({str(marker)!r}).touch()",
         typecheck="print('static green')",
     )
-    commit_fixture(authoring, "declare current proof gates")
+    commit_fixture(authoring, "ci: declare current proof gates")
     stale = git(authoring, "rev-parse", "HEAD^")
     before = _authoring_snapshot(authoring)
 

@@ -123,13 +123,6 @@ def _commit_policy_report(
             **empty,
             "required_gaps": [gap],
         }
-    if policy is None:
-        return {
-            "verdict": "pass",
-            "state": "absent",
-            **empty,
-            "required_gaps": [],
-        }
     if observer is None:
         return {
             "verdict": "block",

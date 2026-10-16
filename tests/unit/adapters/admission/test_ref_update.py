@@ -125,7 +125,7 @@ def test_candidate_policy_cannot_reclassify_predecessor_accepted_destination(tmp
     """Prior committed role meaning remains the floor when proposed policy changes."""
     repo, baseline, _proposed = _fixture(tmp_path)
     (repo / ".ethos/workspace.toml").write_text('[branch_roles]\naccepted_branch = "new-dev"\n')
-    proposed = commit_fixture(repo, "rename candidate accepted role")
+    proposed = commit_fixture(repo, "chore: rename the candidate accepted role")
 
     report = _observe(repo, "refs/heads/dev", proposed, baseline)
 
@@ -153,11 +153,11 @@ def test_malformed_prior_policy_cannot_be_replaced_with_candidate_defaults(tmp_p
             if fault == "mirror"
             else "["
         )
-    baseline = commit_fixture(repo, "invalid prior declaration")
+    baseline = commit_fixture(repo, "chore: record an invalid prior declaration")
     if policy.is_symlink():
         policy.unlink()
     policy.write_bytes(original)
-    proposed = commit_fixture(repo, "restore candidate declaration")
+    proposed = commit_fixture(repo, "chore: restore the candidate declaration")
 
     report = _observe(repo, "refs/heads/proposal/review", proposed, baseline, blocked=True)
 
@@ -216,10 +216,10 @@ def test_ref_observation_preserves_native_create_delete_and_non_fast_forward_ran
     base = git(repo, "rev-parse", "HEAD")
     git(repo, "checkout", "-b", "remote-line")
     (repo / "remote.txt").write_text("remote\n")
-    old = commit_fixture(repo, "remote range")
+    old = commit_fixture(repo, "test: advance the remote range")
     git(repo, "checkout", "dev")
     (repo / "proposed.txt").write_text("proposed\n")
-    proposed = commit_fixture(repo, "proposed range")
+    proposed = commit_fixture(repo, "test: advance the proposed range")
     zero = "0" * len(proposed)
     target = "refs/heads/proposal/review"
 

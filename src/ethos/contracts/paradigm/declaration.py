@@ -124,13 +124,14 @@ class DocumentConventions(BaseModel):
 
 
 class CommitGrammar(BaseModel):
-    """The commit subject grammar every governed repository shares."""
+    """The commit subject grammar and signature every governed repository shares."""
 
     model_config = _DECLARATION
 
     types: FrozenTuple[str]
     scope: str
     breaking_marker: str = Field(min_length=1, max_length=1)
+    signature: Literal["ssh"]
 
     @model_validator(mode="after")
     def require_compilable_grammar(self) -> Self:

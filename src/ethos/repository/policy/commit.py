@@ -1,4 +1,9 @@
-"""Compile the repository's optional tracked commit policy."""
+"""Compile the repository commit policy: the paradigm's grammar and SSH signature.
+
+A tracked `[commit_policy]` may restrict scopes and constrain identities. The paradigm
+fixes the signature, so a binding that still declares a signing field restates it; the
+paradigm report names that field and no reader consults its value.
+"""
 
 from __future__ import annotations
 
@@ -14,9 +19,8 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from pathlib import Path
 
-_FIELDS = frozenset(
-    {"subject_pattern", "scopes", "signing_required", "signing_format", "author", "committer"}
-)
+RETIRED_COMMIT_POLICY_FIELDS = ("signing_required", "signing_format")
+_FIELDS = frozenset({"subject_pattern", "scopes", "author", "committer"})
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -33,10 +37,9 @@ class CommitIdentity:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class CommitPolicy:
-    """One strictly validated repository commit policy."""
+    """One strictly validated repository commit policy; every commit carries its signature."""
 
     subject_pattern: str
-    signing_required: bool
     signing_format: Literal["ssh"]
     scopes: tuple[str, ...] = ()
     author: CommitIdentity | None = None
@@ -59,7 +62,6 @@ class CommitPolicy:
         """Return the canonical public projection of the declaration."""
         return {
             "subject_pattern": self.subject_pattern,
-            "signing_required": self.signing_required,
             "signing_format": self.signing_format,
             **({"scopes": list(self.scopes)} if self.scopes else {}),
             **{
@@ -129,44 +131,32 @@ def _subject_pattern(raw: dict[str, object], scopes: tuple[str, ...]) -> str:
     return subject_pattern
 
 
-def commit_policy_from_text(text: str) -> CommitPolicy | None:
-    """Compile an already-observed commit policy, failing closed when present."""
+def commit_policy_from_text(text: str) -> CommitPolicy:
+    """Compile an already-observed binding; an absent table yields the paradigm's policy."""
     try:
         payload = tomllib.loads(text)
     except tomllib.TOMLDecodeError as error:
         message = f"commit_policy_toml_invalid:{error}"
         raise ValueError(message) from error
-    if "commit_policy" not in payload:
-        return None
-    raw = payload["commit_policy"]
+    raw = payload.get("commit_policy", {})
     if not isinstance(raw, dict):
         message = "commit_policy_invalid:must_be_table"
         raise TypeError(message)
-    unknown = sorted(set(raw) - _FIELDS)
+    unknown = sorted(set(raw) - _FIELDS - set(RETIRED_COMMIT_POLICY_FIELDS))
     if unknown:
         message = f"commit_policy_unknown_fields:{','.join(unknown)}"
         raise ValueError(message)
     scopes = _scopes(raw)
-    subject_pattern = _subject_pattern(raw, scopes)
-    signing_required = raw.get("signing_required")
-    if not isinstance(signing_required, bool):
-        message = "commit_policy_invalid:signing_required"
-        raise TypeError(message)
-    signing_format = _required_text(raw, "signing_format")
-    if signing_format != "ssh":
-        message = f"commit_policy_signing_format_unsupported:{signing_format}"
-        raise ValueError(message)
     return CommitPolicy(
-        subject_pattern=subject_pattern,
-        signing_required=signing_required,
-        signing_format="ssh",
+        subject_pattern=_subject_pattern(raw, scopes),
+        signing_format=load_repository_paradigm().commit.signature,
         scopes=scopes,
         author=_identity(raw, "author"),
         committer=_identity(raw, "committer"),
     )
 
 
-def load_commit_policy(root: Path) -> CommitPolicy | None:
-    """Compile the optional tracked commit policy from the working tree."""
+def load_commit_policy(root: Path) -> CommitPolicy:
+    """Compile the commit policy the working tree's binding selects."""
     path = root / ".ethos" / "workspace.toml"
     return commit_policy_from_text(path.read_text(encoding="utf-8") if path.exists() else "")

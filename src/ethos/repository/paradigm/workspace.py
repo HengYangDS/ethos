@@ -1,9 +1,10 @@
 """Workspace binding conformance: the commit policy is the only workspace table.
 
-The paradigm fixes every branch role and the release binding declares the release
-mirror, so a `[branch_roles]` table, like any other workspace table, is a
-declaration no reader consults. Each gap names the declaration and its removal;
-an accepted fast-forward mirror instead names its move to the release binding.
+The paradigm fixes every branch role, the commit grammar and the SSH signature, and
+the release binding declares the release mirror, so a `[branch_roles]` table, like
+any other workspace table, and a restated grammar or signing field are declarations
+no reader consults. Each gap names the declaration and its removal; an accepted
+fast-forward mirror instead names its move to the release binding.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from ethos.contracts.branch.roles import SIBLING_WORKTREE_FIELD
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.repository.paradigm.gap import ParadigmGap
 from ethos.repository.paradigm.gap import tracked_text
+from ethos.repository.policy.commit import RETIRED_COMMIT_POLICY_FIELDS
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -31,7 +33,7 @@ _ROLES = "branch_roles"
 def workspace_gaps(
     paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
 ) -> Iterator[ParadigmGap]:
-    """Report every workspace table but the commit policy, and a restated commit grammar."""
+    """Report every workspace table but the commit policy, and its restated grammar or signature."""
     workspace = f"{paradigm.binding.root}/workspace.toml"
     declared = _declared(root, workspace, tracked)
     if declared is None:
@@ -45,12 +47,20 @@ def workspace_gaps(
         elif key != _ROLES or isinstance(value, dict):
             yield ParadigmGap("workspace-binding", f"{workspace}:{key}", _table_repair(key))
     policy = declared.get("commit_policy", {})
-    if isinstance(policy, dict) and "subject_pattern" in policy:
+    if not isinstance(policy, dict):
+        return  # The commit policy owner reports a table that is not a table.
+    if "subject_pattern" in policy:
         yield ParadigmGap(
             "commit-grammar",
             f"{workspace}:commit_policy.subject_pattern",
             "remove subject_pattern; the repository paradigm owns the commit grammar, "
             "and scopes = [...] restricts its scopes",
+        )
+    for field in (field for field in RETIRED_COMMIT_POLICY_FIELDS if field in policy):
+        yield ParadigmGap(
+            "commit-signature",
+            f"{workspace}:commit_policy.{field}",
+            f"remove {field}; the repository paradigm requires an SSH signature on every commit",
         )
 
 

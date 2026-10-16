@@ -41,7 +41,7 @@ def _archive(monkeypatch: pytest.MonkeyPatch, root: Path, *, full: bool = False)
         root,
         "openspec/changes/fixture-change/tasks.md",
         "- [x] Exercise fixture lifecycle\n",
-        "complete fixture change",
+        "test: complete fixture change",
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     seed_executed_proof(root, head, full=full)
@@ -70,7 +70,7 @@ def _land(root: Path, head: str | None = None, *, blocked: bool = False) -> dict
 
 def _proved_lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, full: bool = False):
     fixture = prepared_work_lane(tmp_path)
-    commit_fixture_file(fixture.worktree, "notes/feature.md", "# feature\n", "feature work")
+    commit_fixture_file(fixture.worktree, "notes/feature.md", "# feature\n", "test: feature work")
     head = _archive(monkeypatch, fixture.worktree, full=full)
     seed_executed_proof(fixture.worktree, head, full=full)
     return fixture, head
@@ -94,7 +94,7 @@ def _assert_completed_change_is_observed(tmp_path: Path) -> None:
         fixture.worktree,
         "openspec/changes/fixture-change/tasks.md",
         "- [x] Exercise fixture lifecycle\n",
-        "complete source work",
+        "test: complete source work",
     )
     payload = _land(fixture.worktree)
     assert (payload["verdict"], payload["state"]) == ("block", "blocked")
@@ -197,12 +197,14 @@ def test_land_readiness_claim_matrix(
         return
     fixture = prepared_work_lane(tmp_path)
     if claim == LAND_CASES[2]:
-        commit_fixture_file(fixture.candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
+        commit_fixture_file(
+            fixture.candidate, "CANDIDATE.md", "# candidate\n", "test: advance candidate"
+        )
     if claim == LAND_CASES[8]:
         commit_fixture_file(
-            fixture.worktree, "system/gates.toml", FULL_GATES, "declare split proof floors"
+            fixture.worktree, "system/gates.toml", FULL_GATES, "test: declare split proof floors"
         )
-    commit_fixture_file(fixture.worktree, "notes/feature.md", "# feature\n", "feature work")
+    commit_fixture_file(fixture.worktree, "notes/feature.md", "# feature\n", "test: feature work")
     if claim in LAND_CASES[4:6]:
         _assert_active_change_is_admitted(claim, fixture)
         return
@@ -270,22 +272,25 @@ def test_refresh_base_claim_matrix(
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     if claim == REFRESH_CASES[0]:
         generation = leases_by_branch(fixture.worktree)["work/feature"]["generation"]
-        commit_fixture_file(fixture.candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
-        commit_fixture_file(fixture.worktree, "notes/feature.md", "# feature\n", "feature work")
+        commit_fixture_file(
+            fixture.candidate, "CANDIDATE.md", "# candidate\n", "test: advance candidate"
+        )
+        commit_fixture_file(
+            fixture.worktree, "notes/feature.md", "# feature\n", "test: feature work"
+        )
         previous = git(fixture.worktree, "rev-parse", "HEAD")
         candidate = git(fixture.candidate, "rev-parse", "HEAD")
-        git(fixture.worktree, "config", "commit.gpgsign", "true")
+        refresh = ("lane", "refresh-base", "--apply", "--authorize", "--expect-head", previous)
+        signer = git(fixture.worktree, "config", "--local", "user.signingkey")
         git(fixture.worktree, "config", "user.signingkey", "missing-test-signing-key")
-        payload = run_ethos(
-            "lane",
-            "refresh-base",
-            "--apply",
-            "--authorize",
-            "--expect-head",
-            previous,
-            "--json",
-            cwd=fixture.worktree,
+        unsigned = run_ethos_blocked(*refresh, "--json", cwd=fixture.worktree)
+        assert (unsigned["verdict"], unsigned["required_gaps"]) == (
+            "block",
+            ["git_effect_signing_key_invalid"],
         )
+        assert git(fixture.worktree, "rev-parse", "HEAD") == previous
+        git(fixture.worktree, "config", "user.signingkey", signer)
+        payload = run_ethos(*refresh, "--json", cwd=fixture.worktree)
         head = git(fixture.worktree, "rev-parse", "HEAD")
         assert (
             payload["verdict"],
@@ -328,8 +333,10 @@ def test_refresh_base_claim_matrix(
             data["attachment_attestation"]["predicate"],
         ) == ("effect:git-rebase", "effect:git-worktree")
         return
-    commit_fixture_file(fixture.candidate, "CONFLICT.txt", "candidate\n", "advance candidate")
-    previous = commit_fixture_file(fixture.worktree, "CONFLICT.txt", "work lane\n", "conflict")
+    commit_fixture_file(fixture.candidate, "CONFLICT.txt", "candidate\n", "test: advance candidate")
+    previous = commit_fixture_file(
+        fixture.worktree, "CONFLICT.txt", "work lane\n", "test: conflict"
+    )
     completed = run_ethos_raw(
         "lane",
         "refresh-base",
@@ -396,7 +403,7 @@ def _assert_first_cas_uses_accepted_policy(fixture, monkeypatch: pytest.MonkeyPa
     target = worktree / ".ethos/release.toml"
     target.write_text(f"{target.read_text()}\n{CHANGED_TOPOLOGY}")
     git(worktree, "add", target.as_posix())
-    git(worktree, "commit", "-m", "change future branch topology")
+    git(worktree, "commit", "-m", "test: change future branch topology")
     head = _archive(monkeypatch, worktree)
     seed_executed_proof(worktree, head)
     landed = _land(worktree, head)
@@ -427,7 +434,7 @@ def _assert_declared_closeout_policy(
     elif claim == CLOSEOUT_CASES[2]:
         release.write_text(f'{release.read_text()}\n[release]\nmirror = "mirror"\n')
         git(repo, "add", release.as_posix())
-        git(repo, "commit", "-m", "record an invalid release mirror")
+        git(repo, "commit", "-m", "test: record an invalid release mirror")
         accepted = git(repo, "rev-parse", "HEAD")
         git(candidate, "reset", "--hard", accepted)
         report = accepted_admission.candidate_to_accepted(
@@ -439,7 +446,7 @@ def _assert_declared_closeout_policy(
     else:
         write_release_mirror(repo, "accepted_ff")
         git(repo, "add", release.as_posix())
-        git(repo, "commit", "-m", "require release mirror")
+        git(repo, "commit", "-m", "test: require release mirror")
         accepted = git(repo, "rev-parse", "HEAD")
         git(repo, "branch", "main", accepted)
         git(candidate, "reset", "--hard", accepted)
@@ -451,7 +458,7 @@ def _assert_declared_closeout_policy(
         branch="work/closeout",
         holder_ref="agent:test:case:agent-test",
     )
-    commit_fixture_file(worktree, "README.md", "# candidate\n", "candidate")
+    commit_fixture_file(worktree, "README.md", "# candidate\n", "test: candidate")
     head = _archive(monkeypatch, worktree)
     seed_executed_proof(worktree, head)
     landed = _land(worktree, head)
@@ -501,7 +508,7 @@ def test_candidate_cas_claim_matrix(
             attempts += 1
             plans.append(id(args[1]))
             if claim == CAS_CASES[3] and attempts == 1:
-                commit_fixture_file(fixture.candidate, "PEER.md", "# peer\n", "peer progress")
+                commit_fixture_file(fixture.candidate, "PEER.md", "# peer\n", "test: peer progress")
             if claim != CAS_CASES[0] or attempts == 1:
                 msg = "git_effect_cas_rejected"
                 raise ValueError(msg)

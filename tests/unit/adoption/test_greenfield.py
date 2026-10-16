@@ -14,6 +14,7 @@ import ethos.adapters.repo.starter.formation as formation_effect
 import ethos.cli as product_cli
 from ethos.domain.adoption import adopt_repository
 from ethos.domain.inspection import inspect_repository
+from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
@@ -450,6 +451,7 @@ def test_greenfield_runtime_failure_reobserves_created_repository(
     assert " -I -m ethos.cli hook install --root " in blocked.next_action
     assert str(target) in blocked.next_action
 
+    configure_fixture_signer(target)
     monkeypatch.setattr(
         candidate_projection, "install_hook_launchers", install_fixture_hook_runtime
     )
@@ -496,6 +498,7 @@ def test_greenfield_worktree_failure_selects_recovery_before_runtime(
     assert "lane candidate" in blocked.next_action
     assert blocked.user_decision_required
 
+    configure_fixture_signer(target)
     monkeypatch.setattr(
         candidate_projection, "install_hook_launchers", install_fixture_hook_runtime
     )

@@ -40,7 +40,7 @@ def _legacy_repository(tmp_path: Path) -> tuple[Path, Path, str]:
     workspace = repo / ".ethos/workspace.toml"
     workspace.write_text(f"[branch_roles]\n{_LEGACY}")
     git(repo, "add", workspace.as_posix())
-    git(repo, "commit", "-m", "declare legacy branch roles")
+    git(repo, "commit", "-m", "chore: declare legacy branch roles")
     git(repo, "branch", "-m", "dev", "accepted/train")
     git(repo, "branch", "-m", "candidate/dev", "candidate/train")
     head = git(repo, "rev-parse", "HEAD")

@@ -216,16 +216,18 @@ multiple merge parents report a boundary instead of guessing recovery.
 
 ## Commit Integrity And Accepted History Repair
 
-The tracked `[commit_policy]` in `.ethos/workspace.toml` owns the subject grammar,
-required signature format and optional exact `author` and `committer` tables
-(`name`, `email`). Undeclared identity constraints impose none on other adopters.
-The common compiler serves commit-msg, generated commits, replay, pre-push and
-`ethos hook commit-range`; there is no separate mutable Git identity policy.
-Prospective checks use the index and parent; generated commits use their exact
-parent and target tree. Introduced objects must satisfy trusted-baseline policy
-as well as candidate constraints. Removing policy cannot waive its own admission.
+The repository paradigm owns the commit subject grammar and requires an SSH
+signature on every commit, so a repository that tracks no `[commit_policy]` in
+`.ethos/workspace.toml` gets that policy. A tracked table may restrict `scopes`
+and declare exact `author` and `committer` tables (`name`, `email`); undeclared
+identity constraints impose none on other adopters. The common compiler serves
+commit-msg, generated commits, replay, pre-push and `ethos hook commit-range`;
+there is no separate mutable Git identity policy. Prospective checks use the
+index and parent; generated commits use their exact parent and target tree.
+Introduced objects must satisfy trusted-baseline policy as well as candidate
+constraints. Removing policy cannot waive its own admission.
 
-Signature-required admission invokes native Git verification against a protected,
+Signature admission invokes native Git verification against a protected,
 repository-external trust anchor. An SSH signature envelope alone is insufficient.
 CI supplies trust through its operator-owned environment, never candidate-authored
 key material. Identity, signature trust and Forge attribution are separate checks.

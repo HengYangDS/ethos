@@ -223,7 +223,7 @@ def test_closeout_accepts_exact_previous_policy_schema(
         holder_ref="agent:test:case:agent-test",
     )
     git(worktree, "rm", "-q", ".ethos/workspace.toml")
-    git(worktree, "commit", "-m", "remove the retired branch-role table")
+    git(worktree, "commit", "-m", "chore: remove the retired branch-role table")
     head = git(worktree, "rev-parse", "HEAD")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     seed_executed_proof(worktree, head)

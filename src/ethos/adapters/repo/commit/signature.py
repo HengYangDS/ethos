@@ -67,7 +67,6 @@ def signature_coordinates(
     )
     policy_text = committed_file_text(root, old, ".ethos/workspace.toml")
     signing = commit_policy_from_text(policy_text)
-    _require(signing is not None and signing.signing_required, "signature_repair_policy_required")
     allowed_heads = {old, new} if new else {old}
     _require(
         ref_head(root, policy.accepted_branch) in allowed_heads,
@@ -367,8 +366,8 @@ def _validate_historical_source(root: Path, coordinates: Mapping[str, object]) -
         committed_file_text(root, old, ".ethos/release.toml")
     )
     policy_text = committed_file_text(root, old, ".ethos/workspace.toml")
-    signing = commit_policy_from_text(policy_text)
-    _require(signing is not None and signing.signing_required, "signature_repair_policy_required")
+    # Compiling the source binding keeps a malformed policy from authorizing a repair.
+    commit_policy_from_text(policy_text)
     required = {f"refs/heads/{policy.accepted_branch}": old}
     if policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF:
         required[f"refs/heads/{policy.release_branch}"] = old

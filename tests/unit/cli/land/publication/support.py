@@ -168,9 +168,6 @@ def accepted_release_fixture(
     release.write_text(
         '[protected_refs]\nbranches = ["main", "dev"]\ntags = ["v*"]\n\n' + release.read_text()
     )
-    (repo / ".ethos/workspace.toml").write_text(
-        '[commit_policy]\nsigning_required = true\nsigning_format = "ssh"\n'
-    )
     (repo / native_version).write_text(
         "1.2.3\n" if native_version == "VERSION" else '{"name":"sample","version":"1.2.3"}\n'
     )

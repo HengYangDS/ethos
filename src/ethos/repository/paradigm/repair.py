@@ -23,6 +23,7 @@ from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.openspec import common_rules_repair
 from ethos.repository.paradigm.openspec import schema_repair
+from ethos.repository.policy.commit import RETIRED_COMMIT_POLICY_FIELDS
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -42,7 +43,11 @@ _UNFIXED = object()
 # Fields no reader consults any more, so every value they hold can go. An accepted
 # fast-forward mirror can go because its release-mirror gap declares it again.
 _RETIRED_FIELDS = frozenset(
-    {("branch_roles", SIBLING_WORKTREE_FIELD), ("branch_roles", RELEASE_MIRROR_FIELD)}
+    {
+        ("branch_roles", SIBLING_WORKTREE_FIELD),
+        ("branch_roles", RELEASE_MIRROR_FIELD),
+        *(("commit_policy", field) for field in RETIRED_COMMIT_POLICY_FIELDS),
+    }
 )
 
 # The repaired text, or None when the repair removes the carrier, and a follow-up command.
@@ -425,6 +430,7 @@ _HANDLERS: dict[str, Callable[[RepositoryParadigm, ParadigmGap, str | None], Rep
     "peer-remote": _peer_remote,
     "branch-roles": _restated_field,
     "commit-grammar": _restated_field,
+    "commit-signature": _restated_field,
     "openspec-schema": schema_repair,
     "openspec-rules": common_rules_repair,
     "workspace-binding": _unread_table,

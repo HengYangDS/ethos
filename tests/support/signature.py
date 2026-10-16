@@ -66,12 +66,9 @@ def signature_repository(tmp_path: Path, *, coupled: bool = False) -> tuple[Path
     repo = init_git_repo(tmp_path / "repo")
     (repo / ".ethos").mkdir()
     (repo / ".ethos/profile.toml").write_text('profile_id = "signature-fixture"\n')
-    (repo / ".ethos/workspace.toml").write_text(
-        '[commit_policy]\nsigning_required = true\nsigning_format = "ssh"\n'
-    )
     write_release_mirror(repo, "accepted_ff" if coupled else "independent")
     git(repo, "add", ".ethos")
-    git(repo, "commit", "-m", "fix: accepted signing policy")
+    git(repo, "-c", "commit.gpgsign=false", "commit", "-m", "fix: accept an unsigned head")
     old = git(repo, "rev-parse", "HEAD")
     git(repo, "branch", "candidate/dev", old)
     git(repo, "branch", "main", old)

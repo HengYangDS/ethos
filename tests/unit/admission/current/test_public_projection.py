@@ -43,8 +43,7 @@ def test_public_surfaces_preserve_one_current_authority_recovery(
     )
     if policy_declared:
         (lane / ".ethos/workspace.toml").write_text(
-            '[commit_policy]\nsubject_pattern = "fix: .+"\n'
-            'signing_required = false\nsigning_format = "ssh"\n',
+            '[commit_policy]\nsubject_pattern = "fix: .+"\n',
             encoding="utf-8",
         )
     if actor is None:

@@ -46,7 +46,7 @@ def test_local_source_candidate_compensation(
     args = ("land", "--apply", "--authorize", "--acceptance-purpose", "local-source", "--json")
     assert run_ethos(*args, "--expect-head", previous, cwd=work)["verdict"] == "pass"
     desired = commit_fixture_file(
-        work, "README.md", "# Next source candidate\n", "fixture: next source"
+        work, "README.md", "# Next source candidate\n", "test: next source"
     )
     second = prove_source(work, desired, audit_attempts)
     assert first.id != second.id

@@ -9,7 +9,7 @@ Shared by every repository where the concern applies:
 - `build/` ignored as the generated root;
 - Python 3.12 as the compatibility floor;
 - a formatter width of 100;
-- SSH-signed Conventional Commits wherever a commit policy exists;
+- SSH-signed Conventional Commits;
 - the five lane roles wherever lanes are declared.
 
 Shared by most repositories:
@@ -145,7 +145,7 @@ Gates are declared inline in the profile, or the profile selects the packaged ET
 
 - **Commit types:** the grammar admits the ten types that every declared policy shares. `spec` and `style` exist in only some policies, and their commits map to `docs` and `refactor`.
 - **Commit scopes:** a scope is optional because four of six policies make it optional. A repository may declare a closed scope list that admission enforces.
-- **Signing:** SSH signing is required.
+- **Signing:** every commit carries an SSH signature. The paradigm fixes the signature, so `[commit_policy]` only restricts scopes and constrains identities, and a repository without one gets the paradigm's commit policy. The repair deletes a restated `signing_required` or `signing_format`.
 - **Branch roles:** they take the majority names. Work Lane worktrees use the workstation layout `<repository>-worktrees/<yyyymmdd>-<slug>/`, which becomes the ETHOS default instead of an opt-in.
 - **Release mirror:** whether the release branch follows the accepted branch is a release fact, so `.ethos/release.toml` declares it as `[release] mirror = "accepted_ff"`; it is independent otherwise. `.ethos/workspace.toml` keeps only `[commit_policy]`, and a repository without one tracks no workspace binding. The repair moves an `accepted_ff` mirror and deletes `[branch_roles]` and tables no reader consults, such as `[[package]]`.
 - **Releases:**

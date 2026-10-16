@@ -64,10 +64,9 @@ class HookRuntimeBinding(TypedDict):
 
 
 class CommitPolicyEnforcement(TypedDict):
-    """Current executability of the optional tracked commit policy."""
+    """Current executability of the repository commit policy and its SSH signature."""
 
     state: str
-    declared: bool | None
     declaration: dict[str, object]
     commit_message_transport: str
     push_range_enforcement: str
@@ -221,7 +220,11 @@ def commit_policy_enforcement(
     root: Path,
     runtime: HookRuntimeBinding,
 ) -> CommitPolicyEnforcement:
-    """Project policy declaration and its two irreducible execution transports."""
+    """Project the commit policy and its two irreducible execution transports.
+
+    Inspection is not adoption: a repository that ETHOS does not govern carries no
+    commit obligation, while every governed repository needs a trusted SSH signer.
+    """
     repo = root.resolve()
     try:
         policy = load_commit_policy(repo)
@@ -229,18 +232,16 @@ def commit_policy_enforcement(
         gap = str(error).strip() or "commit_policy_invalid"
         return {
             "state": "invalid",
-            "declared": None,
             "declaration": {},
             "commit_message_transport": "unknown",
             "push_range_enforcement": "unknown",
             "required_gaps": [gap],
             "next_action": f"repair {(repo / '.ethos/workspace.toml').as_posix()} [commit_policy]",
         }
-    if policy is None:
+    if not runtime.get("required"):
         return {
-            "state": "not_declared",
-            "declared": False,
-            "declaration": {},
+            "state": "not_governed",
+            "declaration": policy.projection(),
             "commit_message_transport": "not_required",
             "push_range_enforcement": "not_required",
             "required_gaps": [],
@@ -249,7 +250,6 @@ def commit_policy_enforcement(
     if not runtime.get("required_gaps") and "commit-msg" not in runtime.get("scripts", []):
         return {
             "state": "pending_acceptance",
-            "declared": True,
             "declaration": policy.projection(),
             "commit_message_transport": "pending_acceptance",
             "push_range_enforcement": "pending_acceptance",
@@ -259,23 +259,16 @@ def commit_policy_enforcement(
     runtime_gaps = tuple(map(str, runtime.get("required_gaps", [])))
     message_gaps = _transport_gaps(runtime_gaps, "commit-msg")
     push_gaps = _transport_gaps(runtime_gaps, "pre-push")
-    anchor, trust_gaps = (
-        configured_commit_trust_anchor(repo) if policy.signing_required else (None, [])
-    )
+    anchor, trust_gaps = configured_commit_trust_anchor(repo)
     gaps = list(dict.fromkeys((*message_gaps, *push_gaps, *trust_gaps)))
     return {
         "state": "unarmed" if message_gaps or push_gaps else "unready" if trust_gaps else "armed",
-        "declared": True,
         "declaration": policy.projection(),
         "commit_message_transport": "unarmed" if message_gaps else "armed",
         "push_range_enforcement": "unarmed" if push_gaps else "armed",
         "required_gaps": gaps,
         "signature_trust": {
-            "state": "not_required"
-            if not policy.signing_required
-            else "unready"
-            if trust_gaps
-            else "configured",
+            "state": "unready" if trust_gaps else "configured",
             "anchor": str(anchor or ""),
             "required_gaps": trust_gaps,
         },

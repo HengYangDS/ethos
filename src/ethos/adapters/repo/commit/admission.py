@@ -125,6 +125,33 @@ def commit_policy_report(
     verify_trust: bool = True,
 ) -> dict[str, object]:
     """Observe and admit one object under an explicitly selected authority policy."""
+    observation = observe_commit(root, revision) if policy is not None else {}
+    report = evaluate_commit_policy(policy, observation, revision)
+    signature = cast("dict[str, object]", report["signature"])
+    if (
+        verify_trust
+        and policy is not None
+        and policy.signing_required
+        and not signature["required_gaps"]
+    ):
+        trust = verify_commit_trust(root, str(observation.get("object_oid") or revision))
+        trust_gaps = [str(gap) for gap in cast("list[object]", trust.get("required_gaps", []))]
+        signature.update(
+            verification=trust,
+            verification_state="rejected" if trust_gaps else "verified",
+        )
+        gaps = cast("list[str]", report["required_gaps"])
+        gaps.extend(trust_gaps)
+        report["verdict"] = "block" if gaps else "pass"
+    return report
+
+
+def evaluate_commit_policy(
+    policy: CommitPolicy | None,
+    observation: Mapping[str, object],
+    revision: str,
+) -> dict[str, object]:
+    """Purely judge supplied facts; neither observe Git nor verify signature trust."""
     if policy is None:
         return {
             "verdict": "pass",
@@ -133,7 +160,6 @@ def commit_policy_report(
             "signature": {},
             "required_gaps": [],
         }
-    observation = observe_commit(root, revision)
     object_oid = str(observation.get("object_oid") or revision)
     subject = str(observation.get("subject") or "")
     head = {
@@ -149,14 +175,6 @@ def commit_policy_report(
         cast("dict[str, object]", observation.get("signature", {})),
     )
     gaps.extend(cast("list[str]", signature["required_gaps"]))
-    if verify_trust and policy.signing_required and not signature["required_gaps"]:
-        trust = verify_commit_trust(root, object_oid)
-        trust_gaps = [str(gap) for gap in cast("list[object]", trust.get("required_gaps", []))]
-        signature.update(
-            verification=trust,
-            verification_state="rejected" if trust_gaps else "verified",
-        )
-        gaps.extend(trust_gaps)
     return {
         "verdict": "block" if gaps else "pass",
         "state": str(observation.get("state") or "unknown"),

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.repo.commit.admission import commit_policy_for_revision
-from ethos.adapters.repo.commit.admission import commit_policy_report
+from ethos.adapters.repo.commit.admission import evaluate_commit_policy
 from ethos.adapters.repo.commit.admission import peel_commit
 from ethos.adapters.repo.commit.provenance import accepted_provenance
 from ethos.adapters.repo.commit.provenance import lane_creation_boundary
@@ -15,6 +15,7 @@ from ethos.adapters.repo.commit.signature import repaired_peer_ref_provenance
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_object import observe_commit
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.contracts.branch.roles import load_branch_role_policy
@@ -110,15 +111,10 @@ def commit_range_admission_report(
     if gap:
         return report(state="blocked", required_gaps=[gap])
     assert revisions is not None
-    violations: list[dict[str, object]] = []
-    gaps: list[str] = []
     policies = tuple(dict.fromkeys(policy for policy in (candidate, incumbent) if policy))
-    for policy in policies:
-        found, failed = _validate_commit_revisions(
-            repo, revisions, policy=policy, verify_trust=True
-        )
-        violations.extend(item for item in found if item not in violations)
-        gaps.extend(gap for gap in failed if gap not in gaps)
+    violations, gaps = _validate_commit_revisions(
+        repo, revisions, policies=policies, verify_trust=True
+    )
     result = report(
         state="blocked" if gaps else "admitted",
         policy=candidate.projection() if candidate else None,
@@ -168,37 +164,33 @@ def validate_replayed_commits(
     )
     if revisions is None:
         return [f"commit_range_unreadable:{baseline_commit}:{proposed_commit}"]
-    return list(
-        dict.fromkeys(
-            gap
-            for selected in policies
-            for gap in _validate_commit_revisions(
-                root, revisions, policy=selected, verify_trust=True
-            )[1]
-        )
-    )
+    return _validate_commit_revisions(root, revisions, policies=policies, verify_trust=True)[1]
 
 
 def _validate_commit_revisions(
     root: Path,
     revisions: tuple[str, ...],
     *,
-    policy: CommitPolicy | None,
+    policies: tuple[CommitPolicy, ...],
     verify_trust: bool = False,
 ) -> tuple[list[dict[str, object]], list[str]]:
-    """Validate one already-derived oldest-first commit sequence."""
-    if policy is None:
+    """Observe one exact sequence and enforce the union of its selected policies."""
+    if not policies:
         return [], []
+    observations = [(revision, observe_commit(root, revision)) for revision in revisions]
     reports = [
-        (revision, commit_policy_report(root, policy, revision, verify_trust=False))
-        for revision in revisions
+        (policy, revision, evaluate_commit_policy(policy, observation, revision))
+        for policy in policies
+        for revision, observation in observations
     ]
     selected = tuple(
-        revision
-        for revision, report in reports
-        if verify_trust
-        and policy.signing_required
-        and not cast("dict[str, object]", report["signature"])["required_gaps"]
+        dict.fromkeys(
+            revision
+            for policy, revision, report in reports
+            if verify_trust
+            and policy.signing_required
+            and not cast("dict[str, object]", report["signature"])["required_gaps"]
+        )
     )
     trust = (
         verify_commit_trust(root, selected[0] if len(selected) == 1 else selected)
@@ -210,16 +202,24 @@ def _validate_commit_revisions(
     verified = set(selected)
     violations: list[dict[str, object]] = []
     gaps: list[str] = []
-    for revision, report in reports:
+    for policy, revision, report in reports:
         commit_gaps = cast("list[str]", report["required_gaps"])
-        if revision in verified:
+        if (
+            revision in verified
+            and policy.signing_required
+            and not cast("dict[str, object]", report["signature"])["required_gaps"]
+        ):
             commit_gaps.extend(object_gaps.get(revision, []) if object_gaps else trust_gaps)
         subject = str(cast("dict[str, object]", report["head"]).get("subject") or "")
         if commit_gaps:
-            violations.append(
-                {"commit": revision, "subject": subject, "required_gaps": commit_gaps}
-            )
-            gaps.extend(commit_gaps)
+            violation: dict[str, object] = {
+                "commit": revision,
+                "subject": subject,
+                "required_gaps": commit_gaps,
+            }
+            if violation not in violations:
+                violations.append(violation)
+            gaps.extend(gap for gap in commit_gaps if gap not in gaps)
     return violations, gaps
 
 

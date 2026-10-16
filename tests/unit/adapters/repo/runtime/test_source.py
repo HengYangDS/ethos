@@ -62,10 +62,11 @@ def test_content_policy_keeps_checkout_identity_host_portable(tmp_path: Path) ->
     )
 
 
+@pytest.mark.parametrize("include_overlay", [False, True])
 def test_clean_source_identity_avoids_materializing_an_overlay(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, include_overlay: bool
 ) -> None:
-    """An unchanged source uses its exact committed tree without a scratch index."""
+    """Fresh identity pairs share native reads without materializing a clean overlay."""
     repository = _repository(tmp_path / "source", "base")
     observed_git = source.run_git
     commands: list[tuple[str, ...]] = []
@@ -75,10 +76,14 @@ def test_clean_source_identity_avoids_materializing_an_overlay(
         return observed_git(root, *args, **kwargs)
 
     monkeypatch.setattr(source, "run_git", observe)
-    assert source.source_git_identity(repository) == (
+    expected = (
         git(repository, "rev-parse", "HEAD"),
         git(repository, "rev-parse", "HEAD^{tree}"),
     )
+    assert source.source_git_identity(repository, include_overlay=include_overlay) == expected
+    assert len(commands) == (6 if include_overlay else 2)
+    assert commands[0] == ("rev-parse", "HEAD", "HEAD^{tree}")
+    assert commands[-1] == ("rev-parse", "HEAD", f"{expected[0]}^{{tree}}")
     assert ("add", "-A") not in commands
     assert ("write-tree",) not in commands
 
@@ -150,7 +155,7 @@ def test_source_identity_rejects_head_movement(
     def move_after_head(root: Path, *args: str, **kwargs):
         nonlocal moved
         result = observed_git(root, *args, **kwargs)
-        if args == ("rev-parse", "HEAD") and not moved:
+        if args[:2] == ("rev-parse", "HEAD") and not moved:
             moved = True
             (root / "tracked.txt").write_text("later source\n")
             commit_fixture(root, "advance source")
@@ -161,6 +166,39 @@ def test_source_identity_rejects_head_movement(
         source.source_git_identity(repository, include_overlay=include_overlay)
     assert failure.value.cwd == repository.as_posix()
     assert failure.value.observation["observed_head"] == git(repository, "rev-parse", "HEAD")
+
+
+@pytest.mark.parametrize("include_overlay", [False, True])
+def test_source_identity_rereads_a_removed_tree_object(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, include_overlay: bool
+) -> None:
+    """A native success cannot conceal tree loss within or after that observation."""
+    repository = _repository(tmp_path / "source", "base")
+    tree = git(repository, "rev-parse", "HEAD^{tree}")
+    object_path = repository / ".git/objects" / tree[:2] / tree[2:]
+    tree_bytes = object_path.read_bytes()
+    observed_git = source.run_git
+    removed = False
+
+    def remove_after_identity(root: Path, *args: str, **kwargs):
+        nonlocal removed
+        result = observed_git(root, *args, **kwargs)
+        if args[:2] == ("rev-parse", "HEAD") and not removed:
+            object_path.unlink()
+            removed = True
+        return result
+
+    with monkeypatch.context() as observation:
+        observation.setattr(source, "run_git", remove_after_identity)
+        with pytest.raises(ValueError, match="build_source_identity_unavailable"):
+            source.source_git_identity(repository, include_overlay=include_overlay)
+    assert removed
+    object_path.write_bytes(tree_bytes)
+    expected = (git(repository, "rev-parse", "HEAD"), tree)
+    assert source.source_git_identity(repository, include_overlay=include_overlay) == expected
+    object_path.unlink()
+    with pytest.raises(ValueError, match="build_source_identity_unavailable"):
+        source.source_git_identity(repository, include_overlay=include_overlay)
 
 
 def test_source_identity_steps_share_one_deadline(
@@ -276,3 +314,54 @@ def test_source_observation_refuses_a_step_after_total_budget_expires(
     with pytest.raises(GitExecutionError, match="git_process_timed_out") as failure:
         source.source_git_identity(repository, include_overlay=False)
     assert failure.value.observation["timeout_seconds"] == 0.0
+
+
+@pytest.mark.parametrize("boundary", ["initial", "overlay", "final"])
+def test_source_identity_refuses_invalid_native_coordinate_results(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str
+) -> None:
+    """Malformed framing, invalid overlay identity and final tree drift stay adverse."""
+    repository = _repository(tmp_path / "source", "base")
+    if boundary == "overlay":
+        (repository / "tracked.txt").write_text("changed source\n")
+    observed_git = source.run_git
+    coordinates = 0
+
+    def invalid_result(root: Path, *args: str, **kwargs):
+        nonlocal coordinates
+        result = observed_git(root, *args, **kwargs)
+        if args[:2] == ("rev-parse", "HEAD"):
+            coordinates += 1
+            if boundary == "initial" and coordinates == 1:
+                return subprocess.CompletedProcess(args, 0, result.stdout.splitlines()[0], "")
+            if boundary == "final" and coordinates == 2:
+                head, tree = result.stdout.splitlines()
+                changed_tree = ("b" if tree.startswith("a") else "a") * len(tree)
+                return subprocess.CompletedProcess(args, 0, f"{head}\n{changed_tree}\n", "")
+        if boundary == "overlay" and args == ("write-tree",):
+            return subprocess.CompletedProcess(args, 0, "invalid identity\n", "")
+        return result
+
+    monkeypatch.setattr(source, "run_git", invalid_result)
+    if boundary == "final":
+        with pytest.raises(GitExecutionError, match="build_source_identity_changed") as failure:
+            source.source_git_identity(repository)
+        assert failure.value.reason == "tree_changed_during_observation"
+        assert failure.value.observation["expected_tree"] == git(
+            repository, "rev-parse", "HEAD^{tree}"
+        )
+    else:
+        with pytest.raises(ValueError, match="build_source_identity_invalid"):
+            source.source_git_identity(repository)
+
+
+def test_native_build_entrypoints_preserve_the_selected_source_identity(tmp_path: Path) -> None:
+    """Build frontends derive the same native coordinates and version without promotion."""
+    repository = _repository(tmp_path / "source", "base")
+    (repository / "VERSION").write_text("1.2.3\n")
+    selected = source.source_build_identity(repository)
+    assert source.build_input_identity(repository) == selected
+    assert (
+        source.source_distribution_version()
+        == source.source_build_identity(_ROOT).distribution_version
+    )

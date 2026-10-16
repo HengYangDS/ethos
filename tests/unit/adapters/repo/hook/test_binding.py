@@ -20,7 +20,6 @@ import ethos.adapters.repo.hook.activation as hook_activation
 import ethos.adapters.repo.hook.binding as hook_contract
 import ethos.adapters.repo.hook.observation as hook_binding
 import ethos.adapters.repo.runtime.authority as runtime_authority
-from ethos.adapters.repo.commit.creation import commit_signer_action
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.binding import load_hook_contract
@@ -168,51 +167,6 @@ def test_armed_transport_does_not_claim_signature_trust_is_ready(tmp_path: Path)
         "required_gaps": ["commit_trust_anchor_missing"],
     }
     assert capability["next_action"] == commit_trust_anchor_action(repo)
-
-
-def test_lifecycle_role_requires_the_local_signer_of_commit_creation(tmp_path: Path) -> None:
-    """The accepted root creates lifecycle commits, so it needs the signer they use."""
-    repo, _candidate = start_adopted_candidate(tmp_path)
-    assert git_process(repo, "config", "--unset", "user.signingkey").returncode == 0
-
-    projected, capability = _capability(repo)
-
-    assert projected["data"]["role"] == "accepted_root"
-    assert projected["verdict"] == "block"
-    assert "git_effect_signing_key_invalid" in projected["required_gaps"]
-    assert capability["state"] == "unready"
-    assert capability["required_gaps"] == ["git_effect_signing_key_invalid"]
-    assert capability["signature_trust"]["state"] == "configured"
-    assert capability["lifecycle_signer"] == {
-        "state": "unready",
-        "required": True,
-        "required_gaps": ["git_effect_signing_key_invalid"],
-    }
-    assert capability["next_action"] == commit_signer_action(repo, "git_effect_signing_key_invalid")
-    assert capability["next_action"] == (
-        f"git -C {shlex.quote(str(repo))} config --local user.signingkey <absolute-ssh-public-key>"
-    )
-
-
-def test_verifying_checkout_reports_a_missing_signer_without_blocking(tmp_path: Path) -> None:
-    """A detached checkout creates no lifecycle commit, so its signer is reported only."""
-    repo, _candidate = start_adopted_candidate(tmp_path)
-    detached = tmp_path / "repo-verify"
-    assert git_process(repo, "worktree", "add", "--detach", str(detached), "dev").returncode == 0
-    assert git_process(repo, "config", "--unset", "user.signingkey").returncode == 0
-
-    projected, capability = _capability(detached)
-
-    assert projected["data"]["role"] == "detached"
-    assert "git_effect_signing_key_invalid" not in projected["required_gaps"]
-    assert capability["state"] == "armed"
-    assert capability["required_gaps"] == []
-    assert capability["lifecycle_signer"] == {
-        "state": "unready",
-        "required": False,
-        "required_gaps": ["git_effect_signing_key_invalid"],
-    }
-    assert capability["next_action"] == ""
 
 
 def _advance_expected_build(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

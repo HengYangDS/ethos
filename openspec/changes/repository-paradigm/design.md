@@ -217,7 +217,7 @@ Every explicit formatter width in the fleet is already 100, so a configured form
 
 ### 14. Common OpenSpec rules
 
-A repository that tracks OpenSpec artifacts selects `spec-driven`, and each artifact's rules begin with the contract's common rules. Those rules keep only what every adopter's rules already require:
+A repository that tracks OpenSpec artifacts selects `spec-driven`, and each artifact's rules begin with the contract's common rules. They come from the workstation's OpenSpec task rule, the official templates and delta semantics and ETHOS's lifecycle order, and they keep what recurs across the adopters' own rules:
 
 - the official templates and native delta operations;
 - falsifiable requirements;
@@ -225,7 +225,9 @@ A repository that tracks OpenSpec artifacts selects `spec-driven`, and each arti
 - truthful, dependency-ordered tasks;
 - execution history kept with its native evidence owners.
 
-A repository's own rules follow them. The repair keeps those rules, their lines and their comments, and drops only exact copies of a common rule. Whether an own rule restates a common one in other words is a judgment for the repository's migration Change.
+Not every adopter states these rules today. The films and architecture-publications declare no rules, and two adopters keep rules that contradict them: aigw-cli keeps execution results in design.md, and web-ingestion-benchmark tracks closeout as checkable tasks. Their migration Changes remove or rewrite those rules, because the workstation rule forbids both.
+
+A repository's own rules follow the common ones. The repair keeps those rules, their lines and their comments, and drops only exact copies of a common rule. Whether an own rule restates or contradicts a common one is a judgment for the repository's migration Change.
 
 A repository that selects another schema keeps that gap report-only, because its Changes are written against that schema's artifacts.
 

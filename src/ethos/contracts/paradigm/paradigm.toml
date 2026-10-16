@@ -82,7 +82,7 @@ design = [
 tasks = [
   "Use official checkboxes under numbered groups in dependency order, with numbering and nesting expressing one hierarchy. Each task keeps a stable identity, states one bounded action with its observable completion condition, and carries a truthful state.",
   "Keep only short evidence references or current dependencies in tasks. Preserve execution history, logs and originals with their Git, CI and native evidence owners, never in tasks, design prose or a parallel ledger.",
-  "Separate implementation tasks from lifecycle effects; a Change never records its own landing, archive or Lane retirement as a completed task.",
+  "Separate implementation tasks from lifecycle preconditions and effects; a Change never records its own landing, archive or Lane retirement as a completed task.",
 ]
 
 # One formatter per text carrier class, with the settings every binding declares.

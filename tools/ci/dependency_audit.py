@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     import nox
 
     from ethos.repository.policy.quality.dependency_acceptance import AuditScope
+    from ethos.repository.policy.quality.dependency_acceptance import AuditSubject
 
 ROOT = Path(__file__).resolve().parents[2]
 POLICY = AUDIT_POLICY_PATH
@@ -186,14 +187,13 @@ def _observe(root: Path, ecosystem: str, timeout: int) -> dict:
         }
 
 
-def _upstream(root: Path, checks: list[dict], lock_source: bytes, timeout: int) -> dict:
-    """Observe each npm finding owner's latest stable release; any failure stays unobserved."""
+def _upstream(root: Path, subjects: list[AuditSubject], lock_source: bytes, timeout: int) -> dict:
+    """Observe only finding owners that can change acceptance; failures stay unobserved."""
     observation: dict = {"npm": {}, "observed_at": datetime.now(UTC).isoformat()}
     try:
-        adverse = checks[1]["verdict"] == "block"
-        owners = sorted(npm_upstream_owners(lock_source, checks[1])) if adverse else []
+        owners = sorted(npm_upstream_owners(lock_source, subjects)) if subjects else []
         runtime = input_resolution.resolve_node_runtime() if owners else None
-    except (IndexError, KeyError, TypeError, ValueError, OSError, RuntimeError):
+    except (KeyError, TypeError, ValueError, OSError, RuntimeError):
         return observation
     if runtime is None:
         return observation
@@ -289,13 +289,14 @@ def _run(session: nox.Session, *, root: Path = ROOT, scope: str = "production-re
         ]
         verdict = reduce_verdicts(*(check["verdict"] for check in checks))
         lock_source = before[2].get("package-lock.json", b"")
-        payload["upstream"] = _upstream(root, checks, lock_source, timeout)
         payload.update(verdict=verdict, state="finished", required_gaps=gaps)
+        effective_policy = compose_audit_policies(policy, product)
+        pending = _local_decision(effective_policy, payload, scope, lock_source=lock_source)
+        payload["upstream"] = _upstream(
+            root, pending.get("unapproved_subjects", []), lock_source, timeout
+        )
         payload["decision"] = _local_decision(
-            compose_audit_policies(policy, product),
-            payload,
-            scope,
-            lock_source=lock_source,
+            effective_policy, payload, scope, lock_source=lock_source
         )
         if head != current_tracked_head(root) or before != _inputs(root):
             payload["verdict"] = "block"

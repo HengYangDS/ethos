@@ -23,6 +23,7 @@ from ethos.repository.policy.quality.upstream_fixes import python_findings
 from ethos.repository.policy.quality.upstream_fixes import unfixed_npm_subjects
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from datetime import datetime
 
     from ethos.contracts.verdict import Verdict
@@ -253,9 +254,8 @@ def _npm_subjects(lock_source: bytes, check: dict) -> tuple[set[AuditSubject], i
     return subjects, len(roots)
 
 
-def npm_upstream_owners(lock_source: bytes, check: dict) -> set[str]:
-    """Name the locked artifacts whose latest stable release decides the native npm findings."""
-    subjects, _aggregates = _npm_subjects(lock_source, check)
+def npm_upstream_owners(lock_source: bytes, subjects: Iterable[AuditSubject]) -> set[str]:
+    """Name the locked artifacts whose latest stable release decides selected findings."""
     owners = npm_owners(subjects, lock_source).values()
     return {name for artifacts in owners for name, _version in artifacts}
 

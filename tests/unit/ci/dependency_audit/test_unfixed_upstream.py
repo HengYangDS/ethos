@@ -129,12 +129,17 @@ def test_bundled_component_is_decided_by_its_owning_release(
         assert subject[4] == ["node_modules/npm/node_modules/undici"]
 
 
-def test_exact_approval_keeps_precedence_over_reporting(repository, monkeypatch):
+@pytest.mark.parametrize("scope", ["local-development", "production-release"])
+def test_exact_approval_keeps_precedence_over_reporting(repository, monkeypatch, scope):
     """An approved subject stays an explicit authorization, not an unfixed-upstream report."""
     raw = npm_advisories(repository)
-    authorize_fixture(repository)
-    _transport(monkeypatch, raw, {"braces": "3.0.3"})
-    decision = invoke_audit(repository, scope="local-development")["decision"]
+    authorize_fixture(repository, scope=scope)
+    observed = _transport(monkeypatch, raw, {})
+    payload = invoke_audit(repository, scope=scope)
+    assert _views(observed) == []
+    assert payload["checks"][1]["verdict"] == "block"
+    assert payload["upstream"]["npm"] == {}
+    decision = payload["decision"]
     assert (decision["verdict"], decision["reason"]) == ("pass", "authorized_findings")
     assert decision["unfixed_upstream_subjects"] == []
     assert decision["approvals"][0]["approval_ref"] == "fixture:human-approved-risk"

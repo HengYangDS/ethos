@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 from typing import NamedTuple
 
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_object import read_objects
+from ethos.adapters.repo.git_object import resolve_revisions
 from ethos.repository.openspec.audit import accepted_spec_root_gaps
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import RepositoryProfile
@@ -60,6 +62,58 @@ def repository_identity(
         if tree_ref is not None
         else load_repository_profile(root)
     )
+    return _profile_identity(profile)
+
+
+def repository_identities(
+    root: Path,
+    tree_refs: tuple[str, ...],
+    *,
+    environment: Mapping[str, str] | None = None,
+    historical: bool = False,
+    optional: frozenset[str] = frozenset(),
+) -> dict[str, str]:
+    """Read every selected relationship afresh, then decode each complete profile once."""
+    selected = tuple(dict.fromkeys(tree_refs))
+    if len(selected) <= 2 or optional:
+        reader = historical_repository_identity if historical else repository_identity
+        identities = {}
+        for revision in selected:
+            try:
+                identities[revision] = reader(root, tree_ref=revision, environment=environment)
+            except ValueError:
+                if revision not in optional:
+                    raise
+        return identities
+    observed = resolve_revisions(
+        root,
+        tuple(f"{revision}:.ethos/profile.toml" for revision in selected),
+        environment=environment,
+    )
+    object_ids = tuple(dict.fromkeys(identity for identity in observed.values() if identity))
+    payloads = dict(
+        zip(object_ids, read_objects(root, object_ids, environment=environment), strict=True)
+    )
+    decoded: dict[str, str] = {}
+    identities: dict[str, str] = {}
+    for revision in selected:
+        identity = observed[f"{revision}:.ethos/profile.toml"]
+        if identity not in decoded:
+            payload = payloads.get(identity, b"")
+            decoded[identity] = (
+                _historical_identity(payload)
+                if historical
+                else _profile_identity(
+                    repository_profile_from_text(
+                        root, exists=bool(identity), text=payload.decode("utf-8")
+                    )
+                )
+            )
+        identities[revision] = decoded[identity]
+    return identities
+
+
+def _profile_identity(profile: RepositoryProfile) -> str:
     if profile.state != "valid" or profile.declaration is None:
         raise ValueError(INVALID_PROFILE_ERROR)
     return f"repository:{profile.declaration.profile_id}"
@@ -83,8 +137,13 @@ def historical_repository_identity(
     message = "repository_historical_identity_invalid:.ethos/profile.toml"
     if result.returncode:
         raise ValueError(message)
+    return _historical_identity(result.stdout)
+
+
+def _historical_identity(payload: bytes) -> str:
+    message = "repository_historical_identity_invalid:.ethos/profile.toml"
     try:
-        values = tomllib.loads(result.stdout.decode("utf-8"))
+        values = tomllib.loads(payload.decode("utf-8"))
     except (UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
         raise ValueError(message) from error
     profile_id = values.get("profile_id")

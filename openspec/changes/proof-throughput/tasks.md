@@ -13,7 +13,7 @@ remain at signed source `8878c8406a06fa592c41dbb291578c2f2114de51` and its nativ
 - [x] 1.6 Compare identical native boundary cases at two, four and eight workers without retries.
 - [x] 1.7 Measure consolidated full proof and repair merge intent diagnostic precedence.
 - [x] 1.8 Verify the consolidated proof, release and integration regressions with unchanged quality budgets.
-- [x] 1.9 Restore complete repository proof within 900 seconds, including preparation, every required gate and cleanup; preserve unrelated commitments at signed source `f029116881d70612a93a681479a6db3ad231788c`. Five consecutive complete proofs from `e9f253e7c` to `43ddb6e7a` ended within 753 seconds (proof Attestations `e3a0a2a4`, `b20e5ad3`, `e373dd36`, `64b38d6c`, `49a45d32`); later runs beside local CI jobs are in Sustained Distribution in design.
+- [ ] 1.9 Restore complete repository proof with p90 within 900 seconds over at least five successful complete proofs, including preparation, every required gate and cleanup; preserve unrelated commitments and historical evidence at signed source `c6187cc5fb37872c84b608d9efad0166032d974c`. Current leaf evidence: `build/evidence/quality/effect-profile-batching/manifest.json`; complete proof and installed acceptance remain open.
 - [x] 1.10 Evaluate the nonblocking 600-second optimization direction from the measured remaining critical path. Recorded in 600-Second Direction in design: hook admission startup first, then batched fresh observation; declared readiness locks save about 12-17 seconds, and the online audit wait needs a specification decision.
 
 ## 2. Invocation-Scoped Facts and Proof Reuse

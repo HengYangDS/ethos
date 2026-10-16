@@ -20,6 +20,7 @@ from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import resolve_revisions
 from ethos.adapters.repo.profile import historical_repository_identity
+from ethos.adapters.repo.profile import repository_identities
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -106,15 +107,14 @@ def resolve_git_effect_repository(
             )
         }
         expected |= retained
-    identities: dict[str, str] = {}
     identity_reader = historical_repository_identity if historical_identity else repository_identity
-    for revision in revisions:
-        try:
-            identities[revision] = identity_reader(root, tree_ref=revision, environment=environment)
-        except ValueError:
-            if allow_absent_prestate and revision in expected:
-                continue
-            raise
+    identities = repository_identities(
+        root,
+        tuple(revisions),
+        environment=environment,
+        historical=historical_identity,
+        optional=frozenset(expected) if allow_absent_prestate else frozenset(),
+    )
     if plan is not None and "repository_identity_transitions" in plan.policy:
         return _transition_identity(
             root, effect, plan, identities, current_scope=current_scope, environment=environment
@@ -253,10 +253,7 @@ def _observe_identity_transition(
         for update in effect.updates.values()
         for revision in (update.expected, update.desired)
     } - _ZERO_OIDS
-    identities = {
-        revision: repository_identity(root, tree_ref=revision, environment=environment)
-        for revision in revisions
-    }
+    identities = repository_identities(root, tuple(revisions), environment=environment)
     relations = [
         RepositoryIdentityTransition(
             target_ref=ref,

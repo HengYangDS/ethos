@@ -391,6 +391,7 @@ def read_objects(
     *,
     kind: Literal["blob", "commit"] | tuple[Literal["blob", "commit"], ...] = "blob",
     gap: str = "git_object_batch_invalid",
+    environment: Mapping[str, str] | None = None,
 ) -> tuple[bytes, ...]:
     """Read exact typed objects in one native batch with strict frame/identity validation."""
     kinds = (kind,) * len(object_ids) if isinstance(kind, str) else kind
@@ -405,7 +406,8 @@ def read_objects(
         stdin=b"".join(f"{object_id}\n".encode() for object_id in object_ids),
         text=False,
         check=False,
-        observation=True,
+        env=environment,
+        observation=environment is None,
         spool_stdout=True,
     )
     if result.returncode != 0:

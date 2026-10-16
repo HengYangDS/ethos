@@ -219,6 +219,14 @@ def test_window_ends_after_valid_until() -> None:
     assert ended((closed, open_window), _facts()) == {closed.id}
 
 
+def test_a_window_on_a_predicate_without_a_product_reader_never_ends_by_itself() -> None:
+    """Custody evidence that declares valid_until stays until an admitted release removes it."""
+    custody = _member("evidence:custody", valid_until=datetime(2026, 10, 2, tzinfo=UTC))
+
+    assert lifetime(custody) == ("open-predicate", custody.id)
+    assert ended((custody,), _facts()) == frozenset()
+
+
 def test_heads_never_end_without_observed_refs() -> None:
     """Without any observed ref there is no evidence that a head was superseded."""
     proof = _member("proof:execution", subject=f"git:commit:{_C1}")

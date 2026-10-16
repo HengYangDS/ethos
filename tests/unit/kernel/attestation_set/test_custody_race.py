@@ -26,12 +26,14 @@ _START = datetime(2026, 10, 1, tzinfo=UTC)
 
 
 def _binder(digest: str, *, expired: bool) -> Attestation:
+    """An expired takeover window ends; the successor is open custody evidence."""
+    predicate = "lane-resolution:takeover" if expired else "observation:evidence-custody"
     return attestation_fixture(
-        predicate="observation:evidence-custody",
+        predicate=predicate,
         verifier="agent:test:custody-race",
         subject=f"input:custody:{'expired' if expired else 'successor'}",
         issued_at=_START,
-        payload_kind="observation:evidence-custody",
+        payload_kind=predicate,
         payload_body={"preserved": "shared"},
         valid_until=_START + timedelta(hours=1) if expired else None,
         evidence_refs=(f"custody:sha256:{digest}",),
@@ -62,7 +64,7 @@ def test_a_record_cannot_bind_bytes_while_their_deletion_is_in_flight(
         return original_lock(root)
 
     def racing_release(root: Path, digests: list[str]) -> tuple[str, ...]:
-        if digest in digests and not recorder.is_alive():
+        if digest in digests and recorder.ident is None:
             recorder.start()
             # The recorder either finishes its swap or reaches the custody lock first.
             assert progressed.wait(timeout=120)
@@ -77,3 +79,37 @@ def test_a_record_cannot_bind_bytes_while_their_deletion_is_in_flight(
     assert successor.id in {item.id for item in attestation_set.read_attestation_set(repo)[1]}
     stored = Path(git_common_dir(repo)) / "ethos/custody/sha256" / digest
     assert stored.read_bytes() == payload
+
+
+def test_binding_already_stored_bytes_waits_for_an_in_flight_deletion(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A record that binds stored bytes without supplying them is refused once they are deleted."""
+    repo = init_git_repo(tmp_path / "repo")
+    digest = store_custody(repo, b"shared custody evidence")
+    attestation_set.record_attestations(repo, (_binder(digest, expired=True),))
+    successor = _binder(digest, expired=False)
+    outcome: list[object] = []
+    recorder = threading.Thread(target=lambda: outcome.append(_record_or_error(repo, successor)))
+    original_release = attestation_set.release_custody
+
+    def racing_release(root: Path, digests: list[str]) -> tuple[str, ...]:
+        if digest in digests and recorder.ident is None:
+            recorder.start()
+            recorder.join(timeout=2)
+        return original_release(root, digests)
+
+    monkeypatch.setattr(attestation_set, "release_custody", racing_release)
+    attestation_set.record_attestations(repo, (occurrence_attestation(6_102),))
+    recorder.join(timeout=120)
+
+    members = {item.id for item in attestation_set.read_attestation_set(repo)[1]}
+    assert outcome == [f"attestation_custody_missing:{digest}"]
+    assert successor.id not in members
+
+
+def _record_or_error(repo: Path, member: Attestation) -> object:
+    try:
+        return attestation_set.record_attestations(repo, (member,))
+    except ValueError as error:
+        return str(error)

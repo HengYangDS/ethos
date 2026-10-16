@@ -147,15 +147,33 @@ def test_unobservable_lifetime_facts_remove_nothing(
     attestation_set.record_attestations(repo, (closed,))
 
     def unobservable(*_arguments: object) -> object:
-        message = "lifetime_facts_unavailable"
-        raise ValueError(message)
+        message = "git worktree list unavailable"
+        raise OSError(message)
 
     monkeypatch.setattr(attestation_set, "_lifetime_facts", unobservable)
     added = occurrence_attestation(6_006)
     result = attestation_set.record_attestations(repo, (added,))
 
-    assert (result["removed"], result["lifetime_gap"]) == ((), "lifetime_facts_unavailable")
+    assert (result["removed"], result["lifetime_gap"]) == ((), "git worktree list unavailable")
     assert _members(repo) == {closed.id, added.id}
+
+
+def test_a_lifetime_defect_fails_the_update_instead_of_hiding_as_a_gap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only unobservable facts degrade to a gap; a parsing defect still fails before any effect."""
+    repo = init_git_repo(tmp_path / "repo")
+    root = attestation_set.record_attestations(repo, (_expiring_record(hour=1),))["root"]
+
+    def defective(*_arguments: object) -> object:
+        message = "not enough values to unpack"
+        raise ValueError(message)
+
+    monkeypatch.setattr(attestation_set, "_lifetime_facts", defective)
+    with pytest.raises(ValueError, match="not enough values to unpack"):
+        attestation_set.record_attestations(repo, (occurrence_attestation(6_011),))
+
+    assert attestation_set.read_attestation_set(repo)[0] == root
 
 
 def test_ended_member_custody_leaves_with_its_last_binder(tmp_path: Path) -> None:

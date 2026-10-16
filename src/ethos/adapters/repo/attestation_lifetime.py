@@ -44,6 +44,7 @@ _LANE_EFFECTS = frozenset(
     }
 )
 _REPAIR_RECORDS = frozenset({"effect:commit-signature", "observation:signature-repair-attempt"})
+_WINDOW_PREDICATES = frozenset({"lane-resolution:takeover"})
 
 
 @dataclass(frozen=True)
@@ -145,7 +146,8 @@ _RECORD_HOLDERS: Mapping[str, tuple[Lifetime, Callable[[Attestation], str]]] = {
 
 def lifetime(attestation: Attestation) -> tuple[Lifetime, str]:
     """Return the one lifetime of a member and the holder whose evidence can end it."""
-    if attestation.valid_until is not None:
+    # Only a reader that honours valid_until makes it a lifetime; other windows are prose.
+    if attestation.valid_until is not None and attestation.predicate in _WINDOW_PREDICATES:
         return "window", attestation.id
     if attestation.predicate == "effect:git-ref-update":
         return _ref_update_lifetime(attestation)

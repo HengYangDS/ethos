@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 
 import ethos.domain.prove as prove_domain
-from ethos.adapters.admission.prewrite import has_invalid_path_token_character
+from ethos.adapters.admission.prewrite import has_invalid_path_character
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation.lane_lifecycle.archive.command import archive_change
 from ethos.adapters.mutation.lane_lifecycle.candidate.materialization import materialize_candidate
@@ -282,9 +282,7 @@ def prewrite(
     repo = resolve_root(root)
     typed_paths = tuple(Path(path) for path in paths)
     resolved_paths = [
-        path
-        if path.is_absolute() or has_invalid_path_token_character(path.as_posix())
-        else repo / path
+        path if path.is_absolute() or has_invalid_path_character(path.as_posix()) else repo / path
         for path in typed_paths
     ]
     report = prewrite_guard(

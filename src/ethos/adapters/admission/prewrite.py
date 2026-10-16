@@ -48,8 +48,9 @@ if TYPE_CHECKING:
 _STATE_BINDINGS = ("root", "role", "branch", "paths", "holder_ref", "generation", "head")
 
 
-def has_invalid_path_token_character(text: str) -> bool:
-    return any(character.isspace() or not character.isprintable() for character in text)
+def has_invalid_path_character(text: str) -> bool:
+    """A path argument is one literal name; printable spaces are not token separators."""
+    return any(not character.isprintable() for character in text)
 
 
 def prewrite_guard(
@@ -438,13 +439,8 @@ def _check_path(
     indexed_effects: dict[str, object] | None = None,
 ) -> dict[str, object]:
     text = path.as_posix()
-    if has_invalid_path_token_character(text):
-        reason = (
-            "path_invalid_control_character"
-            if any(not character.isprintable() for character in text)
-            else "path_invalid_whitespace"
-        )
-        return _path_report(text, reason=reason)
+    if has_invalid_path_character(text):
+        return _path_report(text, reason="path_invalid_control_character")
     root_path = root.resolve()
     candidate = path if path.is_absolute() else root_path / path
     resolved = candidate if indexed_effects is not None else candidate.resolve()
@@ -539,7 +535,6 @@ def _blocked_path_error(blocked_paths: list[dict[str, object]]) -> str:
     reasons = {str(path["reason"]) for path in blocked_paths}
     priority = (
         ("path_invalid_control_character", "prewrite_path_invalid_control_character"),
-        ("path_invalid_whitespace", "prewrite_path_invalid_whitespace"),
         ("path_outside_worktree", "prewrite_path_outside_worktree"),
     )
     explicit = next((gap for reason, gap in priority if reason in reasons), "")

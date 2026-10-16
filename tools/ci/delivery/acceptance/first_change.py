@@ -152,9 +152,9 @@ def _handoff(
 
 
 _FORMAT_SOURCES = {
-    "format [draft].md": b"# Format  \n\n\n| A | B |\n|---|---|\n| 1 | 2 |\n",
-    "format [draft].toml": b"key   =   'value'\n",
-    "format [draft].yaml": b"key:    value\n",
+    "docs/format [draft].md": b"# Format  \n\n\n| A | B |\n|---|---|\n| 1 | 2 |\n",
+    "docs/format [draft].toml": b"key   =   'value'\n",
+    "docs/format [draft].yaml": b"key:    value\n",
 }
 
 
@@ -166,7 +166,9 @@ def _prove_format(lane: Path, executable: Path, environment: Mapping[str, str]) 
         raise RuntimeError(message)
     _admitted(lane, executable, environment, *_FORMAT_SOURCES)
     for relative, content in _FORMAT_SOURCES.items():
-        (lane / relative).write_bytes(content)
+        target = lane / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
     staged = run_command(
         lane,
         (git, "add", "--", *_FORMAT_SOURCES),

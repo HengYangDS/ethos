@@ -70,7 +70,7 @@ def hook_admission_report(
     )
     targets = [
         path
-        if path.is_absolute() or prewrite.has_invalid_path_token_character(path.as_posix())
+        if path.is_absolute() or prewrite.has_invalid_path_character(path.as_posix())
         else repo / path
         for path in map(Path, request.paths)
     ]

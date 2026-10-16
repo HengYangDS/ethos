@@ -412,6 +412,9 @@ def _format_response(root: Path, request: tuple[str, ...], *, fail_apply: bool):
 def _first_change_effect(lane, executable, command, effects, request, **kwargs):
     """Execute the synthetic official artifact boundary or its independent native Git staging."""
     if request[1] == "add":
+        paths = tuple(request[request.index("--") + 1 :])
+        assert all(" [draft]" in path for path in paths)
+        assert all(path.startswith("docs/") for path in paths)
         return SimpleNamespace(returncode=0, stdout="", stderr="")
     effects.append(request)
     assert request[:2] == (str(executable), str(command))

@@ -12,7 +12,7 @@ from cyclopts import Parameter
 
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.git_admission import ref_move_admission_report
-from ethos.adapters.admission.prewrite import has_invalid_path_token_character
+from ethos.adapters.admission.prewrite import has_invalid_path_character
 from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.admission.publication import ref_update_admission_report
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
@@ -129,7 +129,7 @@ def admit(
             paths=tuple(
                 (
                     path
-                    if path.is_absolute() or has_invalid_path_token_character(path.as_posix())
+                    if path.is_absolute() or has_invalid_path_character(path.as_posix())
                     else repo / path
                 ).as_posix()
                 for path in paths

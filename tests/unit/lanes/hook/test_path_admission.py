@@ -12,6 +12,7 @@ import ethos.adapters.admission.prewrite as admission_prewrite
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.contracts.admission import HookAdmissionRequest
+from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import git
@@ -57,7 +58,7 @@ def _guard(lane: Path, paths: tuple[str, ...], patch: str = "") -> dict[str, obj
 
 @pytest.mark.parametrize(
     ("token", "kind"),
-    [("README.md\nAGENTS.md", "control_character"), ("README.md .gitignore", "whitespace")],
+    [("README.md\nAGENTS.md", "control_character"), ("README.md\tAGENTS.md", "control_character")],
 )
 def test_invalid_path_matrix(worktree: Path, token: str, kind: str) -> None:
     report = _hook(worktree, Path(token))
@@ -77,6 +78,44 @@ def test_invalid_path_matrix(worktree: Path, token: str, kind: str) -> None:
         }
     ]
     assert reason in cast("list[str]", report["required_gaps"])
+
+
+@pytest.mark.parametrize("relative", ["docs/guide [draft].md", "docs/README.md .gitignore"])
+def test_prewrite_preserves_one_literal_path_with_spaces(worktree: Path, relative: str) -> None:
+    """A public path argument is one filename, not a whitespace-delimited list."""
+    requested = worktree / relative
+    before = (worktree / "README.md").read_bytes() if (worktree / "README.md").is_file() else None
+    index = git(worktree, "ls-files", "--stage")
+    result = run_ethos(
+        "lane",
+        "prewrite",
+        relative,
+        "--root",
+        str(worktree),
+        "--editor-root",
+        str(worktree),
+        "--require-editor-root",
+        "--json",
+    )
+    assert result["verdict"] == "pass"
+    assert [item["relative_path"] for item in result["data"]["paths"]] == [relative]
+    hooked = _hook(worktree, Path(relative))
+    assert hooked["verdict"] == "pass"
+    assert [item["relative_path"] for item in hooked["admission"]["paths"]] == [relative]
+    assert not requested.exists()
+    assert git(worktree, "ls-files", "--stage") == index
+    if before is not None:
+        assert (worktree / "README.md").read_bytes() == before
+    if relative.endswith(".md"):
+        requested.parent.mkdir(parents=True, exist_ok=True)
+        requested.write_bytes(b"# Native source  \n\n\n")
+        git(worktree, "add", "--", relative)
+        result = run_ethos("format", relative, "--apply", "--root", str(worktree), "--json")
+        assert result["data"]["applied"] is True
+        formatted = requested.read_bytes()
+        fixed = run_ethos("format", relative, "--check", "--root", str(worktree), "--json")
+        assert fixed["data"]["changed_paths"] == []
+        assert requested.read_bytes() == formatted == b"# Native source\n"
 
 
 SHADOW = "external_method_pack_shadow_authority:.superpowers/sdd/tasks/progress.md"

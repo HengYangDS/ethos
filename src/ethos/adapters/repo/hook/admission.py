@@ -112,7 +112,7 @@ def _pre_commit(
     prewrite = import_module("ethos.adapters.admission.prewrite")
     paths = tuple(
         (root / path).as_posix()
-        if not Path(path).is_absolute() and not prewrite.has_invalid_path_token_character(path)
+        if not Path(path).is_absolute() and not prewrite.has_invalid_path_character(path)
         else path
         for path in staged
     )

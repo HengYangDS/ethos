@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.adapters.toolchain import mise
+import ethos.adapters.toolchain.mise as mise
 
 if TYPE_CHECKING:
     from collections.abc import Mapping

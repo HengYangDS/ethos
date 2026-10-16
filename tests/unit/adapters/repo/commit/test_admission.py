@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 from typing import cast
 
 import pytest
@@ -18,9 +18,6 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import lane_start_arguments
 from tests.unit.cli.land.publication.support import branch_publication_fixture
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def _policy(*, signing: bool = False) -> CommitPolicy:
@@ -234,8 +231,7 @@ def test_new_ref_baseline_matrix(tmp_path: Path, case: str) -> None:
 def test_diverged_proposal_selects_its_accepted_native_lane_birth(tmp_path: Path) -> None:
     """Real lane.start and candidate.accept effects select the range; a lane name alone cannot."""
     accepted_root, _, accepted = branch_publication_fixture(tmp_path, accepted=True)
-    lane = tmp_path / "lane"
-    run_ethos(*lane_start_arguments(accepted_root, lane), cwd=accepted_root)
+    lane = Path(run_ethos(*lane_start_arguments(accepted_root), cwd=accepted_root)["data"]["path"])
     proposed = commit_fixture_file(lane, "FIX.md", "# fix\n", "fix: historical maintenance")
     git(lane, "checkout", "-q", "--detach", f"{accepted}~1")
     later = commit_fixture_file(lane, "LATER.md", "# later\n", "fix: later accepted line")

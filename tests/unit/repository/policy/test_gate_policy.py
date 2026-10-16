@@ -30,6 +30,7 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import initialize_adopted_fixture
 from tests.support.governed_repository import write_script_gate_policy
+from tests.support.governed_repository import write_test_profile
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -38,6 +39,47 @@ _MISSING_QUALITY = (
     "quality_obligation_unproven:behavior",
     "quality_obligation_unproven:static-analysis",
 )
+
+
+def test_document_profile_applicability_follows_the_selected_git_tree(tmp_path: Path) -> None:
+    """New code activates the floor even when the same document profile omits code axes."""
+    repo = init_git_repo(tmp_path / "documents")
+    write_test_profile(
+        repo,
+        proof=ProofPolicy(
+            code_correctness_gates=("docs-registry", "markdown-links"),
+            gates=(
+                Gate(
+                    id="docs-registry",
+                    kind="docs",
+                    providers=("ethos.surface.cli.root.reference:docs_registry_report",),
+                ),
+                Gate(
+                    id="markdown-links",
+                    kind="docs",
+                    providers=("ethos.adapters.gates.tool:markdown_links_report",),
+                ),
+            ),
+        ),
+    )
+    document_head = commit_fixture(repo, "declare document-only proof roots")
+    documents = resolve_gate_policy(repo, tree_ref=document_head, full=True)
+
+    assert documents.gate_ids == ("docs-registry", "markdown-links")
+    assert documents.gaps == ()
+    assert "quality_floor_version" not in documents.projection["owner"]
+
+    (repo / "app.py").write_text('raise RuntimeError("not document content")\n')
+    git(repo, "add", "app.py")
+    staged_tree = git(repo, "write-tree")
+    staged = resolve_gate_policy(repo, tree_ref=staged_tree, full=True)
+
+    assert staged.gaps == _MISSING_QUALITY
+    assert staged.projection["owner"]["quality_subjects"] == {
+        "behavior": ["app.py"],
+        "static-analysis": ["app.py"],
+    }
+    assert resolve_gate_policy(repo, tree_ref=document_head, full=True).digest == documents.digest
 
 
 @pytest.mark.parametrize("canonical", [False, True], ids=["native", "canonical"])

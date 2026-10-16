@@ -180,7 +180,7 @@ class ProofPolicy(_ProfileModel):
             if not self.code_correctness_gates:
                 msg = "profile-native proof policy must declare default roots"
                 raise ValueError(msg)
-            if (
+            if self.code_correctness_map and (
                 set(self.code_correctness_map) != {"behavior", "static-analysis"}
                 or not set(self.code_correctness_map.values()) <= closure
             ):

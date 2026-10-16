@@ -26,4 +26,5 @@
 
 - Each landing needs its own exact-head full proof, closeout and publication to both peers.
 - Lane records keep accumulating until a follow-up Change bounds them by their consumers; owner a225c731, next action drafting that Change after this one lands, review 2026-10-23.
+- Deferred writer gaps, reviewed with the lane-record Change (owner a225c731, review 2026-10-23): `record_attestation_once` does not report lifetime or custody gaps to its callers; custody bytes stored by an update that exhausts its CAS retries stay unbound until that record is retried, and no later update deletes them; `attestation record` refuses an oversized replay of an existing member before reading the set.
 - Custody owners: `agent:codex:ethos:semantic-observation`, Codex threads 019f3a1b, 019fa96d, 01a00063 and 01a11a05, and the verifier of `evidence:historical-lane-preservation`. Pause notices were queued on 2026-10-15 with the user's authorization; 019f3a1b, 019fa96d and 01a00063 paused new embedding and reported no member releasable yet. Release-availability notices were queued to 01a00063, 01a11a05, 019f3a1b and 019fa96d on 2026-10-16 after the landing.

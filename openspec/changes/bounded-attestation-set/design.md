@@ -114,6 +114,10 @@ File-backed native output capture stays: it repairs a general transport defect.
   as a failed update.
 - [Lane records accumulate] → They are small (943 members, about 6 MiB on 2026-10-16) but grow with
   every lane. Bounding them needs consumer-indexed lifetimes and is left to a follow-up Change.
+- [A head record is needed after nothing selects its head] → Integration proves the lane head,
+  acceptance and lane retirement read the accepted head, and publication proves the pushed head or
+  tag commit, so each admission selects its head through a ref, tag or worktree HEAD. Landing a
+  commit again after every ref that selected it was deleted needs a fresh proof.
 
 ## Migration Plan
 

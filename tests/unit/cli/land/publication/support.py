@@ -129,7 +129,12 @@ def proposal_ref(remote: Path) -> str:
 
 
 def release_cli(
-    repo: Path, head: str, old: str, *args: str, tag: str = "v1.2.3", blocked: bool = False
+    repo: Path,
+    head: str,
+    old: str,
+    *args: str,
+    tag: str = "v1.2.3",
+    blocked: bool = False,
 ):
     """Invoke the public release surface with exact fixture coordinates."""
     runner = run_ethos_blocked if blocked else run_ethos
@@ -255,6 +260,16 @@ def maintenance_release_fixture(tmp_path: Path, *, release_mirror: str = "indepe
     )
     assert started["verdict"] == "pass", started
     lane = Path(started["data"]["path"])
+    changelog = lane / "CHANGELOG.md"
+    changelog.write_text(
+        changelog.read_text().replace(
+            "## [1.2.3]",
+            "## [1.2.4] - 2026-10-15\n\n### Fixed\n\n"
+            "- Correct the historical maintenance release.\n\n## [1.2.3]",
+            1,
+        )
+    )
+    git(lane, "add", "CHANGELOG.md")
     head = commit_fixture_file(
         lane,
         "VERSION",

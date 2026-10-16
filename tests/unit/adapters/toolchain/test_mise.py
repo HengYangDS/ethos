@@ -5,13 +5,14 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import tomllib
 from contextlib import nullcontext
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
-import ethos.adapters.toolchain.mise as mise
+from ethos.adapters.toolchain import mise
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -36,7 +37,7 @@ def test_locked_environment_exposes_only_selected_mise_during_native_execution(
     locked_go = locked_bin / f"go{suffix}"
     locked_go.write_bytes(b"locked go")
     locked_go.chmod(0o755)
-    files = {mise.MISE_CONFIG: "config", mise.MISE_LOCK: "lock"}
+    files = {mise.MISE_CONFIG: "[tools]\n", mise.MISE_LOCK: "lock"}
 
     def observe(
         _root: Path,
@@ -47,7 +48,7 @@ def test_locked_environment_exposes_only_selected_mise_during_native_execution(
         offline: bool,
     ) -> subprocess.CompletedProcess[str]:
         assert offline
-        assert files == {mise.MISE_CONFIG: "config", mise.MISE_LOCK: "lock"}
+        assert files == {mise.MISE_CONFIG: "[tools]\n", mise.MISE_LOCK: "lock"}
         assert executable == selected
         output = '{"MISE_TEST":"selected"}' if arguments == ("env", "--json") else f"{locked_bin}\n"
         return subprocess.CompletedProcess(arguments, 0, output, "")
@@ -107,7 +108,7 @@ def test_locked_environment_rejects_unproved_native_supply(
     gap: str,
 ) -> None:
     """A failed or malformed native response cannot become a usable PATH."""
-    files = {mise.MISE_CONFIG: "config", mise.MISE_LOCK: "lock"}
+    files = {mise.MISE_CONFIG: "[tools]\n", mise.MISE_LOCK: "lock"}
     calls: list[tuple[str, ...]] = []
 
     def execute(
@@ -118,7 +119,7 @@ def test_locked_environment_rejects_unproved_native_supply(
         executable: Path,
         offline: bool,
     ) -> subprocess.CompletedProcess[str]:
-        assert files == {mise.MISE_CONFIG: "config", mise.MISE_LOCK: "lock"}
+        assert files == {mise.MISE_CONFIG: "[tools]\n", mise.MISE_LOCK: "lock"}
         assert executable == tmp_path / "mise"
         assert offline is True
         calls.append(arguments)
@@ -151,13 +152,17 @@ def test_locked_tool_requires_an_installed_absolute_executable(
     gap: str,
 ) -> None:
     """Neither a successful selector exit nor a path string proves a tool exists."""
-    files = {mise.MISE_CONFIG: "config", mise.MISE_LOCK: "lock"}
+    files = {mise.MISE_CONFIG: "[tools]\n", mise.MISE_LOCK: "lock"}
 
     def select(
-        _root: Path, arguments: tuple[str, ...], *, files: Mapping[str, str], offline: bool
+        _root: Path,
+        arguments: tuple[str, ...],
+        *,
+        files: Mapping[str, str],
+        offline: bool,
     ) -> subprocess.CompletedProcess[str]:
         assert arguments == ("which", "node")
-        assert files == {mise.MISE_CONFIG: "config", mise.MISE_LOCK: "lock"}
+        assert files == {mise.MISE_CONFIG: "[tools]\n", mise.MISE_LOCK: "lock"}
         assert offline is True
         output = str(tmp_path / "absent-node") if stdout == "absent" else stdout
         return subprocess.CompletedProcess(arguments, returncode, output, stderr)
@@ -190,4 +195,80 @@ def test_repository_mise_files_rejects_incomplete_selection(tmp_path: Path, layo
         ValueError,
         match="mise_config_ambiguous" if layout == "ambiguous" else "locked_toolchain_missing",
     ):
+        mise.repository_mise_files(tmp_path)
+
+
+@pytest.mark.parametrize("carrier", [".node-version", ".nvmrc"])
+def test_native_version_carriers_preserve_locked_selection_without_hooks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, carrier: str
+) -> None:
+    """Native metadata selects exact installed tools without executing candidate hooks."""
+    root = Path(__file__).resolve().parents[4]
+    declared = tomllib.loads((root / mise.MISE_CONFIG).read_text())["tools"]["node"]
+    locked = tomllib.loads((root / mise.MISE_LOCK).read_text())["tools"]["node"]
+    config = tmp_path / mise.MISE_CONFIG
+    config.parent.mkdir(parents=True)
+    config.write_text(
+        '[settings]\nidiomatic_version_file_enable_tools = ["node"]\n'
+        '[hooks]\nenter = "touch forbidden-hook"\n'
+    )
+    (tmp_path / mise.MISE_LOCK).write_text(
+        'lockfile_version = 3\n[[tools.node]]\nversion = "' + declared + '"\n'
+        'backend = "core:node"\nspecifiers = ["' + declared + '"]\n'
+    )
+    assert any(row["version"] == declared for row in locked)
+    version_file = tmp_path / carrier
+    version_file.write_text(f"{declared}\n")
+    original = {
+        path: (tmp_path / path).read_bytes() for path in (mise.MISE_CONFIG, mise.MISE_LOCK, carrier)
+    }
+    monkeypatch.setenv("MISE_IDIOMATIC_VERSION_FILE_ENABLE_TOOLS", "python")
+    files = mise.repository_mise_files(tmp_path)
+    assert files is not None
+    assert files[carrier].encode() == original[carrier]
+    with mise.locked_environment(tmp_path, files) as environment:
+        node = shutil.which("node", path=environment["PATH"])
+        assert node is not None
+        observed = subprocess.run(
+            (node, "--version"), capture_output=True, text=True, check=True, timeout=15
+        )
+        assert observed.stdout.strip() == f"v{declared}"
+        assert environment["MISE_SAFE"] == "1"
+        assert environment["MISE_LOCKED"] == "1"
+        assert environment["MISE_OFFLINE"] == "1"
+    assert not (tmp_path / "forbidden-hook").exists()
+    assert {path: (tmp_path / path).read_bytes() for path in original} == original
+
+
+@pytest.mark.parametrize("defect", ["changed", "missing"])
+def test_native_version_carrier_snapshot_refuses_drift(tmp_path: Path, defect: str) -> None:
+    """A copied carrier is not permission to use stale or missing native inputs."""
+    config = tmp_path / mise.MISE_CONFIG
+    config.parent.mkdir(parents=True)
+    config.write_text('[settings]\nidiomatic_version_file_enable_tools = ["node"]\n')
+    (tmp_path / mise.MISE_LOCK).write_text("lockfile_version = 3\n")
+    carrier = tmp_path / ".node-version"
+    carrier.write_bytes(b"26.12.0\r\n")
+    files = mise.repository_mise_files(tmp_path)
+    assert files is not None
+    assert files[carrier.name].encode() == carrier.read_bytes()
+    if defect == "missing":
+        carrier.unlink()
+    else:
+        carrier.write_bytes(b"26.11.1\r\n")
+        assert carrier.read_bytes() != files[carrier.name].encode()
+    with pytest.raises(ValueError, match=r"mise_version_carrier_changed:\.node-version"):
+        mise.run_mise(tmp_path, ("bin-paths",), files=files, offline=True)
+
+
+@pytest.mark.parametrize("selection", ['"node"', '["node,python"]', "[true]"])
+def test_native_version_selection_requires_declarative_names(
+    tmp_path: Path, selection: str
+) -> None:
+    """Project settings cannot inject additional native environment selections."""
+    config = tmp_path / mise.MISE_CONFIG
+    config.parent.mkdir(parents=True)
+    config.write_text(f"[settings]\nidiomatic_version_file_enable_tools = {selection}\n")
+    (tmp_path / mise.MISE_LOCK).write_text("lockfile_version = 3\n")
+    with pytest.raises(ValueError, match="mise_version_selection_invalid"):
         mise.repository_mise_files(tmp_path)

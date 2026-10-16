@@ -15,6 +15,7 @@ import pytest
 
 import tools.ci.toolchain.native as native
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.materialization.native_supply import NativeSupply
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
@@ -58,7 +59,7 @@ def test_linked_worktrees_reuse_one_locked_native_download(
         f'lockfile_version = 3\n[[tools."{backend}"]]\nversion = "{version}"\n'
         f'[tools."{backend}"."platforms.{target}"]\n'
         f'checksum = "sha256:{checksum}"\n'
-        f'url = "https://github.com/fixture/gitleaks/releases/download/v{version}/{package.name}"\n',
+        f'url = "https://github.com/gitleaks/gitleaks/releases/download/v{version}/{package.name}"\n',
         encoding="utf-8",
     )
     commit_fixture(repo, "lock native supply")
@@ -81,7 +82,7 @@ def test_linked_worktrees_reuse_one_locked_native_download(
                 (repo, linked),
             )
         )
-    supply = native.NativeSupply.read(repo, "gitleaks")
+    supply = NativeSupply.read(repo, "gitleaks")
     cache_root = (
         tmp_path / "explicit-cache"
         if cache_selector is not None

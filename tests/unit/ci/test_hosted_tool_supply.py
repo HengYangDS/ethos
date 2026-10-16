@@ -23,10 +23,10 @@ from filelock import Timeout
 
 import tools.ci.toolchain.native as native
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.runtime.materialization.native_supply import NativeSupply
 from tests.support.architecture import isolated_path
 from tests.support.architecture import write_reference_source
 from tests.support.subprocesses import ready_descendant
-from tools.ci.toolchain.native import NativeSupply
 
 if TYPE_CHECKING:
     import subprocess
@@ -79,7 +79,7 @@ def _native_supply(
     (repo / ".config/mise/mise.lock").write_text(
         f'lockfile_version = 3\n[[tools."{backend}"]]\nversion = "{version}"\n'
         f'[tools."{backend}"."platforms.{target}"]\nchecksum = "sha256:{checksum}"\n'
-        f'url = "https://github.com/fixture/{tool}/releases/download/v{version}/fixture.tar.gz"\n'
+        f'url = "https://github.com/{owner}/{tool}/releases/download/v{version}/fixture.tar.gz"\n'
     )
     transfer_log = tmp_path / "transfer.log"
     scripts["mise"] = (
@@ -201,7 +201,7 @@ def test_native_supply_converges_concurrently_reuses_identity_and_repairs_damage
     assert not list(executable.parent.glob(".prepare-*"))
 
 
-@pytest.mark.parametrize(("system", "machine"), [("Windows", "AMD64"), ("Linux", "unknown")])
+@pytest.mark.parametrize(("system", "machine"), [("Windows", "unknown"), ("Linux", "unknown")])
 def test_native_supply_rejects_unsupported_targets_before_creating_cache(
     tmp_path, monkeypatch, system, machine
 ):

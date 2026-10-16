@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_tracked_head
-from tools.ci.toolchain.native import NativeSupply
+from ethos.adapters.repo.runtime.materialization.native_supply import NativeSupply
 from tools.ci.toolchain.native import prepare
 
 if TYPE_CHECKING:

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import os
 import platform
 import re
@@ -13,10 +12,9 @@ import subprocess
 import sys
 import tarfile
 import tomllib
-from dataclasses import dataclass
+import zipfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from urllib.parse import urlsplit
 
 from filelock import FileLock
 from filelock import Timeout
@@ -24,6 +22,7 @@ from packaging.version import Version
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
+from ethos.adapters.repo.runtime.materialization.native_supply import NativeSupply
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeRuntime
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
 from ethos.adapters.toolchain.mise import MISE_CONFIG
@@ -35,108 +34,6 @@ from ethos.adapters.toolchain.mise import run_mise
 MISE_RELEASE = "https://github.com/jdx/mise/releases/download/v{version}/{name}"
 CI_PROJECTION_POLICY = ".config/checks/ci-projection/policy.toml"
 WINDOWS_MISE_ARCHITECTURES = {"amd64": "x64", "x86_64": "x64", "arm64": "arm64", "aarch64": "arm64"}
-
-
-@dataclass(frozen=True, slots=True)
-class NativeSupply:
-    """One tool's native release identity, archive and executable observation."""
-
-    name: str
-    backend: str
-    version: str
-    digest: str
-    url: str
-    archive: str
-    platform: str
-    version_argument: str
-    version_output: str
-
-    @classmethod
-    def read(cls, root: Path, name: str) -> NativeSupply:
-        """Resolve the existing tool-native declaration for this supported host."""
-        system = platform.system()
-        machine = platform.machine()
-        arch = {"aarch64": "arm64", "arm64": "arm64", "amd64": "x86_64", "x86_64": "x86_64"}.get(
-            machine
-        )
-        if system not in {"Darwin", "Linux"} or arch is None:
-            msg = f"native_tool_platform_unsupported:{system}:{machine}"
-            raise ValueError(msg)
-        declarations = tomllib.loads((root / MISE_CONFIG).read_text())["tools"]
-        selected = [key for key in declarations if key.rsplit("/", 1)[-1] == name]
-        if len(selected) != 1 or name not in {"scc", "gitleaks", "syft"}:
-            msg = f"native_tool_undeclared:{name}"
-            raise ValueError(msg)
-        key = selected[0]
-        version = declarations[key]
-        locked = tomllib.loads((root / MISE_LOCK).read_text())
-        records = [row for row in locked["tools"][key] if row["version"] == version]
-        target = (
-            f"{'macos' if system == 'Darwin' else 'linux'}-{'x64' if arch == 'x86_64' else arch}"
-        )
-        if len(records) != 1 or locked.get("lockfile_version") != 3:
-            msg = f"native_tool_lock_mismatch:{name}"
-            raise ValueError(msg)
-        material = records[0][f"platforms.{target}"]
-        url, checksum = material["url"], material["checksum"]
-        parsed = urlsplit(url)
-        digest = checksum.removeprefix("sha256:")
-        archive = Path(parsed.path).name
-        if not (
-            re.fullmatch(r"\d+\.\d+\.\d+", version)
-            and checksum.startswith("sha256:")
-            and re.fullmatch(r"[0-9a-f]{64}", digest)
-            and parsed.scheme == "https"
-            and parsed.hostname == "github.com"
-            and not parsed.username
-            and not parsed.password
-            and archive.endswith(".tar.gz")
-        ):
-            msg = f"native_tool_policy_invalid:{name}"
-            raise ValueError(msg)
-        argument, prefix = ("--version", "scc version ") if name == "scc" else ("version", "")
-        return cls(
-            name, key, version, digest, url, archive, f"{system}_{arch}", argument, prefix + version
-        )
-
-    def executable_bytes(self, archive: Path) -> bytes:
-        """Select one regular named member only after exact archive verification."""
-        if archive.is_symlink() or not archive.is_file():
-            msg = f"native_tool_archive_unsafe:{self.name}"
-            raise ValueError(msg)
-        with archive.open("rb") as stream:
-            if hashlib.file_digest(stream, "sha256").hexdigest() != self.digest:
-                msg = f"{self.name}_archive_checksum_mismatch"
-                raise ValueError(msg)
-            stream.seek(0)
-            with tarfile.open(fileobj=stream, mode="r:gz") as package:
-                matches = [member for member in package if member.name == self.name]
-                if len(matches) != 1 or not matches[0].isfile():
-                    msg = f"native_tool_archive_executable_invalid:{self.name}"
-                    raise ValueError(msg)
-                source = package.extractfile(matches[0])
-                if source is None:
-                    msg = f"native_tool_archive_executable_missing:{self.name}"
-                    raise ValueError(msg)
-                with source:
-                    return source.read()
-
-    def verify(self, executable: Path) -> None:
-        """Observe the declared native version; bytes or a name alone are insufficient."""
-        arguments = (
-            (self.version_argument, "-o", "json")
-            if self.name == "syft"
-            else (self.version_argument,)
-        )
-        observed = run_command(Path.cwd(), (str(executable), *arguments), timeout=10)
-        version = (
-            json.loads(observed.stdout).get("version")
-            if self.name == "syft"
-            else observed.stdout.strip()
-        )
-        if observed.returncode or observed.stderr or version != self.version_output:
-            msg = f"native_tool_executable_version_mismatch:{self.name}"
-            raise ValueError(msg)
 
 
 def _directory(path: Path) -> None:
@@ -323,11 +220,7 @@ def prepare(root: Path, name: str, *, lock_timeout: float = 30, mise: Path | Non
     """Converge one declared identity without privileged writes or duplicate effects."""
     root = root.resolve(strict=True)
     supply = NodeSupply.read(root) if name == "node" else NativeSupply.read(root, name)
-    cache = (
-        supply.cache(root)
-        if isinstance(supply, NodeSupply)
-        else native_tool_cache(root) / name / supply.version / supply.platform
-    )
+    cache = supply.cache(root)
     _directory(cache)
     lock = cache / ".prepare.lock"
     if lock.is_symlink() or (lock.exists() and not lock.is_file()):
@@ -335,7 +228,8 @@ def prepare(root: Path, name: str, *, lock_timeout: float = 30, mise: Path | Non
         raise ValueError(msg)
     with FileLock(lock, timeout=lock_timeout):
         _directory(cache)
-        archive, target = cache / supply.archive, cache / name
+        executable = name if isinstance(supply, NodeSupply) else supply.executable_name
+        archive, target = cache / supply.archive, cache / executable
         with TemporaryDirectory(prefix=".prepare-", dir=cache) as scratch:
             selected = archive
             if not archive.exists() and not archive.is_symlink():
@@ -374,7 +268,7 @@ def prepare(root: Path, name: str, *, lock_timeout: float = 30, mise: Path | Non
             ):
                 supply.verify(target)
             else:
-                prepared = Path(scratch) / name
+                prepared = Path(scratch) / supply.executable_name
                 prepared.write_bytes(expected)
                 prepared.chmod(0o755)
                 supply.verify(prepared)
@@ -487,7 +381,7 @@ def main() -> int:
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--mise", action="store_true")
     parser.add_argument("--render-installer", action="store_true")
-    parser.add_argument("tools", nargs="*", choices=("scc", "gitleaks", "syft", "node"))
+    parser.add_argument("tools", nargs="*", choices=("scc", "gitleaks", "syft", "vale", "node"))
     arguments = parser.parse_args()
     try:
         if arguments.render_installer:
@@ -510,6 +404,7 @@ def main() -> int:
         KeyError,
         TypeError,
         tarfile.TarError,
+        zipfile.BadZipFile,
         subprocess.SubprocessError,
         Timeout,
     ) as error:

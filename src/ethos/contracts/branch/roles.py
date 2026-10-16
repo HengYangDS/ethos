@@ -26,6 +26,8 @@ ROLE_CANDIDATE = "candidate"
 ROLE_WORK_LANE = "work_lane"
 ROLE_DETACHED = "detached"
 ROLE_OTHER = "other"
+# The roles in which ETHOS itself creates commits, so each needs a local signer.
+LIFECYCLE_COMMIT_ROLES = frozenset({ROLE_ACCEPTED_ROOT, ROLE_CANDIDATE, ROLE_WORK_LANE})
 
 RELEASE_MIRROR_INDEPENDENT = "independent"
 RELEASE_MIRROR_ACCEPTED_FF = "accepted_ff"

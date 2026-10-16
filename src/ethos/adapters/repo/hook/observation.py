@@ -11,6 +11,8 @@ from typing import NotRequired
 from typing import TypedDict
 
 import ethos.adapters.repo.runtime.authority as runtime_authority
+from ethos.adapters.repo.commit.creation import commit_signer_action
+from ethos.adapters.repo.commit.creation import commit_signer_gaps
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
@@ -23,6 +25,7 @@ from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import legacy_runtime_migration_source
 from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from ethos.adapters.repo.trust_anchor.verification import commit_trust_anchor_action
 from ethos.adapters.repo.trust_anchor.verification import configured_commit_trust_anchor
 from ethos.repository.policy.commit import load_commit_policy
 from ethos.repository.profile import load_repository_profile
@@ -73,6 +76,7 @@ class CommitPolicyEnforcement(TypedDict):
     required_gaps: list[str]
     next_action: str
     signature_trust: NotRequired[dict[str, object]]
+    lifecycle_signer: NotRequired[dict[str, object]]
 
 
 def hook_runtime_binding(
@@ -219,11 +223,14 @@ def hook_runtime_binding(
 def commit_policy_enforcement(
     root: Path,
     runtime: HookRuntimeBinding,
+    *,
+    signer_required: bool = False,
 ) -> CommitPolicyEnforcement:
     """Project the commit policy and its two irreducible execution transports.
 
     Inspection is not adoption: a repository that ETHOS does not govern carries no
     commit obligation, while every governed repository needs a trusted SSH signer.
+    A role that creates lifecycle commits also needs the local signer they use.
     """
     repo = root.resolve()
     try:
@@ -260,9 +267,15 @@ def commit_policy_enforcement(
     message_gaps = _transport_gaps(runtime_gaps, "commit-msg")
     push_gaps = _transport_gaps(runtime_gaps, "pre-push")
     anchor, trust_gaps = configured_commit_trust_anchor(repo)
-    gaps = list(dict.fromkeys((*message_gaps, *push_gaps, *trust_gaps)))
+    signer_gaps = commit_signer_gaps(repo)
+    required_signer_gaps = signer_gaps if signer_required else []
+    gaps = list(dict.fromkeys((*message_gaps, *push_gaps, *trust_gaps, *required_signer_gaps)))
     return {
-        "state": "unarmed" if message_gaps or push_gaps else "unready" if trust_gaps else "armed",
+        "state": "unarmed"
+        if message_gaps or push_gaps
+        else "unready"
+        if trust_gaps or required_signer_gaps
+        else "armed",
         "declaration": policy.projection(),
         "commit_message_transport": "unarmed" if message_gaps else "armed",
         "push_range_enforcement": "unarmed" if push_gaps else "armed",
@@ -272,14 +285,18 @@ def commit_policy_enforcement(
             "anchor": str(anchor or ""),
             "required_gaps": trust_gaps,
         },
+        "lifecycle_signer": {
+            "state": "unready" if signer_gaps else "configured",
+            "required": signer_required,
+            "required_gaps": signer_gaps,
+        },
         "next_action": (
             str(runtime.get("next_action") or "")
             if message_gaps or push_gaps
-            else (
-                f"git -C {shlex.quote(str(repo))} config --local "
-                "gpg.ssh.allowedSignersFile <absolute-protected-anchor>"
-            )
+            else commit_trust_anchor_action(repo)
             if trust_gaps
+            else commit_signer_action(repo, required_signer_gaps[0])
+            if required_signer_gaps
             else ""
         ),
     }

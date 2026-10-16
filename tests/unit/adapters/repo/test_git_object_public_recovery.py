@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import shlex
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -170,8 +171,13 @@ def test_commit_trust_public_report_rejects_invalid_anchor_location(tmp_path, co
         git(repo, "config", "gpg.ssh.allowedSignersFile", value)
     report = verification.verify_commit_trust(repo, git(repo, "rev-parse", "HEAD"))
     assert report["required_gaps"] == [expected]
+    # ETHOS's Git reads no global configuration, so only the local anchor setting resolves this.
     action = identity.commit_trust_setup_action(repo, "HEAD")
-    assert action == "git config --global gpg.ssh.allowedSignersFile <absolute-owner-only-path>"
+    assert action == verification.commit_trust_anchor_action(repo)
+    assert action == (
+        f"git -C {shlex.quote(str(repo))} config --local "
+        "gpg.ssh.allowedSignersFile <absolute-protected-anchor>"
+    )
 
 
 def test_signer_authorization_requires_confirmation_before_atomic_apply(

@@ -22,6 +22,7 @@ from ethos.domain.inspection import inspect_repository
 from ethos.domain.land.operation import land_repository
 from ethos.domain.plan import plan_repository
 from ethos.domain.publication.operation import publish_repository
+from tools.ci.delivery.acceptance.adopter import product_signer
 
 
 def _run(
@@ -37,6 +38,12 @@ def _run(
         timeout=30,
         check=False,
     )
+
+
+def _setup(*command: str, **_options: object) -> str:
+    """Run one setup command whose failure is a conformance setup failure."""
+    completed = subprocess.run(command, capture_output=True, text=True, timeout=30, check=True)
+    return completed.stdout.strip()
 
 
 def _git(root: Path, git: str, env: dict[str, str], *arguments: str) -> None:
@@ -193,12 +200,14 @@ async def _formation_preview(command: tuple[str, ...], target: Path, env: dict[s
     purpose = "Govern a new repository."
     author_name = "ETHOS Conformance"
     author_email = "conformance@example.invalid"
+    signer = product_signer(target, run=_setup)
     request = {
         "create": True,
         "starter": "foundation",
         "purpose": purpose,
         "author_name": author_name,
         "author_email": author_email,
+        **signer,
     }
     transport = StdioTransport(
         command[0],
@@ -216,6 +225,9 @@ async def _formation_preview(command: tuple[str, ...], target: Path, env: dict[s
                 purpose=purpose,
                 author_name=author_name,
                 author_email=author_email,
+                signing_key=signer["signing_key"],
+                trust_anchor=signer["trust_anchor"],
+                signing_program=signer["signing_program"],
             ).to_dict()
         assert expected["verdict"] == "pass", expected
         for surface in ("cli", "mcp"):

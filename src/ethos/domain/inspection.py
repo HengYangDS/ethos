@@ -12,6 +12,7 @@ from ethos.adapters.openspec.lifecycle.report import openspec_official_cli
 from ethos.adapters.repo.hook.observation import commit_policy_enforcement
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.status.workspace import workspace_status_observation
+from ethos.contracts.branch.roles import LIFECYCLE_COMMIT_ROLES
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.verdict import reduce_verdicts
@@ -72,7 +73,9 @@ def inspect_repository(root: Path) -> EthosResult:
     unbound = cast("list[dict[str, object]]", observed.get("unbound_work_lane_refs") or [])
     coordination_gaps = string_sequence(observed.get("coordination_gaps"))
     authority_projection = authority.projection() if authority is not None else {}
-    commit_policy = commit_policy_enforcement(repo, runtime)
+    commit_policy = commit_policy_enforcement(
+        repo, runtime, signer_required=observed.get("role") in LIFECYCLE_COMMIT_ROLES
+    )
     runtime_gaps = string_sequence(runtime["required_gaps"]) if runtime["required"] else ()
     commit_policy_gaps = string_sequence(commit_policy.get("required_gaps"))
     gaps = tuple(dict.fromkeys((*gaps, *runtime_gaps, *commit_policy_gaps)))

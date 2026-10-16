@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 import subprocess
 import sys
 from typing import TYPE_CHECKING
@@ -157,6 +158,39 @@ def test_merge_creation_signs_both_native_parents(tmp_path: Path, object_format:
     assert git(repo, "rev-list", "--parents", "-n", "1", oid).split()[1:] == [head, earlier]
     assert verify_commit_trust(repo, oid)["verdict"] == "pass"
     assert git(repo, "rev-parse", "HEAD") == head
+
+
+@pytest.mark.parametrize("object_format", ["sha1", "sha256"])
+def test_root_creation_signs_an_object_without_a_parent(tmp_path: Path, object_format: str) -> None:
+    """A formed repository's first commit uses the same signed, verified creator."""
+    repo = _signature_repository(tmp_path, object_format)
+    head = git(repo, "rev-parse", "HEAD")
+    created = creation.create_git_commit(
+        repo,
+        tree=git(repo, "rev-parse", "HEAD^{tree}"),
+        parent=None,
+        message="fix: start a root object",
+    )
+    assert created.returncode == 0, created.stderr
+    oid = created.stdout.strip()
+    assert git(repo, "rev-list", "--parents", "-n", "1", oid) == oid
+    assert verify_commit_trust(repo, oid)["verdict"] == "pass"
+    assert git(repo, "rev-parse", "HEAD") == head
+
+
+def test_signer_check_and_its_local_repair_have_one_owner(tmp_path: Path) -> None:
+    """Status reports the same signer gap that lifecycle commit creation raises."""
+    repo = init_git_repo(tmp_path / "repo")
+    assert creation.commit_signer_gaps(repo) == []
+    git(repo, "config", "--unset", "user.signingkey")
+    assert creation.commit_signer_gaps(repo) == ["git_effect_signing_key_invalid"]
+    quoted = shlex.quote(str(repo))
+    assert creation.commit_signer_action(repo, "git_effect_signing_key_invalid") == (
+        f"git -C {quoted} config --local user.signingkey <absolute-ssh-public-key>"
+    )
+    assert creation.commit_signer_action(repo, "git_effect_signing_program_invalid") == (
+        f"git -C {quoted} config --local gpg.ssh.program <absolute-executable>"
+    )
 
 
 @pytest.mark.parametrize("object_format", ["sha1", "sha256"])

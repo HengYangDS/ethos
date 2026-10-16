@@ -32,8 +32,8 @@ def _required_executable(name: str) -> str:
     return executable
 
 
-def _configure_product_signer(root: Path, *, git: str, run: CommandRunner) -> None:
-    """Give one repository its own trusted SSH signer beside it, as every governed one needs."""
+def product_signer(root: Path, *, run: CommandRunner) -> dict[str, str]:
+    """Create one repository's own trusted SSH signer beside it, as every governed one needs."""
     ssh_keygen = _required_executable("ssh-keygen")
     signer = root.parent / f"{root.name}-signer"
     trust_root = root.parent / f"{root.name}-trust"
@@ -47,11 +47,21 @@ def _configure_product_signer(root: Path, *, git: str, run: CommandRunner) -> No
     )
     protect_for_current_identity(trust_root)
     protect_for_current_identity(trust_anchor)
+    return {
+        "signing_key": str(signer.with_suffix(".pub")),
+        "trust_anchor": str(trust_anchor),
+        "signing_program": ssh_keygen,
+    }
+
+
+def _configure_product_signer(root: Path, *, git: str, run: CommandRunner) -> None:
+    """Configure one materialized repository with its own trusted SSH signer."""
+    signer = product_signer(root, run=run)
     for name, value in (
         ("gpg.format", "ssh"),
-        ("gpg.ssh.program", ssh_keygen),
-        ("gpg.ssh.allowedSignersFile", str(trust_anchor)),
-        ("user.signingkey", str(signer.with_suffix(".pub"))),
+        ("gpg.ssh.program", signer["signing_program"]),
+        ("gpg.ssh.allowedSignersFile", signer["trust_anchor"]),
+        ("user.signingkey", signer["signing_key"]),
         ("commit.gpgsign", "true"),
     ):
         run(git, "config", name, value, cwd=root)
@@ -257,6 +267,8 @@ def prove_formation(
     journey = {"first_change": "not_attempted", "agent_handoff": "not_attempted"}
     for starter in ("foundation", "python-library"):
         target = work / f"formed-{starter}"
+        # Formation signs the initial commit with the creator's reviewed signer.
+        signer = product_signer(target, run=run)
         command = (
             str(executable),
             "adopt",
@@ -271,6 +283,12 @@ def prove_formation(
             "ETHOS Install Smoke",
             "--author-email",
             "ethos-install-smoke@example.invalid",
+            "--signing-key",
+            signer["signing_key"],
+            "--trust-anchor",
+            signer["trust_anchor"],
+            "--signing-program",
+            signer["signing_program"],
         )
         preview_code, preview, preview_detail = invoke(
             work, (*command, "--json"), environment=environment
@@ -319,9 +337,6 @@ def prove_formation(
                 f"gaps={applied.get('required_gaps')}:detail={applied_detail[-256:]}"
             )
             raise RuntimeError(message)
-        # Formation leaves the signer to the creator (task 2.26), and every governed
-        # repository needs a trusted SSH signer before status passes.
-        _configure_product_signer(target, git=_required_executable("git"), run=run)
         status_command = (str(executable), "status", "--root", str(target), "--json")
         head = verify_formed(
             target,

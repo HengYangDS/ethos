@@ -14,7 +14,7 @@ import ethos.adapters.repo.starter.formation as formation_effect
 import ethos.cli as product_cli
 from ethos.domain.adoption import adopt_repository
 from ethos.domain.inspection import inspect_repository
-from tests.support.fixture_signer import configure_fixture_signer
+from tests.support.fixture_signer import fixture_signer_inputs
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
@@ -75,6 +75,7 @@ def test_greenfield_preview_has_no_target_effect(tmp_path: Path) -> None:
         create=True,
         purpose="Steward a new project with verifiable changes.",
         starter="foundation",
+        **fixture_signer_inputs(),
     )
 
     assert result.verdict == "pass"
@@ -92,11 +93,13 @@ def test_greenfield_preview_has_no_target_effect(tmp_path: Path) -> None:
 def test_greenfield_preview_is_public_cli_output(tmp_path: Path) -> None:
     """The installed-style CLI must not resolve an absent target as an existing repository."""
     target = tmp_path / "new-project"
+    signer = fixture_signer_inputs()
     direct = adopt_repository(
         target,
         create=True,
         purpose="Steward a new project with verifiable changes.",
         starter="foundation",
+        **signer,
     )
     console = Path(sys.prefix) / ("Scripts/ethos.exe" if os.name == "nt" else "bin/ethos")
     completed = subprocess.run(
@@ -110,6 +113,12 @@ def test_greenfield_preview_is_public_cli_output(tmp_path: Path) -> None:
             "Steward a new project with verifiable changes.",
             "--starter",
             "foundation",
+            "--signing-key",
+            signer["signing_key"],
+            "--trust-anchor",
+            signer["trust_anchor"],
+            "--signing-program",
+            signer["signing_program"],
             "--json",
         ],
         cwd=ROOT,
@@ -199,6 +208,7 @@ def test_greenfield_apply_forms_one_author_attributed_repository(
         "create": True,
         "purpose": "Steward a new project with verifiable changes.",
         "starter": "foundation",
+        **fixture_signer_inputs(),
     }
     preview = adopt_repository(target, **request)
 
@@ -219,6 +229,16 @@ def test_greenfield_apply_forms_one_author_attributed_repository(
     assert str(candidate) in git(target, "worktree", "list", "--porcelain")
     assert applied.data["candidate_worktree_path"] == str(candidate)
     assert git(target, "log", "-1", "--format=%an <%ae>") == ("ETHOS Test <test@example.invalid>")
+    # The reviewed signer signs the initial commit and stays in the repository's own config.
+    signer = fixture_signer_inputs()
+    assert git(target, "log", "-1", "--format=%G?") == "G"
+    for name, value in (
+        ("gpg.format", "ssh"),
+        ("user.signingkey", signer["signing_key"]),
+        ("gpg.ssh.allowedSignersFile", signer["trust_anchor"]),
+        ("gpg.ssh.program", signer["signing_program"]),
+    ):
+        assert git(target, "config", "--local", "--get", name) == value
     for row in preview.data["write_plan"]:
         path = target / str(row["path"])
         assert path.is_file()
@@ -237,6 +257,7 @@ def test_greenfield_apply_rejects_unadmitted_effects(tmp_path: Path, defect: str
         "create": True,
         "purpose": "Steward a new project with verifiable changes.",
         "starter": "foundation",
+        **fixture_signer_inputs(),
     }
     preview = adopt_repository(target, **request)
     if defect == "collision":
@@ -258,6 +279,41 @@ def test_greenfield_apply_rejects_unadmitted_effects(tmp_path: Path, defect: str
         assert not target.exists()
 
 
+def test_greenfield_unverified_initial_commit_publishes_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A signing or trust failure in scratch leaves no target and no candidate worktree."""
+    target = tmp_path / "new-project"
+    request = {
+        "create": True,
+        "purpose": "Verifiable changes.",
+        "starter": "foundation",
+        **fixture_signer_inputs(),
+    }
+    preview = adopt_repository(target, **request)
+    monkeypatch.setattr(
+        formation_effect,
+        "create_git_commit",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            (), 1, "", "commit_signature_untrusted"
+        ),
+    )
+
+    result = adopt_repository(
+        target,
+        **request,
+        apply=True,
+        authorize=True,
+        expect_plan_digest=str(preview.data["plan_digest"]),
+    )
+
+    assert result.verdict == "block"
+    assert result.required_gaps == ("formation_git_commit_failed",)
+    assert result.data["detail"] == "commit_signature_untrusted"
+    assert not target.exists()
+    assert not target.with_name("new-project-candidate-dev").exists()
+
+
 def test_greenfield_copy_failure_preserves_unknown_target(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -267,6 +323,7 @@ def test_greenfield_copy_failure_preserves_unknown_target(
         "create": True,
         "purpose": "Steward a new project with verifiable changes.",
         "starter": "foundation",
+        **fixture_signer_inputs(),
     }
     preview = adopt_repository(target, **request)
 
@@ -298,7 +355,11 @@ def test_greenfield_candidate_path_collision_preserves_foreign_content(tmp_path:
     target = tmp_path / "new-project"
 
     result = adopt_repository(
-        target, create=True, purpose="Verifiable changes.", starter="foundation"
+        target,
+        create=True,
+        purpose="Verifiable changes.",
+        starter="foundation",
+        **fixture_signer_inputs(),
     )
 
     assert result.verdict == "block"
@@ -309,23 +370,31 @@ def test_greenfield_candidate_path_collision_preserves_foreign_content(tmp_path:
     assert (sibling / "foreign.txt").read_text(encoding="utf-8") == "preserve"
 
 
-def test_greenfield_preview_binds_purpose_and_identity(tmp_path: Path) -> None:
+def test_greenfield_preview_binds_purpose_identity_and_signer(tmp_path: Path) -> None:
     """A changed semantic input invalidates a prior reviewed candidate."""
     target = tmp_path / "new-project"
-    first = adopt_repository(target, create=True, purpose="First purpose.", starter="foundation")
-    second = adopt_repository(target, create=True, purpose="Second purpose.", starter="foundation")
+    signer = fixture_signer_inputs()
+    copied_key = tmp_path / "copied-signer.pub"
+    copied_key.write_bytes(Path(signer["signing_key"]).read_bytes())
+    request = {"create": True, "starter": "foundation"}
+    first = adopt_repository(target, **request, purpose="First purpose.", **signer)
+    second = adopt_repository(target, **request, purpose="Second purpose.", **signer)
     third = adopt_repository(
         target,
-        create=True,
+        **request,
         purpose="First purpose.",
-        starter="foundation",
         author_name="Another Contributor",
         author_email="another@example.invalid",
+        **signer,
+    )
+    fourth = adopt_repository(
+        target, **request, purpose="First purpose.", **(signer | {"signing_key": str(copied_key)})
     )
 
-    assert (
-        len({first.data["plan_digest"], second.data["plan_digest"], third.data["plan_digest"]}) == 3
-    )
+    digests = {result.data["plan_digest"] for result in (first, second, third, fourth)}
+    assert len(digests) == 4
+    assert fourth.data["source_inputs"]["signing_key"] == str(copied_key)
+    assert fourth.data["source_inputs"]["trust_anchor"] == signer["trust_anchor"]
 
 
 def test_greenfield_missing_identity_blocks_before_target(
@@ -348,6 +417,59 @@ def test_greenfield_missing_identity_blocks_before_target(
     assert not target.exists()
 
 
+@pytest.mark.parametrize("missing", ["signing_key", "trust_anchor"])
+def test_greenfield_without_a_signer_refuses_before_any_effect(
+    tmp_path: Path, missing: str
+) -> None:
+    """Formation cannot start a governed repository with an unsigned commit."""
+    target = tmp_path / "new-project"
+
+    result = adopt_repository(
+        target,
+        create=True,
+        purpose="Verifiable changes.",
+        starter="foundation",
+        **(fixture_signer_inputs() | {missing: ""}),
+    )
+
+    assert result.verdict == "block"
+    assert result.required_gaps == ("formation_commit_signer_missing",)
+    assert "--signing-key" in result.next_action
+    assert "--trust-anchor" in result.next_action
+    assert result.user_decision_required
+    assert not target.exists()
+    assert not target.with_name("new-project-candidate-dev").exists()
+
+
+@pytest.mark.parametrize(
+    ("field", "gap"),
+    [
+        ("signing_key", "git_effect_signing_key_invalid"),
+        ("trust_anchor", "commit_trust_anchor_not_absolute"),
+        ("signing_program", "git_effect_signing_program_invalid"),
+    ],
+)
+def test_greenfield_rejects_an_invalid_signer_before_any_effect(
+    tmp_path: Path, field: str, gap: str
+) -> None:
+    """An unusable signer is refused with the gap that a lifecycle commit reports."""
+    target = tmp_path / "new-project"
+
+    result = adopt_repository(
+        target,
+        create=True,
+        purpose="Verifiable changes.",
+        starter="foundation",
+        **(fixture_signer_inputs() | {field: "relative-path"}),
+    )
+
+    assert result.verdict == "block"
+    assert result.required_gaps == (gap,)
+    assert "--signing-key" in result.next_action
+    assert result.user_decision_required
+    assert not target.exists()
+
+
 def test_greenfield_binds_canonical_parent_and_refuses_retarget(tmp_path: Path) -> None:
     """A reviewed alias cannot silently move the effect to a new destination."""
     actual = tmp_path / "actual"
@@ -358,8 +480,13 @@ def test_greenfield_binds_canonical_parent_and_refuses_retarget(tmp_path: Path) 
     except OSError:
         pytest.skip("directory symlinks unavailable")
 
+    signer = fixture_signer_inputs()
     preview = adopt_repository(
-        linked / "new-project", create=True, purpose="Verifiable changes.", starter="foundation"
+        linked / "new-project",
+        create=True,
+        purpose="Verifiable changes.",
+        starter="foundation",
+        **signer,
     )
 
     assert preview.verdict == "pass"
@@ -374,6 +501,7 @@ def test_greenfield_binds_canonical_parent_and_refuses_retarget(tmp_path: Path) 
         create=True,
         purpose="Verifiable changes.",
         starter="foundation",
+        **signer,
         apply=True,
         authorize=True,
         expect_plan_digest=str(preview.data["plan_digest"]),
@@ -424,7 +552,12 @@ def test_greenfield_runtime_failure_reobserves_created_repository(
 ) -> None:
     """Post-copy runtime failure keeps the exact Git repository for safe recovery."""
     target = tmp_path / "new-project"
-    request = {"create": True, "purpose": "Verifiable changes.", "starter": "foundation"}
+    request = {
+        "create": True,
+        "purpose": "Verifiable changes.",
+        "starter": "foundation",
+        **fixture_signer_inputs(),
+    }
     preview = adopt_repository(target, **request)
 
     def fail_activation(_root: Path) -> None:
@@ -451,7 +584,6 @@ def test_greenfield_runtime_failure_reobserves_created_repository(
     assert " -I -m ethos.cli hook install --root " in blocked.next_action
     assert str(target) in blocked.next_action
 
-    configure_fixture_signer(target)
     monkeypatch.setattr(
         candidate_projection, "install_hook_launchers", install_fixture_hook_runtime
     )
@@ -471,7 +603,12 @@ def test_greenfield_worktree_failure_selects_recovery_before_runtime(
 ) -> None:
     """A completed ref effect must lead to worktree recovery, not a fresh formation."""
     target = tmp_path / "new-project"
-    request = {"create": True, "purpose": "Verifiable changes.", "starter": "foundation"}
+    request = {
+        "create": True,
+        "purpose": "Verifiable changes.",
+        "starter": "foundation",
+        **fixture_signer_inputs(),
+    }
     preview = adopt_repository(target, **request)
 
     def fail_worktree(*_args: object, **_kwargs: object) -> None:
@@ -498,7 +635,6 @@ def test_greenfield_worktree_failure_selects_recovery_before_runtime(
     assert "lane candidate" in blocked.next_action
     assert blocked.user_decision_required
 
-    configure_fixture_signer(target)
     monkeypatch.setattr(
         candidate_projection, "install_hook_launchers", install_fixture_hook_runtime
     )
@@ -530,6 +666,7 @@ def test_greenfield_postpublication_failures_preserve_recovery_boundary(
         "starter": "foundation",
         "author_name": "Test Contributor",
         "author_email": "test@example.invalid",
+        **fixture_signer_inputs(),
     }
     preview = adopt_repository(target, **request)
     assert preview.verdict == "pass"

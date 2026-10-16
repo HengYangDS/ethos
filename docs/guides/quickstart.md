@@ -35,16 +35,18 @@ is complete; do not repeat it or create work merely to obtain another action.
 ## New Repository
 
 With an installed ETHOS executable, preview an absent target using a stable
-purpose and the actual Git identity. Review the returned plan digest before
-applying the same request:
+purpose, the actual Git identity and the creator's SSH signer. Review the
+returned plan digest before applying the same request:
 
 ```bash
 ethos adopt --create --root <absent-repo> \
   --purpose "<purpose>" --starter foundation \
-  --author-name "<name>" --author-email "<email>" --json
+  --author-name "<name>" --author-email "<email>" \
+  --signing-key <public-key> --trust-anchor <allowed-signers> --json
 ethos adopt --create --root <absent-repo> \
   --purpose "<purpose>" --starter foundation \
   --author-name "<name>" --author-email "<email>" \
+  --signing-key <public-key> --trust-anchor <allowed-signers> \
   --apply --authorize --expect-plan-digest <reviewed-digest> --json
 ethos status --root <absent-repo> --json
 ```
@@ -52,6 +54,10 @@ ethos status --root <absent-repo> --json
 `python-library` is an optional native starter in place of `foundation`.
 Creation forms the initial Git repository, candidate worktree, bindings and
 Agent entry from installed package bytes; it does not select domain intent.
+ETHOS runs Git without global configuration, so the absolute public key and
+protected allowed-signers file are explicit: they sign the initial commit and
+stay in the new repository's local configuration. Add `--signing-program` when
+signing uses a program other than `ssh-keygen`.
 A later starter update is a reviewed candidate, never an automatic rewrite.
 If creation reports an unknown post-effect result, inspect the target before
 retrying. Author the first Change with official OpenSpec in an admitted lane.

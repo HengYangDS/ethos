@@ -49,3 +49,9 @@ def configure_fixture_signer(repo: Path) -> None:
         ("commit.gpgsign", "true"),
     ):
         subprocess.run(("git", "config", name, value), cwd=repo, check=True, capture_output=True)
+
+
+def fixture_signer_inputs() -> dict[str, str]:
+    """Name the fixture signer as the explicit inputs a creator gives formation."""
+    executable, public, anchor = _signer()
+    return {"signing_key": str(public), "trust_anchor": str(anchor), "signing_program": executable}

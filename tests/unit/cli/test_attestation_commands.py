@@ -9,8 +9,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
-import pytest
-
 import ethos.surface.cli.root.attestation as attestation_command
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import MEMBER_BYTES_LIMIT
@@ -22,6 +20,8 @@ from tests.support.governed_repository import init_git_repo
 from tests.support.semantic import attestation_fixture
 
 if TYPE_CHECKING:
+    import pytest
+
     from ethos.contracts.semantic import Attestation
 
 
@@ -62,6 +62,8 @@ def test_attestation_record_dry_run_then_apply_is_idempotent(tmp_path: Path) -> 
     assert (dry["state"], dry["data"]["attestation"]["id"]) == ("ready", record.id)
     assert applied["state"] == "recorded"
     assert applied["data"]["set_root"]
+    # No reflog covers the set ref, so the replaced root is recoverable only from this output.
+    assert applied["data"]["previous_set_root"] == dry["data"]["set_root"]
     assert (repeated["state"], repeated["data"]["set_root"]) == (
         "unchanged",
         applied["data"]["set_root"],

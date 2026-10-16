@@ -64,14 +64,14 @@ def _publication(commit: str, peer: str, *, hour: int) -> Attestation:
 def _facts(
     refs: dict[str, str] | None = None,
     *,
-    packages: tuple[str, ...] = (),
+    packages: tuple[str, ...] | None = (),
     absent: tuple[str, ...] = (),
     peeled: tuple[str, ...] = (),
 ) -> LifetimeFacts:
     return LifetimeFacts(
         refs=refs or {"refs/heads/dev": _C2},
         peeled=frozenset(peeled),
-        packages=frozenset(packages),
+        packages=None if packages is None else frozenset(packages),
         absent_objects=frozenset(absent),
         now=datetime(2026, 10, 16, tzinfo=UTC),
     )
@@ -187,7 +187,7 @@ def test_latest_landing_record_stays_while_its_ref_has_not_moved() -> None:
 
 
 def test_lineage_ends_only_when_its_key_no_longer_exists() -> None:
-    """Release, repair and runtime lineage outlive heads; starter formation never ends."""
+    """Repair and runtime lineage end on their own absence; tags and starter never do."""
     release = _ref_update("release.promote", {"refs/tags/v1": (_C0, _C1)})
     repair = _member("effect:commit-signature", body={"coordinates": {"old": _C0}})
     runtime = _member("release:accepted-identity", body={"identity": {"wheel_sha256": "f" * 64}})
@@ -196,7 +196,22 @@ def test_lineage_ends_only_when_its_key_no_longer_exists() -> None:
     present = _facts({"refs/heads/dev": _C2, "refs/tags/v1": _C1}, packages=("f" * 64,))
 
     assert ended(members, present) == frozenset()
-    assert ended(members, _facts(absent=(_C0,))) == {release.id, repair.id, runtime.id}
+    assert ended(members, _facts(absent=(_C0,))) == {repair.id, runtime.id}
+
+
+def test_release_lineage_outlives_a_deleted_local_tag() -> None:
+    """A tag missing locally is ref absence, which a declared peer can still contradict."""
+    release = _ref_update("release.promote", {"refs/tags/v1": (_C0, _C1)})
+
+    assert ended((release,), _facts()) == frozenset()
+
+
+def test_runtime_lineage_keeps_members_while_no_package_store_is_observed() -> None:
+    """An unobserved package store is no evidence that a release generation left."""
+    runtime = _member("release:accepted-identity", body={"identity": {"wheel_sha256": "f" * 64}})
+
+    assert ended((runtime,), _facts(packages=None)) == frozenset()
+    assert ended((runtime,), _facts(packages=())) == {runtime.id}
 
 
 def test_window_ends_after_valid_until() -> None:
@@ -215,7 +230,7 @@ def test_heads_never_end_without_observed_refs() -> None:
     facts = LifetimeFacts(
         refs={},
         peeled=frozenset(),
-        packages=frozenset(),
+        packages=None,
         absent_objects=frozenset(),
         now=datetime(2026, 10, 16, tzinfo=UTC),
     )

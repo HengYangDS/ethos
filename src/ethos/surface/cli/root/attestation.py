@@ -123,12 +123,13 @@ def record(
             for payload in supplied.values():
                 store_custody(repo, payload)
             set_root = str(result["root"])
+            previous_set_root = str(result["previous_root"])
             added = cast("tuple[str, ...]", result["added"])
             state = "recorded" if added else "unchanged"
         else:
             current_root, current = read_attestation_set(repo)
             present = any(item.id == attestation.id for item in current)
-            set_root = current_root
+            set_root = previous_set_root = current_root
             added = () if present else (attestation.id,)
             state = "unchanged" if present else "ready"
     except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
@@ -142,6 +143,7 @@ def record(
             data={
                 "apply": apply,
                 "set_root": set_root,
+                "previous_set_root": previous_set_root,
                 "added": list(added),
                 "attestation": attestation.model_dump(mode="json"),
                 "custody": list(custody_digests(attestation)),

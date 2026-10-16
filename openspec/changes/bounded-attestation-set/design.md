@@ -112,10 +112,11 @@ File-backed native output capture stays: it repairs a general transport defect.
 
 1. Land custody, the size bound and release, so new embedded files stop.
 2. Obtain each custody owner's decision, then migrate or release their members.
-3. Land lifetimes; the first update removes ended routine members. Its result names the replaced
-   root, which stays recoverable by exact CAS until Git prunes unreachable objects.
+3. Land lifetimes; the first update removes ended routine members. Capture the selected root before
+   that update: Git keeps no reflog for this ref, and the replaced root stays selectable by exact
+   CAS only until Git prunes unreachable objects.
 4. Measure size and cold read time, update the product design contract and remove the temporary
    reuse.
 
-Rollback before step 3 reverts the landing. After step 3, the replaced root can be selected again by
+Rollback before step 3 reverts the landing. After step 3, the captured root can be selected again by
 exact CAS until it is pruned.

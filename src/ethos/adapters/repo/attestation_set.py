@@ -351,8 +351,8 @@ def _lifetime_facts(repo: Path, members: tuple[Attestation, ...]) -> LifetimeFac
     store = local_state_root(repo) / "packages"
     packages = (
         frozenset(path.name for path in store.iterdir() if path.is_dir())
-        if (store.is_dir())
-        else frozenset()
+        if store.is_dir()
+        else None
     )
     olds = sorted(
         {
@@ -383,12 +383,15 @@ def _lifetime_facts(repo: Path, members: tuple[Attestation, ...]) -> LifetimeFac
 
 
 def _release_unbound_custody(
-    repo: Path, members: tuple[Attestation, ...], removed: frozenset[str]
+    repo: Path,
+    members: tuple[Attestation, ...],
+    removed: frozenset[str],
+    recorded: tuple[Attestation, ...] = (),
 ) -> tuple[str, ...]:
     """Delete custody bytes that only removed members bound."""
     bound = {
         digest
-        for member in members
+        for member in (*members, *recorded)
         if member.id not in removed
         for digest in custody_digests(member)
     }
@@ -410,7 +413,10 @@ def record_attestations(
     repo: Path,
     attestations: tuple[Attestation, ...],
 ) -> dict[str, object]:
-    """Exact-CAS union canonical Attestations into the sole selected set."""
+    """Exact-CAS union canonical Attestations into the sole selected set.
+
+    The update removes the members whose lifetime ended, never the members it records.
+    """
     incoming = _canonical_inputs(attestations)
     for _attempt in range(_MAX_CAS_ATTEMPTS):
         observed = _selected_root(repo)
@@ -421,14 +427,19 @@ def record_attestations(
                 raise ValueError(message)
         added = tuple(sorted(incoming.keys() - current.keys()))
         if not added:
-            return {"root": observed, "added": (), "removed": ()}
-        finished = ended(members, _lifetime_facts(repo, members))
+            return {"root": observed, "previous_root": observed, "added": (), "removed": ()}
+        finished = ended(members, _lifetime_facts(repo, members)) - incoming.keys()
         new_members = {identity: incoming[identity] for identity in added}
         tree = _write_tree(repo, new_members, observed=observed, removed=tuple(sorted(finished)))
         desired = _root_identity(repo, tree)
         if _compare_and_swap_root(repo, desired=desired, observed=observed):
-            _release_unbound_custody(repo, members, finished)
-            return {"root": desired, "added": added, "removed": tuple(sorted(finished))}
+            _release_unbound_custody(repo, members, finished, attestations)
+            return {
+                "root": desired,
+                "previous_root": observed,
+                "added": added,
+                "removed": tuple(sorted(finished)),
+            }
     message = "attestation_set_cas_retry_exhausted"
     raise ValueError(message)
 
@@ -449,11 +460,11 @@ def record_attestation_once(repo: Path, attestation: Attestation) -> Attestation
         if matches:
             return matches[0]
         incoming = _canonical_inputs((attestation,))
-        finished = ended(members, _lifetime_facts(repo, members))
+        finished = ended(members, _lifetime_facts(repo, members)) - incoming.keys()
         tree = _write_tree(repo, incoming, observed=observed, removed=tuple(sorted(finished)))
         desired = _root_identity(repo, tree)
         if _compare_and_swap_root(repo, desired=desired, observed=observed):
-            _release_unbound_custody(repo, members, finished)
+            _release_unbound_custody(repo, members, finished, (attestation,))
             return attestation
     message = "attestation_set_cas_retry_exhausted"
     raise ValueError(message)

@@ -48,11 +48,14 @@ _REPAIR_RECORDS = frozenset({"effect:commit-signature", "observation:signature-r
 
 @dataclass(frozen=True)
 class LifetimeFacts:
-    """Fresh repository facts that can end a lifetime; an absent ref alone never does."""
+    """Fresh repository facts that can end a lifetime; an absent ref alone never does.
+
+    `packages` is None when no runtime package store was observed, which ends no generation.
+    """
 
     refs: Mapping[str, str]
     peeled: frozenset[str]
-    packages: frozenset[str]
+    packages: frozenset[str] | None
     absent_objects: frozenset[str]
     now: datetime
 
@@ -169,12 +172,11 @@ def _latest_publications(members: Sequence[Attestation]) -> frozenset[str]:
 
 
 def _lineage_ended(key: str, facts: LifetimeFacts) -> bool:
-    if key.startswith("refs/tags/"):
-        return key not in facts.refs
+    """A lineage ends on its own absence; a tag and the starter never end by observation."""
     if key.startswith("repair:"):
         return all(old in facts.absent_objects for old in key.removeprefix("repair:").split())
     if key.startswith("runtime:"):
-        return key.removeprefix("runtime:") not in facts.packages
+        return facts.packages is not None and key.removeprefix("runtime:") not in facts.packages
     return False
 
 

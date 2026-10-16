@@ -31,6 +31,12 @@ that the set update observes, never on the absence of a branch or ref alone.
 - **THEN** its release or repair record remains
 - **AND** the record of a kept runtime generation and the starter formation also remain
 
+#### Scenario: A tag or runtime package store is no longer observed
+
+- **WHEN** a release tag is missing locally, or no runtime package store is observed
+- **THEN** the release record and every runtime generation record remain
+- **AND** a repair record ends only once every pre-repair object it names is absent locally
+
 #### Scenario: A validity window passes
 
 - **WHEN** a member's `valid_until` has passed

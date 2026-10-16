@@ -83,7 +83,7 @@ real ownership—not mechanical file fragmentation.
   deterministic output and public observation.
 - `tests/architecture/test_format_selection.py` and the native import-linter
   contract verify shared carrier ownership without an adapter-to-domain dependency.
-- [Module Layout And Visibility Rules](../../rules/module_layout.md) prevents
+- [Module Layout And Visibility Rules](../../rules/module-layout.md) prevents
   size thresholds from authorizing suffix-flat or metric-driven splits.
 
 ## Revisit And Retirement

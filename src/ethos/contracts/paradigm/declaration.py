@@ -151,6 +151,26 @@ class CommitGrammar(BaseModel):
         return rf"^({types})(\(({scope})\))?{re.escape(self.breaking_marker)}?: .+"
 
 
+class OpenSpecRules(BaseModel):
+    """The common rules that begin each artifact's rules in every OpenSpec configuration."""
+
+    model_config = _DECLARATION
+
+    proposal: FrozenTuple[str] = Field(min_length=1)
+    specs: FrozenTuple[str] = Field(min_length=1)
+    design: FrozenTuple[str] = Field(min_length=1)
+    tasks: FrozenTuple[str] = Field(min_length=1)
+
+
+class OpenSpecConventions(BaseModel):
+    """The artifact schema every governed repository selects and its common artifact rules."""
+
+    model_config = _DECLARATION
+
+    artifact_schema: Literal["spec-driven"]
+    rules: OpenSpecRules
+
+
 class EcosystemModule(BaseModel):
     """One ecosystem module, applied exactly when its manifest is tracked at the root."""
 
@@ -194,6 +214,7 @@ class RepositoryParadigm(BaseModel):
     size: SizeCeilings
     documents: DocumentConventions
     commit: CommitGrammar
+    openspec: OpenSpecConventions
     module: FrozenTuple[EcosystemModule]
     tool: FrozenTuple[ToolCarrier]
 

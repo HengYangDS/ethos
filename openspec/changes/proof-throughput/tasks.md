@@ -69,6 +69,7 @@ Original pre-refresh commitments and qualification records remain in signed Git 
 - [x] 4.14 Qualify the actual archive postimage before Git CAS against native formatting, references and OpenSpec findings; compensate avoidable findings with a source repair action, preserve valid new-capability acceptance, and retain post-CAS proof/recovery without weakening repository gates.
 - [x] 4.15 Admit only complete, monotonic final task progress in an official staged archive; retain source/postimage proof boundaries, precise drift diagnostics and public positive/negative regressions.
 - [ ] 4.16 Deliver native merge continuation and original-request recovery through full proof, packaged CLI and rollback acceptance; verify lost-ack inspection, runtime upgrade, complete original request/plan custody, current authority, unchanged parents/content and no CAS replay. Preserve Python >=3.12,<3.15 and original custody `32c4f656e92ac`. Missing original bindings remain UNKNOWN, never reconstructed authority or a traceback. Metadata-only quit does not prove the original effect. Focused regression: `continue-fe71.original-custody-regression-suite-20261015T1447Z.result.json`; exact-source proof, installed rollback and downstream acceptance remain open.
+- [x] 4.17 Admit final task completion whose archived carrier already holds this projection's own reference relocation; keep refusing body, link and task changes. Verify the native two-pass regression and the AIGW `17d9bdf6` archive reproduction.
 
 ## 5. Process Lifetimes and Resource Recovery
 

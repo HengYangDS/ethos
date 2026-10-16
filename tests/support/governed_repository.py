@@ -16,6 +16,7 @@ from ethos.contracts.coordination import LaneLease
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.paradigm import PARADIGM_OPENSPEC_CONFIG
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 PARADIGM_EDITORCONFIG = (
@@ -232,14 +233,7 @@ def _write_openspec_baseline(repo: Path) -> None:
     specs = openspec / "specs" / "contracts"
     specs.mkdir(parents=True, exist_ok=True)
     (openspec / "config.yaml").write_text(
-        "schema: spec-driven\n"
-        "context: governed fixture repository\n"
-        "rules:\n"
-        "  proposal: [write intent]\n"
-        "  specs: [write requirements]\n"
-        "  tasks: [track work]\n"
-        "  design: [record decisions]\n",
-        encoding="utf-8",
+        f"{PARADIGM_OPENSPEC_CONFIG}context: governed fixture repository\n", encoding="utf-8"
     )
     (openspec / "specs" / "README.md").write_text("# Specs\n", encoding="utf-8")
     (specs / "spec.md").write_text(
@@ -498,7 +492,7 @@ def initialize_adopted_fixture(root: Path) -> None:
     write_test_profile(root, openspec={"material_paths": ["**"]})
     config = root / "openspec/config.yaml"
     config.parent.mkdir(parents=True, exist_ok=True)
-    config.write_text("schema: spec-driven\n", encoding="utf-8")
+    config.write_text(PARADIGM_OPENSPEC_CONFIG, encoding="utf-8")
 
 
 def declare_fixture_code_correctness(repo: Path) -> None:

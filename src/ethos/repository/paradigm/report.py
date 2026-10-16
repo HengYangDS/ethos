@@ -21,6 +21,7 @@ from ethos.measure import effective_code_lines_for_source
 from ethos.repository.paradigm.documents import document_gaps
 from ethos.repository.paradigm.gap import ParadigmGap
 from ethos.repository.paradigm.gap import tracked_text
+from ethos.repository.paradigm.openspec import openspec_gaps
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -54,6 +55,7 @@ def repository_paradigm_report(root: Path, *, tracked_paths: tuple[str, ...]) ->
         *_size_gaps(paradigm, root, tracked),
         *_formatter_gaps(paradigm, root, tracked),
         *document_gaps(paradigm, root, tracked),
+        *openspec_gaps(paradigm, root, tracked),
         *_peer_remote_gaps(paradigm, root, tracked),
         *_workspace_gaps(paradigm, root, tracked),
         *_release_gaps(paradigm, root, tracked),

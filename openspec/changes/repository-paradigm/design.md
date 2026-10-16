@@ -215,6 +215,22 @@ The two films use uv without any linter or formatter. A required Ruff linter or 
 
 Every explicit formatter width in the fleet is already 100, so a configured formatter keeps 100, and Ruff targets the shared 3.12 floor. Runtime and tool versions stay repository values under the workstation version policy, so a version bump never needs an ETHOS Change.
 
+### 14. Common OpenSpec rules
+
+A repository that tracks OpenSpec artifacts selects `spec-driven`, and each artifact's rules begin with the contract's common rules. They come from the workstation's OpenSpec task rule, the official templates and delta semantics and ETHOS's lifecycle order, and they keep what recurs across the adopters' own rules:
+
+- the official templates and native delta operations;
+- falsifiable requirements;
+- one semantic owner per behavior;
+- truthful, dependency-ordered tasks;
+- execution history kept with its native evidence owners.
+
+Not every adopter states these rules today. The films and architecture-publications declare no rules, and two adopters keep rules that contradict them: aigw-cli keeps execution results in design.md, and web-ingestion-benchmark tracks closeout as checkable tasks. Their migration Changes remove or rewrite those rules, because the workstation rule forbids both.
+
+A repository's own rules follow the common ones. The repair keeps those rules, their lines and their comments, and drops only exact copies of a common rule. Whether an own rule restates or contradicts a common one is a judgment for the repository's migration Change.
+
+A repository that selects another schema keeps that gap report-only, because its Changes are written against that schema's artifacts.
+
 ## Risks / Trade-offs
 
 - **Churn across every adopter.** Mitigation: each repository migrates in one Change that lands together with its runtime switch. The audit names the canonical repair for every gap.

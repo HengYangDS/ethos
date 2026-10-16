@@ -9,42 +9,48 @@ context: |
   and the Product Design Contract before authoring or projecting content.
 rules:
   proposal:
-    - Follow the selected official proposal template. Keep Why, What Changes,
-      Capabilities, and Impact concise; mark breaking changes and state the
-      out-of-scope boundary without copying implementation or execution history.
+    - Follow the official proposal template. State why the change is needed,
+      what changes, the affected capabilities and the impact; mark breaking
+      changes and name the out-of-scope boundary without copying implementation
+      or execution history.
     - Reuse exact existing capability paths. New capabilities name cohesive
       observable behavior; include the existing ETHOS routing metadata.
   specs:
-    - Follow the selected official spec template and exact capability path.
-      Change deltas use native requirement operations; main specs retain Purpose
-      and Requirements, not active-change operations or implementation history.
-    - State observable SHALL or MUST obligations, with a four-level Scenario
-      heading and WHEN and THEN clauses for each requirement. Keep existing
-      MODIFIED requirement blocks complete, including every retained scenario.
+    - Use the native delta operations ADDED, MODIFIED, REMOVED and RENAMED at
+      exact capability paths. A MODIFIED requirement restates its complete block
+      with every retained scenario; main specs keep only Purpose and
+      Requirements.
+    - State each requirement as an observable SHALL or MUST obligation with at
+      least one Scenario whose WHEN and THEN clauses can falsify it; describe
+      behavior and its boundaries, not implementation names.
     - Keep observable obligations and falsifiers here; reference the rationale
       and implementation design rather than maintaining duplicate contracts.
   tasks:
-    - Use official checkboxes under numbered groups, in dependency order.
-      Keep stable task identities and truthful states; each task states one
-      bounded action and an observable completion check. Group numbering and
-      Markdown nesting express the same hierarchy.
-    - Keep only necessary short dependency or evidence references. Preserve
-      original execution history in Git and native evidence, not in tasks or
-      design prose; never create a parallel progress ledger.
-    - Separate implementation tasks from lifecycle preconditions and effects.
-      Keep exact-current proof outside the snapshot it verifies; a Change must
-      not require its own archive or Lane retirement as a completed task before
-      that effect is admitted. Preserve required workflow follow-up as plain
-      bullets under the official optional Workflow follow-up section; task
-      completion does not prove closeout.
+    - Use official checkboxes under numbered groups in dependency order, with
+      numbering and nesting expressing one hierarchy. Each task keeps a stable
+      identity, states one bounded action with its observable completion
+      condition, and carries a truthful state.
+    - Keep only short evidence references or current dependencies in tasks.
+      Preserve execution history, logs and originals with their Git, CI and
+      native evidence owners, never in tasks, design prose or a parallel ledger.
+    - Separate implementation tasks from lifecycle preconditions and effects; a
+      Change never records its own landing, archive or Lane retirement as a
+      completed task.
+    - Keep exact-current proof outside the snapshot it verifies. Preserve
+      required workflow follow-up as plain bullets under the official optional
+      Workflow follow-up section; task completion does not prove closeout.
   design:
-    - Follow the selected official design template for non-trivial changes with
-      Context, Goals / Non-Goals, Decisions, and Risks / Trade-offs. Include
-      Migration Plan when applicable and only genuinely deferrable Open Questions.
-    - Explain architecture, alternatives, rationale and authority boundaries;
-      reference proposal and specs rather than restating them. Split independent
-      long topics into linked semantic subdirectories without losing meaning.
-      Keep execution history and full logs in their existing native evidence owners.
+    - Follow the official design template for a non-trivial change. Explain its
+      architecture, alternatives, rationale, authority boundaries and migration
+      risks, give each behavior one semantic owner, and reference the proposal
+      and specs instead of restating them.
+    - Keep execution history, logs and acceptance reports with their Git, CI and
+      native evidence owners, not in design prose.
+    - Use the template's Context, Goals / Non-Goals, Decisions and Risks /
+      Trade-offs sections; include Migration Plan when applicable and only
+      genuinely deferrable Open Questions.
+    - Split independent long topics into linked semantic subdirectories without
+      losing meaning.
 operations:
   apply:
     guidance:

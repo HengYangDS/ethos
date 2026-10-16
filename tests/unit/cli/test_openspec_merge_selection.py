@@ -24,6 +24,7 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.value import mutable_json
+from tests.support.ethos_cli_runner import result_data
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_fixture
@@ -283,7 +284,7 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
     for arguments in (("plan",), ("plan", "--change", "static-delivery")):
         planned = run_ethos(*arguments, "--json", cwd=next_lane)
         assert planned["verdict"] == "pass", planned
-        assert planned["data"]["commitment"]["id"] == "change:static-delivery"
+        assert result_data(planned)["commitment"]["id"] == "change:static-delivery"
     assert proof_gaps(next_lane, head) == ["proof_lane_mismatch"]
     for arguments in ((), ("--change", "static-delivery")):
         _prove(next_lane, head, *arguments)
@@ -388,7 +389,7 @@ def test_process_intent_carries_product_work_through_native_integration(
         (("--change", "fixture-change"), "fixture-change"),
     ):
         planned = run_ethos("plan", *choice, "--json", cwd=work)
-        assert planned["data"]["commitment"]["id"] == f"change:{expected}"
+        assert result_data(planned)["commitment"]["id"] == f"change:{expected}"
     _prove(work, head)
     selected = proof_attestation(work, head)
     monkeypatch.setenv("ETHOS_CHANGE", "fixture-change")
@@ -463,4 +464,4 @@ def test_process_intent_carries_product_work_through_native_integration(
     assert git(repo, "rev-parse", "HEAD") == git(candidate, "rev-parse", "HEAD") == head
     monkeypatch.delenv("ETHOS_CHANGE")
     planned = run_ethos("plan", "--change", "second-local", "--json", cwd=work)
-    assert planned["data"]["commitment"]["id"] == "change:second-local"
+    assert result_data(planned)["commitment"]["id"] == "change:second-local"

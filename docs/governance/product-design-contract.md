@@ -465,7 +465,7 @@ survives only with a producer, consumer, exact binding and retention lifecycle.
 Attestations retain results, Git retains history, and current owners retain
 still-valid obligations.
 
-[Module Layout Rules](../../rules/module_layout.md) own physical source shape.
+[Module Layout Rules](../../rules/module-layout.md) own physical source shape.
 Each quality property has one executable owner, using native tools where they
 suffice. Documentation explains contracts and reasons rather than copying
 policy. Configuration lives in the configuration plane, grouped by consuming

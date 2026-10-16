@@ -10,8 +10,10 @@ import pytest
 
 import ethos.adapters.repo.commit.admission as admission
 import ethos.adapters.repo.commit.integration as integration
+from ethos.adapters.repo.git_object import observe_commit
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.repository.policy.commit import CommitPolicy
+from ethos.repository.policy.commit import commit_policy_from_text
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
@@ -148,12 +150,20 @@ def test_commit_message_report_matrix(
 @pytest.mark.parametrize("object_format", ["sha1", "sha256"])
 def test_fast_forward_range_is_oldest_first_and_excludes_old_history(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
     object_format: str,
 ) -> None:
     repo = init_git_repo(tmp_path / object_format, object_format=object_format)
     baseline = git(repo, "rev-parse", "HEAD")
     first = _commit(repo, "fix: first", "first", policy=_policy_text())
     second = _commit(repo, "fix: second", "second")
+    batches: list[tuple[str, ...]] = []
+
+    def observe(root: Path, revisions: tuple[str, ...]) -> tuple[dict[str, object], ...]:
+        batches.append(revisions)
+        return tuple(observe_commit(root, revision) for revision in revisions)
+
+    monkeypatch.setattr(integration, "observe_commits", observe, raising=False)
 
     report = _report(repo, proposed=second, remote=baseline)
 
@@ -162,6 +172,7 @@ def test_fast_forward_range_is_oldest_first_and_excludes_old_history(
     assert report["baseline_commit"] == baseline
     assert report["revisions"] == [first, second]
     assert report["checked_commit_count"] == 2
+    assert batches == [(first, second)]
 
 
 def test_non_fast_forward_range_is_the_newly_reachable_set(tmp_path: Path) -> None:
@@ -372,6 +383,11 @@ def test_object_policy_and_optional_trust_matrix(
             "required_gaps": [],
         },
     )
+    monkeypatch.setattr(
+        integration,
+        "observe_commits",
+        lambda root, revisions: tuple(admission.observe_commit(root, item) for item in revisions),
+    )
     verified: list[str] = []
     monkeypatch.setattr(
         admission,
@@ -458,21 +474,37 @@ def test_unreadable_introduced_range_fails_closed(
     assert report["required_gaps"] == [f"commit_range_unreadable:{baseline}:{proposed}"]
 
 
-@pytest.mark.parametrize("case", ["valid", "invalid", "unreadable", "absent"])
+@pytest.mark.parametrize(
+    "case", ["valid", "invalid", "unreadable", "absent", "candidate_subject", "incumbent_subject"]
+)
 def test_replay_admission_owns_range_and_candidate_policy(tmp_path: Path, case: str) -> None:
     repo = init_git_repo(tmp_path / "repo")
     baseline = git(repo, "rev-parse", "HEAD")
+    candidate = _policy()
+    if case in {"candidate_subject", "incumbent_subject"}:
+        narrower = _policy_text().replace("^fix: .+", "^fix: declared .+")
+        baseline = _commit(
+            repo,
+            "fix: declared baseline",
+            "baseline",
+            policy=narrower if case == "incumbent_subject" else _policy_text(),
+        )
+        candidate = commit_policy_from_text(
+            narrower if case == "candidate_subject" else _policy_text()
+        )
     proposed = _commit(repo, "invalid" if case == "invalid" else "fix: replay", "replay")
     tip = "missing" if case in {"unreadable", "absent"} else proposed
     gaps = integration.validate_replayed_commits(
         repo,
         baseline_commit=baseline,
         proposed_commit=tip,
-        policy=None if case == "absent" else _policy(),
+        policy=None if case == "absent" else candidate,
     )
     assert gaps == (
         [f"commit_subject_invalid:{proposed}:invalid"]
         if case == "invalid"
+        else [f"commit_subject_invalid:{proposed}:fix: replay"]
+        if case in {"candidate_subject", "incumbent_subject"}
         else [f"commit_range_unreadable:{baseline}:missing"]
         if case == "unreadable"
         else []

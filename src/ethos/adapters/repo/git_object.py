@@ -6,6 +6,7 @@ import hashlib
 import os
 import re
 import tempfile
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Literal
@@ -46,17 +47,7 @@ def observe_commit(root: Path, revision: str = "HEAD") -> dict[str, object]:
     """Return immutable identity, subject, and signature facts for one commit."""
     object_oid, actual_type = _object_identity(root, revision)
     if not object_oid or actual_type != "commit":
-        gap = f"commit_observation_unavailable:{revision}"
-        return {
-            "verdict": "block",
-            "state": "unavailable",
-            "object_oid": object_oid,
-            "subject": "",
-            "author": {"name": "", "email": ""},
-            "committer": {"name": "", "email": ""},
-            "signature": {"present": False, "format": ""},
-            "required_gaps": [gap],
-        }
+        return _commit_observation(revision, object_oid)
     completed = run_git(
         root,
         "show",
@@ -68,34 +59,66 @@ def observe_commit(root: Path, revision: str = "HEAD") -> dict[str, object]:
     )
     parts = completed.stdout.rstrip("\n").split("\x00")
     if completed.returncode or len(parts) != 6 or parts[0] != object_oid:
-        gap = f"commit_observation_unavailable:{revision}"
-        return {
-            "verdict": "block",
-            "state": "unavailable",
-            "object_oid": object_oid,
-            "subject": "",
-            "author": {"name": "", "email": ""},
-            "committer": {"name": "", "email": ""},
-            "signature": {"present": False, "format": ""},
-            "required_gaps": [gap],
-        }
-    raw = _commit_object(root, object_oid)
-    if not raw:
-        gap = f"commit_observation_unavailable:{revision}"
-        return {
-            "verdict": "block",
-            "state": "unavailable",
-            "object_oid": object_oid,
-            "subject": parts[1],
-            "author": {"name": parts[2], "email": parts[3]},
-            "committer": {"name": parts[4], "email": parts[5]},
-            "signature": {"present": False, "format": ""},
-            "required_gaps": [gap],
-        }
-    signature_format = _commit_signature_format(raw)
+        return _commit_observation(revision, object_oid)
+    return _commit_observation(revision, object_oid, parts, _commit_object(root, object_oid))
+
+
+def observe_commits(root: Path, revisions: tuple[str, ...]) -> tuple[dict[str, object], ...]:
+    """Observe current native identity, presentation and typed bytes once per commit batch."""
+    if len(revisions) < 2 or any(
+        any(character.isspace() for character in item) for item in revisions
+    ):
+        return tuple(observe_commit(root, revision) for revision in revisions)
+    resolved = _resolve_objects(root, revisions)
+    objects = tuple(dict.fromkeys(oid for oid, kind in resolved.values() if kind == "commit"))
+    fields: dict[str, list[str]] = {}
+    payloads: dict[str, bytes] = {}
+    if objects:
+        result = run_git(
+            root,
+            "show",
+            "-s",
+            "--no-walk=unsorted",
+            "-z",
+            "--format=%H%x00%s%x00%an%x00%ae%x00%cn%x00%ce",
+            "--stdin",
+            stdin="".join(f"{oid}\n" for oid in objects),
+            check=False,
+            observation=True,
+        )
+        parts = result.stdout.split("\0")
+        if (
+            not result.returncode
+            and parts[-1] == ""
+            and len(parts) == 6 * len(objects) + 1
+            and all(parts[index * 6] == oid for index, oid in enumerate(objects))
+        ):
+            fields = {oid: parts[index * 6 : index * 6 + 6] for index, oid in enumerate(objects)}
+            with suppress(ValueError):
+                payloads = dict(
+                    zip(objects, read_objects(root, objects, kind="commit"), strict=True)
+                )
+    return tuple(
+        _commit_observation(
+            revision,
+            resolved[revision][0],
+            fields.get(resolved[revision][0]),
+            payloads.get(resolved[revision][0], b""),
+        )
+        for revision in revisions
+    )
+
+
+def _commit_observation(
+    revision: str, object_oid: str, fields: list[str] | None = None, raw: bytes = b""
+) -> dict[str, object]:
+    """Project only the native facts available from the current observation."""
+    parts = fields or ["", "", "", "", "", ""]
+    available = bool(fields and raw)
+    signature_format = _commit_signature_format(raw) if available else None
     return {
-        "verdict": "pass",
-        "state": "current",
+        "verdict": "pass" if available else "block",
+        "state": "current" if available else "unavailable",
         "object_oid": object_oid,
         "subject": parts[1],
         "author": {"name": parts[2], "email": parts[3]},
@@ -104,7 +127,7 @@ def observe_commit(root: Path, revision: str = "HEAD") -> dict[str, object]:
             "present": signature_format is not None,
             "format": signature_format or "",
         },
-        "required_gaps": [],
+        "required_gaps": [] if available else [f"commit_observation_unavailable:{revision}"],
     }
 
 

@@ -9,6 +9,7 @@ from typing import cast
 import pytest
 from ruff import find_ruff_bin
 
+import ethos.adapters.repo.git_object as git_object
 import ethos.adapters.repo.trust_anchor.verification as verification
 from ethos.adapters.repo.commit.admission import commit_message_report
 from ethos.adapters.repo.commit.creation import create_git_commit
@@ -50,11 +51,24 @@ def _repository(tmp_path: Path) -> tuple[Path, str, str]:
 
 
 @pytest.mark.parametrize("invalid_middle", [False, True])
+@pytest.mark.parametrize("distinct_policy", [False, True])
+@pytest.mark.parametrize("consumer", ["range", "replay"])
 def test_range_consumes_one_native_trust_selection(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, invalid_middle: bool
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    consumer: str,
+    *,
+    invalid_middle: bool,
+    distinct_policy: bool,
 ) -> None:
     """Every introduced object retains admission while sharing one current trust input."""
     repo, baseline, tree = _repository(tmp_path)
+    candidate_text = _POLICY
+    if distinct_policy:
+        candidate_text = _POLICY.replace("^fix: .+", "^fix: item .+")
+        (repo / ".ethos/workspace.toml").write_text(candidate_text)
+        git(repo, "add", ".ethos/workspace.toml")
+        tree = git(repo, "write-tree")
     revisions = []
     parent = baseline
     for index in range(3):
@@ -69,7 +83,7 @@ def test_range_consumes_one_native_trust_selection(
                     "-t",
                     "commit",
                     "--stdin",
-                    stdin=raw.replace(b"fix: item 1", b"fix: changed item"),
+                    stdin=raw.replace(b"fix: item 1", b"fix: item changed"),
                     text=False,
                 )
                 .stdout.decode()
@@ -77,30 +91,56 @@ def test_range_consumes_one_native_trust_selection(
             )
         revisions.append(parent)
     native = verification.run_git
+    native_object = git_object.run_git
     selections = []
+    observations = []
 
     def observed(root, *args, **kwargs):
         if "verify-commit" in args:
             selections.append(args[args.index("--raw") + 1 :])
         return native(root, *args, **kwargs)
 
-    monkeypatch.setattr(verification, "run_git", observed)
-    report = commit_range_admission_report(
-        repo,
-        target_ref="refs/heads/dev",
-        proposed_head=parent,
-        remote_head=baseline,
-        remote_name="origin",
-    )
+    def observed_object(root, *args, **kwargs):
+        if args[0] == "show":
+            observations.append(tuple(str(kwargs["stdin"]).splitlines()))
+        return native_object(root, *args, **kwargs)
 
+    monkeypatch.setattr(verification, "run_git", observed)
+    monkeypatch.setattr(git_object, "run_git", observed_object)
+    if consumer == "replay":
+        gaps = validate_replayed_commits(
+            repo,
+            baseline_commit=baseline,
+            proposed_commit=parent,
+            policy=commit_policy_from_text(candidate_text),
+        )
+    else:
+        report = commit_range_admission_report(
+            repo,
+            target_ref="refs/heads/dev",
+            proposed_head=parent,
+            remote_head=baseline,
+            remote_name="origin",
+        )
+        gaps = report["required_gaps"]
+        assert report["revisions"] == revisions
+        assert report["verdict"] == ("block" if invalid_middle else "pass"), report
+        violations = cast("list[dict[str, object]]", report["violations"])
+        assert [item["commit"] for item in violations] == ([revisions[1]] if invalid_middle else [])
+
+    assert observations == [tuple(revisions)]
     assert selections[0] == tuple(revisions)
     assert selections[1:] == ([(value,) for value in revisions] if invalid_middle else [])
-    assert report["revisions"] == revisions
-    assert report["verdict"] == ("block" if invalid_middle else "pass"), report
-    assert report["required_gaps"] == (["commit_signature_untrusted"] if invalid_middle else [])
-    assert [item["commit"] for item in report["violations"]] == (
-        [revisions[1]] if invalid_middle else []
-    )
+    assert gaps == (["commit_signature_untrusted"] if invalid_middle else [])
+    if not invalid_middle:
+        (tmp_path / "trust/allowed-signers").unlink()
+        assert validate_replayed_commits(
+            repo,
+            baseline_commit=baseline,
+            proposed_commit=parent,
+            policy=commit_policy_from_text(candidate_text),
+        ) == ["commit_trust_anchor_missing"]
+        assert observations == [tuple(revisions)] * 2
 
 
 @pytest.mark.parametrize("select_policy", [False, True])
@@ -214,11 +254,17 @@ def test_tracked_identity_rejects_prospective_override(tmp_path, monkeypatch, ro
 
 
 @pytest.mark.parametrize("role", ["author", "committer"])
-def test_tracked_identity_rejects_signed_object(tmp_path, monkeypatch, role):
+@pytest.mark.parametrize("policy_owner", ["candidate", "incumbent"])
+def test_tracked_identity_rejects_signed_object(tmp_path, monkeypatch, role, policy_owner):
     repo, baseline, _tree = _repository(tmp_path)
     (repo / ".ethos/workspace.toml").write_text(_POLICY + _IDENTITY)
     git(repo, "add", ".ethos/workspace.toml")
     tree = git(repo, "write-tree")
+    if policy_owner == "incumbent":
+        baseline = git(repo, "commit-tree", tree, "-p", baseline, "-m", "fix: identity policy")
+        (repo / ".ethos/workspace.toml").write_text(_POLICY)
+        git(repo, "add", ".ethos/workspace.toml")
+        tree = git(repo, "write-tree")
     monkeypatch.setenv(f"GIT_{role.upper()}_EMAIL", "wrong@example.invalid")
     revision = git(repo, "commit-tree", "-S", tree, "-p", baseline, "-m", "fix: signed")
     report = commit_range_admission_report(

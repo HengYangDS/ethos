@@ -329,7 +329,7 @@ def test_native_trust_diagnostics_cannot_erase_original_batch_refusal(
     if not diagnostic_error:
         assert report["object_required_gaps"] == {target: ["commit_signature_untrusted"]}
     assert selections == [(target, target), (target,)] + ([] if diagnostic_error else [(target,)])
-    assert "original batch refusal" in report["status"]
+    assert "original batch refusal" in str(report["status"])
 
 
 def test_native_trust_unreadable_configuration_is_a_structured_failure(tmp_path):
@@ -392,8 +392,69 @@ def test_signer_authorization_preserves_anchor_on_public_failure(
     assert list(anchor.parent.iterdir()) == [anchor]
 
 
-@pytest.mark.parametrize("failure", ["status", "status-oid", "status-fields", "raw"])
-def test_commit_observation_rejects_incomplete_native_facts(tmp_path, monkeypatch, failure):
+@pytest.mark.parametrize("object_format", ["sha1", "sha256"])
+def test_commit_batch_preserves_native_facts_and_fresh_withdrawal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, object_format: str
+) -> None:
+    """One current batch retains native names, signature bytes and missing-object refusal."""
+    repo = init_git_repo(tmp_path / "repo", object_format=object_format)
+    first = git(repo, "rev-parse", "HEAD")
+    git(repo, "commit", "--allow-empty", "-m", "fix: second")
+    second = git(repo, "rev-parse", "HEAD")
+    tree = git(repo, "rev-parse", "HEAD^{tree}")
+    raw = (
+        f"tree {tree}\nauthor Native <native@example.invalid> 100 +0000\n"
+        "committer Native <native@example.invalid> 100 +0000\n"
+        "gpgsig -----BEGIN SSH SIGNATURE-----\n preserved\n\nfix: signed facts\n"
+    ).encode()
+    stored = identity.run_git(
+        repo, "hash-object", "-w", "-t", "commit", "--stdin", stdin=raw, text=False
+    )
+    signed = stored.stdout.decode().strip()
+    revisions = (first, signed, second, signed)
+    expected = tuple(identity.observe_commit(repo, revision) for revision in revisions)
+    calls: list[tuple[str, ...]] = []
+    native = identity.run_git
+
+    def observe(root, *args, **kwargs):
+        calls.append(args)
+        return native(root, *args, **kwargs)
+
+    monkeypatch.setattr(identity, "run_git", observe)
+    assert identity.observe_commits(repo, revisions) == expected
+    assert len(calls) == 3
+    git(repo, "commit", "--allow-empty", "-m", "fix: fresh tip")
+    assert identity.observe_commits(repo, ("HEAD",))[0] == identity.observe_commit(repo)
+    spaced = ":/fix: fresh tip"
+    assert identity.observe_commits(repo, (spaced, first)) == (
+        identity.observe_commit(repo, spaced),
+        expected[0],
+    )
+    assert identity.observe_commits(repo, ()) == ()
+    assert identity.observe_commits(repo, (tree, tree)) == (
+        identity.observe_commit(repo, tree),
+        identity.observe_commit(repo, tree),
+    )
+    loose = repo / ".git/objects" / signed[:2] / signed[2:]
+    loose.unlink()
+    with pytest.raises(ValueError, match="git_revision_batch_invalid"):
+        identity.observe_commit(repo, signed)
+    with pytest.raises(ValueError, match="git_revision_batch_invalid"):
+        identity.observe_commits(repo, (first, signed))
+    expected_missing = identity.observe_commit(repo, "missing")
+    assert identity.observe_commits(repo, (first, "missing", tree)) == (
+        expected[0],
+        expected_missing,
+        identity.observe_commit(repo, tree),
+    )
+    assert expected_missing["required_gaps"] == ["commit_observation_unavailable:missing"]
+
+
+@pytest.mark.parametrize("batch", [False, True])
+@pytest.mark.parametrize("failure", ["status", "status-oid", "status-fields", "raw", "raw-frame"])
+def test_commit_observation_rejects_incomplete_native_facts(
+    tmp_path, monkeypatch, failure, *, batch: bool
+):
     repo = init_git_repo(tmp_path / "repo")
     target = git(repo, "rev-parse", "HEAD")
     observed = identity.observe_commit(repo, target)
@@ -402,8 +463,12 @@ def test_commit_observation_rejects_incomplete_native_facts(tmp_path, monkeypatc
 
     def interrupted(root, *args, **kwargs):
         result = native(root, *args, **kwargs)
-        if args[:2] == ("cat-file", "commit") if failure == "raw" else args[0] == "show":
-            if failure in {"raw", "status"}:
+        raw = args[:2] == ("cat-file", "--batch" if batch else "commit")
+        if raw if failure.startswith("raw") else args[0] == "show":
+            if failure in {"raw", "raw-frame", "status"}:
+                if failure == "raw-frame" and batch:
+                    result.stdout = result.stdout.replace(target.encode(), b"0" * len(target), 1)
+                    return result
                 result.returncode = 1
             elif failure == "status-oid":
                 result.stdout = result.stdout.replace(target, "0" * len(target), 1)
@@ -412,7 +477,11 @@ def test_commit_observation_rejects_incomplete_native_facts(tmp_path, monkeypatc
         return result
 
     monkeypatch.setattr(identity, "run_git", interrupted)
-    result = identity.observe_commit(repo, target)
+    result = (
+        identity.observe_commits(repo, (target, target))[0]
+        if batch
+        else identity.observe_commit(repo, target)
+    )
     assert (result["verdict"], result["state"], result["object_oid"]) == (
         "block",
         "unavailable",
@@ -420,7 +489,7 @@ def test_commit_observation_rejects_incomplete_native_facts(tmp_path, monkeypatc
     )
     assert result["required_gaps"] == [f"commit_observation_unavailable:{target}"]
     assert result["signature"] == {"present": False, "format": ""}
-    assert result["subject"] == (observed["subject"] if failure == "raw" else "")
+    assert result["subject"] == (observed["subject"] if failure.startswith("raw") else "")
 
 
 @pytest.mark.parametrize(

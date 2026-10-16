@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.openspec.lifecycle.root_repair import supporting_file_relocation
+from ethos.adapters.openspec.relocation import active_change_relocation
 from ethos.adapters.projections.compiler import render_projections
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
@@ -67,6 +68,7 @@ def patch_admission(
     outputs: list[str] = []
     profile = ProfilePostimage(gap="", profile_id="", metadata_repair=False)
     root_repair: dict[str, object] = {}
+    relocation: dict[str, object] = {}
     if not reason:
         try:
             baseline_files = _baseline_reference_files(root, baseline_head)
@@ -79,12 +81,14 @@ def patch_admission(
                 outputs,
                 profile,
                 root_repair,
+                relocation,
             ) = _patch_references(
                 root,
                 patch,
                 changes,
                 context_files=baseline_files,
                 declared_commands=baseline_references["command"],
+                baseline=baseline_head,
             )
             reason = effect_gaps[0] if effect_gaps else ""
         except (OSError, UnicodeError, ValueError):
@@ -112,6 +116,7 @@ def patch_admission(
         **({"profile_postimage_id": profile.profile_id} if profile.profile_id else {}),
         **({"profile_metadata_repair": True} if profile.metadata_repair else {}),
         **({"openspec_root_repair": root_repair} if root_repair else {}),
+        **({"active_change_relocation": relocation} if relocation else {}),
     }
 
 
@@ -280,6 +285,9 @@ def staged_artifact_admission(
         )
         after = _object_files(root, tree, prior_paths)
         effects = _indexed_effects(root, index_env=index_env)
+        relocation = active_change_relocation(
+            root, None, effects, baseline=baseline, tree=tree, environment=index_env
+        )
         postimages = {path: after.get(path) for path in effects}
         # Non-carrier changes have no text observation, but are not deletions.
         postimages = {
@@ -293,7 +301,9 @@ def staged_artifact_admission(
             gaps.insert(0, profile_gap)
     except (OSError, ValueError, UnicodeError) as exc:
         return {
-            "verdict": "unknown",
+            "verdict": "block"
+            if str(exc) == "openspec_active_change_relocation_unverified"
+            else "unknown",
             "reason": f"staged_artifact_observation_unknown:{exc}",
             "effects": {},
         }
@@ -308,6 +318,7 @@ def staged_artifact_admission(
             {item.output for item in (*projection_relations(before), *projection_relations(after))}
         ),
         "required_gaps": [*gaps, *unknown],
+        **({"active_change_relocation": relocation} if relocation else {}),
     }
     return revalidate_staged_admission(root, report, index_env=index_env)
 
@@ -367,6 +378,7 @@ def _patch_references(
     changes: list[dict[str, object]],
     *,
     context_files: dict[str, str],
+    baseline: str,
     declared_commands: tuple[str, ...] | frozenset[str] = (),
 ) -> tuple[
     dict[str, set[str]],
@@ -375,6 +387,7 @@ def _patch_references(
     dict[str, str],
     list[str],
     ProfilePostimage,
+    dict[str, object],
     dict[str, object],
 ]:
     with tempfile.TemporaryDirectory(prefix="ethos-prewrite-postimage-") as temporary:
@@ -436,7 +449,8 @@ def _patch_references(
             for change in changes
         }
         root_repair = supporting_file_relocation(root, postimages, postimage_root=workspace)
-        return references, gaps, unknown, effects, outputs, profile, root_repair
+        relocation = active_change_relocation(root, workspace, effects, baseline=baseline)
+        return references, gaps, unknown, effects, outputs, profile, root_repair, relocation
 
 
 def _source_effect_gaps(

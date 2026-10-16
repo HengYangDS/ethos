@@ -1,5 +1,30 @@
 ## ADDED Requirements
 
+### Requirement: Active Change identity repair preserves complete source
+
+ETHOS SHALL admit an exact relocation of one legacy temporally suffixed active
+Change to its valid logical identity through the existing Work Lane prewrite and
+staged admission owners. The complete regular source SHALL retain every byte,
+file mode and unfinished task, with an unowned destination at the bound source
+and baseline. This admission SHALL authorize identity repair only; current
+authority and subsequent official validation, proof and delivery remain required.
+
+#### Scenario: A complete legacy source moves without accepting unfinished work
+
+- **WHEN** an owned Work Lane presents the complete matching delete/create patch
+  or staged tree for one dated active Change and its logical root
+- **THEN** native admission binds that exact source transition without changing
+  the working preimage or index during observation
+- **AND** every member and task retains its original content and state
+- **AND** later authoring resolves the logical Change through ordinary native intent
+
+#### Scenario: A transition does not match the complete current source
+
+- **WHEN** member identity, bytes, modes, destination ownership, selected intent
+  or fresh HEAD and staged-tree coordinates do not match the relocation
+- **THEN** the transition acquires no identity-repair scope and preserves source
+- **AND** current Lease, editor, runtime, profile and effect checks remain independent
+
 ### Requirement: Exact supporting template relocation restores native write admission
 
 ETHOS SHALL admit one exact supporting-template relocation from the canonical

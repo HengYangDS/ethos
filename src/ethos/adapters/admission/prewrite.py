@@ -17,6 +17,7 @@ from ethos.adapters.admission.patch_admission import revalidate_staged_admission
 from ethos.adapters.admission.patch_admission import staged_artifact_admission
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.lifecycle.root_repair import supporting_relocation_scope
+from ethos.adapters.openspec.relocation import active_change_relocation_scope
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
@@ -35,6 +36,7 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
+from ethos.normalization.coercion import string_mapping
 from ethos.repository.paradigm.report import paradigm_path_gaps
 from ethos.repository.policy.projections import observe_projections
 from ethos.repository.policy.projections import projection_relations
@@ -197,7 +199,7 @@ def _prewrite_material_scope(
     patch_report: dict[str, object],
     require_workspace: bool,
 ) -> tuple[dict[str, object], dict[str, object], bool]:
-    """Resolve current intent or the sole bounded invalid-profile recovery."""
+    """Resolve current intent or an exact native carrier recovery."""
     try:
         profile_enabled = openspec_profile_enabled(root)
     except ValueError as error:
@@ -205,19 +207,18 @@ def _prewrite_material_scope(
             raise
         profile_enabled = None
     if profile_enabled is None:
-        return (
-            profile_repair_scope(
-                root, role=effective["role"], requested_paths=requested, report=patch_report
-            ),
-            {"verdict": "unknown", "required_gaps": [INVALID_PROFILE_ERROR]},
-            True,
+        scope = profile_repair_scope(
+            root, role=effective["role"], requested_paths=requested, report=patch_report
         )
+        return scope, {"verdict": "unknown", "required_gaps": [INVALID_PROFILE_ERROR]}, True
     if not profile_enabled:
-        return (
-            non_openspec_prewrite_scope(requested),
-            {"verdict": "pass", "change": None, "required_gaps": []},
-            False,
-        )
+        scope = non_openspec_prewrite_scope(requested)
+        return scope, {"verdict": "pass", "change": None, "required_gaps": []}, False
+    repair = active_change_relocation_scope(
+        root, role=effective["role"], requested_paths=requested, report=patch_report
+    )
+    if repair:
+        return repair, string_mapping(repair["openspec"]), False
     resolution = resolve_current_resolution(
         root,
         status={

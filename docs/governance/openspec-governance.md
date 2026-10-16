@@ -104,6 +104,15 @@ check still applies. One intent cannot borrow another intent's proof. A proof
 selection is not effect authorization. Archive and multi-contribution lifecycle
 completion remain separate acceptance obligations.
 
+A legacy active Change with a temporal suffix may receive an exact identity
+repair through native Work Lane prewrite. Its complete source moves to the
+undated logical root with identical bytes and modes, preserving each member and
+unfinished task. The destination is unowned in both current source and the bound
+baseline. The exact patch or staged tree binds only the complete delete/create
+pair to the same selected intent; current authority remains independently
+required. This admits identity repair only. Subsequent editing, official
+validation, proof, hooks, archive and delivery retain their ordinary contracts.
+
 The archive write boundary is owned by a semantically namespaced Work Lane
 command, not by a seventh root command:
 

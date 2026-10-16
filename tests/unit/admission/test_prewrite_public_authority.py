@@ -10,10 +10,12 @@ import ethos.adapters.admission.prewrite as prewrite
 from ethos.adapters.admission.current.authority import CurrentAuthority
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import CurrentScope
+from ethos.adapters.admission.patch_admission import patch_admission
 from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.semantic import commitment_fixture
+from tests.unit.adapters.admission.test_patch_admission_public_boundaries import _dated_change_patch
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -484,3 +486,81 @@ def test_prewrite_admits_edits_to_an_existing_non_conforming_carrier(
     [path] = report["paths"]
     assert isinstance(path, dict)
     assert not str(path["reason"]).startswith("repository_paradigm")
+
+
+@pytest.mark.parametrize(
+    "choice", [None, "legacy-change-20261008", "legacy-change", "fixture-change"]
+)
+def test_prewrite_admits_only_exact_active_identity_repair(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, choice: str | None
+) -> None:
+    repo, head, paths, patch = _dated_change_patch(tmp_path)
+    before = git(repo, "status", "--porcelain=v1", "--untracked-files=all")
+    _bind_common(monkeypatch, repo)
+    monkeypatch.setattr(prewrite, "patch_admission", patch_admission)
+    monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
+    authority = CurrentAuthority(
+        verdict="pass",
+        reason="matched",
+        branch="work/example",
+        actor="agent:test",
+        lease={},
+        current_head=head,
+        current_tree=git(repo, "rev-parse", "HEAD^{tree}"),
+    )
+    monkeypatch.setattr(prewrite, "observe_current_authority", lambda **_kwargs: authority)
+    monkeypatch.delenv("ETHOS_CHANGE", raising=False)
+    if choice is not None:
+        monkeypatch.setenv("ETHOS_CHANGE", choice)
+
+    report = prewrite.prewrite_guard(
+        root=repo,
+        paths=[repo / path for path in paths],
+        editor_root=repo,
+        require_editor_root=True,
+        patch=patch,
+    )
+
+    assert report["verdict"] == ("block" if choice == "fixture-change" else "pass"), report
+    if choice != "fixture-change":
+        assert report["material_scope"]["state"] == "active_change_relocation"
+        assert report["material_scope"]["authorized_paths"] == sorted(paths)
+        assert report["openspec"]["state"] == "identity_repair_only"
+    assert git(repo, "status", "--porcelain=v1", "--untracked-files=all") == before
+
+
+def test_prewrite_fences_active_identity_repair_at_current_head(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, head, paths, patch = _dated_change_patch(tmp_path)
+    _bind_common(monkeypatch, repo)
+    monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
+    authority = CurrentAuthority(
+        verdict="pass",
+        reason="matched",
+        branch="work/example",
+        actor="agent:test",
+        lease={},
+        current_head=head,
+        current_tree=git(repo, "rev-parse", "HEAD^{tree}"),
+    )
+    monkeypatch.setattr(prewrite, "observe_current_authority", lambda **_kwargs: authority)
+
+    monkeypatch.delenv("ETHOS_CHANGE", raising=False)
+
+    def concurrent_commit(**kwargs):
+        report = patch_admission(**kwargs)
+        git(repo, "commit", "--allow-empty", "-m", "concurrent source")
+        return report
+
+    monkeypatch.setattr(prewrite, "patch_admission", concurrent_commit)
+
+    report = prewrite.prewrite_guard(
+        root=repo,
+        paths=[repo / path for path in paths],
+        editor_root=repo,
+        patch=patch,
+    )
+
+    assert report["verdict"] == "block", report
+    assert report["required_gaps"] == ["openspec_active_change_relocation_head_changed"]

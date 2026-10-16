@@ -10,6 +10,7 @@ import tomli_w
 
 import ethos.adapters.admission.patch_admission as admission
 from ethos.adapters.admission.patch_admission import patch_admission
+from ethos.adapters.openspec.selection import artifact_path_change
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
@@ -230,3 +231,142 @@ def test_native_proof_gate_owner_binds_immutable_document_admission(
     )
     assert document.read_text(encoding="utf-8") == before
     assert git(repo, "show", f"{baseline}:.ethos/profile.toml") == profile.strip()
+
+
+_DATE_CHANGE = "legacy-change-20261008"
+_LOGICAL_CHANGE = "legacy-change"
+
+
+def _dated_change_patch(
+    tmp_path: Path, *, mutation: str = "", committed: bool = False
+) -> tuple[Path, str, tuple[str, ...], str]:
+    """Build the exact working-source move, including unfinished task bytes."""
+    repo = init_git_repo(tmp_path / "dated")
+    commit_active_change(repo)
+    old = f"openspec/changes/{_DATE_CHANGE}"
+    new = f"openspec/changes/{_LOGICAL_CHANGE}"
+    members = {
+        ".openspec.yaml": "schema: spec-driven\ncreated: 2026-10-08\n",
+        "proposal.md": "# Proposal\n\nPreserve the original meaning.\n",
+        "tasks.md": "# Tasks\n\n- [x] 1.1 Keep accepted work.\n- [ ] 1.2 Verify delivery.\n",
+        "specs/contracts/spec.md": "# Contract\n\nThe original requirement SHALL survive.\n",
+    }
+    for relative, content in members.items():
+        source = repo / old / relative
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text(content, encoding="utf-8")
+    if committed:
+        git(repo, "add", old)
+        git(repo, "commit", "-m", "retain dated active source")
+    if mutation == "collision":
+        destination = repo / new
+        destination.mkdir()
+        (destination / "proposal.md").write_text("Existing owner\n", encoding="utf-8")
+    if mutation == "symlink":
+        source = repo / old / "proposal.md"
+        source.unlink()
+        source.symlink_to(repo / old / "tasks.md")
+        members["proposal.md"] = members["tasks.md"]
+    patches, paths = [], []
+    for relative, content in members.items():
+        if mutation == "partial" and relative == "tasks.md":
+            continue
+        before, after = f"{old}/{relative}", f"{new}/{relative}"
+        replacement = (
+            content.replace("- [ ] 1.2", "- [x] 1.2") if mutation == "content" else content
+        )
+        for name, prior, post in ((before, content, ""), (after, "", replacement)):
+            mode = "100755" if mutation == "mode" and name == after else "100644"
+            header = f"diff --git a/{name} b/{name}\n"
+            header += f"{'deleted' if prior else 'new'} file mode {mode}\n"
+            patches.append(
+                header
+                + "".join(
+                    difflib.unified_diff(
+                        prior.splitlines(keepends=True),
+                        post.splitlines(keepends=True),
+                        fromfile=f"a/{name}" if prior else "/dev/null",
+                        tofile=f"b/{name}" if post else "/dev/null",
+                    )
+                )
+            )
+            paths.append(name)
+    return repo, git(repo, "rev-parse", "HEAD"), tuple(paths), "".join(patches)
+
+
+@pytest.mark.parametrize("source_state", ["working", "committed"])
+def test_exact_active_change_relocation_retains_unfinished_source(
+    tmp_path: Path, source_state: str
+) -> None:
+    repo, head, paths, patch = _dated_change_patch(tmp_path, committed=source_state == "committed")
+    source = repo / f"openspec/changes/{_DATE_CHANGE}"
+    preimage = {
+        path.relative_to(source): path.read_bytes() for path in source.rglob("*") if path.is_file()
+    }
+    index = git(repo, "write-tree")
+
+    report = patch_admission(root=repo, requested_paths=paths, baseline_head=head, patch=patch)
+
+    assert report["verdict"] == "pass", report
+    assert report.get("active_change_relocation") == {
+        "source_change": _DATE_CHANGE,
+        "target_change": _LOGICAL_CHANGE,
+        "authorized_paths": sorted(paths),
+    }
+    assert git(repo, "write-tree") == index
+    assert {
+        path.relative_to(source): path.read_bytes() for path in source.rglob("*") if path.is_file()
+    } == preimage
+    assert not (repo / f"openspec/changes/{_LOGICAL_CHANGE}").exists()
+
+
+@pytest.mark.parametrize("mutation", ["partial", "content", "mode", "collision", "symlink"])
+def test_active_change_relocation_refuses_nonidentical_or_owned_effects(
+    tmp_path: Path, mutation: str
+) -> None:
+    repo, head, paths, patch = _dated_change_patch(tmp_path, mutation=mutation)
+
+    report = patch_admission(root=repo, requested_paths=paths, baseline_head=head, patch=patch)
+
+    assert report["verdict"] == "block", report
+    assert not report.get("active_change_relocation")
+
+
+def test_active_change_relocation_applies_as_the_same_logical_source(tmp_path: Path) -> None:
+    repo, head, paths, patch = _dated_change_patch(tmp_path)
+    report = patch_admission(root=repo, requested_paths=paths, baseline_head=head, patch=patch)
+    assert report.get("active_change_relocation"), report
+    request = repo / "move.patch"
+    request.write_text(patch, encoding="utf-8")
+    git(repo, "apply", str(request))
+
+    assert not (repo / f"openspec/changes/{_DATE_CHANGE}").exists()
+    assert (
+        artifact_path_change(repo, (f"openspec/changes/{_LOGICAL_CHANGE}/tasks.md",))
+        == _LOGICAL_CHANGE
+    )
+    assert (repo / f"openspec/changes/{_LOGICAL_CHANGE}/tasks.md").read_text() == (
+        "# Tasks\n\n- [x] 1.1 Keep accepted work.\n- [ ] 1.2 Verify delivery.\n"
+    )
+
+
+@pytest.mark.parametrize("mutation", ["", "content", "partial", "mode"])
+def test_staged_active_change_relocation_uses_only_exact_git_source(
+    tmp_path: Path, mutation: str
+) -> None:
+    repo, head, _paths, patch = _dated_change_patch(tmp_path, committed=True, mutation=mutation)
+    request = repo / "move.patch"
+    request.write_text(patch, encoding="utf-8")
+    git(repo, "apply", str(request))
+    git(repo, "add", "openspec/changes")
+    index = git(repo, "write-tree")
+    # A changed working tree is not allowed to launder an observed index transition.
+    target = repo / f"openspec/changes/{_LOGICAL_CHANGE}/proposal.md"
+    target.write_text("Unstaged unrelated source\n", encoding="utf-8")
+
+    report = admission.staged_artifact_admission(repo, head)
+
+    assert report["verdict"] == ("block" if mutation else "pass"), report
+    assert bool(report.get("active_change_relocation")) is (not mutation)
+    assert git(repo, "write-tree") == index
+    assert target.read_text() == "Unstaged unrelated source\n"

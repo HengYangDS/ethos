@@ -62,10 +62,11 @@ def test_content_policy_keeps_checkout_identity_host_portable(tmp_path: Path) ->
     )
 
 
+@pytest.mark.parametrize("include_overlay", [False, True])
 def test_clean_source_identity_avoids_materializing_an_overlay(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, include_overlay: bool
 ) -> None:
-    """An unchanged source uses its exact committed tree without a scratch index."""
+    """Fresh identity pairs share native reads without materializing a clean overlay."""
     repository = _repository(tmp_path / "source", "base")
     observed_git = source.run_git
     commands: list[tuple[str, ...]] = []
@@ -75,10 +76,14 @@ def test_clean_source_identity_avoids_materializing_an_overlay(
         return observed_git(root, *args, **kwargs)
 
     monkeypatch.setattr(source, "run_git", observe)
-    assert source.source_git_identity(repository) == (
+    expected = (
         git(repository, "rev-parse", "HEAD"),
         git(repository, "rev-parse", "HEAD^{tree}"),
     )
+    assert source.source_git_identity(repository, include_overlay=include_overlay) == expected
+    assert len(commands) == (6 if include_overlay else 2)
+    assert commands[0] == ("rev-parse", "HEAD", "HEAD^{tree}")
+    assert commands[-1] == ("rev-parse", "HEAD", f"{expected[0]}^{{tree}}")
     assert ("add", "-A") not in commands
     assert ("write-tree",) not in commands
 
@@ -150,7 +155,7 @@ def test_source_identity_rejects_head_movement(
     def move_after_head(root: Path, *args: str, **kwargs):
         nonlocal moved
         result = observed_git(root, *args, **kwargs)
-        if args == ("rev-parse", "HEAD") and not moved:
+        if args[:2] == ("rev-parse", "HEAD") and not moved:
             moved = True
             (root / "tracked.txt").write_text("later source\n")
             commit_fixture(root, "advance source")
@@ -161,6 +166,39 @@ def test_source_identity_rejects_head_movement(
         source.source_git_identity(repository, include_overlay=include_overlay)
     assert failure.value.cwd == repository.as_posix()
     assert failure.value.observation["observed_head"] == git(repository, "rev-parse", "HEAD")
+
+
+@pytest.mark.parametrize("include_overlay", [False, True])
+def test_source_identity_rereads_a_removed_tree_object(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, include_overlay: bool
+) -> None:
+    """A native success cannot conceal tree loss within or after that observation."""
+    repository = _repository(tmp_path / "source", "base")
+    tree = git(repository, "rev-parse", "HEAD^{tree}")
+    object_path = repository / ".git/objects" / tree[:2] / tree[2:]
+    tree_bytes = object_path.read_bytes()
+    observed_git = source.run_git
+    removed = False
+
+    def remove_after_identity(root: Path, *args: str, **kwargs):
+        nonlocal removed
+        result = observed_git(root, *args, **kwargs)
+        if args[:2] == ("rev-parse", "HEAD") and not removed:
+            object_path.unlink()
+            removed = True
+        return result
+
+    with monkeypatch.context() as observation:
+        observation.setattr(source, "run_git", remove_after_identity)
+        with pytest.raises(ValueError, match="build_source_identity_unavailable"):
+            source.source_git_identity(repository, include_overlay=include_overlay)
+    assert removed
+    object_path.write_bytes(tree_bytes)
+    expected = (git(repository, "rev-parse", "HEAD"), tree)
+    assert source.source_git_identity(repository, include_overlay=include_overlay) == expected
+    object_path.unlink()
+    with pytest.raises(ValueError, match="build_source_identity_unavailable"):
+        source.source_git_identity(repository, include_overlay=include_overlay)
 
 
 def test_source_identity_steps_share_one_deadline(

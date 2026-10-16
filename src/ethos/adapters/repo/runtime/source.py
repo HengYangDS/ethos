@@ -49,10 +49,9 @@ def source_distribution_version() -> str:
 def source_git_identity(root: Path, *, include_overlay: bool = True) -> tuple[str, str]:
     """Return exact HEAD and the effective non-ignored source-build overlay."""
     deadline = monotonic() + _SOURCE_OBSERVATION_SECONDS
-    commit = _git(root, "rev-parse", "HEAD", deadline=deadline)
-    if not include_overlay:
-        tree = _git(root, "rev-parse", f"{commit}^{{tree}}", deadline=deadline)
-    else:
+    commit, committed = _source_coordinates(root, "HEAD", deadline=deadline)
+    tree = committed
+    if include_overlay:
         clean = not _git(
             root,
             "status",
@@ -65,7 +64,6 @@ def source_git_identity(root: Path, *, include_overlay: bool = True) -> tuple[st
         ordinary = all(record.startswith("H ") for record in flags.split("\0") if record)
         tree = ""
         if clean and ordinary:
-            committed = _git(root, "rev-parse", f"{commit}^{{tree}}", deadline=deadline)
             still_clean = not _git(
                 root,
                 "status",
@@ -85,7 +83,7 @@ def source_git_identity(root: Path, *, include_overlay: bool = True) -> tuple[st
     if not _valid_git_identity(commit) or not _valid_git_identity(tree):
         message = "build_source_identity_invalid"
         raise ValueError(message)
-    observed = _git(root, "rev-parse", "HEAD", deadline=deadline)
+    observed, observed_tree = _source_coordinates(root, commit, deadline=deadline)
     if observed != commit:
         message = "build_source_identity_changed"
         raise GitExecutionError(
@@ -94,7 +92,25 @@ def source_git_identity(root: Path, *, include_overlay: bool = True) -> tuple[st
             cwd=root.resolve().as_posix(),
             observation={"expected_head": commit, "observed_head": observed},
         )
+    if observed_tree != committed:
+        message = "build_source_identity_changed"
+        raise GitExecutionError(
+            message,
+            reason="tree_changed_during_observation",
+            cwd=root.resolve().as_posix(),
+            observation={"expected_tree": committed, "observed_tree": observed_tree},
+        )
     return commit, tree
+
+
+def _source_coordinates(root: Path, revision: str, *, deadline: float) -> tuple[str, str]:
+    """Read HEAD and one tree relationship together through fresh native Git."""
+    coordinates = _git(root, "rev-parse", "HEAD", f"{revision}^{{tree}}", deadline=deadline)
+    values = coordinates.splitlines()
+    if len(values) != 2 or not all(_valid_git_identity(value) for value in values):
+        message = "build_source_identity_invalid"
+        raise ValueError(message)
+    return values[0], values[1]
 
 
 def _git(root: Path, *args: str, deadline: float, env: dict[str, str] | None = None) -> str:

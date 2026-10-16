@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -80,6 +81,17 @@ def run_ethos(*args: str, cwd: Path | None = None) -> dict[str, Any]:
     if completed.returncode != 0:
         raise AssertionError(completed.stderr or completed.stdout)
     return json.loads(completed.stdout)
+
+
+def result_data(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return a result's data, read from the artifact that an oversized result points at."""
+    data = payload["data"]
+    reference = data.get("artifact_reference")
+    if not isinstance(reference, dict):
+        return data
+    content = Path(reference["path"]).read_bytes()
+    assert reference["sha256"] == f"sha256:{hashlib.sha256(content).hexdigest()}"
+    return json.loads(content)["data"]
 
 
 def run_ethos_blocked(*args: str, cwd: Path | None = None) -> dict[str, Any]:

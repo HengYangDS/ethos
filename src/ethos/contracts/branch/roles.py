@@ -2,9 +2,10 @@
 
 The repository paradigm fixes every role name: release `main`, accepted `dev`,
 candidate `candidate/dev`, Work Lanes under `work/` and proposals under
-`proposal/`. A `[branch_roles]` table declares only the release mirror and the
-canonical sibling worktrees; a name it still declares is a legacy declaration that
-the readers ignore and that accepted closeout renames to the paradigm's name.
+`proposal/`, with each Work Lane in a sibling worktree. A `[branch_roles]` table
+declares only the release mirror. A role name or the sibling-worktree setting it
+still declares is a retired declaration that the readers ignore; accepted closeout
+renames a legacy role ref to the paradigm's name.
 """
 
 from __future__ import annotations
@@ -39,7 +40,9 @@ ROLE_NAME_FIELDS = (
     "work_branch_prefix",
     "proposal_branch_prefix",
 )
-_BRANCH_ROLE_FIELDS = {*ROLE_NAME_FIELDS, "release_mirror", "canonical_sibling_worktrees"}
+SIBLING_WORKTREE_FIELD = "canonical_sibling_worktrees"
+RETIRED_BRANCH_ROLE_FIELDS = (*ROLE_NAME_FIELDS, SIBLING_WORKTREE_FIELD)
+_BRANCH_ROLE_FIELDS = {*RETIRED_BRANCH_ROLE_FIELDS, "release_mirror"}
 PROTECTED_WRITE_ROLES = frozenset(
     {
         ROLE_RELEASE_ROOT,
@@ -59,7 +62,6 @@ class BranchRolePolicy:
     work_branch_prefix: str = "work/"
     proposal_branch_prefix: str = "proposal/"
     release_mirror: str = "independent"
-    canonical_sibling_worktrees: bool = False
 
     def role_for_branch(self, branch: str) -> str:
         exact_roles = (
@@ -164,17 +166,13 @@ def branch_role_policy_from_text(text: str) -> BranchRolePolicy:
         release_mirror=RELEASE_MIRROR_ACCEPTED_FF
         if raw_policy.get("release_mirror") == RELEASE_MIRROR_ACCEPTED_FF
         else "independent",
-        canonical_sibling_worktrees=raw_policy.get("canonical_sibling_worktrees") is True,
     )
 
 
 def strict_branch_role_policy_from_text(text: str) -> BranchRolePolicy:
     """Parse the declared branch-role settings exactly; the paradigm fixes every role name."""
     raw_policy = _strict_branch_roles(text)
-    return BranchRolePolicy(
-        release_mirror=str(raw_policy.get("release_mirror", "independent")),
-        canonical_sibling_worktrees=raw_policy.get("canonical_sibling_worktrees") is True,
-    )
+    return BranchRolePolicy(release_mirror=str(raw_policy.get("release_mirror", "independent")))
 
 
 def declared_role_names(text: str) -> dict[str, str]:
@@ -206,7 +204,7 @@ def _strict_branch_roles(text: str) -> dict[str, object]:
         RELEASE_MIRROR_ACCEPTED_FF,
     }:
         raise ValueError(_STRICT_BRANCH_ROLE_MIRROR_ERROR)
-    if type(raw_policy.get("canonical_sibling_worktrees", False)) is not bool:
+    if type(raw_policy.get(SIBLING_WORKTREE_FIELD, False)) is not bool:
         raise ValueError(_STRICT_BRANCH_ROLE_SIBLING_ERROR)
     return raw_policy
 

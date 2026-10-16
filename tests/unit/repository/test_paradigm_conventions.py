@@ -45,7 +45,17 @@ def test_each_publication_peer_names_its_git_remote(
     ("roles", "gaps", "repair"),
     [
         ("", [], ""),
-        ('release_mirror = "accepted_ff"\ncanonical_sibling_worktrees = true\n', [], ""),
+        ('release_mirror = "accepted_ff"\n', [], ""),
+        (
+            "canonical_sibling_worktrees = true\n",
+            [
+                "repository_paradigm_branch_roles:.ethos/workspace.toml:branch_roles.canonical_sibling_worktrees"
+            ],
+            (
+                "remove canonical_sibling_worktrees; "
+                "the repository paradigm places Work Lanes in sibling worktrees"
+            ),
+        ),
         (
             'release_branch = "main"\n',
             ["repository_paradigm_branch_roles:.ethos/workspace.toml:branch_roles.release_branch"],
@@ -62,12 +72,12 @@ def test_each_publication_peer_names_its_git_remote(
             ),
         ),
     ],
-    ids=["defaults", "settings-only", "standard-declared", "review-prefix"],
+    ids=["defaults", "settings-only", "sibling-declared", "standard-declared", "review-prefix"],
 )
 def test_branch_roles_declare_only_the_settings(
     tmp_path: Path, roles: str, gaps: list[str], repair: str
 ) -> None:
-    """Every declared role name is reported; a legacy name waits for the closeout rename."""
+    """Every retired field is reported; a legacy name waits for the closeout rename."""
     workspace = f"[branch_roles]\n{roles}" if roles else ""
     report = paradigm_report(tmp_path, {**CONFORMING, ".ethos/workspace.toml": workspace})
     assert report["required_gaps"] == gaps

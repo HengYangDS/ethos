@@ -80,8 +80,7 @@ LAND_CASES = literal_case("cli.test_contracts_land:assign:LAND_CASES:0")
 
 def _assert_dirty_land_is_blocked(tmp_path: Path) -> None:
     repo, _ = start_adopted_candidate(tmp_path)
-    root = tmp_path / "repo-work-feature"
-    run_ethos(*lane_start_arguments(repo, root), cwd=repo)
+    root = Path(run_ethos(*lane_start_arguments(repo), cwd=repo)["data"]["path"])
     (root / "README.md").write_text("# dirty\n")
     payload = _land(root)
     assert (payload["verdict"], payload["state"]) == ("block", "blocked")

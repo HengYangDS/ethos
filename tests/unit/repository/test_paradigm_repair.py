@@ -325,3 +325,26 @@ def test_a_field_the_paradigm_leaves_open_is_never_deleted(tmp_path: Path) -> No
     plan = _workspace_plan(tmp_path, '[branch_roles]\nrelease_mirror = "independent"\n', [gap])
     assert plan.edits == ()
     assert plan.report_only == (gap,)
+
+
+@pytest.mark.parametrize("value", ["true", "false"])
+def test_the_retired_sibling_worktree_setting_is_deleted(tmp_path: Path, value: str) -> None:
+    """No reader consults the setting, so either value goes and the report no longer names it."""
+    kept = '# Lanes live beside the repository.\n[branch_roles]\nrelease_mirror = "accepted_ff"\n'
+    workspace = f"{kept}canonical_sibling_worktrees = {value}\n"
+    plan, files = _plan(tmp_path, {_WORKSPACE: workspace})
+    assert [(edit.path, edit.after) for edit in plan.edits] == [(_WORKSPACE, kept)]
+    assert not [
+        gap
+        for gap in _apply(tmp_path, plan, files)["required_gaps"]
+        if gap.startswith("repository_paradigm_branch_roles")
+    ]
+
+
+def test_a_retired_field_the_binding_no_longer_declares_stays_report_only(tmp_path: Path) -> None:
+    """A gap that names an absent field plans no edit."""
+    carrier = f"{_WORKSPACE}:branch_roles.canonical_sibling_worktrees"
+    gap = ParadigmGap("branch-roles", carrier, "remove it")
+    plan = _workspace_plan(tmp_path, '[branch_roles]\nrelease_mirror = "independent"\n', [gap])
+    assert plan.edits == ()
+    assert plan.report_only == (gap,)

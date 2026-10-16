@@ -206,8 +206,7 @@ def test_installed_commit_msg_rejects_invalid_raw_git_commit(tmp_path: Path) -> 
     policy = repo / ".ethos/workspace.toml"
     policy.parent.mkdir()
     policy.write_text(
-        '[branch_roles]\nrelease_mirror = "independent"\n'
-        "canonical_sibling_worktrees = false\n\n"
+        '[branch_roles]\nrelease_mirror = "independent"\n\n'
         '[commit_policy]\nsubject_pattern = "^fix: .+"\n'
         'signing_required = false\nsigning_format = "ssh"\n',
         encoding="utf-8",

@@ -22,7 +22,6 @@ from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import prepared_work_lane
-from tests.support.governed_repository import render_branch_policy
 from tests.support.governed_repository import write_publication_topology
 from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
@@ -110,7 +109,7 @@ def test_signed_pathspec_commit_reads_only_the_selected_policy(
     """An unselected staged policy cannot veto or authorize the signed commit."""
     root = prepared_work_lane(tmp_path).worktree
     policy = root / ".ethos/workspace.toml"
-    policy.write_text(policy.read_text() + "\n" + _POLICY)
+    policy.write_text(_POLICY)
     commit_fixture(root, "fix: declare commit policy")
     configure_signer(root, tmp_path)
     note = root / "notes/selected.md"
@@ -306,14 +305,7 @@ def test_generated_commit_uses_exact_parent_and_target_not_checkout(tmp_path, ca
 def test_native_hooks_reject_commit_or_push_without_parallel_policy(tmp_path, monkeypatch, case):
     repo, _baseline, _tree = _repository(tmp_path)
     write_publication_topology(repo)
-    (repo / ".ethos/workspace.toml").write_text(
-        render_branch_policy(
-            release_mirror="independent",
-        )
-        + "\n"
-        + _POLICY
-        + _IDENTITY
-    )
+    (repo / ".ethos/workspace.toml").write_text(_POLICY + _IDENTITY)
     git(repo, "add", ".")
     git(repo, "commit", "-S", "-m", "fix: baseline")
     git(repo, "branch", "topic")

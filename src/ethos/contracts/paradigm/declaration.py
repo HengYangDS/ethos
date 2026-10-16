@@ -51,6 +51,7 @@ class BindingFileSet(BaseModel):
 
     root: str
     files: FrozenTuple[str]
+    workspace_tables: FrozenTuple[str]
 
 
 class EditorDefaults(BaseModel):

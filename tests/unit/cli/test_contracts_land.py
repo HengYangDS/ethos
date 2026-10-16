@@ -27,6 +27,7 @@ from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import lane_start_arguments
 from tests.support.governed_repository import prepared_work_lane
 from tests.support.governed_repository import start_adopted_candidate
+from tests.support.governed_repository import write_release_mirror
 from tests.support.literal_cases import literal_case
 from tests.support.proof import seed_executed_proof
 
@@ -392,8 +393,8 @@ def _assert_first_cas_uses_accepted_policy(fixture, monkeypatch: pytest.MonkeyPa
     repo, candidate, worktree = fixture
     accepted = git(repo, "rev-parse", "HEAD")
     release = git(repo, "branch", "--list", "main")
-    target = worktree / ".ethos/workspace.toml"
-    target.write_text(CHANGED_TOPOLOGY)
+    target = worktree / ".ethos/release.toml"
+    target.write_text(f"{target.read_text()}\n{CHANGED_TOPOLOGY}")
     git(worktree, "add", target.as_posix())
     git(worktree, "commit", "-m", "change future branch topology")
     head = _archive(monkeypatch, worktree)
@@ -417,17 +418,15 @@ def _assert_declared_closeout_policy(
     candidate: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    workspace = repo / ".ethos/workspace.toml"
+    release = repo / ".ethos/release.toml"
     if claim == CLOSEOUT_CASES[1]:
-        git(repo, "rm", ".ethos/workspace.toml")
-        git(repo, "commit", "-m", "use default branch roles")
         accepted = git(repo, "rev-parse", "HEAD")
-        git(candidate, "reset", "--hard", accepted)
         assert (repo / ".ethos/profile.toml").is_file()
-        assert not workspace.exists()
+        assert not (repo / ".ethos/workspace.toml").exists()
+        assert "[release]" not in release.read_text()
     elif claim == CLOSEOUT_CASES[2]:
-        workspace.write_text('[branch_roles]\nrelease_mirror = "mirror"\n')
-        git(repo, "add", workspace.as_posix())
+        release.write_text(f'{release.read_text()}\n[release]\nmirror = "mirror"\n')
+        git(repo, "add", release.as_posix())
         git(repo, "commit", "-m", "record an invalid release mirror")
         accepted = git(repo, "rev-parse", "HEAD")
         git(candidate, "reset", "--hard", accepted)
@@ -438,22 +437,14 @@ def _assert_declared_closeout_policy(
         assert report["required_gaps"] == ["accepted_policy_unavailable"]
         return
     else:
-        workspace.write_text(
-            workspace.read_text().replace(
-                'release_mirror = "independent"', 'release_mirror = "accepted_ff"'
-            )
-        )
-        git(repo, "add", workspace.as_posix())
+        write_release_mirror(repo, "accepted_ff")
+        git(repo, "add", release.as_posix())
         git(repo, "commit", "-m", "require release mirror")
         accepted = git(repo, "rev-parse", "HEAD")
         git(repo, "branch", "main", accepted)
         git(candidate, "reset", "--hard", accepted)
-        workspace.write_text(
-            workspace.read_text().replace(
-                'release_mirror = "accepted_ff"', 'release_mirror = "independent"'
-            )
-        )
-        git(repo, "update-index", "--skip-worktree", ".ethos/workspace.toml")
+        write_release_mirror(repo, "independent")
+        git(repo, "update-index", "--skip-worktree", ".ethos/release.toml")
     worktree = create_change_source_lane(
         repo,
         repo.parent / "repo-work-closeout",

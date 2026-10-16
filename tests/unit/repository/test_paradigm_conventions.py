@@ -41,13 +41,38 @@ def test_each_publication_peer_names_its_git_remote(
         assert "git remote rename origin gitlab" in report["next_action"]
 
 
+_MIRROR_GAP = "repository_paradigm_branch_roles:.ethos/workspace.toml:branch_roles.release_mirror"
+_DECLARED_MIRROR = '[release]\nmirror = "accepted_ff"\n'
+
+
 @pytest.mark.parametrize(
-    ("roles", "gaps", "repair"),
+    ("roles", "release", "gaps", "repair"),
     [
-        ("", [], ""),
-        ('release_mirror = "accepted_ff"\n', [], ""),
+        ("", "", [], ""),
+        (
+            'release_mirror = "accepted_ff"\n',
+            "",
+            [_MIRROR_GAP, "repository_paradigm_release_mirror:.ethos/release.toml:release.mirror"],
+            'move release_mirror to .ethos/release.toml as [release] mirror = "accepted_ff"',
+        ),
+        (
+            'release_mirror = "accepted_ff"\n',
+            _DECLARED_MIRROR,
+            [_MIRROR_GAP],
+            "remove release_mirror; .ethos/release.toml declares the release mirror",
+        ),
+        (
+            'release_mirror = "independent"\n',
+            "",
+            [_MIRROR_GAP],
+            (
+                "remove release_mirror; the release mirror is independent unless "
+                ".ethos/release.toml declares [release] mirror"
+            ),
+        ),
         (
             "canonical_sibling_worktrees = true\n",
+            "",
             [
                 "repository_paradigm_branch_roles:.ethos/workspace.toml:branch_roles.canonical_sibling_worktrees"
             ],
@@ -58,11 +83,13 @@ def test_each_publication_peer_names_its_git_remote(
         ),
         (
             'release_branch = "main"\n',
+            "",
             ["repository_paradigm_branch_roles:.ethos/workspace.toml:branch_roles.release_branch"],
             "remove release_branch; the repository paradigm fixes it as main",
         ),
         (
             'proposal_branch_prefix = "submit/"\n',
+            "",
             [
                 "repository_paradigm_branch_roles:.ethos/workspace.toml:branch_roles.proposal_branch_prefix"
             ],
@@ -72,16 +99,58 @@ def test_each_publication_peer_names_its_git_remote(
             ),
         ),
     ],
-    ids=["defaults", "settings-only", "sibling-declared", "standard-declared", "review-prefix"],
+    ids=[
+        "defaults",
+        "mirror-to-move",
+        "mirror-already-declared",
+        "independent-mirror",
+        "sibling-declared",
+        "standard-declared",
+        "review-prefix",
+    ],
 )
-def test_branch_roles_declare_only_the_settings(
-    tmp_path: Path, roles: str, gaps: list[str], repair: str
+def test_every_branch_role_field_is_retired(
+    tmp_path: Path, roles: str, release: str, gaps: list[str], repair: str
 ) -> None:
-    """Every retired field is reported; a legacy name waits for the closeout rename."""
-    workspace = f"[branch_roles]\n{roles}" if roles else ""
-    report = paradigm_report(tmp_path, {**CONFORMING, ".ethos/workspace.toml": workspace})
+    """Every field is reported; an accepted mirror moves and a legacy name waits for closeout."""
+    files = {**CONFORMING, ".ethos/workspace.toml": f"[branch_roles]\n{roles}" if roles else ""}
+    report = paradigm_report(
+        tmp_path, {**files, **({".ethos/release.toml": release} if release else {})}
+    )
     assert report["required_gaps"] == gaps
     assert report["next_action"] == repair
+
+
+@pytest.mark.parametrize(
+    ("workspace", "gaps"),
+    [
+        ('[commit_policy]\nsigning_required = true\nsigning_format = "ssh"\n', []),
+        (
+            '[[package]]\nname = "root"\npath = "."\n',
+            ["repository_paradigm_workspace_binding:.ethos/workspace.toml:package"],
+        ),
+        (
+            '[workspace]\nmode = "monorepo"\n\n[packages.root]\npath = "."\n',
+            [
+                "repository_paradigm_workspace_binding:.ethos/workspace.toml:workspace",
+                "repository_paradigm_workspace_binding:.ethos/workspace.toml:packages",
+            ],
+        ),
+        (
+            "[branch_roles]\n",
+            ["repository_paradigm_workspace_binding:.ethos/workspace.toml:branch_roles"],
+        ),
+    ],
+    ids=["commit-policy", "package", "legacy-schema", "empty-roles"],
+)
+def test_a_workspace_binding_declares_only_the_commit_policy(
+    tmp_path: Path, workspace: str, gaps: list[str]
+) -> None:
+    """Every other workspace table is a declaration no reader consults."""
+    report = paradigm_report(tmp_path, {**CONFORMING, ".ethos/workspace.toml": workspace})
+    assert report["required_gaps"] == gaps
+    if gaps:
+        assert report["next_action"].startswith(f"remove {gaps[0].rpartition(':')[2]};")
 
 
 @pytest.mark.parametrize(

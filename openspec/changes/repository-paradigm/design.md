@@ -147,6 +147,7 @@ Gates are declared inline in the profile, or the profile selects the packaged ET
 - **Commit scopes:** a scope is optional because four of six policies make it optional. A repository may declare a closed scope list that admission enforces.
 - **Signing:** SSH signing is required.
 - **Branch roles:** they take the majority names. Work Lane worktrees use the workstation layout `<repository>-worktrees/<yyyymmdd>-<slug>/`, which becomes the ETHOS default instead of an opt-in.
+- **Release mirror:** whether the release branch follows the accepted branch is a release fact, so `.ethos/release.toml` declares it as `[release] mirror = "accepted_ff"`; it is independent otherwise. `.ethos/workspace.toml` keeps only `[commit_policy]`, and a repository without one tracks no workspace binding. The repair moves an `accepted_ff` mirror and deletes `[branch_roles]` and tables no reader consults, such as `[[package]]`.
 - **Releases:**
   - Released products keep `VERSION` as the only version source. It is the majority encoding and it is language-neutral.
   - Tags are `v` followed by a SemVer version.

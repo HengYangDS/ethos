@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import tomllib
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -324,16 +325,21 @@ def _enable_openspec_profile(repo: Path) -> None:
 
 
 def write_role_policy(repo: Path, *, release_mirror: str = "independent") -> None:
-    """Write and commit a branch-role policy fixture; the paradigm fixes the role names."""
-    workspace_path = repo / ".ethos" / "workspace.toml"
-    workspace_path.parent.mkdir(parents=True, exist_ok=True)
-    workspace_path.write_text(
-        render_branch_policy(
-            release_mirror=release_mirror,
-        ),
-        encoding="utf-8",
-    )
+    """Write and commit an explicit release mirror; the paradigm fixes the role names."""
+    write_release_mirror(repo, release_mirror)
     commit_fixture(repo, "configure branch roles")
+
+
+def write_release_mirror(repo: Path, release_mirror: str) -> None:
+    """Set the release mirror in the release binding, keeping its other declarations."""
+    release = repo / ".ethos" / "release.toml"
+    release.parent.mkdir(parents=True, exist_ok=True)
+    text = release.read_text(encoding="utf-8") if release.exists() else ""
+    for declared in ("independent", "accepted_ff"):
+        text = text.replace(render_release_mirror(declared), "")
+    kept = text.rstrip("\n")
+    rendered = render_release_mirror(release_mirror)
+    release.write_text(f"{kept}\n\n{rendered}" if kept else rendered, encoding="utf-8")
 
 
 def adopt_and_commit(
@@ -341,12 +347,6 @@ def adopt_and_commit(
 ) -> str:
     """Create code-free governance truth; quality tests opt into code subjects."""
     initialize_adopted_fixture(repo)
-    (repo / ".ethos" / "workspace.toml").write_text(
-        render_branch_policy(
-            release_mirror=release_mirror,
-        ),
-        encoding="utf-8",
-    )
     declare_fixture_documentation_proof(repo)
     _enable_openspec_profile(repo)
     if not docs_only:
@@ -356,19 +356,15 @@ def adopt_and_commit(
             installation_command="git --version",
             materialize_commands=False,
         )
+    if release_mirror != "independent":
+        write_release_mirror(repo, release_mirror)
     _write_openspec_baseline(repo)
     return commit_fixture(repo, "adopt ethos governance")
 
 
-def render_branch_policy(*, release_mirror: str) -> str:
-    """Render the branch-role settings for fixtures; the paradigm fixes the role names."""
-    return "\n".join(
-        (
-            "[branch_roles]",
-            f'release_mirror = "{release_mirror}"',
-            "",
-        )
-    )
+def render_release_mirror(release_mirror: str) -> str:
+    """Render the release binding's mirror for fixtures; the paradigm fixes the role names."""
+    return f'[release]\nmirror = "{release_mirror}"\n'
 
 
 def write_publication_topology(
@@ -397,6 +393,8 @@ def write_publication_topology(
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("# repository-native CI\n", encoding="utf-8")
     host = ("[host_profile]", f'provider = "{host_provider}"', "") if host_provider else ()
+    declared = tomllib.loads(release.read_text(encoding="utf-8")) if release.exists() else {}
+    mirror = declared.get("release", {}).get("mirror")
     release.write_text(
         "\n".join(
             (
@@ -421,6 +419,7 @@ def write_publication_topology(
                 'capabilities = ["repository", "ci_cd", "publication"]',
                 f'ci_surface = "{github_ci_surface}"',
                 "",
+                *((render_release_mirror(mirror),) if mirror else ()),
             )
         ),
         encoding="utf-8",

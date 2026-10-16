@@ -80,10 +80,8 @@ def test_identity_transition_is_explicit_and_target_scoped(
     (work / "CHANGELOG.md").write_text(
         "# Changelog\n\n## [Unreleased]\n\n## [1.2.3] - 2026-10-15\n"
     )
-    workspace = work / ".ethos/workspace.toml"
-    workspace.write_text(
-        workspace.read_text() + "\n[commit_policy]\n"
-        'signing_required = true\nsigning_format = "ssh"\n'
+    (work / ".ethos/workspace.toml").write_text(
+        '[commit_policy]\nsigning_required = true\nsigning_format = "ssh"\n'
     )
     release = work / ".ethos/release.toml"
     release.write_text(

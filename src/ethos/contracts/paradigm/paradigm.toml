@@ -22,6 +22,9 @@ governance_roots = [".agents", ".config", ".ethos", "openspec"]
 [binding]
 root = ".ethos"
 files = ["profile.toml", "release.toml", "rules.toml", "workspace.toml"]
+# The only table a workspace binding declares. The paradigm fixes every branch
+# role, and the release binding declares the release mirror.
+workspace_tables = ["commit_policy"]
 
 [normalization]
 gitattributes = "* text=auto eol=lf"

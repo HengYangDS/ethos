@@ -63,10 +63,16 @@ def repair_paradigm(*, root: Path, apply: bool = False) -> dict[str, object]:
         }
     for edit in plan.edits:
         path = repo / edit.path
+        if edit.after is None:
+            path.unlink()
+            continue
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(edit.after, encoding="utf-8")
-    written = {edit.path for edit in plan.edits}
-    remaining = repository_paradigm_report(repo, tracked_paths=tuple(sorted({*tracked, *written})))
+    written = {edit.path for edit in plan.edits if edit.after is not None}
+    removed = {edit.path for edit in plan.edits if edit.after is None}
+    remaining = repository_paradigm_report(
+        repo, tracked_paths=tuple(sorted({*tracked, *written} - removed))
+    )
     return {
         **planned,
         "state": "repaired",
@@ -80,11 +86,16 @@ def _edit_view(edit: CarrierEdit) -> dict[str, object]:
     """Show one carrier edit as a unified diff against its current text."""
     diff = difflib.unified_diff(
         (edit.before or "").splitlines(keepends=True),
-        edit.after.splitlines(keepends=True),
+        (edit.after or "").splitlines(keepends=True),
         fromfile=f"a/{edit.path}" if edit.before is not None else "/dev/null",
-        tofile=f"b/{edit.path}",
+        tofile=f"b/{edit.path}" if edit.after is not None else "/dev/null",
     )
-    return {"path": edit.path, "created": edit.before is None, "diff": "".join(diff)}
+    return {
+        "path": edit.path,
+        "created": edit.before is None,
+        "removed": edit.after is None,
+        "diff": "".join(diff),
+    }
 
 
 def _first(actions: tuple[str, ...], report_only: tuple[ParadigmGap, ...]) -> str:

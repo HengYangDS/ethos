@@ -151,10 +151,8 @@ def _archive_verification_lane(tmp_path):
     """Prepare native verification at the trusted base before authoring begins."""
     repo, candidate = start_adopted_candidate(tmp_path)
     configure_signer(repo, tmp_path)
-    workspace = repo / ".ethos/workspace.toml"
-    workspace.write_text(
-        workspace.read_text()
-        + '\n[commit_policy]\nsigning_required = true\nsigning_format = "ssh"\n'
+    (repo / ".ethos/workspace.toml").write_text(
+        '[commit_policy]\nsigning_required = true\nsigning_format = "ssh"\n'
     )
     declare_native_proof_checks(
         repo,

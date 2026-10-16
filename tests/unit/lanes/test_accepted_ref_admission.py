@@ -70,7 +70,7 @@ class State:
             self.v["work"] = fx.commit_fixture_file(self.repo, "work", "work", "work")
             proof_fixture.seed_executed_proof(self.repo, self.v["work"])
         elif mode == "profile":
-            (candidate / ".ethos/workspace.toml").unlink()
+            (candidate / ".ethos/workspace.toml").unlink(missing_ok=True)
         elif mode == "fixture":
             fixture = fx.prepared_work_lane(tmp / "fixture")
             head = fx.commit_fixture_file(
@@ -135,12 +135,8 @@ class State:
             self._policy("accepted_ff" if code == "F" else "independent")
 
     def _policy(self, value: str) -> None:
-        path = self.repo / ".ethos/workspace.toml"
-        current = "accepted_ff" if value == "independent" else "independent"
-        path.write_text(
-            path.read_text().replace(f'release_mirror = "{current}"', f'release_mirror = "{value}"')
-        )
-        fx.git(self.repo, "add", path.as_posix())
+        fx.write_release_mirror(self.repo, value)
+        fx.git(self.repo, "add", ".ethos/release.toml")
         fx.git(self.repo, "commit", "-m", "change release mirror policy")
         self.v["c1"] = fx.git(self.repo, "rev-parse", "HEAD")
 

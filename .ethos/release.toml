@@ -32,3 +32,6 @@ ci_surface = ".github/workflows/ci.yml"
 [attestation]
 formats = ["spdx-2.3-json"]
 signing = "provider-native"
+
+[release]
+mirror = "accepted_ff"

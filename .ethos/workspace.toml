@@ -1,6 +1,3 @@
-[branch_roles]
-release_mirror = "accepted_ff"
-
 [commit_policy]
 signing_required = true
 signing_format = "ssh"

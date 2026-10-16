@@ -124,9 +124,7 @@ def test_unknown_ref_coordinates_do_not_fall_back_to_current_head(tmp_path: Path
 def test_candidate_policy_cannot_reclassify_predecessor_accepted_destination(tmp_path: Path):
     """Prior committed role meaning remains the floor when proposed policy changes."""
     repo, baseline, _proposed = _fixture(tmp_path)
-    policy = repo / ".ethos/workspace.toml"
-    declared = '[branch_roles]\naccepted_branch = "new-dev"\n'
-    policy.write_text(policy.read_text().replace("[branch_roles]\n", declared))
+    (repo / ".ethos/workspace.toml").write_text('[branch_roles]\naccepted_branch = "new-dev"\n')
     proposed = commit_fixture(repo, "rename candidate accepted role")
 
     report = _observe(repo, "refs/heads/dev", proposed, baseline)
@@ -138,11 +136,11 @@ def test_candidate_policy_cannot_reclassify_predecessor_accepted_destination(tmp
     assert report["data"]["satisfies_repository_proof"] is False
 
 
-@pytest.mark.parametrize("fault", ["toml", "role", "tags", "link"])
+@pytest.mark.parametrize("fault", ["toml", "mirror", "tags", "link"])
 def test_malformed_prior_policy_cannot_be_replaced_with_candidate_defaults(tmp_path: Path, fault):
     """Invalid prior declarations remain a boundary failure, not permissive defaults."""
     repo, _baseline, proposed = _fixture(tmp_path)
-    policy = repo / (".ethos/release.toml" if fault == "tags" else ".ethos/workspace.toml")
+    policy = repo / ".ethos/release.toml"
     original = policy.read_bytes()
     if fault == "link":
         policy.unlink()
@@ -151,8 +149,8 @@ def test_malformed_prior_policy_cannot_be_replaced_with_candidate_defaults(tmp_p
         policy.write_text(
             '[protected_refs]\ntags = "v*"\n'
             if fault == "tags"
-            else "[branch_roles]\naccepted_branch = 7\n"
-            if fault == "role"
+            else "[release]\nmirror = 7\n"
+            if fault == "mirror"
             else "["
         )
     baseline = commit_fixture(repo, "invalid prior declaration")

@@ -182,7 +182,7 @@ def test_version_manifest_and_release_policy_project_product_and_host_truth() ->
         version=manifest,
         protected_refs={"branches": ["main", "dev"], "tags": ["v*"]},
     )
-    assert "release" not in config
+    assert config["release"] == {"mirror": "accepted_ff"}
     assert "gitlab" not in report
     assert report["required_files"] == [*_REQUIRED_FILES, ".ethos/release.toml"]
     _fields(

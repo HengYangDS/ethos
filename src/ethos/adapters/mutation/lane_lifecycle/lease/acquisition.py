@@ -32,7 +32,7 @@ from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import BranchRolePolicy
-from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
+from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
 from ethos.contracts.coordination import HolderRef
 from ethos.contracts.coordination import LaneLease
 from ethos.contracts.semantic import canonical_json_digest
@@ -55,12 +55,12 @@ def _reacquire_coordinates(root: Path, path: Path) -> dict[str, str]:
                 "--name-only",
                 row["head"],
                 "--",
-                ".ethos/workspace.toml",
+                ".ethos/release.toml",
                 observation=True,
             ).stdout
             policy = (
-                strict_branch_role_policy_from_text(
-                    committed_file_text(repo, row["head"], ".ethos/workspace.toml")
+                strict_branch_role_policy_from_release_text(
+                    committed_file_text(repo, row["head"], ".ethos/release.toml")
                 )
                 if declared
                 else BranchRolePolicy()

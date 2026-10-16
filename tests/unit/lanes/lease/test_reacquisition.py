@@ -18,7 +18,6 @@ from ethos.adapters.store.state.schema import state_database
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_repo_with_candidate
-from tests.support.governed_repository import render_branch_policy
 from tests.support.lifecycle_cases import strict_lease
 
 SOURCE = "agent:test:case:source"
@@ -99,7 +98,7 @@ def test_reacquire_recognizes_previous_complete_accepted_policy(tmp_path, monkey
     workspace = repo / ".ethos/workspace.toml"
     workspace.parent.mkdir(parents=True, exist_ok=True)
     workspace.write_text(
-        render_branch_policy(release_mirror="independent") + "canonical_sibling_worktrees = true\n"
+        '[branch_roles]\nrelease_mirror = "independent"\ncanonical_sibling_worktrees = true\n'
     )
     git(repo, "add", workspace.as_posix())
     git(repo, "commit", "-m", "retain previous complete policy")

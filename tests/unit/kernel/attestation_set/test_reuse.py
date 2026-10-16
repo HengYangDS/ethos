@@ -17,7 +17,7 @@ from tests.support.semantic import occurrence_attestation
 if TYPE_CHECKING:
     from pathlib import Path
 
-_CAPACITY = 1024 * 1024
+_CAPACITY = 256 * 1024
 
 
 @pytest.fixture(autouse=True)

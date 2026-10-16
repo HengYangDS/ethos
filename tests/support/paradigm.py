@@ -4,11 +4,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import yaml
+
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.report import repository_paradigm_report
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+_OPENSPEC = load_repository_paradigm().openspec
+PARADIGM_OPENSPEC_CONFIG = yaml.safe_dump(
+    {"schema": _OPENSPEC.artifact_schema, "rules": _OPENSPEC.rules.model_dump(mode="json")},
+    sort_keys=False,
+)
 CONFORMING = {
     "AGENTS.md": "# Agents\n",
     "README.md": "# Sample\n",
@@ -42,6 +50,7 @@ CONFORMING = {
     ".config/checks/vale/vale.ini": "",
     ".config/checks/vale/styles/Plain/Rule.yml": "",
     ".config/release/goreleaser/.goreleaser.yaml": "",
+    "openspec/config.yaml": PARADIGM_OPENSPEC_CONFIG,
 }
 
 

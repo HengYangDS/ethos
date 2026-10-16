@@ -122,12 +122,27 @@ The tracked `.ethos/` binding SHALL contain only `profile.toml`, `workspace.toml
 
 ### Requirement: OpenSpec carries the common rules
 
-Every governed repository SHALL use the `spec-driven` schema and include the ETHOS common artifact rules in `openspec/config.yaml`. Repository-specific rules SHALL only be appended to those common rules.
+Every governed repository that tracks OpenSpec artifacts SHALL select the `spec-driven` schema in `openspec/config.yaml`, and each artifact's rules SHALL begin with the common rules that the paradigm contract holds. Repository-specific rules SHALL only follow those common rules.
 
 #### Scenario: The common task rule is missing
 
 - **WHEN** a repository configuration omits the common tasks rule
 - **THEN** the paradigm reports the missing common rule.
+
+#### Scenario: Repository rules come before the common rules
+
+- **WHEN** a configuration lists only its own proposal rule, in a flow sequence
+- **THEN** the repair rewrites the proposal rules as a block sequence that begins with the common rules and keeps the repository's rule after them, leaving every other key and comment unchanged.
+
+#### Scenario: A repository selects its own schema
+
+- **WHEN** a configuration selects a schema other than `spec-driven`
+- **THEN** the paradigm reports the schema, and the repair leaves that gap report-only.
+
+#### Scenario: A repository tracks no OpenSpec artifact
+
+- **WHEN** a repository tracks no path under `openspec/`
+- **THEN** the paradigm reports no OpenSpec gap.
 
 ### Requirement: Commits follow one grammar
 

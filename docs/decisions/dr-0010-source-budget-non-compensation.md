@@ -83,7 +83,7 @@ real ownership—not mechanical file fragmentation.
 - `tests/unit/domain/test_source_budget.py` and
   `test_source_budget_public_determinism.py` cover non-compensation,
   classification, and deterministic output.
-- [Module Layout And Visibility Rules](../../rules/module_layout.md) prevents
+- [Module Layout And Visibility Rules](../../rules/module-layout.md) prevents
   size thresholds from authorizing suffix-flat or metric-driven splits.
 
 Revisit if direct measurement becomes nondeterministic, materially gameable, or

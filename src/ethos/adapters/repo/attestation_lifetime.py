@@ -94,7 +94,11 @@ def _ref_update_lifetime(attestation: Attestation) -> tuple[Lifetime, str]:
     elif isinstance(transition, str) and transition in _HEAD_BRANCH_FIELDS:
         branch = _text(policy, _HEAD_BRANCH_FIELDS[transition])
         head = _text(updates.get(f"refs/heads/{branch}"), "desired")
-        return ("head", head) if head else ("open-predicate", attestation.id)
+        if not head:
+            return "open-predicate", attestation.id
+        return (
+            ("lineage", f"accepted:{head}") if transition == "candidate.accept" else ("head", head)
+        )
     elif transition == "release.promote":
         tags = sorted(ref for ref in updates if ref.startswith("refs/tags/"))
         return ("lineage", tags[0]) if len(tags) == 1 else ("open-predicate", attestation.id)
@@ -177,8 +181,8 @@ def _latest_publications(members: Sequence[Attestation]) -> frozenset[str]:
 def _lineage_ended(key: str, facts: LifetimeFacts) -> bool:
     """Only repair lineage ends, once its pre-repair objects are gone.
 
-    Release tags may still exist on a peer, version admission refuses rollback against every
-    accepted identity, and the starter formation describes the repository itself.
+    Historical accepted bases remain valid maintenance-release inputs, tags may still exist on
+    a peer, version admission refuses rollback, and starter formation describes the repository.
     """
     if key.startswith("repair:"):
         return all(old in facts.absent_objects for old in key.removeprefix("repair:").split())
@@ -186,14 +190,11 @@ def _lineage_ended(key: str, facts: LifetimeFacts) -> bool:
 
 
 def _landing(attestation: Attestation) -> tuple[str, str] | None:
-    """The transition and branch of an integration or acceptance record, if it is one."""
+    """Select the integration holder of a record already classified as head-lived."""
     if attestation.predicate != "effect:git-ref-update":
         return None
     policy = _mapping(attestation.payload.body, "plan", "policy")
-    transition = policy.get("transition")
-    if not isinstance(transition, str) or transition not in _HEAD_BRANCH_FIELDS:
-        return None
-    return transition, _text(policy, _HEAD_BRANCH_FIELDS[transition])
+    return _text(policy, "transition"), _text(policy, "candidate_branch")
 
 
 @dataclass(frozen=True)

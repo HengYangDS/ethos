@@ -88,8 +88,20 @@ def test_lifetime_classifies_product_members() -> None:
         (_ref_update("lane.retire", {}, branch="work/a"), ("operation", "work/a")),
         (_member("proof:execution", subject=f"git:commit:{_C1}"), ("head", _C1)),
         (
+            _ref_update("commitment.rebind", {"refs/heads/work/a": (_C0, _C1)}),
+            ("operation", "work/a"),
+        ),
+        (
+            _ref_update("commit.identity-replace", {"refs/heads/dev": (_C0, _C1)}),
+            ("lineage", f"repair:{_C0}"),
+        ),
+        (
+            _member("effect:native", body={"branch": "work/a"}),
+            ("operation", "work/a"),
+        ),
+        (
             _ref_update("candidate.accept", {"refs/heads/dev": (_C0, _C1)}, accepted_branch="dev"),
-            ("head", _C1),
+            ("lineage", f"accepted:{_C1}"),
         ),
         (
             _ref_update(
@@ -128,6 +140,8 @@ def test_lifetime_classifies_product_members() -> None:
         _ref_update("maintainer.unknown", {"refs/heads/work/a": (_C0, _C1)}),
         _member("observation:git-merge-prepared", body={"observation": {"branch": 7}}),
         _member("proof:execution", subject="input:not-a-commit"),
+        _ref_update("candidate.accept", {}, accepted_branch="dev"),
+        _ref_update("commit.identity-replace", {}),
     ],
 )
 def test_unknown_or_malformed_members_are_open_predicate(member: Attestation) -> None:
@@ -152,13 +166,20 @@ def test_superseded_heads_end_unless_a_ref_or_latest_publication_selects_them() 
     """Head records end once no governed ref or peer's latest publication selects them."""
     old = (
         _member("proof:execution", subject=f"git:commit:{_C1}"),
-        _ref_update("candidate.accept", {"refs/heads/dev": (_C0, _C1)}, accepted_branch="dev"),
+        _ref_update(
+            "candidate.integrate",
+            {"refs/heads/candidate/dev": (_C0, _C1)},
+            candidate_branch="candidate/dev",
+        ),
         _publication(_C1, "github", hour=1),
     )
     current = (
         _member("proof:execution", subject=f"git:commit:{_C2}"),
         _ref_update(
-            "candidate.accept", {"refs/heads/dev": (_C1, _C2)}, hour=2, accepted_branch="dev"
+            "candidate.integrate",
+            {"refs/heads/candidate/dev": (_C1, _C2)},
+            hour=2,
+            candidate_branch="candidate/dev",
         ),
         _publication(_C2, "gitlab", hour=2),
     )
@@ -166,16 +187,35 @@ def test_superseded_heads_end_unless_a_ref_or_latest_publication_selects_them() 
 
     assert ended((*old, *current), _facts()) == frozenset()
     assert ended((*old, *current, caught_up), _facts()) == {member.id for member in old}
+    assert ended((*current, *old, caught_up), _facts()) == {member.id for member in old}
     assert ended((*old, *current, caught_up), _facts(pinned=(_C1,))) == frozenset()
+
+
+def test_historical_accepted_provenance_outlives_the_current_train() -> None:
+    """A maintenance lane may select a proved accepted base after later acceptance."""
+    historical = _ref_update(
+        "candidate.accept", {"refs/heads/dev": (_C0, _C1)}, accepted_branch="dev"
+    )
+    current = _ref_update(
+        "candidate.accept", {"refs/heads/dev": (_C1, _C2)}, hour=2, accepted_branch="dev"
+    )
+
+    assert historical.id not in ended((historical, current), _facts())
 
 
 def test_latest_landing_record_stays_while_its_ref_has_not_moved() -> None:
     """A transition recorded before its ref moves ends only once a later one supersedes it."""
     in_flight = _ref_update(
-        "candidate.accept", {"refs/heads/dev": (_C2, _C1)}, hour=5, accepted_branch="dev"
+        "candidate.integrate",
+        {"refs/heads/candidate/dev": (_C2, _C1)},
+        hour=5,
+        candidate_branch="candidate/dev",
     )
     later = _ref_update(
-        "candidate.accept", {"refs/heads/dev": (_C1, _C2)}, hour=6, accepted_branch="dev"
+        "candidate.integrate",
+        {"refs/heads/candidate/dev": (_C1, _C2)},
+        hour=6,
+        candidate_branch="candidate/dev",
     )
 
     assert ended((in_flight,), _facts()) == frozenset()

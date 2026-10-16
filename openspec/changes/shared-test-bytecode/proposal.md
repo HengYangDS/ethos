@@ -28,7 +28,8 @@ None. Shared bytecode changes no specified behavior; test outcomes and deadlines
 
 ## Impact
 
-`tools/ci/python_test_gate.py`, the Nox `tests` session in `tools/ci/sessions.py` and the gate's
-architecture test. Each proof's `unit-architecture` gate gains one parallel compile step and a
-lane-local cache under `build/runtime/tool-cache/`. Writes stay under `build/`, so the unprivileged
-hosted test identity keeps working.
+The new `tools/ci/python_test_bytecode.py`, the prefix hand-off in `tools/ci/python_test_gate.py`,
+the Nox `tests` session in `tools/ci/sessions.py` and a new architecture test. Each proof's
+`unit-architecture` gate gains one parallel compile step and a lane-local cache under
+`build/runtime/tool-cache/`. Writes stay under `build/`, so the unprivileged hosted test identity
+keeps working.

@@ -32,6 +32,9 @@ the standard library's, into one directory.
 - Enable the prefix only after `compileall` exits 0. A prefix also hides the interpreter's own
   standard-library bytecode, so a partial cache would be slower than none. On failure the gate keeps
   today's behavior and logs one `ethos_test_bytecode` line.
+- Keep compilation in `tools/ci/python_test_bytecode.py`; the gate only hands the prefix to test
+  processes. Compiling is a separate responsibility from running tests, and the gate is close to
+  the shared 512-line ceiling.
 - Compile in the Nox `tests` session before `run_tests`. Gate tests that drive `run_tests` with a
   substitute session stay unaffected.
 

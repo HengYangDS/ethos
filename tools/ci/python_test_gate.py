@@ -7,7 +7,6 @@ import os
 import re
 import shutil
 import sys
-import sysconfig
 import tempfile
 import tomllib
 from contextlib import contextmanager
@@ -25,6 +24,7 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.filesystem import remove_owned_path as remove_generated_path
 from ethos.repository.policy.quality_reports import junit_report
+from tools.ci import python_test_bytecode
 from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
@@ -38,8 +38,6 @@ PYTEST_CONFIG = ROOT / ".config/checks/pytest/pytest.toml"
 COVERAGE_CONFIG = ROOT / ".config/checks/coverage/coverage.toml"
 COVERAGE_POLICY = ROOT / ".config/checks/coverage/policy.toml"
 TARGETS = ("tests/unit", "tests/architecture")
-BYTECODE = Path("build/runtime/tool-cache/python-bytecode")
-_BYTECODE_SKIP = r"[\\/](?:idlelib|test|tests|tkinter|turtledemo)[\\/]"
 _FOOTPRINT_ENTRY_LIMIT = 50_000
 
 
@@ -81,13 +79,6 @@ def _absolute_environment_path(name: str) -> Path | None:
         return None
     path = Path(value)
     return path if path.is_absolute() else (ROOT / path).resolve()
-
-
-def _bytecode_sources() -> tuple[Path, ...]:
-    """Return the interpreter, environment and repository sources test processes import."""
-    paths = sysconfig.get_paths()
-    environment = dict.fromkeys(Path(paths[key]) for key in ("stdlib", "purelib", "platlib"))
-    return (*environment, ROOT / "src", ROOT / "tools")
 
 
 @dataclass(frozen=True, slots=True)
@@ -159,37 +150,8 @@ class PythonTestGate:
         return cls(Settings.load(node_package_supply=node_package_supply))
 
     def compile_bytecode(self) -> None:
-        """Compile hash-checked bytecode once; test processes reuse it and write none."""
-        prefix = ROOT / BYTECODE
-        stdlib = Path(sysconfig.get_paths()["stdlib"])
-        env = self._env()
-        completed = run_command(
-            ROOT,
-            (
-                str(PYTHON),
-                "-X",
-                f"pycache_prefix={prefix}",
-                "-m",
-                "compileall",
-                "-q",
-                "-j",
-                "0",
-                "--invalidation-mode",
-                "checked-hash",
-                "-x",
-                rf"^{re.escape(str(stdlib / 'site-packages'))}|{_BYTECODE_SKIP}",
-                *map(str, _bytecode_sources()),
-            ),
-            env={key: value for key, value in env.items() if value is not None},
-            remove_env=tuple(key for key, value in env.items() if value is None),
-        )
-        self.bytecode = prefix if completed.returncode == 0 else None
-        output = (completed.stdout + completed.stderr).strip().splitlines()
-        state = "compiled" if self.bytecode else f"unavailable exit={completed.returncode}"
-        with suppress(OSError, ValueError):
-            print(
-                f"ethos_test_bytecode state={state} prefix={prefix}", *output[-1:], file=sys.stderr
-            )
+        """Compile shared bytecode once; test processes read it and write none."""
+        self.bytecode = python_test_bytecode.compile_bytecode(ROOT, PYTHON, self._env())
 
     def run_tests(self, session: nox.Session) -> None:
         """Run unit and architecture tests with branch coverage."""

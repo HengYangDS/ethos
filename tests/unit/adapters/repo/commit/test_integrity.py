@@ -101,8 +101,8 @@ def test_range_consumes_one_native_trust_selection(
         return native(root, *args, **kwargs)
 
     def observed_object(root, *args, **kwargs):
-        if args[0] == "show" and args[-1] in revisions:
-            observations.append(args[-1])
+        if args[0] == "show":
+            observations.append(tuple(str(kwargs["stdin"]).splitlines()))
         return native_object(root, *args, **kwargs)
 
     monkeypatch.setattr(verification, "run_git", observed)
@@ -128,7 +128,7 @@ def test_range_consumes_one_native_trust_selection(
         violations = cast("list[dict[str, object]]", report["violations"])
         assert [item["commit"] for item in violations] == ([revisions[1]] if invalid_middle else [])
 
-    assert observations == revisions
+    assert observations == [tuple(revisions)]
     assert selections[0] == tuple(revisions)
     assert selections[1:] == ([(value,) for value in revisions] if invalid_middle else [])
     assert gaps == (["commit_signature_untrusted"] if invalid_middle else [])
@@ -140,7 +140,7 @@ def test_range_consumes_one_native_trust_selection(
             proposed_commit=parent,
             policy=commit_policy_from_text(candidate_text),
         ) == ["commit_trust_anchor_missing"]
-        assert observations == revisions * 2
+        assert observations == [tuple(revisions)] * 2
 
 
 @pytest.mark.parametrize("select_policy", [False, True])

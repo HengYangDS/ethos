@@ -11,6 +11,7 @@ import pytest
 import ethos.adapters.repo.commit.admission as admission
 import ethos.adapters.repo.commit.integration as integration
 import ethos.adapters.repo.trust_anchor.verification as verification
+from ethos.adapters.repo.git_object import observe_commit
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.repository.policy.commit import CommitPolicy
 from ethos.repository.policy.commit import commit_policy_from_text
@@ -153,12 +154,20 @@ def test_commit_message_report_matrix(
 @pytest.mark.parametrize("object_format", ["sha1", "sha256"])
 def test_fast_forward_range_is_oldest_first_and_excludes_old_history(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
     object_format: str,
 ) -> None:
     repo = init_git_repo(tmp_path / object_format, object_format=object_format)
     baseline = git(repo, "rev-parse", "HEAD")
     first = _commit(repo, "fix: first", "first", policy=_policy_text())
     second = _commit(repo, "fix: second", "second")
+    batches: list[tuple[str, ...]] = []
+
+    def observe(root: Path, revisions: tuple[str, ...]) -> tuple[dict[str, object], ...]:
+        batches.append(revisions)
+        return tuple(observe_commit(root, revision) for revision in revisions)
+
+    monkeypatch.setattr(integration, "observe_commits", observe, raising=False)
 
     report = _report(repo, proposed=second, remote=baseline)
 
@@ -167,6 +176,7 @@ def test_fast_forward_range_is_oldest_first_and_excludes_old_history(
     assert report["baseline_commit"] == baseline
     assert report["revisions"] == [first, second]
     assert report["checked_commit_count"] == 2
+    assert batches == [(first, second)]
 
 
 def test_non_fast_forward_range_is_the_newly_reachable_set(tmp_path: Path) -> None:
@@ -378,7 +388,11 @@ def test_object_policy_and_optional_trust_matrix(
             "required_gaps": [],
         },
     )
-    monkeypatch.setattr(integration, "observe_commit", admission.observe_commit)
+    monkeypatch.setattr(
+        integration,
+        "observe_commits",
+        lambda root, revisions: tuple(admission.observe_commit(root, item) for item in revisions),
+    )
     verified: list[str] = []
     monkeypatch.setattr(
         verification,

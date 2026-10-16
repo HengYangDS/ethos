@@ -15,7 +15,7 @@ from ethos.adapters.repo.commit.signature import repaired_peer_ref_provenance
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.git_object import observe_commit
+from ethos.adapters.repo.git_object import observe_commits
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.contracts.branch.roles import load_branch_role_policy
@@ -177,7 +177,7 @@ def _validate_commit_revisions(
     """Observe one exact sequence and enforce the union of its selected policies."""
     if not policies:
         return [], []
-    observations = [(revision, observe_commit(root, revision)) for revision in revisions]
+    observations = tuple(zip(revisions, observe_commits(root, revisions), strict=True))
     reports = [
         (policy, revision, evaluate_commit_policy(policy, observation, revision))
         for policy in policies

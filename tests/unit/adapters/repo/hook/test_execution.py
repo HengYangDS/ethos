@@ -134,8 +134,13 @@ def test_prepared_updates_validate_runtime_once_before_each_ref_policy(
         return {"verdict": "pass", "required_gaps": []}
 
     monkeypatch.setattr(hook_runtime, "current_runtime", observe_runtime)
-    monkeypatch.setattr(hook_runtime, "resolve_ref_move_policy", lambda *_: BranchRolePolicy())
-    monkeypatch.setattr(hook_runtime, "work_lane_ref_transition_report", admit_ref)
+    monkeypatch.setattr(
+        "ethos.adapters.admission.ref_move_policy.resolve_ref_move_policy",
+        lambda *_: BranchRolePolicy(),
+    )
+    monkeypatch.setattr(
+        "ethos.adapters.admission.transitions.work_lane_ref_transition_report", admit_ref
+    )
     refs = ["refs/heads/work/first", "refs/heads/work/second"]
     updates = "".join(f"{'a' * 40} {'b' * 40} {ref}\n" for ref in refs)
     assert execute_hook(
@@ -253,10 +258,11 @@ def test_candidate_transition_requires_one_bound_semantic_runner(
         "current_runtime",
         lambda _common: selected_runtime,
     )
-    monkeypatch.setattr(hook_runtime, "resolve_ref_move_policy", lambda *_args: policy)
     monkeypatch.setattr(
-        hook_runtime,
-        "worktree_records",
+        "ethos.adapters.admission.ref_move_policy.resolve_ref_move_policy", lambda *_args: policy
+    )
+    monkeypatch.setattr(
+        "ethos.adapters.repo.status.workspace.worktree_records",
         lambda *_args, **_kwargs: (
             []
             if runner == "missing"
@@ -266,7 +272,9 @@ def test_candidate_transition_requires_one_bound_semantic_runner(
 
     project_runtime = Mock(return_value={"required_gaps": [], "python": python.as_posix()})
 
-    monkeypatch.setattr(hook_runtime, "hook_runtime_binding", project_runtime)
+    monkeypatch.setattr(
+        "ethos.adapters.repo.hook.observation.hook_runtime_binding", project_runtime
+    )
     monkeypatch.setattr(
         hook_runtime,
         "run_git",
@@ -386,10 +394,11 @@ def test_reference_transaction_dispatch_preserves_role_and_phase_semantics(
 ) -> None:
     policy = BranchRolePolicy()
     monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
-    monkeypatch.setattr(hook_runtime, "resolve_ref_move_policy", lambda *_args: policy)
     monkeypatch.setattr(
-        hook_runtime,
-        "work_lane_ref_transition_report",
+        "ethos.adapters.admission.ref_move_policy.resolve_ref_move_policy", lambda *_args: policy
+    )
+    monkeypatch.setattr(
+        "ethos.adapters.admission.transitions.work_lane_ref_transition_report",
         lambda **_kwargs: {"verdict": "pass", "state": "work-prepared", "required_gaps": []},
     )
     monkeypatch.setattr(
@@ -466,8 +475,7 @@ def test_candidate_runner_requires_clean_binding_and_real_file(
     if binding["python"]:
         binding["python"] = str(tmp_path / str(binding["python"]))
     monkeypatch.setattr(
-        hook_runtime,
-        "hook_runtime_binding",
+        "ethos.adapters.repo.hook.observation.hook_runtime_binding",
         lambda _root, **_kwargs: binding,
     )
     result = execute_hook(
@@ -486,8 +494,7 @@ def test_reference_transition_policy_failure_is_blocked(
 ) -> None:
     monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
     monkeypatch.setattr(
-        hook_runtime,
-        "resolve_ref_move_policy",
+        "ethos.adapters.admission.ref_move_policy.resolve_ref_move_policy",
         lambda *_args: (_ for _ in ()).throw(TypeError("bad policy")),
     )
     result = execute_hook(

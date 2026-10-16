@@ -128,7 +128,7 @@ def test_prepared_branch_cannot_use_the_notification_path(tmp_path: Path) -> Non
     result = _protocol(tmp_path, "prepared", f"{'a' * 40} {'b' * 40} refs/heads/work/change\n")
     assert result.returncode == 1
     assert json.loads(result.stderr)["required_gaps"] == [
-        "unused authority initialized: ethos.adapters.admission"
+        "unused authority initialized: ethos.adapters.repo.runtime.selection"
     ]
 
 
@@ -292,6 +292,37 @@ def test_pre_push_evaluates_every_update_and_blocks_the_batch(
     assert json.loads(capsys.readouterr().err)["required_gaps"] == [
         "commit_subject_invalid:rejected"
     ]
+
+
+def test_empty_commit_admission_loads_only_its_own_authority(tmp_path: Path) -> None:
+    """Native empty-index hooks retain fresh runtime reads without ref admission."""
+    git(tmp_path, "init", "--quiet")
+    probe = """
+import sys
+from io import StringIO
+from pathlib import Path
+
+sys.path.insert(0, sys.argv[1])
+from ethos.adapters.repo.hook import admission
+from ethos.adapters.repo.hook.protocol import execute_hook
+
+observations = []
+admission.current_runtime = lambda common: observations.append(common)
+for _ in range(2):
+    assert execute_hook(Path.cwd(), 'pre-commit', (), stdin=StringIO()) == 0
+assert observations == [Path.cwd() / '.git'] * 2
+assert 'ethos.adapters.admission.ref_move_policy' not in sys.modules
+"""
+    result = subprocess.run(
+        [sys.executable, "-B", "-I", "-c", probe, str(REPOSITORY_ROOT / "src")],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == result.stderr == ""
 
 
 def test_tag_ref_movement_requires_admission(tmp_path: Path) -> None:

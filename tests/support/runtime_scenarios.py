@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING
 
 import ethos
 import ethos.adapters.repo.config_effects as config_effects
-import ethos.adapters.repo.hook.admission as hook_runtime
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 import ethos.adapters.repo.runtime.transition as identity_transition
 from ethos.adapters.repo.git import git_common_dir
@@ -370,13 +369,15 @@ def candidate_runtime(
         },
     )()
     for name, implementation in {
-        "resolve_ref_move_policy": lambda *_args: policy,
-        "worktree_records": lambda *_args, **_kwargs: [
+        "ethos.adapters.admission.ref_move_policy.resolve_ref_move_policy": lambda *_args: policy,
+        "ethos.adapters.repo.status.workspace.worktree_records": lambda *_args, **_kwargs: [
             {"branch": "candidate/dev", "path": candidate, "head": "b" * 40}
         ],
-        "run_git": lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, status, ""),
+        "ethos.adapters.repo.hook.admission.run_git": lambda *_args, **_kwargs: (
+            subprocess.CompletedProcess([], 0, status, "")
+        ),
     }.items():
-        monkeypatch.setattr(hook_runtime, name, implementation)
+        monkeypatch.setattr(name, implementation)
     return candidate
 
 

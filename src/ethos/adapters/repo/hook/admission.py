@@ -16,34 +16,21 @@ from tempfile import TemporaryDirectory
 from typing import IO
 from typing import TYPE_CHECKING
 
-from ruff import find_ruff_bin
-
-from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy
-from ethos.adapters.admission.ref_move_policy import signature_repair_ref_report
-from ethos.adapters.admission.role_rename import role_rename_ref_report
-from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.process import run_command
-from ethos.adapters.repo.commit.admission import commit_message_report
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
-from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.hook.protocol import blocked_report
 from ethos.adapters.repo.hook.protocol import passed_report
 from ethos.adapters.repo.runtime.filesystem import runtime_scripts
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import current_runtime
-from ethos.adapters.repo.status.workspace import worktree_records
-from ethos.adapters.repo.worktree_effects import restore_rejected_checkout_projection
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_CANDIDATE
 from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import report_verdict
-from ethos.repository.policy.quality.tool_configuration import NATIVE_TOOL_LOCATIONS
-from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -76,7 +63,9 @@ def admit_reference(
     if (
         report_verdict(report) != "pass"
         and _protected_checkout(root)
-        and restore_rejected_checkout_projection(root, target_head=new_value)
+        and import_module(
+            "ethos.adapters.repo.worktree_effects"
+        ).restore_rejected_checkout_projection(root, target_head=new_value)
     ):
         report["checkout_compensation"] = {
             "state": "restored",
@@ -90,7 +79,9 @@ def _commit_msg(
 ) -> dict[str, object]:
     if len(args) != 1:
         return blocked_report("commit-msg", "commit_message_file_missing")
-    return commit_message_report(root, Path(args[0]), index_env=index_env)
+    return import_module("ethos.adapters.repo.commit.admission").commit_message_report(
+        root, Path(args[0]), index_env=index_env
+    )
 
 
 def _pre_commit(
@@ -148,12 +139,13 @@ def _native_configuration_dependency(path: str, source: bytes, *, owner: str) ->
 
 def _reject_noncanonical_policy(root: Path, *, index_env: Mapping[str, str] | None) -> None:
     """Name native policy left at the root instead of silently skipping its check."""
-    carriers = {NATIVE_TOOL_LOCATIONS[tool] for tool in ("gitleaks", "gitleaks-ignore", "ruff")}
+    tools = import_module("ethos.repository.policy.quality.tool_configuration")
+    carriers = {
+        tools.NATIVE_TOOL_LOCATIONS[tool] for tool in ("gitleaks", "gitleaks-ignore", "ruff")
+    }
+    paradigm = import_module("ethos.contracts.paradigm.declaration").load_repository_paradigm()
     names = tuple(
-        name
-        for tool in load_repository_paradigm().tool
-        if tool.carrier in carriers
-        for name in tool.root_names
+        name for tool in paradigm.tool if tool.carrier in carriers for name in tool.root_names
     )
     retained = run_git(root, "ls-files", "--", *names, timeout=30, env=index_env).stdout.split()
     if retained:
@@ -166,13 +158,15 @@ def _native_hook_configuration(
     root: Path, *, index_env: Mapping[str, str] | None
 ) -> Generator[Path]:
     """Project incumbent native policy and its include closure without working-tree reads."""
+    tools = import_module("ethos.repository.policy.quality.tool_configuration")
     observed = run_git(root, "rev-parse", "--verify", "HEAD", check=False, timeout=30)
     head = observed.stdout.strip() if not observed.returncode else ""
     _reject_noncanonical_policy(root, index_env=index_env)
     incumbent = _git_paths(root, "ls-tree", "-r", "--name-only", head) if head else ()
     indexed = _git_paths(root, "ls-files", index_env=index_env)
     policies = {
-        tool: native_tool_configuration(indexed, tool) or native_tool_configuration(incumbent, tool)
+        tool: tools.native_tool_configuration(indexed, tool)
+        or tools.native_tool_configuration(incumbent, tool)
         for tool in ("gitleaks", "ruff", "gitleaks-ignore")
     }
     with TemporaryDirectory(prefix="ethos-hook-config-") as temporary:
@@ -209,7 +203,8 @@ def _native_hook_configuration(
 def _scan_staged_secrets(
     root: Path, *, configuration: Path, index_env: Mapping[str, str] | None = None
 ) -> None:
-    policy = configuration / NATIVE_TOOL_LOCATIONS["gitleaks"]
+    tools = import_module("ethos.repository.policy.quality.tool_configuration")
+    policy = configuration / tools.NATIVE_TOOL_LOCATIONS["gitleaks"]
     if not policy.is_file():
         return
     executable = shutil.which("gitleaks")
@@ -235,7 +230,7 @@ def _scan_staged_secrets(
             "--config",
             str(policy),
             "--gitleaks-ignore-path",
-            str(configuration / NATIVE_TOOL_LOCATIONS["gitleaks-ignore"]),
+            str(configuration / tools.NATIVE_TOOL_LOCATIONS["gitleaks-ignore"]),
             "--redact=100",
             "--no-banner",
             configuration.as_posix(),
@@ -255,8 +250,9 @@ def _check_staged_python_format(
     configuration: Path,
     index_env: Mapping[str, str] | None = None,
 ) -> None:
+    tools = import_module("ethos.repository.policy.quality.tool_configuration")
     paths = tuple(path for path in staged if path.endswith((".py", ".pyi")))
-    policy = NATIVE_TOOL_LOCATIONS["ruff"]
+    policy = tools.NATIVE_TOOL_LOCATIONS["ruff"]
     if not paths or not (configuration / policy).is_file():
         return
     indexed = set(
@@ -268,7 +264,7 @@ def _check_staged_python_format(
     if not paths:
         return
     try:
-        executable = Path(find_ruff_bin())
+        executable = Path(import_module("ruff").find_ruff_bin())
         expected = runtime_scripts(Path(sys.prefix)) / ("ruff.exe" if os.name == "nt" else "ruff")
         if executable.resolve() != expected.resolve() or not os.access(executable, os.X_OK):
             raise FileNotFoundError
@@ -348,14 +344,17 @@ def _prepared_reference_report(
     *,
     selected_runtime: SelectedRuntime,
 ) -> dict[str, object]:
-    repair = signature_repair_ref_report(
+    ref_policy = import_module("ethos.adapters.admission.ref_move_policy")
+    repair = ref_policy.signature_repair_ref_report(
         root, ref_name, old_value, new_value, phase="prepared"
-    ) or role_rename_ref_report(root, ref_name, old_value, new_value)
+    ) or import_module("ethos.adapters.admission.role_rename").role_rename_ref_report(
+        root, ref_name, old_value, new_value
+    )
     if repair is not None:
         return repair
     branch = ref_name.removeprefix("refs/heads/")
     try:
-        policy = resolve_ref_move_policy(root, ref_name, old_value, new_value)
+        policy = ref_policy.resolve_ref_move_policy(root, ref_name, old_value, new_value)
     except (TypeError, ValueError):
         return blocked_report("reference-transaction", "ref_move_policy_unavailable", branch=branch)
     protected = branch == policy.accepted_branch or (
@@ -372,7 +371,9 @@ def _prepared_reference_report(
             selected_runtime=selected_runtime,
         )
     elif policy.role_for_branch(branch) == ROLE_WORK_LANE:
-        report = work_lane_ref_transition_report(
+        report = import_module(
+            "ethos.adapters.admission.transitions"
+        ).work_lane_ref_transition_report(
             root=root,
             phase="prepared",
             ref_name=ref_name,
@@ -407,8 +408,12 @@ def _candidate_report(
     *,
     selected_runtime: SelectedRuntime,
 ) -> dict[str, object]:
-    policy = resolve_ref_move_policy(root, ref_name, old_value, new_value)
-    records = worktree_records(root, current_path=root, policy=policy)
+    policy = import_module("ethos.adapters.admission.ref_move_policy").resolve_ref_move_policy(
+        root, ref_name, old_value, new_value
+    )
+    records = import_module("ethos.adapters.repo.status.workspace").worktree_records(
+        root, current_path=root, policy=policy
+    )
     record = next((item for item in records if item.get("branch") == candidate_branch), {})
     candidate = Path(str(record.get("path") or ""))
     if (
@@ -458,7 +463,9 @@ def _candidate_python(
     *,
     selected_runtime: SelectedRuntime,
 ) -> Path | None:
-    binding = hook_runtime_binding(candidate, selected_runtime=selected_runtime)
+    binding = import_module("ethos.adapters.repo.hook.observation").hook_runtime_binding(
+        candidate, selected_runtime=selected_runtime
+    )
     if binding["required_gaps"]:
         return None
     python = Path(binding["python"])

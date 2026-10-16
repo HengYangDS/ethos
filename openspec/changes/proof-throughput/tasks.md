@@ -71,7 +71,7 @@ remain at signed source `8878c8406a06fa592c41dbb291578c2f2114de51` and its nativ
 
 ## 5. Process Lifetimes and Resource Recovery
 
-- [x] 5.1 Terminate owned POSIX command groups on timeout and cancellation with native regressions. Verify the owning native regression.
+- [x] 5.1 Close owned POSIX groups on timeout and public CLI cancellation through native Nox/pytest; verify one cancellation budget, bounded hard-kill fallback, unchanged timeout bytes and sibling isolation. Evidence: `build/evidence/native-adopter-repair-20261011/timeout-nested-cancellation-shared-budget-native-final-20261016.junit.xml`.
 - [x] 5.2 Route command gates through the process owner and verify native cancellation and failure reporting.
 - [x] 5.3 Distinguish process creation from communication and cleanup failures at the process owner. Verify the owning native regression.
 - [x] 5.4 Resolve exited-group cancellation races without suppressing live-group cleanup failures. Verify the owning native regression.

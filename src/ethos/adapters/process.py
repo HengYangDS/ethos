@@ -116,7 +116,9 @@ class CommandScope:
         """Finish the registered native lifetime even when handle handoff is interrupted."""
         with defer_interruptions():
             if exc_type is not None or process.returncode is None:
-                self.terminate(process)
+                self.terminate(
+                    process, grace_seconds=0.5 if isinstance(exc, KeyboardInterrupt) else 1
+                )
             try:
                 if os.name == "nt" and isinstance(exc, subprocess.TimeoutExpired):
                     exc.stdout, exc.stderr = process.communicate()
@@ -129,27 +131,20 @@ class CommandScope:
         with self._lock:
             self._processes.discard(process)
 
-    def terminate(self, process: subprocess.Popen[Any]) -> None:
+    def terminate(self, process: subprocess.Popen[Any], *, grace_seconds: float = 1) -> None:
         """Fence both cleanup initiators; the command caller still owns reaping."""
         with self._lock:
             if process in self._processes:
-                _terminate_command(process)
+                _terminate_commands((process,), grace_seconds=grace_seconds)
                 self._processes.discard(process)
 
     def cancel(self) -> None:
-        """Stop owned groups before thread-pool shutdown waits on their callers."""
-        errors: list[OSError] = []
+        """Fan out cancellation within one budget before thread-pool shutdown waits."""
         with self._lock:
             self._cancelled = True
             processes = tuple(self._processes)
-        for process in processes:
-            try:
-                self.terminate(process)
-            except OSError as error:
-                errors.append(error)
-        if errors:
-            message = "command_scope_cleanup_failed"
-            raise ExceptionGroup(message, errors)
+            _terminate_commands(processes, grace_seconds=0.5)
+            self._processes.difference_update(processes)
 
 
 _COMMAND_SCOPE: ContextVar[CommandScope | None] = ContextVar("command_scope", default=None)
@@ -414,7 +409,10 @@ def _execute_command(
     stdin = kwargs.pop("input")
     text_mode = kwargs["text"]
     scope = _COMMAND_SCOPE.get() or CommandScope()
-    with ExitStack() as resources:
+    with (
+        ExitStack() as resources,
+        _finite_output(enabled=spool_stdout and os.name == "posix") as finite_output,
+    ):
         finite_input = None
         if stdin is not None:
             finite_input = resources.enter_context(
@@ -422,9 +420,6 @@ def _execute_command(
             )
             finite_input.write(stdin)
             finite_input.seek(0)
-        finite_output = resources.enter_context(
-            _finite_output(enabled=spool_stdout and os.name == "posix")
-        )
         kwargs["text"] = text_mode and finite_output is None
         try:
             process = scope.start(
@@ -467,7 +462,7 @@ def _execute_command(
 
 @contextmanager
 def _finite_output(*, enabled: bool) -> Generator[tuple[BinaryIO, BinaryIO] | None]:
-    """Capture both finite streams after owned cleanup, without recovery pipe waits."""
+    """Snapshot timeout bytes before cleanup; close both captures without pipe waits."""
     if not enabled:
         yield None
         return
@@ -482,14 +477,45 @@ def _finite_output(*, enabled: bool) -> Generator[tuple[BinaryIO, BinaryIO] | No
             raise
 
 
-def _terminate_command(process: subprocess.Popen[Any]) -> None:
-    """Terminate owned processes; only observed group absence resolves a kill race."""
+def _terminate_commands(
+    processes: tuple[subprocess.Popen[Any], ...], *, grace_seconds: float
+) -> None:
+    """Interrupt all owned leaders, then close their groups within one cleanup budget."""
+    errors: list[OSError] = []
+    for process in processes:
+        try:
+            if os.name == "posix" and process.poll() is None:
+                os.killpg(process.pid, signal.SIGINT)
+        except ProcessLookupError:
+            pass
+        except OSError as error:
+            errors.append(error)
+    deadline = monotonic() + grace_seconds
+    for process in processes:
+        try:
+            _terminate_command(process, deadline=deadline)
+        except OSError as error:
+            errors.append(error)
+    if len(errors) == 1:
+        raise errors[0]
+    if errors:
+        message = "command_scope_cleanup_failed"
+        raise ExceptionGroup(message, errors)
+
+
+def _terminate_command(process: subprocess.Popen[Any], *, deadline: float | None = None) -> None:
+    """Close an owned group; only observed absence resolves a native kill race."""
     with suppress(ProcessLookupError):
         if os.name != "posix":
             process.kill()
             return
         try:
-            os.killpg(process.pid, signal.SIGKILL)
+            try:
+                if deadline is not None:
+                    with suppress(subprocess.TimeoutExpired):
+                        process.wait(timeout=max(0, deadline - monotonic()))
+            finally:
+                os.killpg(process.pid, signal.SIGKILL)
         except PermissionError:
             if process.poll() is None:
                 raise

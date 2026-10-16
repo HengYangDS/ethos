@@ -11,7 +11,9 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 from contextlib import nullcontext
+from contextlib import suppress
 from contextvars import copy_context
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -531,3 +533,53 @@ def test_command_failure_closes_owned_descendants(
         assert closed()
         assert not fallback, "caller cancellation waited for external rescue"
         assert sum(call.args[1] == signal.SIGKILL for call in signals.call_args_list) == 1
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX nested command-group signals")
+@pytest.mark.parametrize("boundary", ["command-timeout", "cli-termination"])
+def test_catchable_cancellation_closes_nested_registered_groups(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str
+) -> None:
+    """A live nested owner gets cancellation before its caller can hard-kill it."""
+    marker = tmp_path / "owned-child.pid"
+
+    def after_ready(parent, _options):
+        if boundary == "cli-termination":
+            parent.send_signal(signal.SIGTERM)
+
+    with ready_descendant(monkeypatch, after_ready) as (body, closed):
+        child = (
+            "import os; from pathlib import Path; "
+            f"Path({str(marker)!r}).write_text(str(os.getpid())); " + body
+        )
+        launch = (
+            "import sys; from pathlib import Path; from types import SimpleNamespace; "
+            f"sys.path.insert(0, {str(Path(process_adapter.__file__).resolve().parents[2])!r}); "
+            "from ethos.adapters.process import run_command; from ethos import cli; "
+            f"command = (sys.executable, '-B', '-I', '-c', {child!r}); "
+            "application = SimpleNamespace(load_command_groups=lambda _: None, "
+            "dispatch_arguments=lambda args: args, "
+            "app=lambda _: run_command(Path.cwd(), command, timeout=10)); "
+            "native_import = cli.import_module; "
+            "cli.import_module = lambda name: application if "
+            "name == 'ethos.surface.cli.application' else native_import(name); "
+            "sys.argv = ['ethos', 'probe']; cli.main()"
+        )
+        try:
+            failure = (
+                pytest.raises(subprocess.TimeoutExpired)
+                if boundary == "command-timeout"
+                else nullcontext()
+            )
+            with failure:
+                result = process_adapter.run_command(
+                    tmp_path,
+                    (sys.executable, "-B", "-I", "-c", launch),
+                    timeout=0.2 if boundary == "command-timeout" else 10,
+                )
+                assert result.returncode != 0
+            assert closed(), "catchable cancellation left the registered child's socket open"
+        finally:
+            if marker.exists():
+                with suppress(ProcessLookupError):
+                    os.killpg(int(marker.read_text()), signal.SIGKILL)

@@ -5,10 +5,11 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sys
 import tomllib
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
-from concurrent.futures import wait
+from contextlib import ExitStack
 from contextvars import copy_context
 from datetime import UTC
 from datetime import datetime
@@ -19,7 +20,6 @@ from typing import cast
 import tools.ci.delivery.acceptance.adopter as adopter_fixture
 import tools.ci.delivery.acceptance.brownfield as brownfield_acceptance
 import tools.ci.delivery.acceptance.invocation as cli_invocation
-import tools.ci.delivery.acceptance.lane as lane_acceptance
 import tools.ci.delivery.acceptance.runtime as runtime_acceptance
 from ethos.adapters.process import command_scope
 from ethos.adapters.process import defer_interruptions
@@ -33,6 +33,7 @@ from ethos.adapters.repo.runtime.materialization.dependency_supply import (
 )
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.adapters.repo.runtime.selection import current_runtime
+from tools.ci.delivery.acceptance.invocation import observe_stage
 from tools.ci.delivery.acceptance.receipt import package_acceptance_evidence
 from tools.ci.delivery.acceptance.receipt import package_failure_evidence
 from tools.ci.delivery.artifact import require_artifact_current
@@ -41,13 +42,11 @@ from tools.ci.delivery.distribution import package_runtime
 from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
     from concurrent.futures import Future
 
     import nox
 
     from ethos.adapters.repo.runtime.transition import PackageArtifact
-    from ethos.repository.release.identity import BuildIdentity
 
 ROOT = Path(__file__).resolve().parents[4]
 ARTIFACTS = ROOT / "build/artifacts/python"
@@ -76,9 +75,10 @@ def _run(
     cwd: Path = ROOT,
     env: dict[str, str] | None = None,
 ) -> str:
-    completed = run_command(
-        cwd, command, env=env, inherit_environment=env is None, remove_env_prefixes=("GIT_",)
-    )
+    with observe_stage(cli_invocation.command_label(command), kind="process", target=cwd.name):
+        completed = run_command(
+            cwd, command, env=env, inherit_environment=env is None, remove_env_prefixes=("GIT_",)
+        )
     if completed.returncode:
         detail = completed.stderr.strip() or completed.stdout.strip()
         rendered = " ".join(command)
@@ -301,102 +301,6 @@ def observe_installed_package(smoke: Path, adopter: Path) -> tuple[str, str, dic
     return origin, version, command_plane
 
 
-def _activation_observation(report: Mapping[str, object]) -> dict[str, object]:
-    """Project one successful runtime activation into stable receipt evidence."""
-    return {
-        "state": "passed",
-        "runtime_digest": str(report["runtime_digest"]),
-        "wheel_sha256": str(report["wheel_sha256"]),
-        "source_commit": str(report["source_commit"]),
-        "source_tree": str(report["source_tree"]),
-    }
-
-
-def observe_runtime_lifecycle(
-    *,
-    installed_ethos: Path,
-    bootstrap_environment: Path,
-    bootstrap_repository: Path,
-    repository: Path,
-    build: BuildIdentity,
-    wheel_sha256: str,
-    environment: Mapping[str, str],
-    bootstrap_users: tuple[Future[dict[str, object]], ...] = (),
-) -> dict[str, Mapping[str, object]]:
-    """Execute and post-observe one complete package-only runtime lifecycle.
-
-    Work that still runs the installed console finishes before the bootstrap
-    environment is removed; a failed activation removes it at once.
-    """
-    adopter_fixture.materialize_bootstrap_repository(bootstrap_repository, run=_run)
-    candidate = adopter_fixture.prepare_acceptance_topology(repository, run=_run)
-    try:
-        bootstrap_report = runtime_acceptance.activate_from_entrypoint(
-            installed_ethos,
-            bootstrap_repository,
-            environment=environment,
-        )
-        bootstrap_python = runtime_acceptance.require_manifest(
-            bootstrap_report,
-            bootstrap_repository,
-            build=build,
-            wheel_sha256=wheel_sha256,
-        )
-        successor_report = runtime_acceptance.activate_from_runtime(
-            bootstrap_python,
-            repository,
-            environment=environment,
-        )
-        runtime_python = runtime_acceptance.require_manifest(
-            successor_report,
-            repository,
-            build=build,
-            wheel_sha256=wheel_sha256,
-        )
-        wait(bootstrap_users)
-    finally:
-        if bootstrap_environment.exists():
-            shutil.rmtree(bootstrap_environment)
-        remove_generated_tree(bootstrap_repository)
-
-    runtime_digest = str(successor_report["runtime_digest"])
-    hooks_path = Path(str(successor_report["hooks_path"]))
-    return {
-        "hook_activation": _activation_observation(bootstrap_report),
-        "successor_activation": {
-            **_activation_observation(successor_report),
-            "candidate_worktree": candidate.as_posix(),
-        },
-        "development_dependencies": runtime_acceptance.require_production_dependencies(
-            runtime_python, environment=environment
-        ),
-        "immutable_identity": runtime_acceptance.require_version_identity(
-            runtime_python,
-            build=build,
-            wheel_sha256=wheel_sha256,
-            runtime_digest=runtime_digest,
-            environment=environment,
-        ),
-        "relocation_repair": runtime_acceptance.prove_repair(
-            runtime_python,
-            repository,
-            hooks_path=hooks_path,
-            environment=environment,
-        ),
-        "signature_repair": lane_acceptance.prove_signature_repair(
-            runtime_python,
-            repository,
-            environment=environment,
-            historical=True,
-        ),
-        **lane_acceptance.prove_lifecycle(
-            runtime_python,
-            repository,
-            environment=environment,
-        ),
-    }
-
-
 def _observe_package(
     session: nox.Session, selected: PackageArtifact, *, head: str
 ) -> dict[str, object]:
@@ -404,22 +308,25 @@ def _observe_package(
     wheel = selected.path
     smoke, adopter = WORK / "venv", WORK / "adopter"
     uv, source_python = RUNTIME.script("uv"), RUNTIME.python
-    _run(uv, "venv", "--offline", "--python", str(source_python), str(smoke))
-    requirements = prepare_locked_requirements(ROOT, WORK, source_python)
-    install_locked_runtime(
-        ROOT,
-        source_python,
-        _venv_executable(smoke, "python"),
-        wheel,
-        requirements,
-    )
-    adopter_fixture.materialize_adopter(
-        adopter,
-        openspec_config=ROOT / "openspec/config.yaml",
-        run=_run,
-    )
-    line_endings = adopter_fixture.line_ending_conformance(adopter, run=_run)
-    origin, version, command_plane = observe_installed_package(smoke, adopter)
+    with observe_stage("locked_package_installation"):
+        _run(uv, "venv", "--offline", "--python", str(source_python), str(smoke))
+        requirements = prepare_locked_requirements(ROOT, WORK, source_python)
+        install_locked_runtime(
+            ROOT,
+            source_python,
+            _venv_executable(smoke, "python"),
+            wheel,
+            requirements,
+        )
+    with observe_stage("adopter_preparation"):
+        adopter_fixture.materialize_adopter(
+            adopter,
+            openspec_config=ROOT / "openspec/config.yaml",
+            run=_run,
+        )
+        line_endings = adopter_fixture.line_ending_conformance(adopter, run=_run)
+    with observe_stage("installed_command_plane"):
+        origin, version, command_plane = observe_installed_package(smoke, adopter)
     installed_ethos = _venv_executable(smoke, "ethos")
     build, wheel_sha256 = selected.build, selected.sha256
     package_environment = {**independent_host_environment()[0], "UV_OFFLINE": "1"}
@@ -438,13 +345,16 @@ def _observe_package(
                 environment=package_environment,
             ),
         )
-        independent_host = observe_independent_command_plane(installed_ethos, adopter)
-        _run(uv, "pip", "check", "--python", str(_venv_executable(smoke, "python")))
-        resources = _verify_resources(wheel)
-        brownfield = brownfield_acceptance.prove_brownfield(
-            installed_ethos, WORK, environment=package_environment, run=_run
-        )
-        lifecycle = observe_runtime_lifecycle(
+        with observe_stage("host_independence"):
+            independent_host = observe_independent_command_plane(installed_ethos, adopter)
+            _run(uv, "pip", "check", "--python", str(_venv_executable(smoke, "python")))
+        with observe_stage("wheel_resources"):
+            resources = _verify_resources(wheel)
+        with observe_stage("brownfield"):
+            brownfield = brownfield_acceptance.prove_brownfield(
+                installed_ethos, WORK, environment=package_environment, run=_run
+            )
+        lifecycle = runtime_acceptance.observe_lifecycle(
             installed_ethos=installed_ethos,
             bootstrap_environment=smoke,
             bootstrap_repository=WORK / "bootstrap-repository",
@@ -453,14 +363,16 @@ def _observe_package(
             wheel_sha256=wheel_sha256,
             environment=package_environment,
             bootstrap_users=(formation_run,),
+            run=_run,
         )
         formation = formation_run.result()
     runtime = current_runtime(Path(git_common_dir(adopter)), expected_build=build).root
-    distribution = package_runtime(
-        runtime,
-        wheel,
-        WORK / "native" / f"ethos-{build.distribution_version}.tar.gz",
-    )
+    with observe_stage("runtime_archive"):
+        distribution = package_runtime(
+            runtime,
+            wheel,
+            WORK / "native" / f"ethos-{build.distribution_version}.tar.gz",
+        )
     distribution["shared_supply"] = runtime_acceptance.prove_shared_supply(
         Path(str(distribution["path"])), WORK, environment=package_environment
     )
@@ -498,51 +410,70 @@ def run(
     output = evidence if evidence is not None else EVIDENCE
     selected = artifact or selected_wheel(ROOT, head=head, artifacts=ARTIFACTS)
     require_artifact_current(selected, head=head, repo=ROOT)
-    terminal = output.with_suffix(".terminal.json")
-    with command_scope(handle_termination=True) as scope:
+    terminal, events = output.with_suffix(".terminal.json"), output.with_suffix(".events.jsonl")
+    with (
+        command_scope(handle_termination=True) as scope,
+        cli_invocation.acceptance_observation(events, head=head, wheel_sha256=selected.sha256),
+    ):
         try:
+
+            def retain_failure(error: BaseException) -> None:
+                pending = terminal.with_suffix(".tmp")
+                try:
+                    pending.write_text(
+                        json.dumps(
+                            package_failure_evidence(
+                                head=head,
+                                wheel_sha256=selected.sha256,
+                                error=error,
+                                owned_work_absent=not os.path.lexists(WORK),
+                                acceptance_written=output.exists(),
+                                generated_at=datetime.now(UTC),
+                            ),
+                            indent=2,
+                            sort_keys=True,
+                        )
+                        + "\n",
+                        encoding="utf-8",
+                    )
+                    pending.replace(terminal)
+                finally:
+                    pending.unlink(missing_ok=True)
+
             try:
-                with defer_interruptions():
+                with defer_interruptions(), observe_stage("setup"):
                     if WORK.exists():
                         remove_generated_tree(WORK)
                     output.unlink(missing_ok=True)
                     terminal.unlink(missing_ok=True)
                     WORK.mkdir(parents=True)
-                payload = _observe_package(session, selected, head=head)
+                with observe_stage("package_acceptance"):
+                    payload = {
+                        **_observe_package(session, selected, head=head),
+                        "execution_events": events.as_posix(),
+                    }
                 if artifact is not None:
                     payload["command"] = (
                         cast("str", payload["command"]) + f" -- --release --expect-head {head}"
                     )
-            except BaseException:
+            except BaseException as error:
                 with defer_interruptions():
-                    scope.cancel()
-                raise
+                    try:
+                        retain_failure(error)
+                    finally:
+                        scope.cancel()
+                    raise
             finally:
-                with defer_interruptions():
-                    remove_generated_tree(WORK)
+                with defer_interruptions(), ExitStack() as cleanup:
+                    cleanup.callback(remove_generated_tree, WORK)
+                    with observe_stage("owned_cleanup"):
+                        cleanup.__exit__(*sys.exc_info())
             with defer_interruptions():
                 rendered = json.dumps(payload, indent=2, sort_keys=True)
                 session.log(rendered)
-                output.parent.mkdir(parents=True, exist_ok=True)
                 output.write_text(rendered + "\n", encoding="utf-8")
         except BaseException as error:
             with defer_interruptions():
                 output.unlink(missing_ok=True)
-                terminal.parent.mkdir(parents=True, exist_ok=True)
-                terminal.write_text(
-                    json.dumps(
-                        package_failure_evidence(
-                            head=head,
-                            wheel_sha256=selected.sha256,
-                            error=error,
-                            owned_work_absent=not os.path.lexists(WORK),
-                            acceptance_written=output.exists(),
-                            generated_at=datetime.now(UTC),
-                        ),
-                        indent=2,
-                        sort_keys=True,
-                    )
-                    + "\n",
-                    encoding="utf-8",
-                )
+                retain_failure(error)
                 raise

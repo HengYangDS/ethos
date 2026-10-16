@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import os
 import shlex
+import shutil
+import sys
 import tarfile
+from concurrent.futures import wait
+from contextlib import ExitStack
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -14,14 +18,21 @@ from ethos.adapters.repo.runtime.materialization.effect import remove_generated_
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from tools.ci.delivery.acceptance import adopter as adopter_fixture
+from tools.ci.delivery.acceptance import lane as lane_acceptance
 from tools.ci.delivery.acceptance.invocation import invoke
+from tools.ci.delivery.acceptance.invocation import observe_stage
+from tools.ci.delivery.acceptance.receipt import runtime_activation_evidence
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+    from concurrent.futures import Future
 
     from ethos.repository.release.identity import BuildIdentity
+    from tools.ci.delivery.acceptance.adopter import CommandRunner
 
 
+@observe_stage("hook_activation")
 def activate_from_entrypoint(
     executable: Path,
     repo: Path,
@@ -32,6 +43,7 @@ def activate_from_entrypoint(
     return _activate((executable.as_posix(),), repo, environment=environment)
 
 
+@observe_stage("successor_activation")
 def activate_from_runtime(
     python: Path,
     repo: Path,
@@ -106,6 +118,7 @@ def require_manifest(
     return selected.python
 
 
+@observe_stage("development_dependencies")
 def require_production_dependencies(
     python: Path, *, environment: Mapping[str, str]
 ) -> dict[str, object]:
@@ -153,6 +166,7 @@ with TemporaryDirectory(prefix="ethos-installed-format-") as temporary:
     return {"state": "passed", "excluded": ["pytest"], "staged_format": "passed"}
 
 
+@observe_stage("immutable_identity")
 def require_version_identity(
     python: Path,
     *,
@@ -183,6 +197,7 @@ def require_version_identity(
     return {"state": "passed", "identity": expected}
 
 
+@observe_stage("relocation_repair")
 def prove_repair(
     python: Path,
     repo: Path,
@@ -275,6 +290,7 @@ def _prove_external_supply_recovery(
         raise RuntimeError(message)
 
 
+@observe_stage("shared_supply")
 def prove_shared_supply(
     archive: Path,
     work: Path,
@@ -283,13 +299,14 @@ def prove_shared_supply(
 ) -> dict[str, object]:
     """Exercise independent repositories against the same delivered immutable supply."""
     installed = work / "shared-installation"
-    with tarfile.open(archive) as packed:
+    with observe_stage("shared_archive_extraction"), tarfile.open(archive) as packed:
         packed.extractall(installed, filter="tar")
     generations = tuple((installed / "ethos/runtime").iterdir())
     if len(generations) != 1:
         message = "shared_supply_generation_ambiguous"
         raise ValueError(message)
-    selected = require_selected_runtime(generations[0])
+    with observe_stage("shared_source_validation"):
+        selected = require_selected_runtime(generations[0])
     package_prefix = (str(selected.python), "-B", "-I", "-m", "ethos.cli")
     scoped_environment = {**environment, "XDG_DATA_HOME": str(work / "host-data")}
     pinned_root = (
@@ -299,7 +316,8 @@ def prove_shared_supply(
     selectors, databases = [], []
     for repo in repositories:
         run_command(work, ("git", "init", "--quiet", "--initial-branch=dev", str(repo)), check=True)
-        data = _activate(package_prefix, repo, environment=scoped_environment)
+        with observe_stage("shared_repository_binding", target=repo.name):
+            data = _activate(package_prefix, repo, environment=scoped_environment)
         common = Path(git_common_dir(repo))
         selector = common / "ethos/runtime/CURRENT"
         selectors.append(selector)
@@ -310,7 +328,8 @@ def prove_shared_supply(
         if Path(str(data.get("runtime_manifest_path") or "")) != pinned_root / "manifest.json":
             message = "shared_supply_was_reselected"
             raise RuntimeError(message)
-    pinned = require_selected_runtime(pinned_root)
+    with observe_stage("shared_target_validation"):
+        pinned = require_selected_runtime(pinned_root)
     prefix = (str(pinned.python), "-B", "-I", "-m", "ethos.cli")
     original = selectors[0].read_bytes()
     if (
@@ -376,3 +395,93 @@ def _prove_package_carrier_removal(
         if code or not isinstance(runtime, dict) or runtime.get("current") is not True:
             message = f"shared_supply_source_removal_failed:{detail}"
             raise RuntimeError(message)
+
+
+@observe_stage("runtime_lifecycle")
+def observe_lifecycle(
+    *,
+    installed_ethos: Path,
+    bootstrap_environment: Path,
+    bootstrap_repository: Path,
+    repository: Path,
+    build: BuildIdentity,
+    wheel_sha256: str,
+    environment: Mapping[str, str],
+    run: CommandRunner,
+    bootstrap_users: tuple[Future[dict[str, object]], ...] = (),
+) -> dict[str, Mapping[str, object]]:
+    """Execute and post-observe one complete package-only runtime lifecycle.
+
+    Work that still runs the installed console finishes before the bootstrap
+    environment is removed; a failed activation removes it at once.
+    """
+    adopter_fixture.materialize_bootstrap_repository(bootstrap_repository, run=run)
+    candidate = adopter_fixture.prepare_acceptance_topology(repository, run=run)
+    try:
+        bootstrap_report = activate_from_entrypoint(
+            installed_ethos,
+            bootstrap_repository,
+            environment=environment,
+        )
+        bootstrap_python = require_manifest(
+            bootstrap_report,
+            bootstrap_repository,
+            build=build,
+            wheel_sha256=wheel_sha256,
+        )
+        successor_report = activate_from_runtime(
+            bootstrap_python,
+            repository,
+            environment=environment,
+        )
+        runtime_python = require_manifest(
+            successor_report,
+            repository,
+            build=build,
+            wheel_sha256=wheel_sha256,
+        )
+        wait(bootstrap_users)
+    finally:
+        with ExitStack() as cleanup:
+            cleanup.callback(remove_generated_tree, bootstrap_repository)
+            if bootstrap_environment.exists():
+                cleanup.callback(shutil.rmtree, bootstrap_environment)
+            with observe_stage("bootstrap_cleanup"):
+                cleanup.__exit__(*sys.exc_info())
+
+    runtime_digest = str(successor_report["runtime_digest"])
+    hooks_path = Path(str(successor_report["hooks_path"]))
+    return {
+        "hook_activation": runtime_activation_evidence(bootstrap_report),
+        "successor_activation": {
+            **runtime_activation_evidence(successor_report),
+            "candidate_worktree": candidate.as_posix(),
+        },
+        "development_dependencies": require_production_dependencies(
+            runtime_python, environment=environment
+        ),
+        "immutable_identity": require_version_identity(
+            runtime_python,
+            build=build,
+            wheel_sha256=wheel_sha256,
+            runtime_digest=runtime_digest,
+            environment=environment,
+        ),
+        "relocation_repair": prove_repair(
+            runtime_python,
+            repository,
+            hooks_path=hooks_path,
+            environment=environment,
+        ),
+        "signature_repair": lane_acceptance.prove_signature_repair(
+            runtime_python,
+            repository,
+            environment=environment,
+            historical=True,
+        ),
+        **lane_acceptance.prove_lifecycle(
+            runtime_python,
+            repository,
+            environment=environment,
+        ),
+    }

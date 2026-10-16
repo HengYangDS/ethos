@@ -211,9 +211,13 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
             work / "locked-requirements.txt"
         ),
         "install_locked_runtime": lambda *args: observed.update(supply=args),
-        "observe_runtime_lifecycle": lambda **kwargs: observed.update(kwargs) or lifecycle,
     }.items():
         monkeypatch.setattr(effect, name, value)
+    monkeypatch.setattr(
+        effect.runtime_acceptance,
+        "observe_lifecycle",
+        lambda **kwargs: observed.update(kwargs) or lifecycle,
+    )
     monkeypatch.setattr(artifact_owner, "source_build_identity", lambda _root: build)
     monkeypatch.setattr(artifact_owner, "wheel_build_identity", lambda _wheel: build)
     for owner, method, value in (
@@ -315,6 +319,17 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
     else:
         effect.run(cast("nox.Session", session), artifact=artifact, evidence=output)
         payload = json.loads(output.read_text())
+        events = [
+            json.loads(line)
+            for line in output.with_suffix(".events.jsonl").read_text().splitlines()
+        ]
+        assert events[0]["head"] == case.build.source_commit
+        assert events[0]["wheel_sha256"] == hashlib.sha256(selected.read_bytes()).hexdigest()
+        assert any(
+            event.get("name") == "owned_cleanup" and event.get("state") == "completed"
+            for event in events
+        )
+        assert payload["execution_events"] == output.with_suffix(".events.jsonl").as_posix()
         assert (
             cast("Mock", effect.package_runtime).call_args.args[0]
             == case.sealed_payload.parent.parent
@@ -412,13 +427,15 @@ def test_interruption_completes_owned_terminalization(monkeypatch, acceptance_ca
     """A first signal at a critical boundary cannot strand work or lose its result."""
     previous = signal.getsignal(signal.SIGTERM)
     wheel = acceptance_case.wheel
-    mkdir, write, remove = Path.mkdir, Path.write_text, effect.remove_generated_tree
+    mkdir, replace, remove = Path.mkdir, Path.replace, effect.remove_generated_tree
     supplied = effect.install_locked_runtime
+    delivered = []
 
     def deliver():
         assert callable(signal.getsignal(signal.SIGTERM))
         assert signal.getsignal(signal.SIGTERM) != previous
         os.kill(os.getpid(), signal.SIGTERM)
+        delivered.append(stage)
 
     def create(path, *args, **kwargs):
         mkdir(path, *args, **kwargs)
@@ -430,10 +447,10 @@ def test_interruption_completes_owned_terminalization(monkeypatch, acceptance_ca
             deliver()
         remove(path)
 
-    def terminal(path, *args, **kwargs):
-        if stage == "terminal" and path == effect.EVIDENCE.with_suffix(".terminal.json"):
+    def terminal(path, target):
+        if stage == "terminal" and target == effect.EVIDENCE.with_suffix(".terminal.json"):
             deliver()
-        return write(path, *args, **kwargs)
+        return replace(path, target)
 
     def supply(*args):
         (effect.WORK / "partial-supply").mkdir()
@@ -443,7 +460,7 @@ def test_interruption_completes_owned_terminalization(monkeypatch, acceptance_ca
         return supplied(*args)
 
     monkeypatch.setattr(Path, "mkdir", create)
-    monkeypatch.setattr(Path, "write_text", terminal)
+    monkeypatch.setattr(Path, "replace", terminal)
     monkeypatch.setattr(effect, "remove_generated_tree", cleanup)
     monkeypatch.setattr(effect, "install_locked_runtime", supply)
     expected = RuntimeError if stage == "terminal" else KeyboardInterrupt
@@ -457,6 +474,7 @@ def test_interruption_completes_owned_terminalization(monkeypatch, acceptance_ca
     assert not effect.WORK.exists()
     assert not effect.EVIDENCE.exists()
     assert signal.getsignal(signal.SIGTERM) == previous
+    assert delivered
 
 
 def test_concurrent_formation_failure_fails_acceptance_and_cleans_owned_work(

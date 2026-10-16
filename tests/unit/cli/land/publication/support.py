@@ -240,15 +240,12 @@ def maintenance_release_fixture(tmp_path: Path, *, release_mirror: str = "indepe
         "--json",
         cwd=accepted,
     )
-    lane = tmp_path / "maintenance"
     started = run_ethos(
         "lane",
         "start",
         "maintenance",
         "--base",
         base,
-        "--path",
-        str(lane),
         "--holder-ref",
         os.environ["ETHOS_ACTOR"],
         "--apply",
@@ -256,6 +253,7 @@ def maintenance_release_fixture(tmp_path: Path, *, release_mirror: str = "indepe
         cwd=accepted,
     )
     assert started["verdict"] == "pass", started
+    lane = Path(started["data"]["path"])
     head = commit_fixture_file(
         lane,
         "VERSION",

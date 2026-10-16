@@ -138,3 +138,14 @@ def package_failure_evidence(
         "owned_work_absent": owned_work_absent,
         "acceptance_written": acceptance_written,
     }
+
+
+def runtime_activation_evidence(report: Mapping[str, object]) -> dict[str, object]:
+    """Project one successful runtime activation into stable receipt evidence."""
+    return {
+        "state": "passed",
+        "runtime_digest": str(report["runtime_digest"]),
+        "wheel_sha256": str(report["wheel_sha256"]),
+        "source_commit": str(report["source_commit"]),
+        "source_tree": str(report["source_tree"]),
+    }

@@ -17,6 +17,7 @@ from ethos.repository.release.resources import GUIDANCE_RESOURCE
 from ethos.repository.release.resources import packaged_resource
 from tools.ci.delivery.acceptance.first_change import prove_first_change
 from tools.ci.delivery.acceptance.invocation import invoke
+from tools.ci.delivery.acceptance.invocation import observe_stage
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -239,6 +240,7 @@ def _verify_candidate(
             raise RuntimeError(message)
 
 
+@observe_stage("formation")
 def prove_formation(
     executable: Path,
     work: Path,

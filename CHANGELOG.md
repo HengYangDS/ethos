@@ -40,9 +40,12 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
-- Validated declared Vale vocabulary with the locked native parser; malformed
-  or missing selected vocabulary now fails configuration quality without
-  rewriting its source or relying on an ambient executable.
+- Validated declared Vale vocabulary with the locked native parser; unconsumed,
+  malformed or missing selected vocabulary now fails configuration quality
+  without rewriting its source or relying on an ambient executable. Section-only
+  vocabulary is compiled while native optional files remain optional.
+- Aligned Python bootstrap verification with its declared native Vale supply,
+  preserving seed-failure refusal and platform prerequisite checks.
 - Refreshed the architecture learning source binding after reviewed continuation
   and retention changes, without changing the authored graph meaning.
 - Preserved official OpenSpec apply refusal while admitting repair of its exact

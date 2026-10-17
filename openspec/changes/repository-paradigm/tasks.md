@@ -5,7 +5,7 @@
 
 ## 2. Evaluation
 
-- [ ] 2.1 Add the paradigm report to the repository audit composition, naming each gap's carrier, obligation and canonical repair; focused tests cover every scenario in `specs/repository-paradigm/spec.md`.
+- [ ] 2.1 Add the paradigm report to the repository audit composition, naming each gap's carrier, obligation and canonical repair; focused tests cover every scenario in `specs/repository-paradigm/spec.md`. The toolchain-verb, orchestration and tracked-script scenarios depend on 3.5, because ETHOS itself does not conform before it.
 - [x] 2.2 Refuse non-conforming new root, configuration-plane and binding paths in prewrite through the report's path obligations, naming the canonical path; prewrite tests cover each refusal and an edit to an existing carrier.
 - [x] 2.3 Read Gitleaks and Ruff configuration in pre-commit admission from their canonical `.config/checks/` paths and report the root names that the paradigm tool catalog lists for them, including the retired `.gitleaks.toml` and `ruff.toml`; hook admission tests cover both cases.
 - [x] 2.4 Place every Work Lane worktree at `<repository>-worktrees/<yyyymmdd>-<slug>/` and retire `canonical_sibling_worktrees`: readers ignore it, the paradigm reports it and the repair deletes it at either value; lane start, report and repair tests cover the path, a declared setting and its deletion.
@@ -34,6 +34,8 @@
 - [x] 2.28 Make signer authorization name the local trust-anchor setting that status names, from one owner, because ETHOS's Git execution never reads a global anchor; a focused test covers a missing anchor. The anchor-location tests assert the local action that status names.
 - [x] 2.29 Make `ethos lane trust-commit-signer` read the signer that commit creation owns: the local `user.signingkey` and the key types commit creation admits, refusing an unusable key with the shared gap and its local setting, and a missing principal with the local `user.email` setting. The authorization moves to the trust-anchor owner; focused tests cover an ECDSA signer, a home-relative key path and a missing principal.
 - [x] 2.30 Admit TypeScript's native carrier `.config/checks/typescript/tsconfig.json` in the tool catalog, which `tsc --project` and Knip's `typescript.config` read explicitly, and report a root `tsconfig.json` or `jsconfig.json` with that carrier; focused tests cover the carrier in Python, Node, Go and polyglot repositories and the misplaced projects.
+- [x] 2.31 Report repository-authored names outside lowercase kebab-case: Python and Go files and the directories holding them, entry documents, catalogued tool names, the contract's tool-required basenames and immutable roots keep their names, each name keeps one owner obligation, and prewrite refuses a new nonconforming basename; focused tests cover snake_case, camel-case, suffix and directory gaps, each exemption, single ownership and prewrite. The repair stays report-only.
+- [x] 2.32 Report pipelines for more than one Forge without a CUE model under `.config/ci/`; focused tests cover the unmodeled pipeline and the model, nested-model, single-Forge and non-workflow cases. The repair stays report-only.
 - [ ] 2.19 Retire the legacy role rename, its Git admission and the legacy role ref retirement after 2.21, once no adopter declares a legacy role name or publishes a legacy role ref.
 
 ## 3. ETHOS conformance

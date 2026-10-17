@@ -48,7 +48,7 @@ CONFORMING = {
     ".config/checks/coverage/policy.toml": "",
     ".config/checks/architecture-projection/policy.toml": "",
     ".config/checks/vale/vale.ini": "",
-    ".config/checks/vale/styles/Plain/Rule.yml": "",
+    ".config/checks/vale/styles/plain/rule.yml": "",
     ".config/release/goreleaser/.goreleaser.yaml": "",
     "openspec/config.yaml": PARADIGM_OPENSPEC_CONFIG,
 }

@@ -199,11 +199,13 @@ Rewriting the same controller in another language does not satisfy this decision
 
 ### 11. CI for several Forges is one model
 
-The repositories that publish to two Forges and generate both files from `.config/ci/pipeline.cue` show the practice works. The others hand-write two files that already drift. The model and its drift check become an obligation only when more than one Forge is targeted.
+The repositories that publish to two Forges and generate both files from `.config/ci/pipeline.cue` show the practice works. The others hand-write two files that already drift. The model and its drift check become an obligation only when more than one Forge is targeted. The model is CUE, as in all three repositories that publish to two Forges; a tracked `.gitlab-ci.yml` and workflow files directly under `.github/workflows/` mark the two Forges.
 
 ### 12. Names
 
-Repository-authored names use lowercase kebab-case. Exemptions follow the tool catalog and ecosystem modules: Python modules and test files, Go packages and test files, entry documents, and basenames a tool requires.
+Repository-authored names use lowercase kebab-case. Exemptions follow the tool catalog and ecosystem modules: Python modules and test files, Go packages and test files, entry documents, and basenames a tool requires. A leading `.` or `_` marker, as in the `docs/_meta` that the docs registry reads, and dot-separated suffixes are not word separators.
+
+A name that another obligation judges keeps that obligation's single gap: root entries, binding files, configuration owners and decision records. Prewrite judges a new file's own name; the report judges directories, because only the whole tree shows whether a directory holds Python or Go modules. A rename must update its references, so the repair stays report-only.
 
 ### 13. Ecosystem modules stay thin
 

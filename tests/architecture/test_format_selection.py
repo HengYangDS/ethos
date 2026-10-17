@@ -213,7 +213,7 @@ def test_unused_malformed_owner_cannot_hide_behind_a_valid_fallback(tmp_path) ->
 @pytest.mark.parametrize("name", ["accept", "reject"])
 def test_native_vocabulary_has_one_executable_quality_owner(name: str) -> None:
     """Vale vocabulary parsing is configuration validation, not a prose waiver."""
-    relative = f".config/checks/vale/styles/config/vocabularies/Common/{name}.txt"
+    relative = f".config/checks/vale/styles/config/vocabularies/common/{name}.txt"
     report = format_selection.audit(ROOT, paths=(relative,))
 
     assert report["verdict"] == "pass", report

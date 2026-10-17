@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.materialization.native_supply import resolve_native_tool
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
+from ethos.repository.paradigm.names import authored_name_gaps
 from ethos.repository.release.resources import canonical_resource
 
 if TYPE_CHECKING:
@@ -44,12 +46,24 @@ def test_common_vale_policy_enforces_concise_specific_and_correct_prose(tmp_path
     findings = json.loads(result.stdout)
     checks = {item["Check"] for entries in findings.values() for item in entries}
     assert {
-        "Plain.Concise",
-        "Plain.StockPhrases",
+        "plain.concise",
+        "plain.stock-phrases",
         "Vale.Repetition",
         "Vale.Spelling",
     } <= checks
     assert source.read_bytes() == original
+
+
+def test_common_vale_policy_names_conform_to_the_shared_paradigm() -> None:
+    """Native policy names obey the same naming floor as other authored resources."""
+    root = canonical_resource(".config/checks/vale")
+    selected = frozenset(
+        f".config/checks/vale/{path.relative_to(root).as_posix()}"
+        for path in root.rglob("*")
+        if path.is_file()
+    )
+    assert selected
+    assert not tuple(authored_name_gaps(load_repository_paradigm(), selected))
 
 
 def test_common_vale_policy_keeps_code_and_uncertainty_meaning(tmp_path: Path) -> None:

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import subprocess
+import sys
+from pathlib import Path
 from typing import cast
 
 import pytest
@@ -11,12 +13,10 @@ from ethos.adapters.gates.generated_artifacts import generated_artifact_gate_rep
 from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos.repository.policy.artifact_entrypoints import generated_artifact_entrypoint_audit
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
+from ethos.repository.release.resources import canonical_resource
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.literal_cases import literal_case
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def test_executable_topology_has_no_independent_revision() -> None:
@@ -225,3 +225,25 @@ def test_topology_report_classifies_every_generated_home_and_prunes_runtime_tree
     assert {".pytest_cache", "build/runtime/flat/report.json"} <= set(report["denied_paths"])
     assert report["verdict"] == "block"
     assert report["summary"]["path_blocker_count"] >= 3
+
+
+@pytest.mark.parametrize("operation", ["check", "format"])
+def test_native_ruff_configuration_routes_its_cache_at_the_execution_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, operation: str
+) -> None:
+    """The declared native policy routes both direct consumers without environment glue."""
+    monkeypatch.delenv("RUFF_CACHE_DIR", raising=False)
+    source = tmp_path / "sample.py"
+    original = b'"""Exercise the declared native Ruff policy."""\n'
+    source.write_bytes(original)
+    executable = Path(sys.executable).with_name("ruff.exe" if sys.platform == "win32" else "ruff")
+    configuration = canonical_resource(".config/checks/ruff/ruff.toml")
+    command = (str(executable), operation, "--config", str(configuration), str(source))
+    for _ in range(2):
+        completed = subprocess.run(
+            command, cwd=tmp_path, capture_output=True, text=True, check=False
+        )
+        assert completed.returncode == 0, (completed.stdout, completed.stderr)
+        assert source.read_bytes() == original
+        assert (tmp_path / "build/runtime/tool-cache/ruff").is_dir()
+        assert not (tmp_path / ".ruff_cache").exists()

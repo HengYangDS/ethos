@@ -14,8 +14,8 @@ from ethos.adapters.admission.patch_admission import patch_admission
 from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.openspec_lifecycle import active_change_relocation_patch
 from tests.support.semantic import commitment_fixture
-from tests.unit.adapters.admission.test_patch_admission_public_boundaries import _dated_change_patch
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -494,7 +494,7 @@ def test_prewrite_admits_edits_to_an_existing_non_conforming_carrier(
 def test_prewrite_admits_only_exact_active_identity_repair(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, choice: str | None
 ) -> None:
-    repo, head, paths, patch = _dated_change_patch(tmp_path)
+    repo, head, paths, patch = active_change_relocation_patch(tmp_path)
     before = git(repo, "status", "--porcelain=v1", "--untracked-files=all")
     _bind_common(monkeypatch, repo)
     monkeypatch.setattr(prewrite, "patch_admission", patch_admission)
@@ -532,7 +532,7 @@ def test_prewrite_admits_only_exact_active_identity_repair(
 def test_prewrite_fences_active_identity_repair_at_current_head(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo, head, paths, patch = _dated_change_patch(tmp_path)
+    repo, head, paths, patch = active_change_relocation_patch(tmp_path)
     _bind_common(monkeypatch, repo)
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
     authority = CurrentAuthority(

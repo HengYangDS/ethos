@@ -70,7 +70,7 @@ def require_packaged_resource(relative: str | PurePosixPath) -> Path:
             raise ValueError(message)
         entry = entries[0]
         if (
-            os.path.normcase(str(Path(metadata.locate_file(entry)).absolute()))
+            os.path.normcase(str(Path(str(metadata.locate_file(entry))).absolute()))
             != os.path.normcase(str(path))
             or entry.hash is None
             or entry.hash.mode != "sha256"

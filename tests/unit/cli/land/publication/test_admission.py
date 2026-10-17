@@ -15,7 +15,11 @@ import ethos.adapters.mutation.publication.request as publication_request
 import ethos.adapters.repo.commit.integration as commit_integration
 import ethos.repository.release.publication as release_publication
 from ethos.adapters.admission.publication import publication_proof_admission
+from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.admission.publication import ref_update_admission_report
+from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
+from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.adapters.repo.runtime.selection import runtime_command
 from ethos.adapters.store.state.schema import local_state_root
@@ -25,9 +29,56 @@ from ethos.contracts.value import mutable_json
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.unit.cli.land.publication.support import accepted_release_fixture
 from tests.unit.cli.land.publication.support import branch_publication
 from tests.unit.cli.land.publication.support import branch_publication_fixture
 from tests.unit.cli.land.publication.support import proposal_ref
+from tests.unit.cli.land.publication.support import publication_peers
+
+
+@pytest.mark.parametrize("missing", ["proof", "acceptance", "trust", "candidate", "accepted"])
+def test_accepted_dev_reuse_retains_independent_admission(tmp_path: Path, missing: str) -> None:
+    """Accepted delivery cannot stand in for its current independent facts."""
+    repo, _main, old, head = accepted_release_fixture(tmp_path)
+    publication_peers(repo, tmp_path, f"{old}:refs/heads/dev")
+    if missing in {"proof", "acceptance"}:
+        selected, records = read_attestation_set(repo)
+        predicate = "proof:execution" if missing == "proof" else "effect:git-ref-update"
+        git(repo, "update-ref", "-d", ATTESTATION_SET_REF, selected)
+        record_attestations(repo, tuple(item for item in records if item.predicate != predicate))
+    elif missing == "trust":
+        anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
+        anchor.write_text("")
+    else:
+        git(
+            repo,
+            "update-ref",
+            f"refs/heads/{'candidate/dev' if missing == 'candidate' else 'dev'}",
+            old,
+            head,
+        )
+    refs = git(repo, "show-ref")
+    report = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/dev",
+        pushed_head=head,
+        remote_head=old,
+        remote_name="gitlab",
+    )
+    gap = {
+        "proof": "proof_not_proven",
+        "acceptance": "accepted_closeout_effect_not_attested",
+        "trust": "release_source_signature_untrusted",
+        "candidate": "accepted_advance_not_candidate_validated",
+        "accepted": "release_source_not_current_accepted",
+    }[missing]
+    assert report["verdict"] == "block", report
+    gaps = report["required_gaps"]
+    assert isinstance(gaps, list)
+    assert gap in gaps, report
+    assert git(repo, "show-ref") == refs
+    for peer in ("gitlab", "github"):
+        assert git(repo, "ls-remote", peer, "refs/heads/dev").split()[0] == old
 
 
 @pytest.mark.parametrize("valid", [False, True])

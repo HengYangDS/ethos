@@ -267,6 +267,53 @@ def test_signed_release_tag_can_publish_only_selected_declared_peer(tmp_path: Pa
     assert git(peers["gitlab"], "for-each-ref", "--format=%(objectname)", "refs/tags/v1.2.3") == ""
 
 
+def test_accepted_dev_delivery_preserves_history_and_exact_peer_cas(tmp_path: Path) -> None:
+    """Accepted dev ships the same proved source to an old peer and an absent peer."""
+    repo, _main, old, head = accepted_release_fixture(tmp_path)
+    peers = publication_peers(repo, tmp_path, f"{old}:refs/heads/dev")
+    git(peers["github"], "update-ref", "-d", "refs/heads/dev", old)
+    peer_heads = {"gitlab": old, "github": "0" * len(head)}
+    refs = git(repo, "show-ref")
+    for remote, remote_head in peer_heads.items():
+        report = push_admission_report(
+            root=repo,
+            target_ref="refs/heads/dev",
+            pushed_head=head,
+            remote_head=remote_head,
+            remote_name=remote,
+        )
+        assert report["verdict"] == "pass", report
+        commits = report["commit_policy_admission"]
+        assert isinstance(commits, dict)
+        assert commits["state"] == "accepted_content"
+        assert commits["checked_commit_count"] == 0
+        assert commits["remote_head"] == remote_head
+        assert commits["baseline_ref"] == "refs/heads/dev"
+        assert commits["history_signature_claimed"] is False
+        stream = StringIO()
+        with redirect_stderr(stream):
+            code = execute_hook(
+                repo,
+                "pre-push",
+                (remote,),
+                stdin=StringIO(f"refs/heads/dev {head} refs/heads/dev {remote_head}\n"),
+            )
+        assert code == 0, stream.getvalue()
+    assert git(repo, "show-ref") == refs
+
+    preview = branch_publication(repo, head, target_ref="refs/heads/dev")
+    assert preview["verdict"] == "pass", preview
+    assert git(peers["gitlab"], "rev-parse", "refs/heads/dev") == old
+    assert git(peers["github"], "for-each-ref", "--format=%(objectname)", "refs/heads/dev") == ""
+    applied = apply_receipt(repo, preview["data"]["request_receipt"], head)
+    assert (applied["verdict"], applied["state"]) == ("pass", "published"), applied
+    for peer in peers.values():
+        assert git(peer, "rev-parse", "refs/heads/dev") == head
+        assert git(peer, "rev-parse", "refs/heads/dev^{tree}") == git(
+            repo, "rev-parse", "HEAD^{tree}"
+        )
+
+
 @pytest.mark.parametrize(
     "boundary",
     ["plan-store", "ref-ack", "before-cas", "attestation", "hook", "native-ack", "native-observer"],

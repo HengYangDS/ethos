@@ -17,6 +17,7 @@ from ethos.adapters.repo.commit.integration import commit_range_admission_report
 from ethos.adapters.repo.commit.provenance import accepted_provenance
 from ethos.adapters.repo.commit.signature import completed_signature_repair
 from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.release import accepted_delivery_report
@@ -345,7 +346,11 @@ def push_admission_report(
     )
     accepted_content = False
     observed_proof = options.get("proof_admission")
-    if str(preliminary["role"]) in {"release_root", "release_publication"} and closeout:
+    role = str(preliminary["role"])
+    ordinary_accepted = role == "accepted_root" and (
+        remote_head in _ZERO_OIDS or is_ancestor(repo, remote_head, proof_head)
+    )
+    if (ordinary_accepted or role in {"release_root", "release_publication"}) and closeout:
         observed_proof = publication_proof_admission(
             repo, proof_head, (str(preliminary["role"]),), observed=observed_proof
         )
@@ -386,7 +391,7 @@ def push_admission_report(
     )
     proof_gaps = list(string_sequence(proof.get("required_gaps")))
     repaired = commits.get("update_kind") == "repair"
-    if role == "accepted_root" and not repaired:
+    if role == "accepted_root" and not repaired and not ordinary_accepted:
         proof_gaps = [gap for gap in proof_gaps if gap.startswith("repository_commitment_")]
     topology_gaps = (
         accepted_advance_gaps(

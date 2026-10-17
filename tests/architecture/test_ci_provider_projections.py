@@ -86,7 +86,7 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     )
     commands = [step.get("run", "") for step in steps]
     assert commands.count("tools/ci/scripts/bootstrap-python.sh") == 1
-    assert commands.count("tools/ci/scripts/run-head-bound-proof.sh") == 1
+    assert commands.count("uv run --frozen --offline python -m nox -s hosted_verification") == 1
     assert github["jobs"]["external-links"]["continue-on-error"] is True
     assert "External links" not in [step.get("name") for step in jobs["quality"]["steps"]]
     assert re.search(r"--network none.*safe.directory", str(github["jobs"]["supply-image"]))
@@ -206,14 +206,16 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_pa
 def test_provider_commands_use_shared_owners_without_activating_mutation(provider, gitlab) -> None:
     entry = next(item for item in projection_entries() if item["provider"] == provider)
     text = (ROOT / entry["projection"]).read_text()
-    assert "tools/ci/scripts/run-head-bound-proof.sh" in text
+    assert "uv run --frozen --offline python -m nox -s hosted_verification" in text
     assert "tools/ci/scripts/configure-git-checkout.sh" not in text
     assert "ethos hook install" not in text
     assert "\n    - openspec validate" not in text
     if provider == "gitlab":
         jobs = {name.removeprefix("ethos:") for name in gitlab if name.startswith("ethos:")}
         assert jobs == {"commit-policy", "external-links", "host-conformance", "npm", "verify"}
-        assert gitlab["ethos:verify"]["script"][-1] == "tools/ci/scripts/run-head-bound-proof.sh"
+        assert gitlab["ethos:verify"]["script"][-1] == (
+            "uv run --frozen --offline python -m nox -s hosted_verification"
+        )
         assert "external-links" not in " ".join(gitlab["ethos:verify"]["script"])
         assert gitlab["ethos:external-links"]["allow_failure"] is True
         assert gitlab["ethos:npm"]["script"][0] == "tools/ci/scripts/bootstrap-python.sh"

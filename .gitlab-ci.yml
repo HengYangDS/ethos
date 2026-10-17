@@ -97,7 +97,7 @@ ethos:verify:
     GIT_STRATEGY: clone
     ETHOS_TEST_WORKERS: "4"
   script:
-    - tools/ci/scripts/run-head-bound-proof.sh
+    - uv run --frozen --offline python -m nox -s hosted_verification
   artifacts:
     when: always
     paths:

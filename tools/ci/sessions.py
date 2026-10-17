@@ -49,6 +49,7 @@ PUBLIC_SESSIONS = (
     "asset_validation",
     "config_quality",
     "hosted_observation",
+    "hosted_verification",
     "docstrings",
     "module_layout",
     "product_boundary",
@@ -266,18 +267,16 @@ def secrets(session) -> None:
     Secret scanning is a source-quality gate: ignored caches and local evidence
     cannot fail it, while a tracked finding fails it deterministically.
     """
-    supply = import_module("tools.ci.toolchain.native").prepare(ROOT, "gitleaks")
-    gitleaks = shutil.which("gitleaks", path=str(supply))
-    if gitleaks is None:
-        session.error(f"locked gitleaks is missing from {supply}")
-    reports = os.environ.get("ETHOS_SECRETS_REPORT_DIR", "build/evidence/quality/secrets")
-    report = ROOT / reports / "report.json"
+    gitleaks = import_module("tools.ci.toolchain.native").prepare(ROOT, "gitleaks") / "gitleaks"
+    if not gitleaks.is_file():
+        session.error(f"locked gitleaks is missing: {gitleaks}")
+    report = ROOT / "build/evidence/quality/secrets/report.json"
     report.parent.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix="ethos-gitleaks-") as directory:
         mirror = Path(directory) / "tracked"
         _mirror_tracked(mirror)
         session.run(
-            gitleaks,
+            str(gitleaks),
             "dir",
             str(mirror),
             "--config",
@@ -375,6 +374,16 @@ def hosted_observation(session) -> None:
     result = import_module("tools.ci.hosted_observation").capture_observation(execute=execute)
     if execute and result:
         session.error("hosted provider observation failed")
+
+
+def hosted_verification(session) -> None:
+    """Execute and bind the full hosted proof of HEAD, or of the one expected head given."""
+    if len(session.posargs) > 1:
+        session.error("usage: nox -s hosted_verification [-- expected-head]")
+    owner = import_module("tools.ci.hosted_verification")
+    status = owner.run(ROOT, session.posargs[0] if session.posargs else None)
+    if status:
+        session.error(f"hosted verification failed with exit status {status}")
 
 
 def docstrings(session) -> None:

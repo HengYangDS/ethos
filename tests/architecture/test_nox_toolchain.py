@@ -145,7 +145,6 @@ def test_secrets_scans_a_mirror_of_only_the_tracked_files(
     (supply / "gitleaks").chmod(0o755)
     monkeypatch.setattr(native, "prepare", lambda _root, _name: supply)
     monkeypatch.setattr(sessions, "ROOT", repo)
-    monkeypatch.delenv("ETHOS_SECRETS_REPORT_DIR", raising=False)
     observed: list[tuple[tuple[str, ...], list[str], bool]] = []
 
     def run(_session: object, *args: str) -> None:

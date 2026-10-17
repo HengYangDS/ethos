@@ -17,7 +17,6 @@ required_owner_scripts = [
   "tools/ci/scripts/bootstrap-python.sh",
   "noxfile.py",
   "tools/ci/repository_hygiene.py",
-  "tools/ci/scripts/run-head-bound-proof.sh",
 ]
 [[projection]]
 provider = "gitlab"
@@ -35,7 +34,6 @@ required_owner_scripts = [
   "tools/ci/scripts/bootstrap-python.sh",
   "noxfile.py",
   "tools/ci/repository_hygiene.py",
-  "tools/ci/scripts/run-head-bound-proof.sh",
 ]
 [evidence]
 local_github_emulator_dir = "build/evidence/local-ci/github"

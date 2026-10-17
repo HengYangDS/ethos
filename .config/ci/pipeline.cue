@@ -228,7 +228,7 @@ github: {
 				// The registry owns gate order and package creation. Execute it once;
 				// independently required hosted checks below project this exact result.
 				name: "HEAD-bound hosted verification receipt"
-				run:  "tools/ci/scripts/run-head-bound-proof.sh"
+				run:  "uv run --frozen --offline python -m nox -s hosted_verification"
 			}, {
 				name: "Upload proof receipt"
 				if:   "always()"
@@ -418,7 +418,7 @@ gitlab: {
 			ETHOS_TEST_WORKERS: "4"
 		}
 		script: [
-			"tools/ci/scripts/run-head-bound-proof.sh",
+			"uv run --frozen --offline python -m nox -s hosted_verification",
 		]
 		// GitHub retains raw Allure results; GitLab's instance artifact limit cannot hold them.
 		artifacts: {

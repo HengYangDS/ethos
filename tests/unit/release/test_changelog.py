@@ -8,8 +8,6 @@ import pytest
 
 from ethos.adapters.repo.release import committed_release_version
 from ethos.adapters.repo.release import release_tag_policy
-from ethos.contracts.paradigm.declaration import load_repository_paradigm
-from ethos.repository.paradigm.report import _changelog_gaps
 from ethos.repository.release.changelog import changelog_errors
 from ethos.repository.release.publication import publication_source_version_gaps
 from tests.support.governed_repository import commit_fixture
@@ -26,7 +24,7 @@ def _release(version: str, day: str = "2026-10-16", category: str = "Fixed") -> 
 
 def _gaps(entries: str) -> list[str]:
     source = "# Changelog\n\n## [Unreleased]\n\n" + entries
-    return [gap.repair for gap in _changelog_gaps(load_repository_paradigm().release, source)]
+    return list(changelog_errors(source))
 
 
 @pytest.mark.parametrize(

@@ -576,7 +576,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.14.1" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "ruff", specifier = ">=0.17.0" },
-    { name = "semver", specifier = "==3.1.0" },
+    { name = "semver", specifier = ">=3.1.0" },
     { name = "tomli-w", specifier = ">=1.2.0" },
     { name = "uv", specifier = ">=0.13.1" },
 ]

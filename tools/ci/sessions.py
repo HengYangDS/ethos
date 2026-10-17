@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tomllib
@@ -20,6 +21,7 @@ RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
 PRE_COMMIT_CONFIG = ".config/checks/pre-commit/.pre-commit-config.yaml"
 PRETTIER_CONFIG = ".config/checks/prettier/prettier.toml"
 CODESPELL_CONFIG = ROOT / ".config/checks/codespell/codespell.toml"
+GITLEAKS_CONFIG = ROOT / ".config/checks/gitleaks/gitleaks.toml"
 PROSE_POLICY = ROOT / ".config/checks/codespell/policy.toml"
 PUBLIC_SESSIONS = (
     "lint",
@@ -38,6 +40,7 @@ PUBLIC_SESSIONS = (
     "format_selection",
     "repository_hygiene",
     "prose",
+    "secrets",
     "shell_lint",
     "markdown_lint",
     "javascript_lint",
@@ -255,6 +258,51 @@ def prose(session) -> None:
     if not paths:
         session.error("prose policy paths are missing")
     session.run(RUNTIME.script("codespell"), "--toml", str(CODESPELL_CONFIG), *paths)
+
+
+def secrets(session) -> None:
+    """Scan a mirror of the tracked files with Gitleaks and the declared policy.
+
+    Secret scanning is a source-quality gate: ignored caches and local evidence
+    cannot fail it, while a tracked finding fails it deterministically.
+    """
+    supply = import_module("tools.ci.toolchain.native").prepare(ROOT, "gitleaks")
+    gitleaks = shutil.which("gitleaks", path=str(supply))
+    if gitleaks is None:
+        session.error(f"locked gitleaks is missing from {supply}")
+    reports = os.environ.get("ETHOS_SECRETS_REPORT_DIR", "build/evidence/quality/secrets")
+    report = ROOT / reports / "report.json"
+    report.parent.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(prefix="ethos-gitleaks-") as directory:
+        mirror = Path(directory) / "tracked"
+        _mirror_tracked(mirror)
+        session.run(
+            gitleaks,
+            "dir",
+            str(mirror),
+            "--config",
+            str(GITLEAKS_CONFIG),
+            "--redact",
+            "--report-format",
+            "json",
+            "--report-path",
+            str(report),
+        )
+
+
+def _mirror_tracked(target: Path) -> None:
+    """Copy every tracked file into target, keeping symbolic links as links."""
+    listed = subprocess.check_output(("git", "ls-files", "-z"), cwd=ROOT)
+    for raw in listed.split(b"\0"):
+        if not raw:
+            continue
+        relative = os.fsdecode(raw)
+        source, destination = ROOT / relative, target / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if source.is_symlink():
+            destination.symlink_to(source.readlink())
+        elif source.is_file():
+            shutil.copy2(source, destination)
 
 
 def shell_lint(session) -> None:

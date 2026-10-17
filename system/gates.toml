@@ -651,7 +651,7 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "secrets"
 kind = "security"
-command = ["tools/ci/scripts/run-secrets-scan.sh"]
+command = ["{python}", "-m", "nox", "-s", "secrets"]
 policy = "required"
 profile = "product-toolchain"
 toolchain = "native"

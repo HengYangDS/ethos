@@ -250,6 +250,26 @@ def test_start_places_every_work_lane_in_a_dated_sibling_worktree(start_case, mo
     assert _observe(repo, target) == ("", False, None)
 
 
+@pytest.mark.parametrize("name", ["20261016-archive-relocation", "12345678-ticket", "relocation"])
+def test_start_refuses_a_name_that_already_carries_a_lane_date(start_case, name):
+    """No lane path repeats its date: a dated name is refused with its undated slug."""
+    repo, _candidate, _target, start = start_case
+    report = start(name=name, path=None)
+    lane_id = f"{NOW:%Y%m%d}-{name}"
+    if not name.startswith("2026"):
+        # Eight digits that are not a calendar date are part of the name itself.
+        assert (report["state"], report["branch"]) == ("planned", f"work/{lane_id}")
+        return
+    assert report["required_gaps"] == ["work_lane_name_dated"]
+    assert report["undated_name"] == "archive-relocation"
+    assert report["next_action"] == (
+        f"ethos lane start archive-relocation --holder-ref {HOLDER} --root {repo.as_posix()} --json"
+    )
+    assert ref_head(repo, f"work/{lane_id}") == ""
+    assert not (repo.parent / f"{repo.name}-worktrees" / lane_id).exists()
+    assert f"work/{lane_id}" not in leases_by_branch(repo)
+
+
 @pytest.mark.parametrize(
     "boundary",
     [

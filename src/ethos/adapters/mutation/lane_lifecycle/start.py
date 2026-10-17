@@ -6,6 +6,7 @@ import os
 import re
 import shlex
 from datetime import UTC
+from datetime import date
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
@@ -49,6 +50,18 @@ def _slug(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", name.strip().lower()).strip("-") or "work"
 
 
+def _undated_slug(slug: str) -> str:
+    """Return a slug without its leading `yyyymmdd-` calendar date, or "" without one."""
+    prefix, separator, rest = slug.partition("-")
+    if not (separator and rest and len(prefix) == 8 and prefix.isdigit()):
+        return ""
+    try:
+        date.fromisoformat(prefix)
+    except ValueError:
+        return ""
+    return rest
+
+
 def default_worktree_path(repo: Path, branch: str) -> Path:
     """Return the default sibling worktree path for one role branch."""
     return repo.with_name(f"{repo.name}-{_slug(branch)}")
@@ -63,9 +76,17 @@ def _target(
     observed_at: datetime,
 ) -> tuple[str, Path, dict[str, object] | None]:
     """Place every Work Lane at `<repository>-worktrees/<yyyymmdd>-<slug>/`."""
-    lane_id = f"{observed_at.astimezone(UTC):%Y%m%d}-{_slug(name)}"
+    slug = _slug(name)
+    lane_id = f"{observed_at.astimezone(UTC):%Y%m%d}-{slug}"
     branch = policy.work_branch(lane_id)
     target = (repo.parent / f"{repo.name}-worktrees" / lane_id).resolve()
+    if undated := _undated_slug(slug):
+        # Lane start supplies the date, so a dated name would repeat it in the path.
+        return (
+            branch,
+            target,
+            _blocked(branch, target, "work_lane_name_dated", undated_name=undated),
+        )
     if path is not None and path.resolve() != target:
         return (
             branch,
@@ -78,6 +99,17 @@ def _target(
             ),
         )
     return branch, target, None
+
+
+def _target_action(repo: Path, holder_ref: str, block: Mapping[str, object]) -> str:
+    """Name the start of the undated slug for a dated name, otherwise repository status."""
+    root = shlex.quote(repo.as_posix())
+    if undated := block.get("undated_name"):
+        return (
+            f"ethos lane start {shlex.quote(str(undated))} "
+            f"--holder-ref {shlex.quote(holder_ref)} --root {root} --json"
+        )
+    return f"ethos status --root {root} --json"
 
 
 def _candidate_gap(repo: Path, candidate: dict[str, object]) -> tuple[str, dict[str, object]]:
@@ -291,9 +323,7 @@ def start_work_lane(
         observed_at=datetime.now(UTC),
     )
     if target_block is not None:
-        return target_block | {
-            "next_action": f"ethos status --root {shlex.quote(repo.as_posix())} --json"
-        }
+        return target_block | {"next_action": _target_action(repo, holder_ref, target_block)}
     try:
         holder_ref = HolderRef.parse(holder_ref).serialize()
     except ValueError:

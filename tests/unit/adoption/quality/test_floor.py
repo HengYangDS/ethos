@@ -484,7 +484,13 @@ def test_one_gate_can_supply_both_code_axes(tmp_path: Path, evidence_case: str) 
     if evidence_case == "complete":
         assert result.returncode == 0, payload["required_gaps"]
         assert payload["verdict"] == "pass"
-        assert len(payload["data"]["checks"]) == 1
+        checks = {check["action_id"]: check for check in payload["data"]["checks"]}
+        providers = json.loads(checks["quality"]["stdout"])["providers"]
+        assert {item["report"]["quality_evidence"]["axis"] for item in providers} == {
+            "behavior",
+            "static-analysis",
+        }
+        assert all(check["verdict"] == "pass" for check in checks.values())
     else:
         assert result.returncode != 0
         assert "quality_gate_verifier_missing:static-analysis:quality" in payload["required_gaps"]

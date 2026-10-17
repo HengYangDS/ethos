@@ -10,6 +10,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import NamedTuple
 
+from ethos.adapters.gates.formatting import prepare_source_format
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import load_branch_role_policy
@@ -457,12 +458,18 @@ def write_script_gate_policy(root: Path, *, full: bool = False) -> None:
     (root / "tools/check.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
 
 
-def commit_fixture(root: Path, message: str, *, signed: bool = True) -> str:
+def commit_fixture(
+    root: Path, message: str, *, signed: bool = True, format_paths: tuple[str, ...] = ()
+) -> str:
     """Commit all fixture changes and return the resulting HEAD.
 
     Fixtures sign like every governed repository; a test that needs an unsigned
     source object, such as a signature repair, asks for one explicitly.
+    Native formatting applies only to explicitly selected fixture inputs.
     """
+    if format_paths:
+        for item in prepare_source_format(root, paths=format_paths):
+            (root / item.path).write_bytes(item.after)
     git(root, "add", ".")
     return _commit_fixture(root, message, signed=signed)
 

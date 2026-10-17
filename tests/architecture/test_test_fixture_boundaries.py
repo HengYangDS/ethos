@@ -79,6 +79,39 @@ def test_documentation_fixture_gate_observes_committed_requirements(tmp_path: Pa
     assert missing.returncode == 1, missing.stderr
 
 
+def test_fixture_commit_normalizes_selected_carriers_without_changing_other_bytes(
+    tmp_path: Path,
+) -> None:
+    """Formatting is opt-in; malformed unselected fixture source remains exact."""
+    repo = fixtures.init_git_repo(tmp_path / "repo")
+    package = repo / "package.json"
+    malformed = repo / "broken.js"
+    original = b'{"type":"module"}\n'
+    broken = b"export function broken( {\n"
+    package.write_bytes(original)
+    malformed.write_bytes(broken)
+    fixtures.commit_fixture(repo, "retain deliberate fixture inputs")
+    assert package.read_bytes() == original
+    assert malformed.read_bytes() == broken
+
+    head = fixtures.git(repo, "rev-parse", "HEAD")
+    with pytest.raises(subprocess.CalledProcessError):
+        fixtures.commit_fixture(
+            repo, "refuse malformed selection", format_paths=("package.json", "broken.js")
+        )
+    assert package.read_bytes() == original
+    assert malformed.read_bytes() == broken
+    assert fixtures.git(repo, "rev-parse", "HEAD") == head
+    assert not fixtures.git(repo, "status", "--porcelain=v1")
+
+    fixtures.commit_fixture(repo, "normalize selected carrier", format_paths=("package.json",))
+
+    assert package.read_bytes() == b'{\n  "type": "module"\n}\n'
+    assert malformed.read_bytes() == broken
+    assert fixtures.git(repo, "show", "HEAD:broken.js") == broken.decode().strip()
+    assert not fixtures.git(repo, "status", "--porcelain=v1")
+
+
 def test_runtime_mutation_fixture_observes_native_prerequisites_before_return(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

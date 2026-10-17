@@ -140,11 +140,19 @@ def native_recipe(
         message = "javascript_native_recipe_unsupported"
         raise ValueError(message)
     recipe = scripts.get("test")
-    arguments = ("--test", *tests) if recipe is None else _node_arguments(recipe)
+    try:
+        arguments = ("--test", *tests) if recipe is None else _node_arguments(recipe)
+    except (TypeError, ValueError) as error:
+        message = "javascript_native_recipe_unsupported"
+        raise ValueError(message) from error
     coverage = scripts.get("test:coverage")
     coverage_arguments: tuple[str, ...] = ()
     if coverage is not None:
-        tokens = _tokens(coverage)
+        try:
+            tokens = _tokens(coverage)
+        except (TypeError, ValueError) as error:
+            message = "javascript_native_coverage_recipe_unsupported"
+            raise ValueError(message) from error
         if (
             any(key in scripts for key in ("pretest:coverage", "posttest:coverage"))
             or len(tokens) < 3

@@ -13,6 +13,8 @@ The canonical terminal plan owns the wider convergence sequence. This Change
 closes measured throughput, assurance and documentation-owner gaps through
 existing native owners.
 
+## Goals / Non-Goals
+
 Documentation settlement first covers the terminal plan's Current Convergence
 Boundary, ending before Local Residue And Semantic Organization, at source
 `0b39a8209e3416de9fe46ee1cd1ff5c06b723c11`. Keep dependencies and open obligations
@@ -41,6 +43,8 @@ preserved before the separately authorized reviewed disposal; drift, active
 consumers and foreign ownership retain their existing refusal boundaries.
 This does not create an OS exclusion boundary against uncoordinated same-user
 filesystem writers or turn an artifact class into proof of durable custody.
+
+## Risks / Trade-offs
 
 1. Measure complete elapsed time separately from summed concurrent case time
    and nested cumulative function time. Missing phase instrumentation remains

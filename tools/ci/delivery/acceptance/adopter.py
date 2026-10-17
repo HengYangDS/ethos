@@ -155,6 +155,14 @@ capabilities = ["repository", "publication"]
     for relative, content in (
         (".config/checks/prettier/prettier.toml", 'printWidth = 100\nproseWrap = "preserve"\n'),
         (".config/checks/taplo/taplo.toml", "[formatting]\ncolumn_width = 100\n"),
+        (
+            ".config/mise/config.toml",
+            (
+                '[settings]\nlocked = true\n\n[tasks]\nbootstrap = "git --version"\n'
+                'check = "git fsck --no-reflogs"\nfix = "git add --renormalize ."\n'
+            ),
+        ),
+        (".config/mise/mise.lock", ""),
     ):
         carrier = root / relative
         carrier.parent.mkdir(parents=True, exist_ok=True)

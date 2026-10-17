@@ -23,6 +23,7 @@ from ethos.repository.paradigm.names import name_path_gaps
 from ethos.repository.paradigm.openspec import openspec_gaps
 from ethos.repository.paradigm.pipelines import pipeline_model_gaps
 from ethos.repository.paradigm.workspace import workspace_gaps
+from ethos.repository.release.changelog import changelog_errors
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -412,22 +413,17 @@ def _release_gaps(
 
 
 def _changelog_gaps(conventions: ReleaseConventions, text: str | None) -> Iterator[ParadigmGap]:
-    """Require Keep a Changelog with an Unreleased section and bracketed version headings."""
+    """Project the common parsed release-note contract as a repository gap."""
     if text is None:
         yield ParadigmGap(
             "changelog", conventions.changelog, f"add {conventions.changelog} (Keep a Changelog)"
         )
         return
-    heading = re.compile(conventions.changelog_heading)
-    headings = [line for line in text.splitlines() if line.startswith("## ")]
-    malformed = [line for line in headings if not heading.match(line)]
-    if malformed or "## [Unreleased]" not in headings:
-        first = malformed[0] if malformed else "## [Unreleased] is missing"
+    if errors := changelog_errors(text):
         yield ParadigmGap(
             "changelog",
             conventions.changelog,
-            f"use bracketed headings such as ## [Unreleased] and ## [1.2.0] - 2026-10-15 "
-            f"({len(malformed)} malformed, first: {first})",
+            f"correct {conventions.changelog}: {', '.join(errors)}",
         )
 
 

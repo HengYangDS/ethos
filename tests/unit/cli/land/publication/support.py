@@ -172,7 +172,8 @@ def accepted_release_fixture(
         "1.2.3\n" if native_version == "VERSION" else '{"name":"sample","version":"1.2.3"}\n'
     )
     (repo / "CHANGELOG.md").write_text(
-        "# Changelog\n\n## [Unreleased]\n\n## [1.2.3] - 2026-10-15\n"
+        "# Changelog\n\n## [Unreleased]\n\n## [1.2.3] - 2026-10-15\n\n"
+        "### Fixed\n\n- Correct the native release source.\n"
     )
     if retired_source:
         write_active_commitment(repo)

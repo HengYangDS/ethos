@@ -128,6 +128,19 @@ validation_command = "uv run --frozen --offline python -m nox -s config_quality"
 mutation_policy = "canonical-text"
 
 [[ownership]]
+id = "vale-vocabulary"
+paths = [
+  ".config/checks/vale/styles/config/vocabularies/*/accept.txt",
+  ".config/checks/vale/styles/config/vocabularies/*/reject.txt",
+]
+format_owner = "repository-canonical-text"
+format_command = "uv run --frozen --offline python -m nox -s format -- hygiene"
+format_check = "uv run --frozen --offline python -m nox -s repository_hygiene"
+validation_owner = "vale"
+validation_command = "uv run --frozen --offline python -m nox -s config_quality"
+mutation_policy = "canonical-text"
+
+[[ownership]]
 id = "uv-lock"
 paths = ["uv.lock"]
 format_owner = "uv"
@@ -302,6 +315,13 @@ truth_boundary = "tool-native config"
 budget = [{ category = "ini", measure = "structured", baseline_measure = "lines", baseline_comment_prefixes = ["#", ";"] }]
 
 [[format]]
+extensions = [".txt"]
+carrier = "Native Vale vocabulary"
+owner = ".config/checks/vale/vale.ini"
+execution = "uv run --frozen --offline python -m nox -s config_quality"
+truth_boundary = "native vocabulary configuration, not prose"
+
+[[format]]
 extensions = [".js", ".mjs", ".cjs"]
 carrier = "JavaScript module"
 owner = "package-owned JavaScript adapters"
@@ -339,6 +359,7 @@ yaml_allowed_roots = [
 ]
 
 [policy.extension_paths]
+".txt" = { roots = [".config/checks/vale/styles/config/vocabularies/"] }
 ".dockerignore" = { roots = [".config/ci/supply/"] }
 ".ini" = { roots = [".config/"] }
 ".json" = { roots = [

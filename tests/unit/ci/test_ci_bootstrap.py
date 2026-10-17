@@ -106,7 +106,7 @@ def bootstrap_tools(tmp_path_factory: pytest.TempPathFactory) -> Path:
             '  printf "3.14.7\\n"; exit 0\nfi\n'
             'case "$*" in\n'
             '  "-B $FIXTURE_REPO/tools/ci/toolchain/native.py '
-            '--root $FIXTURE_REPO --mise") '
+            '--root $FIXTURE_REPO --mise vale") '
             'printf "%s\\n" "$*" >../native.log\n'
             '    printf "%s\\n" "$FIXTURE_NATIVE_BIN" ;;\n'
             "  '-B -I -') cat >/dev/null\n"
@@ -280,7 +280,7 @@ def test_python_bootstrap_supplies_platform_prerequisites(
     ]
     assert (tmp_path / "native.log").read_text().strip() == (
         f"-B {environment['FIXTURE_REPO']}/tools/ci/toolchain/native.py "
-        f"--root {environment['FIXTURE_REPO']} --mise"
+        f"--root {environment['FIXTURE_REPO']} --mise vale"
     )
     assert (tmp_path / "node.log").read_text().splitlines() == [
         f"{environment['FIXTURE_SEED_NPM']} ci --ignore-scripts",

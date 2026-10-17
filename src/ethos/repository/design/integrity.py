@@ -208,18 +208,30 @@ def _axiom_gaps(root: Path, documents: dict[str, tuple[Path, str, frozenset[str]
 def design_integrity_report(
     root: Path,
     *,
-    tracked_documents: tuple[str, ...] = (),
+    tracked_documents: tuple[str, ...] | None = None,
 ) -> dict[str, object]:
     """Audit design ownership, relation grammar, and derivation boundaries."""
     forbidden_paths = [path for path in FORBIDDEN_ROOT_PATHS if (root / path).exists()]
     gaps = [f"design_integrity_forbidden_projection_path:{path}" for path in forbidden_paths]
     try:
-        registry = {entry["path"]: entry for entry in build_docs_registry(root)}
+        registry = {
+            entry["path"]: entry
+            for entry in build_docs_registry(
+                root,
+                selected_documents=tuple(
+                    relative for relative in tracked_documents if (root / relative).is_file()
+                )
+                if tracked_documents is not None
+                else None,
+            )
+        }
     except ValueError as exc:
-        if not str(exc).startswith(("docs_metadata_invalid:", "projection_")):
+        if not str(exc).startswith(
+            ("docs_metadata_invalid:", "docs_source_unavailable:", "projection_")
+        ):
             raise
         return {"verdict": "block", "references": [], "required_gaps": [str(exc)]}
-    documents = _documents(root, registry, tracked_documents)
+    documents = _documents(root, registry, tracked_documents or ())
     references, reference_gaps = _reference_gaps(root, documents)
     gaps.extend(_owner_gaps(documents, registry))
     gaps.extend(_projection_gaps(root, documents, registry))

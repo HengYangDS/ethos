@@ -19,6 +19,7 @@ dependencies = [
   "pydantic>=2.14.1",
   "pyyaml>=6.0.3",
   "ruff>=0.17.0",
+  "semver>=3.1.0",
   "tomli-w>=1.2.0",
   "uv>=0.13.1",
 ]
@@ -78,6 +79,7 @@ packages = ["src/ethos"]
 "uv.lock" = "ethos/resources/uv.lock"
 ".config/mise/config.toml" = "ethos/resources/.config/mise/config.toml"
 ".config/mise/mise.lock" = "ethos/resources/.config/mise/mise.lock"
+".config/checks/vale" = "ethos/resources/.config/checks/vale"
 "VERSION" = "ethos/resources/VERSION"
 "system/schemas" = "ethos/resources/system/schemas"
 "docs/governance/product-design-contract.md" = "ethos/resources/docs/governance/product-design-contract.md"
@@ -123,6 +125,7 @@ only-include = [
   "uv.lock",
   ".config/mise/config.toml",
   ".config/mise/mise.lock",
+  ".config/checks/vale",
   "VERSION",
   "tools/ci/openspec_runtime_hook.py",
 ]

@@ -29,6 +29,10 @@ historical bindings are governed by [Release Governance](docs/governance/release
 - Composed one declared Node test attempt with official c8 coverage reporting,
   retaining preload, concurrency, coverage configuration, failures and warnings.
   Invalid raw evidence is rejected; custody excludes symbolic-link targets.
+- Moved locked native tool preparation from CI into the product supply owner.
+  Packages include the locked Vale executable, publisher license and common
+  prose policy; source and installed consumers use those owned bytes without
+  falling back to an ambient executable.
 
 ### Removed
 
@@ -36,6 +40,15 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- Limited accepted-source delivery reuse to the current accepted commit;
+  other exact push objects retain independent proof and contribution-range
+  checks without requiring local accepted-ref equality.
+- Validated declared Vale vocabulary with the locked native parser; unconsumed,
+  malformed or missing selected vocabulary now fails configuration quality
+  without rewriting its source or relying on an ambient executable. Section-only
+  vocabulary is compiled while native optional files remain optional.
+- Aligned bootstrap and hosted-proof test fixtures with the declared native Vale
+  supply, preserving preparation-failure refusal and platform prerequisite checks.
 - Refreshed the architecture learning source binding after reviewed continuation
   and retention changes, without changing the authored graph meaning.
 - Preserved official OpenSpec apply refusal while admitting repair of its exact

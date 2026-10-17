@@ -100,3 +100,38 @@ def test_reference_closure_is_green_without_wcp_or_workstation(tmp_path: Path) -
     )
 
     assert repository_semantic_closure(tmp_path)["required_gaps"] == []
+
+
+@pytest.mark.parametrize(
+    "command", ["native-check.sh", "/workspace/tools/ci/scripts/native-check.sh"]
+)
+def test_selected_native_script_owns_its_executable_only_while_declared_and_present(
+    tmp_path: Path, command: str
+) -> None:
+    """Native script selection owns the invoked script, not only its interpreter."""
+    script = tmp_path / "tools/ci/scripts/native-check.sh"
+    script.parent.mkdir(parents=True)
+    script.write_text('#!/bin/sh\nprintf "checked\\n"\n', encoding="utf-8")
+    interpreter = tmp_path / "system/surfaces.toml"
+    interpreter.parent.mkdir(parents=True)
+    interpreter.write_text('[runtime]\nexecutables = ["sh"]\n', encoding="utf-8")
+    policy = tmp_path / ".config/checks/ci-projection/policy.toml"
+    policy.parent.mkdir(parents=True)
+    declaration = (
+        '[[projection]]\nprovider = "github"\n'
+        'required_owner_scripts = ["tools/ci/scripts/native-check.sh"]\n'
+    )
+    policy.write_text(declaration, encoding="utf-8")
+    workflow = tmp_path / ".github/workflows/check.yml"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text(f"jobs:\n  check:\n    steps:\n      - run: {command}\n", encoding="utf-8")
+
+    assert repository_semantic_closure(tmp_path)["required_gaps"] == []
+
+    policy.write_text('[[projection]]\nprovider = "github"\n', encoding="utf-8")
+    expected = ["semantic_consumer_orphan:executable:native-check.sh:.github/workflows/check.yml"]
+    assert repository_semantic_closure(tmp_path)["required_gaps"] == expected
+
+    policy.write_text(declaration, encoding="utf-8")
+    script.unlink()
+    assert repository_semantic_closure(tmp_path)["required_gaps"] == expected

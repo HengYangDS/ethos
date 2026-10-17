@@ -29,12 +29,27 @@ _ANSWER = {
         ({"test": "node --test answer.test.js && echo done"}, "recipe"),
         ({"test": "npm run unit"}, "recipe"),
         ({"test": ["node", "--test"]}, "recipe"),
+        ({"test": 'node --test "answer.test.js'}, "recipe"),
+        ({"test": "node --test answer.test.js", "test:coverage": ["c8"]}, "coverage_recipe"),
+        (
+            {"test": "node --test answer.test.js", "test:coverage": 'c8 "npm test'},
+            "coverage_recipe",
+        ),
         (
             {"test": "node --test answer.test.js", "test:coverage": "nyc npm test"},
             "coverage_recipe",
         ),
     ],
-    ids=["lifecycle", "shell", "launcher", "non-string", "coverage-tool"],
+    ids=[
+        "lifecycle",
+        "shell",
+        "launcher",
+        "non-string",
+        "quoting",
+        "coverage-type",
+        "coverage-quoting",
+        "coverage-tool",
+    ],
 )
 def test_unsupported_npm_recipes_are_refused_before_execution(
     tmp_path: Path, scripts: dict[str, object], code: str
@@ -58,6 +73,10 @@ def _answer_package(tmp_path: Path) -> Path:
     [
         ("events", ["javascript_native_events_invalid", "javascript_native_selection_unknown"]),
         ("selection", ["javascript_native_events_invalid", "javascript_native_selection_invalid"]),
+        (
+            "missing-journal",
+            ["javascript_native_events_incomplete", "javascript_native_selection_invalid"],
+        ),
         ("timeout", ["javascript_native_attempt_timeout"]),
         ("process", ["process_spawn_failed"]),
     ],
@@ -67,14 +86,20 @@ def test_failed_native_attempts_are_retained_as_gaps(
 ) -> None:
     """Malformed journals, unknown selections and failed processes never prove behavior."""
     repo = _answer_package(tmp_path)
+    journals: list[Path] = []
 
-    def native(_cwd: Path, command: tuple[str, ...], **_options: object):
+    def native(_cwd: Path, command: tuple[str, ...], *, env: dict[str, str], **_options: object):
         if fault == "timeout":
             raise subprocess.TimeoutExpired(command, 600, output=b"partial", stderr=b"late")
         if fault == "process":
             code = "process_spawn_failed"
             raise ProcessExecutionError(code, reason="fixture", command=command)
         if not command[1].endswith("selection.mjs"):
+            journal = Path(env["NODE_V8_COVERAGE"]).parent / "journal.jsonl"
+            journals.append(journal)
+            if fault != "missing-journal":
+                journal.write_text("not-json\n")
+                assert journal.read_text() == "not-json\n"
             return subprocess.CompletedProcess(command, 0, "not-json\n", "")
         if fault == "events":
             return subprocess.CompletedProcess(command, 1, "", "native selection failed")
@@ -88,6 +113,11 @@ def test_failed_native_attempts_are_retained_as_gaps(
     artifact = report["artifact"]
     assert isinstance(artifact, dict)
     assert Path(artifact["path"]).is_file()
+    with ZipFile(artifact["path"]) as archive:
+        assert ("journal.jsonl" in archive.namelist()) is (fault in {"events", "selection"})
+        if fault in {"events", "selection"}:
+            assert archive.read("journal.jsonl") == b"not-json\n"
+    assert all(not journal.parent.exists() for journal in journals)
 
 
 def test_interrupted_native_attempt_still_conserves_its_evidence(

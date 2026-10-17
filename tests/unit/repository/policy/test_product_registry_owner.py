@@ -112,9 +112,11 @@ def test_only_the_product_source_owns_its_registry_without_the_quality_floor(
         changed("command", (*unit.command, "--changed")),
         _without_gate(packaged, "python-size"),
     ):
-        policy = compiled(candidate)
-        assert policy.projection["owner"] == owner
-        assert policy.digest != base.digest
+        for local_source in (False, True):
+            policy = compiled(candidate, local_source=local_source)
+            assert policy.projection["owner"] == owner
+            assert policy.digest != base.digest
+            assert set(_MISSING_QUALITY).issubset(policy.gaps) is (source == "foreign")
 
 
 def _floor_owned(repo: Path, ref: str) -> bool:

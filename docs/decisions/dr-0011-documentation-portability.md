@@ -2,6 +2,8 @@
 subject: ethos:decision:documentation-portability
 role: decision
 state: canonical
+decision_id: DR-0011
+decision_status: accepted
 relations:
   current_owner: ../governance/docs-registry.md
 ---
@@ -46,7 +48,16 @@ exists only when it owns real navigation or a directory boundary; it is not a
 marker. ETHOS audits its own physical documentation shape as a product concern,
 while the portable registry audits adopter meaning and discoverability.
 
-## Consequences
+## Alternatives Rejected
+
+- **One fixed tree for every repository:** rejected because path equality does
+  not prove semantic equivalence and forces empty or misleading carriers.
+- **No shared documentation contract:** rejected because readers would again
+  depend on memory, prose conventions, or repository-specific heuristics.
+- **Lifecycle directories such as `current/` and `future/`:** rejected because
+  they duplicate Git and document metadata as mutable state authorities.
+
+## Consequences and Boundary
 
 - A repository can reorganize documents without changing their semantic
   identities, provided the profile root, metadata, and links remain coherent.
@@ -57,16 +68,7 @@ while the portable registry audits adopter meaning and discoverability.
 - Empty directories, duplicate indexes, and marker-only READMEs have no
   portability value and are deleted.
 
-## Rejected Alternatives
-
-- **One fixed tree for every repository:** rejected because path equality does
-  not prove semantic equivalence and forces empty or misleading carriers.
-- **No shared documentation contract:** rejected because readers would again
-  depend on memory, prose conventions, or repository-specific heuristics.
-- **Lifecycle directories such as `current/` and `future/`:** rejected because
-  they duplicate Git and document metadata as mutable state authorities.
-
-## Evidence
+## Evidence and Revisit
 
 - [Docs Registry](../governance/docs-registry.md) defines the current portable
   metadata and directory-entrypoint rules.
@@ -76,8 +78,6 @@ while the portable registry audits adopter meaning and discoverability.
   repository-native layouts without requiring ETHOS's physical tree.
 - [Historical Topology Contract](../history/docs-topology-contract-20260708.md)
   preserves the superseded fixed-tree context without making it current.
-
-## Revisit And Retirement
 
 Revisit if a real adopter demonstrates that profile-rooted metadata and native
 links cannot provide deterministic discovery. Retire this record when the Docs

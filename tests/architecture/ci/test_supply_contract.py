@@ -65,6 +65,7 @@ def test_hosted_bootstrap_rechecks_cached_tools_with_current_checkout_code() -> 
     assert fixture_supply < source.index("python_image_available()")
     preparation = source[dependencies:installation]
     assert "--mise" in preparation
+    assert "native_tools=(--mise vale)" in preparation
     assert "gitleaks scc syft" in preparation
     assert "ETHOS_CI_SUPPLY_MANIFEST" in preparation
     assert "${UV_PROJECT_ENVIRONMENT}/bin/python" in preparation

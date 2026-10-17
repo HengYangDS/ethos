@@ -170,10 +170,16 @@ def _require_index(expected: dict[str, object]) -> None:
             _fail("retirement_content_drift")
 
 
-def verify_reviewed_content(root: Path, expected: dict[str, object]) -> Counter[tuple[str, ...]]:
+def verify_reviewed_content(
+    root: Path,
+    expected: dict[str, object],
+    *,
+    open_identities: frozenset[tuple[int, int]] = frozenset(),
+) -> Counter[tuple[str, ...]]:
     """Verify survivors and index; count only absent reviewed inode aliases."""
     _require_index(expected)
     removed: Counter[tuple[str, ...]] = Counter()
+    nodes: list[dict[str, object]] = [cast("dict[str, object]", expected["index"])]
     if os.path.lexists(root):
         current = _snapshot(root, Path(str(expected["index_path"])))
         _require_node(current["root"], expected["root"])
@@ -181,6 +187,7 @@ def verify_reviewed_content(root: Path, expected: dict[str, object]) -> Counter[
             _fail("retirement_content_drift")
         entries = cast("dict[str, dict[str, object]]", expected["entries"])
         survivors = cast("dict[str, dict[str, object]]", current["entries"])
+        nodes.extend((cast("dict[str, object]", current["root"]), *survivors.values()))
         removed.update(
             tuple(cast("list[str]", node["identity"])[:2])
             for name, node in entries.items()
@@ -190,6 +197,11 @@ def verify_reviewed_content(root: Path, expected: dict[str, object]) -> Counter[
             _require_node(
                 node, entries.get(name, {}), removed[tuple(cast("list[str]", node["identity"])[:2])]
             )
+    if any(
+        tuple(map(int, cast("list[str]", node["identity"])[:2])) in open_identities
+        for node in nodes
+    ):
+        _fail("retirement_content_in_use")
     return removed
 
 

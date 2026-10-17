@@ -24,8 +24,9 @@ from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import git_effect_from_plan
+from ethos.repository.release.changelog import changelog_errors
+from ethos.repository.release.changelog import semver_from_text
 from ethos.repository.release.configuration import release_config_from_text
-from ethos.repository.release.identity import product_version_from_text
 from ethos.repository.release.publication import publication_ref_role
 
 if TYPE_CHECKING:
@@ -70,7 +71,7 @@ def release_selection_command(
 def _version_value(name: str, raw: str) -> str:
     """Decode native version fields, not lockfiles or arbitrary string occurrences."""
     if name == "VERSION":
-        return product_version_from_text(raw)
+        return semver_from_text(raw)
     payload = json.loads(raw) if name.endswith(".json") else tomllib.loads(raw)
     require_release(isinstance(payload, dict), "release_version_source_not_object")
     source = payload if name.endswith(".json") else payload.get("project", {})
@@ -80,7 +81,7 @@ def _version_value(name: str, raw: str) -> str:
     require_release("version" not in source.get("dynamic", ()), "release_version_source_dynamic")
     value = source["version"]
     require_release(isinstance(value, str), "release_version_source_not_text")
-    return product_version_from_text(value + "\n")
+    return semver_from_text(value + "\n")
 
 
 def committed_release_version(root: Path, revision: str) -> dict[str, str]:
@@ -132,6 +133,10 @@ def release_tag_policy(root: Path, head: str, name: str) -> dict[str, str]:
     )
     version = committed_release_version(root, head)
     require_release(name == f"v{version['version']}", "release_tag_version_mismatch")
+    if errors := changelog_errors(
+        committed_file_text(root, head, "CHANGELOG.md"), target=version["version"]
+    ):
+        raise ValueError(errors[0])
     return version
 
 

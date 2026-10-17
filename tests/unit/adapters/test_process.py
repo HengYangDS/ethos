@@ -10,8 +10,8 @@ import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
+from contextlib import nullcontext
 from contextvars import copy_context
-from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
@@ -23,67 +23,6 @@ from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_execution_identity
 from tests.support.subprocesses import ready_descendant
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
-
-@pytest.mark.parametrize("outcome", ["success", "nonzero", "timeout"])
-def test_native_command_owns_its_handle_without_an_outer_scope(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, outcome: str
-) -> None:
-    """Every native command registers and releases one real owned process."""
-    started: list[tuple[process_adapter.CommandScope, subprocess.Popen[str]]] = []
-    terminated: list[subprocess.Popen[str]] = []
-    discarded: list[subprocess.Popen[str]] = []
-    start = process_adapter.CommandScope.start
-    terminate = process_adapter.CommandScope.terminate
-    discard = process_adapter.CommandScope.discard
-
-    def observed_start(
-        owner: process_adapter.CommandScope, command: tuple[str, ...], **options: object
-    ) -> subprocess.Popen[str]:
-        child = start(owner, command, **options)
-        started.append((owner, child))
-        return child
-
-    def observed_terminate(
-        owner: process_adapter.CommandScope, child: subprocess.Popen[str]
-    ) -> None:
-        assert (owner, child) in started
-        terminated.append(child)
-        terminate(owner, child)
-
-    def observed_discard(owner: process_adapter.CommandScope, child: subprocess.Popen[str]) -> None:
-        assert (owner, child) in started
-        assert child.returncode is not None
-        discarded.append(child)
-        discard(owner, child)
-
-    monkeypatch.setattr(process_adapter.CommandScope, "start", observed_start)
-    monkeypatch.setattr(process_adapter.CommandScope, "terminate", observed_terminate)
-    monkeypatch.setattr(process_adapter.CommandScope, "discard", observed_discard)
-    body = "import time; time.sleep(1)" if outcome == "timeout" else "raise SystemExit(7)"
-    if outcome == "success":
-        body = "print('complete')"
-    command = (sys.executable, "-c", body)
-    if outcome == "success":
-        result = process_adapter.run_command(tmp_path, command, check=True)
-        assert result.returncode == 0
-        assert result.stdout == "complete\n"
-    else:
-        failure = (
-            subprocess.TimeoutExpired if outcome == "timeout" else subprocess.CalledProcessError
-        )
-        with pytest.raises(failure):
-            process_adapter.run_command(
-                tmp_path, command, check=True, timeout=0.1 if outcome == "timeout" else 2
-            )
-    assert len(started) == 1
-    child = started[0][1]
-    assert child.returncode is not None
-    assert discarded == [child]
-    assert terminated == ([child] if outcome == "timeout" else [])
 
 
 def test_caught_command_failure_preserves_a_live_sibling(tmp_path, monkeypatch) -> None:
@@ -129,6 +68,127 @@ def test_cancelled_command_scope_rejects_creation(tmp_path, monkeypatch) -> None
         with pytest.raises(process_adapter.ProcessExecutionError, match="process_cancelled"):
             process_adapter.run_command(tmp_path, (sys.executable, "-c", "pass"), timeout=2)
     creation.assert_not_called()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX SIGTERM delivery")
+def test_interruption_after_process_creation_retains_and_reaps_child(tmp_path, monkeypatch):
+    """Registration must finish before a native termination can escape its start."""
+    native = subprocess.Popen
+    children = []
+
+    def create(*args, **kwargs):
+        child = native(*args, **kwargs)
+        children.append(child)
+        os.kill(os.getpid(), signal.SIGTERM)
+        return child
+
+    monkeypatch.setattr(subprocess, "Popen", create)
+    try:
+        with (
+            pytest.raises(KeyboardInterrupt),
+            process_adapter.command_scope(handle_termination=True),
+        ):
+            process_adapter.run_command(
+                tmp_path, (sys.executable, "-c", "import time; time.sleep(30)")
+            )
+        assert len(children) == 1
+        assert children[0].poll() is not None
+    finally:
+        for child in children:
+            if child.poll() is None:
+                os.killpg(child.pid, signal.SIGKILL)
+            child.wait(timeout=2)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX signal delivery")
+@pytest.mark.parametrize("boundary", ["scope", "deferral"])
+def test_signal_installation_already_owns_restoration(monkeypatch, boundary):
+    """A signal between native installation and return cannot leave a replaced handler."""
+    original = {number: signal.getsignal(number) for number in (signal.SIGINT, signal.SIGTERM)}
+    install = signal.signal
+    fired = []
+
+    def interrupt_install(number, handler):
+        previous = install(number, handler)
+        target = signal.SIGTERM if boundary == "scope" else signal.SIGINT
+        if number == target and handler != original[number] and not fired:
+            fired.append(number)
+            os.kill(os.getpid(), signal.SIGTERM)
+        return previous
+
+    monkeypatch.setattr(signal, "signal", interrupt_install)
+    try:
+        with (
+            pytest.raises(KeyboardInterrupt),
+            process_adapter.command_scope(handle_termination=True),
+            process_adapter.defer_interruptions(),
+        ):
+            pass
+        assert fired
+        assert all(signal.getsignal(number) == handler for number, handler in original.items())
+    finally:
+        for number, handler in original.items():
+            install(number, handler)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX signal delivery")
+@pytest.mark.parametrize("boundary", ["registered-return", "process-context"])
+@pytest.mark.parametrize("outer_scope", [False, True])
+def test_process_handoff_already_owns_reaping_and_pipes(
+    tmp_path, monkeypatch, boundary, outer_scope
+):
+    """Both standalone and scoped callers own a child before its handle can escape."""
+    native = subprocess.Popen
+    children, outputs, fired = [], [], []
+
+    def deliver():
+        fired.append(True)
+        os.kill(os.getpid(), signal.SIGINT)
+
+    def create(*args, **kwargs):
+        child = native(*args, **kwargs)
+        children.append(child)
+        outputs.append(kwargs["stdout"])
+        return child
+
+    def trace(frame, event, _argument):
+        registered_return = (
+            event == "return" and frame.f_code is process_adapter.CommandScope.start.__code__
+        )
+        caller_context = (
+            event == "line"
+            and frame.f_globals is vars(process_adapter)
+            and frame.f_code.co_name == "_execute_command"
+            and "process" in frame.f_locals
+        )
+        if not fired and (registered_return if boundary == "registered-return" else caller_context):
+            deliver()
+        return trace
+
+    monkeypatch.setattr(subprocess, "Popen", create)
+    previous_trace = sys.gettrace()
+    try:
+        sys.settrace(trace)
+        with (
+            process_adapter.command_scope() if outer_scope else nullcontext(),
+            pytest.raises(KeyboardInterrupt),
+        ):
+            process_adapter.run_command(
+                tmp_path, (sys.executable, "-c", "import time; time.sleep(30)")
+            )
+        assert fired
+        assert len(children) == 1
+        child = children[0]
+        assert child.returncode is not None
+        assert child.stdout is None
+        assert child.stderr.closed
+        assert all(output.closed for output in outputs)
+    finally:
+        sys.settrace(previous_trace)
+        for child in children:
+            if child.poll() is None:
+                os.killpg(child.pid, signal.SIGKILL)
+            child.__exit__(None, None, None)
 
 
 def test_command_scope_conserves_one_deadline_across_native_calls(tmp_path, monkeypatch) -> None:
@@ -213,10 +273,10 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
 
     def capture(root, command, **kwargs):
         assert root == tmp_path
-        assert command == (str(executable), "-nP", "-F0pftDin", "+D", str(root), str(executable))
+        assert command == (str(executable), "-nP", "-F0pftDin")
         assert 0 < kwargs["timeout"] <= 30
         assert kwargs["text"] is False
-        if fault == "timeout" or (fault == "slow-scan" and kwargs["timeout"] < 12):
+        if fault == "timeout" or (fault == "slow-scan" and "+D" in command):
             raise subprocess.TimeoutExpired(command, kwargs["timeout"])
         status = 2 if fault == "fatal" else 1 if fault in {"status", "no-match"} else 0
         stderr = b"permission denied" if fault == "stderr" else b""
@@ -226,7 +286,6 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
     observe = process_adapter.process_file_identities
     if fault in {
         "valid",
-        "status",
         "fd-gone",
         "process-gone",
         "named-live-file",
@@ -234,8 +293,6 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
         "slow-scan",
     }:
         assert observe(tmp_path, tree=tmp_path, index=executable) == frozenset({(16, 31), (32, 31)})
-    elif fault == "no-match":
-        assert observe(tmp_path, tree=tmp_path, index=executable) == frozenset()
     else:
         with pytest.raises(process_adapter.ProcessExecutionError) as error:
             observe(tmp_path, tree=tmp_path, index=executable)
@@ -363,6 +420,31 @@ def test_command_environment_and_native_io(tmp_path, monkeypatch, mode):
     assert json.loads(failure.value.stdout)["ETHOS_PRESERVED"] == "inherited"
 
 
+def _interrupt_first_native_wait(monkeypatch):
+    """Interrupt once, then retain the native wait that proves reaping."""
+    native_wait = subprocess.Popen.wait
+    delivered = False
+
+    def interrupted_wait(child, *args, **kwargs):
+        nonlocal delivered
+        if not delivered:
+            delivered = True
+            os.kill(os.getpid(), signal.SIGINT)
+        return native_wait(child, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess.Popen, "wait", interrupted_wait)
+
+
+def _observe_ready_parent(process, parent_exited, failure):
+    """Distinguish an unreaped exited leader from a natively reaped leader."""
+    if parent_exited:
+        waitid = getattr(os, "waitid", None)
+        assert callable(waitid)
+        waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT)
+        if failure == "cancel":
+            assert process.poll() == 0
+
+
 @pytest.mark.timeout(30)
 def test_native_output_is_captured_through_regular_files(tmp_path):
     """Bulk output never makes a native child wait for this process to drain a pipe."""
@@ -377,12 +459,16 @@ def test_native_output_is_captured_through_regular_files(tmp_path):
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX process-group boundary")
-@pytest.mark.parametrize("failure", ["timeout", "cancel", "gate-cancel", "gate-overlap"])
+@pytest.mark.parametrize(
+    ("failure", "spool_stdout"),
+    [(failure, mode) for failure in ("timeout", "cancel", "terminate") for mode in (False, True)]
+    + [(failure, False) for failure in ("gate-cancel", "gate-overlap")],
+)
 @pytest.mark.parametrize(
     ("parent_exited", "inherit_pipes"), [(False, False), (False, True), (True, True)]
 )
 def test_command_failure_closes_owned_descendants(
-    tmp_path, monkeypatch, failure, inherit_pipes, parent_exited
+    tmp_path, monkeypatch, failure, inherit_pipes, parent_exited, spool_stdout
 ):
     """A ready descendant cannot retain its socket after the command is interrupted."""
     fallback = []
@@ -390,12 +476,9 @@ def test_command_failure_closes_owned_descendants(
     monkeypatch.setattr(os, "killpg", signals)
 
     def after_ready(process, _options):
-        if parent_exited:
-            waitid = getattr(os, "waitid", None)
-            assert callable(waitid)
-            waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT)
+        _observe_ready_parent(process, parent_exited, failure)
         if failure == "gate-overlap":
-            monkeypatch.setattr(subprocess.Popen, "wait", Mock(side_effect=KeyboardInterrupt))
+            _interrupt_first_native_wait(monkeypatch)
             raise subprocess.TimeoutExpired(process.args, 1)
         if failure == "gate-cancel":
 
@@ -409,7 +492,9 @@ def test_command_failure_closes_owned_descendants(
             interrupts.callback(timer.cancel)
             timer.start()
             os.kill(os.getpid(), signal.SIGINT)
-        elif failure != "timeout":
+        elif failure == "terminate":
+            os.kill(os.getpid(), signal.SIGTERM)
+        elif failure == "cancel":
             raise KeyboardInterrupt
 
     with ready_descendant(monkeypatch, after_ready) as (child, closed):
@@ -424,25 +509,37 @@ def test_command_failure_closes_owned_descendants(
         def execute():
             command = (sys.executable, "-c", parent)
             if not failure.startswith("gate-"):
-                process_adapter.run_command(tmp_path, command, timeout=0.2)
-            else:
-                gate = Gate(id="probe", kind="test", command=command)
-                node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
-                gate_runner.run_gate_graph(
-                    gate_runner.LocalGateRunner(),
-                    (node,),
-                    {gate.id: gate},
-                    root=tmp_path,
-                    capacity=1,
-                    parallel=True,
+                return process_adapter.run_command(
+                    tmp_path, command, timeout=0.2, spool_stdout=spool_stdout
                 )
+            gate = Gate(id="probe", kind="test", command=command)
+            node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
+            return gate_runner.run_gate_graph(
+                gate_runner.LocalGateRunner(),
+                (node,),
+                {gate.id: gate},
+                root=tmp_path,
+                capacity=1,
+                parallel=True,
+            )
 
         error = subprocess.TimeoutExpired if failure == "timeout" else KeyboardInterrupt
-        with pytest.raises(error) as raised, ExitStack() as interrupts:
-            execute()
-        if failure == "timeout":
-            assert isinstance(raised.value, subprocess.TimeoutExpired)
-            assert raised.value.output == b"started\n"
+        completed = failure == "timeout" and spool_stdout and parent_exited
+        previous_handler = signal.getsignal(signal.SIGTERM)
+        with (
+            nullcontext() if completed else pytest.raises(error) as raised,
+            ExitStack() as interrupts,
+            process_adapter.command_scope(handle_termination=failure == "terminate"),
+        ):
+            result = execute()
+        assert signal.getsignal(signal.SIGTERM) == previous_handler
+        if completed:
+            assert result.returncode == 0
+            assert result.stdout == "started\n"
+        else:
+            assert getattr(raised.value, "output", None) == (
+                b"started\n" if failure == "timeout" else None
+            )
         assert closed()
         assert not fallback, "caller cancellation waited for external rescue"
         assert sum(call.args[1] == signal.SIGKILL for call in signals.call_args_list) == 1

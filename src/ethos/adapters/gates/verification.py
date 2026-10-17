@@ -4,24 +4,32 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import json
 import subprocess
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 from time import monotonic
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
+import ethos
+from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import command_scope
 from ethos.adapters.repo.git import current_head
+from ethos.adapters.repo.git import current_tracked_head
+from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.policy.gates import PRODUCT_PROVIDER_SOURCE
+from ethos.repository.policy.gates import provider_module_sources
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
+    from ethos.adapters.gates.javascript.execution import NodeAttempt
     from ethos.contracts.gates import Gate
     from ethos.contracts.gates import NativeOutput
 
@@ -55,7 +63,57 @@ class NativeExecution:
     stderr: str
     # Preserve the invocation path: dereferencing Python changes virtual-environment semantics.
     executable: str = ""
+    node_attempt: NodeAttempt | None = None
     evidence: NativeEvidence | None = None
+
+
+def classify_action_result(
+    *,
+    exit_code: int | None,
+    stdout: str,
+    timeout_gap: str | None = None,
+) -> tuple[Verdict, tuple[dict[str, Any], ...]]:
+    """Interpret native command output independently of execution and scheduling."""
+    if exit_code != 0 or timeout_gap is not None:
+        verdict: Verdict = "unknown" if timeout_gap is not None else "block"
+        diagnostics = (
+            ({"kind": "gate_timeout", "required_gaps": [timeout_gap]},)
+            if timeout_gap is not None
+            else ()
+        )
+        return verdict, diagnostics
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        return "pass", ()
+    if not isinstance(payload, dict) or "command" not in payload:
+        return "pass", ()
+    raw_verdict = payload.get("verdict")
+    if not isinstance(raw_verdict, str) or raw_verdict not in {"pass", "block", "unknown"}:
+        return "unknown", (
+            {
+                "kind": "ethos_result",
+                "verdict": "unknown",
+                "state": str(payload.get("state", "")),
+                "required_gaps": ["ethos_result_verdict_missing_or_invalid"],
+            },
+        )
+    required_gaps = string_sequence(payload.get("required_gaps"), drop_empty=True)
+    warnings = string_sequence(payload.get("warnings"), drop_empty=True)
+    diagnostic_gaps = diagnostic_gaps_for(payload.get("diagnostics"), "ethos_result")
+    gaps = tuple(dict.fromkeys((*required_gaps, *diagnostic_gaps)))
+    verdict = report_verdict(payload)
+    if verdict == "pass":
+        return verdict, ()
+    warning_gaps = tuple(f"ethos_result_warning:{warning}" for warning in warnings)
+    return verdict, (
+        {
+            "kind": "ethos_result",
+            "verdict": verdict,
+            "state": str(payload.get("state", "")),
+            "required_gaps": list(dict.fromkeys((*gaps, *warning_gaps))),
+        },
+    )
 
 
 def provider_reports(
@@ -171,3 +229,35 @@ def _provider_report(
         message = f"gate provider must return a mapping: {reference}"
         raise TypeError(message)
     return cast("Mapping[str, object]", value)
+
+
+def assert_provider_execution_source(root: Path, gates: tuple[Gate, ...]) -> None:
+    """Reject candidate-bound checks running from a different implementation before effects."""
+    bound = tuple(
+        (gate.id, reference)
+        for gate in gates
+        for reference, relative in provider_module_sources(gate)
+        if not relative.startswith(PRODUCT_PROVIDER_SOURCE) and (root / relative).is_file()
+    )
+    package = Path(ethos.__file__).resolve()
+    if not bound or package == (root / "src/ethos/__init__.py").resolve():
+        return
+    try:
+        identity = invoking_build_identity()
+        head = current_tracked_head(root)
+        if head == identity.source_commit and current_tree(root, head) == identity.source_tree:
+            return
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
+        pass
+    gate_id, reference = bound[0]
+    message = f"gate_provider_source_mismatch:{gate_id}:{reference}"
+    raise ProcessExecutionError(
+        message,
+        reason="candidate_provider_execution_requires_matching_source",
+        cwd=str(root),
+        observation={
+            "runner_module_path": str(package),
+            "required_gaps": [f"gate_provider_source_mismatch:{name}:{ref}" for name, ref in bound],
+            "next_action": "run proof from the admitted checkout's locked Python environment",
+        },
+    )

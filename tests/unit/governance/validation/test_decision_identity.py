@@ -11,6 +11,7 @@ import pytest
 from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.surface.cli.root.reference import docs_registry_report
+from tests.support.documentation import decision_fixture
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
@@ -22,23 +23,10 @@ if TYPE_CHECKING:
 def _document(subject: str, role: str, title: str) -> str:
     if role == "decision":
         number = match[1] if (match := re.match(r"dr-([0-9]{4})-", title)) else "0001"
-        return _decision(f"DR-{number}", subject=subject)
+        return decision_fixture(f"DR-{number}", subject=subject)
     return (
         f"---\nsubject: {subject}\nrole: {role}\nstate: canonical\nrelations: {{}}\n"
         f"---\n\n# {title}\n\nStatus: canonical.\n\nPurpose: exercise decision identity.\n"
-    )
-
-
-def _decision(identity: str = "DR-0001", *, subject: str = "sample:decision") -> str:
-    return (
-        f"---\nsubject: {subject}\nrole: decision\nstate: canonical\n"
-        f"decision_id: {identity}\ndecision_status: accepted\nrelations: {{}}\n---\n\n"
-        f"# {identity}: Shared rationale\n\n"
-        "## Context\n\nA lasting choice needs an explicit reason.\n\n"
-        "## Decision\n\nKeep rationale with its semantic owner.\n\n"
-        "## Alternatives Rejected\n\nAn execution log cannot explain the trade-off.\n\n"
-        "## Consequences and Boundary\n\nCurrent behavior stays with the contract.\n\n"
-        "## Evidence and Revisit\n\nRevisit when the original assumptions change.\n"
     )
 
 
@@ -132,7 +120,7 @@ def test_shared_decision_contract_preserves_metadata_and_readable_rationale(
     profile.write_text("profile_id = 'sample'\n[roots]\ndocs = 'handbook'\n")
     path = tmp_path / "handbook/dr-0001-rationale.md"
     path.parent.mkdir()
-    source = _decision().replace(
+    source = decision_fixture().replace(
         "Current behavior stays with the contract.",
         "Each repository's profile owns current behavior;\n"
         "this soft wrap remains one rationale paragraph. `node` names a host; "
@@ -194,7 +182,7 @@ def test_shared_decision_contract_refuses_diagnosed_mismatches_without_mutation(
     """The shared owner rejects the proven gap, rather than relying on an adopter parser."""
     path = tmp_path / "docs/dr-0001-rationale.md"
     path.parent.mkdir()
-    source = _decision().replace(original, replacement)
+    source = decision_fixture().replace(original, replacement)
     path.write_text(source)
 
     report = docs_health_report(tmp_path)

@@ -108,7 +108,7 @@ Completed incidents remain regression boundaries, not a queue to replay.
   recovery effort and resource bounds. Do not add overlapping intervals. Include
   preparation and cleanup, disclose external provisioning, and distinguish a
   microbenchmark from full proof, delivery or cold-host acceptance.
-- Follow the [accepted throughput criteria](../../openspec/changes/proof-throughput/specs/quality/spec.md#requirement-complete-verification-throughput-preserves-assurance):
+- Follow the [accepted throughput criteria](../../openspec/specs/quality/spec.md#requirement-complete-verification-throughput-preserves-assurance):
   the temporary reference bound is 900 seconds; 600 seconds remains a
   nonblocking optimization direction. Two workers are a comparison baseline,
   not a ceiling. Use faster concurrency only after equivalent-case isolation

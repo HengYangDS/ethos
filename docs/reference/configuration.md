@@ -56,8 +56,11 @@ configuration plane, not a truth center.
   maintained Markdown, including official OpenSpec artifacts under the native
   artifact-specific rules. Historical evidence paths grant no format exemption;
   generated and local outputs remain outside the declared source globs.
-- `.config/checks/codespell/codespell.toml` owns report-first prose spelling policy;
-  the `prose` Nox session runs locked `codespell` without rewriting files.
+- `.config/checks/codespell/codespell.toml` owns native codespell settings in its
+  `[tool.codespell]` table, and `.config/checks/codespell/policy.toml` owns the
+  checked paths. The `prose` Nox session passes the settings with `--toml`,
+  refuses a carrier without that table, and runs locked `codespell` without
+  rewriting files.
 - `.config/checks/deptry/policy.toml` owns dependency hygiene policy. The
   `dependencies` Nox session invokes `tools/ci/dependency_hygiene.py` for the
   sole Python distribution and its locked supply. The runner passes the declared

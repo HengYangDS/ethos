@@ -19,6 +19,8 @@ RUNTIME = ProjectRuntime.discover(ROOT)
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
 PRE_COMMIT_CONFIG = ".config/checks/pre-commit/.pre-commit-config.yaml"
 PRETTIER_CONFIG = ".config/checks/prettier/prettier.toml"
+CODESPELL_CONFIG = ROOT / ".config/checks/codespell/codespell.toml"
+PROSE_POLICY = ROOT / ".config/checks/codespell/policy.toml"
 PUBLIC_SESSIONS = (
     "lint",
     "format_check",
@@ -214,20 +216,21 @@ def repository_hygiene(session) -> None:
         session.error("repository hygiene failed:\n" + "\n".join(failures))
 
 
+def _toml_table(path: Path) -> dict[str, object]:
+    return tomllib.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+
+
 def prose(session) -> None:
-    policy = ROOT / ".config/checks/codespell/codespell.toml"
-    declared = tomllib.loads(policy.read_text(encoding="utf-8")).get("paths", [])
-    paths = tuple(str(path) for path in declared if isinstance(path, str) and path)
+    # codespell reads only the [tool.codespell] table and silently ignores a file without it.
+    tool = _toml_table(CODESPELL_CONFIG).get("tool")
+    if not isinstance(tool, dict) or not isinstance(tool.get("codespell"), dict):
+        session.error(f"{CODESPELL_CONFIG.name} declares no [tool.codespell] table")
+    declared = _toml_table(PROSE_POLICY).get("paths")
+    listed = declared if isinstance(declared, list) else []
+    paths = tuple(path for path in listed if isinstance(path, str) and path)
     if not paths:
         session.error("prose policy paths are missing")
-    session.run(
-        RUNTIME.script("codespell"),
-        "--toml",
-        str(policy),
-        "--count",
-        "--quiet-level=2",
-        *paths,
-    )
+    session.run(RUNTIME.script("codespell"), "--toml", str(CODESPELL_CONFIG), *paths)
 
 
 def shell_lint(session) -> None:

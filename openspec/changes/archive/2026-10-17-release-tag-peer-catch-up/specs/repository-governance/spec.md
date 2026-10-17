@@ -27,12 +27,11 @@ created that object while that commit remains in accepted history.
 
 ETHOS native pre-push SHALL validate the actual object supplied for a declared
 release-tag ref as a trusted signed annotated tag with exact declared name and
-committed product version at its release commit. The release commit SHALL be
-the current accepted commit, or an earlier commit still reachable from it at
-which an attested ETHOS release effect created exactly this tag object. A
-signed peeled commit alone SHALL NOT satisfy tag admission. The remote tag MAY
-be absent or already point to the identical tag object; a divergent remote tag
-SHALL NOT be replaced. Exact remote publication SHALL reach the same decision.
+committed product version at its release commit: the current accepted commit,
+or an earlier accepted commit where an attested release effect created exactly
+this tag object. A signed peeled commit alone SHALL NOT satisfy tag admission.
+A divergent remote tag SHALL NOT be replaced, and exact remote publication
+SHALL reach the same decision.
 
 #### Scenario: Plain commit is offered as a release tag
 
@@ -45,7 +44,8 @@ SHALL NOT be replaced. Exact remote publication SHALL reach the same decision.
 
 - **WHEN** Git supplies a trusted signed annotated tag matching the exact ref
   name, committed version and current accepted commit
-- **THEN** native pre-push can admit creation or an identical remote no-op
+- **THEN** native pre-push can admit creation while the remote tag is absent,
+  or an identical remote no-op
 - **AND THEN** it retains current proof, accepted effect and ref-role checks.
 
 #### Scenario: A peer that missed the release receives it later

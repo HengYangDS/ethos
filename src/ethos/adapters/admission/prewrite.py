@@ -12,24 +12,20 @@ from ethos.adapters.admission.current.resolution import resolve_current_resoluti
 from ethos.adapters.admission.patch_admission import patch_admission
 from ethos.adapters.admission.patch_admission import patch_repair_action
 from ethos.adapters.admission.patch_admission import profile_repair_scope
-from ethos.adapters.admission.patch_admission import projection_preimages
 from ethos.adapters.admission.patch_admission import revalidate_staged_admission
 from ethos.adapters.admission.patch_admission import staged_artifact_admission
+from ethos.adapters.admission.paths import check_write_paths
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.openspec.lifecycle.root_repair import supporting_relocation_scope
 from ethos.adapters.openspec.relocation import active_change_relocation_scope
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout
-from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.binding import runtime_binding
 from ethos.adapters.repo.runtime.binding import runtime_binding_check
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.contracts.admission import AdmissionDecision
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
-from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
-from ethos.contracts.artifacts.topology import path_policy_from_declaration
-from ethos.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos.contracts.branch.roles import ROLE_DETACHED
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.branch.roles import load_branch_role_policy
@@ -37,9 +33,6 @@ from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_mapping
-from ethos.repository.paradigm.report import paradigm_path_gaps
-from ethos.repository.policy.projections import observe_projections
-from ethos.repository.policy.projections import projection_relations
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 
 if TYPE_CHECKING:
@@ -49,10 +42,6 @@ if TYPE_CHECKING:
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
 
 _STATE_BINDINGS = ("root", "role", "branch", "paths", "holder_ref", "generation", "head")
-
-
-def has_invalid_path_token_character(text: str) -> bool:
-    return any(character.isspace() or not character.isprintable() for character in text)
 
 
 def prewrite_guard(
@@ -76,7 +65,7 @@ def prewrite_guard(
         if staged
         else None
     )
-    checked, origin_gap = _checked_paths(
+    checked, origin_gap = check_write_paths(
         root, paths, effective["role"], effect_report=staged_report
     )
     tracked = any(path["tracked_candidate"] for path in checked)
@@ -110,11 +99,15 @@ def prewrite_guard(
             patch=patch,
         )
     )
-    if origin_gap and patch and report_verdict(patch_report) == "pass":
-        checked, origin_gap = _checked_paths(
+    if (
+        origin_gap.startswith("projection_ownership_unknown:")
+        and patch
+        and report_verdict(patch_report) == "pass"
+    ):
+        checked, origin_gap = check_write_paths(
             root, paths, effective["role"], effect_report=patch_report
         )
-    elif origin_gap:
+    if origin_gap:
         patch_report.update(verdict="unknown", reason=origin_gap)
     scope, official, profile_invalid = _prewrite_material_scope(
         root,
@@ -248,41 +241,6 @@ def _prewrite_material_scope(
             or scope
         )
     return scope, resolution.openspec, False
-
-
-def _checked_paths(
-    root: Path,
-    paths: list[Path],
-    role: str,
-    *,
-    effect_report: dict[str, object] | None = None,
-) -> tuple[list[dict[str, object]], str]:
-    """Observe ownership once per request, preserving unavailable declarations."""
-    if effect_report is not None:
-        declared = effect_report.get("origin_outputs", [])
-        outputs = {str(path) for path in declared} if isinstance(declared, list) else set()
-        effects = effect_report.get("effects") if effect_report.get("index_tree") else None
-        return [
-            _check_path(
-                root=root,
-                path=path,
-                role=role,
-                outputs=outputs,
-                indexed_effects=effects if isinstance(effects, dict) else None,
-            )
-            for path in paths
-        ], ""
-    try:
-        committed = projection_relations(
-            projection_preimages(root, git_stdout(root, "rev-parse", "HEAD"))
-        )
-        outputs = {item.output for item in (*committed, *observe_projections(root))}
-        origin_gap = ""
-    except (OSError, UnicodeError, ValueError) as exc:
-        outputs = set()
-        origin_gap = f"projection_ownership_unknown:{exc}"
-    checked = [_check_path(root=root, path=path, role=role, outputs=outputs) for path in paths]
-    return checked, origin_gap
 
 
 def _apply_path_effects(
@@ -427,92 +385,6 @@ def _editor_root_check(
         "actual": actual.as_posix() if actual else "",
         "reason": reason,
     }
-
-
-def _check_path(
-    *,
-    root: Path,
-    path: Path,
-    role: str,
-    outputs: set[str],
-    indexed_effects: dict[str, object] | None = None,
-) -> dict[str, object]:
-    text = path.as_posix()
-    literal_file = (
-        any(character.isspace() for character in text)
-        and all(character.isprintable() for character in text)
-        and (path if path.is_absolute() else root / path).is_file()
-    )
-    if has_invalid_path_token_character(text) and not literal_file:
-        reason = (
-            "path_invalid_control_character"
-            if any(not character.isprintable() for character in text)
-            else "path_invalid_whitespace"
-        )
-        return _path_report(text, reason=reason)
-    root_path = root.resolve()
-    candidate = path if path.is_absolute() else root_path / path
-    resolved = candidate if indexed_effects is not None else candidate.resolve()
-    if indexed_effects is not None and ".." in resolved.parts:
-        return _path_report(resolved.as_posix(), reason="path_outside_worktree")
-    try:
-        relative = resolved.relative_to(root_path).as_posix()
-    except ValueError:
-        return _path_report(resolved.as_posix(), reason="path_outside_worktree")
-    topology = path_policy_from_declaration(
-        relative,
-        load_generated_artifact_topology_declaration(),
-        origin="projection" if relative in outputs else "unclassified",
-    )
-    present = (
-        relative in indexed_effects and indexed_effects[relative] != "delete"
-        if indexed_effects is not None
-        else resolved.exists()
-    )
-    observed = {
-        "origin": topology["origin"],
-        "existence": "present" if present else "absent",
-        "placement": topology["decision"],
-    }
-    ignored = False if indexed_effects is not None else _is_ignored(root_path, relative)
-    tracked = not ignored
-    created = (
-        indexed_effects.get(relative) == "create" if indexed_effects is not None else not present
-    )
-    decision: dict[str, object] = {}
-    if topology["decision"] == "deny":
-        reason = str(topology.get("required_gap") or "generated_artifact_topology_denied")
-    elif created and tracked and (paradigm := paradigm_path_gaps(relative)):
-        reason, decision["repair"] = paradigm[0].required_gap, paradigm[0].repair
-    else:
-        protected = role in PROTECTED_WRITE_ROLES and tracked
-        reason = "protected_lane_tracked_write" if protected else "allowed"
-        decision["allowed"] = not protected
-    return _path_report(
-        resolved.as_posix(),
-        relative_path=relative,
-        **observed,
-        ignored=ignored,
-        tracked_candidate=tracked,
-        reason=reason,
-        **decision,
-    )
-
-
-def _path_report(path: str, *, reason: str, **details: object) -> dict[str, object]:
-    return {
-        "path": path,
-        "relative_path": "",
-        "ignored": False,
-        "tracked_candidate": False,
-        "allowed": False,
-        "reason": reason,
-        **details,
-    }
-
-
-def _is_ignored(root: Path, relative_path: str) -> bool:
-    return run_git(root, "check-ignore", "-q", "--", relative_path, check=False).returncode == 0
 
 
 def _gaps(

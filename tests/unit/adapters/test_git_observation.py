@@ -50,6 +50,32 @@ def test_native_inventory_preserves_paths_and_explicit_failure(tmp_path: Path) -
         git_adapter.git_files(repo, "--not-a-native-option", check=True)
 
 
+def test_ignore_observation_preserves_native_path_membership(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One native observation preserves exact names, tracked status and current policy."""
+    repo = init_git_repo(tmp_path / "repo")
+    policy = repo / ".gitignore"
+    policy.write_text("scratch/\n", encoding="utf-8")
+    scratch = repo / "scratch"
+    scratch.mkdir()
+    names = ("scratch/untracked.txt", "scratch/with space.txt", "scratch/tracked.txt")
+    for name in names:
+        (repo / name).write_text("retained content\n", encoding="utf-8")
+    git(repo, "add", "-f", names[2])
+    index = git(repo, "write-tree")
+    assert git_adapter.ignored_paths(repo, names) == set(names[:2])
+    policy.write_text("", encoding="utf-8")
+    assert git_adapter.ignored_paths(repo, names) == set()
+    assert git_adapter.ignored_paths(repo, ()) == set()
+    assert git(repo, "write-tree") == index
+    monkeypatch.setattr(git_adapter, "run_git", lambda *_a, **_kw: completed(stdout="foreign\0"))
+    with pytest.raises(ValueError, match="git_ignore_observation_unavailable"):
+        git_adapter.ignored_paths(repo, names)
+    with pytest.raises(ValueError, match="git_ignore_observation_unavailable"):
+        git_adapter.ignored_paths(repo, ("name\0other",))
+
+
 def test_ref_progress_retains_native_history_and_missing_ref(tmp_path):
     """Native reflog observations distinguish advances from an unavailable ref."""
     repo = init_git_repo(tmp_path / "repo")

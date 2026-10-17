@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.admission.paths as path_admission
 import ethos.adapters.admission.prewrite as prewrite
 from ethos.adapters.admission.current.authority import CurrentAuthority
 from ethos.adapters.admission.current.resolution import CurrentResolution
@@ -47,7 +48,7 @@ def _bind_common(monkeypatch: pytest.MonkeyPatch, root: Path, *, role: str = "wo
     monkeypatch.setattr(
         prewrite, "patch_admission", lambda **_kwargs: {"verdict": "pass", "reason": "matched"}
     )
-    monkeypatch.setattr(prewrite, "_is_ignored", lambda _root, _path: False)
+    monkeypatch.setattr(path_admission, "ignored_paths", lambda _root, _paths: set())
 
 
 @pytest.mark.parametrize("coordinate", ["head", "index", "unchanged"])
@@ -106,7 +107,7 @@ def test_prewrite_fails_closed_on_non_repository_root(
     monkeypatch.setattr(
         prewrite, "patch_admission", lambda **_kwargs: {"verdict": "pass", "reason": "matched"}
     )
-    monkeypatch.setattr(prewrite, "_is_ignored", lambda _root, _path: False)
+    monkeypatch.setattr(path_admission, "ignored_paths", lambda _root, _paths: set())
 
     report = prewrite.prewrite_guard(root=tmp_path, paths=[tmp_path / "README.md"])
 

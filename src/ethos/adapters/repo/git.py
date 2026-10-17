@@ -524,6 +524,24 @@ def git_files(root: Path, *patterns: str, check: bool = False) -> list[str]:
     )
 
 
+def ignored_paths(root: Path, paths: tuple[str, ...]) -> set[str]:
+    """Observe exact path membership in one fresh read; unavailable data raises."""
+    if not paths:
+        return set()
+    invalid = "git_ignore_observation_unavailable"
+    if any("\0" in path for path in paths):
+        raise ValueError(invalid)
+    arguments = ("check-ignore", "--stdin", "-z")
+    payload = "\0".join((*paths, ""))
+    result = run_git(root, *arguments, stdin=payload, check=False, observation=True)
+    if result.returncode == 1 and not result.stdout:
+        return set()
+    ignored = set(result.stdout.removesuffix("\0").split("\0"))
+    if result.returncode or not result.stdout.endswith("\0") or not ignored <= set(paths):
+        raise ValueError(invalid)
+    return ignored
+
+
 def tracked_paths(root: Path) -> tuple[str, ...]:
     """Return every index-tracked path exactly, without Git path quoting."""
     completed = run_git(root, "ls-files", "-z", check=False, text=False, observation=True)

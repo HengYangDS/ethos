@@ -12,7 +12,7 @@ from cyclopts import Parameter
 
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.adapters.admission.git_admission import ref_move_admission_report
-from ethos.adapters.admission.prewrite import has_invalid_path_token_character
+from ethos.adapters.admission.paths import has_invalid_path_token_character
 from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.admission.publication import ref_update_admission_report
 from ethos.adapters.admission.ref_move_policy import resolve_ref_move_policy

@@ -16,6 +16,7 @@ from tempfile import TemporaryDirectory
 from typing import IO
 from typing import TYPE_CHECKING
 
+from ethos.adapters.admission.paths import has_invalid_path_token_character
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
@@ -101,7 +102,7 @@ def _pre_commit(
     prewrite = import_module("ethos.adapters.admission.prewrite")
     paths = tuple(
         (root / path).as_posix()
-        if not Path(path).is_absolute() and not prewrite.has_invalid_path_token_character(path)
+        if not Path(path).is_absolute() and not has_invalid_path_token_character(path)
         else path
         for path in staged
     )

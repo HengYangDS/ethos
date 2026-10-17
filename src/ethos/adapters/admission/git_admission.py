@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from typing import Literal
 from typing import cast
 
+from ethos.adapters.admission.paths import has_invalid_path_token_character
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import committed_ref_intent
 from ethos.adapters.admission.ref_move_policy import accepted_advance_gaps
@@ -62,7 +63,6 @@ def hook_admission_report(
     """Evaluate a hook-layer request against the current checkout state."""
     normalized = request.layer.strip().lower().replace("_", "-")
     repo = Path(request.root).resolve()
-    prewrite = import_module("ethos.adapters.admission.prewrite")
     status = workspace_status(
         repo,
         include_foreign_path_scope=False,
@@ -70,7 +70,7 @@ def hook_admission_report(
     )
     targets = [
         path
-        if path.is_absolute() or prewrite.has_invalid_path_token_character(path.as_posix())
+        if path.is_absolute() or has_invalid_path_token_character(path.as_posix())
         else repo / path
         for path in map(Path, request.paths)
     ]

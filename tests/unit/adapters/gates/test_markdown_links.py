@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
@@ -209,3 +210,64 @@ def test_native_transform_cannot_hide_local_obligations(tmp_path: Path, transfor
     report = markdown_links_report(repo)
 
     assert report["verdict"] != "pass", report
+
+
+@pytest.mark.parametrize(
+    ("boundary", "verdict", "reason"),
+    [
+        ("empty", "unknown", "markdown_link_source_empty"),
+        ("missing-tool", "unknown", "quality_tool_missing:lychee"),
+        ("selection-failed", "unknown", "markdown_link_extraction_unproven"),
+        ("selection-mismatch", "unknown", "markdown_link_input_selection_unproven"),
+        ("nonfile", "unknown", "markdown_link_extraction_unproven"),
+        ("nonlocal", "block", "source_target_nonlocal_file"),
+        ("outside", "block", "source_target_outside_root"),
+    ],
+)
+def test_native_link_refusal_preserves_source_and_stops_execution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str, verdict: str, reason: str
+) -> None:
+    """Native discovery and URI failures remain observable without another check attempt."""
+    repo = _repository(tmp_path, "# Guide\n\n[Member](member.txt)\n")
+    (repo / "member.txt").write_text("Delivered member.\n")
+    if boundary == "empty":
+        for path in repo.rglob("*.md"):
+            path.unlink()
+    commit_fixture(repo, "declare native link failure inputs")
+    source = SourceTree.observe(repo)
+    original = {path: source.read(path) for path in source.entries}
+    which = gate_tool.shutil.which
+    monkeypatch.setattr(
+        gate_tool.shutil,
+        "which",
+        lambda name, **kwargs: (
+            None if boundary == "missing-tool" and name == "lychee" else which(name, **kwargs)
+        ),
+    )
+    native = gate_tool.run_command
+    calls = []
+
+    def observe(root, command, **kwargs):
+        calls.append(command)
+        if "--dump-inputs" in command:
+            if boundary == "selection-failed":
+                return subprocess.CompletedProcess(command, 7, b"", b"native selection failed\n")
+            if boundary == "selection-mismatch":
+                return subprocess.CompletedProcess(command, 0, b"", b"")
+        if "--dump" in command and boundary in {"nonfile", "nonlocal", "outside"}:
+            output = {
+                "nonfile": "https://example.invalid/member.txt\n",
+                "nonlocal": "file://foreign.invalid/member.txt\n",
+                "outside": (tmp_path / "outside.txt").as_uri() + "\n",
+            }[boundary]
+            return subprocess.CompletedProcess(command, 0, output, "")
+        return native(root, command, **kwargs)
+
+    monkeypatch.setattr(gate_tool, "run_command", observe)
+
+    report = markdown_links_report(repo)
+
+    assert report["verdict"] == verdict, report
+    assert report["required_gaps"] == [reason], report
+    assert all("--dump" in command or "--dump-inputs" in command for command in calls)
+    assert {path: SourceTree.observe(repo).read(path) for path in original} == original

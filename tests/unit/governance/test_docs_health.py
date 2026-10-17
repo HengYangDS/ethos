@@ -132,7 +132,7 @@ def test_docs_health_routes_metadata_without_indexing_generated_diagrams(
     metadata = tmp_path / "docs/_meta"
     metadata.mkdir(parents=True)
     contents = "[meta]\nversion = 1\n" if suffix == ".toml" else "{}\n"
-    for name in ("stable_paths", "taxonomy"):
+    for name in ("stable-paths", "taxonomy"):
         (metadata / f"{name}{suffix}").write_text(contents)
     diagrams = tmp_path / "docs/_generated"
     diagrams.mkdir()

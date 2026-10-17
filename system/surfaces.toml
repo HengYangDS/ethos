@@ -6,7 +6,7 @@
 schema = "system/schemas/contracts/surfaces.schema.json"
 
 [runtime]
-executables = ["git", "lsof", "ps", "ssh-keygen", "gh", "glab", "mise", "pre-commit"]
+executables = ["git", "lsof", "ps", "ssh-keygen", "gh", "glab", "mise", "pre-commit", "gitleaks", "uv"]
 inputs = [
   "CI",
   "COMSPEC",

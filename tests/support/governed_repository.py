@@ -273,14 +273,18 @@ def _write_active_change_carrier(
         "## Why\n\nExercise the governed fixture lifecycle.\n\n"
         "## What Changes\n\n- Exercise one fixture change.\n\n"
         "## Capabilities\n\n"
+        "### New Capabilities\n\n- None.\n\n"
+        "### Modified Capabilities\n\n"
         "- `contracts`: subject=fixture-contracts; reuse=extend; change=modify\n\n"
+        "## Impact\n\n- Test fixtures only.\n\n"
         "## Out Of Scope\n\n- Production behavior.\n",
         encoding="utf-8",
     )
     (carrier / "design.md").write_text(
         "## Context\n\nTest-only governed fixture.\n\n"
-        "## Design\n\nUse the real OpenSpec carrier shape.\n\n"
-        "## Alternatives\n\nNo compatibility fallback.\n\n"
+        "## Goals / Non-Goals\n\nUse the real OpenSpec carrier shape.\n\n"
+        "## Decisions\n\nNo compatibility fallback.\n\n"
+        "## Risks / Trade-offs\n\nNone beyond the fixture.\n\n"
         "## Proof Strategy\n\nRun focused lifecycle tests.\n",
         encoding="utf-8",
     )

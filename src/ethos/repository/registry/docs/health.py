@@ -197,20 +197,11 @@ def decision_record_identity_gaps(registry: list[dict[str, Any]]) -> list[str]:
 
 
 def _official_openspec_carrier(relative: str) -> bool:
-    """Keep the native spec-driven artifact roots outside document length policy."""
+    """Leave the immutable archive and accepted specifications to official validation."""
     parts = PurePosixPath(relative).parts
     if parts[:3] == ("openspec", "changes", "archive"):
         return True
-    if len(parts) == 4 and parts[:2] == ("openspec", "specs"):
-        return parts[3] == "spec.md"
-    if len(parts) == 4 and parts[:2] == ("openspec", "changes"):
-        return parts[3] in {"proposal.md", "design.md", "tasks.md"}
-    return (
-        len(parts) == 6
-        and parts[:2] == ("openspec", "changes")
-        and parts[3] == "specs"
-        and parts[5] == "spec.md"
-    )
+    return len(parts) == 4 and parts[:2] == ("openspec", "specs") and parts[3] == "spec.md"
 
 
 def plan_index_gaps(root: Path, registry: list[dict[str, Any]]) -> list[str]:

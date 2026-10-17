@@ -5,13 +5,11 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-import tempfile
-from contextlib import contextmanager
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import ethos.adapters.openspec.cli as openspec_cli
 from ethos.adapters.openspec.lifecycle.archive_transition import attested_archive_transition
+from ethos.adapters.openspec.projection import openspec_tree_projection
 from ethos.adapters.openspec.selection import requested_change
 from ethos.adapters.openspec.selection import resolve_change_selection
 from ethos.adapters.repo.git import run_git
@@ -23,47 +21,12 @@ from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from pathlib import Path
 
     from ethos.contracts.semantic import Attestation
 
 
 _TASK_CHECKBOX = re.compile(rb"(?m)^([ \t]*[-*+]\s+)\[[ xX]\]")
-
-
-@contextmanager
-def _openspec_projection(repo: Path, tree_ref: str | None) -> Generator[Path]:
-    """Expose official OpenSpec artifacts from one exact Git tree."""
-    if tree_ref is None:
-        yield repo
-        return
-    paths = run_git(
-        repo,
-        "ls-tree",
-        "-r",
-        "-z",
-        "--name-only",
-        tree_ref,
-        "--",
-        "openspec",
-    ).stdout
-    if not paths:
-        msg = "openspec_tree_projection_missing"
-        raise ValueError(msg)
-    with tempfile.TemporaryDirectory(prefix="ethos-openspec-tree-") as directory:
-        projection = Path(directory)
-        environment = {"GIT_INDEX_FILE": (projection / "index").as_posix()}
-        run_git(repo, "read-tree", tree_ref, env=environment)
-        run_git(
-            repo,
-            "checkout-index",
-            f"--prefix={projection.as_posix()}/",
-            "--stdin",
-            "-z",
-            env=environment,
-            stdin=paths,
-        )
-        yield projection
 
 
 def openspec_profile_enabled(repo: Path, *, tree_ref: str | None = None) -> bool:
@@ -320,7 +283,7 @@ def load_openspec_commitment(
     ):
         msg = "openspec_official_cli_missing"
         raise ValueError(msg)
-    with _openspec_projection(repo, tree_ref) as projection:
+    with openspec_tree_projection(repo, tree_ref) as projection:
         if change_id is None:
             (listed,) = openspec_cli.run_json_batch(projection, command, (("list", "--json"),))
             rows = listed.get("json", {}).get("changes", [])

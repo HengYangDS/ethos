@@ -1,0 +1,16 @@
+# Tasks
+
+## 11. Supply and Native Configuration
+
+- [ ] 11.3 Qualify supported latest-stable supply through native manifests, locks, audits, reports and actual consumers; preserve Python 3.12 compatibility and retire replaced supply only after exact proof and installed migration. Follow the current audit owner, not superseded advisory approvals; deferred peer supply remains open.
+  - [ ] 11.3.1 Close the native workflow checker child-start-before-input deadlock; verify bounded finite input, EOF and cancellation on the actual large workflow without a deadline increase, vendor fork or reduced checks. Require exact proof and installed delivery.
+  - [ ] 11.3.2 Deliver the retained stable-supply refresh through native manifests, locks, CI projections and immutable runtime; verify exact compatible dependency resolution, official Node archive/cache identity, seed-only bundled npm, complete native audits and same-attempt reports. Retire duplicate policy/installers after cold and warm macOS/Linux/Windows qualification; preserve original-plan and interrupted-sync recovery, exact proof and adopter migration. Follow current audit policy in 11.3.4. Wheels emit Node-only resources; the product package lock uniquely selects npm.
+  - [x] 11.3.3 Complete GitLab publication, stale-proposal retirement and hosted readback for the latest-stable supply through current native preview/CAS when the intranet is reachable. Retain accepted GitHub macOS/Linux/Windows and CodeQL evidence, exact proof, immutable runtime and Python >=3.12,<3.15. The GitLab image bound in `.config/ci/pipeline.cue` must match the published head's ten hashed supply inputs; its binding commit message records the dispatch, source, tag, digest and ten-input readback. Native receipts published GitLab dev/main and retired its three stale proposal branches; GitLab pipelines 10575/10576 on `365fbffda` pass the supply check and all 36 head-bound proof gates. Advisory follow-through stays under 11.3.4.
+  - [ ] 11.3.4 Report findings with no official stable fix without blocking, using captured exact artifact ownership and native latest/fix observations; preserve fixable-finding, malformed/missing observation and adverse-status refusal. Verify offline protected-hook reevaluation, remove superseded approvals only through the policy owner after 5.26, and complete exact proof, landing and hosted acceptance.
+  - [ ] 11.3.5 Refresh supply pins to the latest stable releases of 2026-10-15 (mise 2026.10.10, Node 26.12.0, uv 0.13.1, OpenSpec 1.14.2 and the Python lock patch releases), then rebuild and rebind the Linux supply image; done when a dev/main GitLab ethos:commit-policy job passes the supply input check on the new digest.
+- [ ] 11.4 Migrate native developer/CI tool supply to mise locks and retire replaced installers.
+- [ ] 11.8 Converge root configuration placement with native discovery, hook and CI consumer evidence; remove replaced declarations and stale documentation.
+
+## Workflow follow-up
+
+- Prove the exact head, archive this Change, prove the archived head, then land, close out and publish.

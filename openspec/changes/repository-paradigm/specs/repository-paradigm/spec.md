@@ -232,6 +232,12 @@ The repository paradigm SHALL fix the branch role names: release `main`, accepte
 - **WHEN** `[branch_roles]` declares `accepted_branch = "dev"`
 - **THEN** the paradigm reports the declared name and names its removal.
 
+#### Scenario: A Work Lane name already carries a date
+
+- **WHEN** `ethos lane start 20261016-archive-relocation` runs
+- **THEN** lane start refuses the name and names `archive-relocation` as the repair
+- **AND** no Work Lane path repeats its date.
+
 #### Scenario: A workspace declares the retired sibling-worktree setting
 
 - **WHEN** `[branch_roles]` declares `canonical_sibling_worktrees = false`

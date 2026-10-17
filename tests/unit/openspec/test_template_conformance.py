@@ -4,16 +4,15 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING
+
+import pytest
 
 import ethos.adapters.openspec.governance as governance
 import tests.support.governed_repository as fixture
+from ethos.adapters.openspec.template_conformance import template_conformance_gaps
 from ethos.repository.openspec.template_outline import markdown_outline
 from ethos.repository.openspec.template_outline import outline_gaps
 from ethos.repository.openspec.template_outline import template_outline
-
-if TYPE_CHECKING:
-    import pytest
 
 _DESIGN_TEMPLATE = (
     "# Design\n\n## Context\n\n<!-- Current state -->\n\n## Goals / Non-Goals\n\n"
@@ -136,3 +135,50 @@ def test_a_heading_the_resolved_template_gains_is_required_without_an_ethos_chan
 
     assert report["commands"]["templates"]["spec-driven"]["json"]["design"]["source"] == "project"
     assert _template_gaps(report) == ["openspec_template_heading_missing:first:design:Rollout"]
+
+
+def _template_read(**paths: Path) -> dict[str, object]:
+    return {
+        "exit_code": 0,
+        "parse_error": "",
+        "json": {artifact: {"path": path.as_posix()} for artifact, path in paths.items()},
+    }
+
+
+def test_an_unreadable_template_is_a_gap_and_an_absent_template_is_not_required(
+    tmp_path: Path,
+) -> None:
+    changes = [{"changeName": "first", "schemaName": "custom", "artifactPaths": {}}]
+    templates = {"custom": _template_read(proposal=tmp_path / "missing.md")}
+
+    assert template_conformance_gaps(tmp_path, changes, templates) == [
+        "openspec_template_unreadable:custom:proposal"
+    ]
+
+
+@pytest.mark.parametrize("artifact", ["relative", "outside", "directory", "oversized", "binary"])
+def test_an_artifact_the_repository_cannot_supply_is_a_gap(tmp_path: Path, artifact: str) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    template = tmp_path / "proposal.md"
+    template.write_text("## Why\n", encoding="utf-8")
+    (root / "oversized.md").write_text("x" * ((1 << 20) + 1), encoding="utf-8")
+    (root / "binary.md").write_bytes(b"\xff")
+    output = {
+        "relative": Path("proposal.md"),
+        "outside": template,
+        "directory": root,
+        "oversized": root / "oversized.md",
+        "binary": root / "binary.md",
+    }[artifact]
+    changes = [
+        {
+            "changeName": "first",
+            "schemaName": "custom",
+            "artifactPaths": {"proposal": {"existingOutputPaths": [output.as_posix()]}},
+        }
+    ]
+
+    gaps = template_conformance_gaps(root, changes, {"custom": _template_read(proposal=template)})
+
+    assert gaps == ["openspec_artifact_unreadable:first:proposal"]

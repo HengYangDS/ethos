@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import shlex
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.git import run_git
@@ -17,7 +18,6 @@ from tools.ci.delivery.acceptance.merge import prove_native_merge
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-    from pathlib import Path
 
 
 def prove_lifecycle(
@@ -30,7 +30,6 @@ def prove_lifecycle(
     prefix = (python.as_posix(), "-B", "-I", "-m", "ethos.cli")
     holder = "agent:test:package-only:bootstrap"
     lane_environment = {**environment, "ETHOS_ACTOR": holder}
-    worktree = repo.parent / "repo-work-bootstrap-change"
     command = (
         *prefix,
         "lane",
@@ -38,8 +37,6 @@ def prove_lifecycle(
         "bootstrap-change",
         "--root",
         repo.as_posix(),
-        "--path",
-        worktree.as_posix(),
         "--holder-ref",
         holder,
         "--apply",
@@ -50,9 +47,10 @@ def prove_lifecycle(
         message = f"package_lane_bootstrap_failed:{diagnostic}"
         raise RuntimeError(message)
     data = started.get("data")
-    if not isinstance(data, dict):
+    if not isinstance(data, dict) or not isinstance(data.get("path"), str):
         message = "package_lane_bootstrap_result_missing"
         raise TypeError(message)
+    worktree = Path(data["path"])
     bootstrap = data.get("runner_bootstrap")
     expected_command = " ".join(prefix)
     if (

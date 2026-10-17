@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import shutil
 import subprocess
 from typing import TYPE_CHECKING
@@ -10,12 +11,14 @@ import ethos.adapters.mutation.accepted.signature as repair
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import render_branch_policy
+from tests.support.governed_repository import write_release_mirror
 from tests.support.subprocesses import kill_after_marker
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from pathlib import Path
+
+    import pytest
 
 
 def configure_signer(repo: Path, tmp_path: Path) -> None:
@@ -44,6 +47,39 @@ def configure_signer(repo: Path, tmp_path: Path) -> None:
         git(repo, "config", name, value)
 
 
+def untrusted_signer_repository(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, signed: bool, key_type: str = "ed25519"
+) -> tuple[Path, Path, str, str]:
+    """Configure one local signer that the repository's empty trust anchor does not trust yet."""
+    key = tmp_path / "signer"
+    subprocess.run(
+        ("/usr/bin/ssh-keygen", "-q", "-t", key_type, "-N", "", "-f", str(key)),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    for role in ("AUTHOR", "COMMITTER"):
+        monkeypatch.setenv(f"GIT_{role}_NAME", "Test User")
+        monkeypatch.setenv(f"GIT_{role}_EMAIL", "owner@example.com")
+    repo = init_git_repo(tmp_path / "repo")
+    trust = tmp_path / "trust"
+    trust.mkdir(mode=0o700)
+    anchor = trust / "allowed-signers"
+    anchor.write_bytes(b"")
+    anchor.chmod(0o600)
+    for name, value in (
+        ("gpg.format", "ssh"),
+        ("user.signingkey", key.with_suffix(".pub").as_posix()),
+        ("user.email", "owner@example.com"),
+        ("gpg.ssh.allowedSignersFile", anchor.as_posix()),
+    ):
+        git(repo, "config", name, value)
+    if signed:
+        git(repo, "-c", "commit.gpgsign=true", "commit", "--allow-empty", "-m", "signed target")
+    target = git(repo, "rev-parse", "HEAD")
+    return repo, anchor, target, hashlib.sha256(anchor.read_bytes()).hexdigest()
+
+
 def repair_fixture_history(root: Path, backup: Path, *, corrections: Mapping[str, object]) -> str:
     """Execute one positive native history repair with a verified original bundle."""
     git(root, "bundle", "create", str(backup), "refs/heads/dev")
@@ -66,15 +102,9 @@ def signature_repository(tmp_path: Path, *, coupled: bool = False) -> tuple[Path
     repo = init_git_repo(tmp_path / "repo")
     (repo / ".ethos").mkdir()
     (repo / ".ethos/profile.toml").write_text('profile_id = "signature-fixture"\n')
-    (repo / ".ethos/workspace.toml").write_text(
-        render_branch_policy(
-            release_mirror="accepted_ff" if coupled else "independent",
-        )
-        + "\n[commit_policy]\n"
-        + 'signing_required = true\nsigning_format = "ssh"\n'
-    )
+    write_release_mirror(repo, "accepted_ff" if coupled else "independent")
     git(repo, "add", ".ethos")
-    git(repo, "commit", "-m", "fix: accepted signing policy")
+    git(repo, "-c", "commit.gpgsign=false", "commit", "-m", "fix: accept an unsigned head")
     old = git(repo, "rev-parse", "HEAD")
     git(repo, "branch", "candidate/dev", old)
     git(repo, "branch", "main", old)

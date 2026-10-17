@@ -51,6 +51,7 @@ class BindingFileSet(BaseModel):
 
     root: str
     files: FrozenTuple[str]
+    workspace_tables: FrozenTuple[str]
 
 
 class EditorDefaults(BaseModel):
@@ -123,13 +124,14 @@ class DocumentConventions(BaseModel):
 
 
 class CommitGrammar(BaseModel):
-    """The commit subject grammar every governed repository shares."""
+    """The commit subject grammar and signature every governed repository shares."""
 
     model_config = _DECLARATION
 
     types: FrozenTuple[str]
     scope: str
     breaking_marker: str = Field(min_length=1, max_length=1)
+    signature: Literal["ssh"]
 
     @model_validator(mode="after")
     def require_compilable_grammar(self) -> Self:
@@ -149,6 +151,26 @@ class CommitGrammar(BaseModel):
         scope = "|".join(re.escape(name) for name in scopes) if scopes else self.scope
         types = "|".join(self.types)
         return rf"^({types})(\(({scope})\))?{re.escape(self.breaking_marker)}?: .+"
+
+
+class OpenSpecRules(BaseModel):
+    """The common rules that begin each artifact's rules in every OpenSpec configuration."""
+
+    model_config = _DECLARATION
+
+    proposal: FrozenTuple[str] = Field(min_length=1)
+    specs: FrozenTuple[str] = Field(min_length=1)
+    design: FrozenTuple[str] = Field(min_length=1)
+    tasks: FrozenTuple[str] = Field(min_length=1)
+
+
+class OpenSpecConventions(BaseModel):
+    """The artifact schema every governed repository selects and its common artifact rules."""
+
+    model_config = _DECLARATION
+
+    artifact_schema: Literal["spec-driven"]
+    rules: OpenSpecRules
 
 
 class EcosystemModule(BaseModel):
@@ -194,6 +216,7 @@ class RepositoryParadigm(BaseModel):
     size: SizeCeilings
     documents: DocumentConventions
     commit: CommitGrammar
+    openspec: OpenSpecConventions
     module: FrozenTuple[EcosystemModule]
     tool: FrozenTuple[ToolCarrier]
 

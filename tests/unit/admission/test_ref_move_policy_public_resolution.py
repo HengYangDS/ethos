@@ -43,12 +43,12 @@ def test_ref_policy_rejects_transition_without_strict_or_profile_authority(tmp_p
         resolve_ref_move_policy(repo, "refs/heads/arbitrary", head, head)
 
 
-def test_ref_policy_reads_standard_roles_from_a_workspace_without_the_table(
+def test_ref_policy_reads_standard_roles_from_a_release_binding_without_a_mirror(
     tmp_path: Path,
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    workspace = "[commit_policy]\nsigning_required = true\n"
-    head = commit_fixture_file(repo, ".ethos/workspace.toml", workspace, "record commit policy")
+    release = '[protected_refs]\ntags = ["v*"]\n'
+    head = commit_fixture_file(repo, ".ethos/release.toml", release, "record release tags")
 
     policy = resolve_ref_move_policy(repo, "refs/heads/arbitrary", head, head)
 
@@ -130,14 +130,8 @@ def test_candidate_destination_uses_resolved_strict_policy(tmp_path: Path, candi
     head = git(repo, "rev-parse", "HEAD")
     ref = "refs/heads/candidate/dev"
     roles = resolve_ref_move_policy(repo, ref, head, head)
-    path = repo / ".ethos/workspace.toml"
-    original = path.read_text()
-    path.write_text(
-        original.replace(
-            "[branch_roles]\n",
-            f'[branch_roles]\ncandidate_branch = "{candidate}"\n'
-            'accepted_branch = "missing-accepted"\n',
-        )
+    (repo / ".ethos/workspace.toml").write_text(
+        f'[branch_roles]\ncandidate_branch = "{candidate}"\naccepted_branch = "missing-accepted"\n'
     )
     assert (
         candidate_destination_gaps(

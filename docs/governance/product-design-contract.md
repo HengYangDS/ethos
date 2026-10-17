@@ -305,7 +305,8 @@ Hard bindings name subject, predicate, scope, validity and expected Git state;
 mandatory bindings name profile-selected obligations; optional bindings name
 native capabilities or explicit absence. None transfers authority between
 proof planes. Admission binds exact Commitment and fresh Facts before conflicts;
-historical Attestations remain queryable without invalidating another input.
+historical Attestations remain queryable until their lifetime ends, without
+invalidating another input.
 Proof selects predicate, Commitment, commit, tree, policy, verifier and plane;
 newer transport, worktree or ref receipts cannot substitute.
 
@@ -462,10 +463,11 @@ substantive children. `docs/decisions/` keeps only irreducible cross-Change
 alternatives, consequences and revisit conditions. Decision names are lowercase
 and semantic; each record has an owner and retirement condition. Evidence
 survives only with a producer, consumer, exact binding and retention lifecycle.
-Attestations retain results, Git retains history, and current owners retain
-still-valid obligations.
+Attestations retain results while a reader can still select them, custody
+retains the files they bind until release, Git retains history, and current
+owners retain still-valid obligations.
 
-[Module Layout Rules](../../rules/module_layout.md) own physical source shape.
+[Module Layout Rules](../../rules/module-layout.md) own physical source shape.
 Each quality property has one executable owner, using native tools where they
 suffice. Documentation explains contracts and reasons rather than copying
 policy. Configuration lives in the configuration plane, grouped by consuming
@@ -587,7 +589,7 @@ their rendered dashboards, indexes, and command output remain projections.
 1. One durable obligation has one narrow semantic owner.
 2. Every effect is compiled, evaluated, freshly admitted and applied by exact CAS.
 3. Unknown required facts, ambiguous authority, stale bindings and conflicts block.
-4. Historical bytes remain recoverable without becoming current authority.
+4. Historical source bytes remain recoverable through Git without becoming current authority.
 5. Profiles retain native domains and layouts; complete mutation uses verified OpenSpec.
 6. OpenSpec owns tracked intent; Commitment is transient and Attestation durable.
 7. Change relations and experiments derive from existing carriers, not new stores.

@@ -30,7 +30,7 @@ from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.adapters.repo.worktree_effects import raw_worktree_records
 from ethos.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
-from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
+from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import TransitionPlan
@@ -62,10 +62,11 @@ def signature_coordinates(
         history is not None or not cast("dict[str, object]", source["signature"])["present"],
         "signature_repair_source_not_unsigned",
     )
+    policy = strict_branch_role_policy_from_release_text(
+        committed_file_text(root, old, ".ethos/release.toml")
+    )
     policy_text = committed_file_text(root, old, ".ethos/workspace.toml")
-    policy = strict_branch_role_policy_from_text(policy_text)
     signing = commit_policy_from_text(policy_text)
-    _require(signing is not None and signing.signing_required, "signature_repair_policy_required")
     allowed_heads = {old, new} if new else {old}
     _require(
         ref_head(root, policy.accepted_branch) in allowed_heads,
@@ -361,10 +362,12 @@ def completed_signature_repair(
 def _validate_historical_source(root: Path, coordinates: Mapping[str, object]) -> None:
     """Re-derive immutable source obligations; historical records do not choose policy."""
     old = str(coordinates["old"])
+    policy = strict_branch_role_policy_from_release_text(
+        committed_file_text(root, old, ".ethos/release.toml")
+    )
     policy_text = committed_file_text(root, old, ".ethos/workspace.toml")
-    policy = strict_branch_role_policy_from_text(policy_text)
-    signing = commit_policy_from_text(policy_text)
-    _require(signing is not None and signing.signing_required, "signature_repair_policy_required")
+    # Compiling the source binding keeps a malformed policy from authorizing a repair.
+    commit_policy_from_text(policy_text)
     required = {f"refs/heads/{policy.accepted_branch}": old}
     if policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF:
         required[f"refs/heads/{policy.release_branch}"] = old

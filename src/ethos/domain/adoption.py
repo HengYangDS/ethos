@@ -30,6 +30,17 @@ _FORMATION_REPAIR_ACTIONS = {
     ),
     "formation_purpose_missing": "Supply --purpose for the new project before retrying",
 }
+_FORMATION_SIGNER_GAPS = frozenset(
+    {
+        "formation_commit_signer_missing",
+        "git_effect_signing_key_invalid",
+        "git_effect_signing_program_invalid",
+        "commit_trust_anchor_missing",
+        "commit_trust_anchor_not_absolute",
+        "commit_trust_anchor_inside_repository",
+        "commit_trust_anchor_unprotected",
+    }
+)
 
 
 @application_result("adopt")
@@ -42,6 +53,9 @@ def adopt_repository(
     starter: str = "",
     author_name: str = "",
     author_email: str = "",
+    signing_key: str = "",
+    trust_anchor: str = "",
+    signing_program: str = "",
     apply: bool = False,
     authorize: bool = False,
     expect_head: str | None = None,
@@ -75,6 +89,9 @@ def adopt_repository(
             starter=starter,
             author_name=author_name,
             author_email=author_email,
+            signing_key=signing_key,
+            trust_anchor=trust_anchor,
+            signing_program=signing_program,
             apply=apply,
             authorize=authorize,
             expect_plan_digest=expect_plan_digest,
@@ -233,6 +250,9 @@ def _form_repository(
     starter: str,
     author_name: str,
     author_email: str,
+    signing_key: str,
+    trust_anchor: str,
+    signing_program: str,
     apply: bool,
     authorize: bool,
     expect_plan_digest: str | None,
@@ -245,6 +265,9 @@ def _form_repository(
         starter=starter,
         author_name=author_name,
         author_email=author_email,
+        signing_key=signing_key,
+        trust_anchor=trust_anchor,
+        signing_program=signing_program,
         apply=apply and expect_head is None,
         authorized=authorize,
         expect_plan_digest=expect_plan_digest,
@@ -272,6 +295,9 @@ def _form_repository(
         purpose,
         *(("--author-name", selected_name) if selected_name else ()),
         *(("--author-email", selected_email) if selected_email else ()),
+        *(("--signing-key", signing_key) if signing_key else ()),
+        *(("--trust-anchor", trust_anchor) if trust_anchor else ()),
+        *(("--signing-program", signing_program) if signing_program else ()),
         "--json",
     ]
     mutation = [*preview, "--apply", "--authorize", "--expect-plan-digest", digest]
@@ -289,6 +315,12 @@ def _form_repository(
     elif "formation_git_identity_missing" in gaps:
         next_action = (
             "Supply the actual contributor's --author-name and --author-email; "
+            f"then {shlex.join(preview)}"
+        )
+    elif _FORMATION_SIGNER_GAPS.intersection(gaps):
+        next_action = (
+            "Supply the creator's --signing-key (an absolute SSH public key) and "
+            "--trust-anchor (an absolute protected allowed-signers file); "
             f"then {shlex.join(preview)}"
         )
     elif repair:
@@ -317,6 +349,7 @@ def _form_repository(
             verdict in {"pass", "unknown"}
             or "authorization_required" in gaps
             or "formation_git_identity_missing" in gaps
+            or bool(_FORMATION_SIGNER_GAPS.intersection(gaps))
             or "formation_target_exists" in gaps
             or "formation_candidate_path_exists" in gaps
             or "formation_starter_unavailable" in gaps
@@ -333,6 +366,9 @@ def _form_repository(
                 "expect_plan_digest": expect_plan_digest,
                 "author_name": author_name,
                 "author_email": author_email,
+                "signing_key": signing_key,
+                "trust_anchor": trust_anchor,
+                "signing_program": signing_program,
             }
         },
     )

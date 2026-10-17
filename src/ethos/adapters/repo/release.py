@@ -24,8 +24,8 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import recover_plan
 from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.repo.git_object import zero_oid
-from ethos.contracts.branch.roles import branch_role_policy_from_text
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.value import mutable_json
 from ethos.repository.release.configuration import release_config_from_text
@@ -49,8 +49,8 @@ def require_release(condition: object, gap: str) -> None:
 def release_branch_policy(root: Path) -> BranchRolePolicy:
     """Keep release roles anchored to current accepted policy, not candidate edits."""
     policy = load_branch_role_policy(root)
-    committed = branch_role_policy_from_text(
-        committed_file_text(root, ref_head(root, policy.accepted_branch), ".ethos/workspace.toml")
+    committed = strict_branch_role_policy_from_release_text(
+        committed_file_text(root, ref_head(root, policy.accepted_branch), ".ethos/release.toml")
     )
     require_release(policy == committed, "release_branch_policy_changed")
     return policy
@@ -291,7 +291,7 @@ def accepted_delivery_report(
         "baseline_source": "accepted_effect",
         "accepted_plan": accepted["accepted_plan"],
         "accepted_provenance": accepted["provenance"],
-        "policy": policy.projection() if policy else None,
+        "policy": policy.projection(),
         "revisions": [],
         "checked_commit_count": 0,
         "violations": [],

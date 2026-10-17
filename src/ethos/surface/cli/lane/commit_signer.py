@@ -10,7 +10,7 @@ from typing import Annotated
 from cyclopts import Parameter
 
 from ethos.adapters.mutation.accepted.signature import repair_signature
-from ethos.adapters.repo.git_object import authorize_configured_commit_signer
+from ethos.adapters.repo.trust_anchor.authorization import authorize_configured_commit_signer
 from ethos.contracts.semantic import parse_semantic_json
 from ethos.surface.cli.lane.lifecycle import AppliedLaneCommandOptions
 from ethos.surface.cli.lane.lifecycle import lane_app

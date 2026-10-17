@@ -29,7 +29,7 @@ default:
       - api_failure
       - scheduler_failure
 ethos:commit-policy:
-  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:4f57e89fd8b4dfc70e823f5084717e2addebeb716ddf3226b1b59c38ffb8cb33
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:dc2bd5a9cff226e61659cfea765bba9f113ef4159ebfe65b2d05b4ef3eafddfe
   before_script:
     - tools/ci/scripts/bootstrap-python.sh
   stage: quality
@@ -55,7 +55,7 @@ ethos:commit-policy:
   script:
     - uv run --frozen --offline python -B -I -m ethos.cli hook commit-range --target-ref "${ETHOS_COMMIT_TARGET_REF}" --proposed-head "${ETHOS_COMMIT_PROPOSED_HEAD}" --remote-head "${ETHOS_COMMIT_REMOTE_HEAD}" --remote origin --root . --json
 ethos:host-conformance:
-  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:4f57e89fd8b4dfc70e823f5084717e2addebeb716ddf3226b1b59c38ffb8cb33
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:dc2bd5a9cff226e61659cfea765bba9f113ef4159ebfe65b2d05b4ef3eafddfe
   before_script:
     - tools/ci/scripts/bootstrap-python.sh
   stage: verify
@@ -76,7 +76,7 @@ ethos:host-conformance:
       - build/evidence/local-install/smoke.json
 ethos:verify:
   image:
-    name: ghcr.io/hengyangds/ethos-ci-supply@sha256:4f57e89fd8b4dfc70e823f5084717e2addebeb716ddf3226b1b59c38ffb8cb33
+    name: ghcr.io/hengyangds/ethos-ci-supply@sha256:dc2bd5a9cff226e61659cfea765bba9f113ef4159ebfe65b2d05b4ef3eafddfe
     entrypoint:
       - bash
       - -c
@@ -114,7 +114,7 @@ ethos:verify:
         coverage_format: cobertura
         path: build/evidence/quality/tests/coverage/coverage.xml
 ethos:external-links:
-  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:4f57e89fd8b4dfc70e823f5084717e2addebeb716ddf3226b1b59c38ffb8cb33
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:dc2bd5a9cff226e61659cfea765bba9f113ef4159ebfe65b2d05b4ef3eafddfe
   stage: verify
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
@@ -148,7 +148,7 @@ ethos:npm:
     - when: on_success
   variables:
     NODE_VERSION: 26.12.0
-  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:4f57e89fd8b4dfc70e823f5084717e2addebeb716ddf3226b1b59c38ffb8cb33
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:dc2bd5a9cff226e61659cfea765bba9f113ef4159ebfe65b2d05b4ef3eafddfe
   script:
     - tools/ci/scripts/bootstrap-python.sh
     - uv run --no-sync python -B -c 'import os, subprocess, sys; from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime; runtime = resolve_node_runtime(); subprocess.run([str(runtime.executable), str(runtime.npm), *sys.argv[1:]], env=dict(os.environ, PATH=str(runtime.executable.parent) + os.pathsep + os.environ["PATH"], npm_config_engine_strict="true", npm_config_audit="false", npm_config_fund="false", npm_config_update_notifier="false"), stdin=subprocess.DEVNULL, timeout=120, check=True)' run ethos -- --version

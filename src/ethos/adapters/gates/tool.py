@@ -11,6 +11,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -157,6 +158,11 @@ def prose_report(root: Path) -> dict[str, object]:
         configs = native_configurations(
             root, "codespell", ".config/checks/codespell/codespell.toml"
         )
+        for config in configs:
+            settings = tomllib.loads(Path(config).read_text(encoding="utf-8")).get("tool")
+            if not isinstance(settings, dict) or not isinstance(settings.get("codespell"), dict):
+                message = f"codespell_configuration_table_missing:{config}"
+                return _configuration_failure("prose", ValueError(message))
         sources = {relative: (root / relative).read_bytes() for relative in files}
         if any((root / relative).is_symlink() for relative in files):
             return _configuration_failure("prose", ValueError("native_prose_input_invalid"))

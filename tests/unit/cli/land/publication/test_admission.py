@@ -43,7 +43,7 @@ def test_exact_publication_policy_rejects_inconsistent_release_roles(
         repo,
         ".ethos/release.toml",
         f"[protected_refs]\nbranches = {branches}\ntags = []\n",
-        "declare release roles",
+        "docs(release): declare release roles",
     )
     (repo / ".ethos/release.toml").write_text(
         '[protected_refs]\nbranches = ["dev", "main"]\ntags = []\n', encoding="utf-8"

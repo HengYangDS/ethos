@@ -455,6 +455,7 @@ def run(
                     build=build,
                     wheel_sha256=wheel_sha256,
                     environment=package_environment,
+                    run=_run,
                 ),
             )
             independent_host = observe_independent_command_plane(installed_ethos, adopter)

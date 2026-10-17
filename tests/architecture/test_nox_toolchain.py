@@ -224,6 +224,45 @@ def test_configuration_owner_validates_native_formatter_policy_before_checking(t
         assert bool(report["required_gaps"]) == (verdict == "block"), report
 
 
+@pytest.mark.parametrize("configuration", ["count = true\n", "[tool]\ncount = true\n"])
+def test_prose_refuses_configuration_codespell_would_not_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, configuration: str
+) -> None:
+    """The shared provider refuses a silently ignored table before native execution."""
+    root = init_git_repo(tmp_path / "repo")
+    sample = root / "README.md"
+    sample.write_text("# Valid native prose\n", encoding="utf-8")
+    git(root, "add", sample.name)
+    config = tmp_path / "codespell.toml"
+    config.write_text(configuration, encoding="utf-8")
+    owner = sessions.import_module("ethos.adapters.gates.tool")
+    monkeypatch.setattr(owner, "native_configurations", lambda *_args: (str(config),))
+    execution = Mock(return_value={"verdict": "pass", "stderr": "0", "required_gaps": []})
+    monkeypatch.setattr(owner, "quality_tool_report", execution)
+
+    report = owner.prose_report(root)
+
+    assert report["verdict"] == "block", report
+    assert report["required_gaps"] == [f"codespell_configuration_table_missing:{config}"]
+    execution.assert_not_called()
+    assert (sample.read_text(), config.read_text()) == (
+        "# Valid native prose\n",
+        configuration,
+    )
+
+
+def test_codespell_reads_its_declared_configuration(tmp_path: Path) -> None:
+    """The count the carrier enables appears although no count option is passed."""
+    sample = tmp_path / "sample.md"
+    sample.write_text("teh sample\n", encoding="utf-8")
+    config = ROOT / ".config/checks/codespell/codespell.toml"
+    command = (sessions.RUNTIME.script("codespell"), "--toml", str(config))
+    result = run_command(tmp_path, (*command, str(sample)), timeout=60)
+    assert result.returncode != 0
+    assert "teh ==> the" in result.stdout
+    assert result.stderr.strip().splitlines()[-1] == "1"
+
+
 @pytest.mark.parametrize(
     ("arguments", "succeeds"),
     [(("--list",), True), (("-s", "lint"), True), (("-s", "markdown_lint"), False)],

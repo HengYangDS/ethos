@@ -19,7 +19,7 @@ from ethos.adapters.repo.git_object import observe_commits
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.adapters.repo.trust_anchor.verification import verify_commit_trust
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
+from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
 from ethos.repository.release.configuration import release_config_from_text
 from ethos.repository.release.publication import publication_ref_role
 from ethos.repository.release.publication import publication_transport_tags
@@ -101,34 +101,30 @@ def commit_range_admission_report(
     )
     if revisions is None:
         gap = f"commit_range_unreadable:{baseline}:{proposed_commit}"
-    try:
-        candidate = commit_policy_for_revision(repo, proposed_commit)
-        incumbent_revision = policy_ref or integration_baseline
-        incumbent = commit_policy_for_revision(repo, incumbent_revision)
-    except (TypeError, ValueError) as error:
-        gap = str(error)
-        candidate = incumbent = None
-    if gap:
-        return report(state="blocked", required_gaps=[gap])
+    incumbent_revision = policy_ref or integration_baseline
+    policies, policy_gap = _range_policies(
+        repo, proposed_commit=proposed_commit, baseline_commit=incumbent_revision
+    )
+    if policy_gap or gap:
+        return report(state="blocked", required_gaps=[policy_gap or gap])
     assert revisions is not None
-    policies = tuple(dict.fromkeys(policy for policy in (candidate, incumbent) if policy))
+    assert policies is not None
+    candidate, incumbent = policies
     violations, gaps = _validate_commit_revisions(
-        repo, revisions, policies=policies, verify_trust=True
+        repo, revisions, policies=tuple(dict.fromkeys(policies)), verify_trust=True
     )
     result = report(
         state="blocked" if gaps else "admitted",
-        policy=candidate.projection() if candidate else None,
+        policy=candidate.projection(),
         revisions=revisions,
         violations=violations,
         required_gaps=gaps,
     )
     result["policy_sources"] = {
-        incumbent_revision: incumbent.projection() if incumbent else None,
-        proposed_commit: candidate.projection() if candidate else None,
+        incumbent_revision: incumbent.projection(),
+        proposed_commit: candidate.projection(),
     }
-    result["signature_verification"] = (
-        "required_native" if any(policy.signing_required for policy in policies) else "not_required"
-    )
+    result["signature_verification"] = "required_native"
     if repair is not None:
         result.update(
             update_kind="create" if creation else "repair",
@@ -144,21 +140,28 @@ def commit_range_admission_report(
     return result
 
 
+def _range_policies(
+    repo: Path, *, proposed_commit: str, baseline_commit: str
+) -> tuple[tuple[CommitPolicy, CommitPolicy] | None, str]:
+    """Compile the candidate and incumbent policies, or name the gap that stops admission."""
+    try:
+        return (
+            commit_policy_for_revision(repo, proposed_commit),
+            commit_policy_for_revision(repo, baseline_commit),
+        ), ""
+    except (TypeError, ValueError) as error:
+        return None, str(error)
+
+
 def validate_replayed_commits(
     root: Path,
     *,
     baseline_commit: str,
     proposed_commit: str,
-    policy: CommitPolicy | None,
+    policy: CommitPolicy,
 ) -> list[str]:
     """Admit replay against its trusted baseline and explicitly selected policy."""
-    policies = tuple(
-        dict.fromkeys(
-            item for item in (commit_policy_for_revision(root, baseline_commit), policy) if item
-        )
-    )
-    if not policies:
-        return []
+    policies = tuple(dict.fromkeys((commit_policy_for_revision(root, baseline_commit), policy)))
     revisions = _introduced_commit_revisions(
         root, proposed_commit=proposed_commit, baseline_commit=baseline_commit
     )
@@ -175,21 +178,17 @@ def _validate_commit_revisions(
     verify_trust: bool = False,
 ) -> tuple[list[dict[str, object]], list[str]]:
     """Observe one exact sequence and enforce the union of its selected policies."""
-    if not policies:
-        return [], []
     observations = tuple(zip(revisions, observe_commits(root, revisions), strict=True))
     reports = [
-        (policy, revision, evaluate_commit_policy(policy, observation, revision))
+        (revision, evaluate_commit_policy(policy, observation, revision))
         for policy in policies
         for revision, observation in observations
     ]
     selected = tuple(
         dict.fromkeys(
             revision
-            for policy, revision, report in reports
-            if verify_trust
-            and policy.signing_required
-            and not cast("dict[str, object]", report["signature"])["required_gaps"]
+            for revision, report in reports
+            if verify_trust and not cast("dict[str, object]", report["signature"])["required_gaps"]
         )
     )
     trust = (
@@ -202,11 +201,10 @@ def _validate_commit_revisions(
     verified = set(selected)
     violations: list[dict[str, object]] = []
     gaps: list[str] = []
-    for policy, revision, report in reports:
+    for revision, report in reports:
         commit_gaps = cast("list[str]", report["required_gaps"])
         if (
             revision in verified
-            and policy.signing_required
             and not cast("dict[str, object]", report["signature"])["required_gaps"]
         ):
             commit_gaps.extend(object_gaps.get(revision, []) if object_gaps else trust_gaps)
@@ -341,8 +339,8 @@ def peer_publication_baseline(
     if selected.returncode or not root_ref.startswith(namespace):
         return "", "other", f"commit_range_trusted_baseline_required:{target_ref}"
     try:
-        root_policy = strict_branch_role_policy_from_text(
-            committed_file_text(root, root_ref, ".ethos/workspace.toml")
+        root_policy = strict_branch_role_policy_from_release_text(
+            committed_file_text(root, root_ref, ".ethos/release.toml")
         )
         if root_ref.removeprefix(namespace) not in root_policy.protected_branches:
             return "", "other", f"commit_range_peer_root_not_protected:{root_ref}"
@@ -350,8 +348,8 @@ def peer_publication_baseline(
         baseline = peel_commit(root, baseline_ref)
         if not baseline:
             return baseline_ref, "other", f"commit_range_trusted_baseline_unreadable:{baseline_ref}"
-        policy = strict_branch_role_policy_from_text(
-            committed_file_text(root, baseline, ".ethos/workspace.toml")
+        policy = strict_branch_role_policy_from_release_text(
+            committed_file_text(root, baseline, ".ethos/release.toml")
         )
         if policy.accepted_branch != root_policy.accepted_branch:
             return "", "other", f"commit_range_peer_accepted_role_mismatch:{baseline_ref}"

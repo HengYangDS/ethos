@@ -2,9 +2,10 @@
 
 The repository paradigm fixes every role name: release `main`, accepted `dev`,
 candidate `candidate/dev`, Work Lanes under `work/` and proposals under
-`proposal/`. A `[branch_roles]` table declares only the release mirror and the
-canonical sibling worktrees; a name it still declares is a legacy declaration that
-the readers ignore and that accepted closeout renames to the paradigm's name.
+`proposal/`, with each Work Lane in a sibling worktree. The release binding
+declares the one open setting, `[release] mirror`. A `[branch_roles]` table in
+the workspace binding is a retired declaration that the policy readers ignore;
+accepted closeout still renames a legacy role ref it names to the paradigm's name.
 """
 
 from __future__ import annotations
@@ -25,12 +26,16 @@ ROLE_CANDIDATE = "candidate"
 ROLE_WORK_LANE = "work_lane"
 ROLE_DETACHED = "detached"
 ROLE_OTHER = "other"
+# The roles in which ETHOS itself creates commits, so each needs a local signer.
+LIFECYCLE_COMMIT_ROLES = frozenset({ROLE_ACCEPTED_ROOT, ROLE_CANDIDATE, ROLE_WORK_LANE})
 
+RELEASE_MIRROR_INDEPENDENT = "independent"
 RELEASE_MIRROR_ACCEPTED_FF = "accepted_ff"
+_RELEASE_MIRRORS = frozenset({RELEASE_MIRROR_INDEPENDENT, RELEASE_MIRROR_ACCEPTED_FF})
+_STRICT_RELEASE_TABLE_ERROR = "release must be a table"
+_STRICT_RELEASE_MIRROR_ERROR = "release mirror is invalid"
 _STRICT_BRANCH_ROLE_TABLE_ERROR = "branch_roles must be a table"
 _STRICT_BRANCH_ROLE_TEXT_ERROR = "branch_roles text fields must be canonical strings"
-_STRICT_BRANCH_ROLE_MIRROR_ERROR = "branch_roles release_mirror is invalid"
-_STRICT_BRANCH_ROLE_SIBLING_ERROR = "branch_roles canonical_sibling_worktrees must be boolean"
 _UNKNOWN_BRANCH_ROLE_FIELDS_ERROR = "branch_roles contains unknown fields"
 ROLE_NAME_FIELDS = (
     "release_branch",
@@ -39,7 +44,9 @@ ROLE_NAME_FIELDS = (
     "work_branch_prefix",
     "proposal_branch_prefix",
 )
-_BRANCH_ROLE_FIELDS = {*ROLE_NAME_FIELDS, "release_mirror", "canonical_sibling_worktrees"}
+SIBLING_WORKTREE_FIELD = "canonical_sibling_worktrees"
+RELEASE_MIRROR_FIELD = "release_mirror"
+RETIRED_BRANCH_ROLE_FIELDS = (*ROLE_NAME_FIELDS, SIBLING_WORKTREE_FIELD, RELEASE_MIRROR_FIELD)
 PROTECTED_WRITE_ROLES = frozenset(
     {
         ROLE_RELEASE_ROOT,
@@ -58,8 +65,7 @@ class BranchRolePolicy:
     candidate_branch: str = "candidate/dev"
     work_branch_prefix: str = "work/"
     proposal_branch_prefix: str = "proposal/"
-    release_mirror: str = "independent"
-    canonical_sibling_worktrees: bool = False
+    release_mirror: str = RELEASE_MIRROR_INDEPENDENT
 
     def role_for_branch(self, branch: str) -> str:
         exact_roles = (
@@ -149,69 +155,44 @@ class BranchRolePolicy:
         }
 
 
-def branch_role_policy_from_text(text: str) -> BranchRolePolicy:
-    """Parse branch-role policy text without filesystem or provider access."""
+def branch_role_policy_from_release_text(text: str) -> BranchRolePolicy:
+    """Observe the policy a release binding selects; text it cannot honor selects none."""
     try:
-        payload = tomllib.loads(text)
-    except tomllib.TOMLDecodeError:
+        return strict_branch_role_policy_from_release_text(text)
+    except ValueError:
         return BranchRolePolicy()
-    raw_policy = payload.get("branch_roles")
-    if not isinstance(raw_policy, dict):
-        return BranchRolePolicy()
-    if set(raw_policy) - (_BRANCH_ROLE_FIELDS | {"transitions"}):
-        raise ValueError(_UNKNOWN_BRANCH_ROLE_FIELDS_ERROR)
-    return BranchRolePolicy(
-        release_mirror=RELEASE_MIRROR_ACCEPTED_FF
-        if raw_policy.get("release_mirror") == RELEASE_MIRROR_ACCEPTED_FF
-        else "independent",
-        canonical_sibling_worktrees=raw_policy.get("canonical_sibling_worktrees") is True,
-    )
 
 
-def strict_branch_role_policy_from_text(text: str) -> BranchRolePolicy:
-    """Parse the declared branch-role settings exactly; the paradigm fixes every role name."""
-    raw_policy = _strict_branch_roles(text)
-    return BranchRolePolicy(
-        release_mirror=str(raw_policy.get("release_mirror", "independent")),
-        canonical_sibling_worktrees=raw_policy.get("canonical_sibling_worktrees") is True,
-    )
+def strict_branch_role_policy_from_release_text(text: str) -> BranchRolePolicy:
+    """Read the release mirror a release binding declares exactly; the paradigm fixes the rest."""
+    release = tomllib.loads(text).get("release", {})
+    if type(release) is not dict:
+        raise ValueError(_STRICT_RELEASE_TABLE_ERROR)
+    mirror = release.get("mirror", RELEASE_MIRROR_INDEPENDENT)
+    if type(mirror) is not str or mirror not in _RELEASE_MIRRORS:
+        raise ValueError(_STRICT_RELEASE_MIRROR_ERROR)
+    return BranchRolePolicy(release_mirror=mirror)
 
 
 def declared_role_names(text: str) -> dict[str, str]:
-    """Return the legacy role names a table still declares, keyed by their field."""
-    raw_policy = _strict_branch_roles(text)
-    return {field: str(raw_policy[field]) for field in ROLE_NAME_FIELDS if field in raw_policy}
-
-
-def _strict_branch_roles(text: str) -> dict[str, object]:
-    """Validate a branch-role table; a workspace without one keeps the standard roles."""
+    """Return the legacy role names a workspace table still declares, keyed by their field."""
     payload = tomllib.loads(text)
     if "branch_roles" not in payload:
         return {}
     raw_policy = payload["branch_roles"]
     if type(raw_policy) is not dict:
         raise ValueError(_STRICT_BRANCH_ROLE_TABLE_ERROR)
-    if set(raw_policy) - _BRANCH_ROLE_FIELDS:
+    if set(raw_policy) - set(RETIRED_BRANCH_ROLE_FIELDS):
         raise ValueError(_UNKNOWN_BRANCH_ROLE_FIELDS_ERROR)
-    if any(
-        type(raw_policy[field]) is not str
-        or not raw_policy[field]
-        or raw_policy[field] != raw_policy[field].strip()
-        for field in (*ROLE_NAME_FIELDS, "release_mirror")
-        if field in raw_policy
-    ):
+    names = {field: raw_policy[field] for field in ROLE_NAME_FIELDS if field in raw_policy}
+    if any(type(name) is not str or not name or name != name.strip() for name in names.values()):
         raise ValueError(_STRICT_BRANCH_ROLE_TEXT_ERROR)
-    if raw_policy.get("release_mirror", "independent") not in {
-        "independent",
-        RELEASE_MIRROR_ACCEPTED_FF,
-    }:
-        raise ValueError(_STRICT_BRANCH_ROLE_MIRROR_ERROR)
-    if type(raw_policy.get("canonical_sibling_worktrees", False)) is not bool:
-        raise ValueError(_STRICT_BRANCH_ROLE_SIBLING_ERROR)
-    return raw_policy
+    return {field: str(name) for field, name in names.items()}
 
 
 def load_branch_role_policy(root: Path) -> BranchRolePolicy:
-    """Load branch-role policy from the current working tree."""
-    path = root / ".ethos" / "workspace.toml"
-    return branch_role_policy_from_text(path.read_text(encoding="utf-8") if path.exists() else "")
+    """Load branch-role policy from the release binding in the current working tree."""
+    path = root / ".ethos" / "release.toml"
+    return branch_role_policy_from_release_text(
+        path.read_text(encoding="utf-8") if path.exists() else ""
+    )

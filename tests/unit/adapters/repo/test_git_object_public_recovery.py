@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import shlex
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -10,46 +11,17 @@ from types import SimpleNamespace
 import pytest
 
 import ethos.adapters.repo.git_object as identity
+import ethos.adapters.repo.trust_anchor.authorization as authorization
 import ethos.adapters.repo.trust_anchor.verification as verification
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.signature import untrusted_signer_repository
 
 
 def _trust_root(tmp_path: Path) -> Path:
     root = tmp_path / "trust"
     root.mkdir(mode=0o700)
     return root
-
-
-def _configured_repository(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    signed: bool,
-) -> tuple[Path, Path, str, str]:
-    key = tmp_path / "signer"
-    subprocess.run(
-        ("/usr/bin/ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)),
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    signer = key.with_suffix(".pub")
-    for role in ("AUTHOR", "COMMITTER"):
-        monkeypatch.setenv(f"GIT_{role}_NAME", "Test User")
-        monkeypatch.setenv(f"GIT_{role}_EMAIL", "owner@example.com")
-    repo = init_git_repo(tmp_path / "repo")
-    anchor = _trust_root(tmp_path) / "allowed-signers"
-    anchor.write_bytes(b"")
-    anchor.chmod(0o600)
-    git(repo, "config", "gpg.format", "ssh")
-    git(repo, "config", "user.signingkey", signer.as_posix())
-    git(repo, "config", "user.email", "owner@example.com")
-    git(repo, "config", "gpg.ssh.allowedSignersFile", anchor.as_posix())
-    if signed:
-        git(repo, "-c", "commit.gpgsign=true", "commit", "--allow-empty", "-m", "signed target")
-    target = git(repo, "rev-parse", "HEAD")
-    return repo, anchor, target, hashlib.sha256(anchor.read_bytes()).hexdigest()
 
 
 def test_commit_payload_missing_separator_fails_closed(
@@ -125,7 +97,9 @@ def test_signature_equivalence_preserves_every_non_signature_byte(
 def test_git_object_trust_requires_a_portable_terminal_signature_status(
     tmp_path, monkeypatch, suffix, gap
 ):
-    repo, _anchor, target, _digest = _configured_repository(tmp_path, monkeypatch, signed=False)
+    repo, _anchor, target, _digest = untrusted_signer_repository(
+        tmp_path, monkeypatch, signed=False
+    )
     native = verification.run_git
     status = f'Good "git" signature for owner@example.com with ED25519 key{suffix}'
 
@@ -164,40 +138,25 @@ def test_commit_trust_public_report_rejects_invalid_anchor_location(tmp_path, co
         anchor.write_text("untrusted\n")
         anchor.chmod(0o666)
     value = "relative/allowed-signers" if configured == "relative" else str(anchor)
-    if configured != "absent":
+    if configured == "absent":
+        git(repo, "config", "--unset", "gpg.ssh.allowedSignersFile")
+    else:
         git(repo, "config", "gpg.ssh.allowedSignersFile", value)
     report = verification.verify_commit_trust(repo, git(repo, "rev-parse", "HEAD"))
     assert report["required_gaps"] == [expected]
-    action = identity.commit_trust_setup_action(repo, "HEAD")
-    assert action == "git config --global gpg.ssh.allowedSignersFile <absolute-owner-only-path>"
-
-
-def test_signer_authorization_requires_confirmation_before_atomic_apply(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, anchor, target, digest = _configured_repository(tmp_path, monkeypatch, signed=True)
-
-    ready = identity.authorize_configured_commit_signer(
-        repo, target, expected_anchor_sha256=digest, apply=False, authorized=False
+    # ETHOS's Git reads no global configuration, so only the local anchor setting resolves this.
+    action = authorization.commit_trust_setup_action(repo, "HEAD")
+    assert action == verification.commit_trust_anchor_action(repo)
+    assert action == (
+        f"git -C {shlex.quote(str(repo))} config --local "
+        "gpg.ssh.allowedSignersFile <absolute-protected-anchor>"
     )
-    blocked = identity.authorize_configured_commit_signer(
-        repo, target, expected_anchor_sha256=digest, apply=True, authorized=False
-    )
-    applied = identity.authorize_configured_commit_signer(
-        repo, target, expected_anchor_sha256=digest, apply=True, authorized=True
-    )
-
-    assert (ready["verdict"], ready["state"]) == ("pass", "ready_to_authorize_signer")
-    assert blocked["required_gaps"] == ["authorization_required"]
-    assert (applied["verdict"], applied["state"]) == ("pass", "signer_authorized")
-    assert verification.verify_commit_trust(repo, target)["verdict"] == "pass"
-    assert anchor.stat().st_mode & 0o777 == 0o600
 
 
 @pytest.mark.parametrize("changed", ["anchor", "configuration", "revocation"])
 def test_native_trust_rejects_changed_inputs_after_verification(tmp_path, monkeypatch, changed):
     """A native success cannot certify a trust policy changed before observation completes."""
-    repo, anchor, target, _digest = _configured_repository(tmp_path, monkeypatch, signed=True)
+    repo, anchor, target, _digest = untrusted_signer_repository(tmp_path, monkeypatch, signed=True)
     public = (tmp_path / "signer.pub").read_text()
     anchor.write_text(f'owner@example.com namespaces="git" {public}')
     revoked = anchor.parent / "revoked"
@@ -240,7 +199,7 @@ def test_native_trust_uses_frozen_material_during_temporary_source_change(
     tmp_path, monkeypatch, kind, changed, path_mode
 ):
     """Read one native configuration per boundary; keep material and defaults frozen."""
-    repo, anchor, target, _digest = _configured_repository(tmp_path, monkeypatch, signed=True)
+    repo, anchor, target, _digest = untrusted_signer_repository(tmp_path, monkeypatch, signed=True)
     original = b'owner@example.com namespaces="git" ' + (tmp_path / "signer.pub").read_bytes()
     anchor.write_bytes(original)
     if path_mode == "home":
@@ -284,7 +243,7 @@ def test_native_trust_verifies_every_selected_object_across_batch_boundary(
     tmp_path, monkeypatch, invalid_tail
 ):
     """A bad object after a full native batch must invalidate the complete selection."""
-    repo, anchor, target, _digest = _configured_repository(tmp_path, monkeypatch, signed=True)
+    repo, anchor, target, _digest = untrusted_signer_repository(tmp_path, monkeypatch, signed=True)
     anchor.write_text(f'owner@example.com namespaces="git" {(tmp_path / "signer.pub").read_text()}')
     last = git(repo, "rev-parse", f"{target}^") if invalid_tail else target
     report = verification.verify_commit_trust(repo, (target,) * 128 + (last,))
@@ -305,7 +264,7 @@ def test_native_trust_diagnostics_cannot_erase_original_batch_refusal(
     tmp_path, monkeypatch, diagnostic_error
 ):
     """Successful diagnostics under pinned inputs do not authorize a refused selection."""
-    repo, anchor, target, _digest = _configured_repository(tmp_path, monkeypatch, signed=True)
+    repo, anchor, target, _digest = untrusted_signer_repository(tmp_path, monkeypatch, signed=True)
     anchor.write_text(f'owner@example.com namespaces="git" {(tmp_path / "signer.pub").read_text()}')
     native = verification.run_git
     selections = []
@@ -346,9 +305,9 @@ def test_native_trust_unreadable_configuration_is_a_structured_failure(tmp_path)
     ("failure", "gap"),
     [
         ("unsigned", "commit_signature_untrusted"),
-        ("not-a-key", "commit_signer_configuration_invalid"),
-        ("rsa AAAA", "commit_signer_configuration_invalid"),
-        ("ssh-ed25519", "commit_signer_configuration_invalid"),
+        ("not-a-key", "git_effect_signing_key_invalid"),
+        ("rsa AAAA", "git_effect_signing_key_invalid"),
+        ("ssh-ed25519", "git_effect_signing_key_invalid"),
         ("preflight", "commit_trust_anchor_stale"),
         ("initial-cas", "commit_trust_anchor_stale"),
         ("final-cas", "commit_trust_anchor_stale"),
@@ -358,8 +317,8 @@ def test_native_trust_unreadable_configuration_is_a_structured_failure(tmp_path)
 def test_signer_authorization_preserves_anchor_on_public_failure(
     tmp_path, monkeypatch, failure, gap
 ):
-    invalid_key = gap == "commit_signer_configuration_invalid"
-    repo, anchor, target, digest = _configured_repository(
+    invalid_key = gap == "git_effect_signing_key_invalid"
+    repo, anchor, target, digest = untrusted_signer_repository(
         tmp_path, monkeypatch, signed=failure != "unsigned" and not invalid_key
     )
     native_read = Path.read_bytes
@@ -375,8 +334,8 @@ def test_signer_authorization_preserves_anchor_on_public_failure(
         def unavailable(*_args, **_kwargs):
             raise OSError
 
-        monkeypatch.setattr(identity.tempfile, "mkstemp", unavailable)
-    report = identity.authorize_configured_commit_signer(
+        monkeypatch.setattr(authorization.tempfile, "mkstemp", unavailable)
+    report = authorization.authorize_configured_commit_signer(
         repo,
         target,
         expected_anchor_sha256="0" * 64 if failure == "preflight" else digest,

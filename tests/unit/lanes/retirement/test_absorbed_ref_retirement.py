@@ -223,7 +223,6 @@ def test_installed_hook_retires_two_refs_under_exact_accepted_policy(
     adopt_and_commit(repo)
     accepted_policy = """[branch_roles]
 release_mirror = "accepted_ff"
-canonical_sibling_worktrees = true
 """
     workspace = repo / ".ethos/workspace.toml"
     workspace.write_text(accepted_policy, encoding="utf-8")

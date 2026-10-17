@@ -28,6 +28,7 @@ from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.value import mutable_json
+from tests.support.ethos_cli_runner import result_data
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_fixture
@@ -90,12 +91,12 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     """Native effects bound inherited history; timestamps and unrelated evidence do not."""
     repo = init_git_repo(tmp_path / "repo")
     write_test_profile(repo)
-    commit_fixture(repo, "declare repository identity")
+    commit_fixture(repo, "test: declare repository identity")
     base = git(repo, "rev-parse", "HEAD")
     incoming = repo / "openspec/changes/active/tasks.md"
     incoming.parent.mkdir(parents=True)
     incoming.write_text("- [ ] Incoming contribution\n")
-    commit_fixture(repo, "incoming active intent")
+    commit_fixture(repo, "test: incoming active intent")
     side = git(repo, "rev-parse", "HEAD")
     merge = git(repo, "commit-tree", "HEAD^{tree}", "-p", base, "-p", side, "-m", "merge")
     git(repo, "reset", "--hard", merge)
@@ -326,7 +327,6 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
     for target in (repo, candidate):
         git(target, "reset", "--hard", head)
     install_fixture_hook_runtime(repo)
-    next_lane = work.parent / "next-lane"
     with monkeypatch.context() as supply:
         supply.setattr(lane_start, "require_runtime_wheel_provenance", lambda: None)
         supply.setattr(lane_start, "install_hook_launchers", install_fixture_hook_runtime)
@@ -334,8 +334,6 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
             "lane",
             "start",
             "next",
-            "--path",
-            str(next_lane),
             "--holder-ref",
             "agent:test:case:agent-test",
             "--apply",
@@ -343,6 +341,7 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
             cwd=repo,
         )
     assert started["verdict"] == "pass", started
+    next_lane, next_branch = Path(started["data"]["path"]), started["data"]["branch"]
     assert git(next_lane, "rev-parse", "HEAD") == head
     report = run_ethos(
         "lane",
@@ -365,7 +364,7 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
     for arguments in (("plan",), ("plan", "--change", "static-delivery")):
         planned = run_ethos(*arguments, "--json", cwd=next_lane, full_payload=True)
         assert planned["verdict"] == "pass", planned
-        assert planned["data"]["commitment"]["id"] == "change:static-delivery"
+        assert result_data(planned)["commitment"]["id"] == "change:static-delivery"
     assert proof_gaps(next_lane, head) == ["proof_lane_mismatch"]
     for arguments in ((), ("--change", "static-delivery")):
         _prove(next_lane, head, *arguments)
@@ -375,7 +374,7 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
         plan = mutable_json(attestation.payload.body["plan"])
         assert isinstance(plan, dict)
         assert plan["commitment"]["id"] == "change:static-delivery"
-        expected = lease_generation(leases_by_branch(next_lane)["work/next"])
+        expected = lease_generation(leases_by_branch(next_lane)[next_branch])
         assert plan["facts"]["values"]["lease_generation"] == mutable_json(expected)
         assert plan["facts"]["values"]["change_id"] == "static-delivery"
         assert proof_gaps(next_lane, head) == []
@@ -471,7 +470,7 @@ def test_process_intent_carries_product_work_through_native_integration(
         (("--change", "fixture-change"), "fixture-change"),
     ):
         planned = run_ethos("plan", *choice, "--json", cwd=work, full_payload=True)
-        assert planned["data"]["commitment"]["id"] == f"change:{expected}"
+        assert result_data(planned)["commitment"]["id"] == f"change:{expected}"
     _prove(work, head)
     assert (selected := proof_attestation(work, head)) is not None
     monkeypatch.setenv("ETHOS_CHANGE", "fixture-change")
@@ -548,4 +547,4 @@ def test_process_intent_carries_product_work_through_native_integration(
     assert git(repo, "rev-parse", "HEAD") == git(candidate, "rev-parse", "HEAD") == head
     monkeypatch.delenv("ETHOS_CHANGE")
     planned = run_ethos("plan", "--change", "second-local", "--json", cwd=work, full_payload=True)
-    assert planned["data"]["commitment"]["id"] == "change:second-local"
+    assert result_data(planned)["commitment"]["id"] == "change:second-local"

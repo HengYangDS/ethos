@@ -30,17 +30,21 @@ def _plan(root: Path, changes: dict[str, str | None]) -> tuple[RepairPlan, dict]
     """Write the conforming tree with changes, then plan repairs for its report."""
     files = {**CONFORMING, **{path: text for path, text in changes.items() if text is not None}}
     for path in (path for path, text in changes.items() if text is None):
-        files.pop(path)
+        files.pop(path, None)
     report = paradigm_report(root, files)
     gaps = [ParadigmGap(**gap) for gap in report["gaps"]]
     return paradigm_repair_plan(root, gaps), files
 
 
 def _apply(root: Path, plan: RepairPlan, files: dict[str, str]) -> dict:
-    """Write the planned edits and re-evaluate the paradigm over the repaired tree."""
+    """Write the planned edits, deleting removed carriers, and re-evaluate the repaired tree."""
     repaired = dict(files)
     for edit in plan.edits:
-        repaired[edit.path] = edit.after
+        if edit.after is None:
+            repaired.pop(edit.path)
+            (root / edit.path).unlink()
+        else:
+            repaired[edit.path] = edit.after
     return paradigm_report(root, repaired)
 
 
@@ -252,7 +256,7 @@ def test_restated_standard_role_names_are_deleted(tmp_path: Path) -> None:
     workspace = (
         '# The native train.\n[branch_roles]\nrelease_branch = "main"\n'
         'accepted_branch = "dev"\nrelease_mirror = "accepted_ff"\n'
-        'work_branch_prefix = "work/"\n\n[commit_policy]\nsigning_required = true\n'
+        'work_branch_prefix = "work/"\n\n[commit_policy]\nscopes = ["cli"]\n'
     )
     gaps = [
         ParadigmGap("branch-roles", f"{_WORKSPACE}:branch_roles.{role}", "remove it")
@@ -261,7 +265,7 @@ def test_restated_standard_role_names_are_deleted(tmp_path: Path) -> None:
     plan = _workspace_plan(tmp_path, workspace, gaps)
     repaired = (
         '# The native train.\n[branch_roles]\nrelease_mirror = "accepted_ff"\n\n'
-        "[commit_policy]\nsigning_required = true\n"
+        '[commit_policy]\nscopes = ["cli"]\n'
     )
     assert [(edit.path, edit.after) for edit in plan.edits] == [(_WORKSPACE, repaired)]
     assert plan.repaired == tuple(gaps)
@@ -279,11 +283,9 @@ def test_legacy_role_names_stay_until_closeout_renames_the_refs(tmp_path: Path) 
 def test_a_restated_shared_commit_grammar_is_deleted(tmp_path: Path) -> None:
     """A subject pattern equal to the shared grammar goes, and the report no longer names it."""
     grammar = load_repository_paradigm().commit.subject_pattern()
-    policy = {"commit_policy": {"subject_pattern": grammar, "signing_required": True}}
+    policy = {"commit_policy": {"subject_pattern": grammar}}
     plan, files = _plan(tmp_path, {_WORKSPACE: tomli_w.dumps(policy)})
-    assert [(edit.path, edit.after) for edit in plan.edits] == [
-        (_WORKSPACE, "[commit_policy]\nsigning_required = true\n")
-    ]
+    assert [(edit.path, edit.after) for edit in plan.edits] == [(_WORKSPACE, None)]
     assert not [
         gap
         for gap in _apply(tmp_path, plan, files)["required_gaps"]
@@ -304,24 +306,138 @@ def test_a_repository_commit_grammar_stays_report_only(tmp_path: Path) -> None:
     [
         '[branch_roles]\nrelease_branch = "main"\nrelease_branch = "main"\n',
         'branch_roles.release_branch = "main"\n',
-        '[branch_roles]\n"release\\u005fbranch" = "main"\n',
         '[branch_roles]\nnote = """\nrelease_branch = "x"\n"""\nrelease_branch = "main"\n',
-        '[branch_roles]\nrelease_branch = """\nmain"""\n',
     ],
 )
 def test_a_standard_name_the_plan_cannot_isolate_stays_report_only(
     tmp_path: Path, workspace: str
 ) -> None:
-    """A field that is not one plain line of its own table keeps its gap."""
+    """A field that is not one plain line of its own table, beside other fields, keeps its gap."""
     gap = ParadigmGap("branch-roles", f"{_WORKSPACE}:branch_roles.release_branch", "remove it")
     plan = _workspace_plan(tmp_path, workspace, [gap])
     assert plan.edits == ()
     assert plan.report_only == (gap,)
 
 
-def test_a_field_the_paradigm_leaves_open_is_never_deleted(tmp_path: Path) -> None:
-    """The paradigm fixes standard role names and the shared grammar; other fields stay."""
-    gap = ParadigmGap("branch-roles", f"{_WORKSPACE}:branch_roles.release_mirror", "remove it")
+@pytest.mark.parametrize(
+    "workspace",
+    [
+        '[branch_roles]\n"release\\u005fbranch" = "main"\n',
+        '[branch_roles]\nrelease_branch = """\nmain"""\n',
+    ],
+)
+def test_a_field_that_is_its_table_goes_with_the_table(tmp_path: Path, workspace: str) -> None:
+    """Removing the only field removes its whole table block, however the field is written."""
+    gap = ParadigmGap("branch-roles", f"{_WORKSPACE}:branch_roles.release_branch", "remove it")
+    plan = _workspace_plan(tmp_path, workspace, [gap])
+    assert [(edit.path, edit.after) for edit in plan.edits] == [(_WORKSPACE, None)]
+    assert plan.repaired == (gap,)
+
+
+_RELEASE_BINDING = ".ethos/release.toml"
+_PUBLICATION = '[publication]\nlocal_verification_command = "check"\n'
+
+
+def test_an_independent_mirror_and_its_emptied_binding_are_deleted(tmp_path: Path) -> None:
+    """The default mirror needs no declaration, so a binding that held only it goes."""
+    workspace = '# Branch roles.\n[branch_roles]\nrelease_mirror = "independent"\n'
+    plan, files = _plan(tmp_path, {_WORKSPACE: workspace})
+    assert [(edit.path, edit.after) for edit in plan.edits] == [(_WORKSPACE, None)]
+    assert _apply(tmp_path, plan, files)["required_gaps"] == []
+
+
+@pytest.mark.parametrize(
+    ("release", "repaired"),
+    [
+        (None, '[release]\nmirror = "accepted_ff"\n'),
+        (_PUBLICATION, f'{_PUBLICATION}\n[release]\nmirror = "accepted_ff"\n'),
+        (
+            f'[release]\nversion_source = "VERSION"\n\n{_PUBLICATION}',
+            f'[release]\nversion_source = "VERSION"\nmirror = "accepted_ff"\n\n{_PUBLICATION}',
+        ),
+    ],
+    ids=["no-release-binding", "no-release-table", "release-table"],
+)
+def test_an_accepted_mirror_moves_to_the_release_binding(
+    tmp_path: Path, release: str | None, repaired: str
+) -> None:
+    """The mirror leaves the workspace with its emptied table and lands in `[release] mirror`."""
+    workspace = (
+        '[[package]]\nname = "root"\npath = "."\n\n'
+        "# The native train keeps main release-facing.\n"
+        '[branch_roles]\nrelease_branch = "main"\nrelease_mirror = "accepted_ff"\n\n'
+        '[commit_policy]\nscopes = ["cli"]\n'
+    )
+    plan, files = _plan(tmp_path, {_WORKSPACE: workspace, _RELEASE_BINDING: release})
+    assert {edit.path: edit.after for edit in plan.edits} == {
+        _WORKSPACE: '[commit_policy]\nscopes = ["cli"]\n',
+        _RELEASE_BINDING: repaired,
+    }
+    assert _apply(tmp_path, plan, files)["required_gaps"] == []
+
+
+def test_an_unread_legacy_schema_is_deleted_with_its_sub_tables(tmp_path: Path) -> None:
+    """Every header of an unread table goes; a binding left with nothing is removed."""
+    workspace = (
+        '[workspace]\nmode = "monorepo"\n\n[packages.root]\npath = "."\n\n'
+        '# Core.\n[packages.core]\npath = "packages/core"\n'
+    )
+    plan, files = _plan(tmp_path, {_WORKSPACE: workspace})
+    assert [(edit.path, edit.after) for edit in plan.edits] == [(_WORKSPACE, None)]
+    assert _apply(tmp_path, plan, files)["required_gaps"] == []
+
+
+def test_an_unread_value_outside_a_table_header_stays_report_only(tmp_path: Path) -> None:
+    """Only whole table blocks are deleted; an inline declaration keeps its gap."""
+    workspace = 'package = { name = "root" }\n\n[commit_policy]\nscopes = ["cli"]\n'
+    plan, _ = _plan(tmp_path, {_WORKSPACE: workspace})
+    assert plan.edits == ()
+    assert [gap.obligation for gap in plan.report_only] == ["workspace-binding"]
+
+
+@pytest.mark.parametrize("value", ["true", "false"])
+def test_the_retired_sibling_worktree_setting_is_deleted(tmp_path: Path, value: str) -> None:
+    """No reader consults the setting, so either value goes and the report no longer names it."""
+    kept = '[commit_policy]\nscopes = ["cli"]\n'
+    workspace = (
+        f"{kept}\n# Lanes live beside the repository.\n"
+        f"[branch_roles]\ncanonical_sibling_worktrees = {value}\n"
+    )
+    plan, files = _plan(tmp_path, {_WORKSPACE: workspace})
+    assert [(edit.path, edit.after) for edit in plan.edits] == [(_WORKSPACE, kept)]
+    assert not [
+        gap
+        for gap in _apply(tmp_path, plan, files)["required_gaps"]
+        if gap.startswith("repository_paradigm_branch_roles")
+    ]
+
+
+def test_a_retired_field_the_binding_no_longer_declares_stays_report_only(tmp_path: Path) -> None:
+    """A gap that names an absent field plans no edit."""
+    carrier = f"{_WORKSPACE}:branch_roles.canonical_sibling_worktrees"
+    gap = ParadigmGap("branch-roles", carrier, "remove it")
     plan = _workspace_plan(tmp_path, '[branch_roles]\nrelease_mirror = "independent"\n', [gap])
     assert plan.edits == ()
     assert plan.report_only == (gap,)
+
+
+def test_a_restated_signature_and_its_emptied_binding_are_deleted(tmp_path: Path) -> None:
+    """Either signing field goes; a binding left with nothing to declare is removed."""
+    workspace = (
+        '# Signed commits.\n[commit_policy]\nsigning_required = false\nsigning_format = "ssh"\n'
+    )
+    plan, files = _plan(tmp_path, {_WORKSPACE: workspace})
+    assert [(edit.path, edit.after) for edit in plan.edits] == [(_WORKSPACE, None)]
+    assert _apply(tmp_path, plan, files)["required_gaps"] == []
+
+
+def test_a_restated_signature_is_deleted_beside_declared_scopes(tmp_path: Path) -> None:
+    """The scopes the binding restricts stay with their table."""
+    workspace = (
+        '[commit_policy]\nscopes = ["cli"]\nsigning_required = true\nsigning_format = "ssh"\n'
+    )
+    plan, files = _plan(tmp_path, {_WORKSPACE: workspace})
+    assert [(edit.path, edit.after) for edit in plan.edits] == [
+        (_WORKSPACE, '[commit_policy]\nscopes = ["cli"]\n')
+    ]
+    assert _apply(tmp_path, plan, files)["required_gaps"] == []

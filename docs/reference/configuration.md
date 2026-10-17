@@ -66,7 +66,7 @@ configuration plane, not a truth center.
   its locked supply; `tools/ci/toolchain/native.py` verifies the installed bytes.
   `tools/ci/scripts/run-secrets-scan.sh` scans an isolated `git ls-files` mirror,
   preserving tracked-source coverage without scanning ignored host state.
-- `.config/checks/shell/.shellcheckrc` owns ShellCheck policy; the `shell_lint` Nox session resolves the locked cross-platform `shellcheck-py` executable.
+- `.config/checks/shellcheck/.shellcheckrc` owns ShellCheck policy; the `shell_lint` Nox session resolves the locked cross-platform `shellcheck-py` executable.
 - `.config/checks/prettier/prettier.toml` owns Markdown spacing, container layout
   and formatting style; `.config/checks/markdownlint-cli2/.markdownlint-cli2.yaml` owns
   non-formatting document and link semantics. The `markdown_lint` Nox session
@@ -112,7 +112,7 @@ configuration plane, not a truth center.
   production dependency and `uv.lock` own version and artifact identity. The
   gate resolves the executable beside its bound Python, without ambient PATH.
 - `.config/checks/hosted-observation/policy.toml` owns hosted provider observation envelopes; the `hosted_observation` Nox session records GitHub/GitLab provider facts or tool-discovery state without claiming repository proof, hosted CI success, or remote publication.
-- `.config/.config/checks/format-selection/policy.toml` owns fail-closed executable-carrier
+- `.config/checks/format-selection/policy.toml` owns fail-closed executable-carrier
   admission and file-format boundary checks; `uv run --frozen --offline python -m nox -s format_selection`
   is the reusable runner.
 - `.config/checks/architecture-projection/policy.toml` owns architecture projection

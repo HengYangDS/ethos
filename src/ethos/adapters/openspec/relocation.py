@@ -154,6 +154,7 @@ def _task_completion_inputs(
     documents = original if archived == original[source] else {**original, source: archived}
     return documents, {
         "path": destination,
+        "source": source,
         "before": original[source].decode(),
         "after": archived.decode(),
     }

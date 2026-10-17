@@ -28,10 +28,10 @@ Rules state duties; Skills route methods and cannot waive those duties.
 | -------------------------------- | --------------------------------------------------------------------------------------------- |
 | Agent behaviour                  | [Agent Rules](agents.md)                                                                      |
 | Mutation and lanes               | [Mutation Rules](mutation.md), [Hook Rules](hooks.md)                                         |
-| Module ownership                 | [Module Layout Rules](module_layout.md)                                                       |
+| Module ownership                 | [Module Layout Rules](module-layout.md)                                                       |
 | Evidence and attestations        | [Evidence Rules](evidence.md)                                                                 |
 | Release and provider projections | [Release Rules](release.md)                                                                   |
-| Declarative compilation          | [Declarative Lifecycle Rules](declarative_lifecycle.md)                                       |
+| Declarative compilation          | [Declarative Lifecycle Rules](declarative-lifecycle.md)                                       |
 | Optional skill adapters          | [Skill Rules](skills.md); [ETHOS source portfolio](../.agents/skills/README.md "source-only") |
 
 ## Placement

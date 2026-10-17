@@ -21,6 +21,7 @@ from ethos.assistants.skills.portfolio import skill_portfolio_report
 from ethos.contracts.skill.activation import compile_skill_activation
 from ethos.contracts.skill.activation import normalize_skill_activation
 from ethos.repository.policy.schema import validate_schema_instance
+from tests.support.ethos_cli_runner import result_data
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import declare_fixture_documentation_proof
 from tests.support.governed_repository import git
@@ -253,14 +254,15 @@ def test_plan_projects_the_compiled_skill_activation(tmp_path: Path, package_sta
             "plan", "--change", "feedback-intent", *selection, "--json", cwd=repo
         )
         payload = json.loads(result.stdout)
-        activation = payload["data"]["skill_activation"]
+        data = result_data(payload)
+        activation = data["skill_activation"]
         assert payload["verdict"] == ("block" if rejected else "pass"), payload
         assert [skill["id"] for skill in activation["skills"]] == (
             [] if rejected else ["read-source", "feedback-intent"]
         )
         assert not rejected or payload["required_gaps"]
         assert rejected or activation["context"]["pre_reads"] == ["AGENTS.md"]
-        assert not {"review_plan", "review_decision"} & payload["data"].keys()
+        assert not {"review_plan", "review_decision"} & data.keys()
 
 
 @pytest.mark.parametrize(
@@ -533,7 +535,7 @@ def test_plan_optional_portfolio_requires_positive_absence(tmp_path: Path, state
     if state == "required_absent":
         assert ".agents/skills/activation.toml" in report["required_gaps"]
         assert {"openspec-baseline", "portfolio-contract"} <= {
-            node["id"] for node in report["data"]["transition_plan"]["nodes"]
+            node["id"] for node in result_data(report)["transition_plan"]["nodes"]
         }
     if state == "missing_readme":
         assert ".agents/skills/README.md" in report["required_gaps"]

@@ -21,7 +21,7 @@ _POLICY_PATH = ".ethos/workspace.toml"
 
 def _indexed_commit_policy(
     root: Path, *, index_env: Mapping[str, str] | None = None
-) -> CommitPolicy | None:
+) -> CommitPolicy:
     """Compile commit policy from the exact prospective Git index tree."""
     listed = run_git(
         root,
@@ -40,7 +40,7 @@ def _indexed_commit_policy(
         raise ValueError(message)
     records = tuple(record for record in listed.stdout.split(b"\0") if record)
     if not records:
-        return None
+        return commit_policy_from_text("")
     if len(records) != 1:
         message = "commit_policy_index_unmerged"
         raise ValueError(message)
@@ -72,24 +72,21 @@ def commit_message_report(
         return _blocked("commit_message_unreadable")
     candidate = _indexed_commit_policy(root, index_env=index_env)
     head = peel_commit(root, "HEAD")
-    incumbent = commit_policy_for_revision(root, head) if head else None
-    policies = tuple(dict.fromkeys(policy for policy in (candidate, incumbent) if policy))
+    incumbent = commit_policy_for_revision(root, head) if head else candidate
     gaps = []
-    for policy in policies:
+    for policy in dict.fromkeys((candidate, incumbent)):
         if gap := commit_subject_gap(policy, subject):
             gaps.append(gap)
         gaps.extend(prospective_identity_gaps(root, policy))
     if gaps:
         return {**_blocked(gaps[0]), "required_gaps": list(dict.fromkeys(gaps))}
-    return _passed("subject_admitted" if policies else "policy_not_declared")
+    return _passed("subject_admitted")
 
 
 def prospective_identity_gaps(
-    root: Path, policy: CommitPolicy | None, *, environment: dict[str, str] | None = None
+    root: Path, policy: CommitPolicy, *, environment: dict[str, str] | None = None
 ) -> list[str]:
     """Read effective Git identities at the same environment as commit creation."""
-    if policy is None:
-        return []
     identities: dict[str, object] = {}
     for role in ("author", "committer"):
         if getattr(policy, role) is None:
@@ -104,14 +101,14 @@ def prospective_identity_gaps(
 
 
 def commit_subject_gap(
-    policy: CommitPolicy | None,
+    policy: CommitPolicy,
     subject: str,
     *,
     revision: str = "",
 ) -> str:
     """Return the canonical subject-policy gap for one prospective or existing commit."""
     first_line = subject.partition("\n")[0]
-    if policy is None or policy.accepts_subject(first_line):
+    if policy.accepts_subject(first_line):
         return ""
     coordinate = f"{revision}:" if revision else ""
     return f"commit_subject_invalid:{coordinate}{first_line}"
@@ -119,21 +116,16 @@ def commit_subject_gap(
 
 def commit_policy_report(
     root: Path,
-    policy: CommitPolicy | None,
+    policy: CommitPolicy,
     revision: str = "HEAD",
     *,
     verify_trust: bool = True,
 ) -> dict[str, object]:
     """Observe and admit one object under an explicitly selected authority policy."""
-    observation = observe_commit(root, revision) if policy is not None else {}
+    observation = observe_commit(root, revision)
     report = evaluate_commit_policy(policy, observation, revision)
     signature = cast("dict[str, object]", report["signature"])
-    if (
-        verify_trust
-        and policy is not None
-        and policy.signing_required
-        and not signature["required_gaps"]
-    ):
+    if verify_trust and not signature["required_gaps"]:
         trust = verify_commit_trust(root, str(observation.get("object_oid") or revision))
         trust_gaps = [str(gap) for gap in cast("list[object]", trust.get("required_gaps", []))]
         signature.update(
@@ -147,19 +139,11 @@ def commit_policy_report(
 
 
 def evaluate_commit_policy(
-    policy: CommitPolicy | None,
+    policy: CommitPolicy,
     observation: Mapping[str, object],
     revision: str,
 ) -> dict[str, object]:
     """Purely judge supplied facts; neither observe Git nor verify signature trust."""
-    if policy is None:
-        return {
-            "verdict": "pass",
-            "state": "policy_not_declared",
-            "head": {},
-            "signature": {},
-            "required_gaps": [],
-        }
     object_oid = str(observation.get("object_oid") or revision)
     subject = str(observation.get("subject") or "")
     head = {
@@ -192,22 +176,19 @@ def _signature_policy_report(
     present = facts.get("present") is True
     observed_format = str(facts.get("format") or "")
     gaps: list[str] = []
-    state = "not_required"
-    if policy.signing_required and not present:
+    state = "present"
+    if not present:
         state = "missing"
         gaps.append(f"commit_signature_missing:{revision}")
-    elif policy.signing_required and observed_format != policy.signing_format:
+    elif observed_format != policy.signing_format:
         state = "format_mismatch"
         gaps.append(
             "commit_signature_format_mismatch:"
             f"{revision}:expected={policy.signing_format}:"
             f"observed={observed_format or 'unknown'}"
         )
-    elif policy.signing_required:
-        state = "present"
     return {
         "verdict": "block" if gaps else "pass",
-        "required": policy.signing_required,
         "state": state,
         "present": present,
         "format": observed_format,
@@ -227,8 +208,8 @@ def peel_commit(root: Path, revision: str) -> str:
     return completed.stdout.strip() if completed.returncode == 0 else ""
 
 
-def commit_policy_for_revision(root: Path, proposed_commit: str) -> CommitPolicy | None:
-    """Compile an exact Git-tree policy; absence adds no implicit requirements."""
+def commit_policy_for_revision(root: Path, proposed_commit: str) -> CommitPolicy:
+    """Compile an exact Git-tree policy; an absent binding yields the paradigm's policy."""
     listed = run_git(
         root,
         "ls-tree",
@@ -245,7 +226,7 @@ def commit_policy_for_revision(root: Path, proposed_commit: str) -> CommitPolicy
         raise ValueError(message)
     records = tuple(record for record in listed.stdout.split(b"\0") if record)
     if not records:
-        return None
+        return commit_policy_from_text("")
     if len(records) != 1:
         message = f"commit_policy_projection_invalid:{proposed_commit}"
         raise ValueError(message)

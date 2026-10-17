@@ -262,7 +262,7 @@ def prepare_source(
         ignore.write_text(ignore.read_text() + "\nbuild/\n.venv/\n", encoding="utf-8")
     for item in prepare_source_format(repo):
         (repo / item.path).write_bytes(item.after)
-    before = commit_fixture(repo, "fixture: native audit declaration")
+    before = commit_fixture(repo, "test: native audit declaration")
     git(candidate, "reset", "--hard", before)
     git(repo, "branch", roles.release_branch, before)
     git(repo, "worktree", "add", (tmp_path / "repo-release").as_posix(), roles.release_branch)
@@ -275,13 +275,13 @@ def prepare_source(
         base_ref=roles.candidate_branch,
     )
     create_fixture_python(work / ".venv")
-    commit_fixture_file(work, "README.md", "# Local source candidate\n", "fixture: source")
+    commit_fixture_file(work, "README.md", "# Local source candidate\n", "test: source")
     tasks = work / "openspec/changes/fixture-change/tasks.md"
     head = commit_fixture_file(
         work,
         tasks.relative_to(work).as_posix(),
         tasks.read_text().replace("[ ]", "[x]"),
-        "fixture: completed progress",
+        "test: completed progress",
     )
     return WorkLaneFixture(repo, candidate, work), before, head
 

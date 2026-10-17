@@ -69,7 +69,7 @@ def proof_repository(tmp_path: Path) -> Path:
     adopt_and_commit(repo)
     (repo / ".gitignore").write_text("build/\n")
     declare_native_proof_checks(repo, test=_PROGRAM, typecheck="print('static green')")
-    commit_fixture(repo, "declare real proof gates")
+    commit_fixture(repo, "ci: declare real proof gates")
     return repo
 
 
@@ -300,7 +300,7 @@ def test_public_proof_preserves_native_failure_and_skipped_dependants(
     declaration = tomllib.loads(profile.read_text())
     declaration["proof"]["gates"][0]["depends_on"] = ["static"]
     profile.write_text(tomli_w.dumps(declaration))
-    head = commit_fixture(repo, "declare a native quality dependency")
+    head = commit_fixture(repo, "build: declare a native quality dependency")
     before = read_attestation_set(repo)
 
     completed = _execute(repo, head)

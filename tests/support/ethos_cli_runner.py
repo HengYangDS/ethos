@@ -104,6 +104,17 @@ def run_ethos(*args: str, cwd: Path | None = None, full_payload: bool = False) -
     return payload
 
 
+def result_data(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return a result's data, read from the artifact that an oversized result points at."""
+    data = payload["data"]
+    reference = data.get("artifact_reference")
+    if not isinstance(reference, dict):
+        return data
+    content = Path(reference["path"]).read_bytes()
+    assert reference["sha256"] == f"sha256:{hashlib.sha256(content).hexdigest()}"
+    return json.loads(content)["data"]
+
+
 def run_ethos_blocked(*args: str, cwd: Path | None = None) -> dict[str, Any]:
     """Run a command expected to BLOCK: assert non-zero exit, return JSON.
 

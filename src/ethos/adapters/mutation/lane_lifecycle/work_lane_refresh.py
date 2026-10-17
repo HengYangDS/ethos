@@ -243,8 +243,7 @@ def _refresh_work_lane(
         commit_policy = commit_policy_from_text(
             committed_file_text(root, candidate_head, ".ethos/workspace.toml")
         )
-        signing_required = commit_policy is not None and commit_policy.signing_required
-        environment = commit_environment(root, None) if signing_required else None
+        environment = commit_environment(root, None)
         write_pending_refresh(
             root,
             PendingRefresh(
@@ -258,7 +257,7 @@ def _refresh_work_lane(
         "-c",
         "rebase.updateRefs=false",
         "rebase",
-        *(("-S",) if signing_required else ("--no-gpg-sign",)),
+        "-S",
         candidate_head,
         current_head,
         check=False,

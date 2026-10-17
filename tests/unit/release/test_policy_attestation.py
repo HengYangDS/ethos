@@ -182,7 +182,7 @@ def test_version_manifest_and_release_policy_project_product_and_host_truth() ->
         version=manifest,
         protected_refs={"branches": ["main", "dev"], "tags": ["v*"]},
     )
-    assert "release" not in config
+    assert config["release"] == {"mirror": "accepted_ff"}
     assert "gitlab" not in report
     assert report["required_files"] == [*_REQUIRED_FILES, ".ethos/release.toml"]
     _fields(
@@ -225,7 +225,7 @@ def test_release_policy_rejects_duplicate_remote_declaration(tmp_path: Path) -> 
         .read_text()
         .replace('git_remote = "github"', 'git_remote = "gitlab"', 1),
     )
-    for path in (*_REQUIRED_FILES, "pyproject.toml", ".ethos/workspace.toml"):
+    for path in (*_REQUIRED_FILES, "pyproject.toml"):
         _write(scratch, path, (root / path).read_text())
     assert release_policy_report(root)["publication_topology"]["state"] == "ready"
     assert (

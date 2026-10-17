@@ -70,7 +70,9 @@ def _closeout_repo(
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     accepted_head = git(repo, "rev-parse", "HEAD")
     if changed:
-        commit_fixture_file(candidate, "README.md", "# candidate change\n", "candidate change")
+        commit_fixture_file(
+            candidate, "README.md", "# candidate change\n", "test: candidate change"
+        )
     return repo, candidate, accepted_head, git(candidate, "rev-parse", "HEAD")
 
 
@@ -96,15 +98,17 @@ def _archived_candidate(
 ) -> tuple[Path, Path, str, str]:
     fixture = prepared_work_lane(tmp_path)
     accepted_head = git(fixture.repository, "rev-parse", "HEAD")
-    commit_fixture_file(fixture.worktree, "README.md", "# candidate change\n", "candidate change")
+    commit_fixture_file(
+        fixture.worktree, "README.md", "# candidate change\n", "test: candidate change"
+    )
     if prepare is not None:
         prepare(fixture.worktree)
-        commit_fixture(fixture.worktree, "prepare candidate change")
+        commit_fixture(fixture.worktree, "test: prepare candidate change")
     head = commit_fixture_file(
         fixture.worktree,
         "openspec/changes/fixture-change/tasks.md",
         "- [x] Exercise fixture lifecycle\n",
-        "complete fixture change",
+        "test: complete fixture change",
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     seed_executed_proof(fixture.worktree, head)
@@ -123,7 +127,9 @@ def test_source_acceptance_preserves_pending_delivery_until_official_archive(
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     tasks = "openspec/changes/fixture-change/tasks.md"
     pending = "- [ ] Observe delivered source after accepted integration\n"
-    head = commit_fixture_file(fixture.worktree, tasks, pending, "declare delivery obligation")
+    head = commit_fixture_file(
+        fixture.worktree, tasks, pending, "test: declare delivery obligation"
+    )
     accepted = git(fixture.repository, "rev-parse", "HEAD")
     seed_executed_proof(fixture.worktree, head)
 
@@ -466,7 +472,7 @@ def test_land_closeout_observes_completed_active_openspec_change(
         fixture.worktree,
         "openspec/changes/fixture-change/tasks.md",
         "- [x] Exercise fixture lifecycle\n",
-        "complete source work",
+        "test: complete source work",
     )
     _land_candidate(fixture.worktree, head)
 
@@ -492,7 +498,7 @@ def test_closeout_projection_does_not_collect_unrelated_workspace_authority(
         monkeypatch.setattr(workspace, "workspace_status_observation", reject_full_observation)
         initial = _closeout(repo)
         assert initial["data"]["closeout_resolution"]["coordinates"]["candidate_head"] == proposed
-        later = commit_fixture_file(candidate, "later.txt", "later\n", "advance candidate")
+        later = commit_fixture_file(candidate, "later.txt", "later\n", "test: advance candidate")
         changed = _closeout(repo)
         assert changed["data"]["closeout_resolution"]["coordinates"]["candidate_head"] == later
         assert git(repo, "rev-parse", "HEAD") == accepted

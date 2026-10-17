@@ -118,40 +118,52 @@ function relocate(text, before, after) {
 
 const result = { documents: [], canonical: [] };
 let owned;
+let relocatedTasks = "";
 try {
   if (source.task_transition) {
     const taskProgress = new URL("../dist/utils/task-progress.js", pathToFileURL(entry));
     const { parseTaskLines } = await import(taskProgress.href);
-    const { before, after, path: taskPath } = source.task_transition;
-    const oldLines = before.split("\n");
-    const newLines = after.split("\n");
-    let completed = 0;
-    if (oldLines.length !== newLines.length) fail("task_transition_invalid", taskPath);
-    for (let index = 0; index < oldLines.length; index++) {
-      if (oldLines[index] === newLines[index]) continue;
-      const previous = parseTaskLines(oldLines[index]);
-      const current = parseTaskLines(newLines[index]);
-      if (
-        oldLines[index].replace("[ ]", "[x]") !== newLines[index] ||
-        previous.length !== 1 ||
-        current.length !== 1 ||
-        previous[0].done ||
-        !current[0].done ||
-        previous[0].description !== current[0].description
-      )
+    const { before, after, path: taskPath, source: sourcePath } = source.task_transition;
+    // Only final checkboxes may change; the archived carrier may already hold this projection's
+    // own reference relocation, so the relocated source is the second admissible baseline.
+    const completes = (baseline) => {
+      const oldLines = baseline.split("\n");
+      const newLines = after.split("\n");
+      if (oldLines.length !== newLines.length) return false;
+      let completed = 0;
+      for (let index = 0; index < oldLines.length; index++) {
+        if (oldLines[index] === newLines[index]) continue;
+        const previous = parseTaskLines(oldLines[index]);
+        const current = parseTaskLines(newLines[index]);
+        if (
+          oldLines[index].replace("[ ]", "[x]") !== newLines[index] ||
+          previous.length !== 1 ||
+          current.length !== 1 ||
+          previous[0].done ||
+          !current[0].done ||
+          previous[0].description !== current[0].description
+        )
+          return false;
+        completed++;
+      }
+      return (
+        parseTaskLines(baseline).length === parseTaskLines(after).length &&
+        (baseline === after || completed > 0)
+      );
+    };
+    if (!completes(before)) {
+      if (!sourcePath || !completes(relocate(before, sourcePath, taskPath)))
         fail("task_transition_invalid", taskPath);
-      completed++;
+      relocatedTasks = sourcePath;
     }
-    const oldTasks = parseTaskLines(before);
-    const newTasks = parseTaskLines(after);
-    if (oldTasks.length !== newTasks.length || (before !== after && completed === 0))
-      fail("task_transition_invalid", taskPath);
-    if (newTasks.some((task) => !task.done)) fail("task_incomplete", taskPath);
+    if (parseTaskLines(after).some((task) => !task.done)) fail("task_incomplete", taskPath);
   }
   for (const doc of source.documents) {
     result.documents.push({
       path: doc.after,
-      content: relocate(doc.content, doc.before, doc.after),
+      // A carrier already holding this relocation is at its destination and stays exact.
+      content:
+        doc.before === relocatedTasks ? doc.content : relocate(doc.content, doc.before, doc.after),
     });
   }
   for (const doc of source.canonical) {

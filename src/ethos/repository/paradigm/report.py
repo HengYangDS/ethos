@@ -12,14 +12,14 @@ import re
 import tomllib
 from typing import TYPE_CHECKING
 
-from ethos.contracts.branch.roles import ROLE_NAME_FIELDS
-from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.verdict import close_verdict
 from ethos.measure import effective_code_lines_for_source
 from ethos.repository.paradigm.documents import document_gaps
 from ethos.repository.paradigm.gap import ParadigmGap
 from ethos.repository.paradigm.gap import tracked_text
+from ethos.repository.paradigm.openspec import openspec_gaps
+from ethos.repository.paradigm.workspace import workspace_gaps
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -53,8 +53,9 @@ def repository_paradigm_report(root: Path, *, tracked_paths: tuple[str, ...]) ->
         *_size_gaps(paradigm, root, tracked),
         *_formatter_gaps(paradigm, root, tracked),
         *document_gaps(paradigm, root, tracked),
+        *openspec_gaps(paradigm, root, tracked),
         *_peer_remote_gaps(paradigm, root, tracked),
-        *_workspace_gaps(paradigm, root, tracked),
+        *workspace_gaps(paradigm, root, tracked),
         *_release_gaps(paradigm, root, tracked),
     ]
     required = [gap.required_gap for gap in gaps]
@@ -350,37 +351,6 @@ def _peer_remote_gaps(
                 f"{release}:publication.peers.{identity}",
                 f'set git_remote = "{identity}" and run git remote rename {remote} {identity}',
             )
-
-
-def _workspace_gaps(
-    paradigm: RepositoryParadigm, root: Path, tracked: frozenset[str]
-) -> Iterator[ParadigmGap]:
-    """Leave the branch role names and the commit grammar, which it fixes, to the paradigm."""
-    workspace = f"{paradigm.binding.root}/workspace.toml"
-    source = tracked_text(root, workspace, tracked)
-    try:
-        declared = tomllib.loads(source) if source is not None else {}
-    except tomllib.TOMLDecodeError:
-        return  # The workspace policy owners report an unreadable binding.
-    roles = declared.get("branch_roles", {})
-    standard = BranchRolePolicy()
-    for role in ROLE_NAME_FIELDS if isinstance(roles, dict) else ():
-        if role in roles:
-            name = getattr(standard, role)
-            rename = "" if roles[role] == name else " after closeout renames the ref"
-            yield ParadigmGap(
-                "branch-roles",
-                f"{workspace}:branch_roles.{role}",
-                f"remove {role}{rename}; the repository paradigm fixes it as {name}",
-            )
-    policy = declared.get("commit_policy", {})
-    if isinstance(policy, dict) and "subject_pattern" in policy:
-        yield ParadigmGap(
-            "commit-grammar",
-            f"{workspace}:commit_policy.subject_pattern",
-            "remove subject_pattern; the repository paradigm owns the commit grammar, "
-            "and scopes = [...] restricts its scopes",
-        )
 
 
 def _release_gaps(

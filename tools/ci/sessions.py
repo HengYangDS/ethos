@@ -138,6 +138,7 @@ def tests(session) -> None:
     gate = import_module("tools.ci.python_test_gate").PythonTestGate.from_environment(
         node_package_supply=RUNTIME.node_package_supply()
     )
+    gate.compile_bytecode()
     try:
         gate.run_tests(session)
     except Exception:

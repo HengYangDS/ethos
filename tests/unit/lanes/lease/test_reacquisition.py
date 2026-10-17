@@ -20,7 +20,6 @@ from ethos.repository.profile import load_repository_profile
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_repo_with_candidate
-from tests.support.governed_repository import render_branch_policy
 from tests.support.lifecycle_cases import strict_lease
 
 SOURCE = "agent:test:case:source"
@@ -101,9 +100,7 @@ def test_reacquire_recognizes_previous_complete_accepted_policy(tmp_path, monkey
     workspace = repo / ".ethos/workspace.toml"
     workspace.parent.mkdir(parents=True, exist_ok=True)
     workspace.write_text(
-        render_branch_policy(
-            release_mirror="independent",
-        ).replace("canonical_sibling_worktrees = false\n", "")
+        '[branch_roles]\nrelease_mirror = "independent"\ncanonical_sibling_worktrees = true\n'
     )
     git(repo, "add", workspace.as_posix())
     git(repo, "commit", "-m", "retain previous complete policy")
@@ -267,14 +264,10 @@ def test_reacquire_preserves_invalid_historical_profile_before_repair(
     profile.write_text(f'profile_id = "{profile_id}"\nprofile_version = "1"\n')
     workspace = repo / ".ethos/workspace.toml"
     workspace.write_text(
-        render_branch_policy(
-            release_branch="main",
-            accepted_branch="dev",
-            candidate_branch="candidate/dev",
-            work_branch_prefix="work/",
-            proposal_branch_prefix="proposal/",
-            release_mirror="independent",
-        )
+        '[branch_roles]\nrelease_branch = "main"\naccepted_branch = "dev"\n'
+        'candidate_branch = "candidate/dev"\nwork_branch_prefix = "work/"\n'
+        'proposal_branch_prefix = "proposal/"\nrelease_mirror = "independent"\n'
+        "canonical_sibling_worktrees = true\n"
         if declared_roles
         else '[workspace]\nmode = "monorepo"\n'
     )
@@ -312,7 +305,7 @@ def test_reacquire_preserves_invalid_historical_profile_before_repair(
     )
 
 
-@pytest.mark.parametrize("invalid_owner", ["roles", "identity"])
+@pytest.mark.parametrize("invalid_owner", ["release", "identity"])
 def test_reacquire_rejects_unproved_control_roles_or_historical_identity(
     tmp_path, monkeypatch, invalid_owner
 ):
@@ -320,11 +313,11 @@ def test_reacquire_rejects_unproved_control_roles_or_historical_identity(
     repo, target = _unleased_dirty_lane(tmp_path)
     relative, content, gap = (
         (
-            ".ethos/workspace.toml",
-            '[branch_roles]\nrelease_mirror = "invalid"\n',
+            ".ethos/release.toml",
+            '[release]\nmirror = "invalid"\n',
             "lease_reacquire_control_root_unavailable",
         )
-        if invalid_owner == "roles"
+        if invalid_owner == "release"
         else (
             ".ethos/profile.toml",
             'profile_id = ""\nprofile_version = "1"\n',

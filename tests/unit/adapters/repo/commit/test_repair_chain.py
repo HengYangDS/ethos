@@ -18,6 +18,7 @@ from ethos.adapters.repo.git import is_ancestor
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import git
+from tests.support.governed_repository import write_release_mirror
 from tests.support.signature import repair_fixture_history
 from tests.support.signature import signature_repository
 
@@ -53,13 +54,8 @@ def _consecutive_repairs(
         git(repo, "commit", "-S", "--allow-empty", "-m", "invalid historical subject")
     (repo / "forward.txt").write_text("Forward content before the second repair\n")
     if independent:
-        workspace = repo / ".ethos/workspace.toml"
-        workspace.write_text(
-            workspace.read_text().replace(
-                'release_mirror = "accepted_ff"', 'release_mirror = "independent"'
-            )
-        )
-    git(repo, "add", ".ethos/workspace.toml", "forward.txt")
+        write_release_mirror(repo, "independent")
+    git(repo, "add", ".ethos/release.toml", "forward.txt")
     git(repo, "commit", "-S", "-m", "fix: forward before second repair")
     before_second = git(repo, "rev-parse", "HEAD")
     git(candidate, "reset", "--hard", before_second)

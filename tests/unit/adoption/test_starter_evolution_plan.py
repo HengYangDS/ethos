@@ -17,6 +17,7 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.domain.adoption import adopt_repository
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.fixture_signer import fixture_signer_inputs
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
@@ -35,6 +36,7 @@ def _formed_python_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path
         "starter": "python-library",
         "author_name": "Test Contributor",
         "author_email": "test@example.invalid",
+        **fixture_signer_inputs(),
     }
     preview = adopt_repository(target, **request)
     assert preview.verdict == "pass"

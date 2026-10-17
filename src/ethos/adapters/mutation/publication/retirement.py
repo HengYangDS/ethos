@@ -23,7 +23,7 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.contracts.branch.roles import ROLE_OTHER
 from ethos.contracts.branch.roles import BranchRolePolicy
-from ethos.contracts.branch.roles import branch_role_policy_from_text
+from ethos.contracts.branch.roles import branch_role_policy_from_release_text
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
@@ -158,8 +158,8 @@ def _retirement_context(
     gap = "proposal_retirement_accepted_missing"
     if not accepted:
         raise ValueError(gap)
-    committed = branch_role_policy_from_text(
-        committed_file_text(root, accepted, ".ethos/workspace.toml")
+    committed = branch_role_policy_from_release_text(
+        committed_file_text(root, accepted, ".ethos/release.toml")
     )
     gap = "proposal_retirement_policy_drift"
     if committed != policy:

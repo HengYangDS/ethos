@@ -51,7 +51,7 @@ from tests.support import proof as proof_fixture
 def _advance(repo: Path, name: str) -> str:
     (repo / name).write_text(name, encoding="utf-8")
     fx.git(repo, "add", ".")
-    fx.git(repo, "commit", "-m", name)
+    fx.git(repo, "commit", "-m", f"test: advance {name}")
     return fx.git(repo, "rev-parse", "HEAD")
 
 
@@ -67,14 +67,14 @@ class State:
                 fixture.worktree,
                 {"base": fx.git(fixture.repository, "rev-parse", "dev")},
             )
-            self.v["work"] = fx.commit_fixture_file(self.repo, "work", "work", "work")
+            self.v["work"] = fx.commit_fixture_file(self.repo, "work", "work", "test: advance work")
             proof_fixture.seed_executed_proof(self.repo, self.v["work"])
         elif mode == "profile":
-            (candidate / ".ethos/workspace.toml").unlink()
+            (candidate / ".ethos/workspace.toml").unlink(missing_ok=True)
         elif mode == "fixture":
             fixture = fx.prepared_work_lane(tmp / "fixture")
             head = fx.commit_fixture_file(
-                fixture.candidate, "CANDIDATE.md", "candidate\n", "candidate"
+                fixture.candidate, "CANDIDATE.md", "candidate\n", "test: advance the candidate"
             )
             proof_fixture.seed_executed_proof(fixture.candidate, head)
             fx.git(fixture.repository, "update-ref", "refs/heads/dev", head)
@@ -135,13 +135,9 @@ class State:
             self._policy("accepted_ff" if code == "F" else "independent")
 
     def _policy(self, value: str) -> None:
-        path = self.repo / ".ethos/workspace.toml"
-        current = "accepted_ff" if value == "independent" else "independent"
-        path.write_text(
-            path.read_text().replace(f'release_mirror = "{current}"', f'release_mirror = "{value}"')
-        )
-        fx.git(self.repo, "add", path.as_posix())
-        fx.git(self.repo, "commit", "-m", "change release mirror policy")
+        fx.write_release_mirror(self.repo, value)
+        fx.git(self.repo, "add", ".ethos/release.toml")
+        fx.git(self.repo, "commit", "-m", "docs(release): change the release mirror policy")
         self.v["c1"] = fx.git(self.repo, "rev-parse", "HEAD")
 
     def _intent(self, old: str, new: str, operation: str) -> None:

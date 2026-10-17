@@ -106,7 +106,7 @@ def test_readers_end_observation_or_select_a_real_boundary(tmp_path, condition, 
     else:
         repo, candidate = start_adopted_candidate(tmp_path)
     if condition == "candidate":
-        commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
+        commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "test: advance candidate")
     before = Path.cwd()
     direct = inspect_repository(repo).to_dict()
     assert not capsys.readouterr().out
@@ -236,7 +236,7 @@ def test_retired_claim_lane_surface_is_rejected_by_cyclopts(arguments, native_er
 
 def test_status_uses_stage_gate_actions_when_dirty_lane_base_is_stale(tmp_path) -> None:
     _repo, candidate, worktree = prepared_work_lane(tmp_path)
-    commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "advance candidate")
+    commit_fixture_file(candidate, "CANDIDATE.md", "# candidate\n", "test: advance candidate")
     (worktree / "README.md").write_text("# dirty\n", encoding="utf-8")
     completed = run_ethos_raw("status", "--root", worktree.as_posix(), "--json", cwd=worktree)
 

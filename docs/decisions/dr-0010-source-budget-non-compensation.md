@@ -81,7 +81,7 @@ real ownership—not mechanical file fragmentation.
   typed policy and native declaration parser.
 - `tests/unit/domain/source_budget/` covers non-compensation, classification,
   and deterministic output.
-- [Module Layout And Visibility Rules](../../rules/module_layout.md) prevents
+- [Module Layout Rules](../../rules/module-layout.md) prevents
   size thresholds from authorizing suffix-flat or metric-driven splits.
 
 ## Revisit And Retirement

@@ -23,7 +23,7 @@ from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import exact_lease
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tests.support.governed_repository import render_branch_policy
+from tests.support.governed_repository import render_release_mirror
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -49,13 +49,8 @@ def _unavailable_runtime_repo(tmp_path: Path):
         encoding="utf-8",
     )
     hook.chmod(0o755)
-    (workspace := tmp_path / ".ethos/workspace.toml").parent.mkdir()
-    workspace.write_text(
-        render_branch_policy(
-            release_mirror="independent",
-        ),
-        encoding="utf-8",
-    )
+    (release := tmp_path / ".ethos/release.toml").parent.mkdir()
+    release.write_text(render_release_mirror("independent"), encoding="utf-8")
     (tmp_path / "a").write_text("1", encoding="utf-8")
     g("add", ".")
     g("commit", "-m", "base")
@@ -258,15 +253,10 @@ def test_reference_transaction_hook_fails_closed_on_empty_release_mirror_verdict
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    workspace = repo / ".ethos/workspace.toml"
-    workspace.parent.mkdir(parents=True)
-    workspace.write_text(
-        render_branch_policy(
-            release_mirror="accepted_ff",
-        ),
-        encoding="utf-8",
-    )
-    git(repo, "add", workspace.as_posix())
+    release = repo / ".ethos/release.toml"
+    release.parent.mkdir(parents=True)
+    release.write_text(render_release_mirror("accepted_ff"), encoding="utf-8")
+    git(repo, "add", release.as_posix())
     git(repo, "commit", "-m", "declare accepted release mirror")
     candidate = tmp_path / "candidate"
     git(repo, "branch", "main")
@@ -305,15 +295,10 @@ def test_reference_transaction_reads_only_git_common_lease_state(
 ) -> None:
     """A prepared ref decision reads Lease state without walking runtime generations."""
     repo = init_git_repo(tmp_path / "repo")
-    workspace = repo / ".ethos/workspace.toml"
-    workspace.parent.mkdir(parents=True)
-    workspace.write_text(
-        render_branch_policy(
-            release_mirror="independent",
-        ),
-        encoding="utf-8",
-    )
-    git(repo, "add", workspace.as_posix())
+    release = repo / ".ethos/release.toml"
+    release.parent.mkdir(parents=True)
+    release.write_text(render_release_mirror("independent"), encoding="utf-8")
+    git(repo, "add", release.as_posix())
     git(repo, "commit", "-m", "declare branch roles")
     git(repo, "branch", "work/x")
     database = state_database(repo)

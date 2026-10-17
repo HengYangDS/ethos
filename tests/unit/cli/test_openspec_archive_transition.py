@@ -51,7 +51,7 @@ def test_public_archive_requires_authored_purpose_before_new_capability_cas(monk
     new_delta = lifecycle.active / "specs/new-capability/spec.md"
     new_delta.parent.mkdir()
     delta.rename(new_delta)
-    commit_fixture(root, "declare a new canonical capability")
+    commit_fixture(root, "test: declare a new canonical capability")
     monkeypatch.setattr(archive, "proof_gaps", proof_gaps)
     seed_executed_proof(root, lifecycle.head)
     before = lifecycle.head
@@ -69,7 +69,7 @@ def test_public_archive_requires_authored_purpose_before_new_capability_cas(monk
         + new_delta.read_text(encoding="utf-8"),
         encoding="utf-8",
     )
-    commit_fixture(root, "author new capability purpose")
+    commit_fixture(root, "test: author new capability purpose")
     seed_executed_proof(root, lifecycle.head)
     archived = lifecycle.apply_archive()
     assert (archived["state"], archived["effect_state"], archived["required_gaps"]) == (
@@ -114,7 +114,7 @@ def test_public_archive_rejects_modified_canonical_warnings_before_git_cas(
         "- **THEN** its canonical output remains repairable\n",
         encoding="utf-8",
     )
-    commit_fixture(root, "modify two canonical requirements")
+    commit_fixture(root, "test: modify two canonical requirements")
     monkeypatch.setattr(archive, "proof_gaps", proof_gaps)
     seed_executed_proof(root, lifecycle.head)
     before = lifecycle.head
@@ -161,7 +161,7 @@ def test_staged_native_archive_preserves_unowned_invalid_postimage(
         "- **THEN** its meaning remains available\n",
         encoding="utf-8",
     )
-    commit_fixture(root, "modify canonical requirement")
+    commit_fixture(root, "test: modify canonical requirement")
     monkeypatch.setattr(archive, "proof_gaps", proof_gaps)
     seed_executed_proof(root, lifecycle.head)
     head = lifecycle.head
@@ -345,7 +345,7 @@ def _declare_archive_reference(root: Path) -> tuple[str, Path, bytes]:
             "single intent carrier.", "[reference](../../../../../docs/reference.md)."
         )
     )
-    commit_fixture(root, "declare native archive references")
+    commit_fixture(root, "test: declare native archive references")
     return source, target, target.read_bytes()
 
 

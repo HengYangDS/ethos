@@ -25,7 +25,6 @@ def test_publication_uses_the_declared_identity_and_existing_range(
     baseline = git(repo, "rev-parse", "HEAD")
     (repo / ".ethos/workspace.toml").write_text(
         '[commit_policy]\nsubject_pattern = "^fix: .+"\n'
-        'signing_required = false\nsigning_format = "ssh"\n'
         f'[commit_policy.{role}]\nname = "ETHOS Test"\nemail = "test@example.invalid"\n'
     )
     git(repo, "add", ".ethos/workspace.toml")

@@ -4874,7 +4874,9 @@ SHALL NOT require a parallel VERSION carrier.
 ETHOS SHALL distinguish shipping exact verified accepted content from introducing
 new contributions. Only the former may reuse accepted effect and current proof.
 Reuse SHALL NOT assert signatures or later-policy compliance for pre-adoption
-history.
+history. Accepted content is the current accepted commit or, for an existing
+release tag object, the commit at which an attested ETHOS release effect
+created that object while that commit remains in accepted history.
 
 #### Scenario: Accepted source contains pre-adoption history
 
@@ -4885,7 +4887,8 @@ history.
 
 #### Scenario: Content was not accepted
 
-- **WHEN** proposed source differs from current accepted or its evidence fails
+- **WHEN** proposed source is neither current accepted nor the attested release
+  commit of the exact tag object in accepted history, or its evidence fails
 - **THEN** reuse grants no admission
 - **AND** normal introduced-range subject and signature checks remain enforced
 
@@ -5115,10 +5118,12 @@ ordinary proof or commit admission.
 ### Requirement: Native pre-push validates release-tag objects
 
 ETHOS native pre-push SHALL validate the actual object supplied for a declared
-release-tag ref as a trusted signed annotated tag with exact declared name,
-committed product version and current accepted source. A signed peeled commit
-alone SHALL NOT satisfy tag admission. The remote tag MAY be absent or already
-point to the identical tag object; a divergent remote tag SHALL NOT be replaced.
+release-tag ref as a trusted signed annotated tag with exact declared name and
+committed product version at its release commit: the current accepted commit,
+or an earlier accepted commit where an attested release effect created exactly
+this tag object. A signed peeled commit alone SHALL NOT satisfy tag admission.
+A divergent remote tag SHALL NOT be replaced, and exact remote publication
+SHALL reach the same decision.
 
 #### Scenario: Plain commit is offered as a release tag
 
@@ -5131,14 +5136,24 @@ point to the identical tag object; a divergent remote tag SHALL NOT be replaced.
 
 - **WHEN** Git supplies a trusted signed annotated tag matching the exact ref
   name, committed version and current accepted commit
-- **THEN** native pre-push can admit creation or an identical remote no-op
+- **THEN** native pre-push can admit creation while the remote tag is absent,
+  or an identical remote no-op
 - **AND THEN** it retains current proof, accepted effect and ref-role checks.
+
+#### Scenario: A peer that missed the release receives it later
+
+- **WHEN** accepted history has advanced past a release commit and a declared
+  peer lacks the exact tag object the attested release effect created there
+- **THEN** native pre-push and exact publication can admit that object for the
+  selected peer, or an identical remote no-op
+- **AND THEN** tag trust, name, version, proof and accepted effect are checked
+  for the release commit and the publication effect is attested.
 
 #### Scenario: Tag object or remote state is invalid
 
 - **WHEN** the tag is lightweight, unsigned, untrusted, mismatched by name or
-  version, detached from current accepted source, or replaces a different
-  remote tag object
+  version, neither at the current accepted commit nor the attested object of a
+  release still in accepted history, or replaces a different remote tag object
 - **THEN** native pre-push blocks without a remote effect.
 
 ### Requirement: Current-policy proof coexists with immutable superseded proofs
@@ -5242,3 +5257,56 @@ ETHOS SHALL reject a candidate-integration ref move whose ref matches no declare
 - **WHEN** a landing integrates a proven Work Lane into a candidate branch that matches no resolved role
 - **THEN** the candidate update fails with `ref_transition_operation_unresolved` naming that ref
 - **AND** the candidate branch does not move
+
+### Requirement: Attestation lifetimes end with the transition that consumes them
+
+Every Attestation SHALL have exactly one lifetime derived from its predicate and existing bindings:
+operation, head, lineage, window or open-predicate. A lifetime SHALL end only on positive evidence
+that the set update observes, never on the absence of a branch or ref alone.
+
+#### Scenario: A Work Lane is retired or its branch is absent
+
+- **WHEN** a lane's retirement effect is selected or its branch is missing
+- **THEN** its operation members remain
+- **AND** proof admission still resolves archived intent through them
+
+#### Scenario: An accepted head is superseded
+
+- **WHEN** closeout advances the accepted ref from one commit to a later one
+- **THEN** the proof, integration, acceptance and publication records of the earlier commit end once
+  no local ref, fully peeled tag, worktree HEAD or declared peer's last publication selects it
+- **AND** the current head's proof, acceptance and publication records remain
+
+#### Scenario: A release tag or repair lineage still exists
+
+- **WHEN** a release tag exists, or a governed ref or a declared peer still reaches a pre-repair
+  object
+- **THEN** its release or repair record remains
+- **AND** the record of a kept runtime generation and the starter formation also remain
+
+#### Scenario: A tag or runtime package is no longer observed
+
+- **WHEN** a release tag or a runtime package is missing locally
+- **THEN** the release record and every accepted release identity remain
+- **AND** a repair record ends only once every pre-repair object it names is absent locally
+
+#### Scenario: Lifetime facts cannot be observed
+
+- **WHEN** an update cannot observe refs, worktrees or pre-repair objects
+- **THEN** it removes no member and reports the gap
+
+#### Scenario: A validity window passes
+
+- **WHEN** a member's `valid_until` has passed
+- **THEN** the next set update removes it
+
+#### Scenario: A predicate has no product reader
+
+- **WHEN** a member's predicate has no product lifetime
+- **THEN** the member remains until an admitted release removes it
+
+#### Scenario: A needed member has ended
+
+- **WHEN** a transition requires a member that has left the set
+- **THEN** the transition fails closed with its existing missing-evidence gap
+- **AND** it does not infer the absent member

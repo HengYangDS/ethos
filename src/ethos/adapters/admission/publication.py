@@ -22,7 +22,7 @@ from ethos.adapters.repo.release import publication_source_baseline
 from ethos.adapters.repo.release import tag_publication_gaps
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
+from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
@@ -71,8 +71,9 @@ def _committed_target_policy(
     texts = dict(
         zip(entries, (b.decode() for b in read_objects(root, tuple(entries.values()))), strict=True)
     )
-    policy = strict_branch_role_policy_from_text(texts.get(_POLICY_PATHS[0], ""))
-    release = release_config_from_text(texts.get(_POLICY_PATHS[1], ""))
+    release_text = texts.get(_POLICY_PATHS[1], "")
+    policy = strict_branch_role_policy_from_release_text(release_text)
+    release = release_config_from_text(release_text)
     protected = release.get("protected_refs", {})
     return (
         policy,

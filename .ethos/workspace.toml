@@ -1,7 +1,0 @@
-[branch_roles]
-release_mirror = "accepted_ff"
-canonical_sibling_worktrees = true
-
-[commit_policy]
-signing_required = true
-signing_format = "ssh"

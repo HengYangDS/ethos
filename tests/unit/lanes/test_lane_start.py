@@ -5,6 +5,8 @@ from __future__ import annotations
 import sqlite3
 from collections import Counter
 from contextlib import closing
+from datetime import UTC
+from datetime import datetime
 from functools import partial
 
 import pytest
@@ -20,14 +22,24 @@ from tests.support.signature import configure_signer
 
 HOLDER = "agent:test:case:lane-start"
 COMMAND = "/runtime/python -B -I -m ethos.cli"
-BRANCH = "work/feature"
+NOW = datetime.now(UTC)
+BRANCH = f"work/{NOW:%Y%m%d}-feature"
+
+
+class _StartClock(datetime):
+    """Hold the lane date fixed so a run crossing UTC midnight keeps one lane identity."""
+
+    @classmethod
+    def now(cls, tz=None):
+        return NOW.astimezone(tz)
 
 
 @pytest.fixture
 def start_case(tmp_path, monkeypatch):
-    """Keep native Git/Lease effects while isolating package supply."""
+    """Keep native Git/Lease effects while isolating package supply and the lane date."""
     repo, candidate = init_repo_with_candidate(tmp_path)
-    target = tmp_path / "repo-work-feature"
+    target = repo.parent / f"{repo.name}-worktrees" / BRANCH.removeprefix("work/")
+    monkeypatch.setattr(lane_start, "datetime", _StartClock)
     monkeypatch.setattr(lane_start, "require_runtime_wheel_provenance", lambda: None)
     monkeypatch.setattr(lane_start, "runtime_command", lambda _root: COMMAND)
     monkeypatch.setattr(lane_start, "install_hook_launchers", lambda _root: {"state": "current"})
@@ -311,22 +323,38 @@ def test_unreceipted_worktree_creation_is_retained_for_recovery(start_case, monk
 
 
 @pytest.mark.parametrize("mode", ["canonical", "noncanonical"])
-def test_start_honors_repository_topology_without_parallel_lanes(start_case, mode):
+def test_start_places_every_work_lane_in_a_dated_sibling_worktree(start_case, mode):
+    """Without any declaration, a lane lives at `<repository>-worktrees/<yyyymmdd>-<slug>/`."""
     repo, _candidate, target, start = start_case
-    commit_fixture_file(
-        repo,
-        ".ethos/workspace.toml",
-        "[branch_roles]\ncanonical_sibling_worktrees = true\n",
-        "configure Work Lanes",
-    )
-    report = start(name="semantic lane", path=target if mode == "noncanonical" else None)
+    elsewhere = repo.parent / "repo-work-semantic-lane"
+    report = start(name="semantic lane", path=elsewhere if mode == "noncanonical" else None)
     if mode == "canonical":
-        lane_id = report["branch"].removeprefix("work/")
-        assert lane_id.endswith("-semantic-lane")
+        lane_id = f"{NOW:%Y%m%d}-semantic-lane"
+        assert report["branch"] == f"work/{lane_id}"
         assert report["path"] == (repo.parent / f"{repo.name}-worktrees" / lane_id).as_posix()
     else:
         assert report["required_gaps"] == ["work_lane_path_not_canonical"]
     assert _observe(repo, target) == ("", False, None)
+
+
+@pytest.mark.parametrize("name", ["20261016-archive-relocation", "12345678-ticket", "relocation"])
+def test_start_refuses_a_name_that_already_carries_a_lane_date(start_case, name):
+    """No lane path repeats its date: a dated name is refused with its undated slug."""
+    repo, _candidate, _target, start = start_case
+    report = start(name=name, path=None)
+    lane_id = f"{NOW:%Y%m%d}-{name}"
+    if not name.startswith("2026"):
+        # Eight digits that are not a calendar date are part of the name itself.
+        assert (report["state"], report["branch"]) == ("planned", f"work/{lane_id}")
+        return
+    assert report["required_gaps"] == ["work_lane_name_dated"]
+    assert report["undated_name"] == "archive-relocation"
+    assert report["next_action"] == (
+        f"ethos lane start archive-relocation --holder-ref {HOLDER} --root {repo.as_posix()} --json"
+    )
+    assert ref_head(repo, f"work/{lane_id}") == ""
+    assert not (repo.parent / f"{repo.name}-worktrees" / lane_id).exists()
+    assert f"work/{lane_id}" not in leases_by_branch(repo)
 
 
 @pytest.mark.parametrize(
@@ -369,7 +397,7 @@ def test_start_rejects_invalid_preconditions_without_effects(start_case, monkeyp
         git(repo, "update-ref", f"refs/heads/{BRANCH}", head)
         gap = "lane_start_target_ref_exists"
     else:
-        target.mkdir()
+        target.mkdir(parents=True)
         (target / "user.txt").write_text("keep\n")
         gap = "lane_start_target_path_exists"
     before = _observe(repo, target)

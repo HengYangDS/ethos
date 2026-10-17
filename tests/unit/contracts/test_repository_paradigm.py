@@ -40,6 +40,8 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
     grammar = paradigm.commit.subject_pattern(("cli",))
     assert grammar.startswith("^(build|chore|ci|docs|feat|fix|perf|refactor|revert|test)")
     assert grammar.endswith(r"(\((cli)\))?!?: .+")
+    assert paradigm.openspec.artifact_schema == "spec-driven"
+    assert all(paradigm.openspec.rules.model_dump().values())
 
 
 @pytest.mark.parametrize(
@@ -53,6 +55,9 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
         "duplicate-table",
         "tool-unknown-key",
         "size-not-positive",
+        "openspec-unknown-artifact",
+        "openspec-other-schema",
+        "openspec-empty-rules",
     ],
 )
 def test_paradigm_declaration_fails_closed(mutation: str) -> None:
@@ -80,6 +85,17 @@ def test_paradigm_declaration_fails_closed(mutation: str) -> None:
         )
     elif mutation == "size-not-positive":
         payload["size"] = {**payload["size"], "python_effective_lines": 0}
+    elif mutation.startswith("openspec-"):
+        openspec = payload["openspec"]
+        assert isinstance(openspec, dict)
+        payload["openspec"] = {
+            "openspec-unknown-artifact": {
+                **openspec,
+                "rules": {**openspec["rules"], "review": ["Review it."]},
+            },
+            "openspec-other-schema": {**openspec, "artifact_schema": "custom"},
+            "openspec-empty-rules": {**openspec, "rules": {**openspec["rules"], "tasks": []}},
+        }[mutation]
     else:
         tools[0] = {**tools[0], "exceptions": ["mise.toml"]}
     with pytest.raises(ValidationError):

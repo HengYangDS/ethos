@@ -9,7 +9,7 @@ Shared by every repository where the concern applies:
 - `build/` ignored as the generated root;
 - Python 3.12 as the compatibility floor;
 - a formatter width of 100;
-- SSH-signed Conventional Commits wherever a commit policy exists;
+- SSH-signed Conventional Commits;
 - the five lane roles wherever lanes are declared.
 
 Shared by most repositories:
@@ -112,6 +112,7 @@ The packaged contract holds the complete tool catalog as executable data. The ro
 | Ruff, ty, taplo, Lychee, Gitleaks, OSV-Scanner, typos, golangci-lint, import-linter | `.config/checks/<tool>/<tool>.toml`                                                | Each takes an explicit flag that replaces discovery.                                                                                                                                      |
 | Prettier                                                                            | `.config/checks/prettier/prettier.toml`, `prettierignore`                          | `--config` and `--ignore-path`. `overrides[].files` resolve relative to the configuration directory.                                                                                      |
 | knip                                                                                | `.config/checks/knip/knip.toml`                                                    | An explicit TOML path. A discovered file still merges, so none may remain.                                                                                                                |
+| TypeScript                                                                          | `.config/checks/typescript/tsconfig.json`                                          | `tsc --project` and Knip's `typescript.config`. Paths in the project resolve relative to its own directory.                                                                               |
 | markdownlint-cli2                                                                   | `.config/checks/markdownlint-cli2/.markdownlint-cli2.yaml`                         | `--config`. It parses TOML, but markdownlint 0.41.1 drops rule options from TOML tables (it tests `instanceof Object`, and smol-toml tables have no prototype), so the native YAML stays. |
 | Vale, yamllint, ShellCheck, pre-commit, ESLint, actionlint, Syft, GoReleaser, c8    | `.config/checks/<tool>/` or `.config/release/<tool>/`, in the tool's native format | These tools do not read TOML.                                                                                                                                                             |
 | codespell                                                                           | `.config/checks/codespell/codespell.toml`                                          | `--toml`, which reads only a `[tool.codespell]` table.                                                                                                                                    |
@@ -145,8 +146,9 @@ Gates are declared inline in the profile, or the profile selects the packaged ET
 
 - **Commit types:** the grammar admits the ten types that every declared policy shares. `spec` and `style` exist in only some policies, and their commits map to `docs` and `refactor`.
 - **Commit scopes:** a scope is optional because four of six policies make it optional. A repository may declare a closed scope list that admission enforces.
-- **Signing:** SSH signing is required.
+- **Signing:** every commit carries an SSH signature. The paradigm fixes the signature, so `[commit_policy]` only restricts scopes and constrains identities, and a repository without one gets the paradigm's commit policy. The repair deletes a restated `signing_required` or `signing_format`. ETHOS runs Git without global configuration, so each repository keeps its lifecycle signer and trust anchor in local configuration. Commit creation owns the signer check. Status reports it and blocks only in the roles that create lifecycle commits, so a CI clone that only verifies is not blocked. Formation takes the creator's signer and trust anchor as reviewed plan inputs and writes them into the new repository before it signs the initial commit.
 - **Branch roles:** they take the majority names. Work Lane worktrees use the workstation layout `<repository>-worktrees/<yyyymmdd>-<slug>/`, which becomes the ETHOS default instead of an opt-in.
+- **Release mirror:** whether the release branch follows the accepted branch is a release fact, so `.ethos/release.toml` declares it as `[release] mirror = "accepted_ff"`; it is independent otherwise. `.ethos/workspace.toml` keeps only `[commit_policy]`, and a repository without one tracks no workspace binding. The repair moves an `accepted_ff` mirror and deletes `[branch_roles]` and tables no reader consults, such as `[[package]]`.
 - **Releases:**
   - Released products keep `VERSION` as the only version source. It is the majority encoding and it is language-neutral.
   - Tags are `v` followed by a SemVer version.
@@ -214,6 +216,22 @@ Each module holds only what every repository of that ecosystem shares:
 The two films use uv without any linter or formatter. A required Ruff linter or pytest would therefore impose a tool rather than extract a shared practice. Ruff's formatter is the exception, because the shared blank-line rule needs it (decision 8). Where a tool is configured, the core rules place it and the tool catalog names its file.
 
 Every explicit formatter width in the fleet is already 100, so a configured formatter keeps 100, and Ruff targets the shared 3.12 floor. Runtime and tool versions stay repository values under the workstation version policy, so a version bump never needs an ETHOS Change.
+
+### 14. Common OpenSpec rules
+
+A repository that tracks OpenSpec artifacts selects `spec-driven`, and each artifact's rules begin with the contract's common rules. They come from the workstation's OpenSpec task rule, the official templates and delta semantics and ETHOS's lifecycle order, and they keep what recurs across the adopters' own rules:
+
+- the official templates and native delta operations;
+- falsifiable requirements;
+- one semantic owner per behavior;
+- truthful, dependency-ordered tasks;
+- execution history kept with its native evidence owners.
+
+Not every adopter states these rules today. The films and architecture-publications declare no rules, and two adopters keep rules that contradict them: aigw-cli keeps execution results in design.md, and web-ingestion-benchmark tracks closeout as checkable tasks. Their migration Changes remove or rewrite those rules, because the workstation rule forbids both.
+
+A repository's own rules follow the common ones. The repair keeps those rules, their lines and their comments, and drops only exact copies of a common rule. Whether an own rule restates or contradicts a common one is a judgment for the repository's migration Change.
+
+A repository that selects another schema keeps that gap report-only, because its Changes are written against that schema's artifacts.
 
 ## Risks / Trade-offs
 

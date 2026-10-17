@@ -161,6 +161,22 @@ def test_repository_reference_closure_rejects_deleted_path_consumers(tmp_path: P
     ]
 
 
+def test_repository_reference_closure_keeps_consumers_of_a_removed_binding(
+    tmp_path: Path,
+) -> None:
+    """A repository may remove its own optional ETHOS binding; the binding contract stays."""
+    declare_reference_surface(tmp_path)
+    write_reference_source(tmp_path, ".ethos/workspace.toml", '[commit_policy]\nscopes = ["cli"]\n')
+    write_reference_source(tmp_path, "src/example/policy.py", 'BINDING = ".ethos/workspace.toml"\n')
+    _commit_candidate_baseline(tmp_path)
+    (tmp_path / ".ethos/workspace.toml").unlink()
+    _commit_current_tree(tmp_path)
+
+    report = repository_semantic_closure(tmp_path)
+
+    assert (report["verdict"], report["superseded"]) == ("pass", [])
+
+
 @pytest.mark.parametrize("retired_count", [0, 1, 4])
 def test_retired_reference_audit_parses_each_carrier_once(
     tmp_path: Path,

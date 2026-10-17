@@ -36,10 +36,11 @@ def _required_executable(name: str) -> str:
     return executable
 
 
-def _configure_product_signer(root: Path, *, git: str, run: CommandRunner) -> None:
+def product_signer(root: Path, *, run: CommandRunner) -> dict[str, str]:
+    """Create one repository's own trusted SSH signer beside it, as every governed one needs."""
     ssh_keygen = _required_executable("ssh-keygen")
-    signer = root.parent / "product-signer"
-    trust_root = root.parent / "trust"
+    signer = root.parent / f"{root.name}-signer"
+    trust_root = root.parent / f"{root.name}-trust"
     trust_root.mkdir(mode=0o700)
     trust_anchor = trust_root / "allowed-signers"
     run(ssh_keygen, "-q", "-t", "ed25519", "-N", "", "-f", str(signer))
@@ -50,11 +51,21 @@ def _configure_product_signer(root: Path, *, git: str, run: CommandRunner) -> No
     )
     protect_for_current_identity(trust_root)
     protect_for_current_identity(trust_anchor)
+    return {
+        "signing_key": str(signer.with_suffix(".pub")),
+        "trust_anchor": str(trust_anchor),
+        "signing_program": ssh_keygen,
+    }
+
+
+def _configure_product_signer(root: Path, *, git: str, run: CommandRunner) -> None:
+    """Configure one materialized repository with its own trusted SSH signer."""
+    signer = product_signer(root, run=run)
     for name, value in (
         ("gpg.format", "ssh"),
-        ("gpg.ssh.program", ssh_keygen),
-        ("gpg.ssh.allowedSignersFile", str(trust_anchor)),
-        ("user.signingkey", str(signer.with_suffix(".pub"))),
+        ("gpg.ssh.program", signer["signing_program"]),
+        ("gpg.ssh.allowedSignersFile", signer["trust_anchor"]),
+        ("user.signingkey", signer["signing_key"]),
         ("commit.gpgsign", "true"),
     ):
         run(git, "config", name, value, cwd=root)
@@ -251,6 +262,7 @@ def prove_formation(
     build: BuildIdentity,
     wheel_sha256: str,
     environment: Mapping[str, str],
+    run: CommandRunner,
 ) -> dict[str, object]:
     """Form both starters from the installed CLI without a source checkout."""
     package_guidance = packaged_resource(
@@ -261,6 +273,8 @@ def prove_formation(
     journey = {"first_change": "not_attempted", "agent_handoff": "not_attempted"}
     for starter in ("foundation", "python-library"):
         target = work / f"formed-{starter}"
+        # Formation signs the initial commit with the creator's reviewed signer.
+        signer = product_signer(target, run=run)
         command = (
             str(executable),
             "adopt",
@@ -275,6 +289,12 @@ def prove_formation(
             "ETHOS Install Smoke",
             "--author-email",
             "ethos-install-smoke@example.invalid",
+            "--signing-key",
+            signer["signing_key"],
+            "--trust-anchor",
+            signer["trust_anchor"],
+            "--signing-program",
+            signer["signing_program"],
         )
         preview_code, preview, preview_detail = invoke(
             work, (*command, "--json"), environment=environment
@@ -468,10 +488,6 @@ def prepare_acceptance_topology(
     (candidate / "notes/candidate.txt").write_text("candidate\n", encoding="utf-8")
     run(git, "add", "notes/candidate.txt", cwd=candidate)
     run(git, "commit", "--quiet", "-m", "advance candidate independently", cwd=candidate)
-    (root / ".ethos/workspace.toml").write_text(
-        '[commit_policy]\nsigning_required = true\nsigning_format = "ssh"\n',
-        encoding="utf-8",
-    )
     profile = root / ".ethos/profile.toml"
     profile.write_text(
         profile.read_text(encoding="utf-8") + '\n[proof]\ngate_registry = "system/gates.toml"\n',
@@ -499,7 +515,7 @@ def prepare_acceptance_topology(
         'version_source = "git"\n',
         encoding="utf-8",
     )
-    run(git, "add", ".ethos/workspace.toml", ".ethos/profile.toml", "system/gates.toml", cwd=root)
+    run(git, "add", ".ethos/profile.toml", "system/gates.toml", cwd=root)
     run(
         git,
         "-c",

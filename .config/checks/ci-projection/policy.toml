@@ -14,7 +14,6 @@ forbidden_log_patterns = [
   "(?:^|[ >])WARNING:",
 ]
 required_owner_scripts = [
-  "tools/ci/scripts/bootstrap-python.sh",
   "noxfile.py",
   "tools/ci/repository_hygiene.py",
 ]
@@ -31,7 +30,6 @@ forbidden_log_patterns = [
   "(?:^|[ >])WARNING:",
 ]
 required_owner_scripts = [
-  "tools/ci/scripts/bootstrap-python.sh",
   "noxfile.py",
   "tools/ci/repository_hygiene.py",
 ]

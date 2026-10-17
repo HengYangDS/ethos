@@ -11,3 +11,18 @@ go = "1.27.2"
 "github:boyter/scc" = "4.1.0"
 "github:gitleaks/gitleaks" = "8.30.1"
 "github:anchore/syft" = "1.54.1"
+[tasks.bootstrap]
+description = "Synchronize the locked Python environment, native tools, npm packages and test fixtures"
+run = [
+  "uv sync --locked --no-install-project --group dev",
+  "uv sync --locked --group dev",
+  "uv run --frozen python -B -m tools.ci.toolchain.native --root . --mise",
+  "uv run --frozen python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts",
+  "uv run --frozen python -B -I tools/ci/toolchain/fixture_supply.py .",
+]
+[tasks.check]
+description = "Check formatting and lint findings without changing files"
+run = "uv run --frozen python -m nox -s format_check"
+[tasks.fix]
+description = "Apply the common formatters and safe lint fixes"
+run = "uv run --frozen python -m nox -s fix"

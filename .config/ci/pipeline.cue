@@ -20,11 +20,11 @@ let githubView = github
 let gitlabView = gitlab
 let githubSourceSHA = "${{ github.event.pull_request.head.sha || github.sha }}"
 let sourceCLI = "uv run --frozen --offline python -B -I -m ethos.cli"
-let externalLinkCommand = "tools/ci/scripts/with-python-runtime.sh -- \(sourceCLI) prove --host --execute --gate external-links --expect-head \"$(git rev-parse HEAD)\" --json"
 
-// Native subprocess glue consumes the source cache owner, including its selected npm CLI.
-let nativeNpm = "uv run --no-sync python -B -c 'import os, subprocess, sys; from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime; runtime = resolve_node_runtime(); subprocess.run([str(runtime.executable), str(runtime.npm), *sys.argv[1:]], env=dict(os.environ, PATH=str(runtime.executable.parent) + os.pathsep + os.environ[\"PATH\"], npm_config_engine_strict=\"true\", npm_config_audit=\"false\", npm_config_fund=\"false\", npm_config_update_notifier=\"false\"), stdin=subprocess.DEVNULL, timeout=120, check=True)'"
-let nativeNpmSeed = "uv run --no-sync python -B -c 'import os, subprocess, sys; from pathlib import Path; from ethos.adapters.repo.runtime.materialization.node.supply import NodeRuntime, NodeSupply; root = Path.cwd(); runtime = NodeRuntime.read(NodeSupply.read(root).installed_root(root), windows=os.name == \"nt\"); subprocess.run([str(runtime.executable), str(runtime.npm), *sys.argv[1:]], env=dict(os.environ, PATH=str(runtime.executable.parent) + os.pathsep + os.environ[\"PATH\"], npm_config_engine_strict=\"true\", npm_config_audit=\"false\", npm_config_fund=\"false\", npm_config_update_notifier=\"false\"), stdin=subprocess.DEVNULL, timeout=120, check=True)'"
+// npm runs from the locked Node supply: the archive seed installs once, then the lock owns npm.
+let nativeNpm = "python -B -m tools.ci.toolchain.npm"
+let supplyDockerfile = ".config/ci/supply/Dockerfile"
+let supplyImage = "ghcr.io/hengyangds/ethos-ci-supply:${{ github.sha }}"
 let gitlabImage = "ghcr.io/hengyangds/ethos-ci-supply@sha256:dc2bd5a9cff226e61659cfea765bba9f113ef4159ebfe65b2d05b4ef3eafddfe"
 
 // Commit-scoped GitLab jobs verify a commit once: a main push at dev's commit leaves them to
@@ -41,22 +41,59 @@ let commitScopedRules = [{
 }, {
 	when: "on_success"
 }]
-let githubPythonBootstrap = [{
+
+// One bootstrap order for every Linux job: build-only dependencies make the editable source
+// installable without build isolation, then the native tools, the npm seed, fixtures and trust.
+let bootstrapCommands = {
+	offline:   string
+	isolation: string
+	tools:     string
+	npm:       string
+	out: [
+		"uv sync --locked\(offline) --no-install-project --group dev",
+		"uv sync --locked\(offline)\(isolation) --group dev",
+		"uv run --frozen\(offline) python -B -m tools.ci.toolchain.native --root . --mise\(tools)",
+		"uv run --frozen\(offline) \(nativeNpm) --seed ci --ignore-scripts\(npm)",
+		"uv run --frozen\(offline) python -B -I tools/ci/toolchain/fixture_supply.py .",
+		"uv run --frozen\(offline) python -B -m tools.ci.toolchain.commit_trust",
+	]
+}
+let githubBootstrap = (bootstrapCommands & {offline: "", isolation: "", tools: "", npm: ""}).out
+let githubBootstrapNames = [
+	"Synchronize build-only Python dependencies",
+	"Synchronize locked Python environment",
+	"Prepare locked native tool supply",
+	"Install locked npm packages",
+	"Provision test fixture supply",
+	"Bind operator commit trust",
+]
+
+// The immutable image is the offline supply; its manifest is checked against this checkout first.
+let gitlabBootstrap = list.Concat([["sha256sum --check --quiet \"$ETHOS_CI_SUPPLY_MANIFEST\""], (bootstrapCommands & {
+	offline:   " --offline"
+	isolation: " --no-build-isolation"
+	tools:     " gitleaks scc syft"
+	npm:       " --offline"
+}).out])
+let githubPythonBootstrap = list.Concat([[{
 	uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 	with: {
 		"fetch-depth": 0
 		ref:           githubSourceSHA
 	}
 }, {
-	uses: "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"
-	with: "python-version": "3.14"
-}, {
 	uses: "astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884"
-	with: version: "0.13.1"
+	with: {
+		version:          "0.13.1"
+		"python-version": "3.14"
+	}
 }, {
-	name: "Bootstrap Python and OpenSpec"
-	run:  "tools/ci/scripts/bootstrap-python.sh"
-}]
+	name: "Provision native Python image supply"
+	run:  "uv python install --no-bin 3.14"
+}], [for index, command in githubBootstrap {
+	name: githubBootstrapNames[index]
+	run:  command
+}]])
 
 compiled: {
 	checks: {
@@ -111,43 +148,28 @@ github: {
 					ref:           githubSourceSHA
 				}
 			}, {
-				name: "Build and publish immutable supply"
-				env: GHCR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-				run: """
-					set -euo pipefail
-					image="ghcr.io/hengyangds/ethos-ci-supply:${{ github.sha }}"
-					docker buildx build --check --platform linux/arm64 --file .config/ci/supply/Dockerfile .
-					docker build --platform linux/arm64 --file .config/ci/supply/Dockerfile --tag "$image" .
-					smoke_root="$(mktemp -d)"
-					smoke_name="ethos-ci-supply-${{ github.run_id }}"
-					export DOCKER_CONFIG="$smoke_root/docker-config"
-					mkdir -m 0700 "$DOCKER_CONFIG"
-					cleanup() {
-					  docker rm -f "$smoke_name" >/dev/null 2>&1 || true
-					  rm -rf "$smoke_root"
-					}
-					trap cleanup EXIT
-					git clone --local --no-hardlinks --no-checkout . "$smoke_root/repo"
-					git -C "$smoke_root/repo" checkout --detach "${{ github.sha }}"
-					smoke_command=(docker create --name "$smoke_name" --network none)
-					smoke_command+=(--env CI_PROJECT_DIR=/workspace --env ETHOS_CI_SUPPLY_MANIFEST=/opt/ethos-supply/input.sha256)
-					smoke_command+=(--env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory --env GIT_CONFIG_VALUE_0=/workspace)
-					smoke_script="test \\$EUID -eq 65534"
-					smoke_script+=" && uv run --frozen --offline python -B -I -m ethos.cli --version"
-					smoke_script+=" && uv run --frozen --offline python tools/ci/toolchain/native.py --root . --mise gitleaks scc syft"
-					smoke_script+=" && uv run --frozen --offline python -B -m pytest -q 'tests/unit/adoption/quality/test_floor.py::test_real_locked_python_checks_qualify_the_selected_source[inline-none]'"
-					smoke_command+=(--entrypoint /workspace/tools/ci/scripts/bootstrap-python.sh "$image" -- /bin/bash -lc "$smoke_script")
-					"${smoke_command[@]}"
-					docker cp "$smoke_root/repo/." "$smoke_name:/workspace"
-					docker start --attach "$smoke_name"
-					test "$(docker inspect --format '{{.State.ExitCode}}' "$smoke_name")" = 0
-					docker rm "$smoke_name"
-					printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
-					docker push "$image"
-					docker buildx imagetools inspect "$image"
-					cleanup
-					trap - EXIT
-					"""
+				name: "Check the supply definition"
+				run:  "docker buildx build --check --platform linux/arm64 --file \(supplyDockerfile) ."
+			}, {
+				// The smoke stage runs this checkout offline as the image's unprivileged user.
+				name: "Accept the supply offline against this checkout"
+				run:  "docker buildx build --platform linux/arm64 --file \(supplyDockerfile) --target smoke --build-context workspace=. ."
+			}, {
+				name: "Build the supply image"
+				run:  "docker buildx build --platform linux/arm64 --file \(supplyDockerfile) --target supply --tag \(supplyImage) --load ."
+			}, {
+				uses: "docker/login-action@dbcb813823bdd20940b903addbd779551569679f"
+				with: {
+					registry: "ghcr.io"
+					username: "${{ github.actor }}"
+					password: "${{ secrets.GITHUB_TOKEN }}"
+				}
+			}, {
+				name: "Publish the supply image"
+				run:  "docker push \(supplyImage)"
+			}, {
+				name: "Inspect the published supply image"
+				run:  "docker buildx imagetools inspect \(supplyImage)"
 			}]
 		}
 		"host-conformance": {
@@ -187,7 +209,7 @@ github: {
 			}, {
 				name: "Install locked npm packages"
 				env: PYTHONPATH: "src"
-				run: "\(nativeNpmSeed) ci --ignore-scripts"
+				run: "uv run --no-sync \(nativeNpm) --seed ci --ignore-scripts"
 			}, {
 				name: "Synchronize locked Python environment"
 				run:  "uv sync --locked --group dev"
@@ -196,7 +218,7 @@ github: {
 				run:  "uv run --frozen python -m nox -s host_conformance"
 			}, {
 				name: "Execute npm launcher"
-				run:  "\(nativeNpm) run ethos -- --version"
+				run:  "uv run --frozen \(nativeNpm) run ethos -- --version"
 			}, {
 				name: "Execute native npm package tests"
 				run:  "uv run --frozen python -m nox -s javascript_tests"
@@ -264,7 +286,7 @@ github: {
 			"continue-on-error": true
 			steps: list.Concat([githubPythonBootstrap, [{
 				name: "External links"
-				run:  "mkdir -p build/evidence/quality/external-links\n\(externalLinkCommand) > build/evidence/quality/external-links/report.json"
+				run:  "uv run --frozen --offline python -m nox -s external_links"
 			}, {
 				name: "Upload external link observation"
 				if:   "always()"
@@ -326,6 +348,8 @@ gitlab: {
 		UV_PYTHON_INSTALL_DIR:    "/opt/ethos-supply/python"
 		NPM_CONFIG_CACHE:         "/opt/ethos-supply/npm-cache"
 		ETHOS_CI_SUPPLY_MANIFEST: "/opt/ethos-supply/input.sha256"
+		// The runner gives the checkout to the image's unprivileged user instead of a zero umask.
+		FF_DISABLE_UMASK_FOR_DOCKER_EXECUTOR: "true"
 	}
 
 	// Auto-retry every job on infrastructure failures only (image-pull timeouts to
@@ -352,9 +376,9 @@ gitlab: {
 	// The full registry owns quality, proof, package creation and SBOM once.
 	// Commit admission and native host/Node conformance retain their own boundaries.
 	"ethos:commit-policy": {
-		image: gitlabImage
-		before_script: ["tools/ci/scripts/bootstrap-python.sh"]
-		stage: "quality"
+		image:         gitlabImage
+		before_script: gitlabBootstrap
+		stage:         "quality"
 		variables: GIT_STRATEGY: "clone"
 		rules: [{
 			if: "$CI_PIPELINE_SOURCE == \"push\""
@@ -383,10 +407,10 @@ gitlab: {
 		script: ["\(sourceCLI) hook commit-range --target-ref \"${ETHOS_COMMIT_TARGET_REF}\" --proposed-head \"${ETHOS_COMMIT_PROPOSED_HEAD}\" --remote-head \"${ETHOS_COMMIT_REMOTE_HEAD}\" --remote origin --root . --json"]
 	}
 	"ethos:host-conformance": {
-		image: gitlabImage
-		before_script: ["tools/ci/scripts/bootstrap-python.sh"]
-		stage: "verify"
-		rules: commitScopedRules
+		image:         gitlabImage
+		before_script: gitlabBootstrap
+		stage:         "verify"
+		rules:         commitScopedRules
 		script: ["uv run --frozen --offline python -m nox -s host_conformance"]
 		artifacts: {
 			when: "always"
@@ -394,18 +418,10 @@ gitlab: {
 		}
 	}
 	"ethos:verify": {
-		image: {
-			name: gitlabImage
-			entrypoint: [
-				"bash",
-				"-c",
-				"exec \"$CI_PROJECT_DIR/tools/ci/scripts/bootstrap-python.sh\" -- \"$@\"",
-				"ethos-ci-entrypoint",
-			]
-		}
-		before_script: []
-		stage: "verify"
-		rules: commitScopedRules
+		image:         gitlabImage
+		before_script: gitlabBootstrap
+		stage:         "verify"
+		rules:         commitScopedRules
 		variables: {
 			// GIT_DEPTH=0 does not repair a runner checkout that was previously
 			// shallow. Reclone this history-sensitive execution owner so replay can
@@ -413,8 +429,8 @@ gitlab: {
 			GIT_STRATEGY: "clone"
 			// Scoped native process observation removes unrelated descriptor churn.
 			// Qualify four workers through the full hosted proof and coverage floor.
-			// The entrypoint prepares the image and then replaces PID 1. The entire
-			// job runs unprivileged, preserving process visibility and permission tests.
+			// The image's unprivileged user runs the entire job, preserving process
+			// visibility and permission tests.
 			ETHOS_TEST_WORKERS: "4"
 		}
 		script: [
@@ -446,11 +462,8 @@ gitlab: {
 		stage:         "verify"
 		rules:         commitScopedRules
 		allow_failure: true
-		before_script: ["tools/ci/scripts/bootstrap-python.sh"]
-		script: [
-			"mkdir -p build/evidence/quality/external-links",
-			"\(externalLinkCommand) > build/evidence/quality/external-links/report.json",
-		]
+		before_script: gitlabBootstrap
+		script: ["uv run --frozen --offline python -m nox -s external_links"]
 		artifacts: {
 			when: "always"
 			paths: ["build/evidence/quality/external-links/report.json"]
@@ -461,10 +474,10 @@ gitlab: {
 		rules: commitScopedRules
 		variables: NODE_VERSION: _inputs.node.tools.node
 		// The shared cache preparer owns Node; Nox owns package test execution.
-		image: gitlabImage
+		image:         gitlabImage
+		before_script: gitlabBootstrap
 		script: [
-			"tools/ci/scripts/bootstrap-python.sh",
-			"\(nativeNpm) run ethos -- --version",
+			"uv run --frozen --offline \(nativeNpm) run ethos -- --version",
 			"uv run --frozen --offline python -m nox -s javascript_tests",
 		]
 	}

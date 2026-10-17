@@ -85,11 +85,12 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
         for step in steps
     )
     commands = [step.get("run", "") for step in steps]
-    assert commands.count("tools/ci/scripts/bootstrap-python.sh") == 1
+    assert commands.count("uv run --frozen python -B -m tools.ci.toolchain.commit_trust") == 1
     assert commands.count("uv run --frozen --offline python -m nox -s hosted_verification") == 1
     assert github["jobs"]["external-links"]["continue-on-error"] is True
     assert "External links" not in [step.get("name") for step in jobs["quality"]["steps"]]
-    assert re.search(r"--network none.*safe.directory", str(github["jobs"]["supply-image"]))
+    supply = [step.get("run", "") for step in github["jobs"]["supply-image"]["steps"]]
+    assert any("--target smoke --build-context workspace=." in command for command in supply)
     assert "UV_OFFLINE=true" not in str(github["jobs"]["supply-image"])
     assert sum("actions/checkout@" in step.get("uses", "") for step in steps) == 1
     assert not any(
@@ -119,7 +120,7 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     }
 
 
-def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_path) -> None:
+def test_linux_supply_image_bakes_native_tools_and_smokes_offline(tmp_path) -> None:
     """The immutable image, not a cold GitLab job, supplies every native gate tool."""
     dockerfile = (ROOT / ".config/ci/supply/Dockerfile").read_text(encoding="utf-8")
     context_rules = set(
@@ -132,7 +133,7 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_pa
     copy_sources = {
         source
         for line in dockerfile.replace("\\\n", " ").splitlines()
-        if line.startswith("COPY ") and not line.startswith("COPY --from=")
+        if line.startswith("COPY ") and "--from=" not in line
         for source in shlex.split(line)[1:-1]
     }
     manifest_inputs = set(manifest.group("inputs").replace("\\\n", " ").split())
@@ -140,8 +141,11 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_pa
     assert manifest_inputs <= copy_sources
     assert "src/ethos" in copy_sources
     assert "rm -rf .venv node_modules src/ethos" in dockerfile
-    final_stage = dockerfile.rsplit("FROM base\n", 1)[1]
+    final_stage = dockerfile.split("FROM base AS supply\n", 1)[1].split("FROM supply AS smoke", 1)[
+        0
+    ]
     assert "COPY --from=prepare --chown=65534:65534 /opt/ethos-supply" in final_stage
+    assert "USER 65534:65534" in final_stage
     assert "src/ethos" not in final_stage
     # Dependency supply does not build the project wheel or consume its prose/version.
     assert {"README.md", "VERSION"}.isdisjoint(manifest_inputs)
@@ -196,9 +200,9 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(github, tmp_pa
     )
     assert selected.returncode == 0, selected.stderr
     assert selected.stdout.strip() == str(tmp_path / "tool-cache")
-    smoke = github["jobs"]["supply-image"]["steps"][-1]["run"]
-    assert "--network none" in smoke
-    assert native_command in smoke
+    smoke = dockerfile.split("FROM supply AS smoke\n", 1)[1].replace("\\\n", " ")
+    assert "RUN --network=none" in smoke
+    assert "python -B -m tools.ci.toolchain.native --root . --mise gitleaks scc syft" in smoke
     assert "test_real_locked_python_checks_qualify_the_selected_source[inline-none]" in smoke
 
 
@@ -218,9 +222,14 @@ def test_provider_commands_use_shared_owners_without_activating_mutation(provide
         )
         assert "external-links" not in " ".join(gitlab["ethos:verify"]["script"])
         assert gitlab["ethos:external-links"]["allow_failure"] is True
-        assert gitlab["ethos:npm"]["script"][0] == "tools/ci/scripts/bootstrap-python.sh"
-        assert gitlab["ethos:verify"]["before_script"] == []
-        assert "bootstrap-python.sh" in gitlab["ethos:verify"]["image"]["entrypoint"][2]
+        bootstrap = gitlab["ethos:verify"]["before_script"]
+        assert bootstrap[0] == 'sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"'
+        assert all(
+            gitlab[name]["before_script"] == bootstrap
+            for name in gitlab
+            if name.startswith("ethos:")
+        )
+        assert gitlab["ethos:verify"]["image"] == gitlab["ethos:npm"]["image"]
         assert "build/artifacts/python/" in gitlab["ethos:verify"]["artifacts"]["paths"]
         assert "stuck_or_timeout_failure" not in gitlab["default"]["retry"]["when"]
 

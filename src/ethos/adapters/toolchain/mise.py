@@ -85,7 +85,7 @@ def repository_mise_files(root: Path) -> dict[str, str] | None:
 def mise_executable() -> Path:
     """Resolve only the operator-selected native mise executable."""
     if not (installed := shutil.which("mise")):
-        message = "mise_unavailable:run tools/ci/scripts/bootstrap-python.sh"
+        message = "mise_unavailable:put the mise executable on PATH"
         raise ValueError(message)
     return Path(installed).resolve()
 

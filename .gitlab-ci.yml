@@ -15,6 +15,7 @@ variables:
   UV_PYTHON_INSTALL_DIR: /opt/ethos-supply/python
   NPM_CONFIG_CACHE: /opt/ethos-supply/npm-cache
   ETHOS_CI_SUPPLY_MANIFEST: /opt/ethos-supply/input.sha256
+  FF_DISABLE_UMASK_FOR_DOCKER_EXECUTOR: "true"
 default:
   tags:
     - ${ETHOS_GITLAB_RUNNER_TAG}
@@ -31,7 +32,13 @@ default:
 ethos:commit-policy:
   image: ghcr.io/hengyangds/ethos-ci-supply@sha256:dc2bd5a9cff226e61659cfea765bba9f113ef4159ebfe65b2d05b4ef3eafddfe
   before_script:
-    - tools/ci/scripts/bootstrap-python.sh
+    - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
+    - uv sync --locked --offline --no-install-project --group dev
+    - uv sync --locked --offline --no-build-isolation --group dev
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise gitleaks scc syft
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
+    - uv run --frozen --offline python -B -I tools/ci/toolchain/fixture_supply.py .
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.commit_trust
   stage: quality
   variables:
     GIT_STRATEGY: clone
@@ -57,7 +64,13 @@ ethos:commit-policy:
 ethos:host-conformance:
   image: ghcr.io/hengyangds/ethos-ci-supply@sha256:dc2bd5a9cff226e61659cfea765bba9f113ef4159ebfe65b2d05b4ef3eafddfe
   before_script:
-    - tools/ci/scripts/bootstrap-python.sh
+    - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
+    - uv sync --locked --offline --no-install-project --group dev
+    - uv sync --locked --offline --no-build-isolation --group dev
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise gitleaks scc syft
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
+    - uv run --frozen --offline python -B -I tools/ci/toolchain/fixture_supply.py .
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.commit_trust
   stage: verify
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
@@ -75,14 +88,15 @@ ethos:host-conformance:
     paths:
       - build/evidence/local-install/smoke.json
 ethos:verify:
-  image:
-    name: ghcr.io/hengyangds/ethos-ci-supply@sha256:dc2bd5a9cff226e61659cfea765bba9f113ef4159ebfe65b2d05b4ef3eafddfe
-    entrypoint:
-      - bash
-      - -c
-      - exec "$CI_PROJECT_DIR/tools/ci/scripts/bootstrap-python.sh" -- "$@"
-      - ethos-ci-entrypoint
-  before_script: []
+  image: ghcr.io/hengyangds/ethos-ci-supply@sha256:dc2bd5a9cff226e61659cfea765bba9f113ef4159ebfe65b2d05b4ef3eafddfe
+  before_script:
+    - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
+    - uv sync --locked --offline --no-install-project --group dev
+    - uv sync --locked --offline --no-build-isolation --group dev
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise gitleaks scc syft
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
+    - uv run --frozen --offline python -B -I tools/ci/toolchain/fixture_supply.py .
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.commit_trust
   stage: verify
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
@@ -127,10 +141,15 @@ ethos:external-links:
     - when: on_success
   allow_failure: true
   before_script:
-    - tools/ci/scripts/bootstrap-python.sh
+    - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
+    - uv sync --locked --offline --no-install-project --group dev
+    - uv sync --locked --offline --no-build-isolation --group dev
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise gitleaks scc syft
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
+    - uv run --frozen --offline python -B -I tools/ci/toolchain/fixture_supply.py .
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.commit_trust
   script:
-    - mkdir -p build/evidence/quality/external-links
-    - tools/ci/scripts/with-python-runtime.sh -- uv run --frozen --offline python -B -I -m ethos.cli prove --host --execute --gate external-links --expect-head "$(git rev-parse HEAD)" --json > build/evidence/quality/external-links/report.json
+    - uv run --frozen --offline python -m nox -s external_links
   artifacts:
     when: always
     paths:
@@ -149,7 +168,14 @@ ethos:npm:
   variables:
     NODE_VERSION: 26.12.0
   image: ghcr.io/hengyangds/ethos-ci-supply@sha256:dc2bd5a9cff226e61659cfea765bba9f113ef4159ebfe65b2d05b4ef3eafddfe
+  before_script:
+    - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
+    - uv sync --locked --offline --no-install-project --group dev
+    - uv sync --locked --offline --no-build-isolation --group dev
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise gitleaks scc syft
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
+    - uv run --frozen --offline python -B -I tools/ci/toolchain/fixture_supply.py .
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.commit_trust
   script:
-    - tools/ci/scripts/bootstrap-python.sh
-    - uv run --no-sync python -B -c 'import os, subprocess, sys; from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime; runtime = resolve_node_runtime(); subprocess.run([str(runtime.executable), str(runtime.npm), *sys.argv[1:]], env=dict(os.environ, PATH=str(runtime.executable.parent) + os.pathsep + os.environ["PATH"], npm_config_engine_strict="true", npm_config_audit="false", npm_config_fund="false", npm_config_update_notifier="false"), stdin=subprocess.DEVNULL, timeout=120, check=True)' run ethos -- --version
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.npm run ethos -- --version
     - uv run --frozen --offline python -m nox -s javascript_tests

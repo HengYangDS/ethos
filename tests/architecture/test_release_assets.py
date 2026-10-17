@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import subprocess
 import tomllib
 from dataclasses import replace
 from pathlib import Path
@@ -68,10 +67,9 @@ def test_native_tool_declarations_have_one_locked_supply_identity() -> None:
     assert any(item.startswith("lychee-bin>=") for item in project["dependency-groups"]["dev"])
 
 
-def test_python_bootstrap_supplies_the_declared_linux_signing_tool() -> None:
-    script = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
-    assert "command -v ssh-keygen" in script
-    assert "missing_packages+=(openssh-client)" in script
+def test_ci_supply_provides_the_declared_linux_signing_tool() -> None:
+    dockerfile = (ROOT / ".config/ci/supply/Dockerfile").read_text(encoding="utf-8")
+    assert "openssh-client=" in dockerfile
 
 
 def test_direct_python_bounds_equal_the_locked_resolution() -> None:
@@ -220,23 +218,6 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
     else:
         assert observed.count("unit-architecture") == observed.count("coverage-floor") == 1
     assert len(observed) == len(set(observed))
-
-
-@pytest.mark.parametrize("arguments", [("--",), ("--", "true"), ("--invalid",)])
-def test_container_bootstrap_refuses_non_entrypoint_invocation(tmp_path, arguments) -> None:
-    before = tuple(tmp_path.iterdir())
-    result = subprocess.run(
-        ("/bin/bash", str(ROOT / "tools/ci/scripts/bootstrap-python.sh"), *arguments),
-        cwd=tmp_path,
-        env=os.environ | {"CI_PROJECT_DIR": str(tmp_path)},
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=10,
-    )
-    assert result.returncode == 2
-    assert "container_job_entrypoint_required" in result.stderr
-    assert tuple(tmp_path.iterdir()) == before
 
 
 @pytest.mark.parametrize("workers", [None, 1, 8])

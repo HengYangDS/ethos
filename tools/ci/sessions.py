@@ -50,6 +50,7 @@ PUBLIC_SESSIONS = (
     "config_quality",
     "hosted_observation",
     "hosted_verification",
+    "external_links",
     "docstrings",
     "module_layout",
     "product_boundary",
@@ -384,6 +385,25 @@ def hosted_verification(session) -> None:
     status = owner.run(ROOT, session.posargs[0] if session.posargs else None)
     if status:
         session.error(f"hosted verification failed with exit status {status}")
+
+
+def external_links(session) -> None:
+    """Observe external link health for HEAD and keep the observation as evidence."""
+    head = cast("str", session.run("git", "rev-parse", "HEAD", silent=True)).strip()
+    report = ROOT / "build/evidence/quality/external-links/report.json"
+    report.parent.mkdir(parents=True, exist_ok=True)
+    with report.open("wb") as stream:
+        completed = subprocess.run(
+            (
+                *(sys.executable, "-B", "-I", "-m", "ethos.cli", "prove", "--host", "--execute"),
+                *("--gate", "external-links", "--expect-head", head, "--json"),
+            ),
+            cwd=ROOT,
+            stdout=stream,
+            check=False,
+        )
+    if completed.returncode:
+        session.error(f"external link observation failed with exit status {completed.returncode}")
 
 
 def docstrings(session) -> None:

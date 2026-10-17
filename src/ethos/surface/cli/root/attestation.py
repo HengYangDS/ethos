@@ -118,6 +118,7 @@ def record(
             set_root = str(result["root"])
             previous_set_root = str(result["previous_root"])
             added = cast("tuple[str, ...]", result["added"])
+            gaps = {key: result[key] for key in ("lifetime_gap", "custody_gap") if key in result}
             state = "recorded" if added else "unchanged"
         else:
             current_root, current = read_attestation_set(repo)
@@ -126,6 +127,7 @@ def record(
                 _require_bounded(attestation)
             set_root = previous_set_root = current_root
             added = () if present else (attestation.id,)
+            gaps = {}
             state = "unchanged" if present else "ready"
     except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
         emit(_input_failure(command, error), json_output=json_output)
@@ -142,6 +144,7 @@ def record(
                 "added": list(added),
                 "attestation": attestation.model_dump(mode="json"),
                 "custody": list(custody_digests(attestation)),
+                **gaps,
                 "authorizes_effects": False,
             },
         ),

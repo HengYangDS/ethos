@@ -120,6 +120,26 @@ def test_attestation_record_reports_an_existing_oversized_member_unchanged(
     assert run_git(repo, "rev-parse", ATTESTATION_SET_REF).stdout.strip() == root
 
 
+def test_attestation_record_projects_the_writer_gaps(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A record that could not observe lifetime facts still records and names the gap."""
+    repo = init_git_repo(tmp_path / "repo")
+    input_path = tmp_path / "attestation.json"
+    _input(input_path, 2, carried_id=False)
+
+    def unobservable(*_arguments: object) -> object:
+        message = "git worktree list unavailable"
+        raise OSError(message)
+
+    monkeypatch.setattr(attestation_set, "_lifetime_facts", unobservable)
+    applied = _command(repo, "record", "--input", input_path.as_posix(), "--apply")
+
+    assert applied["state"] == "recorded"
+    assert applied["data"]["lifetime_gap"] == "git worktree list unavailable"
+    assert "custody_gap" not in applied["data"]
+
+
 def _custody_input(path: Path, digest: str) -> Attestation:
     record = attestation_fixture(
         predicate="observation:repository",

@@ -31,9 +31,14 @@ _IDENTITY_FIELDS = {
 }
 
 
+def system_contract_file(name: str) -> str:
+    """Return the kebab-case repository file that carries one snake_case contract identifier."""
+    return f"system/{name.replace('_', '-')}.toml"
+
+
 def load_system_contract(root: Path, name: str) -> dict[str, object]:
-    """Load one root-owned ``system/<name>.toml`` contract or fail closed."""
-    path = root / "system" / f"{name}.toml"
+    """Load one root-owned system contract or fail closed."""
+    path = root / system_contract_file(name)
     return tomllib.loads(path.read_text(encoding="utf-8"))
 
 
@@ -61,7 +66,7 @@ def system_contracts_report(root: Path) -> dict[str, object]:
     gaps: list[str] = []
     declaration_issues: list[dict[str, object]] = []
     for name in SYSTEM_CONTRACTS:
-        path = root / "system" / f"{name}.toml"
+        path = root / system_contract_file(name)
         if not path.exists():
             loaded[name] = False
             gaps.append(f"system_contract_missing:{name}")
@@ -113,7 +118,7 @@ def _declaration_identity_issues(name: str, payload: dict[str, object]) -> list[
             "relation": "owner",
             "kind": kind,
             "identity": identity,
-            "sources": [f"system/{name}.toml"],
+            "sources": [system_contract_file(name)],
         }
         for identity, declarations in groups.items()
         if len(declarations) > 1

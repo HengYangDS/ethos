@@ -137,7 +137,7 @@ def test_docs_health_routes_metadata_without_indexing_generated_diagrams(tmp_pat
     """Document declarations need an entrance; diagram outputs do not."""
     metadata = tmp_path / "docs/_meta"
     metadata.mkdir(parents=True)
-    for name in ("stable_paths.toml", "taxonomy.toml"):
+    for name in ("stable-paths.toml", "taxonomy.toml"):
         (metadata / name).write_text("[meta]\nversion = 1\n")
     diagrams = tmp_path / "docs/_generated"
     diagrams.mkdir()

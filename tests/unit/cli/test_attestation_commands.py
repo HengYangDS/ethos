@@ -132,7 +132,7 @@ def test_attestation_record_projects_the_writer_gaps(
         message = "git worktree list unavailable"
         raise OSError(message)
 
-    monkeypatch.setattr(attestation_set, "_lifetime_facts", unobservable)
+    monkeypatch.setattr(attestation_set, "observe_lifetime_facts", unobservable)
     applied = _command(repo, "record", "--input", input_path.as_posix(), "--apply")
 
     assert applied["state"] == "recorded"

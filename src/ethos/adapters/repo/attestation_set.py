@@ -6,8 +6,6 @@ import hashlib
 import subprocess
 import tempfile
 from contextlib import nullcontext
-from datetime import UTC
-from datetime import datetime
 from pathlib import Path
 from pathlib import PurePosixPath
 from threading import Lock
@@ -17,10 +15,10 @@ from typing import Final
 from cachetools import LRUCache
 
 from ethos.adapters.process import ProcessExecutionError
-from ethos.adapters.repo.attestation_lifetime import LifetimeFacts
 from ethos.adapters.repo.attestation_lifetime import ended
-from ethos.adapters.repo.attestation_lifetime import latest_publications
 from ethos.adapters.repo.attestation_lifetime import lifetime
+from ethos.adapters.repo.attestation_lifetime_facts import UNOBSERVABLE_FACTS
+from ethos.adapters.repo.attestation_lifetime_facts import observe_lifetime_facts
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
@@ -44,9 +42,6 @@ _COMMIT_MESSAGE = "ETHOS Attestation Set\n"
 _MAX_CAS_ATTEMPTS = 16
 # A member is a claim; file bytes belong to custody evidence bound by digest.
 MEMBER_BYTES_LIMIT: Final = 1024 * 1024
-_REFS_UNAVAILABLE: Final = "attestation_lifetime_refs_unavailable"
-_REACHABILITY_UNAVAILABLE: Final = "attestation_lifetime_reachability_unavailable"
-_UNOBSERVABLE: Final = frozenset({_REFS_UNAVAILABLE, _REACHABILITY_UNAVAILABLE})
 # Retained validated members by serialized size; the 2026-10-15 selected set holds 560 MiB.
 _MEMBER_REUSE_BYTES = 1024 * 1024 * 1024
 
@@ -358,90 +353,16 @@ def _compare_and_swap_root(repo: Path, *, desired: str, observed: str) -> bool:
     )
 
 
-def _lifetime_facts(repo: Path, members: tuple[Attestation, ...]) -> LifetimeFacts:
-    """Observe the refs, pinned commits and pre-repair objects that can end lifetimes."""
-    shown = run_git(repo, "show-ref", "--dereference", check=False, observation=True)
-    if shown.returncode not in {0, 1} or shown.stderr:
-        raise ValueError(_REFS_UNAVAILABLE)
-    refs: dict[str, str] = {}
-    pinned: set[str] = set()
-    for row in shown.stdout.splitlines():
-        object_id, name = row.split(" ", maxsplit=1)
-        if name.endswith("^{}"):
-            pinned.add(object_id)
-        else:
-            refs[name] = object_id
-    worktrees = run_git(repo, "worktree", "list", "--porcelain", observation=True).stdout
-    pinned.update(
-        line.removeprefix("HEAD ") for line in worktrees.splitlines() if line.startswith("HEAD ")
-    )
-    olds = sorted(
-        {
-            old
-            for kind, key in (lifetime(member) for member in members)
-            if kind == "lineage" and key.startswith("repair:")
-            for old in key.removeprefix("repair:").split()
-        }
-    )
-    checked = (
-        run_git(
-            repo,
-            "cat-file",
-            "--batch-check",
-            stdin="".join(f"{old}\n" for old in olds),
-            observation=True,
-        ).stdout.splitlines()
-        if olds
-        else []
-    )
-    absent = frozenset(line.split()[0] for line in checked if line.endswith(" missing"))
-    tips = {*refs.values(), *pinned, *latest_publications(members), *(set(olds) - absent)}
-    return LifetimeFacts(
-        refs=refs,
-        pinned=frozenset(pinned),
-        absent_objects=absent,
-        now=datetime.now(UTC),
-        reachable=_reachable_commits(repo, tips),
-    )
-
-
-def _reachable_commits(repo: Path, tips: set[str]) -> frozenset[str]:
-    """Walk every commit the selected tips reach; a missing tip would hide ancestry."""
-    kinds = run_git(
-        repo,
-        "cat-file",
-        "--batch-check=%(objectname) %(objecttype)",
-        stdin="".join(f"{tip}\n" for tip in sorted(tips)),
-        observation=True,
-    ).stdout.splitlines()
-    if any(line.endswith(" missing") for line in kinds) or len(kinds) != len(tips):
-        raise ValueError(_REACHABILITY_UNAVAILABLE)
-    commits = [line.split()[0] for line in kinds if line.split()[1] in {"commit", "tag"}]
-    if not commits:
-        return frozenset()
-    walked = run_git(
-        repo,
-        "rev-list",
-        "--stdin",
-        stdin="".join(f"{commit}\n" for commit in commits),
-        check=False,
-        observation=True,
-    )
-    if walked.returncode or walked.stderr:
-        raise ValueError(_REACHABILITY_UNAVAILABLE)
-    return frozenset(walked.stdout.split())
-
-
 def _ended_members(
     repo: Path, members: tuple[Attestation, ...], recorded: Iterable[str]
 ) -> tuple[frozenset[str], str]:
     """Return the members an update removes, or none and the gap when facts are unobservable."""
     try:
-        facts = _lifetime_facts(repo, members)
+        facts = observe_lifetime_facts(repo, members)
     except (OSError, subprocess.SubprocessError, ProcessExecutionError) as error:
         return frozenset(), str(error)
     except ValueError as error:
-        if str(error) not in _UNOBSERVABLE:
+        if str(error) not in UNOBSERVABLE_FACTS:
             raise
         return frozenset(), str(error)
     return ended(members, facts) - frozenset(recorded), ""

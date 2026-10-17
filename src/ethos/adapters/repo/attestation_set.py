@@ -19,6 +19,7 @@ from cachetools import LRUCache
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.attestation_lifetime import LifetimeFacts
 from ethos.adapters.repo.attestation_lifetime import ended
+from ethos.adapters.repo.attestation_lifetime import latest_publications
 from ethos.adapters.repo.attestation_lifetime import lifetime
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
@@ -44,6 +45,8 @@ _MAX_CAS_ATTEMPTS = 16
 # A member is a claim; file bytes belong to custody evidence bound by digest.
 MEMBER_BYTES_LIMIT: Final = 1024 * 1024
 _REFS_UNAVAILABLE: Final = "attestation_lifetime_refs_unavailable"
+_REACHABILITY_UNAVAILABLE: Final = "attestation_lifetime_reachability_unavailable"
+_UNOBSERVABLE: Final = frozenset({_REFS_UNAVAILABLE, _REACHABILITY_UNAVAILABLE})
 # Retained validated members by serialized size; the 2026-10-15 selected set holds 560 MiB.
 _MEMBER_REUSE_BYTES = 1024 * 1024 * 1024
 
@@ -391,12 +394,42 @@ def _lifetime_facts(repo: Path, members: tuple[Attestation, ...]) -> LifetimeFac
         if olds
         else []
     )
+    absent = frozenset(line.split()[0] for line in checked if line.endswith(" missing"))
+    tips = {*refs.values(), *pinned, *latest_publications(members), *(set(olds) - absent)}
     return LifetimeFacts(
         refs=refs,
         pinned=frozenset(pinned),
-        absent_objects=frozenset(line.split()[0] for line in checked if line.endswith(" missing")),
+        absent_objects=absent,
         now=datetime.now(UTC),
+        reachable=_reachable_commits(repo, tips),
     )
+
+
+def _reachable_commits(repo: Path, tips: set[str]) -> frozenset[str]:
+    """Walk every commit the selected tips reach; a missing tip would hide ancestry."""
+    kinds = run_git(
+        repo,
+        "cat-file",
+        "--batch-check=%(objectname) %(objecttype)",
+        stdin="".join(f"{tip}\n" for tip in sorted(tips)),
+        observation=True,
+    ).stdout.splitlines()
+    if any(line.endswith(" missing") for line in kinds) or len(kinds) != len(tips):
+        raise ValueError(_REACHABILITY_UNAVAILABLE)
+    commits = [line.split()[0] for line in kinds if line.split()[1] in {"commit", "tag"}]
+    if not commits:
+        return frozenset()
+    walked = run_git(
+        repo,
+        "rev-list",
+        "--stdin",
+        stdin="".join(f"{commit}\n" for commit in commits),
+        check=False,
+        observation=True,
+    )
+    if walked.returncode or walked.stderr:
+        raise ValueError(_REACHABILITY_UNAVAILABLE)
+    return frozenset(walked.stdout.split())
 
 
 def _ended_members(
@@ -408,7 +441,7 @@ def _ended_members(
     except (OSError, subprocess.SubprocessError, ProcessExecutionError) as error:
         return frozenset(), str(error)
     except ValueError as error:
-        if str(error) != _REFS_UNAVAILABLE:
+        if str(error) not in _UNOBSERVABLE:
             raise
         return frozenset(), str(error)
     return ended(members, facts) - frozenset(recorded), ""

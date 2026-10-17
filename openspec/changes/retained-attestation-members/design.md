@@ -54,6 +54,14 @@ with the same evidence as the readers above, never on retirement alone. Deleting
 records that tie for the same head would turn an ambiguity refusal into a miss, so an archive record
 ends only when no tied record remains.
 
+Both readers follow a lane's commits only while one of them is an ancestor of a selected commit: a
+local ref, fully peeled tag, worktree HEAD, declared peer's latest publication, or a present
+pre-repair object that a signature repair can map forward. The lifetime owner therefore ends a lane's
+records together, once its branch is absent and no commit any of its ref updates names is reachable
+from a selected commit. This keeps every record either reader could select and every tie, at the
+cost of keeping some records the per-record evidence above would end. A selected commit that is
+missing locally, or a walk that fails, keeps every lane record and reports the gap.
+
 Alternative considered: copy the needed intent into each proof record. That duplicates Commitment
 content in every proof and still leaves old proofs carrying it.
 

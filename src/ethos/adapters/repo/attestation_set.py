@@ -29,6 +29,7 @@ from ethos.adapters.store.custody import custody_lock
 from ethos.adapters.store.custody import release_custody
 from ethos.adapters.store.custody import require_custody
 from ethos.adapters.store.custody import store_custody
+from ethos.adapters.store.custody import stored_custody
 from ethos.contracts.semantic import Attestation
 
 if TYPE_CHECKING:
@@ -417,7 +418,7 @@ def _custody_guard(
     repo: Path, members: Iterable[Attestation], custody: tuple[bytes, ...]
 ) -> AbstractContextManager[object]:
     """Hold custody across a swap that stores, binds or may delete custody bytes."""
-    if custody or any(binds_custody(member) for member in members):
+    if custody or any(binds_custody(member) for member in members) or stored_custody(repo):
         return custody_lock(repo)
     return nullcontext()
 
@@ -435,9 +436,10 @@ def _release_unbound_custody(
     removed: frozenset[str],
     recorded: tuple[Attestation, ...] = (),
 ) -> tuple[tuple[str, ...], str]:
-    """Delete custody bytes that only removed members bound; report, never raise, a failure.
+    """Under the lock, delete stored bytes the new set no longer binds; report, never raise.
 
-    The swap has already happened, so a failure here must not read as a failed update.
+    The swap has already happened, so a failure here must not read as a failed update. Bytes a
+    failed earlier cleanup left behind are unbound too, so the next locked swap removes them.
     """
     try:
         bound = {
@@ -446,13 +448,7 @@ def _release_unbound_custody(
             if member.id not in removed
             for digest in custody_digests(member)
         }
-        unbound = {
-            digest
-            for member in members
-            if member.id in removed
-            for digest in custody_digests(member)
-        } - bound
-        return release_custody(repo, sorted(unbound)), ""
+        return release_custody(repo, sorted(stored_custody(repo) - bound)), ""
     except (OSError, ValueError) as error:
         return (), str(error)
 
@@ -505,8 +501,20 @@ def record_attestations(
             "removed": tuple(sorted(finished)),
             **{key: value for key, value in gaps.items() if value},
         }
+    _release_failed_custody(repo, custody)
     message = "attestation_set_cas_retry_exhausted"
     raise ValueError(message)
+
+
+def _release_failed_custody(repo: Path, custody: tuple[bytes, ...]) -> None:
+    """Delete bytes a failed update stored that no selected member binds; keep any bound ones."""
+    if not custody:
+        return
+    stored = {hashlib.sha256(payload).hexdigest() for payload in custody}
+    with custody_lock(repo):
+        _root, members = read_attestation_set(repo)
+        bound = {digest for member in members for digest in custody_digests(member)}
+        release_custody(repo, sorted(stored - bound))
 
 
 def record_attestation_once(repo: Path, attestation: Attestation) -> Attestation:

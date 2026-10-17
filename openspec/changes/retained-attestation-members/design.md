@@ -50,10 +50,17 @@ content in every proof and still leaves old proofs carrying it.
 
 ### The set writer owns its gaps and its custody
 
-Every writer path returns the gaps of the update it performed, and the command or transition that
-called it projects them. Bytes an update stored under the custody lock are deleted under that lock
-when the update ends without a swap and no selected member binds them. The size bound applies only
-to members being added, so the record command reads the set before it refuses an input.
+A reported gap never needs caller action. An unobservable lifetime fact keeps every member, and
+the next update observes again. A custody cleanup failure leaves unbound bytes, and every later
+swap under the custody lock deletes all stored bytes that the new set does not bind, so the store
+converges without a separate sweep. Callers that already return the writer's result, such as
+`attestation record`, project its gaps; transitions that return their own result keep their shape.
+Bytes an update stored under the custody lock are deleted under that lock when the update ends
+without a swap and no selected member binds them. The size bound applies only to members being
+added, so the record command reads the set before it refuses an input.
+
+Alternative considered: thread both gaps through all twelve writer call sites. That changes every
+transition's result for a state that needs no caller decision.
 
 ### The reuse goes once a cold read is cheap
 

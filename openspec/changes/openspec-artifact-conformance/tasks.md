@@ -8,7 +8,7 @@
 ## 2. Length Boundary
 
 - [x] 2.1 Limit the document-length exemption to the immutable archive root and accepted specifications; verify a 513-line active design and delta spec are reported, and a 513-line accepted specification and archived design are not.
-- [ ] 2.2 After `proof-throughput` archives, add the `quality` delta that modifies "Current Markdown stays within one navigable topic" for active Change artifacts; verify `openspec validate --all --strict` passes.
+- [x] 2.2 After `proof-throughput` archives, add the `quality` delta that modifies "Current Markdown stays within one navigable topic" for active Change artifacts; verify `openspec validate --all --strict` passes.
 
 ## 3. Archive Readiness
 

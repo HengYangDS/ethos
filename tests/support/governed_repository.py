@@ -393,6 +393,10 @@ def write_publication_topology(
         path = repo / surface
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("# repository-native CI\n", encoding="utf-8")
+    # The paradigm requires one pipeline model for the two Forges' pipeline files.
+    model = repo / ".config/ci/pipeline.cue"
+    model.parent.mkdir(parents=True, exist_ok=True)
+    model.write_text("package ci\n", encoding="utf-8")
     host = ("[host_profile]", f'provider = "{host_provider}"', "") if host_provider else ()
     declared = tomllib.loads(release.read_text(encoding="utf-8")) if release.exists() else {}
     mirror = declared.get("release", {}).get("mirror")

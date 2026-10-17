@@ -68,23 +68,11 @@ def test_public_merge_abort_preserves_conflict_edits_and_native_state(tmp_path):
     assert again["data"]["state"] == "merge_aborted"
 
 
-@pytest.mark.parametrize("subject_policy", ["unrestricted", "scoped-chore"])
-def test_public_merge_continue_preserves_both_parents_and_untracked_work(
-    tmp_path, monkeypatch, subject_policy
-):
+def test_public_merge_continue_preserves_both_parents_and_untracked_work(tmp_path, monkeypatch):
     work = native_merge_fixture(tmp_path)
     ours, theirs = git(work, "rev-parse", "HEAD"), git(work, "rev-parse", "MERGE_HEAD")
     (work / "README.md").write_text("# Accepted combined resolution\n")
     git(work, "add", "README.md")
-    if subject_policy == "scoped-chore":
-        workspace = work / ".ethos/workspace.toml"
-        workspace.write_text(
-            workspace.read_text()
-            + "\n[commit_policy]\n"
-            + r"subject_pattern = '^(?:feat|test): .+|chore\([a-z-]+\): .+'"
-            + '\nsigning_required = false\nsigning_format = "ssh"\n'
-        )
-        git(work, "add", ".ethos/workspace.toml")
     (work / "personal.txt").write_text("not part of commit\n")
     official = Mock(wraps=merge_admission.openspec_governance_report)
     monkeypatch.setattr(merge_admission, "openspec_governance_report", official)

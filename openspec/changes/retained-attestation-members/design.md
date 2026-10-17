@@ -39,11 +39,20 @@ releases the original. ETHOS never releases foreign evidence on its own judgment
 
 ### A retired lane's records end with their last reader
 
-The lifetime owner gains positive evidence for each reader of a retired lane's records. Proof
-admission no longer needs archived intent once no selected head admits a Change archived through
-that lane, and proposal retirement no longer needs refresh provenance once no proposal ref remains
-that it would retire. Absence of a branch alone stays insufficient, and an unobservable reader
-keeps the records.
+The lifetime owner gains positive evidence for each reader of a retired lane's records. Absence of a
+branch alone stays insufficient, and an unobservable reader keeps the records. Two readers select a
+retired lane's records today:
+
+| Reader                                       | Records it selects                                                                                                          | Selected by                                                                                                                                                                       | Evidence that it can no longer select them                                                                                                                                         |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Proof admission, archived intent             | the `openspec.archive` ref update of the Change, then `lane.refresh` updates whose `execution_branch` is the archiving lane | `policy.change` from the admitted head, then refresh edges from the archive commit forward while the archive tree stays identical, until a commit that is an ancestor of the head | refresh records: the archive commit is an ancestor of every selected head, so the walk never starts; archive record: no selected head still needs that Change's intent at its tree |
+| Proposal retirement, contribution provenance | `lane.refresh` updates of every lane                                                                                        | the proposal ref's old object is an ancestor of the edge's previous commit, and the edge's current commit is an ancestor of the accepted head                                     | no proposal or legacy-role ref holds an object that is an ancestor of the edge's previous commit without already being an ancestor of the accepted head                            |
+
+`lane.start` boundaries, merge recognition and lease reacquisition read a lane's records only while
+that lane is live. A reused branch or worktree path can select an old record, so their records end
+with the same evidence as the readers above, never on retirement alone. Deleting one of two archive
+records that tie for the same head would turn an ambiguity refusal into a miss, so an archive record
+ends only when no tied record remains.
 
 Alternative considered: copy the needed intent into each proof record. That duplicates Commitment
 content in every proof and still leaves old proofs carrying it.
@@ -87,5 +96,6 @@ Git has not pruned.
 
 ## Open Questions
 
-- The exact keys by which proof admission and proposal retirement select a retired lane's records
-  are recorded here by task 2.1 before the lifetime owner changes.
+- Which heads can still reach proof admission: the code admits any `head` argument, so task 2.2
+  bounds the selected heads by the same refs, tags, worktree HEADs and peer publications that end
+  head records, and keeps an archive record while any of them lacks the archive commit.

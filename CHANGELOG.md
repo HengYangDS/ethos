@@ -40,6 +40,9 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- Limited accepted-source delivery reuse to the current accepted commit;
+  other exact push objects retain independent proof and contribution-range
+  checks without requiring local accepted-ref equality.
 - Validated declared Vale vocabulary with the locked native parser; unconsumed,
   malformed or missing selected vocabulary now fails configuration quality
   without rewriting its source or relying on an ambient executable. Section-only

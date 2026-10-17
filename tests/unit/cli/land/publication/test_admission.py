@@ -70,12 +70,16 @@ def test_accepted_dev_reuse_retains_independent_admission(tmp_path: Path, missin
         "acceptance": "accepted_closeout_effect_not_attested",
         "trust": "release_source_signature_untrusted",
         "candidate": "accepted_advance_not_candidate_validated",
-        "accepted": "release_source_not_current_accepted",
+        "accepted": (
+            f"commit_subject_invalid:{git(repo, 'rev-parse', f'{head}^')}:legacy accepted source"
+        ),
     }[missing]
     assert report["verdict"] == "block", report
     gaps = report["required_gaps"]
     assert isinstance(gaps, list)
     assert gap in gaps, report
+    if missing == "accepted":
+        assert report["commit_policy_admission"]["baseline_source"] == "remote_head", report
     assert git(repo, "show-ref") == refs
     for peer in ("gitlab", "github"):
         assert git(repo, "ls-remote", peer, "refs/heads/dev").split()[0] == old

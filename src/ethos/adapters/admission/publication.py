@@ -350,7 +350,10 @@ def push_admission_report(
     ordinary_accepted = role == "accepted_root" and (
         remote_head in _ZERO_OIDS or is_ancestor(repo, remote_head, proof_head)
     )
-    if (ordinary_accepted or role in {"release_root", "release_publication"}) and closeout:
+    current_accepted = ordinary_accepted and (
+        git_stdout(repo, "rev-parse", current_policy.accepted_branch) == proof_head
+    )
+    if (current_accepted or role in {"release_root", "release_publication"}) and closeout:
         observed_proof = publication_proof_admission(
             repo, proof_head, (str(preliminary["role"]),), observed=observed_proof
         )

@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.adapters.repo import attestation_set
+import ethos.adapters.repo.attestation_set as attestation_set
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import MEMBER_BYTES_LIMIT
 from ethos.adapters.repo.git import git_common_dir

@@ -3,13 +3,17 @@
 ### Requirement: Publication composes historical repair with forward integration
 
 ETHOS SHALL recognize an original peer object through an unambiguous chain of
-completed native history repairs. Each repair SHALL conserve exact payloads,
-ordered parents and trusted signatures under its recorded source policy.
-Only refs named throughout the chain SHALL inherit repaired publication
-provenance. The peer's advertised object SHALL remain the CAS precondition;
-the last verified replacement tip SHALL own forward commit-range validation.
-Current proof, accepted effect, candidate equality and protected publication
-admission SHALL remain independent.
+completed native history repairs, each conserving exact payloads, ordered parents
+and trusted signatures under its recorded source policy. Only refs named
+throughout the chain SHALL inherit repaired publication provenance. The peer's
+advertised object SHALL remain the CAS precondition, and the last verified
+replacement tip SHALL own forward commit-range validation.
+
+#### Scenario: Repaired provenance does not substitute for current admission
+
+- **WHEN** a ref inherits repaired publication provenance
+- **THEN** current proof, accepted effect, candidate equality and protected
+  publication admission are still each required independently
 
 #### Scenario: Signed forward commits follow a verified replacement
 

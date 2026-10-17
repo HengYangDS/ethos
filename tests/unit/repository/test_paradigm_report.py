@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
+from ethos.repository.paradigm.report import paradigm_path_gaps
 from ethos.repository.paradigm.report import repository_paradigm_report
 from tests.support.paradigm import CONFORMING
 from tests.support.paradigm import paradigm_report
@@ -202,6 +203,55 @@ def test_paradigm_gap_names_carrier_obligation_and_repair(
     [detail] = report["gaps"]
     assert repair in detail["repair"]
     assert report["next_action"] == detail["repair"]
+
+
+_TYPESCRIPT = ".config/checks/typescript/tsconfig.json"
+_FOREIGN_ECOSYSTEMS = {
+    "python": ("package.json", "go.mod", "cmd/sample/main.go"),
+    "node": ("pyproject.toml", "uv.lock", "noxfile.py", "go.mod", "cmd/sample/main.go"),
+    "go": ("pyproject.toml", "uv.lock", "noxfile.py", "package.json"),
+    "polyglot": (),
+}
+
+
+@pytest.mark.parametrize("ecosystem", sorted(_FOREIGN_ECOSYSTEMS))
+def test_typescript_project_is_admitted_at_its_native_carrier(
+    tmp_path: Path, ecosystem: str
+) -> None:
+    """The relocated project conforms when tsc and Knip are passed it explicitly."""
+    files = {
+        path: text
+        for path, text in CONFORMING.items()
+        if path not in _FOREIGN_ECOSYSTEMS[ecosystem]
+    }
+    files[_TYPESCRIPT] = '{"compilerOptions": {"checkJs": true}, "include": ["../../../src"]}\n'
+    files[".config/checks/knip/knip.toml"] = f'[typescript]\nconfig = "{_TYPESCRIPT}"\n'
+    if "package.json" in files:
+        files["package.json"] = (
+            '{"scripts": {"check:types": "tsc --project ' + _TYPESCRIPT + ' --noEmit", '
+            '"check:dead-code": "knip --config .config/checks/knip/knip.toml"}}\n'
+        )
+
+    report = paradigm_report(tmp_path, files)
+
+    assert report["verdict"] == "pass", report
+    assert paradigm_path_gaps(_TYPESCRIPT) == ()
+
+
+@pytest.mark.parametrize(
+    ("path", "obligation"),
+    [
+        ("tsconfig.json", "root_catalog"),
+        ("jsconfig.json", "root_catalog"),
+        (".config/checks/knip/tsconfig.json", "configuration_owner"),
+    ],
+)
+def test_typescript_project_elsewhere_names_its_native_carrier(
+    tmp_path: Path, path: str, obligation: str
+) -> None:
+    report = paradigm_report(tmp_path, {**CONFORMING, path: "{}\n"})
+    assert report["required_gaps"] == [f"repository_paradigm_{obligation}:{path}"]
+    assert f"{path} to {_TYPESCRIPT}" in report["next_action"]
 
 
 def test_missing_entries_and_unlocked_runner_are_reported(tmp_path: Path) -> None:

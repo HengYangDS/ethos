@@ -258,6 +258,13 @@ carrier = ".config/checks/eslint/eslint.config.mjs"
 root_names = ["eslint.config.js", "eslint.config.mjs"]
 package_keys = ["eslintConfig"]
 
+# tsc reads a relocated project through `--project`, and Knip through its
+# `typescript.config` setting.
+[[tool]]
+id = "typescript"
+carrier = ".config/checks/typescript/tsconfig.json"
+root_names = ["jsconfig.json", "tsconfig.json"]
+
 [[tool]]
 id = "golangci-lint"
 carrier = ".config/checks/golangci-lint/golangci-lint.toml"

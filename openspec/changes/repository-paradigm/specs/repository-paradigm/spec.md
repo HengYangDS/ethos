@@ -102,6 +102,12 @@ Repository-owned invocations SHALL pass tool configuration paths explicitly. The
 - **WHEN** `pyproject.toml` declares `[tool.pytest.ini_options]`
 - **THEN** the paradigm reports embedded tool policy with its canonical path.
 
+#### Scenario: A TypeScript project is passed explicitly
+
+- **WHEN** a repository keeps its TypeScript project at `.config/checks/typescript/tsconfig.json` and passes it to `tsc --project` and to Knip's `typescript.config`
+- **THEN** the carrier conforms in Python, Node and Go repositories
+- **AND** a root `tsconfig.json` or `jsconfig.json` is reported with that canonical path.
+
 ### Requirement: Staged admission reads canonical configuration
 
 When a repository configures secret scanning or the staged Python format check, native pre-commit admission SHALL use the configuration at its canonical `.config/` path. Configuration found anywhere else SHALL be reported as a gap and SHALL NOT silently disable the check.

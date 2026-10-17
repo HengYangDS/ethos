@@ -1,4 +1,4 @@
-# system/evidence_boundaries.toml
+# system/evidence-boundaries.toml
 # The evidence and decision boundaries — the machine governance kernel's contract
 # for what evidence proves, what a decision means, and what may become repository
 # truth. Derived from system/axioms.md (evidence-before-claim and boundary-before-adapter

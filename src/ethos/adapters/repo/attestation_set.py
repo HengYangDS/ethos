@@ -505,8 +505,20 @@ def record_attestations(
             "removed": tuple(sorted(finished)),
             **{key: value for key, value in gaps.items() if value},
         }
+    _release_failed_custody(repo, custody)
     message = "attestation_set_cas_retry_exhausted"
     raise ValueError(message)
+
+
+def _release_failed_custody(repo: Path, custody: tuple[bytes, ...]) -> None:
+    """Delete bytes a failed update stored that no selected member binds; keep any bound ones."""
+    if not custody:
+        return
+    stored = {hashlib.sha256(payload).hexdigest() for payload in custody}
+    with custody_lock(repo):
+        _root, members = read_attestation_set(repo)
+        bound = {digest for member in members for digest in custody_digests(member)}
+        release_custody(repo, sorted(stored - bound))
 
 
 def record_attestation_once(repo: Path, attestation: Attestation) -> Attestation:

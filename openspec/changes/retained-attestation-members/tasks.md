@@ -13,7 +13,7 @@
 ## 3. Writer Gaps
 
 - [ ] 3.1 Return lifetime and custody gaps from every set writer to its command or transition result; verify that a gap from a single-member record reaches the caller.
-- [ ] 3.2 Delete the custody bytes an update stored when it exhausts its exact-CAS retries; verify that no unbound bytes remain and that the update still fails with `attestation_set_cas_retry_exhausted`.
+- [x] 3.2 Delete the custody bytes an update stored when it exhausts its exact-CAS retries; verify that no unbound bytes remain and that the update still fails with `attestation_set_cas_retry_exhausted`.
 - [x] 3.3 Report an existing oversized member as unchanged in `attestation record`; verify an unchanged root and the refusal of a new oversized member.
 
 ## 4. Reuse Removal

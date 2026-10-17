@@ -5,7 +5,7 @@
 
 ## 2. Evaluation
 
-- [ ] 2.1 Add the paradigm report to the repository audit composition, naming each gap's carrier, obligation and canonical repair; focused tests cover every scenario in `specs/repository-paradigm/spec.md`. The toolchain-verb, orchestration and tracked-script scenarios depend on 3.5, because ETHOS itself does not conform before it.
+- [x] 2.1 Add the paradigm report to the repository audit composition, naming each gap's carrier, obligation and canonical repair; focused tests cover every scenario in `specs/repository-paradigm/spec.md`.
 - [x] 2.2 Refuse non-conforming new root, configuration-plane and binding paths in prewrite through the report's path obligations, naming the canonical path; prewrite tests cover each refusal and an edit to an existing carrier.
 - [x] 2.3 Read Gitleaks and Ruff configuration in pre-commit admission from their canonical `.config/checks/` paths and report the root names that the paradigm tool catalog lists for them, including the retired `.gitleaks.toml` and `ruff.toml`; hook admission tests cover both cases.
 - [x] 2.4 Place every Work Lane worktree at `<repository>-worktrees/<yyyymmdd>-<slug>/` and retire `canonical_sibling_worktrees`: readers ignore it, the paradigm reports it and the repair deletes it at either value; lane start, report and repair tests cover the path, a declared setting and its deletion.
@@ -36,6 +36,7 @@
 - [x] 2.30 Admit TypeScript's native carrier `.config/checks/typescript/tsconfig.json` in the tool catalog, which `tsc --project` and Knip's `typescript.config` read explicitly, and report a root `tsconfig.json` or `jsconfig.json` with that carrier; focused tests cover the carrier in Python, Node, Go and polyglot repositories and the misplaced projects.
 - [x] 2.31 Report repository-authored names outside lowercase kebab-case: Python and Go files and the directories holding them, entry documents, catalogued tool names, the contract's tool-required basenames and immutable roots keep their names, each name keeps one owner obligation, and prewrite refuses a new nonconforming basename; focused tests cover snake_case, camel-case, suffix and directory gaps, each exemption, single ownership and prewrite. The repair stays report-only.
 - [x] 2.32 Report pipelines for more than one Forge without a CUE model under `.config/ci/`; focused tests cover the unmodeled pipeline and the model, nested-model, single-Forge and non-workflow cases. The repair stays report-only.
+- [x] 2.33 Report a missing or unlocked toolchain owner and each common verb it does not expose, tracked shell and PowerShell scripts that are not recorded generator output, and gates or CI steps that run a repository script or embed a shell program; focused tests cover each scenario, both Forges' step grammars, gate shell programs and the generator record. The repairs stay report-only.
 - [ ] 2.19 Retire the legacy role rename, its Git admission and the legacy role ref retirement after 2.21, once no adopter declares a legacy role name or publishes a legacy role ref.
 
 ## 3. ETHOS conformance
@@ -45,8 +46,9 @@
 - [x] 3.3 Bind Prettier for Markdown and YAML, taplo for TOML and Ruff format for Python with the common settings, then format the tracked carriers; a second `check` pass is clean and the paradigm reports no formatter gap. Exposing the verbs as toolchain-owner tasks belongs to 3.5.
 - [ ] 3.7 Decide with the OpenSpec artifact owner whether official `openspec/**` Markdown gets a formatter. Today ETHOS declares it official-owner-only, so Prettier excludes it and markdownlint alone checks it; formatting it adds a blank line after every heading and would rewrite glob text such as `operation-intent-*` as emphasis.
 - [x] 3.4 Add `.editorconfig`, rename the remaining snake_case repository-authored files to `docs/_meta/stable-paths.toml` and `system/evidence-boundaries.toml` with their references, and take the common commit grammar from the paradigm now that 2.25 retired ETHOS's workspace binding; the paradigm report passes on ETHOS. The system contract keeps its identifier `evidence_boundaries` and its gap identifiers, and its file name derives from that identifier.
-- [ ] 3.5 Replace ETHOS's repository-owned shell scripts (`bootstrap-python.sh`, `run-head-bound-proof.sh`, `run-secrets-scan.sh` and `with-python-runtime.sh`) and inline CI shell programs with native commands and mise tasks in the CI model and gate catalog, keeping only the generated `mise-install.sh`; the Linux, macOS and Windows jobs run the same tasks and the paradigm report shows no orchestration gap.
+- [x] 3.5 Replace ETHOS's repository-owned shell scripts (`bootstrap-python.sh`, `run-head-bound-proof.sh`, `run-secrets-scan.sh`, `with-python-runtime.sh` and the rendered `mise-install.sh`) with Nox sessions, `tools/ci` modules and one bootstrap command list that the CI model gives both Forges, stage the official mise executable by digest, and declare `bootstrap`, `check` and `fix` as mise tasks; every CI step invokes one native command and the paradigm report shows no toolchain, script or orchestration gap.
 - [ ] 3.6 Run the full repository proof on the conforming tree; every required gate passes at the exact head.
+- [ ] 3.8 Build the CI supply image that runs as its unprivileged user through the GitHub supply job, pin its digest in the CI model and accept the GitLab pipeline on it.
 
 ## 4. Repair
 

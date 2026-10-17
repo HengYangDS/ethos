@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import tomllib
 from contextlib import contextmanager
 from importlib import import_module
 from pathlib import Path
@@ -73,6 +74,12 @@ def repository_mise_files(root: Path) -> dict[str, str] | None:
         message = "mise_config_ambiguous"
         raise ValueError(message)
     config, lock = selected[0]
+    try:
+        declared = tomllib.loads(config.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError:
+        declared = {"tools": "unreadable"}
+    if not declared.get("tools"):
+        return None  # A task-only owner runs verbs; it selects no native tools.
     if not lock.is_file():
         message = "locked_toolchain_missing"
         raise ValueError(message)

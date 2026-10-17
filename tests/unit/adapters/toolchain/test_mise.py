@@ -178,6 +178,16 @@ def test_mise_executable_does_not_invent_a_host_fallback(
         mise.mise_executable()
 
 
+@pytest.mark.parametrize("tools", ["", "[tools]\n"])
+def test_a_task_only_owner_selects_no_native_tools(tmp_path: Path, tools: str) -> None:
+    """Verbs alone leave tool resolution to the host, with or without a lock."""
+    config = tmp_path / ".config/mise/config.toml"
+    config.parent.mkdir(parents=True)
+    config.write_text(f'[settings]\nlocked = true\n{tools}\n[tasks]\ncheck = "nox"\n')
+
+    assert mise.repository_mise_files(tmp_path) is None
+
+
 @pytest.mark.parametrize("layout", ["missing-lock", "ambiguous"])
 def test_repository_mise_files_rejects_incomplete_selection(tmp_path: Path, layout: str) -> None:
     """A selected config needs exactly one complete native lock pair."""

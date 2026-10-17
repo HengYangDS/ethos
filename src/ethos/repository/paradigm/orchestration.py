@@ -18,6 +18,7 @@ import yaml
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.repository.paradigm.gap import ParadigmGap
 from ethos.repository.paradigm.gap import tracked_text
+from ethos.repository.paradigm.pipelines import forge_pipeline_files
 from ethos.repository.paradigm.scripts import is_script
 from ethos.repository.profile import load_repository_profile
 
@@ -51,25 +52,24 @@ def orchestration_gaps(
 ) -> Iterator[ParadigmGap]:
     """Report CI steps and gates that run repository scripts or hold shell programs."""
     scripts = sorted(path for path in tracked if is_script(paradigm, root, path))
-    for path in sorted(entry for entry in tracked if _pipeline_file(entry)):
-        for carrier, command in ci_steps(path, tracked_text(root, path, tracked) or ""):
+    for forge, path in forge_pipeline_files(paradigm, tracked):
+        for carrier, command in ci_steps(forge, path, tracked_text(root, path, tracked) or ""):
             yield from _command_gaps(carrier, command, scripts, inline=inline_shell(command))
     for carrier, command in _gate_commands(paradigm, root, tracked):
         inline = _shell_program(command)
         yield from _command_gaps(carrier, " ".join(command), scripts, inline=inline)
 
 
-def ci_steps(path: str, text: str) -> list[tuple[str, str]]:
-    """Return each CI step of one Forge pipeline file with a carrier naming its position."""
+def ci_steps(forge: str, path: str, text: str) -> list[tuple[str, str]]:
+    """Return each CI step of one Forge's pipeline file with a carrier naming its position."""
+    reader = _STEP_READERS.get(forge)
     try:
         document = yaml.load(text, Loader=_ForgeLoader)
     except yaml.YAMLError:
         return []
-    if not isinstance(document, dict):
+    if reader is None or not isinstance(document, dict):
         return []
-    if path.startswith(".github/"):
-        return list(_github_steps(path, document))
-    return list(_gitlab_steps(path, document))
+    return list(reader(path, document))
 
 
 def inline_shell(command: str) -> bool:
@@ -137,12 +137,6 @@ def _command_gaps(
         yield ParadigmGap("inline-shell", carrier, _INLINE_REPAIR)
 
 
-def _pipeline_file(path: str) -> bool:
-    return path == ".gitlab-ci.yml" or (
-        posixpath.dirname(path) == ".github/workflows" and path.endswith((".yaml", ".yml"))
-    )
-
-
 def _github_steps(path: str, document: dict[object, object]) -> Iterator[tuple[str, str]]:
     jobs = document.get("jobs")
     for job, body in jobs.items() if isinstance(jobs, dict) else ():
@@ -162,6 +156,9 @@ def _gitlab_steps(path: str, document: dict[object, object]) -> Iterator[tuple[s
             for index, entry in enumerate(listed if isinstance(listed, list) else ()):
                 if isinstance(entry, str):
                     yield f"{path}:{job}.{key}[{index}]", entry
+
+
+_STEP_READERS = {"github": _github_steps, "gitlab": _gitlab_steps}
 
 
 def _gate_commands(

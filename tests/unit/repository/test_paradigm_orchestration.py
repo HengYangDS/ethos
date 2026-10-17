@@ -66,7 +66,7 @@ def test_ci_steps_read_every_gitlab_script_and_github_run() -> None:
         "  after_script: [echo done]\n"
         "variables:\n  FOO: bar\n"
     )
-    assert ci_steps(".gitlab-ci.yml", gitlab) == [
+    assert ci_steps("gitlab", ".gitlab-ci.yml", gitlab) == [
         (".gitlab-ci.yml:default.before_script[0]", "mise run bootstrap"),
         (".gitlab-ci.yml:verify.script[1]", "mise run fix"),
         (".gitlab-ci.yml:verify.after_script[0]", "echo done"),
@@ -75,11 +75,12 @@ def test_ci_steps_read_every_gitlab_script_and_github_run() -> None:
         "on: push\njobs:\n  quality:\n    steps:\n      - uses: actions/checkout@v5\n"
         "      - run: mise run check\n      - name: Fix\n        run: mise run fix\n"
     )
-    assert ci_steps(".github/workflows/ci.yml", github) == [
+    assert ci_steps("github", ".github/workflows/ci.yml", github) == [
         (".github/workflows/ci.yml:jobs.quality.steps[1]", "mise run check"),
         (".github/workflows/ci.yml:jobs.quality.steps[2]", "mise run fix"),
     ]
-    assert ci_steps(".gitlab-ci.yml", "verify: [\n") == []
+    assert ci_steps("gitlab", ".gitlab-ci.yml", "verify: [\n") == []
+    assert ci_steps("forgejo", ".forgejo/workflows/ci.yml", github) == []
 
 
 def _gaps(root: Path, files: dict[str, str]) -> list[tuple[str, str]]:

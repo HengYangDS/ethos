@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from ethos.repository.paradigm.gap import ParadigmGap
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from collections.abc import Iterator
 
     from ethos.contracts.paradigm.declaration import RepositoryParadigm
@@ -24,11 +25,7 @@ def pipeline_model_gaps(
 ) -> Iterator[ParadigmGap]:
     """Report pipelines for several Forges that no tracked model under the model root defines."""
     model = paradigm.pipelines
-    forges = sorted(
-        forge.id
-        for forge in model.forge
-        if any(_reads(pattern, path) for pattern in forge.files for path in tracked)
-    )
+    forges = sorted({forge for forge, _path in forge_pipeline_files(paradigm, tracked)})
     modeled = any(
         path.startswith(model.model_root) and path.endswith(model.model_suffix) for path in tracked
     )
@@ -40,6 +37,17 @@ def pipeline_model_gaps(
             f"and generate {' and '.join(forges)} pipeline files from it; "
             "check fails when one differs",
         )
+
+
+def forge_pipeline_files(
+    paradigm: RepositoryParadigm, tracked: Iterable[str]
+) -> Iterator[tuple[str, str]]:
+    """Yield each tracked pipeline file, in path order, with the id of the Forge that reads it."""
+    paths = sorted(tracked)
+    for forge in paradigm.pipelines.forge:
+        for path in paths:
+            if any(_reads(pattern, path) for pattern in forge.files):
+                yield forge.id, path
 
 
 def _reads(pattern: str, path: str) -> bool:

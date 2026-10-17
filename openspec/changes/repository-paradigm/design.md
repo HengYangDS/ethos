@@ -189,7 +189,7 @@ One locked owner selects tools:
 
 ### 10. Orchestration is native
 
-Every repository orchestrates its verbs, gates and CI. Six of the nine repositories outside the deferred families already do this through native commands and owner tasks alone. ETHOS, web-ingestion-benchmark and architecture-publisher also track shell scripts, and so do both deferred families. A script runs only where its interpreter exists, so it fails the Windows hosts that the verbs serve. The workstation rule already requires native execution, so the paradigm picks the native encoding:
+Every repository orchestrates its verbs, gates and CI. Of the nine repositories outside the deferred families, only architecture-publications and the two introduction films do this through native commands and owner tasks alone. ETHOS and architecture-publisher also track shell scripts, as both deferred families do, and five repositories embed shell programs in CI steps. A script runs only where its interpreter exists, so it fails the Windows hosts that the verbs serve. The workstation rule already requires native execution, so the paradigm picks the native encoding:
 
 - Verbs, gates, CI steps and release steps call native tool commands or toolchain-owner tasks. A CI step calls one command; wiring a single native command into CI is not orchestration.
 - A tracked file with a shell or PowerShell suffix or shebang conforms only as the output of an official generator that the packaged tool catalog names, such as `mise generate bootstrap`. Its generator version and output digest are recorded for `check` to verify.

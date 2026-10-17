@@ -21,7 +21,10 @@ from ethos.repository.paradigm.gap import tracked_text
 from ethos.repository.paradigm.names import authored_name_gaps
 from ethos.repository.paradigm.names import name_path_gaps
 from ethos.repository.paradigm.openspec import openspec_gaps
+from ethos.repository.paradigm.orchestration import orchestration_gaps
 from ethos.repository.paradigm.pipelines import pipeline_model_gaps
+from ethos.repository.paradigm.scripts import tracked_script_gaps
+from ethos.repository.paradigm.toolchain import toolchain_gaps
 from ethos.repository.paradigm.workspace import workspace_gaps
 
 if TYPE_CHECKING:
@@ -62,6 +65,9 @@ def repository_paradigm_report(root: Path, *, tracked_paths: tuple[str, ...]) ->
         *_release_gaps(paradigm, root, tracked),
         *authored_name_gaps(paradigm, tracked),
         *pipeline_model_gaps(paradigm, tracked),
+        *toolchain_gaps(paradigm, root, tracked),
+        *tracked_script_gaps(paradigm, root, tracked),
+        *orchestration_gaps(paradigm, root, tracked),
     ]
     required = [gap.required_gap for gap in gaps]
     return {

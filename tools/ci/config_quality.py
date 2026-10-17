@@ -16,6 +16,7 @@ from yamllint import config as yamllint_config
 from yamllint import linter as yamllint_linter
 
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.runtime.materialization.native_supply import resolve_native_tool
 from tools.ci.format_selection import audit as carrier_ownership
 
 if TYPE_CHECKING:
@@ -25,7 +26,9 @@ ROOT = Path(__file__).resolve().parents[2]
 TAPLO_CONFIG = ROOT / ".config/checks/taplo/taplo.toml"
 YAML_CONFIG = ROOT / ".config/checks/yamllint/.yamllint.yaml"
 JSON_CONFIG = ROOT / ".config/checks/config-quality/policy.toml"
-SUPPORTED_SUFFIXES = frozenset({".toml", ".yaml", ".yml", ".json", ".ini", ".cfg"})
+VALE_CONFIG = Path(".config/checks/vale/vale.ini")
+VALE_VOCABULARIES = ".config/checks/vale/styles/config/vocabularies/*/"
+SUPPORTED_SUFFIXES = frozenset({".toml", ".yaml", ".yml", ".json", ".ini", ".cfg", ".txt"})
 
 
 def _configuration_inventory() -> tuple[Path, ...]:
@@ -39,7 +42,8 @@ def _configuration_inventory() -> tuple[Path, ...]:
             "--others",
             "--exclude-standard",
             "-z",
-            *(f"*{suffix}" for suffix in sorted(SUPPORTED_SUFFIXES)),
+            *(f"*{suffix}" for suffix in sorted(SUPPORTED_SUFFIXES - {".txt"})),
+            *(VALE_VOCABULARIES + name for name in ("accept.txt", "reject.txt")),
         ),
         timeout=30,
         check=True,
@@ -54,7 +58,11 @@ def _candidate_paths(raw_paths: Iterable[str]) -> dict[str, tuple[Path, ...]]:
         message = "unsupported config lint targets: " + ", ".join(map(str, unsupported))
         raise ValueError(message)
     paths = requested or _configuration_inventory()
-    missing = [str(path) for path in requested if not (ROOT / path).is_file()]
+    missing = [
+        str(path)
+        for path in paths
+        if (requested or path.suffix.lower() == ".txt") and not (ROOT / path).is_file()
+    ]
     if missing:
         message = "config target missing or not a file: " + ", ".join(missing)
         raise ValueError(message)
@@ -86,6 +94,7 @@ def _candidate_paths(raw_paths: Iterable[str]) -> dict[str, tuple[Path, ...]]:
             "yaml": {".yaml", ".yml"},
             "json": {".json"},
             "ini": {".ini", ".cfg"},
+            "vale": {".txt"},
         }.items()
     }
 
@@ -203,6 +212,33 @@ def _ini_failures(paths: tuple[Path, ...]) -> list[str]:
     return failures
 
 
+def _vale_failures(vocabularies: tuple[Path, ...], configurations: tuple[Path, ...]) -> list[str]:
+    """Compile native vocabulary through prepared Vale without mutation or ambient supply."""
+    if not vocabularies and VALE_CONFIG not in configurations:
+        return []
+    try:
+        completed = run_command(
+            ROOT,
+            (
+                str(resolve_native_tool("vale")),
+                f"--config={ROOT / VALE_CONFIG}",
+                "--no-global",
+                "--ext=.md",
+                "--output=JSON",
+            ),
+            stdin="",
+            timeout=30,
+        )
+    except (ValueError, OSError, subprocess.SubprocessError) as error:
+        return [f"Vale configuration validation failed: {error}"]
+    if completed.returncode or completed.stderr.strip():
+        return [
+            (completed.stdout + completed.stderr).strip()
+            or f"Vale configuration validation exited with {completed.returncode}"
+        ]
+    return []
+
+
 def run(paths: Iterable[str], *, node: Path, package_supply: Path) -> tuple[str, ...]:
     """Return deterministic configuration-quality failures."""
     try:
@@ -214,4 +250,5 @@ def run(paths: Iterable[str], *, node: Path, package_supply: Path) -> tuple[str,
         *_json_failures(candidates["json"]),
         *_yaml_failures(candidates["yaml"]),
         *_ini_failures(candidates["ini"]),
+        *_vale_failures(candidates["vale"], candidates["ini"]),
     )

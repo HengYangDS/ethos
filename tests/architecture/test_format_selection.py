@@ -208,3 +208,19 @@ def test_unused_malformed_owner_cannot_hide_behind_a_valid_fallback(tmp_path) ->
 
     with pytest.raises(TypeError):
         format_selection.audit(tmp_path, paths=("example.py",))
+
+
+@pytest.mark.parametrize("name", ["accept", "reject"])
+def test_native_vocabulary_has_one_executable_quality_owner(name: str) -> None:
+    """Vale vocabulary parsing is configuration validation, not a prose waiver."""
+    relative = f".config/checks/vale/styles/config/vocabularies/Common/{name}.txt"
+    report = format_selection.audit(ROOT, paths=(relative,))
+
+    assert report["verdict"] == "pass", report
+    assert report["assignment_count"] == 1
+    assignment = report["assignments"][0]
+    assert assignment["validation_owner"] == "vale"
+    assert assignment["validation_command"].endswith("-s config_quality")
+    assert assignment["format_check"].endswith("-s repository_hygiene")
+    assert assignment["mutation_policy"] == "canonical-text"
+    assert format_selection.audit(ROOT, paths=("docs/unowned.txt",))["verdict"] == "block"

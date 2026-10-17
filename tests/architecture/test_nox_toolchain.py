@@ -349,3 +349,49 @@ def test_javascript_gate_executes_package_behavior(tmp_path, monkeypatch, code):
     session.run.assert_called_once()
     assert (tmp_path / "node.txt").read_text() == str(sessions.RUNTIME.node_executable())
     assert not Path(session.run.call_args.kwargs["env"]["npm_config_cache"]).exists()
+
+
+@pytest.mark.parametrize("explicit", [False, True])
+@pytest.mark.parametrize("state", ["valid", "malformed", "missing"])
+def test_native_configuration_compiles_declared_vale_vocabulary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, state: str, *, explicit: bool
+) -> None:
+    """The real locked parser rejects bad or absent inputs without rewriting them."""
+    root = init_git_repo(tmp_path / "repo")
+    git(root, "rm", "-q", *PARADIGM_FORMATTERS)
+    policy = root / ".config/checks/format-selection/policy.toml"
+    policy.parent.mkdir(parents=True)
+    policy.write_bytes((ROOT / policy.relative_to(root)).read_bytes())
+    (root / ".gitignore").write_text(policy.relative_to(root).as_posix() + "\n")
+    config = root / ".config/checks/vale/vale.ini"
+    config.parent.mkdir(parents=True)
+    config.write_text(
+        "[DEFAULT]\nStylesPath = styles\nVocab = Common\nMinAlertLevel = error\n"
+        "\n[*.md]\nBasedOnStyles = Vale\n"
+    )
+    vocabulary = config.parent / "styles/config/vocabularies/Common"
+    vocabulary.mkdir(parents=True)
+    accepted, rejected = vocabulary / "accept.txt", vocabulary / "reject.txt"
+    accepted.write_text("(?i:invalid\n" if state == "malformed" else "(?i:prewrite)\n")
+    rejected.write_text("Github\n")
+    inputs = (config, accepted, rejected)
+    git(root, "add", *(str(path.relative_to(root)) for path in inputs))
+    if state == "missing":
+        accepted.unlink()
+    original = {path: path.read_bytes() for path in inputs if path.exists()}
+    monkeypatch.setattr(config_quality, "ROOT", root)
+
+    failures = config_quality.run(
+        (str(accepted.relative_to(root)),) if explicit else (),
+        node=root / "unselected-node",
+        package_supply=root,
+    )
+
+    assert bool(failures) is (state != "valid"), failures
+    if state == "malformed":
+        assert "E100" in "\n".join(failures)
+    if state == "missing":
+        assert "accept" in "\n".join(failures)
+    assert {path: path.read_bytes() for path in original} == original
+    assert accepted.exists() is (state != "missing")
+    assert not (root / "build").exists()

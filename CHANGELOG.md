@@ -40,6 +40,9 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- Validated declared Vale vocabulary with the locked native parser; malformed
+  or missing selected vocabulary now fails configuration quality without
+  rewriting its source or relying on an ambient executable.
 - Refreshed the architecture learning source binding after reviewed continuation
   and retention changes, without changing the authored graph meaning.
 - Preserved official OpenSpec apply refusal while admitting repair of its exact

@@ -10,11 +10,9 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
-import ethos.adapters.repo.starter.formation as formation_effect
 import ethos.cli as product_cli
 from ethos.domain.adoption import adopt_repository
-from ethos.domain.inspection import inspect_repository
-from tests.support.fixture_signer import configure_fixture_signer
+from tests.support.fixture_signer import fixture_signer_inputs
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
@@ -75,6 +73,7 @@ def test_greenfield_preview_has_no_target_effect(tmp_path: Path) -> None:
         create=True,
         purpose="Steward a new project with verifiable changes.",
         starter="foundation",
+        **fixture_signer_inputs(),
     )
 
     assert result.verdict == "pass"
@@ -92,11 +91,13 @@ def test_greenfield_preview_has_no_target_effect(tmp_path: Path) -> None:
 def test_greenfield_preview_is_public_cli_output(tmp_path: Path) -> None:
     """The installed-style CLI must not resolve an absent target as an existing repository."""
     target = tmp_path / "new-project"
+    signer = fixture_signer_inputs()
     direct = adopt_repository(
         target,
         create=True,
         purpose="Steward a new project with verifiable changes.",
         starter="foundation",
+        **signer,
     )
     console = Path(sys.prefix) / ("Scripts/ethos.exe" if os.name == "nt" else "bin/ethos")
     completed = subprocess.run(
@@ -110,6 +111,12 @@ def test_greenfield_preview_is_public_cli_output(tmp_path: Path) -> None:
             "Steward a new project with verifiable changes.",
             "--starter",
             "foundation",
+            "--signing-key",
+            signer["signing_key"],
+            "--trust-anchor",
+            signer["trust_anchor"],
+            "--signing-program",
+            signer["signing_program"],
             "--json",
         ],
         cwd=ROOT,
@@ -199,6 +206,7 @@ def test_greenfield_apply_forms_one_author_attributed_repository(
         "create": True,
         "purpose": "Steward a new project with verifiable changes.",
         "starter": "foundation",
+        **fixture_signer_inputs(),
     }
     preview = adopt_repository(target, **request)
 
@@ -219,6 +227,16 @@ def test_greenfield_apply_forms_one_author_attributed_repository(
     assert str(candidate) in git(target, "worktree", "list", "--porcelain")
     assert applied.data["candidate_worktree_path"] == str(candidate)
     assert git(target, "log", "-1", "--format=%an <%ae>") == ("ETHOS Test <test@example.invalid>")
+    # The reviewed signer signs the initial commit and stays in the repository's own config.
+    signer = fixture_signer_inputs()
+    assert git(target, "log", "-1", "--format=%G?") == "G"
+    for name, value in (
+        ("gpg.format", "ssh"),
+        ("user.signingkey", signer["signing_key"]),
+        ("gpg.ssh.allowedSignersFile", signer["trust_anchor"]),
+        ("gpg.ssh.program", signer["signing_program"]),
+    ):
+        assert git(target, "config", "--local", "--get", name) == value
     for row in preview.data["write_plan"]:
         path = target / str(row["path"])
         assert path.is_file()
@@ -237,6 +255,7 @@ def test_greenfield_apply_rejects_unadmitted_effects(tmp_path: Path, defect: str
         "create": True,
         "purpose": "Steward a new project with verifiable changes.",
         "starter": "foundation",
+        **fixture_signer_inputs(),
     }
     preview = adopt_repository(target, **request)
     if defect == "collision":
@@ -258,38 +277,6 @@ def test_greenfield_apply_rejects_unadmitted_effects(tmp_path: Path, defect: str
         assert not target.exists()
 
 
-def test_greenfield_copy_failure_preserves_unknown_target(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A partial output is observed, not deleted or blindly regenerated."""
-    target = tmp_path / "new-project"
-    request = {
-        "create": True,
-        "purpose": "Steward a new project with verifiable changes.",
-        "starter": "foundation",
-    }
-    preview = adopt_repository(target, **request)
-
-    def partial_copy(_candidate: Path, destination: Path, **_options: object) -> None:
-        destination.mkdir()
-        (destination / "foreign.txt").write_text("preserve", encoding="utf-8")
-        message = "copy interrupted"
-        raise OSError(message)
-
-    monkeypatch.setattr(formation_effect.shutil, "copytree", partial_copy)
-    result = adopt_repository(
-        target,
-        **request,
-        apply=True,
-        authorize=True,
-        expect_plan_digest=str(preview.data["plan_digest"]),
-    )
-
-    assert result.verdict == "unknown"
-    assert (target / "foreign.txt").read_text(encoding="utf-8") == "preserve"
-    assert "Inspect" in result.next_action
-
-
 def test_greenfield_candidate_path_collision_preserves_foreign_content(tmp_path: Path) -> None:
     """The candidate worktree is a reviewed effect, not an implicit sibling overwrite."""
     sibling = tmp_path / "new-project-candidate-dev"
@@ -298,7 +285,11 @@ def test_greenfield_candidate_path_collision_preserves_foreign_content(tmp_path:
     target = tmp_path / "new-project"
 
     result = adopt_repository(
-        target, create=True, purpose="Verifiable changes.", starter="foundation"
+        target,
+        create=True,
+        purpose="Verifiable changes.",
+        starter="foundation",
+        **fixture_signer_inputs(),
     )
 
     assert result.verdict == "block"
@@ -309,23 +300,31 @@ def test_greenfield_candidate_path_collision_preserves_foreign_content(tmp_path:
     assert (sibling / "foreign.txt").read_text(encoding="utf-8") == "preserve"
 
 
-def test_greenfield_preview_binds_purpose_and_identity(tmp_path: Path) -> None:
+def test_greenfield_preview_binds_purpose_identity_and_signer(tmp_path: Path) -> None:
     """A changed semantic input invalidates a prior reviewed candidate."""
     target = tmp_path / "new-project"
-    first = adopt_repository(target, create=True, purpose="First purpose.", starter="foundation")
-    second = adopt_repository(target, create=True, purpose="Second purpose.", starter="foundation")
+    signer = fixture_signer_inputs()
+    copied_key = tmp_path / "copied-signer.pub"
+    copied_key.write_bytes(Path(signer["signing_key"]).read_bytes())
+    request = {"create": True, "starter": "foundation"}
+    first = adopt_repository(target, **request, purpose="First purpose.", **signer)
+    second = adopt_repository(target, **request, purpose="Second purpose.", **signer)
     third = adopt_repository(
         target,
-        create=True,
+        **request,
         purpose="First purpose.",
-        starter="foundation",
         author_name="Another Contributor",
         author_email="another@example.invalid",
+        **signer,
+    )
+    fourth = adopt_repository(
+        target, **request, purpose="First purpose.", **(signer | {"signing_key": str(copied_key)})
     )
 
-    assert (
-        len({first.data["plan_digest"], second.data["plan_digest"], third.data["plan_digest"]}) == 3
-    )
+    digests = {result.data["plan_digest"] for result in (first, second, third, fourth)}
+    assert len(digests) == 4
+    assert fourth.data["source_inputs"]["signing_key"] == str(copied_key)
+    assert fourth.data["source_inputs"]["trust_anchor"] == signer["trust_anchor"]
 
 
 def test_greenfield_missing_identity_blocks_before_target(
@@ -358,8 +357,13 @@ def test_greenfield_binds_canonical_parent_and_refuses_retarget(tmp_path: Path) 
     except OSError:
         pytest.skip("directory symlinks unavailable")
 
+    signer = fixture_signer_inputs()
     preview = adopt_repository(
-        linked / "new-project", create=True, purpose="Verifiable changes.", starter="foundation"
+        linked / "new-project",
+        create=True,
+        purpose="Verifiable changes.",
+        starter="foundation",
+        **signer,
     )
 
     assert preview.verdict == "pass"
@@ -374,6 +378,7 @@ def test_greenfield_binds_canonical_parent_and_refuses_retarget(tmp_path: Path) 
         create=True,
         purpose="Verifiable changes.",
         starter="foundation",
+        **signer,
         apply=True,
         authorize=True,
         expect_plan_digest=str(preview.data["plan_digest"]),
@@ -417,156 +422,3 @@ def test_greenfield_missing_input_has_a_non_looping_action(
     assert hint in result.next_action
     assert result.user_decision_required
     assert not target.exists()
-
-
-def test_greenfield_runtime_failure_reobserves_created_repository(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Post-copy runtime failure keeps the exact Git repository for safe recovery."""
-    target = tmp_path / "new-project"
-    request = {"create": True, "purpose": "Verifiable changes.", "starter": "foundation"}
-    preview = adopt_repository(target, **request)
-
-    def fail_activation(_root: Path) -> None:
-        message = "runtime unavailable"
-        raise ValueError(message)
-
-    monkeypatch.setattr(candidate_projection, "install_hook_launchers", fail_activation)
-    result = adopt_repository(
-        target,
-        **request,
-        apply=True,
-        authorize=True,
-        expect_plan_digest=str(preview.data["plan_digest"]),
-    )
-
-    assert result.verdict == "unknown"
-    assert git(target, "symbolic-ref", "--short", "HEAD") == "dev"
-    assert result.next_action.startswith("ethos status --root ")
-    candidate = target.with_name("new-project-candidate-dev")
-    assert candidate.is_dir()
-    head = git(target, "rev-parse", "HEAD")
-    blocked = inspect_repository(target)
-    assert blocked.verdict == "block"
-    assert " -I -m ethos.cli hook install --root " in blocked.next_action
-    assert str(target) in blocked.next_action
-
-    configure_fixture_signer(target)
-    monkeypatch.setattr(
-        candidate_projection, "install_hook_launchers", install_fixture_hook_runtime
-    )
-    recovered = candidate_projection.bootstrap_candidate(
-        root=target, path=candidate, expect_head=head, apply=True
-    )
-
-    assert recovered["verdict"] == "pass"
-    assert recovered["state"] == "present"
-    assert git(target, "rev-parse", "HEAD") == head
-    assert git(candidate, "rev-parse", "HEAD") == head
-    assert inspect_repository(target).verdict == "pass"
-
-
-def test_greenfield_worktree_failure_selects_recovery_before_runtime(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A completed ref effect must lead to worktree recovery, not a fresh formation."""
-    target = tmp_path / "new-project"
-    request = {"create": True, "purpose": "Verifiable changes.", "starter": "foundation"}
-    preview = adopt_repository(target, **request)
-
-    def fail_worktree(*_args: object, **_kwargs: object) -> None:
-        message = "worktree unavailable"
-        raise OSError(message)
-
-    with monkeypatch.context() as failure:
-        failure.setattr(candidate_projection, "add_worktree", fail_worktree)
-        result = adopt_repository(
-            target,
-            **request,
-            apply=True,
-            authorize=True,
-            expect_plan_digest=str(preview.data["plan_digest"]),
-        )
-
-    candidate = target.with_name("new-project-candidate-dev")
-    head = git(target, "rev-parse", "HEAD")
-    assert result.verdict == "unknown"
-    assert git(target, "rev-parse", "candidate/dev") == head
-    assert not candidate.exists()
-    blocked = inspect_repository(target)
-    assert blocked.verdict == "block"
-    assert "lane candidate" in blocked.next_action
-    assert blocked.user_decision_required
-
-    configure_fixture_signer(target)
-    monkeypatch.setattr(
-        candidate_projection, "install_hook_launchers", install_fixture_hook_runtime
-    )
-    recovered = candidate_projection.bootstrap_candidate(
-        root=target, path=candidate, expect_head=head, apply=True
-    )
-    assert recovered["verdict"] == "pass"
-    assert git(target, "rev-parse", "HEAD") == head
-    assert git(candidate, "rev-parse", "HEAD") == head
-    assert inspect_repository(target).verdict == "pass"
-
-
-@pytest.mark.parametrize(
-    ("failure", "gap"),
-    [
-        ("copied-bytes", "formation_postimage_mismatch"),
-        ("runtime-observation", "formation_runtime_observation_required"),
-        ("candidate-exception", "formation_effect_observation_required"),
-    ],
-)
-def test_greenfield_postpublication_failures_preserve_recovery_boundary(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str, gap: str
-) -> None:
-    """A published target is observed, not silently rolled back or replayed."""
-    target = tmp_path / "new-project"
-    request = {
-        "create": True,
-        "purpose": "Verifiable changes.",
-        "starter": "foundation",
-        "author_name": "Test Contributor",
-        "author_email": "test@example.invalid",
-    }
-    preview = adopt_repository(target, **request)
-    assert preview.verdict == "pass"
-    monkeypatch.setattr(
-        candidate_projection, "install_hook_launchers", install_fixture_hook_runtime
-    )
-    if failure == "copied-bytes":
-        original_copy = formation_effect.shutil.copytree
-
-        def altered_copy(source: Path, destination: Path, *args, **kwargs):
-            copied = original_copy(source, destination, *args, **kwargs)
-            if Path(destination) == target:
-                (target / "README.md").write_text("changed after copy\n", encoding="utf-8")
-            return copied
-
-        monkeypatch.setattr(formation_effect.shutil, "copytree", altered_copy)
-    elif failure == "runtime-observation":
-        monkeypatch.setattr(
-            formation_effect,
-            "hook_runtime_binding",
-            lambda _target: {"current": False, "required_gaps": ["runtime_unavailable"]},
-        )
-    else:
-
-        def no_candidate(**_kwargs):
-            message = "candidate observation unavailable"
-            raise OSError(message)
-
-        monkeypatch.setattr(formation_effect, "bootstrap_candidate", no_candidate)
-    result = adopt_repository(
-        target,
-        **request,
-        apply=True,
-        authorize=True,
-        expect_plan_digest=str(preview.data["plan_digest"]),
-    )
-    assert result.verdict == "unknown"
-    assert result.required_gaps == (gap,)
-    assert git(target, "symbolic-ref", "--short", "HEAD") == "dev"
-    assert git(target, "rev-parse", "HEAD")

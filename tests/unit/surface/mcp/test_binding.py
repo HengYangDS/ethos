@@ -10,6 +10,7 @@ from fastmcp import Client
 import ethos.adapters.mutation.lane_lifecycle.candidate_projection as candidate_projection
 from ethos.domain.adoption import adopt_repository
 from ethos.surface.mcp.server import create_server
+from tests.support.fixture_signer import fixture_signer_inputs
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
@@ -93,6 +94,7 @@ def test_absent_target_mcp_stays_bound_through_formation(tmp_path, monkeypatch):
             "purpose": "Govern a new repository.",
             "author_name": "Test Contributor",
             "author_email": "test@example.invalid",
+            **fixture_signer_inputs(),
         }
         async with Client(server) as client:
             preview = (await client.call_tool("adopt", request)).structured_content
@@ -144,6 +146,7 @@ def test_absent_target_mcp_rejects_retargeted_parent(tmp_path, monkeypatch):
                     "purpose": "Govern a new repository.",
                     "author_name": "Test Contributor",
                     "author_email": "test@example.invalid",
+                    **fixture_signer_inputs(),
                 },
                 raise_on_error=False,
             )

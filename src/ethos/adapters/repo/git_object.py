@@ -14,6 +14,7 @@ from typing import cast
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
+from ethos.adapters.repo.trust_anchor.verification import commit_trust_anchor_action
 from ethos.adapters.repo.trust_anchor.verification import configured_commit_trust_anchor
 from ethos.adapters.repo.trust_anchor.verification import verify_git_object_trust
 
@@ -280,7 +281,7 @@ def commit_trust_setup_action(
     """Return the exact authorization command for the configured trust anchor."""
     anchor, gaps = configured_commit_trust_anchor(root)
     if anchor is None or gaps:
-        return "git config --global gpg.ssh.allowedSignersFile <absolute-owner-only-path>"
+        return commit_trust_anchor_action(root)
     digest = observed_anchor_sha256 or hashlib.sha256(anchor.read_bytes()).hexdigest()
     return (
         "ethos lane trust-commit-signer "

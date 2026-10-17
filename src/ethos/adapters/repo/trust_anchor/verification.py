@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import shlex
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -59,8 +60,21 @@ def trust_anchor(root: Path, configured: str) -> tuple[Path | None, list[str]]:
 def configured_commit_trust_anchor(root: Path) -> tuple[Path | None, list[str]]:
     """Observe the native commit trust anchor independently of any candidate signature."""
     configured = run_git(root, "config", "--path", "--get", _ANCHOR, check=False).stdout.strip()
+    return commit_trust_anchor(root, configured)
+
+
+def commit_trust_anchor(root: Path, configured: str) -> tuple[Path | None, list[str]]:
+    """Resolve one named commit trust anchor under the protected-anchor rules."""
     anchor, gaps = trust_anchor(root, configured)
     return anchor, [_commit_gap(gap) for gap in gaps]
+
+
+def commit_trust_anchor_action(root: Path) -> str:
+    """Name the local anchor setting, the only one that ETHOS's Git execution reads."""
+    return (
+        f"git -C {shlex.quote(str(root))} config --local "
+        "gpg.ssh.allowedSignersFile <absolute-protected-anchor>"
+    )
 
 
 @dataclass(frozen=True, slots=True)

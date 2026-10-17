@@ -25,6 +25,7 @@ from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.binding import load_hook_contract
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.selection import runtime_command
+from ethos.adapters.repo.trust_anchor.verification import commit_trust_anchor_action
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.governed_repository import start_adopted_candidate
@@ -165,7 +166,7 @@ def test_armed_transport_does_not_claim_signature_trust_is_ready(tmp_path: Path)
         "anchor": "",
         "required_gaps": ["commit_trust_anchor_missing"],
     }
-    assert "gpg.ssh.allowedSignersFile" in capability["next_action"]
+    assert capability["next_action"] == commit_trust_anchor_action(repo)
 
 
 def _advance_expected_build(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

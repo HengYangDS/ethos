@@ -185,6 +185,32 @@ Every governed repository SHALL use the commit subject grammar that the paradigm
 - **WHEN** a repository declares the scopes `cli` and `relay`
 - **THEN** commit admission rejects `fix(other): repair`.
 
+### Requirement: Each repository keeps its lifecycle signer locally
+
+ETHOS runs Git without global configuration, so every governed repository SHALL keep its lifecycle signer, `user.signingkey` with an optional `gpg.ssh.program`, and its trust anchor `gpg.ssh.allowedSignersFile` in local configuration. Formation SHALL write the creator's reviewed signer and anchor before it signs the initial commit. Status SHALL report the signer and SHALL block without it only in the roles that create lifecycle commits.
+
+#### Scenario: A formed repository starts signed
+
+- **WHEN** `ethos adopt --create` applies a reviewed plan that names the creator's signing key and trust anchor
+- **THEN** the initial commit carries an SSH signature that the anchor verifies
+- **AND** the new repository's local configuration holds the signer and the anchor.
+
+#### Scenario: Formation names no signer
+
+- **WHEN** a formation request names no signing key or no trust anchor
+- **THEN** the preview refuses, and neither the target nor its candidate worktree exists.
+
+#### Scenario: A lifecycle role has no signer
+
+- **WHEN** status observes the accepted root, the candidate or a Work Lane whose local configuration has no valid signing key
+- **THEN** commit enforcement is unready, and its next action is the exact local `user.signingkey` setting
+- **AND** a detached checkout reports the same signer without blocking.
+
+#### Scenario: The trust anchor is missing
+
+- **WHEN** a repository has no local trust anchor
+- **THEN** status and signer authorization name the same local `gpg.ssh.allowedSignersFile` setting.
+
 ### Requirement: Branch roles and Work Lanes use the standard names
 
 The repository paradigm SHALL fix the branch role names: release `main`, accepted `dev`, candidate `candidate/dev`, Work Lanes under `work/` and proposals under `proposal/`. ETHOS SHALL read nothing from `[branch_roles]`. A repository whose release branch follows its accepted branch SHALL declare `[release] mirror = "accepted_ff"` in `.ethos/release.toml`; otherwise the release mirror is independent. Every Work Lane worktree SHALL be a sibling at `<repository>-worktrees/<yyyymmdd>-<slug>/`.

@@ -52,13 +52,15 @@ class LifetimeFacts:
     """Fresh repository facts that can end a lifetime; an absent ref alone never does.
 
     `pinned` holds commits that something other than a direct ref keeps: fully peeled tags
-    and worktree HEADs.
+    and worktree HEADs. `reachable` holds every commit a selected commit reaches, or None when
+    that walk could not be observed; a retired lane's records then remain.
     """
 
     refs: Mapping[str, str]
     pinned: frozenset[str]
     absent_objects: frozenset[str]
     now: datetime
+    reachable: frozenset[str] | None = None
 
 
 def _mapping(value: object, *keys: str) -> Mapping[str, object]:
@@ -156,7 +158,7 @@ def lifetime(attestation: Attestation) -> tuple[Lifetime, str]:
     return (kind, key) if key else ("open-predicate", attestation.id)
 
 
-def _latest_publications(members: Sequence[Attestation]) -> frozenset[str]:
+def latest_publications(members: Sequence[Attestation]) -> frozenset[str]:
     """Commits that each declared peer's latest publication of each ref selects."""
     latest: dict[tuple[str, str], tuple[datetime, str]] = {}
     for member in members:
@@ -196,12 +198,46 @@ def _landing(attestation: Attestation) -> tuple[str, str] | None:
     return transition, _text(policy, _HEAD_BRANCH_FIELDS[transition])
 
 
+def _named_commits(attestation: Attestation) -> frozenset[str]:
+    """Commits a ref update names as its expected or desired object."""
+    return frozenset(
+        commit
+        for update in _updates(attestation.payload.body).values()
+        for commit in (_text(update, "expected"), _text(update, "desired"))
+        if commit.strip("0")
+    )
+
+
+def _ended_lanes(
+    classified: Sequence[tuple[Attestation, Lifetime, str]], facts: LifetimeFacts
+) -> frozenset[str]:
+    """Retired lanes whose named commits no selected commit reaches.
+
+    Proof admission and proposal retirement follow a lane's archive and refresh commits only
+    while one of them is an ancestor of a selected head, so an unreached lane has no reader.
+    """
+    if facts.reachable is None:
+        return frozenset()
+    named: dict[str, set[str]] = {}
+    for member, kind, key in classified:
+        if kind == "operation":
+            named.setdefault(key, set()).update(_named_commits(member))
+    return frozenset(
+        lane
+        for lane, commits in named.items()
+        if commits
+        and f"refs/heads/{lane}" not in facts.refs
+        and commits.isdisjoint(facts.reachable)
+    )
+
+
 @dataclass(frozen=True)
 class _Evidence:
     """Positive evidence gathered once from all members before each member is judged."""
 
     landed: Mapping[tuple[str, str], datetime]
     selected: frozenset[str]
+    ended_lanes: frozenset[str]
 
 
 def _evidence(
@@ -211,10 +247,11 @@ def _evidence(
     for member, kind, _key in classified:
         if kind == "head" and (landing := _landing(member)):
             landed[landing] = max(landed.get(landing, member.issued_at), member.issued_at)
-    publications = _latest_publications([member for member, _kind, _key in classified])
+    publications = latest_publications([member for member, _kind, _key in classified])
     return _Evidence(
         landed=landed,
         selected=frozenset(facts.refs.values()) | facts.pinned | publications,
+        ended_lanes=_ended_lanes(classified, facts),
     )
 
 
@@ -223,8 +260,10 @@ def _has_ended(
 ) -> bool:
     if kind == "window":
         return member.valid_until is not None and member.valid_until < facts.now
-    # Lane records outlive the lane: accepted proofs resolve archived intent through a retired
-    # lane's archive and refresh records, so no retirement alone ends an operation lifetime.
+    # A lane's records end together, never on retirement alone: a reused branch can still
+    # select a live lane's start, merge and lease records.
+    if kind == "operation":
+        return key in evidence.ended_lanes
     if kind == "head":
         # A landing record may precede its ref move; only a later landing supersedes it.
         landing = _landing(member)

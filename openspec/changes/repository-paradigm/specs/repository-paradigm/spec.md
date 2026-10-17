@@ -211,6 +211,12 @@ ETHOS runs Git without global configuration, so every governed repository SHALL 
 - **WHEN** a repository has no local trust anchor
 - **THEN** status and signer authorization name the same local `gpg.ssh.allowedSignersFile` setting.
 
+#### Scenario: Signer authorization reads the lifecycle signer
+
+- **WHEN** `ethos lane trust-commit-signer` authorizes a repository's configured signer
+- **THEN** it reads the same local signing key and admits the same key types as lifecycle commit creation
+- **AND** a key that commit creation refuses never enters the trust anchor, and the refusal names the local setting.
+
 ### Requirement: Branch roles and Work Lanes use the standard names
 
 The repository paradigm SHALL fix the branch role names: release `main`, accepted `dev`, candidate `candidate/dev`, Work Lanes under `work/` and proposals under `proposal/`. ETHOS SHALL read nothing from `[branch_roles]`. A repository whose release branch follows its accepted branch SHALL declare `[release] mirror = "accepted_ff"` in `.ethos/release.toml`; otherwise the release mirror is independent. Every Work Lane worktree SHALL be a sibling at `<repository>-worktrees/<yyyymmdd>-<slug>/`.

@@ -59,12 +59,13 @@ rewrite, tag recreation, history mapping, or tree-only parity.
    contract capabilities, thresholds, and evidence boundaries for a given
    profile. A provider-specific execution path is valid only when its reason is
    declared in `.config/checks/ci-projection/policy.toml` and the shared capability is
-   still proved exactly once by an owner script.
+   still proved exactly once by an owner surface.
 1. **Template ownership**: provider YAML SHALL be generated or checked from
    tracked provider templates. Hand-edited drift in hosted files is a governance
    gap.
-1. **Owner-script invocation**: provider jobs SHALL call `tools/ci/scripts/*`
-   or `ethos ...` command surfaces instead of duplicating tool policy inline.
+1. **Owner-surface invocation**: each provider step SHALL invoke one native
+   command, such as an `ethos ...` command, a Nox session or a `tools/ci` module,
+   or one toolchain-owner task, instead of duplicating tool policy inline.
 1. **Collaboration-surface homomorphism**: issue and proposed-change forms SHALL
    project one provider-neutral subject/intent/contract/acceptance/evidence
    vocabulary into GitHub Issue/Pull Request and GitLab Issue/Merge Request

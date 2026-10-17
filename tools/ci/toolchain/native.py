@@ -34,7 +34,8 @@ from ethos.adapters.toolchain.mise import run_mise
 
 MISE_RELEASE = "https://github.com/jdx/mise/releases/download/v{version}/{name}"
 CI_PROJECTION_POLICY = ".config/checks/ci-projection/policy.toml"
-WINDOWS_MISE_ARCHITECTURES = {"amd64": "x64", "x86_64": "x64", "arm64": "arm64", "aarch64": "arm64"}
+MISE_SYSTEMS = {"Darwin": "macos", "Linux": "linux", "Windows": "windows"}
+MISE_ARCHITECTURES = {"amd64": "x64", "x86_64": "x64", "arm64": "arm64", "aarch64": "arm64"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,7 +154,7 @@ def _directory(path: Path) -> None:
 
 
 def _windows_host() -> bool:
-    """Select the official Windows executable instead of the POSIX shell installer."""
+    """Name the official Windows executable with its native suffix."""
     return os.name == "nt"
 
 
@@ -162,65 +163,64 @@ def _immutable_hosted_supply() -> bool:
     return bool(os.environ.get("ETHOS_CI_SUPPLY_MANIFEST"))
 
 
-def render_mise_installer(root: Path) -> str:
-    """Project the native installer with one semantics-preserving lint normalization."""
-    version = tomllib.loads((root / MISE_CONFIG).read_text())["min_version"]
-    generated = run_command(
-        root,
-        (str(mise_executable()), "generate", "install-script", "--version", version),
-        timeout=30,
-        check=True,
-    ).stdout
-    # Match a literal tilde with a character class rather than quoted expansion syntax.
-    source = generated.replace('"~/"*)', "[~]/*)")
-    formatter = Path(sys.executable).parent / ("shfmt.exe" if os.name == "nt" else "shfmt")
-    return run_command(root, (str(formatter),), stdin=source, timeout=15, check=True).stdout
-
-
-def validate_mise_installer(root: Path) -> bytes:
-    """Read locked bootstrap bytes without network, caches or candidate execution."""
-    message = "mise_bootstrap_drift"
-    target = root / "tools/ci/scripts/mise-install.sh"
-    if not target.is_file() or target.is_symlink() or target.is_junction():
-        raise ValueError(message)
+def mise_executables(root: Path) -> dict[str, str]:
+    """Read the bound official executable digest of every supported platform."""
+    message = "mise_executable_record_invalid"
     try:
         version = tomllib.loads((root / MISE_CONFIG).read_text())["min_version"]
         record = tomllib.loads((root / CI_PROJECTION_POLICY).read_text())["bootstrap"]
-        content = target.read_bytes()
     except (OSError, KeyError, TypeError, ValueError) as error:
         raise ValueError(message) from error
-    windows = record.get("windows") if isinstance(record, dict) else None
+    executables = record.get("executables") if isinstance(record, dict) else None
+    platforms = {
+        f"{system}-{arch}"
+        for system in MISE_SYSTEMS.values()
+        for arch in MISE_ARCHITECTURES.values()
+    }
     if (
         not isinstance(record, dict)
-        or record.keys() != {"version", "sha256", "windows"}
+        or record.keys() != {"version", "executables"}
         or record["version"] != version
-        or record["sha256"] != hashlib.sha256(content).hexdigest()
-        or not isinstance(windows, dict)
-        or windows.keys() != set(WINDOWS_MISE_ARCHITECTURES.values())
-        or not all(re.fullmatch(r"[0-9a-f]{64}", str(digest)) for digest in windows.values())
+        or not isinstance(executables, dict)
+        or executables.keys() != platforms
+        or not all(re.fullmatch(r"[0-9a-f]{64}", str(digest)) for digest in executables.values())
     ):
         raise ValueError(message)
-    return content
+    return {str(target): str(digest) for target, digest in executables.items()}
 
 
-def _stage_windows_mise(root: Path, version: str, candidate: Path) -> None:
-    """Stage the bound official executable; the shell installer supports only Linux and macOS."""
-    arch = WINDOWS_MISE_ARCHITECTURES.get(platform.machine().lower())
-    if arch is None:
-        message = f"mise_windows_architecture_unsupported:{platform.machine()}"
+def _mise_target() -> str:
+    """Name this host's official executable platform."""
+    system = MISE_SYSTEMS.get(platform.system())
+    arch = MISE_ARCHITECTURES.get(platform.machine().lower())
+    if system is None or arch is None:
+        message = f"mise_platform_unsupported:{platform.system()}-{platform.machine()}"
         raise ValueError(message)
-    record = tomllib.loads((root / CI_PROJECTION_POLICY).read_text())["bootstrap"]
-    name = f"mise-v{version}-windows-{arch}.exe"
+    return f"{system}-{arch}"
+
+
+def _bound_executable(root: Path, executable: Path) -> None:
+    """Accept only the official executable whose digest this repository binds."""
+    if (
+        hashlib.sha256(executable.read_bytes()).hexdigest()
+        != mise_executables(root)[_mise_target()]
+    ):
+        message = f"mise_executable_digest_mismatch:{executable.name}"
+        raise ValueError(message)
+
+
+def _stage_mise(root: Path, version: str, candidate: Path) -> None:
+    """Stage the official executable of this platform and verify its bound digest."""
+    name = f"mise-v{version}-{_mise_target()}{'.exe' if _windows_host() else ''}"
     url = MISE_RELEASE.format(version=version, name=name)
     command = ("curl", "-fsSL", "--proto", "=https", "--output", str(candidate), url)
     download(command, root=candidate.parent)
-    if hashlib.sha256(candidate.read_bytes()).hexdigest() != record["windows"][arch]:
-        message = f"mise_windows_executable_digest_mismatch:{name}"
-        raise ValueError(message)
+    _bound_executable(root, candidate)
+    candidate.chmod(0o755)
 
 
 def prepare_mise(root: Path) -> Path:
-    """Reuse operator supply or stage the native installer before atomic publication."""
+    """Reuse operator supply or stage the official executable before atomic publication."""
     root = root.resolve(strict=True)
     version = tomllib.loads((root / MISE_CONFIG).read_text())["min_version"]
 
@@ -247,7 +247,7 @@ def prepare_mise(root: Path) -> Path:
         executable = Path(installed)
         verify(executable, exact=False)
         return executable
-    content = validate_mise_installer(root)
+    mise_executables(root)
     home = (
         native_tool_cache(root)
         / "mise"
@@ -259,38 +259,15 @@ def prepare_mise(root: Path) -> Path:
     executable = home / ("mise.exe" if _windows_host() else "mise")
     with FileLock(home / ".bootstrap.lock", timeout=30):
         if executable.is_file() and not executable.is_symlink() and os.access(executable, os.X_OK):
+            _bound_executable(root, executable)
             verify(executable)
             return executable
         if _immutable_hosted_supply():
             message = "native_tool_offline_cache_missing:mise"
             raise ValueError(message)
         with TemporaryDirectory(prefix=".bootstrap-", dir=home) as directory:
-            isolated = Path(directory)
-            candidate = isolated / executable.name
-            if _windows_host():
-                _stage_windows_mise(root, version, candidate)
-                verify(candidate)
-                candidate.replace(executable)
-                return executable
-            installer = isolated / "mise-install.sh"
-            installer.write_bytes(content)
-            result = run_command(
-                root,
-                ("bash", str(installer), "--version"),
-                timeout=180,
-                remove_env_prefixes=("MISE_",),
-                env={
-                    "MISE_SAFE": "1",
-                    "MISE_DISABLE_UPDATE_WARNING": "1",
-                    "MISE_VERSION": version,
-                    "MISE_INSTALL_PATH": str(candidate),
-                    "MISE_INSTALL_FROM_GITHUB": "1",
-                    "MISE_INSTALL_EXT": "tar.gz",
-                    "TMPDIR": str(isolated),
-                },
-            )
-            sys.stderr.write(result.stdout + result.stderr)
-            result.check_returncode()
+            candidate = Path(directory) / executable.name
+            _stage_mise(root, version, candidate)
             verify(candidate)
             candidate.replace(executable)
     return executable
@@ -486,13 +463,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--mise", action="store_true")
-    parser.add_argument("--render-installer", action="store_true")
     parser.add_argument("tools", nargs="*", choices=("scc", "gitleaks", "syft", "node"))
     arguments = parser.parse_args()
     try:
-        if arguments.render_installer:
-            sys.stdout.write(render_mise_installer(arguments.root))
-            return 0
         mise = prepare_mise(arguments.root) if arguments.mise else None
         paths: list[Path] = []
         if mise is not None:

@@ -70,10 +70,9 @@ configuration plane, not a truth center.
 - [The secret-scanning policy](../../.config/checks/gitleaks/gitleaks.toml) is passed explicitly to every scan, including staged pre-commit admission; `.config/mise/config.toml` and `.config/mise/mise.lock` own native tool selections and platform artifact digests. `tools/ci/scripts/run-secrets-scan.sh` obtains verified project-local supply through `tools/ci/toolchain/native.py` and passes the policy explicitly. Hosted proof uses the same supply owner; neither path installs system files or trusts ambient scanner bytes.
 - `tools/ci/repository_hygiene.py`, invoked through the `repository_hygiene` Nox session, owns cross-file hygiene such as tracked-file size, LF endings, final newline, JSON parseability, merge-conflict markers, and the zero-suppression invariant.
 - `.config/mise/config.toml` and `.config/mise/mise.lock` select native developer/CI supply through native discovery. The existing
-  Python bootstrap prepares missing mise with tools/ci/scripts/mise-install.sh,
-  a version-bound official generator projection checked by ci_templates.
-  Windows stages the same release's official executable, accepted only with
-  its digest bound in the bootstrap record, because the installer is POSIX-only.
+  bootstrap stages the bound release's official mise executable for the host
+  platform, accepted only with its digest from the bootstrap record in
+  `.config/checks/ci-projection/policy.toml`.
   Installation is staged and bounded; observation does not install tools.
   Isolated consumers preserve this same nested layout; disposable copies do
   not own versions or checksums.

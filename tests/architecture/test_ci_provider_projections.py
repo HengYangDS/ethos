@@ -418,12 +418,9 @@ def _offline_generation(root, command, **kwargs):
         ("malformed", "model", None, "invalid: ["),
         ("missing", "model", None, None),
         ("unformatted", "model", 'name: "ETHOS CI"', 'name:    "ETHOS CI"'),
-        ("bootstrap", "bootstrap", None, "#!/bin/sh\nexit 0\n"),
         ("missing-output", "output", None, None),
         ("bootstrap-version", "mise", "2026.10.10", "0.0.0"),
-        ("bootstrap-lock", "declaration", "sha256 =", "unsupported ="),
-        ("bootstrap-missing", "bootstrap", None, None),
-        ("bootstrap-link", "bootstrap", "", ""),
+        ("bootstrap-lock", "declaration", "linux-arm64 =", "linux-unsupported ="),
     ],
 )
 def test_cue_owner_requires_native_semantics_without_parallel_templates(
@@ -438,7 +435,6 @@ def test_cue_owner_requires_native_semantics_without_parallel_templates(
         "model": model,
         "output": output,
         "declaration": owner.CONFIG_RELATIVE_PATH,
-        "bootstrap": "tools/ci/scripts/mise-install.sh",
         "mise": config["compiler"]["supply"]["config"],
     }[target]
     if new is None:
@@ -463,11 +459,6 @@ def test_cue_owner_requires_native_semantics_without_parallel_templates(
         destination = tmp_path / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text(content)
-    if fault == "bootstrap-link":
-        installer = tmp_path / "tools/ci/scripts/mise-install.sh"
-        retained = tmp_path / "retained"
-        installer.rename(retained)
-        installer.symlink_to(retained)
     monkeypatch.setattr(owner, "ROOT", tmp_path)
     monkeypatch.setattr(owner, "CONFIG_PATH", tmp_path / owner.CONFIG_RELATIVE_PATH)
     assert (owner.check_templates(json_output=True) == 0) is (fault == "none")
@@ -475,7 +466,7 @@ def test_cue_owner_requires_native_semantics_without_parallel_templates(
     if fault in {"drift", "self-certified", "byte-drift"} or fault.startswith("bootstrap"):
         provider = "github" if fault == "byte-drift" else "compiler"
         reason = (
-            "mise_bootstrap_drift"
+            "mise_executable_record_invalid"
             if fault.startswith("bootstrap")
             else f"projection byte drift: {output}"
             if fault == "byte-drift"

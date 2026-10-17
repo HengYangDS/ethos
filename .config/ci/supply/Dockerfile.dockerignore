@@ -21,9 +21,6 @@
 !tests/fixtures/quality-sample/uv.lock
 !tools/
 !tools/ci/
-!tools/ci/scripts/
-!tools/ci/scripts/with-python-runtime.sh
-!tools/ci/scripts/mise-install.sh
 !tools/ci/toolchain/
 !tools/ci/toolchain/native.py
 !src/

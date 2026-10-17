@@ -22,7 +22,6 @@ FROM base AS prepare
 COPY .config/mise/config.toml .config/mise/mise.lock .config/mise/
 COPY .config/checks/ci-projection/policy.toml .config/checks/ci-projection/policy.toml
 COPY .config/ci/supply/Dockerfile .config/ci/supply/Dockerfile.dockerignore .config/ci/supply/
-COPY tools/ci/scripts/with-python-runtime.sh tools/ci/scripts/mise-install.sh tools/ci/scripts/
 COPY tools/ci/toolchain/native.py tools/ci/toolchain/native.py
 # Full import closure is build-only; it is removed before publishing the image.
 COPY src/ethos src/ethos
@@ -43,10 +42,9 @@ RUN uv python install --no-bin "$(python3 -c 'import platform; print(platform.py
          .config/mise/config.toml .config/mise/mise.lock \
          .config/ci/supply/Dockerfile .config/ci/supply/Dockerfile.dockerignore \
          uv.lock package-lock.json tests/fixtures/quality-sample/uv.lock \
-         tools/ci/scripts/with-python-runtime.sh tools/ci/scripts/mise-install.sh \
          > input.sha256 \
     && chown -R 65534:65534 /opt/ethos-supply \
-    && rm -rf .venv node_modules src/ethos tools/ci/toolchain tools/ci/scripts tests/fixtures/quality-sample
+    && rm -rf .venv node_modules src/ethos tools/ci/toolchain tests/fixtures/quality-sample
 
 # Only prepared supply crosses the stage boundary; source-bearing layers are not shipped.
 FROM base

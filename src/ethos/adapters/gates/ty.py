@@ -20,8 +20,6 @@ def _runtime_command(root: Path) -> list[str]:
     """Build one source-bound check using Ty's native carrier selection."""
     venv = root / ".venv"
     return [
-        str(root / "tools/ci/scripts/with-python-runtime.sh"),
-        "--",
         "uv",
         "run",
         "--frozen",
@@ -53,7 +51,13 @@ def _diagnostic_report(root: Path) -> dict[str, object]:
     diagnostics: list[dict[str, object]] | None = None
     stderr = ""
     try:
-        completed = run_command(root, tuple(command), timeout=120)
+        completed = run_command(
+            root,
+            tuple(command),
+            timeout=120,
+            remove_env=("VIRTUAL_ENV",),
+            env={"UV_PROJECT_ENVIRONMENT": str(root / ".venv")},
+        )
         returncode, stderr = completed.returncode, completed.stderr
         output = completed.stdout + stderr
         try:

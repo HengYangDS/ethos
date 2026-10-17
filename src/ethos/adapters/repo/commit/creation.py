@@ -55,30 +55,51 @@ def _config(root: Path, name: str) -> str:
     return completed.stdout.strip() if completed.returncode == 0 else ""
 
 
+def _local_signing_key(root: Path) -> str:
+    """Read the local signing-key setting that every lifecycle signer uses."""
+    signing = run_git(root, "config", "--local", "--get", "user.signingkey", check=False)
+    return "" if signing.returncode else signing.stdout.strip()
+
+
+def _signer_public_key(signing_key: str) -> tuple[str, str]:
+    """Return the SSH public key that one absolute signing-key path holds, or its gap."""
+    key = Path(signing_key)
+    if not signing_key or not key.is_absolute() or not key.is_file():
+        return "", "git_effect_signing_key_invalid"
+    public_key = key.read_text(encoding="utf-8").strip()
+    if not public_key.startswith(("ssh-ed25519 ", "ssh-rsa ", "ecdsa-sha2-")):
+        return "", "git_effect_signing_key_invalid"
+    return public_key, ""
+
+
+def commit_signer_public_key(root: Path) -> tuple[str, str]:
+    """Return the local lifecycle signer's SSH public key, or its gap."""
+    return _signer_public_key(_local_signing_key(root))
+
+
 def commit_signer_configuration(
     signing_key: str, program: str
 ) -> tuple[tuple[tuple[str, str], ...], str]:
     """Validate one SSH signer and return its explicit Git settings, or its gap."""
-    key = Path(signing_key)
-    if not signing_key or not key.is_absolute() or not key.is_file():
-        return (), "git_effect_signing_key_invalid"
-    public_key = key.read_text(encoding="utf-8").strip()
-    if not public_key.startswith(("ssh-ed25519 ", "ssh-rsa ", "ecdsa-sha2-")):
-        return (), "git_effect_signing_key_invalid"
+    public_key, gap = _signer_public_key(signing_key)
+    if gap:
+        return (), gap
     if not program:
         return (("user.signingkey", f"key::{public_key}"),), ""
     signer = Path(program)
     if not signer.is_absolute() or not signer.is_file() or not os.access(signer, os.X_OK):
         return (), "git_effect_signing_program_invalid"
-    return (("gpg.ssh.program", signer.as_posix()), ("user.signingkey", key.as_posix())), ""
+    return (
+        ("gpg.ssh.program", signer.as_posix()),
+        ("user.signingkey", Path(signing_key).as_posix()),
+    ), ""
 
 
 def commit_environment(root: Path, environment: Mapping[str, str] | None) -> dict[str, str]:
     """Return the explicit Git configuration for one required signed commit."""
     bound = dict(environment or {})
-    signing = run_git(root, "config", "--local", "--get", "user.signingkey", check=False)
     signer, gap = commit_signer_configuration(
-        "" if signing.returncode else signing.stdout.strip(), _config(root, "gpg.ssh.program")
+        _local_signing_key(root), _config(root, "gpg.ssh.program")
     )
     if gap:
         raise ValueError(gap)
@@ -253,7 +274,7 @@ def create_signed_payload(root: Path, payload: bytes) -> str:
 def configured_signer_fingerprint(root: Path) -> str:
     """Observe the selected public-key fingerprint with native OpenSSH, without signing."""
     commit_environment(root, None)
-    public = run_git(root, "config", "--local", "--get", "user.signingkey").stdout.strip()
+    public = _local_signing_key(root)
     executable = shutil.which("ssh-keygen")
     if not executable:
         gap = "git_effect_signing_program_invalid"

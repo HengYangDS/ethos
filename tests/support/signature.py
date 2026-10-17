@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import shutil
 import subprocess
 from typing import TYPE_CHECKING
@@ -16,6 +17,8 @@ from tests.support.subprocesses import kill_after_marker
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from pathlib import Path
+
+    import pytest
 
 
 def configure_signer(repo: Path, tmp_path: Path) -> None:
@@ -42,6 +45,39 @@ def configure_signer(repo: Path, tmp_path: Path) -> None:
         ("gpg.ssh.allowedSignersFile", str(anchor)),
     ):
         git(repo, "config", name, value)
+
+
+def untrusted_signer_repository(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, signed: bool, key_type: str = "ed25519"
+) -> tuple[Path, Path, str, str]:
+    """Configure one local signer that the repository's empty trust anchor does not trust yet."""
+    key = tmp_path / "signer"
+    subprocess.run(
+        ("/usr/bin/ssh-keygen", "-q", "-t", key_type, "-N", "", "-f", str(key)),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    for role in ("AUTHOR", "COMMITTER"):
+        monkeypatch.setenv(f"GIT_{role}_NAME", "Test User")
+        monkeypatch.setenv(f"GIT_{role}_EMAIL", "owner@example.com")
+    repo = init_git_repo(tmp_path / "repo")
+    trust = tmp_path / "trust"
+    trust.mkdir(mode=0o700)
+    anchor = trust / "allowed-signers"
+    anchor.write_bytes(b"")
+    anchor.chmod(0o600)
+    for name, value in (
+        ("gpg.format", "ssh"),
+        ("user.signingkey", key.with_suffix(".pub").as_posix()),
+        ("user.email", "owner@example.com"),
+        ("gpg.ssh.allowedSignersFile", anchor.as_posix()),
+    ):
+        git(repo, "config", name, value)
+    if signed:
+        git(repo, "-c", "commit.gpgsign=true", "commit", "--allow-empty", "-m", "signed target")
+    target = git(repo, "rev-parse", "HEAD")
+    return repo, anchor, target, hashlib.sha256(anchor.read_bytes()).hexdigest()
 
 
 def repair_fixture_history(root: Path, backup: Path, *, corrections: Mapping[str, object]) -> str:

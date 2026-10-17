@@ -47,7 +47,7 @@ runtime, ownership and hosted state come from fresh ETHOS observations, not
 coordinates or success claims copied into this plan.
 
 This entry owns dependency order. Progress belongs to the existing
-[quality and throughput tasks](../../openspec/changes/proof-throughput/tasks.md)
+[proof critical-path tasks](../../openspec/changes/proof-critical-path/tasks.md)
 and [installed-product tasks](../../openspec/changes/installed-product/tasks.md),
 with formation in [greenfield tasks](../../openspec/changes/greenfield-formation/tasks.md).
 Completed incidents remain regression boundaries, not a queue to replay.
@@ -108,7 +108,7 @@ Completed incidents remain regression boundaries, not a queue to replay.
   recovery effort and resource bounds. Do not add overlapping intervals. Include
   preparation and cleanup, disclose external provisioning, and distinguish a
   microbenchmark from full proof, delivery or cold-host acceptance.
-- Follow the [accepted throughput criteria](../../openspec/changes/proof-throughput/specs/quality/spec.md#requirement-complete-verification-throughput-preserves-assurance):
+- Follow the [accepted throughput criteria](../../openspec/specs/quality/spec.md#requirement-complete-verification-throughput-preserves-assurance):
   the temporary reference bound is 900 seconds; 600 seconds remains a
   nonblocking optimization direction. Two workers are a comparison baseline,
   not a ceiling. Use faster concurrency only after equivalent-case isolation
@@ -127,7 +127,7 @@ Completed incidents remain regression boundaries, not a queue to replay.
 ### Remaining Dependencies And Delivery Order
 
 This is one dependency route, not a progress ledger. The official
-[quality and throughput](../../openspec/changes/proof-throughput/tasks.md),
+[quality evidence admission](../../openspec/changes/quality-evidence-admission/tasks.md),
 [installed product](../../openspec/changes/installed-product/tasks.md), and
 [greenfield formation](../../openspec/changes/greenfield-formation/tasks.md)
 Changes own their bounded progress. A checked task, source commit, package,
@@ -200,7 +200,7 @@ through existing consumers, not another rule declaration in this plan.
    at their existing owners. Configuration deduplication alone cannot close
    those behavioral gaps. The current Python reference observer still confuses
    spelling with binding and file-global constants with call-site values;
-   [the public-gate repair](../../openspec/changes/proof-throughput/tasks.md#10-native-quality-rules-and-early-failure)
+   [the public-gate repair](../../openspec/changes/quality-evidence-admission/tasks.md#10-native-quality-rules-and-early-failure)
    must close alias, shadow, scope, program-point and relevant dynamic UNKNOWN
    without a second parser or repository-wide permanent block. The same
    reference owner must also consume trusted native profile and release

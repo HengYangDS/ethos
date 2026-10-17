@@ -3,13 +3,17 @@
 ### Requirement: Publication composes historical repair with forward integration
 
 ETHOS SHALL recognize an original peer object through an unambiguous chain of
-completed native history repairs. Each repair SHALL conserve exact payloads,
-ordered parents and trusted signatures under its recorded source policy.
-Only refs named throughout the chain SHALL inherit repaired publication
-provenance. The peer's advertised object SHALL remain the CAS precondition;
-the last verified replacement tip SHALL own forward commit-range validation.
-Current proof, accepted effect, candidate equality and protected publication
-admission SHALL remain independent.
+completed native history repairs, each conserving exact payloads, ordered parents
+and trusted signatures under its recorded source policy. Only refs named
+throughout the chain SHALL inherit repaired publication provenance. The peer's
+advertised object SHALL remain the CAS precondition, and the last verified
+replacement tip SHALL own forward commit-range validation.
+
+#### Scenario: Repaired provenance does not substitute for current admission
+
+- **WHEN** a ref inherits repaired publication provenance
+- **THEN** current proof, accepted effect, candidate equality and protected
+  publication admission are still each required independently
 
 #### Scenario: Signed forward commits follow a verified replacement
 
@@ -233,13 +237,6 @@ their native subject layout under the portable Docs Registry contract.
 - **AND** retained evidence follows its producer, consumer, binding and lifetime
 - **AND** no ETHOS extension root is mandatory for an adopter
 
-#### Scenario: Declared normative documentation has a reader route
-
-- **WHEN** the repository declares normative sources inside its configured documentation root
-- **THEN** each declared source is reachable from that root's registered README through actual local Markdown links
-- **AND** reference links and intermediate directory READMEs remain valid routes, cycles terminate, and fenced examples do not become navigation
-- **AND** missing routes are reported without absorbing sources outside the documentation root or changing source bytes
-
 #### Scenario: First-run guidance is placed by function
 
 - **WHEN** ETHOS has one first-run onboarding document
@@ -323,22 +320,6 @@ a different ruling. Its semantic topic MAY change with repaired links.
 - **WHEN** a reader opens a decision record
 - **THEN** it identifies the current semantic owner
 - **AND** current behavior is determined by that owner, not historical rationale
-
-#### Scenario: Decision identity and disposition agree across native carriers
-
-- **WHEN** the Docs Registry reads a `role: decision` document under any selected root
-- **THEN** its filename, `decision_id`, and sole document-level title identify the same positive ruling
-- **AND** `decision_status: accepted` and `state: canonical` distinguish decision disposition from document classification without claiming implementation acceptance or authority
-- **AND** malformed metadata, duplicate identities and contradictory carriers block without mutating source
-
-#### Scenario: Rationale remains distinct from an execution procedure
-
-- **WHEN** a decision record is validated through the shared native documentation owner
-- **THEN** its only sections are Context, Decision, Alternatives Rejected, Consequences and Boundary, and Evidence and Revisit, in that order, each with readable rationale
-- **AND** ordinary prose, rationale lists, quotations, tables, bare paths and evidence links remain valid
-- **AND** task progress, code blocks, extra HTML, nested or extra headings and executable procedures cannot impersonate decision rationale
-- **AND** syntax inspection never evaluates commands or ambient variables, preserves unresolved invocation ambiguity, and does not certify decision quality or current delivery
-- **AND** ETHOS's own retained rationale migrates to the same form without losing alternatives, costs, boundaries, historical dates, evidence or revisit conditions
 
 ### Requirement: Linked Work Lane retirement has one exact effect
 
@@ -817,6 +798,7 @@ SHALL not be mistaken for authored directory entrypoints.
 - **AND** semantic hierarchy and meaningful links preserve progressive detail
   without fragmenting one cohesive explanation or duplicating authority
 - **AND** a move repairs affected links without changing subject identity
+
 
 ### Requirement: Accepted history repair preserves original acceptance provenance
 

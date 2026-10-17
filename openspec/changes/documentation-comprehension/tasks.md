@@ -1,0 +1,15 @@
+# Tasks
+
+## 12. Documentation Comprehension and Research Delivery
+
+- [ ] 12.1 Organize foundation research by semantic question; verify every original argument, source and incoming link is preserved without duplicating authority.
+- [ ] 12.3 Derive human and agent navigation from one source; verify semantic hierarchy, reader orientation, prerequisites, section links, rename closure and independently understandable topics. Retire redundant current-tree OpenSpec archive copies only after canonical-spec, proof-consumer, incoming-reference and exact Git-recovery checks.
+  - [x] 12.3.1 Settle the terminal plan's current-entry observations into existing history retrieval; preserve open obligations and dependency order without copying task status or dropping source evidence.
+- [ ] 12.4 Enforce the 512-nonblank-line ceiling for current authored Markdown docs in ETHOS and adopters; preserve semantic retrieval, navigation and measured token cost. Release history, official OpenSpec artifacts/archive and declared generated output retain their own native owners; split mixed long topics by semantic ownership without losing meaning.
+  - [ ] 12.4.1 Audit all retained over-limit reductions, including the terminal plan's 6011-to-420 reduction; map every live claim and scenario to a current owner or explicit disposition, restore missing meaning and verify stable decisions, command roots, exact proof and delivery. Preserve all original semantics; Git recovery alone is insufficient. Include the original 17 first-parent reductions selected by preimages over 500 nonblank lines: eight docs, eight live OpenSpec carriers and one archived Change; the current 512 ceiling does not change that historical population.
+- [ ] 12.5 Qualify a bounded OKF consumer when needed; preserve identity, scope, unknown fields and declared loss without inherited authority or a parallel knowledge store.
+- [ ] 12.6 Settle research into its existing topic and measure adopt/replace/absorb/reject decisions through frozen-source, clone, mutation, architecture, secret and workflow comparisons. Verify RepoWise navigation/quality rollout and actual Agent/token/iteration benefit; reuse batch context and analyzer-bound invalidation, never scores as proof, deletion or unqualified test-selection authority. Preserve Claude/Astra findings and parser/license/platform limits as evidence, not fixes. See [verification](../../../docs/research/foundations/verification.md#code-quality-and-review-tools) and [semantics](../../../docs/research/foundations/semantics.md#repowise-navigation-without-imported-authority); source successor need not wait for broader rollout.
+
+## Workflow follow-up
+
+- Prove the exact head, archive this Change, prove the archived head, then land, close out and publish.

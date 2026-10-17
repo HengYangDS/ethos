@@ -11,7 +11,9 @@ that the set update observes, never on the absence of a branch or ref alone.
 - **WHEN** a lane's retirement effect is selected or its branch is missing
 - **THEN** its operation members remain while proof admission can resolve archived intent or
   proposal retirement can resolve refresh provenance through them
-- **AND** they end at the first set update that observes that neither reader can still select them
+- **AND** they end together at the first set update that observes that the lane's branch is absent
+  and no commit its ref updates name is reachable from a selected commit or a present pre-repair
+  object
 
 #### Scenario: A reader of a retired lane's records cannot be observed
 

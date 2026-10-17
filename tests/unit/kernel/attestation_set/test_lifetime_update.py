@@ -150,7 +150,7 @@ def test_unobservable_lifetime_facts_remove_nothing(
         message = "git worktree list unavailable"
         raise OSError(message)
 
-    monkeypatch.setattr(attestation_set, "_lifetime_facts", unobservable)
+    monkeypatch.setattr(attestation_set, "observe_lifetime_facts", unobservable)
     added = occurrence_attestation(6_006)
     result = attestation_set.record_attestations(repo, (added,))
 
@@ -169,7 +169,7 @@ def test_a_lifetime_defect_fails_the_update_instead_of_hiding_as_a_gap(
         message = "not enough values to unpack"
         raise ValueError(message)
 
-    monkeypatch.setattr(attestation_set, "_lifetime_facts", defective)
+    monkeypatch.setattr(attestation_set, "observe_lifetime_facts", defective)
     with pytest.raises(ValueError, match="not enough values to unpack"):
         attestation_set.record_attestations(repo, (occurrence_attestation(6_011),))
 

@@ -93,9 +93,7 @@ def _evidence_status(state: str, path: str, current_head: str, command: str) -> 
         "current_head": current_head,
         "evidence_head": "",
         "verdict": "block",
-        "next_action": _fallback_action(command)
-        if state in {"missing", "not_checked"}
-        else _refresh_action(command),
+        "next_action": _fallback_action(command, refresh=state not in {"missing", "not_checked"}),
     }
 
 
@@ -225,19 +223,13 @@ def _object(value: object) -> dict[str, object]:
     return cast("dict[str, object]", value) if isinstance(value, dict) else {}
 
 
-def _fallback_action(command: str) -> str:
-    return (
-        f"run {command} as local fallback evidence"
-        if command
-        else "declare .ethos/release.toml [publication].local_verification_command"
-    )
-
-
-def _refresh_action(command: str) -> str:
+def _fallback_action(command: str, *, refresh: bool = False) -> str:
+    if not command:
+        return "declare .ethos/release.toml [publication].local_verification_command"
     return (
         f"rerun {command} to refresh local fallback evidence"
-        if command
-        else _fallback_action(command)
+        if refresh
+        else f"run {command} as local fallback evidence"
     )
 
 

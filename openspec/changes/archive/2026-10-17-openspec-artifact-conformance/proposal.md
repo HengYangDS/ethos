@@ -20,7 +20,7 @@ None.
 
 ### Modified Capabilities
 
-- `quality`: the Markdown ceiling bounds active OpenSpec Change artifacts. Its delta is written in task 2.2, once `proof-throughput` has archived the requirement it modifies.
+- `quality`: the Markdown ceiling bounds active OpenSpec Change artifacts.
 - `repository-governance`: active proposals and designs follow their resolved official templates, and proof requires an archivable Change.
 
 ## Impact

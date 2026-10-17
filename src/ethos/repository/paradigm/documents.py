@@ -47,6 +47,11 @@ def document_gaps(
     yield from _decision_record_gaps(paradigm, tracked)
 
 
+def is_decision_record(basename: str) -> bool:
+    """Return whether a basename names a numbered decision record, which its grammar judges."""
+    return _RECORD.fullmatch(basename) is not None
+
+
 def _decision_record_gaps(
     paradigm: RepositoryParadigm, tracked: frozenset[str]
 ) -> Iterator[ParadigmGap]:

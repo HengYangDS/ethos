@@ -482,21 +482,36 @@ A tracked shell or PowerShell script SHALL exist only as the output of an offici
 
 ### Requirement: CI for several Forges is one model
 
-A repository that runs CI on more than one Forge SHALL define its pipelines once under `.config/ci/` and generate each Forge file from that model. `check` SHALL fail when a generated Forge file differs from the model.
+A repository that runs CI on more than one Forge SHALL define its pipelines once as a CUE model under `.config/ci/` and generate each Forge file from that model. `check` SHALL fail when a generated Forge file differs from the model.
 
 #### Scenario: Two Forge files are maintained by hand
 
 - **WHEN** a repository tracks `.gitlab-ci.yml` and `.github/workflows/` without a model under `.config/ci/`
 - **THEN** the paradigm reports an unmodeled multi-Forge pipeline.
 
+#### Scenario: One Forge needs no model
+
+- **WHEN** a repository runs CI only on GitLab
+- **THEN** no pipeline model is required.
+
 ### Requirement: Repository-authored names use lowercase kebab-case
 
-Repository-authored file and directory names SHALL use lowercase kebab-case, except where an ecosystem or tool fixes the name, such as Python modules, Go packages, entry documents and tool-required basenames.
+Repository-authored file and directory names SHALL use lowercase kebab-case, except where an ecosystem or tool fixes the name, such as Python modules, Go packages, entry documents and tool-required basenames. A leading `.` or `_` marker and dot-separated suffixes are not word separators, and names inside immutable record roots keep their captured form.
 
 #### Scenario: A rule file uses snake_case
 
 - **WHEN** a repository tracks `rules/module_layout.md`
 - **THEN** the paradigm reports a non-standard name with its kebab-case form.
+
+#### Scenario: An ecosystem or tool fixes the name
+
+- **WHEN** a repository tracks `src/sample_package/module_name.py`, `.github/PULL_REQUEST_TEMPLATE.md` and `docs/_meta/taxonomy.toml`
+- **THEN** no name is reported.
+
+#### Scenario: A new snake_case file is requested
+
+- **WHEN** a Work Lane requests prewrite admission for a new `rules/module_layout.md`
+- **THEN** admission refuses the path and names `rules/module-layout.md`.
 
 ### Requirement: Paradigm conformance is a blocking verdict
 

@@ -25,6 +25,10 @@ from ethos.adapters.openspec.lifecycle.validation import validation_result_gaps
 from ethos.adapters.openspec.observation import governed_branch_intent_report
 from ethos.adapters.openspec.selection import requested_change
 from ethos.adapters.openspec.selection import resolve_change_selection
+from ethos.adapters.openspec.template_conformance import STATUS_ALL
+from ethos.adapters.openspec.template_conformance import active_change_graphs
+from ethos.adapters.openspec.template_conformance import template_conformance_gaps
+from ethos.adapters.openspec.template_conformance import template_reads
 from ethos.adapters.repo.git import current_branch as git_current_branch
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
@@ -188,7 +192,7 @@ def _openspec_governance_report(
         required_gaps.append("openspec_official_cli_missing")
         return openspec_unavailable_report(root, context)
 
-    config, doctor, list_result, validate = openspec_cli.run_json_batch(
+    config, doctor, list_result, validate, status_all = openspec_cli.run_json_batch(
         root,
         base_command,
         (
@@ -196,6 +200,7 @@ def _openspec_governance_report(
             ("doctor", "--json"),
             ("list", "--json"),
             ("validate", "--all", "--strict", "--json"),
+            STATUS_ALL,
         ),
     )
     required_gaps.extend(["openspec_config_json_parse_failed"] if config["parse_error"] else [])
@@ -215,20 +220,28 @@ def _openspec_governance_report(
         else (None, "openspec_list_unreadable")
     )
     current_change, selection_gap = selection
-    status, apply, archive, projection = (
-        openspec_cli.run_json_batch(
-            root,
-            base_command,
-            (
-                ("status", "--change", current_change, "--json"),
-                ("instructions", "apply", "--change", current_change, "--json"),
-                ("instructions", "archive", "--change", current_change, "--json"),
-                ("show", current_change, "--type", "change", "--json"),
-            ),
+    changes = active_change_graphs(status_all)
+    selected_reads = (
+        (
+            ("status", "--change", current_change, "--json"),
+            ("instructions", "apply", "--change", current_change, "--json"),
+            ("instructions", "archive", "--change", current_change, "--json"),
+            ("show", current_change, "--type", "change", "--json"),
         )
         if current_change
-        else ({}, {}, {}, {})
+        else ()
     )
+    schema_reads = template_reads(changes or [])
+    reads = (
+        openspec_cli.run_json_batch(root, base_command, (*selected_reads, *schema_reads))
+        if selected_reads or schema_reads
+        else ()
+    )
+    status, apply, archive, projection = reads[: len(selected_reads)] or ({}, {}, {}, {})
+    templates = {
+        read[2]: result
+        for read, result in zip(schema_reads, reads[len(selected_reads) :], strict=True)
+    }
     archive_scope = (
         lease_bound_archive_scope_report(
             root,
@@ -253,6 +266,11 @@ def _openspec_governance_report(
             validate=validate,
             selected=current_change,
         )
+    )
+    required_gaps.extend(
+        ["openspec_status_all_unreadable"]
+        if changes is None
+        else template_conformance_gaps(root, changes, templates)
     )
     if current_change:
         required_gaps.extend(openspec_cli.status_contract_gaps(status["json"]))
@@ -338,6 +356,8 @@ def _openspec_governance_report(
             "apply": apply,
             "archive": archive,
             "validate": validate,
+            "status_all": status_all,
+            "templates": templates,
         },
     }
 

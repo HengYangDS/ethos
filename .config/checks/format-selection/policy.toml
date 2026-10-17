@@ -36,13 +36,13 @@ id = "official-openspec"
 priority = 100
 paths = ["openspec/config.yaml", "openspec/specs/**", "openspec/changes/*/**"]
 exclude_paths = ["openspec/changes/archive/**"]
-format_owner = "official-openspec"
-format_command = "openspec owner-native mutation"
-format_check = "uv run --frozen --offline python -m nox -s markdown_lint"
+format_owner = "prettier"
+format_command = "ethos lane format --apply --authorize --expect-head <current-head>"
+format_check = "ethos lane format --check"
 validation_owner = "official-openspec"
 validation_command = "ethos prove --gate openspec --json"
 semantic_companions = ["markdownlint-cli2", "repository-hygiene"]
-mutation_policy = "official-owner-only"
+mutation_policy = "native-formatter"
 
 [[ownership]]
 id = "archived-openspec-yaml"

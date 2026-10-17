@@ -64,10 +64,9 @@ def test_current_openspec_markdown_has_generic_and_semantic_validation(carrier_r
     selected.update(path for path in assignments if Path(path).match("openspec/changes/*/tasks.md"))
     for relative in sorted(selected):
         assignment = assignments[relative]
-        assert assignment["format_owner"] == "official-openspec"
-        assert assignment["format_check"] == (
-            "uv run --frozen --offline python -m nox -s markdown_lint"
-        )
+        assert assignment["format_owner"] == "prettier"
+        assert assignment["format_check"] == "ethos lane format --check"
+        assert assignment["mutation_policy"] == "native-formatter"
         assert assignment["validation_owner"] == "official-openspec"
         assert assignment["validation_command"] == "ethos prove --gate openspec --json"
         assert assignment["semantic_companions"]
@@ -154,10 +153,9 @@ def test_prettier_inputs_are_the_carriers_it_is_declared_to_own() -> None:
     assert "docs/README.md" in selected
     assert ".config/checks/pre-commit/.pre-commit-config.yaml" in selected
     assert ".gitlab-ci.yml" not in selected
-    assert not {
-        path for path in selected if path.startswith(("openspec/specs/", "openspec/changes/"))
-    }
-    assert "openspec/config.yaml" not in selected
+    assert {"openspec/config.yaml", "openspec/specs/quality/spec.md"} <= selected
+    assert any(path.startswith("openspec/changes/") for path in selected)
+    assert not any(path.startswith("openspec/changes/archive/") for path in selected)
     assert "distributions/npm/bin/ethos.mjs" in selected
 
 

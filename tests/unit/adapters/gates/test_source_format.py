@@ -11,6 +11,9 @@ import pytest
 import ethos.adapters.gates.tool as gate_tool
 import ethos.adapters.mutation.source_format as mutation
 from ethos.adapters.gates.formatting import prepare_source_format
+from ethos.adapters.process import run_command
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
+from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import SourceContract
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -163,6 +166,79 @@ def test_native_markdown_and_formatting_share_declared_authored_inputs(tmp_path:
     assert set(report["native"][0]["files"]) == expected, report
     assert report["native"][0]["verdict"] == "pass", report
     assert all((root / path).read_text() == content for path, content in preserved.items())
+
+
+def test_active_openspec_uses_native_formatting_without_changing_task_meaning(lane: Path) -> None:
+    """Active authoring has one formatter; official parsing and archived bytes remain intact."""
+    relative = "openspec/changes/fixture-change/tasks.md"
+    original = (
+        "# Tasks\n## 1. Verification\n"
+        "- [ ] 1.1 Verify `operation-intent-*` retains its meaning.\n"
+        "  - [ ] 1.1.1 Observe the original native result.\n"
+        "- [x] 1.2 Record independently verified acceptance.\n"
+    )
+    archived = "openspec/changes/archive/captured/tasks.md"
+    captured = "# Captured\n- [ ] 7.1 Original bytes   \n"
+    metadata = "openspec/changes/fixture-change/.openspec.yaml"
+    yaml = "schema:   spec-driven\ncreated: 2026-10-14\n"
+    preserved_yaml = "openspec/changes/archive/captured/.openspec.yaml"
+    _write(lane, {relative: original, metadata: yaml, archived: captured, preserved_yaml: yaml})
+    (lane / relative).chmod(0o640)
+    head, index = git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")
+    module = product_node_module("@fission-ai/openspec") / "dist/utils"
+    command = (
+        str(resolve_node_runtime().executable),
+        "--input-type=module",
+        "-e",
+        (
+            "import {readFileSync} from 'node:fs';"
+            f"import {{parseTaskLines}} from {json.dumps((module / 'task-progress.js').as_uri())};"
+            "import {readChangeMetadata} from "
+            f"{json.dumps((module / 'change-metadata.js').as_uri())};"
+            "console.log(JSON.stringify({tasks:parseTaskLines(readFileSync(0,'utf8')),"
+            "metadata:readChangeMetadata(process.argv[1],process.argv[2])}));"
+        ),
+        str(lane / "openspec/changes/fixture-change"),
+        str(lane),
+    )
+    before = json.loads(run_command(lane, command, stdin=original, check=True, timeout=20).stdout)
+    code, preview = _command(lane, relative, metadata)
+    assert (code, preview["verdict"], set(preview["data"]["changed_paths"])) == (
+        0,
+        "pass",
+        {relative, metadata},
+    ), preview
+    assert (lane / relative).read_text() == original
+    code, refused = _command(lane, relative, metadata, "--check")
+    assert (code, refused["verdict"]) == (1, "block"), refused
+    assert (lane / relative).read_text() == original
+    assert (lane / metadata).read_text() == yaml
+    code, applied = _command(
+        lane, relative, metadata, "--apply", "--authorize", "--expect-head", head
+    )
+    assert (code, applied["verdict"]) == (0, "pass"), applied["required_gaps"]
+    formatted = (lane / relative).read_text()
+    assert formatted.startswith("# Tasks\n\n## 1. Verification\n\n")
+    assert (
+        json.loads(run_command(lane, command, stdin=formatted, check=True, timeout=20).stdout)
+        == before
+    )
+    assert [task["done"] for task in before["tasks"]] == [False, False, True]
+    assert before["metadata"] == {"schema": "spec-driven", "created": "2026-10-14"}
+    formatted_yaml = (lane / metadata).read_text()
+    assert formatted_yaml.startswith("schema: spec-driven\n")
+    code, checked = _command(lane, relative, metadata, "--check")
+    assert (code, checked["verdict"]) == (0, "pass"), checked
+    code, repeated = _command(
+        lane, relative, metadata, "--apply", "--authorize", "--expect-head", head
+    )
+    assert (code, repeated["data"]["changed_paths"]) == (0, []), repeated
+    assert (lane / relative).read_text() == formatted
+    assert (lane / metadata).read_text() == formatted_yaml
+    assert (lane / relative).stat().st_mode & 0o777 == 0o640
+    assert (lane / archived).read_text() == captured
+    assert (lane / preserved_yaml).read_text() == yaml
+    assert (git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")) == (head, index)
 
 
 def test_captured_source_bundles_share_native_selection(lane: Path) -> None:

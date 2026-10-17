@@ -362,12 +362,18 @@ Markdown and YAML SHALL be formatted by Prettier, TOML by taplo and Python by Ru
 
 ### Requirement: Formatter inputs respect declared carrier ownership
 
-A formatter's declared inputs SHALL exclude carriers that already have another declared owner, such as official OpenSpec artifacts. Those carriers SHALL keep their own owner and checks.
+Formatter inputs SHALL follow the carrier's formatting owner. Authored OpenSpec Markdown and YAML SHALL use shared native formatting while official OpenSpec retains structure, semantic parsing, validation and archive. Immutable records, captured sources and native generator output SHALL retain their byte owners and be excluded from formatter writes; their own checks SHALL still run.
 
-#### Scenario: A carrier has an official owner
+#### Scenario: A carrier has an official byte owner
 
-- **WHEN** a repository declares its OpenSpec artifacts official-owner-only
-- **THEN** the Markdown formatter's inputs exclude them, and their own checks still run.
+- **WHEN** a carrier is an immutable OpenSpec archive, captured upstream source or official generator output
+- **THEN** shared formatter inputs exclude it, preserve its exact bytes and retain its owner's checks.
+
+#### Scenario: Authored OpenSpec retains official meaning
+
+- **WHEN** shared native formatting fixes authored OpenSpec Markdown or YAML
+- **THEN** official parsing retains task identities and completion states, strict validation passes and a second fix leaves bytes unchanged
+- **AND** the formatter performs no archive, commit or publication effect.
 
 ### Requirement: Text normalization is declared
 

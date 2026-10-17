@@ -29,6 +29,12 @@ def _gaps(root: Path, files: dict[str, str]) -> list[tuple[str, str]]:
     return [(gap.required_gap, gap.repair) for gap in gaps]
 
 
+def test_a_tracked_owner_missing_from_the_tree_is_unreadable(tmp_path: Path) -> None:
+    """A tracked configuration that cannot be read is named, not taken as absent."""
+    gaps = toolchain_gaps(load_repository_paradigm(), tmp_path, frozenset({_MISE, _LOCK}))
+    assert [gap.required_gap for gap in gaps] == [f"repository_paradigm_toolchain_owner:{_MISE}"]
+
+
 def test_a_locked_mise_owner_with_every_verb_conforms(tmp_path: Path) -> None:
     """Table and inline task forms both declare a verb."""
     files = {_MISE: _LOCKED_TASKS, _LOCK: "", "package.json": '{"scripts": {}}\n'}
@@ -89,8 +95,17 @@ def test_a_locked_mise_owner_with_every_verb_conforms(tmp_path: Path) -> None:
             {_MISE: "[settings\n", _LOCK: ""},
             [(f"repository_paradigm_toolchain_owner:{_MISE}", f"make {_MISE} readable TOML")],
         ),
+        (
+            {"package.json": "{"},
+            [
+                (
+                    "repository_paradigm_toolchain_owner:package.json",
+                    "make package.json readable JSON",
+                )
+            ],
+        ),
     ],
-    ids=["missing-verb", "unlocked", "npm-owner", "uv-only", "unreadable"],
+    ids=["missing-verb", "unlocked", "npm-owner", "uv-only", "unreadable", "unreadable-npm"],
 )
 def test_the_toolchain_owner_names_each_missing_part(
     tmp_path: Path, files: dict[str, str], expected: list[tuple[str, str]]

@@ -99,3 +99,18 @@ def test_an_unadmitted_script_names_its_native_replacement(
 ) -> None:
     """A script outside a valid generator record is reported with its repair."""
     assert _gaps(tmp_path, files) == [(f"repository_paradigm_tracked_script:{carrier}", repair)]
+
+
+def test_a_recorded_output_that_cannot_be_read_is_regenerated(tmp_path: Path) -> None:
+    """A tracked output missing from the tree no longer matches its recorded digest."""
+    record = tmp_path / _RECORD
+    record.parent.mkdir(parents=True)
+    record.write_text(_record().replace("bin/mise", "bin/mise.sh"), encoding="utf-8")
+    tracked = frozenset({_RECORD, "bin/mise.sh"})
+    gaps = tracked_script_gaps(load_repository_paradigm(), tmp_path, tracked)
+    assert [(gap.required_gap, gap.repair) for gap in gaps] == [
+        (
+            "repository_paradigm_tracked_script:bin/mise.sh",
+            _REGENERATE.replace("bin/mise", "bin/mise.sh"),
+        )
+    ]

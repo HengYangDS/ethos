@@ -27,6 +27,7 @@ if TYPE_CHECKING:
         "ethos prove --json > build/report.json 2>&1",
         "FOO=1 mise run check",
         "mise run check  # one task; no chaining && here",
+        "find . -name '*.orig' -exec rm {} \\;",
     ],
 )
 def test_one_native_command_with_arguments_is_not_inline_shell(command: str) -> None:
@@ -146,6 +147,44 @@ def test_a_gate_that_runs_a_shell_program_is_inline_shell(tmp_path: Path) -> Non
     }
     [(gap, _repair)] = _gaps(tmp_path, files)
     assert gap == "repository_paradigm_inline_shell:system/gates.toml:gates.secrets"
+
+
+def test_a_profile_gate_that_runs_a_shell_program_is_inline_shell(tmp_path: Path) -> None:
+    """Gates declared in the profile itself are judged like registry gates."""
+    gates = "".join(
+        f'[[proof.gates]]\nid = "{name}"\nkind = "{kind}"\ncommand = {command}\n'
+        f'dimensions = {dimensions}\nexecution_mode = "subprocess"\nevidence_class = "{evidence}"\n'
+        'trust_bearing = true\ntool_adapter = "repository-native"\n\n'
+        for name, kind, command, dimensions, evidence in (
+            (
+                "sample-tests",
+                "test",
+                '["bash", "-c", "pytest && ruff check ."]',
+                '["test"]',
+                "proof",
+            ),
+            ("sample-static", "typing", '["ty", "check"]', '["static-analysis"]', "contract"),
+        )
+    )
+    profile = (
+        'profile_id = "sample"\n\n[proof]\n'
+        'code_correctness_gates = ["sample-tests", "sample-static"]\n\n'
+        '[proof.code_correctness_map]\nbehavior = "sample-tests"\n'
+        f'static-analysis = "sample-static"\n\n{gates}'
+    )
+    [(gap, _repair)] = _gaps(tmp_path, {".ethos/profile.toml": profile})
+    assert gap == "repository_paradigm_inline_shell:.ethos/profile.toml:proof.gates.sample-tests"
+
+
+@pytest.mark.parametrize("registry", [None, "schema_version = [\n"])
+def test_an_absent_or_unreadable_gate_registry_is_left_to_its_owner(
+    tmp_path: Path, registry: str | None
+) -> None:
+    """Only a readable gate registry contributes gate commands; its owner reports the rest."""
+    files = {".ethos/profile.toml": _PROFILE}
+    if registry is not None:
+        files["system/gates.toml"] = registry
+    assert _gaps(tmp_path, files) == []
 
 
 def test_native_gates_and_steps_conform(tmp_path: Path) -> None:

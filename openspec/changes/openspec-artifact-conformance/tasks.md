@@ -16,7 +16,7 @@
 
 ## 4. Fleet Conformance
 
-- [ ] 4.1 Run every check with this lane's runtime against the dev head of every governed repository and report each gap to its repository owner; verify each reported gap names its artifact and owner.
+- [x] 4.1 Run every check with this lane's runtime against the dev head of every governed repository and report each gap to its repository owner; verify each reported gap names its artifact and owner. Evidence: observation Attestation `f6487018`.
 
 ## Workflow follow-up
 

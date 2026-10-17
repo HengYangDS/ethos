@@ -114,9 +114,46 @@ def test_prose_executor_consumes_only_declared_policy_paths() -> None:
     calls = []
     sessions.prose(type("Session", (), {"run": lambda _, *args: calls.append(args)})())
     expected = [sessions.RUNTIME.script("codespell"), "--toml"]
-    expected += [str(ROOT / ".config/checks/codespell/codespell.toml"), "--count"]
-    expected += ["--quiet-level=2", "README.md", "CONTRIBUTING.md", "AGENTS.md"]
+    expected += [str(ROOT / ".config/checks/codespell/codespell.toml")]
+    expected += ["README.md", "CONTRIBUTING.md", "AGENTS.md"]
     assert calls[0] == (*expected, "docs", "rules", "openspec/specs")
+
+
+@pytest.mark.parametrize(
+    ("configuration", "policy", "message"),
+    [
+        (None, 'paths = ["docs"]\n', "declares no [tool.codespell] table"),
+        ("count = true\n", 'paths = ["docs"]\n', "declares no [tool.codespell] table"),
+        ("[tool.codespell]\ncount = true\n", None, "prose policy paths are missing"),
+    ],
+    ids=["missing", "unread", "no-paths"],
+)
+def test_prose_refuses_configuration_codespell_would_not_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, configuration, policy, message
+) -> None:
+    """A carrier without its table is silently ignored by codespell, so the session refuses it."""
+    for name, text in (("CODESPELL_CONFIG", configuration), ("PROSE_POLICY", policy)):
+        path = tmp_path / name
+        if text is not None:
+            path.write_text(text, encoding="utf-8")
+        monkeypatch.setattr(sessions, name, path)
+    session = Mock()
+    session.error.side_effect = SystemExit
+    with pytest.raises(SystemExit):
+        sessions.prose(session)
+    assert message in session.error.call_args.args[0]
+    session.run.assert_not_called()
+
+
+def test_codespell_reads_its_declared_configuration(tmp_path: Path) -> None:
+    """The count the carrier enables appears although no count option is passed."""
+    sample = tmp_path / "sample.md"
+    sample.write_text("teh sample\n", encoding="utf-8")
+    command = (sessions.RUNTIME.script("codespell"), "--toml", str(sessions.CODESPELL_CONFIG))
+    result = run_command(tmp_path, (*command, str(sample)), timeout=60)
+    assert result.returncode != 0
+    assert "teh ==> the" in result.stdout
+    assert result.stderr.strip().splitlines()[-1] == "1"
 
 
 @pytest.mark.parametrize(

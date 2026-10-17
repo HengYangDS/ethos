@@ -39,7 +39,7 @@
 ## 3. ETHOS conformance
 
 - [x] 3.1 Move ETHOS tool configuration to tool-named owners under `.config/checks/`, remove the root `ruff.toml` and `.gitleaks.toml` pointers and the `[tool.pytest.ini_options]` table, and bind every consumer explicitly; the paradigm report shows no configuration gap.
-- [ ] 3.2 Make the codespell and vulture configuration effective and fail on a missing configuration; a focused test proves each tool reads its declared file.
+- [x] 3.2 Make the codespell configuration effective and fail on a missing configuration: native settings live in the `[tool.codespell]` table that `--toml` reads, the checked paths in `policy.toml`, and the `prose` session refuses a carrier without that table; a focused test proves codespell reads its declared file. ETHOS runs no vulture, so only codespell applies here.
 - [x] 3.3 Bind Prettier for Markdown and YAML, taplo for TOML and Ruff format for Python with the common settings, then format the tracked carriers; a second `check` pass is clean and the paradigm reports no formatter gap. Exposing the verbs as toolchain-owner tasks belongs to 3.5.
 - [ ] 3.7 Decide with the OpenSpec artifact owner whether official `openspec/**` Markdown gets a formatter. Today ETHOS declares it official-owner-only, so Prettier excludes it and markdownlint alone checks it; formatting it adds a blank line after every heading and would rewrite glob text such as `operation-intent-*` as emphasis.
 - [ ] 3.4 Add `.editorconfig`, rename the remaining snake_case repository-authored files such as `docs/_meta/stable_paths.toml` and `system/evidence_boundaries.toml` with their references, and adopt the common commit grammar in `.ethos/workspace.toml`; the paradigm report passes on ETHOS.

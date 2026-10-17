@@ -110,6 +110,23 @@ def test_schema_gate_reuses_repository_validator(monkeypatch: pytest.MonkeyPatch
     session.error.assert_not_called()
 
 
+def test_fix_applies_each_common_formatter_in_write_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The fix verb rewrites Python, Prettier and taplo carriers that check verifies."""
+    calls = []
+    monkeypatch.setattr(sessions, "_python_paths", lambda _session: ("src/a.py",))
+    monkeypatch.setattr(sessions, "prettier_paths", lambda: ("README.md",))
+    monkeypatch.setattr(config_quality, "toml_paths", lambda: (Path("pyproject.toml"),))
+    sessions.fix(type("Session", (), {"run": lambda _, *args: calls.append(args)})())
+    ruff = sessions.RUNTIME.script("ruff")
+    assert calls[0][:3] == (ruff, "check", "--fix")
+    assert calls[0][-1] == "src/a.py"
+    assert calls[1][:2] == (ruff, "format")
+    assert "--check" not in calls[1]
+    assert calls[2][-2:] == ("--write", "README.md")
+    taplo = ("format", "--config", str(config_quality.TAPLO_CONFIG), "pyproject.toml")
+    assert calls[3][-4:] == taplo
+
+
 def test_prose_executor_consumes_only_declared_policy_paths() -> None:
     calls = []
     sessions.prose(type("Session", (), {"run": lambda _, *args: calls.append(args)})())

@@ -24,6 +24,7 @@ PROSE_POLICY = ROOT / ".config/checks/codespell/policy.toml"
 PUBLIC_SESSIONS = (
     "lint",
     "format_check",
+    "fix",
     "tests",
     "coverage_floor",
     "build",
@@ -107,6 +108,29 @@ def format_check(session) -> None:
     javascript_lint(session)
     svg_lint(session)
     asset_validation(session)
+
+
+def fix(session) -> None:
+    """Apply the common formatters to the carriers that format_check verifies."""
+    paths = _python_paths(session)
+    RUFF_CACHE.mkdir(parents=True, exist_ok=True)
+    common = ("--cache-dir", str(RUFF_CACHE), "--config", ".config/checks/ruff/ruff.toml")
+    executable = RUNTIME.script("ruff")
+    session.run(executable, "check", "--fix", *common, *paths)
+    session.run(executable, "format", *common, *paths)
+    _prettier(session, *prettier_paths(), write=True)
+    owner = import_module("tools.ci.config_quality")
+    taplo = RUNTIME.node_package_supply() / "@taplo/cli/dist/cli.js"
+    toml = tuple(str(path) for path in owner.toml_paths())
+    if toml:
+        session.run(
+            str(RUNTIME.node_executable()),
+            str(taplo),
+            "format",
+            "--config",
+            str(owner.TAPLO_CONFIG),
+            *toml,
+        )
 
 
 def lint(session) -> None:

@@ -203,6 +203,11 @@ def _ini_failures(paths: tuple[Path, ...]) -> list[str]:
     return failures
 
 
+def toml_paths() -> tuple[Path, ...]:
+    """Return the tracked TOML carriers whose validation owner is this configuration check."""
+    return _candidate_paths(())["toml"]
+
+
 def run(paths: Iterable[str], *, node: Path, package_supply: Path) -> tuple[str, ...]:
     """Return deterministic configuration-quality failures."""
     try:

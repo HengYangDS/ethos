@@ -9,10 +9,11 @@
 
 ## 2. Adopter Delivery
 
-- [ ] 2.1 With user authorization, bind openai-responses-proxy to a runtime built from its runtime source plus this change; verify its profile stays valid and the v5.0.2 GitLab publication preview passes.
-- [ ] 2.2 With user authorization, publish `refs/tags/v5.0.2` to GitLab through `ethos publish`; verify identical peer tag objects and a passing provenance check in the next GitLab pipeline.
+- [x] 2.1 With user authorization, bind openai-responses-proxy to a runtime built from its runtime source plus this change; verify its profile stays valid and the v5.0.2 GitLab publication preview passes.
+  - Runtime `066602db`, built from ETHOS `08cdad561`, which contains this change; `ethos status` on the proxy reports `ready` on 2026-10-17. The user delegated the decision on 2026-10-17.
+- [x] 2.2 With user authorization, publish `refs/tags/v5.0.2` to GitLab through `ethos publish`; verify identical peer tag objects and a passing provenance check in the next GitLab pipeline.
+  - Publication Attestation `79476adbc3b1` (2026-10-15T05:32Z) pushed tag object `f06a9902` → `dc5d064f`; the GitLab tag holds the same object. The changelog provenance check passed in dev pipeline 11193, job 53788, and later in 11208, 11305 and 11306. Tag pipeline 10961 runs the tag's own older check, which fails on later tags, and is not this condition.
 
 ## Workflow follow-up
 
-- Peer publication of the adopter's missed tag waits for its GitLab peer to be reachable; at 2026-10-13 01:10 +08:00 it refused the connection.
-- Binding openai-responses-proxy to a runtime carrying this change changes shared Git-common hook activation for every live session there; two sessions held valid Work Lane leases at that time. Coordinate before the effect.
+- Each landing needs its own exact-head full proof, closeout and publication to both peers.

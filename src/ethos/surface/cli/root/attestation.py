@@ -41,20 +41,19 @@ def _input_attestation(path: Path) -> Attestation:
         message = "attestation_input_object_required"
         raise TypeError(message)
     if "id" in payload:
-        return _bounded(Attestation.model_validate_json(raw))
+        return Attestation.model_validate_json(raw)
     attestation = Attestation.issue(payload)
     if raw != attestation.canonical_json(exclude_id=True).encode():
         message = "semantic_json_noncanonical"
         raise ValueError(message)
-    return _bounded(attestation)
+    return attestation
 
 
-def _bounded(attestation: Attestation) -> Attestation:
-    """Refuse a member above the set bound before any read or effect."""
+def _require_bounded(attestation: Attestation) -> None:
+    """Refuse a new member above the set bound; the writer applies the same rule on apply."""
     if len(attestation.canonical_json().encode()) > MEMBER_BYTES_LIMIT:
         message = f"attestation_member_too_large:{attestation.id}"
         raise ValueError(message)
-    return attestation
 
 
 _NEXT_ACTIONS = {
@@ -123,6 +122,8 @@ def record(
         else:
             current_root, current = read_attestation_set(repo)
             present = any(item.id == attestation.id for item in current)
+            if not present:
+                _require_bounded(attestation)
             set_root = previous_set_root = current_root
             added = () if present else (attestation.id,)
             state = "unchanged" if present else "ready"

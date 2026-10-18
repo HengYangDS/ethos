@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import GIT_PROCESS_TIMED_OUT
 from ethos.adapters.repo.git import GitExecutionError
+from ethos.adapters.repo.invocation_facts import invocation_scope
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.result import EthosResult
 
@@ -69,7 +70,8 @@ def application_result[**P](
         @wraps(operation)
         def invoke(*args: P.args, **kwargs: P.kwargs) -> EthosResult:
             try:
-                return operation(*args, **kwargs)
+                with invocation_scope():
+                    return operation(*args, **kwargs)
             except ProcessExecutionError as error:
                 root = kwargs.get("root", args[0] if args else None)
                 return process_failure_result(

@@ -11,20 +11,27 @@ three reviewed-disposal cases on every run, and reviewed disposal is impossible
 for any non-root Linux user. Darwin's `lsof` omits those processes silently, so
 the same observation already completes there. A process that changes
 credentials while `lsof` reads it also leaves one record unreadable, which made
-GitLab verify fail one case at `f3d9f85e3`.
+GitLab verify fail one case at `f3d9f85e3`. The `lsof` 4.95 that GitHub's hosted
+runners ship also lists each thread of such a process with its own denied
+entries, and prints a bound netlink socket by its socket inode alone; the
+observer read both as unreadable, so the hosted job still failed at `76e2161ad`.
 
 ## What Changes
 
 - The observation covers the processes the invoking user may inspect. On Linux,
-  a process whose every record is a denied `/proc` entry is uninspectable, not
-  incomplete, and is reported by process ID, user ID and command.
+  a process whose every record is a denied `/proc` entry, its threads' entries
+  included, is uninspectable, not incomplete, and is reported once by process
+  ID, user ID and command.
+- A netlink socket, which `lsof` prints by its socket inode alone as it prints a
+  unix socket, is complete output rather than an unreadable record.
 - A denial inside an otherwise inspected process, and any other unreadable
   record, still leaves the observation incomplete. Such a scan is taken again,
   at most three times within the observer's one 30-second timeout, before
   retirement blocks.
 - Each content admission records its observation in the progress it produces;
   the terminal receipt and result carry the observation of the admission that
-  removed the worktree. Darwin reports the uninspectable list as unavailable.
+  removed the worktree, including after recovery. Darwin reports the
+  uninspectable list as unavailable.
 - The open-file observer moves from `ethos.adapters.process` to
   `ethos.adapters.open_files`, and `lsof` also reports each process's command
   and user ID.

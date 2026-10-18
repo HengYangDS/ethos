@@ -366,27 +366,24 @@ def ref_progress(root: Path, ref: str, *, observed_at: datetime) -> dict[str, ob
     timestamps = [
         timestamp for (new, timestamp), (old, _) in pairwise(entries) if is_ancestor(root, old, new)
     ]
-    if not timestamps:
-        return {
-            "observation": "git_reflog",
-            "ref": ref,
-            "advance_count": 0,
-            "interval_seconds": None,
-            "latest_interval_seconds": None,
-            "latest_advance_age_seconds": None,
-            "advances_per_hour": None,
-        }
-    interval = max(timestamps) - min(timestamps)
-    latest_interval = timestamps[0] - timestamps[1] if len(timestamps) > 1 else None
-    return {
+    result: dict[str, object] = {
         "observation": "git_reflog",
         "ref": ref,
         "advance_count": len(timestamps),
-        "interval_seconds": interval,
-        "latest_interval_seconds": latest_interval,
-        "latest_advance_age_seconds": max(0, int(observed_at.timestamp()) - max(timestamps)),
-        "advances_per_hour": len(timestamps) * 3600 / interval if interval else 0.0,
+        "interval_seconds": None,
+        "latest_interval_seconds": None,
+        "latest_advance_age_seconds": None,
+        "advances_per_hour": None,
     }
+    if timestamps:
+        interval = max(timestamps) - min(timestamps)
+        result.update(
+            interval_seconds=interval,
+            latest_interval_seconds=timestamps[0] - timestamps[1] if len(timestamps) > 1 else None,
+            latest_advance_age_seconds=max(0, int(observed_at.timestamp()) - max(timestamps)),
+            advances_per_hour=len(timestamps) * 3600 / interval if interval else 0.0,
+        )
+    return result
 
 
 def committed_file_text(root: Path, ref: str, path: str) -> str:
@@ -415,8 +412,8 @@ def committed_file_bytes(
     return completed.stdout if completed.returncode == 0 else b""
 
 
-def _exact_rename_pairs(root: Path, old_ref: str, new_ref: str) -> tuple[tuple[str, str], ...]:
-    """Return every exact rename pair on one Git edge, or no pairs if malformed."""
+def exact_rename_target(root: Path, old_ref: str, new_ref: str, source: str) -> str:
+    """Return the sole exact rename target, validating the complete native Git edge."""
     completed = run_git(
         root,
         "diff",
@@ -434,31 +431,23 @@ def _exact_rename_pairs(root: Path, old_ref: str, new_ref: str) -> tuple[tuple[s
         observation=True,
     )
     if completed.returncode != 0:
-        return ()
+        return ""
     fields = completed.stdout.split(b"\0")
-    pairs: list[tuple[str, str]] = []
+    targets: list[str] = []
     index = 0
     while index < len(fields) and fields[index]:
         status = fields[index]
         index += 1
         if status not in {b"R100", b"C100"} or index + 2 > len(fields):
-            return ()
+            return ""
         paths = fields[index : index + 2]
         index += 2
         try:
-            pairs.append((paths[0].decode(), paths[1].decode()))
+            previous, target = (path.decode() for path in paths)
+            if previous == source:
+                targets.append(target)
         except UnicodeDecodeError:
-            return ()
-    return tuple(pairs)
-
-
-def exact_rename_target(root: Path, old_ref: str, new_ref: str, source: str) -> str:
-    """Return the sole target of one exact Git rename from ``source``."""
-    targets = tuple(
-        target
-        for previous, target in _exact_rename_pairs(root, old_ref, new_ref)
-        if previous == source
-    )
+            return ""
     return targets[0] if len(targets) == 1 else ""
 
 
@@ -526,20 +515,15 @@ def git_common_dir(root: Path) -> str:
     common_dir = git_stdout(root, "rev-parse", "--git-common-dir")
     if not common_dir:
         return ""
-    path = Path(common_dir)
-    if not path.is_absolute():
-        path = root / path
-    return path.resolve().as_posix()
+    return (root / common_dir).resolve().as_posix()
 
 
 def git_files(root: Path, *patterns: str, check: bool = False) -> list[str]:
     """Read native NUL file inventory; callers select source scope and failure enforcement."""
     completed = run_git(root, "ls-files", "-z", *patterns, check=check)
-    return (
-        list(dict.fromkeys(path for path in completed.stdout.split("\0") if path))
-        if completed.returncode == 0
-        else []
-    )
+    if completed.returncode:
+        return []
+    return list(dict.fromkeys(filter(None, completed.stdout.split("\0"))))
 
 
 def ignored_paths(root: Path, paths: tuple[str, ...]) -> set[str]:
@@ -612,23 +596,15 @@ def remote_availability(
 def remote_availability_not_probed(root: Path, remote: str) -> dict[str, object]:
     """Describe a configured remote without performing a network reachability probe."""
     url = git_stdout(root, "remote", "get-url", remote)
-    if not url:
-        return {
-            "kind": "git_remote_availability",
-            "remote": remote,
-            "state": "unconfigured",
-            "available": False,
-            "blocking": False,
-            "required_gaps": [],
-            "advisory_gaps": [f"remote_unconfigured:{remote}"],
-        }
-    return {
+    result: dict[str, object] = {
         "kind": "git_remote_availability",
         "remote": remote,
-        "url": url,
-        "state": "not_probed",
+        "state": "unconfigured",
         "available": False,
         "blocking": False,
         "required_gaps": [],
-        "advisory_gaps": [],
+        "advisory_gaps": [f"remote_unconfigured:{remote}"],
     }
+    if url:
+        result.update(url=url, state="not_probed", advisory_gaps=[])
+    return result

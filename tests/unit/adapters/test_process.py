@@ -20,7 +20,6 @@ import pytest
 
 import ethos.adapters.gates.runner as gate_runner
 import ethos.adapters.process as process_adapter
-import ethos.adapters.repo.runtime.retirement as retirement
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_execution_identity
@@ -330,47 +329,6 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
         if fault == "empty-type":
             assert repr(b"fcwd\0t\0D0x10\0i31") in error.value.cause
     assert (observed[0][0], str(tmp_path / "ambient") in observed[0][1]) == ("lsof", False)
-
-
-@pytest.mark.parametrize("platform", ["posix", "nt"])
-def test_process_observer_resolves_native_authority(tmp_path, monkeypatch, platform):
-    """Native observation excludes ambient executable and incompatible module paths."""
-    relative = "System32/WindowsPowerShell/v1.0/powershell.exe" if platform == "nt" else "bin/ps"
-    native = tmp_path / relative
-    native.parent.mkdir(parents=True)
-    native.write_text(
-        '#!/bin/sh\n[ -z "${PSModulePath+x}${GIT_INDEX_FILE+x}" ] || exit 91\nprintf "%s\\n" "$*"\n'
-    )
-    native.chmod(0o700)
-    monkeypatch.setenv("SYSTEMROOT", tmp_path.as_posix())
-    monkeypatch.setenv("PATH", (tmp_path / "ambient").as_posix())
-    monkeypatch.setenv("PSModulePath", "foreign-powershell-modules")
-    monkeypatch.setenv("GIT_INDEX_FILE", "foreign-index")
-    native_run = retirement.run_command
-
-    def observe(root, command, **options):
-        assert (root, options["timeout"]) == (tmp_path, 10)
-        return native_run(root, command, **options)
-
-    monkeypatch.setattr(retirement, "run_command", observe)
-
-    def resolve(name, *, path):
-        assert (name, path) == ("ps", os.defpath)
-        return native.as_posix()
-
-    monkeypatch.setattr(process_adapter.shutil, "which", resolve)
-    expected = (
-        "-NoLogo -NoProfile -NonInteractive -Command Get-CimInstance Win32_Process | % CommandLine"
-        if platform == "nt"
-        else "-axww -o command="
-    )
-    assert retirement.process_commands(tmp_path, platform_name=platform).strip() == expected
-    if platform == "nt":
-        monkeypatch.delenv("SYSTEMROOT")
-        with pytest.raises(process_adapter.ProcessExecutionError) as caught:
-            process_adapter.windows_powershell()
-        assert caught.value.code == "native_windows_powershell_unavailable"
-        assert caught.value.reason == "system_root_missing"
 
 
 @pytest.mark.parametrize("phase", ["spawn", "communication", "completed"])

@@ -52,12 +52,14 @@ _LINUX_VANISHED_REFERENCE = re.compile(
 _LINUX_VANISHED_TARGET = re.compile(
     rb".+ (?:lstat: No such file or directory\) )?\(stat: No such file or directory\)", re.DOTALL
 )
-# A process the invoking user may not inspect denies each /proc entry lsof reads first, so
-# lsof records only those denials, for the process and each thread it lists. Darwin's lsof
-# omits such a process without a record.
+# A process the invoking user may not inspect denies each /proc entry lsof reads, so lsof
+# records only those denials, for the process and each thread it lists: its descriptor
+# directory, or each descriptor link where the directory belongs to the invoking user, as
+# for a process of that user with another group or extra capabilities. Darwin's lsof omits
+# such a process without a record.
 _LINUX_DENIED_ENTRY = re.compile(
-    _LINUX_PROC_ENTRY + rb"(?:(?P<entry>cwd|root|exe) \(readlink|(?P<directory>fd) \(opendir): "
-    rb"Permission denied\)"
+    _LINUX_PROC_ENTRY + rb"(?:(?P<entry>cwd|root|exe) \(readlink|(?P<directory>fd) \(opendir|"
+    rb"fd/(?P<descriptor>[0-9]+) \(readlink): Permission denied\)"
 )
 _LINUX_ENTRY_LABELS = {b"cwd": b"cwd", b"root": b"rtd", b"exe": b"txt", b"fd": b"NOFD"}
 # lsof prints a socket it finds in the kernel's socket tables by its socket inode alone; no
@@ -100,9 +102,8 @@ def _vanished_reference(fields: dict[bytes, bytes]) -> bool:
 
 def _denied_entry(fields: dict[bytes, bytes]) -> bool:
     match = _LINUX_DENIED_ENTRY.fullmatch(_entry_record(fields))
-    return (
-        match is not None
-        and fields.get(b"f") == _LINUX_ENTRY_LABELS[match["entry"] or match["directory"]]
+    return match is not None and fields.get(b"f") == (
+        match["descriptor"] or _LINUX_ENTRY_LABELS[match["entry"] or match["directory"]]
     )
 
 

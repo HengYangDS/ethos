@@ -48,6 +48,36 @@ _THREADED_UNINSPECTABLE = (
     b"ftxt\0tunknown\0n/proc/2616/task/2620/exe (readlink: Permission denied)\0\n"
     b"fNOFD\0n/proc/2616/task/2620/fd (opendir: Permission denied)\0\n"
 )
+# A process of the invoking user with another group or extra capabilities keeps its
+# descriptor directory readable but denies every link in it: lsof 4.95 on Ubuntu 24.04
+# lists each descriptor with its denied readlink instead of NOFD, as GitHub ETHOS CI
+# 39161201596 recorded for /proc/1305 at 46cf69663. lsof 4.99.4 in the pinned supply image
+# prints the same records. Both captured verbatim.
+_DESCRIPTORS_UNINSPECTABLE = {
+    "4.95": (
+        b"p647930\0cpython3\0u65534\0\n"
+        b"fcwd\0tunknown\0n/proc/647930/cwd (readlink: Permission denied)\0\n"
+        b"frtd\0tunknown\0n/proc/647930/root (readlink: Permission denied)\0\n"
+        b"ftxt\0tunknown\0n/proc/647930/exe (readlink: Permission denied)\0\n"
+        b"f0\0tunknown\0n/proc/647930/fd/0 (readlink: Permission denied)\0\n"
+        b"f1\0tunknown\0n/proc/647930/fd/1 (readlink: Permission denied)\0\n"
+        b"f2\0tunknown\0n/proc/647930/fd/2 (readlink: Permission denied)\0\n"
+        b"f3\0tunknown\0n/proc/647930/fd/3 (readlink: Permission denied)\0\n"
+        b"f10\0tunknown\0n/proc/647930/fd/10 (readlink: Permission denied)\0\n"
+        b"f11\0tunknown\0n/proc/647930/fd/11 (readlink: Permission denied)\0\n"
+        b"f12\0tunknown\0n/proc/647930/fd/12 (readlink: Permission denied)\0\n"
+    ),
+    "4.99.4": (
+        b"p644879\0cpython3\0u65534\0\n"
+        b"fcwd\0tunknown\0n/proc/644879/cwd (readlink: Permission denied)\0\n"
+        b"frtd\0tunknown\0n/proc/644879/root (readlink: Permission denied)\0\n"
+        b"ftxt\0tunknown\0n/proc/644879/exe (readlink: Permission denied)\0\n"
+        b"f0\0tunknown\0n/proc/644879/fd/0 (readlink: Permission denied)\0\n"
+        b"f1\0tunknown\0n/proc/644879/fd/1 (readlink: Permission denied)\0\n"
+        b"f2\0tunknown\0n/proc/644879/fd/2 (readlink: Permission denied)\0\n"
+        b"f3\0tunknown\0n/proc/644879/fd/3 (readlink: Permission denied)\0\n"
+    ),
+}
 # GitLab verify 54883 at f3d9f85e3: lsof read this process's descriptor directory, then the
 # process changed credentials or turned non-dumpable before one link was read. The record
 # is verbatim; the process frame carries the fields the current command requests.
@@ -120,6 +150,12 @@ def _file_reference_payloads() -> dict[str, bytes]:
         "linux-uninspectable": payload + _UNINSPECTABLE,
         "linux-uninspectable-on-darwin": payload + _UNINSPECTABLE,
         "linux-threaded-uninspectable": payload + _THREADED_UNINSPECTABLE,
+        **{
+            f"linux-descriptors-uninspectable-lsof-{version}": payload + records
+            for version, records in _DESCRIPTORS_UNINSPECTABLE.items()
+        },
+        "linux-mislabeled-descriptor-denial": payload
+        + _DESCRIPTORS_UNINSPECTABLE["4.95"].replace(b"f10\0", b"f9\0"),
         "linux-partial-denial": payload + _DENIED_DESCRIPTOR,
         "linux-other-errno": payload
         + _UNINSPECTABLE.replace(b"Permission denied", b"Input/output error"),
@@ -172,6 +208,8 @@ _OBSERVED = {
     "linux-task-gone",
     "linux-uninspectable",
     "linux-threaded-uninspectable",
+    "linux-descriptors-uninspectable-lsof-4.95",
+    "linux-descriptors-uninspectable-lsof-4.99.4",
     "linux-stat-gone",
     "linux-lstat-gone",
     "linux-pipe-stat-gone",
@@ -185,6 +223,12 @@ _OBSERVED = {
 _REPORTED = {
     "linux-uninspectable": (UninspectableProcess(pid=1, uid=0, command="sh"),),
     "linux-threaded-uninspectable": (UninspectableProcess(pid=2616, uid=0, command="python3"),),
+    "linux-descriptors-uninspectable-lsof-4.95": (
+        UninspectableProcess(pid=647930, uid=65534, command="python3"),
+    ),
+    "linux-descriptors-uninspectable-lsof-4.99.4": (
+        UninspectableProcess(pid=644879, uid=65534, command="python3"),
+    ),
 }
 
 

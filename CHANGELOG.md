@@ -60,11 +60,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
   names.
 - Lane retirement's open-file observation covers the processes the invoking user
   may inspect. On Linux, a process that denies every `/proc` entry `lsof` reads,
-  its threads' entries included, is uninspectable rather than an incomplete
-  observation, so non-root users can retire reviewed content; each admission
-  reports such processes once by PID, UID and command, a recovered retirement
-  reports the admission that removed the worktree, and Darwin, whose `lsof` omits
-  them, reports the list as unavailable.
+  its descriptor links and threads' entries included, is uninspectable rather than
+  an incomplete observation, so non-root users can retire reviewed content; each
+  admission reports such processes once by PID, UID and command, a recovered
+  retirement reports the admission that removed the worktree, and Darwin, whose
+  `lsof` omits them, reports the list as unavailable.
 
 ### Removed
 

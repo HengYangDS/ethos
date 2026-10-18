@@ -43,20 +43,26 @@ _DARWIN_VANISHED_REFERENCE = re.compile(
     rb"(?:kqueue|pipe|semaphore|POSIX shared memory|vnode|socket): "
     rb"(?:FD unavailable|process unavailable)"
 )
+# Linux lsof lists each thread it observes as a set of its own, naming that task's entries.
+_LINUX_PROC_ENTRY = rb"/proc/[0-9]+(?:/task/[0-9]+)?/"
 _LINUX_VANISHED_REFERENCE = re.compile(
-    rb"/proc/[0-9]+(?:/task/[0-9]+)?/(?:(?P<entry>cwd|root|exe|fd)|fd/(?P<descriptor>[0-9]+)) "
+    _LINUX_PROC_ENTRY + rb"(?:(?P<entry>cwd|root|exe|fd)|fd/(?P<descriptor>[0-9]+)) "
     rb"\((?:readlink|opendir): No such file or directory\)"
 )
 _LINUX_VANISHED_TARGET = re.compile(
     rb".+ (?:lstat: No such file or directory\) )?\(stat: No such file or directory\)", re.DOTALL
 )
 # A process the invoking user may not inspect denies each /proc entry lsof reads first, so
-# lsof records only those denials. Darwin's lsof omits such a process without a record.
+# lsof records only those denials, for the process and each thread it lists. Darwin's lsof
+# omits such a process without a record.
 _LINUX_DENIED_ENTRY = re.compile(
-    rb"/proc/[0-9]+/(?:(?P<entry>cwd|root|exe) \(readlink|(?P<directory>fd) \(opendir): "
+    _LINUX_PROC_ENTRY + rb"(?:(?P<entry>cwd|root|exe) \(readlink|(?P<directory>fd) \(opendir): "
     rb"Permission denied\)"
 )
 _LINUX_ENTRY_LABELS = {b"cwd": b"cwd", b"root": b"rtd", b"exe": b"txt", b"fd": b"NOFD"}
+# lsof prints a socket it finds in the kernel's socket tables by its socket inode alone; no
+# such socket is a file a worktree holds.
+_INODE_ONLY_SOCKETS = frozenset({b"unix", b"netlink"})
 _UNREADABLE = "file_observation_unreadable"
 # A process that changes credentials or turns non-dumpable after lsof opened its descriptor
 # directory leaves one record unreadable. A fresh scan observes it settled, so a scan is
@@ -108,7 +114,7 @@ def _record_identity(frame: bytes, fields: dict[bytes, bytes]) -> set[tuple[int,
         or fields.get(b"f", b"NOFD") == b"NOFD"
         or fields.get(b"t", b"unknown") == b"unknown"
         or (b"i" in fields and not fields[b"i"].isdigit())
-        or (b"i" in fields and b"D" not in fields and fields[b"t"] != b"unix")
+        or (b"i" in fields and b"D" not in fields and fields[b"t"] not in _INODE_ONLY_SOCKETS)
         or (fields[b"t"] in {b"REG", b"DIR"} and b"i" not in fields)
     ):
         _file_observation_failure(f"{_UNREADABLE}:{frame[:256]!r}")
@@ -118,10 +124,11 @@ def _record_identity(frame: bytes, fields: dict[bytes, bytes]) -> set[tuple[int,
 def _process_records(
     payload: bytes,
 ) -> list[tuple[dict[bytes, bytes], list[tuple[bytes, dict[bytes, bytes]]]]]:
-    """Group lsof frames by process, dropping the records of objects that vanished mid-scan."""
+    """Group lsof frames by process, its thread sets included, dropping vanished records."""
     if not payload.endswith(b"\0\n"):
         _file_observation_failure("file_observation_incomplete")
-    processes: list[tuple[dict[bytes, bytes], list[tuple[bytes, dict[bytes, bytes]]]]] = []
+    processes: dict[bytes, tuple[dict[bytes, bytes], list[tuple[bytes, dict[bytes, bytes]]]]] = {}
+    records: list[tuple[bytes, dict[bytes, bytes]]] | None = None
     for frame in payload[:-2].split(b"\0\n"):
         fields = {item[:1]: item[1:] for item in frame.split(b"\0")}
         if len(fields) != frame.count(b"\0") + 1:
@@ -133,12 +140,12 @@ def _process_records(
                 or not fields[b"u"].isdigit()
             ):
                 _file_observation_failure("file_observation_process_invalid")
-            processes.append((fields, []))
-        elif not processes:
+            records = processes.setdefault(fields[b"p"], (fields, []))[1]
+        elif records is None:
             _file_observation_failure(f"{_UNREADABLE}:{frame[:256]!r}")
         elif not _vanished_reference(fields):
-            processes[-1][1].append((frame, fields))
-    return processes
+            records.append((frame, fields))
+    return list(processes.values())
 
 
 def _file_identities(

@@ -28,6 +28,26 @@ _UNINSPECTABLE = (
     b"ftxt\0tunknown\0n/proc/1/exe (readlink: Permission denied)\0\n"
     b"fNOFD\0n/proc/1/fd (opendir: Permission denied)\0\n"
 )
+# lsof 4.95.0, which Ubuntu 24.04 and its hosted runners ship, also lists each thread of a
+# process as a set of its own; GitHub ETHOS CI 39152217492 at 76e2161ad failed on such a
+# thread's denied cwd. Two threads of an uninspectable root process, captured verbatim.
+_THREADED_UNINSPECTABLE = (
+    b"p2616\0cpython3\0u0\0\n"
+    b"fcwd\0tunknown\0n/proc/2616/cwd (readlink: Permission denied)\0\n"
+    b"frtd\0tunknown\0n/proc/2616/root (readlink: Permission denied)\0\n"
+    b"ftxt\0tunknown\0n/proc/2616/exe (readlink: Permission denied)\0\n"
+    b"fNOFD\0n/proc/2616/fd (opendir: Permission denied)\0\n"
+    b"p2616\0cpython3\0u0\0\n"
+    b"fcwd\0tunknown\0n/proc/2616/task/2619/cwd (readlink: Permission denied)\0\n"
+    b"frtd\0tunknown\0n/proc/2616/task/2619/root (readlink: Permission denied)\0\n"
+    b"ftxt\0tunknown\0n/proc/2616/task/2619/exe (readlink: Permission denied)\0\n"
+    b"fNOFD\0n/proc/2616/task/2619/fd (opendir: Permission denied)\0\n"
+    b"p2616\0cpython3\0u0\0\n"
+    b"fcwd\0tunknown\0n/proc/2616/task/2620/cwd (readlink: Permission denied)\0\n"
+    b"frtd\0tunknown\0n/proc/2616/task/2620/root (readlink: Permission denied)\0\n"
+    b"ftxt\0tunknown\0n/proc/2616/task/2620/exe (readlink: Permission denied)\0\n"
+    b"fNOFD\0n/proc/2616/task/2620/fd (opendir: Permission denied)\0\n"
+)
 # GitLab verify 54883 at f3d9f85e3: lsof read this process's descriptor directory, then the
 # process changed credentials or turned non-dumpable before one link was read. The record
 # is verbatim; the process frame carries the fields the current command requests.
@@ -61,8 +81,23 @@ def _file_reference_payloads() -> dict[str, bytes]:
     fd_vanished = b"f9\0tunknown\0n/proc/12/fd/9 (readlink: No such file or directory)\0\n"
     gone = b"No such file or directory)\0\n"
     unix = b"f6\0tunix\0i50690625\0ntype=STREAM\0\n"
+    # lsof 4.95 and 4.99.4 print a bound netlink socket by its socket inode alone; captured
+    # verbatim from Ubuntu 24.04 and from the pinned supply image.
+    netlink = {
+        "4.95": b"f14\0tnetlink\0i2444395\0nROUTE\0\nf15\0tnetlink\0i2444396\0nKOBJECT_UEVENT\0\n",
+        "4.99.4": b"f11\0tnetlink\0i2434816\0nROUTE\0\n"
+        b"f12\0tnetlink\0i2434817\0nKOBJECT_UEVENT\0\n",
+    }
+    # A thread lsof cannot inspect inside a process it can is a permission failure, not an
+    # uninspectable process: the captured thread sets follow a readable main set.
+    threads = _THREADED_UNINSPECTABLE[_THREADED_UNINSPECTABLE.index(b"p2616", 1) :]
     return {
         "unix-inode": payload + unix,
+        **{f"linux-netlink-lsof-{version}": payload + netlink[version] for version in netlink},
+        "linux-denied-thread-of-inspected-process": payload
+        + b"p2616\0cpython3\0u0\0\n"
+        + payload.removeprefix(b"p12\0cbash\0u1000\0\n")
+        + threads,
         "unix-empty-inode": payload + unix.replace(b"i50690625", b"i"),
         "unix-negative-inode": payload + unix.replace(b"i50690625", b"i-1"),
         "unix-duplicate-inode": payload + unix.replace(b"i50690625", b"i1\0i2"),
@@ -84,6 +119,7 @@ def _file_reference_payloads() -> dict[str, bytes]:
         + b"fNOFD\0n/proc/77/task/78/fd (opendir: No such file or directory)\0\n",
         "linux-uninspectable": payload + _UNINSPECTABLE,
         "linux-uninspectable-on-darwin": payload + _UNINSPECTABLE,
+        "linux-threaded-uninspectable": payload + _THREADED_UNINSPECTABLE,
         "linux-partial-denial": payload + _DENIED_DESCRIPTOR,
         "linux-other-errno": payload
         + _UNINSPECTABLE.replace(b"Permission denied", b"Input/output error"),
@@ -135,12 +171,20 @@ _OBSERVED = {
     "linux-fd-gone",
     "linux-task-gone",
     "linux-uninspectable",
+    "linux-threaded-uninspectable",
     "linux-stat-gone",
     "linux-lstat-gone",
     "linux-pipe-stat-gone",
     "linux-cwd-stat-gone",
     "named-live-file",
     "unix-inode",
+    "linux-netlink-lsof-4.95",
+    "linux-netlink-lsof-4.99.4",
+}
+# Each uninspectable process is reported once, however many of its threads lsof lists.
+_REPORTED = {
+    "linux-uninspectable": (UninspectableProcess(pid=1, uid=0, command="sh"),),
+    "linux-threaded-uninspectable": (UninspectableProcess(pid=2616, uid=0, command="python3"),),
 }
 
 
@@ -184,12 +228,7 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
         observation = observe(tmp_path, tree=tmp_path, index=executable)
         assert observation.identities == _HELD
         uninspectable = observation.boundary.uninspectable_processes
-        if not linux:
-            assert uninspectable is None
-        elif fault == "linux-uninspectable":
-            assert uninspectable == (UninspectableProcess(pid=1, uid=0, command="sh"),)
-        else:
-            assert uninspectable == ()
+        assert uninspectable == (_REPORTED.get(fault, ()) if linux else None)
     else:
         with pytest.raises(ProcessExecutionError) as error:
             observe(tmp_path, tree=tmp_path, index=executable)

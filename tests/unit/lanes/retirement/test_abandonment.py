@@ -14,6 +14,7 @@ import ethos.adapters.mutation.lane_retirement.operation as operation
 from ethos.adapters.open_files import OpenFileObservation
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.store.state.lease.projection import observe_lease
+from ethos.adapters.store.state.schema import local_state_root
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.retirement import OpenFileBoundary
 from ethos.contracts.retirement import UninspectableProcess
@@ -136,6 +137,24 @@ def _assert_terminal_recovery(repo, lane, receipt, detached):
         (lane / "replacement").write_text("new unreviewed bytes\n")
         assert apply_retirement_receipt(repo, receipt)["verdict"] == "block"
         assert (lane / "replacement").read_text() == "new unreviewed bytes\n"
+
+
+def _assert_retired_receipt(recovered, request, removing):
+    """A recovered result and its terminal receipt carry every effect and the removal boundary."""
+    assert recovered["state"] == "retired", recovered
+    assert recovered["open_file_observation"] == removing
+    terminal = recovered["terminal_receipt"]
+    assert isinstance(terminal, dict)
+    payload = json.loads(Path(terminal["path"]).read_text())
+    assert payload["kind"] == "lane-retirement-receipt"
+    assert payload["request"] == request.model_dump(mode="json")
+    assert payload["progress"]["completed_effects"] == [
+        "remove_worktree",
+        "delete_ref",
+        "revoke_lease",
+    ]
+    assert payload["progress"]["remaining_effects"] == []
+    assert payload["progress"]["open_file_observation"] == removing
 
 
 def _change_reviewed_survivor(
@@ -356,6 +375,8 @@ def test_real_abandonment_recovers_after_worktree_removal_and_git_spawn_failure(
     assert partial["state"] == "partial_transition"
     assert partial["completed_effects"] == ["remove_worktree"]
     assert partial["remaining_effects"] == ["delete_ref", "revoke_lease"]
+    removing = partial["open_file_observation"]
+    assert (removing is not None) == review_content
     assert not lane.exists()
     assert not admin.exists()
     assert git(repo, "rev-parse", "work/abandon") == head
@@ -367,25 +388,16 @@ def test_real_abandonment_recovers_after_worktree_removal_and_git_spawn_failure(
         "remove_operation_worktree",
         lambda *_a: pytest.fail("recovery replays worktree removal"),
     )
+    # An unverifiable snapshot neither blocks recovery nor replaces the recorded boundary.
+    store = local_state_root(repo) / "operations" / "lane-retirement" / request.digest()
+    (store / f"{'0' * 64}.json").write_bytes(b"{}")
     for _ in range(2):
-        recovered = apply_retirement_receipt(repo, receipt)
-        assert recovered["state"] == "retired", recovered
+        _assert_retired_receipt(apply_retirement_receipt(repo, receipt), request, removing)
         monkeypatch.setattr(
             operation,
             "delete_operation_ref",
             lambda *_a: pytest.fail("terminal recovery replays deletion"),
         )
-        terminal = recovered["terminal_receipt"]
-        assert isinstance(terminal, dict)
-        payload = json.loads(Path(terminal["path"]).read_text())
-        assert payload["kind"] == "lane-retirement-receipt"
-        assert payload["request"] == request.model_dump(mode="json")
-        assert payload["progress"]["completed_effects"] == [
-            "remove_worktree",
-            "delete_ref",
-            "revoke_lease",
-        ]
-        assert payload["progress"]["remaining_effects"] == []
     operation.revoke_operation_lease(repo, request)
     assert git(repo, "branch", "--list", "work/abandon") == ""
     assert observe_lease(state_database(repo), "work/abandon").state == "missing"

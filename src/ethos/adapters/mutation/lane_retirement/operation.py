@@ -139,6 +139,23 @@ def persist_progress(
     )
 
 
+def _removal_observation(root: Path, request: RetirementOperation) -> OpenFileBoundary | None:
+    """Return the one boundary this request's verified snapshots record for its removal."""
+    store = local_state_root(root) / "operations" / "lane-retirement" / request.digest()
+    recorded: set[OpenFileBoundary] = set()
+    for path in store.glob("*.json"):
+        try:
+            snapshot = RetirementProgress.model_validate_json(
+                _load_bytes(store, str(path), path.stem)
+            )
+        except ValueError:
+            # Recovery acts on current facts; an unverifiable snapshot only reports nothing.
+            continue
+        if "remove_worktree" in snapshot.completed_effects and snapshot.open_file_observation:
+            recorded.add(snapshot.open_file_observation)
+    return recorded.pop() if len(recorded) == 1 else None
+
+
 def persist_terminal_receipt(
     root: Path, request: RetirementOperation, progress: RetirementProgress
 ) -> dict[str, object]:
@@ -464,8 +481,15 @@ def apply_operation(
     with acquired:
         failure: dict[str, object] = {}
         terminal_receipt: dict[str, object] = {}
+        observation: OpenFileBoundary | None = None
         try:
             progress = preflight_operation(control_root, request)
+            if "remove_worktree" in progress.completed_effects:
+                # A recovered run removes nothing, so it reports the removal it continues.
+                progress = progress.model_copy(
+                    update={"open_file_observation": _removal_observation(control_root, request)}
+                )
+            observation = progress.open_file_observation
             if not apply:
                 return report(progress)
             progress_receipt = persist_progress(control_root, request, progress)
@@ -474,7 +498,6 @@ def apply_operation(
                 "delete_ref": delete_operation_ref,
                 "revoke_lease": revoke_operation_lease,
             }
-            observation = progress.open_file_observation
             for effect in progress.remaining_effects:
                 admitted = actions[effect](control_root, request)
                 if effect == "remove_worktree":
@@ -492,7 +515,9 @@ def apply_operation(
         except (GitExecutionError, OSError, RuntimeError, TypeError, ValueError) as error:
             failure = retirement_failure(error)
             try:
-                progress = reduce_progress(request, observe_operation(control_root, request))
+                progress = reduce_progress(
+                    request, observe_operation(control_root, request)
+                ).model_copy(update={"open_file_observation": observation})
                 progress_receipt = (
                     persist_progress(control_root, request, progress) if apply else {}
                 )

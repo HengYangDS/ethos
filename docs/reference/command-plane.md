@@ -382,14 +382,7 @@ execution. Add `--execute --expect-head <head>` for frozen-source evidence.
 [Standard verification](#standard-exact-source-proof) owns its acceptance route;
 a focused result never implies the complete native floor.
 
-An executed full proof first takes its repository's proof slot, which every worktree shares, then
-waits until the host's 1- and 5-minute load averages are both within `ETHOS_PROOF_HOST_LOAD_LIMIT`
-(default: half the CPUs; `0` admits on the slot alone), so a short lull between other jobs does not
-admit it. It reports waiting on stderr and waits at most one hour;
-longer contention ends the proof with `proof_admission_contended` before any gate runs. The result
-records how long admission waited and the load it admitted. A Work Lane proof whose candidate is no
-longer in the lane's history, at start or while waiting, ends with `candidate_base_stale` and the
-refresh command instead, because that proof could not land.
+Full proof holds the repository's shared slot, then waits for both host 1- and 5-minute loads to meet `ETHOS_PROOF_HOST_LOAD_LIMIT` (default: half the CPUs; `0` skips load checks). Waiting reports on stderr and stops after one hour with `proof_admission_contended`, before gates run. Results record wait duration and admitted load. At start or while queued, a lane missing candidate ancestry stops with `candidate_base_stale` and its refresh command; it cannot land.
 
 ## Hidden Operational Roots
 

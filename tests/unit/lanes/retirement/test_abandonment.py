@@ -211,6 +211,53 @@ def test_reviewed_absent_recovery_preserves_changed_index_and_recreated_content(
         assert (lane / "new.txt").read_text() == "unreviewed new root\n"
 
 
+@pytest.mark.parametrize(
+    "consumer", ["removed-file", "removed-directory", "removed-root", "live-file", "index"]
+)
+def test_reviewed_retirement_observes_only_surviving_file_identities(
+    divergent_lane, monkeypatch, consumer
+):
+    """Removed receipt identities cannot impersonate surviving retirement consumers."""
+    repo, lane = divergent_lane
+    directory = lane / "empty"
+    directory.mkdir()
+    index = Path(git(lane, "rev-parse", "--path-format=absolute", "--git-path", "index"))
+    selected = {
+        "removed-file": lane / "abandoned.txt",
+        "removed-directory": directory,
+        "removed-root": lane,
+        "live-file": lane / "abandoned.txt",
+        "index": index,
+    }[consumer]
+    value = selected.stat()
+    identity = frozenset({(value.st_dev, value.st_ino)})
+    derived = derive_abandonment(repo, review_content=True)
+    assert derived["verdict"] == "pass", derived
+    receipt = derived["receipt"]
+    if consumer == "removed-root":
+        shutil.rmtree(lane)
+    elif consumer == "removed-directory":
+        selected.rmdir()
+    elif consumer == "removed-file":
+        selected.unlink()
+    monkeypatch.setattr(operation, "process_file_identities", lambda _root, **_scope: identity)
+    before = (git(repo, "show-ref"), index.read_bytes())
+
+    result = operation.execute_retirement_operation(
+        root=repo,
+        receipt_path=receipt["path"],
+        receipt_sha256=receipt["sha256"],
+        apply=False,
+        authorized=False,
+    )
+
+    assert result["required_gaps"] == (
+        [] if consumer.startswith("removed-") else ["retirement_content_in_use"]
+    ), result
+    assert before == (git(repo, "show-ref"), index.read_bytes())
+    assert observe_lease(state_database(repo), "work/abandon").state == "valid"
+
+
 @pytest.mark.parametrize("content_absent", [False, True])
 @pytest.mark.parametrize("review_content", [False, True])
 def test_real_abandonment_recovers_after_worktree_removal_and_git_spawn_failure(
@@ -253,7 +300,7 @@ def test_real_abandonment_recovers_after_worktree_removal_and_git_spawn_failure(
 
     partial = apply_retirement_receipt(repo, receipt)
 
-    assert written == [(), ("remove_worktree",), ("remove_worktree",)]
+    assert written == [(), ("remove_worktree",), ("remove_worktree",)], partial
     assert partial["required_gaps"] == ["git_process_spawn_failed"]
     assert partial["process_failure"] == failure.evidence()
     assert "ethos lane retire recover" in str(partial["next_action"])

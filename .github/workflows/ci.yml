@@ -33,43 +33,21 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: Build and publish immutable supply
-        env:
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |-
-          set -euo pipefail
-          image="ghcr.io/hengyangds/ethos-ci-supply:${{ github.sha }}"
-          docker buildx build --check --platform linux/arm64 --file .config/ci/supply/Dockerfile .
-          docker build --platform linux/arm64 --file .config/ci/supply/Dockerfile --tag "$image" .
-          smoke_root="$(mktemp -d)"
-          smoke_name="ethos-ci-supply-${{ github.run_id }}"
-          export DOCKER_CONFIG="$smoke_root/docker-config"
-          mkdir -m 0700 "$DOCKER_CONFIG"
-          cleanup() {
-            docker rm -f "$smoke_name" >/dev/null 2>&1 || true
-            rm -rf "$smoke_root"
-          }
-          trap cleanup EXIT
-          git clone --local --no-hardlinks --no-checkout . "$smoke_root/repo"
-          git -C "$smoke_root/repo" checkout --detach "${{ github.sha }}"
-          smoke_command=(docker create --name "$smoke_name" --network none)
-          smoke_command+=(--env CI_PROJECT_DIR=/workspace --env ETHOS_CI_SUPPLY_MANIFEST=/opt/ethos-supply/input.sha256)
-          smoke_command+=(--env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory --env GIT_CONFIG_VALUE_0=/workspace)
-          smoke_script="test \$EUID -eq 65534"
-          smoke_script+=" && uv run --frozen --offline python -B -I -m ethos.cli --version"
-          smoke_script+=" && uv run --frozen --offline python tools/ci/toolchain/native.py --root . --mise gitleaks scc syft"
-          smoke_script+=" && uv run --frozen --offline python -B -m pytest -q 'tests/unit/adoption/quality/test_floor.py::test_real_locked_python_checks_qualify_the_selected_source[inline-none]'"
-          smoke_command+=(--entrypoint /workspace/tools/ci/scripts/bootstrap-python.sh "$image" -- /bin/bash -lc "$smoke_script")
-          "${smoke_command[@]}"
-          docker cp "$smoke_root/repo/." "$smoke_name:/workspace"
-          docker start --attach "$smoke_name"
-          test "$(docker inspect --format '{{.State.ExitCode}}' "$smoke_name")" = 0
-          docker rm "$smoke_name"
-          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
-          docker push "$image"
-          docker buildx imagetools inspect "$image"
-          cleanup
-          trap - EXIT
+      - name: Check the supply definition
+        run: docker buildx build --check --platform linux/arm64 --file .config/ci/supply/Dockerfile --build-context workspace=. .
+      - name: Accept the supply offline against this checkout
+        run: docker buildx build --platform linux/arm64 --file .config/ci/supply/Dockerfile --target smoke --build-context workspace=. .
+      - name: Build the supply image
+        run: docker buildx build --platform linux/arm64 --file .config/ci/supply/Dockerfile --target supply --tag ghcr.io/hengyangds/ethos-ci-supply:${{ github.sha }} --load .
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish the supply image
+        run: docker push ghcr.io/hengyangds/ethos-ci-supply:${{ github.sha }}
+      - name: Inspect the published supply image
+        run: docker buildx imagetools inspect ghcr.io/hengyangds/ethos-ci-supply:${{ github.sha }}
   host-conformance:
     name: ${{ matrix.os }} / Python ${{ matrix.python }} / Node 26.12.0
     runs-on: ${{ matrix.os }}
@@ -100,20 +78,20 @@ jobs:
         run: uv python install --no-bin ${{ matrix.python }}
       - name: Synchronize build-only Python dependencies
         run: uv sync --locked --no-install-project --group dev
-      - name: Prepare locked native Node supply
+      - name: Prepare locked native build supply
         env:
           PYTHONPATH: src
-        run: uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise
+        run: uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale
       - name: Install locked npm packages
         env:
           PYTHONPATH: src
-        run: uv run --no-sync python -B -c 'import os, subprocess, sys; from pathlib import Path; from ethos.adapters.repo.runtime.materialization.node.supply import NodeRuntime, NodeSupply; root = Path.cwd(); runtime = NodeRuntime.read(NodeSupply.read(root).installed_root(root), windows=os.name == "nt"); subprocess.run([str(runtime.executable), str(runtime.npm), *sys.argv[1:]], env=dict(os.environ, PATH=str(runtime.executable.parent) + os.pathsep + os.environ["PATH"], npm_config_engine_strict="true", npm_config_audit="false", npm_config_fund="false", npm_config_update_notifier="false"), stdin=subprocess.DEVNULL, timeout=120, check=True)' ci --ignore-scripts
+        run: uv run --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts
       - name: Synchronize locked Python environment
         run: uv sync --locked --group dev
       - name: Execute wheel conformance
         run: uv run --frozen python -m nox -s host_conformance
       - name: Execute npm launcher
-        run: uv run --no-sync python -B -c 'import os, subprocess, sys; from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime; runtime = resolve_node_runtime(); subprocess.run([str(runtime.executable), str(runtime.npm), *sys.argv[1:]], env=dict(os.environ, PATH=str(runtime.executable.parent) + os.pathsep + os.environ["PATH"], npm_config_engine_strict="true", npm_config_audit="false", npm_config_fund="false", npm_config_update_notifier="false"), stdin=subprocess.DEVNULL, timeout=120, check=True)' run ethos -- --version
+        run: uv run --frozen python -B -m tools.ci.toolchain.npm run ethos -- --version
       - name: Execute native npm package tests
         run: uv run --frozen python -m nox -s javascript_tests
       - name: Upload host conformance receipt
@@ -134,22 +112,32 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-        with:
-          python-version: "3.14"
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
         with:
           version: 0.13.1
-      - name: Bootstrap Python and OpenSpec
-        run: tools/ci/scripts/bootstrap-python.sh
+          python-version: "3.14"
+      - name: Provision native Python image supply
+        run: uv python install --no-bin 3.14
+      - name: Synchronize build-only Python dependencies
+        run: uv sync --locked --no-install-project --group dev
+      - name: Synchronize locked Python environment
+        run: uv sync --locked --group dev
+      - name: Prepare locked native tool supply
+        run: uv run --frozen python -B -m tools.ci.toolchain.native --root . --mise vale
+      - name: Install locked npm packages
+        run: uv run --frozen python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts
+      - name: Provision test fixture supply
+        run: uv run --frozen python -B -I tools/ci/toolchain/fixture_supply.py .
+      - name: Bind operator commit trust
+        run: uv run --frozen python -B -m tools.ci.toolchain.commit_trust
       - name: Admit pushed commit range
         if: github.event_name == 'push'
-        run: uv run --frozen --offline python -B -I -m ethos.cli hook commit-range --target-ref "${{ github.ref }}" --proposed-head "${{ github.sha }}" --remote-head "${{ github.event.before }}" --remote origin --root . --json
+        run: uv run --frozen --offline --no-sync python -B -I -m ethos.cli hook commit-range --target-ref "${{ github.ref }}" --proposed-head "${{ github.sha }}" --remote-head "${{ github.event.before }}" --remote origin --root . --json
       - name: Admit pull request commit range
         if: github.event_name == 'pull_request'
-        run: uv run --frozen --offline python -B -I -m ethos.cli hook commit-range --target-ref "refs/heads/${{ github.event.pull_request.base.ref }}" --proposed-head "${{ github.event.pull_request.head.sha }}" --remote-head "${{ github.event.pull_request.base.sha }}" --remote origin --root . --json
+        run: uv run --frozen --offline --no-sync python -B -I -m ethos.cli hook commit-range --target-ref "refs/heads/${{ github.event.pull_request.base.ref }}" --proposed-head "${{ github.event.pull_request.head.sha }}" --remote-head "${{ github.event.pull_request.base.sha }}" --remote origin --root . --json
       - name: HEAD-bound hosted verification receipt
-        run: tools/ci/scripts/run-head-bound-proof.sh
+        run: uv run --frozen --offline --no-sync python -m nox -s hosted_verification
       - name: Upload proof receipt
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -178,18 +166,26 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
-        with:
-          python-version: "3.14"
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
         with:
           version: 0.13.1
-      - name: Bootstrap Python and OpenSpec
-        run: tools/ci/scripts/bootstrap-python.sh
+          python-version: "3.14"
+      - name: Provision native Python image supply
+        run: uv python install --no-bin 3.14
+      - name: Synchronize build-only Python dependencies
+        run: uv sync --locked --no-install-project --group dev
+      - name: Synchronize locked Python environment
+        run: uv sync --locked --group dev
+      - name: Prepare locked native tool supply
+        run: uv run --frozen python -B -m tools.ci.toolchain.native --root . --mise vale
+      - name: Install locked npm packages
+        run: uv run --frozen python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts
+      - name: Provision test fixture supply
+        run: uv run --frozen python -B -I tools/ci/toolchain/fixture_supply.py .
+      - name: Bind operator commit trust
+        run: uv run --frozen python -B -m tools.ci.toolchain.commit_trust
       - name: External links
-        run: |-
-          mkdir -p build/evidence/quality/external-links
-          tools/ci/scripts/with-python-runtime.sh -- uv run --frozen --offline python -B -I -m ethos.cli prove --host --execute --gate external-links --expect-head "$(git rev-parse HEAD)" --json > build/evidence/quality/external-links/report.json
+        run: uv run --frozen --offline --no-sync python -m nox -s external_links
       - name: Upload external link observation
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

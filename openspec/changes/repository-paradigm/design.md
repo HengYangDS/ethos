@@ -174,9 +174,9 @@ Both are bound through `fix` and `check`. ETHOS adopts Prettier for its own Mark
 
 The workstation blank-line rule applies to every repository, so blank lines are what the formatters write for the parsed structure. Ruff formats Python wherever Python is tracked, because it is the only Python formatter in the fleet and the rule has no other enforcer.
 
-The contract holds each formatter's common settings, so a repository cannot keep its own width or wrapping. Current authored OpenSpec Markdown and YAML use the same Prettier fix/check owner as other authored carriers. Official OpenSpec still owns artifact structure, task and requirement meaning, validation and archive; formatting grants none of those lifecycle effects. Preserved prose wrapping and native code spans retain literal names such as `operation-intent-*`. Archived records and captured upstream sources keep their immutable owner and are excluded from writes. This resolves the owner boundary selected in task 3.7 without modifying official tool source or adding a parallel formatter.
+The contract holds each formatter's common settings, so a repository cannot keep its own width or wrapping. Carrier ownership is unchanged: a carrier class whose only files are archived needs no formatter, and a carrier with another declared owner keeps it. Official OpenSpec artifacts get no formatter, so ETHOS's own `openspec/**` stays official-owner-only in its format-selection policy: the Prettier binding excludes it and markdownlint remains its checker. The official CLI copies delta blocks verbatim into the main specs and writes a new spec's `## Purpose` without a blank line, so a second formatter would fail every archive that creates a spec, and Prettier rewrites emphasis inside the requirement names that the archive matches. A lint rule cannot reject the formatter's own output either, so markdownlint requires no emphasis style in Prettier-owned Markdown, where Prettier writes underscores but asterisks inside a word.
 
-The size ceilings are shared too: 512 effective lines for each Python file and 512 nonblank lines for each current authored Markdown document. The Python ceiling was a value in ETHOS's own `.ethos/rules.toml` that no adopter declared, so adopters had none. The Markdown ceiling was a product constant of 500, while task 12.4 of the proof-throughput Change records 512. The contract now holds both values. The paradigm report measures Python files, and docs health reads the Markdown value from the contract. The Markdown requirement itself stays in the proof-throughput quality specification. ETHOS's `python-size` gate stays as a projection of the paradigm measurement until the gate registry can change through ordinary landing (task 2.6).
+The size ceilings are shared too: 512 effective lines for each Python file and 512 nonblank lines for each current authored Markdown document. The Python ceiling was a value in ETHOS's own `.ethos/rules.toml` that no adopter declared, so adopters had none. The Markdown ceiling was a product constant of 500, while task 12.4 of the proof-throughput Change records 512. The contract now holds both values. The paradigm report measures Python files, and docs health reads the Markdown value from the contract. The Markdown requirement itself stays in the proof-throughput quality specification. The paradigm report is the only Python size check: ETHOS removed its `python-size` gate once its gate registry could change through ordinary landing (decision 15).
 
 ### 9. Toolchain owner and verbs
 
@@ -189,7 +189,7 @@ One locked owner selects tools:
 
 ### 10. Orchestration is native
 
-Every repository orchestrates its verbs, gates and CI. Six of the nine repositories outside the deferred families already do this through native commands and owner tasks alone. ETHOS, web-ingestion-benchmark and architecture-publisher also track shell scripts, and so do both deferred families. A script runs only where its interpreter exists, so it fails the Windows hosts that the verbs serve. The workstation rule already requires native execution, so the paradigm picks the native encoding:
+Every repository orchestrates its verbs, gates and CI. Of the nine repositories outside the deferred families, only architecture-publications and the two introduction films do this through native commands and owner tasks alone. ETHOS and architecture-publisher also track shell scripts, as both deferred families do, and five repositories embed shell programs in CI steps. A script runs only where its interpreter exists, so it fails the Windows hosts that the verbs serve. The workstation rule already requires native execution, so the paradigm picks the native encoding:
 
 - Verbs, gates, CI steps and release steps call native tool commands or toolchain-owner tasks. A CI step calls one command; wiring a single native command into CI is not orchestration.
 - A tracked file with a shell or PowerShell suffix or shebang conforms only as the output of an official generator that the packaged tool catalog names, such as `mise generate bootstrap`. Its generator version and output digest are recorded for `check` to verify.
@@ -199,11 +199,13 @@ Rewriting the same controller in another language does not satisfy this decision
 
 ### 11. CI for several Forges is one model
 
-The repositories that publish to two Forges and generate both files from `.config/ci/pipeline.cue` show the practice works. The others hand-write two files that already drift. The model and its drift check become an obligation only when more than one Forge is targeted.
+The repositories that publish to two Forges and generate both files from `.config/ci/pipeline.cue` show the practice works. The others hand-write two files that already drift. The model and its drift check become an obligation only when more than one Forge is targeted. The model is CUE, as in all three repositories that publish to two Forges; a tracked `.gitlab-ci.yml` and workflow files directly under `.github/workflows/` mark the two Forges.
 
 ### 12. Names
 
-Repository-authored names use lowercase kebab-case. Exemptions follow the tool catalog and ecosystem modules: Python modules and test files, Go packages and test files, entry documents, and basenames a tool requires.
+Repository-authored names use lowercase kebab-case. Exemptions follow the tool catalog and ecosystem modules: Python modules and test files, Go packages and test files, entry documents, and basenames a tool requires. A leading `.` or `_` marker, as in the `docs/_meta` that the docs registry reads, and dot-separated suffixes are not word separators.
+
+A name that another obligation judges keeps that obligation's single gap: root entries, binding files, configuration owners and decision records. Prewrite judges a new file's own name; the report judges directories, because only the whole tree shows whether a directory holds Python or Go modules. A rename must update its references, so the repair stays report-only.
 
 ### 13. Ecosystem modules stay thin
 
@@ -233,6 +235,14 @@ A repository's own rules follow the common ones. The repair keeps those rules, t
 
 A repository that selects another schema keeps that gap report-only, because its Changes are written against that schema's artifacts.
 
+### 15. The product registry is recognized by history
+
+ETHOS's own `system/gates.toml` keeps the plain registry owner because the evaluated commit shares Git history with the commit the running build came from. Until now the test was byte equality with the running build's packaged registry, so every edit of ETHOS's registry looked like an adopter registry. The installed runtime then applied the adopter quality floor, which ETHOS's registry cannot satisfy, and registry edits reached dev only through break-glass ref updates.
+
+Shared history gives the same answer in every runtime that judges ETHOS: the lane source, the installed hook runtime and a release wheel. A repository without that history keeps the adopter floor, even for a verbatim copy of the product registry. Deciding by gate profiles or `profile_id` was rejected, because an adopter could omit `profile` or name itself `ethos` to escape the floor. Giving ETHOS's registry verifiers that satisfy the floor remains the long-term alternative; it is a much larger change.
+
+The classification is not part of the policy projection. The incumbent runtime therefore admits the classification change while the registry is unchanged, and the `python-size` removal follows as an ordinary registry edit judged by the new runtime.
+
 ## Risks / Trade-offs
 
 - **Churn across every adopter.** Mitigation: each repository migrates in one Change that lands together with its runtime switch. The audit names the canonical repair for every gap.
@@ -242,6 +252,7 @@ A repository that selects another schema keeps that gap report-only, because its
 - **Owners the incumbent runtime reads by path.** Pre-commit admission runs the selected runtime, which finds projection declarations only at the paths it knows. Mitigation: a runtime first registers both the incumbent and the canonical path, and the declarations move in a later batch under that runtime.
 - **Strict TOML loaders.** Pytest treats an explicit TOML file as native configuration only under the basename `pytest.toml`, and its string-typed options must stay strings. Mitigation: the tool catalog records the basename, and migration checks prove the strict options take effect.
 - **The deferred families diverge for longer.** Accepted under the workstation rule. Their later Changes consume the same contract.
+- **A product registry edit no longer meets an accidental veto.** Accepted. Closeout's control replacement records a removed or weakened required gate; enforcing an independent review of that record needs a declared independent verification, which ETHOS does not declare today. A fork that carries ETHOS's history counts as the product.
 
 ## Migration Plan
 

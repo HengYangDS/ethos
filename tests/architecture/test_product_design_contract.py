@@ -15,6 +15,7 @@ from ethos.contracts.semantic import Commitment
 from ethos.repository.audit import REQUIRED_DOCS
 from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.policy.boundary.product import product_surface_files
+from ethos.repository.registry.docs.decisions import decision_record_gaps
 from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.repository.registry.docs.registry import front_matter
 from ethos.surface.cli.application import app
@@ -190,30 +191,17 @@ def test_decision_records_are_audited_product_surfaces() -> None:
 
 
 def test_decision_records_preserve_complete_cross_change_rationale() -> None:
-    """A retained decision explains the choice instead of duplicating current policy."""
-    required_sections = (
-        "## Context",
-        "## Decision",
-        "## Consequences",
-        "## Rejected Alternatives",
-        "## Evidence",
-        "## Revisit And Retirement",
-    )
-
-    for path in sorted(
-        path for path in (ROOT / "docs/decisions").glob("*.md") if path.name != "README.md"
-    ):
+    """Retained decisions consume the shared contract and keep known dates and owners."""
+    registry = build_docs_registry(ROOT)
+    assert decision_record_gaps(ROOT, registry) == []
+    for entry in registry:
+        if entry.get("role") != "decision":
+            continue
+        path = ROOT / entry["path"]
         metadata = front_matter(path)
         text = path.read_text(encoding="utf-8")
-        identity = re.fullmatch(r"dr-([0-9]{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md", path.name)
-
-        assert identity is not None, path
-        assert f"# DR-{identity[1]}:" in text, path
         assert re.search(r"(?m)^Date: \d{4}-\d{2}-\d{2}", text), path
-        assert metadata["role"] == "decision", path
-        assert metadata["state"] == "canonical", path
         assert "current_owner" in metadata["relations"], path
-        assert all(section in text for section in required_sections), path
 
 
 def test_command_plane_documentation_names_every_registered_root() -> None:

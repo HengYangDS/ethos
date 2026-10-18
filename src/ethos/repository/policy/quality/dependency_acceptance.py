@@ -307,6 +307,23 @@ def _npm_counts(raw: dict) -> tuple[int, int]:
     return dependencies, total
 
 
+def _npm_advisory_request_failed(output: str) -> bool:
+    """Recognize npm's audit error object for a bulk advisory request that never answered."""
+    try:
+        raw = json.loads(output)
+    except ValueError:
+        return False
+    message = raw.get("message") if isinstance(raw, dict) else None
+    return (
+        isinstance(message, str)
+        and message.startswith("request to ")
+        and "/-/npm/v1/security/advisories/bulk failed" in message
+        and isinstance(raw.get("error"), dict)
+        and "vulnerabilities" not in raw
+        and "metadata" not in raw
+    )
+
+
 def interpret_native_audit(
     ecosystem: str, output: str, exit_code: int
 ) -> tuple[Verdict, str, dict]:
@@ -314,6 +331,8 @@ def interpret_native_audit(
         raw = json.loads(output)
         dependencies, findings = (_python_counts if ecosystem == "python" else _npm_counts)(raw)
     except (KeyError, TypeError, ValueError, AttributeError):
+        if ecosystem == "npm" and exit_code and _npm_advisory_request_failed(output):
+            return "unknown", "advisory_request_failed", {}
         return "unknown", "native_output_invalid", {}
     details = {"dependency_count": dependencies, "finding_count": findings}
     if findings:

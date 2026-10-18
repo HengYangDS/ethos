@@ -11,6 +11,10 @@ import pytest
 import yaml
 
 import tools.ci.format_selection as format_selection
+from ethos.adapters.gates.formatting import render_source_content
+from ethos.adapters.process import run_command
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
+from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.repository.policy.quality.format_selection import audit
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -96,7 +100,6 @@ def test_native_carriers_separate_canonicalization_from_validation(
         "pyproject.toml": ("taplo", "taplo"),
         ".github/workflows/ci.yml": ("cue", "cue"),
         "distributions/npm/bin/ethos.mjs": ("prettier", "prettier"),
-        "tools/ci/scripts/bootstrap-python.sh": ("shfmt", "shellcheck"),
         "assets/brand/ethos-logo.svg": ("svgo", "svgo"),
         "assets/brand/ethos-logo-1024.png": ("source-binary", "pillow"),
         ".gitattributes": ("repository-canonical-text", "repository-hygiene"),
@@ -157,6 +160,37 @@ def test_prettier_inputs_are_the_carriers_it_is_declared_to_own() -> None:
     assert any(path.startswith("openspec/changes/") for path in selected)
     assert not any(path.startswith("openspec/changes/archive/") for path in selected)
     assert "distributions/npm/bin/ethos.mjs" in selected
+
+
+def test_markdown_lint_accepts_what_the_markdown_formatter_writes(tmp_path: Path) -> None:
+    """Prettier writes underscore emphasis but asterisks inside a word; the lint accepts both."""
+    root = init_git_repo(tmp_path / "repo")
+    page = root / "docs" / "page.md"
+    page.parent.mkdir()
+    page.write_text("# Title\n\nintra*word*emphasis first, then an *emphasised* word.\n")
+    formatted, ignored = render_source_content(root, "docs/page.md", "prettier", page.read_bytes())
+    assert not ignored
+    page.write_bytes(formatted)
+    assert "then an _emphasised_ word" in page.read_text(encoding="utf-8")
+    assert render_source_content(root, "docs/page.md", "prettier", formatted) == (
+        formatted,
+        False,
+    )
+
+    lint = run_command(
+        root,
+        (
+            str(resolve_node_runtime().executable),
+            str(product_node_module("markdownlint-cli2") / "markdownlint-cli2-bin.mjs"),
+            "--config",
+            str(ROOT / ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml"),
+            "docs/page.md",
+        ),
+        timeout=60,
+        remove_env=("NODE_OPTIONS", "NODE_PATH"),
+    )
+
+    assert lint.returncode == 0, lint.stdout + lint.stderr
 
 
 @pytest.mark.parametrize(
@@ -246,3 +280,19 @@ def test_unused_malformed_owner_cannot_hide_behind_a_valid_fallback(tmp_path) ->
 
     with pytest.raises(TypeError):
         audit(tmp_path, paths=("example.py",))
+
+
+@pytest.mark.parametrize("name", ["accept", "reject"])
+def test_native_vocabulary_has_one_executable_quality_owner(name: str) -> None:
+    """Vale vocabulary parsing is configuration validation, not a prose waiver."""
+    relative = f".config/checks/vale/styles/config/vocabularies/common/{name}.txt"
+    report = audit(ROOT, paths=(relative,))
+
+    assert report["verdict"] == "pass", report
+    assert report["assignment_count"] == 1
+    assignment = report["assignments"][0]
+    assert assignment["validation_owner"] == "vale"
+    assert assignment["validation_command"].endswith("-s config_quality")
+    assert assignment["format_check"].endswith("-s repository_hygiene")
+    assert assignment["mutation_policy"] == "canonical-text"
+    assert audit(ROOT, paths=("docs/unowned.txt",))["verdict"] == "block"

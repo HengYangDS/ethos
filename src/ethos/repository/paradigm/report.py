@@ -18,8 +18,15 @@ from ethos.measure import effective_code_lines_for_source
 from ethos.repository.paradigm.documents import document_gaps
 from ethos.repository.paradigm.gap import ParadigmGap
 from ethos.repository.paradigm.gap import tracked_text
+from ethos.repository.paradigm.names import authored_name_gaps
+from ethos.repository.paradigm.names import name_path_gaps
 from ethos.repository.paradigm.openspec import openspec_gaps
+from ethos.repository.paradigm.orchestration import orchestration_gaps
+from ethos.repository.paradigm.pipelines import pipeline_model_gaps
+from ethos.repository.paradigm.scripts import tracked_script_gaps
+from ethos.repository.paradigm.toolchain import toolchain_gaps
 from ethos.repository.paradigm.workspace import workspace_gaps
+from ethos.repository.release.changelog import changelog_errors
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -57,6 +64,11 @@ def repository_paradigm_report(root: Path, *, tracked_paths: tuple[str, ...]) ->
         *_peer_remote_gaps(paradigm, root, tracked),
         *workspace_gaps(paradigm, root, tracked),
         *_release_gaps(paradigm, root, tracked),
+        *authored_name_gaps(paradigm, tracked),
+        *pipeline_model_gaps(paradigm, tracked),
+        *toolchain_gaps(paradigm, root, tracked),
+        *tracked_script_gaps(paradigm, root, tracked),
+        *orchestration_gaps(paradigm, root, tracked),
     ]
     required = [gap.required_gap for gap in gaps]
     return {
@@ -80,6 +92,7 @@ def paradigm_path_gaps(path: str) -> tuple[ParadigmGap, ...]:
         *_root_entry_gaps(paradigm, tracked, _admitted_root_entries(paradigm, paradigm.module)),
         *_binding_gaps(paradigm, tracked),
         *_configuration_gaps(paradigm, tracked),
+        *name_path_gaps(paradigm, path),
     )
 
 
@@ -406,22 +419,17 @@ def _release_gaps(
 
 
 def _changelog_gaps(conventions: ReleaseConventions, text: str | None) -> Iterator[ParadigmGap]:
-    """Require Keep a Changelog with an Unreleased section and bracketed version headings."""
+    """Project the common parsed release-note contract as a repository gap."""
     if text is None:
         yield ParadigmGap(
             "changelog", conventions.changelog, f"add {conventions.changelog} (Keep a Changelog)"
         )
         return
-    heading = re.compile(conventions.changelog_heading)
-    headings = [line for line in text.splitlines() if line.startswith("## ")]
-    malformed = [line for line in headings if not heading.match(line)]
-    if malformed or "## [Unreleased]" not in headings:
-        first = malformed[0] if malformed else "## [Unreleased] is missing"
+    if errors := changelog_errors(text):
         yield ParadigmGap(
             "changelog",
             conventions.changelog,
-            f"use bracketed headings such as ## [Unreleased] and ## [1.2.0] - 2026-10-15 "
-            f"({len(malformed)} malformed, first: {first})",
+            f"correct {conventions.changelog}: {', '.join(errors)}",
         )
 
 

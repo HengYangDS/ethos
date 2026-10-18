@@ -42,10 +42,8 @@ class CommandVocabulary:
 
 def normalize_command(command: str) -> str:
     """Return one whitespace-normalized command identity without dropping options."""
-    try:
-        return shlex.join(shlex.split(command))
-    except ValueError:
-        return command.strip()
+    tokens = _split_command(command)
+    return shlex.join(tokens) if tokens else command.strip()
 
 
 def _split_command(command: str) -> tuple[str, ...]:
@@ -109,7 +107,7 @@ def _shell_candidate_lines(text: str) -> list[str]:
 def _shell_command_segments(
     line: str, *, strict: bool = False, preserve_context: bool = False
 ) -> tuple[tuple[str, ...], ...]:
-    lexer = shlex.shlex(line, posix=True, punctuation_chars=";&|()")
+    lexer = shlex.shlex(line, posix=True, punctuation_chars=";&|()<>")
     lexer.whitespace_split, lexer.commenters = True, "#"
     try:
         tokens = list(lexer)
@@ -117,12 +115,17 @@ def _shell_command_segments(
         if strict:
             raise
         return ()
+    for index, token in enumerate(tokens):
+        if set(token) <= set("<>&") and ("<" in token or ">" in token):
+            tokens[index] = ""
+            if index + 1 < len(tokens) and not set(tokens[index + 1]) <= set(";&|()<>"):
+                tokens[index + 1] = ""
     segments: list[tuple[str, ...]] = []
     start = 0
     for index, token in enumerate((*tokens, ";")):
-        if token not in _SHELL_SEPARATORS:
+        if not token or not set(token) <= set(";&|()<>"):
             continue
-        segment = tuple(tokens[start:index])
+        segment = tuple(token for token in tokens[start:index] if token)
         start = index + 1
         command = segment if preserve_context else _shell_segment_command(segment)
         if command:
@@ -131,16 +134,12 @@ def _shell_command_segments(
 
 
 def _shell_segment_command(tokens: tuple[str, ...]) -> tuple[str, ...]:
-    for index, argument in enumerate(tokens):
-        if argument == "env":
-            command_index = _env_command_start(tokens, index + 1)
-            return tokens[command_index:] if command_index < len(tokens) else ()
-        if _ignored_shell_token(argument):
-            continue
-        if argument in _SHELL_NON_EXECUTABLES or argument.startswith("$"):
-            return ()
-        return tokens[index:]
-    return ()
+    command = _command_tokens(tokens)
+    return (
+        command
+        if command and command[0] not in _SHELL_NON_EXECUTABLES and not command[0].startswith("$")
+        else ()
+    )
 
 
 def command_executables(
@@ -164,18 +163,15 @@ def command_executables(
         )
     if executable == "npm" and (script := _npm_script_name(command)) and script not in trail:
         for value in npm_scripts.get(script, set()):
-            try:
-                script_tokens = tuple(shlex.split(value))
-            except ValueError:
-                continue
-            executables.update(
-                command_executables(
-                    script_tokens,
-                    npm_scripts,
-                    trail=trail | {script},
-                    module_imports=module_imports,
+            if script_tokens := _split_command(value):
+                executables.update(
+                    command_executables(
+                        script_tokens,
+                        npm_scripts,
+                        trail=trail | {script},
+                        module_imports=module_imports,
+                    )
                 )
-            )
     return executables
 
 
@@ -184,8 +180,21 @@ def _command_tokens(tokens: tuple[str, ...]) -> tuple[str, ...]:
     while index < len(tokens):
         argument = tokens[index]
         if argument == "env":
-            index = _env_command_start(tokens, index + 1)
-            continue
+            return _command_tokens(
+                _tokens_after_options(
+                    tokens[index + 1 :], _ENV_OPTIONS_WITH_VALUE, skip_assignments=True
+                )
+            )
+        name = argument.rsplit("/", maxsplit=1)[-1]
+        if name in {"sudo", "nice", "nohup"}:
+            value_options = (
+                frozenset({"-u", "--user", "-g", "--group", "-p", "--prompt", "-h", "--host"})
+                if name == "sudo"
+                else frozenset({"-n", "--adjustment"})
+                if name == "nice"
+                else frozenset()
+            )
+            return _command_tokens(_tokens_after_options(tokens[index + 1 :], value_options))
         if (
             argument in _SHELL_PREFIXES
             or argument in {"(", ")"}
@@ -197,25 +206,6 @@ def _command_tokens(tokens: tuple[str, ...]) -> tuple[str, ...]:
             continue
         return tokens[index:]
     return ()
-
-
-def _env_command_start(tokens: tuple[str, ...], index: int) -> int:
-    while index < len(tokens):
-        argument = tokens[index]
-        if argument == "--":
-            return index + 1
-        if _SHELL_ASSIGNMENT.fullmatch(argument):
-            index += 1
-            continue
-        option = argument.partition("=")[0]
-        if option in _ENV_OPTIONS_WITH_VALUE:
-            index += 1 if "=" in argument else 2
-            continue
-        if argument.startswith("-"):
-            index += 1
-            continue
-        return index
-    return index
 
 
 def python_module(tokens: tuple[str, ...]) -> str:
@@ -259,7 +249,7 @@ def _wrapped_command_tokens(tokens: tuple[str, ...], executable: str) -> tuple[s
 
 
 def _tokens_after_options(
-    tokens: tuple[str, ...], options_with_value: frozenset[str]
+    tokens: tuple[str, ...], options_with_value: frozenset[str], *, skip_assignments: bool = False
 ) -> tuple[str, ...]:
     index = 0
     while index < len(tokens):
@@ -268,6 +258,9 @@ def _tokens_after_options(
             return ()
         if argument == "--":
             return tokens[index + 1 :]
+        if skip_assignments and _SHELL_ASSIGNMENT.fullmatch(argument):
+            index += 1
+            continue
         if not argument.startswith("-"):
             return tokens[index:]
         option = argument.partition("=")[0]
@@ -318,21 +311,9 @@ def _shell_command_line(line: str) -> str:
     return line.removeprefix("$").lstrip()
 
 
-def _ignored_shell_token(token: str) -> bool:
-    return bool(
-        _SHELL_ASSIGNMENT.fullmatch(token)
-        or token.startswith("-")
-        or token.isdigit()
-        or token in _SHELL_PREFIXES
-    )
-
-
 def shebang_executable(line: str) -> str:
     """Extract the executable identity from a shebang line."""
-    try:
-        tokens = shlex.split(line.removeprefix("#!"))
-    except ValueError:
-        return ""
+    tokens = _split_command(line.removeprefix("#!"))
     if not tokens:
         return ""
     executable = tokens[0].rsplit("/", maxsplit=1)[-1]
@@ -352,6 +333,50 @@ def shell_commands(
         for tokens in _shell_command_segments(line)
         if (command := command_identity(tokens, known_commands, require_declared=require_declared))
     }
+
+
+def command_invocation(text: str, vocabulary: CommandVocabulary | None = None) -> bool | None:
+    """Classify positive invocation syntax without evaluating data or hiding ambiguity."""
+    candidate = text.strip()
+    if not candidate:
+        return False
+    if re.match(r"^(?:\$\s+|[\w.-]+@[\w.-]+(?::[^$#\s]+)?\$\s+)", candidate):
+        return True
+    try:
+        segments = _shell_command_segments(candidate, strict=True, preserve_context=True)
+    except ValueError:
+        if re.search(r"[.!?]$", candidate) and not re.search(r"(?:^|\s)--?\w", candidate):
+            return False
+        return None
+    outcomes = []
+    for segment in segments:
+        command = _command_tokens(segment)
+        if len(command) < 2 or command[0] == "$":
+            continue
+        result = _invocation_shape(command, vocabulary, candidate)
+        if result is True:
+            return True
+        outcomes.append(result)
+    return None if None in outcomes else False
+
+
+def _invocation_shape(
+    command: tuple[str, ...], vocabulary: CommandVocabulary | None, source: str
+) -> bool | None:
+    if vocabulary is not None and command_identity(command, vocabulary):
+        return True
+    child = _wrapped_command_tokens(command, _executable_identity(command[0]))
+    if child:
+        return True
+    executable = command[0].replace("\\", "/").rsplit("/", maxsplit=1)[-1]
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.+-]*", executable):
+        return False
+    operand = command[1]
+    if any(argument.startswith("-") for argument in command[1:]):
+        return True
+    if operand.startswith(("/", "./", "../", "$")) or "/" in operand:
+        return None if re.search(r"[.!?]$", source) else True
+    return False if re.search(r"[.!?]$", source) else None
 
 
 def command_identity(
@@ -406,8 +431,6 @@ def command_identity(
 
 
 _SHELL_ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=.*")
-
-_SHELL_SEPARATORS = {"&", "&&", ";", ";;", "|", "||"}
 
 _SHELL_PREFIXES = {
     "!",

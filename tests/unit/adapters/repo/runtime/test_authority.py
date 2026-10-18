@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
@@ -11,9 +11,6 @@ from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import runtime_build
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def _repository(tmp_path: Path, *, version: bool) -> tuple[Path, Path]:
@@ -100,3 +97,9 @@ def test_runtime_authority_fallback_matrix(monkeypatch: pytest.MonkeyPatch, tmp_
     observed = authority.expected_runtime_build(tmp_path)
     assert (observed.identity, observed.invoking) == (packaged, True)
     assert authority.expected_runtime_source(tmp_path) == packaged[2:4]
+
+
+def test_invoking_source_commit_is_the_commit_the_running_checkout_holds() -> None:
+    source = Path(authority.__file__).resolve().parents[5]
+
+    assert authority.invoking_source_commit() == git(source, "rev-parse", "HEAD")

@@ -148,25 +148,44 @@ A command contract must not require a universal `packages/`, `tools/`, `scripts/
 or Python layout. Those are adopter implementation choices.
 
 Repository-native proof gates use the same typed descriptor vocabulary as a
-declared gate registry. The `[proof] code_correctness_gates` list names the gates
-required for promotion; each profile-native id must also have one `[[proof.gates]]`
+declared gate registry. The `[proof] code_correctness_gates` list names the default
+roots required for promotion; their complete dependency closure is the proof floor.
+Every root and dependency must have exactly one `[[proof.gates]]`
 descriptor with `id`, `kind`, and exactly one execution owner: a list-form native
 `command` or declared product `providers`. A native command reports its own
 execution; applicable `verification_providers` report independent product-owned
-observations. `[proof.code_correctness_map]` maps the required `behavior` and
-`static-analysis` axes to resolved gates. One gate may provide both axes when
-its actual observations cover both. Missing axes, undeclared IDs, unsupported
+observations. Code applicability comes from the actual selected Git source tree,
+not the repository's name or a claimed document-only profile. A document-only
+closure may omit `[proof.code_correctness_map]` without adding code gates or
+fictional coverage. Observed code still activates the common quality floor and
+requires its native verifiers before execution, including code introduced in the
+prospective index. When declared, `[proof.code_correctness_map]` maps both `behavior` and
+`static-analysis` axes to resolved gates in that closure, including dependencies
+that are not default roots. One gate may provide both axes when
+its actual observations cover both. A partial map, undeclared IDs, unsupported
 providers, and waivers are invalid; sharing execution is not an exemption.
+The product's Python static provider keeps its isolated common rules, so a repository's own
+ignores cannot narrow them, and judges authored Python against the version the repository
+declares: the `target-version` of its accepted Ruff configuration (the paradigm carrier or
+Ruff's root discovery, following `extend` inside the repository), otherwise the lower bound of
+`requires-python`. A missing, malformed or conflicting declaration, or a nested declaration that
+gives checked code another target, is a gap; neither the checker's default nor ETHOS's own
+interpreter decides it.
 Optional descriptor fields such as `depends_on`, `evidence_class`,
 `trust_bearing`, and `network_policy` retain the shared gate semantics. ETHOS
 compiles these descriptors as the profile's sole native gate owner: they
 participate in action graph validation, policy digests, and proof-run
 conformance without becoming packaged gates or a second command plane.
 
+Valid optional descriptors outside the default closure remain available for
+explicit selection. They neither become default roots nor satisfy required code
+axes outside that closure.
+
 An id without a descriptor is not executable truth. The strict profile and gate
-declaration contracts reject missing, duplicate, mismatched, cyclic, or incomplete
+declaration contracts reject missing, duplicate, cyclic, or incomplete
 descriptors before planning; ETHOS never guesses a command or accepts an unverified
-proof-run ID.
+proof-run ID. A required code axis mapped outside the default dependency closure
+is invalid.
 
 Local-source acceptance derives dependency-audit applicability from the exact
 declared full gate policy. A selected canonical ETHOS audit binds its native

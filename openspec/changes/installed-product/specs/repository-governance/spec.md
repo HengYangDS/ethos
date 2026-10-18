@@ -234,12 +234,13 @@ from the complete applicable proof closure.
 
 - **WHEN** a current decision record omits a core role or supplies only comments, quotations, code or one multi-role section
 - **THEN** the portable Docs Registry rejects the unproven role
-- **AND** distinct core roles and meaningful declared alternatives or evidence are accepted independently of heading wording and documentation-root names
+- **AND** distinct canonical sections and meaningful authored rationale are checked within the profile-selected documentation root
 
-#### Scenario: An adopter uses a five-section Decision Record
+#### Scenario: An adopter uses the canonical five-section Decision Record
 
-- **WHEN** distinct `Decision`, `Context`, `Consequences`, `Alternatives`, and `Follow-ups` sections contain visible authored rationale
-- **THEN** the shared registry recognizes `Follow-ups` as the revisit role without requiring duplicate headings
+- **WHEN** a current record has distinct `Context`, `Decision`, `Alternatives Rejected`, `Consequences and Boundary`, and `Evidence and Revisit` sections in that order
+- **THEN** the shared registry checks visible authored rationale in every section through the same portable contract
+- **AND** the selected documentation-root name does not change its identity or section grammar
 - **AND** missing, quoted, hidden, or code-only rationale remains unproven; no adopter-local parser or exemption is required
 
 ### Requirement: Source acceptance preserves the declared native audit owner

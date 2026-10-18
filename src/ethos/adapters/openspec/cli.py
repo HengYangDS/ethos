@@ -17,6 +17,7 @@ from ethos.adapters.repo.runtime.materialization.input_resolution import resolve
 from ethos.adapters.repo.runtime.materialization.node_package_supply import (
     resolve_node_package_supply,
 )
+from ethos.repository.openspec.identifiers import LOGICAL_CHANGE_ID_PATTERN
 from ethos.repository.openspec.identifiers import archived_change_root_matches
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 from ethos.repository.release.resources import packaged_resource
@@ -327,26 +328,37 @@ def _json_result(
 
 def _read_only_arguments(args: tuple[str, ...]) -> bool:
     """Admit only the native read shapes consumed by one governance observation."""
-    return args in {
-        ("config", "list", "--json"),
-        ("doctor", "--json"),
-        ("list", "--json"),
-        ("validate", "--all", "--strict", "--json"),
-    } or (
-        args[-1:] == ("--json",)
-        and (
-            (len(args) == 4 and args[:2] == ("status", "--change"))
-            or (
-                len(args) == 5
-                and args[:3]
-                in {
-                    ("instructions", "apply", "--change"),
-                    ("instructions", "archive", "--change"),
-                }
-            )
-            or (len(args) == 5 and args[:1] == ("show",) and args[2:4] == ("--type", "change"))
+    return (
+        args
+        in {
+            ("config", "list", "--json"),
+            ("doctor", "--json"),
+            ("list", "--json"),
+            ("status", "--all", "--json"),
+            ("validate", "--all", "--strict", "--json"),
+        }
+        or (
+            len(args) == 4
+            and args[:2] == ("templates", "--schema")
+            and args[3] == "--json"
+            and LOGICAL_CHANGE_ID_PATTERN.fullmatch(args[2]) is not None
         )
-        and not logical_change_identifier_issue(args[1] if args[0] == "show" else args[-2])
+        or (
+            args[-1:] == ("--json",)
+            and (
+                (len(args) == 4 and args[:2] == ("status", "--change"))
+                or (
+                    len(args) == 5
+                    and args[:3]
+                    in {
+                        ("instructions", "apply", "--change"),
+                        ("instructions", "archive", "--change"),
+                    }
+                )
+                or (len(args) == 5 and args[:1] == ("show",) and args[2:4] == ("--type", "change"))
+            )
+            and not logical_change_identifier_issue(args[1] if args[0] == "show" else args[-2])
+        )
     )
 
 

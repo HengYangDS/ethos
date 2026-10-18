@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import locale
 import os
 import re
 import shutil
@@ -14,7 +15,6 @@ from contextlib import contextmanager
 from contextlib import suppress
 from contextvars import ContextVar
 from functools import partial
-from io import TextIOWrapper
 from pathlib import Path
 from tempfile import TemporaryFile
 from threading import Lock
@@ -402,7 +402,7 @@ def _execute_command(
     scope = _COMMAND_SCOPE.get() or CommandScope()
     with (
         ExitStack() as resources,
-        _finite_output(enabled=spool_stdout and os.name == "posix") as finite_output,
+        _finite_output(enabled=spool_stdout and os.name == "posix") as (output, diagnostic),
     ):
         finite_input = None
         if stdin is not None:
@@ -411,14 +411,14 @@ def _execute_command(
             )
             finite_input.write(stdin)
             finite_input.seek(0)
-        kwargs["text"] = text_mode and finite_output is None
+        kwargs["text"] = text_mode and diagnostic is None
         try:
             process = scope.start(
                 command,
                 resources=resources,
                 stdin=finite_input if finite_input is not None else subprocess.DEVNULL,
-                stdout=finite_output[0] if finite_output is not None else subprocess.PIPE,
-                stderr=finite_output[1] if finite_output is not None else subprocess.PIPE,
+                stdout=output,
+                stderr=diagnostic if diagnostic is not None else subprocess.PIPE,
                 **({"process_group": 0} if os.name == "posix" else {}),
                 **kwargs,
             )
@@ -430,21 +430,11 @@ def _execute_command(
                 cwd=kwargs["cwd"].as_posix(),
                 cause=f"{error.__class__.__name__}: {error}",
             ) from error
-        stdout, stderr = process.communicate(timeout=timeout)
-        if finite_output is not None:
+        _unpiped, stderr = process.communicate(timeout=timeout)
+        if diagnostic is not None:
             scope.terminate(process)
-            for output in finite_output:
-                output.seek(0)
-            if text_mode:
-                with (
-                    TextIOWrapper(finite_output[0]) as reader,
-                    TextIOWrapper(finite_output[1]) as diagnostic_reader,
-                ):
-                    stdout = reader.read()
-                    stderr = diagnostic_reader.read()
-            else:
-                stdout = finite_output[0].read()
-                stderr = finite_output[1].read()
+            stderr = _decoded(_written(diagnostic), text=text_mode)
+        stdout = _decoded(_written(output), text=text_mode)
         result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
         if check:
             result.check_returncode()
@@ -452,20 +442,32 @@ def _execute_command(
 
 
 @contextmanager
-def _finite_output(*, enabled: bool) -> Generator[tuple[BinaryIO, BinaryIO] | None]:
-    """Snapshot timeout bytes before cleanup; close both captures without pipe waits."""
-    if not enabled:
-        yield None
-        return
-    with TemporaryFile(mode="w+b") as output, TemporaryFile(mode="w+b") as diagnostic:
+def _finite_output(*, enabled: bool) -> Generator[tuple[BinaryIO, BinaryIO | None]]:
+    """Snapshot timeout bytes before cleanup; preserve optional stderr pipe semantics."""
+    with ExitStack() as resources:
+        output = resources.enter_context(TemporaryFile(mode="w+b"))
+        diagnostic = resources.enter_context(TemporaryFile(mode="w+b")) if enabled else None
         try:
             yield output, diagnostic
         except subprocess.TimeoutExpired as error:
-            output.seek(0)
-            diagnostic.seek(0)
-            error.stdout = output.read()
-            error.stderr = diagnostic.read()
+            error.stdout = _written(output)
+            if diagnostic is not None:
+                error.stderr = _written(diagnostic)
             raise
+
+
+def _written(output: BinaryIO) -> bytes:
+    """Read one captured native stream from its start."""
+    output.seek(0)
+    return output.read()
+
+
+def _decoded(data: bytes, *, text: bool) -> str | bytes:
+    """Decode captured output exactly as a default text-mode pipe would."""
+    if not text:
+        return data
+    encoding = "utf-8" if sys.flags.utf8_mode else locale.getencoding()
+    return data.decode(encoding).replace("\r\n", "\n").replace("\r", "\n")
 
 
 def _terminate_commands(

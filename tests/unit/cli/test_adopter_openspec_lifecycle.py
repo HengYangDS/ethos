@@ -25,8 +25,9 @@ r"""Explicit package/adopter OpenSpec claim-state matrices.
   ],
   "commands": [
     ["config", "list"], ["doctor", "--json"], ["list", "--json"],
-    ["validate", "--all"], ["status", "--change"], ["instructions", "apply"],
-    ["instructions", "archive"], ["show", "active"]
+    ["validate", "--all"], ["status", "--all"], ["status", "--change"],
+    ["instructions", "apply"], ["instructions", "archive"], ["show", "active"],
+    ["templates", "--schema"]
   ],
   "receipt": {
     "command": [], "exit_code": 0, "stdout": "", "stderr": "",

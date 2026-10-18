@@ -54,7 +54,7 @@ def compilation_root(tmp_path, monkeypatch):
     """Isolate official transport while retaining real compilation and validation."""
     root = init_git_repo(tmp_path / "repo")
     monkeypatch.setattr(compilation, "openspec_profile_enabled", lambda *_a, **_k: True)
-    monkeypatch.setattr(compilation, "_openspec_projection", lambda *_a: nullcontext(root))
+    monkeypatch.setattr(compilation, "openspec_tree_projection", lambda *_a: nullcontext(root))
 
     def batch(projection, command, commands):
         return tuple(

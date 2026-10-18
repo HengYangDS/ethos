@@ -21,6 +21,8 @@ from pydantic import ValidationError
 from pydantic import model_validator
 
 from ethos.contracts.gates import Gate
+from ethos.contracts.gates import GateProofSets
+from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.openspec.models import OpenSpecPolicy
 
 DEFAULT_ROOTS = {
@@ -165,17 +167,25 @@ class ProofPolicy(_ProfileModel):
         if self.gate_registry and native:
             msg = "proof policy has parallel gate owners"
             raise ValueError(msg)
-        gate_ids = tuple(gate.id for gate in self.gates)
-        if len(gate_ids) != len(set(gate_ids)) or set(gate_ids) != set(self.code_correctness_gates):
-            msg = "proof gate descriptors must match the proof floor exactly"
-            raise ValueError(msg)
-        mapped = set(self.code_correctness_map.values())
-        if self.code_correctness_gates and (
-            set(self.code_correctness_map) != {"behavior", "static-analysis"}
-            or not mapped <= set(self.code_correctness_gates)
-        ):
-            msg = "proof code axes must map required gates"
-            raise ValueError(msg)
+        if native:
+            declaration = GateRegistryDeclaration(
+                id="profile-native",
+                proof_sets=GateProofSets(
+                    default=self.code_correctness_gates,
+                    full=self.code_correctness_gates,
+                ),
+                gates=self.gates,
+            )
+            closure = {gate.id for gate in declaration.proof_gates()}
+            if not self.code_correctness_gates:
+                msg = "profile-native proof policy must declare default roots"
+                raise ValueError(msg)
+            if self.code_correctness_map and (
+                set(self.code_correctness_map) != {"behavior", "static-analysis"}
+                or not set(self.code_correctness_map.values()) <= closure
+            ):
+                msg = "proof code axes must map required gates"
+                raise ValueError(msg)
         return self
 
 

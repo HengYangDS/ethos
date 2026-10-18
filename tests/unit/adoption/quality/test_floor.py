@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 import sys
+import tomllib
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 
 import pytest
+import tomli_w
 
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
@@ -16,10 +18,12 @@ from ethos.contracts.semantic import Facts
 from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 from ethos.repository.policy.quality.obligations import quality_verifier_gaps
 from ethos.repository.policy.quality.obligations import source_verifier_gaps
+from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.proof import declare_quality_profile
 from tests.support.proof import run_quality_proof
 
 
@@ -354,72 +358,51 @@ def test_real_locked_python_checks_qualify_the_selected_source(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, defect: str, gate_owner: str
 ) -> None:
     """Native tests and static diagnostics can satisfy the same public floor."""
-    repo = init_git_repo(tmp_path / "adopter")
-    (repo / ".gitignore").write_text(".venv/\n__pycache__/\n", encoding="utf-8")
     fixture = Path(__file__).resolve().parents[3] / "fixtures/quality-sample"
-    (repo / "pyproject.toml").write_bytes((fixture / "pyproject.toml").read_bytes())
-    if defect == "strict-config":
-        (repo / "pytest.toml").write_text(
-            '[pytest]\naddopts = ["--strict-config"]\ncache_dir = ".cache/pytest"\n',
-            encoding="utf-8",
-        )
-    source = repo / "src/sample/__init__.py"
-    source.parent.mkdir(parents=True)
-    source.write_text(
-        "def answer() -> int:\n    return 41\n"
-        if defect == "wrong-result"
-        else "import os\n\ndef answer() -> int:\n    return 42\n"
-        if defect == "lint-error"
-        else "def answer() -> int:\n    return 42\n",
-        encoding="utf-8",
+    repo = committed_source_repo(
+        tmp_path,
+        {
+            ".gitignore": ".venv/\n__pycache__/\n",
+            "pyproject.toml": (fixture / "pyproject.toml").read_text(),
+            "src/sample/__init__.py": "def answer() -> int:\n    return 41\n"
+            if defect == "wrong-result"
+            else "import os\n\ndef answer() -> int:\n    return 42\n"
+            if defect == "lint-error"
+            else "def answer() -> int:\n    return 42\n",
+            "tests/test_sample.py": "import pytest\n\nfrom sample import answer\n\n\n"
+            '@pytest.mark.skip(reason="not executed")\n'
+            "def test_answer() -> None:\n    assert answer() == 42\n"
+            if defect == "all-skipped"
+            else "from sample import answer\n\n\n"
+            "def test_answer() -> None:\n    assert answer() == 42\n",
+            **(
+                {
+                    "pytest.toml": '[pytest]\naddopts = ["--strict-config"]\n'
+                    'cache_dir = ".cache/pytest"\n'
+                }
+                if defect == "strict-config"
+                else {}
+            ),
+        },
     )
     if defect == "unused-source":
         (repo / "src/sample/unused.py").write_text(
             "def never_called() -> int:\n    return 0\n", encoding="utf-8"
         )
-    test = repo / "tests/test_sample.py"
-    test.parent.mkdir()
-    test.write_text(
-        "import pytest\n\nfrom sample import answer\n\n\n"
-        '@pytest.mark.skip(reason="not executed")\n'
-        "def test_answer() -> None:\n    assert answer() == 42\n"
-        if defect == "all-skipped"
-        else "from sample import answer\n\n\n"
-        "def test_answer() -> None:\n    assert answer() == 42\n",
-        encoding="utf-8",
-    )
-    profile = repo / ".ethos/profile.toml"
-    profile.parent.mkdir()
-    profile_header = 'profile_id = "qualified-adopter"\n\n[openspec]\nmaterial_paths = ["**"]\n\n'
-    if gate_owner == "registry":
-        profile.write_text(
-            profile_header + '[proof]\ngate_registry = "system/gates.toml"\n',
-            encoding="utf-8",
+    declare_quality_profile(repo, "profile" if gate_owner == "inline" else "registry")
+    if gate_owner == "inline":
+        profile = repo / ".ethos/profile.toml"
+        declaration = tomllib.loads(profile.read_text(encoding="utf-8"))
+        declaration["proof"]["code_correctness_gates"] = ["checks", "static"]
+        declaration["proof"]["gates"].append(
+            {
+                "id": "checks",
+                "kind": "test",
+                "command": [sys.executable, "-c", 'print("root executed")'],
+                "depends_on": ["behavior"],
+            }
         )
-        registry = repo / "system/gates.toml"
-        registry.parent.mkdir()
-        registry.write_text(
-            'schema_version = 1\nid = "qualified-adopter"\n\n'
-            '[proof_sets]\ndefault = ["behavior", "static"]\n'
-            'full = ["behavior", "static"]\n\n'
-            '[[gates]]\nid = "behavior"\nkind = "test"\n'
-            'profile = "repository"\nexecution_mode = "provider"\ntool_adapter = "ethos"\n'
-            'providers = ["ethos.adapters.gates.python_quality:behavior_report"]\n\n'
-            '[[gates]]\nid = "static"\nkind = "lint"\n'
-            'profile = "repository"\nexecution_mode = "provider"\ntool_adapter = "ethos"\n'
-            'providers = ["ethos.adapters.gates.python_quality:static_report"]\n',
-            encoding="utf-8",
-        )
-    else:
-        profile.write_text(
-            profile_header + '[proof]\ncode_correctness_gates = ["behavior", "static"]\n\n'
-            '[proof.code_correctness_map]\nbehavior = "behavior"\nstatic-analysis = "static"\n\n'
-            '[[proof.gates]]\nid = "behavior"\nkind = "test"\n'
-            'providers = ["ethos.adapters.gates.python_quality:behavior_report"]\n\n'
-            '[[proof.gates]]\nid = "static"\nkind = "lint"\n'
-            'providers = ["ethos.adapters.gates.python_quality:static_report"]\n',
-            encoding="utf-8",
-        )
+        profile.write_text(tomli_w.dumps(declaration), encoding="utf-8")
     if defect != "missing-lock":
         (repo / "uv.lock").write_bytes((fixture / "uv.lock").read_bytes())
     if defect == "lock-drift":
@@ -440,6 +423,21 @@ def test_real_locked_python_checks_qualify_the_selected_source(
         assert result.returncode == 0, payload["required_gaps"]
         assert payload["verdict"] == "pass"
         assert payload["required_gaps"] == []
+        if gate_owner == "inline":
+            checks = {check["action_id"]: check for check in payload["data"]["checks"]}
+            assert {"behavior", "checks", "static", "config-quality", "source-format"} <= set(
+                checks
+            )
+            assert "optional" not in checks
+            assert all(check["verdict"] == "pass" for check in checks.values())
+            assert tuple(checks).index("behavior") < tuple(checks).index("checks")
+            assert checks["checks"]["stdout"].strip() == "root executed"
+            report = json.loads(checks["behavior"]["stdout"])["providers"][0]["report"]["native"][0]
+            assert report["tests"]["total"] == 1
+            assert report["coverage"]["covered"] > 0
+            command = report["native"]["command"]
+            assert any(arg.startswith("--junitxml=") for arg in command)
+            assert "--cov=." in command
         if defect == "strict-config":
             assert not (repo / ".cache/pytest").exists()
     else:
@@ -463,7 +461,9 @@ def test_one_gate_can_supply_both_code_axes(tmp_path: Path, evidence_case: str) 
         '[proof.code_correctness_map]\nbehavior = "quality"\n'
         'static-analysis = "quality"\n\n'
         '[[proof.gates]]\nid = "quality"\nkind = "test"\n'
-        f"providers = {json.dumps(providers)}\n"
+        f"providers = {json.dumps(providers)}\n\n"
+        '[[proof.gates]]\nid = "optional"\nkind = "lint"\n'
+        f"command = {json.dumps([sys.executable, '-c', 'print("optional executed")'])}\n"
     )
     repo = committed_source_repo(
         tmp_path,
@@ -479,7 +479,8 @@ def test_one_gate_can_supply_both_code_axes(tmp_path: Path, evidence_case: str) 
             ),
         },
     )
-    result = run_quality_proof(repo, git(repo, "rev-parse", "HEAD"))
+    head = git(repo, "rev-parse", "HEAD")
+    result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
     if evidence_case == "complete":
         assert result.returncode == 0, payload["required_gaps"]
@@ -491,6 +492,24 @@ def test_one_gate_can_supply_both_code_axes(tmp_path: Path, evidence_case: str) 
             "static-analysis",
         }
         assert all(check["verdict"] == "pass" for check in checks.values())
+        selected = run_ethos_raw(
+            "prove",
+            "--host",
+            "--execute",
+            "--gate",
+            "quality",
+            "--gate",
+            "optional",
+            "--expect-head",
+            head,
+            "--json",
+            cwd=repo,
+        )
+        explicit = json.loads(selected.stdout)
+        assert selected.returncode == 0, explicit["required_gaps"]
+        checks = {check["action_id"]: check for check in explicit["data"]["checks"]}
+        assert set(checks) == {"quality", "optional"}
+        assert checks["optional"]["stdout"].strip() == "optional executed"
     else:
         assert result.returncode != 0
         assert "quality_gate_verifier_missing:static-analysis:quality" in payload["required_gaps"]

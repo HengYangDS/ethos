@@ -10,14 +10,8 @@
     "invalid_state": { "type": "array", "items": { "type": "string" } },
     "invalid_role": { "type": "array", "items": { "type": "string" } },
     "duplicate_subjects": { "type": "array", "items": { "type": "string" } },
-    "missing_visible_sections": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-    "invalid_command_examples": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
+    "missing_visible_sections": { "type": "array", "items": { "type": "string" } },
+    "invalid_command_examples": { "type": "array", "items": { "type": "string" } },
     "unindexed_plans": { "type": "array", "items": { "type": "string" } },
     "readme_disposition": { "type": "array", "items": { "type": "string" } },
     "required_gaps": { "type": "array", "items": { "type": "string" } },
@@ -36,7 +30,9 @@
             "additionalProperties": {
               "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }]
             }
-          }
+          },
+          "decision_id": { "type": "string" },
+          "decision_status": { "type": "string" }
         },
         "additionalProperties": false
       }

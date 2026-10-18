@@ -37,7 +37,11 @@ CONFORMING = {
     "docs/decisions/decision-index.md": "---\nsubject: sample:index\n---\n\n# Index\n",
     "docs/decisions/dr-0001-layout.md": "---\nsubject: sample:layout\n---\n\n# Layout\n",
     ".config/miserc.toml": "",
-    ".config/mise/config.toml": "",
+    ".config/mise/config.toml": (
+        '[settings]\nlocked = true\n\n[tasks]\nbootstrap = "uv sync --locked"\n'
+        'check = "uv run nox -s check"\nfix = "uv run nox -s fix"\n'
+    ),
+    ".config/mise/mise.lock": "",
     ".config/npm/npmrc": "",
     ".config/ci/pipeline.cue": "",
     ".config/checks/ruff/ruff.toml": 'line-length = 100\ntarget-version = "py312"\n',
@@ -48,7 +52,7 @@ CONFORMING = {
     ".config/checks/coverage/policy.toml": "",
     ".config/checks/architecture-projection/policy.toml": "",
     ".config/checks/vale/vale.ini": "",
-    ".config/checks/vale/styles/Plain/Rule.yml": "",
+    ".config/checks/vale/styles/plain/rule.yml": "",
     ".config/release/goreleaser/.goreleaser.yaml": "",
     "openspec/config.yaml": PARADIGM_OPENSPEC_CONFIG,
 }

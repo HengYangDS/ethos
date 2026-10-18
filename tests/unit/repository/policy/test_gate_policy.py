@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import tomllib
 from typing import TYPE_CHECKING
 
 import pytest
 import tomli_w
 
+import ethos.adapters.repo.gate_policy as gate_policy
+from ethos.adapters.repo.dependency_acceptance import dependency_acceptance_gaps
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.gate_policy import resolve_proof_policies
@@ -27,6 +30,7 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import initialize_adopted_fixture
 from tests.support.governed_repository import write_script_gate_policy
+from tests.support.governed_repository import write_test_profile
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -35,6 +39,134 @@ _MISSING_QUALITY = (
     "quality_obligation_unproven:behavior",
     "quality_obligation_unproven:static-analysis",
 )
+
+
+def test_document_profile_applicability_follows_the_selected_git_tree(tmp_path: Path) -> None:
+    """New code activates the floor even when the same document profile omits code axes."""
+    repo = init_git_repo(tmp_path / "documents")
+    write_test_profile(
+        repo,
+        proof=ProofPolicy(
+            code_correctness_gates=("docs-registry", "markdown-links"),
+            gates=(
+                Gate(
+                    id="docs-registry",
+                    kind="docs",
+                    providers=("ethos.surface.cli.root.reference:docs_registry_report",),
+                ),
+                Gate(
+                    id="markdown-links",
+                    kind="docs",
+                    providers=("ethos.adapters.gates.tool:markdown_links_report",),
+                ),
+            ),
+        ),
+    )
+    document_head = commit_fixture(repo, "declare document-only proof roots")
+    documents = resolve_gate_policy(repo, tree_ref=document_head, full=True)
+
+    assert set(documents.gate_ids) == {
+        "docs-registry",
+        "markdown-links",
+        "markdown-lint",
+        "prose",
+        "config-quality",
+        "source-format",
+    }
+    assert documents.gaps == ()
+    assert "quality_floor_version" not in documents.projection["owner"]
+
+    (repo / "app.py").write_text('raise RuntimeError("not document content")\n')
+    git(repo, "add", "app.py")
+    staged_tree = git(repo, "write-tree")
+    staged = resolve_gate_policy(repo, tree_ref=staged_tree, full=True)
+
+    assert staged.gaps == _MISSING_QUALITY
+    assert staged.projection["owner"]["quality_subjects"] == {
+        "behavior": ["app.py"],
+        "static-analysis": ["app.py"],
+    }
+    assert resolve_gate_policy(repo, tree_ref=document_head, full=True).digest == documents.digest
+
+
+@pytest.mark.parametrize("canonical", [False, True], ids=["native", "canonical"])
+@pytest.mark.parametrize("carrier", ["registry", "profile"])
+def test_audit_applicability_reads_only_the_committed_declaration(
+    tmp_path: Path, monkeypatch, carrier: str, *, canonical: bool
+) -> None:
+    """A partial proof keeps the full audit obligation without expanding source bindings."""
+    repo = init_git_repo(tmp_path / "repo")
+    write_script_gate_policy(repo, full=True)
+    registry = repo / "system/gates.toml"
+    declaration = tomllib.loads(registry.read_text())
+    declaration["proof_sets"]["full"].append("audit")
+    declaration["gates"].append(
+        {
+            "id": "audit",
+            "kind": "lint",
+            "command": ["{python}", "-m", "nox", "-s", "vulnerabilities"],
+            "tool_adapter": "vulnerabilities" if canonical else "repository-native",
+            "depends_on": ["check"],
+        }
+    )
+    registry.write_text(tomli_w.dumps(declaration))
+    if carrier == "profile":
+        registry = repo / ".ethos/profile.toml"
+        registry.write_text(
+            tomli_w.dumps(
+                {
+                    "profile_id": "policy-test",
+                    "proof": {
+                        "code_correctness_gates": [gate["id"] for gate in declaration["gates"]],
+                        "code_correctness_map": {"behavior": "check", "static-analysis": "audit"},
+                        "gates": declaration["gates"],
+                    },
+                }
+            )
+        )
+    head = commit_fixture(repo, "declare audit ownership")
+
+    def source_binding_forbidden(*_args, **_options):
+        pytest.fail("audit applicability must not expand the repository source binding")
+
+    monkeypatch.setattr(gate_policy, "_repository_paths", source_binding_forbidden)
+    monkeypatch.setattr(gate_policy, "source_paths_for_gates", source_binding_forbidden)
+    monkeypatch.setattr(gate_policy, "compile_gate_policy", source_binding_forbidden)
+    policy = {"gates": ({"id": "check", "command": ("tools/check.sh",)},)}
+    expected = (
+        ["proof_dependency_acceptance_audit_missing"] if canonical and carrier == "registry" else []
+    )
+    assert (
+        dependency_acceptance_gaps(repo, head, policy, (), acceptance_purpose="local-source")
+        == expected
+    )
+
+    registry.write_text("uncommitted invalid registry")
+    assert (
+        dependency_acceptance_gaps(repo, head, policy, (), acceptance_purpose="local-source")
+        == expected
+    )
+    invalid = commit_fixture(repo, "invalidate audit declaration")
+    assert dependency_acceptance_gaps(
+        repo, invalid, policy, (), acceptance_purpose="local-source"
+    ) == ["proof_dependency_acceptance_audit_missing"]
+
+
+@pytest.mark.parametrize("profile", ["", "invalid profile"], ids=["absent", "invalid"])
+def test_audit_applicability_never_exempts_an_absent_or_invalid_profile(
+    tmp_path: Path, profile: str
+) -> None:
+    """Only a valid committed native declaration can select its own audit owner."""
+    repo = init_git_repo(tmp_path / "repo")
+    (repo / "README.md").write_text("Audit applicability fixture\n")
+    if profile:
+        path = repo / ".ethos/profile.toml"
+        path.parent.mkdir()
+        path.write_text(profile)
+    head = commit_fixture(repo, "capture profile state")
+    assert dependency_acceptance_gaps(
+        repo, head, {"gates": ()}, (), acceptance_purpose="local-source"
+    ) == ["proof_dependency_acceptance_audit_missing"]
 
 
 def test_quality_axis_conjoins_scoped_evidence_from_distinct_gates() -> None:
@@ -127,66 +259,6 @@ def test_quality_axis_rejects_unverified_additional_gate_before_execution(tmp_pa
     assert "quality_gate_verifier_missing:behavior:additional" in policy.gaps
 
 
-def test_scheduler_hint_does_not_reclassify_product_quality_owner(tmp_path: Path) -> None:
-    """Capacity changes bind execution but do not invent an adopter quality floor."""
-    packaged = load_gate_registry_declaration()
-    profile = RepositoryProfile(
-        root=tmp_path,
-        exists=True,
-        declaration=RepositoryProfileDeclaration(
-            profile_id="ethos", proof=ProofPolicy(gate_registry="system/gates.toml")
-        ),
-    )
-
-    def compiled(
-        declaration: GateRegistryDeclaration, *, local_source: bool = False
-    ) -> ResolvedGatePolicy:
-        return compile_gate_policy(
-            profile=profile,
-            gate_registry_source=tomli_w.dumps(
-                declaration.model_dump(mode="json", exclude_defaults=True)
-            ).encode(),
-            repository_python="python",
-            repository_paths=("src/example.py",),
-            full=True,
-            acceptance_purpose="local-source" if local_source else "repository",
-        )
-
-    base = compiled(packaged)
-    scoped = compiled(packaged, local_source=True)
-    assert scoped.projection["owner"] == base.projection["owner"]
-    assert scoped.digest != base.digest
-    assert scoped.gaps == base.gaps
-    varied = packaged.model_copy(
-        update={
-            "gates": tuple(
-                gate.model_copy(update={"cpu_reservation": 1 if gate.cpu_reservation == 2 else 2})
-                if gate.id == "unit-architecture"
-                else gate
-                for gate in packaged.gates
-            )
-        }
-    )
-    capacity = compiled(varied)
-    assert capacity.projection["owner"] == base.projection["owner"]
-    assert capacity.digest != base.digest
-    assert compiled(varied, local_source=True).projection["owner"] == base.projection["owner"]
-
-    substantive = packaged.model_copy(
-        update={
-            "gates": tuple(
-                gate.model_copy(update={"command": (*gate.command, "--changed")})
-                if gate.id == "unit-architecture"
-                else gate
-                for gate in packaged.gates
-            )
-        }
-    )
-    owner = compiled(substantive).projection["owner"]
-    assert isinstance(owner, dict)
-    assert owner.get("quality_floor_version") == 2
-
-
 @pytest.mark.parametrize("floor", ["full", "default"])
 def test_gate_policy_binds_committed_sources_and_reports_missing_source(tmp_path, floor) -> None:
     repo = init_git_repo(tmp_path / "repo")
@@ -198,6 +270,7 @@ def test_gate_policy_binds_committed_sources_and_reports_missing_source(tmp_path
         "markdown-links",
         "markdown-lint",
         "config-quality",
+        "source-format",
         "prose",
         *({"publish"} if floor == "full" else set()),
     }
@@ -431,3 +504,65 @@ def test_quality_subjects_bind_one_valid_committed_tree(tmp_path: Path, fault: s
     message = "repository_profile_invalid" if fault == "profile" else "code_source_changed"
     with pytest.raises(ValueError, match=message):
         observe_quality_subjects(repo, expected_tree="0" * 40 if fault == "tree" else "")
+
+
+def test_scheduler_hint_does_not_reclassify_product_quality_owner(tmp_path: Path) -> None:
+    """Capacity changes bind execution but do not invent an adopter quality floor."""
+    packaged = load_gate_registry_declaration()
+    profile = RepositoryProfile(
+        root=tmp_path,
+        exists=True,
+        declaration=RepositoryProfileDeclaration(
+            profile_id="ethos", proof=ProofPolicy(gate_registry="system/gates.toml")
+        ),
+    )
+
+    def compiled(
+        declaration: GateRegistryDeclaration, *, local_source: bool = False
+    ) -> ResolvedGatePolicy:
+        return compile_gate_policy(
+            profile=profile,
+            gate_registry_source=tomli_w.dumps(
+                declaration.model_dump(mode="json", exclude_defaults=True)
+            ).encode(),
+            repository_python="python",
+            repository_paths=("src/example.py",),
+            full=True,
+            acceptance_purpose="local-source" if local_source else "repository",
+            product_source=True,
+        )
+
+    base = compiled(packaged)
+    scoped = compiled(packaged, local_source=True)
+    assert scoped.projection["owner"] == base.projection["owner"]
+    assert scoped.digest != base.digest
+    assert scoped.gaps == base.gaps
+    varied = packaged.model_copy(
+        update={
+            "gates": tuple(
+                gate.model_copy(update={"cpu_reservation": 1 if gate.cpu_reservation == 2 else 2})
+                if gate.id == "unit-architecture"
+                else gate
+                for gate in packaged.gates
+            )
+        }
+    )
+    capacity = compiled(varied)
+    assert capacity.projection["owner"] == base.projection["owner"]
+    assert capacity.digest != base.digest
+    assert compiled(varied, local_source=True).projection["owner"] == base.projection["owner"]
+
+    substantive = packaged.model_copy(
+        update={
+            "gates": tuple(
+                gate.model_copy(update={"command": (*gate.command, "--changed")})
+                if gate.id == "unit-architecture"
+                else gate
+                for gate in packaged.gates
+            )
+        }
+    )
+    changed = compiled(substantive)
+    assert changed.projection["owner"] == base.projection["owner"]
+    assert changed.digest != base.digest
+    assert "quality_floor_version" not in changed.projection["owner"]

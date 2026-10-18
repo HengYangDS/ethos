@@ -11,6 +11,7 @@ import ethos.adapters.mutation.accepted.signature as repair
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_paradigm_toolchain
 from tests.support.governed_repository import write_release_mirror
 from tests.support.subprocesses import kill_after_marker
 
@@ -103,7 +104,8 @@ def signature_repository(tmp_path: Path, *, coupled: bool = False) -> tuple[Path
     (repo / ".ethos").mkdir()
     (repo / ".ethos/profile.toml").write_text('profile_id = "signature-fixture"\n')
     write_release_mirror(repo, "accepted_ff" if coupled else "independent")
-    git(repo, "add", ".ethos")
+    write_paradigm_toolchain(repo)
+    git(repo, "add", ".ethos", ".config/mise")
     git(repo, "-c", "commit.gpgsign=false", "commit", "-m", "fix: accept an unsigned head")
     old = git(repo, "rev-parse", "HEAD")
     git(repo, "branch", "candidate/dev", old)

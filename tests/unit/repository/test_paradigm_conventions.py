@@ -193,7 +193,10 @@ def test_the_signature_is_not_restated(tmp_path: Path, value: str) -> None:
 _RELEASING = {
     ".ethos/release.toml": '[protected_refs]\ntags = ["v*"]\n',
     "VERSION": "1.2.0\n",
-    "CHANGELOG.md": "# Changelog\n\n## [Unreleased]\n\n## [1.2.0] - 2026-10-15\n",
+    "CHANGELOG.md": (
+        "# Changelog\n\n## [Unreleased]\n\n## [1.2.0] - 2026-10-15\n\n"
+        "### Fixed\n\n- Correct the release result.\n"
+    ),
 }
 
 

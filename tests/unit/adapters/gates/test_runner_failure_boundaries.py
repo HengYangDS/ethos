@@ -14,8 +14,10 @@ import ethos.adapters.gates.configuration as configuration_gate
 import ethos.adapters.gates.formatting as formatting_gate
 import ethos.adapters.gates.runner as gate_runner
 import ethos.adapters.gates.tool as gate_tool
+import ethos.adapters.gates.verification as gate_verification
 import ethos.adapters.mutation.proof_artifacts as proof_artifacts
 import ethos.adapters.repo.git as git_adapter
+from ethos.adapters.gates.verification import classify_action_result
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.surface.cli.proof.report import summarize_checks
@@ -320,7 +322,7 @@ def test_command_runner_surfaces_missing_command_and_nonzero_exit(
 def test_command_runner_rejects_invalid_or_adverse_ethos_envelopes(
     exit_code: int, stdout: str, verdict: str, gap: str
 ) -> None:
-    observed, diagnostics = gate_runner.classify_action_result(exit_code=exit_code, stdout=stdout)
+    observed, diagnostics = classify_action_result(exit_code=exit_code, stdout=stdout)
     assert observed == verdict
     assert not gap or gap in diagnostics[0]["required_gaps"]
     if verdict == "pass" or exit_code:
@@ -528,13 +530,13 @@ def test_packaged_provider_requires_exact_candidate_identity(tmp_path, monkeypat
             source_commit=head, source_tree=tree if identity_state == "exact" else ""
         )
 
-    monkeypatch.setattr(gate_runner, "invoking_build_identity", build)
+    monkeypatch.setattr(gate_verification, "invoking_build_identity", build)
     gate = Gate(id="check", kind="test", providers=("ethos.contracts.verdict:report_verdict",))
     if identity_state == "exact":
-        gate_runner.assert_provider_execution_source(repo, (gate,))
+        gate_verification.assert_provider_execution_source(repo, (gate,))
     else:
         with pytest.raises(ValueError, match="gate_provider_source_mismatch:check:"):
-            gate_runner.assert_provider_execution_source(repo, (gate,))
+            gate_verification.assert_provider_execution_source(repo, (gate,))
     # Packaged-only adopter checks have no falsely claimed repository source.
     source.unlink()
-    gate_runner.assert_provider_execution_source(repo, (gate,))
+    gate_verification.assert_provider_execution_source(repo, (gate,))

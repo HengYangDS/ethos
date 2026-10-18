@@ -103,16 +103,31 @@ def repository_mise_files(root: Path) -> dict[str, str] | None:
         message = "mise_config_ambiguous"
         raise ValueError(message)
     config, lock = selected[0]
+    source = _read_mise_input(root, config)
+    try:
+        declared = tomllib.loads(source)
+    except tomllib.TOMLDecodeError:
+        declared = {"tools": "unreadable"}
+    idiomatic = None
+    if not declared.get("tools"):
+        idiomatic = _idiomatic_environment(source)
+        if not idiomatic["MISE_IDIOMATIC_VERSION_FILE_ENABLE_TOOLS"]:
+            return None  # A task-only owner runs verbs; it selects no native tools.
     if not lock.is_file():
         message = "locked_toolchain_missing"
         raise ValueError(message)
     materials = {
-        MISE_CONFIG: _read_mise_input(root, config),
+        MISE_CONFIG: source,
         MISE_LOCK: _read_mise_input(root, lock),
     }
-    idiomatic = _idiomatic_environment(materials[MISE_CONFIG])
+    idiomatic = idiomatic or _idiomatic_environment(source)
     if not idiomatic["MISE_IDIOMATIC_VERSION_FILE_ENABLE_TOOLS"]:
         return materials
+    return materials | _idiomatic_files(root, config, idiomatic)
+
+
+def _idiomatic_files(root: Path, config: Path, environment: dict[str, str]) -> dict[str, str]:
+    """Observe the native idiomatic input closure and retain only repository-owned bytes."""
     with TemporaryDirectory(prefix="ethos-mise-discovery-") as directory:
         observed = run_command(
             root,
@@ -121,7 +136,7 @@ def repository_mise_files(root: Path) -> dict[str, str] | None:
             remove_env_prefixes=("MISE_",),
             env={
                 **_mise_environment(Path(directory), offline=True),
-                **idiomatic,
+                **environment,
                 "MISE_CEILING_PATHS": str(root.parent),
             },
         )
@@ -139,6 +154,7 @@ def repository_mise_files(root: Path) -> dict[str, str] | None:
     ):
         message = "mise_input_discovery_invalid"
         raise ValueError(message)
+    materials = {}
     for entry in discovered:
         path = Path(entry["path"])
         if path != config:
@@ -150,7 +166,7 @@ def repository_mise_files(root: Path) -> dict[str, str] | None:
 def mise_executable() -> Path:
     """Resolve only the operator-selected native mise executable."""
     if not (installed := shutil.which("mise")):
-        message = "mise_unavailable:run tools/ci/scripts/bootstrap-python.sh"
+        message = "mise_unavailable:put the mise executable on PATH"
         raise ValueError(message)
     return Path(installed).resolve()
 

@@ -156,6 +156,9 @@ def _declare_selected_scripts(
             continue
         visited.add(path)
         owned["executable"].update(
+            command_references.command_executables((path.rsplit("/", 1)[-1],), {})
+        )
+        owned["executable"].update(
             command_references.shell_executables(text, npm_scripts, module_imports=owned["import"])
         )
         if text.startswith("#!") and (

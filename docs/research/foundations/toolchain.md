@@ -122,9 +122,9 @@ existing CI declaration binds acquisition version and exact bytes, while the
 native generator remains the authenticated update path. It needs no extra
 persistent cache or template. Validation is offline; installation executes a
 temporary copy of validated bytes. Joint lock/material edits remain reviewed
-supply changes, not independent upstream verification. See the existing
-[Change decision](../../../openspec/changes/proof-throughput/design.md#authenticated-bootstrap-supply-and-offline-checking)
-for the trust boundary, measured consumers and outstanding delivery.
+supply changes, not independent upstream verification. The trust boundary, measured consumers and outstanding delivery are decided
+in "Authenticated Bootstrap Supply And Offline Checking" of the
+`proof-throughput` design at source `7b457b27e33ad9846d15394db149d4cb7133821f`.
 The existing `mise-generation-baseline.json`,
 `mise-offline-cold-warm-concurrent.json` and
 `package-environment-full-proof.json` receipts retain the execution evidence.

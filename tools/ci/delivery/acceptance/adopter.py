@@ -119,12 +119,18 @@ capabilities = ["repository", "publication"]
     (change / "proposal.md").write_text(
         "## Why\n\nExercise the installed package lifecycle.\n\n"
         "## What Changes\n\n- Add one package-smoke change.\n\n"
+        "## Capabilities\n\n### New Capabilities\n\n"
+        "- `package-smoke`: installed governance of one official Change.\n\n"
+        "### Modified Capabilities\n\n- None.\n\n"
+        "## Impact\n\n- Disposable package-smoke fixture.\n\n"
         "## Out of Scope\n\n- Product behavior.\n",
         encoding="utf-8",
     )
     (change / "design.md").write_text(
         "## Context\n\nPackage-only lifecycle proof.\n\n"
-        "## Decision\n\nUse only official OpenSpec artifacts.\n",
+        "## Goals / Non-Goals\n\nGovern one Change without product behavior.\n\n"
+        "## Decisions\n\nUse only official OpenSpec artifacts.\n\n"
+        "## Risks / Trade-offs\n\nNone beyond the disposable fixture.\n",
         encoding="utf-8",
     )
     (change / "tasks.md").write_text(
@@ -153,6 +159,14 @@ capabilities = ["repository", "publication"]
     for relative, content in (
         (".config/checks/prettier/prettier.toml", 'printWidth = 100\nproseWrap = "preserve"\n'),
         (".config/checks/taplo/taplo.toml", "[formatting]\ncolumn_width = 100\n"),
+        (
+            ".config/mise/config.toml",
+            (
+                '[settings]\nlocked = true\n\n[tasks]\nbootstrap = "git --version"\n'
+                'check = "git fsck --no-reflogs"\nfix = "git add --renormalize ."\n'
+            ),
+        ),
+        (".config/mise/mise.lock", ""),
     ):
         carrier = root / relative
         carrier.parent.mkdir(parents=True, exist_ok=True)

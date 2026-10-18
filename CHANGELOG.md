@@ -29,19 +29,50 @@ historical bindings are governed by [Release Governance](docs/governance/release
 - Composed one declared Node test attempt with official c8 coverage reporting,
   retaining preload, concurrency, coverage configuration, failures and warnings.
   Invalid raw evidence is rejected; custody excludes symbolic-link targets.
+- Moved locked native tool preparation from CI into the product supply owner.
+  Packages include the locked Vale executable, publisher license and common
+  prose policy; source and installed consumers use those owned bytes without
+  falling back to an ambient executable.
+- Active OpenSpec proposals and designs now keep the literal headings of the
+  templates that the official CLI resolves, and active Change artifacts share
+  the 512-line Markdown ceiling. Proof first archives the selected Change in a
+  disposable projection and validates the archived specifications strictly, so
+  an over-long MODIFIED requirement fails before any gate runs.
+- ETHOS's own gate registry is recognized by Git history shared with the running
+  build instead of byte equality with the installed packaged copy, so a product
+  registry edit lands ordinarily. Any other repository, including a verbatim
+  copy of the product registry, keeps the shared quality floor.
 
 ### Removed
 
 - Retired the experimental Node coverage collector and unused LCOV interpretation.
+- Retired the `python-size` gate; the repository paradigm report measures the
+  same 512 effective-line ceiling in the repository audit.
 
 ### Fixed
 
+- Limited accepted-source delivery reuse to the current accepted commit;
+  other exact push objects retain independent proof and contribution-range
+  checks without requiring local accepted-ref equality.
+- Validated declared Vale vocabulary with the locked native parser; unconsumed,
+  malformed or missing selected vocabulary now fails configuration quality
+  without rewriting its source or relying on an ambient executable. Section-only
+  vocabulary is compiled while native optional files remain optional.
+- Aligned bootstrap and hosted-proof test fixtures with the declared native Vale
+  supply, preserving preparation-failure refusal and platform prerequisite checks.
 - Refreshed the architecture learning source binding after reviewed continuation
   and retention changes, without changing the authored graph meaning.
 - Preserved official OpenSpec apply refusal while admitting repair of its exact
   selected existing task artifact from native schema and tracking observations.
 - Allowed planning without an unselected, observably absent local Skill portfolio;
   required, incomplete, dangling and unreadable portfolio state remains blocking.
+- Observed the npm dependency audit again, at most three attempts, when npm
+  reports that its bulk advisory request itself failed; npm never retries that
+  POST. Every attempt stays in the receipt, and findings, malformed reports and
+  other native failures are still observed once.
+- Stopped Markdown lint from rejecting what Prettier writes: Prettier uses
+  underscore emphasis but asterisks inside a word, so an emphasis style is now
+  required only in official OpenSpec artifacts, which Prettier does not format.
 
 ## [0.2.0-alpha.2] - 2026-08-30
 

@@ -102,20 +102,23 @@ def incoming_change_gaps(
 def preserved_incoming_change_paths(
     root: Path, paths: tuple[str, ...], *, tree_ref: str
 ) -> tuple[str, ...]:
-    """Bind retained incoming paths to unchanged whole-Change trees in one native merge."""
+    """Bind a whole-Change import or removal to the exact pending native merge."""
     pending = pending_merge_heads(root)
     if len(pending) != 1:
         return ()
-    incoming, staged = _change_trees(root, pending[0]), _change_trees(root, tree_ref)
-    if incoming is None or staged is None:
+    incoming, staged, prior = (
+        _change_trees(root, revision) for revision in (pending[0], tree_ref, "HEAD")
+    )
+    if incoming is None or staged is None or prior is None:
         return ()
+    known = incoming.keys() | prior.keys()
     return tuple(
         path
         for path in paths
         if len(parts := path.split("/")) >= 4
         and parts[:2] == ["openspec", "changes"]
-        and parts[2] in incoming
-        and incoming[parts[2]] == staged.get(parts[2])
+        and parts[2] in known
+        and incoming.get(parts[2]) == staged.get(parts[2])
     )
 
 

@@ -15,6 +15,7 @@ import tomli_w
 import ethos.repository.policy.quality.dependency_acceptance as audit_owner
 import ethos.repository.release.resources as resource_layout
 import tools.ci.openspec_runtime_hook as subject
+from ethos.adapters.repo.runtime.materialization.native_supply import ensure_native_directory
 
 if TYPE_CHECKING:
     from hatchling.builders.config import BuilderConfig
@@ -74,6 +75,17 @@ def _prepared_supply(root: Path) -> Path:
     return supply
 
 
+@pytest.fixture
+def prepared_native_policy_tool(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Unrelated build tests supply the native prerequisite, never an ambient installer."""
+    native = tmp_path / "fixture-vale"
+    native.mkdir()
+    (native / "vale").write_bytes(b"native fixture")
+    (native / "LICENSE").write_bytes(b"publisher fixture")
+    monkeypatch.setattr(subject, "_native_tool_projection", lambda _root, _directory: native)
+
+
+@pytest.mark.usefixtures("prepared_native_policy_tool")
 def test_build_hook_loads_the_single_source_supply_owner_without_installed_ethos(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -145,6 +157,7 @@ def test_build_hook_loads_the_single_source_supply_owner_without_installed_ethos
     assert data["force_include"][str(supply / "direct")] == ("ethos/resources/node_modules/direct")
 
 
+@pytest.mark.usefixtures("prepared_native_policy_tool")
 def test_build_hook_projects_prepared_production_supply_without_npm_or_temp_tree(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -180,6 +193,7 @@ def test_build_hook_projects_prepared_production_supply_without_npm_or_temp_tree
 
 
 @pytest.mark.parametrize("target", ["sdist", "wheel"])
+@pytest.mark.usefixtures("prepared_native_policy_tool")
 def test_build_policy_projection_retains_release_authority_and_cleans_rejection(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, target: str
 ) -> None:
@@ -301,6 +315,7 @@ def test_sdist_carries_the_same_prepared_production_supply(
     assert data["force_include"][str(supply / "direct")] == "node_modules/direct"
 
 
+@pytest.mark.usefixtures("prepared_native_policy_tool")
 def test_wheel_projects_the_complete_native_runtime_with_a_platform_tag(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -329,3 +344,79 @@ def test_wheel_projects_the_complete_native_runtime_with_a_platform_tag(
         assert data["tag"] == "py3-none-linux_x86_64"
     finally:
         hook.finalize("standard", data, "artifact")
+
+
+def test_native_tool_build_projection_uses_locked_product_owner_without_install(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The build hook delegates exact native payloads to the same installed owner."""
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    archive = cache / "vale.tar.gz"
+    archive.write_bytes(b"locked archive")
+    physical_temp = tmp_path / "physical-temp"
+    physical_temp.mkdir()
+    native_temp = tmp_path / "native-temp"
+    native_temp.symlink_to(physical_temp, target_is_directory=True)
+    monkeypatch.setattr(subject.tempfile, "tempdir", str(native_temp))
+
+    class Supply:
+        archive = "vale.tar.gz"
+
+        @staticmethod
+        def read(root: Path, name: str):
+            assert root == tmp_path
+            assert name == "vale"
+            return Supply()
+
+        @staticmethod
+        def cache(root: Path):
+            assert root == tmp_path
+            return cache
+
+        @staticmethod
+        def project(source: Path, destination: Path):
+            assert source == archive
+            ensure_native_directory(destination.parent)
+            destination.mkdir()
+            (destination / "vale").write_bytes(b"native executable")
+            (destination / "LICENSE").write_bytes(b"publisher license")
+            return destination
+
+    class Owner:
+        NativeSupply = Supply
+
+    def import_owner(name: str):
+        if name == "ethos.repository.release.resources":
+            return resource_layout
+        if name == "ethos.repository.policy.quality.dependency_acceptance":
+            return audit_owner
+        assert name == "ethos.adapters.repo.runtime.materialization.native_supply"
+        return Owner
+
+    monkeypatch.setattr(subject, "import_module", import_owner)
+    monkeypatch.setattr(
+        subprocess, "run", lambda *_args, **_kwargs: pytest.fail("build attempted provisioning")
+    )
+
+    hook = _hook(tmp_path)
+    monkeypatch.setattr(subject, "_prepared_projection", lambda _root: (tmp_path, ()))
+    monkeypatch.setattr(subject, "_build_identity_payload", lambda _root: (b"{}", "0.0.0"))
+    monkeypatch.setattr(
+        subject, "_node_projection", lambda _root, _directory: (tmp_path, "py3-none-linux_x86_64")
+    )
+    data = {"force_include": {}}
+    try:
+        hook.initialize("standard", data)
+        projected = next(
+            Path(path)
+            for path, destination in data["force_include"].items()
+            if destination == "ethos/resources/native/vale"
+        )
+        assert (projected / "vale").read_bytes() == b"native executable"
+        assert (projected / "LICENSE").read_bytes() == b"publisher license"
+    finally:
+        hook.finalize("standard", data, "artifact")
+
+    assert not projected.exists()
+    assert archive.read_bytes() == b"locked archive"

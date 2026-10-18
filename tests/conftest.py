@@ -91,5 +91,7 @@ def _hermetic_process_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     monkeypatch.setenv("OPENSPEC_TELEMETRY", "0")
     monkeypatch.setenv("OPENSPEC_NO_UPDATE_CHECK", "1")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    # Fixture full proofs keep their per-repository slot but never wait on the test host's load.
+    monkeypatch.setenv("ETHOS_PROOF_HOST_LOAD_LIMIT", "0")
     monkeypatch.delenv("ETHOS_CHANGE", raising=False)
     monkeypatch.delenv("ETHOS_CI_SUPPLY_MANIFEST", raising=False)

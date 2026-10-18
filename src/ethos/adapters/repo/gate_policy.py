@@ -10,6 +10,8 @@ from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.profile import load_committed_repository_profile
+from ethos.adapters.repo.runtime.authority import invoking_source_commit
+from ethos.contracts.gates import DECLARATION_PATH
 from ethos.repository.policy.code_subjects import CARRIER_ROLES
 from ethos.repository.policy.code_subjects import observed_code_subjects
 from ethos.repository.policy.code_subjects import source_binding_gaps
@@ -100,6 +102,7 @@ def _resolve_policies(
         profile.declaration.proof.gate_registry if profile.declaration is not None else None
     )
     registry_source = _material(root, tree_ref, registry_path) if registry_path else None
+    product_source = _shares_product_history(root, tree_ref, registry_path)
     repository_paths = _repository_paths(root, tree_ref)
     script_paths = _repository_script_paths(root, tree_ref, repository_paths)
     carrier_roles = _repository_carrier_roles(root, tree_ref, repository_paths)
@@ -116,6 +119,7 @@ def _resolve_policies(
             full=full,
             acceptance_purpose=acceptance_purpose,
             selected_obligations=selected_obligations,
+            product_source=product_source,
         )
         for full in floors
     )
@@ -153,9 +157,22 @@ def _resolve_policies(
             full=full,
             acceptance_purpose=acceptance_purpose,
             selected_obligations=selected_obligations,
+            product_source=product_source,
         )
         for full in floors
     )
+
+
+def _shares_product_history(root: Path, tree_ref: str | None, registry_path: str | None) -> bool:
+    """Recognize the product registry by history shared with the running build, not by bytes."""
+    if registry_path != DECLARATION_PATH.as_posix():
+        return False
+    try:
+        build = invoking_source_commit()
+    except (OSError, ValueError):
+        return False
+    shared = run_git(root, "merge-base", build, tree_ref or "HEAD", check=False, observation=True)
+    return not shared.returncode and bool(shared.stdout.strip())
 
 
 def _repository_paths(root: Path, tree_ref: str | None) -> tuple[str, ...]:

@@ -34,6 +34,14 @@ PARADIGM_FORMATTERS = {
         ".config/checks/ruff/ruff.toml",
     )
 }
+# A task-only mise owner exposes the common verbs and selects no native tools.
+PARADIGM_TOOLCHAIN = {
+    ".config/mise/config.toml": (
+        '[settings]\nlocked = true\n\n[tasks]\nbootstrap = "uv sync --locked"\n'
+        'check = "uv run nox -s check"\nfix = "uv run nox -s fix"\n'
+    ),
+    ".config/mise/mise.lock": "",
+}
 
 
 class WorkLaneFixture(NamedTuple):
@@ -278,14 +286,18 @@ def _write_active_change_carrier(
         "## Why\n\nExercise the governed fixture lifecycle.\n\n"
         "## What Changes\n\n- Exercise one fixture change.\n\n"
         "## Capabilities\n\n"
+        "### New Capabilities\n\n- None.\n\n"
+        "### Modified Capabilities\n\n"
         "- `contracts`: subject=fixture-contracts; reuse=extend; change=modify\n\n"
+        "## Impact\n\n- Test fixtures only.\n\n"
         "## Out Of Scope\n\n- Production behavior.\n",
         encoding="utf-8",
     )
     (carrier / "design.md").write_text(
         "## Context\n\nTest-only governed fixture.\n\n"
-        "## Design\n\nUse the real OpenSpec carrier shape.\n\n"
-        "## Alternatives\n\nNo compatibility fallback.\n\n"
+        "## Goals / Non-Goals\n\nUse the real OpenSpec carrier shape.\n\n"
+        "## Decisions\n\nNo compatibility fallback.\n\n"
+        "## Risks / Trade-offs\n\nNone beyond the fixture.\n\n"
         "## Proof Strategy\n\nRun focused lifecycle tests.\n",
         encoding="utf-8",
     )
@@ -398,6 +410,10 @@ def write_publication_topology(
         path = repo / surface
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("# repository-native CI\n", encoding="utf-8")
+    # The paradigm requires one pipeline model for the two Forges' pipeline files.
+    model = repo / ".config/ci/pipeline.cue"
+    model.parent.mkdir(parents=True, exist_ok=True)
+    model.write_text("package ci\n", encoding="utf-8")
     host = ("[host_profile]", f'provider = "{host_provider}"', "") if host_provider else ()
     declared = tomllib.loads(release.read_text(encoding="utf-8")) if release.exists() else {}
     mirror = declared.get("release", {}).get("mirror")
@@ -511,6 +527,15 @@ def initialize_adopted_fixture(root: Path) -> None:
     config = root / "openspec/config.yaml"
     config.parent.mkdir(parents=True, exist_ok=True)
     config.write_text(PARADIGM_OPENSPEC_CONFIG, encoding="utf-8")
+    write_paradigm_toolchain(root)
+
+
+def write_paradigm_toolchain(root: Path) -> None:
+    """Write the task-only mise owner that exposes the common verbs."""
+    for relative, content in PARADIGM_TOOLCHAIN.items():
+        carrier = root / relative
+        carrier.parent.mkdir(parents=True, exist_ok=True)
+        carrier.write_text(content, encoding="utf-8")
 
 
 def declare_fixture_code_correctness(repo: Path) -> None:

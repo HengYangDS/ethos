@@ -141,7 +141,7 @@ def test_process_handoff_already_owns_reaping_and_pipes(
 ):
     """Both standalone and scoped callers own a child before its handle can escape."""
     native = subprocess.Popen
-    children, fired = [], []
+    children, outputs, fired = [], [], []
 
     def deliver():
         fired.append(True)
@@ -150,6 +150,7 @@ def test_process_handoff_already_owns_reaping_and_pipes(
     def create(*args, **kwargs):
         child = native(*args, **kwargs)
         children.append(child)
+        outputs.append(kwargs["stdout"])
         return child
 
     def trace(frame, event, _argument):
@@ -181,8 +182,9 @@ def test_process_handoff_already_owns_reaping_and_pipes(
         assert len(children) == 1
         child = children[0]
         assert child.returncode is not None
-        assert child.stdout.closed
+        assert child.stdout is None
         assert child.stderr.closed
+        assert all(output.closed for output in outputs)
     finally:
         sys.settrace(previous_trace)
         for child in children:
@@ -443,6 +445,19 @@ def _observe_ready_parent(process, parent_exited, failure):
         waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT)
         if failure == "cancel":
             assert process.poll() == 0
+
+
+@pytest.mark.timeout(30)
+def test_native_output_is_captured_through_regular_files(tmp_path):
+    """Bulk output never makes a native child wait for this process to drain a pipe."""
+    body = (
+        "import os,stat,sys; assert stat.S_ISREG(os.fstat(1).st_mode); "
+        "sys.stdout.buffer.write(b'o' * 8388608); sys.stderr.buffer.write(b'e' * 65536)"
+    )
+    result = process_adapter.run_command(
+        tmp_path, (sys.executable, "-c", body), text=False, check=True, timeout=20
+    )
+    assert (result.stdout, result.stderr) == (b"o" * 8388608, b"e" * 65536)
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX process-group boundary")

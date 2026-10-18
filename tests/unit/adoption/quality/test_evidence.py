@@ -502,9 +502,21 @@ def test_native_node_behavior_retains_same_attempt_diagnostics(
     assert marker.read_text() == "run\n"
     assert "native" in report
     assert isinstance(report["native"], list)
-    assert "stdout" in report["native"][0]
+    native = report["native"][0]
+    assert native["stdout"] == ""
+    assert native["stderr"] == ""
+    assert native["journal"] != native["stdout"]
     if diagnostic:
-        assert "reported warning" in report["native"][0]["stdout"]
+        assert "reported warning" in native["journal"]
+        assert any("reported warning" in message for message in native["diagnostics"])
+    else:
+        assert not native["diagnostics"]
+    with ZipFile(native["artifact"]["path"]) as archive:
+        observed = json.loads(archive.read("observation.json"))
+        assert observed["stdout"] == native["stdout"]
+        assert observed["stderr"] == native["stderr"]
+        assert observed["journal"] == native["journal"]
+        assert observed["diagnostics"] == list(native["diagnostics"])
 
 
 def test_native_quality_does_not_attribute_dirty_bytes_to_committed_source(tmp_path: Path) -> None:

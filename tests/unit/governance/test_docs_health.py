@@ -16,6 +16,8 @@ from ethos.repository.registry.docs.health import ethos_command_tokens
 from ethos.repository.registry.docs.health import shell_commands
 from ethos.repository.registry.docs.registry import front_matter
 from ethos.surface.cli.root.reference import docs_registry_report
+from tests.support.documentation import decision_fixture
+from tests.support.documentation import documentation_fixture
 from tests.support.literal_cases import literal_case
 
 if TYPE_CHECKING:
@@ -28,7 +30,7 @@ def write_active_doc(root: Path, command: str) -> None:
     path.parent.mkdir(parents=True)
     fence = chr(96) * 3
     path.write_text(
-        _document("ethos:example", "reference", "canonical", "Example")
+        documentation_fixture("ethos:example", "reference", "canonical", "Example")
         + f"\n{fence}bash\n{command}\n{fence}\n"
     )
 
@@ -58,10 +60,11 @@ def test_docs_health_rejects_unindexed_plan(tmp_path: Path) -> None:
     plans = tmp_path / "docs" / "plans"
     plans.mkdir(parents=True)
     (plans / "README.md").write_text(
-        _document("docs:plans", "index", "planned", "Plans"), encoding="utf-8"
+        documentation_fixture("docs:plans", "index", "planned", "Plans"), encoding="utf-8"
     )
     (plans / "orphan.md").write_text(
-        _document("ethos:orphan-plan", "plan", "active", "Orphan Plan"), encoding="utf-8"
+        documentation_fixture("ethos:orphan-plan", "plan", "active", "Orphan Plan"),
+        encoding="utf-8",
     )
 
     report = docs_registry_report(tmp_path)
@@ -74,7 +77,7 @@ def test_docs_health_retains_only_meaningful_readme_boundaries(tmp_path, boundar
     """An empty directory cannot use metadata to masquerade as navigation."""
     path = tmp_path / "docs/native/README.md"
     path.parent.mkdir(parents=True)
-    text = _document("docs:native", "index", "canonical", "Native")
+    text = documentation_fixture("docs:native", "index", "canonical", "Native")
     if boundary:
         text = text.replace("relations: {}", "relations:\n  canonical_for: native documentation")
     path.write_text(text)
@@ -88,18 +91,21 @@ def test_docs_health_requires_a_navigation_entrypoint_for_multiple_topics(tmp_pa
     topic.mkdir(parents=True)
     for name in ("first", "second"):
         (topic / f"{name}.md").write_text(
-            _document(f"ethos:{name}", "explanation", "canonical", name.title())
+            documentation_fixture(f"ethos:{name}", "explanation", "canonical", name.title())
         )
 
     missing = docs_health_report(tmp_path)
     assert missing["readme_disposition"] == ["docs_readme_missing:docs/topic/README.md"]
 
     readme = topic / "README.md"
-    readme.write_text(_document("docs:topic", "index", "canonical", "Topic"))
+    readme.write_text(documentation_fixture("docs:topic", "index", "canonical", "Topic"))
     no_route = docs_health_report(tmp_path)
     assert no_route["readme_disposition"] == [
         "docs_readme_without_local_route:docs/topic/README.md"
     ]
+    fence = chr(96) * 3
+    readme.write_text(readme.read_text() + f"\n{fence}text\n[First](first.md)\n{fence}\n")
+    assert docs_health_report(tmp_path)["readme_disposition"] == no_route["readme_disposition"]
     readme.write_text(readme.read_text() + "\nStart with [First](first.md).\n")
     assert docs_health_report(tmp_path)["readme_disposition"] == []
 
@@ -113,10 +119,14 @@ def test_docs_health_routes_nested_topics_from_a_portable_root(tmp_path: Path) -
     topic = handbook / "topics"
     topic.mkdir(parents=True)
     (handbook / "overview.md").write_text(
-        _document("adopter:overview", "explanation", "canonical", "Overview")
+        documentation_fixture("adopter:overview", "explanation", "canonical", "Overview")
     )
-    (topic / "one.md").write_text(_document("adopter:one", "explanation", "active", "One"))
-    (topic / "two.md").write_text(_document("adopter:two", "explanation", "active", "Two"))
+    (topic / "one.md").write_text(
+        documentation_fixture("adopter:one", "explanation", "active", "One")
+    )
+    (topic / "two.md").write_text(
+        documentation_fixture("adopter:two", "explanation", "active", "Two")
+    )
 
     assert docs_health_report(tmp_path)["readme_disposition"] == [
         "docs_readme_missing:handbook/README.md",
@@ -144,7 +154,7 @@ def test_docs_health_routes_metadata_without_indexing_generated_diagrams(
     ]
 
     (metadata / "README.md").write_text(
-        _document("docs:metadata", "index", "canonical", "Metadata")
+        documentation_fixture("docs:metadata", "index", "canonical", "Metadata")
         + f"\nRead [Taxonomy](taxonomy{suffix}).\n"
     )
     assert docs_health_report(tmp_path)["readme_disposition"] == []
@@ -154,11 +164,11 @@ def test_docs_health_reports_missing_invalid_and_duplicate_metadata(tmp_path: Pa
     docs = tmp_path / "docs" / "reference"
     docs.mkdir(parents=True)
     (docs / "first.md").write_text(
-        _document("ethos:duplicate", "unknown", "unexpected", "First"),
+        documentation_fixture("ethos:duplicate", "unknown", "unexpected", "First"),
         encoding="utf-8",
     )
     (docs / "second.md").write_text(
-        _document("ethos:duplicate", "reference", "canonical", "Second"),
+        documentation_fixture("ethos:duplicate", "reference", "canonical", "Second"),
         encoding="utf-8",
     )
     (docs / "missing.md").write_text("# Missing metadata\n", encoding="utf-8")
@@ -234,13 +244,6 @@ ethos "unterminated
     ]
 
 
-def _document(subject: str, role: str, state: str, title: str) -> str:
-    return (
-        f"---\nsubject: {subject}\nrole: {role}\nstate: {state}\nrelations: {{}}\n---\n\n"
-        f"# {title}\n\nStatus: {state}.\n\nPurpose: exercise docs health.\n\nSee also: none.\n"
-    )
-
-
 def _comment_wrapped_document(text: str) -> str:
     """Keep one YAML payload while hiding its carrier before the rendered H1."""
     metadata, delimiter, body = text.partition("\n---\n")
@@ -292,7 +295,9 @@ def test_commented_observations_still_require_a_title_first(tmp_path: Path, role
     """Observational roles waive prose labels, not the carrier's visible order."""
     path = tmp_path / "docs/record.md"
     path.parent.mkdir()
-    content = _comment_wrapped_document(_document("demo:record", role, "active", "Record"))
+    content = _comment_wrapped_document(
+        documentation_fixture("demo:record", role, "active", "Record")
+    )
     path.write_text(content.replace("# Record", "A visible preface.\n\n# Record", 1))
 
     report = docs_registry_report(tmp_path)
@@ -371,7 +376,7 @@ def test_docs_health_uses_only_the_declared_portable_documentation_root(
         profile.write_text("profile_id = 'sample'\n[roots]\ndocs = 'handbook'\n")
     guide = tmp_path / docs / "guide.md"
     guide.parent.mkdir(parents=True)
-    content = _document("adopter:guide", "how-to", "active", "Guide")
+    content = documentation_fixture("adopter:guide", "how-to", "active", "Guide")
     guide.write_text(_comment_wrapped_document(content) if commented else content)
     distribution = tmp_path / "distributions/python/README.md"
     distribution.parent.mkdir(parents=True)
@@ -523,10 +528,10 @@ def test_metadata_retains_structures_and_excludes_literal_guidance(tmp_path: Pat
         "relations: {}", "relations:\n  current_owner: owner.md\nextra:\n  nested: [retained]"
     )
     (path.parent / "owner.md").write_text(
-        _document("ethos:owner", "reference", "canonical", "Owner")
+        documentation_fixture("ethos:owner", "reference", "canonical", "Owner")
     )
     (path.parent / "README.md").write_text(
-        _document("docs:reference", "index", "canonical", "Reference")
+        documentation_fixture("docs:reference", "index", "canonical", "Reference")
         + "\nStart with [Example](example.md).\n"
     )
     path.write_text(text)
@@ -549,7 +554,7 @@ def test_native_document_roles_keep_observations_and_rationale_non_authorizing(t
     """Reader roles do not invent another decision grammar or progress ledger."""
     path = tmp_path / "docs/native/topic.md"
     path.parent.mkdir(parents=True)
-    text = _document("example:topic", role, "active", "Topic")
+    text = documentation_fixture("example:topic", role, "active", "Topic")
     if role in {"evidence", "history"}:
         text = text.split("# Topic", 1)[0] + "# Topic\n"
     path.write_text(
@@ -566,53 +571,44 @@ def test_native_document_roles_keep_observations_and_rationale_non_authorizing(t
 
 
 @pytest.mark.parametrize("docs", ["docs", "handbook"])
+@pytest.mark.parametrize("section", ["Decision", "Evidence and Revisit"])
 @pytest.mark.parametrize(
-    ("review_heading", "review"),
+    ("rationale", "gap"),
     [
-        ("Evidence and Revisit", "Revisit if the native owner cannot meet its contract."),
-        ("Follow-ups", "Revisit if the native owner cannot meet its contract."),
-        ("Follow-ups", ""),
-        ("Follow-ups", "<!-- Hidden review. -->"),
-        ("Follow-ups", "```text\nReview.\n```"),
-        ("Follow-ups", "> Quoted review."),
-    ],
-)
-@pytest.mark.parametrize(
-    ("heading", "decision"),
-    [
-        ("Decision", None),
-        ("Decision", ""),
-        ("Decision", "<!-- Hidden choice. -->\n"),
-        ("Decision", "```text\nChoice.\n```\n"),
-        ("Decision", "> Quoted choice.\n"),
-        ("Decision", "We choose the native owner."),
-        ("Context Decision Consequences Revisit", "We choose the native owner."),
+        (None, "docs_decision_sections_invalid"),
+        ("", "docs_decision_rationale_missing"),
+        ("<!-- Hidden rationale. -->", "docs_decision_execution_content"),
+        ("```text\nLiteral rationale.\n```", "docs_decision_execution_content"),
+        ("> Quoted rationale.", "docs_decision_rationale_missing"),
+        ("The native owner preserves the contract.", None),
+        ("- The native owner preserves the contract.\n\n> Supporting quotation.", None),
     ],
 )
 def test_decision_role_requires_visible_authored_choice_in_portable_root(
-    tmp_path: Path, docs: str, review_heading: str, review: str, heading: str, decision: str | None
+    tmp_path: Path, docs: str, section: str, rationale: str | None, gap: str | None
 ) -> None:
-    """Common decision semantics cannot be satisfied by metadata, quotes or code."""
+    """Canonical DR sections need authored rationale, not metadata or literal content."""
     if docs != "docs":
         profile = tmp_path / ".ethos/profile.toml"
         profile.parent.mkdir()
         profile.write_text("profile_id='sample'\n[roots]\ndocs='handbook'\n")
     path = tmp_path / docs / "dr-0001-native-owner.md"
     path.parent.mkdir(parents=True)
-    text = _document("example:decision", "decision", "canonical", "Native Owner")
-    text += "\n## Context\n\nDuplicate controllers disagree.\n"
-    if decision is not None:
-        text += "\n## " + heading + "\n\n" + decision + "\n"
-    text += "\n## Consequences and Boundary\n\nOne native owner governs the effect.\n"
-    text += "\n## Alternatives\n\nReject duplicate local governance.\n"
-    text += f"\n## {review_heading}\n\n{review}\n"
+    text = decision_fixture(subject="example:decision")
+    before, body = text.split(f"## {section}\n\n", 1)
+    _original, separator, after = body.partition("\n## ")
+    replacement = "" if rationale is None else f"## {section}\n\n{rationale}\n"
+    text = before + replacement + (separator + after if separator else "")
     path.write_text(text)
     report = docs_registry_report(tmp_path)
-    gap = f"docs_decision_section_unproven:{docs}/{path.name}:decision"
-    choice = heading == "Decision" and decision == "We choose the native owner."
-    accepted = choice and review.startswith("Revisit")
-    assert report["verdict"] == ("pass" if accepted else "block")
-    assert (gap in report["required_gaps"]) is not choice
+    assert report["verdict"] == ("pass" if gap is None else "block")
+    if gap is not None:
+        assert any(
+            value.startswith(f"{gap}:{docs}/{path.name}") for value in report["required_gaps"]
+        )
+    else:
+        assert report["required_gaps"] == []
+    assert path.read_text() == text
 
 
 @pytest.mark.parametrize("closed", [False, True])

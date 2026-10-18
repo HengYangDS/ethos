@@ -19,6 +19,7 @@ from packaging.specifiers import SpecifierSet
 from uv import find_uv_bin
 
 from ethos.adapters.gates.native.python import report as native_python_report
+from ethos.adapters.gates.python_target import compatibility_target
 from ethos.adapters.gates.verification import NativeExecution
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
@@ -57,9 +58,13 @@ def _native_fields(execution: NativeExecution) -> dict[str, object]:
 
 
 def _static_execution(
-    root: Path, paths: tuple[str, ...], execution: NativeExecution | None
+    root: Path, paths: tuple[str, ...], target: str, execution: NativeExecution | None
 ) -> NativeExecution:
-    """Select the native isolated command before execution or same-attempt consumption."""
+    """Select the native isolated command before execution or same-attempt consumption.
+
+    Isolation keeps the product's rule floor; the explicit target keeps the subject's
+    declared Python version rather than the checker's default.
+    """
     command = (
         sys.executable,
         "-I",
@@ -73,6 +78,8 @@ def _static_execution(
         "json",
         "--line-length",
         str(_FLEET_LINE_LENGTH),
+        "--target-version",
+        target,
         "--select",
         "E,F,B,I,UP",
         *paths,
@@ -115,7 +122,7 @@ def _static_diagnostics(execution: NativeExecution) -> None:
 
 
 def static_report(root: Path, *, execution: NativeExecution | None = None) -> dict[str, object]:
-    """Qualify one isolated product-pinned Ruff attempt over exact Python subjects."""
+    """Qualify one isolated product-pinned Ruff attempt at the subjects' declared target."""
     native = _native_fields(execution) if execution is not None else {}
     try:
         if execution is not None and execution.evidence is not None:
@@ -126,8 +133,9 @@ def static_report(root: Path, *, execution: NativeExecution | None = None) -> di
         artifacts = tuple(
             subject.path for subject in subjects if not subject.requires_authored_analysis
         )
-        if authored:
-            execution = _static_execution(root, authored, execution)
+        target = compatibility_target(root, tree, authored) if authored else None
+        if target is not None:
+            execution = _static_execution(root, authored, target.version, execution)
             native = _native_fields(execution)
         elif execution is not None:
             return {**_failure("static", "python_native_selection_invalid"), "native": native}
@@ -155,6 +163,7 @@ def static_report(root: Path, *, execution: NativeExecution | None = None) -> di
                 if artifacts
                 else {}
             ),
+            **({"python_target": target.evidence()} if target is not None else {}),
         },
     }
 

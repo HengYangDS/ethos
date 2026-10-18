@@ -9,6 +9,7 @@ import subprocess
 from concurrent.futures import FIRST_COMPLETED
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait
+from contextlib import ExitStack
 from contextvars import copy_context
 from dataclasses import asdict
 from dataclasses import dataclass
@@ -19,10 +20,12 @@ from time import monotonic
 from typing import TYPE_CHECKING
 from typing import Any
 
-import ethos
+from ethos.adapters.gates.javascript.execution import prepare_command
+from ethos.adapters.gates.javascript.execution import retain_attempt
 from ethos.adapters.gates.native.attempt import gate_attempt
 from ethos.adapters.gates.native.attempt import gate_execution
-from ethos.adapters.gates.verification import diagnostic_gaps_for
+from ethos.adapters.gates.verification import assert_provider_execution_source
+from ethos.adapters.gates.verification import classify_action_result
 from ethos.adapters.gates.verification import provider_reports
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import command_scope
@@ -30,17 +33,13 @@ from ethos.adapters.repo.dependency_acceptance import captured_dependency_accept
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import current_tree
-from ethos.adapters.repo.runtime.authority import invoking_build_identity
 from ethos.adapters.repo.worktree_postimage import observe_execution_source
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.proof.plan import execution_source_gaps
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import execution_succeeded
-from ethos.contracts.verdict import report_verdict
-from ethos.normalization.coercion import string_sequence
-from ethos.repository.policy.gates import PRODUCT_PROVIDER_SOURCE
+from ethos.contracts.verdict import reduce_verdicts
 from ethos.repository.policy.gates import gate_execution_identity
-from ethos.repository.policy.gates import provider_module_sources
 from ethos.repository.policy.quality.dependency_acceptance import native_dependency_audit_scope
 
 if TYPE_CHECKING:
@@ -65,50 +64,6 @@ class ActionRunResult:
     duration_seconds: float | None = None
 
 
-def classify_action_result(
-    *,
-    exit_code: int | None,
-    stdout: str,
-    timeout_gap: str | None = None,
-) -> tuple[Verdict, tuple[dict[str, Any], ...]]:
-    if timeout_gap is not None:
-        return "unknown", ({"kind": "gate_timeout", "required_gaps": [timeout_gap]},)
-    if exit_code != 0:
-        return "block", ()
-    try:
-        payload = json.loads(stdout)
-    except json.JSONDecodeError:
-        payload = None
-    if not isinstance(payload, dict) or "command" not in payload:
-        return "pass", ()
-    raw_verdict = payload.get("verdict")
-    if not isinstance(raw_verdict, str) or raw_verdict not in {"pass", "block", "unknown"}:
-        return "unknown", (
-            {
-                "kind": "ethos_result",
-                "verdict": "unknown",
-                "state": str(payload.get("state", "")),
-                "required_gaps": ["ethos_result_verdict_missing_or_invalid"],
-            },
-        )
-    required_gaps = string_sequence(payload.get("required_gaps"), drop_empty=True)
-    warnings = string_sequence(payload.get("warnings"), drop_empty=True)
-    diagnostic_gaps = diagnostic_gaps_for(payload.get("diagnostics"), "ethos_result")
-    gaps = tuple(dict.fromkeys((*required_gaps, *diagnostic_gaps)))
-    verdict = report_verdict(payload)
-    if verdict == "pass":
-        return verdict, ()
-    warning_gaps = tuple(f"ethos_result_warning:{warning}" for warning in warnings)
-    return verdict, (
-        {
-            "kind": "ethos_result",
-            "verdict": verdict,
-            "state": str(payload.get("state", "")),
-            "required_gaps": list(dict.fromkeys((*gaps, *warning_gaps))),
-        },
-    )
-
-
 class DryRunRunner:
     def run(self, node: PlanNode, _gate: Gate, *, root: Path) -> ActionRunResult:
         root.resolve(strict=True)
@@ -124,6 +79,32 @@ class LocalGateRunner:
     """Execute a declared provider directly or an external adapter command."""
 
     def run(self, node: PlanNode, gate: Gate, *, root: Path) -> ActionRunResult:
+        result = None
+        try:
+            with ExitStack() as attempt_scope:
+                result = self._run(node, gate, root=root, attempt_scope=attempt_scope)
+        except ProcessExecutionError as error:
+            if error.reason != "native_attempt_source_binding":
+                raise
+            failed = result or ActionRunResult(node.id, node.command, "block", None)
+            return replace(
+                failed,
+                verdict="block",
+                diagnostics=(
+                    *failed.diagnostics,
+                    {
+                        "kind": "native_source_binding",
+                        **error.evidence(),
+                        "required_gaps": [error.code],
+                    },
+                ),
+            )
+        else:
+            return result
+
+    def _run(
+        self, node: PlanNode, gate: Gate, *, root: Path, attempt_scope: ExitStack
+    ) -> ActionRunResult:
         deadline = monotonic() + gate.timeout_seconds if gate.timeout_seconds else None
         if node.command != gate_execution_identity(gate):
             return ActionRunResult(
@@ -152,30 +133,62 @@ class LocalGateRunner:
             (str(Path(executable).absolute()), *command[1:]) if executable else command
         )
         native_evidence = None
+        node_attempt = None
+        if "ethos.adapters.gates.code_quality:behavior_report" in gate.verification_providers and (
+            preparation := prepare_command(root, execution_command)
+        ):
+            node_attempt = attempt_scope.enter_context(preparation)
         try:
             completed, native_evidence = gate_attempt(
                 root,
                 gate,
                 execution_command,
                 timeout=max(0, deadline - monotonic()) if deadline else None,
+                env=node_attempt.environment() if node_attempt is not None else None,
+                remove_env=("NODE_OPTIONS", "NODE_PATH", "NODE_V8_COVERAGE")
+                if node_attempt is not None
+                else (),
             )
         except subprocess.TimeoutExpired as exc:
+            stdout = (
+                exc.stdout.decode(errors="replace")
+                if isinstance(exc.stdout, bytes)
+                else exc.stdout or ""
+            )
+            stderr = (
+                exc.stderr.decode(errors="replace")
+                if isinstance(exc.stderr, bytes)
+                else exc.stderr or ""
+            )
+            observation: dict[str, object] = {}
+            if node_attempt is not None:
+                observed = {
+                    "language": "javascript",
+                    "source_tree": node_attempt.source_tree,
+                    "raw_directory": str(node_attempt.output / "raw"),
+                    "argv": execution_command,
+                    "timeout": exc.timeout,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                    "verdict": "unknown",
+                    "required_gaps": [f"gate_timeout:{node.id}"],
+                }
+                observation = {
+                    "observation": {"artifact": retain_attempt(root, node_attempt.output, observed)}
+                }
             return ActionRunResult(
                 action_id=node.id,
                 command=node.command,
                 verdict="unknown",
                 exit_code=124,
-                stdout=exc.stdout.decode(errors="replace")
-                if isinstance(exc.stdout, bytes)
-                else exc.stdout or "",
-                stderr=exc.stderr.decode(errors="replace")
-                if isinstance(exc.stderr, bytes)
-                else exc.stderr or "",
+                stdout=stdout,
+                stderr=stderr,
                 diagnostics=(
                     {
                         "kind": "gate_timeout",
                         "timeout_seconds": exc.timeout,
                         "required_gaps": [f"gate_timeout:{node.id}"],
+                        **observation,
                     },
                 ),
             )
@@ -243,21 +256,24 @@ class LocalGateRunner:
             executable=execution_command[0] if executable else "",
             evidence=native_evidence,
         )
-        verification: dict[str, object] | None = None
-        if native.evidence is not None:
-            verification = {
+        verification: dict[str, object] | None = (
+            {
                 "gate": gate.id,
                 "native_artifact": native.evidence.artifact,
                 "providers": [],
             }
-        if verdict == "pass" and gate.verification_providers:
+            if native.evidence is not None
+            else None
+        )
+        if (verdict == "pass" or node_attempt is not None) and gate.verification_providers:
             reports, verdict, provider_diagnostics = provider_reports(
                 gate.id,
                 gate.verification_providers,
                 root,
                 timeout_seconds=max(0, deadline - monotonic()) if deadline else None,
-                execution=native,
+                execution=replace(native, node_attempt=node_attempt),
             )
+            verdict = reduce_verdicts(execution.verdict, verdict)
             verification = {
                 **(verification or {}),
                 "gate": gate.id,
@@ -503,36 +519,4 @@ def _run_providers(node: PlanNode, gate: Gate, root: Path) -> ActionRunResult:
         exit_code=0 if verdict == "pass" else 1,
         stdout=json.dumps(payload, sort_keys=True, separators=(",", ":")),
         diagnostics=diagnostics,
-    )
-
-
-def assert_provider_execution_source(root: Path, gates: tuple[Gate, ...]) -> None:
-    """Reject candidate-bound checks running from a different implementation before effects."""
-    bound = tuple(
-        (gate.id, reference)
-        for gate in gates
-        for reference, relative in provider_module_sources(gate)
-        if not relative.startswith(PRODUCT_PROVIDER_SOURCE) and (root / relative).is_file()
-    )
-    package = Path(ethos.__file__).resolve()
-    if not bound or package == (root / "src/ethos/__init__.py").resolve():
-        return
-    try:
-        identity = invoking_build_identity()
-        head = current_tracked_head(root)
-        if head == identity.source_commit and current_tree(root, head) == identity.source_tree:
-            return
-    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
-        pass
-    gate_id, reference = bound[0]
-    message = f"gate_provider_source_mismatch:{gate_id}:{reference}"
-    raise ProcessExecutionError(
-        message,
-        reason="candidate_provider_execution_requires_matching_source",
-        cwd=str(root),
-        observation={
-            "runner_module_path": str(package),
-            "required_gaps": [f"gate_provider_source_mismatch:{name}:{ref}" for name, ref in bound],
-            "next_action": "run proof from the admitted checkout's locked Python environment",
-        },
     )

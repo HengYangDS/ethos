@@ -45,8 +45,15 @@ def _change(root: Path, name: str) -> None:
         ".openspec.yaml": "schema: spec-driven\n",
         "proposal.md": "## Why\n\nVerify installed native merge.\n\n"
         "## What Changes\n\n- Merge independent contributions.\n\n"
+        "## Capabilities\n\n### New Capabilities\n\n"
+        "- `merge`: preserve both contribution parents.\n\n"
+        "### Modified Capabilities\n\n- None.\n\n"
+        "## Impact\n\n- Disposable package-only fixture.\n\n"
         "## Out of Scope\n\n- Product changes.\n",
-        "design.md": "## Context\n\nDisposable package-only verification.\n",
+        "design.md": "## Context\n\nDisposable package-only verification.\n\n"
+        "## Goals / Non-Goals\n\nIntegrate both contributions without product changes.\n\n"
+        "## Decisions\n\nUse the installed native merge continuation.\n\n"
+        "## Risks / Trade-offs\n\nNone beyond the disposable fixture.\n",
         "tasks.md": "## 1. Integration\n\n- [ ] 1.1 Verify contribution.\n",
         "specs/merge/spec.md": "## ADDED Requirements\n\n"
         "### Requirement: Contribution identity\n\n"

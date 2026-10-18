@@ -12,6 +12,7 @@ import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.archive.command as archive
 import ethos.adapters.mutation.lane_lifecycle.archive.effect as archive_effect
+import ethos.adapters.mutation.proof as proof_module
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.openspec.lifecycle.archive_transition import ArchivePostimage
 from ethos.adapters.openspec.lifecycle.archive_transition import archive_postimage_scope_report
@@ -53,7 +54,7 @@ def test_public_archive_requires_authored_purpose_before_new_capability_cas(monk
     delta.rename(new_delta)
     commit_fixture(root, "test: declare a new canonical capability")
     monkeypatch.setattr(archive, "proof_gaps", proof_gaps)
-    seed_executed_proof(root, lifecycle.head)
+    _seed_predecessor_proof(monkeypatch, root, lifecycle.head)
     before = lifecycle.head
     blocked = lifecycle.apply_archive()
     assert blocked["state"] == "blocked"
@@ -116,7 +117,7 @@ def test_public_archive_rejects_modified_canonical_warnings_before_git_cas(
     )
     commit_fixture(root, "test: modify two canonical requirements")
     monkeypatch.setattr(archive, "proof_gaps", proof_gaps)
-    seed_executed_proof(root, lifecycle.head)
+    _seed_predecessor_proof(monkeypatch, root, lifecycle.head)
     before = lifecycle.head
     archived = lifecycle.apply_archive()
     assert archived["state"] == "blocked"
@@ -163,7 +164,7 @@ def test_staged_native_archive_preserves_unowned_invalid_postimage(
     )
     commit_fixture(root, "test: modify canonical requirement")
     monkeypatch.setattr(archive, "proof_gaps", proof_gaps)
-    seed_executed_proof(root, lifecycle.head)
+    _seed_predecessor_proof(monkeypatch, root, lifecycle.head)
     head = lifecycle.head
     archive_path = lifecycle.stage_official_archive()
     archived_delta = root / archive_path / "specs/contracts/spec.md"
@@ -182,6 +183,13 @@ def test_staged_native_archive_preserves_unowned_invalid_postimage(
     assert lifecycle.head == head
     assert archived_delta.read_bytes() == source_bytes
     assert not lifecycle.active.exists()
+
+
+def _seed_predecessor_proof(monkeypatch: pytest.MonkeyPatch, root: Path, head: str) -> None:
+    """Prove as a runtime without archive readiness, so archive itself must refuse."""
+    with monkeypatch.context() as predecessor:
+        predecessor.setattr(proof_module, "archive_readiness_gaps", lambda *_a, **_k: ())
+        seed_executed_proof(root, head)
 
 
 def _stage_exact_archive(lifecycle: OpenSpecLifecycle) -> str:
@@ -338,7 +346,8 @@ def _declare_archive_reference(root: Path) -> tuple[str, Path, bytes]:
     target = root / "docs/reference.md"
     target.parent.mkdir(exist_ok=True)
     target.write_text("# Reference\n")
-    (active / "design.md").write_text("[Reference](../../../docs/reference.md)\n")
+    design = active / "design.md"
+    design.write_text(design.read_text() + "\n[Reference](../../../docs/reference.md)\n")
     delta = active / "specs/contracts/spec.md"
     delta.write_text(
         delta.read_text().replace(

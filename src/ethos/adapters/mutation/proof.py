@@ -16,6 +16,7 @@ from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.mutation.proof_artifacts import write_proof_artifact
 from ethos.adapters.mutation.proof_validation import plan_from_statement
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
+from ethos.adapters.openspec.archive_readiness import archive_readiness_gaps
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.dependency_acceptance import dependency_acceptance_gaps
@@ -414,13 +415,16 @@ def proof_plan(
     )
     archive_authority = observed_scope.archive_authority if effective_paths else {}
     prior_attestations = {"openspec_archive": archive_authority} if archive_authority else {}
+    archive_gaps = archive_readiness_gaps(
+        root, change=resolution.change_id, tree=authority.current_tree
+    )
     return compile_plan(
         resolution.commitment,
         facts,
         policy.nodes,
         policy=policy.projection,
         prior_attestations=prior_attestations,
-        required_gaps=tuple(dict.fromkeys((*policy.gaps, *observed_scope.gaps))),
+        required_gaps=tuple(dict.fromkeys((*policy.gaps, *observed_scope.gaps, *archive_gaps))),
     )
 
 

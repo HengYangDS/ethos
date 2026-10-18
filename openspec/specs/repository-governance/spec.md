@@ -204,12 +204,11 @@ their native subject layout under the portable Docs Registry contract.
 #### Scenario: Common docs kernel is audited
 
 - **WHEN** documentation governance audits the repository
-- **THEN** it requires only the common semantic kernel owned by the current
-  contract: the documentation root, evidence, history, and reference lanes
-- **AND** product extension roots are retained only when they contain a distinct
-  subject or function
-- **AND** no extension root is mandatory for an adopter merely because ETHOS
-  uses it
+- **THEN** it checks declared subjects, purposes, authority and reachable
+  relationships without requiring evidence or lifecycle directories
+- **AND** product roots remain only for distinct subject responsibilities
+- **AND** retained evidence follows its producer, consumer, binding and lifetime
+- **AND** no ETHOS extension root is mandatory for an adopter
 
 #### Scenario: First-run guidance is placed by function
 
@@ -223,8 +222,8 @@ their native subject layout under the portable Docs Registry contract.
 #### Scenario: A documentation directory needs a README
 
 - **WHEN** a documentation directory is evaluated for a README
-- **THEN** a README SHALL exist only when it provides real navigation, a
-  semantic boundary, or an index for multiple meaningful children
+- **THEN** two or more immediate navigable children SHALL have a README
+  with a local route into the directory's content
 - **AND** a directory with one substantive document SHALL not receive a
   placeholder README merely because the directory exists
 - **AND** an empty directory or `.gitkeep` SHALL be removed
@@ -245,8 +244,9 @@ their native subject layout under the portable Docs Registry contract.
   not accept `current` or `future` as documentation state values
 - **AND** present repository truth is proven by HEAD, authority order,
   contracts, evidence, claims, and proof rather than by directory name
-- **AND** unlanded intent belongs in OpenSpec changes, plans, research, or
-  decision revisit triggers rather than in a generic intent directory
+- **AND** proposed behavior and acceptance belong in the selected official
+  Change; plans, research and revisit conditions supply linked context only
+- **AND** no generic intent directory becomes a second change authority
 
 #### Scenario: Product pseudo-lanes do not become common kernel
 
@@ -1278,200 +1278,6 @@ projections, and gates instead of making adopter tools product ontology.
   claim, evidence, or command proof
 - **AND** missing method-pack availability SHALL NOT block ETHOS repository
   governance when equivalent evidence discipline is satisfied
-
-### Requirement: Preservation-bound exceptional Work Lane retirement
-
-ETHOS SHALL preserve or preserve-retire a dirty foreign or ownerless Work Lane
-only when a separately accepted Commitment requires the disposition and one
-exact decision Attestation binds target, observation, recovery material,
-validity, and actor. The operation SHALL re-observe every mutable fact before
-its first effect.
-
-#### Scenario: dirty residual lane is preserved without retirement
-
-- **GIVEN** an exact decision Attestation selects preservation for one dirty lane
-- **WHEN** a maintainer applies the accepted operation
-- **THEN** ETHOS writes and verifies the digest-bound recovery package
-- **AND** retains the exact branch and worktree
-
-#### Scenario: dirty lane is preserved before retirement
-
-- **GIVEN** an exact decision Attestation selects preserve-retire
-- **WHEN** irreversible controls and fresh observations pass
-- **THEN** ETHOS verifies recovery material before exact retirement
-- **AND** emits one effect Attestation requiring reconciliation when partial
-
-#### Scenario: ordinary dirty retirement remains blocked
-
-- **WHEN** dirty retirement lacks the accepted Commitment and exact decision
-  Attestation
-- **THEN** ETHOS blocks without removing branch or worktree
-
-#### Scenario: Chronicle disposition is bound before the effect
-
-- **WHEN** a disposition is required before an exceptional effect
-- **THEN** ETHOS binds one decision Attestation and its canonical identity
-- **AND** no Chronicle path, mutable decision record, or supplied flag authorizes
-  the effect
-
-#### Scenario: detached dirty residue is normalized without changing bytes
-
-- **WHEN** a detached historical worktree is prepared for exact resolution
-- **THEN** ETHOS first captures HEAD, index, reflog, path, ownership, and content
-  digests without changing bytes
-- **AND** any reconstructed ref mints neither ownership nor effect authority
-
-### Requirement: Durable exceptional-resolution recovery inventory
-
-ETHOS SHALL materialize successful exceptional-resolution decisions, receipts,
-preservation manifests, and bounded clear records under a stable local records
-owner derived from the configured accepted checkout. The records owner SHALL
-survive linked Work Lane retirement. Inventory and clear SHALL retain
-read-only compatibility with legacy per-worktree lane-resolution artifacts,
-but conflicting records for one decision SHALL fail closed.
-
-#### Scenario: a preserved resolution is discoverable
-
-- **GIVEN** a preserve or preserve-retire decision succeeds
-- **WHEN** ETHOS completes the local effect
-- **THEN** it writes a schema-validated immutable receipt bound to the observed
-  lane, head, decision, and manifest when present
-- **AND** inventory reports retained or unindexed state without minting
-  authority from an artifact.
-
-#### Scenario: a carrier invokes preservation and is later retired
-
-- **GIVEN** a Work Lane invokes lane_resolution/preserve-retire for an exact
-  source observation
-- **WHEN** ETHOS writes the decision, package, and completion receipt
-- **THEN** those records SHALL be owned by the configured accepted checkout's
-  sibling recovery-records root rather than by the invoking Work Lane
-- **AND** later retirement of the invoking Work Lane SHALL not remove them
-- **AND** accepted-root inventory and package verification SHALL still report
-  the retained package after both source and carrier worktrees are absent.
-
-#### Scenario: immutable decision records cannot collide or redirect ownership
-
-- **GIVEN** a caller records more than one decision for the same branch, or
-  supplies a path that already exists
-- **WHEN** ETHOS selects or writes the decision path
-- **THEN** each default path SHALL be unique and an existing explicit path SHALL
-  block with `lane_resolution_decision_path_exists`
-- **AND** caller Work Lane policy bytes SHALL NOT redirect the configured
-  accepted checkout's sibling records owner.
-
-#### Scenario: a new decision path targets a legacy or unrelated root
-
-- **GIVEN** a caller supplies an explicit decision path outside the configured
-  accepted checkout's sibling lane-resolution records root
-- **WHEN** ETHOS plans the decision
-- **THEN** it SHALL report `lane_resolution_decision_path_not_local_artifact`
-- **AND** it SHALL not write into a legacy, foreign-worktree, or unrelated root.
-
-#### Scenario: a tampered decision identifier attempts package path escape
-
-- **GIVEN** a stored decision identifier is not canonical
-  `lane-decision:<UUID>` or its package realpath escapes the pinned records root
-- **WHEN** ETHOS applies the decision
-- **THEN** it SHALL block before package materialization
-- **AND** it SHALL not write into a foreign, legacy, or unrelated root.
-
-#### Scenario: an existing package directory cannot be reused
-
-- **GIVEN** the canonical package path for one decision already exists
-- **WHEN** ETHOS applies a preserve or preserve-retire decision
-- **THEN** it SHALL report `lane_resolution_preservation_package_exists`
-- **AND** it SHALL not overwrite any existing recovery bytes.
-
-#### Scenario: a completion receipt is already present or reserved
-
-- **GIVEN** the deterministic completion-receipt destination already exists or
-  another conforming writer owns its hidden reservation sidecar
-- **WHEN** ETHOS applies a preserve-retire decision
-- **THEN** it SHALL report `lane_resolution_receipt_path_exists` before package,
-  ref, or worktree mutation
-- **AND** it SHALL preserve the existing bytes, branch, and linked worktree.
-
-#### Scenario: receipt reservation follows the effect boundary
-
-- **GIVEN** ETHOS exclusively reserves a completion-receipt destination
-- **WHEN** preparation fails before effect or final receipt materialization
-  succeeds
-- **THEN** it SHALL release the reservation
-- **AND** when a destructive effect completes but final receipt writing fails,
-  it SHALL retain the reservation for reconciliation and still enforce the
-  final writer's no-clobber check.
-
-#### Scenario: a package or record path contains a symlink component
-
-- **GIVEN** a package, manifest, receipt, or clear-record path redirects through
-  a symlink
-- **WHEN** ETHOS inventories, writes, verifies, or clears resolution records
-- **THEN** it SHALL report `lane_resolution_package_path_unsafe` or
-  `lane_resolution_record_path_unsafe`
-- **AND** it SHALL not write or delete outside the pinned records owner.
-
-#### Scenario: a legacy Work Lane still owns retained recovery material
-
-- **GIVEN** a linked Work Lane contains an ignored legacy
-  build/artifacts/lane-resolution/*/manifest.json
-- **WHEN** ordinary landed or superseded retirement reobserves the selected
-  worktree
-- **THEN** ETHOS SHALL block with `lane_resolution_legacy_retention_present`
-  before removing the worktree, branch ref, or lease
-- **AND** it SHALL report that retained lane-resolution recovery material still
-  requires migration or an evidence-bound clear.
-
-#### Scenario: duplicate local decision records conflict
-
-- **GIVEN** canonical and legacy stores expose the same decision ID with
-  different manifest or receipt content
-- **WHEN** inventory or clear is requested
-- **THEN** ETHOS SHALL report `lane_resolution_decision_record_conflict`
-- **AND** it SHALL not choose one record by scan order or remove either package.
-
-#### Scenario: byte-identical package copies make clear ambiguous
-
-- **GIVEN** more than one physical package location exposes the same decision ID
-  and manifest bytes
-- **WHEN** clear is requested
-- **THEN** ETHOS SHALL report `lane_resolution_clear_package_ambiguous`
-- **AND** it SHALL not remove only the scan-order-selected copy.
-
-#### Scenario: durable manifest and receipt binding diverges
-
-- **GIVEN** a retained manifest digest no longer matches its immutable receipt
-- **WHEN** inventory, verification, or clear reads durable records
-- **THEN** ETHOS SHALL report `lane_resolution_manifest_receipt_mismatch`
-- **AND** it SHALL not report the package as consistently retained or cleared.
-
-#### Scenario: final receipt materialization fails after effect
-
-- **GIVEN** a stable decision and verified preservation package exist
-- **WHEN** the bounded source transition completes but immutable receipt writing
-  fails
-- **THEN** ETHOS SHALL report `verdict=block`, `state=partial_transition`, and
-  `lane_resolution_receipt_write_failed_after_effect`
-- **AND** the stable decision and package SHALL remain inspectable for
-  reconciliation
-- **AND** the exclusive receipt reservation SHALL remain present for explicit
-  reconciliation
-- **AND** the command SHALL not report ordinary success.
-
-#### Scenario: one absorbed detached-residue package is cleared by exact manifest
-
-- **GIVEN** an accepted Chronicle selects
-  `lane_resolution/clear-preservation` for one exact decision id and manifest
-- **AND** the retained tracked patch matches the pre-effect capture, the index
-  patch is empty, no untracked archive exists, and accepted behavior contains
-  no missing capability from that package
-- **WHEN** a maintainer invokes native clear with the matching manifest,
-  non-empty reason, break-glass, and irreversible confirmation
-- **THEN** ETHOS SHALL re-read inventory and manifest bytes before removing only
-  that package and emitting a clear receipt
-- **AND** the original decision and completion receipt SHALL remain
-- **AND** another package, a changed manifest, raw deletion, or batch clear
-  SHALL remain blocked.
 
 ### Requirement: Evidence-bound preservation-package clearing
 
@@ -2740,6 +2546,56 @@ Consumed Leases SHALL bind only lane ref, holder, generation and expiry under
 SQLite transaction; Git facts remain independent. Remove only the selected clean
 checkout and compare-delete its exact ref in a transaction verifying accepted.
 
+#### Scenario: Landed preview supplies an executable exact continuation
+
+- **WHEN** an admitted preview selects one landed branch without an expected HEAD
+- **THEN** its next command binds that branch's observed HEAD, not accepted's HEAD
+- **AND** executing it rechecks all current admission and exact-effect conditions
+- **AND** an explicitly supplied expected HEAD is preserved, never silently replaced
+
+#### Scenario: Integration continuation follows Git containment
+
+- **WHEN** a Work Lane HEAD is already contained in the candidate but not accepted
+- **THEN** lane status selects accepted closeout instead of repeating land
+- **WHEN** the Work Lane HEAD is contained in accepted
+- **THEN** lane status selects the existing landed-retirement preview
+- **AND** retirement still reviews nontracked content and rechecks exact authority
+- **AND** an absent candidate does not turn already accepted content into an
+  authoring or coordination failure
+- **AND** uncommitted lane content remains authoring work, not a retirement cue
+- **AND** a lane ahead of candidate continues to select land
+
+#### Scenario: Nontracked content requires an explicit disposition
+
+- **WHEN** a linked worktree contains nontracked content, including ignored evidence
+- **THEN** automatic retirement preserves the worktree, refs, Lease and content
+- **AND** the preview reports its native footprints and existing lifecycle labels
+- **AND** neither Git ignore rules nor a lifecycle label authorize deletion
+- **AND** continuation requests existing exact content review before separately authorized disposal
+- **AND** required custody is preserved outside the retiring resource before disposal
+
+#### Scenario: Nontracked content appears after planning
+
+- **WHEN** ignored content appears before an unreviewed retirement effect or receipt recovery
+- **THEN** fresh effect admission refuses deletion and selects a new content review
+- **AND** a reviewed receipt still refuses changed content, foreign ownership and active consumers
+
+#### Scenario: Reviewed content remains inspectable without repeating its manifest
+
+- **WHEN** an owned lane's reviewed tree contains many generated and nontracked nodes
+- **THEN** the public preview gives its exact receipt and bounded review summary, not a second copy of the complete manifest
+- **AND** the receipt retains every reviewed node for inspection and effect-time drift checks
+- **AND** the summary alone never authorizes disposal
+
+#### Scenario: Unrelated native file-descriptor churn is not a retirement consumer
+
+- **WHEN** unrelated processes close descriptors during selected content retirement
+- **THEN** the native observer scopes its search to the worktree and external Git index
+- **AND** cwd, file, mapping, writer, hardlink and index holders still block deletion
+- **AND** an already absent reviewed worktree is not a deletion target; its surviving index remains observed
+- **AND** a present unsafe worktree, missing index, incomplete output, permission failure or timeout remains unknown
+- **AND** reviewed content is rechecked after the process observation
+
 #### Scenario: Exact Lease observation changed after planning
 
 - **WHEN** a planned live or expired Lease differs in lane ref, holder ref,
@@ -3594,13 +3450,10 @@ intent carrier.
 
 ### Requirement: Official Change bootstrap is a bounded write authority
 
-An owned Work Lane with a valid current Lease SHALL be able to create and
-complete exactly one official OpenSpec Change before its transient Commitment
-exists. Bootstrap authority SHALL derive only from the official active Change
-identifier and artifact graph, and SHALL cover only artifact paths under that
-exact Change root. A request naming an exact absent Change root SHALL be
-recognized as bootstrap intent but SHALL NOT grant directory-wide mutation
-authority.
+An owned Work Lane with a valid Lease SHALL create and complete one selected
+official Change before Commitment compilation. Selection SHALL consume exact
+active identity and official artifact outputs, including when other Changes
+coexist. Only those outputs are admitted; directory-wide authority is excluded.
 
 #### Scenario: Official metadata starts the first Change
 
@@ -3633,11 +3486,35 @@ authority.
 
 #### Scenario: Ambiguous or invalid bootstrap fails closed
 
-- **WHEN** several active Change identifiers are observed, an identifier is
-  invalid, or a requested path is outside the official artifact graph
+- **WHEN** the request cannot select one active Change, an identifier is
+  invalid, or a requested path is outside the selected official artifact graph
 - **THEN** prewrite reports the first exact OpenSpec or uncovered-path gap
 - **AND** historical archive authority, another Change, or a fallback path does
   not authorize the write.
+
+#### Scenario: Official creation coexists with another active Change
+
+- **GIVEN** official new-change execution creates metadata beside another active Change
+- **WHEN** every prewrite path belongs to that one existing active Change root
+- **THEN** current resolution selects it and consumes its official artifact graph
+- **AND** public prewrite, pre-tool and Git commit use the same admission owner
+- **AND** a missing or mismatched Lease still rejects the request
+
+#### Scenario: Ordinary work remains ambiguous
+
+- **WHEN** product paths or several Change roots cannot identify one selected intent
+- **THEN** ETHOS keeps the unresolved intent gap and marks the choice as required
+- **AND** its next action inspects the official Change list rather than repeating status
+- **AND** explicit plan and proof selection remain bound to the named official intent
+
+#### Scenario: Canonical INFO does not monopolize unrelated authoring
+
+- **GIVEN** one selected valid active Change and an owned Work Lane with a current Lease
+- **AND** official validation succeeds with only blocking INFO findings in existing canonical specs
+- **WHEN** prewrite requests ordinary paths disjoint from those exact spec repairs
+- **THEN** ETHOS applies the selected Change's fresh ordinary material scope and all other prewrite controls, without granting paths from the INFO finding
+- **AND** status, plan, proof and closeout retain the canonical INFO gaps until corrected
+- **AND** a mixed repair-and-ordinary request, invalid validation, missing Commitment or uncovered path remains blocked
 
 ### Requirement: Remote publication observations preserve epistemic state
 
@@ -3724,35 +3601,41 @@ and MUST remain bound to the same Change identity and archive post-image.
 
 ### Requirement: Minimal Decision Rationale Preservation
 
-ETHOS SHALL retain a documentation decision record only when deleting it would
-erase context, rejected alternatives, consequences, or a falsifiable revisit
-condition not already carried by the current semantic owner. A decision record
-SHALL explain why and SHALL NOT own current product meaning, mutation authority,
-proof authority, workflow state, or task progress.
+ETHOS SHALL retain a decision record only when deleting it would erase
+cross-Change rationale not carried by the current semantic owner. A record
+explains why; it SHALL NOT own current product behavior or workflow state.
+Its positive four-digit number SHALL remain stable and SHALL NOT be reused for
+a different ruling. Its semantic topic MAY change with repaired links.
 
 #### Scenario: Historical decision material is evaluated
 
 - **WHEN** a removed decision subsystem contains rationale from several files
-- **THEN** ETHOS SHALL retain only semantically distinct rationale
-- **AND** overlapping records SHALL be merged
-- **AND** a record fully absorbed by a current owner SHALL remain deleted.
+- **THEN** semantically distinct alternatives, consequences and revisit
+  conditions are retained; overlapping or fully absorbed records are removed
 
 #### Scenario: Decision rationale uses the minimum physical shape
 
-- **WHEN** ETHOS retains more than one decision rationale
-- **THEN** records SHALL use lowercase semantic filenames under
-  `docs/decisions/`
-- **AND** `docs/README.md` SHALL navigate them directly
-- **AND** no decisions-local README, index, template, schema, registry,
-  lifecycle directory, or runtime consumer SHALL be introduced solely for the
-  records.
+- **WHEN** more than one decision rationale is retained under `docs/decisions/`
+- **THEN** `dr-<four-digit-id>-<semantic-topic>.md` records remain directly navigable from
+  `docs/decisions/README.md`, which explains the directory's role
+- **AND** `docs/README.md` routes readers to that entrance instead of copying
+  the record list
+- **AND** the entrance is not a decision registry, runtime authority, or
+  reason to add a template, schema, lifecycle directory, or duplicate catalog
+
+#### Scenario: Decision identity is missing or duplicated
+
+- **WHEN** a `role: decision` record in the selected documentation root has no
+  stable numbered filename or shares its number with another current record
+- **THEN** the Docs Registry blocks that exact source or conflicting pair
+- **AND** a historical retired number is never assigned to a different ruling;
+  current-tree uniqueness alone does not establish that historical fact
 
 #### Scenario: Current authority is resolved
 
 - **WHEN** a reader opens a decision record
-- **THEN** the record SHALL identify the current semantic owner
-- **AND** current behavior SHALL be determined by that owner rather than by the
-  historical rationale.
+- **THEN** it identifies the current semantic owner
+- **AND** current behavior is determined by that owner, not historical rationale
 
 ### Requirement: Singular Documentation Entrypoint
 
@@ -4413,10 +4296,11 @@ reusable authorization.
 
 ### Requirement: Control replacement preserves trusted prior verification
 
-Control-replacement admission SHALL read its verification floor from the exact
-accepted predecessor. A proposed policy may strengthen but cannot weaken that
-floor during its own acceptance. Execution adapters, runtime selection, hook
-admission and Git-effect code SHALL belong to the control boundary.
+Control replacement SHALL read independent-verification policy from both exact
+committed objects and retain the stricter mode during acceptance. Changed gate
+identities SHALL remain review evidence, not implicit provider enrollment.
+Applying a changed floor SHALL require explicit authorization, exact accepted
+and candidate commits, current proof, fresh effect admission and CAS.
 
 #### Scenario: Candidate cannot disable its required verifier
 
@@ -4427,6 +4311,19 @@ admission and Git-effect code SHALL belong to the control boundary.
 
 - **WHEN** runtime selection, hook execution or Git-effect implementation changes
 - **THEN** admission classifies the changed path as control and applies that policy
+
+#### Scenario: Changed gate identities retain local-first acceptance
+
+- **WHEN** both exact policies disable independent verification and gate execution changes
+- **THEN** admission does not inspect or require host provider configuration
+- **AND** the report exposes changed obligations without claiming semantic equivalence
+- **AND** apply without explicit candidate selection is rejected without moving refs
+- **AND** exact authorized acceptance remains reachable without an external receipt
+
+#### Scenario: Uncommitted policy cannot change the verification requirement
+
+- **WHEN** worktree policy differs from the selected candidate commit
+- **THEN** verification selection uses the committed candidate and accepted predecessor
 
 ### Requirement: Review projection is distinct from accepted publication
 
@@ -4650,13 +4547,18 @@ gate representation alone SHALL NOT grant mutation authority.
 
 ### Requirement: Publication composes historical repair with forward integration
 
-ETHOS SHALL recognize a completed exact history repair with native descendants
-when a protected peer ref holds the former tip or an explicitly mapped original
-commit, and that ref is named by the repair effect. The common range owner
-SHALL validate only commits after the verified
-replacement tip under baseline and proposed policies. Proposed-object proof,
-current accepted effect, candidate equality, tag-object admission and exact
-peer CAS SHALL remain independent.
+ETHOS SHALL recognize an original peer object through an unambiguous chain of
+completed native history repairs, each conserving exact payloads, ordered parents
+and trusted signatures under its recorded source policy. Only refs named
+throughout the chain SHALL inherit repaired publication provenance. The peer's
+advertised object SHALL remain the CAS precondition, and the last verified
+replacement tip SHALL own forward commit-range validation.
+
+#### Scenario: Repaired provenance does not substitute for current admission
+
+- **WHEN** a ref inherits repaired publication provenance
+- **THEN** current proof, accepted effect, candidate equality and protected
+  publication admission are still each required independently
 
 #### Scenario: Signed forward commits follow a verified replacement
 
@@ -4705,6 +4607,22 @@ peer CAS SHALL remain independent.
 - **WHEN** the repair relation is valid but current proof, accepted effect or
   candidate equality is absent
 - **THEN** publication is rejected without changing either peer.
+
+#### Scenario: An original prefix survives a subsequent repair
+
+- **WHEN** a verified replacement enters a later repair's exact source history
+  and that completed repair replaces its object before current forward work
+- **THEN** original-object provenance composes both native mappings
+- **AND THEN** commit-range admission checks only last-tip descendants, retaining
+  every repair witness and the peer's original CAS object
+- **AND THEN** an invalid forward subject or signature still rejects publication.
+
+#### Scenario: A predecessor or ref relationship is absent
+
+- **WHEN** any necessary completed repair is missing or invalid, multiple paths
+  establish the relation, or a ref is absent from a necessary repair effect
+- **THEN** that repaired-history relationship is not admitted
+- **AND THEN** no local or remote ref changes during observation.
 
 ### Requirement: Native hook decisions preserve JSON evidence
 
@@ -4844,29 +4762,44 @@ proof and local coordination SHALL remain independent preconditions.
 
 ### Requirement: Release tags preserve native product version authority
 
-ETHOS SHALL create requested signed annotated release tags from exact committed
-native version authority through the existing Git effect. Missing, malformed or
-conflicting version inputs SHALL block. A product with a native package version
-SHALL NOT require a parallel VERSION carrier.
+ETHOS SHALL create requested signed annotated tags from exact committed native
+version authority through the existing Git effect. Independent release may
+advance its declared branch; an accepted mirror SHALL already be aligned and
+remain an assertion. Malformed, conflicting or untrusted inputs SHALL block.
+An existing package version SHALL NOT require a parallel VERSION carrier.
 
 #### Scenario: Native package version owns release
 
 - **WHEN** package.json is the unambiguous committed version owner
 - **THEN** the tag matches that version and peels to accepted
 - **AND** its signature passes current protected trust verification
-- **AND** release and new tag refs update in one native transaction
+- **AND** release changes and the new tag use one native transaction
 
 #### Scenario: Tag or version conflicts
 
-- **WHEN** the requested tag disagrees with version, is already divergent, or
-  lacks a trusted signature
+- **WHEN** the requested tag disagrees with version, already exists without a carried
+  request, is divergent or lacks a trusted signature
 - **THEN** neither release nor tag ref changes
+
+#### Scenario: Accepted mirror creates a release tag
+
+- **WHEN** accepted closeout has aligned the protected branches and the request
+  names that exact accepted object for both coordinates
+- **THEN** the release owner creates the tag while asserting both branch objects
+- **AND** a misaligned mirror is directed to accepted closeout without effects
+- **AND** a release-tag hook lacking executor intent selects the exact release preview
+
+#### Scenario: Aligned release has no requested change
+
+- **WHEN** the exact release branch already equals accepted and no tag is requested
+- **THEN** validation succeeds without a ref update or new effect Attestation
 
 #### Scenario: Interrupted or repeated release
 
-- **WHEN** release resumes after an observed or unknown effect
+- **WHEN** release resumes after an observed or unknown effect in either mirror mode
 - **THEN** ETHOS observes exact refs and evidence before replay
 - **AND** an accepted tag object is reused without resigning
+- **AND** compensation reverses only changed refs and retains branch assertions
 - **AND** pending linked worktree synchronization remains explicit
 
 ### Requirement: Accepted delivery is not another contribution integration
@@ -5310,3 +5243,578 @@ that the set update observes, never on the absence of a branch or ref alone.
 - **WHEN** a transition requires a member that has left the set
 - **THEN** the transition fails closed with its existing missing-evidence gap
 - **AND** it does not infer the absent member
+
+### Requirement: Archive completion requires exact postimage quality
+
+Archive completion SHALL require native OpenSpec validity and the existing
+applicable proof for the actual resulting HEAD. Prearchive proof and Git effect
+evidence SHALL NOT establish postimage quality. Pending verification SHALL
+preserve and report the observed committed effect without claiming completion.
+
+#### Scenario: Native postimage finding before Git CAS
+
+- **WHEN** official archive projection would leave a canonical spec invalid or
+  with a blocking native finding
+- **THEN** ETHOS validates that actual uncommitted postimage before creating a
+  commit or updating the lane ref
+- **AND** it compensates its own archive mutation and reports a source delta
+  repair path only when the native finding maps to that changed spec; otherwise
+  it requires further resolution instead of retrying the unchanged archive
+- **AND** an already staged caller-owned archive remains visible as retained
+  mutation, not a falsely absent effect or permission to discard its bytes
+- **AND** a valid authored Purpose or corrected requirement remains able to
+  archive through the normal postimage proof boundary
+
+#### Scenario: Archive changes an input consumed by a repository check
+
+- **WHEN** prearchive proof passes but the resulting source has no passing applicable proof
+- **THEN** archive reports a blocked committed repair boundary with the actual HEAD
+- **AND** its continuation selects that HEAD's existing proof command and repository root
+- **AND** the reported native command comes from the committed archive artifact,
+  retaining `skip_specs` rather than reading a now-absent active Change
+- **AND** stale, failed or unrelated proof cannot make archive completion pass
+
+#### Scenario: Exact postimage proof is available
+
+- **WHEN** native OpenSpec validity and exact postimage proof both pass
+- **THEN** archive completion passes using the original effect evidence
+- **AND** replay neither repeats Git effects nor reruns checks
+
+#### Scenario: Final task completion accompanies the official archive
+
+- **GIVEN** the selected source HEAD has its separately admitted review evidence
+- **WHEN** the staged official archive only advances the top-level OpenSpec task checkboxes from open to complete
+- **THEN** archive admission preserves the unchanged task descriptions and other source artifacts
+- **AND** it recognizes the completed postimage without requiring a new prearchive source commit and repeated review CI
+- **AND** unchanged or partly open tasks, changed task prose, or another content edit remains blocked with an exact cause
+- **AND** the checkbox does not replace postimage validation, proof, or evidence of the external review
+
+### Requirement: Current prose preserves meaning without copied execution state
+
+ETHOS SHALL keep obligations, dependency order, task progress and observed
+results at their existing semantic owners. Current entrypoints SHALL expose the
+relevant route without requiring historical narratives. Reducing text or token
+cost SHALL NOT remove valid constraints, functionality, performance or acceptance.
+
+#### Scenario: Completed observations leave the current plan entry
+
+- **WHEN** historical execution detail is removed from a current entrypoint
+- **THEN** exact source bytes remain recoverable through the existing history owner
+- **AND** every still-valid obligation remains in its current owner or explicitly open
+- **AND** task status and dated results are referenced rather than copied into another ledger
+
+#### Scenario: A reader needs the next useful action
+
+- **WHEN** a person or agent reads the current convergence entry
+- **THEN** it reaches the existing task and authority owners without loading historical results
+- **AND** local, installed, hosted and actual-use claims remain distinct
+- **AND** measured text or token reduction alone does not prove semantic preservation
+
+#### Scenario: Completed Change history leaves the current tree
+
+- **WHEN** a completed OpenSpec archive has no remaining current-tree proof or reader consumer
+- **THEN** current behavior is read from canonical specs, not that archive
+- **AND** a reviewed deletion may retire its current-tree copy only after every byte remains reachable and recoverable from an exact Git revision
+- **AND** incoming references are moved to the current owner or exact history retrieval
+- **AND** an in-flight archive or unknown recovery path remains preserved
+- **AND** calendar age alone grants no deletion authority
+
+### Requirement: Accepted feedback closes through demonstrated improvement
+
+ETHOS SHALL preserve each accepted feedback obligation's declared source scope,
+responsible owner and acceptance conditions in official OpenSpec. Closure SHALL
+require a demonstrated improvement, current evidence of prior satisfaction, or
+an explicitly justified supersession or rejection. Missing evidence SHALL remain
+open. A note, checkbox, extra artifact or larger skill SHALL NOT establish closure.
+
+#### Scenario: A local example expresses a global obligation
+
+- **WHEN** accepted feedback uses one defect to require a repository-wide principle
+- **THEN** a bounded repair preserves the wider obligation and its remaining gaps
+- **AND** closing the example does not close unverified sibling consumers
+
+#### Scenario: A proposed resolution contains only prose
+
+- **WHEN** feedback requires changed behavior but the candidate supplies only a retrospective or unchecked claim
+- **THEN** the existing acceptance owner refuses closure for missing execution evidence
+- **AND** neither additional headings nor task completion flags satisfy that obligation
+
+#### Scenario: A mechanism has been changed and verified
+
+- **WHEN** the responsible implementation or native policy changes and its distinguishing counterexample passes
+- **THEN** evidence binds the candidate, applicable policy, environment and actual consumer
+- **AND** required installation, publication or use observations remain separate conditions
+- **AND** stale, contradictory or unrelated evidence cannot close the obligation
+
+#### Scenario: A failure recurs despite an existing safeguard
+
+- **WHEN** the same failure recurs after a claimed correction
+- **THEN** closure reopens the failed safeguard's owner and examines why its prior check or guidance was ineffective
+- **AND** the replacement removes the disproved path rather than adding another equivalent workaround
+
+#### Scenario: A feedback procedure is selected during planning
+
+- **WHEN** the current planning subject is feedback closure
+- **THEN** the existing skill compiler selects repository governance and its canonical feedback rule
+- **AND** package integrity and routing evidence do not claim host loading or successful agent behavior
+
+#### Scenario: Feedback is already satisfied or contradicted by current facts
+
+- **WHEN** current evidence establishes prior satisfaction or a justified rejection
+- **THEN** the resolution preserves that evidence and its source scope without forcing unnecessary edits
+- **AND** structural validation does not certify unrecorded conversation or complete intent understanding
+
+### Requirement: Feedback preserves each repository's domain authority
+
+ETHOS SHALL support feedback closure for self-hosting and adopted repositories
+under their own accepted business meaning. The repository SHALL own goals,
+constraints, success criteria and authorized judgments. Shared mechanisms and
+capability adapters SHALL NOT replace those meanings with ETHOS-specific metrics
+or imply business success from technical verification alone.
+
+#### Scenario: Technical checks pass while a required business outcome fails
+
+- **WHEN** a selected domain obligation has failed, missing or stale outcome evidence
+- **THEN** its completion claim remains open despite green technical checks
+- **AND** independently admissible source work can continue without claiming that outcome
+
+#### Scenario: Different domains use the same protocol
+
+- **WHEN** two adopters declare different business meanings and evidence providers
+- **THEN** each is evaluated against its own accepted criteria through the shared owner
+- **AND** neither acquires another repository's business policy, private context or authority
+
+#### Scenario: A fresh authored correction follows an archived Change
+
+- **WHEN** patch checks pass but requested paths are outside the attested archive effect's scope
+- **THEN** admission remains blocked and directs the actor to fresh official intent
+- **AND** it does not request another equivalent patch or expand historical write permission
+
+### Requirement: Feedback can revise its governing model
+
+Feedback SHALL distinguish implementation failure from inadequate methods,
+governing models or problem framing. A demonstrated model gap SHALL select the
+smallest sufficient Model Promotion, recompile dependent meanings, migrate
+consumers and retire replaced mechanisms. Changes to goals or standards SHALL
+require authorized intent alignment rather than outcome-driven relaxation.
+
+#### Scenario: Local repairs do not resolve the contradiction
+
+- **WHEN** valid counterexamples expose a missing distinction in the current model
+- **THEN** the owning model is reconsidered before another equivalent local patch
+- **AND** acceptance exercises the counterexample and preserved valid behavior after migration
+
+#### Scenario: The feedback safeguard itself produces false closure
+
+- **WHEN** its observations, interpretation or judgment contradict actual outcomes
+- **THEN** the affected closure and safeguard are reopened for correction
+- **AND** a note, new abstraction name or lower threshold cannot establish improvement
+
+### Requirement: Publication continuation requests only missing observations
+
+Locally ready publication with an unprobed configured peer SHALL select exact
+remote observation before suggesting repeated local verification. The command
+SHALL bind the current source HEAD and a policy-admitted destination ref: a
+Work Lane maps to its proposal branch, while accepted and release branches
+retain their roles. Cached tracking, local proof and remote effects SHALL
+remain distinct evidence; observation grants no authority.
+
+#### Scenario: A configured peer has not been probed
+
+- **WHEN** local publication readiness passes with an unprobed peer
+- **THEN** continuation selects the public exact-ref remote observation command
+- **AND** cached synchronized tracking cannot replace that observation
+- **AND** no local verification or remote publication effect is repeated
+
+#### Scenario: Work Lane continuation uses a publishable destination
+
+- **WHEN** a proved Work Lane is locally ready but its peer has not been probed
+- **THEN** continuation names the policy-derived proposal ref, not its local Work Lane ref
+- **AND** remote tracking and admission refer to that same proposal destination
+- **AND** an ineligible source role cannot produce an impossible publish command
+
+#### Scenario: No remote observation is available
+
+- **WHEN** publication is local-only or its peers are unconfigured or unavailable
+- **THEN** existing local fallback guidance and its evidence state remain available
+- **AND** local readiness failure still blocks publication
+
+### Requirement: Invocation-local intent selection
+
+ETHOS SHALL resolve an explicit command or API Change before the invocation's
+`ETHOS_CHANGE`, then use applicable native inference. The selected official
+intent SHALL remain an input, independent of current mutation authority.
+Absent selection SHALL preserve ambiguity; invalid selection SHALL fail closed.
+
+#### Scenario: One selected product operation spans native consumers
+
+- **GIVEN** an owned Work Lane contains two active official Changes
+- **WHEN** an invocation selects one complete Change
+- **THEN** prewrite, pre-tool, native commit, plan and proof consume that intent
+- **AND** explicit command selection overrides the environment input
+- **AND** removing the input restores unresolved selection
+- **AND** holder mismatch remains a blocking authority gap
+
+### Requirement: Exact proof query selects intent without weakening evidence
+
+A proof query SHALL select the requested official intent, or the intent bound
+to an explicitly selected Attestation. When both are explicit, they SHALL agree. Applicable evidence SHALL retain exact
+source, policy, integrity, freshness and authority checks. Distinct intents
+SHALL remain distinct queries; conflicting evidence for the same query SHALL
+not be resolved by choosing a convenient proof.
+
+#### Scenario: Several intents have proofs at the same source
+
+- **WHEN** two official Changes have current proofs for one exact commit
+- **THEN** an invocation selects only its own intent's proof
+- **AND** an exact Attestation selection overrides the environment choice
+- **AND** an unproven selected intent cannot borrow the other proof
+- **AND** malformed evidence and same-intent contradictions remain blocking
+
+#### Scenario: Explicit archive cannot borrow another intent's proof
+
+- **GIVEN** two official Changes share the exact source and only one has proof
+- **WHEN** archive explicitly requests the unproven Change
+- **THEN** admission rejects before changing refs, index or content
+- **AND** an environment-selected proof for the other Change cannot satisfy it
+
+#### Scenario: Explicit archive remains selected through post-observation
+
+- **GIVEN** the named Change has a current exact proof
+- **WHEN** archive runs with an unrelated or invalid environment selection
+- **THEN** admission and post-observation consume the explicit Change
+- **AND** unselected intent remains unchanged and replay observes the prior effect
+
+#### Scenario: Explicit proof constraints must agree
+
+- **WHEN** a query names an Attestation and a different or invalid Change
+- **THEN** it rejects instead of ignoring either explicit constraint
+- **AND** matching active or attested archived intent remains admissible
+
+#### Scenario: Several completed archives retain separate proof identities
+
+- **GIVEN** two distinct accepted intents have verified archive effects
+- **WHEN** either is explicitly selected at a later shared source commit
+- **THEN** its exact archived acceptance remains available for proof and planning
+- **AND** both contributed requirements and product results remain intact
+- **AND** absent, unreadable, invalid or unverified intent is not silently accepted
+
+#### Scenario: Full proof shares one current intent observation with audit
+
+- **WHEN** full proof resolves an explicit intent that differs from its ambient default
+- **THEN** governance audit consumes that same resolved OpenSpec observation
+- **AND** it retains independent adopter, commit and release policy checks
+- **AND** a new invocation observes current inputs rather than cached permission
+
+### Requirement: External verification recovery follows its owning prerequisite
+
+Required independent verification SHALL validate the configured provider before
+requesting its receipt. Control replacement and publication SHALL share that
+owner and report an actionable prerequisite without inventing evidence paths.
+Every provider path component and symbolic-link hop SHALL be protected from the
+current identity before it is read. Optional unselected verification SHALL
+preserve local-first behavior.
+
+#### Scenario: The required provider is unavailable
+
+- **WHEN** its protected configuration is missing, unreadable or invalid
+- **THEN** admission identifies that provider prerequisite and requests operator repair
+- **AND** no repository effect or executable retry is presented as the repair
+
+#### Scenario: A protected target is reached through a replaceable path
+
+- **WHEN** a provider configuration, receipt store or signer anchor traverses a user-owned alias or writable ancestor
+- **THEN** provider admission rejects that path even if its resolved target is system-owned
+- **AND** a system-owned symlink chain with protected components remains eligible
+
+#### Scenario: A configured provider has no valid receipt
+
+- **WHEN** evidence is absent, outside the protected store, stale or incorrectly bound
+- **THEN** admission requests valid evidence from the configured provider
+- **AND** its configured store and issuer remain distinct from repository private state
+- **AND** valid signatures, freshness and exact bindings are all required for success
+
+### Requirement: Semantic carriers preserve singular authority
+
+ETHOS SHALL preserve one editable owner per proposition across requirements,
+design, tasks, implementation and evidence. Human and agent projections SHALL
+identify their source and preserve scope and limitations. They SHALL NOT grant
+acceptance, task progress, proof or permission by presentation alone.
+
+#### Scenario: A behavior obligation changes
+
+- **WHEN** a behavior changes relative to the accepted capability requirement
+- **THEN** the selected Change owns the delta, design and acceptance cases
+- **AND** docs and tools reference the owner rather than redefine the requirement
+- **AND** disagreement with product invariants or observed execution stays explicit
+
+#### Scenario: Research informs implementation
+
+- **WHEN** sourced research supports a bounded implementation decision
+- **THEN** research retains attribution and limits, while the Change owns the
+  decision, experiment procedure, acceptance and task progress
+- **AND** a summary does not become another editable requirement or result store
+
+### Requirement: Structured documentation metadata preserves meaning
+
+ETHOS SHALL preserve metadata identity, purpose, lifecycle and typed relationships
+under valid syntax variations. Invalid declarations and unresolved required
+authority targets SHALL be reported. Human-readable and machine-readable
+representations SHALL agree on the same declared meaning.
+
+#### Scenario: Equivalent and ambiguous metadata are distinguished
+
+- **WHEN** metadata uses valid quoted scalars or structured relationships
+- **THEN** public observation preserves the equivalent meaning
+- **AND** duplicate keys and unclosed frontmatter cannot silently pass
+
+#### Scenario: Required guidance is absent or contradictory
+
+- **WHEN** a required authority target is missing or visible state contradicts metadata
+- **THEN** public observation identifies the exact disagreement or missing target
+- **AND** literal examples cannot satisfy actual reader-guidance obligations
+
+#### Scenario: A selected documentation source disappears during observation
+
+- **WHEN** a document selected by the registry becomes missing or unreadable before downstream checks finish
+- **THEN** the public docs report identifies the unavailable source and blocks
+- **AND** an earlier metadata observation cannot turn that incomplete read into a pass
+
+#### Scenario: Selected documentation renders its title before metadata
+
+- **WHEN** a profile-selected Markdown document encloses its leading YAML metadata in one complete HTML comment
+- **THEN** the same registry parser preserves its identity, role, state, and relations while the first visible rendered element is its title
+- **AND** duplicate keys, incomplete delimiters, or premature comment terminators block rather than expose metadata or fall back to missing metadata
+- **AND** the separate system-axiom derivation reader does not adopt the documentation-only carrier
+
+#### Scenario: Adopter-native guidance satisfies a portable reader floor
+
+- **WHEN** an active profile-selected page has a visible H1 and non-empty non-heading text outside code fences, but not ETHOS-specific `Status`, `Purpose`, or `See also` labels
+- **THEN** the docs report accepts its reader surface if metadata, relations, and navigation are valid
+- **AND** a missing title or guidance hidden entirely in a literal fence blocks
+- **AND** an authored empty or contradictory `Status:` remains a gap
+- **AND** observational roles may omit reader guidance but cannot bypass a commented carrier's title-first rule
+
+### Requirement: ETHOS directory navigation uses README only
+
+Current ETHOS-authored directory navigation SHALL use a necessary README.md.
+Alternate index.md entrypoints and duplicate directory catalogs SHALL be rejected.
+Topic links, immutable historical references and unrelated machine indexing
+SHALL not be mistaken for authored directory entrypoints.
+
+#### Scenario: A nested directory gains an alternate entrypoint
+
+- **WHEN** authored directory navigation introduces an index.md carrier
+- **THEN** quality reports the exact path and README-only correction
+- **AND** it does not require a marker-only README as replacement
+
+#### Scenario: One source serves human and agent readers
+
+- **WHEN** rendered, raw or structured access resolves a current rule
+- **THEN** the same source, scope, prerequisites and limitations remain available
+- **AND** semantic hierarchy and meaningful links preserve progressive detail
+  without fragmenting one cohesive explanation or duplicating authority
+- **AND** a move repairs affected links without changing subject identity
+
+### Requirement: Accepted history repair preserves original acceptance provenance
+
+Accepted-source consumers SHALL resolve original acceptance through validated
+completed history-repair relations for the exact accepted ref. They SHALL retain
+the original Attestation and distinguish its coordinates from current source
+coordinates. Equal trees alone SHALL NOT establish acceptance or authority.
+
+#### Scenario: A repaired accepted source is proved and released
+
+- **WHEN** governed history repair replaces an accepted commit and a new exact-source proof succeeds
+- **THEN** closeout and release retain the original accepted-effect Attestation
+- **AND** validated repair relations explain the current source coordinates
+- **AND** current actor-owned Lease admission is independent of the proof's original execution root
+
+#### Scenario: Related bytes do not prove current authority
+
+- **WHEN** repair provenance is absent, ambiguous, cyclic or does not select the accepted ref
+- **THEN** acceptance is not inferred from matching trees or a historical identity
+- **AND** unrelated plans are not decoded as potential authority for that source
+
+#### Scenario: Ordinary publication does not validate rewritten history
+
+- **WHEN** a peer ref is already current, absent or an ancestor of the signed source
+- **THEN** exact publication admission uses that observed relation without validating a historical repair
+- **AND** a divergent peer still requires completed repair provenance or is rejected
+
+### Requirement: Python reference observation respects binding and call site
+
+Python consumer observation SHALL resolve statically determinable executable and
+environment reads from import binding, lexical scope and values at the call.
+Parsing a carrier SHALL NOT by itself establish semantic coverage. Unsupported
+dynamic expressions SHALL report UNKNOWN for the affected obligation rather
+than a fabricated reference or an unrelated whole-repository block. Patch
+admission, repository audit and private-boundary consumers share this owner.
+
+#### Scenario: Aliases preserve a real consumer
+
+- **WHEN** `subprocess.run`, an aliased module or imported `run` invokes an undeclared executable, or aliased `os.getenv` reads an undeclared input
+- **THEN** the public repository-audit gate identifies the corresponding missing declaration
+- **AND** a spelling-only rewrite does not change the observed behavior
+
+#### Scenario: Shadowing cannot invent an effect
+
+- **WHEN** a local object named `subprocess` has a harmless `run` method
+- **THEN** no standard-library executable consumer is inferred from that call
+- **AND** the otherwise valid source remains eligible
+
+#### Scenario: The value belongs to its scope and program point
+
+- **WHEN** a global name is shadowed locally or assigned after `getenv(NAME)`
+- **THEN** the read uses only values possible at that call in its lexical scope
+- **AND** a later assignment cannot erase an earlier undeclared input
+
+#### Scenario: Dynamic semantics remain bounded unknown
+
+- **WHEN** a relevant callee or value uses unsupported dynamic lookup
+- **THEN** only the affected consumer obligation is UNKNOWN and cannot pass as evaluated
+- **AND** unrelated statically resolved files retain their valid result
+
+### Requirement: Native command declarations own their executables
+
+The common reference owner SHALL read executable ownership from the actual
+trusted gate, profile and release command fields. Filename, product name and a
+candidate's changed policy SHALL NOT supply missing prior authority. Missing,
+malformed and genuinely undeclared commands remain distinct observations.
+
+#### Scenario: A trusted command field supplies an executable
+
+- **GIVEN** a trusted repository declaration selects an executable in a gate or local publication command
+- **WHEN** maintained code references that executable
+- **THEN** reference closure recognizes its exact declaration without a filename exception
+- **AND** removing or corrupting the declaration exposes the appropriate gap
+
+#### Scenario: Candidate command text cannot self-authorize
+
+- **WHEN** a candidate adds both a new executable reference and its own command declaration
+- **THEN** trusted-prior admission still rejects an unauthorized executable
+- **AND** no broad allowlist or copied adopter declaration substitutes for that decision
+
+### Requirement: Official artifact paths determine Change acceptance
+
+ETHOS SHALL compile a selected Change from the official resolved artifact graph
+and exact configured output paths. A fixed proposal, design or task filename
+SHALL NOT override a valid project-local OpenSpec schema. Structural validation
+and advisory guidance SHALL NOT by themselves prove accepted meaning or authorize
+writes. The compiled result and proof identity SHALL bind the resolved paths and
+bytes without creating another Markdown parser or intent carrier.
+
+#### Scenario: A valid schema renames the design output
+
+- **GIVEN** official status and strict validation accept a schema whose design output is `architecture.md`
+- **WHEN** ETHOS compiles or proves the selected Change
+- **THEN** it consumes that official output instead of requiring `design.md`
+- **AND** changing the resolved path or its bytes invalidates the old binding
+
+#### Scenario: Missing or ambiguous official outputs do not fall back
+
+- **WHEN** official artifact resolution is absent, malformed, escapes the selected root or selects conflicting outputs
+- **THEN** ETHOS reports the bounded source gap and grants no Change or path authority
+- **AND** `skip_specs: true` remains a valid official no-spec case rather than an inferred omission
+
+#### Scenario: Removal-only intent still compiles acceptance
+
+- **GIVEN** official validation accepts a Change with only a `REMOVED` requirement and its reason and migration
+- **WHEN** ETHOS compiles the selected acceptance
+- **THEN** it records obligations for the resulting system instead of returning empty intent
+- **AND** it does not require the retired behavior to remain true
+- **AND** mixed add/remove, rename and valid no-spec Changes retain distinct meanings
+
+### Requirement: CLI transport failure preserves the governance verdict
+
+Result delivery SHALL distinguish a closed consumer, temporary backpressure and
+partial output. Neither a caught write exception nor a short write may turn a
+blocked governance result into process success or describe incomplete JSON as a
+completed report. Already-performed effects SHALL NOT be replayed to repair the
+output channel.
+
+#### Scenario: A blocked result meets a full nonblocking pipe
+
+- **WHEN** writing a blocked result raises `BlockingIOError`
+- **THEN** the process retains a nonzero exit and a bounded transport diagnostic
+- **AND** no additional repository effect is attempted
+
+#### Scenario: JSON output is only partly accepted
+
+- **WHEN** a stream reports a short successful write before the complete JSON frame
+- **THEN** delivery is incomplete and cannot be treated as a passing report
+- **AND** a genuinely closed consumer remains a distinct bounded failure
+
+### Requirement: Cutover preserves exact predecessor supply
+
+Before reclaiming a valid selected predecessor, installation SHALL preserve its
+exact immutable runtime and wheel through the existing shared-installation
+owner. Activation SHALL compare the originally captured selector bytes at its
+effect boundary and report retained supply separately from activation and
+reclamation. Historical provenance alone SHALL NOT pin local executables.
+
+#### Scenario: A successful upgrade retires a local predecessor
+
+- **WHEN** a valid selected predecessor is replaced by admitted shared supply
+- **THEN** exact predecessor manifest, inventory and wheel remain available outside the repository before any local deletion
+- **AND** the result identifies that retained supply without creating another selector
+- **AND** repeated installation reuses identical bytes without adding generations
+
+#### Scenario: Preservation or cutover fails
+
+- **WHEN** predecessor preservation conflicts with unowned content or fails admission
+- **THEN** original selector, hooks and state remain unchanged and no predecessor is reclaimed
+- **AND** a later cutover failure restores the original activation without deleting retained supply
+
+#### Scenario: Another installation changes selection
+
+- **WHEN** selector bytes change after preparation and before cutover
+- **THEN** native CAS rejects the stale operation without overwriting the peer or attempting compensation for an activation that did not occur
+- **AND** preserved original and peer supply remain intact
+
+#### Scenario: A local predecessor is already invalid
+
+- **WHEN** independently admitted successor supply repairs an invalid local selected generation
+- **THEN** installation reports unavailable rollback supply rather than claiming the damaged predecessor is preserved or valid
+- **AND** uncertain predecessor bytes remain untouched under the existing reclamation owner
+
+#### Scenario: Observation fails after selector replacement
+
+- **WHEN** selector replacement occurred but its write acknowledgement or post-observation fails
+- **THEN** the selector owner restores original bytes under its existing lock only when this operation still owns the desired selection
+- **AND** a changed or unreadable peer selection remains intact with explicit compensation failure rather than false rollback success
+
+### Requirement: Active proposals and designs follow their official templates
+
+For every active Change, ETHOS SHALL resolve the artifact outputs and the schema's templates through the official OpenSpec CLI. Each proposal and design SHALL contain every literal heading of its resolved template, in template order and under its template parent. Sections that the template does not name SHALL remain allowed.
+
+#### Scenario: A design omits an official section
+
+- **WHEN** an active Change's design has no `Risks / Trade-offs` heading and its resolved template has one
+- **THEN** OpenSpec governance reports the Change, the artifact and the missing heading, and plan and proof are not clean
+- **AND** a design that adds `Migration Plan` or its own sections after the official ones has no gap
+
+#### Scenario: A proposal nests a subsection under the wrong parent
+
+- **WHEN** an active proposal places `### New Capabilities` under `## Impact` instead of `## Capabilities`
+- **THEN** OpenSpec governance reports the misplaced heading and its template parent
+
+#### Scenario: The resolved template gains a heading
+
+- **WHEN** the template that the official CLI resolves for a Change's schema gains a literal heading
+- **THEN** that heading is required of the Change's artifact without a change to ETHOS
+
+### Requirement: Proof requires an archivable Change
+
+Before the gates of a proof run, ETHOS SHALL archive the active Change that the proof selects with the official OpenSpec CLI in a disposable projection of the exact head and SHALL require official strict validation of the resulting specifications. The projection SHALL be removed and the repository tree SHALL remain unchanged.
+
+#### Scenario: A MODIFIED requirement outgrows the archived limit
+
+- **WHEN** an active Change modifies a requirement so that its text has 501 characters
+- **THEN** proof fails before any gate runs and names the specification and the requirement
+- **AND** the official change validation that passed does not satisfy this requirement
+
+#### Scenario: An archivable Change is proved
+
+- **WHEN** the simulated archive and its strict validation pass
+- **THEN** the proof continues to its gates, and no file outside the disposable projection has changed

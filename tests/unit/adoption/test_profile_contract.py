@@ -23,7 +23,6 @@ from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_root
 from ethos.repository.profile import render_repository_profile
 from tests.support.governed_repository import commit_fixture
-from tests.support.governed_repository import declare_fixture_code_correctness
 from tests.support.governed_repository import git
 from tests.support.governed_repository import prepared_work_lane
 from tests.support.literal_cases import literal_case
@@ -236,8 +235,14 @@ def test_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Path) -
     git(tmp_path, "init", "-q")
     git(tmp_path, "config", "user.name", "test")
     git(tmp_path, "config", "user.email", "test@example.invalid")
-    _write_profile(tmp_path, 'profile_id = "native-check-adopter"\n')
-    declare_fixture_code_correctness(tmp_path)
+    _write_profile(
+        tmp_path,
+        render_repository_profile(
+            RepositoryProfileDeclaration.model_validate(
+                {"profile_id": "native-check-adopter", "proof": _dependency_proof()}
+            )
+        ),
+    )
     git(tmp_path, "add", ".ethos/profile.toml")
     git(tmp_path, "commit", "-q", "-m", "profile")
     head = git(tmp_path, "rev-parse", "HEAD")
@@ -249,16 +254,112 @@ def test_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Path) -
     assert worktree.profile.state == "valid"
     assert worktree.digest == committed.digest
     assert worktree.gate_ids == committed.gate_ids
-    assert set(worktree.profile.declaration.proof.code_correctness_gates) == {
-        "sample-tests",
-        "sample-static",
-    }
+    assert worktree.profile.declaration.proof.code_correctness_gates == ("checks", "static")
     assert set(worktree.gate_ids) == {
-        "sample-tests",
-        "sample-static",
+        "checks",
+        "static",
+        "behavior",
         "config-quality",
         "source-format",
     }
+    assert worktree.declaration.proof_sets == committed.declaration.proof_sets
+    assert worktree.declaration.proof_sets.default == (
+        "checks",
+        "static",
+        "config-quality",
+        "source-format",
+    )
+    assert worktree.declaration.proof_sets.full == (
+        "checks",
+        "static",
+        "config-quality",
+        "source-format",
+    )
+    assert worktree.gate_ids.index("behavior") < worktree.gate_ids.index("checks")
+    assert worktree.registry["behavior"].command == ()
+    assert worktree.registry["behavior"].execution_mode == "provider"
+    assert worktree.profile.declaration.proof.code_correctness_map == {
+        "behavior": "behavior",
+        "static-analysis": "static",
+    }
+    assert "optional" in worktree.registry
+    assert "optional" not in worktree.gate_ids
+    assert tuple(gate.id for gate in worktree.declaration.proof_gates(("optional",))) == (
+        "optional",
+    )
+
+
+def _dependency_proof() -> dict[str, object]:
+    """Keep default roots distinct from their complete native execution closure."""
+    return {
+        "code_correctness_gates": ["checks", "static"],
+        "code_correctness_map": {"behavior": "behavior", "static-analysis": "static"},
+        "gates": [
+            {
+                "id": "checks",
+                "kind": "test",
+                "command": ["sample", "check"],
+                "depends_on": ["behavior"],
+            },
+            {"id": "static", "kind": "lint", "command": ["sample", "format"]},
+            {
+                "id": "behavior",
+                "kind": "test",
+                "providers": ["ethos.adapters.gates.code_quality:behavior_report"],
+            },
+            {"id": "optional", "kind": "lint", "command": ["sample", "optional"]},
+        ],
+    }
+
+
+def test_profile_native_document_roots_do_not_require_code_axes() -> None:
+    """Document gates have a complete native closure without fictional code evidence."""
+    declaration = RepositoryProfileDeclaration.model_validate(
+        {
+            "profile_id": "document-only",
+            "proof": {
+                "code_correctness_gates": ["docs-registry", "markdown-links"],
+                "gates": [
+                    {
+                        "id": "docs-registry",
+                        "kind": "docs",
+                        "providers": ["ethos.surface.cli.root.reference:docs_registry_report"],
+                    },
+                    {
+                        "id": "markdown-links",
+                        "kind": "docs",
+                        "providers": ["ethos.adapters.gates.tool:markdown_links_report"],
+                    },
+                ],
+            },
+        }
+    )
+
+    assert declaration.proof.code_correctness_gates == ("docs-registry", "markdown-links")
+    assert dict(declaration.proof.code_correctness_map) == {}
+
+
+@pytest.mark.parametrize(
+    "fault", ["missing", "disconnected-axis", "cycle", "duplicate", "malformed", "unmapped"]
+)
+def test_profile_rejects_incomplete_native_dependency_closure(fault: str) -> None:
+    """A profile cannot omit, detach, cycle or misattribute its required observations."""
+    proof = _dependency_proof()
+    gates = proof["gates"]
+    if fault == "missing":
+        gates.pop(2)
+    elif fault == "disconnected-axis":
+        gates[0].pop("depends_on")
+    elif fault == "cycle":
+        gates[2]["depends_on"] = ["checks"]
+    elif fault == "duplicate":
+        gates.append(gates[2].copy())
+    elif fault == "malformed":
+        gates[2]["command"] = ["sample", "test"]
+    else:
+        proof["code_correctness_map"]["behavior"] = "undeclared"
+    with pytest.raises(ValidationError):
+        RepositoryProfileDeclaration.model_validate({"profile_id": "sample", "proof": proof})
 
 
 def test_profile_gate_rejects_retired_registry_projection_field(tmp_path: Path) -> None:

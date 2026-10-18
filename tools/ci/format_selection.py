@@ -61,7 +61,8 @@ def _path_allowed_for_extension(path: str, suffix: str, policy: dict[str, object
 
 
 def main() -> int:
-    ownership = audit(ROOT, paths=tuple(_tracked_files()))
+    tracked = _tracked_files()
+    ownership = audit(ROOT, paths=tuple(tracked))
     config = _load_config()
     formats = config.get("format", [])
     policy = config.get("policy", {})
@@ -75,7 +76,6 @@ def main() -> int:
             message = "format selection extensions must be strings"
             raise TypeError(message)
         known_exts.update(extensions)
-    tracked = _tracked_files()
     failures: list[dict[str, str]] = []
     observations: list[dict[str, str]] = []
 

@@ -510,7 +510,10 @@ def _path_report(path: str, *, reason: str, **details: object) -> dict[str, obje
 
 def _paradigm_gaps(root: Path, relative: str) -> tuple[ParadigmGap, ...]:
     """Judge a new path; one that Git attributes mark received keeps its name."""
-    return paradigm_path_gaps(relative, received=relative in received_paths(root, (relative,)))
+    gaps = paradigm_path_gaps(relative)
+    if gaps and relative in received_paths(root, (relative,)):
+        return paradigm_path_gaps(relative, received=True)
+    return gaps
 
 
 def _is_ignored(root: Path, relative_path: str) -> bool:

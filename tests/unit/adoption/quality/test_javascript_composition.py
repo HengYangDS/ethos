@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import time
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -128,8 +130,22 @@ def test_native_attempt_source_refusal_is_a_gate_result(tmp_path: Path, conditio
             assert any(name.startswith("raw/") for name in archive.namelist())
 
 
-def test_native_timeout_retains_partial_output_and_owned_coverage(tmp_path: Path) -> None:
+def test_native_timeout_retains_partial_output_and_owned_coverage(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Interruption retains native partial input without inventing a successful test."""
+    # The child starts slower than the gate timeout, as under host contention. The timeout
+    # starts only once it has written its partial output, so it always interrupts that child.
+    ready = tmp_path / "ready"
+    communicate = subprocess.Popen.communicate
+
+    def after_ready(process: subprocess.Popen, *args: object, **kwargs: object) -> object:
+        deadline = time.monotonic() + 60
+        while process.poll() is None and not ready.exists() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        return communicate(process, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess.Popen, "communicate", after_ready)
     repo = committed_source_repo(
         tmp_path,
         {
@@ -140,10 +156,12 @@ def test_native_timeout_retains_partial_output_and_owned_coverage(tmp_path: Path
                 'test("answer", () => { if (answer !== 42) throw Error(); });\n'
             ),
             "launcher.mjs": (
-                'import {takeCoverage} from "node:v8";\n'
-                'console.log("native attempt started");\n'
-                'console.error("native partial diagnostic");\n'
-                "takeCoverage(); setTimeout(() => {}, 10000);\n"
+                'import {writeFileSync} from "node:fs"; import {takeCoverage} from "node:v8";\n'
+                "await new Promise((resolve) => setTimeout(resolve, 1500));\n"
+                'console.log("native attempt started"); takeCoverage();\n'
+                'process.stderr.write("native partial diagnostic\\n", () =>\n'
+                f'  writeFileSync({json.dumps(str(ready))}, ""));\n'
+                "setTimeout(() => {}, 10000);\n"
             ),
         },
     )

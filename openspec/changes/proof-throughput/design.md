@@ -21,6 +21,14 @@ Git history. The existing History README supplies exact retrieval; no archived
 copy or second ledger is added. Other plan sections remain outside this batch.
 Text reduction measures reading cost, not semantic completeness or product quality.
 
+## Goals / Non-Goals
+
+Reduce measured verification and iteration cost through existing owners while
+preserving complete assurance, exact evidence and native effect admission.
+Package construction, installed acceptance and peer publication remain distinct;
+this Change does not establish them from source-only measurements. The canonical
+terminal plan retains the wider delivery obligations.
+
 ## Decisions
 
 Archive effect evidence proves the ref and carrier transformation, not the
@@ -416,6 +424,13 @@ not a complete-proof speedup. Raw observations are in
 `throughput-archive-comparison.json`. Fifty-nine linked compilation, provenance,
 selection and proof-admission tests passed with two workers in 80.62 seconds;
 their owned temporary root was removed.
+
+## Risks / Trade-offs
+
+Pure reuse must bind complete immutable inputs; mutable refs, Lease, source and
+trust still require effect-time observation. Concurrency shares preparation, not
+mutable case state. Missing, failed or interrupted evidence remains unproved;
+local cost reductions do not establish full-cycle throughput or installed delivery.
 
 ## Validation
 

@@ -284,53 +284,6 @@ SHALL remove one open-predicate member by exact CAS.
 - **WHEN** another actor omits reviewed content or a reason, or the member has a product lifetime
 - **THEN** release refuses without changing the set or custody
 
-### Requirement: Lifecycle commit objects inherit repository signing policy
-
-ETHOS SHALL create direct lifecycle commit objects through one owner that
-compiles the optional tracked `[commit_policy]` declaration from
-`.ethos/workspace.toml`, validates the explicit commit subject, projects any
-required signing configuration into Git execution, and verifies the resulting
-object before a ref, Lease, or worktree effect.
-
-#### Scenario: Signing is enabled and trusted
-
-- **GIVEN** the tracked commit policy requires signing
-- **WHEN** a lifecycle operation creates a commit object
-- **THEN** the Git invocation requires the declared signing format even when
-  ambient or local `commit.gpgsign` is absent or false
-- **AND** external trust verification passes before any repository effect.
-
-#### Scenario: Signing is disabled
-
-- **WHEN** a repository has no `[commit_policy]` declaration or its tracked
-  policy does not require signing
-- **THEN** ETHOS adds no repository-independent subject or signing constraint
-- **AND** mutable Git configuration does not become an implicit ETHOS policy.
-
-#### Scenario: Tracked commit policy is malformed
-
-- **WHEN** a present commit-policy table has an unknown field, invalid type,
-  invalid subject expression, or unsupported signing format
-- **THEN** the lifecycle operation reports the exact policy gap before invoking
-  a mutating Git command
-- **AND** it does not fall back to ambient Git policy.
-
-#### Scenario: Generated subject is not admitted
-
-- **WHEN** an ETHOS lifecycle operation proposes or receives a subject that does
-  not match the tracked `subject_pattern`
-- **THEN** the operation blocks before object creation and exposes one explicit
-  subject input as its continuation
-- **AND** ETHOS does not emit a hard-coded universal replacement subject.
-
-#### Scenario: Required signature is not trusted
-
-- **WHEN** object creation, signing, or external trust verification fails under
-  a tracked signing requirement
-- **THEN** the lifecycle operation reports the typed signing gap with the Git
-  execution diagnostics
-- **AND** no ref, Lease, or worktree effect remains.
-
 ### Requirement: Publish is the sole remote Git object projection command
 
 `ethos publish` SHALL alone compile, persist and apply remote Git object effects.
@@ -539,7 +492,7 @@ and SHALL NOT reselect intent.
 - **THEN** commit grammar and signing policy are compiled from that candidate commit
 - **AND** historical policy fields cannot block or authorize the migration
 - **AND** branch-role observation ignores retired transition material that it does not own
-- **AND** strict ref-mutation admission still requires the exact current branch-role schema
+- **AND** strict ref-mutation admission validates the declared branch-role settings exactly, while the paradigm fixes the role names
 
 ### Requirement: Continuation derives from explicit result facts
 
@@ -792,14 +745,14 @@ claim that a not-yet-created object has a valid signature.
 
 ### Requirement: Commit-policy enforcement capability is discoverable
 
-Repository status SHALL report whether the optional policy is declared and
-whether the installed `commit-msg` and `pre-push` transports are exact current
-launchers for the selected immutable runtime.
+Repository status SHALL report whether the installed `commit-msg` and
+`pre-push` transports are exact current launchers for the selected immutable
+runtime and whether the commit trust anchor is configured.
 
 #### Scenario: Required transport is missing or stale
 
-- **WHEN** a declared policy exists but either launcher is absent, modified, or
-  bound to a stale runtime generation
+- **WHEN** either launcher is absent, modified, or bound to a stale runtime
+  generation
 - **THEN** status identifies the unavailable enforcement boundary
 - **AND** it returns the existing exact `ethos hook install --root <root> --json`
   repair command rather than asking the adopter to inspect source.
@@ -823,9 +776,11 @@ launchers for the selected immutable runtime.
 
 #### Scenario: Policy is not declared
 
-- **WHEN** the repository has no `[commit_policy]` declaration
-- **THEN** status reports the capability as not declared without adding a gap
-- **AND** hook installation remains valid for the repository's other controls.
+- **WHEN** a governed repository has no `[commit_policy]` declaration
+- **THEN** status still requires both launchers and a configured commit trust
+  anchor, because the paradigm's commit policy applies
+- **AND** a repository that ETHOS does not govern reports the capability as not
+  governed without adding a gap.
 
 ### Requirement: Reader Observation Completion
 
@@ -1073,3 +1028,43 @@ report the native failure evidence of any refused refresh effect.
 
 - **WHEN** the lane is dirty, a rebase is unfinished or the branch no longer holds the recorded head
 - **THEN** the refresh blocks without moving the worktree.
+
+### Requirement: Lifecycle commit objects carry the paradigm's SSH signature
+
+ETHOS SHALL create direct lifecycle commit objects through one owner that
+compiles the repository commit policy, the paradigm's subject grammar and SSH
+signature with the optional tracked `[commit_policy]` declaration from
+`.ethos/workspace.toml`, validates the explicit commit subject, projects the
+signing configuration into Git execution, and verifies the resulting object
+before a ref, Lease, or worktree effect.
+
+#### Scenario: Signing is enabled and trusted
+
+- **GIVEN** a governed repository, with or without a tracked commit policy
+- **WHEN** a lifecycle operation creates a commit object
+- **THEN** the Git invocation requires an SSH signature even when ambient or local `commit.gpgsign` is absent or false
+- **AND** external trust verification passes before any repository effect.
+
+#### Scenario: A repository declares no commit policy
+
+- **WHEN** a repository has no `[commit_policy]` declaration
+- **THEN** ETHOS applies the paradigm's subject grammar and SSH signature
+- **AND** mutable Git configuration does not become an implicit ETHOS policy.
+
+#### Scenario: Tracked commit policy is malformed
+
+- **WHEN** a present commit-policy table has an unknown field, invalid type, or invalid subject expression
+- **THEN** the lifecycle operation reports the exact policy gap before invoking a mutating Git command
+- **AND** it does not fall back to ambient Git policy.
+
+#### Scenario: Generated subject is not admitted
+
+- **WHEN** an ETHOS lifecycle operation proposes or receives a subject that the compiled grammar does not admit
+- **THEN** the operation blocks before object creation and exposes one explicit subject input as its continuation
+- **AND** ETHOS does not emit a hard-coded universal replacement subject.
+
+#### Scenario: Required signature is not trusted
+
+- **WHEN** object creation, signing, or external trust verification fails
+- **THEN** the lifecycle operation reports the typed signing gap with the Git execution diagnostics
+- **AND** no ref, Lease, or worktree effect remains.

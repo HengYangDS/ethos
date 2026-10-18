@@ -1841,10 +1841,10 @@ executor's observed capacity; they are scheduling claims, not CPU affinity.
 
 #### Scenario: Scheduling capacity does not redefine quality ownership
 
-- **WHEN** an exact candidate changes only a gate's positive CPU reservation
-- **THEN** the predecessor and candidate retain the same quality-floor owner
-- **AND** the candidate's execution policy still binds the changed reservation
-- **AND** a change to a substantive gate obligation does not inherit this exception
+- **WHEN** a candidate whose history the running build shares changes a CPU reservation, a command or a gate in `system/gates.toml`
+- **THEN** the predecessor and candidate keep the product registry owner without comparing bytes with an installed copy
+- **AND** the candidate's execution policy still binds every changed obligation
+- **AND** a repository without that history receives the adopter quality floor, even for a verbatim copy of the product registry
 
 #### Scenario: Source proof disagrees with the installed ref guard
 

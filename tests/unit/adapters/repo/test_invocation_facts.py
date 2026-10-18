@@ -9,10 +9,10 @@ from typing import Any
 import pytest
 
 import ethos.adapters.process as process_adapter
-from ethos.adapters.repo import invocation_facts
+import ethos.adapters.repo.invocation_facts as invocation_facts
+import ethos.adapters.repo.runtime.authority as authority
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.invocation_facts import invocation_scope
-from ethos.adapters.repo.runtime import authority
 from ethos.domain.execution import application_result
 from ethos.result import EthosResult
 from tests.support.governed_repository import commit_fixture_file

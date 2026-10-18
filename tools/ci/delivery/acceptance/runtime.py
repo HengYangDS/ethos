@@ -11,6 +11,7 @@ from contextlib import ExitStack
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.process import defer_interruptions
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import run_git
@@ -412,12 +413,12 @@ def observe_lifecycle(
             build=build,
             wheel_sha256=wheel_sha256,
         )
-        wait(bootstrap_users)
     finally:
-        with ExitStack() as cleanup:
+        with defer_interruptions(), ExitStack() as cleanup:
             cleanup.callback(remove_generated_tree, bootstrap_repository)
             if bootstrap_environment.exists():
                 cleanup.callback(shutil.rmtree, bootstrap_environment)
+            wait(bootstrap_users)
             with observe_stage("bootstrap_cleanup"):
                 cleanup.__exit__(*sys.exc_info())
 

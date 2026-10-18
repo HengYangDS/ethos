@@ -9,6 +9,7 @@ import sys
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait
+from contextlib import nullcontext
 from contextvars import copy_context
 from pathlib import Path
 from time import monotonic
@@ -43,13 +44,24 @@ if TYPE_CHECKING:
     from ethos.adapters.repo.runtime.transition import PackageArtifact
 
 
+@pytest.mark.parametrize(
+    "failure_stage",
+    [
+        None,
+        "activate_from_entrypoint",
+        "activate_from_runtime",
+        "bootstrap_manifest",
+        "successor_manifest",
+    ],
+)
 def test_one_acceptance_effect_observes_fresh_installation_and_repository_reuse(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    failure_stage: str | None,
 ) -> None:
-    bootstrap_environment = tmp_path / "bootstrap-environment"
-    bootstrap_repository = tmp_path / "bootstrap-repository"
-    repository = tmp_path / "adopter"
+    bootstrap_environment, bootstrap_repository, repository = (
+        tmp_path / name for name in ("bootstrap-environment", "bootstrap-repository", "adopter")
+    )
     for directory in (bootstrap_environment, bootstrap_repository, repository):
         directory.mkdir()
     (bootstrap_environment / "owned.txt").write_text("owned\n", encoding="utf-8")
@@ -72,6 +84,8 @@ def test_one_acceptance_effect_observes_fresh_installation_and_repository_reuse(
     def require_manifest(report, *_args, **_kwargs):
         stage = "bootstrap_manifest" if report is bootstrap_report else "successor_manifest"
         events.append(stage)
+        if stage == failure_stage:
+            raise RuntimeError(stage)
         return bootstrap_python if report is bootstrap_report else runtime_python
 
     monkeypatch.setattr(runtime_acceptance, "require_manifest", require_manifest)
@@ -102,11 +116,14 @@ def test_one_acceptance_effect_observes_fresh_installation_and_repository_reuse(
         ),
     )
     for owner, method, result in declarations:
-        monkeypatch.setattr(
-            owner,
-            method,
-            lambda *_args, stage=method, result=result, **_kwargs: events.append(stage) or result,
-        )
+
+        def observe(*_args, stage=method, result=result, **_kwargs):
+            events.append(stage)
+            if stage == failure_stage:
+                raise RuntimeError(stage)
+            return result
+
+        monkeypatch.setattr(owner, method, observe)
 
     def require_bound_identity(*arguments, **identity):
         assert arguments == (runtime_python, repository)
@@ -119,38 +136,40 @@ def test_one_acceptance_effect_observes_fresh_installation_and_repository_reuse(
 
     def settle(users):
         events.append("bootstrap_users")
-        settled.append(bootstrap_environment.exists())
+        settled.append(bootstrap_environment.exists() and bootstrap_repository.exists())
+        formation.set_result({"state": "passed"})
         return wait(users)
 
     monkeypatch.setattr(runtime_acceptance, "wait", settle)
     formation: Future[dict[str, object]] = Future()
-    formation.set_result({"state": "passed"})
-
-    lifecycle = runtime_acceptance.observe_lifecycle(
-        installed_ethos=tmp_path / "wheel-environment/bin/ethos",
-        bootstrap_environment=bootstrap_environment,
-        bootstrap_repository=bootstrap_repository,
-        repository=repository,
-        build=BuildIdentity("0.2.0-alpha.3", "0.2.0a3.dev0+ga.ta", "a" * 40, "b" * 40),
-        wheel_sha256="c" * 64,
-        environment={},
-        bootstrap_users=(formation,),
-        run=lambda *_args, **_kwargs: "",
-    )
+    formation.set_running_or_notify_cancel()
+    with pytest.raises(RuntimeError, match=failure_stage) if failure_stage else nullcontext():
+        lifecycle = runtime_acceptance.observe_lifecycle(
+            installed_ethos=tmp_path / "wheel-environment/bin/ethos",
+            bootstrap_environment=bootstrap_environment,
+            bootstrap_repository=bootstrap_repository,
+            repository=repository,
+            build=BuildIdentity("0.2.0-alpha.3", "0.2.0a3.dev0+ga.ta", "a" * 40, "b" * 40),
+            wheel_sha256="c" * 64,
+            environment={},
+            bootstrap_users=(formation,),
+            run=lambda *_args, **_kwargs: "",
+        )
+    assert formation.done()
+    assert settled == [True]
+    assert not bootstrap_environment.exists()
+    assert not bootstrap_repository.exists()
+    if failure_stage:
+        assert events[-1] == "bootstrap_users"
+        return
 
     expected = [method for _owner, method, _result in declarations]
     expected.insert(expected.index("activate_from_entrypoint") + 1, "bootstrap_manifest")
     expected.insert(expected.index("activate_from_runtime") + 1, "successor_manifest")
     expected.insert(expected.index("successor_manifest") + 1, "bootstrap_users")
     assert events == expected
-    assert settled == [True]
     assert set(lifecycle) == receipt.REQUIRED_LIFECYCLE_STAGES
     assert all(observation["state"] == "passed" for observation in lifecycle.values())
-    assert "repository_activation" in lifecycle
-    assert "successor_activation" not in lifecycle
-    assert "retained_state_upgrade" not in lifecycle
-    assert not bootstrap_environment.exists()
-    assert not bootstrap_repository.exists()
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX owned-group cancellation")

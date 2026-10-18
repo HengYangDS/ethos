@@ -184,7 +184,8 @@ def _node_arguments(recipe: object) -> tuple[str, ...]:
     if (
         len(tokens) < 2
         or tokens[0] != "node"
-        or tokens.count("--test") != 1
+        or tokens.count("--test") > 1
+        or ("--test" not in tokens and tokens[1].startswith("-"))
         or any(
             value in {"&&", "||", ";", "|", "&", ">", "<"}
             or any(character in value for character in ("$", "`"))

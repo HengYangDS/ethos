@@ -64,7 +64,7 @@ def test_historical_start_preserves_candidate_and_compensates_only_owned_state(
     """An exact trusted base is independent of today's candidate and governing runtime."""
     repo, candidate, target, start = start_case
     configure_signer(repo, tmp_path)
-    git(repo, "-c", "commit.gpgsign=true", "commit", "--allow-empty", "-m", "signed base")
+    git(repo, "-c", "commit.gpgsign=true", "commit", "--allow-empty", "-m", "chore: sign base")
     base = git(repo, "rev-parse", "HEAD")
     git(candidate, "merge", "--ff-only", base)
     candidate_head = commit_fixture_file(candidate, "later.txt", "later\n", "later candidate")
@@ -96,6 +96,15 @@ def test_historical_start_preserves_candidate_and_compensates_only_owned_state(
 def test_explicit_unsigned_base_is_refused_before_lane_effects(start_case):
     """A discoverable native commit is not a trusted maintenance selection."""
     repo, _candidate, target, start = start_case
+    git(
+        repo,
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "--allow-empty",
+        "-m",
+        "test: create an unsigned base",
+    )
     base = git(repo, "rev-parse", "HEAD")
     before = _observe(repo, target)
     result = start(base=base, apply=True)
@@ -108,7 +117,7 @@ def test_historical_base_rechecks_current_trust_before_effects(start_case, tmp_p
     """Bootstrap cannot turn a former trusted observation into effect authority."""
     repo, _candidate, target, start = start_case
     configure_signer(repo, tmp_path)
-    git(repo, "-c", "commit.gpgsign=true", "commit", "--allow-empty", "-m", "signed base")
+    git(repo, "-c", "commit.gpgsign=true", "commit", "--allow-empty", "-m", "chore: sign base")
     base = git(repo, "rev-parse", "HEAD")
     before = _observe(repo, target)
     monkeypatch.setattr(
@@ -126,7 +135,7 @@ def test_historical_base_obeys_current_identity_not_its_old_policy(start_case, t
     """A trusted key cannot bypass the current repository's explicit attribution rule."""
     repo, _candidate, target, start = start_case
     configure_signer(repo, tmp_path)
-    git(repo, "-c", "commit.gpgsign=true", "commit", "--allow-empty", "-m", "signed base")
+    git(repo, "-c", "commit.gpgsign=true", "commit", "--allow-empty", "-m", "chore: sign base")
     base = git(repo, "rev-parse", "HEAD")
     commit_fixture_file(
         repo,

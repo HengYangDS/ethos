@@ -80,13 +80,23 @@ def test_invalid_path_matrix(worktree: Path, token: str, kind: str) -> None:
     assert reason in cast("list[str]", report["required_gaps"])
 
 
-@pytest.mark.parametrize("relative", ["docs/guide [draft].md", "docs/README.md .gitignore"])
-def test_prewrite_preserves_one_literal_path_with_spaces(worktree: Path, relative: str) -> None:
-    """A public path argument is one filename, not a whitespace-delimited list."""
+@pytest.mark.parametrize(
+    ("relative", "verdict"),
+    [
+        ("docs/guide [draft].md", "block"),
+        ("docs/README.md .gitignore", "block"),
+        ("docs/guide.md", "pass"),
+    ],
+)
+def test_literal_path_transport_preserves_naming_admission(
+    worktree: Path, relative: str, verdict: str
+) -> None:
+    """Literal names keep creation admission; existing documents keep native formatting."""
     requested = worktree / relative
     before = (worktree / "README.md").read_bytes() if (worktree / "README.md").is_file() else None
     index = git(worktree, "ls-files", "--stage")
-    result = run_ethos(
+    runner = run_ethos_blocked if verdict == "block" else run_ethos
+    result = runner(
         "lane",
         "prewrite",
         relative,
@@ -97,21 +107,30 @@ def test_prewrite_preserves_one_literal_path_with_spaces(worktree: Path, relativ
         "--require-editor-root",
         "--json",
     )
-    assert result["verdict"] == "pass"
+    assert result["verdict"] == verdict
     assert [item["relative_path"] for item in result["data"]["paths"]] == [relative]
     hooked = _hook(worktree, Path(relative))
-    assert hooked["verdict"] == "pass"
-    assert [item["relative_path"] for item in hooked["admission"]["paths"]] == [relative]
+    assert hooked["verdict"] == verdict
+    admission = cast("dict[str, object]", hooked["admission"])
+    admitted = cast("list[dict[str, object]]", admission["paths"])
+    assert [item["relative_path"] for item in admitted] == [relative]
+    gaps = [f"repository_paradigm_authored_name:{relative}"] if verdict == "block" else []
+    assert result["required_gaps"] == hooked["required_gaps"] == gaps
     assert not requested.exists()
     assert git(worktree, "ls-files", "--stage") == index
     if before is not None:
         assert (worktree / "README.md").read_bytes() == before
     if relative.endswith(".md"):
         requested.parent.mkdir(parents=True, exist_ok=True)
-        requested.write_bytes(b"# Native source  \n\n\n")
+        original = b"# Native source  \n\n\n"
+        requested.write_bytes(original)
         git(worktree, "add", "--", relative)
+        index = git(worktree, "ls-files", "--stage")
         result = run_ethos("format", relative, "--apply", "--root", str(worktree), "--json")
+        assert result["data"]["selected_paths"] == [relative]
         assert result["data"]["applied"] is True
+        assert result["required_gaps"] == []
+        assert git(worktree, "ls-files", "--stage") == index
         formatted = requested.read_bytes()
         fixed = run_ethos("format", relative, "--check", "--root", str(worktree), "--json")
         assert fixed["data"]["changed_paths"] == []

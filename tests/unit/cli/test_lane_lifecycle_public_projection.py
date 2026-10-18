@@ -210,7 +210,7 @@ def test_public_prewrite_command_preserves_invalid_tokens_and_patch_input(
     )
 
     lifecycle.prewrite(
-        ("README.md", "bad path"),
+        ("README.md", "bad\npath"),
         root=tmp_path,
         editor_root=str(tmp_path),
         require_editor_root=True,
@@ -218,7 +218,7 @@ def test_public_prewrite_command_preserves_invalid_tokens_and_patch_input(
         json_output=True,
     )
 
-    assert captured["paths"] == [tmp_path / "README.md", Path("bad path")]
+    assert captured["paths"] == [tmp_path / "README.md", Path("bad\npath")]
     assert captured["editor_root"] == tmp_path
     assert captured["patch"] == "diff --git a/a b/a\n"
     report = captured["report"]

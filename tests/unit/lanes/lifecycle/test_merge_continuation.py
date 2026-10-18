@@ -142,8 +142,11 @@ def test_merge_intent_preserves_native_composition_of_prior_change(tmp_path, mon
     assert git(work, "show", f":{path}") == before
 
 
-def test_merge_continue_preserves_incoming_task_bytes_after_conflict(tmp_path, monkeypatch):
-    """Resolving a shared task conflict by exact import does not author its progress."""
+@pytest.mark.parametrize("disposition", ["present", "absent"])
+def test_merge_continue_preserves_exact_incoming_task_disposition(
+    tmp_path, monkeypatch, disposition
+):
+    """Exact import or incoming deletion resolves a conflict without authoring progress."""
     repo, candidate = start_adopted_candidate(tmp_path)
     write_active_commitment(candidate, change_id="shared")
     commit_fixture(candidate, "feat: declare shared intent")
@@ -158,23 +161,34 @@ def test_merge_continue_preserves_incoming_task_bytes_after_conflict(tmp_path, m
     own, other = work / path, candidate / path
     own.write_text(own.read_text().replace("fixture lifecycle", "local qualification"))
     (work / "README.md").write_text("# Local contribution\n")
-    commit_fixture(work, "feat: extend local task")
-    other.write_text(other.read_text().replace("fixture lifecycle", "incoming qualification"))
+    before = commit_fixture(work, "feat: extend local task")
+    if disposition == "present":
+        other.write_text(other.read_text().replace("fixture lifecycle", "incoming qualification"))
+        imported = other.read_bytes()
+    else:
+        git(candidate, "rm", "-r", "--", "openspec/changes/shared")
+        imported = None
     (candidate / "README.md").write_text("# Incoming contribution\n")
-    incoming = commit_fixture(candidate, "feat: extend incoming task")
-    imported = other.read_bytes()
-    before = git(work, "rev-parse", "HEAD")
+    incoming = commit_fixture(candidate, "feat: update incoming task disposition")
     assert git_process(work, "merge", "--no-ff", "--no-commit", incoming).returncode == 1
     assert path in git(work, "diff", "--name-only", "--diff-filter=U").splitlines()
-    own.write_bytes(imported)
+    if imported is None:
+        git(work, "rm", "--", path)
+    else:
+        own.write_bytes(imported)
+        git(work, "add", path)
     (work / "README.md").write_text("# Accepted combined resolution\n")
-    git(work, "add", "README.md", path)
+    git(work, "add", "README.md")
     monkeypatch.setenv("ETHOS_CHANGE", "publication")
     result = _apply(work, _preview(work, "continue"))
     assert result["verdict"] == "pass", result
-    assert own.read_bytes() == imported
-    assert git(work, "show", f"HEAD:{path}") == git(work, "show", f"{incoming}:{path}")
     assert git(work, "rev-list", "--parents", "-n", "1", "HEAD").split()[1:] == [before, incoming]
+    if imported is None:
+        assert not own.exists()
+        assert git_process(work, "cat-file", "-e", f"HEAD:{path}").returncode != 0
+    else:
+        assert own.read_bytes() == imported
+        assert git(work, "show", f"HEAD:{path}") == git(work, "show", f"{incoming}:{path}")
 
 
 @pytest.mark.parametrize("movement", ["before-preview", "before-apply"])
@@ -494,7 +508,9 @@ def test_recovery_inventory_preserves_kinds_and_rejects_unsafe_or_stale_bytes(tm
             preserve_merge(work, observed)
     else:
         artifact = preserve_merge(work, observed)
-        data = json.loads(Path(artifact["path"]).read_text())
+        artifact_path = artifact["path"]
+        assert isinstance(artifact_path, str)
+        data = json.loads(Path(artifact_path).read_text())
         assert data["files"]["README.md"]["kind"] == ("absent" if case == "absent" else "symlink")
         assert preserve_merge(work, observed) == artifact
 

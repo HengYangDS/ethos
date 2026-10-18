@@ -17,6 +17,7 @@ from unittest.mock import patch
 from fastmcp import Client
 from fastmcp.client.transports import StdioTransport
 
+from ethos.adapters.repo.trust_anchor.filesystem import protect_for_current_identity
 from ethos.domain.adoption import adopt_repository
 from ethos.domain.inspection import inspect_repository
 from ethos.domain.land.operation import land_repository
@@ -37,6 +38,37 @@ def _run(
         timeout=30,
         check=False,
     )
+
+
+def _signer(target: Path) -> dict[str, str]:
+    """Create one trusted SSH signer beside the absent target with installed tools only.
+
+    The installed environment runs this module without the source tree, so it cannot
+    share the source-side acceptance helper.
+    """
+    ssh_keygen = shutil.which("ssh-keygen")
+    assert ssh_keygen is not None, "ssh-keygen is required for conformance setup"
+    key = target.parent / f"{target.name}-signer"
+    trust_root = target.parent / f"{target.name}-trust"
+    trust_root.mkdir(mode=0o700)
+    anchor = trust_root / "allowed-signers"
+    subprocess.run(
+        (ssh_keygen, "-q", "-t", "ed25519", "-N", "", "-f", str(key)),
+        check=True,
+        capture_output=True,
+        timeout=30,
+    )
+    public_key = key.with_suffix(".pub").read_text(encoding="utf-8").strip()
+    anchor.write_text(
+        f'conformance@example.invalid namespaces="git" {public_key}\n', encoding="utf-8"
+    )
+    protect_for_current_identity(trust_root)
+    protect_for_current_identity(anchor)
+    return {
+        "signing_key": str(key.with_suffix(".pub")),
+        "trust_anchor": str(anchor),
+        "signing_program": ssh_keygen,
+    }
 
 
 def _git(root: Path, git: str, env: dict[str, str], *arguments: str) -> None:
@@ -193,12 +225,14 @@ async def _formation_preview(command: tuple[str, ...], target: Path, env: dict[s
     purpose = "Govern a new repository."
     author_name = "ETHOS Conformance"
     author_email = "conformance@example.invalid"
+    signer = _signer(target)
     request = {
         "create": True,
         "starter": "foundation",
         "purpose": purpose,
         "author_name": author_name,
         "author_email": author_email,
+        **signer,
     }
     transport = StdioTransport(
         command[0],
@@ -216,6 +250,9 @@ async def _formation_preview(command: tuple[str, ...], target: Path, env: dict[s
                 purpose=purpose,
                 author_name=author_name,
                 author_email=author_email,
+                signing_key=signer["signing_key"],
+                trust_anchor=signer["trust_anchor"],
+                signing_program=signer["signing_program"],
             ).to_dict()
         assert expected["verdict"] == "pass", expected
         for surface in ("cli", "mcp"):

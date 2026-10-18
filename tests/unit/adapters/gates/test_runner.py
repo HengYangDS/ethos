@@ -49,7 +49,16 @@ def test_runner_transports_one_deadline_to_native_and_provider_execution(
         budgets.append(timeout_seconds)
         return {"verdict": "pass"}
 
-    def command(_root: Path, argv: tuple[str, ...], *, timeout: float | None = None):
+    def command(
+        _root: Path,
+        argv: tuple[str, ...],
+        *,
+        timeout: float | None = None,
+        env: dict[str, str] | None = None,
+        remove_env: tuple[str, ...] = (),
+    ):
+        assert env is None
+        assert remove_env == ()
         budgets.append(timeout)
         return subprocess.CompletedProcess(argv, 0, "", "")
 

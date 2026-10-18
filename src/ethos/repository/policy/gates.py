@@ -48,6 +48,7 @@ if TYPE_CHECKING:
 
 _PACKAGED_GATE_DECLARATION = load_gate_registry_declaration()
 PRODUCT_PROVIDER_SOURCE = "@ethos/"
+_NATIVE_DEPENDENCY_AUDIT_COMMAND = ("python", "-m", "nox", "-s", "vulnerabilities")
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +66,7 @@ class ResolvedGatePolicy:
     carrier_roles: tuple[tuple[str, str], ...] = ()
     acceptance_purpose: AcceptancePurpose = "repository"
     product_gate_ids: tuple[str, ...] = ()
+    product_source: bool = False
 
     @property
     def registry(self) -> dict[str, Gate]:
@@ -127,6 +129,7 @@ class ResolvedGatePolicy:
                 self.repository_paths,
                 self.script_paths,
                 self.carrier_roles,
+                product_source=self.product_source,
             ),
             "gates": [gate_policy_fields(gate, sources.get(gate.id, ())) for gate in self.gates],
             "gaps": list(self.gaps),
@@ -149,6 +152,8 @@ def _owner_projection(
     repository_paths: tuple[str, ...],
     script_paths: tuple[str, ...],
     carrier_roles: tuple[tuple[str, str], ...],
+    *,
+    product_source: bool,
 ) -> dict[str, object]:
     identity: dict[str, object] = {
         "id": declaration.id,
@@ -172,7 +177,7 @@ def _owner_projection(
             owner["source_contracts"] = contracts
         if prerequisites:
             owner["source_binding_gaps"] = list(prerequisites)
-        if _same_packaged_quality_floor(declaration):
+        if product_source:
             return owner
         axes = {
             axis: next(
@@ -212,25 +217,6 @@ def _owner_projection(
             for subject in code_subjects
         }
     return owner
-
-
-def _same_packaged_quality_floor(declaration: GateRegistryDeclaration) -> bool:
-    """Bind capacity and audit scope in proof without changing quality ownership."""
-    exclusion = {"gates": {"__all__": {"cpu_reservation"}}}
-    normalized = declaration.model_copy(
-        update={
-            "gates": tuple(
-                gate.model_copy(update={"command": gate.command[:-3]})
-                if native_dependency_audit_scope(gate.model_dump(mode="python"))
-                == "local-development"
-                else gate
-                for gate in declaration.gates
-            )
-        }
-    )
-    return normalized.model_dump(mode="json", exclude=exclusion) == (
-        _PACKAGED_GATE_DECLARATION.model_dump(mode="json", exclude=exclusion)
-    )
 
 
 def _profile_declaration(profile: RepositoryProfile) -> GateRegistryDeclaration:
@@ -448,6 +434,7 @@ def resolve_gate_policy(
     product_gate_ids: tuple[str, ...] = (),
     full: bool = False,
     acceptance_purpose: AcceptancePurpose = "repository",
+    product_source: bool = False,
 ) -> ResolvedGatePolicy:
     acceptance_purpose = proof_acceptance_purpose({"acceptance_purpose": acceptance_purpose})
     declaration, profile = resolve_gate_declaration(
@@ -502,7 +489,12 @@ def resolve_gate_policy(
         gaps = (*gaps, "proof_floor_empty")
     if profile is not None and profile.declaration is not None:
         owner = _owner_projection(
-            declaration, profile, repository_paths, script_paths, carrier_roles
+            declaration,
+            profile,
+            repository_paths,
+            script_paths,
+            carrier_roles,
+            product_source=product_source,
         )
         gaps = (
             *gaps,
@@ -521,6 +513,7 @@ def resolve_gate_policy(
         carrier_roles,
         acceptance_purpose,
         product_gate_ids,
+        product_source,
     )
 
 
@@ -530,7 +523,7 @@ def native_dependency_audit_scope(gate: Mapping[str, object]) -> AuditScope | No
     if gate.get("tool_adapter") != "vulnerabilities" or not isinstance(command, tuple | list):
         return None
     identity = canonical_gate_command(bind_gate_command(tuple(command), sys.executable))
-    native = ("python", "-m", "nox", "-s", "vulnerabilities")
+    native = _NATIVE_DEPENDENCY_AUDIT_COMMAND
     if identity in (native, (*native, "--", "--scope", "production-release")):
         return "production-release"
     return (

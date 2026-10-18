@@ -191,12 +191,13 @@ accepted-effect IDs, then obtains fresh admission independently for each peer.
 `ethos land --release --expect-head <accepted-head> --release-head <old-main>
 --json` previews selection of the exact current accepted source for an
 independent release branch. Add `--tag v<version>` for a declared signed
-annotated tag. Only `--apply --authorize` permits the effect. With
-`release_mirror = "accepted_ff"`, accepted closeout first aligns the protected
-branches. The same release command then uses `<accepted-head>` for both exact
-coordinates and creates the requested tag without advancing either branch.
-A misaligned mirror directs the caller to accepted closeout. A release-tag hook
-without executor intent directs the caller to this exact release preview.
+annotated tag. Only `--apply --authorize` permits the effect. When
+`.ethos/release.toml` declares `[release] mirror = "accepted_ff"`, accepted
+closeout first aligns the protected branches. The same release command then
+uses `<accepted-head>` for both exact coordinates and creates the requested
+tag without advancing either branch. A misaligned mirror directs the caller to
+accepted closeout. A release-tag hook without executor intent directs the
+caller to this exact release preview.
 
 Selection requires a clean accepted checkout, accepted-effect evidence, current
 repository proof, trusted source and safe linked release worktrees. Committed
@@ -276,16 +277,18 @@ multiple merge parents report a boundary instead of guessing recovery.
 
 ## Commit Integrity And Accepted History Repair
 
-The tracked `[commit_policy]` in `.ethos/workspace.toml` owns the subject grammar,
-required signature format and optional exact `author` and `committer` tables
-(`name`, `email`). Undeclared identity constraints impose none on other adopters.
-The common compiler serves commit-msg, generated commits, replay, pre-push and
-`ethos hook commit-range`; there is no separate mutable Git identity policy.
-Prospective checks use the index and parent; generated commits use their exact
-parent and target tree. Introduced objects must satisfy trusted-baseline policy
-as well as candidate constraints. Removing policy cannot waive its own admission.
+The repository paradigm owns the commit subject grammar and requires an SSH
+signature on every commit, so a repository that tracks no `[commit_policy]` in
+`.ethos/workspace.toml` gets that policy. A tracked table may restrict `scopes`
+and declare exact `author` and `committer` tables (`name`, `email`); undeclared
+identity constraints impose none on other adopters. The common compiler serves
+commit-msg, generated commits, replay, pre-push and `ethos hook commit-range`;
+there is no separate mutable Git identity policy. Prospective checks use the
+index and parent; generated commits use their exact parent and target tree.
+Introduced objects must satisfy trusted-baseline policy as well as candidate
+constraints. Removing policy cannot waive its own admission.
 
-Signature-required admission invokes native Git verification against a protected,
+Signature admission invokes native Git verification against a protected,
 repository-external trust anchor. An SSH signature envelope alone is insufficient.
 CI supplies trust through its operator-owned environment, never candidate-authored
 key material. Identity, signature trust and Forge attribution are separate checks.
@@ -380,6 +383,12 @@ policy binds origin through execution and issuance.
 execution. Add `--execute --expect-head <head>` for frozen-source evidence.
 [Standard verification](#standard-exact-source-proof) owns its acceptance route;
 a focused result never implies the complete native floor.
+
+An executed full proof first takes its repository's proof slot, which every worktree shares, then
+waits until the host's 1-minute load average is within `ETHOS_PROOF_HOST_LOAD_LIMIT` (default: half
+the CPUs; `0` admits on the slot alone). It reports waiting on stderr and waits at most one hour;
+longer contention ends the proof with `proof_admission_contended` before any gate runs. The result
+records how long admission waited and the load it admitted.
 
 ## Hidden Operational Roots
 

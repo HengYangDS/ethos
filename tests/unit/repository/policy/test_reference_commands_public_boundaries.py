@@ -104,6 +104,17 @@ scanner \\
     assert command_identity(("uv", "run", "pytest", "-q"), {"pytest"}) == "pytest"
 
 
+def test_reference_commands_keep_redirection_targets_as_data() -> None:
+    """Nested invocations survive while files and descriptor targets stay data."""
+    source = "env X=1 scanner > report.txt\nscanner 2>&1\ncat < input.txt\n"
+
+    assert shell_executables(source, {}) == {"scanner", "cat"}
+    assert shell_commands(source, {"scanner", "cat", "report.txt", "input.txt"}) == {
+        "scanner",
+        "cat",
+    }
+
+
 @pytest.mark.parametrize("quote", ["'", '"'])
 def test_reference_commands_preserve_multiline_quoted_arguments(quote: str) -> None:
     """Quoted program text stays data while adjacent commands remain observable."""

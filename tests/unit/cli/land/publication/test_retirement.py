@@ -172,13 +172,12 @@ def test_retirement_retires_a_published_legacy_role_ref(
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     repo, peers, _proposal, _accepted = retirement_fixture(tmp_path)
     workspace = repo / ".ethos/workspace.toml"
-    settings = workspace.read_text()
-    declared = '[branch_roles]\naccepted_branch = "accepted/train"\n'
-    workspace.write_text(settings.replace("[branch_roles]\n", declared))
-    git(repo, "commit", "-am", "chore: declare the legacy accepted name")
+    workspace.write_text('[branch_roles]\naccepted_branch = "accepted/train"\n')
+    git(repo, "add", workspace.as_posix())
+    git(repo, "commit", "-m", "chore: declare the legacy accepted name")
     legacy = git(repo, "rev-parse", "HEAD")
-    workspace.write_text(settings)
-    git(repo, "commit", "-am", "chore: remove the renamed role name")
+    git(repo, "rm", "-q", workspace.as_posix())
+    git(repo, "commit", "-m", "chore: remove the renamed role name")
     accepted = git(repo, "rev-parse", "HEAD")
     for remote in ("gitlab", "github"):
         git(repo, "push", remote, "HEAD:refs/heads/dev", f"{legacy}:refs/heads/{target}")

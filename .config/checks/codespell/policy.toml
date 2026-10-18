@@ -1,0 +1,11 @@
+owner = "ethos-quality-gate-governance"
+summary = "Report-first spelling gate for human-facing docs and current governance surfaces."
+runner = "uv run --frozen --offline python -m nox -s prose"
+paths = [
+  "README.md",
+  "CONTRIBUTING.md",
+  "AGENTS.md",
+  "docs",
+  "rules",
+  "openspec/specs",
+]

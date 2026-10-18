@@ -87,6 +87,7 @@ packages = ["src/ethos"]
 ".config/checks/format-selection/policy.toml" = "ethos/resources/.config/checks/format-selection/policy.toml"
 ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml" = "ethos/resources/.config/checks/markdownlint-cli2/.markdownlint-cli2.yaml"
 ".config/checks/lychee/lychee.toml" = "ethos/resources/.config/checks/lychee/lychee.toml"
+".config/checks/vale" = "ethos/resources/.config/checks/vale"
 "VERSION" = "ethos/resources/VERSION"
 "system/schemas" = "ethos/resources/system/schemas"
 "docs/governance/product-design-contract.md" = "ethos/resources/docs/governance/product-design-contract.md"
@@ -140,6 +141,7 @@ only-include = [
   ".config/checks/format-selection/policy.toml",
   ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
   ".config/checks/lychee/lychee.toml",
+  ".config/checks/vale",
   "VERSION",
   "tools/ci/openspec_runtime_hook.py",
 ]

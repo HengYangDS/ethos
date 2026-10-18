@@ -95,8 +95,7 @@ class _UniqueSafeLoader(yaml.SafeLoader):
         ]
         if any(key in keys[:index] for index, key in enumerate(keys)):
             message = "duplicate mapping key"
-            message = None
-            raise ConstructorError(message)
+            raise ConstructorError(None, None, message, node.start_mark)
         return super().construct_mapping(node, deep=deep)
 
 
@@ -139,7 +138,7 @@ def build_docs_registry(
     retained_origins: DocumentOrigins | None = None,
     selected_documents: tuple[str, ...] | None = None,
 ) -> list[dict[str, Any]]:
-    """Retain typed metadata and reject invalid native declarations."""
+    """Validate selected source; only an unbound source-tree reader discovers files."""
     root = root.resolve()
     outputs = generated_outputs
     if outputs is None:
@@ -152,7 +151,7 @@ def build_docs_registry(
         else {
             root / relative
             for relative in selected_documents
-            if relative.endswith(".md") and (root / relative).is_relative_to(documentation)
+            if (root / relative).suffix == ".md" and (root / relative).is_relative_to(documentation)
         }
     )
     entries = []

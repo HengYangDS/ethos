@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import ethos.adapters.repo.attestation_set as attestation_set
 from ethos.adapters.repo.attestation_set import ATTESTATION_SET_REF
 from ethos.adapters.repo.attestation_set import MEMBER_BYTES_LIMIT
 from ethos.adapters.repo.git import git_common_dir
@@ -90,6 +91,53 @@ def test_attestation_record_refuses_oversized_input_before_any_effect(tmp_path: 
         assert result["required_gaps"] == [f"attestation_member_too_large:{record.id}"]
         assert "--evidence" in result["next_action"]
     assert not run_git(repo, "for-each-ref", ATTESTATION_SET_REF).stdout
+
+
+def test_attestation_record_reports_an_existing_oversized_member_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The bound applies to members being added, so replaying a held legacy member is a no-op."""
+    repo = init_git_repo(tmp_path / "repo")
+    input_path = tmp_path / "attestation.json"
+    legacy = attestation_fixture(
+        predicate="observation:repository",
+        verifier="agent:test:attestation-command",
+        subject="input:occurrence:legacy",
+        issued_at=datetime(2026, 10, 1, tzinfo=UTC),
+        payload_kind="input:future-feedback",
+        payload_body={"text": "x" * MEMBER_BYTES_LIMIT},
+        evidence_refs=("evidence:test:legacy",),
+    )
+    input_path.write_text(legacy.canonical_json(), encoding="utf-8")
+    # Members recorded before the bound existed are held legally; seed one the same way.
+    monkeypatch.setattr(attestation_set, "MEMBER_BYTES_LIMIT", 2 * MEMBER_BYTES_LIMIT)
+    root = attestation_set.record_attestations(repo, (legacy,))["root"]
+    monkeypatch.undo()
+
+    for arguments in ((), ("--apply",)):
+        result = _command(repo, "record", "--input", input_path.as_posix(), *arguments)
+        assert (result["state"], result["data"]["added"]) == ("unchanged", [])
+    assert run_git(repo, "rev-parse", ATTESTATION_SET_REF).stdout.strip() == root
+
+
+def test_attestation_record_projects_the_writer_gaps(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A record that could not observe lifetime facts still records and names the gap."""
+    repo = init_git_repo(tmp_path / "repo")
+    input_path = tmp_path / "attestation.json"
+    _input(input_path, 2, carried_id=False)
+
+    def unobservable(*_arguments: object) -> object:
+        message = "git worktree list unavailable"
+        raise OSError(message)
+
+    monkeypatch.setattr(attestation_set, "observe_lifetime_facts", unobservable)
+    applied = _command(repo, "record", "--input", input_path.as_posix(), "--apply")
+
+    assert applied["state"] == "recorded"
+    assert applied["data"]["lifetime_gap"] == "git worktree list unavailable"
+    assert "custody_gap" not in applied["data"]
 
 
 def _custody_input(path: Path, digest: str) -> Attestation:

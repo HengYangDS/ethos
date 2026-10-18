@@ -38,11 +38,9 @@ def _legacy_repository(tmp_path: Path) -> tuple[Path, Path, str]:
     """Adopt a repository whose committed table and refs still use legacy role names."""
     repo, candidate = start_adopted_candidate(tmp_path)
     workspace = repo / ".ethos/workspace.toml"
-    workspace.write_text(
-        workspace.read_text().replace("[branch_roles]\n", f"[branch_roles]\n{_LEGACY}")
-    )
+    workspace.write_text(f"[branch_roles]\n{_LEGACY}")
     git(repo, "add", workspace.as_posix())
-    git(repo, "commit", "-m", "declare legacy branch roles")
+    git(repo, "commit", "-m", "chore: declare legacy branch roles")
     git(repo, "branch", "-m", "dev", "accepted/train")
     git(repo, "branch", "-m", "candidate/dev", "candidate/train")
     head = git(repo, "rev-parse", "HEAD")

@@ -63,7 +63,7 @@ def test_publish_fallback_evidence_matrix(tmp_path: Path, case: str) -> None:
     if case == "custom":
         declaration["publication"]["local_verification_command"] = command
         release.write_text(tomli_w.dumps(declaration), encoding="utf-8")
-        head = commit_fixture(repo, "declare canonical local verification")
+        head = commit_fixture(repo, "docs(release): declare canonical local verification")
         seed_executed_proof(repo, head)
     else:
         manifest.parent.mkdir(parents=True)
@@ -112,7 +112,7 @@ def test_publish_peer_topology_matrix(tmp_path: Path, mode: str, *, probe_remote
         else peers
     )
     release.write_text(tomli_w.dumps(declaration), encoding="utf-8")
-    head = commit_fixture(repo, f"declare {mode} publication")
+    head = commit_fixture(repo, f"docs(release): declare {mode} publication")
     seed_executed_proof(repo, head)
     for peer in peers[:1] if mode == "tracking" else peers:
         target = tmp_path / f"{peer['id']}.git"

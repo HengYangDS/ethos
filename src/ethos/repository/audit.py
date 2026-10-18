@@ -128,13 +128,6 @@ def _commit_policy_report(
             **empty,
             "required_gaps": [gap],
         }
-    if policy is None:
-        return {
-            "verdict": "pass",
-            "state": "absent",
-            **empty,
-            "required_gaps": [],
-        }
     if observer is None:
         return {
             "verdict": "block",
@@ -162,7 +155,7 @@ def governance_audit(
     *,
     openspec: dict[str, object],
     commit_policy_observer: CommitPolicyObserver,
-    tracked_documents: tuple[str, ...] = (),
+    tracked_documents: tuple[str, ...] | None = None,
     tracked_paths: tuple[str, ...] = (),
     retained_origins: DocumentOrigins | None = None,
 ) -> dict[str, object]:
@@ -206,7 +199,7 @@ def repository_audit(
     *,
     openspec_mode: str = "deep",
     openspec_reporter: OpenSpecReporter | None = None,
-    tracked_documents: tuple[str, ...] = (),
+    tracked_documents: tuple[str, ...] | None = None,
     openspec_shape: dict[str, object] | None = None,
     commit_policy_observer: CommitPolicyObserver | None = None,
     retained_origins: DocumentOrigins | None = None,

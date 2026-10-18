@@ -172,16 +172,11 @@ def test_commit_msg_uses_only_the_staged_policy(
     policy.write_text(
         "[commit_policy\n"
         if staged is None
-        else f'[commit_policy]\nsubject_pattern = "{staged}"\n'
-        'signing_required = false\nsigning_format = "ssh"\n',
+        else f'[commit_policy]\nsubject_pattern = "{staged}"\n',
         encoding="utf-8",
     )
     assert git_process(repo, "add", ".ethos/workspace.toml").returncode == 0
-    policy.write_text(
-        f'[commit_policy]\nsubject_pattern = "{working}"\n'
-        'signing_required = false\nsigning_format = "ssh"\n',
-        encoding="utf-8",
-    )
+    policy.write_text(f'[commit_policy]\nsubject_pattern = "{working}"\n', encoding="utf-8")
     message_file = repo / ".git/COMMIT_EDITMSG"
     message_file.write_text(f"{subject}\nbody\n", encoding="utf-8")
     monkeypatch.setattr(hook_runtime, "current_runtime", lambda _common: None)
@@ -206,9 +201,7 @@ def test_installed_commit_msg_rejects_invalid_raw_git_commit(tmp_path: Path) -> 
     policy = repo / ".ethos/workspace.toml"
     policy.parent.mkdir()
     policy.write_text(
-        '[branch_roles]\nrelease_mirror = "independent"\n\n'
-        '[commit_policy]\nsubject_pattern = "^fix: .+"\n'
-        'signing_required = false\nsigning_format = "ssh"\n',
+        '[commit_policy]\nsubject_pattern = "^fix: .+"\n',
         encoding="utf-8",
     )
     (repo / "README.md").write_text("base\n", encoding="utf-8")

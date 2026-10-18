@@ -26,6 +26,7 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.filesystem import remove_owned_path as remove_generated_path
 from ethos.repository.policy.quality_reports import junit_report
+from tools.ci import python_test_bytecode
 from tools.ci.delivery.artifact import require_artifact_current
 from tools.ci.delivery.artifact import selected_wheel
 from tools.ci.toolchain.environment import ProjectRuntime
@@ -146,6 +147,7 @@ class PythonTestGate:
         self.allure_report = self.allure / "agent"
         self.data = self.coverage / ".coverage"
         self.head_file = self.coverage / "head.txt"
+        self.bytecode: Path | None = None
         self._allure_started = False
         self.observer_artifact: PackageArtifact | None = None
 
@@ -153,6 +155,10 @@ class PythonTestGate:
     def from_environment(cls, *, node_package_supply: Path) -> Self:
         """Create one gate from the current execution declaration."""
         return cls(Settings.load(node_package_supply=node_package_supply))
+
+    def compile_bytecode(self) -> None:
+        """Compile shared bytecode once; test processes read it and write none."""
+        self.bytecode = python_test_bytecode.compile_bytecode(ROOT, PYTHON, self._env())
 
     def run_tests(self, session: nox.Session) -> None:
         """Run unit and architecture tests with branch coverage."""
@@ -371,6 +377,7 @@ class PythonTestGate:
             "GIT_CONFIG_COUNT": str(len(config)),
             "GIT_TERMINAL_PROMPT": "0",
             "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONPYCACHEPREFIX": str(self.bytecode) if self.bytecode else None,
             "UV_CACHE_DIR": str(self.s.uv_cache) if self.s.uv_cache else None,
             "UV_PROJECT_ENVIRONMENT": str(ROOT / ".venv"),
         }

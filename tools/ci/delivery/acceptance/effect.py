@@ -364,6 +364,7 @@ def _observe_package(
                 WORK,
                 origin=origin,
                 environment=package_environment,
+                run=_run,
             ),
         )
         with observe_stage("host_independence"):

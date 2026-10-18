@@ -212,4 +212,4 @@ def _requires_declared_commands(path: str) -> bool:
     )
 
 
-_MARKDOWN = MarkdownIt("commonmark")
+_MARKDOWN = MarkdownIt("commonmark").enable("table")

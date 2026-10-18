@@ -26,6 +26,7 @@ from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.system.contracts import SYSTEM_CONTRACTS
 from ethos.contracts.system.contracts import load_system_contract
 from ethos.contracts.system.contracts import schema_validation_gaps
+from ethos.contracts.system.contracts import system_contract_file
 from ethos.contracts.system.contracts import system_contracts_report
 from ethos.contracts.value import mutable_json
 from tests.support.semantic import commitment_fixture
@@ -116,7 +117,8 @@ def test_system_contracts_report_fails_closed_for_every_carrier_state(tmp_path: 
     (system / "formats.toml").write_text("schema = 'schemas/formats.json'\n", encoding="utf-8")
     (system / "routing.toml").write_text("invalid = [\n", encoding="utf-8")
     (system / "surfaces.toml").write_text("schema = 'schemas/missing.json'\n", encoding="utf-8")
-    (system / "evidence_boundaries.toml").write_text(
+    # The contract identifier stays snake_case; its repository-authored file name is kebab-case.
+    (system / "evidence-boundaries.toml").write_text(
         "schema = 'schemas/evidence.json'\nvalue = 1\n", encoding="utf-8"
     )
     (schemas / "formats.json").write_text("not-json", encoding="utf-8")
@@ -151,7 +153,7 @@ def test_system_contracts_report_owns_surface_identity_uniqueness(tmp_path: Path
     schema = schemas / "permissive.json"
     schema.write_text(json.dumps({"type": "object"}), encoding="utf-8")
     for name in SYSTEM_CONTRACTS:
-        (system / f"{name}.toml").write_text(
+        (tmp_path / system_contract_file(name)).write_text(
             "schema = 'schemas/permissive.json'\n",
             encoding="utf-8",
         )
@@ -197,6 +199,7 @@ def test_system_contract_schema_validation_accepts_a_matching_document(tmp_path:
         "surfaces",
         "evidence_boundaries",
     )
+    assert system_contract_file("evidence_boundaries") == "system/evidence-boundaries.toml"
 
 
 @pytest.mark.parametrize("field", ["campaign", "collaboration", "compatibility", "publication"])

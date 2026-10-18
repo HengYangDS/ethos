@@ -199,7 +199,12 @@ def _command_tokens(tokens: tuple[str, ...], *, shell_context: bool = False) -> 
             return _command_tokens(
                 _tokens_after_options(tokens[index + 1 :], options), shell_context=True
             )
-        if shell_context and _ignored_shell_token(tokens[index]):
+        if shell_context and (
+            _SHELL_ASSIGNMENT.fullmatch(tokens[index])
+            or tokens[index].startswith("-")
+            or tokens[index].isdigit()
+            or tokens[index] in _SHELL_PREFIXES
+        ):
             index += 1
         else:
             break
@@ -316,15 +321,6 @@ def _shell_command_line(line: str) -> str:
     ):
         line = match.group(1)
     return line.removeprefix("$").lstrip()
-
-
-def _ignored_shell_token(token: str) -> bool:
-    return bool(
-        _SHELL_ASSIGNMENT.fullmatch(token)
-        or token.startswith("-")
-        or token.isdigit()
-        or token in _SHELL_PREFIXES
-    )
 
 
 def shebang_executable(line: str) -> str:

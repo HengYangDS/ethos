@@ -25,7 +25,9 @@ from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.binding import load_hook_contract
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.selection import runtime_command
+from ethos.adapters.repo.trust_anchor.verification import commit_trust_anchor_action
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import write_test_profile
 from tests.support.runtime_scenarios import git_process
@@ -35,16 +37,14 @@ from tests.support.runtime_scenarios import runtime_build
 if TYPE_CHECKING:
     from ethos.adapters.repo.hook.observation import CommitPolicyEnforcement
 
-_POLICY = (
-    '[commit_policy]\nsubject_pattern = "fix: .+"\n'
-    'signing_required = false\nsigning_format = "ssh"\n'
-)
+_POLICY = '[commit_policy]\nsubject_pattern = "fix: .+"\n'
 
 
 def _fixture(tmp_path: Path, *, policy: str | None = None) -> tuple[Path, Path]:
     repo = tmp_path / "repo"
     repo.mkdir()
     assert git_process(repo, "init", "--quiet", "--initial-branch=dev").returncode == 0
+    configure_fixture_signer(repo)
     binding = install_fixture_hook_runtime(repo)
     if policy is not None:
         path = repo / ".ethos/workspace.toml"
@@ -110,32 +110,36 @@ def test_declared_policy_unarms_transports_when_runtime_is_not_current(
 
 
 @pytest.mark.parametrize(
-    ("policy", "state", "declared", "transport"),
+    ("policy", "state", "pattern", "transport"),
     [
-        (_POLICY, "armed", True, "armed"),
-        (None, "not_declared", False, "not_required"),
+        (_POLICY, "armed", "fix: .+", "armed"),
+        (None, "armed", None, "armed"),
         (_POLICY.replace('"fix: .+"', '"["'), "invalid", None, "unknown"),
     ],
+    ids=["declared", "paradigm", "invalid"],
 )
 def test_commit_policy_capability_state_matrix(
     tmp_path: Path,
     policy: str | None,
     state: str,
+    pattern: str | None,
     transport: str,
-    *,
-    declared: bool | None,
 ) -> None:
     repo, _generation = _fixture(tmp_path, policy=policy)
 
     projected, capability = _capability(repo)
 
     assert capability["state"] == state
-    assert capability["declared"] is declared
     assert capability["commit_message_transport"] == transport
     assert capability["push_range_enforcement"] == transport
     if state == "invalid":
         assert projected["verdict"] == "block"
+        assert capability["declaration"] == {}
         assert capability["required_gaps"][0].startswith("commit_policy_subject_pattern_invalid:")
+    else:
+        declared = capability["declaration"]
+        assert declared["signing_format"] == "ssh"
+        assert (declared["subject_pattern"] == pattern) is (pattern is not None)
 
 
 def test_candidate_hook_semantics_remain_pending_until_acceptance(tmp_path: Path) -> None:
@@ -150,7 +154,8 @@ def test_candidate_hook_semantics_remain_pending_until_acceptance(tmp_path: Path
 
 
 def test_armed_transport_does_not_claim_signature_trust_is_ready(tmp_path: Path) -> None:
-    repo, _generation = _fixture(tmp_path, policy=_POLICY.replace("false", "true"))
+    repo, _generation = _fixture(tmp_path, policy=_POLICY)
+    git_process(repo, "config", "--unset", "gpg.ssh.allowedSignersFile")
     _report, capability = _capability(repo)
     assert capability["commit_message_transport"] == "armed"
     assert capability["push_range_enforcement"] == "armed"
@@ -161,7 +166,7 @@ def test_armed_transport_does_not_claim_signature_trust_is_ready(tmp_path: Path)
         "anchor": "",
         "required_gaps": ["commit_trust_anchor_missing"],
     }
-    assert "gpg.ssh.allowedSignersFile" in capability["next_action"]
+    assert capability["next_action"] == commit_trust_anchor_action(repo)
 
 
 def _advance_expected_build(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -176,14 +181,14 @@ def _advance_expected_build(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
 @pytest.mark.parametrize(
     "condition", ["current", "stale", "missing-launcher", "damaged-selector", "unknown"]
 )
-def test_status_preserves_runtime_readiness_without_commit_policy(
+def test_status_preserves_runtime_readiness_with_the_paradigm_policy(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     *,
     adopted: bool,
     condition: str,
 ) -> None:
-    """An optional policy cannot hide the installed runtime's independent gaps."""
+    """The paradigm policy cannot hide the installed runtime's independent gaps."""
     repo, generation = _fixture(tmp_path)
     if adopted:
         write_test_profile(repo)
@@ -207,9 +212,11 @@ def test_status_preserves_runtime_readiness_without_commit_policy(
     projected, capability = _capability(repo)
     runtime = projected["data"]["hook_runtime"]
 
-    assert capability["state"] == "not_declared"
-    assert capability["required_gaps"] == []
-    assert capability["next_action"] == ""
+    assert capability["declaration"]["signing_format"] == "ssh"
+    # A missing pre-commit launcher is not one of the commit policy's two transports.
+    assert capability["state"] == (
+        "armed" if condition in {"current", "missing-launcher"} else "unarmed"
+    )
     if condition == "current":
         assert runtime["current"] is True
         assert not any(
@@ -249,7 +256,7 @@ def test_status_requires_installation_only_for_an_adopted_repository(
     projected, capability = _capability(repo)
     runtime = projected["data"]["hook_runtime"]
 
-    assert capability["state"] == "not_declared"
+    assert capability["state"] == ("unarmed" if adopted else "not_governed")
     assert runtime["current"] is False
     if adopted:
         assert "write_admission_not_armed:runtime_current" in projected["required_gaps"]
@@ -269,7 +276,7 @@ def test_adopted_status_moves_from_ready_to_stale_without_policy(
     repo, _candidate = start_adopted_candidate(tmp_path)
     before, policy = _capability(repo)
     assert (before["verdict"], before["required_gaps"], before["next_action"]) == ("pass", [], "")
-    assert policy["state"] == "not_declared"
+    assert policy["state"] == "armed"
     _advance_expected_build(monkeypatch, tmp_path)
 
     after, _policy = _capability(repo)

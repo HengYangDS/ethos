@@ -21,10 +21,17 @@ _ROOT = f"openspec/changes/{_CHANGE}"
 _CONTENT = {
     f"{_ROOT}/proposal.md": (
         "## Why\n\nEstablish the first governed capability.\n\n"
-        "## What Changes\n\n- Add one foundation capability.\n"
+        "## What Changes\n\n- Add one foundation capability.\n\n"
+        "## Capabilities\n\n### New Capabilities\n\n"
+        "- `foundation`: the first governed capability.\n\n"
+        "### Modified Capabilities\n\n- None.\n\n"
+        "## Impact\n\n- The formed project's first Change.\n"
     ),
     f"{_ROOT}/design.md": (
-        "## Context\n\nFirst governed capability.\n\n## Decision\n\nUse one official Change.\n"
+        "## Context\n\nFirst governed capability.\n\n"
+        "## Goals / Non-Goals\n\nGovern the first capability.\n\n"
+        "## Decisions\n\nUse one official Change.\n\n"
+        "## Risks / Trade-offs\n\nNone beyond the formed project.\n"
     ),
     f"{_ROOT}/tasks.md": "## 1. Foundation\n\n- [x] 1.1 Verify first capability.\n",
     f"{_ROOT}/specs/foundation/spec.md": (

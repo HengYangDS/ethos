@@ -1,0 +1,24 @@
+# Proposal
+
+## Why
+
+`proof-throughput` grew to 200 tasks and a 2,959-line design, so it can no longer be read, proved or archived as one Change. Its requirements are accepted when it archives to `openspec/changes/archive/2026-10-17-proof-throughput`; this Change carries its open implementation obligations 8.9, 8.10, 8.11, 8.12, 8.13, 10.2, 10.3, 10.4, 10.6, 10.7, 10.11, 10.12, 10.13, 11.9 for one cohesive outcome. Admit only complete quality evidence: hosted result and report integrity, native quality rules, early failure, and declaration-to-consumer wiring of the shared quality floor.
+
+## What Changes
+
+- Preserve original task identities, truthful states, acceptance conditions, dependencies and evidence references; conjoin both parents' remaining obligations without restoring superseded duties.
+- Add no requirement. Each task implements a requirement already accepted through `proof-throughput`.
+
+## Capabilities
+
+### New Capabilities
+
+- None.
+
+### Modified Capabilities
+
+- None. The behavior these tasks implement is specified by the accepted specifications.
+
+## Impact
+
+Code, tests and evidence owned by these tasks. Original execution history remains in Git, in the archived design of `proof-throughput`, and with its native evidence owners.

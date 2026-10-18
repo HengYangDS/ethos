@@ -52,8 +52,8 @@ def gitlab():
 
 def _range_coordinates(command: str) -> tuple[str, ...]:
     arguments = shlex.split(command)
-    assert arguments[:4] == ["uv", "run", "--frozen", "--offline"]
-    invocation = arguments[4 : arguments.index("--target-ref")]
+    assert arguments[:5] == ["uv", "run", "--frozen", "--offline", "--no-sync"]
+    invocation = arguments[5 : arguments.index("--target-ref")]
     assert invocation == ["python", "-B", "-I", "-m", "ethos.cli", "hook", "commit-range"]
     probe = run_command(
         ROOT, (sys.executable, *invocation[1:], "--help"), timeout=10, env={"PATH": ""}
@@ -85,11 +85,18 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
         for step in steps
     )
     commands = [step.get("run", "") for step in steps]
-    assert commands.count("tools/ci/scripts/bootstrap-python.sh") == 1
-    assert commands.count("tools/ci/scripts/run-head-bound-proof.sh") == 1
+    assert commands.count("uv run --frozen python -B -m tools.ci.toolchain.commit_trust") == 1
+    assert (
+        commands.count("uv run --frozen --offline --no-sync python -m nox -s hosted_verification")
+        == 1
+    )
     assert github["jobs"]["external-links"]["continue-on-error"] is True
     assert "External links" not in [step.get("name") for step in jobs["quality"]["steps"]]
-    assert re.search(r"--network none.*safe.directory", str(github["jobs"]["supply-image"]))
+    supply = [step.get("run", "") for step in github["jobs"]["supply-image"]["steps"]]
+    assert any("--target smoke --build-context workspace=." in command for command in supply)
+    # A build check reads every stage, so the smoke stage's named context must resolve too.
+    check = next(command for command in supply if " --check " in command)
+    assert "--build-context workspace=." in check
     assert "UV_OFFLINE=true" not in str(github["jobs"]["supply-image"])
     assert sum("actions/checkout@" in step.get("uses", "") for step in steps) == 1
     assert not any(
@@ -119,9 +126,7 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     }
 
 
-def test_linux_supply_image_bakes_native_tools_and_smokes_offline(
-    github, tmp_path, monkeypatch
-) -> None:
+def test_linux_supply_image_bakes_native_tools_and_smokes_offline(tmp_path, monkeypatch) -> None:
     """The immutable image, not a cold GitLab job, supplies every native gate tool."""
     dockerfile = (ROOT / ".config/ci/supply/Dockerfile").read_text(encoding="utf-8")
     context_rules = set(
@@ -134,7 +139,7 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(
     copy_sources = {
         source
         for line in dockerfile.replace("\\\n", " ").splitlines()
-        if line.startswith("COPY ") and not line.startswith("COPY --from=")
+        if line.startswith("COPY ") and "--from=" not in line
         for source in shlex.split(line)[1:-1]
     }
     manifest_inputs = set(manifest.group("inputs").replace("\\\n", " ").split())
@@ -142,8 +147,11 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(
     assert manifest_inputs <= copy_sources
     assert "src/ethos" in copy_sources
     assert "rm -rf .venv node_modules src/ethos" in dockerfile
-    final_stage = dockerfile.rsplit("FROM base\n", 1)[1]
+    final_stage = dockerfile.split("FROM base AS supply\n", 1)[1].split("FROM supply AS smoke", 1)[
+        0
+    ]
     assert "COPY --from=prepare --chown=65534:65534 /opt/ethos-supply" in final_stage
+    assert "USER 65534:65534" in final_stage
     assert "src/ethos" not in final_stage
     # Dependency supply does not build the project wheel or consume its prose/version.
     assert {"README.md", "VERSION"}.isdisjoint(manifest_inputs)
@@ -161,7 +169,7 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(
     } <= copy_sources
     # The fixture's own uv settings, including its prerelease policy, bind its lock.
     assert "uv --directory /tmp/ethos-quality-sample sync --locked --group dev" in dockerfile
-    native_command = "tools/ci/toolchain/native.py --root . --mise gitleaks scc syft"
+    native_command = "tools/ci/toolchain/native.py --root . --mise gitleaks scc syft vale"
     assert f"PYTHONPATH=src .venv/bin/python {native_command}" in dockerfile
     for relative in copy_sources:
         target = tmp_path / relative
@@ -201,9 +209,9 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(
     )
     assert selected.returncode == 0, selected.stderr
     assert selected.stdout.strip() == str(tmp_path / "tool-cache")
-    smoke = github["jobs"]["supply-image"]["steps"][-1]["run"]
-    assert "--network none" in smoke
-    assert native_command in smoke
+    smoke = dockerfile.split("FROM supply AS smoke\n", 1)[1].replace("\\\n", " ")
+    assert "RUN --network=none" in smoke
+    assert "python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft" in smoke
     assert "test_real_locked_python_checks_qualify_the_selected_source[inline-none]" in smoke
 
 
@@ -211,19 +219,26 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(
 def test_provider_commands_use_shared_owners_without_activating_mutation(provider, gitlab) -> None:
     entry = next(item for item in projection_entries() if item["provider"] == provider)
     text = (ROOT / entry["projection"]).read_text()
-    assert "tools/ci/scripts/run-head-bound-proof.sh" in text
+    assert "uv run --frozen --offline --no-sync python -m nox -s hosted_verification" in text
     assert "tools/ci/scripts/configure-git-checkout.sh" not in text
     assert "ethos hook install" not in text
     assert "\n    - openspec validate" not in text
     if provider == "gitlab":
         jobs = {name.removeprefix("ethos:") for name in gitlab if name.startswith("ethos:")}
         assert jobs == {"commit-policy", "external-links", "host-conformance", "npm", "verify"}
-        assert gitlab["ethos:verify"]["script"][-1] == "tools/ci/scripts/run-head-bound-proof.sh"
+        assert gitlab["ethos:verify"]["script"][-1] == (
+            "uv run --frozen --offline --no-sync python -m nox -s hosted_verification"
+        )
         assert "external-links" not in " ".join(gitlab["ethos:verify"]["script"])
         assert gitlab["ethos:external-links"]["allow_failure"] is True
-        assert gitlab["ethos:npm"]["script"][0] == "tools/ci/scripts/bootstrap-python.sh"
-        assert gitlab["ethos:verify"]["before_script"] == []
-        assert "bootstrap-python.sh" in gitlab["ethos:verify"]["image"]["entrypoint"][2]
+        bootstrap = gitlab["ethos:verify"]["before_script"]
+        assert bootstrap[0] == 'sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"'
+        assert all(
+            gitlab[name]["before_script"] == bootstrap
+            for name in gitlab
+            if name.startswith("ethos:")
+        )
+        assert gitlab["ethos:verify"]["image"] == gitlab["ethos:npm"]["image"]
         assert "build/artifacts/python/" in gitlab["ethos:verify"]["artifacts"]["paths"]
         assert "stuck_or_timeout_failure" not in gitlab["default"]["retry"]["when"]
 
@@ -315,7 +330,9 @@ def test_hosted_runtime_versions_are_checked_projections_of_native_owners(github
     assert mise["tools"]["node"] in github["jobs"]["host-conformance"]["name"]
     npm_job = gitlab["ethos:npm"]
     assert npm_job["variables"]["NODE_VERSION"] == mise["tools"]["node"]
-    assert npm_job["script"][-1] == "uv run --frozen --offline python -m nox -s javascript_tests"
+    assert npm_job["script"][-1] == (
+        "uv run --frozen --offline --no-sync python -m nox -s javascript_tests"
+    )
     images = {
         job["image"]
         for job in gitlab.values()
@@ -344,7 +361,7 @@ def test_host_conformance_receives_native_python_supply_before_activation(github
     preparation = [
         "uv python install --no-bin ${{ matrix.python }}",
         "uv sync --locked --no-install-project --group dev",
-        "uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise",
+        "uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale",
         "uv sync --locked --group dev",
         "uv run --frozen python -m nox -s host_conformance",
         "uv run --frozen python -m nox -s javascript_tests",
@@ -358,7 +375,9 @@ def test_host_conformance_receives_native_python_supply_before_activation(github
 
     gitlab_job = gitlab["ethos:host-conformance"]
     assert gitlab_job["stage"] == "verify"
-    assert gitlab_job["script"] == ["uv run --frozen --offline python -m nox -s host_conformance"]
+    assert gitlab_job["script"] == [
+        "uv run --frozen --offline --no-sync python -m nox -s host_conformance"
+    ]
 
 
 def test_hosted_cache_roots_do_not_move_with_child_working_directories(github, gitlab) -> None:
@@ -423,12 +442,9 @@ def _offline_generation(root, command, **kwargs):
         ("malformed", "model", None, "invalid: ["),
         ("missing", "model", None, None),
         ("unformatted", "model", 'name: "ETHOS CI"', 'name:    "ETHOS CI"'),
-        ("bootstrap", "bootstrap", None, "#!/bin/sh\nexit 0\n"),
         ("missing-output", "output", None, None),
         ("bootstrap-version", "mise", "2026.10.10", "0.0.0"),
-        ("bootstrap-lock", "declaration", "sha256 =", "unsupported ="),
-        ("bootstrap-missing", "bootstrap", None, None),
-        ("bootstrap-link", "bootstrap", "", ""),
+        ("bootstrap-lock", "declaration", "linux-arm64 =", "linux-unsupported ="),
     ],
 )
 def test_cue_owner_requires_native_semantics_without_parallel_templates(
@@ -443,7 +459,6 @@ def test_cue_owner_requires_native_semantics_without_parallel_templates(
         "model": model,
         "output": output,
         "declaration": owner.CONFIG_RELATIVE_PATH,
-        "bootstrap": "tools/ci/scripts/mise-install.sh",
         "mise": config["compiler"]["supply"]["config"],
     }[target]
     if new is None:
@@ -468,11 +483,6 @@ def test_cue_owner_requires_native_semantics_without_parallel_templates(
         destination = tmp_path / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text(content)
-    if fault == "bootstrap-link":
-        installer = tmp_path / "tools/ci/scripts/mise-install.sh"
-        retained = tmp_path / "retained"
-        installer.rename(retained)
-        installer.symlink_to(retained)
     monkeypatch.setattr(owner, "ROOT", tmp_path)
     monkeypatch.setattr(owner, "CONFIG_PATH", tmp_path / owner.CONFIG_RELATIVE_PATH)
     assert (owner.check_templates(json_output=True) == 0) is (fault == "none")
@@ -480,7 +490,7 @@ def test_cue_owner_requires_native_semantics_without_parallel_templates(
     if fault in {"drift", "self-certified", "byte-drift"} or fault.startswith("bootstrap"):
         provider = "github" if fault == "byte-drift" else "compiler"
         reason = (
-            "mise_bootstrap_drift"
+            "mise_executable_record_invalid"
             if fault.startswith("bootstrap")
             else f"projection byte drift: {output}"
             if fault == "byte-drift"

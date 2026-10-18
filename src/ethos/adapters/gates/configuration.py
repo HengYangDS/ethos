@@ -9,6 +9,8 @@ import os
 import subprocess
 import tomllib
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import Any
 
 import yaml
 from yamllint import config as yamllint_config
@@ -21,10 +23,13 @@ from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
+from ethos.adapters.repo.runtime.materialization.native_supply import resolve_native_tool
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.contracts.verdict import close_verdict
 
-SUPPORTED_SUFFIXES = frozenset({".toml", ".yaml", ".yml", ".json", ".ini", ".cfg"})
+VALE_CONFIG = Path(".config/checks/vale/vale.ini")
+VALE_VOCABULARIES = ".config/checks/vale/styles/config/vocabularies/*/"
+SUPPORTED_SUFFIXES = frozenset({".toml", ".yaml", ".yml", ".json", ".ini", ".cfg", ".txt"})
 
 
 def _configuration_inventory(root: Path) -> tuple[Path, ...]:
@@ -37,7 +42,8 @@ def _configuration_inventory(root: Path) -> tuple[Path, ...]:
             "--others",
             "--exclude-standard",
             "-z",
-            *(f"*{suffix}" for suffix in sorted(SUPPORTED_SUFFIXES)),
+            *(f"*{suffix}" for suffix in sorted(SUPPORTED_SUFFIXES - {".txt"})),
+            *(VALE_VOCABULARIES + name for name in ("accept.txt", "reject.txt")),
         ),
         timeout=30,
         check=True,
@@ -56,7 +62,7 @@ def _candidate_paths(root: Path, requested: tuple[str, ...]) -> dict[str, tuple[
             message = f"config target outside repository: {raw}"
             raise ValueError(message)
         if not path.is_file():
-            if requested:
+            if requested or raw.suffix.lower() == ".txt":
                 message = f"config target missing or not a file: {raw}"
                 raise ValueError(message)
             continue
@@ -88,6 +94,7 @@ def _candidate_paths(root: Path, requested: tuple[str, ...]) -> dict[str, tuple[
             "yaml": {".yaml", ".yml"},
             "json": {".json"},
             "ini": {".ini", ".cfg"},
+            "vale": {".txt"},
         }.items()
     }
 
@@ -240,6 +247,109 @@ def _ini_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
     return failures
 
 
+def _vale_vocabulary_directories(configuration: Any) -> dict[str, Path]:
+    """Bind selected files to the vocabulary directories the native parser actually loaded."""
+    if (
+        not isinstance(configuration, dict)
+        or not isinstance(configuration.get("Paths"), list)
+        or not all(isinstance(path, str) and path for path in configuration["Paths"])
+        or not isinstance(configuration.get("Vocabularies"), dict)
+        or not all(isinstance(name, str) and name for name in configuration["Vocabularies"])
+        or "Vocab" not in configuration
+        or (configuration["Vocab"] is not None and not isinstance(configuration["Vocab"], list))
+        or not all(isinstance(name, str) for name in (configuration["Vocab"] or []))
+    ):
+        message = "Vale native configuration is unobservable"
+        raise ValueError(message)
+    directories = {}
+    for name in configuration["Vocabularies"]:
+        candidates = (Path(path) / "config/vocabularies" / name for path in configuration["Paths"])
+        directory = next((path for path in candidates if path.is_dir()), None)
+        if directory is None:
+            message = f"Vale native vocabulary directory is unobservable: {name}"
+            raise ValueError(message)
+        directories[name] = directory.resolve()
+    return directories
+
+
+class _ValeConfiguration(configparser.ConfigParser):
+    """Preserve native Vale option names during bounded configuration serialization."""
+
+    def optionxform(self, optionstr: str) -> str:
+        return optionstr
+
+
+def _vale_section_vocabulary_failures(
+    root: Path, executable: Path, name: str, directory: Path
+) -> list[str]:
+    """Compile section-only terms with native Vale; its empty-input default skips them."""
+    with TemporaryDirectory(prefix="ethos-vale-configuration-") as temporary:
+        config = Path(temporary) / "vale.ini"
+        parser = _ValeConfiguration(interpolation=None)
+        parser.read_dict(
+            {
+                "DEFAULT": {
+                    "StylesPath": str(directory.parents[2]),
+                    "Vocab": name,
+                    "MinAlertLevel": "error",
+                },
+                "*.md": {"BasedOnStyles": "Vale"},
+            }
+        )
+        with config.open("w", encoding="utf-8") as output:
+            parser.write(output)
+        completed = run_command(
+            root,
+            (str(executable), f"--config={config}", "--no-global", "--ext=.md", "--output=JSON"),
+            stdin="",
+            timeout=30,
+        )
+        if completed.returncode or completed.stderr.strip():
+            return [
+                (completed.stdout + completed.stderr).strip() or f"Vale vocabulary failed: {name}"
+            ]
+    return []
+
+
+def _vale_failures(
+    root: Path, vocabularies: tuple[Path, ...], configurations: tuple[Path, ...]
+) -> list[str]:
+    """Compile consumed native vocabulary without mutation or ambient supply."""
+    if not vocabularies and VALE_CONFIG not in configurations:
+        return []
+    try:
+        executable = resolve_native_tool("vale")
+        command = (str(executable), f"--config={root / VALE_CONFIG}", "--no-global")
+        observed = run_command(root, (*command, "ls-config"), stdin="", timeout=30, check=True)
+        if observed.stderr.strip():
+            return [observed.stderr.strip()]
+        configuration = json.loads(observed.stdout)
+        directories = _vale_vocabulary_directories(configuration)
+        failures = [
+            f"{path}: Vale vocabulary is not consumed by {VALE_CONFIG}"
+            for path in vocabularies
+            if (root / path).parent.resolve() not in directories.values()
+        ]
+        if failures:
+            return failures
+        completed = run_command(
+            root, (*command, "--ext=.md", "--output=JSON"), stdin="", timeout=30
+        )
+        if completed.returncode or completed.stderr.strip():
+            return [
+                (completed.stdout + completed.stderr).strip()
+                or f"Vale configuration validation exited with {completed.returncode}"
+            ]
+        return [
+            failure
+            for name, directory in directories.items()
+            if name not in (configuration["Vocab"] or [])
+            for failure in _vale_section_vocabulary_failures(root, executable, name, directory)
+        ]
+    except (ValueError, OSError, subprocess.SubprocessError) as error:
+        return [f"Vale configuration validation failed: {error}"]
+
+
 def configuration_report(root: Path, *, paths: tuple[str, ...] = ()) -> dict[str, object]:
     """Check native configuration without source tooling, writes or ambient policy."""
     candidates: dict[str, tuple[Path, ...]] = {}
@@ -250,6 +360,7 @@ def configuration_report(root: Path, *, paths: tuple[str, ...] = ()) -> dict[str
             *_json_failures(root, candidates["json"]),
             *_yaml_failures(root, candidates["yaml"]),
             *_ini_failures(root, candidates["ini"]),
+            *_vale_failures(root, candidates["vale"], candidates["ini"]),
         )
     except (GitExecutionError, subprocess.CalledProcessError) as error:
         return quality_inventory_failure(root, "config-quality", error)

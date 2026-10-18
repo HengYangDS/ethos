@@ -18,11 +18,13 @@ import tomli_w
 import ethos.adapters.gates.configuration as config_quality
 import ethos.adapters.gates.tool as quality_tools
 import ethos.adapters.repo.content.observation as content_observation
+import ethos.adapters.repo.runtime.materialization.native_supply as native_supply
 import ethos.repository.policy.schema as schema_owner
 import tools.ci.local_ci as local_ci
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.repository.policy.gates import gate_execution_identity
+from ethos.repository.release.resources import canonical_resource
 from tests.support.governed_repository import PARADIGM_FORMATTERS
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -193,6 +195,148 @@ def test_full_test_session_refuses_selectors_before_loading_supply(tmp_path) -> 
     assert result.returncode != 0
     assert "tests_session_selection_not_supported" in result.stderr
     assert "node_package_supply_unavailable" not in result.stderr
+
+
+def test_fix_applies_each_common_formatter_in_write_mode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The native fix writes Python, Markdown and TOML with the same shared policies."""
+    root = init_git_repo(tmp_path / "repo")
+    ruff = root / ".config/checks/ruff/ruff.toml"
+    ruff.parent.mkdir(parents=True, exist_ok=True)
+    ruff.write_bytes((ROOT / ruff.relative_to(root)).read_bytes())
+    inputs = {
+        "sample.py": '"""Native formatter fixture."""\n\nanswer=42\n',
+        "README.md": "#   Guide\n",
+        "pyproject.toml": '[project]\nname= "example"\n',
+    }
+    for relative, text in inputs.items():
+        (root / relative).write_text(text)
+    git(root, "add", "--all")
+    monkeypatch.setattr(sessions, "ROOT", root)
+    monkeypatch.setattr(sessions, "RUFF_CACHE", tmp_path / "ruff-cache")
+    calls = []
+
+    def execute(_session, *args, **kwargs):
+        calls.append(args)
+        kwargs.pop("silent", None)
+        return run_command(root, args, timeout=60, check=True, **kwargs).stdout
+
+    sessions.fix(type("Session", (), {"run": execute})())
+
+    assert (root / "sample.py").read_text() == '"""Native formatter fixture."""\n\nanswer = 42\n'
+    assert (root / "README.md").read_text() == "# Guide\n"
+    assert (root / "pyproject.toml").read_text() == '[project]\nname = "example"\n'
+    original = {relative: (root / relative).read_bytes() for relative in inputs}
+    sessions.fix(type("Session", (), {"run": execute})())
+    assert {relative: (root / relative).read_bytes() for relative in inputs} == original
+    ruff_commands = [args for args in calls if Path(args[0]).name == "ruff"]
+    assert ruff_commands[0][1:3] == ("check", "--fix")
+    assert ruff_commands[1][1] == "format"
+    assert not any("--check" in command for command in ruff_commands)
+
+
+def test_secrets_scans_a_mirror_of_only_the_tracked_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ignored and untracked files stay outside the scan; tracked links stay links."""
+    repo = init_git_repo(tmp_path / "repo")
+    (repo / ".gitignore").write_text("*.log\n", encoding="utf-8")
+    (repo / "notes.txt").write_text("tracked\n", encoding="utf-8")
+    (repo / "notes-link.txt").symlink_to("notes.txt")
+    git(repo, "add", ".gitignore", "notes.txt", "notes-link.txt")
+    (repo / "local.log").write_text("ignored\n", encoding="utf-8")
+    (repo / "draft.txt").write_text("untracked\n", encoding="utf-8")
+    supply = tmp_path / "supply"
+    supply.mkdir()
+    (supply / "gitleaks").write_text("", encoding="utf-8")
+    (supply / "gitleaks").chmod(0o755)
+    monkeypatch.setattr(native_supply, "materialize_tool", lambda _root, _name: supply)
+    monkeypatch.setattr(sessions, "ROOT", repo)
+    observed: list[tuple[tuple[str, ...], list[str], bool]] = []
+
+    def run(_session: object, *args: str) -> None:
+        mirror = Path(args[2])
+        listed = sorted(
+            path.relative_to(mirror).as_posix()
+            for path in mirror.rglob("*")
+            if path.is_file() or path.is_symlink()
+        )
+        observed.append((args, listed, (mirror / "notes-link.txt").is_symlink()))
+
+    sessions.secrets(type("Session", (), {"run": run})())
+    [(args, listed, linked)] = observed
+    assert listed == sorted(git(repo, "ls-files").splitlines())
+    assert {"notes.txt", "notes-link.txt"} <= set(listed)
+    assert not {"local.log", "draft.txt"} & set(listed)
+    assert linked
+    report = repo / "build/evidence/quality/secrets/report.json"
+    assert args[0] == str(supply / "gitleaks")
+    assert args[1] == "dir"
+    assert args[3:] == (
+        "--config",
+        str(sessions.GITLEAKS_CONFIG),
+        "--redact",
+        "--report-format",
+        "json",
+        "--report-path",
+        str(report),
+    )
+    assert report.parent.is_dir()
+
+
+@pytest.mark.parametrize(
+    ("state", "message"),
+    [
+        ("absent-table", "native_prose_configuration_invalid"),
+        ("unread", "native_prose_configuration_invalid"),
+        ("malformed", "native_prose_configuration_invalid"),
+        ("deleted", "native_tool_configuration_invalid:codespell"),
+    ],
+)
+def test_prose_refuses_configuration_codespell_would_not_read(
+    tmp_path: Path, state: str, message: str
+) -> None:
+    """The shared native consumer refuses unavailable or silently ignored declarations."""
+    root = init_git_repo(tmp_path / "repo")
+    config = root / ".config/checks/codespell/codespell.toml"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text("[tool.codespell]\ncount = true\n")
+    git(root, "add", str(config.relative_to(root)))
+    if state == "deleted":
+        config.unlink()
+    else:
+        config.write_text(
+            "[broken"
+            if state == "malformed"
+            else "[tool]\n"
+            if state == "unread"
+            else "count = true\n"
+        )
+    original = config.read_bytes() if config.exists() else None
+
+    report = quality_tools.prose_report(root)
+
+    assert report["verdict"] == "block", report
+    gaps = report["required_gaps"]
+    assert isinstance(gaps, list)
+    assert any(message in gap for gap in gaps), report
+    assert (config.read_bytes() if config.exists() else None) == original
+
+
+def test_codespell_reads_its_declared_configuration(tmp_path: Path) -> None:
+    """The count the carrier enables appears although no count option is passed."""
+    sample = tmp_path / "sample.md"
+    sample.write_text("teh sample\n", encoding="utf-8")
+    command = (
+        sessions.RUNTIME.script("codespell"),
+        "--toml",
+        str(canonical_resource(".config/checks/codespell/codespell.toml")),
+    )
+    result = run_command(tmp_path, (*command, str(sample)), timeout=60)
+    assert result.returncode != 0
+    assert "teh ==> the" in result.stdout
+    assert result.stderr.strip().splitlines()[-1] == "1"
 
 
 @pytest.mark.parametrize(
@@ -385,3 +529,133 @@ def test_javascript_gate_executes_package_behavior(tmp_path, monkeypatch, code):
     session.run.assert_called_once()
     assert (tmp_path / "node.txt").read_text() == str(sessions.RUNTIME.node_executable())
     assert not Path(session.run.call_args.kwargs["env"]["npm_config_cache"]).exists()
+
+
+@pytest.mark.parametrize("explicit", [False, True])
+@pytest.mark.parametrize("state", ["valid", "malformed", "missing"])
+def test_native_configuration_compiles_declared_vale_vocabulary(
+    tmp_path: Path, state: str, *, explicit: bool
+) -> None:
+    """The real locked parser rejects bad or absent inputs without rewriting them."""
+    root = init_git_repo(tmp_path / "repo")
+    git(root, "rm", "-q", *PARADIGM_FORMATTERS)
+    policy = root / ".config/checks/format-selection/policy.toml"
+    policy.parent.mkdir(parents=True)
+    policy.write_bytes((ROOT / policy.relative_to(root)).read_bytes())
+    (root / ".gitignore").write_text(policy.relative_to(root).as_posix() + "\n")
+    config = root / ".config/checks/vale/vale.ini"
+    config.parent.mkdir(parents=True)
+    config.write_text(
+        "[DEFAULT]\nStylesPath = styles\nVocab = Common\nMinAlertLevel = error\n"
+        "\n[*.md]\nBasedOnStyles = Vale\n"
+    )
+    vocabulary = config.parent / "styles/config/vocabularies/Common"
+    vocabulary.mkdir(parents=True)
+    accepted, rejected = vocabulary / "accept.txt", vocabulary / "reject.txt"
+    accepted.write_text("(?i:invalid\n" if state == "malformed" else "(?i:prewrite)\n")
+    rejected.write_text("Github\n")
+    inputs = (config, accepted, rejected)
+    git(root, "add", *(str(path.relative_to(root)) for path in inputs))
+    if state == "missing":
+        accepted.unlink()
+    original = {path: path.read_bytes() for path in inputs if path.exists()}
+
+    report = config_quality.configuration_report(
+        root, paths=(str(accepted.relative_to(root)),) if explicit else ()
+    )
+    failures = report["required_gaps"]
+    assert isinstance(failures, list)
+
+    assert bool(failures) is (state != "valid"), failures
+    if state == "malformed":
+        assert "E100" in "\n".join(failures)
+    if state == "missing":
+        assert "accept" in "\n".join(failures)
+    assert {path: path.read_bytes() for path in original} == original
+    assert accepted.exists() is (state != "missing")
+    assert not (root / "build").exists()
+
+
+@pytest.mark.parametrize("explicit", [False, True])
+@pytest.mark.parametrize("content", ["prewrite\n", "(?i:invalid\n"], ids=["valid", "malformed"])
+def test_configuration_refuses_vocabulary_without_native_consumer(
+    tmp_path: Path, content: str, *, explicit: bool
+) -> None:
+    """Owned vocabulary inputs cannot pass through an unrelated native selection."""
+    root = init_git_repo(tmp_path / "repo")
+    git(root, "rm", "-q", *PARADIGM_FORMATTERS)
+    policy = root / ".config/checks/format-selection/policy.toml"
+    policy.parent.mkdir(parents=True)
+    policy.write_bytes((ROOT / policy.relative_to(root)).read_bytes())
+    (root / ".gitignore").write_text(policy.relative_to(root).as_posix() + "\n")
+    config = root / ".config/checks/vale/vale.ini"
+    config.parent.mkdir(parents=True)
+    config.write_text(
+        "[DEFAULT]\nStylesPath = styles\nVocab = Common\nMinAlertLevel = error\n"
+        "\n[*.md]\nBasedOnStyles = Vale\n"
+    )
+    selected = config.parent / "styles/config/vocabularies/Common/accept.txt"
+    selected.parent.mkdir(parents=True)
+    selected.write_text("prewrite\n")
+    unselected = config.parent / "styles/config/vocabularies/Unselected/accept.txt"
+    unselected.parent.mkdir(parents=True)
+    unselected.write_text(content)
+    inputs = (config, selected, unselected)
+    git(root, "add", *(str(path.relative_to(root)) for path in inputs))
+    original = {path: path.read_bytes() for path in inputs}
+
+    report = config_quality.configuration_report(
+        root, paths=(str(unselected.relative_to(root)),) if explicit else ()
+    )
+    failures = report["required_gaps"]
+    assert isinstance(failures, list)
+
+    assert failures, "The native configuration never consumed the selected vocabulary."
+    assert str(unselected.relative_to(root)) in "\n".join(failures)
+    assert "not consumed" in "\n".join(failures)
+    assert {path: path.read_bytes() for path in inputs} == original
+    assert not (selected.parent / "reject.txt").exists()
+    assert not (root / "build").exists()
+
+
+@pytest.mark.parametrize("state", ["valid", "malformed"])
+@pytest.mark.parametrize("default_vocabulary", [False, True])
+def test_native_configuration_compiles_section_vocabulary_without_optional_files(
+    tmp_path: Path, state: str, *, default_vocabulary: bool
+) -> None:
+    """Section-selected vocabulary is compiled without inventing optional inputs."""
+    root = init_git_repo(tmp_path / "repo")
+    git(root, "rm", "-q", *PARADIGM_FORMATTERS)
+    policy = root / ".config/checks/format-selection/policy.toml"
+    policy.parent.mkdir(parents=True)
+    policy.write_bytes((ROOT / policy.relative_to(root)).read_bytes())
+    (root / ".gitignore").write_text(policy.relative_to(root).as_posix() + "\n")
+    config = root / ".config/checks/vale/vale.ini"
+    config.parent.mkdir(parents=True)
+    config.write_text(
+        "[DEFAULT]\nStylesPath = styles\n"
+        + ("Vocab = Common\n" if default_vocabulary else "")
+        + "MinAlertLevel = error\n"
+        "\n[*.md]\nBasedOnStyles = Vale\n\n[docs/*.md]\nVocab = Additional\n"
+    )
+    common = config.parent / "styles/config/vocabularies/Common/accept.txt"
+    common.parent.mkdir(parents=True)
+    common.write_text("prewrite\n")
+    additional = config.parent / "styles/config/vocabularies/Additional/accept.txt"
+    additional.parent.mkdir(parents=True)
+    additional.write_text("(?i:invalid\n" if state == "malformed" else "semantics\n")
+    inputs = (config, common, additional)
+    git(root, "add", *(str(path.relative_to(root)) for path in inputs))
+    original = {path: path.read_bytes() for path in inputs}
+
+    report = config_quality.configuration_report(root, paths=(str(additional.relative_to(root)),))
+    failures = report["required_gaps"]
+    assert isinstance(failures, list)
+
+    assert bool(failures) is (state == "malformed"), failures
+    if failures:
+        assert "E100" in "\n".join(failures)
+    assert {path: path.read_bytes() for path in inputs} == original
+    assert not (common.parent / "reject.txt").exists()
+    assert not (additional.parent / "reject.txt").exists()
+    assert not (root / "build").exists()

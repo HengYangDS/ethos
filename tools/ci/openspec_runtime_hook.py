@@ -36,7 +36,9 @@ class OpenSpecRuntimeHook(BuildHookInterface):
         identity_bytes, distribution_version = _build_identity_payload(root)
         if version not in {"standard", distribution_version}:
             _distribution_identity_mismatch()
-        owned = tempfile.TemporaryDirectory(prefix="ethos-build-identity-")
+        owned = tempfile.TemporaryDirectory(
+            prefix="ethos-build-identity-", dir=Path(tempfile.gettempdir()).resolve(strict=True)
+        )
         self._owned_identity = owned
         try:
             identity_file = Path(owned.name) / "identity.json"

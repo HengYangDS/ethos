@@ -86,12 +86,12 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     """Native effects bound inherited history; timestamps and unrelated evidence do not."""
     repo = init_git_repo(tmp_path / "repo")
     write_test_profile(repo)
-    commit_fixture(repo, "declare repository identity")
+    commit_fixture(repo, "test: declare repository identity")
     base = git(repo, "rev-parse", "HEAD")
     incoming = repo / "openspec/changes/active/tasks.md"
     incoming.parent.mkdir(parents=True)
     incoming.write_text("- [ ] Incoming contribution\n")
-    commit_fixture(repo, "incoming active intent")
+    commit_fixture(repo, "test: incoming active intent")
     side = git(repo, "rev-parse", "HEAD")
     merge = git(repo, "commit-tree", "HEAD^{tree}", "-p", base, "-p", side, "-m", "merge")
     git(repo, "reset", "--hard", merge)

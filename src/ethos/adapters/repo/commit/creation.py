@@ -1,8 +1,9 @@
-"""Create repository commits through the declared subject and signing policy."""
+"""Create repository commits through the compiled subject grammar and SSH signature."""
 
 from __future__ import annotations
 
 import os
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -54,38 +55,56 @@ def _config(root: Path, name: str) -> str:
     return completed.stdout.strip() if completed.returncode == 0 else ""
 
 
+def _local_signing_key(root: Path) -> str:
+    """Read the local signing-key setting that every lifecycle signer uses."""
+    signing = run_git(root, "config", "--local", "--get", "user.signingkey", check=False)
+    return "" if signing.returncode else signing.stdout.strip()
+
+
+def _signer_public_key(signing_key: str) -> tuple[str, str]:
+    """Return the SSH public key that one absolute signing-key path holds, or its gap."""
+    key = Path(signing_key)
+    if not signing_key or not key.is_absolute() or not key.is_file():
+        return "", "git_effect_signing_key_invalid"
+    public_key = key.read_text(encoding="utf-8").strip()
+    if not public_key.startswith(("ssh-ed25519 ", "ssh-rsa ", "ecdsa-sha2-")):
+        return "", "git_effect_signing_key_invalid"
+    return public_key, ""
+
+
+def commit_signer_public_key(root: Path) -> tuple[str, str]:
+    """Return the local lifecycle signer's SSH public key, or its gap."""
+    return _signer_public_key(_local_signing_key(root))
+
+
+def commit_signer_configuration(
+    signing_key: str, program: str
+) -> tuple[tuple[tuple[str, str], ...], str]:
+    """Validate one SSH signer and return its explicit Git settings, or its gap."""
+    public_key, gap = _signer_public_key(signing_key)
+    if gap:
+        return (), gap
+    if not program:
+        return (("user.signingkey", f"key::{public_key}"),), ""
+    signer = Path(program)
+    if not signer.is_absolute() or not signer.is_file() or not os.access(signer, os.X_OK):
+        return (), "git_effect_signing_program_invalid"
+    return (
+        ("gpg.ssh.program", signer.as_posix()),
+        ("user.signingkey", Path(signing_key).as_posix()),
+    ), ""
+
+
 def commit_environment(root: Path, environment: Mapping[str, str] | None) -> dict[str, str]:
     """Return the explicit Git configuration for one required signed commit."""
     bound = dict(environment or {})
-    signing = run_git(root, "config", "--local", "--get", "user.signingkey", check=False)
-    if signing.returncode:
-        message = "git_effect_signing_key_invalid"
-        raise ValueError(message)
-    key = Path(signing.stdout.strip())
-    if not key.is_absolute() or not key.is_file():
-        message = "git_effect_signing_key_invalid"
-        raise ValueError(message)
-    public_key = key.read_text(encoding="utf-8").strip()
-    if not public_key.startswith(("ssh-ed25519 ", "ssh-rsa ", "ecdsa-sha2-")):
-        message = "git_effect_signing_key_invalid"
-        raise ValueError(message)
-    signer_value = _config(root, "gpg.ssh.program")
-    signing_value = f"key::{public_key}"
-    signing_inputs: tuple[tuple[str, str], ...] = ()
-    if signer_value:
-        signer = Path(signer_value)
-        if not signer.is_absolute() or not signer.is_file() or not os.access(signer, os.X_OK):
-            message = "git_effect_signing_program_invalid"
-            raise ValueError(message)
-        signing_value = key.as_posix()
-        signing_inputs = (("gpg.ssh.program", signer.as_posix()),)
+    signer, gap = commit_signer_configuration(
+        _local_signing_key(root), _config(root, "gpg.ssh.program")
+    )
+    if gap:
+        raise ValueError(gap)
     count = int(bound.get("GIT_CONFIG_COUNT", "0"))
-    for name, value in (
-        ("commit.gpgSign", "true"),
-        ("gpg.format", "ssh"),
-        *signing_inputs,
-        ("user.signingkey", signing_value),
-    ):
+    for name, value in (("commit.gpgSign", "true"), ("gpg.format", "ssh"), *signer):
         bound[f"GIT_CONFIG_KEY_{count}"] = name
         bound[f"GIT_CONFIG_VALUE_{count}"] = value
         count += 1
@@ -93,44 +112,60 @@ def commit_environment(root: Path, environment: Mapping[str, str] | None) -> dic
     return bound
 
 
+def commit_signer_gaps(root: Path) -> list[str]:
+    """Observe the local signer of every lifecycle commit without signing anything."""
+    try:
+        commit_environment(root, None)
+    except ValueError as error:
+        return [str(error)]
+    return []
+
+
+def commit_signer_action(root: Path, gap: str) -> str:
+    """Name the local setting that repairs one lifecycle signer gap."""
+    setting = (
+        "gpg.ssh.program <absolute-executable>"
+        if gap == "git_effect_signing_program_invalid"
+        else "user.signingkey <absolute-ssh-public-key>"
+    )
+    return f"git -C {shlex.quote(str(root))} config --local {setting}"
+
+
 def create_git_commit(
     root: Path,
     *,
     tree: str,
-    parent: str,
+    parent: str | None,
     message: str,
     additional_parents: tuple[str, ...] = (),
     environment: Mapping[str, str] | None = None,
     runner: Callable[..., Any] = run_git,
 ) -> Any:
-    """Create and verify one commit object under repository signing policy."""
+    """Create and verify one signed commit object under the repository commit policy.
+
+    A root commit, such as a formed repository's first, has no parent.
+    """
+    parents = (*(() if parent is None else (parent,)), *additional_parents)
     policies = tuple(
-        dict.fromkeys(
-            policy
-            for revision in (parent, *additional_parents, tree)
-            if (policy := commit_policy_for_revision(root, revision)) is not None
-        )
+        dict.fromkeys(commit_policy_for_revision(root, revision) for revision in (*parents, tree))
     )
     for policy in policies:
         if gap := commit_subject_gap(policy, message):
             raise ValueError(gap)
         if gaps := prospective_identity_gaps(root, policy, environment=dict(environment or {})):
             raise ValueError(gaps[0])
-    sign = any(policy.signing_required for policy in policies)
     completed = runner(
         root,
         "commit-tree",
-        *(("-S",) if sign else ()),
+        "-S",
         tree,
-        "-p",
-        parent,
-        *(argument for revision in additional_parents for argument in ("-p", revision)),
+        *(argument for revision in parents for argument in ("-p", revision)),
         "-m",
         message,
         check=False,
-        env=commit_environment(root, environment) if sign else environment,
+        env=commit_environment(root, environment),
     )
-    if completed.returncode or not policies:
+    if completed.returncode:
         return completed
     revision = completed.stdout.strip()
     gaps = (
@@ -163,9 +198,6 @@ def create_signed_replacement(root: Path, revision: str) -> str:
         error = "signature_repair_source_not_unsigned"
         raise ValueError(error)
     policy = commit_policy_from_text(committed_file_text(root, revision, ".ethos/workspace.toml"))
-    if policy is None or not policy.signing_required:
-        error = "signature_repair_policy_required"
-        raise ValueError(error)
     if gap := commit_subject_gap(policy, str(source["subject"]), revision=revision):
         raise ValueError(gap)
     payload = commit_payload(root, revision)
@@ -242,7 +274,7 @@ def create_signed_payload(root: Path, payload: bytes) -> str:
 def configured_signer_fingerprint(root: Path) -> str:
     """Observe the selected public-key fingerprint with native OpenSSH, without signing."""
     commit_environment(root, None)
-    public = run_git(root, "config", "--local", "--get", "user.signingkey").stdout.strip()
+    public = _local_signing_key(root)
     executable = shutil.which("ssh-keygen")
     if not executable:
         gap = "git_effect_signing_program_invalid"

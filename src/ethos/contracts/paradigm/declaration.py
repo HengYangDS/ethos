@@ -51,6 +51,7 @@ class BindingFileSet(BaseModel):
 
     root: str
     files: FrozenTuple[str]
+    workspace_tables: FrozenTuple[str]
 
 
 class EditorDefaults(BaseModel):
@@ -122,14 +123,43 @@ class DocumentConventions(BaseModel):
     decision_record_name: str
 
 
+class NameConventions(BaseModel):
+    """The names an ecosystem or tool fixes, outside the shared kebab-case grammar."""
+
+    model_config = _DECLARATION
+
+    module_suffixes: FrozenTuple[str]
+    tool_basenames: FrozenTuple[str]
+
+
+class ForgePipelines(BaseModel):
+    """The pipeline files one Forge reads, as directory-bound basename patterns."""
+
+    model_config = _DECLARATION
+
+    id: str
+    files: FrozenTuple[str] = Field(min_length=1)
+
+
+class PipelineModel(BaseModel):
+    """Where a repository that runs CI on several Forges keeps its one pipeline model."""
+
+    model_config = _DECLARATION
+
+    model_root: str
+    model_suffix: str
+    forge: FrozenTuple[ForgePipelines] = Field(min_length=2)
+
+
 class CommitGrammar(BaseModel):
-    """The commit subject grammar every governed repository shares."""
+    """The commit subject grammar and signature every governed repository shares."""
 
     model_config = _DECLARATION
 
     types: FrozenTuple[str]
     scope: str
     breaking_marker: str = Field(min_length=1, max_length=1)
+    signature: Literal["ssh"]
 
     @model_validator(mode="after")
     def require_compilable_grammar(self) -> Self:
@@ -169,6 +199,34 @@ class OpenSpecConventions(BaseModel):
 
     artifact_schema: Literal["spec-driven"]
     rules: OpenSpecRules
+
+
+class ToolchainConventions(BaseModel):
+    """The common verbs that the toolchain owner exposes as tasks."""
+
+    model_config = _DECLARATION
+
+    verbs: FrozenTuple[str] = Field(min_length=1)
+
+
+class ScriptGenerator(BaseModel):
+    """One official generator whose recorded output a repository may track."""
+
+    model_config = _DECLARATION
+
+    id: str
+    command: str
+    record: str
+
+
+class ScriptConventions(BaseModel):
+    """How a tracked script is recognized and the generators that may produce one."""
+
+    model_config = _DECLARATION
+
+    suffixes: FrozenTuple[str] = Field(min_length=1)
+    interpreters: FrozenTuple[str] = Field(min_length=1)
+    generator: FrozenTuple[ScriptGenerator]
 
 
 class EcosystemModule(BaseModel):
@@ -213,8 +271,12 @@ class RepositoryParadigm(BaseModel):
     release: ReleaseConventions
     size: SizeCeilings
     documents: DocumentConventions
+    names: NameConventions
+    pipelines: PipelineModel
     commit: CommitGrammar
     openspec: OpenSpecConventions
+    toolchain: ToolchainConventions
+    scripts: ScriptConventions
     module: FrozenTuple[EcosystemModule]
     tool: FrozenTuple[ToolCarrier]
 

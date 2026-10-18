@@ -380,3 +380,149 @@ def test_native_zip_requires_one_regular_executable(locked_vale) -> None:
         supply.read(root, "vale").executable_bytes(archive)
 
     assert archive.read_bytes() == original
+
+
+@pytest.mark.parametrize(
+    ("effect", "reason"),
+    [
+        ("declaration", "native_tool_undeclared:vale"),
+        ("lock", "native_tool_lock_mismatch:vale"),
+        ("missing", "native_tool_locked_supply_unavailable:vale:macos-arm64"),
+        ("platform", "native_tool_platform_unsupported:Unknown:arm64"),
+        ("backend", "native_tool_undeclared:unselected"),
+    ],
+)
+def test_native_supply_requires_one_complete_supported_identity(
+    locked_vale, monkeypatch, effect, reason
+):
+    """Unsupported or incomplete identities cannot acquire an ambient substitute."""
+    root, archive, _body, lock = locked_vale(
+        "Darwin", "arm64", "macos-arm64", "vale_3.24.0_macOS_arm64.tar.gz"
+    )
+    if effect == "declaration":
+        (lock.parent / "config.toml").write_text("[tools]\n")
+    elif effect == "lock":
+        lock.write_text(lock.read_text().replace("lockfile_version = 3", "lockfile_version = 2"))
+    elif effect == "missing":
+        lock.unlink()
+    elif effect == "platform":
+        monkeypatch.setattr(platform, "system", lambda: "Unknown")
+    original = archive.read_bytes()
+    owner = import_module("ethos.adapters.repo.runtime.materialization.native_supply")
+    with pytest.raises(ValueError, match=reason):
+        owner.NativeSupply.read(root, "unselected" if effect == "backend" else "vale")
+    assert archive.read_bytes() == original
+    assert not (root / "build").exists()
+
+
+@pytest.mark.parametrize(
+    ("effect", "reason"),
+    [
+        ("payload", "native_tool_runtime_payload_invalid:vale:vale"),
+        ("permission", "native_tool_runtime_executable_unavailable:vale"),
+        ("redirect", "native_tool_runtime_path_invalid:vale"),
+        ("archive", "vale_archive_checksum_mismatch"),
+        ("archive-redirect", "native_tool_archive_unsafe:vale"),
+    ],
+)
+def test_prepared_native_supply_rejects_drift_without_repair(
+    locked_vale, tmp_path, monkeypatch, effect, reason
+):
+    """The source consumer checks locked identity, bytes, path safety and execution permission."""
+    root, archive, _body, _lock = locked_vale(
+        "Darwin", "arm64", "macos-arm64", "vale_3.24.0_macOS_arm64.tar.gz"
+    )
+    owner = import_module("ethos.adapters.repo.runtime.materialization.native_supply")
+    monkeypatch.setenv("ETHOS_CI_TOOL_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setattr(owner, "canonical_resource", lambda relative: root / relative)
+    monkeypatch.setattr(
+        owner, "packaged_resource", lambda relative="": tmp_path / "shipped" / relative
+    )
+    supply = owner.NativeSupply.read(root, "vale")
+    cache = supply.cache(root)
+    supply.project(archive, cache)
+    cached_archive = cache / supply.archive
+    shutil.copyfile(archive, cached_archive)
+    executable = cache / supply.executable_name
+    if effect == "payload":
+        executable.write_bytes(b"unaccepted executable\n")
+    elif effect == "archive":
+        cached_archive.write_bytes(b"unaccepted archive\n")
+    elif effect == "permission":
+        monkeypatch.setattr(owner.os, "access", lambda _path, _mode: False)
+    else:
+        target = executable if effect == "redirect" else cached_archive
+        is_symlink = Path.is_symlink
+        monkeypatch.setattr(Path, "is_symlink", lambda path: path == target or is_symlink(path))
+    original = {path: path.read_bytes() for path in cache.iterdir()}
+    with pytest.raises(ValueError, match=reason):
+        owner.resolve_native_tool("vale")
+    assert {path: path.read_bytes() for path in cache.iterdir()} == original
+
+
+def test_installed_native_supply_requires_execution_permission(installed_vale, monkeypatch):
+    """RECORD integrity does not waive the installed executable's native permission."""
+    shipped, _native, _body = installed_vale
+    owner = import_module("ethos.adapters.repo.runtime.materialization.native_supply")
+    monkeypatch.setattr(owner.os, "access", lambda _path, _mode: False)
+    original = {path: path.read_bytes() for path in shipped.rglob("*") if path.is_file()}
+    with pytest.raises(ValueError, match="native_tool_runtime_executable_unavailable:vale"):
+        owner.resolve_native_tool("vale")
+    assert {path: path.read_bytes() for path in shipped.rglob("*") if path.is_file()} == original
+
+
+@pytest.mark.parametrize("boundary", ["lock", "download"])
+def test_native_preparation_refuses_unsafe_or_ambiguous_supply(
+    locked_vale, tmp_path, monkeypatch, boundary
+):
+    """A preparation refusal keeps cached originals and disposes its bounded scratch."""
+    root, _archive, _body, _lock = locked_vale(
+        "Darwin", "arm64", "macos-arm64", "vale_3.24.0_macOS_arm64.tar.gz"
+    )
+    owner = import_module("ethos.adapters.repo.runtime.materialization.native_supply")
+    monkeypatch.setenv("ETHOS_CI_TOOL_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.delenv("ETHOS_CI_SUPPLY_MANIFEST", raising=False)
+    supply = owner.NativeSupply.read(root, "vale")
+    cache = supply.cache(root)
+    cache.mkdir(parents=True)
+    if boundary == "lock":
+        (cache / ".prepare.lock").mkdir()
+    monkeypatch.setattr(owner, "download_tool", lambda *_args, **_kwargs: None)
+    reason = (
+        "native_tool_cache_path_unsafe"
+        if boundary == "lock"
+        else "native_tool_download_unresolved:vale"
+    )
+    with pytest.raises(ValueError, match=reason):
+        owner.materialize_tool(root, "vale", mise=tmp_path / "unused-mise")
+    assert not (cache / supply.archive).exists()
+    assert not (cache / supply.executable_name).exists()
+    assert not list(cache.glob(".prepare-*"))
+
+
+@pytest.mark.parametrize("boundary", ["descriptor", "directory"])
+def test_native_projection_rechecks_type_before_read_or_write(
+    locked_vale, tmp_path, monkeypatch, boundary
+):
+    """Path metadata cannot waive a nonregular descriptor or existing file at the parent."""
+    root, archive, _body, _lock = locked_vale(
+        "Darwin", "arm64", "macos-arm64", "vale_3.24.0_macOS_arm64.tar.gz"
+    )
+    owner = import_module("ethos.adapters.repo.runtime.materialization.native_supply")
+    parent = tmp_path / "projection-parent"
+    destination = parent / "payload"
+    if boundary == "directory":
+        parent.write_bytes(b"Preserved foreign file.\n")
+    original = archive.read_bytes()
+    with monkeypatch.context() as scoped:
+        if boundary == "descriptor":
+            scoped.setattr(owner.stat, "S_ISREG", lambda _mode: False)
+            reason = "native_tool_archive_unsafe:vale"
+        else:
+            reason = "native_tool_cache_path_unsafe"
+        with pytest.raises(ValueError, match=reason):
+            owner.NativeSupply.read(root, "vale").project(archive, destination)
+    assert archive.read_bytes() == original
+    assert not destination.exists()
+    if boundary == "directory":
+        assert parent.read_bytes() == b"Preserved foreign file.\n"

@@ -57,9 +57,9 @@ of that declaration, not another compatibility or checksum policy.
   uses that module with the shipped Node executable, without adopter source,
   global installation or PATH fallback. Package builds consume prepared supply
   and never download it.
-- Hosted bootstrap synchronizes build-only Python dependencies, prepares native
-  supply, installs locked npm packages with `NodeRuntime.executable` and `.npm`,
-  then synchronizes the project. The Linux supply image copies the complete
+- Hosted bootstrap synchronizes build-only Python dependencies and then the
+  editable project, prepares native supply and installs locked npm packages with
+  `NodeRuntime.executable` and `.npm`. The Linux supply image copies the complete
   source import closure only during construction and removes it before shipping;
   checkout-owned verification rechecks cached bytes before execution.
 - Native Nox `javascript_tests` executes package behavior on the selected supply.

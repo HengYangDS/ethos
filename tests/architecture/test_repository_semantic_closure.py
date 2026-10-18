@@ -20,7 +20,7 @@ TRACKED_DOCUMENTS = tuple(git_files(ROOT, "*.md"))
 
 def _passing_commit_observation(
     _root: Path,
-    policy: CommitPolicy,
+    _policy: CommitPolicy,
 ) -> dict[str, object]:
     return {
         "verdict": "pass",
@@ -33,7 +33,7 @@ def _passing_commit_observation(
         },
         "signature": {
             "verdict": "pass",
-            "required": policy.signing_required,
+            "state": "present",
             "principal": "signer@example.invalid",
             "fingerprint": "SHA256:test",
         },
@@ -61,7 +61,6 @@ def test_current_repository_audit_proves_complete_semantic_closure() -> None:
     assert commit_policy["state"] == "current"
     assert commit_policy["declaration"] == {
         "subject_pattern": load_repository_paradigm().commit.subject_pattern(),
-        "signing_required": True,
         "signing_format": "ssh",
     }
 
@@ -105,29 +104,6 @@ def test_repository_audit_fails_closed_through_the_unique_commit_policy_compiler
     assert isinstance(required_gaps, list)
     assert required_gaps.count("commit_policy_unknown_fields:identity_mode") == 1
     assert observed is False
-
-
-def test_repository_audit_adds_no_constraint_when_commit_policy_is_absent(monkeypatch) -> None:
-    """An absent optional declaration remains an explicit non-blocking fact."""
-    monkeypatch.setattr(repository_audit_module, "load_commit_policy", lambda _root: None)
-
-    report = repository_audit_module.repository_audit(
-        ROOT,
-        openspec_mode="shape",
-        openspec_shape={"verdict": "pass", "required_gaps": []},
-        tracked_documents=TRACKED_DOCUMENTS,
-        retained_origins=observed_document_origins(ROOT),
-        commit_policy_observer=_passing_commit_observation,
-    )
-
-    assert report["commit_policy"] == {
-        "verdict": "pass",
-        "state": "absent",
-        "declaration": {},
-        "head": {},
-        "signature": {},
-        "required_gaps": [],
-    }
 
 
 def test_repository_audit_cannot_pass_when_semantic_closure_is_unknown(

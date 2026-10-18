@@ -22,20 +22,12 @@ from tests.support.governed_repository import lane_start_arguments
 from tests.unit.cli.land.publication.support import branch_publication_fixture
 
 
-def _policy(*, signing: bool = False) -> CommitPolicy:
-    return CommitPolicy(
-        subject_pattern=r"^fix: .+",
-        signing_required=signing,
-        signing_format="ssh",
-    )
+def _policy() -> CommitPolicy:
+    return CommitPolicy(subject_pattern=r"^fix: .+", signing_format="ssh")
 
 
-def _policy_text(*, signing: bool = False) -> str:
-    return (
-        '[commit_policy]\nsubject_pattern = "^fix: .+"\n'
-        f"signing_required = {str(signing).lower()}\n"
-        'signing_format = "ssh"\n'
-    )
+def _policy_text() -> str:
+    return '[commit_policy]\nsubject_pattern = "^fix: .+"\n'
 
 
 def _commit(repo: Path, subject: str, name: str, *, policy: str | None = None) -> str:
@@ -112,16 +104,15 @@ def test_indexed_policy_projection_matrix(
             admission.commit_message_report(tmp_path, message)
     else:
         report = admission.commit_message_report(tmp_path, message)
-        assert report["state"] == (
-            "subject_admitted" if expected == "valid" else "policy_not_declared"
-        )
+        assert report["state"] == "subject_admitted"
 
 
 @pytest.mark.parametrize(
     ("subject", "policy", "state", "gap"),
     [
         (None, None, "blocked", "commit_message_unreadable"),
-        ("anything", None, "policy_not_declared", ""),
+        ("chore: paradigm grammar", None, "subject_admitted", ""),
+        ("anything", None, "blocked", "commit_subject_invalid:anything"),
         ("fix: accepted", _policy(), "subject_admitted", ""),
         ("invalid", _policy(), "blocked", "commit_subject_invalid:invalid"),
     ],
@@ -307,8 +298,10 @@ def test_tip_policy_projection_matrix(tmp_path: Path, case: str) -> None:
     report = _report(repo, proposed=proposed, remote=baseline)
 
     if case == "absent":
-        assert report["verdict"] == "pass"
-        assert report["policy"] is None
+        assert report["verdict"] == "block"
+        assert cast("list[str]", report["required_gaps"])[0].startswith(
+            f"commit_subject_invalid:{proposed}:"
+        )
     else:
         assert report["verdict"] == "block"
         assert report["checked_commit_count"] == 0
@@ -337,20 +330,24 @@ def test_invalid_subject_identifies_the_exact_introduced_commit(tmp_path: Path) 
 @pytest.mark.parametrize(
     ("policy", "signature", "trust", "expected", "state"),
     [
-        (None, "", None, [], "policy_not_declared"),
-        (_policy(), "", None, ["commit_subject_invalid:{revision}:invalid"], "not_required"),
-        (_policy(signing=True), "", None, ["commit_signature_missing:{revision}"], "missing"),
         (
-            _policy(signing=True),
+            _policy(),
+            "ssh",
+            None,
+            ["commit_subject_invalid:{revision}:invalid"],
+            "present",
+        ),
+        (_policy(), "", None, ["commit_signature_missing:{revision}"], "missing"),
+        (
+            _policy(),
             "openpgp",
             None,
             ["commit_signature_format_mismatch:{revision}:expected=ssh:observed=openpgp"],
             "format_mismatch",
         ),
-        (_policy(signing=True), "ssh", None, [], "present"),
-        (_policy(signing=True), "ssh", [], [], "present"),
+        (_policy(), "ssh", [], [], "present"),
         (
-            _policy(signing=True),
+            _policy(),
             "ssh",
             ["git_signature_untrusted"],
             ["git_signature_untrusted"],
@@ -361,7 +358,7 @@ def test_invalid_subject_identifies_the_exact_introduced_commit(tmp_path: Path) 
 def test_object_policy_and_optional_trust_matrix(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    policy: CommitPolicy | None,
+    policy: CommitPolicy,
     signature: str,
     trust: list[str] | None,
     expected: list[str],
@@ -378,7 +375,7 @@ def test_object_policy_and_optional_trust_matrix(
             "object_oid": revision,
             "author": {"name": "Author"},
             "committer": {"name": "Committer"},
-            "subject": "fix: valid" if policy is None or policy.signing_required else "invalid",
+            "subject": "invalid" if expected and "subject" in expected[0] else "fix: valid",
             "signature": {"present": bool(signature), "format": signature},
             "required_gaps": [],
         },
@@ -414,17 +411,15 @@ def test_object_policy_and_optional_trust_matrix(
             )
             == formatted
         )
+        # Replay checks the baseline's paradigm policy beside the selected one.
         assert verified == [revision, revision]
-    if policy is None:
-        assert report["state"] == state
-    else:
-        assert report["head"] == {
-            "object_oid": revision,
-            "subject": "fix: valid" if policy.signing_required else "invalid",
-            "author": {"name": "Author"},
-            "committer": {"name": "Committer"},
-        }
-        assert cast("dict[str, object]", report["signature"])["state"] == state
+    assert report["head"] == {
+        "object_oid": revision,
+        "subject": "invalid" if expected and "subject" in expected[0] else "fix: valid",
+        "author": {"name": "Author"},
+        "committer": {"name": "Committer"},
+    }
+    assert cast("dict[str, object]", report["signature"])["state"] == state
 
 
 @pytest.mark.parametrize(
@@ -475,7 +470,7 @@ def test_unreadable_introduced_range_fails_closed(
 
 
 @pytest.mark.parametrize(
-    "case", ["valid", "invalid", "unreadable", "absent", "candidate_subject", "incumbent_subject"]
+    "case", ["valid", "invalid", "unreadable", "candidate_subject", "incumbent_subject"]
 )
 def test_replay_admission_owns_range_and_candidate_policy(tmp_path: Path, case: str) -> None:
     repo = init_git_repo(tmp_path / "repo")
@@ -493,12 +488,12 @@ def test_replay_admission_owns_range_and_candidate_policy(tmp_path: Path, case: 
             narrower if case == "candidate_subject" else _policy_text()
         )
     proposed = _commit(repo, "invalid" if case == "invalid" else "fix: replay", "replay")
-    tip = "missing" if case in {"unreadable", "absent"} else proposed
+    tip = "missing" if case == "unreadable" else proposed
     gaps = integration.validate_replayed_commits(
         repo,
         baseline_commit=baseline,
         proposed_commit=tip,
-        policy=None if case == "absent" else candidate,
+        policy=candidate,
     )
     assert gaps == (
         [f"commit_subject_invalid:{proposed}:invalid"]

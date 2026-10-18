@@ -48,7 +48,7 @@ nor a catch-all for the repository. Select required product inputs, not all file
 | --------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | Foundational interpretation             | [Axioms](axioms.md) and [source derivations](derivations.md "source-only")                      |
 | Gate executors and evidence obligations | [Gate declaration](gates.toml)                                                                  |
-| Evidence relationships                  | [Source evidence boundaries](evidence_boundaries.toml "source-only")                            |
+| Evidence relationships                  | [Source evidence boundaries](evidence-boundaries.toml "source-only")                            |
 | Routing and public surfaces             | [Source routing](routing.toml "source-only") and [source surfaces](surfaces.toml "source-only") |
 | Native carrier formats                  | [Source formats](formats.toml "source-only")                                                    |
 | Schemas and their local references      | `schemas/`; [contract schemas](schemas/contracts/README.md)                                     |

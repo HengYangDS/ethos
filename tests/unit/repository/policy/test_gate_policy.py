@@ -6,16 +6,12 @@ import json
 from typing import TYPE_CHECKING
 
 import pytest
-import tomli_w
 
 import ethos.adapters.process as process_adapter
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.gate_policy import resolve_proof_policies
 from ethos.contracts.gates import Gate
-from ethos.contracts.gates import GateRegistryDeclaration
-from ethos.contracts.gates import load_gate_registry_declaration
-from ethos.repository.policy.gates import ResolvedGatePolicy
 from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
 from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 from ethos.repository.policy.references.commands import canonical_gate_command
@@ -28,6 +24,7 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import initialize_adopted_fixture
 from tests.support.governed_repository import write_script_gate_policy
+from tests.support.governed_repository import write_test_profile
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -56,6 +53,47 @@ def test_native_proof_refuses_undeclared_product_gate(
     )
     with pytest.raises(ValueError, match="unknown proof gate"):
         compile_gate_policy(profile=profile, gate_ids=requested)
+
+
+def test_document_profile_applicability_follows_the_selected_git_tree(tmp_path: Path) -> None:
+    """New code activates the floor even when the same document profile omits code axes."""
+    repo = init_git_repo(tmp_path / "documents")
+    write_test_profile(
+        repo,
+        proof=ProofPolicy(
+            code_correctness_gates=("docs-registry", "markdown-links"),
+            gates=(
+                Gate(
+                    id="docs-registry",
+                    kind="docs",
+                    providers=("ethos.surface.cli.root.reference:docs_registry_report",),
+                ),
+                Gate(
+                    id="markdown-links",
+                    kind="docs",
+                    providers=("ethos.adapters.gates.tool:markdown_links_report",),
+                ),
+            ),
+        ),
+    )
+    document_head = commit_fixture(repo, "declare document-only proof roots")
+    documents = resolve_gate_policy(repo, tree_ref=document_head, full=True)
+
+    assert documents.gate_ids == ("docs-registry", "markdown-links")
+    assert documents.gaps == ()
+    assert "quality_floor_version" not in documents.projection["owner"]
+
+    (repo / "app.py").write_text('raise RuntimeError("not document content")\n')
+    git(repo, "add", "app.py")
+    staged_tree = git(repo, "write-tree")
+    staged = resolve_gate_policy(repo, tree_ref=staged_tree, full=True)
+
+    assert staged.gaps == _MISSING_QUALITY
+    assert staged.projection["owner"]["quality_subjects"] == {
+        "behavior": ["app.py"],
+        "static-analysis": ["app.py"],
+    }
+    assert resolve_gate_policy(repo, tree_ref=document_head, full=True).digest == documents.digest
 
 
 @pytest.mark.parametrize("native_id", ["docs-registry", "document-registry"])
@@ -177,66 +215,6 @@ def test_quality_axis_rejects_unverified_additional_gate_before_execution(tmp_pa
     policy = compile_gate_policy(profile=profile, repository_paths=("src/app.py",), full=True)
 
     assert "quality_gate_verifier_missing:behavior:additional" in policy.gaps
-
-
-def test_scheduler_hint_does_not_reclassify_product_quality_owner(tmp_path: Path) -> None:
-    """Capacity changes bind execution but do not invent an adopter quality floor."""
-    packaged = load_gate_registry_declaration()
-    profile = RepositoryProfile(
-        root=tmp_path,
-        exists=True,
-        declaration=RepositoryProfileDeclaration(
-            profile_id="ethos", proof=ProofPolicy(gate_registry="system/gates.toml")
-        ),
-    )
-
-    def compiled(
-        declaration: GateRegistryDeclaration, *, local_source: bool = False
-    ) -> ResolvedGatePolicy:
-        return compile_gate_policy(
-            profile=profile,
-            gate_registry_source=tomli_w.dumps(
-                declaration.model_dump(mode="json", exclude_defaults=True)
-            ).encode(),
-            repository_python="python",
-            repository_paths=("src/example.py",),
-            full=True,
-            acceptance_purpose="local-source" if local_source else "repository",
-        )
-
-    base = compiled(packaged)
-    scoped = compiled(packaged, local_source=True)
-    assert scoped.projection["owner"] == base.projection["owner"]
-    assert scoped.digest != base.digest
-    assert scoped.gaps == base.gaps
-    varied = packaged.model_copy(
-        update={
-            "gates": tuple(
-                gate.model_copy(update={"cpu_reservation": 1 if gate.cpu_reservation == 2 else 2})
-                if gate.id == "unit-architecture"
-                else gate
-                for gate in packaged.gates
-            )
-        }
-    )
-    capacity = compiled(varied)
-    assert capacity.projection["owner"] == base.projection["owner"]
-    assert capacity.digest != base.digest
-    assert compiled(varied, local_source=True).projection["owner"] == base.projection["owner"]
-
-    substantive = packaged.model_copy(
-        update={
-            "gates": tuple(
-                gate.model_copy(update={"command": (*gate.command, "--changed")})
-                if gate.id == "unit-architecture"
-                else gate
-                for gate in packaged.gates
-            )
-        }
-    )
-    owner = compiled(substantive).projection["owner"]
-    assert isinstance(owner, dict)
-    assert owner.get("quality_floor_version") == 2
 
 
 @pytest.mark.parametrize("floor", ["full", "default"])

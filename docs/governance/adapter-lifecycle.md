@@ -33,7 +33,7 @@ An adapter becomes active only when it has all owner surfaces:
 
 1. a `system/gates.toml` node that states profile, boundary, and execution;
 2. an owner config under `.config/` or an adopter-owned native config;
-3. a reusable `tools/ci/scripts/` or `ethos ...` execution surface;
+3. a reusable Nox session, `tools/ci` module or `ethos ...` execution surface;
 4. CI/hook projection that invokes the owner surface without duplicating policy;
 5. tests or proof that verify the boundary and forbidden assertions.
 

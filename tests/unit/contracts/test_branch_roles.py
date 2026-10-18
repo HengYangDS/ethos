@@ -2,22 +2,29 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from ethos.contracts.branch.roles import BranchRolePolicy
-from ethos.contracts.branch.roles import branch_role_policy_from_text
+from ethos.contracts.branch.roles import branch_role_policy_from_release_text
 from ethos.contracts.branch.roles import declared_role_names
-from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
+from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
 
-CURRENT = """[branch_roles]
+if TYPE_CHECKING:
+    from pathlib import Path
+
+LEGACY = """[branch_roles]
 release_branch = "main"
 accepted_branch = "dev"
-candidate_branch = "candidate/dev"
+candidate_branch = "candidate/train"
 work_branch_prefix = "work/"
-proposal_branch_prefix = "proposal/"
-release_mirror = "independent"
+proposal_branch_prefix = "submit/"
+release_mirror = "accepted_ff"
 canonical_sibling_worktrees = false
 """
+ACCEPTED_FF = BranchRolePolicy(release_mirror="accepted_ff")
 
 
 @pytest.mark.parametrize(
@@ -42,110 +49,79 @@ def test_topic_identity_is_not_authoring_permission(branch: str, *, topic: bool)
 
 
 @pytest.mark.parametrize(
-    ("text", "error"),
+    ("release", "policy"),
     [
-        ("[branch_roles\n", None),
-        ("[other]\nvalue = 1\n", None),
-        ("[branch_roles]\nunknown = 'x'\n", "unknown fields"),
+        ("", BranchRolePolicy()),
+        ('[release]\nmirror = "accepted_ff"\n', ACCEPTED_FF),
+        ('[release]\nmirror = "independent"\n', BranchRolePolicy()),
+        ('[release]\nversion_source = "VERSION"\n', BranchRolePolicy()),
+        ('[protected_refs]\ntags = ["v*"]\n', BranchRolePolicy()),
+    ],
+    ids=["absent", "accepted-ff", "independent", "other-release-facts", "no-release-table"],
+)
+def test_the_release_binding_declares_the_mirror(release: str, policy: BranchRolePolicy) -> None:
+    """Only `[release] mirror` selects the mirror; every role name stays the paradigm's."""
+    assert strict_branch_role_policy_from_release_text(release) == policy
+    assert branch_role_policy_from_release_text(release) == policy
+
+
+@pytest.mark.parametrize(
+    ("release", "error"),
+    [
+        ('release = "accepted_ff"\n', "must be a table"),
+        ('[release]\nmirror = "mirror"\n', "mirror is invalid"),
+        ("[release]\nmirror = 1\n", "mirror is invalid"),
     ],
 )
-def test_branch_role_observation_fails_closed_for_its_own_fields(
-    text: str, error: str | None
-) -> None:
-    if error:
-        with pytest.raises(ValueError, match=error):
-            branch_role_policy_from_text(text)
-    else:
-        assert branch_role_policy_from_text(text) == BranchRolePolicy()
+def test_the_strict_reader_refuses_an_invalid_mirror(release: str, error: str) -> None:
+    """Admission fails closed on a mirror it cannot honor; observation keeps the default."""
+    with pytest.raises(ValueError, match=error):
+        strict_branch_role_policy_from_release_text(release)
+    assert branch_role_policy_from_release_text(release) == BranchRolePolicy()
 
 
-def test_branch_role_observation_ignores_retired_transition_material() -> None:
-    historical = (
-        CURRENT
-        + """
-[[branch_roles.transitions]]
-id = "accepted-to-release"
-source_role = "accepted_root"
-target_role = "release_root"
-capability = "repository.release"
-required_gates = []
-required_evidence = ["proof:execution"]
-coupled_with = "candidate.accept"
-"""
-    )
-
-    assert branch_role_policy_from_text(historical) == BranchRolePolicy()
-    with pytest.raises(ValueError, match="unknown fields"):
-        strict_branch_role_policy_from_text(historical)
+def test_unreadable_release_text_keeps_the_standard_policy_for_observation() -> None:
+    assert branch_role_policy_from_release_text("[release\n") == BranchRolePolicy()
+    with pytest.raises(ValueError, match="Expected"):
+        strict_branch_role_policy_from_release_text("[release\n")
 
 
-def test_branch_role_current_schema_maps_exactly() -> None:
-    assert strict_branch_role_policy_from_text(CURRENT) == BranchRolePolicy()
+def test_a_workspace_mirror_is_a_retired_declaration(tmp_path: Path) -> None:
+    """The working tree's release binding decides the mirror; a workspace table no longer does."""
+    binding = tmp_path / ".ethos"
+    binding.mkdir()
+    (binding / "workspace.toml").write_text(LEGACY, encoding="utf-8")
+    assert load_branch_role_policy(tmp_path) == BranchRolePolicy()
+    (binding / "release.toml").write_text('[release]\nmirror = "accepted_ff"\n', encoding="utf-8")
+    assert load_branch_role_policy(tmp_path) == ACCEPTED_FF
 
 
-def test_a_workspace_without_the_table_keeps_the_standard_roles() -> None:
-    workspace = "[commit_policy]\nsigning_required = true\n"
-
-    assert strict_branch_role_policy_from_text(workspace) == BranchRolePolicy()
-    assert declared_role_names(workspace) == {}
-    with pytest.raises(ValueError, match="must be a table"):
-        strict_branch_role_policy_from_text('branch_roles = "main"\n')
-
-
-def test_the_paradigm_fixes_every_role_name() -> None:
-    """A table declares the release mirror; declared names and the sibling setting are retired."""
-    legacy = CURRENT.replace('"candidate/dev"', '"candidate/train"').replace(
-        'proposal_branch_prefix = "proposal/"', 'proposal_branch_prefix = "submit/"'
-    )
-    partial = '[branch_roles]\nrelease_mirror = "accepted_ff"\n'
-
-    assert strict_branch_role_policy_from_text(legacy) == BranchRolePolicy()
-    assert branch_role_policy_from_text(legacy) == BranchRolePolicy()
-    assert declared_role_names(legacy)["candidate_branch"] == "candidate/train"
-    assert strict_branch_role_policy_from_text(partial) == BranchRolePolicy(
-        release_mirror="accepted_ff"
-    )
-    assert strict_branch_role_policy_from_text(
-        partial + "canonical_sibling_worktrees = true\n"
-    ) == BranchRolePolicy(release_mirror="accepted_ff")
-    with pytest.raises(ValueError, match="unknown fields"):
-        strict_branch_role_policy_from_text(partial + "unknown = true\n")
+def test_legacy_role_names_come_from_the_workspace_table() -> None:
+    """Closeout renames the refs a workspace still names; retired settings are not read."""
+    assert declared_role_names(LEGACY) == {
+        "release_branch": "main",
+        "accepted_branch": "dev",
+        "candidate_branch": "candidate/train",
+        "work_branch_prefix": "work/",
+        "proposal_branch_prefix": "submit/",
+    }
+    assert declared_role_names("[commit_policy]\nsigning_required = true\n") == {}
+    retired = '[branch_roles]\nrelease_mirror = "mirror"\ncanonical_sibling_worktrees = "x"\n'
+    assert declared_role_names(retired) == {}
 
 
 @pytest.mark.parametrize(
     ("text", "error"),
     [
+        ('branch_roles = "main"\n', "must be a table"),
+        (LEGACY + "unknown = true\n", "unknown fields"),
         (
-            CURRENT.replace('release_branch = "main"', 'release_branch = " main"'),
+            LEGACY.replace('release_branch = "main"', 'release_branch = " main"'),
             "canonical strings",
         ),
-        (
-            CURRENT.replace('release_mirror = "independent"', 'release_mirror = "mirror"'),
-            "mirror is invalid",
-        ),
-        (
-            CURRENT.replace(
-                "canonical_sibling_worktrees = false",
-                'canonical_sibling_worktrees = "false"',
-            ),
-            "must be boolean",
-        ),
+        (LEGACY.replace('accepted_branch = "dev"', "accepted_branch = 1"), "canonical strings"),
     ],
 )
-def test_branch_role_strict_value_contract(text: str, error: str) -> None:
+def test_the_legacy_name_reader_fails_closed(text: str, error: str) -> None:
     with pytest.raises(ValueError, match=error):
-        strict_branch_role_policy_from_text(text)
-
-
-def test_branch_role_observation_defaults_invalid_values() -> None:
-    report = branch_role_policy_from_text(
-        "[branch_roles]\n"
-        "release_branch = 1\n"
-        "accepted_branch = ' '\n"
-        "release_mirror = 'accepted_ff'\n"
-    )
-    assert (report.release_branch, report.accepted_branch, report.release_mirror) == (
-        "main",
-        "dev",
-        "accepted_ff",
-    )
+        declared_role_names(text)

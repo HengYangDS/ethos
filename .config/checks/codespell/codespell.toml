@@ -1,3 +1,4 @@
+# Native codespell settings; `--toml` reads only this table.
 [tool.codespell]
 builtin = "clear,rare"
 count = true

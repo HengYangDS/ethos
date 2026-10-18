@@ -1,22 +1,20 @@
-"""Verify CI image identity, trust anchors, and native Python bootstrap."""
+"""Verify CI fixture supply, commit trust and the locked npm launcher."""
 
 from __future__ import annotations
 
-import json
-import os
 import shlex
 import shutil
-import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 import tools.ci.toolchain.environment as ci_environment
 import tools.ci.toolchain.fixture_supply as fixture_supply
-from ethos.adapters.process import run_command
-from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tools.ci.toolchain import commit_trust
+from tools.ci.toolchain import npm
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -66,268 +64,67 @@ def test_ci_trust_projects_only_operator_supplied_protected_anchor(tmp_path, cas
         assert anchor.read_text() == "operator-controlled public trust\n"
 
 
-@pytest.fixture(scope="module")
-def bootstrap_tools(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """Reuse immutable executables while each native bootstrap owns its case state."""
-    tools = tmp_path_factory.mktemp("bootstrap-tools")
-    bodies = {
-        "with-python-runtime": '[ "$1" != -- ] || shift\nexec "$@"\n',
-        "uname": 'printf "%s\\n" "$FIXTURE_SYSTEM"\n',
-        "uv": (
-            'printf "%s\\n" "$*" >>../uv.log\n'
-            'case "$*" in\n'
-            '  --version) printf "uv 0.12.10\\n" ;;\n'
-            '  run*) cat >/dev/null; printf "0.12.10\\n" ;;\n'
-            '  "python install --no-bin 3.14.7") : >../native-image ;;\n'
-            '  "sync --locked --no-install-project --group dev") ;;\n'
-            '  "sync --locked --group dev") ;;\n'
-            "  *) exit 2 ;;\nesac\n"
-        ),
-        "apt-get": 'printf "%s\\n" "$*" >>../apt-get.log\n',
-        "ssh-keygen": "exit 0\n",
-        "ldconfig": "printf 'libatomic.so.1\\n'; awk 'BEGIN {for(i=0;i<100000;i++) print \"x\"}'\n",
-        "node": (
-            'printf "%s\\n" "$*" >>../node.log\n'
-            '[ "$npm_config_engine_strict $npm_config_audit $npm_config_fund '
-            '$npm_config_update_notifier" = "true false false false" ] || exit 2\n'
-            'case "$*" in\n'
-            '  "$FIXTURE_SEED_NPM ci --ignore-scripts") '
-            "[ ! -e node_modules/.package-lock.json ] || exit 2\n"
-            '    [ "${FIXTURE_SEED_EXIT:-0}" = 0 ] || exit "$FIXTURE_SEED_EXIT"\n'
-            '    cat "$FIXTURE_NODE_LOCK" >node_modules/.package-lock.json ;;\n'
-            '  "$FIXTURE_PRODUCT_NPM --version") '
-            'printf "%s\\n" "$FIXTURE_NPM_VERSION" ;;\n'
-            '  "$FIXTURE_OPENSPEC --version") '
-            'printf "%s\\n" "$FIXTURE_OPENSPEC_VERSION" ;;\n'
-            "  *) exit 2 ;;\nesac\n"
-        ),
-        "python": (
-            f'[ "$1 $2" != "-B -" ] || exec {shlex.quote(sys.executable)} "$@"\n'
-            'if [ "$#" = 4 ] && [ "$1 $2 $3" = "-B -I -c" ]; then\n'
-            '  printf "3.14.7\\n"; exit 0\nfi\n'
-            'case "$*" in\n'
-            '  "-B $FIXTURE_REPO/tools/ci/toolchain/native.py '
-            '--root $FIXTURE_REPO --mise") '
-            'printf "%s\\n" "$*" >../native.log\n'
-            '    printf "%s\\n" "$FIXTURE_NATIVE_BIN" ;;\n'
-            "  '-B -I -') cat >/dev/null\n"
-            '    [ "$FIXTURE_IMAGE_STATE" = available ] || [ -f ../native-image ] ;;\n'
-            '  "-B -I tools/ci/toolchain/fixture_supply.py $FIXTURE_REPO") '
-            'printf "%s\\n" "$4" >../fixture.log ;;\n'
-            "  *) exit 2 ;;\nesac\n"
-        ),
-    }
-    for name, body in bodies.items():
-        path = tools / name
-        path.write_text("#!/bin/sh\n" + body)
-        path.chmod(0o555)
-    return tools
-
-
-def _bootstrap_source_fixture(
-    repo: Path, tools: Path, monkeypatch: pytest.MonkeyPatch
-) -> dict[str, str]:
-    """Expose contained native and lock-bound build inputs to unchanged Python."""
-    repo = repo.resolve()
-    for relative in ("src/ethos", "system", ".config/mise"):
-        shutil.copytree(
-            ROOT / relative, repo / relative, ignore=shutil.ignore_patterns("__pycache__")
-        )
-    cache = repo.parent / "native-cache"
-    monkeypatch.setenv("ETHOS_CI_TOOL_CACHE_DIR", str(cache))
-    monkeypatch.delenv("ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR", raising=False)
-    native = NodeSupply.read(repo).installed_root(repo)
-    node = native / "bin/node"
-    node.parent.mkdir(parents=True)
-    shutil.copy2(tools / "node", node)
-    seed_npm = native / "lib/node_modules/npm/bin/npm-cli.js"
-    seed_npm.parent.mkdir(parents=True)
-    seed_npm.write_text("// test-owned archive seed npm\n", encoding="utf-8")
-    dependencies = json.loads((ROOT / "package.json").read_text())["dependencies"]
-    selected = {name: dependencies[name] for name in ("npm", "@fission-ai/openspec")}
-    packages = {f"node_modules/{name}": {"version": version} for name, version in selected.items()}
-    (repo / "package.json").write_text(json.dumps({"dependencies": selected}) + "\n")
-    lock = {"lockfileVersion": 3, "packages": {"": {"dependencies": selected}, **packages}}
-    (repo / "package-lock.json").write_text(json.dumps(lock) + "\n")
-    hidden = repo.parent / "prepared-node-lock.json"
-    hidden.write_text(json.dumps({"lockfileVersion": 3, "packages": packages}) + "\n")
-    for name, version in selected.items():
-        package = repo / "node_modules" / name
-        (package / "bin").mkdir(parents=True)
-        (package / "package.json").write_text(json.dumps({"name": name, "version": version}) + "\n")
-    product_npm = repo / "node_modules/npm/bin/npm-cli.js"
-    openspec = repo / "node_modules/@fission-ai/openspec/bin/openspec.js"
-    product_npm.write_text("// test-owned product npm\n", encoding="utf-8")
-    openspec.write_text("// test-owned OpenSpec entrypoint\n", encoding="utf-8")
-    (repo / ".venv/bin").mkdir(parents=True)
-    (repo / ".venv/bin/python").symlink_to(tools / "python")
-    (repo / "pyproject.toml").write_text(
-        '[dependency-groups]\ndev = ["uv>=0.12.10"]\n', encoding="utf-8"
-    )
-    return {
-        "ETHOS_CI_TOOL_CACHE_DIR": str(cache),
-        "FIXTURE_REPO": str(repo),
-        "FIXTURE_NATIVE_BIN": str(node.parent),
-        "FIXTURE_SEED_NPM": str(seed_npm),
-        "FIXTURE_PRODUCT_NPM": str(product_npm),
-        "FIXTURE_OPENSPEC": str(openspec),
-        "FIXTURE_NODE_LOCK": str(hidden),
-        "FIXTURE_NPM_VERSION": selected["npm"],
-        "FIXTURE_OPENSPEC_VERSION": selected["@fission-ai/openspec"],
-    }
-
-
-def _bootstrap_environment(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    bootstrap_tools: Path,
-    *,
-    system: str,
-    image_state: str,
-) -> tuple[Path, dict[str, str]]:
-    """Prepare one contained bootstrap journey without ambient tool or Git state."""
-    repo = init_git_repo(tmp_path / "repo")
-    script_dir = repo / "tools/ci/scripts"
-    script_dir.mkdir(parents=True)
-    shutil.copy2(ROOT / "tools/ci/scripts/bootstrap-python.sh", script_dir)
-    (script_dir / "with-python-runtime.sh").symlink_to(bootstrap_tools / "with-python-runtime")
-    fake_bin = tmp_path / "bin"
-    fake_bin.mkdir()
-    for source in bootstrap_tools.iterdir():
-        if source.name != "node" and (
-            source.name not in {"ssh-keygen", "ldconfig"} or system == "Linux"
-        ):
-            (fake_bin / source.name).symlink_to(source)
-    for name in ("awk", "cat", "dirname", "grep", "git"):
-        executable = shutil.which(name)
-        assert executable is not None, name
-        (fake_bin / name).symlink_to(executable)
-    native_environment = _bootstrap_source_fixture(repo, bootstrap_tools, monkeypatch)
-    environment = {
-        "PATH": str(fake_bin),
-        "FIXTURE_SYSTEM": system,
-        "FIXTURE_IMAGE_STATE": image_state,
-        "PYTHONPATH": str(ROOT),
-        "GIT_CONFIG_GLOBAL": os.devnull,
-        "GIT_CONFIG_NOSYSTEM": "1",
-        "GIT_TERMINAL_PROMPT": "0",
-        **native_environment,
-    }
-    return repo, environment
-
-
-@pytest.mark.parametrize("anchor_state", ["absent", "declared", "material"])
-@pytest.mark.parametrize(
-    ("system", "image_state"),
-    [("Linux", "available"), ("Darwin", "missing"), ("Darwin", "available")],
-)
-def test_python_bootstrap_supplies_platform_prerequisites(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    anchor_state: str,
-    system: str,
-    image_state: str,
-    bootstrap_tools: Path,
+@pytest.mark.parametrize("state", ["absent", "declared", "material", "ambiguous"])
+def test_commit_trust_binds_only_the_one_supplied_input(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, state: str
 ) -> None:
-    monkeypatch.setenv("ETHOS_COMMIT_TRUST_ANCHOR", str(tmp_path / "ambient-unknown-anchor"))
-    repo, environment = _bootstrap_environment(
-        tmp_path, monkeypatch, bootstrap_tools, system=system, image_state=image_state
-    )
+    """The operator supplies a protected anchor or its material; nothing else is bound."""
+    repo = init_git_repo(tmp_path / "repo")
     anchor = tmp_path / "trust/allowed-signers"
     anchor.parent.mkdir(mode=0o700)
     anchor.write_text("fixture-controlled public trust\n")
     anchor.chmod(0o600)
-    if anchor_state == "declared":
-        environment["ETHOS_COMMIT_TRUST_ANCHOR"] = str(anchor)
-    if anchor_state == "material":
-        environment["ETHOS_COMMIT_ALLOWED_SIGNERS"] = anchor.read_text().rstrip("\n")
-        environment["TMPDIR"] = str(tmp_path)
-        environment["GITHUB_PATH"] = str(tmp_path / "github-path")
-
-    result = run_command(
-        repo,
-        ("/bin/bash", str(repo / "tools/ci/scripts/bootstrap-python.sh")),
-        env=environment,
-        inherit_environment=False,
-        timeout=30,
-    )
-
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert (tmp_path / "fixture.log").read_text() == f"{repo}\n"
+    for name in ("ETHOS_COMMIT_TRUST_ANCHOR", "ETHOS_COMMIT_ALLOWED_SIGNERS"):
+        monkeypatch.delenv(name, raising=False)
+    if state in {"declared", "ambiguous"}:
+        monkeypatch.setenv("ETHOS_COMMIT_TRUST_ANCHOR", str(anchor))
+    if state in {"material", "ambiguous"}:
+        monkeypatch.setenv("ETHOS_COMMIT_ALLOWED_SIGNERS", anchor.read_text().rstrip("\n"))
+        monkeypatch.setenv("TMPDIR", str(tmp_path))
+    monkeypatch.chdir(repo)
+    before = git(repo, "config", "--local", "--list")
+    if state == "ambiguous":
+        with pytest.raises(ValueError, match="ci_commit_trust_inputs_ambiguous"):
+            commit_trust.main()
+        assert git(repo, "config", "--local", "--list") == before
+        return
+    assert commit_trust.main() == 0
     settings = git(repo, "config", "--local", "--list")
-    assert (f"gpg.ssh.allowedsignersfile={anchor}" in settings) == (anchor_state == "declared")
-    if anchor_state == "material":
-        selected = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
-        assert selected.is_relative_to(tmp_path)
-        assert selected.read_text() == environment["ETHOS_COMMIT_ALLOWED_SIGNERS"]
-        assert not Path(environment["GITHUB_PATH"]).exists()
-    assert "ambient-unknown-anchor" not in settings
-    apt_log, uv_log = tmp_path / "apt-get.log", tmp_path / "uv.log"
-    observed_apt = apt_log.read_text().splitlines() if apt_log.exists() else None
-    assert observed_apt == (
-        [
-            "update -o APT::Update::Error-Mode=any",
-            "install -y --no-install-recommends procps lsof util-linux",
-        ]
-        if system == "Linux"
-        else None
-    )
-    assert not (tmp_path / "mise.log").exists()
-    observed_uv = uv_log.read_text(encoding="utf-8").splitlines()
-    stages = [command for command in observed_uv if command.startswith("sync ")]
-    assert stages == [
-        "sync --locked --no-install-project --group dev",
-        "sync --locked --group dev",
-    ]
-    assert (tmp_path / "native.log").read_text().strip() == (
-        f"-B {environment['FIXTURE_REPO']}/tools/ci/toolchain/native.py "
-        f"--root {environment['FIXTURE_REPO']} --mise"
-    )
-    assert (tmp_path / "node.log").read_text().splitlines() == [
-        f"{environment['FIXTURE_SEED_NPM']} ci --ignore-scripts",
-        f"{environment['FIXTURE_PRODUCT_NPM']} --version",
-        f"{environment['FIXTURE_OPENSPEC']} --version",
-    ]
-    assert (tmp_path / "fixture.log").read_text().strip() == environment["FIXTURE_REPO"]
-    if image_state == "missing":
-        assert observed_uv.index("sync --locked --group dev") < observed_uv.index(
-            "python install --no-bin 3.14.7"
-        )
+    if state == "absent":
+        assert settings == before
+    elif state == "declared":
+        assert f"gpg.ssh.allowedsignersfile={anchor}" in settings
     else:
-        assert not any(command.startswith("python install ") for command in observed_uv)
+        selected = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
+        assert selected.read_text() == anchor.read_text().rstrip("\n")
 
 
-def test_python_bootstrap_stops_after_seed_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, bootstrap_tools: Path
+def test_npm_uses_the_archive_seed_only_for_the_first_install(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A seed failure must precede product probes, final sync and trust mutation."""
-    repo, environment = _bootstrap_environment(
-        tmp_path, monkeypatch, bootstrap_tools, system="Darwin", image_state="missing"
+    """The seed npm installs once; later npm commands run the package-lock-owned npm."""
+    log = tmp_path / "node.log"
+    node = tmp_path / "node/bin/node"
+    node.parent.mkdir(parents=True)
+    node.write_text(
+        "#!/bin/sh\n"
+        f'printf "%s|%s %s %s %s\\n" "$*" "$npm_config_engine_strict" "$npm_config_audit" '
+        f'"$npm_config_fund" "$npm_config_update_notifier" >> {shlex.quote(str(log))}\n'
+        "exit 3\n"
     )
-    anchor = tmp_path / "allowed-signers"
-    anchor.write_text("fixture-controlled public trust\n")
-    anchor.chmod(0o600)
-    environment.update(ETHOS_COMMIT_TRUST_ANCHOR=str(anchor), FIXTURE_SEED_EXIT="37")
-    settings = git(repo, "config", "--local", "--list")
+    node.chmod(0o755)
+    seed = SimpleNamespace(executable=node, npm=tmp_path / "seed-npm.js")
+    product = SimpleNamespace(executable=node, npm=tmp_path / "node_modules/npm/bin/npm-cli.js")
+    supply = SimpleNamespace(installed_root=lambda _root: tmp_path / "node")
+    monkeypatch.setattr(npm.NodeSupply, "read", lambda _root: supply)
+    monkeypatch.setattr(npm.NodeRuntime, "read", lambda _installed, **_options: seed)
+    monkeypatch.setattr(npm, "resolve_node_runtime", lambda: product)
+    monkeypatch.chdir(tmp_path)
 
-    result = run_command(
-        repo,
-        ("/bin/bash", str(repo / "tools/ci/scripts/bootstrap-python.sh")),
-        env=environment,
-        inherit_environment=False,
-        timeout=30,
-    )
+    assert npm.main(["--seed", "ci", "--ignore-scripts"]) == 3
+    assert npm.main(["run", "ethos", "--", "--version"]) == 3
 
-    assert result.returncode != 0, result.stdout + result.stderr
-    assert (tmp_path / "node.log").read_text().splitlines() == [
-        f"{environment['FIXTURE_SEED_NPM']} ci --ignore-scripts"
+    assert log.read_text().splitlines() == [
+        f"{seed.npm} ci --ignore-scripts|true false false false",
+        f"{product.npm} run ethos -- --version|true false false false",
     ]
-    observed_uv = (tmp_path / "uv.log").read_text().splitlines()
-    assert [command for command in observed_uv if command.startswith("sync ")] == [
-        "sync --locked --no-install-project --group dev"
-    ]
-    assert not any(command.startswith("python install ") for command in observed_uv)
-    assert not (repo / "node_modules/.package-lock.json").exists()
-    assert not (tmp_path / "fixture.log").exists()
-    assert not (tmp_path / "native-image").exists()
-    assert git(repo, "config", "--local", "--list") == settings

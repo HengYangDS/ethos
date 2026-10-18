@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
+import pytest
+
 import ethos.adapters.repo.attestation_set as attestation_set
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.store.custody import store_custody
@@ -18,8 +20,6 @@ from tests.support.semantic import attestation_fixture
 from tests.support.semantic import occurrence_attestation
 
 if TYPE_CHECKING:
-    import pytest
-
     from ethos.contracts.semantic import Attestation
 
 _START = datetime(2026, 10, 1, tzinfo=UTC)
@@ -113,3 +113,52 @@ def _record_or_error(repo: Path, member: Attestation) -> object:
         return attestation_set.record_attestations(repo, (member,))
     except ValueError as error:
         return str(error)
+
+
+def test_an_update_that_exhausts_its_retries_leaves_no_unbound_custody(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Bytes stored for a record that never entered the set are deleted with the failed update."""
+    repo = init_git_repo(tmp_path / "repo")
+    kept = b"bytes a selected member binds"
+    attestation_set.record_attestations(
+        repo, (_binder(store_custody(repo, kept), expired=False),), custody=(kept,)
+    )
+    stored = b"bytes for a record that loses every swap"
+    record = _binder(store_custody(repo, stored), expired=False)
+    root = attestation_set.read_attestation_set(repo)[0]
+    monkeypatch.setattr(attestation_set, "_compare_and_swap_root", lambda *_a, **_k: False)
+
+    with pytest.raises(ValueError, match=r"^attestation_set_cas_retry_exhausted$"):
+        attestation_set.record_attestations(repo, (record,), custody=(stored,))
+
+    store = Path(git_common_dir(repo)) / "ethos/custody/sha256"
+    assert sorted(path.read_bytes() for path in store.iterdir()) == [kept]
+    assert attestation_set.read_attestation_set(repo)[0] == root
+
+
+def test_the_next_custody_update_deletes_bytes_a_failed_cleanup_left(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A reported custody gap needs no caller action: the next locked swap removes the bytes."""
+    repo = init_git_repo(tmp_path / "repo")
+    left = b"bytes an ended binder left behind"
+    ended_binder = _binder(store_custody(repo, left), expired=True)
+    attestation_set.record_attestations(repo, (ended_binder,))
+    original = attestation_set.release_custody
+
+    def failing_release(*_arguments: object) -> tuple[str, ...]:
+        message = "custody store unavailable"
+        raise OSError(message)
+
+    monkeypatch.setattr(attestation_set, "release_custody", failing_release)
+    first = attestation_set.record_attestations(repo, (occurrence_attestation(7_001),))
+    monkeypatch.setattr(attestation_set, "release_custody", original)
+    kept = b"bytes the next record binds"
+    attestation_set.record_attestations(
+        repo, (_binder(store_custody(repo, kept), expired=False),), custody=(kept,)
+    )
+
+    store = Path(git_common_dir(repo)) / "ethos/custody/sha256"
+    assert first["custody_gap"] == "custody store unavailable"
+    assert sorted(path.read_bytes() for path in store.iterdir()) == [kept]

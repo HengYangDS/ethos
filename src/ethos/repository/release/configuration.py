@@ -8,6 +8,7 @@ from typing import Any
 from typing import cast
 
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
 from ethos.contracts.verdict import close_verdict
 from ethos.repository.release.identity import product_version
 from ethos.repository.release.identity import projected_package_versions
@@ -60,7 +61,8 @@ def release_config_from_text(source: str) -> dict[str, Any]:
     gap = "release_config_invalid:.ethos/release.toml"
     try:
         config = tomllib.loads(source)
-    except tomllib.TOMLDecodeError as error:
+        strict_branch_role_policy_from_release_text(source)
+    except ValueError as error:
         raise ValueError(gap) from error
     protected = config.get("protected_refs", {})
     if not isinstance(protected, dict) or set(protected) - {"branches", "tags"}:

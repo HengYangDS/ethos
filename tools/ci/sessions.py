@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 from importlib import import_module
@@ -19,9 +20,11 @@ RUNTIME = ProjectRuntime.discover(ROOT)
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
 PRE_COMMIT_CONFIG = ".config/checks/pre-commit/.pre-commit-config.yaml"
 PRETTIER_CONFIG = ".config/checks/prettier/prettier.toml"
+GITLEAKS_CONFIG = ROOT / ".config/checks/gitleaks/gitleaks.toml"
 PUBLIC_SESSIONS = (
     "lint",
     "format_check",
+    "fix",
     "tests",
     "coverage_floor",
     "build",
@@ -35,6 +38,7 @@ PUBLIC_SESSIONS = (
     "format_selection",
     "repository_hygiene",
     "prose",
+    "secrets",
     "shell_lint",
     "markdown_lint",
     "javascript_lint",
@@ -43,6 +47,8 @@ PUBLIC_SESSIONS = (
     "asset_validation",
     "config_quality",
     "hosted_observation",
+    "hosted_verification",
+    "external_links",
     "docstrings",
     "module_layout",
     "product_boundary",
@@ -107,6 +113,44 @@ def format_check(session) -> None:
     asset_validation(session)
 
 
+def fix(session) -> None:
+    """Apply the common formatters to the carriers that format_check verifies."""
+    paths = _python_paths(session)
+    RUFF_CACHE.mkdir(parents=True, exist_ok=True)
+    common = ("--cache-dir", str(RUFF_CACHE), "--config", ".config/checks/ruff/ruff.toml")
+    executable = RUNTIME.script("ruff")
+    session.run(executable, "check", "--fix", *common, *paths)
+    session.run(executable, "format", *common, *paths)
+    selection = import_module("ethos.adapters.gates.format_selection").audit(ROOT)
+    if selection["failures"]:
+        session.error("Format ownership unresolved: " + json.dumps(selection["failures"]))
+    originals = {
+        item["path"]: (ROOT / item["path"]).read_bytes()
+        for item in selection["assignments"]
+        if item["format_owner"] in {"prettier", "taplo"}
+        and item["mutation_policy"] == "native-formatter"
+    }
+    render = import_module("ethos.adapters.gates.tool").format_source_contents
+    rendered = {
+        relative: content
+        for owner in ("prettier", "taplo")
+        for relative, content in render(
+            ROOT,
+            owner,
+            {
+                item["path"]: originals[item["path"]]
+                for item in selection["assignments"]
+                if item["format_owner"] == owner and item["path"] in originals
+            },
+        ).items()
+    }
+    if any((ROOT / relative).read_bytes() != content for relative, content in originals.items()):
+        session.error("Format input changed during native rendering")
+    for relative, content in rendered.items():
+        if content != originals[relative]:
+            (ROOT / relative).write_bytes(content)
+
+
 def lint(session) -> None:
     paths = _python_paths(session)
     RUFF_CACHE.mkdir(parents=True, exist_ok=True)
@@ -130,6 +174,7 @@ def tests(session) -> None:
     gate = import_module("tools.ci.python_test_gate").PythonTestGate.from_environment(
         node_package_supply=RUNTIME.node_package_supply()
     )
+    gate.compile_bytecode()
     try:
         gate.run_tests(session)
     except Exception:
@@ -234,6 +279,50 @@ def prose(session) -> None:
         session.error("Prose quality failed:\n" + json.dumps(report["required_gaps"], indent=2))
 
 
+def secrets(session) -> None:
+    """Scan a mirror of the tracked files with Gitleaks and the declared policy.
+
+    Secret scanning is a source-quality gate: ignored caches and local evidence
+    cannot fail it, while a tracked finding fails it deterministically.
+    """
+    supply = import_module("ethos.adapters.repo.runtime.materialization.native_supply")
+    gitleaks = supply.materialize_tool(ROOT, "gitleaks") / "gitleaks"
+    if not gitleaks.is_file():
+        session.error(f"locked gitleaks is missing: {gitleaks}")
+    report = ROOT / "build/evidence/quality/secrets/report.json"
+    report.parent.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(prefix="ethos-gitleaks-") as directory:
+        mirror = Path(directory) / "tracked"
+        _mirror_tracked(mirror)
+        session.run(
+            str(gitleaks),
+            "dir",
+            str(mirror),
+            "--config",
+            str(GITLEAKS_CONFIG),
+            "--redact",
+            "--report-format",
+            "json",
+            "--report-path",
+            str(report),
+        )
+
+
+def _mirror_tracked(target: Path) -> None:
+    """Copy every tracked file into target, keeping symbolic links as links."""
+    listed = subprocess.check_output(("git", "ls-files", "-z"), cwd=ROOT)
+    for raw in listed.split(b"\0"):
+        if not raw:
+            continue
+        relative = os.fsdecode(raw)
+        source, destination = ROOT / relative, target / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if source.is_symlink():
+            destination.symlink_to(source.readlink())
+        elif source.is_file():
+            shutil.copy2(source, destination)
+
+
 def shell_lint(session) -> None:
     paths = _paths("*.sh")
     if paths:
@@ -299,6 +388,35 @@ def hosted_observation(session) -> None:
     result = import_module("tools.ci.hosted_observation").capture_observation(execute=execute)
     if execute and result:
         session.error("hosted provider observation failed")
+
+
+def hosted_verification(session) -> None:
+    """Execute and bind the full hosted proof of HEAD, or of the one expected head given."""
+    if len(session.posargs) > 1:
+        session.error("usage: nox -s hosted_verification [-- expected-head]")
+    owner = import_module("tools.ci.hosted_verification")
+    status = owner.run(ROOT, session.posargs[0] if session.posargs else None)
+    if status:
+        session.error(f"hosted verification failed with exit status {status}")
+
+
+def external_links(session) -> None:
+    """Observe external link health for HEAD and keep the observation as evidence."""
+    head = cast("str", session.run("git", "rev-parse", "HEAD", silent=True)).strip()
+    report = ROOT / "build/evidence/quality/external-links/report.json"
+    report.parent.mkdir(parents=True, exist_ok=True)
+    with report.open("wb") as stream:
+        completed = subprocess.run(
+            (
+                *(sys.executable, "-B", "-I", "-m", "ethos.cli", "prove", "--host", "--execute"),
+                *("--gate", "external-links", "--expect-head", head, "--json"),
+            ),
+            cwd=ROOT,
+            stdout=stream,
+            check=False,
+        )
+    if completed.returncode:
+        session.error(f"external link observation failed with exit status {completed.returncode}")
 
 
 def docstrings(session) -> None:

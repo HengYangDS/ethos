@@ -7,6 +7,7 @@ import json
 import os
 import platform
 import subprocess
+import time
 import tomllib
 from datetime import UTC
 from datetime import datetime
@@ -42,6 +43,9 @@ if TYPE_CHECKING:
 ROOT = Path(__file__).resolve().parents[2]
 POLICY = AUDIT_POLICY_PATH
 EVIDENCE = "build/evidence/quality/security"
+# npm never retries POST, so a dropped bulk advisory request is observed again here.
+_ATTEMPTS = 3
+_RETRY_PAUSE_SECONDS = 2
 
 
 def requested_scope(arguments: tuple[str, ...]) -> AuditScope:
@@ -138,6 +142,19 @@ def _command(ecosystem: str, root: Path) -> tuple[str, ...]:
 
 
 def _observe(root: Path, ecosystem: str, timeout: int) -> dict:
+    """Repeat only a failed npm advisory request; every attempt stays in the receipt."""
+    attempts: list[dict] = []
+    while True:
+        result = _observe_once(root, ecosystem, timeout)
+        attempts.append(
+            {key: result.get(key) for key in ("verdict", "reason", "exit_code", "stderr")}
+        )
+        if result["reason"] != "advisory_request_failed" or len(attempts) == _ATTEMPTS:
+            return {**result, "attempts": attempts}
+        time.sleep(_RETRY_PAUSE_SECONDS)
+
+
+def _observe_once(root: Path, ecosystem: str, timeout: int) -> dict:
     """Settle one external observation, preserving failures before continuing."""
     command: tuple[str, ...] = ()
     try:

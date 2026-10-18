@@ -1,2 +1,2 @@
-[branch_roles]
-release_mirror = "accepted_ff"
+[release]
+mirror = "accepted_ff"

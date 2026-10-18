@@ -14,13 +14,14 @@ from ethos.adapters.mutation.publication.retirement import proposal_retirement_r
 from ethos.adapters.openspec.observation import active_change_names_in_ref
 from ethos.adapters.repo.commit.integration import commit_range_admission_report
 from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.release import accepted_delivery_report
 from ethos.adapters.repo.release import publication_source_baseline
 from ethos.contracts.branch.roles import BranchRolePolicy
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.branch.roles import strict_branch_role_policy_from_text
+from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import string_sequence
@@ -69,8 +70,9 @@ def _committed_target_policy(
     texts = dict(
         zip(entries, (b.decode() for b in read_objects(root, tuple(entries.values()))), strict=True)
     )
-    policy = strict_branch_role_policy_from_text(texts.get(_POLICY_PATHS[0], ""))
-    release = release_config_from_text(texts.get(_POLICY_PATHS[1], ""))
+    release_text = texts.get(_POLICY_PATHS[1], "")
+    policy = strict_branch_role_policy_from_release_text(release_text)
+    release = release_config_from_text(release_text)
     protected = release.get("protected_refs", {})
     return (
         policy,
@@ -364,7 +366,14 @@ def push_admission_report(
     )
     accepted_content = False
     observed_proof = options.get("proof_admission")
-    if str(preliminary["role"]) in {"release_root", "release_publication"} and closeout:
+    role = str(preliminary["role"])
+    ordinary_accepted = role == "accepted_root" and (
+        remote_head in _ZERO_OIDS or is_ancestor(repo, remote_head, proof_head)
+    )
+    current_accepted = ordinary_accepted and (
+        git_stdout(repo, "rev-parse", current_policy.accepted_branch) == proof_head
+    )
+    if (current_accepted or role in {"release_root", "release_publication"}) and closeout:
         observed_proof = publication_proof_admission(
             repo,
             proof_head,
@@ -429,7 +438,7 @@ def push_admission_report(
     )
     proof_gaps = list(string_sequence(proof.get("required_gaps")))
     repaired = commits.get("update_kind") == "repair"
-    if role == "accepted_root" and not repaired:
+    if role == "accepted_root" and not repaired and not ordinary_accepted:
         proof_gaps = [gap for gap in proof_gaps if gap.startswith("repository_commitment_")]
     topology_gaps = (
         accepted_advance_gaps(

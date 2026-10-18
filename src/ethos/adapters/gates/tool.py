@@ -11,6 +11,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit
@@ -365,6 +366,16 @@ def prose_report(root: Path) -> dict[str, object]:
             return _configuration_failure("prose", ValueError("native_prose_input_invalid"))
         native = []
         for ordinal, config in enumerate(configs):
+            try:
+                declared = tomllib.loads(Path(config).read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+                message = "native_prose_configuration_invalid"
+                raise ValueError(message) from error
+            tool = declared.get("tool")
+            if not isinstance(tool, dict) or not isinstance(tool.get("codespell"), dict):
+                return _configuration_failure(
+                    "prose", ValueError("native_prose_configuration_invalid")
+                )
             with TemporaryDirectory(prefix="ethos-native-prose-") as temporary:
                 work = Path(temporary)
                 for relative, content in sources.items():

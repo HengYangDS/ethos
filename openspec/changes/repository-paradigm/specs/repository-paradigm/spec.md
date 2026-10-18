@@ -102,6 +102,12 @@ Repository-owned invocations SHALL pass tool configuration paths explicitly. The
 - **WHEN** `pyproject.toml` declares `[tool.pytest.ini_options]`
 - **THEN** the paradigm reports embedded tool policy with its canonical path.
 
+#### Scenario: A TypeScript project is passed explicitly
+
+- **WHEN** a repository keeps its TypeScript project at `.config/checks/typescript/tsconfig.json` and passes it to `tsc --project` and to Knip's `typescript.config`
+- **THEN** the carrier conforms in Python, Node and Go repositories
+- **AND** a root `tsconfig.json` or `jsconfig.json` is reported with that canonical path.
+
 ### Requirement: Staged admission reads canonical configuration
 
 When a repository configures secret scanning or the staged Python format check, native pre-commit admission SHALL use the configuration at its canonical `.config/` path. Configuration found anywhere else SHALL be reported as a gap and SHALL NOT silently disable the check.
@@ -113,12 +119,22 @@ When a repository configures secret scanning or the staged Python format check, 
 
 ### Requirement: The binding uses only ETHOS-defined files
 
-The tracked `.ethos/` binding SHALL contain only `profile.toml`, `workspace.toml`, `release.toml` and `rules.toml`. A repository SHALL declare its proof gates in `profile.toml` or select the packaged ETHOS gate registry; repository-local registry files SHALL NOT exist.
+The tracked `.ethos/` binding SHALL contain only `profile.toml`, `workspace.toml`, `release.toml` and `rules.toml`. A repository SHALL declare its proof gates in `profile.toml` or select the packaged ETHOS gate registry; repository-local registry files SHALL NOT exist. `workspace.toml` SHALL declare only `[commit_policy]`, and a repository that declares none SHALL NOT track it.
 
 #### Scenario: A legacy binding file is tracked
 
 - **WHEN** `.ethos/assistants.toml`, `.ethos/project.toml` or `.ethos/gates.toml` is tracked
 - **THEN** the paradigm reports a binding file outside the ETHOS schema set.
+
+#### Scenario: A workspace declares a table no reader consults
+
+- **WHEN** `.ethos/workspace.toml` declares `[[package]]`
+- **THEN** the paradigm reports the table and the repair deletes it.
+
+#### Scenario: A workspace binding declares nothing else
+
+- **WHEN** `.ethos/workspace.toml` declares only `[branch_roles]` with `release_mirror = "independent"`
+- **THEN** the repair deletes `.ethos/workspace.toml`.
 
 ### Requirement: OpenSpec carries the common rules
 
@@ -144,28 +160,72 @@ Every governed repository that tracks OpenSpec artifacts SHALL select the `spec-
 - **WHEN** a repository tracks no path under `openspec/`
 - **THEN** the paradigm reports no OpenSpec gap.
 
-### Requirement: Commits follow one grammar
+### Requirement: Commits follow one grammar and carry an SSH signature
 
-Every governed repository SHALL use the commit subject grammar that the paradigm contract holds: the Conventional Commit types build, chore, ci, docs, feat, fix, perf, refactor, revert and test, an optional lowercase kebab-case scope and an optional breaking marker `!`. `[commit_policy]` SHALL declare SSH signing and MAY declare `scopes` to restrict scopes; it SHALL NOT restate the grammar.
+Every governed repository SHALL use the commit subject grammar that the paradigm contract holds: the Conventional Commit types build, chore, ci, docs, feat, fix, perf, refactor, revert and test, an optional lowercase kebab-case scope and an optional breaking marker `!`. Every commit SHALL carry an SSH signature. `[commit_policy]` MAY restrict scopes and constrain identities; it SHALL NOT restate the grammar or the signature.
 
 #### Scenario: The binding declares no subject grammar
 
-- **WHEN** `[commit_policy]` declares signing and no `subject_pattern`
+- **WHEN** `[commit_policy]` declares no `subject_pattern`
 - **THEN** commit admission accepts `feat(cli)!: drop the legacy flag` and rejects `style: reformat`.
+
+#### Scenario: A repository declares no commit policy
+
+- **WHEN** a repository tracks no `[commit_policy]`
+- **THEN** commit admission requires the shared grammar and a trusted SSH signature on every introduced commit
+- **AND** ETHOS signs the commits it creates.
 
 #### Scenario: A repository adds a type
 
 - **WHEN** a repository commit policy declares its own `subject_pattern`, for example one that admits a `spec` or `style` type
 - **THEN** the paradigm reports a restated commit grammar.
 
+#### Scenario: A binding restates the signature
+
+- **WHEN** `[commit_policy]` declares `signing_required` or `signing_format`, with any value
+- **THEN** the paradigm reports a restated signature declaration and the repair deletes it
+- **AND** commit admission still requires an SSH signature.
+
 #### Scenario: A scope list is declared
 
 - **WHEN** a repository declares the scopes `cli` and `relay`
 - **THEN** commit admission rejects `fix(other): repair`.
 
+### Requirement: Each repository keeps its lifecycle signer locally
+
+ETHOS runs Git without global configuration, so every governed repository SHALL keep its lifecycle signer, `user.signingkey` with an optional `gpg.ssh.program`, and its trust anchor `gpg.ssh.allowedSignersFile` in local configuration. Formation SHALL write the creator's reviewed signer and anchor before it signs the initial commit. Status SHALL report the signer and SHALL block without it only in the roles that create lifecycle commits.
+
+#### Scenario: A formed repository starts signed
+
+- **WHEN** `ethos adopt --create` applies a reviewed plan that names the creator's signing key and trust anchor
+- **THEN** the initial commit carries an SSH signature that the anchor verifies
+- **AND** the new repository's local configuration holds the signer and the anchor.
+
+#### Scenario: Formation names no signer
+
+- **WHEN** a formation request names no signing key or no trust anchor
+- **THEN** the preview refuses, and neither the target nor its candidate worktree exists.
+
+#### Scenario: A lifecycle role has no signer
+
+- **WHEN** status observes the accepted root, the candidate or a Work Lane whose local configuration has no valid signing key
+- **THEN** commit enforcement is unready, and its next action is the exact local `user.signingkey` setting
+- **AND** a detached checkout reports the same signer without blocking.
+
+#### Scenario: The trust anchor is missing
+
+- **WHEN** a repository has no local trust anchor
+- **THEN** status and signer authorization name the same local `gpg.ssh.allowedSignersFile` setting.
+
+#### Scenario: Signer authorization reads the lifecycle signer
+
+- **WHEN** `ethos lane trust-commit-signer` authorizes a repository's configured signer
+- **THEN** it reads the same local signing key and admits the same key types as lifecycle commit creation
+- **AND** a key that commit creation refuses never enters the trust anchor, and the refusal names the local setting.
+
 ### Requirement: Branch roles and Work Lanes use the standard names
 
-The repository paradigm SHALL fix the branch role names: release `main`, accepted `dev`, candidate `candidate/dev`, Work Lanes under `work/` and proposals under `proposal/`. ETHOS SHALL read no role name from `[branch_roles]`, which MAY declare only `release_mirror`. Every Work Lane worktree SHALL be a sibling at `<repository>-worktrees/<yyyymmdd>-<slug>/`, and ETHOS SHALL read no worktree setting from `[branch_roles]`.
+The repository paradigm SHALL fix the branch role names: release `main`, accepted `dev`, candidate `candidate/dev`, Work Lanes under `work/` and proposals under `proposal/`. ETHOS SHALL read nothing from `[branch_roles]`. A repository whose release branch follows its accepted branch SHALL declare `[release] mirror = "accepted_ff"` in `.ethos/release.toml`; otherwise the release mirror is independent. Every Work Lane worktree SHALL be a sibling at `<repository>-worktrees/<yyyymmdd>-<slug>/`.
 
 #### Scenario: A review prefix differs
 
@@ -178,16 +238,28 @@ The repository paradigm SHALL fix the branch role names: release `main`, accepte
 - **WHEN** `[branch_roles]` declares `accepted_branch = "dev"`
 - **THEN** the paradigm reports the declared name and names its removal.
 
+#### Scenario: A Work Lane name already carries a date
+
+- **WHEN** `ethos lane start 20261016-archive-relocation` runs
+- **THEN** lane start refuses the name and names `archive-relocation` as the repair
+- **AND** no Work Lane path repeats its date.
+
 #### Scenario: A workspace declares the retired sibling-worktree setting
 
 - **WHEN** `[branch_roles]` declares `canonical_sibling_worktrees = false`
 - **THEN** `ethos lane start feature` still places the Work Lane at `<repository>-worktrees/<yyyymmdd>-feature/`
 - **AND** the paradigm reports the setting and the repair deletes it.
 
-#### Scenario: A workspace declares only the settings
+#### Scenario: The release binding declares the mirror
 
-- **WHEN** `[branch_roles]` declares only `release_mirror = "accepted_ff"`
+- **WHEN** `.ethos/release.toml` declares `[release] mirror = "accepted_ff"`
 - **THEN** accepted closeout, publication and ref admission read the standard names with an accepted fast-forward release mirror.
+
+#### Scenario: A workspace still declares the mirror
+
+- **WHEN** `[branch_roles]` declares `release_mirror = "accepted_ff"` and `.ethos/release.toml` declares no mirror
+- **THEN** ETHOS reads an independent release mirror
+- **AND** the paradigm reports both carriers and the repair moves the mirror to `[release] mirror`.
 
 ### Requirement: Accepted closeout renames legacy role refs
 
@@ -410,21 +482,36 @@ A tracked shell or PowerShell script SHALL exist only as the output of an offici
 
 ### Requirement: CI for several Forges is one model
 
-A repository that runs CI on more than one Forge SHALL define its pipelines once under `.config/ci/` and generate each Forge file from that model. `check` SHALL fail when a generated Forge file differs from the model.
+A repository that runs CI on more than one Forge SHALL define its pipelines once as a CUE model under `.config/ci/` and generate each Forge file from that model. `check` SHALL fail when a generated Forge file differs from the model.
 
 #### Scenario: Two Forge files are maintained by hand
 
 - **WHEN** a repository tracks `.gitlab-ci.yml` and `.github/workflows/` without a model under `.config/ci/`
 - **THEN** the paradigm reports an unmodeled multi-Forge pipeline.
 
+#### Scenario: One Forge needs no model
+
+- **WHEN** a repository runs CI only on GitLab
+- **THEN** no pipeline model is required.
+
 ### Requirement: Repository-authored names use lowercase kebab-case
 
-Repository-authored file and directory names SHALL use lowercase kebab-case, except where an ecosystem or tool fixes the name, such as Python modules, Go packages, entry documents and tool-required basenames.
+Repository-authored file and directory names SHALL use lowercase kebab-case, except where an ecosystem or tool fixes the name, such as Python modules, Go packages, entry documents and tool-required basenames. A leading `.` or `_` marker and dot-separated suffixes are not word separators, and names inside immutable record roots keep their captured form.
 
 #### Scenario: A rule file uses snake_case
 
 - **WHEN** a repository tracks `rules/module_layout.md`
 - **THEN** the paradigm reports a non-standard name with its kebab-case form.
+
+#### Scenario: An ecosystem or tool fixes the name
+
+- **WHEN** a repository tracks `src/sample_package/module_name.py`, `.github/PULL_REQUEST_TEMPLATE.md` and `docs/_meta/taxonomy.toml`
+- **THEN** no name is reported.
+
+#### Scenario: A new snake_case file is requested
+
+- **WHEN** a Work Lane requests prewrite admission for a new `rules/module_layout.md`
+- **THEN** admission refuses the path and names `rules/module-layout.md`.
 
 ### Requirement: Paradigm conformance is a blocking verdict
 

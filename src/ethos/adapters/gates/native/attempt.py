@@ -32,6 +32,8 @@ from ethos.contracts.evidence.observer import ObserverIdentity
 from ethos.contracts.semantic import canonical_json_digest
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from ethos.contracts.gates import Gate
     from ethos.contracts.gates import NativeOutput
 
@@ -137,7 +139,13 @@ def _capture_outputs(
 
 
 def native_attempt(
-    root: Path, gate: Gate, command: tuple[str, ...], *, timeout: float | None
+    root: Path,
+    gate: Gate,
+    command: tuple[str, ...],
+    *,
+    timeout: float | None,
+    env: Mapping[str, str] | None = None,
+    remove_env: tuple[str, ...] = (),
 ) -> tuple[subprocess.CompletedProcess[str], NativeEvidence]:
     """Bind reports before the sole launch; never select ambient or latest evidence."""
     tree, subjects = observe_quality_subjects(root)
@@ -153,7 +161,16 @@ def native_attempt(
         checks: list[tuple[NativeOutput, bytes]] = []
         observer = None
         supply_error = ""
-        environment = {"ETHOS_NATIVE_OUTPUT_DIR": str(directory)}
+        environment = {
+            name: value
+            for name, value in (env or {}).items()
+            if name.casefold()
+            not in {
+                "ethos_native_output_dir",
+                "ethos_native_observer_requirement",
+                "ethos_native_observer_runtime_digest",
+            }
+        } | {"ETHOS_NATIVE_OUTPUT_DIR": str(directory)}
         deadline = monotonic() + (timeout if timeout is not None else 900)
         try:
             if any(output.format == "python-runtime-json" for output in gate.native_outputs):
@@ -181,6 +198,8 @@ def native_attempt(
                     timeout=max(0, deadline - monotonic()) if timeout is not None else None,
                     env=environment,
                     remove_env=(
+                        *remove_env,
+                        "ETHOS_NATIVE_OUTPUT_DIR",
                         "ETHOS_NATIVE_OBSERVER_REQUIREMENT",
                         "ETHOS_NATIVE_OBSERVER_RUNTIME_DIGEST",
                     ),
@@ -235,12 +254,18 @@ def retained_execution(execution: NativeExecution) -> NativeExecution:
 
 
 def gate_attempt(
-    root: Path, gate: Gate, command: tuple[str, ...], *, timeout: float | None
+    root: Path,
+    gate: Gate,
+    command: tuple[str, ...],
+    *,
+    timeout: float | None,
+    env: Mapping[str, str] | None = None,
+    remove_env: tuple[str, ...] = (),
 ) -> tuple[subprocess.CompletedProcess[str], NativeEvidence | None]:
     """Run one gate command; declared native outputs come from that same attempt."""
     if gate.native_outputs:
-        return native_attempt(root, gate, command, timeout=timeout)
-    return run_command(root, command, timeout=timeout), None
+        return native_attempt(root, gate, command, timeout=timeout, env=env, remove_env=remove_env)
+    return run_command(root, command, timeout=timeout, env=env, remove_env=remove_env), None
 
 
 def gate_execution(

@@ -128,6 +128,19 @@ validation_command = "uv run --frozen --offline python -m nox -s config_quality"
 mutation_policy = "canonical-text"
 
 [[ownership]]
+id = "vale-vocabulary"
+paths = [
+  ".config/checks/vale/styles/config/vocabularies/*/accept.txt",
+  ".config/checks/vale/styles/config/vocabularies/*/reject.txt",
+]
+format_owner = "repository-canonical-text"
+format_command = "uv run --frozen --offline python -m nox -s format -- hygiene"
+format_check = "uv run --frozen --offline python -m nox -s repository_hygiene"
+validation_owner = "vale"
+validation_command = "uv run --frozen --offline python -m nox -s config_quality"
+mutation_policy = "canonical-text"
+
+[[ownership]]
 id = "uv-lock"
 paths = ["uv.lock"]
 format_owner = "uv"
@@ -277,14 +290,6 @@ execution = "docker buildx build --check --file .config/ci/supply/Dockerfile ."
 truth_boundary = "authored CI supply input"
 
 [[format]]
-extensions = [".sh"]
-carrier = "Generated native tool bootstrap"
-owner = ".config/mise/config.toml"
-execution = "uv run --frozen --offline python -m nox -s ci_templates"
-truth_boundary = "exact native installer projection; not hand-authored tool policy"
-budget = [{ category = "native_bootstrap", paths = ["tools/ci/scripts/mise-install.sh"], comment_prefixes = ["#"], accounting = "generated_evidence" }]
-
-[[format]]
 extensions = [".sh", ".bash", ".zsh"]
 shebangs = ["sh", "bash", "zsh"]
 carrier = "Shell"
@@ -300,6 +305,13 @@ owner = "tool-native config owner"
 execution = "tool-specific gate"
 truth_boundary = "tool-native config"
 budget = [{ category = "ini", measure = "structured", baseline_measure = "lines", baseline_comment_prefixes = ["#", ";"] }]
+
+[[format]]
+extensions = [".txt"]
+carrier = "Native Vale vocabulary"
+owner = ".config/checks/vale/vale.ini"
+execution = "uv run --frozen --offline python -m nox -s config_quality"
+truth_boundary = "native vocabulary configuration, not prose"
 
 [[format]]
 extensions = [".js", ".mjs", ".cjs"]
@@ -339,6 +351,7 @@ yaml_allowed_roots = [
 ]
 
 [policy.extension_paths]
+".txt" = { roots = [".config/checks/vale/styles/config/vocabularies/"] }
 ".dockerignore" = { roots = [".config/ci/supply/"] }
 ".ini" = { roots = [".config/"] }
 ".json" = { roots = [
@@ -370,18 +383,6 @@ format_check = "uv run --frozen --offline python -m nox -s ci_templates"
 validation_owner = "cue"
 validation_command = "uv run --frozen --offline python -m nox -s ci_templates"
 mutation_policy = "native-formatter"
-
-[[ownership]]
-id = "mise-bootstrap"
-priority = 100
-paths = ["tools/ci/scripts/mise-install.sh"]
-format_owner = "mise"
-format_command = "uv run --frozen --offline python tools/ci/toolchain/native.py --render-installer"
-format_check = "uv run --frozen --offline python -m nox -s ci_templates"
-validation_owner = "mise"
-validation_command = "uv run --frozen --offline python -m nox -s ci_templates"
-semantic_companions = ["shellcheck", "shfmt"]
-mutation_policy = "generator-only"
 
 [[ownership]]
 id = "mise-lock"

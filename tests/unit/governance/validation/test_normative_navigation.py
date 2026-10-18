@@ -12,6 +12,7 @@ from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.registry.docs.links import markdown_links
 from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.surface.cli.root.reference import docs_registry_report
+from tests.support.documentation import documentation_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -181,11 +182,3 @@ def test_native_navigation_uses_rendered_links_not_code_examples(tmp_path: Path)
 
     assert markdown_links(source) == [(3, "topics/contract.md")]
     assert source.read_bytes() == original
-
-
-def documentation_fixture(subject: str, role: str, state: str, title: str) -> str:
-    """Build a readable carrier for the selected navigation regressions."""
-    return (
-        f"---\nsubject: {subject}\nrole: {role}\nstate: {state}\nrelations: {{}}\n---\n\n"
-        f"# {title}\n\nStatus: {state}.\n\nPurpose: exercise docs health.\n\nSee also: none.\n"
-    )

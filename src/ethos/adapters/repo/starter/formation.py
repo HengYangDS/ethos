@@ -15,12 +15,15 @@ from ethos.adapters.mutation.lane_lifecycle.start import default_worktree_path
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.adoption import adoption_plan
 from ethos.adapters.repo.attestation_set import record_attestation_once
+from ethos.adapters.repo.commit.creation import commit_signer_configuration
+from ethos.adapters.repo.commit.creation import create_git_commit
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.native_effect_attestation import NativeEffect
 from ethos.adapters.repo.native_effect_attestation import issue_native_effect
 from ethos.adapters.repo.profile import repository_identity
 from ethos.adapters.repo.starter.generation import compose_starter
+from ethos.adapters.repo.trust_anchor.verification import commit_trust_anchor
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.release.resources import GUIDANCE_RESOURCE
@@ -42,11 +45,18 @@ def formation_plan(
     starter: str,
     author_name: str = "",
     author_email: str = "",
+    signing_key: str = "",
+    trust_anchor: str = "",
+    signing_program: str = "",
     apply: bool = False,
     authorized: bool = False,
     expect_plan_digest: str | None = None,
 ) -> dict[str, object]:
-    """Use one candidate for preview or an exact admitted creation effect."""
+    """Use one candidate for preview or an exact admitted creation effect.
+
+    ETHOS's Git execution reads no global configuration, so the creator names the
+    signer and trust anchor that sign the initial commit and stay in the repository.
+    """
     requested = root.absolute()
     try:
         parent = requested.parent.resolve(strict=True)
@@ -58,6 +68,7 @@ def formation_plan(
     email = author_email.strip() or os.environ.get("GIT_AUTHOR_EMAIL", "").strip()
     committer = os.environ.get("GIT_COMMITTER_NAME", "").strip() or author
     committer_email = os.environ.get("GIT_COMMITTER_EMAIL", "").strip() or email
+    signer, signer_gap = _reviewed_signer(target, signing_key, trust_anchor, signing_program)
     gap = (
         "formation_starter_unavailable"
         if starter not in {"foundation", "python-library"}
@@ -69,7 +80,7 @@ def formation_plan(
         if not parent.is_dir()
         else "formation_git_identity_missing"
         if not all((author, email, committer, committer_email))
-        else ""
+        else signer_gap
     )
     if gap:
         return _unavailable(target, gap)
@@ -121,6 +132,7 @@ def formation_plan(
                     "author_email": email,
                     "committer_name": committer,
                     "committer_email": committer_email,
+                    **signer,
                     "requested_root": str(requested),
                     "parent_device": str(parent_info.st_dev),
                     "parent_inode": str(parent_info.st_ino),
@@ -180,6 +192,26 @@ def formation_plan(
         return result
 
 
+def _reviewed_signer(
+    target: Path, signing_key: str, trust_anchor: str, signing_program: str
+) -> tuple[dict[str, str], str]:
+    """Check the creator's signer under the lifecycle commit rules and bind its bytes."""
+    key, anchor, program = signing_key.strip(), trust_anchor.strip(), signing_program.strip()
+    if not (key and anchor):
+        return {}, "formation_commit_signer_missing"
+    _settings, gap = commit_signer_configuration(key, program)
+    _resolved, anchor_gaps = commit_trust_anchor(target, anchor)
+    if gap or anchor_gaps:
+        return {}, gap or anchor_gaps[0]
+    return {
+        "signing_key": key,
+        "signing_key_sha256": hashlib.sha256(Path(key).read_bytes()).hexdigest(),
+        "signing_program": program,
+        "trust_anchor": anchor,
+        "trust_anchor_sha256": hashlib.sha256(Path(anchor).read_bytes()).hexdigest(),
+    }, ""
+
+
 def _publish(
     candidate: Path,
     target: Path,
@@ -220,22 +252,50 @@ def _prepare_history(
     starter_outputs: dict[str, str],
     sources: dict[str, str],
 ) -> tuple[str, str, str]:
-    """Create one author-attributed initial commit in scratch."""
+    """Create one author-attributed initial commit, signed by the reviewed signer, in scratch."""
     identity = {
         "GIT_AUTHOR_NAME": sources["author_name"],
         "GIT_AUTHOR_EMAIL": sources["author_email"],
         "GIT_COMMITTER_NAME": sources["committer_name"],
         "GIT_COMMITTER_EMAIL": sources["committer_email"],
     }
+    signer = (
+        ("gpg.format", "ssh"),
+        ("user.signingkey", sources["signing_key"]),
+        ("gpg.ssh.allowedSignersFile", sources["trust_anchor"]),
+        ("commit.gpgsign", "true"),
+        *((("gpg.ssh.program", sources["signing_program"]),) if sources["signing_program"] else ()),
+    )
+    tree = ""
     for args, gap in (
         (("init", "-q", "--template=", "-b", "dev"), "formation_git_init_failed"),
+        *(
+            (("config", "--local", name, value), "formation_git_init_failed")
+            for name, value in signer
+        ),
         (("add", "--", *outputs), "formation_git_add_failed"),
-        (("commit", "-q", "-m", "chore: initialize project"), "formation_git_commit_failed"),
+        (("write-tree",), "formation_git_commit_failed"),
     ):
         result = run_git(candidate, *args, check=False, env=identity, timeout=30)
         if result.returncode:
             return "", gap, result.stderr.strip()
-    head = run_git(candidate, "rev-parse", "HEAD", timeout=10).stdout.strip()
+        tree = result.stdout.strip()
+    # The shared creator signs the root commit and verifies it against the reviewed anchor.
+    created = create_git_commit(
+        candidate,
+        tree=tree,
+        parent=None,
+        message="chore: initialize project",
+        environment=identity,
+    )
+    head = created.stdout.strip() if not created.returncode else ""
+    if (
+        not head
+        or run_git(
+            candidate, "update-ref", "refs/heads/dev", head, "", check=False, timeout=10
+        ).returncode
+    ):
+        return "", "formation_git_commit_failed", str(created.stderr or "").strip()
     try:
         effect = NativeEffect(
             predicate="effect:starter-formation",

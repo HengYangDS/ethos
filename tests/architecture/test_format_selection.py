@@ -97,7 +97,6 @@ def test_native_carriers_separate_canonicalization_from_validation(carrier_repor
         "pyproject.toml": ("taplo", "taplo"),
         ".github/workflows/ci.yml": ("cue", "cue"),
         "distributions/npm/bin/ethos.mjs": ("prettier", "prettier"),
-        "tools/ci/scripts/bootstrap-python.sh": ("shfmt", "shellcheck"),
         "assets/brand/ethos-logo.svg": ("svgo", "svgo"),
         "assets/brand/ethos-logo-1024.png": ("source-binary", "pillow"),
         ".gitattributes": ("repository-canonical-text", "repository-hygiene"),
@@ -124,6 +123,36 @@ def test_prettier_inputs_are_the_carriers_it_is_declared_to_own() -> None:
     }
     assert "openspec/config.yaml" not in selected
     assert not {path for path in selected if path.endswith((".js", ".mjs", ".cjs"))}
+
+
+def test_markdown_lint_accepts_what_the_markdown_formatter_writes(tmp_path: Path) -> None:
+    """Prettier writes underscore emphasis but asterisks inside a word; the lint accepts both."""
+    page = tmp_path / "docs" / "page.md"
+    page.parent.mkdir()
+    page.write_text("# Title\n\nintra*word*emphasis first, then an *emphasised* word.\n")
+    node = str(sessions.RUNTIME.node_executable())
+    supply = sessions.RUNTIME.node_package_supply()
+    formatter = (node, str(supply / "prettier/bin/prettier.cjs"))
+    config = ("--config", str(ROOT / sessions.PRETTIER_CONFIG), "--write", str(page))
+    subprocess.run((*formatter, *config), cwd=tmp_path, check=True, capture_output=True, timeout=60)
+    assert "then an _emphasised_ word" in page.read_text(encoding="utf-8")
+
+    lint = subprocess.run(
+        (
+            node,
+            str(supply / "markdownlint-cli2/markdownlint-cli2-bin.mjs"),
+            "--config",
+            str(ROOT / ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml"),
+            "docs/page.md",
+        ),
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+
+    assert lint.returncode == 0, lint.stdout + lint.stderr
 
 
 @pytest.mark.parametrize(
@@ -270,3 +299,19 @@ def test_native_byte_owners_are_shared_by_format_and_configuration_selection(tmp
     report = configuration_report(root, paths=("system/schemas/contracts/example.schema.json",))
     assert report["verdict"] == "pass", report
     assert {relative: (root / relative).read_text() for relative in inputs} == inputs
+
+
+@pytest.mark.parametrize("name", ["accept", "reject"])
+def test_native_vocabulary_has_one_executable_quality_owner(name: str) -> None:
+    """Vale vocabulary parsing is configuration validation, not a prose waiver."""
+    relative = f".config/checks/vale/styles/config/vocabularies/common/{name}.txt"
+    report = format_selection.audit(ROOT, paths=(relative,))
+
+    assert report["verdict"] == "pass", report
+    assert report["assignment_count"] == 1
+    assignment = report["assignments"][0]
+    assert assignment["validation_owner"] == "vale"
+    assert assignment["validation_command"].endswith("-s config_quality")
+    assert assignment["format_check"].endswith("-s repository_hygiene")
+    assert assignment["mutation_policy"] == "canonical-text"
+    assert format_selection.audit(ROOT, paths=("docs/unowned.txt",))["verdict"] == "block"

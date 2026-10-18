@@ -141,7 +141,6 @@ def test_official_and_owned_generated_markdown_are_not_authored_docs(tmp_path: P
     for relative in (
         "docs/generated.md",
         "openspec/specs/quality/spec.md",
-        "openspec/changes/change/design.md",
         "openspec/changes/archive/2026-08-01-old/design.md",
     ):
         path = root / relative
@@ -164,6 +163,32 @@ def test_official_and_owned_generated_markdown_are_not_authored_docs(tmp_path: P
     assert "docs/generated.md" not in selected
     assert "openspec/changes/archive/2026-08-01-old/design.md" not in selected
     assert {"openspec/specs/quality/spec.md", "openspec/changes/change/design.md"} <= set(selected)
+
+
+def test_active_change_artifacts_are_bounded_like_current_markdown(tmp_path: Path) -> None:
+    """Only the immutable archive and accepted specifications escape the document limit."""
+    root = init_git_repo(tmp_path / "repo")
+    active = (
+        "openspec/changes/change/design.md",
+        "openspec/changes/change/specs/identity/user-auth/spec.md",
+        "openspec/changes/change/specs/quality/spec.md",
+    )
+    exempt = (
+        "openspec/specs/quality/spec.md",
+        "openspec/changes/archive/2026-08-01-old/design.md",
+        "openspec/changes/archive/2026-08-01-old/specs/quality/spec.md",
+    )
+    for relative in (*active, *exempt):
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("content\n" * (_CEILING + 1))
+    git(root, "add", "--", "openspec")
+
+    report = docs_registry_report(root)
+
+    assert report["required_gaps"] == [
+        f"docs_length_exceeded:{relative}:{_CEILING + 1}>{_CEILING}" for relative in sorted(active)
+    ]
 
 
 @pytest.mark.parametrize("nonblank_lines", [_CEILING, _CEILING + 1])

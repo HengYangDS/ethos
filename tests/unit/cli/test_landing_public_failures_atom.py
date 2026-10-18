@@ -11,7 +11,6 @@ import ethos.adapters.mutation.accepted.admission as accepted_admission
 import ethos.adapters.mutation.landing as landing
 from ethos.contracts.branch.roles import BranchRolePolicy
 from tests.support.ethos_cli_runner import run_ethos
-from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
 from tests.support.governed_repository import start_adopted_candidate
@@ -208,9 +207,8 @@ def test_closeout_accepts_exact_previous_policy_schema(
 ) -> None:
     repo, candidate = start_adopted_candidate(tmp_path)
     workspace = repo / ".ethos/workspace.toml"
-    current = workspace.read_text()
-    previous = current.replace(
-        "[branch_roles]\n", "[branch_roles]\ncanonical_sibling_worktrees = true\n"
+    previous = (
+        '[branch_roles]\nrelease_mirror = "independent"\ncanonical_sibling_worktrees = true\n'
     )
     workspace.write_text(previous)
     git(repo, "add", workspace.as_posix())
@@ -224,12 +222,9 @@ def test_closeout_accepts_exact_previous_policy_schema(
         branch="work/legacy-policy",
         holder_ref="agent:test:case:agent-test",
     )
-    head = commit_fixture_file(
-        worktree,
-        ".ethos/workspace.toml",
-        current,
-        "remove the retired sibling worktree setting",
-    )
+    git(worktree, "rm", "-q", ".ethos/workspace.toml")
+    git(worktree, "commit", "-m", "chore: remove the retired branch-role table")
+    head = git(worktree, "rev-parse", "HEAD")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     seed_executed_proof(worktree, head)
     assert (

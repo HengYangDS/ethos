@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -10,6 +11,7 @@ from zipfile import ZipFile
 
 import pytest
 
+import ethos.adapters.gates.native.attempt as gate_attempt
 from ethos.adapters.gates.native.attempt import native_attempt
 from ethos.adapters.gates.native.attempt import retained_execution
 from ethos.adapters.gates.python_quality import behavior_report
@@ -405,6 +407,60 @@ def test_native_attempt_refuses_uncommitted_source_before_launch(
     project.write_text(project.read_text(encoding="utf-8") + "\n", encoding="utf-8")
     with pytest.raises(ValueError, match=r"^native_source_changed$"):
         native_attempt(root, gate, gate.command, timeout=45)
+
+
+@pytest.mark.parametrize("captured", [False, True])
+def test_gate_attempt_preserves_scoped_environment_and_native_output_ownership(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    native_nox_supply: NativeNoxSupply,
+    *,
+    captured: bool,
+) -> None:
+    """One launch keeps caller isolation while native output and observer stay product-owned."""
+    gate = native_quality_gate(tmp_path, native_nox_supply)
+    script = (
+        "import json, os, pathlib; "
+        "result = json.dumps({name: os.environ.get(name) for name in "
+        "('ETHOS_CALLER_VALUE', 'NODE_OPTIONS', 'ETHOS_NATIVE_OBSERVER_REQUIREMENT')}); "
+        "target = os.environ.get('ETHOS_NATIVE_OUTPUT_DIR'); "
+        "pathlib.Path(target, 'ruff.json').write_text(result) if target else print(result)"
+    )
+    outputs = tuple(output for output in gate.native_outputs if output.format == "ruff-json")
+    gate = gate.model_copy(
+        update={
+            "command": (sys.executable, "-c", script),
+            "native_outputs": outputs if captured else (),
+        }
+    )
+    monkeypatch.setenv("NODE_OPTIONS", "unselected ambient input")
+    environment = {"ETHOS_CALLER_VALUE": "scoped"}
+    caller_output = tmp_path / "caller-output"
+    if captured:
+        environment.update(
+            ETHOS_NATIVE_OUTPUT_DIR=str(caller_output),
+            ETHOS_NATIVE_OBSERVER_REQUIREMENT="unselected caller observer",
+        )
+    completed, evidence = gate_attempt.gate_attempt(
+        tmp_path / "repo",
+        gate,
+        gate.command,
+        timeout=45,
+        env=environment,
+        remove_env=("NODE_OPTIONS",),
+    )
+    assert completed.returncode == 0
+    observed = json.loads(evidence.outputs[0][1] if evidence is not None else completed.stdout)
+    assert observed == {
+        "ETHOS_CALLER_VALUE": "scoped",
+        "NODE_OPTIONS": None,
+        "ETHOS_NATIVE_OBSERVER_REQUIREMENT": None,
+    }
+    assert (evidence is not None) is captured
+    assert not caller_output.exists()
+    if evidence is not None:
+        assert evidence.gaps == ()
+        assert not Path(evidence.output_root).exists()
 
 
 @pytest.mark.parametrize(

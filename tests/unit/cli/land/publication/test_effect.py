@@ -46,7 +46,7 @@ def test_unfinished_review_reaches_native_pre_push_and_receipt_without_product_p
         tmp_path, source_branch="work/review", proof=False
     )
     write_active_commitment(repo, change_id="review-work")
-    head = commit_fixture(repo, "declare unfinished review")
+    head = commit_fixture(repo, "docs: declare an unfinished review")
     install_fixture_hook_runtime(repo)
     assert set(git(repo, "remote").splitlines()) == set(remotes)
     selection = ("--peer", selected_peer) if selected_peer else ()
@@ -172,7 +172,7 @@ def test_publish_applies_each_peers_multi_ref_set_atomically(
     (repo / "notes/accepted.txt").write_text("accepted projection\n", encoding="utf-8")
     if active_change:
         write_active_commitment(repo, change_id="delivery-work")
-    head = commit_fixture(repo, "prepare accepted projection")
+    head = commit_fixture(repo, "chore: prepare the accepted projection")
     seed_executed_proof(repo, head)
     apply_accepted_closeout(repo, old, head)
     git(repo, "update-ref", "refs/heads/main", head)

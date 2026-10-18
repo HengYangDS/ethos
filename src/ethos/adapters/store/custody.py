@@ -84,3 +84,11 @@ def release_custody(repo: Path, digests: Iterable[str]) -> tuple[str, ...]:
             continue
         released.append(digest)
     return tuple(released)
+
+
+def stored_custody(repo: Path) -> frozenset[str]:
+    """Return the digests that currently have stored bytes, ignoring in-flight temporaries."""
+    store = local_state_root(repo) / "custody" / "sha256"
+    if not store.is_dir():
+        return frozenset()
+    return frozenset(path.name for path in store.iterdir() if _DIGEST.fullmatch(path.name))

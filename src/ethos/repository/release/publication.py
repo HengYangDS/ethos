@@ -17,6 +17,7 @@ from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_OTHER
 from ethos.contracts.branch.roles import ROLE_RELEASE_ROOT
 from ethos.contracts.branch.roles import BranchRolePolicy
+from ethos.repository.release.changelog import semver_from_text
 
 _REMOTE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
@@ -34,6 +35,30 @@ _RELEASE_PUBLICATION = "release_publication"
 _TRANSPORT_PUBLICATION = "object_transport"
 _REVIEW_OBJECT_ROLES = frozenset((PROPOSAL_REF, LEGACY_ROLE_REF, _TRANSPORT_PUBLICATION))
 _REPOSITORY_PROOF_ROLES = frozenset((ROLE_ACCEPTED_ROOT, ROLE_RELEASE_ROOT, _RELEASE_PUBLICATION))
+
+
+def publication_source_version_gaps(
+    *,
+    source_ref: str,
+    annotated_tag: bool,
+    version_text: str | None,
+) -> tuple[str, ...]:
+    """Validate that an annotated release tag names its committed VERSION."""
+    if not annotated_tag:
+        return ()
+    tag_name = source_ref.removeprefix("refs/tags/")
+    if version_text is None:
+        return (f"publication_source_version_invalid:{tag_name}",)
+    try:
+        version = semver_from_text(version_text)
+    except ValueError:
+        return (f"publication_source_version_invalid:{tag_name}",)
+    expected_tag = f"v{version}"
+    return (
+        ()
+        if tag_name == expected_tag
+        else (f"publication_source_version_mismatch:{tag_name}!={expected_tag}",)
+    )
 
 
 def publication_proof_selection(role: str) -> str:

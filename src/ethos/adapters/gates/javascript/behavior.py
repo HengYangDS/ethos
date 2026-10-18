@@ -2,27 +2,24 @@
 
 from __future__ import annotations
 
-import glob
 import hashlib
-import io
 import json
-import shlex
 import subprocess
+from contextlib import ExitStack
 from pathlib import Path
 from stat import S_ISREG
-from tempfile import TemporaryDirectory
 from time import monotonic
 from typing import TYPE_CHECKING
 from urllib.parse import unquote
 from urllib.parse import urlparse
-from zipfile import ZIP_DEFLATED
-from zipfile import ZipFile
 
+from ethos.adapters.gates.javascript.execution import command_observation
+from ethos.adapters.gates.javascript.execution import native_recipe
+from ethos.adapters.gates.javascript.execution import retain_attempt
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
-from ethos.adapters.store.content_addressed import write_content_addressed
-from ethos.adapters.store.state.schema import local_state_root
 from ethos.repository.policy.quality_reports import istanbul_coverage_report
 from ethos.repository.policy.quality_reports import node_event_report
 from ethos.repository.policy.quality_reports import validate_node_precise_coverage
@@ -30,69 +27,6 @@ from ethos.repository.policy.quality_reports import validate_node_precise_covera
 if TYPE_CHECKING:
     from ethos.adapters.gates.verification import NativeExecution
     from ethos.repository.policy.code_subjects import CodeSubject
-
-
-def _native_recipe(
-    root: Path, tests: tuple[str, ...], node: str
-) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """Retain a direct Node recipe; unsupported npm lifecycle is never silently skipped."""
-    manifest = json.loads((root / "package.json").read_text(encoding="utf-8"))
-    scripts = manifest.get("scripts", {})
-    if not isinstance(scripts, dict) or any(key in scripts for key in ("pretest", "posttest")):
-        message = "javascript_native_recipe_unsupported"
-        raise ValueError(message)
-    recipe = scripts.get("test")
-    if recipe is None:
-        arguments = ("--test", *map(glob.escape, tests))
-    elif isinstance(recipe, str):
-        lexer = shlex.shlex(recipe, posix=True, punctuation_chars=";&|<>")
-        lexer.whitespace_split = True
-        tokens = tuple(lexer)
-        if (
-            not tokens
-            or tokens[0] != "node"
-            or tokens.count("--test") != 1
-            or any(
-                value in {"&&", "||", ";", "|", "&", ">", "<"}
-                or any(character in value for character in ("$", "`"))
-                or value.startswith(
-                    ("--test-reporter", "--experimental-test-coverage", "--test-coverage")
-                )
-                for value in tokens[1:]
-            )
-        ):
-            message = "javascript_native_recipe_unsupported"
-            raise ValueError(message)
-        arguments = tokens[1:]
-        # Option-only recipes use the independently observed Git test inventory.
-        # Positional operands retain their native meaning; the journal checks scope.
-        if all(argument.startswith("-") for argument in arguments):
-            arguments = (*arguments, *map(glob.escape, tests))
-    else:
-        message = "javascript_native_recipe_unsupported"
-        raise ValueError(message)
-    coverage = scripts.get("test:coverage")
-    coverage_arguments: tuple[str, ...] = ()
-    if coverage is not None:
-        lexer = shlex.shlex(coverage, posix=True, punctuation_chars=";&|<>")
-        lexer.whitespace_split = True
-        tokens = tuple(lexer)
-        if (
-            any(key in scripts for key in ("pretest:coverage", "posttest:coverage"))
-            or len(tokens) < 3
-            or tokens[0] != "c8"
-            or tokens[-2:] != ("npm", "test")
-        ):
-            message = "javascript_native_coverage_recipe_unsupported"
-            raise ValueError(message)
-        coverage_arguments = tokens[1:-2]
-    reporter = Path(__file__).with_name("reporter.mjs")
-    return (
-        node,
-        f"--test-reporter={reporter}",
-        "--test-reporter-destination=stdout",
-        *arguments,
-    ), coverage_arguments
 
 
 def _raw_identity(raw: Path, *, validate: bool = False) -> dict[str, str]:
@@ -107,28 +41,6 @@ def _raw_identity(raw: Path, *, validate: bool = False) -> dict[str, str]:
             validate_node_precise_coverage(content)
         identities[path.name] = hashlib.sha256(content).hexdigest()
     return identities
-
-
-def _retain_attempt(root: Path, output: Path, observation: dict[str, object]) -> dict[str, object]:
-    """Conserve raw measurements and adverse output in the existing immutable artifact store."""
-    payload = io.BytesIO()
-    with ZipFile(payload, "w", compression=ZIP_DEFLATED) as archive:
-        archive.writestr("observation.json", json.dumps(observation, sort_keys=True))
-        for path in sorted(output.rglob("*")):
-            if S_ISREG(path.lstat().st_mode):
-                archive.write(path, path.relative_to(output).as_posix())
-    content = payload.getvalue()
-    digest = hashlib.sha256(content).hexdigest()
-    path = local_state_root(root) / "artifacts" / f"{digest}.zip"
-    write_content_addressed(
-        path, content, collision="javascript_native_artifact_identity_collision"
-    )
-    return {
-        "path": str(path),
-        "sha256": digest,
-        "size_bytes": len(content),
-        "media_type": "application/zip",
-    }
 
 
 def _observe_test(
@@ -146,7 +58,14 @@ def _observe_test(
         root,
         command,
         timeout=timeout,
-        env={**environment, "NODE_V8_COVERAGE": str(raw)},
+        env={
+            **environment,
+            "NODE_V8_COVERAGE": str(raw),
+            "NODE_OPTIONS": (
+                f"--test-reporter={json.dumps(str(Path(__file__).with_name('reporter.mjs')))} "
+                f"--test-reporter-destination={json.dumps(str(raw.parent / 'journal.jsonl'))}"
+            ),
+        },
         remove_env=removed,
         remove_env_prefixes=("MISE_",),
     )
@@ -156,17 +75,76 @@ def _observe_test(
         stderr=tested.stderr,
         exit_code=tested.returncode,
     )
+    return _test_result(root, raw.parent, tests, observed)
+
+
+def _test_result(
+    root: Path, output: Path, tests: tuple[str, ...], observed: dict[str, object]
+) -> list[str]:
+    """Use the retained test journal, not a launcher's summary, as native scope evidence."""
+    journal = output / "journal.jsonl"
     try:
-        counts, diagnostics = node_event_report(root, tested.stdout, tests)
+        if not journal.is_file() or journal.is_symlink():
+            return ["javascript_native_events_incomplete"]
+        payload = journal.read_text(encoding="utf-8")
+        counts, diagnostics = node_event_report(root, payload, tests)
     except ValueError as error:
         return [str(error)]
-    observed.update(tests=counts, diagnostics=diagnostics)
+    observed.update(tests=counts, diagnostics=diagnostics, journal=payload)
     gaps = []
-    if tested.returncode or counts["failures"] or counts["errors"] or not counts["passed"]:
+    if observed["exit_code"] or counts["failures"] or counts["errors"] or not counts["passed"]:
         gaps.append("javascript_tests_failed")
-    if tested.stderr or diagnostics:
+    if observed["stderr"] or diagnostics:
         gaps.append("javascript_native_diagnostics")
     return gaps
+
+
+def _observe_execution(
+    root: Path,
+    execution: NativeExecution,
+    command: tuple[str, ...],
+    tests: tuple[str, ...],
+    output: Path,
+    environment: dict[str, str],
+    removed: tuple[str, ...],
+    observed: dict[str, object],
+    timeout: float,
+) -> list[str]:
+    """Reuse a captured outer test or start one prerequisite after observed non-test work."""
+    observed["outer_execution"] = {
+        "argv": execution.argv,
+        "exit_code": execution.exit_code,
+        "stdout": execution.stdout,
+        "stderr": execution.stderr,
+    }
+    journal = output / "journal.jsonl"
+    if journal.is_file() and journal.stat().st_size:
+        observed.update(
+            test_execution={"argv": execution.argv, "exit_code": execution.exit_code},
+            stdout=execution.stdout,
+            stderr=execution.stderr,
+            exit_code=execution.exit_code,
+        )
+        return _test_result(root, output, tests, observed)
+    if execution.exit_code or execution.stderr:
+        return ["javascript_outer_attempt_failed"]
+    identities = _raw_identity(output / "raw", validate=True)
+    scripts = (
+        script
+        for name in identities
+        for script in json.loads((output / "raw" / name).read_bytes())["result"]
+    )
+    if not identities or any(
+        script["url"] == "node:test" or "test_runner/" in script["url"] for script in scripts
+    ):
+        return ["javascript_native_events_incomplete"]
+    for path in (output / "raw").iterdir():
+        if not S_ISREG(path.lstat().st_mode):
+            return ["javascript_native_coverage_input_invalid"]
+        path.unlink()
+    return _observe_test(
+        root, command, tests, output / "raw", environment, removed, observed, timeout=timeout
+    )
 
 
 def _observe_coverage(
@@ -301,8 +279,8 @@ def behavior_observation(
     if not tests or not production:
         message = "javascript_tests_or_sources_missing"
         raise ValueError(message)
-    command, coverage_arguments = _native_recipe(root, tests, node)
-    if execution is not None:
+    command, coverage_arguments = native_recipe(root, tests, node)
+    if execution is not None and execution.node_attempt is None:
         # A generic outer command supplies no owned V8 input. Never invent it or replay tests.
         return {
             "language": "javascript",
@@ -315,10 +293,23 @@ def behavior_observation(
     c8 = product_node_module("c8") / "bin/c8.js"
     removed = ("NODE_OPTIONS", "NODE_PATH", "NODE_V8_COVERAGE", "EXPERIMENTAL_MONOCART")
     environment = {key: value for key, value in native.items() if key not in removed}
-    with TemporaryDirectory(prefix="ethos-node-") as name:
-        output = Path(name)
+    with ExitStack() as scope:
+        attempt = (
+            execution.node_attempt
+            if execution is not None
+            else scope.enter_context(command_observation(root, command, node))
+        )
+        if attempt is None:
+            message = "javascript_native_coverage_custody_unavailable"
+            raise ValueError(message)
+        if attempt.root != root.resolve() or Path(attempt.node).resolve() != Path(node).resolve():
+            message = "javascript_native_attempt_binding_invalid"
+            raise ValueError(message)
+        if current_tree(root) != attempt.source_tree:
+            message = "javascript_native_attempt_binding_invalid"
+            raise ValueError(message)
+        output = attempt.output
         raw = output / "raw"
-        raw.mkdir()
         observed: dict[str, object] = {"language": "javascript", "raw_directory": str(raw)}
         observed["evidence_boundary"] = {
             "claim": "reviewed_native_test_attempt",
@@ -327,16 +318,22 @@ def behavior_observation(
         }
         gaps: list[str] = []
         try:
+            timeout = max(0, deadline - monotonic()) if deadline else 600
             gaps.extend(
-                _observe_test(
+                _observe_execution(
                     root,
+                    execution,
                     command,
                     tests,
-                    raw,
+                    output,
                     environment,
                     removed,
                     observed,
-                    timeout=max(0, deadline - monotonic()) if deadline else 600,
+                    timeout,
+                )
+                if execution is not None
+                else _observe_test(
+                    root, command, tests, raw, environment, removed, observed, timeout=timeout
                 )
             )
             gaps.extend(
@@ -374,5 +371,5 @@ def behavior_observation(
             observed.update(
                 verdict="block" if gaps else "pass", required_gaps=list(dict.fromkeys(gaps))
             )
-            observed["artifact"] = _retain_attempt(root, output, observed)
+            observed["artifact"] = retain_attempt(root, output, observed)
     return observed

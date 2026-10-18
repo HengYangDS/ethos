@@ -175,7 +175,10 @@ def current_document_length_gaps(
     ceiling = load_repository_paradigm().size.markdown_nonblank_lines
     gaps: list[str] = []
     for relative in sorted(readable):
-        if intent_document_owner(relative):
+        owner = intent_document_owner(relative)
+        if owner == "openspec-history" or (
+            owner == "openspec" and relative.startswith("openspec/specs/")
+        ):
             continue
         path = root / relative
         if path.is_symlink() or not path.is_file() or not path.resolve().is_relative_to(root):

@@ -22,6 +22,9 @@ governance_roots = [".agents", ".config", ".ethos", "openspec"]
 [binding]
 root = ".ethos"
 files = ["profile.toml", "release.toml", "rules.toml", "workspace.toml"]
+# The only table a workspace binding declares. The paradigm fixes every branch
+# role, and the release binding declares the release mirror.
+workspace_tables = ["commit_policy"]
 
 [normalization]
 gitattributes = "* text=auto eol=lf"
@@ -54,12 +57,46 @@ markdown_nonblank_lines = 512
 [documents]
 decision_record_name = '^dr-\d{4}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$'
 
-# The commit subject grammar every governed repository shares. A repository may
-# restrict scopes to a declared list; the type set does not vary.
+# Repository-authored names are lowercase kebab-case words, after an optional leading
+# `.` or `_` marker and with dot-separated suffixes. Python and Go files and the
+# directories that hold them, entry documents, catalogued tool names and the basenames a
+# tool requires keep their names, and immutable roots keep their captured names.
+[names]
+module_suffixes = [".go", ".py", ".pyi"]
+tool_basenames = [
+  "Cargo.lock",               # Cargo
+  "Cargo.toml",               # Cargo
+  "Dockerfile",               # Docker
+  "Dockerfile.dockerignore",  # BuildKit's per-Dockerfile ignore file
+  "ISSUE_TEMPLATE",           # GitHub
+  "PULL_REQUEST_TEMPLATE.md", # GitHub
+  "SKILL.md",                 # Agent Skills
+  "issue_templates",          # GitLab
+  "merge_request_templates",  # GitLab
+]
+
+# A repository that runs CI on more than one Forge defines its pipelines once in a CUE
+# model under the model root and generates each Forge's pipeline files from it.
+[pipelines]
+model_root = ".config/ci/"
+model_suffix = ".cue"
+
+[[pipelines.forge]]
+id = "github"
+files = [".github/workflows/*.yaml", ".github/workflows/*.yml"]
+
+[[pipelines.forge]]
+id = "gitlab"
+files = [".gitlab-ci.yml"]
+
+# The commit subject grammar and signature every governed repository shares. A
+# repository may restrict scopes to a declared list; the type set does not vary, and
+# every commit carries an SSH signature.
 [commit]
 types = ["build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor", "revert", "test"]
 scope = '[a-z0-9]+(?:-[a-z0-9]+)*'
 breaking_marker = "!"
+signature = "ssh"
 
 # A repository that tracks OpenSpec artifacts selects the spec-driven schema, and each
 # artifact's rules in openspec/config.yaml begin with these common rules; its own rules
@@ -84,6 +121,23 @@ tasks = [
   "Keep only short evidence references or current dependencies in tasks. Preserve execution history, logs and originals with their Git, CI and native evidence owners, never in tasks, design prose or a parallel ledger.",
   "Separate implementation tasks from lifecycle preconditions and effects; a Change never records its own landing, archive or Lane retirement as a completed task.",
 ]
+
+# One locked owner selects the toolchain and exposes the common verbs as tasks: mise,
+# with locked resolution, or else npm, the only package manager here that runs tasks.
+[toolchain]
+verbs = ["bootstrap", "check", "fix"]
+
+# A tracked file with a shell or PowerShell suffix or interpreter line conforms only as
+# the recorded output of a catalogued official generator. Its record names the output,
+# the generator, its version and the output's SHA-256; `check` regenerates and compares.
+[scripts]
+suffixes = [".bash", ".bat", ".cmd", ".ps1", ".psm1", ".sh", ".zsh"]
+interpreters = ["bash", "dash", "ksh", "pwsh", "sh", "zsh"]
+
+[[scripts.generator]]
+id = "mise-bootstrap"
+command = "mise generate bootstrap"
+record = ".config/mise/generated.toml"
 
 # One formatter per text carrier class, with the settings every binding declares.
 # Ruff formats Python because the common blank-line policy has no other enforcer.
@@ -252,6 +306,13 @@ id = "eslint"
 carrier = ".config/checks/eslint/eslint.config.mjs"
 root_names = ["eslint.config.js", "eslint.config.mjs"]
 package_keys = ["eslintConfig"]
+
+# tsc reads a relocated project through `--project`, and Knip through its
+# `typescript.config` setting.
+[[tool]]
+id = "typescript"
+carrier = ".config/checks/typescript/tsconfig.json"
+root_names = ["jsconfig.json", "tsconfig.json"]
 
 [[tool]]
 id = "golangci-lint"

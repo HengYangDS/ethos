@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 import subprocess
 import sys
 from typing import TYPE_CHECKING
@@ -29,6 +30,8 @@ def test_signing_environment_requires_valid_explicit_repository_inputs(
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     key = repo / "signing.pub"
+    git(repo, "config", "--unset", "gpg.ssh.program")
+    git(repo, "config", "--unset", "user.signingkey")
     if case != "unconfigured":
         git(repo, "config", "user.signingkey", str(key))
     if case != "missing":
@@ -60,19 +63,13 @@ def test_signing_environment_requires_valid_explicit_repository_inputs(
     assert result["KEEP"] == "value"
 
 
-@pytest.mark.parametrize("case", ["signed", "unsigned", "missing", "untrusted", "git-failed"])
-def test_creation_obeys_policy_and_rejects_unverified_object_outcomes(
+@pytest.mark.parametrize("case", ["signed", "missing", "untrusted", "git-failed"])
+def test_creation_signs_every_object_and_rejects_an_unverified_outcome(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
 ) -> None:
-    policy = (
-        None
-        if case == "unsigned"
-        else CommitPolicy(subject_pattern=r"^fix: .+", signing_required=True, signing_format="ssh")
-    )
+    policy = CommitPolicy(subject_pattern=r"^fix: .+", signing_format="ssh")
     monkeypatch.setattr(creation, "commit_policy_for_revision", lambda _root, _revision: policy)
-    monkeypatch.setattr(
-        creation, "_config", lambda *_args: "true" if case == "unsigned" else "false"
-    )
+    monkeypatch.setattr(creation, "_config", lambda *_args: "false")
     monkeypatch.setattr(creation, "commit_environment", lambda *_args: {"POLICY_SIGNER": "1"})
     verified = []
 
@@ -101,8 +98,8 @@ def test_creation_obeys_policy_and_rejects_unverified_object_outcomes(
     assert result.returncode == (
         2 if case == "git-failed" else 1 if case in {"missing", "untrusted"} else 0
     )
-    assert ("-S" in calls[0][0]) is (case != "unsigned")
-    assert calls[0][1]["env"] == (None if case == "unsigned" else {"POLICY_SIGNER": "1"})
+    assert "-S" in calls[0][0]
+    assert calls[0][1]["env"] == {"POLICY_SIGNER": "1"}
     assert verified == (
         [(tmp_path, policy, "c" * 40, True)] if case in {"signed", "untrusted"} else []
     )
@@ -114,7 +111,7 @@ def test_creation_obeys_policy_and_rejects_unverified_object_outcomes(
 
 
 def test_invalid_subject_never_reaches_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    policy = CommitPolicy(subject_pattern=r"^fix: .+", signing_required=False, signing_format="ssh")
+    policy = CommitPolicy(subject_pattern=r"^fix: .+", signing_format="ssh")
     monkeypatch.setattr(creation, "commit_policy_for_revision", lambda _root, _revision: policy)
     with pytest.raises(ValueError, match="commit_subject_invalid:bootstrap Commitment v2"):
         creation.create_git_commit(
@@ -130,14 +127,18 @@ def _signature_repository(tmp_path: Path, object_format: str) -> Path:
     repo = init_git_repo(tmp_path / "repo", object_format=object_format)
     workspace = repo / ".ethos/workspace.toml"
     workspace.parent.mkdir()
-    workspace.write_text(
-        '[commit_policy]\nsubject_pattern = "^fix: .+"\n'
-        'signing_required = true\nsigning_format = "ssh"\n'
-    )
+    workspace.write_text('[commit_policy]\nsubject_pattern = "^fix: .+"\n')
     git(repo, "add", ".ethos/workspace.toml")
-    git(repo, "commit", "-m", "fix: require trusted signing")
+    # Signature-only replacement needs an unsigned source object to replace.
+    git(repo, "-c", "commit.gpgsign=false", "commit", "-m", "fix: declare the subject grammar")
     configure_signer(repo, tmp_path)
     return repo
+
+
+def _unsigned_commit(repo: Path, subject: str) -> str:
+    """Create the unsigned source object a signature-only replacement needs."""
+    git(repo, "-c", "commit.gpgsign=false", "commit", "--allow-empty", "-m", subject)
+    return git(repo, "rev-parse", "HEAD")
 
 
 @pytest.mark.parametrize("object_format", ["sha1", "sha256"])
@@ -157,6 +158,39 @@ def test_merge_creation_signs_both_native_parents(tmp_path: Path, object_format:
     assert git(repo, "rev-list", "--parents", "-n", "1", oid).split()[1:] == [head, earlier]
     assert verify_commit_trust(repo, oid)["verdict"] == "pass"
     assert git(repo, "rev-parse", "HEAD") == head
+
+
+@pytest.mark.parametrize("object_format", ["sha1", "sha256"])
+def test_root_creation_signs_an_object_without_a_parent(tmp_path: Path, object_format: str) -> None:
+    """A formed repository's first commit uses the same signed, verified creator."""
+    repo = _signature_repository(tmp_path, object_format)
+    head = git(repo, "rev-parse", "HEAD")
+    created = creation.create_git_commit(
+        repo,
+        tree=git(repo, "rev-parse", "HEAD^{tree}"),
+        parent=None,
+        message="fix: start a root object",
+    )
+    assert created.returncode == 0, created.stderr
+    oid = created.stdout.strip()
+    assert git(repo, "rev-list", "--parents", "-n", "1", oid) == oid
+    assert verify_commit_trust(repo, oid)["verdict"] == "pass"
+    assert git(repo, "rev-parse", "HEAD") == head
+
+
+def test_signer_check_and_its_local_repair_have_one_owner(tmp_path: Path) -> None:
+    """Status reports the same signer gap that lifecycle commit creation raises."""
+    repo = init_git_repo(tmp_path / "repo")
+    assert creation.commit_signer_gaps(repo) == []
+    git(repo, "config", "--unset", "user.signingkey")
+    assert creation.commit_signer_gaps(repo) == ["git_effect_signing_key_invalid"]
+    quoted = shlex.quote(str(repo))
+    assert creation.commit_signer_action(repo, "git_effect_signing_key_invalid") == (
+        f"git -C {quoted} config --local user.signingkey <absolute-ssh-public-key>"
+    )
+    assert creation.commit_signer_action(repo, "git_effect_signing_program_invalid") == (
+        f"git -C {quoted} config --local gpg.ssh.program <absolute-executable>"
+    )
 
 
 @pytest.mark.parametrize("object_format", ["sha1", "sha256"])
@@ -190,14 +224,14 @@ def test_signed_replacement_preserves_native_payload_without_ref_mutation(
     assert (git(repo, "show-ref"), (repo / ".git/index").read_bytes()) == before
 
 
-@pytest.mark.parametrize("failure", ["signed", "policy-absent", "untrusted", "missing-key"])
+@pytest.mark.parametrize("failure", ["signed", "foreign-subject", "untrusted", "missing-key"])
 def test_signed_replacement_rejects_invalid_source_and_trust(tmp_path: Path, failure: str) -> None:
     repo = _signature_repository(tmp_path, "sha1")
     old = git(repo, "rev-parse", "HEAD")
     if failure == "signed":
         old = creation.create_signed_replacement(repo, old)
-    elif failure == "policy-absent":
-        old = git(repo, "rev-parse", "HEAD^")
+    elif failure == "foreign-subject":
+        old = _unsigned_commit(repo, "invalid subject")
     elif failure == "untrusted":
         (tmp_path / "trust/allowed-signers").write_text("")
     else:
@@ -206,7 +240,7 @@ def test_signed_replacement_rejects_invalid_source_and_trust(tmp_path: Path, fai
 
     gap = {
         "signed": "signature_repair_source_not_unsigned",
-        "policy-absent": "signature_repair_policy_required",
+        "foreign-subject": "commit_subject_invalid",
         "untrusted": "commit_signature_untrusted",
         "missing-key": "git_effect_signing_key_invalid",
     }[failure]
@@ -227,7 +261,7 @@ def test_signed_replacement_preserves_failure_boundary_and_never_moves_refs(
 ):
     repo = _signature_repository(tmp_path, "sha1")
     if failure == "subject":
-        git(repo, "commit", "--allow-empty", "-m", "invalid subject")
+        _unsigned_commit(repo, "invalid subject")
     elif failure == "signer":
         git(repo, "config", "gpg.ssh.program", sys.executable)
     old = git(repo, "rev-parse", "HEAD")

@@ -3,17 +3,24 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.selection import require_runtime_selection_scope
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.repository.release.identity import BuildIdentity
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import fixture_runtime_generation
 from tests.support.runtime_scenarios import runtime_build
+from tools.ci.delivery.acceptance import effect
+from tools.ci.delivery.acceptance import receipt
 from tools.ci.delivery.acceptance import runtime as runtime_acceptance
+from tools.ci.delivery.acceptance.effect import _observe_package
 
 
 @pytest.mark.parametrize(
@@ -96,6 +103,86 @@ def test_upgrade_requires_a_distinct_build_not_a_different_runtime_digest(tmp_pa
     else:
         with pytest.raises(ValueError, match="package_upgrade_predecessor_not_distinct"):
             runtime_acceptance.require_upgrade_predecessor(predecessor.root, build=successor.build)
+
+
+def test_package_upgrade_uses_the_successors_repository_selection(monkeypatch, tmp_path):
+    """A private successor upgrades its own retained repository, not a foreign fixture."""
+    work = tmp_path / "work"
+    repository = init_git_repo(work / "adopter")
+    init_git_repo(work / "brownfield-adopter")
+    supply = Path(git_common_dir(repository)) / "ethos/runtime"
+    supply.mkdir(parents=True)
+    successor = require_selected_runtime(
+        fixture_runtime_generation(
+            supply / "next",
+            "next",
+            repository_private=True,
+            build=runtime_build("b" * 40, "b" * 40),
+        )
+    )
+    previous = require_selected_runtime(fixture_runtime_generation(tmp_path / "prior", "prior"))
+    wheel = tmp_path / "ethos.whl"
+    wheel.write_bytes(b"wheel")
+    for name, value in {"ROOT": tmp_path, "WORK": work}.items():
+        monkeypatch.setattr(effect, name, value)
+    monkeypatch.setattr(effect, "RUNTIME", SimpleNamespace(python=tmp_path / "python", script=str))
+    lifecycle = {name: {"state": "passed"} for name in receipt.REQUIRED_LIFECYCLE_STAGES}
+    observations = (
+        (effect, "_run", ""),
+        (effect, "prepare_locked_requirements", work / "requirements.txt"),
+        (effect, "install_locked_runtime", None),
+        (effect.adopter_fixture, "materialize_adopter", ""),
+        (effect.adopter_fixture, "line_ending_conformance", []),
+        (effect, "observe_installed_package", ("/installed/ethos", "ethos", {"state": "passed"})),
+        (effect, "observe_independent_command_plane", {}),
+        (effect, "_verify_resources", []),
+        (
+            effect.adopter_fixture,
+            "prove_formation",
+            {
+                "state": "passed",
+                "first_change": "lane_admitted",
+                "agent_handoff": "passed",
+                "formatting": "passed",
+            },
+        ),
+        (
+            effect.brownfield_acceptance,
+            "prove_brownfield",
+            {
+                "state": "passed",
+                "authored_content_preserved": True,
+            },
+        ),
+        (runtime_acceptance, "observe_lifecycle", lifecycle),
+        (effect, "current_runtime", successor),
+        (effect, "package_runtime", {"path": "archive"}),
+        (effect, "prove_shared_supply", {"state": "passed"}),
+        (effect, "require_artifact_current", None),
+        (effect, "current_tracked_head", successor.build.source_commit),
+    )
+    for owner, name, value in observations:
+        monkeypatch.setattr(owner, name, lambda *_args, result=value, **_kwargs: result)
+    targets = []
+
+    def retained(selected, target, *, predecessor, environment):
+        require_runtime_selection_scope(Path(git_common_dir(target)), selected)
+        assert predecessor is previous
+        assert environment["UV_OFFLINE"] == "1"
+        targets.append(target)
+        return {"state": "passed"}
+
+    monkeypatch.setattr(runtime_acceptance, "prove_retained_upgrade", retained)
+    result = _observe_package(
+        Mock(),
+        PackageArtifact(wheel, "c" * 64, successor.build),
+        head=successor.build.source_commit,
+        predecessor=previous,
+    )
+    assert targets == [repository]
+    qualification = result["qualification"]
+    assert isinstance(qualification, dict)
+    assert qualification["retained_state_upgrade"] == "passed"
 
 
 @pytest.mark.parametrize("foreign_identity", [False, True])

@@ -403,7 +403,7 @@ def _observe_package(
     if predecessor is not None:
         lifecycle["retained_state_upgrade"] = runtime_acceptance.prove_retained_upgrade(
             runtime,
-            WORK / "brownfield-adopter",
+            adopter,
             predecessor=predecessor,
             environment=package_environment,
         )

@@ -321,6 +321,12 @@ head:
 ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
 ```
 
+An executed full proof first takes its repository's proof slot, which every worktree shares, then
+waits until the host's 1-minute load average is within `ETHOS_PROOF_HOST_LOAD_LIMIT` (default: half
+the CPUs; `0` admits on the slot alone). It reports waiting on stderr and waits at most one hour;
+longer contention ends the proof with `proof_admission_contended` before any gate runs. The result
+records how long admission waited and the load it admitted.
+
 ## Hidden Operational Roots
 
 `ethos lane` and `ethos hook` are hidden operational roots. They support Work

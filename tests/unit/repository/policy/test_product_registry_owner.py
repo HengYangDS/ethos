@@ -110,7 +110,7 @@ def test_only_the_product_source_owns_its_registry_without_the_quality_floor(
     for candidate in (
         changed("cpu_reservation", 1 if unit.cpu_reservation == 2 else 2),
         changed("command", (*unit.command, "--changed")),
-        _without_gate(packaged, "python-size"),
+        _without_gate(packaged, packaged.proof_sets.full[-1]),
     ):
         for local_source in (False, True):
             policy = compiled(candidate, local_source=local_source)

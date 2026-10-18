@@ -57,6 +57,9 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- Lane retirement no longer counts an empty directory that another process holds open, such as
+  an agent's `.claude/.cc-writes`, as content in use; held files and non-empty directories
+  still block.
 - Limited accepted-source delivery reuse to the current accepted commit;
   other exact push objects retain independent proof and contribution-range
   checks without requiring local accepted-ref equality.

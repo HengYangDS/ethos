@@ -14,6 +14,7 @@ import ethos.repository.profile as profile_model
 from ethos.adapters.repo.git import run_git
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_test_profile
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -38,25 +39,20 @@ def _bind_source_inputs(
     owner.write_text(
         tomli_w.dumps({"schema": "ethos-ci-template-consistency-v1", "projection": projections})
     )
-    profile = repo / ".ethos/profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
-        tomli_w.dumps(
-            {
-                "profile_id": "example",
-                "proof": {
-                    "gate_registry": "system/gates.toml",
-                    "source_contracts": [
-                        {
-                            "kind": "generated",
-                            "input_refs": [declaration],
-                            "members": members,
-                            "integrity_gate": "integrity",
-                        }
-                    ],
-                },
-            }
-        )
+    profile = write_test_profile(
+        repo,
+        profile_id="example",
+        proof={
+            "gate_registry": "system/gates.toml",
+            "source_contracts": [
+                {
+                    "kind": "generated",
+                    "input_refs": [declaration],
+                    "members": members,
+                    "integrity_gate": "integrity",
+                }
+            ],
+        },
     )
     commit_fixture(repo, "bind complete finite source inputs")
     return profile, owner

@@ -8,7 +8,7 @@ The decisions behind these tasks are recorded in the archived design of `proof-t
 
 **Goals:**
 
-- Finish tasks 2.12, 2.13, 2.14, 9.1, 9.2, 9.3 against their original acceptance conditions.
+- Finish tasks 1.9, 2.12, 2.13, 2.14, 9.1, 9.2, 9.3 against their original acceptance conditions.
 - Finish task 9.4, the contended admission that the archived design names for its host-contention risk.
 
 **Non-Goals:**

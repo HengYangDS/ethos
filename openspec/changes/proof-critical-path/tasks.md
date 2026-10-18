@@ -1,5 +1,9 @@
 # Tasks
 
+## 1. Baseline and Critical Path
+
+- [ ] 1.9 Restore complete repository proof with p90 within 900 seconds over at least five successful complete proofs, including preparation, every required gate and cleanup; preserve unrelated commitments and historical evidence at signed source `c6187cc5fb37872c84b608d9efad0166032d974c`. Current leaf evidence: `build/evidence/quality/{effect-profile-batching,commit-policy-observation}/manifest.json`; complete proof and installed acceptance remain open.
+
 ## 2. Invocation-Scoped Facts and Proof Reuse
 
 - [ ] 2.12 Share exact-source intent compilation within each proof query; retain fresh queries, archive withdrawal, contradictory evidence and per-effect admission, then measure the native release consumer before delivery.

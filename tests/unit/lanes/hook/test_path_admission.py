@@ -230,6 +230,23 @@ def test_cli_path_token(worktree: Path) -> None:
     assert data["admission"]["paths"][0]["path"] == token
 
 
+@pytest.mark.parametrize(
+    ("attribute", "received"),
+    [("linguist-vendored", True), ("linguist-generated=true", True), ("-linguist-vendored", False)],
+)
+def test_new_path_its_attributes_mark_received_keeps_its_name(
+    worktree: Path, attribute: str, *, received: bool
+) -> None:
+    """A new vendored or generated file keeps its upstream name; an unset attribute does not."""
+    font = "assets/fonts/NotoSansCJKsc-Bold.otf"
+    attributes = worktree / ".gitattributes"
+    original = attributes.read_text(encoding="utf-8")
+    attributes.write_text(f"assets/fonts/** {attribute}\n{original}", encoding="utf-8")
+    [path] = cast("list[dict[str, object]]", _guard(worktree, (font,))["paths"])
+    gap = f"repository_paradigm_authored_name:{font}"
+    assert (path["reason"] != gap) is received, path
+
+
 def _lane(tmp: Path, imports: tuple[str, ...]) -> Path:
     repo = init_git_repo(tmp / "repo")
     dependencies = [root.replace("_", "-") for root in imports]

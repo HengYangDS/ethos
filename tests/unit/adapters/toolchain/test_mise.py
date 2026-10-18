@@ -272,3 +272,102 @@ def test_native_idiomatic_declaration_survives_locked_input_isolation(tmp_path: 
         mise.locked_environment(repo, incomplete),
     ):
         pytest.fail("live package.json replaced the explicit incomplete declaration")
+
+
+@pytest.mark.parametrize(
+    ("fault", "gap"),
+    [
+        ("none", ""),
+        ("failure", "mise_declaration_discovery_unavailable"),
+        ("warning", "mise_declaration_discovery_unavailable"),
+        ("invalid-json", "mise_declaration_discovery_invalid"),
+        ("empty", "mise_declaration_discovery_invalid"),
+        ("untyped-row", "mise_declaration_discovery_invalid"),
+        ("outside", "mise_declaration_outside_root"),
+        ("drift", "mise_declaration_changed"),
+    ],
+)
+def test_native_declaration_discovery_preserves_selection_and_refuses_unproved_inputs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str, gap: str
+) -> None:
+    """Native discovery selects exact inputs; failure never falls back to ambient files."""
+    config = tmp_path / mise.MISE_CONFIG
+    config.parent.mkdir(parents=True)
+    source = '[settings]\nidiomatic_version_file_enable_tools = ["node"]\n'
+    config.write_text(source)
+    lock = tmp_path / mise.MISE_LOCK
+    lock.write_text("lockfile_version = 2\n")
+    package = tmp_path / "package.json"
+    package.write_text('{"devEngines":{"runtime":{"name":"node","version":"26"}}}')
+    executable = tmp_path / "selected-mise"
+    calls = []
+
+    def discover(root: Path, command: tuple[str, ...], **options: object):
+        calls.append(command)
+        assert root == tmp_path
+        assert command == (str(executable), "config", "ls", "--json")
+        assert options["timeout"] == 15
+        assert options["remove_env_prefixes"] == ("MISE_",)
+        environment = options["env"]
+        assert environment["MISE_SAFE"] == environment["MISE_OFFLINE"] == "1"
+        assert environment["MISE_IDIOMATIC_VERSION_FILE_ENABLE_TOOLS"] == "node"
+        paths = [config, package]
+        if fault == "outside":
+            paths.append(tmp_path.parent / "external.json")
+        rows = [{}] if fault == "untyped-row" else [{"path": str(path)} for path in paths]
+        output = (
+            "not-json" if fault == "invalid-json" else json.dumps([] if fault == "empty" else rows)
+        )
+        if fault == "drift":
+            config.write_text(source + "[tasks]\ncheck = 'changed'\n")
+        return subprocess.CompletedProcess(
+            command,
+            1 if fault == "failure" else 0,
+            output,
+            "unproved native response" if fault in {"failure", "warning"} else "",
+        )
+
+    monkeypatch.setattr(mise, "run_command", discover)
+    if gap:
+        with pytest.raises(ValueError if fault != "untyped-row" else TypeError, match=gap):
+            mise.repository_mise_files(tmp_path, executable=executable)
+    else:
+        assert mise.repository_mise_files(tmp_path, executable=executable) == {
+            mise.MISE_CONFIG: source,
+            mise.MISE_LOCK: lock.read_text(),
+            "package.json": package.read_text(),
+        }
+    assert calls == [(str(executable), "config", "ls", "--json")]
+    assert config.read_text() == (
+        source + "[tasks]\ncheck = 'changed'\n" if fault == "drift" else source
+    )
+
+
+@pytest.mark.parametrize(
+    ("fault", "gap"),
+    [
+        ("incomplete", "locked_toolchain_missing"),
+        ("outside", "mise_declaration_path_invalid"),
+        ("invalid-settings", "mise_idiomatic_settings_invalid"),
+    ],
+)
+def test_locked_mise_execution_rejects_unadmitted_input_without_native_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str, gap: str
+) -> None:
+    """An explicit bad closure cannot borrow live files or start a native process."""
+    files = {mise.MISE_CONFIG: '[tools]\nnode = "26"\n', mise.MISE_LOCK: "lockfile_version = 2\n"}
+    if fault == "incomplete":
+        files.pop(mise.MISE_LOCK)
+    elif fault == "outside":
+        files["../external.json"] = "{}"
+    else:
+        files[mise.MISE_CONFIG] = "[settings]\nidiomatic_version_file_enable_tools = [7]\n"
+    before = files.copy()
+    entries = set(tmp_path.iterdir())
+    monkeypatch.setattr(
+        mise, "run_command", lambda *_args, **_kwargs: pytest.fail("unadmitted native execution")
+    )
+    with pytest.raises(ValueError, match=gap):
+        mise.run_mise(tmp_path, ("which", "node"), files=files, executable=tmp_path / "mise")
+    assert files == before
+    assert set(tmp_path.iterdir()) == entries

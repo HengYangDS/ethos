@@ -2,7 +2,7 @@
 
 ## 4. Archive and Integration Integrity
 
-- [ ] 4.16 Complete full-proof and rollback acceptance of the minimal native merge-continuation repair. Signed source `9ba63a763` is temporarily accepted and delivered locally under the human's explicit break-glass grant; installed runtime `5c9f759b`, exact wheel `e16cc0f4` and independent macOS CLI pass. The original merge executed through ordinary native admission as signed `1753815fd`, preserving both parents and exact prospective tree. Preserve Python >=3.12,<3.15, the full candidate `f02911688` and original custody `32c4f656e92ac`. Evidence: `minimal-native-breakglass.host-cli.acceptance.json` and `native-installed-continuation-20261014T0651.acceptance.json`; no public release or inherited exception authority.
+- [ ] 4.16 Qualify native merge continuation and original-request recovery through full proof, installed CLI and rollback; verify lost ACK, runtime upgrade, complete original request/plan custody, fresh authority, unchanged parents/content and no recompilation or CAS replay. Preserve Python 3.12–3.14, original custody `32c4f656e92ac` and prior local acceptance `minimal-native-breakglass.host-cli.acceptance.json` / `native-installed-continuation-20261014T0651.acceptance.json`; missing bindings stay UNKNOWN and metadata-only quit proves no original effect.
 
 ## 13. Feedback-Driven Improvement Closure
 

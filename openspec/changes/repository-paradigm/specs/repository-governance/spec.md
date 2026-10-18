@@ -217,6 +217,45 @@ list or provider-specific policy parser.
 - **AND** its existing local trust verifier additionally proves the configured
   signer before any ref, Lease, or worktree effect is retained.
 
+### Requirement: Structured documentation metadata preserves meaning
+
+ETHOS SHALL preserve metadata identity, purpose, lifecycle and typed relationships
+under valid syntax variations. Invalid declarations and unresolved required
+authority targets SHALL be reported. Human-readable and machine-readable
+representations SHALL agree on the same declared meaning.
+
+#### Scenario: Equivalent and ambiguous metadata are distinguished
+
+- **WHEN** metadata uses valid quoted scalars or structured relationships
+- **THEN** public observation preserves the equivalent meaning
+- **AND** duplicate keys and unclosed frontmatter cannot silently pass
+
+#### Scenario: Required guidance is absent or contradictory
+
+- **WHEN** a required authority target is missing or visible state contradicts metadata
+- **THEN** public observation identifies the exact disagreement or missing target
+- **AND** literal examples cannot satisfy actual reader-guidance obligations
+
+#### Scenario: A selected documentation source disappears during observation
+
+- **WHEN** a document selected by the registry becomes missing or unreadable before downstream checks finish
+- **THEN** the public docs report identifies the unavailable source and blocks
+- **AND** an earlier metadata observation cannot turn that incomplete read into a pass
+
+#### Scenario: Selected documentation renders its title before metadata
+
+- **WHEN** a profile-selected Markdown document encloses its leading YAML metadata in an HTML comment
+- **THEN** the registry reads no metadata from it and reports the document's metadata as missing
+- **AND** the repository paradigm names the comment wrapper to remove, so plain front matter is the only carrier
+
+#### Scenario: Adopter-native guidance satisfies a portable reader floor
+
+- **WHEN** an active profile-selected page has a visible H1 and non-empty non-heading text outside code fences, but not ETHOS-specific `Status`, `Purpose`, or `See also` labels
+- **THEN** the docs report accepts its reader surface if metadata, relations, and navigation are valid
+- **AND** a missing title or guidance hidden entirely in a literal fence blocks
+- **AND** an authored empty or contradictory `Status:` remains a gap
+- **AND** observational roles may omit reader guidance
+
 ## REMOVED Requirements
 
 ### Requirement: Predecessor branch-role tables keep their incumbent meaning

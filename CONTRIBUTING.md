@@ -26,8 +26,8 @@ not turn author metadata into mutation authority.
 ## Commit Messages
 
 Use this repository's [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
-convention. The tracked [commit policy](.ethos/workspace.toml) owns the accepted
-subject syntax:
+convention. The shared repository paradigm owns the accepted subject syntax;
+see [commit integrity](docs/reference/command-plane.md#commit-integrity-and-accepted-history-repair):
 
 ```text
 <type>: <description>
@@ -38,7 +38,8 @@ subject syntax:
   `refactor`, `perf`, `build`, `ci`, `chore` or `revert`.
 - `scope` is optional. When present, keep the literal parentheses and name the
   affected semantic area, such as `proof`, `lanes` or `cli`. The current policy
-  accepts nonempty lowercase ASCII letters, digits and hyphens in this field.
+  accepts lowercase ASCII letters and digits, with single hyphens between
+  nonempty segments.
 - `description` is a nonempty summary after the colon and space.
 
 ```text
@@ -48,9 +49,10 @@ docs(cli): clarify fast verification
 ci: add GitLab verification pipeline
 ```
 
-For an incompatible change, add a `BREAKING CHANGE: ...` footer explaining the
-incompatibility and migration. The current subject policy does not accept the
-optional `!` spelling. Commit syntax alone does not establish SemVer or release
+For an incompatible change, add `!` immediately before the colon, a
+`BREAKING CHANGE: ...` footer, or both. Explain the incompatibility and migration;
+for example, `feat(cli)!: replace the command contract`. Commit syntax alone
+does not establish SemVer or release
 compliance; [release governance](docs/governance/release-governance.md#semantic-versioning-and-changelog)
 owns those obligations.
 

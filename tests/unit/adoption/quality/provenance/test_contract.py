@@ -117,6 +117,11 @@ def test_static_selection_preserves_artifact_obligations(tmp_path: Path) -> None
         "selected_paths": ["authored.py", "generated.py"],
         "authored_paths": ["authored.py"],
         "artifact_paths": ["generated.py"],
+        "python_target": {
+            "version": "py312",
+            "basis": "ruff-target-version",
+            "files": [".config/checks/ruff/ruff.toml"],
+        },
     }
     assert next(subject for subject in subjects if subject.path == "generated.py").requires_behavior
 

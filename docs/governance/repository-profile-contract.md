@@ -153,6 +153,13 @@ prospective index. When declared, `[proof.code_correctness_map]` maps both `beha
 that are not default roots. One gate may provide both axes when
 its actual observations cover both. A partial map, undeclared IDs, unsupported
 providers, and waivers are invalid; sharing execution is not an exemption.
+The product's Python static provider keeps its isolated common rules, so a repository's own
+ignores cannot narrow them, and judges authored Python against the version the repository
+declares: the `target-version` of its accepted Ruff configuration (the paradigm carrier or
+Ruff's root discovery, following `extend` inside the repository), otherwise the lower bound of
+`requires-python`. A missing, malformed or conflicting declaration, or a nested declaration that
+gives checked code another target, is a gap; neither the checker's default nor ETHOS's own
+interpreter decides it.
 Optional descriptor fields such as `depends_on`, `evidence_class`,
 `trust_bearing`, and `network_policy` retain the shared gate semantics. ETHOS
 compiles these descriptors as the profile's sole native gate owner: they

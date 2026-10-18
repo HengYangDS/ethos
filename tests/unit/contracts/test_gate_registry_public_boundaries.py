@@ -333,8 +333,8 @@ def test_native_output_contract_preserves_exact_producer_selection(binding: str)
         {"path": "nox.json", "format": "nox-json", "sessions": ("tests-3.12", "static")},
         {"path": "tests.xml", "format": "junit-xml", "sessions": ("tests-3.12",)},
         {"path": "events.jsonl", "format": "pytest-jsonl", "sessions": ("tests-3.12",)},
-        {"path": "coverage.xml", "format": "coverage-xml", "sessions": ("tests-3.12",)},
-        {"path": "ruff.json", "format": "ruff-json", "sessions": ("static",)},
+        {"path": "coverage.xml", "format": "cobertura-xml", "sessions": ("tests-3.12",)},
+        {"path": "ruff.sarif", "format": "sarif", "sessions": ("static",)},
         {
             "path": "tests-runtime.json",
             "format": "python-runtime-json",
@@ -378,6 +378,62 @@ def test_native_output_contract_preserves_exact_producer_selection(binding: str)
         gate = Gate.model_validate(payload)
         assert gate.native_outputs[0].sessions == ("tests-3.12", "static")
         assert ".config/quality.toml" in source_paths_for_gate(gate)
+    else:
+        with pytest.raises(ValidationError):
+            Gate.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "binding",
+    [
+        "valid",
+        "unplaced",
+        "removed-coverage",
+        "removed-ruff",
+        "second-report",
+        "nested",
+        "unsessioned",
+    ],
+)
+def test_native_output_contract_accepts_tool_neutral_reports_without_nox(binding: str) -> None:
+    """Standard reports bind to one attempt without a Nox report or a per-session bundle."""
+    command: tuple[str, ...] = ("kcov", "{native_output}/kcov", "python", "-m", "pytest")
+    outputs: list[dict[str, object]] = [
+        {"path": "tests.xml", "format": "junit-xml", "sessions": ("scripts",)},
+        {"path": "kcov/cobertura.xml", "format": "cobertura-xml", "sessions": ("scripts",)},
+        {"path": "node.lcov", "format": "lcov", "sessions": ("scripts",)},
+        {"path": "lint.sarif", "format": "sarif", "sessions": ("lint",)},
+    ]
+    if binding == "unplaced":
+        command = ("python", "-m", "pytest")
+    elif binding == "removed-coverage":
+        outputs[1]["format"] = "coverage-xml"
+    elif binding == "removed-ruff":
+        outputs[3]["format"] = "ruff-json"
+    elif binding == "second-report":
+        outputs.extend(
+            {"path": name, "format": "nox-json", "sessions": ("scripts", "lint")}
+            for name in ("first.json", "second.json")
+        )
+    elif binding == "nested":
+        outputs[2]["path"] = "kcov/cobertura.xml/node.lcov"
+    elif binding == "unsessioned":
+        outputs[0]["sessions"] = ()
+    payload = {
+        "id": "native",
+        "kind": "test",
+        "command": command,
+        "verification_providers": ("ethos.adapters.gates.code_quality:behavior_report",),
+        "native_outputs": tuple(outputs),
+    }
+    if binding in {"valid", "unplaced"}:
+        gate = Gate.model_validate(payload)
+        assert [output.format for output in gate.native_outputs] == [
+            "junit-xml",
+            "cobertura-xml",
+            "lcov",
+            "sarif",
+        ]
     else:
         with pytest.raises(ValidationError):
             Gate.model_validate(payload)

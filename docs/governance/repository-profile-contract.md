@@ -177,6 +177,17 @@ compiles these descriptors as the profile's sole native gate owner: they
 participate in action graph validation, policy digests, and proof-run
 conformance without becoming packaged gates or a second command plane.
 
+A gate with a native `command` may declare `native_outputs`: each report the command writes into
+the attempt's output root, with its producing session and format. Tests use `junit-xml`, coverage
+uses `cobertura-xml` or `lcov`, and static analysis uses `sarif`. A Nox report (`nox-json`), pytest
+events (`pytest-jsonl`) and a Python runtime report (`python-runtime-json`) are optional and are
+checked only when declared. The verifier judges the reports by property. Behavior needs passing
+JUnit reports with a test case, and executed lines in each applicable file a coverage report
+measures. Static analysis needs SARIF without a warning or error whose artifact inventory, or the
+same session's recorded Ruff launch, lists the files it covers. A verifier claims only the files its
+evidence covers, and ETHOS runs its own checks only for gates without native outputs, so several
+gates may cover one axis together while the floor still requires every applicable file.
+
 Valid optional descriptors outside the default closure remain available for
 explicit selection. They neither become default roots nor satisfy required code
 axes outside that closure.

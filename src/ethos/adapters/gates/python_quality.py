@@ -18,7 +18,7 @@ from packaging.specifiers import InvalidSpecifier
 from packaging.specifiers import SpecifierSet
 from uv import find_uv_bin
 
-from ethos.adapters.gates.native.python import report as native_python_report
+from ethos.adapters.gates.native.evidence import native_report
 from ethos.adapters.gates.python_target import compatibility_target
 from ethos.adapters.gates.verification import NativeExecution
 from ethos.adapters.process import ProcessExecutionError
@@ -126,7 +126,7 @@ def static_report(root: Path, *, execution: NativeExecution | None = None) -> di
     native = _native_fields(execution) if execution is not None else {}
     try:
         if execution is not None and execution.evidence is not None:
-            return native_python_report(root, execution, "static-analysis")
+            return native_report(root, execution, "static-analysis", language="python")
         tree, subjects = observe_quality_subjects(root, language="python")
         paths = tuple(subject.path for subject in subjects)
         authored = tuple(subject.path for subject in subjects if subject.requires_authored_analysis)
@@ -334,7 +334,7 @@ def behavior_report(root: Path, *, execution: NativeExecution | None = None) -> 
     evidence: dict[str, object] = {}
     try:
         if execution is not None:
-            return native_python_report(root, execution, "behavior")
+            return native_report(root, execution, "behavior", language="python")
         tree, subjects = observe_quality_subjects(root, language="python")
         source, tests = _behavior_scope(root, subjects)
         # Coverage may measure any committed Python subject; only product source owes coverage.

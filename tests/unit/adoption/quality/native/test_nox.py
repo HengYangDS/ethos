@@ -1,4 +1,4 @@
-"""Consume official Nox, pytest, coverage and Ruff results without replay."""
+"""Consume official Nox, pytest, Cobertura and Ruff SARIF results without replay."""
 
 from __future__ import annotations
 
@@ -165,8 +165,8 @@ def test_native_evidence_is_bound_to_one_declared_attempt(tmp_path: Path, bounda
     assert static_report(root, execution=execution)["verdict"] == "block"
 
 
-def test_native_each_selected_session_requires_its_quality_outputs(tmp_path: Path) -> None:
-    """One reported session cannot lend its quality evidence to another session."""
+def test_native_session_cannot_borrow_another_runtime_qualification(tmp_path: Path) -> None:
+    """A copied runtime report without its own dependency check cannot qualify a session."""
     gate = native_quality_gate(tmp_path)
     extra = "unobserved-static"
     outputs = [
@@ -198,7 +198,9 @@ def test_native_each_selected_session_requires_its_quality_outputs(tmp_path: Pat
         evidence=replace(retained.evidence, outputs=tuple(reports), gaps=()),
     )
     for report in (behavior_report, static_report):
-        assert report(root, execution=retained)["verdict"] == "block"
+        verdict = report(root, execution=retained)
+        assert verdict["verdict"] == "block"
+        assert "python_native_dependency_floor_unbound" in json.dumps(verdict)
 
 
 def test_native_timeout_preserves_partial_output_and_owned_cleanup(tmp_path: Path) -> None:
@@ -228,19 +230,19 @@ def test_native_reports_refuse_an_altered_attempt_record(tmp_path: Path) -> None
     assert execution.evidence is not None
     outputs = execution.evidence.outputs
     without_report = tuple(item for item in outputs if item[0].format != "nox-json")
-    without_findings = tuple(item for item in outputs if item[0].format != "ruff-json")
+    without_findings = tuple(item for item in outputs if item[0].format != "sarif")
     altered = {
         "python_native_evidence_unavailable": replace(execution, evidence=None),
         "native_output_missing:nox.json": replace(
             execution,
             evidence=replace(execution.evidence, gaps=("native_output_missing:nox.json",)),
         ),
-        "python_native_custody_missing": replace(execution, cwd=tmp_path.resolve()),
-        "python_native_source_changed": replace(
+        "native_custody_missing": replace(execution, cwd=tmp_path.resolve()),
+        "native_source_changed": replace(
             execution, evidence=replace(execution.evidence, head="0" * 40)
         ),
-        "python_native_execution_failed": replace(execution, exit_code=1),
-        "python_native_selection_invalid": replace(
+        "native_execution_failed": replace(execution, exit_code=1),
+        "native_selection_invalid": replace(
             execution, evidence=replace(execution.evidence, outputs=without_report)
         ),
         "python_native_dependency_floor_unbound": replace(
@@ -262,10 +264,10 @@ def test_native_reports_refuse_an_altered_attempt_record(tmp_path: Path) -> None
             )
         return replace(execution, evidence=replace(execution.evidence, outputs=tuple(changed)))
 
-    altered["python_native_coverage_scope_incomplete"] = with_content(
-        "coverage-xml", b'hits="1"', b'hits="0"'
+    altered["native_source_unexercised:src/app.py"] = with_content(
+        "cobertura-xml", b'hits="1"', b'hits="0"'
     )
-    altered["python_native_tests_failed"] = with_content(
+    altered["native_tests_failed"] = with_content(
         "pytest-jsonl", b'"exitstatus": 0', b'"exitstatus": 1'
     )
 
@@ -295,10 +297,15 @@ def test_native_reports_refuse_an_altered_attempt_record(tmp_path: Path) -> None
             execution, evidence=replace(execution.evidence, outputs=without_findings)
         ),
     )
-    assert "python_native_selection_invalid" in json.dumps(static), static
-    diagnosed = with_content("ruff-json", b"[]", b'[{"code": "F401"}]')
+    assert "native_selection_invalid" in json.dumps(static), static
+    sarif = next(content for item, content in outputs if item.format == "sarif")
+    document = json.loads(sarif)
+    document["runs"][0]["results"].append(
+        {"ruleId": "F401", "level": "error", "message": {"text": "unused import"}}
+    )
+    diagnosed = with_content("sarif", sarif, json.dumps(document).encode())
     findings = static_report(root, execution=diagnosed)
-    assert "python_native_static_diagnostics" in json.dumps(findings), findings
+    assert "native_static_findings:F401" in json.dumps(findings), findings
 
 
 def test_native_attempt_refuses_uncommitted_source_before_launch(tmp_path: Path) -> None:
@@ -322,9 +329,9 @@ def test_gate_attempt_preserves_scoped_environment_and_native_output_ownership(
         "result = json.dumps({name: os.environ.get(name) for name in "
         "('ETHOS_CALLER_VALUE', 'NODE_OPTIONS', 'ETHOS_NATIVE_OBSERVER_REQUIREMENT')}); "
         "target = os.environ.get('ETHOS_NATIVE_OUTPUT_DIR'); "
-        "pathlib.Path(target, 'ruff.json').write_text(result) if target else print(result)"
+        "pathlib.Path(target, 'ruff.sarif').write_text(result) if target else print(result)"
     )
-    outputs = tuple(output for output in gate.native_outputs if output.format == "ruff-json")
+    outputs = tuple(output for output in gate.native_outputs if output.format == "sarif")
     gate = gate.model_copy(
         update={
             "command": (sys.executable, "-c", script),
@@ -395,7 +402,7 @@ def test_native_attempt_supplies_only_its_own_observer(
     """The command sees the invoking runtime's wheel, never an inherited requirement."""
     script = (
         "import os, pathlib; "
-        "pathlib.Path(os.environ['ETHOS_NATIVE_OUTPUT_DIR'], 'ruff.json').write_text("
+        "pathlib.Path(os.environ['ETHOS_NATIVE_OUTPUT_DIR'], 'ruff.sarif').write_text("
         f"os.environ.get({gate_attempt.OBSERVER_REQUIREMENT!r}, 'absent'))"
     )
     gate = native_quality_gate(tmp_path)
@@ -411,7 +418,7 @@ def test_native_attempt_supplies_only_its_own_observer(
     monkeypatch.setenv(gate_attempt.OBSERVER_REQUIREMENT, "ethos @ file:///ambient.whl")
     _, evidence = native_attempt(tmp_path / "repo", gate, gate.command, timeout=45)
     supplied = requirement if runtime_report else None
-    observed = next(content for output, content in evidence.outputs if output.path == "ruff.json")
+    observed = next(content for output, content in evidence.outputs if output.path == "ruff.sarif")
     assert observed.decode() == (supplied or "absent")
     assert evidence.observer_requirement == supplied
 

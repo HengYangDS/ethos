@@ -64,8 +64,15 @@ class NativeOutput(BaseModel):
     )
 
     path: str = Field(min_length=1)
+    # Tool-neutral reports, then optional Python producer reports checked only when declared.
     format: Literal[
-        "nox-json", "junit-xml", "pytest-jsonl", "coverage-xml", "ruff-json", "python-runtime-json"
+        "junit-xml",
+        "cobertura-xml",
+        "lcov",
+        "sarif",
+        "nox-json",
+        "pytest-jsonl",
+        "python-runtime-json",
     ]
     sessions: FrozenTuple[str] = Field(json_schema_extra={"uniqueItems": True, "minItems": 1})
     python: str = ""
@@ -189,23 +196,17 @@ class Gate(BaseModel):
                 for index, item in enumerate(self.command)
                 if item == "--report" or item.startswith("--report=")
             )
-            session_formats = {
-                session: {
-                    output.format for output in self.native_outputs if session in output.sessions
-                }
-                for report in reports
-                for session in report.sessions
-            }
+            # A Nox report is optional; when declared it names every producing session.
             if (
                 not self.command
                 or not self.verification_providers
-                or not any("{native_output}" in item for item in self.command)
                 or len(set(paths)) != len(paths)
                 or len(set(producers)) != len(producers)
-                or len(reports) != 1
-                or report_arguments != ("{native_output}/" + reports[0].path,)
+                or len(reports) > 1
+                or (reports and report_arguments != ("{native_output}/" + reports[0].path,))
                 or any(
-                    not set(output.sessions) <= set(reports[0].sessions)
+                    not set(output.sessions) <= set(report.sessions)
+                    for report in reports
                     for output in self.native_outputs
                 )
                 or any(
@@ -213,14 +214,6 @@ class Gate(BaseModel):
                     for first in paths
                     for second in paths
                     if first != second
-                )
-                or any(
-                    not (
-                        {"python-runtime-json", "junit-xml", "pytest-jsonl", "coverage-xml"}
-                        <= formats
-                        or {"python-runtime-json", "ruff-json"} <= formats
-                    )
-                    for formats in session_formats.values()
                 )
             ):
                 msg = "native_output_contract_invalid"

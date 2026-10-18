@@ -6,22 +6,14 @@
         {
           "else": {
             "not": { "required": ["dependency_groups"] },
-            "properties": {
-              "configuration": { "const": "" },
-              "python": { "const": "" }
-            }
+            "properties": { "configuration": { "const": "" }, "python": { "const": "" } }
           },
-          "if": {
-            "properties": { "format": { "const": "python-runtime-json" } }
-          },
+          "if": { "properties": { "format": { "const": "python-runtime-json" } } },
           "then": {
             "properties": {
               "configuration": { "minLength": 1 },
               "dependency_groups": { "type": "array", "uniqueItems": true },
-              "python": {
-                "minLength": 1,
-                "pattern": "^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$"
-              }
+              "python": { "minLength": 1, "pattern": "^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$" }
             },
             "required": ["python", "configuration", "dependency_groups"]
           }
@@ -29,11 +21,7 @@
       ],
       "description": "A native report's producer and exact path within one owned attempt.",
       "properties": {
-        "configuration": {
-          "default": "",
-          "title": "Configuration",
-          "type": "string"
-        },
+        "configuration": { "default": "", "title": "Configuration", "type": "string" },
         "dependency_groups": {
           "anyOf": [{ "items": { "type": "string" }, "type": "array" }, { "type": "null" }],
           "default": null,
@@ -41,11 +29,12 @@
         },
         "format": {
           "enum": [
-            "nox-json",
             "junit-xml",
+            "cobertura-xml",
+            "lcov",
+            "sarif",
+            "nox-json",
             "pytest-jsonl",
-            "coverage-xml",
-            "ruff-json",
             "python-runtime-json"
           ],
           "title": "Format",
@@ -74,15 +63,8 @@
     { "not": { "required": ["command"] }, "required": ["providers"] }
   ],
   "properties": {
-    "asset_classes": {
-      "items": { "minLength": 1, "type": "string" },
-      "type": "array"
-    },
-    "command": {
-      "items": { "type": "string" },
-      "minItems": 1,
-      "type": "array"
-    },
+    "asset_classes": { "items": { "minLength": 1, "type": "string" }, "type": "array" },
+    "command": { "items": { "type": "string" }, "minItems": 1, "type": "array" },
     "cpu_reservation": {
       "default": 1,
       "minimum": 1,
@@ -90,10 +72,7 @@
       "type": "integer"
     },
     "depends_on": { "items": { "type": "string" }, "type": "array" },
-    "dimensions": {
-      "items": { "minLength": 1, "type": "string" },
-      "type": "array"
-    },
+    "dimensions": { "items": { "minLength": 1, "type": "string" }, "type": "array" },
     "evidence_class": { "minLength": 1, "type": "string" },
     "execution_mode": { "minLength": 1, "type": "string" },
     "id": { "minLength": 1, "type": "string" },
@@ -122,18 +101,13 @@
     "resource_locks": {
       "anyOf": [
         {
-          "additionalProperties": {
-            "enum": ["shared", "exclusive"],
-            "type": "string"
-          },
+          "additionalProperties": { "enum": ["shared", "exclusive"], "type": "string" },
           "type": "object"
         },
         { "type": "null" }
       ],
       "default": null,
-      "propertyNames": {
-        "pattern": "^(?:\\*|[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*)$"
-      },
+      "propertyNames": { "pattern": "^(?:\\*|[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*)$" },
       "title": "Resource Locks"
     },
     "timeout_seconds": {

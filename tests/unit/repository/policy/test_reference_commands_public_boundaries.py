@@ -9,12 +9,60 @@ import pytest
 from ethos.repository.policy.references.commands import CommandVocabulary
 from ethos.repository.policy.references.commands import command_executables
 from ethos.repository.policy.references.commands import command_identity
+from ethos.repository.policy.references.commands import command_invocation
 from ethos.repository.policy.references.commands import normalize_command
 from ethos.repository.policy.references.commands import shebang_executable
 from ethos.repository.policy.references.commands import shell_commands
 from ethos.repository.policy.references.commands import shell_configuration_inputs
 from ethos.repository.policy.references.commands import shell_executables
 from ethos.repository.policy.references.observation import product_references_from_files
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("env X=1 git status --short", True),
+        ("sudo -u root git status", True),
+        ("printf value >(git status)", True),
+        ("cat <<(git status)", True),
+        ("true && git status", True),
+        ("node tools/check.mjs", True),
+        ("./tools/check.mjs --verify", True),
+        ("source ./setup", True),
+        ("echo value", None),
+        ("uv run ./tools/check.mjs", True),
+        ("cat <(uv run ./tools/check.mjs)", True),
+        ('python "a>b.py" --verify', True),
+        ("rm notes", None),
+        ("curl example.com", None),
+        ("./tools/check.mjs", False),
+        ("node", False),
+        ("node represents an executable host.", False),
+        ("rm describes a file-removal command.", False),
+        ("Each repository's profile owns current behavior.", False),
+        ("See docs/proof.md for the evidence.", None),
+        ("a < b is a comparison, not an execution request.", False),
+        ("'unterminated", None),
+    ],
+)
+def test_native_invocation_shape_preserves_reference_and_uncertainty(
+    source: str, *, expected: bool | None
+) -> None:
+    """Syntax and positive identities classify inputs without a command blacklist."""
+    vocabulary = CommandVocabulary.compile({"git status"})
+
+    assert command_invocation(source, vocabulary) is expected
+
+
+def test_native_invocation_inspection_never_evaluates_payload(tmp_path, monkeypatch) -> None:
+    """Ambient variables and command substitution never authorize evaluation."""
+    marker = tmp_path / "unexpected-effect"
+    vocabulary = CommandVocabulary.compile({"git status"})
+    monkeypatch.setenv("FLAGS", "not a command")
+
+    assert command_invocation(f"git status $(touch '{marker}')", vocabulary) is True
+    assert command_invocation("git status $FLAGS", vocabulary) is True
+    assert not marker.exists()
 
 
 def test_reference_commands_canonical_wrappers_and_scripts() -> None:

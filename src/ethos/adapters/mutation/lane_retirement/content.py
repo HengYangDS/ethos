@@ -8,6 +8,7 @@ import stat
 from collections import Counter
 from contextlib import ExitStack
 from pathlib import Path
+from pathlib import PurePosixPath
 from typing import cast
 
 from ethos.adapters.repo.git import run_git
@@ -187,7 +188,14 @@ def verify_reviewed_content(
             _fail("retirement_content_drift")
         entries = cast("dict[str, dict[str, object]]", expected["entries"])
         survivors = cast("dict[str, dict[str, object]]", current["entries"])
-        nodes.extend((cast("dict[str, object]", current["root"]), *survivors.values()))
+        # An empty directory holds no content, so a process holding it open loses nothing.
+        parents = {PurePosixPath(name).parent.as_posix() for name in survivors}
+        nodes.append(cast("dict[str, object]", current["root"]))
+        nodes.extend(
+            node
+            for name, node in survivors.items()
+            if node["kind"] != "directory" or name in parents
+        )
         removed.update(
             tuple(cast("list[str]", node["identity"])[:2])
             for name, node in entries.items()

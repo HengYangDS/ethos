@@ -93,7 +93,7 @@ def test_runtime_authority_fallback_matrix(monkeypatch: pytest.MonkeyPatch, tmp_
     monkeypatch.setattr(
         authority, "repository_root", lambda _root: (_ for _ in ()).throw(ValueError())
     )
-    monkeypatch.setattr(authority, "runtime_build_identity", lambda _root: packaged)
+    monkeypatch.setattr(authority, "runtime_build_identity", lambda _root, **_options: packaged)
     observed = authority.expected_runtime_build(tmp_path)
     assert (observed.identity, observed.invoking) == (packaged, True)
     assert authority.expected_runtime_source(tmp_path) == packaged[2:4]

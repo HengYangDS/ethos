@@ -256,6 +256,34 @@ def _file_observation_failure(reason: str) -> None:
     raise ValueError(reason)
 
 
+# lsof records a process or descriptor that exits during its scan without a type, device or
+# inode. Only that absence is admitted; any other unreadable entry leaves the observation
+# incomplete. Darwin names the vanished object; Linux names the /proc entry it failed to read.
+_DARWIN_VANISHED_REFERENCE = re.compile(
+    rb"(?:kqueue|pipe|semaphore|POSIX shared memory|vnode|socket): "
+    rb"(?:FD unavailable|process unavailable)"
+)
+_LINUX_VANISHED_REFERENCE = re.compile(
+    rb"/proc/[0-9]+(?:/task/[0-9]+)?/(?:(?P<entry>cwd|root|exe|fd)|fd/(?P<descriptor>[0-9]+)) "
+    rb"\((?:readlink|opendir): No such file or directory\)"
+)
+_LINUX_VANISHED_LABELS = {b"cwd": b"cwd", b"root": b"rtd", b"exe": b"txt", b"fd": b"NOFD"}
+
+
+def _vanished_reference(fields: dict[bytes, bytes]) -> bool:
+    if sys.platform == "darwin":
+        return (
+            set(fields) == {b"f", b"n"}
+            and fields[b"f"].isdigit()
+            and _DARWIN_VANISHED_REFERENCE.fullmatch(fields[b"n"]) is not None
+        )
+    match = _LINUX_VANISHED_REFERENCE.fullmatch(fields.get(b"n", b""))
+    if not sys.platform.startswith("linux") or match is None or set(fields) - {b"f", b"t", b"n"}:
+        return False
+    label = match["descriptor"] or _LINUX_VANISHED_LABELS[match["entry"]]
+    return fields.get(b"f") == label and fields.get(b"t", b"unknown") == b"unknown"
+
+
 def _file_identities(payload: bytes) -> frozenset[tuple[int, int]]:
     if not payload.endswith(b"\0\n"):
         _file_observation_failure("file_observation_incomplete")
@@ -270,17 +298,7 @@ def _file_identities(payload: bytes) -> frozenset[tuple[int, int]]:
                 _file_observation_failure("file_observation_process_invalid")
             process_seen = True
             continue
-        if (
-            sys.platform == "darwin"
-            and process_seen
-            and set(fields) == {b"f", b"n"}
-            and fields[b"f"].isdigit()
-            and re.fullmatch(
-                rb"(?:kqueue|pipe|semaphore|POSIX shared memory|vnode|socket): "
-                rb"(?:FD unavailable|process unavailable)",
-                fields[b"n"],
-            )
-        ):
+        if process_seen and _vanished_reference(fields):
             continue
         fields.pop(b"n", None)
         if (
@@ -321,7 +339,15 @@ def process_file_identities(root: Path, *, tree: Path, index: Path) -> frozenset
         ):
             _file_observation_failure("file_observation_scope_unavailable")
         command = (str(executable), "-nP", "-F0pftDin")
-        result = run_command(root, command, text=False, timeout=30, remove_env_prefixes=("GIT_",))
+        # The C locale fixes lsof's error text, which identifies a vanished /proc entry.
+        result = run_command(
+            root,
+            command,
+            text=False,
+            timeout=30,
+            env={"LC_ALL": "C"},
+            remove_env_prefixes=("GIT_",),
+        )
         if result.returncode != 0 or result.stderr:
             _file_observation_failure(
                 result.stderr.decode(errors="replace") or "file_observation_incomplete"

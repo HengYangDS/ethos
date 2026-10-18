@@ -85,6 +85,10 @@ historical bindings are governed by [Release Governance](docs/governance/release
 - Named a Work Lane's worktree family after the canonical checkout that owns the
   Git common directory, so a lane started from an accepted sibling worktree such
   as `<repository>-accepted` lands in `<repository>-worktrees/`.
+- Stopped Linux lane retirement from treating a process that exits during the
+  open-file scan as an unreadable observation. `lsof` records such a process or
+  descriptor only by the `/proc` entry it failed to read, without a type, device
+  or inode; permission and other read failures still block retirement.
 
 ## [0.2.0-alpha.2] - 2026-08-30
 

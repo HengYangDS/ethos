@@ -213,6 +213,16 @@ def _file_reference_payloads():
     """Declare each observed file-reference counterexample once."""
     payload = b"p12\0\nfcwd\0tDIR\0D0x10\0i31\0\nf3\0tREG\0D0x20\0i31\0\nf4\0tIPv4\0\n"
     absent = b"f5\0nsocket: FD unavailable\0\n"
+    # Linux lsof records a process or descriptor that exits during its scan by the failed
+    # /proc read, with no type, device or inode.
+    vanished = (
+        b"p77\0\n"
+        b"fcwd\0tunknown\0n/proc/77/cwd (readlink: No such file or directory)\0\n"
+        b"frtd\0n/proc/77/root (readlink: No such file or directory)\0\n"
+        b"ftxt\0n/proc/77/exe (readlink: No such file or directory)\0\n"
+        b"fNOFD\0n/proc/77/fd (opendir: No such file or directory)\0\n"
+    )
+    fd_vanished = b"f9\0tunknown\0n/proc/12/fd/9 (readlink: No such file or directory)\0\n"
     unix = b"f6\0tunix\0i50690625\0ntype=STREAM\0\n"
     return {
         "unix-inode": payload + unix,
@@ -231,6 +241,15 @@ def _file_reference_payloads():
         "invalid-gone-fd": payload + absent.replace(b"f5", b"fNOFD"),
         "orphan-gone": absent + payload,
         "non-darwin-gone": payload + absent,
+        "linux-process-gone": payload + vanished,
+        "linux-fd-gone": payload + fd_vanished,
+        "linux-task-gone": payload
+        + b"fNOFD\0n/proc/77/task/78/fd (opendir: No such file or directory)\0\n",
+        "linux-permission": payload
+        + vanished.replace(b"No such file or directory", b"Permission denied"),
+        "linux-foreign-path": payload + vanished.replace(b"/proc/77/fd ", b"/tmp/77/fd "),
+        "linux-mislabeled": payload + fd_vanished.replace(b"f9", b"f8"),
+        "linux-gone-on-darwin": payload + vanished,
         "named-live-file": payload.replace(b"i31\0", b"i31\0nsocket: FD unavailable\0", 1),
         "empty": b"",
         "truncated": payload[:-2],
@@ -268,7 +287,10 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
         return None if fault == "missing" else str(executable)
 
     monkeypatch.setattr(process_adapter.shutil, "which", resolve)
-    monkeypatch.setattr(sys, "platform", "linux" if fault == "non-darwin-gone" else "darwin")
+    linux = fault == "non-darwin-gone" or (
+        fault.startswith("linux-") and fault != "linux-gone-on-darwin"
+    )
+    monkeypatch.setattr(sys, "platform", "linux" if linux else "darwin")
     payload = _FILE_REFERENCE_PAYLOADS[fault]
 
     def capture(root, command, **kwargs):
@@ -276,6 +298,7 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
         assert command == (str(executable), "-nP", "-F0pftDin")
         assert 0 < kwargs["timeout"] <= 30
         assert kwargs["text"] is False
+        assert kwargs["env"] == {"LC_ALL": "C"}
         if fault == "timeout" or (fault == "slow-scan" and "+D" in command):
             raise subprocess.TimeoutExpired(command, kwargs["timeout"])
         status = 2 if fault == "fatal" else 1 if fault in {"status", "no-match"} else 0
@@ -288,6 +311,9 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
         "valid",
         "fd-gone",
         "process-gone",
+        "linux-process-gone",
+        "linux-fd-gone",
+        "linux-task-gone",
         "named-live-file",
         "unix-inode",
         "slow-scan",

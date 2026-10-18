@@ -6,6 +6,7 @@
   - [x] 7.3.1 Report the bootstrap failure that a staging cleanup error masks in native tool supply; done when a supply failure followed by a cleanup failure reports both (windows-latest run 38658885061 printed only the cleanup's WinError 32 on the staged `mise.exe`).
 - [ ] 7.4 Consolidate hosted full execution and fail-closed required checks; observe external-link health separately without starving proof reports or hiding its failure.
   - [ ] 7.4.1 Decide how GitLab external-links handles intermittent github.com 503 responses from the intranet egress (different links each run in pipelines 10526/10575/10576; GitHub-hosted runs pass); done when GitLab external-links passes or its provider scope is recorded with a rationale.
+  - [ ] 7.4.2 Admit the Linux `lsof` record of a process or descriptor that exits during the open-file scan, which carries no type, device or inode, while every other unreadable record keeps the observation incomplete; done when the GitHub hosted quality job passes the reviewed-disposal retirement cases at the fix head (they were its only failures in runs 39090251125 and 39092249050).
 - [ ] 7.5 Qualify and deliver the exact single-execution CI candidate.
 - [ ] 7.9 Qualify the rootless dual-provider successor through exact proof, installed runtime and hosted observation.
 - [ ] 7.11 Qualify both CUE-generated Forge projections through current hosted runs.

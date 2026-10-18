@@ -353,16 +353,15 @@ operator-selected trust boundary.
 
 ## Result Envelope
 
-Every JSON command result uses schema version `2`. `verdict` remains the only
-authorization decision; `state` remains the command-state projection; and
-`required_gaps` remains the complete blocker list. `next_action` is singular.
-`continuation` is derived as `continue`, `await-user`, `blocked`, or `done`;
-`missing_facts_or_evidence` derives from `required_gaps` only for
-`verdict=unknown`; `user_decision_required` marks the need for user judgment.
+JSON results use schema version `2`: `verdict` alone decides authorization,
+`state` projects command state, `required_gaps` lists every blocker, and
+`next_action` is singular. Derived `continuation` is `continue`, `await-user`,
+`blocked`, or `done`; `missing_facts_or_evidence` derives from gaps only for
+`verdict=unknown`. `user_decision_required` identifies needed user judgment.
 
 ## Proof Depth
 
-Select a focused gate from its declared owner:
+Select a gate from its declared owner:
 
 | Option                | Source                        | Selection boundary                                                              |
 | --------------------- | ----------------------------- | ------------------------------------------------------------------------------- |
@@ -373,11 +372,10 @@ Select a focused gate from its declared owner:
 ethos prove --gate <native-id> --product-gate <product-id> --json
 ```
 
-Repeat either option for several roots. Common rules retain product origin;
-a same-named native gate cannot replace them. Conflicting descriptors or an id
-explicitly selected from both owners refuse. Complete identical dependencies may
-share execution. Native default/full/optional membership stays unchanged, and
-policy binds origin through execution and issuance.
+Repeat either option for several roots. Product rules retain their origin;
+same-named native gates cannot replace them. Conflicting descriptors or selecting
+one id from both owners refuse. Identical complete dependencies may share execution;
+default/full/optional native membership and origin-bound issuance stay unchanged.
 
 `ethos prove --full --json` observes the complete configured plan without
 execution. Add `--execute --expect-head <head>` for frozen-source evidence.
@@ -426,12 +424,11 @@ Neither path grants source writes, deletes repository root resources, discards
 dirty work, or closes a remote review. Current Lease and exact-object checks
 remain in force, and installed hooks require the admitted retirement intent.
 
-Before destructive retirement, stop or drain every actual writer and keep all
-participants under lane coordination. Review the resulting final content, then
-derive and apply the exact receipt. A Lease transfer or empty process scan does
-not itself stop a writer. Active consumers, unknown liveness or changed content
-block disposal; re-derive after writer exit if the final content changed. This
-protocol does not isolate arbitrary uncooperative same-UID filesystem writes.
+Before retirement, drain every writer under lane coordination, review final
+content, then derive and apply its exact receipt. Lease transfer or an empty
+process scan does not stop writers. Active consumers, unknown liveness or content
+changes block disposal; changed final bytes require re-derivation. This protocol
+does not isolate arbitrary uncooperative same-UID filesystem writes.
 
 For a historical topic with explicitly reviewed staged, unstaged, untracked or
 ignored residue, use the existing abandonment owner instead of copying a backup:
@@ -496,13 +493,11 @@ missing effect evidence, so its continuation does not repeat the insertion.
 
 ## OpenSpec Ownership
 
-The official OpenSpec CLI owns intent parsing and archive transformations.
-ETHOS consumes its facts without becoming a second intent carrier. Commit source
-and actual task progress before exact proof. Source acceptance does not require
-completing future delivery tasks: the same active Change may remain through
-integration, accepted closeout, publication and actual use. Record task
-completion only after observing its result; proof does not authorize a later
-effect.
+Official OpenSpec owns intent parsing and archive transformations; ETHOS consumes
+its facts without duplicating intent. Commit source and observed task progress
+before exact proof. Source acceptance does not require future delivery completion:
+the active Change may span integration, accepted closeout, publication and use.
+Check tasks only after observing results; proof authorizes no later effect.
 
 After the Change's obligations are settled, an owned Work Lane invokes
 `ethos lane archive-change --change <id> --expect-head
@@ -548,10 +543,9 @@ exact required gates; this reference does not create another policy.
 
 ### Standard Exact-Source Proof
 
-Start in the owned Work Lane. Bind its existing actor and select the active
-Change explicitly when several Changes make intent ambiguous. Check status,
-obtain prewrite admission, run focused checks, then commit all non-ignored source
-inputs before the exact-source proof:
+In the owned Work Lane, bind its actor and select an active Change when intent
+is ambiguous. Check status, obtain prewrite admission, run focused checks and
+commit every non-ignored source input before exact-source proof:
 
 ```bash
 ethos status --json
@@ -561,11 +555,10 @@ ethos prove --full --execute --change <change-id> --expect-head <head> --json
 ethos land --json
 ```
 
-`<head>` is the actual frozen commit, not a branch name. Inspect every terminal
-result and follow the current landing continuation; proof does not execute or
-authorize landing, installation or publication. Preserve failed reports. Repair
-the smallest failing owner before retrying the complete proof. Changing source
-bytes, including docs or task progress, requires a new source binding.
+`<head>` is the frozen commit, not a branch name. Inspect terminal results and
+follow current continuations; proof grants no landing, installation or publication.
+Preserve failed reports and repair the smallest failing owner before full retry.
+Changed source bytes, including docs or task progress, require a new binding.
 
 ### Routine Scoped Execution
 
@@ -632,7 +625,6 @@ Do not write a global hook disable, fabricated proof or permanent waiver.
 
 ## Assurance And Evidence Boundary
 
-Command JSON is machine evidence. A passing readiness result is not an executed
-proof, a local publication result is not remote publication evidence, and a
-visible Work Lane is not write authority. Semantic ownership and Model Promotion
-remain defined only by the canonical Product Design Contract.
+Command JSON records evidence: readiness is not execution, local publication is
+not remote publication, and a visible Work Lane grants no writes. The canonical
+Product Design Contract alone defines semantic ownership and Model Promotion.

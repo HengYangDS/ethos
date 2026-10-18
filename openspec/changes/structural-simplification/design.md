@@ -16,7 +16,8 @@ The decisions behind these tasks are recorded in the archived design of `proof-t
 
 ## Decisions
 
-- **Move tasks verbatim with their original identities.** Renumbering was rejected, because commits, Attestations and peer threads already cite these identities.
+- **Preserve task identity and acceptance.** Keep stable identities cited by commits, Attestations and peers; recover the remaining obligations from both parents and keep execution evidence by reference rather than in the checklist.
+- **Preserve the removed Publisher duty.** Task 9.9.4 retains its completed removal; ETHOS does not acquire architecture rendering or external Publisher Provider acceptance.
 - **Carry no requirement delta.** The requirements were accepted when `proof-throughput` archived; restating them here would create a second authority.
 
 ## Risks / Trade-offs

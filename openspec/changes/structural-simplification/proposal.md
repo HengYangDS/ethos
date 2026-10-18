@@ -2,11 +2,11 @@
 
 ## Why
 
-`proof-throughput` grew to 200 tasks and a 2,959-line design, so it can no longer be read, proved or archived as one Change. Its requirements are accepted when it archives to `openspec/changes/archive/2026-10-17-proof-throughput`; this Change carries its open implementation obligations 9.9 for one cohesive outcome. Remove dependency cycles, conversion round trips and duplicate contracts at their semantic owners, including the Publisher Provider manifest.
+`proof-throughput` grew to 200 tasks and a 2,959-line design, so it can no longer be read, proved or archived as one Change. Its requirements are accepted when it archives to `openspec/changes/archive/2026-10-17-proof-throughput`; this Change carries its open implementation obligations 9.9 for one cohesive outcome. Remove dependency cycles, conversion round trips and duplicate contracts at their semantic owners; architecture publication and Publisher Provider implementation remain external, not ETHOS duties.
 
 ## What Changes
 
-- Continue the listed tasks with their original identities, states, acceptance conditions, dependencies and evidence references, moved verbatim.
+- Preserve original task identities, truthful states, acceptance conditions, dependencies and evidence references; conjoin both parents' remaining obligations without restoring superseded duties.
 - Add no requirement. Each task implements a requirement already accepted through `proof-throughput`.
 
 ## Capabilities

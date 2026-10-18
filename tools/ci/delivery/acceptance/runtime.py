@@ -267,6 +267,18 @@ def prove_retained_upgrade(
 ) -> dict[str, object]:
     """Upgrade and roll back a real predecessor with nonempty retained state."""
     previous = require_upgrade_predecessor(predecessor.root, build=successor.build)
+    common = Path(git_common_dir(repository))
+    # Native activation pins supplied bytes before selecting a reclaiming predecessor.
+    successor_report = activate_from_runtime(
+        successor.python,
+        repository,
+        environment=environment,
+        installed_runtime=successor.root,
+    )
+    require_manifest(
+        successor_report, repository, build=successor.build, wheel_sha256=successor.wheel_sha256
+    )
+    successor = current_runtime(common, expected_build=successor.build)
     predecessor_report = activate_from_runtime(
         previous.python,
         repository,
@@ -281,7 +293,6 @@ def prove_retained_upgrade(
     )
     brownfield_acceptance.seed_retained_state(repository)
     before = brownfield_acceptance.retained_repository(repository)
-    common = Path(git_common_dir(repository))
     selector = common / "ethos/runtime/CURRENT"
     original_selector = selector.read_bytes()
     hooks = Path(str(predecessor_report["hooks_path"]))

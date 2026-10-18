@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
@@ -431,7 +432,7 @@ def test_retained_upgrade_requires_exact_rollback_and_reactivation(monkeypatch, 
         hook_path = hooks[selected.digest]
         selector.write_bytes(runtime_selection_bytes(common, selected.root))
         run_git(repository, "config", "core.hooksPath", str(hook_path))
-        if len(activations) == 3:
+        if activations.count(prior.digest) == 2:
             if drift == "hook-config":
                 run_git(repository, "config", "core.hooksPath", str(hooks[successor.digest]))
             elif drift == "hook-bytes":
@@ -457,7 +458,13 @@ def test_retained_upgrade_requires_exact_rollback_and_reactivation(monkeypatch, 
         result = runtime_acceptance.prove_retained_upgrade(
             successor, repository, predecessor=prior, environment={}
         )
-        assert activations == [prior.digest, successor.digest, prior.digest, successor.digest]
+        assert activations == [
+            successor.digest,
+            prior.digest,
+            successor.digest,
+            prior.digest,
+            successor.digest,
+        ]
         preservation = result["preservation"]
         assert isinstance(preservation, dict)
         assert preservation["lease_count"] == 1
@@ -476,4 +483,50 @@ def test_retained_upgrade_requires_exact_rollback_and_reactivation(monkeypatch, 
             runtime_acceptance.prove_retained_upgrade(
                 successor, repository, predecessor=prior, environment={}
             )
-        assert activations == [prior.digest, successor.digest, prior.digest]
+        assert activations == [successor.digest, prior.digest, successor.digest, prior.digest]
+
+
+def test_retained_upgrade_survives_reclaimed_private_successor(monkeypatch, tmp_path):
+    repository = init_git_repo(tmp_path / "adopter")
+    common = Path(git_common_dir(repository))
+    selector = common / "ethos/runtime/CURRENT"
+    selector.parent.mkdir(parents=True)
+    prior = require_selected_runtime(fixture_runtime_generation(tmp_path / "prior", "prior"))
+    successor = require_selected_runtime(
+        fixture_runtime_generation(
+            selector.parent / "next", "next", build=runtime_build("b" * 40, "b" * 40)
+        )
+    )
+    pinned_root = tmp_path / "installed" / "runtime" / successor.digest
+
+    def activate(python, _repository, *, installed_runtime, **_kwargs):
+        if not python.is_file():
+            raise FileNotFoundError(python)
+        if installed_runtime == successor.root:
+            shutil.copytree(successor.root, pinned_root)
+            installed_runtime = pinned_root
+        selected = require_selected_runtime(installed_runtime)
+        hooks = common / "ethos/hooks" / selected.digest
+        hooks.mkdir(parents=True, exist_ok=True)
+        selector.write_bytes(runtime_selection_bytes(common, selected.root))
+        run_git(repository, "config", "core.hooksPath", str(hooks))
+        if selected.digest == prior.digest:
+            runtime_acceptance.remove_generated_tree(successor.root)
+        return {
+            **selected.build._asdict(),
+            "runtime_manifest_path": str(selected.manifest),
+            "runtime_digest": selected.digest,
+            "python": str(selected.python),
+            "wheel_sha256": selected.wheel_sha256,
+            "hooks_path": str(hooks),
+            "rollback_supply": {"runtime_digest": prior.digest, "runtime": str(prior.root)},
+        }
+
+    monkeypatch.setattr(runtime_acceptance, "activate_from_runtime", activate)
+    result = runtime_acceptance.prove_retained_upgrade(
+        successor, repository, predecessor=prior, environment={}
+    )
+    assert result["state"] == "passed"
+    assert not successor.root.exists()
+    assert require_selected_runtime(pinned_root).python.is_file()
+    assert selector.read_bytes() == runtime_selection_bytes(common, pinned_root)

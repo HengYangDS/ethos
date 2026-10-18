@@ -2558,8 +2558,18 @@ checkout and compare-delete its exact ref in a transaction verifying accepted.
 - **THEN** the native observer scopes its search to the worktree and external Git index
 - **AND** cwd, file, mapping, writer, hardlink and index holders still block deletion
 - **AND** an already absent reviewed worktree is not a deletion target; its surviving index remains observed
-- **AND** a present unsafe worktree, missing index, incomplete output, permission failure or timeout remains unknown
+- **AND** an observation that an unreadable record leaves incomplete is taken again, at most three times within the observer's one 30-second timeout
+- **AND** a present unsafe worktree, missing index, incomplete output, a permission failure inside an otherwise inspected process, or a timeout remains unknown
 - **AND** reviewed content is rechecked after the process observation
+
+#### Scenario: Processes outside the inspection boundary are reported, not hidden
+
+- **WHEN** a content admission observes open files while processes the invoking user may not inspect are running
+- **THEN** the observation covers only the processes the invoking user may inspect
+- **AND** a process that denies every `/proc` entry the observer reads, its descriptor links and threads' entries included, is reported once as uninspectable by process ID, user ID and command, not as a consumer
+- **AND** where the platform omits uninspectable processes without a record, the report marks their list unavailable rather than empty
+- **AND** each content admission records its observation in the progress it produces
+- **AND** the terminal receipt and result carry the observation of the admission that removed the worktree, including after recovery
 
 #### Scenario: Exact Lease observation changed after planning
 

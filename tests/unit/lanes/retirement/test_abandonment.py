@@ -11,9 +11,12 @@ import pytest
 
 import ethos.adapters.mutation.lane_retirement.content as content
 import ethos.adapters.mutation.lane_retirement.operation as operation
+from ethos.adapters.open_files import OpenFileObservation
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
+from ethos.contracts.retirement import OpenFileBoundary
+from ethos.contracts.retirement import UninspectableProcess
 from tests.support.governed_repository import git
 from tests.support.lane_scenarios import apply_retirement_receipt
 from tests.support.lane_scenarios import derive_abandonment
@@ -78,6 +81,45 @@ def test_reviewed_disposal_preserves_shared_files_and_recovers_before_deregistra
     )
     assert (external.read_bytes(), external.stat().st_mode, external.stat().st_ino) == before
     _assert_terminal_recovery(repo, lane, receipt, detached)
+
+
+@pytest.mark.parametrize(
+    ("uninspectable", "reported"),
+    [
+        (
+            (UninspectableProcess(pid=1, uid=0, command="systemd"),),
+            [{"pid": 1, "uid": 0, "command": "systemd"}],
+        ),
+        (None, None),
+    ],
+    ids=["linux", "darwin"],
+)
+def test_reviewed_disposal_reports_the_boundary_of_its_removing_admission(
+    divergent_lane, monkeypatch, uninspectable, reported
+):
+    """The result and terminal receipt claim only the processes the removal admission inspected."""
+    repo, _lane = divergent_lane
+    derived = derive_abandonment(repo, review_content=True)
+    assert derived["verdict"] == "pass", derived
+    admissions = []
+
+    def observe(_root, **_scope):
+        admissions.append(_scope)
+        boundary = uninspectable if len(admissions) > 1 else ()
+        return OpenFileObservation(frozenset(), OpenFileBoundary(uninspectable_processes=boundary))
+
+    monkeypatch.setattr(operation, "observe_open_files", observe)
+    result = apply_retirement_receipt(repo, derived["receipt"])
+
+    assert result["state"] == "retired", _failure(result)
+    assert len(admissions) == 2
+    expected = {
+        "observation_boundary": "inspectable processes of the invoking user",
+        "uninspectable_processes": reported,
+    }
+    assert result["open_file_observation"] == expected
+    terminal = json.loads(Path(result["terminal_receipt"]["path"]).read_text(encoding="utf-8"))
+    assert terminal["progress"]["open_file_observation"] == expected
 
 
 def _failure(result):
@@ -246,7 +288,8 @@ def test_reviewed_retirement_observes_only_surviving_file_identities(
         selected.rmdir()
     elif consumer == "removed-file":
         selected.unlink()
-    monkeypatch.setattr(operation, "process_file_identities", lambda _root, **_scope: identity)
+    observation = OpenFileObservation(identity, OpenFileBoundary(uninspectable_processes=()))
+    monkeypatch.setattr(operation, "observe_open_files", lambda _root, **_scope: observation)
     before = (git(repo, "show-ref"), index.read_bytes())
 
     result = operation.execute_retirement_operation(

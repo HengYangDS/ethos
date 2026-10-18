@@ -216,8 +216,6 @@ def declare_native_proof_checks(root: Path, *, test: str, typecheck: str) -> Non
 def declare_quality_profile(root: Path, gate_owner: str = "profile") -> None:
     """Bind complete native-quality intent to one profile or repository gate registry."""
     write_active_commitment(root)
-    for item in prepare_source_format(root, paths=("openspec/config.yaml",)):
-        (root / item.path).write_bytes(item.after)
     gates = [
         {
             "id": identity,
@@ -259,6 +257,11 @@ def declare_quality_profile(root: Path, gate_owner: str = "profile") -> None:
         )
         proof = {"gate_registry": "system/gates.toml"}
     write_test_profile(root, profile_id="native-quality-adopter", proof=proof)
+    paths = ("openspec/config.yaml", ".ethos/profile.toml")
+    if gate_owner != "profile":
+        paths += ("system/gates.toml",)
+    for item in prepare_source_format(root, paths=paths):
+        (root / item.path).write_bytes(item.after)
 
 
 def run_quality_proof(root: Path, head: str) -> CompletedProcess[str]:

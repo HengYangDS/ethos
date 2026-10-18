@@ -412,7 +412,7 @@ def test_real_locked_python_checks_qualify_the_selected_source(
         )
         assert "pytest-timeout" in drifted
         project.write_text(drifted, encoding="utf-8")
-    head = commit_fixture(repo, "bind real native quality")
+    head = commit_fixture(repo, "bind real native quality", format_paths=(".ethos/profile.toml",))
     if defect == "plugin-disabled":
         monkeypatch.setenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
 

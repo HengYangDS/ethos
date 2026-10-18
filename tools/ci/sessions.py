@@ -10,6 +10,7 @@ import tomllib
 from importlib import import_module
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Literal
 from typing import cast
 
 from tools.ci.toolchain.environment import ProjectRuntime
@@ -272,18 +273,17 @@ def _prettier(session, *paths: str, write: bool = False) -> None:
     )
 
 
+def _document_report(session, *, kind: Literal["format", "prose"]) -> None:
+    """Nox projects the product-owned nonmutating authoring check."""
+    report = import_module("ethos.adapters.gates.markdown").working_document_report(ROOT, kind=kind)
+    session.log(json.dumps(report, sort_keys=True))
+    if report["verdict"] != "pass":
+        session.error(json.dumps(report))
+
+
 def markdown_lint(session) -> None:
-    node = RUNTIME.node_executable()
-    markdownlint = RUNTIME.node_package_supply() / "markdownlint-cli2/markdownlint-cli2-bin.mjs"
-    if not markdownlint.is_file():
-        session.error("locked markdownlint-cli2 is missing; run npm ci --ignore-scripts")
-    session.run(
-        str(node),
-        str(markdownlint),
-        "--config",
-        ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
-    )
-    _prettier(session, *prettier_paths())
+    _document_report(session, kind="format")
+    _prettier(session, *(path for path in prettier_paths() if not path.endswith(".md")))
 
 
 def config_quality(session) -> None:

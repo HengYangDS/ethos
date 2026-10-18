@@ -80,6 +80,8 @@ packages = ["src/ethos"]
 ".config/mise/config.toml" = "ethos/resources/.config/mise/config.toml"
 ".config/mise/mise.lock" = "ethos/resources/.config/mise/mise.lock"
 ".config/checks/vale" = "ethos/resources/.config/checks/vale"
+".config/checks/prettier" = "ethos/resources/.config/checks/prettier"
+".config/checks/markdownlint-cli2" = "ethos/resources/.config/checks/markdownlint-cli2"
 "VERSION" = "ethos/resources/VERSION"
 "system/schemas" = "ethos/resources/system/schemas"
 "docs/governance/product-design-contract.md" = "ethos/resources/docs/governance/product-design-contract.md"
@@ -126,6 +128,8 @@ only-include = [
   ".config/mise/config.toml",
   ".config/mise/mise.lock",
   ".config/checks/vale",
+  ".config/checks/prettier",
+  ".config/checks/markdownlint-cli2",
   "VERSION",
   "tools/ci/openspec_runtime_hook.py",
 ]

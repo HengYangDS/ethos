@@ -123,3 +123,69 @@ def test_common_native_vocabulary_preserves_tool_names_and_rejects_misspellings(
         and item["Match"] in {"ETHOS", "OpenSpec", "GitLab", "GitHub", "SemVer", "Changelog"}
         for item in findings
     )
+
+
+def test_common_vale_policy_separates_machine_front_matter_from_human_prose(
+    tmp_path: Path,
+) -> None:
+    """Machine identifiers are inert while human fields retain native diagnostics."""
+    config = canonical_resource(".config/checks/vale/vale.ini")
+    executable = resolve_native_tool("vale")
+    source = tmp_path / "metadata [literal].md"
+    contents = (
+        "---\nsubject: ethos:docs-registry\nrole: explanation\nstate: canonical\n"
+        "relations: {}\nname: ethos-quality-gate-governance\n"
+        "title: Quality Guide\ndescription: The report is ready.\n---\n\n"
+        "# Guide\n\nUse `teh Github ethos:docs-registry` as literal code.\n"
+    )
+    source.write_text(contents, encoding="utf-8")
+    original = source.read_bytes()
+    command = (
+        str(executable),
+        "--no-global",
+        f"--config={config}",
+        "--output=JSON",
+        "--no-color",
+        str(source),
+    )
+
+    accepted = run_command(tmp_path, command, timeout=20)
+
+    assert accepted.returncode == 0, accepted.stdout + accepted.stderr
+    assert not accepted.stderr
+    assert not any(json.loads(accepted.stdout).values())
+    assert source.read_bytes() == original
+
+    for correct, defective, expected in (
+        (
+            "description: The report is ready.",
+            "description: The teh report is on Github.",
+            {
+                ("Vale.Spelling", "teh", 8, (18, 20)),
+                ("Vale.Terms", "Github", 8, (35, 40)),
+            },
+        ),
+        (
+            "title: Quality Guide",
+            "title: teh Github Guide",
+            {
+                ("Vale.Spelling", "teh", 7, (8, 10)),
+                ("Vale.Terms", "Github", 7, (12, 17)),
+            },
+        ),
+    ):
+        source.write_text(contents.replace(correct, defective), encoding="utf-8")
+        original = source.read_bytes()
+
+        rejected = run_command(tmp_path, command, timeout=20)
+
+        assert rejected.returncode == 1, rejected.stdout + rejected.stderr
+        assert not rejected.stderr
+        findings = json.loads(rejected.stdout)
+        assert set(findings) == {str(source)}
+        assert expected <= {
+            (item["Check"], item["Match"], item["Line"], tuple(item["Span"]))
+            for item in findings[str(source)]
+        }, rejected.stdout
+        assert all(item["Line"] in {7, 8} for item in findings[str(source)])
+        assert source.read_bytes() == original

@@ -5,13 +5,16 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import tomllib
 from contextlib import contextmanager
 from importlib import import_module
 from pathlib import Path
+from pathlib import PurePosixPath
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.content.observation import read_regular_bytes
 
 if TYPE_CHECKING:
     import subprocess
@@ -39,7 +42,9 @@ def native_tool_cache(root: Path) -> Path:
     )
 
 
-def _mise_environment(isolated: Path, *, offline: bool) -> dict[str, str]:
+def _mise_environment(
+    isolated: Path, *, offline: bool, files: Mapping[str, str] | None = None
+) -> dict[str, str]:
     """Bind native safe-mode and storage inputs without ambient Mise policy."""
     environment = {
         key: value
@@ -53,39 +58,120 @@ def _mise_environment(isolated: Path, *, offline: bool) -> dict[str, str]:
         "MISE_YES": "0",
         "MISE_GLOBAL_CONFIG_FILE": str(isolated / "absent-global.toml"),
         "MISE_SYSTEM_CONFIG_DIR": str(isolated / "absent-system"),
+        "MISE_CEILING_PATHS": str(isolated.parent),
     }
+    settings = tomllib.loads(files[MISE_CONFIG]).get("settings", {}) if files else {}
+    enabled = settings.get("idiomatic_version_file_enable_tools", [])
+    if not isinstance(enabled, list) or any(
+        not isinstance(tool, str) or not tool or any(char in tool for char in ",\0\n\r")
+        for tool in enabled
+    ):
+        message = "mise_idiomatic_settings_invalid"
+        raise ValueError(message)
+    environment["MISE_IDIOMATIC_VERSION_FILE_ENABLE_TOOLS"] = ",".join(enabled)
     if offline:
         environment.update(MISE_AUTO_INSTALL="0", MISE_OFFLINE="1")
     return environment
 
 
-def repository_mise_files(root: Path) -> dict[str, str] | None:
-    """Select one repository-owned native Mise lock without host fallback."""
-    layouts = (
-        (root / MISE_CONFIG, root / MISE_LOCK),
-        (root / "mise.toml", root / "mise.lock"),
-        (root / ".mise.toml", root / "mise.lock"),
+def _task_only_configuration(config_text: str) -> bool:
+    """Only a readable native declaration with no tool selection is task-only."""
+    try:
+        declared = tomllib.loads(config_text)
+    except tomllib.TOMLDecodeError:
+        return False
+    settings = declared.get("settings", {})
+    return (
+        not declared.get("tools")
+        and isinstance(settings, dict)
+        and not settings.get("idiomatic_version_file_enable_tools")
     )
-    selected = [(config, lock) for config, lock in layouts if config.is_file()]
+
+
+def repository_mise_files(root: Path, *, executable: Path | None = None) -> dict[str, str] | None:
+    """Select the native declaration closure without repository or host fallback."""
+    canonical = root.resolve()
+    layouts = (
+        (MISE_CONFIG, MISE_LOCK),
+        ("mise.toml", "mise.lock"),
+        (".mise.toml", "mise.lock"),
+    )
+    selected = [(config, lock) for config, lock in layouts if (canonical / config).is_file()]
     if not selected:
         return None
     if len(selected) != 1:
         message = "mise_config_ambiguous"
         raise ValueError(message)
     config, lock = selected[0]
-    if not lock.is_file():
+    if _task_only_configuration(_mise_input(canonical, config)):
+        return None
+    if not (canonical / lock).is_file():
         message = "locked_toolchain_missing"
         raise ValueError(message)
-    return {
-        MISE_CONFIG: config.read_text(encoding="utf-8"),
-        MISE_LOCK: lock.read_text(encoding="utf-8"),
-    }
+    origins = {MISE_CONFIG: config, MISE_LOCK: lock}
+    materials = {name: _mise_input(canonical, path) for name, path in origins.items()}
+    environment = _mise_environment(canonical, offline=True, files=materials)
+    if environment["MISE_IDIOMATIC_VERSION_FILE_ENABLE_TOOLS"]:
+        for relative in _mise_declaration_paths(canonical, environment, executable):
+            if relative != config:
+                materials[relative] = _mise_input(canonical, relative)
+                origins[relative] = relative
+    if any(_mise_input(canonical, path) != materials[name] for name, path in origins.items()):
+        message = "mise_declaration_changed"
+        raise ValueError(message)
+    return materials
+
+
+def _mise_declaration_paths(
+    root: Path, environment: Mapping[str, str], executable: Path | None
+) -> tuple[str, ...]:
+    """Use native discovery for idiomatic source names, never a filename registry."""
+    discovered = run_command(
+        root,
+        (str(executable or mise_executable()), "config", "ls", "--json"),
+        timeout=15,
+        remove_env_prefixes=("MISE_",),
+        env=environment,
+    )
+    if discovered.returncode or discovered.stderr:
+        message = "mise_declaration_discovery_unavailable"
+        raise ValueError(message)
+    try:
+        rows = json.loads(discovered.stdout)
+    except json.JSONDecodeError as error:
+        message = "mise_declaration_discovery_invalid"
+        raise ValueError(message) from error
+    if not isinstance(rows, list) or not rows:
+        message = "mise_declaration_discovery_invalid"
+        raise ValueError(message)
+    paths = []
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("path"), str):
+            message = "mise_declaration_discovery_invalid"
+            raise TypeError(message)
+        selected = Path(row["path"])
+        if not selected.is_absolute() or not selected.is_relative_to(root):
+            message = "mise_declaration_outside_root"
+            raise ValueError(message)
+        paths.append(selected.relative_to(root).as_posix())
+    return tuple(paths)
+
+
+def _mise_input(root: Path, relative: str) -> str:
+    """Read the native declaration bytes without following a repository alias."""
+    return read_regular_bytes(
+        root,
+        relative,
+        unsafe_gap="mise_declaration_unsafe",
+        unstable_gap="mise_declaration_changed",
+        size_gap="mise_declaration_size_exceeded",
+    ).decode("utf-8")
 
 
 def mise_executable() -> Path:
     """Resolve only the operator-selected native mise executable."""
     if not (installed := shutil.which("mise")):
-        message = "mise_unavailable:run tools/ci/scripts/bootstrap-python.sh"
+        message = "mise_unavailable:put the mise executable on PATH"
         raise ValueError(message)
     return Path(installed).resolve()
 
@@ -100,23 +186,34 @@ def run_mise(
     offline: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     """Run native mise over exact inputs with no project hooks or ambient config."""
-    materials = (
-        {path: (root / path).read_text(encoding="utf-8") for path in (MISE_CONFIG, MISE_LOCK)}
-        if files is None
-        else files
-    )
+    materials = repository_mise_files(root, executable=executable) if files is None else files
+    if materials is None or any(path not in materials for path in (MISE_CONFIG, MISE_LOCK)):
+        message = "locked_toolchain_missing"
+        raise ValueError(message)
     with TemporaryDirectory(prefix="ethos-mise-") as directory:
         isolated = Path(directory)
-        for path in (MISE_CONFIG, MISE_LOCK):
+        for path, content in materials.items():
+            selected = PurePosixPath(path)
+            if (
+                selected.is_absolute()
+                or not selected.parts
+                or ".." in selected.parts
+                or "\\" in path
+                or "\0" in path
+                or selected.as_posix() != path
+                or not isinstance(content, str)
+            ):
+                message = "mise_declaration_path_invalid"
+                raise ValueError(message)
             target = isolated / path
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(materials[path], encoding="utf-8")
+            target.write_text(content, encoding="utf-8", newline="")
         return run_command(
             isolated,
             (str(executable or mise_executable()), *arguments),
             timeout=timeout,
             remove_env_prefixes=("MISE_",),
-            env=_mise_environment(isolated, offline=offline),
+            env=_mise_environment(isolated, offline=offline, files=materials),
         )
 
 
@@ -177,6 +274,6 @@ def locked_environment(root: Path, files: Mapping[str, str]) -> Generator[dict[s
             raise ValueError(message)
         yield {
             **environment,
-            **_mise_environment(Path(directory), offline=True),
+            **_mise_environment(Path(directory), offline=True, files=files),
             "PATH": os.pathsep.join((directory, *(str(path) for path in paths), os.defpath)),
         }

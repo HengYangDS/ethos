@@ -6,7 +6,7 @@
 - [ ] 8.10 Verify one-attempt Allure 3 human/Agent reports alongside native JUnit/coverage, complete per-property reports, explicit product/test/tooling type-check scopes, cross-platform admission and warning propagation with native falsifying cases.
 - [ ] 8.11 Reject tracked-document links satisfied only by ignored/untracked host bytes; use native link syntax plus selected-tree or verified published-artifact membership and retain valid local targets.
 - [ ] 8.12 Make native source inventory failure observable and include nonignored candidate files in early size checks; reject empty Markdown selection, nested rule override and malformed system-schema report loss; replay corresponding public positive/negative cases.
-- [ ] 8.13 Verify formatter write and nonmutating check commands against actual native session discovery and effective configuration; reject missing `format` sessions, write-as-check and disabled-rule false green at the format ownership gate.
+- [ ] 8.13 Verify native `fix` and nonmutating `format_check` commands against actual session discovery and effective configuration; reject missing sessions, write-as-check and disabled-rule false green at the format ownership gate.
 
 ## 10. Native Quality Rules and Early Failure
 

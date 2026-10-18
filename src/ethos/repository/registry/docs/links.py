@@ -1,24 +1,28 @@
-"""Minimal Markdown parsing used by docs registry plan discovery."""
+"""Native Markdown links used by documentation registry navigation."""
 
 from __future__ import annotations
 
-import re
 from typing import TYPE_CHECKING
+
+from markdown_it import MarkdownIt
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-MARKDOWN_LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
+_MARKDOWN = MarkdownIt("commonmark")
 
 
 def markdown_links(path: Path) -> list[tuple[int, str]]:
-    """Extract Markdown links from a document."""
+    """Return rendered link destinations with their native block source line."""
     links: list[tuple[int, str]] = []
-    for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-        for match in MARKDOWN_LINK.finditer(line):
-            target = match.group(1).strip()
-            if not target or target.startswith("<"):
-                continue
-            target = target.split(None, 1)[0]
-            links.append((lineno, target))
+    for token in _MARKDOWN.parse(path.read_text(encoding="utf-8")):
+        if token.type != "inline" or token.map is None:
+            continue
+        links.extend(
+            (token.map[0] + 1, target)
+            for child in token.children or ()
+            if child.type == "link_open"
+            and isinstance(target := child.attrGet("href"), str)
+            and target
+        )
     return links

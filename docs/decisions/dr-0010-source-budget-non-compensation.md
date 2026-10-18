@@ -2,6 +2,8 @@
 subject: ethos:decision:source-budget-non-compensation
 role: decision
 state: canonical
+decision_id: DR-0010
+decision_status: accepted
 relations:
   current_owner: ../../.config/checks/format-selection/policy.toml
 ---
@@ -47,7 +49,18 @@ role cannot pay for excess in another. Per-file limits remain readability
 tripwires. A breach triggers semantic review—delete, absorb, rename, or split by
 real ownership—not mechanical file fragmentation.
 
-## Consequences
+## Alternatives Rejected
+
+- **One aggregate repository budget:** rejected because unrelated domains can
+  subsidize one another and obscure the source of growth.
+- **Raw LOC as semantic currency:** rejected because formatting, literals, and
+  carrier movement can game it.
+- **A private metric vector runtime:** rejected because its parser, replay,
+  shadow, debt, and migration machinery exceeded the invariant it protected.
+- **Splitting solely to satisfy a threshold:** rejected because it preserves the
+  same mixed ownership under more physical entities.
+
+## Consequences and Boundary
 
 - Every governed carrier must be classified into one measured owner or fail
   closed; hidden exclusions cannot make a budget green.
@@ -61,18 +74,7 @@ real ownership—not mechanical file fragmentation.
   to maintained source. Handwritten generators, active intent, tests, and docs
   remain measured; moving live authority into an excluded class is not deletion.
 
-## Rejected Alternatives
-
-- **One aggregate repository budget:** rejected because unrelated domains can
-  subsidize one another and obscure the source of growth.
-- **Raw LOC as semantic currency:** rejected because formatting, literals, and
-  carrier movement can game it.
-- **A private metric vector runtime:** rejected because its parser, replay,
-  shadow, debt, and migration machinery exceeded the invariant it protected.
-- **Splitting solely to satisfy a threshold:** rejected because it preserves the
-  same mixed ownership under more physical entities.
-
-## Evidence
+## Evidence and Revisit
 
 - `.config/checks/format-selection/policy.toml` owns current classifications,
   thresholds, native commands, and the independent `scc` cross-check.
@@ -85,8 +87,6 @@ real ownership—not mechanical file fragmentation.
   contract verify shared carrier ownership without an adapter-to-domain dependency.
 - [Module Layout And Visibility Rules](../../rules/module-layout.md) prevents
   size thresholds from authorizing suffix-flat or metric-driven splits.
-
-## Revisit And Retirement
 
 Revisit if direct measurement becomes nondeterministic, materially gameable, or
 unable to classify a governed carrier without hidden exclusions. Retire this

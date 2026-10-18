@@ -168,7 +168,10 @@ def build_docs_registry(
         except ValueError as exc:
             message = f"docs_metadata_invalid:{relative}:syntax"
             raise ValueError(message) from exc
-        for field in ("subject", "role", "state"):
+        decision_fields = (
+            ("decision_id", "decision_status") if metadata.get("role") == "decision" else ()
+        )
+        for field in ("subject", "role", "state", *decision_fields):
             if field in metadata and not isinstance(metadata[field], str):
                 message = f"docs_metadata_invalid:{relative}:{field}"
                 raise ValueError(message)
@@ -190,7 +193,11 @@ def build_docs_registry(
         entries.append(
             {
                 "path": relative,
-                **{field: metadata[field] for field in REQUIRED_FIELDS if field in metadata},
+                **{
+                    field: metadata[field]
+                    for field in (*REQUIRED_FIELDS, *decision_fields)
+                    if field in metadata
+                },
                 **({"origin": original.origin} if original is not None else {}),
             }
         )

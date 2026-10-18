@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 from markdown_it import MarkdownIt
 
+from ethos.adapters.repo.git import run_git
 from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.design.integrity import front_matter_ok
 from ethos.repository.policy.references.closure import repository_semantic_closure
@@ -15,7 +16,7 @@ from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.registry.docs.health import ethos_command_tokens
 from ethos.repository.registry.docs.health import shell_commands
 from ethos.repository.registry.docs.registry import front_matter
-from ethos.surface.cli.root.reference import docs_registry_report
+from ethos.surface.cli.root.reference import docs_registry_report as native_docs_registry_report
 from tests.support.literal_cases import literal_case
 
 if TYPE_CHECKING:
@@ -595,3 +596,10 @@ def test_json_navigation_uses_actual_safe_linked_child(tmp_path, kind):
     report = docs_health_report(tmp_path)
     expected = [] if kind == "file" else ["docs_readme_without_children:docs/README.md"]
     assert report["readme_disposition"] == expected
+
+
+def docs_registry_report(root: Path):
+    """Bind documentation fixtures to the real index before public observation."""
+    run_git(root, "init", "--quiet")
+    run_git(root, "add", "--all")
+    return native_docs_registry_report(root)

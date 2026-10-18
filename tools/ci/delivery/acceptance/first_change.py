@@ -159,9 +159,9 @@ def _handoff(
 
 
 _FORMAT_SOURCES = {
-    "docs/format [draft].md": b"# Format  \n\n\n| A | B |\n|---|---|\n| 1 | 2 |\n",
-    "docs/format [draft].toml": b"key   =   'value'\n",
-    "docs/format [draft].yaml": b"key:    value\n",
+    "docs/format-draft.md": b"# Format  \n\n\n| A | B |\n|---|---|\n| 1 | 2 |\n",
+    "docs/format-draft.toml": b"key   =   'value'\n",
+    "docs/format-draft.yaml": b"key:    value\n",
 }
 
 

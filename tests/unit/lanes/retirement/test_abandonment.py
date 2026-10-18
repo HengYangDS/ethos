@@ -58,14 +58,14 @@ def test_reviewed_disposal_preserves_shared_files_and_recovers_before_deregistra
         monkeypatch.setattr(content.os, "unlink", stop_after_first)
     result = apply_retirement_receipt(repo, receipt)
     if interrupted:
-        assert result["verdict"] == "block", result
-        assert not (generated / "first").exists(), result
+        assert result["verdict"] == "block", _failure(result)
+        assert not (generated / "first").exists(), _failure(result)
         assert (admin / "index").read_bytes() == original_index
         assert (lane / ".git").is_file() == (interrupted != ".git")
         assert "ethos lane retire recover" in str(result["next_action"])
         monkeypatch.setattr(content.os, "unlink", native_unlink)
         result = apply_retirement_receipt(repo, receipt)
-    assert result["state"] == "retired", result
+    assert result["state"] == "retired", _failure(result)
     assert not lane.exists()
     assert not admin.exists()
     if detached:
@@ -78,6 +78,11 @@ def test_reviewed_disposal_preserves_shared_files_and_recovers_before_deregistra
     )
     assert (external.read_bytes(), external.stat().st_mode, external.stat().st_ino) == before
     _assert_terminal_recovery(repo, lane, receipt, detached)
+
+
+def _failure(result):
+    """Show the complete gap and cause, which a truncated result representation hides."""
+    return json.dumps({key: result.get(key) for key in ("state", "required_gaps", "stderr")})
 
 
 def _assert_terminal_recovery(repo, lane, receipt, detached):

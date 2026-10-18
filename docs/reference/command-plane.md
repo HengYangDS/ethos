@@ -359,10 +359,13 @@ ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
 ```
 
 An executed full proof first takes its repository's proof slot, which every worktree shares, then
-waits until the host's 1-minute load average is within `ETHOS_PROOF_HOST_LOAD_LIMIT` (default: half
-the CPUs; `0` admits on the slot alone). It reports waiting on stderr and waits at most one hour;
+waits until the host's 1- and 5-minute load averages are both within `ETHOS_PROOF_HOST_LOAD_LIMIT`
+(default: half the CPUs; `0` admits on the slot alone), so a short lull between other jobs does not
+admit it. It reports waiting on stderr and waits at most one hour;
 longer contention ends the proof with `proof_admission_contended` before any gate runs. The result
-records how long admission waited and the load it admitted.
+records how long admission waited and the load it admitted. A Work Lane proof whose candidate is no
+longer in the lane's history, at start or while waiting, ends with `candidate_base_stale` and the
+refresh command instead, because that proof could not land.
 
 ## Hidden Operational Roots
 

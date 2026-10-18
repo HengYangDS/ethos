@@ -11,6 +11,7 @@ from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.invocation_facts import invocation_fact
 from ethos.adapters.repo.runtime.source import source_build_identity
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.repository.profile import load_repository_profile
@@ -35,16 +36,23 @@ def runtime_build_identity(source: Path, *, include_overlay: bool = True) -> Bui
     return packaged_build_identity()
 
 
+def _invoking_build(*, include_overlay: bool) -> BuildIdentity:
+    """Observe the executing product's build once per invocation; its code is already running."""
+    source = Path(__file__).resolve().parents[5]
+    return invocation_fact(
+        ("invoking-build", include_overlay),
+        lambda: runtime_build_identity(source, include_overlay=include_overlay),
+    )
+
+
 def invoking_build_identity() -> BuildIdentity:
     """Resolve the invoking source checkout or installed package identity."""
-    source = Path(__file__).resolve().parents[5]
-    return runtime_build_identity(source)
+    return _invoking_build(include_overlay=True)
 
 
 def invoking_source_commit() -> str:
     """Return the commit the invoking checkout or installed package was built from."""
-    source = Path(__file__).resolve().parents[5]
-    return runtime_build_identity(source, include_overlay=False).source_commit
+    return _invoking_build(include_overlay=False).source_commit
 
 
 def expected_runtime_build(root: Path) -> RuntimeBuild:
@@ -59,16 +67,14 @@ def expected_runtime_build(root: Path) -> RuntimeBuild:
         repo = repository_root(root)
         profile = load_repository_profile(repo).declaration
     except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError):
-        return RuntimeBuild(runtime_build_identity(package_source), source_authority, invoking=True)
+        return RuntimeBuild(_invoking_build(include_overlay=True), source_authority, invoking=True)
     if profile is None or profile.profile_id != "ethos":
-        return RuntimeBuild(runtime_build_identity(package_source), source_authority, invoking=True)
+        return RuntimeBuild(_invoking_build(include_overlay=True), source_authority, invoking=True)
     policy = load_branch_role_policy(repo)
     commit = ref_head(repo, policy.accepted_branch)
     tree = current_tree(repo, commit)
     if accepted_version_migration_pending(repo, accepted_commit=commit):
-        return RuntimeBuild(
-            runtime_build_identity(package_source, include_overlay=False), source_authority
-        )
+        return RuntimeBuild(_invoking_build(include_overlay=False), source_authority)
     version = run_git(repo, "show", f"{commit}:VERSION", text=False).stdout.decode("ascii")
     identity = build_identity(
         product=product_version_from_text(version), source_commit=commit, source_tree=tree

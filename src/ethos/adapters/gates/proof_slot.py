@@ -3,8 +3,10 @@
 A full proof that starts beside another full proof, or on a host already loaded by local CI
 virtual machines or other test runs, fails its gates by timeout rather than by any defect.
 Admission therefore waits before the first gate runs: first for the repository's proof slot,
-then, while holding it, for the 1-minute load average to fall within the limit. Waiting is
-bounded; contention that outlasts the bound ends the proof with a gap before any gate runs.
+then, while holding it, for both the 1- and 5-minute load averages to fall within the limit, so
+a short lull between other jobs is not mistaken for room. Waiting is bounded; contention that
+outlasts the bound ends the proof with a gap before any gate runs. A Work Lane that falls behind
+its candidate meanwhile could no longer land, so its proof also ends before any gate runs.
 """
 
 from __future__ import annotations
@@ -24,7 +26,12 @@ from typing import TYPE_CHECKING
 from filelock import FileLock
 from filelock import Timeout
 
+from ethos.adapters.repo.git import current_branch
+from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.store.state.schema import local_state_root
+from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.contracts.branch.roles import load_branch_role_policy
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -33,6 +40,7 @@ if TYPE_CHECKING:
 
 LOAD_LIMIT_VARIABLE = "ETHOS_PROOF_HOST_LOAD_LIMIT"
 CONTENDED = "proof_admission_contended"
+STALE = "candidate_base_stale"
 _LIMIT_INVALID = "proof_host_load_limit_invalid"
 _ADMISSION_SECONDS = 3600.0
 _POLL_SECONDS = 15.0
@@ -48,7 +56,7 @@ class SlotAdmission:
 
 
 def load_limit() -> float | None:
-    """Return the admitted 1-minute load average; `0` disables the load condition.
+    """Return the admitted host load; `0` disables the load condition.
 
     Half the CPUs stay free for others by default: a full proof's own test workers fill the
     rest, and a busier host stretches its slowest tests past their timeout.
@@ -66,11 +74,29 @@ def load_limit() -> float | None:
 
 
 def host_load() -> float | None:
-    """Observe the 1-minute load average, or None where the host does not report it."""
+    """Observe the higher of the 1- and 5-minute load averages, or None where unreported."""
     try:
-        return os.getloadavg()[0]
+        return max(os.getloadavg()[:2])
     except (AttributeError, OSError):
         return None
+
+
+def candidate_current(root: Path, *, head: str) -> Callable[[], bool]:
+    """Judge whether a Work Lane head still contains its candidate; other checkouts do.
+
+    Landing requires the candidate in the lane's history. A clone without the candidate
+    branch has nothing to fall behind.
+    """
+    policy = load_branch_role_policy(root)
+    if policy.role_for_branch(current_branch(root)) != ROLE_WORK_LANE:
+        return lambda: True
+    ref = f"refs/heads/{policy.candidate_branch}^{{commit}}"
+
+    def current() -> bool:
+        candidate = git_stdout(root, "rev-parse", "--verify", "--quiet", ref)
+        return not candidate or is_ancestor(root, candidate, head)
+
+    return current
 
 
 def _report(event: dict[str, object]) -> None:
@@ -91,6 +117,7 @@ def admitted_full_proof(
     root: Path,
     *,
     head: str,
+    current: Callable[[], bool] | None = None,
     limit: Callable[[], float | None] = load_limit,
     load: Callable[[], float | None] = host_load,
     clock: Callable[[], float] = time.monotonic,
@@ -100,6 +127,7 @@ def admitted_full_proof(
 ) -> Generator[SlotAdmission]:
     """Hold the repository's proof slot once host load allows; release it when the proof ends."""
     admitted_limit = limit()
+    base_current = current or candidate_current(root, head=head)
     state = local_state_root(root)
     state.mkdir(parents=True, exist_ok=True)
     slot = FileLock(state / "proof-slot.lock", mode=0o600)
@@ -109,6 +137,8 @@ def admitted_full_proof(
     reason = ""
     try:
         while True:
+            if not base_current():
+                raise ValueError(STALE)
             if not acquired:
                 with suppress(Timeout):
                     slot.acquire(timeout=0)

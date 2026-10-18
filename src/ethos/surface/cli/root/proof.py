@@ -19,6 +19,7 @@ from cyclopts import Parameter
 import ethos.domain.status as status_domain
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
+from ethos.adapters.gates.proof_slot import STALE
 from ethos.adapters.gates.proof_slot import admitted_full_proof
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalGateRunner
@@ -262,17 +263,18 @@ def _proof_next_action(
     return "ethos plan --changed --json"
 
 
-def _emit_proof_gap(error: ValueError, *, json_output: bool) -> None:
+def _emit_proof_gap(error: ValueError, *, json_output: bool, head: str = "") -> None:
     """Project one proof failure with its original diagnostics and no second claim."""
     observation = error.observation if isinstance(error, ProcessExecutionError) else {}
     gaps = tuple(string_sequence(observation.get("required_gaps"))) or (str(error),)
+    refresh = f"ethos lane refresh-base --apply --authorize --expect-head {head} --json"
     emit(
         EthosResult(
             command="prove",
             verdict="block",
             state="gapped",
             required_gaps=gaps,
-            next_action="ethos plan --changed --json",
+            next_action=refresh if gaps == (STALE,) else "ethos plan --changed --json",
             data=observation,
         ),
         json_output=json_output,
@@ -418,7 +420,7 @@ def prove(
                 carrier=carrier,
             )
     except ValueError as exc:
-        _emit_proof_gap(exc, json_output=json_output)
+        _emit_proof_gap(exc, json_output=json_output, head=current_head)
         return
     scope_binding, host_probe = (
         proof_scope_binding(options.scope),

@@ -14,6 +14,12 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Changed
 
+- A full proof waits for its repository's proof slot and until the host's 1- and 5-minute load
+  averages are within `ETHOS_PROOF_HOST_LOAD_LIMIT` before any gate runs, so it does not start
+  into concurrent proofs or local CI. A Work Lane proof whose candidate moved on ends at admission
+  with `candidate_base_stale` instead of running gates for a head that could not land.
+- Within one command, ETHOS reads each Git object named by its full ID once and observes the
+  running build once; refs, the index, the worktree and failed reads stay fresh.
 - Advanced the next product identity to `0.2.0-alpha.5`; local `commit-msg`,
   pre-push, GitHub, and GitLab now consume one repository commit-policy owner
   over the exact introduced commit range.
@@ -51,6 +57,9 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- Lane retirement no longer counts an empty directory that another process holds open, such as
+  an agent's `.claude/.cc-writes`, as content in use; held files and non-empty directories
+  still block.
 - Limited accepted-source delivery reuse to the current accepted commit;
   other exact push objects retain independent proof and contribution-range
   checks without requiring local accepted-ref equality.
@@ -76,6 +85,10 @@ historical bindings are governed by [Release Governance](docs/governance/release
 - Named a Work Lane's worktree family after the canonical checkout that owns the
   Git common directory, so a lane started from an accepted sibling worktree such
   as `<repository>-accepted` lands in `<repository>-worktrees/`.
+- Stopped Linux lane retirement from treating a process that exits during the
+  open-file scan as an unreadable observation. `lsof` records such a process or
+  descriptor only by the `/proc` entry it failed to read, without a type, device
+  or inode; permission and other read failures still block retirement.
 
 ## [0.2.0-alpha.2] - 2026-08-30
 

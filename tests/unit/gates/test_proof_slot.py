@@ -11,9 +11,12 @@ from filelock import Timeout
 
 import ethos.adapters.gates.proof_slot as proof_slot
 from ethos.adapters.store.state.schema import local_state_root
+from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from contextlib import AbstractContextManager
     from pathlib import Path
 
@@ -37,11 +40,17 @@ class _Host:
         self.now += seconds
 
     def admit(
-        self, repo: Path, *, limit: float | None = 8.0, seconds: float = 600.0
+        self,
+        repo: Path,
+        *,
+        limit: float | None = 8.0,
+        seconds: float = 600.0,
+        current: Callable[[], bool] = lambda: True,
     ) -> AbstractContextManager[proof_slot.SlotAdmission]:
         return proof_slot.admitted_full_proof(
             repo,
             head=_HEAD,
+            current=current,
             limit=lambda: limit,
             load=self.load,
             clock=lambda: self.now,
@@ -144,6 +153,62 @@ def test_contention_that_outlasts_admission_runs_nothing_and_frees_the_slot(
     assert not holder_path.exists()
 
 
+@pytest.mark.parametrize(("observations", "sleeps"), [([False], 0), ([True, True, False], 2)])
+def test_a_lane_whose_candidate_moves_on_runs_nothing_and_frees_the_slot(
+    tmp_path: Path, observations: list[bool], sleeps: int
+) -> None:
+    """A lane base that falls behind its candidate, at start or while waiting, ends admission."""
+    repo = init_git_repo(tmp_path / "repo")
+    host = _Host([30.0])
+    checks = iter(observations)
+
+    with (
+        pytest.raises(ValueError, match=r"^candidate_base_stale$") as stale,
+        host.admit(repo, current=lambda: next(checks)),
+    ):
+        pytest.fail("no gate may run for a lane that can no longer land")
+
+    assert len(host.sleeps) == sleeps
+    lock_path, holder_path = _slot(repo)
+    # The failed admission's frame is still referenced, so only an explicit release frees it.
+    assert stale.value.args == (proof_slot.STALE,)
+    assert FileLock(lock_path).acquire(timeout=0)
+    assert not holder_path.exists()
+
+
+def test_only_a_work_lane_behind_its_candidate_is_stale(tmp_path: Path) -> None:
+    """A lane is judged against its candidate; other checkouts and clones without one are not."""
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    git(repo, "switch", "--quiet", "-c", "work/lane")
+    lane = proof_slot.candidate_current(repo, head=head)
+    without_candidate = lane()
+    git(repo, "branch", "candidate/dev")
+    with_candidate = lane()
+
+    git(repo, "switch", "--quiet", "candidate/dev")
+    commit_fixture_file(repo, "landed.txt", "landed\n", "chore: land another lane")
+    git(repo, "switch", "--quiet", "dev")
+
+    assert (without_candidate, with_candidate, lane()) == (True, True, False)
+    assert proof_slot.candidate_current(repo, head=head)()
+
+
+def test_admission_judges_its_own_lane_by_default(tmp_path: Path) -> None:
+    """Without an injected judgment, admission derives staleness from the repository itself."""
+    repo = init_git_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    git(repo, "switch", "--quiet", "-c", "candidate/dev")
+    commit_fixture_file(repo, "landed.txt", "landed\n", "chore: land another lane")
+    git(repo, "switch", "--quiet", "-c", "work/lane", head)
+
+    with (
+        pytest.raises(ValueError, match=r"^candidate_base_stale$"),
+        proof_slot.admitted_full_proof(repo, head=head, limit=lambda: None, report=[].append),
+    ):
+        pytest.fail("no gate may run for a lane that can no longer land")
+
+
 def test_a_proof_that_never_got_the_slot_leaves_the_running_proof_alone(tmp_path: Path) -> None:
     """Giving up while another proof runs neither frees its slot nor erases its holder."""
     repo = init_git_repo(tmp_path / "repo")
@@ -203,17 +268,21 @@ def test_an_invalid_load_limit_is_refused(monkeypatch: pytest.MonkeyPatch, raw: 
         proof_slot.load_limit()
 
 
-@pytest.mark.parametrize("reported", [True, False])
-def test_the_host_load_is_observed_where_the_host_reports_it(
-    monkeypatch: pytest.MonkeyPatch, *, reported: bool
+@pytest.mark.parametrize(
+    ("averages", "expected"), [((3.5, 2.0, 1.0), 3.5), ((3.5, 12.0, 20.0), 12.0), (None, None)]
+)
+def test_the_host_load_is_the_sustained_load_where_the_host_reports_it(
+    monkeypatch: pytest.MonkeyPatch,
+    averages: tuple[float, float, float] | None,
+    expected: float | None,
 ) -> None:
-    """A host without a load average leaves load unknown instead of failing admission."""
-    if reported:
-        monkeypatch.setattr(proof_slot.os, "getloadavg", lambda: (3.5, 2.0, 1.0))
+    """A lull between other jobs is not room: the 5-minute average counts beside the 1-minute."""
+    if averages is not None:
+        monkeypatch.setattr(proof_slot.os, "getloadavg", lambda: averages)
     else:
         monkeypatch.delattr(proof_slot.os, "getloadavg")
 
-    assert proof_slot.host_load() == (3.5 if reported else None)
+    assert proof_slot.host_load() == expected
 
 
 def test_admission_reports_its_grant_on_stderr(

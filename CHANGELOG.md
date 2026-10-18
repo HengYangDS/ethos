@@ -73,6 +73,9 @@ historical bindings are governed by [Release Governance](docs/governance/release
 - Stopped Markdown lint from rejecting what Prettier writes: Prettier uses
   underscore emphasis but asterisks inside a word, so an emphasis style is now
   required only in official OpenSpec artifacts, which Prettier does not format.
+- Named a Work Lane's worktree family after the canonical checkout that owns the
+  Git common directory, so a lane started from an accepted sibling worktree such
+  as `<repository>-accepted` lands in `<repository>-worktrees/`.
 
 ## [0.2.0-alpha.2] - 2026-08-30
 

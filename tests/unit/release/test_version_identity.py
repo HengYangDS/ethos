@@ -54,6 +54,24 @@ def test_version_file_is_the_single_product_owner_and_manifests_are_projections(
     assert "0.1.0a2" not in (root / "pyproject.toml").read_text(encoding="utf-8")
 
 
+def test_wheel_resource_mapping_selects_each_archive_member_once() -> None:
+    """Native file and directory declarations cannot duplicate packaged source bytes."""
+    root = Path(__file__).resolve().parents[3]
+    declaration = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    mappings = declaration["tool"]["hatch"]["build"]["targets"]["wheel"]["force-include"]
+    members = []
+    for relative, target in mappings.items():
+        source = root / relative
+        assert source.exists(), relative
+        files = source.rglob("*") if source.is_dir() else (source,)
+        members.extend(
+            target if source.is_file() else f"{target}/{file.relative_to(source).as_posix()}"
+            for file in files
+            if file.is_file()
+        )
+    assert len(members) == len(set(members)), "wheel resources have competing inclusion owners"
+
+
 @pytest.fixture
 def _native_build_supply(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Bind verified Node and Vale archives without embedding or downloading supply."""

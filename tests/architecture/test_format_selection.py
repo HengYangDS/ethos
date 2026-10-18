@@ -92,7 +92,6 @@ def test_native_carriers_separate_canonicalization_from_validation(carrier_repor
         "pyproject.toml": ("taplo", "taplo"),
         ".github/workflows/ci.yml": ("cue", "cue"),
         "distributions/npm/bin/ethos.mjs": ("prettier", "prettier"),
-        "tools/ci/scripts/bootstrap-python.sh": ("shfmt", "shellcheck"),
         "assets/brand/ethos-logo.svg": ("svgo", "svgo"),
         "assets/brand/ethos-logo-1024.png": ("source-binary", "pillow"),
         ".gitattributes": ("repository-canonical-text", "repository-hygiene"),

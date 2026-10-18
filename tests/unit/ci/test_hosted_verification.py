@@ -1,12 +1,9 @@
-"""The hosted shell transport cannot turn stale or partial output into proof."""
+"""The hosted receipt owner cannot turn stale or partial output into proof."""
 
 from __future__ import annotations
 
 import json
 import os
-import shlex
-import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -16,6 +13,7 @@ from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.repository.policy.gates import gate_execution_identity
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tools.ci import hosted_verification
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -94,50 +92,43 @@ def _report_contents(reports: str) -> dict[str, str]:
     )
 
 
-def _hosted_scripts(
+def _hosted_supply(
     repo: Path,
     transport: Path,
     supply_script: str,
     scanner_script: str = "exit 0\n",
     sbom_script: str = "touch .syft-prepared\n",
     vale_script: str = "touch .vale-prepared\n",
-) -> Path:
-    """Keep the real wrapper with isolated external-tool preparation boundaries."""
+) -> None:
+    """Bind the repository runtime and native supply owner to isolated fixtures."""
     interpreter = repo / ".venv/bin/python"
     interpreter.parent.mkdir(parents=True)
     interpreter.symlink_to(sys.executable)
-    scripts = repo / "tools/ci/scripts"
-    scripts.mkdir(parents=True)
-    shutil.copy2(ROOT / "tools/ci/scripts/run-head-bound-proof.sh", scripts)
     path = repo / "tools/ci/toolchain/native.py"
-    path.parent.mkdir(exist_ok=True)
+    path.parent.mkdir(parents=True)
     path.symlink_to(transport.with_name("prepare"))
     (repo / "supply-case.json").write_text(
         json.dumps([scanner_script, supply_script, sbom_script, vale_script])
     )
-    return scripts
 
 
-def _run_hosted(repo: Path, scripts: Path, bins: Path, *args: str, **environment: str):
-    """Run the native shell with explicit case-local tools and environment."""
-    for name in ("python", "python3"):
-        launcher = bins / name
-        launcher.write_text(f'#!/bin/sh\nexec {shlex.quote(sys.executable)} "$@"\n')
-        launcher.chmod(0o555)
-    return subprocess.run(
-        ["bash", str(scripts / "run-head-bound-proof.sh"), *args],
-        cwd=repo,
-        env={key: value for key, value in os.environ.items() if not key.startswith("ETHOS_TEST_")}
-        | {
-            "PATH": f"{bins}{os.pathsep}{os.environ['PATH']}",
-            "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
-            **environment,
-        },
-        capture_output=True,
-        text=True,
-        timeout=15,
-        check=False,
-    )
+def _run_hosted(
+    repo: Path,
+    bins: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    *args: str,
+    **environment: str,
+) -> tuple[int, str, str]:
+    """Run the receipt owner with explicit case-local tools and environment."""
+    for name in [key for key in os.environ if key.startswith("ETHOS_TEST_")]:
+        monkeypatch.delenv(name)
+    monkeypatch.setenv("PATH", f"{bins}{os.pathsep}{os.environ['PATH']}")
+    for name, value in environment.items():
+        monkeypatch.setenv(name, value)
+    status = hosted_verification.run(repo, *args)
+    captured = capsys.readouterr()
+    return status, captured.out, captured.err
 
 
 def _observation_payload(expected: str, fault: str) -> dict[str, object]:
@@ -228,6 +219,7 @@ def test_hosted_receipt_requires_exact_executed_observation(
     reports: str,
     hosted_proof_transport: Path,
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """No local lane readiness or misleading passing field can authorize CI success."""
     repo = init_git_repo(tmp_path / "repo")
@@ -247,19 +239,19 @@ def test_hosted_receipt_requires_exact_executed_observation(
     )
     binary.symlink_to(hosted_proof_transport)
     assert binary.samefile(hosted_proof_transport)
-    scripts = _hosted_scripts(repo, hosted_proof_transport, "exit 0\n")
+    _hosted_supply(repo, hosted_proof_transport, "exit 0\n")
     assert (repo / "tools/ci/toolchain/native.py").samefile(
         hosted_proof_transport.with_name("prepare")
     )
     summary_file = tmp_path / "summary.md"
     if fault == "none" and reports == "valid":
         monkeypatch.setenv("ETHOS_TEST_EVIDENCE_DIR", str(tmp_path / "outer-evidence"))
-    completed = _run_hosted(
-        repo, scripts, binary.parent, expected, GITHUB_STEP_SUMMARY=str(summary_file)
+    status, out, err = _run_hosted(
+        repo, binary.parent, monkeypatch, capsys, expected, GITHUB_STEP_SUMMARY=str(summary_file)
     )
     expected_pass = fault == "none" and reports == "valid"
-    assert (completed.returncode == 0) is expected_pass, completed.stdout + completed.stderr
-    receipt = json.loads(completed.stdout)
+    assert (status == 0) is expected_pass, out + err
+    receipt = json.loads(out)
     assert receipt["kind"] == "ethos_hosted_verification_receipt"
     assert receipt["satisfies_repository_proof"] is False
     assert receipt["verdict"] == ("pass" if expected_pass else "block")
@@ -270,7 +262,7 @@ def test_hosted_receipt_requires_exact_executed_observation(
     assert "--gate" not in command
     assert command[command.index("--expect-head") + 1] == expected
     if not expected_pass:
-        assert "exact-child-diagnostic" in completed.stderr
+        assert "exact-child-diagnostic" in err
     summary = summary_file.read_text()
     assert expected in summary
     assert receipt["verdict"] in summary
@@ -290,12 +282,16 @@ def test_hosted_receipt_requires_exact_executed_observation(
 
 @pytest.mark.parametrize("failed_tool", ["scc", "gitleaks", "syft", "vale"])
 def test_tool_supply_failure_precedes_proof_and_clears_stale_evidence(
-    tmp_path: Path, failed_tool: str, hosted_proof_transport: Path
+    tmp_path: Path,
+    failed_tool: str,
+    hosted_proof_transport: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """A failed prerequisite must not leave prior passing output or invoke proof."""
     repo = init_git_repo(tmp_path / "repo")
     failure = f"echo {failed_tool}_archive_checksum_mismatch >&2\nexit 23\n"
-    scripts = _hosted_scripts(
+    _hosted_supply(
         repo,
         hosted_proof_transport,
         *(
@@ -314,12 +310,12 @@ def test_tool_supply_failure_precedes_proof_and_clears_stale_evidence(
     bins = tmp_path / "bin"
     bins.mkdir()
     (bins / "uv").symlink_to(hosted_proof_transport)
-    result = _run_hosted(repo, scripts, bins)
-    assert result.returncode == 23, result.stdout + result.stderr
-    assert f"{failed_tool}_archive_checksum_mismatch" in result.stderr
+    status, out, err = _run_hosted(repo, bins, monkeypatch, capsys)
+    assert status == 23, out + err
+    assert f"{failed_tool}_archive_checksum_mismatch" in err
     assert not (repo / "commands.jsonl").exists()
     assert not any(path.exists() for path in stale)
-    receipt = json.loads(result.stdout)
+    receipt = json.loads(out)
     assert receipt["verdict"] == "block"
     retained = json.loads((evidence / "proof/hosted-verification.json").read_text())
     assert retained == receipt

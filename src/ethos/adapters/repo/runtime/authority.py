@@ -41,6 +41,12 @@ def invoking_build_identity() -> BuildIdentity:
     return runtime_build_identity(source)
 
 
+def invoking_source_commit() -> str:
+    """Return the commit the invoking checkout or installed package was built from."""
+    source = Path(__file__).resolve().parents[5]
+    return runtime_build_identity(source, include_overlay=False).source_commit
+
+
 def expected_runtime_build(root: Path) -> RuntimeBuild:
     """Return the accepted self-hosted build or the invoking package build."""
     package_source = Path(__file__).resolve().parents[5]

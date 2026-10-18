@@ -23,7 +23,7 @@ from ethos.adapters.projections.cue import compile_projections
 from ethos.adapters.toolchain.mise import locked_tool
 from ethos.repository.policy.projections import observe_projections
 from tools.ci.toolchain.environment import ProjectRuntime
-from tools.ci.toolchain.native import validate_mise_installer
+from tools.ci.toolchain.native import mise_executables
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -342,7 +342,7 @@ def check_templates(*, json_output: bool) -> int:
     relations = {}
     try:
         relations = {item.output: item for item in observe_projections(ROOT)}
-        validate_mise_installer(ROOT)
+        mise_executables(ROOT)
         rendered = compile_providers(
             ROOT,
             observations={

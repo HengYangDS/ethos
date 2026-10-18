@@ -4,7 +4,7 @@ source_refs = ["system/gates.toml"]
 
 [proof_sets]
 default = ["repository-audit", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "config-quality", "shell-lint"]
-full = ["repository-audit", "repository-hygiene", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "github-workflow-syntax", "python-size", "source-budget", "markdown-lint", "javascript-lint", "javascript-tests", "svg-format", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "prose", "dependency-vulnerabilities", "release-sbom", "secrets"]
+full = ["repository-audit", "repository-hygiene", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "github-workflow-syntax", "source-budget", "markdown-lint", "javascript-lint", "javascript-tests", "svg-format", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "prose", "dependency-vulnerabilities", "release-sbom", "secrets"]
 
 [[gates]]
 id = "repository-audit"
@@ -156,7 +156,6 @@ depends_on = [
   "module-layout",
   "shell-lint",
   "config-quality",
-  "python-size",
   "source-budget",
   "python-types",
   "import-boundaries",
@@ -371,23 +370,6 @@ tool_adapter = "actionlint"
 writes_files = false
 network_policy = "offline"
 version_source = "locked-toolchain"
-
-[[gates]]
-id = "python-size"
-kind = "determinism"
-providers = ["ethos.domain.prove:code_size_report"]
-policy = "required"
-profile = "product"
-toolchain = "quality-adapter"
-asset_classes = ["python-code"]
-dimensions = ["complexity", "determinism"]
-execution_mode = "provider"
-evidence_class = "contract"
-trust_bearing = true
-tool_adapter = "ethos-code-size"
-writes_files = false
-network_policy = "offline"
-version_source = "product"
 
 [[gates]]
 id = "source-budget"
@@ -651,7 +633,7 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "secrets"
 kind = "security"
-command = ["tools/ci/scripts/run-secrets-scan.sh"]
+command = ["{python}", "-m", "nox", "-s", "secrets"]
 policy = "required"
 profile = "product-toolchain"
 toolchain = "native"

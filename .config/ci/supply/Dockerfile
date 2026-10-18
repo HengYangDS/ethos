@@ -22,7 +22,6 @@ FROM base AS prepare
 COPY .config/mise/config.toml .config/mise/mise.lock .config/mise/
 COPY .config/checks/ci-projection/policy.toml .config/checks/ci-projection/policy.toml
 COPY .config/ci/supply/Dockerfile .config/ci/supply/Dockerfile.dockerignore .config/ci/supply/
-COPY tools/ci/scripts/with-python-runtime.sh tools/ci/scripts/mise-install.sh tools/ci/scripts/
 COPY tools/ci/toolchain/native.py tools/ci/toolchain/native.py
 # Full import closure is build-only; it is removed before publishing the image.
 COPY src/ethos src/ethos
@@ -43,13 +42,33 @@ RUN uv python install --no-bin "$(python3 -c 'import platform; print(platform.py
          .config/mise/config.toml .config/mise/mise.lock \
          .config/ci/supply/Dockerfile .config/ci/supply/Dockerfile.dockerignore \
          uv.lock package-lock.json tests/fixtures/quality-sample/uv.lock \
-         tools/ci/scripts/with-python-runtime.sh tools/ci/scripts/mise-install.sh \
          > input.sha256 \
+    && mkdir -p home \
     && chown -R 65534:65534 /opt/ethos-supply \
-    && rm -rf .venv node_modules src/ethos tools/ci/toolchain tools/ci/scripts tests/fixtures/quality-sample
+    && rm -rf .venv node_modules src/ethos tools/ci/toolchain tests/fixtures/quality-sample
 
 # Only prepared supply crosses the stage boundary; source-bearing layers are not shipped.
-FROM base
+# Jobs run as the unprivileged owner of the supply; the runner gives it the checkout.
+FROM base AS supply
 COPY --from=prepare --chown=65534:65534 /opt/ethos-supply /opt/ethos-supply
+USER 65534:65534
+ENV HOME=/opt/ethos-supply/home
 
 LABEL org.opencontainers.image.source="https://github.com/HengYangDS/ethos"
+
+# Offline acceptance of the supply against one checkout, as the CI jobs bootstrap it.
+# Build with --target smoke and the checkout as the named context "workspace".
+FROM supply AS smoke
+ENV ETHOS_CI_SUPPLY_MANIFEST=/opt/ethos-supply/input.sha256
+COPY --from=workspace --chown=65534:65534 . /workspace
+WORKDIR /workspace
+RUN --network=none test "$(id -u)" -eq 65534 \
+    && sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST" \
+    && uv sync --locked --offline --no-install-project --group dev \
+    && uv sync --locked --offline --no-build-isolation --group dev \
+    && uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft \
+    && uv run --frozen --offline python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline \
+    && uv run --frozen --offline python -B -I tools/ci/toolchain/fixture_supply.py . \
+    && uv run --frozen --offline python -B -I -m ethos.cli --version \
+    && uv run --frozen --offline python -B -m pytest -q \
+       'tests/unit/adoption/quality/test_floor.py::test_real_locked_python_checks_qualify_the_selected_source[inline-none]'

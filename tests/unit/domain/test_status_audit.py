@@ -11,6 +11,7 @@ from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_paradigm_toolchain
 from tests.support.paradigm import PARADIGM_OPENSPEC_CONFIG
 
 
@@ -47,6 +48,8 @@ def test_product_source_audit_does_not_observe_local_hook_runtime(
 
 def _adopter(root: Path, *, registry: bool) -> Path:
     repo = init_git_repo(root)
+    write_paradigm_toolchain(repo)
+    git(repo, "add", ".config/mise")
     directory = repo / ".ethos"
     directory.mkdir()
     (directory / "profile.toml").write_text(

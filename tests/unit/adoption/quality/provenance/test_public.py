@@ -357,6 +357,9 @@ def test_public_quality_requires_source_binding_before_native_dispatch(
     gap = "source_contract_missing:supply.js"
     policy = resolve_gate_policy(repo, tree_ref=head, full=True)
     assert gap in policy.gaps
+    owner = policy.projection["owner"]
+    assert isinstance(owner, dict)
+    assert owner.get("quality_floor_version") == 2, "a copied product registry keeps the floor"
     result = run_quality_proof(repo, head)
     report = json.loads(result.stdout)
     assert result.returncode != 0, report

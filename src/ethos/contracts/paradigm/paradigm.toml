@@ -122,6 +122,23 @@ tasks = [
   "Separate implementation tasks from lifecycle preconditions and effects; a Change never records its own landing, archive or Lane retirement as a completed task.",
 ]
 
+# One locked owner selects the toolchain and exposes the common verbs as tasks: mise,
+# with locked resolution, or else npm, the only package manager here that runs tasks.
+[toolchain]
+verbs = ["bootstrap", "check", "fix"]
+
+# A tracked file with a shell or PowerShell suffix or interpreter line conforms only as
+# the recorded output of a catalogued official generator. Its record names the output,
+# the generator, its version and the output's SHA-256; `check` regenerates and compares.
+[scripts]
+suffixes = [".bash", ".bat", ".cmd", ".ps1", ".psm1", ".sh", ".zsh"]
+interpreters = ["bash", "dash", "ksh", "pwsh", "sh", "zsh"]
+
+[[scripts.generator]]
+id = "mise-bootstrap"
+command = "mise generate bootstrap"
+record = ".config/mise/generated.toml"
+
 # One formatter per text carrier class, with the settings every binding declares.
 # Ruff formats Python because the common blank-line policy has no other enforcer.
 [[formatter]]

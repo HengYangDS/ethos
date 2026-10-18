@@ -1,4 +1,4 @@
-"""Windows hosts stage mise from the bound official executable, not the POSIX installer."""
+"""Every host stages mise from the official executable whose digest the repository binds."""
 
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ def windows_host(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(name, raising=False)
     monkeypatch.delenv("ETHOS_CI_SUPPLY_MANIFEST", raising=False)
     monkeypatch.setattr(native, "_windows_host", lambda: True)
+    monkeypatch.setattr(native.platform, "system", lambda: "Windows")
     which = native.shutil.which
 
     def without_operator_mise(name: str, **kwargs: object) -> str | None:
@@ -34,16 +35,20 @@ def _executable(observed: str = VERSION) -> bytes:
     return f"#!{sys.executable}\nprint({f'{observed} windows-x64'!r})\n".encode()
 
 
-def _source(root: Path, *, x64: str) -> None:
+def _source(root: Path, *, x64: str, executables: bool = True) -> None:
     write_reference_source(root, ".config/mise/config.toml", f'min_version = "{VERSION}"')
-    write_reference_source(root, "tools/ci/scripts/mise-install.sh", "exit 99\n")
-    installer = (root / "tools/ci/scripts/mise-install.sh").read_bytes()
+    digests = {
+        f"{system}-{arch}": "0" * 64
+        for system in native.MISE_SYSTEMS.values()
+        for arch in native.MISE_ARCHITECTURES.values()
+    }
+    digests["windows-x64"] = x64
+    rows = "".join(f'{name} = "{digest}"\n' for name, digest in sorted(digests.items()))
+    table = f"[bootstrap.executables]\n{rows}" if executables else ""
     write_reference_source(
         root,
         ".config/checks/ci-projection/policy.toml",
-        f'[bootstrap]\nversion = "{VERSION}"\n'
-        f'sha256 = "{hashlib.sha256(installer).hexdigest()}"\n'
-        f'[bootstrap.windows]\narm64 = "{"0" * 64}"\nx64 = "{x64}"\n',
+        f'[bootstrap]\nversion = "{VERSION}"\n{table}',
     )
 
 
@@ -61,7 +66,7 @@ def _serve(monkeypatch: pytest.MonkeyPatch, payload: bytes) -> list[tuple[str, .
     return requests
 
 
-def test_windows_mise_publishes_only_the_bound_official_executable(
+def test_mise_publishes_only_the_bound_official_executable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     payload = _executable()
@@ -83,20 +88,18 @@ def test_windows_mise_publishes_only_the_bound_official_executable(
 @pytest.mark.parametrize(
     ("fault", "gap"),
     [
-        ("digest", "mise_windows_executable_digest_mismatch"),
+        ("digest", "mise_executable_digest_mismatch"),
         ("version", "mise_version_mismatch"),
-        ("architecture", "mise_windows_architecture_unsupported"),
-        ("unbound", "mise_bootstrap_drift"),
+        ("architecture", "mise_platform_unsupported"),
+        ("unbound", "mise_executable_record_invalid"),
     ],
 )
-def test_windows_mise_rejects_unbound_or_unexpected_supply(
+def test_mise_rejects_unbound_or_unexpected_supply(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str, gap: str
 ) -> None:
     payload = _executable("2026.10.7" if fault == "version" else VERSION)
-    _source(tmp_path, x64="f" * 64 if fault == "digest" else hashlib.sha256(payload).hexdigest())
-    if fault == "unbound":
-        templates = tmp_path / ".config/checks/ci-projection/policy.toml"
-        templates.write_text(templates.read_text().split("[bootstrap.windows]")[0])
+    digest = "f" * 64 if fault == "digest" else hashlib.sha256(payload).hexdigest()
+    _source(tmp_path, x64=digest, executables=fault != "unbound")
     if fault == "architecture":
         monkeypatch.setattr(native.platform, "machine", lambda: "riscv64")
     _serve(monkeypatch, payload)

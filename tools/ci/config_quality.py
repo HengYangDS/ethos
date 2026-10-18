@@ -213,6 +213,11 @@ def _ini_failures(paths: tuple[Path, ...]) -> list[str]:
     return failures
 
 
+def toml_paths() -> tuple[Path, ...]:
+    """Return the tracked TOML carriers whose validation owner is this configuration check."""
+    return _candidate_paths(())["toml"]
+
+
 def _vale_vocabulary_directories(configuration: Any) -> dict[str, Path]:
     """Bind selected files to the vocabulary directories the native parser actually loaded."""
     if (

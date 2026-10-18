@@ -33,10 +33,21 @@ historical bindings are governed by [Release Governance](docs/governance/release
   Packages include the locked Vale executable, publisher license and common
   prose policy; source and installed consumers use those owned bytes without
   falling back to an ambient executable.
+- Active OpenSpec proposals and designs now keep the literal headings of the
+  templates that the official CLI resolves, and active Change artifacts share
+  the 512-line Markdown ceiling. Proof first archives the selected Change in a
+  disposable projection and validates the archived specifications strictly, so
+  an over-long MODIFIED requirement fails before any gate runs.
+- ETHOS's own gate registry is recognized by Git history shared with the running
+  build instead of byte equality with the installed packaged copy, so a product
+  registry edit lands ordinarily. Any other repository, including a verbatim
+  copy of the product registry, keeps the shared quality floor.
 
 ### Removed
 
 - Retired the experimental Node coverage collector and unused LCOV interpretation.
+- Retired the `python-size` gate; the repository paradigm report measures the
+  same 512 effective-line ceiling in the repository audit.
 
 ### Fixed
 
@@ -55,6 +66,10 @@ historical bindings are governed by [Release Governance](docs/governance/release
   selected existing task artifact from native schema and tracking observations.
 - Allowed planning without an unselected, observably absent local Skill portfolio;
   required, incomplete, dangling and unreadable portfolio state remains blocking.
+- Observed the npm dependency audit again, at most three attempts, when npm
+  reports that its bulk advisory request itself failed; npm never retries that
+  POST. Every attempt stays in the receipt, and findings, malformed reports and
+  other native failures are still observed once.
 
 ## [0.2.0-alpha.2] - 2026-08-30
 

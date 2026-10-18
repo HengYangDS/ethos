@@ -6,6 +6,8 @@ import json
 import os
 import sys
 from collections.abc import Mapping
+from contextlib import nullcontext
+from dataclasses import asdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -17,6 +19,7 @@ from cyclopts import Parameter
 import ethos.domain.status as status_domain
 from ethos.adapters.admission.current.resolution import CurrentResolution
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
+from ethos.adapters.gates.proof_slot import admitted_full_proof
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalGateRunner
 from ethos.adapters.gates.runner import run_gate_graph
@@ -400,13 +403,20 @@ def prove(
             json_output=json_output,
         )
         return
+    # A full proof waits for its repository's slot and host capacity before any gate runs.
+    admission_scope = (
+        admitted_full_proof(repo, head=current_head)
+        if options.execute and options.full
+        else nullcontext()
+    )
     try:
-        checks, runs_ok = run_plan_checks(
-            repo=carrier.execution if carrier is not None else repo,
-            plan=plan,
-            execute=options.execute,
-            carrier=carrier,
-        )
+        with admission_scope as admission:
+            checks, runs_ok = run_plan_checks(
+                repo=carrier.execution if carrier is not None else repo,
+                plan=plan,
+                execute=options.execute,
+                carrier=carrier,
+            )
     except ValueError as exc:
         _emit_proof_gap(exc, json_output=json_output)
         return
@@ -474,6 +484,8 @@ def prove(
             "matches": options.expect_head is None or options.expect_head == current_head,
         },
     }
+    if admission is not None:
+        data["admission"] = asdict(admission)
     if detailed:
         data.update(
             governance_context=audit["governance_context"],

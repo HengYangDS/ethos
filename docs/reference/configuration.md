@@ -67,13 +67,12 @@ configuration plane, not a truth center.
   first-party names, module mapping and per-rule exceptions to native Deptry;
   root `pyproject.toml` remains the dependency manifest, not a second policy.
 - `.config/checks/dependency-vulnerabilities/policy.toml` owns the native dependency audit boundary. The `vulnerabilities` Nox session calls `tools/ci/dependency_audit.py` to audit Python and npm locks, retaining bounded native observations and one input-bound verdict. A finding that no official stable release fixes is reported without blocking: every locked npm artifact that ships it is already its registry latest release, or a Python advisory names no newer stable fix version. Fixable or unobserved findings still block. Online security guards package delivery without making offline tests depend on advisory availability; hosted CI and publication remain separate claims.
-- [The secret-scanning policy](../../.config/checks/gitleaks/gitleaks.toml) is passed explicitly to every scan, including staged pre-commit admission; `.config/mise/config.toml` and `.config/mise/mise.lock` own native tool selections and platform artifact digests. `tools/ci/scripts/run-secrets-scan.sh` obtains verified project-local supply through `tools/ci/toolchain/native.py` and passes the policy explicitly. Hosted proof uses the same supply owner; neither path installs system files or trusts ambient scanner bytes.
+- [The secret-scanning policy](../../.config/checks/gitleaks/gitleaks.toml) is passed explicitly to every scan, including staged pre-commit admission; `.config/mise/config.toml` and `.config/mise/mise.lock` own native tool selections and platform artifact digests. The `secrets` Nox session obtains verified project-local supply through `tools/ci/toolchain/native.py`, scans a mirror of the tracked files and passes the policy explicitly. Hosted proof uses the same supply owner; neither path installs system files or trusts ambient scanner bytes.
 - `tools/ci/repository_hygiene.py`, invoked through the `repository_hygiene` Nox session, owns cross-file hygiene such as tracked-file size, LF endings, final newline, JSON parseability, merge-conflict markers, and the zero-suppression invariant.
 - `.config/mise/config.toml` and `.config/mise/mise.lock` select native developer/CI supply through native discovery. The existing
-  Python bootstrap prepares missing mise with tools/ci/scripts/mise-install.sh,
-  a version-bound official generator projection checked by ci_templates.
-  Windows stages the same release's official executable, accepted only with
-  its digest bound in the bootstrap record, because the installer is POSIX-only.
+  bootstrap stages the bound release's official mise executable for the host
+  platform, accepted only with its digest from the bootstrap record in
+  `.config/checks/ci-projection/policy.toml`.
   Installation is staged and bounded; observation does not install tools.
   Isolated consumers preserve this same nested layout; disposable copies do
   not own versions or checksums.
@@ -106,8 +105,10 @@ configuration plane, not a truth center.
 - `.config/release/release-sbom/policy.toml` selects the built-wheel subject, SPDX
   output and claim boundary. Mise owns the Syft version and artifact checksums.
   SBOM generation does not establish publication, signing or SLSA conformance.
-- `tools/ci/scripts/` holds reusable runner bootstrap logic; hosted CI YAML is
-  only a provider projection that calls these scripts.
+- `.config/ci/pipeline.cue` models every hosted job. Its one bootstrap command
+  list runs native uv commands and `tools/ci/toolchain` modules; hosted CI YAML
+  is only the provider projection of that model. `.config/mise/config.toml`
+  declares the `bootstrap`, `check` and `fix` verbs for local use.
 - `system/gates.toml` owns each gate's identity, profile, executable boundary,
   evidence class, and proof-floor membership. Native configuration and supply
   files remain the unique owners of tool-specific policy and versions.

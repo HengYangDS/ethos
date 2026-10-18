@@ -201,6 +201,34 @@ class OpenSpecConventions(BaseModel):
     rules: OpenSpecRules
 
 
+class ToolchainConventions(BaseModel):
+    """The common verbs that the toolchain owner exposes as tasks."""
+
+    model_config = _DECLARATION
+
+    verbs: FrozenTuple[str] = Field(min_length=1)
+
+
+class ScriptGenerator(BaseModel):
+    """One official generator whose recorded output a repository may track."""
+
+    model_config = _DECLARATION
+
+    id: str
+    command: str
+    record: str
+
+
+class ScriptConventions(BaseModel):
+    """How a tracked script is recognized and the generators that may produce one."""
+
+    model_config = _DECLARATION
+
+    suffixes: FrozenTuple[str] = Field(min_length=1)
+    interpreters: FrozenTuple[str] = Field(min_length=1)
+    generator: FrozenTuple[ScriptGenerator]
+
+
 class EcosystemModule(BaseModel):
     """One ecosystem module, applied exactly when its manifest is tracked at the root."""
 
@@ -247,6 +275,8 @@ class RepositoryParadigm(BaseModel):
     pipelines: PipelineModel
     commit: CommitGrammar
     openspec: OpenSpecConventions
+    toolchain: ToolchainConventions
+    scripts: ScriptConventions
     module: FrozenTuple[EcosystemModule]
     tool: FrozenTuple[ToolCarrier]
 

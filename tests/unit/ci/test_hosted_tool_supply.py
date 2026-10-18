@@ -7,7 +7,6 @@ import io
 import json
 import os
 import platform
-import shlex
 import shutil
 import sys
 import tarfile
@@ -227,27 +226,40 @@ def test_native_supply_lock_timeout_preserves_bytes_and_scratch(tmp_path):
     assert not (tmp_path / "transfer.log").exists()
 
 
-def _bootstrap_source(root: Path, script: str, version: str = "2026.9.11") -> Path:
-    """Materialize one locked native input; each caller owns its mutable fixture."""
+def _bootstrap_source(root: Path, payload: bytes = b"", version: str = "2026.9.11") -> None:
+    """Bind one official mise executable for this host; each caller owns its fixture."""
     write_reference_source(root, ".config/mise/config.toml", f'min_version = "{version}"')
     write_reference_source(root, ".config/mise/mise.lock", "lockfile_version = 2")
-    installer = root / "tools/ci/scripts/mise-install.sh"
-    write_reference_source(root, "tools/ci/scripts/mise-install.sh", script)
+    target = f"{native.MISE_SYSTEMS[platform.system()]}-"
+    target += native.MISE_ARCHITECTURES[platform.machine().lower()]
+    digests = {
+        f"{system}-{arch}": "0" * 64
+        for system in native.MISE_SYSTEMS.values()
+        for arch in native.MISE_ARCHITECTURES.values()
+    }
+    digests[target] = hashlib.sha256(payload).hexdigest()
+    rows = "".join(f'{name} = "{digest}"\n' for name, digest in sorted(digests.items()))
     write_reference_source(
         root,
         ".config/checks/ci-projection/policy.toml",
-        f'[bootstrap]\nversion = "{version}"\n'
-        f'sha256 = "{hashlib.sha256(installer.read_bytes()).hexdigest()}"\n'
-        f'[bootstrap.windows]\narm64 = "{"0" * 64}"\nx64 = "{"1" * 64}"\n',
+        f'[bootstrap]\nversion = "{version}"\n[bootstrap.executables]\n{rows}',
     )
-    return installer
+
+
+def _serve_mise(monkeypatch: pytest.MonkeyPatch, payload: bytes) -> None:
+    """Answer the official executable download with one payload."""
+
+    def download(command: tuple[str, ...], **_options: object) -> None:
+        Path(command[command.index("--output") + 1]).write_bytes(payload)
+
+    monkeypatch.setattr(native, "download_tool", download)
 
 
 def test_mise_version_observation_disables_nonsemantic_update_notices(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A newer upstream release must not make a pinned tool appear invalid."""
-    _bootstrap_source(tmp_path, "exit 99\n")
+    _bootstrap_source(tmp_path)
     executable = tmp_path / "mise"
     executable.write_text(
         f"#!{sys.executable}\n"
@@ -267,7 +279,7 @@ def test_manifest_bound_mise_supply_does_not_download_on_a_cold_cache(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A hosted immutable image must contain mise before the job starts."""
-    _bootstrap_source(tmp_path, "exit 99\n")
+    _bootstrap_source(tmp_path)
     monkeypatch.setenv("ETHOS_CI_SUPPLY_MANIFEST", "/opt/ethos-supply/input.sha256")
     monkeypatch.setattr(native.shutil, "which", lambda _name: None)
     monkeypatch.setattr(
@@ -327,8 +339,14 @@ def test_native_supply_timeout_drains_descendants_before_cleanup(
                 return native_supply.download_tool((str(executable),), root=tmp_path, timeout=0.5)
             if boundary == "verify":
                 return NativeSupply.read(ROOT, "scc").verify(executable)
-            _bootstrap_source(tmp_path, f"exec {shlex.quote(str(executable))}\n")
+            _bootstrap_source(tmp_path)
             monkeypatch.setattr(native.shutil, "which", lambda _name: None)
+            staged = native.download_tool
+            monkeypatch.setattr(
+                native,
+                "download_tool",
+                lambda _command, *, root: staged((str(executable),), root=root, timeout=0.5),
+            )
             return native.prepare_mise(tmp_path)
 
         monkeypatch.setattr(sys, "argv", ["native", "--root", str(tmp_path), "scc"])
@@ -362,15 +380,14 @@ def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(
     body = f"#!/bin/sh\necho {observed}\n"
     if fault == "warning":
         body += "echo unapproved-warning >&2\n"
-    installer = _bootstrap_source(
-        tmp_path,
-        'mkdir -p "$(dirname "$MISE_INSTALL_PATH")"\n'
-        f'printf %s {shlex.quote(body)} >"$MISE_INSTALL_PATH"\n'
-        'chmod +x "$MISE_INSTALL_PATH"\n'
-        + ("echo bootstrap-failed >&2; exit 23\n" if fault == "failure" else ""),
-    )
-    if fault == "drift":
-        installer.write_text("echo FORBIDDEN >UNAPPROVED\nexit 0\n")
+    _bootstrap_source(tmp_path, b"bound" if fault == "drift" else body.encode())
+
+    def download(command: tuple[str, ...], **_options: object) -> None:
+        if fault == "failure":
+            raise native.subprocess.CalledProcessError(23, command, stderr="bootstrap-failed")
+        Path(command[command.index("--output") + 1]).write_text(body)
+
+    monkeypatch.setattr(native, "download_tool", download)
     home = tmp_path / "build/runtime/tool-cache/ci-tools"
     if source == "persistent-cache":
         home, source = tmp_path / "supply", "cache"
@@ -400,5 +417,3 @@ def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(
     assert prepared.call_args_list == expected
     assert target.read_bytes() == (body.encode() if accepted else before)
     assert not list(target.parent.glob(".bootstrap-*"))
-
-    assert not (tmp_path / "UNAPPROVED").exists()

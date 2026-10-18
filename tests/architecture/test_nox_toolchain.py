@@ -15,6 +15,7 @@ from unittest.mock import Mock
 import pytest
 import tomli_w
 
+import ethos.adapters.repo.runtime.materialization.native_supply as native_supply
 import ethos.repository.policy.schema as schema_owner
 from ethos.adapters.process import run_command
 from tests.support.governed_repository import PARADIGM_FORMATTERS
@@ -140,6 +141,72 @@ def test_native_document_sessions_reuse_product_report_owners(
     session.error.assert_not_called()
     assert session.run.call_count == 1
     assert "codespell" in Path(session.run.call_args.args[0]).name
+
+
+def test_fix_applies_each_common_formatter_in_write_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The fix verb rewrites Python, Prettier and taplo carriers that check verifies."""
+    calls = []
+    monkeypatch.setattr(sessions, "_python_paths", lambda _session: ("src/a.py",))
+    monkeypatch.setattr(sessions, "prettier_paths", lambda: ("README.md",))
+    monkeypatch.setattr(config_quality, "toml_paths", lambda: (Path("pyproject.toml"),))
+    sessions.fix(type("Session", (), {"run": lambda _, *args: calls.append(args)})())
+    ruff = sessions.RUNTIME.script("ruff")
+    assert calls[0][:3] == (ruff, "check", "--fix")
+    assert calls[0][-1] == "src/a.py"
+    assert calls[1][:2] == (ruff, "format")
+    assert "--check" not in calls[1]
+    assert calls[2][-2:] == ("--write", "README.md")
+    taplo = ("format", "--config", str(config_quality.TAPLO_CONFIG), "pyproject.toml")
+    assert calls[3][-4:] == taplo
+
+
+def test_secrets_scans_a_mirror_of_only_the_tracked_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ignored and untracked files stay outside the scan; tracked links stay links."""
+    repo = init_git_repo(tmp_path / "repo")
+    (repo / ".gitignore").write_text("*.log\n", encoding="utf-8")
+    (repo / "notes.txt").write_text("tracked\n", encoding="utf-8")
+    (repo / "notes-link.txt").symlink_to("notes.txt")
+    git(repo, "add", ".gitignore", "notes.txt", "notes-link.txt")
+    (repo / "local.log").write_text("ignored\n", encoding="utf-8")
+    (repo / "draft.txt").write_text("untracked\n", encoding="utf-8")
+    supply = tmp_path / "supply"
+    supply.mkdir()
+    (supply / "gitleaks").write_text("", encoding="utf-8")
+    (supply / "gitleaks").chmod(0o755)
+    monkeypatch.setattr(native_supply, "materialize_tool", lambda _root, _name: supply)
+    monkeypatch.setattr(sessions, "ROOT", repo)
+    observed: list[tuple[tuple[str, ...], list[str], bool]] = []
+
+    def run(_session: object, *args: str) -> None:
+        mirror = Path(args[2])
+        listed = sorted(
+            path.relative_to(mirror).as_posix()
+            for path in mirror.rglob("*")
+            if path.is_file() or path.is_symlink()
+        )
+        observed.append((args, listed, (mirror / "notes-link.txt").is_symlink()))
+
+    sessions.secrets(type("Session", (), {"run": run})())
+    [(args, listed, linked)] = observed
+    assert listed == sorted(git(repo, "ls-files").splitlines())
+    assert {"notes.txt", "notes-link.txt"} <= set(listed)
+    assert not {"local.log", "draft.txt"} & set(listed)
+    assert linked
+    report = repo / "build/evidence/quality/secrets/report.json"
+    assert args[0] == str(supply / "gitleaks")
+    assert args[1] == "dir"
+    assert args[3:] == (
+        "--config",
+        str(sessions.GITLEAKS_CONFIG),
+        "--redact",
+        "--report-format",
+        "json",
+        "--report-path",
+        str(report),
+    )
+    assert report.parent.is_dir()
 
 
 def test_prose_executor_consumes_only_declared_policy_paths() -> None:

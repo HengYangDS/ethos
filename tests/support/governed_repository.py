@@ -29,6 +29,14 @@ PARADIGM_FORMATTERS = {
     ".config/checks/taplo/taplo.toml": "[formatting]\ncolumn_width = 100\n",
     ".config/checks/ruff/ruff.toml": 'line-length = 100\ntarget-version = "py312"\n',
 }
+# A task-only mise owner exposes the common verbs and selects no native tools.
+PARADIGM_TOOLCHAIN = {
+    ".config/mise/config.toml": (
+        '[settings]\nlocked = true\n\n[tasks]\nbootstrap = "uv sync --locked"\n'
+        'check = "uv run nox -s check"\nfix = "uv run nox -s fix"\n'
+    ),
+    ".config/mise/mise.lock": "",
+}
 
 
 class WorkLaneFixture(NamedTuple):
@@ -508,6 +516,15 @@ def initialize_adopted_fixture(root: Path) -> None:
     config = root / "openspec/config.yaml"
     config.parent.mkdir(parents=True, exist_ok=True)
     config.write_text(PARADIGM_OPENSPEC_CONFIG, encoding="utf-8")
+    write_paradigm_toolchain(root)
+
+
+def write_paradigm_toolchain(root: Path) -> None:
+    """Write the task-only mise owner that exposes the common verbs."""
+    for relative, content in PARADIGM_TOOLCHAIN.items():
+        carrier = root / relative
+        carrier.parent.mkdir(parents=True, exist_ok=True)
+        carrier.write_text(content, encoding="utf-8")
 
 
 def declare_fixture_code_correctness(repo: Path) -> None:

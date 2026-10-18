@@ -28,9 +28,7 @@ _DENIED_ENTRYPOINT_HOME_TOKENS = (
     "build/runtime/gitlab-ci-local",
     "dist/",
 )
-_RUNTIME_BOOTSTRAP_PATH = "tools/ci/scripts/with-python-runtime.sh"
 _RETIRED_VENV_RUNTIME_MARKER = "build/runtime/venv"
-_PYTHON_EXECUTION_PATTERN = re.compile(r"(?:^|[;&|()]|\s)(?:python(?:[0-9.]*)?)(?:\s|$)")
 _SHELL_ASSIGNMENT_PATTERN = re.compile(
     r"^\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)=(?P<value>\"[^\"]*\"|'[^']*'|\S+)\s*$"
 )
@@ -157,39 +155,16 @@ def _tool_route_findings(rel: str, active: str, full_text: str) -> list[dict[str
 
 
 def _runtime_bootstrap_findings(rel: str, producer_text: str) -> list[dict[str, str]]:
-    """Reject executable Python/uv paths that evade the semantic bootstrap."""
-    if rel == _RUNTIME_BOOTSTRAP_PATH:
+    """Reject active execution through the retired runtime home instead of the root .venv."""
+    if _RETIRED_VENV_RUNTIME_MARKER not in producer_text:
         return []
-    bootstrap_bound = "with-python-runtime.sh" in producer_text
-    checks = (
-        (
-            _RETIRED_VENV_RUNTIME_MARKER in producer_text,
-            "retired-venv-runtime",
-            "active execution must use the checkout's single root .venv",
-            "retired_venv_runtime",
-        ),
-        (
-            "uv run" in producer_text and not bootstrap_bound,
-            "uv-runtime-bootstrap",
-            "active uv execution must route through the semantic runtime bootstrap",
-            "uv_runtime_unbound",
-        ),
-        (
-            bool(_PYTHON_EXECUTION_PATTERN.search(producer_text)) and not bootstrap_bound,
-            "python-runtime-bootstrap",
-            "active Python execution must route through the semantic runtime bootstrap",
-            "python_runtime_unbound",
-        ),
-    )
     return [
         _entrypoint_finding(
             rel,
-            check=check,
-            boundary=boundary,
-            required_gap=f"generated_artifact_entrypoint_{gap}:{rel}",
+            check="retired-venv-runtime",
+            boundary="active execution must use the checkout's single root .venv",
+            required_gap=f"generated_artifact_entrypoint_retired_venv_runtime:{rel}",
         )
-        for applies, check, boundary, gap in checks
-        if applies
     ]
 
 

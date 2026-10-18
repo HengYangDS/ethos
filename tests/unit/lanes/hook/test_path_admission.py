@@ -13,6 +13,7 @@ import ethos.adapters.admission.paths as path_admission
 import ethos.adapters.admission.prewrite as admission_prewrite
 import ethos.adapters.openspec.cli as openspec_cli
 import ethos.adapters.repo.git as git_adapter
+import ethos.adapters.repo.git_attributes as git_attributes
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.contracts.admission import HookAdmissionRequest
 from tests.support.ethos_cli_runner import run_ethos_blocked
@@ -299,6 +300,41 @@ def test_cli_path_token(worktree: Path) -> None:
     }
     assert data["target_paths"] == [token]
     assert data["admission"]["paths"][0]["path"] == token
+
+
+@pytest.mark.parametrize(
+    ("attribute", "received"),
+    [("linguist-vendored", True), ("linguist-generated=true", True), ("-linguist-vendored", False)],
+)
+def test_new_path_its_attributes_mark_received_keeps_its_name(
+    worktree: Path, monkeypatch: pytest.MonkeyPatch, attribute: str, *, received: bool
+) -> None:
+    """New received names use one fresh native attribute read per admission request."""
+    fonts = ("assets/fonts/NotoSansCJKsc-Bold.otf", "assets/fonts/NotoSansCJKsc-Regular.otf")
+    attributes = worktree / ".gitattributes"
+    original = attributes.read_text(encoding="utf-8")
+    index = git(worktree, "write-tree")
+    native = git_attributes.run_git
+    reads = []
+
+    def observe(root, *args, **kwargs):
+        if args[0] == "check-attr":
+            reads.append(kwargs.get("stdin"))
+        return native(root, *args, **kwargs)
+
+    monkeypatch.setattr(git_attributes, "run_git", observe)
+    attributes.write_text(f"assets/fonts/** {attribute}\n{original}", encoding="utf-8")
+    for font, path in zip(fonts, _guard(worktree, fonts)["paths"], strict=True):
+        gap = f"repository_paradigm_authored_name:{font}"
+        assert (path["reason"] != gap) is received, path
+    frame = b"".join(font.encode() + b"\0" for font in fonts)
+    assert reads == [frame]
+
+    attributes.write_text(original, encoding="utf-8")
+    for font, path in zip(fonts, _guard(worktree, fonts)["paths"], strict=True):
+        assert path["reason"] == f"repository_paradigm_authored_name:{font}"
+    assert reads == [frame, frame]
+    assert git(worktree, "write-tree") == index
 
 
 def _lane(tmp: Path, imports: tuple[str, ...]) -> Path:

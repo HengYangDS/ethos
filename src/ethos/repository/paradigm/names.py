@@ -1,9 +1,11 @@
 """Repository-authored names of the repository paradigm.
 
 Every tracked name is lowercase kebab-case unless an ecosystem or tool fixes it. A
-name that another obligation judges, through the root catalog, the binding file set,
-the configuration plane or the decision record grammar, keeps that obligation's single
-gap, so each name has one owner.
+dot-separated segment may be a BCP 47 language tag in its canonical case. Paths that the
+repository's Git attributes mark vendored or generated are received, not authored, and
+keep their names. A name that another obligation judges, through the root catalog, the
+binding file set, the configuration plane or the decision record grammar, keeps that
+obligation's single gap, so each name has one owner.
 """
 
 from __future__ import annotations
@@ -22,16 +24,25 @@ if TYPE_CHECKING:
     from ethos.contracts.paradigm.declaration import RepositoryParadigm
 
 _WORDS = r"[a-z0-9]+(?:-[a-z0-9]+)*"
-_NAME = re.compile(rf"[._]?{_WORDS}(?:\.{_WORDS})*")
+# A language, an optional script and an optional region, in the case RFC 5646 recommends.
+_LANGUAGE_TAG = r"[a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-(?:[A-Z]{2}|[0-9]{3}))?"
+_SEGMENT = rf"(?:{_WORDS}|{_LANGUAGE_TAG})"
+_NAME = re.compile(rf"[._]?{_SEGMENT}(?:\.{_SEGMENT})*")
 _WORD_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
 _SEPARATORS = re.compile(r"[^a-z0-9]+")
 
 
 def authored_name_gaps(
-    paradigm: RepositoryParadigm, tracked: frozenset[str]
+    paradigm: RepositoryParadigm,
+    tracked: frozenset[str],
+    received: frozenset[str] = frozenset(),
 ) -> Iterator[ParadigmGap]:
-    """Report each tracked file or directory name outside kebab-case once."""
-    paths = sorted(path for path in tracked if not path.startswith(paradigm.immutable_roots))
+    """Report each authored file or directory name outside kebab-case once."""
+    paths = sorted(
+        path
+        for path in tracked
+        if not path.startswith(paradigm.immutable_roots) and path not in received
+    )
     holders = _module_directories(paradigm, paths)
     admitted = _fixed_names(paradigm)
     judged: set[str] = set()
@@ -52,11 +63,15 @@ def authored_name_gaps(
             yield _gap(carrier)
 
 
-def name_path_gaps(paradigm: RepositoryParadigm, path: str) -> Iterator[ParadigmGap]:
+def name_path_gaps(
+    paradigm: RepositoryParadigm, path: str, *, received: bool = False
+) -> Iterator[ParadigmGap]:
     """Judge a new file's own name; whether its directories hold modules is the report's."""
     parts = path.split("/")
-    if path.startswith(paradigm.immutable_roots) or _owned_elsewhere(
-        paradigm, parts, len(parts) - 1, is_file=True
+    if (
+        received
+        or path.startswith(paradigm.immutable_roots)
+        or _owned_elsewhere(paradigm, parts, len(parts) - 1, is_file=True)
     ):
         return
     if not _conforms(

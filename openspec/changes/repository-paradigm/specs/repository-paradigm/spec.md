@@ -519,6 +519,22 @@ Repository-authored file and directory names SHALL use lowercase kebab-case, exc
 - **WHEN** a Work Lane requests prewrite admission for a new `rules/module_layout.md`
 - **THEN** admission refuses the path and names `rules/module-layout.md`.
 
+### Requirement: Language tags and received names keep their form
+
+A dot-separated name segment MAY be a BCP 47 language tag in its canonical case. A path that the repository's Git attributes mark `linguist-vendored` or `linguist-generated` is received rather than authored and SHALL keep its name, and so SHALL a directory that holds only such paths.
+
+#### Scenario: A localized carrier names its language
+
+- **WHEN** a repository tracks `media/captions.zh-CN.vtt` and `media/transcript.zh-Hans-CN.md`
+- **THEN** no name is reported
+- **AND** `media/captions.ZH-CN.vtt` is reported, because its language subtag is not lowercase.
+
+#### Scenario: A vendored font keeps its upstream name
+
+- **WHEN** the repository's `.gitattributes` marks `assets/fonts/**` as `linguist-vendored` and the repository tracks `assets/fonts/NotoSansCJKsc-Bold.otf`
+- **THEN** no name is reported, and prewrite admits a new file there under its upstream name
+- **AND** without that attribute the same name is reported.
+
 ### Requirement: Paradigm conformance is a blocking verdict
 
 The repository audit SHALL report every paradigm gap with its carrier, the violated obligation and the canonical repair. While any gap remains, prove, land and publish SHALL be blocked. Prewrite admission SHALL refuse a write that would create a path the paradigm rejects.

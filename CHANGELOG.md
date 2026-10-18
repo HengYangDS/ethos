@@ -54,6 +54,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
   registry edit lands ordinarily. Any other repository, including a verbatim
   copy of the product registry, keeps the shared quality floor.
 
+- Repository-authored names may carry a BCP 47 language tag in its canonical case
+  as a dot-separated segment, such as `captions.zh-CN.vtt`. Paths that Git
+  attributes mark `linguist-vendored` or `linguist-generated` keep their upstream
+  names.
+
 ### Removed
 
 - Retired the experimental Node coverage collector and unused LCOV interpretation.
@@ -92,8 +97,9 @@ historical bindings are governed by [Release Governance](docs/governance/release
   as `<repository>-accepted` lands in `<repository>-worktrees/`.
 - Stopped Linux lane retirement from treating a process that exits during the
   open-file scan as an unreadable observation. `lsof` records such a process or
-  descriptor only by the `/proc` entry it failed to read, without a type, device
-  or inode; permission and other read failures still block retirement.
+  descriptor only by the `/proc` entry it failed to read, or by the target it read
+  before the descriptor's `stat` failed, without a type, device or inode;
+  permission and other read failures still block retirement.
 
 ## [0.2.0-alpha.2] - 2026-08-30
 

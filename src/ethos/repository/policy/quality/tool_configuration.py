@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 def native_gate_tools(gate: Gate) -> tuple[str, ...]:
     """Select the native policy owners invoked by this gate's providers."""
     providers = {
-        "ethos.adapters.gates.tool:markdown_lint_report": ("prettier", "markdownlint-cli2"),
+        "ethos.adapters.gates.markdown:markdown_format_report": ("prettier", "markdownlint-cli2"),
         "ethos.adapters.gates.tool:markdown_links_report": ("lychee",),
         "ethos.adapters.gates.tool:external_links_report": ("lychee",),
         "ethos.adapters.gates.tool:prose_report": ("codespell",),

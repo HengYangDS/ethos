@@ -5,7 +5,10 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING
 
+import ethos.adapters.mutation.carrier_edit as carrier_edit
 import ethos.adapters.mutation.paradigm_repair as paradigm_repair
+from ethos.adapters.admission.current.authority import observe_current_authority
+from ethos.adapters.repo.git import run_git
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.paradigm import CONFORMING
@@ -41,7 +44,17 @@ def _admission(verdict: str, calls: list[list[str]]) -> object:
     def guard(*, root: Path, paths: list[Path], **_options: object) -> dict[str, object]:
         calls.append(sorted(path.relative_to(root).as_posix() for path in paths))
         if verdict == "pass":
-            return {"verdict": "pass", "required_gaps": []}
+            branch = run_git(
+                root, "symbolic-ref", "--short", "HEAD", observation=True
+            ).stdout.strip()
+            authority = observe_current_authority(
+                root=root, branch=branch, actor="", required=False
+            )
+            return {
+                "verdict": "pass",
+                "required_gaps": [],
+                "mutation_authority": authority.projection(),
+            }
         return {
             "verdict": "block",
             "required_gaps": ["work_lane_required"],
@@ -57,7 +70,7 @@ def test_preview_names_each_repair_and_writes_nothing(
     """The preview shows each carrier's diff and the apply command, without admission."""
     repo = _repository(tmp_path, {".editorconfig": None, "docs/guide.md": _WRAPPED})
     calls: list[list[str]] = []
-    monkeypatch.setattr(paradigm_repair, "prewrite_guard", _admission("pass", calls))
+    monkeypatch.setattr(carrier_edit, "prewrite_guard", _admission("pass", calls))
     data = run_ethos("lane", "repair-paradigm", "--root", repo.as_posix(), "--json")["data"]
     assert data["state"] == "planned"
     assert data["applied"] is False
@@ -86,7 +99,7 @@ def test_apply_writes_admitted_repairs_and_reports_what_remains(
         },
     )
     calls: list[list[str]] = []
-    monkeypatch.setattr(paradigm_repair, "prewrite_guard", _admission("pass", calls))
+    monkeypatch.setattr(carrier_edit, "prewrite_guard", _admission("pass", calls))
     data = run_ethos("lane", "repair-paradigm", "--apply", "--root", repo.as_posix(), "--json")[
         "data"
     ]
@@ -107,7 +120,7 @@ def test_refused_admission_writes_nothing(tmp_path: Path, monkeypatch: pytest.Mo
     """Outside an admitting Work Lane, apply blocks with the admission gaps."""
     repo = _repository(tmp_path, {".gitattributes": None})
     calls: list[list[str]] = []
-    monkeypatch.setattr(paradigm_repair, "prewrite_guard", _admission("block", calls))
+    monkeypatch.setattr(carrier_edit, "prewrite_guard", _admission("block", calls))
     result = run_ethos_blocked(
         "lane", "repair-paradigm", "--apply", "--root", repo.as_posix(), "--json"
     )
@@ -124,7 +137,7 @@ def test_a_conforming_repository_needs_no_repair(
     """Without gaps, apply does nothing and asks for no admission."""
     repo = _repository(tmp_path, {})
     calls: list[list[str]] = []
-    monkeypatch.setattr(paradigm_repair, "prewrite_guard", _admission("pass", calls))
+    monkeypatch.setattr(carrier_edit, "prewrite_guard", _admission("pass", calls))
     data = run_ethos("lane", "repair-paradigm", "--apply", "--root", repo.as_posix(), "--json")[
         "data"
     ]
@@ -139,7 +152,7 @@ def test_a_gap_that_needs_judgment_leads_the_next_action(
     """A report-only gap plans no edit and its canonical repair becomes the next action."""
     repo = _repository(tmp_path, {"src/sample/module.py": "value = 1\n" * 600})
     calls: list[list[str]] = []
-    monkeypatch.setattr(paradigm_repair, "prewrite_guard", _admission("pass", calls))
+    monkeypatch.setattr(carrier_edit, "prewrite_guard", _admission("pass", calls))
     data = run_ethos("lane", "repair-paradigm", "--root", repo.as_posix(), "--json")["data"]
     assert data["state"] == "report_only"
     assert data["edits"] == []
@@ -154,7 +167,7 @@ def test_apply_removes_a_binding_left_with_nothing(
     workspace = '[branch_roles]\nrelease_mirror = "independent"\n'
     repo = _repository(tmp_path, {".ethos/workspace.toml": workspace})
     calls: list[list[str]] = []
-    monkeypatch.setattr(paradigm_repair, "prewrite_guard", _admission("pass", calls))
+    monkeypatch.setattr(carrier_edit, "prewrite_guard", _admission("pass", calls))
     preview = run_ethos("lane", "repair-paradigm", "--root", repo.as_posix(), "--json")["data"]
     assert [(edit["path"], edit["created"], edit["removed"]) for edit in preview["edits"]] == [
         (".ethos/workspace.toml", False, True)
@@ -167,3 +180,22 @@ def test_apply_removes_a_binding_left_with_nothing(
     assert data["state"] == "repaired"
     assert not (repo / ".ethos/workspace.toml").exists()
     assert data["remaining_gaps"] == []
+
+
+def test_apply_preserves_a_preimage_changed_during_admission(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A passing admission cannot authorize overwriting intervening authoring bytes."""
+    repo = _repository(tmp_path, {"docs/guide.md": _WRAPPED})
+    guide = repo / "docs/guide.md"
+    intervening = b"# Intervening author\n"
+
+    def guard(**_options: object) -> dict[str, object]:
+        guide.write_bytes(intervening)
+        return _admission("pass", [])(**_options)
+
+    monkeypatch.setattr(carrier_edit, "prewrite_guard", guard)
+    result = paradigm_repair.repair_paradigm(root=repo, apply=True)
+
+    assert result["verdict"] == "block", result
+    assert guide.read_bytes() == intervening

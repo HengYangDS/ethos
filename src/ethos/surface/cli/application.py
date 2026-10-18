@@ -42,6 +42,7 @@ def load_command_groups(argv: list[str]) -> None:
             importlib.import_module("ethos.surface.cli.lane.lease")
             importlib.import_module("ethos.surface.cli.lane.handoff")
             importlib.import_module("ethos.surface.cli.lane.paradigm_repair")
+            importlib.import_module("ethos.surface.cli.lane.document_format")
             importlib.import_module("ethos.surface.cli.lane.retirement")
 
 

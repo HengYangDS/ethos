@@ -6,7 +6,6 @@ receive the structured report and stay free of subprocess concerns.
 
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import subprocess
@@ -132,7 +131,7 @@ def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, objec
         files = sorted(path for path in source.entries if path.endswith(".md"))
         for relative in files:
             source.resolve_target(relative)
-        files = _markdown_files(root, selected_paths=tuple(source.entries))
+        files = authored_markdown_paths(root, selected_paths=tuple(source.entries))
         configs = native_configurations(root, "lychee", ".config/checks/lychee/lychee.toml")
         tool = str(
             Path(sys.executable).absolute().with_name("lychee.exe" if os.name == "nt" else "lychee")
@@ -315,7 +314,9 @@ def quality_inventory_failure(
     }
 
 
-def _markdown_files(root: Path, *, selected_paths: tuple[str, ...] | None = None) -> list[str]:
+def authored_markdown_paths(
+    root: Path, *, selected_paths: tuple[str, ...] | None = None
+) -> list[str]:
     """Current authored Markdown excludes immutable records and absent paths."""
     files = (
         quality_source_files(root, "*.md")
@@ -336,10 +337,13 @@ def _markdown_files(root: Path, *, selected_paths: tuple[str, ...] | None = None
     ]
 
 
-def native_configurations(root: Path, tool: str, shared: str) -> tuple[str, ...]:
+def native_configurations(
+    root: Path, tool: str, shared: str, *, selected_paths: tuple[str, ...] | None = None
+) -> tuple[str, ...]:
     """The shipped policy is mandatory; repository policy is a native increment."""
     common = canonical_resource(shared)
-    selected = native_tool_configuration(tuple(quality_source_files(root)), tool)
+    paths = tuple(quality_source_files(root)) if selected_paths is None else selected_paths
+    selected = native_tool_configuration(paths, tool)
     if selected:
         path = root / selected
         if (
@@ -357,7 +361,7 @@ def native_configurations(root: Path, tool: str, shared: str) -> tuple[str, ...]
 def prose_report(root: Path) -> dict[str, object]:
     """Run native spelling on exact copies without ambient policy or source writes."""
     try:
-        files = _markdown_files(root)
+        files = authored_markdown_paths(root)
         configs = native_configurations(
             root, "codespell", ".config/checks/codespell/codespell.toml"
         )
@@ -483,67 +487,6 @@ def _configuration_failure(gate_id: str, error: Exception) -> dict[str, object]:
         "state": "configuration_invalid",
         "required_gaps": [str(error)],
     }
-
-
-def markdown_lint_report(root: Path) -> dict[str, object]:
-    """Check the shared floor and native repository increments on the same authored inputs."""
-    try:
-        files = _markdown_files(root)
-        if not files:
-            return {
-                "verdict": "pass",
-                "state": "skipped",
-                "file_count": 0,
-                "required_gaps": [],
-            }
-        node = str(resolve_node_runtime().executable)
-        prettier = str(product_node_module("prettier") / "bin/prettier.cjs")
-        markdownlint = str(product_node_module("markdownlint-cli2") / "markdownlint-cli2.mjs")
-        format_configs = native_configurations(
-            root, "prettier", ".config/checks/prettier/prettier.toml"
-        )
-        lint_configs = native_configurations(
-            root,
-            "markdownlint-cli2",
-            ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
-        )
-    except (GitExecutionError, subprocess.CalledProcessError) as error:
-        return quality_inventory_failure(root, "markdown-lint", error)
-    except (OSError, ValueError) as error:
-        return _configuration_failure("markdown-lint", error)
-    commands = [
-        (
-            "markdown-format",
-            [
-                node,
-                prettier,
-                "--config",
-                config,
-                "--no-editorconfig",
-                "--prose-wrap",
-                "preserve",
-                "--ignore-path",
-                os.devnull,
-                "--check",
-                "--",
-                *files,
-            ],
-        )
-        for config in format_configs
-    ]
-    adapter = str(Path(__file__).with_name("markdown.mjs"))
-    commands.extend(
-        (
-            "markdown-lint",
-            [node, adapter, markdownlint, config, str(root), json.dumps(files)],
-        )
-        for config in lint_configs
-    )
-    native = [
-        quality_tool_report(root=root, gate_id=gate_id, tool=node, command=command, files=files)
-        for gate_id, command in commands
-    ]
-    return _native_report("markdown-lint", files, native)
 
 
 def _native_report(

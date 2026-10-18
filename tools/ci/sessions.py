@@ -11,6 +11,7 @@ import sys
 from importlib import import_module
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Literal
 from typing import cast
 
 from tools.ci.toolchain.environment import ProjectRuntime
@@ -364,10 +365,16 @@ def _prettier(session, *paths: str, write: bool = False) -> None:
     )
 
 
-def markdown_lint(session) -> None:
-    report = import_module("ethos.adapters.gates.tool").markdown_lint_report(ROOT)
+def _document_report(session, *, kind: Literal["format", "prose"]) -> None:
+    """Nox projects the product-owned nonmutating authoring check."""
+    report = import_module("ethos.adapters.gates.markdown").working_document_report(ROOT, kind=kind)
+    session.log(json.dumps(report, sort_keys=True))
     if report["verdict"] != "pass":
-        session.error("Markdown quality failed:\n" + json.dumps(report["required_gaps"], indent=2))
+        session.error(json.dumps(report))
+
+
+def markdown_lint(session) -> None:
+    _document_report(session, kind="format")
     _prettier(session, *(path for path in prettier_paths() if not path.endswith(".md")))
 
 

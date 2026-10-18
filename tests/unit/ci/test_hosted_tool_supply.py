@@ -367,9 +367,9 @@ def test_native_supply_timeout_drains_descendants_before_cleanup(
     "fault", ["none", "failure", "wrong-version", "warning", "drift", "older", "newer", "preview"]
 )
 def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(
-    tmp_path, monkeypatch, source, fault
+    tmp_path, monkeypatch, capsys, source, fault
 ):
-    """Operator supply meets the minimum; owned bootstrap retains its exact identity."""
+    """Bootstrap preserves identity and completes declared locked-tool preparation."""
     version = "2026.9.11"
     observed = {
         "wrong-version": "wrong",
@@ -377,10 +377,29 @@ def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(
         "newer": "2026.10.1",
         "preview": "2026.10.1-dev",
     }.get(fault, version)
-    body = f"#!/bin/sh\necho {observed}\n"
-    if fault == "warning":
-        body += "echo unapproved-warning >&2\n"
+    tools = {"cue": "0.17.1", "github:rhysd/actionlint": "1.7.12"}
+    installed = tmp_path / "installed"
+    body = (
+        f"#!{sys.executable}\nimport os, sys, tomllib\nfrom pathlib import Path\n"
+        "if sys.argv[1:] == ['--version']:\n"
+        f"    print({observed!r})\n"
+        + ("    print('unapproved-warning', file=sys.stderr)\n" if fault == "warning" else "")
+        + "else:\n"
+        "    assert sys.argv[1:] == ['install', '--locked', 'cue', 'github:rhysd/actionlint']\n"
+        "    assert os.environ['MISE_SAFE'] == os.environ['MISE_LOCKED'] == '1'\n"
+        "    config = tomllib.loads(Path('.config/mise/config.toml').read_text())\n"
+        f"    assert config['tools'] == {tools!r}\n"
+        "    assert Path('.config/mise/mise.lock').read_text() == 'lockfile_version = 2\\n'\n"
+        f"    Path({str(installed)!r}).write_text('prepared')\n"
+    )
     _bootstrap_source(tmp_path, b"bound" if fault == "drift" else body.encode())
+    write_reference_source(
+        tmp_path,
+        native.MISE_CONFIG,
+        f'min_version = "{version}"\n[tools]\n'
+        + "".join(f'"{name}" = "{value}"\n' for name, value in tools.items()),
+    )
+    monkeypatch.delenv("ETHOS_CI_SUPPLY_MANIFEST", raising=False)
 
     def download(command: tuple[str, ...], **_options: object) -> None:
         if fault == "failure":
@@ -415,5 +434,11 @@ def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(
         else []
     )
     assert prepared.call_args_list == expected
+    assert installed.exists() is accepted
+    captured = capsys.readouterr()
+    assert captured.out.strip().split(os.pathsep) == (
+        [str(target.parent)] * 3 if accepted else [""]
+    )
+    assert (captured.err == "") is accepted
     assert target.read_bytes() == (body.encode() if accepted else before)
     assert not list(target.parent.glob(".bootstrap-*"))

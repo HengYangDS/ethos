@@ -32,6 +32,7 @@ from ethos.repository.policy.quality.obligations import QUALITY_PROVIDERS
 from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 from ethos.repository.policy.quality.obligations import quality_verifier_gaps
 from ethos.repository.policy.quality.obligations import source_verifier_gaps
+from ethos.repository.policy.quality.sources import native_document_source_paths
 from ethos.repository.policy.quality.sources import source_contract_paths
 from ethos.repository.policy.quality.tool_configuration import native_gate_tools
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
@@ -315,6 +316,7 @@ def source_paths_for_gate(
                 prefix + "repository/policy/quality/sources.py",
                 *source_contract_paths(source_contracts, source_materials or {}),
             )
+        artifacts += native_document_source_paths(reference, source)
     command = canonical_gate_command(gate.command)
     module = python_module(command)
     noxfile = ("noxfile.py", "pyproject.toml", "uv.lock") if module == "nox" else ()

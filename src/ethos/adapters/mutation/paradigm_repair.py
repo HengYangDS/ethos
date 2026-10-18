@@ -5,12 +5,11 @@ from __future__ import annotations
 import difflib
 from typing import TYPE_CHECKING
 
-from ethos.adapters.admission.prewrite import prewrite_guard
+from ethos.adapters.mutation.carrier_edit import apply_carrier_edits
 from ethos.adapters.repo.git import tracked_paths
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_mapping
-from ethos.normalization.coercion import string_sequence
 from ethos.repository.paradigm.gap import ParadigmGap
 from ethos.repository.paradigm.repair import paradigm_repair_plan
 from ethos.repository.paradigm.report import repository_paradigm_report
@@ -44,37 +43,22 @@ def repair_paradigm(*, root: Path, apply: bool = False) -> dict[str, object]:
         "required_gaps": [],
         "next_action": _APPLY if plan.edits else _first(plan.actions, plan.report_only),
     }
-    if not apply or not plan.edits:
-        return planned
-    admission = prewrite_guard(
-        root=repo,
-        paths=[repo / edit.path for edit in plan.edits],
-        editor_root=repo,
-        require_editor_root=True,
+    effect = apply_carrier_edits(
+        root=repo, edits=plan.edits, apply=apply, next_action=str(planned["next_action"])
     )
-    if report_verdict(admission) != "pass":
-        return {
-            **planned,
-            "verdict": "block",
-            "state": "blocked",
-            "required_gaps": list(string_sequence(admission.get("required_gaps"))),
-            "admission": admission,
-            "next_action": str(admission.get("next_action") or ""),
-        }
-    for edit in plan.edits:
-        path = repo / edit.path
-        if edit.after is None:
-            path.unlink()
-            continue
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(edit.after, encoding="utf-8")
+    result = {**planned, **effect, "edits": planned["edits"]}
+    if not effect["applied"]:
+        if report_verdict(effect) == "pass":
+            result["state"] = planned["state"]
+            result["next_action"] = planned["next_action"]
+        return result
     written = {edit.path for edit in plan.edits if edit.after is not None}
     removed = {edit.path for edit in plan.edits if edit.after is None}
     remaining = repository_paradigm_report(
         repo, tracked_paths=tuple(sorted({*tracked, *written} - removed))
     )
     return {
-        **planned,
+        **result,
         "state": "repaired",
         "applied": True,
         "remaining_gaps": remaining["required_gaps"],

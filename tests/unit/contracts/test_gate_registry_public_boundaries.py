@@ -393,7 +393,7 @@ def test_native_output_contract_preserves_exact_producer_selection(binding: str)
 @pytest.mark.parametrize(
     ("provider", "tools"),
     [
-        ("ethos.adapters.gates.tool:markdown_lint_report", ("prettier", "markdownlint-cli2")),
+        ("ethos.adapters.gates.markdown:markdown_format_report", ("prettier", "markdownlint-cli2")),
         ("ethos.adapters.gates.tool:markdown_links_report", ("lychee",)),
         ("ethos.adapters.gates.tool:external_links_report", ("lychee",)),
         ("ethos.adapters.gates.tool:prose_report", ("codespell",)),

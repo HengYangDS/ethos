@@ -9,6 +9,7 @@ import pytest
 from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
+import ethos.adapters.gates.markdown as markdown_quality
 import ethos.adapters.gates.tool as quality_tools
 import ethos.adapters.repo.content.observation as original_observation
 from ethos.adapters.gates.format_selection import audit
@@ -146,6 +147,9 @@ def test_official_and_owned_generated_markdown_are_not_authored_docs(tmp_path: P
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("content\n" * (_CEILING + 1))
+    active = root / "openspec/changes/change/design.md"
+    active.parent.mkdir(parents=True, exist_ok=True)
+    active.write_text("# Design\n\nCurrent authored intent.\n")
     git(
         root,
         "add",
@@ -463,20 +467,25 @@ def test_retained_original_is_excluded_by_actual_native_quality_consumers(tmp_pa
     commit_fixture(root, "bind current retained observation owner")
     before = original.read_bytes(), original.stat().st_mode
     for consumer in (
-        quality_tools.markdown_lint_report,
+        markdown_quality.markdown_format_report,
         quality_tools.prose_report,
         quality_tools.markdown_links_report,
     ):
         report = consumer(root)
         assert report["verdict"] == "pass", report
-        assert all("docs/observation.md" not in item["command"] for item in report["native"])
+        commands = (
+            [item["command"] for item in report["native"]]
+            if "native" in report
+            else [report["command"]]
+        )
+        assert all("docs/observation.md" not in command for command in commands)
     assert (original.read_bytes(), original.stat().st_mode) == before
 
 
 @pytest.mark.parametrize(
     "consumer",
     [
-        quality_tools.markdown_lint_report,
+        markdown_quality.markdown_format_report,
         quality_tools.prose_report,
         quality_tools.markdown_links_report,
     ],

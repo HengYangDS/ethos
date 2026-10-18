@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.gates.tool as tool
+from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
@@ -52,7 +53,8 @@ def test_shipped_markdown_quality_runs_without_repository_nox(
     root = init_git_repo(tmp_path / "repo")
     path = root / "README.md"
     path.write_text(content)
-    provider = getattr(tool, "markdown_lint_report", None)
+    commit_fixture(root, "declare native document inputs")
+    provider = import_module("ethos.adapters.gates.markdown").markdown_format_report
     assert callable(provider)
     originals = {source: source.read_bytes() for source in root.glob("*.md")}
     report = provider(root)

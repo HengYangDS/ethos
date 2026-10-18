@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -13,6 +14,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.toolchain.mise as mise
+from ethos.adapters.process import run_command
+from ethos.repository.release.resources import canonical_resource
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -37,7 +40,7 @@ def test_locked_environment_exposes_only_selected_mise_during_native_execution(
     locked_go = locked_bin / f"go{suffix}"
     locked_go.write_bytes(b"locked go")
     locked_go.chmod(0o755)
-    files = {mise.MISE_CONFIG: "[tools]\n", mise.MISE_LOCK: "lock"}
+    files = {mise.MISE_CONFIG: "[settings]\n", mise.MISE_LOCK: "lock"}
 
     def observe(
         _root: Path,
@@ -48,7 +51,7 @@ def test_locked_environment_exposes_only_selected_mise_during_native_execution(
         offline: bool,
     ) -> subprocess.CompletedProcess[str]:
         assert offline
-        assert files == {mise.MISE_CONFIG: "[tools]\n", mise.MISE_LOCK: "lock"}
+        assert files == {mise.MISE_CONFIG: "[settings]\n", mise.MISE_LOCK: "lock"}
         assert executable == selected
         output = '{"MISE_TEST":"selected"}' if arguments == ("env", "--json") else f"{locked_bin}\n"
         return subprocess.CompletedProcess(arguments, 0, output, "")
@@ -108,7 +111,7 @@ def test_locked_environment_rejects_unproved_native_supply(
     gap: str,
 ) -> None:
     """A failed or malformed native response cannot become a usable PATH."""
-    files = {mise.MISE_CONFIG: "[tools]\n", mise.MISE_LOCK: "lock"}
+    files = {mise.MISE_CONFIG: "[settings]\n", mise.MISE_LOCK: "lock"}
     calls: list[tuple[str, ...]] = []
 
     def execute(
@@ -119,7 +122,7 @@ def test_locked_environment_rejects_unproved_native_supply(
         executable: Path,
         offline: bool,
     ) -> subprocess.CompletedProcess[str]:
-        assert files == {mise.MISE_CONFIG: "[tools]\n", mise.MISE_LOCK: "lock"}
+        assert files == {mise.MISE_CONFIG: "[settings]\n", mise.MISE_LOCK: "lock"}
         assert executable == tmp_path / "mise"
         assert offline is True
         calls.append(arguments)
@@ -152,17 +155,13 @@ def test_locked_tool_requires_an_installed_absolute_executable(
     gap: str,
 ) -> None:
     """Neither a successful selector exit nor a path string proves a tool exists."""
-    files = {mise.MISE_CONFIG: "[tools]\n", mise.MISE_LOCK: "lock"}
+    files = {mise.MISE_CONFIG: "[settings]\n", mise.MISE_LOCK: "lock"}
 
     def select(
-        _root: Path,
-        arguments: tuple[str, ...],
-        *,
-        files: Mapping[str, str],
-        offline: bool,
+        _root: Path, arguments: tuple[str, ...], *, files: Mapping[str, str], offline: bool
     ) -> subprocess.CompletedProcess[str]:
         assert arguments == ("which", "node")
-        assert files == {mise.MISE_CONFIG: "[tools]\n", mise.MISE_LOCK: "lock"}
+        assert files == {mise.MISE_CONFIG: "[settings]\n", mise.MISE_LOCK: "lock"}
         assert offline is True
         output = str(tmp_path / "absent-node") if stdout == "absent" else stdout
         return subprocess.CompletedProcess(arguments, returncode, output, stderr)
@@ -185,8 +184,8 @@ def test_mise_executable_does_not_invent_a_host_fallback(
 
 @pytest.mark.parametrize("tools", ["", "[tools]\n"])
 def test_a_task_only_owner_selects_no_native_tools(tmp_path: Path, tools: str) -> None:
-    """Verbs alone leave tool resolution to the host, with or without a lock."""
-    config = tmp_path / ".config/mise/config.toml"
+    """Task verbs without explicit or idiomatic tool selection need no tool lock."""
+    config = tmp_path / mise.MISE_CONFIG
     config.parent.mkdir(parents=True)
     config.write_text(f'[settings]\nlocked = true\n{tools}\n[tasks]\ncheck = "nox"\n')
 
@@ -194,7 +193,7 @@ def test_a_task_only_owner_selects_no_native_tools(tmp_path: Path, tools: str) -
 
 
 def test_an_unreadable_owner_still_needs_its_lock(tmp_path: Path) -> None:
-    """Unreadable configuration is never taken for a task-only owner."""
+    """Unreadable configuration is never mistaken for a task-only owner."""
     (tmp_path / "mise.toml").write_text("[tools\n")
 
     with pytest.raises(ValueError, match="locked_toolchain_missing"):
@@ -214,6 +213,164 @@ def test_repository_mise_files_rejects_incomplete_selection(tmp_path: Path, layo
         match="mise_config_ambiguous" if layout == "ambiguous" else "locked_toolchain_missing",
     ):
         mise.repository_mise_files(tmp_path)
+
+
+def test_native_idiomatic_declaration_survives_locked_input_isolation(tmp_path: Path) -> None:
+    """The producer and native consumer retain versions owned by package.json."""
+    repo = tmp_path / "idiomatic"
+    config = repo / mise.MISE_CONFIG
+    config.parent.mkdir(parents=True)
+    config.write_text(
+        '[tool_alias]\nnpm = "npm:npm"\n[settings]\nlocked = true\n'
+        'idiomatic_version_file_enable_tools = ["node", "npm"]\n',
+        encoding="utf-8",
+    )
+    lock = canonical_resource(mise.MISE_LOCK).read_text(encoding="utf-8")
+    node = tomllib.loads(lock)["tools"]["node"][0]
+    npm = json.loads(canonical_resource("package.json").read_text(encoding="utf-8"))[
+        "dependencies"
+    ]["npm"]
+    (repo / mise.MISE_LOCK).write_text(
+        lock + f'\n[[tools.npm]]\nversion = "{npm}"\nbackend = "npm:npm"\nspecifiers = ["{npm}"]\n',
+        encoding="utf-8",
+    )
+    declaration = json.dumps(
+        {
+            "devEngines": {
+                "runtime": {"name": "node", "version": node["specifiers"][0]},
+                "packageManager": {"name": "npm", "version": npm},
+            }
+        },
+    )
+    (repo / "package.json").write_text(declaration, encoding="utf-8")
+    materials = mise.repository_mise_files(repo)
+    assert materials is not None
+    assert materials.get("package.json") == declaration
+    native = mise.run_mise(repo, ("ls", "--current", "--json"), files=materials, offline=True)
+    assert native.returncode == 0, native
+    assert not native.stderr, native
+    observed = json.loads(native.stdout)
+    for tool, version in (("node", node["version"]), ("npm", npm)):
+        assert observed[tool][0]["active"]
+        assert observed[tool][0]["installed"]
+        assert observed[tool][0]["version"] == version
+        source = observed[tool][0]["source"]
+        assert source["type"] == "idiomatic-version-file"
+        assert Path(source["path"]).name == "package.json"
+        assert not Path(source["path"]).is_relative_to(repo)
+    with mise.locked_environment(repo, materials) as environment:
+        for tool, version in (("node", "v" + node["version"]), ("npm", npm)):
+            executable = shutil.which(tool, path=environment["PATH"])
+            assert executable is not None
+            result = run_command(repo, (executable, "--version"), env=environment, timeout=15)
+            assert result.returncode == 0, result
+            assert not result.stderr, result
+            assert result.stdout.strip() == version
+    incomplete = {path: content for path, content in materials.items() if path != "package.json"}
+    with (
+        pytest.raises(ValueError, match="mise_bin_paths_invalid"),
+        mise.locked_environment(repo, incomplete),
+    ):
+        pytest.fail("live package.json replaced the explicit incomplete declaration")
+
+
+@pytest.mark.parametrize(
+    ("fault", "gap"),
+    [
+        ("none", ""),
+        ("failure", "mise_declaration_discovery_unavailable"),
+        ("warning", "mise_declaration_discovery_unavailable"),
+        ("invalid-json", "mise_declaration_discovery_invalid"),
+        ("empty", "mise_declaration_discovery_invalid"),
+        ("untyped-row", "mise_declaration_discovery_invalid"),
+        ("outside", "mise_declaration_outside_root"),
+        ("drift", "mise_declaration_changed"),
+    ],
+)
+def test_native_declaration_discovery_preserves_selection_and_refuses_unproved_inputs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str, gap: str
+) -> None:
+    """Native discovery selects exact inputs; failure never falls back to ambient files."""
+    config = tmp_path / mise.MISE_CONFIG
+    config.parent.mkdir(parents=True)
+    source = '[settings]\nidiomatic_version_file_enable_tools = ["node"]\n'
+    config.write_text(source)
+    lock = tmp_path / mise.MISE_LOCK
+    lock.write_text("lockfile_version = 2\n")
+    package = tmp_path / "package.json"
+    package.write_text('{"devEngines":{"runtime":{"name":"node","version":"26"}}}')
+    executable = tmp_path / "selected-mise"
+    calls = []
+
+    def discover(root: Path, command: tuple[str, ...], **options: object):
+        calls.append(command)
+        assert root == tmp_path
+        assert command == (str(executable), "config", "ls", "--json")
+        assert options["timeout"] == 15
+        assert options["remove_env_prefixes"] == ("MISE_",)
+        environment = options["env"]
+        assert environment["MISE_SAFE"] == environment["MISE_OFFLINE"] == "1"
+        assert environment["MISE_IDIOMATIC_VERSION_FILE_ENABLE_TOOLS"] == "node"
+        paths = [config, package]
+        if fault == "outside":
+            paths.append(tmp_path.parent / "external.json")
+        rows = [{}] if fault == "untyped-row" else [{"path": str(path)} for path in paths]
+        output = (
+            "not-json" if fault == "invalid-json" else json.dumps([] if fault == "empty" else rows)
+        )
+        if fault == "drift":
+            config.write_text(source + "[tasks]\ncheck = 'changed'\n")
+        return subprocess.CompletedProcess(
+            command,
+            1 if fault == "failure" else 0,
+            output,
+            "unproved native response" if fault in {"failure", "warning"} else "",
+        )
+
+    monkeypatch.setattr(mise, "run_command", discover)
+    if gap:
+        with pytest.raises(ValueError if fault != "untyped-row" else TypeError, match=gap):
+            mise.repository_mise_files(tmp_path, executable=executable)
+    else:
+        assert mise.repository_mise_files(tmp_path, executable=executable) == {
+            mise.MISE_CONFIG: source,
+            mise.MISE_LOCK: lock.read_text(),
+            "package.json": package.read_text(),
+        }
+    assert calls == [(str(executable), "config", "ls", "--json")]
+    assert config.read_text() == (
+        source + "[tasks]\ncheck = 'changed'\n" if fault == "drift" else source
+    )
+
+
+@pytest.mark.parametrize(
+    ("fault", "gap"),
+    [
+        ("incomplete", "locked_toolchain_missing"),
+        ("outside", "mise_declaration_path_invalid"),
+        ("invalid-settings", "mise_idiomatic_settings_invalid"),
+    ],
+)
+def test_locked_mise_execution_rejects_unadmitted_input_without_native_effect(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str, gap: str
+) -> None:
+    """An explicit bad closure cannot borrow live files or start a native process."""
+    files = {mise.MISE_CONFIG: '[tools]\nnode = "26"\n', mise.MISE_LOCK: "lockfile_version = 2\n"}
+    if fault == "incomplete":
+        files.pop(mise.MISE_LOCK)
+    elif fault == "outside":
+        files["../external.json"] = "{}"
+    else:
+        files[mise.MISE_CONFIG] = "[settings]\nidiomatic_version_file_enable_tools = [7]\n"
+    before = files.copy()
+    entries = set(tmp_path.iterdir())
+    monkeypatch.setattr(
+        mise, "run_command", lambda *_args, **_kwargs: pytest.fail("unadmitted native execution")
+    )
+    with pytest.raises(ValueError, match=gap):
+        mise.run_mise(tmp_path, ("which", "node"), files=files, executable=tmp_path / "mise")
+    assert files == before
+    assert set(tmp_path.iterdir()) == entries
 
 
 @pytest.mark.parametrize("carrier", [".node-version", ".nvmrc"])
@@ -288,5 +445,5 @@ def test_native_version_selection_requires_declarative_names(
     config.parent.mkdir(parents=True)
     config.write_text(f"[settings]\nidiomatic_version_file_enable_tools = {selection}\n")
     (tmp_path / mise.MISE_LOCK).write_text("lockfile_version = 3\n")
-    with pytest.raises(ValueError, match="mise_version_selection_invalid"):
+    with pytest.raises(ValueError, match="mise_idiomatic_settings_invalid"):
         mise.repository_mise_files(tmp_path)

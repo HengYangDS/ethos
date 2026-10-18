@@ -443,7 +443,7 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "markdown-lint"
 kind = "lint"
-providers = ["ethos.adapters.gates.tool:markdown_lint_report"]
+providers = ["ethos.adapters.gates.markdown:markdown_format_report"]
 policy = "required"
 profile = "product-toolchain"
 toolchain = "ethos"

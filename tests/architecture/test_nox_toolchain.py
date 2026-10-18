@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tomllib
 from contextlib import nullcontext
+from importlib import import_module
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -156,6 +157,38 @@ def test_schema_gate_reuses_repository_validator(monkeypatch: pytest.MonkeyPatch
     session.log.assert_called_once()
     session.run.assert_not_called()
     session.error.assert_not_called()
+
+
+def test_native_document_sessions_reuse_product_report_owners(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Nox transports the shared reports; YAML and original spelling selection stay covered."""
+    registry = {
+        item["id"]: item
+        for item in tomllib.loads((ROOT / "system/gates.toml").read_text())["gates"]
+    }
+    assert registry["markdown-lint"]["providers"] == [
+        "ethos.adapters.gates.markdown:markdown_format_report"
+    ]
+    assert registry["markdown-lint"]["execution_mode"] == "provider"
+    assert registry["prose"]["providers"] == ["ethos.adapters.gates.tool:prose_report"]
+    assert registry["prose"]["execution_mode"] == "provider"
+    calls = []
+    report = {"verdict": "pass", "required_gaps": []}
+    monkeypatch.setattr(
+        import_module("ethos.adapters.gates.markdown"),
+        "working_document_report",
+        lambda root, *, kind: calls.append((kind, root)) or report,
+    )
+    monkeypatch.setattr(sessions, "prettier_paths", lambda: ("guide.md", "policy.yaml"))
+    native = []
+    monkeypatch.setattr(sessions, "_prettier", lambda _session, *paths: native.extend(paths))
+    session = Mock()
+    sessions.markdown_lint(session)
+    assert calls == [("format", sessions.ROOT)]
+    assert native == ["policy.yaml"]
+    session.error.assert_not_called()
+    session.run.assert_not_called()
 
 
 @pytest.mark.parametrize("verdict", ["pass", "block"])

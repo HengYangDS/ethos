@@ -88,6 +88,8 @@ packages = ["src/ethos"]
 ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml" = "ethos/resources/.config/checks/markdownlint-cli2/.markdownlint-cli2.yaml"
 ".config/checks/lychee/lychee.toml" = "ethos/resources/.config/checks/lychee/lychee.toml"
 ".config/checks/vale" = "ethos/resources/.config/checks/vale"
+".config/checks/prettier" = "ethos/resources/.config/checks/prettier"
+".config/checks/markdownlint-cli2" = "ethos/resources/.config/checks/markdownlint-cli2"
 "VERSION" = "ethos/resources/VERSION"
 "system/schemas" = "ethos/resources/system/schemas"
 "docs/governance/product-design-contract.md" = "ethos/resources/docs/governance/product-design-contract.md"
@@ -142,6 +144,8 @@ only-include = [
   ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
   ".config/checks/lychee/lychee.toml",
   ".config/checks/vale",
+  ".config/checks/prettier",
+  ".config/checks/markdownlint-cli2",
   "VERSION",
   "tools/ci/openspec_runtime_hook.py",
 ]

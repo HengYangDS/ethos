@@ -192,7 +192,11 @@ def runtime_build(commit: str, tree: str, *, release: bool = False) -> BuildIden
 
 
 def fixture_runtime_generation(
-    runtime: Path, name: str, *, repository_private: bool = True
+    runtime: Path,
+    name: str,
+    *,
+    repository_private: bool = True,
+    build: BuildIdentity | None = None,
 ) -> Path:
     """Create a manifest-bound private generation for retirement scenarios."""
     staging = runtime.parent / f".{name}"
@@ -203,7 +207,7 @@ def fixture_runtime_generation(
     python.write_bytes(b"fixture executable")
     identity = {
         "wheel_sha256": "f" * 64,
-        "build": runtime_build("a" * 40, "a" * 40),
+        "build": build or runtime_build("a" * 40, "a" * 40),
         "environment": runtime_environment(
             python_abi="fixture",
             python_version="3.12",

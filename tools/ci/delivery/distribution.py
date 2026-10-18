@@ -5,16 +5,27 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+import shlex
 import shutil
 import tarfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
+import tools.ci.delivery.acceptance.runtime as runtime_acceptance
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.adapters.repo.runtime.selection import SelectedRuntime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.repository.release.identity import is_release_build
+from tools.ci.delivery.acceptance.invocation import invoke
+from tools.ci.delivery.acceptance.invocation import observe_stage
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 def package_runtime(
@@ -59,7 +70,11 @@ def package_runtime(
                 gzip.GzipFile(filename="", mode="wb", fileobj=stream, mtime=0) as compressed,
                 tarfile.open(fileobj=compressed, mode="w") as archive,
             ):
-                archive.add(runtime, arcname=f"ethos/runtime/{selected.digest}", filter=_metadata)
+                archive.add(
+                    runtime,
+                    arcname=f"ethos/runtime/{selected.digest}",
+                    filter=_metadata,
+                )
                 archive.add(
                     wheel,
                     arcname=f"ethos/packages/{selected.wheel_sha256}/{wheel.name}",
@@ -121,7 +136,15 @@ def _disk_image(payload: Path, destination: Path) -> None:
     command = (
         (*producer, "--format", "UDZO", "--volumeName", "ETHOS")
         if capability.returncode == 0
-        else ("/usr/bin/hdiutil", "create", "-format", "UDZO", "-volname", "ETHOS", "-srcfolder")
+        else (
+            "/usr/bin/hdiutil",
+            "create",
+            "-format",
+            "UDZO",
+            "-volname",
+            "ETHOS",
+            "-srcfolder",
+        )
     )
     run_command(payload, (*command, str(payload), str(destination)), check=True, timeout=180)
 
@@ -138,7 +161,10 @@ def homebrew_cask(selected: SelectedRuntime, url: str, digest: str) -> str:
     _require_distribution_version(selected, url)
     operating_system = "macos" if selected.platform == "darwin" else selected.platform
     architecture = "arm64" if selected.architecture == "aarch64" else selected.architecture
-    if operating_system not in {"macos", "linux"} or architecture not in {"arm64", "x86_64"}:
+    if operating_system not in {"macos", "linux"} or architecture not in {
+        "arm64",
+        "x86_64",
+    }:
         message = "distribution_platform_unsupported"
         raise ValueError(message)
     if "#{" in url:
@@ -189,3 +215,179 @@ def _require_distribution_version(selected: SelectedRuntime, url: str) -> None:
     if urlsplit(url).scheme != "file" and not is_release_build(selected.build):
         message = "distribution_release_build_required"
         raise ValueError(message)
+
+
+def _prove_external_supply_recovery(
+    prefix: tuple[str, ...],
+    repo: Path,
+    runtime: Path,
+    *,
+    environment: Mapping[str, str],
+) -> None:
+    """Reject damaged supply, then recover an absent selection from the invoking package."""
+    packages = runtime.parent.parent / "packages"
+    preserved = packages.with_name("preserved-packages")
+    common = Path(git_common_dir(repo))
+    selector = common / "ethos/runtime/CURRENT"
+    original = selector.read_bytes()
+    packages.rename(preserved)
+    try:
+        code, report, detail = invoke(
+            repo,
+            (*prefix, "hook", "install", "--root", str(repo), "--json"),
+            environment=environment,
+        )
+        recovery = shlex.split(str(report.get("next_action") or ""))
+        expected = f"hook_install_failed:hook_runtime_installed_supply_invalid:{runtime}"
+        if (
+            not code
+            or report.get("required_gaps") != [expected]
+            or "--runtime" not in recovery
+            or str(runtime) in recovery
+            or report.get("user_decision_required") is not True
+            or selector.read_bytes() != original
+            or any(path.is_dir() for path in selector.parent.iterdir())
+        ):
+            message = f"shared_supply_failure_not_preserved:{detail}"
+            raise RuntimeError(message)
+    finally:
+        preserved.rename(packages)
+    runtime_acceptance.activate_from_runtime(
+        Path(prefix[0]), repo, environment=environment, installed_runtime=runtime
+    )
+    missing = repo.parent / "missing-installation/ethos/runtime" / runtime.name
+    if missing.exists() or missing.is_symlink():
+        message = "shared_missing_selection_fixture_occupied"
+        raise RuntimeError(message)
+    selector.write_bytes(runtime_selection_bytes(common, missing))
+    code, recovered, detail = invoke(
+        repo,
+        (*prefix, "hook", "install", "--root", str(repo), "--json"),
+        environment=environment,
+    )
+    data = recovered.get("data")
+    if (
+        code
+        or recovered.get("verdict") != "pass"
+        or not isinstance(data, dict)
+        or Path(str(data.get("runtime_manifest_path") or "")) != runtime / "manifest.json"
+        or selector.read_bytes() != original
+        or any(path.is_dir() for path in selector.parent.iterdir())
+    ):
+        message = f"shared_missing_selection_recovery_failed:{detail}"
+        raise RuntimeError(message)
+
+
+@observe_stage("shared_supply")
+def prove_shared_supply(
+    archive: Path,
+    work: Path,
+    *,
+    environment: Mapping[str, str],
+) -> dict[str, object]:
+    """Exercise independent repositories against the same delivered immutable supply."""
+    installed = work / "shared-installation"
+    with observe_stage("shared_archive_extraction"), tarfile.open(archive) as packed:
+        packed.extractall(installed, filter="tar")
+    generations = tuple((installed / "ethos/runtime").iterdir())
+    if len(generations) != 1:
+        message = "shared_supply_generation_ambiguous"
+        raise ValueError(message)
+    with observe_stage("shared_source_validation"):
+        selected = require_selected_runtime(generations[0])
+    scoped_environment = {**environment, "XDG_DATA_HOME": str(work / "host-data")}
+    pinned_root = (
+        work / "host-data/ethos/installations" / selected.digest[:16] / "runtime" / selected.digest
+    )
+    repositories = [work / f"shared-adopter-{ordinal}" for ordinal in range(2)]
+    selectors, databases = [], []
+    for repo in repositories:
+        run_command(
+            work,
+            ("git", "init", "--quiet", "--initial-branch=dev", str(repo)),
+            check=True,
+        )
+        with observe_stage("shared_repository_binding", target=repo.name):
+            data = runtime_acceptance.activate_from_runtime(
+                selected.python, repo, environment=scoped_environment
+            )
+        common = Path(git_common_dir(repo))
+        selector = common / "ethos/runtime/CURRENT"
+        selectors.append(selector)
+        databases.append(common / "ethos/state.sqlite")
+        if any(path.is_dir() for path in selector.parent.iterdir()):
+            message = "shared_supply_was_copied"
+            raise RuntimeError(message)
+        if Path(str(data.get("runtime_manifest_path") or "")) != pinned_root / "manifest.json":
+            message = "shared_supply_was_reselected"
+            raise RuntimeError(message)
+    with observe_stage("shared_target_validation"):
+        pinned = require_selected_runtime(pinned_root)
+    prefix = (str(pinned.python), "-B", "-I", "-m", "ethos.cli")
+    original = selectors[0].read_bytes()
+    if (
+        databases[0].samefile(databases[1])
+        or selectors[0].samefile(selectors[1])
+        or original != selectors[1].read_bytes()
+    ):
+        message = "shared_repository_selection_or_state_invalid"
+        raise RuntimeError(message)
+    selectors[0].write_bytes(b"invalid\n")
+    for ordinal, repo in enumerate(repositories):
+        _code, report, detail = invoke(
+            repo,
+            (*prefix, "status", "--root", str(repo), "--json"),
+            environment=scoped_environment,
+        )
+        data = report.get("data")
+        runtime = data.get("hook_runtime") if isinstance(data, dict) else None
+        if not isinstance(runtime, dict) or runtime.get("current") is not (ordinal != 0):
+            message = f"shared_repository_isolation_failed:{detail}"
+            raise RuntimeError(message)
+    runtime_acceptance.activate_from_runtime(
+        pinned.python,
+        repositories[0],
+        environment=scoped_environment,
+        installed_runtime=pinned.root,
+    )
+    _prove_external_supply_recovery(
+        prefix, repositories[0], pinned.root, environment=scoped_environment
+    )
+    if selectors[0].read_bytes() != original or require_selected_runtime(pinned_root) != pinned:
+        message = "shared_supply_recovery_or_integrity_failed"
+        raise RuntimeError(message)
+    _prove_package_carrier_removal(installed, prefix, repositories, scoped_environment)
+    return {
+        "state": "passed",
+        "runtime_digest": selected.digest,
+        "repository_count": len(repositories),
+        "shared_bytes": True,
+        "independent_state": True,
+        "damaged_selector_isolated": True,
+        "invalid_supply_preserves_selection": True,
+        "missing_selection_recovered": True,
+        "source_removal_preserves_consumers": True,
+        "recovered": True,
+        "package_manager_uninstall_qualified": False,
+    }
+
+
+def _prove_package_carrier_removal(
+    installed: Path,
+    prefix: tuple[str, ...],
+    repositories: list[Path],
+    environment: Mapping[str, str],
+) -> None:
+    """Remove package-owned bytes and run both repositories from pinned supply."""
+    remove_generated_tree(installed)
+    for repo in repositories:
+        code, report, detail = invoke(
+            repo,
+            (*prefix, "status", "--root", str(repo), "--json"),
+            environment=environment,
+        )
+        data = report.get("data")
+        runtime = data.get("hook_runtime") if isinstance(data, dict) else None
+        if code or not isinstance(runtime, dict) or runtime.get("current") is not True:
+            message = f"shared_supply_source_removal_failed:{detail}"
+            raise RuntimeError(message)

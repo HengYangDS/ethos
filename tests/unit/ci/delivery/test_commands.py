@@ -247,9 +247,14 @@ def test_installed_observation_runs_shared_isolated_conformance(
     guide.write_text("Run ethos status.\n", encoding="utf-8")
     (package / "__init__.py").write_text("", encoding="utf-8")
     executed: list[tuple[str, ...]] = []
+    environments: list[object] = []
+    environment, _git = effect.independent_host_environment()
+    environment["XDG_DATA_HOME"] = str(tmp_path / "host-data")
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "ambient-data"))
 
     def run(*command: str, **_kwargs: object) -> str:
         executed.append(command)
+        environments.append(_kwargs.get("env"))
         if "--version" in command:
             return "ethos 0.2.0-alpha.3"
         if "Path(ethos.__file__)" in " ".join(command):
@@ -278,11 +283,13 @@ def test_installed_observation_runs_shared_isolated_conformance(
         lambda *_args, **_kwargs: pytest.fail("SDK observation must not mutate lifecycle state"),
     )
 
-    assert effect.observe_installed_package(smoke, adopter) == (
+    assert effect.observe_installed_package(smoke, adopter, environment=environment) == (
         (smoke / "site-packages/ethos/__init__.py").as_posix(),
         "ethos 0.2.0-alpha.3",
         {"state": "passed", "native_git_loss": "not_qualified"},
     )
+    assert environments
+    assert all(value == environment for value in environments)
     rendered = "\n".join(" ".join(command) for command in executed)
     assert "archive-change" not in rendered
     assert "rebuild-from" not in rendered
@@ -344,11 +351,7 @@ def test_independent_cli_checks_do_not_replace_a_blocked_request(
     commands: list[tuple[str, ...]] = []
     head = "a" * 40
 
-    monkeypatch.setattr(
-        effect,
-        "independent_host_environment",
-        lambda: ({"PATH": "/native"}, "/native/git"),
-    )
+    environment, _git = effect.independent_host_environment()
 
     def run_command(_root: Path, command: tuple[str, ...], **_kwargs: object):
         commands.append(command)
@@ -372,7 +375,9 @@ def test_independent_cli_checks_do_not_replace_a_blocked_request(
     monkeypatch.setattr(effect, "run_command", run_command)
     monkeypatch.setattr(effect.cli_invocation, "invoke", invoke)
 
-    observation = effect.observe_independent_command_plane(tmp_path / "ethos", tmp_path)
+    observation = effect.observe_independent_command_plane(
+        tmp_path / "ethos", tmp_path, environment=environment
+    )
 
     assert isinstance(observation["commands"], list)
     assert "plan --changed" in observation["commands"]

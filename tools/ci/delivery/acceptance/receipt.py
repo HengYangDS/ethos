@@ -18,7 +18,7 @@ REQUIRED_LIFECYCLE_STAGES = frozenset(
         "lane_bootstrap",
         "relocation_repair",
         "retirement_recovery",
-        "successor_activation",
+        "repository_activation",
         "signature_repair",
         "native_merge",
     }
@@ -44,7 +44,8 @@ def package_acceptance_evidence(
     """Render evidence only after every package lifecycle stage passed."""
     stages = set(runtime_lifecycle)
     passed = all(stage.get("state") == "passed" for stage in runtime_lifecycle.values())
-    if stages != REQUIRED_LIFECYCLE_STAGES or not passed:
+    required = REQUIRED_LIFECYCLE_STAGES
+    if stages not in (required, required | {"retained_state_upgrade"}) or not passed:
         message = "package_runtime_lifecycle_incomplete"
         raise ValueError(message)
     if command_plane.get("state") != "passed":
@@ -98,6 +99,15 @@ def package_acceptance_evidence(
         "dependencies": "locked_project_environment_projection",
         "module_origins": {"ethos": origin},
         "runtime_lifecycle": dict(runtime_lifecycle),
+        "qualification": {
+            "fresh_installation": "passed",
+            "cross_repository_activation": "passed",
+            "retained_state_upgrade": (
+                "passed" if "retained_state_upgrade" in stages else "not_qualified"
+            ),
+            "interruption_recovery": "not_qualified",
+            "live_consumer_safe_uninstall": "not_qualified",
+        },
         "wheel_resources": resources,
         "version": version,
         "wheels": [

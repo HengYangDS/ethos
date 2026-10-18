@@ -6,7 +6,6 @@ import os
 import shlex
 import shutil
 import sys
-import tarfile
 from concurrent.futures import wait
 from contextlib import ExitStack
 from pathlib import Path
@@ -14,11 +13,13 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.runtime.manifest import runtime_file_inventory
 from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
 from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
-from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from tools.ci.delivery.acceptance import adopter as adopter_fixture
+from tools.ci.delivery.acceptance import brownfield as brownfield_acceptance
 from tools.ci.delivery.acceptance import lane as lane_acceptance
 from tools.ci.delivery.acceptance.invocation import invoke
 from tools.ci.delivery.acceptance.invocation import observe_stage
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from concurrent.futures import Future
 
+    from ethos.adapters.repo.runtime.selection import SelectedRuntime
     from ethos.repository.release.identity import BuildIdentity
     from tools.ci.delivery.acceptance.adopter import CommandRunner
 
@@ -43,18 +45,20 @@ def activate_from_entrypoint(
     return _activate((executable.as_posix(),), repo, environment=environment)
 
 
-@observe_stage("successor_activation")
+@observe_stage("repository_activation")
 def activate_from_runtime(
     python: Path,
     repo: Path,
     *,
     environment: Mapping[str, str],
+    installed_runtime: Path | None = None,
 ) -> dict[str, object]:
-    """Activate a successor repository runtime from an immutable package runtime."""
+    """Activate exact supplied bytes without implying a predecessor upgrade."""
     return _activate(
         (python.as_posix(), "-B", "-I", "-m", "ethos.cli"),
         repo,
         environment=environment,
+        installed_runtime=installed_runtime,
     )
 
 
@@ -66,7 +70,15 @@ def _activate(
     installed_runtime: Path | None = None,
 ) -> dict[str, object]:
     selection = ("--runtime", str(installed_runtime)) if installed_runtime is not None else ()
-    command = (*prefix, "hook", "install", *selection, "--root", repo.as_posix(), "--json")
+    command = (
+        *prefix,
+        "hook",
+        "install",
+        *selection,
+        "--root",
+        repo.as_posix(),
+        "--json",
+    )
     returncode, payload, diagnostic = invoke(repo, command, environment=environment)
     if returncode or payload.get("verdict") != "pass":
         message = f"package_runtime_activation_failed:{diagnostic}"
@@ -169,6 +181,7 @@ with TemporaryDirectory(prefix="ethos-installed-format-") as temporary:
 @observe_stage("immutable_identity")
 def require_version_identity(
     python: Path,
+    repository: Path,
     *,
     build: BuildIdentity,
     wheel_sha256: str,
@@ -181,8 +194,8 @@ def require_version_identity(
         if os.name == "nt"
         else (python.with_name("ethos").as_posix(),)
     )
-    command = (*prefix, "--version", "--json")
-    returncode, payload, diagnostic = invoke(python.parent, command, environment=environment)
+    command = (*prefix, "--version", "--json", "--root", repository.as_posix())
+    returncode, payload, diagnostic = invoke(repository, command, environment=environment)
     data = payload.get("data")
     identity = data.get("identity") if isinstance(data, dict) else {}
     expected = {
@@ -235,166 +248,114 @@ def prove_repair(
     return {"state": "passed", "repair_command": repair}
 
 
-def _prove_external_supply_recovery(
-    prefix: tuple[str, ...], repo: Path, runtime: Path, *, environment: Mapping[str, str]
-) -> None:
-    """Reject damaged supply, then recover an absent selection from the invoking package."""
-    packages = runtime.parent.parent / "packages"
-    preserved = packages.with_name("preserved-packages")
-    common = Path(git_common_dir(repo))
-    selector = common / "ethos/runtime/CURRENT"
-    original = selector.read_bytes()
-    packages.rename(preserved)
-    try:
-        code, report, detail = invoke(
-            repo,
-            (*prefix, "hook", "install", "--root", str(repo), "--json"),
-            environment=environment,
-        )
-        recovery = shlex.split(str(report.get("next_action") or ""))
-        expected = f"hook_install_failed:hook_runtime_installed_supply_invalid:{runtime}"
-        if (
-            not code
-            or report.get("required_gaps") != [expected]
-            or "--runtime" not in recovery
-            or str(runtime) in recovery
-            or report.get("user_decision_required") is not True
-            or selector.read_bytes() != original
-            or any(path.is_dir() for path in selector.parent.iterdir())
-        ):
-            message = f"shared_supply_failure_not_preserved:{detail}"
-            raise RuntimeError(message)
-    finally:
-        preserved.rename(packages)
-    _activate(prefix, repo, environment=environment, installed_runtime=runtime)
-    missing = repo.parent / "missing-installation/ethos/runtime" / runtime.name
-    if missing.exists() or missing.is_symlink():
-        message = "shared_missing_selection_fixture_occupied"
-        raise RuntimeError(message)
-    selector.write_bytes(runtime_selection_bytes(common, missing))
-    code, recovered, detail = invoke(
-        repo,
-        (*prefix, "hook", "install", "--root", str(repo), "--json"),
-        environment=environment,
-    )
-    data = recovered.get("data")
-    if (
-        code
-        or recovered.get("verdict") != "pass"
-        or not isinstance(data, dict)
-        or Path(str(data.get("runtime_manifest_path") or "")) != runtime / "manifest.json"
-        or selector.read_bytes() != original
-        or any(path.is_dir() for path in selector.parent.iterdir())
-    ):
-        message = f"shared_missing_selection_recovery_failed:{detail}"
-        raise RuntimeError(message)
+def require_upgrade_predecessor(path: Path, *, build: BuildIdentity) -> SelectedRuntime:
+    """Validate real immutable prior bytes before creating acceptance work."""
+    selected = require_selected_runtime(path)
+    if selected.build == build:
+        message = "package_upgrade_predecessor_not_distinct"
+        raise ValueError(message)
+    return selected
 
 
-@observe_stage("shared_supply")
-def prove_shared_supply(
-    archive: Path,
-    work: Path,
+@observe_stage("retained_state_upgrade")
+def prove_retained_upgrade(
+    successor: SelectedRuntime,
+    repository: Path,
     *,
+    predecessor: SelectedRuntime,
     environment: Mapping[str, str],
 ) -> dict[str, object]:
-    """Exercise independent repositories against the same delivered immutable supply."""
-    installed = work / "shared-installation"
-    with observe_stage("shared_archive_extraction"), tarfile.open(archive) as packed:
-        packed.extractall(installed, filter="tar")
-    generations = tuple((installed / "ethos/runtime").iterdir())
-    if len(generations) != 1:
-        message = "shared_supply_generation_ambiguous"
-        raise ValueError(message)
-    with observe_stage("shared_source_validation"):
-        selected = require_selected_runtime(generations[0])
-    package_prefix = (str(selected.python), "-B", "-I", "-m", "ethos.cli")
-    scoped_environment = {**environment, "XDG_DATA_HOME": str(work / "host-data")}
-    pinned_root = (
-        work / "host-data/ethos/installations" / selected.digest[:16] / "runtime" / selected.digest
+    """Upgrade and roll back a real predecessor with nonempty retained state."""
+    previous = require_upgrade_predecessor(predecessor.root, build=successor.build)
+    predecessor_report = activate_from_runtime(
+        previous.python,
+        repository,
+        environment=environment,
+        installed_runtime=previous.root,
     )
-    repositories = [work / f"shared-adopter-{ordinal}" for ordinal in range(2)]
-    selectors, databases = [], []
-    for repo in repositories:
-        run_command(work, ("git", "init", "--quiet", "--initial-branch=dev", str(repo)), check=True)
-        with observe_stage("shared_repository_binding", target=repo.name):
-            data = _activate(package_prefix, repo, environment=scoped_environment)
-        common = Path(git_common_dir(repo))
-        selector = common / "ethos/runtime/CURRENT"
-        selectors.append(selector)
-        databases.append(common / "ethos/state.sqlite")
-        if any(path.is_dir() for path in selector.parent.iterdir()):
-            message = "shared_supply_was_copied"
-            raise RuntimeError(message)
-        if Path(str(data.get("runtime_manifest_path") or "")) != pinned_root / "manifest.json":
-            message = "shared_supply_was_reselected"
-            raise RuntimeError(message)
-    with observe_stage("shared_target_validation"):
-        pinned = require_selected_runtime(pinned_root)
-    prefix = (str(pinned.python), "-B", "-I", "-m", "ethos.cli")
-    original = selectors[0].read_bytes()
+    require_manifest(
+        predecessor_report,
+        repository,
+        build=previous.build,
+        wheel_sha256=previous.wheel_sha256,
+    )
+    brownfield_acceptance.seed_retained_state(repository)
+    before = brownfield_acceptance.retained_repository(repository)
+    common = Path(git_common_dir(repository))
+    selector = common / "ethos/runtime/CURRENT"
+    original_selector = selector.read_bytes()
+    hooks = Path(str(predecessor_report["hooks_path"]))
+    original_hooks = runtime_file_inventory(hooks)
+    original_hook_config = run_git(
+        repository, "config", "--local", "--get", "core.hooksPath"
+    ).stdout
+    upgraded = activate_from_runtime(
+        successor.python,
+        repository,
+        environment=environment,
+        installed_runtime=successor.root,
+    )
+    require_manifest(
+        upgraded, repository, build=successor.build, wheel_sha256=successor.wheel_sha256
+    )
+    if brownfield_acceptance.retained_repository(repository) != before:
+        message = "package_upgrade_retained_state_changed"
+        raise RuntimeError(message)
+    supply = upgraded.get("rollback_supply")
+    if not isinstance(supply, dict) or supply.get("runtime_digest") != previous.digest:
+        message = "package_upgrade_rollback_supply_missing"
+        raise RuntimeError(message)
+    rollback = require_selected_runtime(Path(str(supply["runtime"])), expected_build=previous.build)
+    restored = activate_from_runtime(
+        rollback.python,
+        repository,
+        environment=environment,
+        installed_runtime=rollback.root,
+    )
+    require_manifest(restored, repository, build=previous.build, wheel_sha256=previous.wheel_sha256)
     if (
-        databases[0].samefile(databases[1])
-        or selectors[0].samefile(selectors[1])
-        or original != selectors[1].read_bytes()
+        brownfield_acceptance.retained_repository(repository) != before
+        or selector.read_bytes() != original_selector
+        or run_git(repository, "config", "--local", "--get", "core.hooksPath").stdout
+        != original_hook_config
+        or Path(str(restored["hooks_path"])) != hooks
+        or runtime_file_inventory(hooks) != original_hooks
     ):
-        message = "shared_repository_selection_or_state_invalid"
+        message = "package_upgrade_rollback_prestate_changed"
         raise RuntimeError(message)
-    selectors[0].write_bytes(b"invalid\n")
-    for ordinal, repo in enumerate(repositories):
-        _code, report, detail = invoke(
-            repo,
-            (*prefix, "status", "--root", str(repo), "--json"),
-            environment=scoped_environment,
-        )
-        data = report.get("data")
-        runtime = data.get("hook_runtime") if isinstance(data, dict) else None
-        if not isinstance(runtime, dict) or runtime.get("current") is not (ordinal != 0):
-            message = f"shared_repository_isolation_failed:{detail}"
-            raise RuntimeError(message)
-    _activate(
-        prefix, repositories[0], environment=scoped_environment, installed_runtime=pinned.root
+    reactivated = activate_from_runtime(
+        successor.python,
+        repository,
+        environment=environment,
+        installed_runtime=successor.root,
     )
-    _prove_external_supply_recovery(
-        prefix, repositories[0], pinned.root, environment=scoped_environment
+    require_manifest(
+        reactivated,
+        repository,
+        build=successor.build,
+        wheel_sha256=successor.wheel_sha256,
     )
-    if selectors[0].read_bytes() != original or require_selected_runtime(pinned_root) != pinned:
-        message = "shared_supply_recovery_or_integrity_failed"
+    if brownfield_acceptance.retained_repository(repository) != before:
+        message = "package_upgrade_reactivation_retained_state_changed"
         raise RuntimeError(message)
-    _prove_package_carrier_removal(installed, prefix, repositories, scoped_environment)
     return {
         "state": "passed",
-        "runtime_digest": selected.digest,
-        "repository_count": len(repositories),
-        "shared_bytes": True,
-        "independent_state": True,
-        "damaged_selector_isolated": True,
-        "invalid_supply_preserves_selection": True,
-        "missing_selection_recovered": True,
-        "source_removal_preserves_consumers": True,
-        "recovered": True,
-        "package_manager_uninstall_qualified": False,
+        "predecessor": runtime_activation_evidence(predecessor_report),
+        "successor": runtime_activation_evidence(upgraded),
+        "rollback": runtime_activation_evidence(restored),
+        "reactivated": runtime_activation_evidence(reactivated),
+        "preservation": {
+            "head": before.head,
+            "files_sha256": dict(before.files_sha256),
+            "lease_count": len(before.leases),
+            "configuration_preserved": True,
+            "state_schema_preserved": True,
+            "lease_rows_preserved": True,
+            "user_files_preserved": True,
+        },
+        "interruption_recovery": "not_qualified",
+        "live_consumer_safe_uninstall": "not_qualified",
     }
-
-
-def _prove_package_carrier_removal(
-    installed: Path,
-    prefix: tuple[str, ...],
-    repositories: list[Path],
-    environment: Mapping[str, str],
-) -> None:
-    """Remove package-owned bytes and run both repositories from pinned supply."""
-    remove_generated_tree(installed)
-    for repo in repositories:
-        code, report, detail = invoke(
-            repo,
-            (*prefix, "status", "--root", str(repo), "--json"),
-            environment=environment,
-        )
-        data = report.get("data")
-        runtime = data.get("hook_runtime") if isinstance(data, dict) else None
-        if code or not isinstance(runtime, dict) or runtime.get("current") is not True:
-            message = f"shared_supply_source_removal_failed:{detail}"
-            raise RuntimeError(message)
 
 
 @observe_stage("runtime_lifecycle")
@@ -453,7 +414,7 @@ def observe_lifecycle(
     hooks_path = Path(str(successor_report["hooks_path"]))
     return {
         "hook_activation": runtime_activation_evidence(bootstrap_report),
-        "successor_activation": {
+        "repository_activation": {
             **runtime_activation_evidence(successor_report),
             "candidate_worktree": candidate.as_posix(),
         },
@@ -462,6 +423,7 @@ def observe_lifecycle(
         ),
         "immutable_identity": require_version_identity(
             runtime_python,
+            repository,
             build=build,
             wheel_sha256=wheel_sha256,
             runtime_digest=runtime_digest,

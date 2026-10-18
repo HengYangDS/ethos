@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import subprocess
@@ -109,7 +110,12 @@ def format_check(session) -> None:
 def lint(session) -> None:
     paths = _python_paths(session)
     RUFF_CACHE.mkdir(parents=True, exist_ok=True)
-    common = ("--cache-dir", str(RUFF_CACHE), "--config", ".config/checks/ruff/ruff.toml")
+    common = (
+        "--cache-dir",
+        str(RUFF_CACHE),
+        "--config",
+        ".config/checks/ruff/ruff.toml",
+    )
     executable = RUNTIME.script("ruff")
     session.run(executable, "check", "--ignore-noqa", *common, *paths)
     session.run(executable, "format", *common, "--check", *paths)
@@ -154,12 +160,17 @@ def build(session) -> None:
 
 def install_smoke(session) -> None:
     owner = import_module("tools.ci.delivery.pipeline")
-    head = owner.release_build_head(tuple(session.posargs))
+    parser = argparse.ArgumentParser(add_help=False, exit_on_error=False)
+    parser.add_argument("--predecessor-runtime", type=Path)
+    options, remaining = parser.parse_known_args(tuple(session.posargs))
+    head = owner.release_build_head(tuple(remaining))
     if head:
         import_module("tools.ci.dependency_audit").run(
             session, root=RUNTIME.root, scope="production-release"
         )
-    owner.DeliveryPipeline.from_runtime(RUNTIME).prove_install(session, release_head=head)
+    owner.DeliveryPipeline.from_runtime(RUNTIME).prove_install(
+        session, release_head=head, predecessor=options.predecessor_runtime
+    )
 
 
 def host_conformance(session) -> None:
@@ -227,7 +238,9 @@ def shell_lint(session) -> None:
     paths = _paths("*.sh")
     if paths:
         session.run(
-            RUNTIME.script("shellcheck"), "--rcfile=.config/checks/shellcheck/.shellcheckrc", *paths
+            RUNTIME.script("shellcheck"),
+            "--rcfile=.config/checks/shellcheck/.shellcheckrc",
+            *paths,
         )
         session.run(RUNTIME.script("shfmt"), "-d", *paths)
 
@@ -364,7 +377,13 @@ def javascript_lint(session) -> None:
         node = RUNTIME.node_executable()
         prettier = RUNTIME.node_package_supply() / "prettier/bin/prettier.cjs"
         session.run(
-            str(node), str(prettier), "--check", "--no-config", "--print-width", "100", *paths
+            str(node),
+            str(prettier),
+            "--check",
+            "--no-config",
+            "--print-width",
+            "100",
+            *paths,
         )
 
 

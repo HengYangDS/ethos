@@ -2,9 +2,23 @@
 
 from __future__ import annotations
 
+import hashlib
 import shutil
+from dataclasses import dataclass
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
+from ethos.adapters.repo.git import run_git
+from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
+from ethos.adapters.store.state.lease.projection import LeaseRow
+from ethos.adapters.store.state.lease.projection import lease_row
+from ethos.adapters.store.state.lease.projection import lease_rows
+from ethos.adapters.store.state.schema import state_database
+from ethos.adapters.store.state.schema import state_schema_report
+from ethos.contracts.coordination import HolderRef
+from ethos.contracts.coordination import LaneLease
 from tools.ci.delivery.acceptance.invocation import invoke
 
 if TYPE_CHECKING:
@@ -93,4 +107,70 @@ def prove_brownfield(
     if not preserved:
         message = "installed_brownfield_authored_content_changed"
         raise RuntimeError(message)
-    return {"state": "passed", "authored_content_preserved": True, "planned_files": planned}
+    return {
+        "state": "passed",
+        "authored_content_preserved": True,
+        "planned_files": planned,
+    }
+
+
+@dataclass(frozen=True, slots=True)
+class RetainedRepository:
+    """Selection-independent repository bytes and native Lease semantics."""
+
+    head: str
+    configuration: tuple[str, ...]
+    schema: tuple[str, ...]
+    leases: tuple[LeaseRow, ...]
+    files_sha256: tuple[tuple[str, str], ...]
+    working_state: str
+
+
+def seed_retained_state(repository: Path) -> None:
+    """Give the disposable brownfield fixture real user bytes and Lease state."""
+    authored = repository / "retained-user-data.txt"
+    if authored.exists() or authored.is_symlink():
+        message = "package_upgrade_retained_fixture_occupied"
+        raise ValueError(message)
+    authored.write_bytes(b"User-owned state: preserve\n")
+    acquire_lease(
+        state_database(repository),
+        lease=LaneLease(
+            lane_ref="work/retained-upgrade-fixture",
+            holder_ref=HolderRef.parse("agent:test:package-only:retained"),
+            generation=1,
+            expires_at=datetime.now(UTC) + timedelta(days=1),
+        ),
+    )
+
+
+def retained_repository(repository: Path) -> RetainedRepository:
+    """Read the complete selected fixture without treating hooks as user config."""
+    schema = state_schema_report(repository)
+    rows = tuple(lease_row(row) for row in lease_rows(state_database(repository)))
+    columns = schema["observed_columns"]
+    if schema["observed_state"] != "current" or not isinstance(columns, list) or not rows:
+        message = "package_upgrade_retained_state_missing"
+        raise ValueError(message)
+    configuration = run_git(repository, "config", "--local", "--null", "--list").stdout
+    files = run_git(
+        repository, "ls-files", "--cached", "--others", "--exclude-standard", "-z"
+    ).stdout.split("\0")
+    return RetainedRepository(
+        head=run_git(repository, "rev-parse", "HEAD").stdout.strip(),
+        configuration=tuple(
+            entry
+            for entry in configuration.split("\0")
+            if entry and not entry.startswith("core.hookspath\n")
+        ),
+        schema=tuple(str(column) for column in columns),
+        leases=rows,
+        files_sha256=tuple(
+            (name, hashlib.sha256((repository / name).read_bytes()).hexdigest())
+            for name in sorted(set(files))
+            if name
+        ),
+        working_state=run_git(
+            repository, "status", "--porcelain=v1", "--untracked-files=all", "-z"
+        ).stdout,
+    )

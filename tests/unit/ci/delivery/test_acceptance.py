@@ -5,11 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import shlex
 import signal
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -19,12 +17,9 @@ from unittest.mock import call
 
 import pytest
 
-import tools.ci.local_ci as local_ci
 from ethos.adapters.process import command_scope
 from ethos.adapters.process import run_command
-from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.runtime.transition import PackageArtifact
-from ethos.repository.policy.gates import gate_execution_identity
 from ethos.repository.release.identity import build_identity
 from tools.ci import dependency_audit
 from tools.ci import sessions
@@ -40,46 +35,16 @@ if TYPE_CHECKING:
 ROOT = Path(__file__).resolve().parents[4]
 
 
-def test_package_lifecycle_has_one_execution_owner() -> None:
-    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
-    full = declaration["proof_sets"]["full"]
-    gates = {item["id"]: item for item in declaration["gates"]}
-    lifecycle_gates = {
-        gate["id"]
-        for gate in declaration["gates"]
-        if "installability" in gate.get("dimensions", [])
-    }
-
-    assert lifecycle_gates == {"local-install-smoke"}
-    assert full.index("build") < full.index("local-install-smoke")
-    assert gates["unit-architecture"]["depends_on"][0] == "build"
-    assert set(gates["local-install-smoke"]["depends_on"]) == {
-        "build",
-        "dependency-vulnerabilities",
-    }
-    assert "coverage-floor" in full
-    assert gates["coverage-floor"]["depends_on"] == ["unit-architecture"]
-    assert "local-install-smoke" not in declaration["proof_sets"]["default"]
-    assert gates["unit-architecture"]["resource_locks"]["artifacts/python"] == "shared"
-    assert gates["local-install-smoke"]["network_policy"] == "offline"
-    assert gates["local-install-smoke"]["writes_files"] is True
-    expected = resolve_gate_policy(ROOT, full=True)
-    assert local_ci.owner_commands() == [
-        shlex.join(gate_execution_identity(expected.registry[node.id])) for node in expected.nodes
-    ]
-    assert expected.gate_ids.count("local-install-smoke") == 1
-    assert not expected.registry["unit-architecture"].conflicts_with(
-        expected.registry["local-install-smoke"]
-    )
-    assert expected.registry["generated-artifacts"].conflicts_with(
-        expected.registry["local-install-smoke"]
-    )
-
-
 @pytest.mark.parametrize("release_head", ["", "a" * 40])
-def test_install_smoke_invokes_one_acceptance_transaction(monkeypatch, tmp_path, release_head):
+@pytest.mark.parametrize("predecessor", [False, True])
+def test_install_smoke_invokes_one_acceptance_transaction(
+    monkeypatch, tmp_path, release_head, predecessor
+):
+    previous = tmp_path / "predecessor"
+    supplied = previous if predecessor else None
     session = SimpleNamespace(
-        posargs=("--release", "--expect-head", release_head) if release_head else ()
+        posargs=(("--release", "--expect-head", release_head) if release_head else ())
+        + (("--predecessor-runtime", str(previous)) if predecessor else ())
     )
     artifact = object()
     accept = Mock()
@@ -98,11 +63,12 @@ def test_install_smoke_invokes_one_acceptance_transaction(monkeypatch, tmp_path,
             session,
             artifact=artifact,
             evidence=tmp_path / "build/evidence/local-install/release-smoke.json",
+            predecessor=supplied,
         )
     else:
         audit.assert_not_called()
         prepare.assert_not_called()
-        accept.assert_called_once_with(session)
+        accept.assert_called_once_with(session, predecessor=supplied)
 
 
 def test_wheel_build_reuses_the_locked_project_environment(
@@ -144,7 +110,8 @@ def test_host_conformance_reuses_the_single_package_acceptance_effect(
         monkeypatch.setattr(pipeline.DeliveryPipeline, name, getattr(calls, name))
     calls.attach_mock(session.run, "run")
     delivery = pipeline.DeliveryPipeline(
-        ProjectRuntime(ROOT, Path("/locked/python"), Path("/locked")), ROOT / "node_modules"
+        ProjectRuntime(ROOT, Path("/locked/python"), Path("/locked")),
+        ROOT / "node_modules",
     )
     preflight = call.run(
         "/locked/python",
@@ -158,7 +125,11 @@ def test_host_conformance_reuses_the_single_package_acceptance_effect(
         "::test_windows_native_acl_protection_rejects_foreign_writer",
     )
     delivery.prove_host(session)
-    assert calls.mock_calls == [preflight, call.build(session), call.prove_install(session)]
+    assert calls.mock_calls == [
+        preflight,
+        call.build(session),
+        call.prove_install(session),
+    ]
     calls.reset_mock()
     session.run.side_effect = RuntimeError("native preflight failed")
     with pytest.raises(RuntimeError, match="native preflight failed"):
@@ -184,7 +155,7 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     sealed_runtime.parent.chmod(0o555)
     lifecycle = {stage: {"state": "passed"} for stage in receipt.REQUIRED_LIFECYCLE_STAGES}
     build = build_identity(product="0.2.0-alpha.3", source_commit="a" * 40, source_tree="b" * 40)
-    lifecycle["successor_activation"]["runtime_digest"] = "f" * 64
+    lifecycle["repository_activation"]["runtime_digest"] = "f" * 64
     monkeypatch.setattr(effect, "git_common_dir", lambda root: str(root / ".git"))
     selected_runtime = Mock(
         return_value=SimpleNamespace(root=sealed_runtime.parent, digest="f" * 64)
@@ -222,7 +193,7 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     monkeypatch.setattr(artifact_owner, "wheel_build_identity", lambda _wheel: build)
     for owner, method, value in (
         (effect, "package_runtime", {"path": "archive", "runtime_digest": "f" * 64}),
-        (effect.runtime_acceptance, "prove_shared_supply", {"state": "passed"}),
+        (effect, "prove_shared_supply", {"state": "passed"}),
         (effect.adopter_fixture, "materialize_adopter", "d" * 40),
         (effect.adopter_fixture, "line_ending_conformance", ["lf", "crlf"]),
         (
@@ -244,21 +215,23 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
                 {"state": "passed", "native_git_loss": "not_qualified"},
             ),
         ),
-        (effect, "observe_independent_command_plane", {"external_governance_available": False}),
-        (effect, "_verify_resources", ["ethos/resources/system/gates.toml"]),
-    ):
-        monkeypatch.setattr(owner, method, Mock(return_value=value))
-    monkeypatch.setattr(
-        effect.brownfield_acceptance,
-        "prove_brownfield",
-        Mock(
-            return_value={
+        (
+            effect,
+            "observe_independent_command_plane",
+            {"external_governance_available": False},
+        ),
+        (
+            effect.brownfield_acceptance,
+            "prove_brownfield",
+            {
                 "state": "passed",
                 "authored_content_preserved": True,
                 "planned_files": [".ethos/profile.toml", "openspec/config.yaml"],
-            }
+            },
         ),
-    )
+        (effect, "_verify_resources", ["ethos/resources/system/gates.toml"]),
+    ):
+        monkeypatch.setattr(owner, method, Mock(return_value=value))
 
     def remove_owned_work(path: Path) -> None:
         cleanup_evidence_states.append(evidence.exists())
@@ -290,6 +263,7 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
     selection,
 ) -> None:
     monkeypatch.setenv("UV_PYTHON_INSTALL_DIR", str(tmp_path / "python-images"))
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "ambient-data"))
     case = acceptance_case
     work, evidence = effect.WORK, effect.EVIDENCE
     session = SimpleNamespace(error=pytest.fail, log=case.logs.append)
@@ -316,7 +290,7 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
         elif selection == "changed-head":
             monkeypatch.setattr(effect, "current_tracked_head", lambda _: "e" * 40)
         else:
-            monkeypatch.setattr(effect.runtime_acceptance, "prove_shared_supply", change_artifact)
+            monkeypatch.setattr(effect, "prove_shared_supply", change_artifact)
         with pytest.raises(ValueError, match="package_acceptance_artifact_changed"):
             effect.run(cast("nox.Session", session), artifact=artifact, evidence=output)
         assert not output.exists()
@@ -334,7 +308,6 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
             event.get("name") == "owned_cleanup" and event.get("state") == "completed"
             for event in events
         )
-        assert payload["execution_events"] == output.with_suffix(".events.jsonl").as_posix()
         assert (
             cast("Mock", effect.package_runtime).call_args.args[0]
             == case.sealed_payload.parent.parent
@@ -343,8 +316,6 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
             work / "adopter/.git", expected_build=case.build
         )
         assert cast("Mock", effect.package_runtime).call_args.args[2].is_relative_to(work)
-        assert payload["distribution"]["retained"] is False
-        assert {"path", "homebrew_cask"}.isdisjoint(payload["distribution"])
         assert case.observed["supply"] == (
             tmp_path,
             tmp_path / "project-python",
@@ -352,12 +323,22 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
             selected,
             work / "locked-requirements.txt",
         )
-        assert case.observed["environment"]["UV_OFFLINE"] == "1"
-        assert case.observed["environment"]["UV_PYTHON_INSTALL_DIR"] == str(
-            tmp_path / "python-images"
-        )
+        expected_environment = {
+            "UV_OFFLINE": "1",
+            "UV_PYTHON_INSTALL_DIR": str(tmp_path / "python-images"),
+            "XDG_DATA_HOME": str(work / "host-data"),
+        }
+        assert expected_environment.items() <= case.observed["environment"].items()
         assert "UV_CACHE_DIR" not in case.observed["environment"]
-        _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact)
+        for observer in (
+            effect.observe_installed_package,
+            effect.observe_independent_command_plane,
+        ):
+            assert (
+                cast("Mock", observer).call_args.kwargs["environment"]
+                == case.observed["environment"]
+            )
+        _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact, output)
         assert not work.exists()
         assert case.cleanup == [bool(artifact), bool(artifact)]
         assert json.loads(case.logs[0]) == payload
@@ -498,12 +479,26 @@ def test_concurrent_formation_failure_fails_acceptance_and_cleans_owned_work(
     assert not effect.EVIDENCE.exists()
 
 
-def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact):
+def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact, output):
     """Check the real producer's binding and the negative incomplete-stage contract."""
     assert payload["build_identity"] == case.build.projection()
     assert payload["runtime_lifecycle"] == case.lifecycle
     assert payload["head"] == "a" * 40
-    assert payload["generated_at"] == case.receipt.call_args.kwargs["generated_at"].isoformat()
+    inputs = case.receipt.call_args.kwargs
+    assert payload["generated_at"] == inputs["generated_at"].isoformat()
+    assert payload["execution_events"] == output.with_suffix(".events.jsonl").as_posix()
+    assert payload["distribution"] == {
+        "runtime_digest": "f" * 64,
+        "shared_supply": {"state": "passed"},
+        "retained": False,
+    }
+    assert payload["qualification"] == {
+        "fresh_installation": "passed",
+        "cross_repository_activation": "passed",
+        "retained_state_upgrade": "not_qualified",
+        "interruption_recovery": "not_qualified",
+        "live_consumer_safe_uninstall": "not_qualified",
+    }
     for field in (
         "hosted_ci_status_claimed",
         "remote_publication_claimed",
@@ -511,39 +506,41 @@ def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact):
     ):
         assert payload[field] is False
     for field in ("command_plane", "formation", "brownfield"):
-        assert payload["conformance"][field] == case.receipt.call_args.kwargs[field]
-    for error, invalid in (
+        assert payload["conformance"][field] == inputs[field]
+    invalid_cases = (
         (
             "package_brownfield_preservation_incomplete",
-            {"brownfield": {"state": "passed", "authored_content_preserved": False}},
+            "brownfield",
+            {"authored_content_preserved": False},
         ),
-        (
-            "package_first_change_claim_invalid",
-            {"formation": {"state": "passed", "first_change": "skeleton_created"}},
-        ),
-        ("package_formation_incomplete", {"formation": {"state": "blocked"}}),
-        (
-            "package_agent_handoff_incomplete",
-            {"formation": {"state": "passed", "first_change": "lane_admitted"}},
-        ),
-        (
-            "package_source_format_incomplete",
-            {
-                "formation": case.receipt.call_args.kwargs["formation"]
-                | {"formatting": "not_attempted"}
-            },
-        ),
-        ("package_command_plane_incomplete", {"command_plane": {"state": "blocked"}}),
-    ):
+        ("package_first_change_claim_invalid", "formation", {"first_change": "skeleton_created"}),
+        ("package_formation_incomplete", "formation", {"state": "blocked"}),
+        ("package_agent_handoff_incomplete", "formation", {"agent_handoff": "not_attempted"}),
+        ("package_source_format_incomplete", "formation", {"formatting": "not_attempted"}),
+        ("package_command_plane_incomplete", "command_plane", {"state": "blocked"}),
+    )
+    for error, field, invalid in invalid_cases:
         with pytest.raises(ValueError, match=error):
-            receipt.package_acceptance_evidence(**(case.receipt.call_args.kwargs | invalid))
+            receipt.package_acceptance_evidence(**(inputs | {field: inputs[field] | invalid}))
     assert "sdk_commitment_digest" not in payload["conformance"]
     assert payload["wheels"][0]["path"] == selected.relative_to(tmp_path).as_posix()
     incomplete = dict(case.lifecycle)
     incomplete.pop("retirement_recovery")
     with pytest.raises(ValueError, match="package_runtime_lifecycle_incomplete"):
         receipt.package_acceptance_evidence(
-            **(case.receipt.call_args.kwargs | {"resources": [], "runtime_lifecycle": incomplete})
+            **(inputs | {"resources": [], "runtime_lifecycle": incomplete})
+        )
+    upgraded = case.lifecycle | {"retained_state_upgrade": {"state": "passed"}}
+    qualified = receipt.package_acceptance_evidence(**(inputs | {"runtime_lifecycle": upgraded}))
+    assert qualified["qualification"] == payload["qualification"] | {
+        "retained_state_upgrade": "passed"
+    }
+    with pytest.raises(ValueError, match="package_runtime_lifecycle_incomplete"):
+        receipt.package_acceptance_evidence(
+            **(
+                inputs
+                | {"runtime_lifecycle": upgraded | {"retained_state_upgrade": {"state": "blocked"}}}
+            )
         )
     assert payload["wheels"][0]["sha256"] == hashlib.sha256(selected.read_bytes()).hexdigest()
     assert (" -- --release --expect-head " in payload["command"]) == bool(artifact)

@@ -83,10 +83,18 @@ class DeliveryPipeline:
                 )
             else:
                 publish_built_wheel(
-                    self.runtime.root, staging, self.runtime.root / "build/artifacts/python"
+                    self.runtime.root,
+                    staging,
+                    self.runtime.root / "build/artifacts/python",
                 )
 
-    def prove_install(self, session: nox.Session, *, release_head: str = "") -> None:
+    def prove_install(
+        self,
+        session: nox.Session,
+        *,
+        release_head: str = "",
+        predecessor: Path | None = None,
+    ) -> None:
         """Exercise the explicitly selected candidate through the single package workload."""
         if release_head:
             artifact = prepare_release_candidate(self.runtime.root, release_head)
@@ -94,9 +102,10 @@ class DeliveryPipeline:
                 session,
                 artifact=artifact,
                 evidence=self.runtime.root / "build/evidence/local-install/release-smoke.json",
+                predecessor=predecessor,
             )
         else:
-            acceptance_effect.run(session)
+            acceptance_effect.run(session, predecessor=predecessor)
 
     def prove_host(self, session: nox.Session) -> None:
         """Run the complete package-only acceptance sequence on this host."""
@@ -116,7 +125,11 @@ class DeliveryPipeline:
 
 
 def publish_built_wheel(
-    repo: Path, staging: Path, artifacts: Path, *, expected_build: BuildIdentity | None = None
+    repo: Path,
+    staging: Path,
+    artifacts: Path,
+    *,
+    expected_build: BuildIdentity | None = None,
 ) -> Path:
     """Admit and project exactly one wheel built from the current source identity."""
     wheels = tuple(path for path in staging.glob("ethos-*.whl") if path.is_file())
@@ -162,7 +175,10 @@ def prepare_release_candidate(repo: Path, head: str) -> PackageArtifact:
         message = "release_wheel_output_invalid"
         raise ValueError(message)
     return materialize_package_wheel(
-        repo, wheels[0], expected_build=expected, collision="release_wheel_digest_collision"
+        repo,
+        wheels[0],
+        expected_build=expected,
+        collision="release_wheel_digest_collision",
     )
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tomllib
@@ -18,7 +19,10 @@ import ethos.adapters.gates.configuration as config_quality
 import ethos.adapters.gates.tool as quality_tools
 import ethos.adapters.repo.content.observation as content_observation
 import ethos.repository.policy.schema as schema_owner
+import tools.ci.local_ci as local_ci
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.repository.policy.gates import gate_execution_identity
 from tests.support.governed_repository import PARADIGM_FORMATTERS
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
@@ -47,6 +51,42 @@ def test_machine_declared_nox_gates_are_implemented_by_sessions() -> None:
         if "nox" in (command := item.get("command", [])) and "-s" in command
     } <= public
     assert all(callable(getattr(sessions, name)) for name in public)
+
+
+def test_package_lifecycle_has_one_execution_owner() -> None:
+    declaration = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))
+    full = declaration["proof_sets"]["full"]
+    gates = {item["id"]: item for item in declaration["gates"]}
+    lifecycle_gates = {
+        gate["id"]
+        for gate in declaration["gates"]
+        if "installability" in gate.get("dimensions", [])
+    }
+
+    assert lifecycle_gates == {"local-install-smoke"}
+    assert full.index("build") < full.index("local-install-smoke")
+    assert gates["unit-architecture"]["depends_on"][0] == "build"
+    assert set(gates["local-install-smoke"]["depends_on"]) == {
+        "build",
+        "dependency-vulnerabilities",
+    }
+    assert "coverage-floor" in full
+    assert gates["coverage-floor"]["depends_on"] == ["unit-architecture"]
+    assert "local-install-smoke" not in declaration["proof_sets"]["default"]
+    assert gates["unit-architecture"]["resource_locks"]["artifacts/python"] == "shared"
+    assert gates["local-install-smoke"]["network_policy"] == "offline"
+    assert gates["local-install-smoke"]["writes_files"] is True
+    expected = resolve_gate_policy(ROOT, full=True)
+    assert local_ci.owner_commands() == [
+        shlex.join(gate_execution_identity(expected.registry[node.id])) for node in expected.nodes
+    ]
+    assert expected.gate_ids.count("local-install-smoke") == 1
+    assert not expected.registry["unit-architecture"].conflicts_with(
+        expected.registry["local-install-smoke"]
+    )
+    assert expected.registry["generated-artifacts"].conflicts_with(
+        expected.registry["local-install-smoke"]
+    )
 
 
 def test_project_runtime_is_the_only_executable_resolution_owner() -> None:

@@ -9,8 +9,10 @@ import pytest
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from ethos.repository.release.identity import BuildIdentity
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import fixture_runtime_generation
+from tests.support.runtime_scenarios import runtime_build
 from tools.ci.delivery.acceptance import runtime as runtime_acceptance
 
 
@@ -75,3 +77,62 @@ def test_package_manifest_acceptance_uses_selected_runtime_owner(tmp_path: Path,
             )
             == selected.python
         )
+
+
+@pytest.mark.parametrize("distinct", [False, True])
+def test_upgrade_requires_a_distinct_build_not_a_different_runtime_digest(tmp_path, distinct):
+    """Environment or payload differences alone do not constitute an upgrade."""
+    predecessor = require_selected_runtime(fixture_runtime_generation(tmp_path / "prior", "prior"))
+    build = runtime_build("b" * 40, "b" * 40) if distinct else predecessor.build
+    successor = require_selected_runtime(
+        fixture_runtime_generation(tmp_path / "next", "next", build=build)
+    )
+    assert predecessor.digest != successor.digest
+    if distinct:
+        assert (
+            runtime_acceptance.require_upgrade_predecessor(predecessor.root, build=successor.build)
+            == predecessor
+        )
+    else:
+        with pytest.raises(ValueError, match="package_upgrade_predecessor_not_distinct"):
+            runtime_acceptance.require_upgrade_predecessor(predecessor.root, build=successor.build)
+
+
+@pytest.mark.parametrize("foreign_identity", [False, True])
+def test_package_version_acceptance_binds_exact_repository(monkeypatch, tmp_path, foreign_identity):
+    """Native console dispatch gets the repository before identity is judged."""
+    repository = tmp_path / "adopter"
+    python = tmp_path / "unrelated-repository/runtime/python/bin/python"
+    build = BuildIdentity("0.2.0-alpha.5", "0.2.0a5.dev0+ga.ta", "a" * 40, "b" * 40)
+    expected = {
+        "schema_version": 2,
+        "product_version": "0.2.0-alpha.5",
+        "distribution_version": "0.2.0a5.dev0+ga.ta",
+        "source_commit": "a" * 40,
+        "source_tree": "b" * 40,
+        "wheel_sha256": "c" * 64,
+        "runtime_digest": "d" * 64,
+    }
+
+    def invoke(root, command, *, environment):
+        assert root == repository
+        assert command[-2:] == ("--root", repository.as_posix())
+        assert environment == {"PATH": "native-only"}
+        identity = expected | ({"source_commit": "e" * 40} if foreign_identity else {})
+        return 0, {"data": {"identity": identity}}, ""
+
+    monkeypatch.setattr(runtime_acceptance, "invoke", invoke)
+    arguments = {
+        "build": build,
+        "wheel_sha256": "c" * 64,
+        "runtime_digest": "d" * 64,
+        "environment": {"PATH": "native-only"},
+    }
+    if foreign_identity:
+        with pytest.raises(RuntimeError, match="package_runtime_version_identity_mismatch"):
+            runtime_acceptance.require_version_identity(python, repository, **arguments)
+    else:
+        assert runtime_acceptance.require_version_identity(python, repository, **arguments) == {
+            "state": "passed",
+            "identity": expected,
+        }

@@ -21,7 +21,14 @@ import pytest
 from ethos.adapters.process import CommandScope
 from ethos.adapters.process import command_scope
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.runtime.selection import require_selected_runtime
+from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
 from ethos.repository.release.identity import BuildIdentity
+from tests.support.governed_repository import init_git_repo
+from tests.support.runtime_scenarios import fixture_runtime_generation
+from tests.support.runtime_scenarios import runtime_build
 from tools.ci.delivery.acceptance import effect
 from tools.ci.delivery.acceptance import invocation
 from tools.ci.delivery.acceptance import receipt
@@ -35,7 +42,7 @@ if TYPE_CHECKING:
     from ethos.adapters.repo.runtime.transition import PackageArtifact
 
 
-def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
+def test_one_acceptance_effect_observes_fresh_installation_and_repository_reuse(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -57,7 +64,7 @@ def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
             "source_commit": "a" * 40,
             "source_tree": "b" * 40,
         }
-        for digit in ("1", "2")
+        for digit in ("1", "1")
     )
     successor_report["hooks_path"] = (tmp_path / "hooks").as_posix()
 
@@ -69,13 +76,21 @@ def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
     monkeypatch.setattr(runtime_acceptance, "require_manifest", require_manifest)
     declarations = (
         (runtime_acceptance.adopter_fixture, "materialize_bootstrap_repository", None),
-        (runtime_acceptance.adopter_fixture, "prepare_acceptance_topology", tmp_path / "candidate"),
+        (
+            runtime_acceptance.adopter_fixture,
+            "prepare_acceptance_topology",
+            tmp_path / "candidate",
+        ),
         (runtime_acceptance, "activate_from_entrypoint", bootstrap_report),
         (runtime_acceptance, "activate_from_runtime", successor_report),
         (runtime_acceptance, "require_production_dependencies", {"state": "passed"}),
         (runtime_acceptance, "require_version_identity", {"state": "passed"}),
         (runtime_acceptance, "prove_repair", {"state": "passed"}),
-        (runtime_acceptance.lane_acceptance, "prove_signature_repair", {"state": "passed"}),
+        (
+            runtime_acceptance.lane_acceptance,
+            "prove_signature_repair",
+            {"state": "passed"},
+        ),
         (
             runtime_acceptance.lane_acceptance,
             "prove_lifecycle",
@@ -91,6 +106,14 @@ def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
             method,
             lambda *_args, stage=method, result=result, **_kwargs: events.append(stage) or result,
         )
+
+    def require_bound_identity(*arguments, **identity):
+        assert arguments == (runtime_python, repository)
+        assert identity["runtime_digest"] == "1" * 64
+        events.append("require_version_identity")
+        return {"state": "passed"}
+
+    monkeypatch.setattr(runtime_acceptance, "require_version_identity", require_bound_identity)
     settled: list[bool] = []
 
     def settle(users):
@@ -122,12 +145,17 @@ def test_one_acceptance_effect_observes_the_complete_runtime_lifecycle(
     assert settled == [True]
     assert set(lifecycle) == receipt.REQUIRED_LIFECYCLE_STAGES
     assert all(observation["state"] == "passed" for observation in lifecycle.values())
+    assert "repository_activation" in lifecycle
+    assert "successor_activation" not in lifecycle
+    assert "retained_state_upgrade" not in lifecycle
     assert not bootstrap_environment.exists()
     assert not bootstrap_repository.exists()
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX owned-group cancellation")
-def test_outer_cancellation_preserves_failure_before_slow_cleanup(tmp_path: Path) -> None:
+def test_outer_cancellation_preserves_failure_before_slow_cleanup(
+    tmp_path: Path,
+) -> None:
     """The child retains failure before the native parent closes its cleanup window."""
     root = tmp_path / "attempt"
     ready = root / "work" / "ready"
@@ -152,7 +180,10 @@ def cleanup(path):
 effect._observe_package, effect.remove_generated_tree = observe, cleanup
 effect.run(SimpleNamespace(log=lambda _: None))
 """
-    with ThreadPoolExecutor(max_workers=1) as pool, command_scope(timeout_seconds=20) as scope:
+    with (
+        ThreadPoolExecutor(max_workers=1) as pool,
+        command_scope(timeout_seconds=20) as scope,
+    ):
         child = cast(
             "Future[subprocess.CompletedProcess[str]]",
             pool.submit(
@@ -180,7 +211,11 @@ effect.run(SimpleNamespace(log=lambda _: None))
 def test_terminal_refresh_preserves_complete_failure(monkeypatch, tmp_path, failed_write):
     work, output = tmp_path / "work", tmp_path / "smoke.json"
     terminal, events, writes = output.with_suffix(".terminal.json"), [], []
-    write, cleanup, cancel = Path.write_text, effect.remove_generated_tree, CommandScope.cancel
+    write, cleanup, cancel = (
+        Path.write_text,
+        effect.remove_generated_tree,
+        CommandScope.cancel,
+    )
     for name, value in {
         "ROOT": tmp_path,
         "WORK": work,
@@ -252,7 +287,12 @@ def test_acceptance_observation_retains_incomplete_nested_stage(tmp_path: Path) 
     records = [json.loads(line) for line in events.read_text().splitlines()]
     assert records[0]["head"] == "a" * 40
     assert records[0]["wheel_sha256"] == "b" * 64
-    assert [record["state"] for record in records[1:]] == ["running", "running", "failed", "failed"]
+    assert [record["state"] for record in records[1:]] == [
+        "running",
+        "running",
+        "failed",
+        "failed",
+    ]
     assert all(record["duration_seconds"] >= 0 for record in records[-2:])
     assert all(record["error_type"] == "KeyboardInterrupt" for record in records[-2:])
     original = events.read_bytes()
@@ -297,3 +337,143 @@ def test_failed_stage_observation_cannot_skip_owned_cleanup(monkeypatch, tmp_pat
     assert "RuntimeError" in report["error_types"]
     assert not work.exists()
     assert not output.exists()
+
+
+@pytest.mark.parametrize(
+    ("predecessor_state", "expected"),
+    [
+        ("missing", "hook_runtime_current_target_invalid"),
+        ("corrupt", "hook_runtime_manifest_invalid"),
+        ("same-build", "package_upgrade_predecessor_not_distinct"),
+    ],
+)
+def test_predecessor_preflight_preserves_existing_work_and_evidence(
+    monkeypatch, tmp_path, predecessor_state, expected
+):
+    """A rejected supply cannot destroy the last completed attempt or its recovery."""
+    build = runtime_build("a" * 40, "a" * 40)
+    previous = fixture_runtime_generation(tmp_path / "prior", "prior")
+    if predecessor_state == "missing":
+        previous = tmp_path / ("0" * 64)
+    elif predecessor_state == "corrupt":
+        (previous / "payload").write_bytes(b"changed")
+    work, output = tmp_path / "work", tmp_path / "smoke.json"
+    work.mkdir()
+    original = work / "recovery.txt"
+    original.write_bytes(b"required recovery")
+    retained = (
+        original,
+        output,
+        output.with_suffix(".terminal.json"),
+        output.with_suffix(".events.jsonl"),
+    )
+    for path in retained[1:]:
+        path.write_bytes(b"previous attempt")
+    before = {path: path.read_bytes() for path in retained}
+    for name, value in {
+        "ROOT": tmp_path,
+        "WORK": work,
+        "current_tracked_head": lambda _: "a" * 40,
+        "require_artifact_current": lambda *_args, **_kwargs: None,
+    }.items():
+        monkeypatch.setattr(effect, name, value)
+    artifact = cast("PackageArtifact", SimpleNamespace(build=build, sha256="b" * 64))
+    with pytest.raises(ValueError, match=expected):
+        effect.run(
+            cast("nox.Session", object()), artifact=artifact, evidence=output, predecessor=previous
+        )
+    assert {path: path.read_bytes() for path in retained} == before
+
+
+@pytest.mark.parametrize(
+    "drift",
+    [
+        "none",
+        "hook-config",
+        "hook-bytes",
+        pytest.param(
+            "hook-mode", marks=pytest.mark.skipif(os.name == "nt", reason="POSIX executable mode")
+        ),
+        "user-file",
+        "selector",
+    ],
+)
+def test_retained_upgrade_requires_exact_rollback_and_reactivation(monkeypatch, tmp_path, drift):
+    """Real Git selection and Lease bytes distinguish rollback from a successful command."""
+    repository = init_git_repo(tmp_path / "adopter")
+    common = Path(git_common_dir(repository))
+    selector = common / "ethos/runtime/CURRENT"
+    selector.parent.mkdir(parents=True)
+    prior, successor = (
+        require_selected_runtime(
+            fixture_runtime_generation(
+                tmp_path / name,
+                name,
+                repository_private=False,
+                build=runtime_build(digit * 40, digit * 40),
+            )
+        )
+        for name, digit in (("prior", "a"), ("next", "b"))
+    )
+    hooks = {
+        selected.digest: common / "ethos/hooks" / selected.digest for selected in (prior, successor)
+    }
+    for directory in hooks.values():
+        directory.mkdir(parents=True)
+        hook = directory / "pre-push"
+        hook.write_bytes(b"#!/bin/sh\nexit 0\n")
+        hook.chmod(0o755)
+    activations = []
+
+    def activate(_python, _repository, *, installed_runtime, **_kwargs):
+        selected = prior if installed_runtime == prior.root else successor
+        activations.append(selected.digest)
+        hook_path = hooks[selected.digest]
+        selector.write_bytes(runtime_selection_bytes(common, selected.root))
+        run_git(repository, "config", "core.hooksPath", str(hook_path))
+        if len(activations) == 3:
+            if drift == "hook-config":
+                run_git(repository, "config", "core.hooksPath", str(hooks[successor.digest]))
+            elif drift == "hook-bytes":
+                (hook_path / "pre-push").write_bytes(b"changed")
+            elif drift == "hook-mode":
+                (hook_path / "pre-push").chmod(0o644)
+            elif drift == "user-file":
+                (repository / "retained-user-data.txt").write_bytes(b"changed")
+            elif drift == "selector":
+                selector.write_bytes(runtime_selection_bytes(common, successor.root))
+        return {
+            **selected.build._asdict(),
+            "runtime_manifest_path": str(selected.manifest),
+            "runtime_digest": selected.digest,
+            "python": str(selected.python),
+            "wheel_sha256": selected.wheel_sha256,
+            "hooks_path": str(hook_path),
+            "rollback_supply": {"runtime_digest": prior.digest, "runtime": str(prior.root)},
+        }
+
+    monkeypatch.setattr(runtime_acceptance, "activate_from_runtime", activate)
+    if drift == "none":
+        result = runtime_acceptance.prove_retained_upgrade(
+            successor, repository, predecessor=prior, environment={}
+        )
+        assert activations == [prior.digest, successor.digest, prior.digest, successor.digest]
+        preservation = result["preservation"]
+        assert isinstance(preservation, dict)
+        assert preservation["lease_count"] == 1
+        assert (
+            result["interruption_recovery"]
+            == result["live_consumer_safe_uninstall"]
+            == "not_qualified"
+        )
+    else:
+        reason = (
+            "package_runtime_identity_mismatch"
+            if drift == "selector"
+            else "package_upgrade_rollback_prestate_changed"
+        )
+        with pytest.raises(RuntimeError, match=reason):
+            runtime_acceptance.prove_retained_upgrade(
+                successor, repository, predecessor=prior, environment={}
+            )
+        assert activations == [prior.digest, successor.digest, prior.digest]

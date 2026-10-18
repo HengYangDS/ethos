@@ -39,6 +39,7 @@ from tools.ci.delivery.acceptance.receipt import package_failure_evidence
 from tools.ci.delivery.artifact import require_artifact_current
 from tools.ci.delivery.artifact import selected_wheel
 from tools.ci.delivery.distribution import package_runtime
+from tools.ci.delivery.distribution import prove_shared_supply
 from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
@@ -46,6 +47,7 @@ if TYPE_CHECKING:
 
     import nox
 
+    from ethos.adapters.repo.runtime.selection import SelectedRuntime
     from ethos.adapters.repo.runtime.transition import PackageArtifact
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -62,14 +64,6 @@ def _venv_executable(root: Path, name: str) -> Path:
     return root / directory / f"{name}{suffix}"
 
 
-def _executable(name: str) -> str:
-    executable = shutil.which(name)
-    if executable is None:
-        message = f"required executable is unavailable: {name}"
-        raise RuntimeError(message)
-    return executable
-
-
 def _run(
     *command: str,
     cwd: Path = ROOT,
@@ -77,7 +71,11 @@ def _run(
 ) -> str:
     with observe_stage(cli_invocation.command_label(command), kind="process", target=cwd.name):
         completed = run_command(
-            cwd, command, env=env, inherit_environment=env is None, remove_env_prefixes=("GIT_",)
+            cwd,
+            command,
+            env=env,
+            inherit_environment=env is None,
+            remove_env_prefixes=("GIT_",),
         )
     if completed.returncode:
         detail = completed.stderr.strip() or completed.stdout.strip()
@@ -89,7 +87,11 @@ def _run(
 
 def independent_host_environment() -> tuple[dict[str, str], str]:
     """Retain native OS context and Git without inheriting agent control planes."""
-    git = Path(_executable("git")).resolve()
+    executable = shutil.which("git")
+    if executable is None:
+        message = "required executable is unavailable: git"
+        raise RuntimeError(message)
+    git = Path(executable).resolve()
     env = {
         key: value
         for key, value in os.environ.items()
@@ -134,21 +136,20 @@ def independent_host_environment() -> tuple[dict[str, str], str]:
     return env, git.as_posix()
 
 
-def observe_independent_command_plane(ethos: Path, adopter: Path) -> dict[str, object]:
+def observe_independent_command_plane(
+    ethos: Path, adopter: Path, *, environment: dict[str, str]
+) -> dict[str, object]:
     """Run the installed reader and lane admission surface without a host control plane."""
-    env, git = independent_host_environment()
-    head = run_command(
-        adopter,
-        (git, "rev-parse", "HEAD"),
-        env=env,
-        check=True,
-        inherit_environment=False,
-    ).stdout.strip()
+    git = shutil.which("git", path=environment["PATH"])
+    if git is None:
+        message = "minimal host environment cannot resolve Git"
+        raise RuntimeError(message)
+    head = _run(git, "rev-parse", "HEAD", cwd=adopter, env=environment)
     holder = "agent:test:package-only:independence"
     suffix = ("--root", str(adopter), "--json")
     commands = (
-        ("status", *suffix),
-        ("plan", "--changed", *suffix),
+        ("status",),
+        ("plan", "--changed"),
         (
             "lane",
             "prewrite",
@@ -156,7 +157,6 @@ def observe_independent_command_plane(ethos: Path, adopter: Path) -> dict[str, o
             "--editor-root",
             str(adopter),
             "--require-editor-root",
-            *suffix,
         ),
         (
             "lane",
@@ -164,10 +164,9 @@ def observe_independent_command_plane(ethos: Path, adopter: Path) -> dict[str, o
             "smoke-change",
             "--holder-ref",
             holder,
-            *suffix,
         ),
-        ("prove", *suffix),
-        ("land", *suffix),
+        ("prove",),
+        ("land",),
         (
             "publish",
             "--ref",
@@ -175,7 +174,6 @@ def observe_independent_command_plane(ethos: Path, adopter: Path) -> dict[str, o
             "--probe-remote",
             "--expect-head",
             head,
-            *suffix,
         ),
         (
             "lane",
@@ -187,15 +185,14 @@ def observe_independent_command_plane(ethos: Path, adopter: Path) -> dict[str, o
             "0" * 40,
             "--accepted-head",
             "0" * 40,
-            *suffix,
         ),
     )
     checked = []
     for args in commands:
         _returncode, payload, _diagnostic = cli_invocation.invoke(
             adopter,
-            (str(ethos), *args),
-            environment=env,
+            (str(ethos), *args, *suffix),
+            environment=environment,
         )
         if args[:2] == ("publish", "--ref"):
             data = payload.get("data")
@@ -213,13 +210,13 @@ def observe_independent_command_plane(ethos: Path, adopter: Path) -> dict[str, o
             ):
                 message = (
                     "installed full-ref publication plan is unavailable: "
-                    f"command={' '.join(args)} required_gaps={json.dumps(gaps)}"
+                    f"command={' '.join((*args, *suffix))} required_gaps={json.dumps(gaps)}"
                 )
                 raise RuntimeError(message)
         checked.append(" ".join(args[:2]))
     return {
         "git": git,
-        "path": env["PATH"],
+        "path": environment["PATH"],
         "external_governance_available": False,
         "commands": checked,
     }
@@ -246,10 +243,12 @@ def _verify_resources(wheel: Path) -> list[str]:
     return sorted(declared.values())
 
 
-def observe_installed_package(smoke: Path, adopter: Path) -> tuple[str, str, dict[str, object]]:
+def observe_installed_package(
+    smoke: Path, adopter: Path, *, environment: dict[str, str]
+) -> tuple[str, str, dict[str, object]]:
     python, ethos = _venv_executable(smoke, "python"), _venv_executable(smoke, "ethos")
-    _run(str(ethos), "--help", "--root", str(adopter), cwd=WORK)
-    version = _run(str(ethos), "--version", "--root", str(adopter), cwd=WORK)
+    _run(str(ethos), "--help", "--root", str(adopter), cwd=WORK, env=environment)
+    version = _run(str(ethos), "--version", "--root", str(adopter), cwd=WORK, env=environment)
     origin = _run(
         str(python),
         "-B",
@@ -261,11 +260,14 @@ def observe_installed_package(smoke: Path, adopter: Path) -> tuple[str, str, dic
         "'installed_console_identity_mismatch'; print(Path(ethos.__file__).resolve())",
         version,
         cwd=WORK,
+        env=environment,
     )
     if not Path(origin).is_relative_to(smoke):
         message = f"installed package escaped smoke environment: {origin}"
         raise RuntimeError(message)
-    status_json = _run(str(ethos), "status", "--root", str(adopter), "--json", cwd=adopter)
+    status_json = _run(
+        str(ethos), "status", "--root", str(adopter), "--json", cwd=adopter, env=environment
+    )
     _run(
         str(python),
         "-I",
@@ -276,6 +278,7 @@ def observe_installed_package(smoke: Path, adopter: Path) -> tuple[str, str, dic
         "assert result.command=='status' and result.verdict in {'pass','block','unknown'}",
         status_json,
         cwd=adopter,
+        env=environment,
     )
     cli_invocation.require_installed_guidance(status_json, origin)
     _run(
@@ -286,6 +289,7 @@ def observe_installed_package(smoke: Path, adopter: Path) -> tuple[str, str, dic
         "c=openspec_base_command(); assert c is not None; r=verify_official_cli(c); "
         "assert r['verdict']=='pass' and r['package']==OFFICIAL_PACKAGE_SPEC",
         cwd=adopter,
+        env=environment,
     )
     command_plane = json.loads(
         _run(
@@ -296,20 +300,36 @@ def observe_installed_package(smoke: Path, adopter: Path) -> tuple[str, str, dic
             str(ethos),
             str(WORK),
             cwd=WORK,
+            env=environment,
         )
     )
     return origin, version, command_plane
 
 
 def _observe_package(
-    session: nox.Session, selected: PackageArtifact, *, head: str
+    session: nox.Session,
+    selected: PackageArtifact,
+    *,
+    head: str,
+    predecessor: SelectedRuntime | None = None,
 ) -> dict[str, object]:
     """Execute the complete installed workload on one supplied package identity."""
     wheel = selected.path
     smoke, adopter = WORK / "venv", WORK / "adopter"
     uv, source_python = RUNTIME.script("uv"), RUNTIME.python
+    package_environment = dict(
+        independent_host_environment()[0], UV_OFFLINE="1", XDG_DATA_HOME=str(WORK / "host-data")
+    )
     with observe_stage("locked_package_installation"):
-        _run(uv, "venv", "--offline", "--python", str(source_python), str(smoke))
+        _run(
+            uv,
+            "venv",
+            "--offline",
+            "--python",
+            str(source_python),
+            str(smoke),
+            env=package_environment,
+        )
         requirements = prepare_locked_requirements(ROOT, WORK, source_python)
         install_locked_runtime(
             ROOT,
@@ -326,10 +346,11 @@ def _observe_package(
         )
         line_endings = adopter_fixture.line_ending_conformance(adopter, run=_run)
     with observe_stage("installed_command_plane"):
-        origin, version, command_plane = observe_installed_package(smoke, adopter)
+        origin, version, command_plane = observe_installed_package(
+            smoke, adopter, environment=package_environment
+        )
     installed_ethos = _venv_executable(smoke, "ethos")
     build, wheel_sha256 = selected.build, selected.sha256
-    package_environment = {**independent_host_environment()[0], "UV_OFFLINE": "1"}
     # Formation owns only the repositories it creates, so it runs beside the other
     # installed-console stages; the lifecycle waits for it before retiring the console.
     with ThreadPoolExecutor(max_workers=1) as formation_pool, command_scope():
@@ -346,8 +367,17 @@ def _observe_package(
             ),
         )
         with observe_stage("host_independence"):
-            independent_host = observe_independent_command_plane(installed_ethos, adopter)
-            _run(uv, "pip", "check", "--python", str(_venv_executable(smoke, "python")))
+            independent_host = observe_independent_command_plane(
+                installed_ethos, adopter, environment=package_environment
+            )
+            _run(
+                uv,
+                "pip",
+                "check",
+                "--python",
+                str(_venv_executable(smoke, "python")),
+                env=package_environment,
+            )
         with observe_stage("wheel_resources"):
             resources = _verify_resources(wheel)
         with observe_stage("brownfield"):
@@ -366,14 +396,21 @@ def _observe_package(
             run=_run,
         )
         formation = formation_run.result()
-    runtime = current_runtime(Path(git_common_dir(adopter)), expected_build=build).root
+    runtime = current_runtime(Path(git_common_dir(adopter)), expected_build=build)
+    if predecessor is not None:
+        lifecycle["retained_state_upgrade"] = runtime_acceptance.prove_retained_upgrade(
+            runtime,
+            WORK / "brownfield-adopter",
+            predecessor=predecessor,
+            environment=package_environment,
+        )
     with observe_stage("runtime_archive"):
         distribution = package_runtime(
-            runtime,
+            runtime.root,
             wheel,
             WORK / "native" / f"ethos-{build.distribution_version}.tar.gz",
         )
-    distribution["shared_supply"] = runtime_acceptance.prove_shared_supply(
+    distribution["shared_supply"] = prove_shared_supply(
         Path(str(distribution["path"])), WORK, environment=package_environment
     )
     distribution.pop("path")
@@ -402,44 +439,58 @@ def _observe_package(
     return payload
 
 
+def _retain_failure(error: BaseException, *, head: str, wheel_sha256: str, output: Path) -> None:
+    """Persist the original terminal failure atomically across cleanup outcomes."""
+    terminal = output.with_suffix(".terminal.json")
+    pending = terminal.with_suffix(".tmp")
+    try:
+        pending.write_text(
+            json.dumps(
+                package_failure_evidence(
+                    head=head,
+                    wheel_sha256=wheel_sha256,
+                    error=error,
+                    owned_work_absent=not os.path.lexists(WORK),
+                    acceptance_written=output.exists(),
+                    generated_at=datetime.now(UTC),
+                ),
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        pending.replace(terminal)
+    finally:
+        pending.unlink(missing_ok=True)
+
+
 def run(
-    session: nox.Session, *, artifact: PackageArtifact | None = None, evidence: Path | None = None
+    session: nox.Session,
+    *,
+    artifact: PackageArtifact | None = None,
+    evidence: Path | None = None,
+    predecessor: Path | None = None,
 ) -> None:
     """Verify one exact wheel and finalize owned work before restoring interruption."""
     head = current_tracked_head(ROOT)
     output = evidence if evidence is not None else EVIDENCE
     selected = artifact or selected_wheel(ROOT, head=head, artifacts=ARTIFACTS)
     require_artifact_current(selected, head=head, repo=ROOT)
-    terminal, events = output.with_suffix(".terminal.json"), output.with_suffix(".events.jsonl")
+    previous = (
+        runtime_acceptance.require_upgrade_predecessor(predecessor, build=selected.build)
+        if predecessor is not None
+        else None
+    )
+    terminal, events = (
+        output.with_suffix(".terminal.json"),
+        output.with_suffix(".events.jsonl"),
+    )
     with (
         command_scope(handle_termination=True) as scope,
         cli_invocation.acceptance_observation(events, head=head, wheel_sha256=selected.sha256),
     ):
         try:
-
-            def retain_failure(error: BaseException) -> None:
-                pending = terminal.with_suffix(".tmp")
-                try:
-                    pending.write_text(
-                        json.dumps(
-                            package_failure_evidence(
-                                head=head,
-                                wheel_sha256=selected.sha256,
-                                error=error,
-                                owned_work_absent=not os.path.lexists(WORK),
-                                acceptance_written=output.exists(),
-                                generated_at=datetime.now(UTC),
-                            ),
-                            indent=2,
-                            sort_keys=True,
-                        )
-                        + "\n",
-                        encoding="utf-8",
-                    )
-                    pending.replace(terminal)
-                finally:
-                    pending.unlink(missing_ok=True)
-
             try:
                 with defer_interruptions(), observe_stage("setup"):
                     if WORK.exists():
@@ -449,7 +500,12 @@ def run(
                     WORK.mkdir(parents=True)
                 with observe_stage("package_acceptance"):
                     payload = {
-                        **_observe_package(session, selected, head=head),
+                        **_observe_package(
+                            session,
+                            selected,
+                            head=head,
+                            **({"predecessor": previous} if previous is not None else {}),
+                        ),
                         "execution_events": events.as_posix(),
                     }
                 if artifact is not None:
@@ -459,7 +515,9 @@ def run(
             except BaseException as error:
                 with defer_interruptions():
                     try:
-                        retain_failure(error)
+                        _retain_failure(
+                            error, head=head, wheel_sha256=selected.sha256, output=output
+                        )
                     finally:
                         scope.cancel()
                     raise
@@ -475,5 +533,5 @@ def run(
         except BaseException as error:
             with defer_interruptions():
                 output.unlink(missing_ok=True)
-                retain_failure(error)
+                _retain_failure(error, head=head, wheel_sha256=selected.sha256, output=output)
                 raise

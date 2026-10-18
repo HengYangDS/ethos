@@ -30,6 +30,23 @@ from tools.ci.delivery.acceptance.adopter import verify_formed
 ROOT = Path(__file__).resolve().parents[4]
 
 
+@pytest.mark.parametrize("missing", ["", "git", "ssh-keygen"])
+def test_independent_host_requires_its_signed_fixture_tools(monkeypatch, missing):
+    """Supply both native prerequisites without inheriting unrelated host tooling."""
+    which = effect.shutil.which
+    monkeypatch.setattr(
+        effect.shutil,
+        "which",
+        lambda name, **kwargs: None if name == missing else which(name, **kwargs),
+    )
+    if missing:
+        with pytest.raises(RuntimeError, match=f"required executable is unavailable: {missing}"):
+            effect.independent_host_environment()
+    else:
+        environment, _git = effect.independent_host_environment()
+        assert all(which(name, path=environment["PATH"]) for name in ("git", "ssh-keygen"))
+
+
 @pytest.mark.parametrize(
     ("phase", "gap"),
     [

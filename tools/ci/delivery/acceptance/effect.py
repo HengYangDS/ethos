@@ -86,12 +86,14 @@ def _run(
 
 
 def independent_host_environment() -> tuple[dict[str, str], str]:
-    """Retain native OS context and Git without inheriting agent control planes."""
-    executable = shutil.which("git")
-    if executable is None:
-        message = "required executable is unavailable: git"
-        raise RuntimeError(message)
-    git = Path(executable).resolve()
+    """Retain native OS context and signing tools without agent control planes."""
+    tools = {}
+    for name in ("git", "ssh-keygen"):
+        executable = shutil.which(name)
+        if executable is None:
+            message = f"required executable is unavailable: {name}"
+            raise RuntimeError(message)
+        tools[name] = Path(executable).resolve()
     env = {
         key: value
         for key, value in os.environ.items()
@@ -120,20 +122,21 @@ def independent_host_environment() -> tuple[dict[str, str], str]:
             "WINDIR",
         }
     }
-    native_dirs = ()
+    native_dirs = tuple(path.parent for path in tools.values())
     if os.name == "nt":
         powershell = Path(windows_powershell())
-        native_dirs = (powershell.parents[2], powershell.parents[3])
-    env["PATH"] = os.pathsep.join((str(git.parent), *(str(path) for path in native_dirs)))
-    if shutil.which("git", path=env["PATH"]) is None:
-        message = "minimal host environment cannot resolve Git"
-        raise RuntimeError(message)
+        native_dirs += (powershell.parents[2], powershell.parents[3])
+    env["PATH"] = os.pathsep.join(dict.fromkeys(str(path) for path in native_dirs))
+    for name in tools:
+        if shutil.which(name, path=env["PATH"]) is None:
+            message = f"minimal host environment cannot resolve {name}"
+            raise RuntimeError(message)
     unavailable = [name for name in ("workstation", "wcp") if shutil.which(name, path=env["PATH"])]
     if unavailable:
         raise RuntimeError(
             "external governance executable leaked into package smoke: " + ", ".join(unavailable)
         )
-    return env, git.as_posix()
+    return env, tools["git"].as_posix()
 
 
 def observe_independent_command_plane(
@@ -317,9 +320,8 @@ def _observe_package(
     wheel = selected.path
     smoke, adopter = WORK / "venv", WORK / "adopter"
     uv, source_python = RUNTIME.script("uv"), RUNTIME.python
-    package_environment = dict(
-        independent_host_environment()[0], UV_OFFLINE="1", XDG_DATA_HOME=str(WORK / "host-data")
-    )
+    package_environment = independent_host_environment()[0]
+    package_environment.update(UV_OFFLINE="1", XDG_DATA_HOME=str(WORK / "host-data"))
     with observe_stage("locked_package_installation"):
         _run(
             uv,
@@ -483,10 +485,7 @@ def run(
         if predecessor is not None
         else None
     )
-    terminal, events = (
-        output.with_suffix(".terminal.json"),
-        output.with_suffix(".events.jsonl"),
-    )
+    terminal, events = output.with_suffix(".terminal.json"), output.with_suffix(".events.jsonl")
     with (
         command_scope(handle_termination=True) as scope,
         cli_invocation.acceptance_observation(events, head=head, wheel_sha256=selected.sha256),

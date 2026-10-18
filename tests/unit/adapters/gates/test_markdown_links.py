@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
@@ -13,9 +13,6 @@ from ethos.adapters.gates.tool import markdown_links_report
 from ethos.adapters.repo.content.source import SourceTree
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def _repository(tmp_path: Path, markdown: str) -> Path:
@@ -241,7 +238,9 @@ def test_native_link_refusal_preserves_source_and_stops_execution(
         gate_tool.shutil,
         "which",
         lambda name, **kwargs: (
-            None if boundary == "missing-tool" and name == "lychee" else which(name, **kwargs)
+            None
+            if boundary == "missing-tool" and Path(name).name in {"lychee", "lychee.exe"}
+            else which(name, **kwargs)
         ),
     )
     native = gate_tool.run_command
@@ -269,5 +268,7 @@ def test_native_link_refusal_preserves_source_and_stops_execution(
 
     assert report["verdict"] == verdict, report
     assert report["required_gaps"] == [reason], report
+    if boundary == "missing-tool":
+        assert not calls
     assert all("--dump" in command or "--dump-inputs" in command for command in calls)
     assert {path: SourceTree.observe(repo).read(path) for path in original} == original

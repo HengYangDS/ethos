@@ -6,8 +6,29 @@ import sys
 import tomllib
 from pathlib import Path
 
+from ethos.adapters.gates.native.attempt import native_attempt
+from ethos.adapters.gates.native.attempt import retained_execution
+from ethos.adapters.gates.verification import NativeExecution
 from ethos.contracts.gates import Gate
+from ethos.repository.policy.gates import gate_execution_identity
 from tests.support.governed_repository import committed_source_repo
+
+
+def native_quality_execution(root: Path, gate: Gate) -> NativeExecution:
+    """Run and retain one independent native quality fixture attempt."""
+    completed, evidence = native_attempt(root, gate, gate.command, timeout=45)
+    return retained_execution(
+        NativeExecution(
+            gate_execution_identity(gate),
+            tuple(completed.args),
+            root.resolve(),
+            completed.returncode,
+            completed.stdout,
+            completed.stderr,
+            executable=gate.command[0],
+            evidence=evidence,
+        )
+    )
 
 
 def native_quality_gate(root: Path, outcome: str = "pass") -> Gate:

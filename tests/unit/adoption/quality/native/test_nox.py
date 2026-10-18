@@ -6,21 +6,24 @@ import json
 import sys
 from dataclasses import replace
 from pathlib import Path
+from typing import TYPE_CHECKING
 from zipfile import ZipFile
 
 import pytest
 
 import ethos.adapters.gates.native.attempt as gate_attempt
 from ethos.adapters.gates.native.attempt import native_attempt
-from ethos.adapters.gates.native.attempt import retained_execution
 from ethos.adapters.gates.python_quality import behavior_report
 from ethos.adapters.gates.python_quality import static_report
 from ethos.adapters.gates.runner import LocalGateRunner
-from ethos.adapters.gates.verification import NativeExecution
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_execution_identity
+from tests.support.native_quality import native_quality_execution
 from tests.support.native_quality import native_quality_gate
+
+if TYPE_CHECKING:
+    from ethos.adapters.gates.verification import NativeExecution
 
 
 def test_native_nox_reports_qualify_the_original_attempt(tmp_path: Path) -> None:
@@ -132,19 +135,7 @@ def test_native_evidence_is_bound_to_one_declared_attempt(tmp_path: Path, bounda
     """Original bytes cannot be promoted through a different command or producer scope."""
     gate = native_quality_gate(tmp_path)
     root = tmp_path / "repo"
-    completed, evidence = native_attempt(root, gate, gate.command, timeout=45)
-    execution = retained_execution(
-        NativeExecution(
-            gate_execution_identity(gate),
-            tuple(completed.args),
-            root.resolve(),
-            completed.returncode,
-            completed.stdout,
-            completed.stderr,
-            executable=gate.command[0],
-            evidence=evidence,
-        )
-    )
+    execution = native_quality_execution(root, gate)
     behavior = behavior_report(root, execution=execution)
     static = static_report(root, execution=execution)
     assert behavior["verdict"] == "pass", behavior
@@ -188,19 +179,7 @@ def test_native_each_selected_session_requires_its_quality_outputs(tmp_path: Pat
     outputs.append(runtime.model_copy(update={"path": "extra-runtime.json", "sessions": (extra,)}))
     gate = gate.model_copy(update={"native_outputs": tuple(outputs)})
     root = tmp_path / "repo"
-    completed, evidence = native_attempt(root, gate, gate.command, timeout=45)
-    retained = retained_execution(
-        NativeExecution(
-            gate_execution_identity(gate),
-            tuple(completed.args),
-            root.resolve(),
-            completed.returncode,
-            completed.stdout,
-            completed.stderr,
-            executable=gate.command[0],
-            evidence=evidence,
-        )
-    )
+    retained = native_quality_execution(root, gate)
     assert retained.evidence is not None
     reports = list(retained.evidence.outputs)
     descriptor, content = reports[0]
@@ -245,19 +224,7 @@ def test_native_reports_refuse_an_altered_attempt_record(tmp_path: Path) -> None
     """Every field of the retained attempt record stays bound to the original run."""
     gate = native_quality_gate(tmp_path)
     root = tmp_path / "repo"
-    completed, evidence = native_attempt(root, gate, gate.command, timeout=45)
-    execution = retained_execution(
-        NativeExecution(
-            gate_execution_identity(gate),
-            tuple(completed.args),
-            root.resolve(),
-            completed.returncode,
-            completed.stdout,
-            completed.stderr,
-            executable=gate.command[0],
-            evidence=evidence,
-        )
-    )
+    execution = native_quality_execution(root, gate)
     assert execution.evidence is not None
     outputs = execution.evidence.outputs
     without_report = tuple(item for item in outputs if item[0].format != "nox-json")

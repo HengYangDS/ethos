@@ -223,6 +223,7 @@ def _file_reference_payloads():
         b"fNOFD\0n/proc/77/fd (opendir: No such file or directory)\0\n"
     )
     fd_vanished = b"f9\0tunknown\0n/proc/12/fd/9 (readlink: No such file or directory)\0\n"
+    gone = b"No such file or directory)\0\n"
     unix = b"f6\0tunix\0i50690625\0ntype=STREAM\0\n"
     return {
         "unix-inode": payload + unix,
@@ -250,6 +251,18 @@ def _file_reference_payloads():
         "linux-foreign-path": payload + vanished.replace(b"/proc/77/fd ", b"/tmp/77/fd "),
         "linux-mislabeled": payload + fd_vanished.replace(b"f9", b"f8"),
         "linux-gone-on-darwin": payload + vanished,
+        # A descriptor closed after its link was read: lsof records the target it read and
+        # the failed stat of the link, with lstat's note printed without its opening paren.
+        "linux-stat-gone": payload + b"f7\0tunknown\0n/etc/hostname (stat: " + gone,
+        "linux-lstat-gone": payload
+        + b"f7\0tunknown\0n/etc/hostname lstat: No such file or directory) (stat: "
+        + gone,
+        "linux-pipe-stat-gone": payload + b"f8\0tunknown\0npipe (stat: " + gone,
+        "linux-cwd-stat-gone": payload + b"fcwd\0tunknown\0n/opt/ethos-supply (stat: " + gone,
+        "linux-stat-denied": payload
+        + b"f7\0tunknown\0n/etc/hostname (stat: Permission denied)\0\n",
+        "linux-stat-typed": payload + b"f7\0tREG\0n/etc/hostname (stat: " + gone,
+        "linux-stat-mem": payload + b"fmem\0tunknown\0n/usr/lib/libc.so (stat: " + gone,
         "named-live-file": payload.replace(b"i31\0", b"i31\0nsocket: FD unavailable\0", 1),
         "empty": b"",
         "truncated": payload[:-2],
@@ -314,6 +327,10 @@ def test_native_file_references_are_bounded_and_incomplete_observation_fails_clo
         "linux-process-gone",
         "linux-fd-gone",
         "linux-task-gone",
+        "linux-stat-gone",
+        "linux-lstat-gone",
+        "linux-pipe-stat-gone",
+        "linux-cwd-stat-gone",
         "named-live-file",
         "unix-inode",
         "slow-scan",

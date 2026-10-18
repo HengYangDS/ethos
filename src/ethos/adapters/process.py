@@ -258,7 +258,9 @@ def _file_observation_failure(reason: str) -> None:
 
 # lsof records a process or descriptor that exits during its scan without a type, device or
 # inode. Only that absence is admitted; any other unreadable entry leaves the observation
-# incomplete. Darwin names the vanished object; Linux names the /proc entry it failed to read.
+# incomplete. Darwin names the vanished object. Linux names the /proc entry it failed to
+# read or, when the link read but its stat then failed, the target it read; lsof prints the
+# note of a failed lstat before that stat note without its opening parenthesis.
 _DARWIN_VANISHED_REFERENCE = re.compile(
     rb"(?:kqueue|pipe|semaphore|POSIX shared memory|vnode|socket): "
     rb"(?:FD unavailable|process unavailable)"
@@ -266,6 +268,9 @@ _DARWIN_VANISHED_REFERENCE = re.compile(
 _LINUX_VANISHED_REFERENCE = re.compile(
     rb"/proc/[0-9]+(?:/task/[0-9]+)?/(?:(?P<entry>cwd|root|exe|fd)|fd/(?P<descriptor>[0-9]+)) "
     rb"\((?:readlink|opendir): No such file or directory\)"
+)
+_LINUX_VANISHED_TARGET = re.compile(
+    rb".+ (?:lstat: No such file or directory\) )?\(stat: No such file or directory\)", re.DOTALL
 )
 _LINUX_VANISHED_LABELS = {b"cwd": b"cwd", b"root": b"rtd", b"exe": b"txt", b"fd": b"NOFD"}
 
@@ -277,11 +282,18 @@ def _vanished_reference(fields: dict[bytes, bytes]) -> bool:
             and fields[b"f"].isdigit()
             and _DARWIN_VANISHED_REFERENCE.fullmatch(fields[b"n"]) is not None
         )
-    match = _LINUX_VANISHED_REFERENCE.fullmatch(fields.get(b"n", b""))
-    if not sys.platform.startswith("linux") or match is None or set(fields) - {b"f", b"t", b"n"}:
+    if (
+        not sys.platform.startswith("linux")
+        or set(fields) - {b"f", b"t", b"n"}
+        or fields.get(b"t", b"unknown") != b"unknown"
+    ):
         return False
-    label = match["descriptor"] or _LINUX_VANISHED_LABELS[match["entry"]]
-    return fields.get(b"f") == label and fields.get(b"t", b"unknown") == b"unknown"
+    descriptor, name = fields.get(b"f", b""), fields.get(b"n", b"")
+    if match := _LINUX_VANISHED_REFERENCE.fullmatch(name):
+        return descriptor == (match["descriptor"] or _LINUX_VANISHED_LABELS[match["entry"]])
+    return (descriptor.isdigit() or descriptor in {b"cwd", b"rtd", b"txt"}) and bool(
+        _LINUX_VANISHED_TARGET.fullmatch(name)
+    )
 
 
 def _file_identities(payload: bytes) -> frozenset[tuple[int, int]]:

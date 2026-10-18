@@ -82,7 +82,8 @@ def test_reviewed_disposal_preserves_shared_files_and_recovers_before_deregistra
 
 def _failure(result):
     """Show the complete gap and cause, which a truncated result representation hides."""
-    return json.dumps({key: result.get(key) for key in ("state", "required_gaps", "stderr")})
+    keys = ("state", "required_gaps", "stderr", "process_failure")
+    return json.dumps({key: result.get(key) for key in keys}, default=str)
 
 
 def _assert_terminal_recovery(repo, lane, receipt, detached):

@@ -97,8 +97,9 @@ historical bindings are governed by [Release Governance](docs/governance/release
   as `<repository>-accepted` lands in `<repository>-worktrees/`.
 - Stopped Linux lane retirement from treating a process that exits during the
   open-file scan as an unreadable observation. `lsof` records such a process or
-  descriptor only by the `/proc` entry it failed to read, without a type, device
-  or inode; permission and other read failures still block retirement.
+  descriptor only by the `/proc` entry it failed to read, or by the target it read
+  before the descriptor's `stat` failed, without a type, device or inode;
+  permission and other read failures still block retirement.
 
 ## [0.2.0-alpha.2] - 2026-08-30
 

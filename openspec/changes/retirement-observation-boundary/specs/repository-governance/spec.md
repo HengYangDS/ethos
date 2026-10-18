@@ -63,7 +63,7 @@ checkout and compare-delete its exact ref in a transaction verifying accepted.
 
 - **WHEN** a content admission observes open files while processes the invoking user may not inspect are running
 - **THEN** the observation covers only the processes the invoking user may inspect
-- **AND** a process that denies every `/proc` entry the observer reads, its threads' entries included, is reported once as uninspectable by process ID, user ID and command, not as a consumer
+- **AND** a process that denies every `/proc` entry the observer reads, its descriptor links and threads' entries included, is reported once as uninspectable by process ID, user ID and command, not as a consumer
 - **AND** where the platform omits uninspectable processes without a record, the report marks their list unavailable rather than empty
 - **AND** each content admission records its observation in the progress it produces
 - **AND** the terminal receipt and result carry the observation of the admission that removed the worktree, including after recovery

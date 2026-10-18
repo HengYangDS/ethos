@@ -8,6 +8,10 @@ its scenarios are in the proposal and the spec delta. `lsof` runs as the
 invoking user. On Linux it reads `/proc/<pid>/cwd`, `root` and `exe` and opens
 `/proc/<pid>/fd`; for a process the user may not inspect, each read fails with
 `Permission denied`, and those four records are all it prints for that process.
+The descriptor directory belongs to the process's user, while every link read
+also needs the process's group and capabilities. For a process of the invoking
+user with another group or extra capabilities, the directory opens, and `lsof`
+prints each descriptor with its denied link instead of the directory denial.
 `lsof` 4.95, which Ubuntu 24.04 and GitHub's hosted runners ship, also lists
 each thread as a set of its own and reads that task's entries the same way; the
 pinned supply image's `lsof` 4.99.4 lists no thread sets.
@@ -28,14 +32,14 @@ an uninspectable process as proof that it holds nothing.
 ## Decisions
 
 - **Uninspectable means every record is a denied `/proc` entry.** A process
-  qualifies only when all records of its set and of each thread set `lsof`
-  lists for it are `cwd`, `rtd` or `txt` readlink denials or the `NOFD` opendir
-  denial of its `/proc` or task entries, each with exactly `Permission denied`
-  in the C locale. A denied thread of a process whose other entries are readable
-  is a permission failure inside an inspected process. Any readable record or
-  other errno keeps it inside the observation and fails closed. The term is
-  "uninspectable", not "foreign": a same-user non-dumpable agent or a setuid
-  child matches too.
+  qualifies only when all records of its set and of each thread set `lsof` lists
+  for it are `cwd`, `rtd` or `txt` readlink denials, the `NOFD` opendir denial
+  or a descriptor's readlink denial of its `/proc` or task entries, each with
+  exactly `Permission denied` in the C locale. A denied thread of a process
+  whose other entries are readable is a permission failure inside an inspected
+  process. Any readable record or other errno keeps it inside the observation
+  and fails closed. The term is "uninspectable", not "foreign": a same-user
+  non-dumpable agent or a setuid child matches too.
 - **Partial denial is retried, not admitted.** A scan left incomplete by an
   unreadable record is taken again, at most three times within the observer's
   one 30-second timeout, so incomplete output still ends unknown in the same

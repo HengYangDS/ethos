@@ -52,8 +52,8 @@ def gitlab():
 
 def _range_coordinates(command: str) -> tuple[str, ...]:
     arguments = shlex.split(command)
-    assert arguments[:4] == ["uv", "run", "--frozen", "--offline"]
-    invocation = arguments[4 : arguments.index("--target-ref")]
+    assert arguments[:5] == ["uv", "run", "--frozen", "--offline", "--no-sync"]
+    invocation = arguments[5 : arguments.index("--target-ref")]
     assert invocation == ["python", "-B", "-I", "-m", "ethos.cli", "hook", "commit-range"]
     probe = run_command(
         ROOT, (sys.executable, *invocation[1:], "--help"), timeout=10, env={"PATH": ""}
@@ -86,7 +86,10 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     )
     commands = [step.get("run", "") for step in steps]
     assert commands.count("uv run --frozen python -B -m tools.ci.toolchain.commit_trust") == 1
-    assert commands.count("uv run --frozen --offline python -m nox -s hosted_verification") == 1
+    assert (
+        commands.count("uv run --frozen --offline --no-sync python -m nox -s hosted_verification")
+        == 1
+    )
     assert github["jobs"]["external-links"]["continue-on-error"] is True
     assert "External links" not in [step.get("name") for step in jobs["quality"]["steps"]]
     supply = [step.get("run", "") for step in github["jobs"]["supply-image"]["steps"]]
@@ -213,7 +216,7 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(tmp_path) -> N
 def test_provider_commands_use_shared_owners_without_activating_mutation(provider, gitlab) -> None:
     entry = next(item for item in projection_entries() if item["provider"] == provider)
     text = (ROOT / entry["projection"]).read_text()
-    assert "uv run --frozen --offline python -m nox -s hosted_verification" in text
+    assert "uv run --frozen --offline --no-sync python -m nox -s hosted_verification" in text
     assert "tools/ci/scripts/configure-git-checkout.sh" not in text
     assert "ethos hook install" not in text
     assert "\n    - openspec validate" not in text
@@ -221,7 +224,7 @@ def test_provider_commands_use_shared_owners_without_activating_mutation(provide
         jobs = {name.removeprefix("ethos:") for name in gitlab if name.startswith("ethos:")}
         assert jobs == {"commit-policy", "external-links", "host-conformance", "npm", "verify"}
         assert gitlab["ethos:verify"]["script"][-1] == (
-            "uv run --frozen --offline python -m nox -s hosted_verification"
+            "uv run --frozen --offline --no-sync python -m nox -s hosted_verification"
         )
         assert "external-links" not in " ".join(gitlab["ethos:verify"]["script"])
         assert gitlab["ethos:external-links"]["allow_failure"] is True
@@ -324,7 +327,9 @@ def test_hosted_runtime_versions_are_checked_projections_of_native_owners(github
     assert mise["tools"]["node"] in github["jobs"]["host-conformance"]["name"]
     npm_job = gitlab["ethos:npm"]
     assert npm_job["variables"]["NODE_VERSION"] == mise["tools"]["node"]
-    assert npm_job["script"][-1] == "uv run --frozen --offline python -m nox -s javascript_tests"
+    assert npm_job["script"][-1] == (
+        "uv run --frozen --offline --no-sync python -m nox -s javascript_tests"
+    )
     images = {
         job["image"]
         for job in gitlab.values()
@@ -367,7 +372,9 @@ def test_host_conformance_receives_native_python_supply_before_activation(github
 
     gitlab_job = gitlab["ethos:host-conformance"]
     assert gitlab_job["stage"] == "verify"
-    assert gitlab_job["script"] == ["uv run --frozen --offline python -m nox -s host_conformance"]
+    assert gitlab_job["script"] == [
+        "uv run --frozen --offline --no-sync python -m nox -s host_conformance"
+    ]
 
 
 def test_hosted_cache_roots_do_not_move_with_child_working_directories(github, gitlab) -> None:

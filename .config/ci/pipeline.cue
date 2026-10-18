@@ -19,7 +19,11 @@ _gateIDs: [for gate in _inputs.gate_registry.gates {gate.id}]
 let githubView = github
 let gitlabView = gitlab
 let githubSourceSHA = "${{ github.event.pull_request.head.sha || github.sha }}"
-let sourceCLI = "uv run --frozen --offline python -B -I -m ethos.cli"
+
+// Bootstrap leaves the environment complete. An implicit re-sync would rebuild the editable
+// project, and offline its isolated build cannot resolve the project's build requirements.
+let offlineRun = "uv run --frozen --offline --no-sync"
+let sourceCLI = "\(offlineRun) python -B -I -m ethos.cli"
 
 // npm runs from the locked Node supply: the archive seed installs once, then the lock owns npm.
 let nativeNpm = "python -B -m tools.ci.toolchain.npm"
@@ -47,18 +51,19 @@ let commitScopedRules = [{
 let bootstrapCommands = {
 	offline:   string
 	isolation: string
+	run:       string
 	tools:     string
 	npm:       string
 	out: [
 		"uv sync --locked\(offline) --no-install-project --group dev",
 		"uv sync --locked\(offline)\(isolation) --group dev",
-		"uv run --frozen\(offline) python -B -m tools.ci.toolchain.native --root . --mise\(tools)",
-		"uv run --frozen\(offline) \(nativeNpm) --seed ci --ignore-scripts\(npm)",
-		"uv run --frozen\(offline) python -B -I tools/ci/toolchain/fixture_supply.py .",
-		"uv run --frozen\(offline) python -B -m tools.ci.toolchain.commit_trust",
+		"\(run) python -B -m tools.ci.toolchain.native --root . --mise\(tools)",
+		"\(run) \(nativeNpm) --seed ci --ignore-scripts\(npm)",
+		"\(run) python -B -I tools/ci/toolchain/fixture_supply.py .",
+		"\(run) python -B -m tools.ci.toolchain.commit_trust",
 	]
 }
-let githubBootstrap = (bootstrapCommands & {offline: "", isolation: "", tools: " vale", npm: ""}).out
+let githubBootstrap = (bootstrapCommands & {offline: "", isolation: "", run: "uv run --frozen", tools: " vale", npm: ""}).out
 let githubBootstrapNames = [
 	"Synchronize build-only Python dependencies",
 	"Synchronize locked Python environment",
@@ -72,6 +77,7 @@ let githubBootstrapNames = [
 let gitlabBootstrap = list.Concat([["sha256sum --check --quiet \"$ETHOS_CI_SUPPLY_MANIFEST\""], (bootstrapCommands & {
 	offline:   " --offline"
 	isolation: " --no-build-isolation"
+	run:       offlineRun
 	tools:     " vale gitleaks scc syft"
 	npm:       " --offline"
 }).out])
@@ -251,7 +257,7 @@ github: {
 				// The registry owns gate order and package creation. Execute it once;
 				// independently required hosted checks below project this exact result.
 				name: "HEAD-bound hosted verification receipt"
-				run:  "uv run --frozen --offline python -m nox -s hosted_verification"
+				run:  "\(offlineRun) python -m nox -s hosted_verification"
 			}, {
 				name: "Upload proof receipt"
 				if:   "always()"
@@ -287,7 +293,7 @@ github: {
 			"continue-on-error": true
 			steps: list.Concat([githubPythonBootstrap, [{
 				name: "External links"
-				run:  "uv run --frozen --offline python -m nox -s external_links"
+				run:  "\(offlineRun) python -m nox -s external_links"
 			}, {
 				name: "Upload external link observation"
 				if:   "always()"
@@ -412,7 +418,7 @@ gitlab: {
 		before_script: gitlabBootstrap
 		stage:         "verify"
 		rules:         commitScopedRules
-		script: ["uv run --frozen --offline python -m nox -s host_conformance"]
+		script: ["\(offlineRun) python -m nox -s host_conformance"]
 		artifacts: {
 			when: "always"
 			paths: ["build/evidence/local-install/smoke.json"]
@@ -435,7 +441,7 @@ gitlab: {
 			ETHOS_TEST_WORKERS: "4"
 		}
 		script: [
-			"uv run --frozen --offline python -m nox -s hosted_verification",
+			"\(offlineRun) python -m nox -s hosted_verification",
 		]
 		// GitHub retains raw Allure results; GitLab's instance artifact limit cannot hold them.
 		artifacts: {
@@ -464,7 +470,7 @@ gitlab: {
 		rules:         commitScopedRules
 		allow_failure: true
 		before_script: gitlabBootstrap
-		script: ["uv run --frozen --offline python -m nox -s external_links"]
+		script: ["\(offlineRun) python -m nox -s external_links"]
 		artifacts: {
 			when: "always"
 			paths: ["build/evidence/quality/external-links/report.json"]
@@ -478,8 +484,8 @@ gitlab: {
 		image:         gitlabImage
 		before_script: gitlabBootstrap
 		script: [
-			"uv run --frozen --offline \(nativeNpm) run ethos -- --version",
-			"uv run --frozen --offline python -m nox -s javascript_tests",
+			"\(offlineRun) \(nativeNpm) run ethos -- --version",
+			"\(offlineRun) python -m nox -s javascript_tests",
 		]
 	}
 }

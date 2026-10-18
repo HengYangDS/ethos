@@ -399,14 +399,14 @@ def _observe_package(
             run=_run,
         )
         formation = formation_run.result()
-    runtime = current_runtime(Path(git_common_dir(adopter)), expected_build=build)
     if predecessor is not None:
         lifecycle["retained_state_upgrade"] = runtime_acceptance.prove_retained_upgrade(
-            runtime,
+            current_runtime(Path(git_common_dir(adopter)), expected_build=build),
             adopter,
             predecessor=predecessor,
             environment=package_environment,
         )
+    runtime = current_runtime(Path(git_common_dir(adopter)), expected_build=build)
     with observe_stage("runtime_archive"):
         distribution = package_runtime(
             runtime.root,

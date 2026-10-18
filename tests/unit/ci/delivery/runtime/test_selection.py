@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -9,6 +10,8 @@ from unittest.mock import Mock
 import pytest
 
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.materialization.effect import remove_generated_tree
+from ethos.adapters.repo.runtime.selection import activate_runtime
 from ethos.adapters.repo.runtime.selection import require_runtime_selection_scope
 from ethos.adapters.repo.runtime.selection import require_selected_runtime
 from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
@@ -106,7 +109,7 @@ def test_upgrade_requires_a_distinct_build_not_a_different_runtime_digest(tmp_pa
 
 
 def test_package_upgrade_uses_the_successors_repository_selection(monkeypatch, tmp_path):
-    """A private successor upgrades its own retained repository, not a foreign fixture."""
+    """Archiving follows the selected successor after the original is reclaimed."""
     work = tmp_path / "work"
     repository = init_git_repo(work / "adopter")
     init_git_repo(work / "brownfield-adopter")
@@ -120,6 +123,9 @@ def test_package_upgrade_uses_the_successors_repository_selection(monkeypatch, t
             build=runtime_build("b" * 40, "b" * 40),
         )
     )
+    common = Path(git_common_dir(repository))
+    activate_runtime(common, successor.root)
+    pinned = tmp_path / "installation/runtime" / successor.digest
     previous = require_selected_runtime(fixture_runtime_generation(tmp_path / "prior", "prior"))
     wheel = tmp_path / "ethos.whl"
     wheel.write_bytes(b"wheel")
@@ -155,8 +161,6 @@ def test_package_upgrade_uses_the_successors_repository_selection(monkeypatch, t
             },
         ),
         (runtime_acceptance, "observe_lifecycle", lifecycle),
-        (effect, "current_runtime", successor),
-        (effect, "package_runtime", {"path": "archive"}),
         (effect, "prove_shared_supply", {"state": "passed"}),
         (effect, "require_artifact_current", None),
         (effect, "current_tracked_head", successor.build.source_commit),
@@ -167,12 +171,26 @@ def test_package_upgrade_uses_the_successors_repository_selection(monkeypatch, t
 
     def retained(selected, target, *, predecessor, environment):
         require_runtime_selection_scope(Path(git_common_dir(target)), selected)
+        assert selected == successor
         assert predecessor is previous
         assert environment["UV_OFFLINE"] == "1"
+        shutil.copytree(selected.root, pinned)
+        activate_runtime(common, pinned)
+        remove_generated_tree(selected.root)
+        assert not selected.root.exists()
         targets.append(target)
         return {"state": "passed"}
 
+    def archive(path, package, destination):
+        selected = require_selected_runtime(path)
+        assert selected.root == pinned
+        assert selected.digest == successor.digest
+        assert package == wheel
+        assert destination.parent == work / "native"
+        return {"path": "archive"}
+
     monkeypatch.setattr(runtime_acceptance, "prove_retained_upgrade", retained)
+    monkeypatch.setattr(effect, "package_runtime", archive)
     result = _observe_package(
         Mock(),
         PackageArtifact(wheel, "c" * 64, successor.build),

@@ -12,6 +12,8 @@ still resolve retired lanes through them, and three set-writer gaps remain.
   preserved copy before the original is released.
 - A retired lane's records end once neither proof admission nor proposal retirement can still
   select them. A reader whose facts cannot be observed keeps them.
+- A lane's attested retirement closes its start like an exact inverse does, so the same name can
+  start again at the same head instead of being refused as a content mismatch.
 - Every set writer reports lifetime and custody gaps to its caller. An update that exhausts its
   retries deletes the custody bytes it stored that no selected member binds. A replay of a member
   already in the set reports it unchanged instead of applying the size bound.
@@ -32,6 +34,7 @@ None.
 - `adapters`: custody bytes stored by a failed update do not outlive it.
 - `command-plane`: record reports an existing oversized member as unchanged.
 - `repository-governance`: a retired lane's records end with their last reader.
+- `repository-transaction`: any attested reversal of an effect's refs closes that effect.
 
 ## Impact
 

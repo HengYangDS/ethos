@@ -69,7 +69,16 @@ def pending_merge(tmp_path: Path) -> Path:
 
 @pytest.mark.parametrize(
     "case",
-    ["valid", "missing", "corrupt", "unrelated", "historical", "ambiguous", "compensated"],
+    [
+        "valid",
+        "missing",
+        "corrupt",
+        "unrelated",
+        "historical",
+        "ambiguous",
+        "compensated",
+        "retired",
+    ],
 )
 def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     tmp_path, monkeypatch, case
@@ -120,6 +129,12 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     elif case == "compensated":
         start(base)
         execute(effect(base).inverse(), "lane.start.compensate", base)
+    elif case == "retired":
+        start(base)
+        retirement = GitEffect(
+            updates=effect(base).inverse().updates, assertions={"refs/heads/dev": merge}
+        )
+        execute(retirement, "lane.retire", merge)
     start(merge)
     git(repo, "checkout", branch)
     selected_root, records = read_attestation_set(repo)
@@ -138,7 +153,7 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
             git(repo, "checkout", "-b", "work/other")
     rows = [{"name": "active", "status": "in-progress"}]
     revision = base if case == "historical" else merge
-    expected = "active" if case in {"valid", "historical", "compensated"} else None
+    expected = "active" if case in {"valid", "historical", "compensated", "retired"} else None
     selected, gap = resolve_change_selection(rows, None, root=repo, tree_ref=revision)
     assert selected == expected
     gaps = [gap] if gap else []

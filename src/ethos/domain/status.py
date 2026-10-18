@@ -10,8 +10,8 @@ from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.observation import openspec_shape_report
 from ethos.adapters.repo.commit.admission import commit_policy_report
 from ethos.adapters.repo.git import git_files
-from ethos.adapters.repo.git import received_paths
 from ethos.adapters.repo.git import tracked_paths
+from ethos.adapters.repo.git_attributes import received_paths
 
 if TYPE_CHECKING:
     from pathlib import Path

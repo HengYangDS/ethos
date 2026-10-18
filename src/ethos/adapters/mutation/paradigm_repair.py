@@ -6,8 +6,8 @@ import difflib
 from typing import TYPE_CHECKING
 
 from ethos.adapters.admission.prewrite import prewrite_guard
-from ethos.adapters.repo.git import received_paths
 from ethos.adapters.repo.git import tracked_paths
+from ethos.adapters.repo.git_attributes import received_paths
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_mapping

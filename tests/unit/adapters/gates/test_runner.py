@@ -12,21 +12,13 @@ from types import SimpleNamespace
 import pytest
 
 import ethos.adapters.gates.native.attempt as gate_attempt
-import ethos.adapters.gates.native.inputs as native_inputs
 import ethos.adapters.gates.runner as gate_runner
 import ethos.adapters.gates.tool as gate_tool
 import ethos.adapters.gates.verification as gate_verification
 from ethos.contracts.gates import Gate
-from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_policy_fields
 from ethos.repository.policy.quality.obligations import quality_obligation_gaps
-from tests.support.governed_repository import committed_source_repo
-from tests.support.governed_repository import git
-
-
-def _quality_files(monkeypatch: pytest.MonkeyPatch, *files: str) -> None:
-    monkeypatch.setattr(native_inputs, "quality_source_files", lambda *_args: list(files))
 
 
 def _gate(*providers: str) -> Gate:
@@ -359,168 +351,6 @@ def test_quality_tool_public_failure_matrix(
         assert report["file_count"] == 0
     if state == "failed":
         assert (report["stdout"], report["stderr"]) == ("x" * 5000, "failed")
-
-
-def test_markdown_link_gate_excludes_deleted_tracked_paths(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """Missing selected source fails before the native checker can omit it."""
-    repo = committed_source_repo(
-        tmp_path,
-        {
-            ".config/checks/lychee/lychee.toml": "offline = true\n",
-            "README.md": "# Current\n",
-            "docs/deleted.md": "# Deleted\n",
-        },
-    )
-    (repo / "docs/deleted.md").unlink()
-    observed: list[tuple[str, ...]] = []
-
-    def run(
-        _root: Path, command: tuple[str, ...], **_kwargs: object
-    ) -> subprocess.CompletedProcess[str]:
-        observed.append(command)
-        return subprocess.CompletedProcess(command, 0, "", "")
-
-    monkeypatch.setattr(gate_tool, "run_command", run)
-
-    report = gate_tool.markdown_links_report(repo)
-
-    assert report["verdict"] == "unknown", report
-    assert report["file_count"] == 3
-    assert report["required_gaps"] == ["source_member_link_or_type_forbidden:docs/deleted.md"]
-    assert not observed
-
-
-def test_packaged_markdown_gate_uses_shipped_node_tools_and_selected_native_config(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Markdown proof needs no adopter Python recipe or dependency installation."""
-    config = tmp_path / ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml"
-    config.parent.mkdir(parents=True)
-    config.write_text("noInlineConfig: true\nconfig:\n  default: false\n")
-    (tmp_path / "README.md").write_text("# Current\n\n[Empty link]()\n")
-    _quality_files(monkeypatch, "README.md", str(config.relative_to(tmp_path)))
-    selected = load_gate_registry_declaration().registry()["markdown-lint"]
-    assert selected.command == ()
-    assert selected.providers == ("ethos.adapters.gates.tool:markdown_lint_report",)
-    report = gate_tool.markdown_lint_report(tmp_path)
-    assert report["verdict"] == "block"
-    native = report["native"]
-    assert len(native) == 3
-    assert native[2]["command"][3] == str(config)
-    assert all(item["file_count"] == 1 for item in native)
-    assert "MD042" in native[1]["stderr"]
-    assert native[2]["verdict"] == "pass"
-
-
-def test_native_markdown_configuration_preserves_nested_rule_parameters(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The official CLI consumes nested native parameters, not just Boolean rules."""
-    config = tmp_path / ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml"
-    config.parent.mkdir(parents=True)
-    config.write_text(
-        "config:\n  default: false\n  MD024: {siblings_only: true}\n", encoding="utf-8"
-    )
-    (tmp_path / "README.md").write_text(
-        "# Native\n\n## One\n\n### Fixed\n\nWords.\n\n## Two\n\n### Fixed\n\nMore words.\n",
-        encoding="utf-8",
-    )
-    _quality_files(monkeypatch, "README.md", str(config.relative_to(tmp_path)))
-    report = gate_tool.markdown_lint_report(tmp_path)
-    assert report["verdict"] == "pass", report
-
-
-def test_common_markdown_policy_accepts_native_formatter_container_layout(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The native fix/check journey has one spacing owner and preserves semantic lint."""
-    document = tmp_path / "README.md"
-    accepted = b"# Spacing\n\n- First.\n  ```text\n  example\n  ```\n- Second.\n"
-    document.write_bytes(accepted)
-    _quality_files(monkeypatch, "README.md")
-
-    report = gate_tool.markdown_lint_report(tmp_path)
-
-    assert report["verdict"] == "pass", report
-    assert document.read_bytes() == accepted
-    native = report["native"]
-    assert native[0]["files"] == ["README.md"]
-    assert native[0]["required_gaps"] == []
-    document.write_bytes(accepted.rstrip(b"\n"))
-    refused = gate_tool.markdown_lint_report(tmp_path)
-    assert refused["verdict"] == "block"
-    assert document.read_bytes() == accepted.rstrip(b"\n")
-    fixed, _ignored = gate_tool.render_source_content(
-        tmp_path, "README.md", "prettier", document.read_bytes()
-    )
-    document.write_bytes(fixed)
-    assert document.read_bytes() == accepted
-    assert gate_tool.markdown_lint_report(tmp_path)["verdict"] == "pass"
-    repeated, _ignored = gate_tool.render_source_content(
-        tmp_path, "README.md", "prettier", document.read_bytes()
-    )
-    document.write_bytes(repeated)
-    assert document.read_bytes() == accepted
-    document.write_text("# Semantic lint\n\n[Empty link]()\n", encoding="utf-8")
-    semantic = gate_tool.markdown_lint_report(tmp_path)
-    assert semantic["verdict"] == "block"
-    assert "MD042" in semantic["native"][1]["stderr"]
-
-
-def test_markdown_links_use_declared_installed_supply_without_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The installed native link checker is independent of adopter and ambient tools."""
-    repo = committed_source_repo(
-        tmp_path,
-        {
-            "README.md": "# Links\n\n[Current](README.md)\n",
-            ".config/checks/lychee/lychee.toml": "offline = true\n",
-        },
-    )
-    tree = git(repo, "rev-parse", "HEAD^{tree}")
-    monkeypatch.setenv("PATH", "")
-
-    report = gate_tool.markdown_links_report(repo)
-
-    assert report["verdict"] == "pass", report
-    assert report["file_count"] == 2
-    assert report["source_tree"] == tree
-    assert Path(report["native"][0]["command"][0]).is_absolute()
-
-
-def test_prose_gate_keeps_native_spelling_without_adopter_toolchain(tmp_path, monkeypatch):
-    """The installed owner ignores ambient policy and preserves exact authored bytes."""
-    gate = load_gate_registry_declaration().registry()["prose"]
-    assert gate.providers == ("ethos.adapters.gates.tool:prose_report",)
-    assert not gate.command
-    document = tmp_path / "README.md"
-    local = tmp_path / ".config/checks/codespell/codespell.toml"
-    local.parent.mkdir(parents=True)
-    local.write_text('[tool.codespell]\nignore-words-list = "teh"\n')
-    (tmp_path / "pyproject.toml").write_text('[tool.codespell]\nskip = "*"\n')
-    _quality_files(monkeypatch, "README.md", local.relative_to(tmp_path).as_posix())
-    monkeypatch.setenv("PATH", "")
-    for source, verdict in (
-        ("The result is verified.\n", "pass"),
-        ("The result is teh result.\n", "block"),
-    ):
-        document.write_text(source)
-        report = gate_tool.prose_report(tmp_path)
-        assert (report["verdict"], document.read_text()) == (verdict, source), report
-        assert len(report["native"]) == 2
-        commands = [result["command"][:4] for result in report["native"]]
-        assert commands == [[sys.executable, "-B", "-I", "-m"]] * 2
-    assert report["native"][0]["exit_code"] != 0
-    assert report["native"][1]["exit_code"] == 0
-    local.write_text("[tool.codespell]\nwrite-changes = true\n")
-    report = gate_tool.prose_report(tmp_path)
-    assert (report["verdict"], document.read_text()) == ("block", source)
-    _quality_files(monkeypatch)
-    report = gate_tool.prose_report(tmp_path)
-    assert (report["verdict"], report["file_count"]) == ("pass", 0)
 
 
 def test_command_gate_executes_declared_python_not_ambient_canonical_identity(

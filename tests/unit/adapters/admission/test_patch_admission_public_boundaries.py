@@ -230,6 +230,7 @@ def test_native_proof_gate_owner_binds_immutable_document_admission(
         if owner == "undeclared"
         else "baseline_product_closure_matched"
     )
+    assert report["reference_coverage"] == "evaluated"
     assert document.read_text(encoding="utf-8") == before
     assert git(repo, "show", f"{baseline}:.ethos/profile.toml") == profile.strip()
 

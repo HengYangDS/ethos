@@ -179,7 +179,7 @@
         "kind": "parametrize",
         "line": 82,
         "owner": "test_profile_rejects_retired_or_incomplete_proof_owners",
-        "path": "tests/unit/adoption/test_profile_contract.py"
+        "path": "tests/unit/adoption/profile/test_contract.py"
       },
       "value": {
         "items": [
@@ -198,7 +198,7 @@
         "kind": "parametrize",
         "line": 168,
         "owner": "test_profile_contract_rejects_incomplete_or_undeclared_shape",
-        "path": "tests/unit/adoption/test_profile_contract.py"
+        "path": "tests/unit/adoption/profile/test_contract.py"
       },
       "value": {
         "items": [

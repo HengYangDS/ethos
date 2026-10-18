@@ -447,19 +447,6 @@ def _observe_ready_parent(process, parent_exited, failure):
             assert process.poll() == 0
 
 
-@pytest.mark.timeout(30)
-def test_native_output_is_captured_through_regular_files(tmp_path):
-    """Bulk output never makes a native child wait for this process to drain a pipe."""
-    body = (
-        "import os,stat,sys; assert stat.S_ISREG(os.fstat(1).st_mode); "
-        "sys.stdout.buffer.write(b'o' * 8388608); sys.stderr.buffer.write(b'e' * 65536)"
-    )
-    result = process_adapter.run_command(
-        tmp_path, (sys.executable, "-c", body), text=False, check=True, timeout=20
-    )
-    assert (result.stdout, result.stderr) == (b"o" * 8388608, b"e" * 65536)
-
-
 @pytest.mark.skipif(os.name != "posix", reason="POSIX process-group boundary")
 @pytest.mark.parametrize(
     ("failure", "spool_stdout"),

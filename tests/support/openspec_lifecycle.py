@@ -19,6 +19,7 @@ from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.mutation.lane_lifecycle.archive.command import archive_change
 from ethos.adapters.openspec.lifecycle.archive_transition import ArchivePostimage
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
@@ -117,6 +118,20 @@ def active_change_relocation_patch(
             )
             paths.append(name)
     return repo, git(repo, "rev-parse", "HEAD"), tuple(paths), "".join(patches)
+
+
+def preview_merge(work: Path, mode: str = "inspect") -> dict:
+    """Read the public exact-state preview without performing an effect."""
+    report = run_ethos(
+        "lane", "refresh-base", "--strategy", "merge", "--mode", mode, "--json", cwd=work
+    )
+    assert report["verdict"] == "pass", json.dumps(report, indent=2)
+    return report
+
+
+def apply_merge(work: Path, preview: dict) -> dict:
+    """Execute only the public next action returned by the owning command."""
+    return run_ethos(*shlex.split(preview["next_action"])[1:], cwd=work)
 
 
 def native_merge_fixture(tmp_path: Path, *, pending: bool = True) -> Path:

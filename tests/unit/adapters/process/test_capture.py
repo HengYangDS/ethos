@@ -18,20 +18,24 @@ from tests.support.subprocesses import ready_descendant
 
 
 @pytest.mark.timeout(30)
-def test_native_output_is_captured_through_regular_files(tmp_path: Path) -> None:
-    """Explicit finite output never waits for a caller to drain its native pipes."""
+@pytest.mark.parametrize("spool_stdout", [False, True])
+def test_native_output_is_captured_through_regular_files(
+    tmp_path: Path, *, spool_stdout: bool
+) -> None:
+    """Native stdout is regular-file backed with optional finite diagnostic capture."""
     body = (
         "import os,stat,sys; "
-        "assert os.name!='posix' or all(stat.S_ISREG(os.fstat(fd).st_mode) for fd in (1,2)); "
+        "assert os.name!='posix' or stat.S_ISREG(os.fstat(1).st_mode); "
+        "assert os.name!='posix' or sys.argv[1]=='False' or stat.S_ISREG(os.fstat(2).st_mode); "
         "sys.stdout.buffer.write(b'o' * 8388608); sys.stderr.buffer.write(b'e' * 65536)"
     )
     result = process_adapter.run_command(
         tmp_path,
-        (sys.executable, "-c", body),
+        (sys.executable, "-c", body, str(spool_stdout)),
         text=False,
         check=True,
         timeout=20,
-        spool_stdout=True,
+        spool_stdout=spool_stdout,
     )
     assert (result.stdout, result.stderr) == (b"o" * 8388608, b"e" * 65536)
 

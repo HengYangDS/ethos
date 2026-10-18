@@ -211,21 +211,17 @@ not remote publication, a Forge Release, deployment or actual user benefit.
 `ethos lane refresh-base --strategy merge --json` observes one native merge or
 prepares a merge from the configured candidate. The default strategy remains
 rebase for unpublished replay; a pending merge instead routes to its own reader.
-For an explicitly coordinated peer contribution, `--source-ref refs/heads/work/<lane>`
-selects an existing Work Lane through this same executor without moving the
-candidate. The preview and apply bind that full ref and its exact commit; a
-missing, non-Work-Lane or changed source is refused. This option requires the
-merge strategy and does not apply to abort.
 `--mode start|continue|abort` selects one effect. Preview returns an exact apply
 command binding HEAD, parents, index, tracked and untracked content, runtime and
 Lease generation. Apply requires `--authorize`; a preview is not permission.
 
-`--source-ref refs/heads/work/<name>` explicitly selects an existing Work Lane
-for merge strategy only. Preview binds its exact source head; apply refuses
-source movement. During continuation that source must still contain the recorded
-pending parent, which remains the commit parent. Default continuation does not
-assert the mutable candidate ref. Neither selection updates candidate or
-protected refs; their integration remains independent.
+For a coordinated peer contribution, `--source-ref refs/heads/work/<lane>`
+selects an existing Work Lane for merge strategy, not abort. Preview and apply
+bind its full ref and exact commit; missing, non-Work-Lane or changed sources
+are refused. Continuation requires that source to contain the recorded pending
+parent, which remains the commit parent. Default continuation does not assert
+the mutable candidate ref. Neither selection updates candidate or protected
+refs; their integration remains independent.
 
 Resolve reported conflicts, admit their exact paths and stage the accepted
 resolution before requesting `--mode continue`. The shared commit-policy owner

@@ -1,5 +1,9 @@
 # Tasks
 
+## 5. Native Test Contract
+
+- [ ] 5.19 Restore unit and architecture tests to accepted native contracts, including strict OpenSpec warnings and native Nox reports; verify the complete suite rather than suppressing baseline failures. Failed proof custody: Attestation `f23a7d35`; exact proof and delivery remain under 1.9.
+
 ## 8. Trusted Verification and Result Admission
 
 - [ ] 8.9 Reject incomplete hosted results and missing, malformed or contradictory test artifacts through the existing receipt owner.

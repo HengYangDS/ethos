@@ -8,7 +8,7 @@ The decisions behind these tasks are recorded in the archived design of `proof-t
 
 **Goals:**
 
-- Finish tasks 8.9, 8.10, 8.11, 8.12, 8.13, 10.4, 10.6, 10.7, 10.11, 10.12, 10.13, 11.9 against their original acceptance conditions.
+- Finish tasks 5.19, 8.9, 8.10, 8.11, 8.12, 8.13, 10.4, 10.6, 10.7, 10.11, 10.12, 10.13, 11.9 against their original acceptance conditions.
 
 **Non-Goals:**
 

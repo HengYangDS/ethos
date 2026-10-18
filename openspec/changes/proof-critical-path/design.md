@@ -8,7 +8,7 @@ The decisions behind these tasks are recorded in the archived design of `proof-t
 
 **Goals:**
 
-- Finish tasks 2.12, 2.13, 2.14, 9.1, 9.2, 9.3 against their original acceptance conditions.
+- Finish tasks 1.9, 2.12, 2.13, 2.14, 9.1, 9.2, 9.3 against their original acceptance conditions.
 - Finish task 9.4, the contended admission that the archived design names for its host-contention risk.
 
 **Non-Goals:**
@@ -17,7 +17,7 @@ The decisions behind these tasks are recorded in the archived design of `proof-t
 
 ## Decisions
 
-- **Move tasks verbatim with their original identities.** Renumbering was rejected, because commits, Attestations and peer threads already cite these identities.
+- **Preserve task identity and acceptance.** Keep stable identities cited by commits, Attestations and peers; recover the remaining obligations from both parents and keep execution evidence by reference rather than in the checklist.
 - **Carry no requirement delta.** The requirements were accepted when `proof-throughput` archived; restating them here would create a second authority.
 - **Admit a full proof by repository slot, then host load.** Before any gate runs, a full proof takes the proof slot in the Git common directory, then waits until the 1-minute load average is within `ETHOS_PROOF_HOST_LOAD_LIMIT` (default half the CPUs, `0` for the slot alone); after one hour it ends with `proof_admission_contended`. The slot serializes full proofs across every worktree of a repository, and the load average covers local CI virtual machines and other repositories without naming their processes. A longer test timeout, a retried test or a smaller test surface was rejected, because the quality specification forbids each.
 

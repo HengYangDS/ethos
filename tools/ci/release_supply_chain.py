@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import current_tracked_head
-from tools.ci.toolchain.native import NativeSupply
-from tools.ci.toolchain.native import prepare
+from ethos.adapters.repo.runtime.materialization.native_supply import NativeSupply
+from ethos.adapters.repo.runtime.materialization.native_supply import materialize_tool
 
 if TYPE_CHECKING:
     import nox
@@ -42,7 +42,7 @@ def run(session: nox.Session) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     sbom.parent.mkdir(parents=True, exist_ok=True)
     supply = NativeSupply.read(ROOT, "syft")
-    executable = prepare(ROOT, "syft") / "syft"
+    executable = materialize_tool(ROOT, "syft") / supply.executable_name
     run_command(
         ROOT,
         (

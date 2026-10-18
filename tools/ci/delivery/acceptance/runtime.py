@@ -386,7 +386,7 @@ def observe_lifecycle(
     """Execute and post-observe one complete package-only runtime lifecycle.
 
     Work that still runs the installed console finishes before the bootstrap
-    environment is removed; a failed activation removes it at once.
+    environment is removed, including when activation fails.
     """
     adopter_fixture.materialize_bootstrap_repository(bootstrap_repository, run=run)
     candidate = adopter_fixture.prepare_acceptance_topology(repository, run=run)

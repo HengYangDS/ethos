@@ -14,6 +14,7 @@ from typing import Never
 
 from ethos.adapters.gates.javascript.analysis import static_observation
 from ethos.adapters.gates.javascript.behavior import behavior_observation
+from ethos.adapters.gates.native.evidence import native_report
 from ethos.adapters.gates.python_quality import behavior_report as python_behavior_report
 from ethos.adapters.gates.python_quality import static_report as python_static_report
 from ethos.adapters.process import ProcessExecutionError
@@ -29,6 +30,13 @@ from ethos.repository.policy.quality_reports import go_covered_paths
 if TYPE_CHECKING:
     from ethos.adapters.gates.verification import NativeExecution
     from ethos.repository.policy.code_subjects import CodeSubject
+
+
+# Languages each axis can judge with ETHOS's own native checks.
+_CHECKED = {
+    "behavior": frozenset({"python", "go", "javascript"}),
+    "static-analysis": frozenset({"python", "go", "javascript", "script"}),
+}
 
 
 def _invalid(reason: str) -> Never:
@@ -337,6 +345,45 @@ def _python_observation(
     return {"language": "python", **report}
 
 
+def _claims(axis: str, tree: str, subjects: tuple[CodeSubject, ...]) -> dict[str, object]:
+    """Claim the applicable files in languages ETHOS checked; list the rest as unclaimed."""
+    applicable = tuple(
+        subject for subject in subjects if axis != "behavior" or subject.requires_behavior
+    )
+    claimed = tuple(subject for subject in applicable if subject.language in _CHECKED[axis])
+    unclaimed = [subject.path for subject in applicable if subject not in claimed]
+    authored = [subject.path for subject in claimed if subject.requires_authored_analysis]
+    artifacts = [subject.path for subject in claimed if not subject.requires_authored_analysis]
+    return {
+        "quality_evidence": {
+            "axis": axis,
+            "source_tree": tree,
+            "selected_paths": [subject.path for subject in claimed],
+            **(
+                {"authored_paths": authored, "artifact_paths": artifacts}
+                if axis == "static-analysis" and artifacts
+                else {}
+            ),
+        },
+        **({"unclaimed_paths": unclaimed} if unclaimed else {}),
+    }
+
+
+def _checked_languages(axis: str, subjects: tuple[CodeSubject, ...]) -> set[str]:
+    """Select the observed languages ETHOS checks; the rest stay for a native contributor."""
+    if not subjects:
+        _invalid("code_sources_missing")
+    observed = (
+        {subject.language for subject in subjects if subject.requires_behavior or subject.is_test}
+        if axis == "behavior"
+        else {subject.language for subject in subjects if subject.requires_authored_analysis}
+    )
+    languages = observed & _CHECKED[axis]
+    if observed and not languages:
+        _invalid(f"native_language_unsupported:{min(observed)}")
+    return languages
+
+
 def _report(
     root: Path,
     axis: str,
@@ -345,18 +392,10 @@ def _report(
     timeout_seconds: float | None = None,
 ) -> dict[str, object]:
     try:
+        if execution is not None and execution.evidence is not None:
+            return native_report(root, execution, axis)
         tree, subjects = observe_quality_subjects(root)
-        languages = (
-            {
-                subject.language
-                for subject in subjects
-                if subject.requires_behavior or subject.is_test
-            }
-            if axis == "behavior"
-            else {subject.language for subject in subjects if subject.requires_authored_analysis}
-        )
-        if not subjects:
-            _invalid("code_sources_missing")
+        languages = _checked_languages(axis, subjects)
         with ExitStack() as scope:
             scope.enter_context(command_scope(timeout_seconds=timeout_seconds))
             tool_environment = (
@@ -400,10 +439,8 @@ def _report(
                             native=tool_environment,
                         )
                     )
-                elif language == "script" and axis == "static-analysis":
-                    native.append(_script_static(root, authored, tool_environment))
                 else:
-                    _invalid(f"native_language_unsupported:{language}")
+                    native.append(_script_static(root, authored, tool_environment))
             observe_quality_subjects(root, expected_tree=tree)
     except ProcessExecutionError as error:
         return {**_failure(axis, error.code), "diagnostics": [error.evidence()]}
@@ -429,30 +466,7 @@ def _report(
         "state": "verified",
         "required_gaps": [],
         "native": native,
-        "quality_evidence": {
-            "axis": axis,
-            "source_tree": tree,
-            "selected_paths": [
-                subject.path
-                for subject in subjects
-                if axis != "behavior" or subject.requires_behavior
-            ],
-            **(
-                {
-                    "authored_paths": [
-                        subject.path for subject in subjects if subject.requires_authored_analysis
-                    ],
-                    "artifact_paths": [
-                        subject.path
-                        for subject in subjects
-                        if not subject.requires_authored_analysis
-                    ],
-                }
-                if axis == "static-analysis"
-                and any(not subject.requires_authored_analysis for subject in subjects)
-                else {}
-            ),
-        },
+        **_claims(axis, tree, subjects),
     }
 
 

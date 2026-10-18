@@ -15,9 +15,6 @@ from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.gate_policy import resolve_proof_policies
 from ethos.contracts.gates import Gate
-from ethos.contracts.gates import GateRegistryDeclaration
-from ethos.contracts.gates import load_gate_registry_declaration
-from ethos.repository.policy.gates import ResolvedGatePolicy
 from ethos.repository.policy.gates import canonical_gate_command
 from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
 from ethos.repository.policy.quality.obligations import quality_obligation_gaps
@@ -250,78 +247,6 @@ def test_quality_axis_rejects_unverified_additional_gate_before_execution(tmp_pa
     policy = compile_gate_policy(profile=profile, repository_paths=("src/app.py",), full=True)
 
     assert "quality_gate_verifier_missing:behavior:additional" in policy.gaps
-
-
-def test_scheduler_hint_does_not_reclassify_product_quality_owner(tmp_path: Path) -> None:
-    """Capacity changes bind execution but do not invent an adopter quality floor."""
-    packaged = load_gate_registry_declaration()
-    profile = RepositoryProfile(
-        root=tmp_path,
-        exists=True,
-        declaration=RepositoryProfileDeclaration(
-            profile_id="ethos", proof=ProofPolicy(gate_registry="system/gates.toml")
-        ),
-    )
-
-    def compiled(
-        declaration: GateRegistryDeclaration, *, local_source: bool = False
-    ) -> ResolvedGatePolicy:
-        return compile_gate_policy(
-            profile=profile,
-            gate_registry_source=tomli_w.dumps(
-                declaration.model_dump(mode="json", exclude_defaults=True)
-            ).encode(),
-            repository_python="python",
-            repository_paths=("src/example.py",),
-            full=True,
-            acceptance_purpose="local-source" if local_source else "repository",
-        )
-
-    base = compiled(packaged)
-    scoped = compiled(packaged, local_source=True)
-    assert scoped.projection["owner"] == base.projection["owner"]
-    assert scoped.digest != base.digest
-    assert scoped.gaps == base.gaps
-    varied = packaged.model_copy(
-        update={
-            "gates": tuple(
-                gate.model_copy(update={"cpu_reservation": 1 if gate.cpu_reservation == 2 else 2})
-                if gate.id == "unit-architecture"
-                else gate
-                for gate in packaged.gates
-            )
-        }
-    )
-    capacity = compiled(varied)
-    assert capacity.projection["owner"] == base.projection["owner"]
-    assert capacity.digest != base.digest
-    assert compiled(varied, local_source=True).projection["owner"] == base.projection["owner"]
-
-    substantive = packaged.model_copy(
-        update={
-            "gates": tuple(
-                gate.model_copy(update={"command": (*gate.command, "--changed")})
-                if gate.id == "unit-architecture"
-                else gate
-                for gate in packaged.gates
-            )
-        }
-    )
-    owner = compiled(substantive).projection["owner"]
-    assert isinstance(owner, dict)
-    assert owner.get("quality_floor_version") == 2
-    local_source = compile_gate_policy(
-        profile=profile,
-        gate_registry_source=tomli_w.dumps(
-            substantive.model_dump(mode="json", exclude_defaults=True)
-        ).encode(),
-        repository_python="python",
-        repository_paths=("src/example.py",),
-        full=True,
-        acceptance_purpose="local-source",
-    )
-    assert local_source.projection["owner"] == owner
-    assert set(_MISSING_QUALITY).issubset(local_source.gaps)
 
 
 @pytest.mark.parametrize("floor", ["full", "default"])

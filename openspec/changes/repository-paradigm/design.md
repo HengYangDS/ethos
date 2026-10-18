@@ -235,6 +235,14 @@ A repository's own rules follow the common ones. The repair keeps those rules, t
 
 A repository that selects another schema keeps that gap report-only, because its Changes are written against that schema's artifacts.
 
+### 15. The product registry is recognized by history
+
+ETHOS's own `system/gates.toml` keeps the plain registry owner because the evaluated commit shares Git history with the commit the running build came from. Until now the test was byte equality with the running build's packaged registry, so every edit of ETHOS's registry looked like an adopter registry. The installed runtime then applied the adopter quality floor, which ETHOS's registry cannot satisfy, and registry edits reached dev only through break-glass ref updates.
+
+Shared history gives the same answer in every runtime that judges ETHOS: the lane source, the installed hook runtime and a release wheel. A repository without that history keeps the adopter floor, even for a verbatim copy of the product registry. Deciding by gate profiles or `profile_id` was rejected, because an adopter could omit `profile` or name itself `ethos` to escape the floor. Giving ETHOS's registry verifiers that satisfy the floor remains the long-term alternative; it is a much larger change.
+
+The classification is not part of the policy projection. The incumbent runtime therefore admits the classification change while the registry is unchanged, and the `python-size` removal follows as an ordinary registry edit judged by the new runtime.
+
 ## Risks / Trade-offs
 
 - **Churn across every adopter.** Mitigation: each repository migrates in one Change that lands together with its runtime switch. The audit names the canonical repair for every gap.
@@ -244,6 +252,7 @@ A repository that selects another schema keeps that gap report-only, because its
 - **Owners the incumbent runtime reads by path.** Pre-commit admission runs the selected runtime, which finds projection declarations only at the paths it knows. Mitigation: a runtime first registers both the incumbent and the canonical path, and the declarations move in a later batch under that runtime.
 - **Strict TOML loaders.** Pytest treats an explicit TOML file as native configuration only under the basename `pytest.toml`, and its string-typed options must stay strings. Mitigation: the tool catalog records the basename, and migration checks prove the strict options take effect.
 - **The deferred families diverge for longer.** Accepted under the workstation rule. Their later Changes consume the same contract.
+- **A product registry edit no longer meets an accidental veto.** Accepted. Closeout's control replacement records a removed or weakened required gate; enforcing an independent review of that record needs a declared independent verification, which ETHOS does not declare today. A fork that carries ETHOS's history counts as the product.
 
 ## Migration Plan
 

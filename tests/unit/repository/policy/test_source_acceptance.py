@@ -56,6 +56,7 @@ def test_source_acceptance_preserves_floors_and_binds_native_audit(
             repository_paths=("src/ethos/cli.py",),
             full=True,
             acceptance_purpose=purpose,
+            product_source=owner_kind == "registry",
         )
 
     strict = compiled("repository")

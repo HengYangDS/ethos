@@ -49,7 +49,6 @@
 - [x] 3.4 Add `.editorconfig`, rename the remaining snake_case repository-authored files to `docs/_meta/stable-paths.toml` and `system/evidence-boundaries.toml` with their references, and take the common commit grammar from the paradigm now that 2.25 retired ETHOS's workspace binding; the paradigm report passes on ETHOS. The system contract keeps its identifier `evidence_boundaries` and its gap identifiers, and its file name derives from that identifier.
 - [x] 3.5 Replace ETHOS's repository-owned shell scripts (`bootstrap-python.sh`, `run-head-bound-proof.sh`, `run-secrets-scan.sh`, `with-python-runtime.sh` and the rendered `mise-install.sh`) with Nox sessions, `tools/ci` modules and one bootstrap command list that the CI model gives both Forges, stage the official mise executable by digest, and declare `bootstrap`, `check` and `fix` as mise tasks; every CI step invokes one native command and the paradigm report shows no toolchain, script or orchestration gap.
 - [x] 3.6 Run the full repository proof on the conforming tree; every required gate passes at the exact head. Evidence: proof Attestation `c2e41eaa` passed all 35 gates at `adda1acb4`, where the paradigm report is conforming.
-- [ ] 3.8 Build the CI supply image that runs as its unprivileged user through the GitHub supply job, pin its digest in the CI model and accept the GitLab pipeline on it.
 
 ## 4. Repair
 
@@ -60,6 +59,7 @@
 ## Workflow follow-up
 
 - Tasks 2.16, 2.21 and 2.19 moved verbatim to the `legacy-carrier-retirement` Change on 2026-10-18, because each waits on an adopter's own migration: data-department-work-guidelines' documents and di-effect's role names.
+- Task 3.8 moved verbatim to the `hosted-verification` Change on 2026-10-18; its GitLab acceptance waits for a dev verify run that passes on the pinned supply image.
 - Each adopter migrates through its own Change and switches runtime in the same batch. A repository without foreign Work Lanes or other blockers goes first; otherwise the order follows dependencies and current lane state. The adopters are the proxy, aigw-cli, data-department-work-guidelines, architecture-publisher, web-ingestion-benchmark, the two films and architecture-publications.
 - The greenfield-formation Change consumes the paradigm contract when it composes a new repository's foundation.
 - The alphasim and di-effect families migrate in their own later Changes; those Changes replace their local size thresholds, di-effect's 500, 800 and 1200-line values and alphasim's 800-line test value, with the paradigm's 512 ceilings.

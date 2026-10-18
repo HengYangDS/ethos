@@ -37,6 +37,7 @@
 - [x] 2.31 Report repository-authored names outside lowercase kebab-case: Python and Go files and the directories holding them, entry documents, catalogued tool names, the contract's tool-required basenames and immutable roots keep their names, each name keeps one owner obligation, and prewrite refuses a new nonconforming basename; focused tests cover snake_case, camel-case, suffix and directory gaps, each exemption, single ownership and prewrite. The repair stays report-only.
 - [x] 2.32 Report pipelines for more than one Forge without a CUE model under `.config/ci/`; focused tests cover the unmodeled pipeline and the model, nested-model, single-Forge and non-workflow cases. The repair stays report-only.
 - [x] 2.33 Report a missing or unlocked toolchain owner and each common verb it does not expose, tracked shell and PowerShell scripts that are not recorded generator output, and gates or CI steps that run a repository script or embed a shell program; focused tests cover each scenario, both Forges' step grammars, gate shell programs and the generator record. The repairs stay report-only.
+- [x] 2.34 Admit a BCP 47 language tag in its canonical case as a dot-separated name segment, and keep the names of paths that Git attributes mark `linguist-vendored` or `linguist-generated`, observed with `git check-attr` for the status audit, paradigm repair and prewrite; focused tests cover canonical and non-canonical tags, received files and directories, prewrite admission and an unavailable attribute observation.
 
 ## 3. ETHOS conformance
 

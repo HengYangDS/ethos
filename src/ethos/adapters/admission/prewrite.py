@@ -18,6 +18,7 @@ from ethos.adapters.admission.patch_admission import staged_artifact_admission
 from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout
+from ethos.adapters.repo.git import received_paths
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.binding import runtime_binding
 from ethos.adapters.repo.runtime.binding import runtime_binding_check
@@ -477,7 +478,15 @@ def _check_path(
     decision: dict[str, object] = {}
     if topology["decision"] == "deny":
         reason = str(topology.get("required_gap") or "generated_artifact_topology_denied")
-    elif created and tracked and (paradigm := paradigm_path_gaps(relative)):
+    elif (
+        created
+        and tracked
+        and (
+            paradigm := paradigm_path_gaps(
+                relative, received=relative in received_paths(root_path, (relative,))
+            )
+        )
+    ):
         reason, decision["repair"] = paradigm[0].required_gap, paradigm[0].repair
     else:
         protected = role in PROTECTED_WRITE_ROLES and tracked

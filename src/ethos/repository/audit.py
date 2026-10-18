@@ -152,6 +152,7 @@ def governance_audit(
     commit_policy_observer: CommitPolicyObserver,
     tracked_documents: tuple[str, ...] | None = None,
     tracked_paths: tuple[str, ...] = (),
+    received_paths: frozenset[str] = frozenset(),
 ) -> dict[str, object]:
     """Compose applicable repository obligations without product-layout requirements."""
     reports = {
@@ -160,7 +161,9 @@ def governance_audit(
         "commit_policy": _commit_policy_report(root, commit_policy_observer),
         "release_policy": release_role_policy_report(root),
         "docs": docs_health_report(root, tracked_documents=tracked_documents),
-        "paradigm": repository_paradigm_report(root, tracked_paths=tracked_paths),
+        "paradigm": repository_paradigm_report(
+            root, tracked_paths=tracked_paths, received_paths=received_paths
+        ),
     }
     gaps = list(
         dict.fromkeys(

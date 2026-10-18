@@ -472,6 +472,29 @@ def test_prewrite_refuses_a_new_path_the_paradigm_rejects(
         assert not str(path["reason"]).startswith("repository_paradigm")
 
 
+def test_prewrite_admits_a_new_path_its_attributes_mark_received(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A new vendored or generated file keeps its upstream name at admission."""
+    _bind_common(monkeypatch, tmp_path, role="accepted_root")
+    relative = "assets/fonts/NotoSansCJKsc-Bold.otf"
+    observed: list[tuple[str, ...]] = []
+
+    def receive(root: Path, paths: tuple[str, ...]) -> frozenset[str]:
+        assert root == tmp_path
+        observed.append(paths)
+        return frozenset(paths)
+
+    monkeypatch.setattr(prewrite, "received_paths", receive)
+    report = prewrite.prewrite_guard(
+        root=tmp_path, paths=[tmp_path / relative], editor_root=tmp_path
+    )
+    [path] = report["paths"]
+    assert isinstance(path, dict)
+    assert not str(path["reason"]).startswith("repository_paradigm")
+    assert observed == [(relative,)]
+
+
 def test_prewrite_admits_edits_to_an_existing_non_conforming_carrier(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

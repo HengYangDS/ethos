@@ -54,6 +54,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
   registry edit lands ordinarily. Any other repository, including a verbatim
   copy of the product registry, keeps the shared quality floor.
 
+- Repository-authored names may carry a BCP 47 language tag in its canonical case
+  as a dot-separated segment, such as `captions.zh-CN.vtt`. Paths that Git
+  attributes mark `linguist-vendored` or `linguist-generated` keep their upstream
+  names.
+
 ### Removed
 
 - Retired the experimental Node coverage collector and unused LCOV interpretation.

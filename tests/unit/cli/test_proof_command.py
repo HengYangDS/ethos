@@ -480,22 +480,33 @@ def test_a_full_proof_runs_its_gates_only_inside_its_admission(monkeypatch, tmp_
     assert emitted[-1].data["admission"] == {"waited_seconds": 4.0, "load": 3.0, "limit": 9.0}
 
 
-def test_contended_admission_runs_no_gate_and_records_nothing(monkeypatch, tmp_path) -> None:
-    """Contention that outlasts admission ends the proof with a gap and no Attestation."""
+@pytest.mark.parametrize(
+    ("gap", "next_action"),
+    [
+        ("proof_admission_contended", "ethos plan --changed --json"),
+        (
+            "candidate_base_stale",
+            f"ethos lane refresh-base --apply --authorize --expect-head {'a' * 40} --json",
+        ),
+    ],
+)
+def test_ended_admission_runs_no_gate_and_records_nothing(
+    monkeypatch, tmp_path, gap, next_action
+) -> None:
+    """Admission that ends a proof leaves its gap, the repair step and no Attestation."""
     _repo, emitted = _arrange(monkeypatch, tmp_path)
 
     @contextmanager
-    def contended(_root, **_head):
-        message = "proof_admission_contended"
-        raise ValueError(message)
+    def ended(_root, **_head):
+        raise ValueError(gap)
         yield
 
     issued = Mock()
-    monkeypatch.setattr(proof_cli, "admitted_full_proof", contended)
+    monkeypatch.setattr(proof_cli, "admitted_full_proof", ended)
     monkeypatch.setattr(proof_cli, "run_plan_checks", Mock(side_effect=AssertionError("gate ran")))
     monkeypatch.setattr(proof_cli, "issue_proof_attestation", issued)
 
     proof_cli.prove(_options(execute=True, full=True), root=tmp_path, json_output=True)
 
-    assert emitted[-1].required_gaps == ("proof_admission_contended",)
+    assert (emitted[-1].required_gaps, emitted[-1].next_action) == ((gap,), next_action)
     issued.assert_not_called()

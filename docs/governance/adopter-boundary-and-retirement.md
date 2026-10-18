@@ -72,7 +72,8 @@ candidate's own policy, tests, exemptions or configuration changes never show a 
 The correction names the finding, its subject, the obligation the finding claimed to judge and
 that evidence. It removes the false finding, not the obligation: the replacement still judges
 that subject under that obligation, and every other incumbent blocking gap stays required.
-[DR-0014](../decisions/dr-0014-comparative-correction.md) records why.
+[ETHOS source DR-0014: Comparative correction](../decisions/dr-0014-comparative-correction.md "source-only")
+records why.
 
 Blocking outcomes:
 

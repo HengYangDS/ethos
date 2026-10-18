@@ -1,5 +1,6 @@
 """Runtime admission follows selected execution and actual schema provenance."""
 
+import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -9,11 +10,17 @@ import pytest
 
 import ethos.adapters.repo.runtime.authority as authority
 import ethos.adapters.repo.runtime.binding as binding
+import ethos.adapters.repo.runtime.selection as runtime_selection
+import ethos.cli as cli
 import ethos.repository.policy.schema as schemas
 from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.selection import current_runtime
+from tests.support.ethos_cli_runner import result_data
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import prepared_work_lane
+from tests.support.governed_repository import start_adopted_candidate
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 
@@ -177,3 +184,168 @@ def test_missing_runtime_observation_remains_unknown() -> None:
         "verdict": "unknown",
         "reason": "runtime_binding_unavailable",
     }
+
+
+def test_self_console_validates_runtime_once_and_rereads_on_the_next_command(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A status command must not hash one selected image twice or retain it for the next call."""
+    repo, _candidate = start_adopted_candidate(tmp_path)
+    selected = current_runtime(Path(git_common_dir(repo)))
+    inventory = runtime_selection.runtime_file_inventory
+    reads: list[Path] = []
+
+    def observe(runtime: Path):
+        reads.append(runtime)
+        return inventory(runtime)
+
+    monkeypatch.setattr(runtime_selection, "runtime_file_inventory", observe)
+    monkeypatch.setattr(cli.sys, "executable", selected.python.as_posix())
+    monkeypatch.setattr(cli.sys, "argv", ["ethos", "status", "--root", repo.as_posix(), "--json"])
+
+    with pytest.raises(SystemExit) as completed:
+        cli.console_main()
+
+    assert completed.value.code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["verdict"] == "pass", payload["required_gaps"]
+    assert result_data(payload)["hook_runtime"]["current"] is True
+    assert reads == [selected.root]
+
+    declaration = next(selected.root.glob("python/**/ethos/adapters/repo/hook/binding.toml"))
+    declaration.chmod(0o644)
+    declaration.write_bytes(declaration.read_bytes() + b"\n")
+    independent = hook_runtime_binding(repo)
+    assert independent["current"] is False
+    assert (
+        "write_admission_not_armed:runtime_schema_migration_required"
+        in independent["required_gaps"]
+    )
+
+    with pytest.raises(SystemExit) as refused:
+        cli.console_main()
+
+    assert refused.value.code == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["verdict"] == "block"
+    assert payload["required_gaps"] == ["hook_runtime_manifest_invalid"]
+    assert reads == [selected.root, selected.root, selected.root]
+
+
+@pytest.mark.parametrize("replacement", ["changed", "symlinked"])
+def test_self_console_rereads_current_before_reporting_hook_admission(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    replacement: str,
+) -> None:
+    """A selector changed after routing cannot borrow the routed image's hook readiness."""
+    repo, _candidate = start_adopted_candidate(tmp_path)
+    common = Path(git_common_dir(repo))
+    selected = current_runtime(common)
+    selector = common / "ethos/runtime/CURRENT"
+    main = cli.main
+
+    def inspect_changed_selection() -> None:
+        if replacement == "changed":
+            selector.write_text("a" * 64 + "\n", encoding="utf-8")
+        else:
+            redirected = selector.parent / "peer-selector"
+            redirected.write_bytes(selector.read_bytes())
+            selector.unlink()
+            selector.symlink_to(redirected)
+        main()
+
+    monkeypatch.setattr(cli.sys, "executable", selected.python.as_posix())
+    monkeypatch.setattr(cli.sys, "argv", ["ethos", "status", "--root", repo.as_posix(), "--json"])
+    monkeypatch.setattr(cli, "main", inspect_changed_selection)
+
+    with pytest.raises(SystemExit) as completed:
+        cli.console_main()
+
+    assert completed.value.code == 0
+    payload = json.loads(capsys.readouterr().out)
+    runtime = result_data(payload)["hook_runtime"]
+    assert payload["verdict"] == "block"
+    assert runtime["current"] is False
+    assert runtime["runtime_digest"] == ""
+    assert "write_admission_not_armed:runtime_manifest" in payload["required_gaps"]
+
+
+def test_status_runtime_observation_is_repository_bound(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Inspecting a second repository validates its own runtime, not the routed image."""
+    repo, _candidate = start_adopted_candidate(tmp_path / "local")
+    other, _other_candidate = start_adopted_candidate(tmp_path / "other")
+    selected = current_runtime(Path(git_common_dir(repo)))
+    other_selected = current_runtime(Path(git_common_dir(other)))
+    inventory = runtime_selection.runtime_file_inventory
+    reads: list[Path] = []
+    observations = []
+    main = cli.main
+
+    def observe(runtime: Path):
+        reads.append(runtime)
+        return inventory(runtime)
+
+    def inspect_other_repository() -> None:
+        observations.append(hook_runtime_binding(other))
+        main()
+
+    monkeypatch.setattr(runtime_selection, "runtime_file_inventory", observe)
+    monkeypatch.setattr(cli.sys, "executable", selected.python.as_posix())
+    monkeypatch.setattr(cli.sys, "argv", ["ethos", "status", "--root", repo.as_posix(), "--json"])
+    monkeypatch.setattr(cli, "main", inspect_other_repository)
+
+    with pytest.raises(SystemExit) as completed:
+        cli.console_main()
+
+    assert completed.value.code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["verdict"] == "pass", payload["required_gaps"]
+    assert observations[0]["current"] is True
+    assert observations[0]["runtime_digest"] == other_selected.digest
+    assert reads == [selected.root, other_selected.root]
+
+
+def test_prewrite_console_validates_runtime_independently_of_routing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Write admission keeps its own fresh payload validation after console routing."""
+    fixture = prepared_work_lane(tmp_path)
+    selected = current_runtime(Path(git_common_dir(fixture.worktree)))
+    inventory = runtime_selection.runtime_file_inventory
+    reads: list[Path] = []
+
+    def observe(runtime: Path):
+        reads.append(runtime)
+        return inventory(runtime)
+
+    monkeypatch.setattr(runtime_selection, "runtime_file_inventory", observe)
+    monkeypatch.setattr(cli.sys, "executable", selected.python.as_posix())
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    monkeypatch.setattr(
+        cli.sys,
+        "argv",
+        [
+            "ethos",
+            "lane",
+            "prewrite",
+            "README.md",
+            "--root",
+            fixture.worktree.as_posix(),
+            "--editor-root",
+            fixture.worktree.as_posix(),
+            "--require-editor-root",
+            "--json",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as completed:
+        cli.console_main()
+
+    assert completed.value.code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["verdict"] == "pass", payload["required_gaps"]
+    assert reads == [selected.root, selected.root]

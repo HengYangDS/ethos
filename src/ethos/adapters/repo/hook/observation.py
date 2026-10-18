@@ -22,9 +22,10 @@ from ethos.adapters.repo.hook.binding import hook_launcher
 from ethos.adapters.repo.hook.binding import load_hook_contract
 from ethos.adapters.repo.runtime.filesystem import runtime_python
 from ethos.adapters.repo.runtime.selection import current_runtime
+from ethos.adapters.repo.runtime.selection import inspection_runtime
 from ethos.adapters.repo.runtime.selection import legacy_runtime_migration_source
 from ethos.adapters.repo.runtime.selection import runtime_command
-from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from ethos.adapters.repo.runtime.selection import selected_runtime_path
 from ethos.adapters.repo.trust_anchor.verification import commit_trust_anchor_action
 from ethos.adapters.repo.trust_anchor.verification import configured_commit_trust_anchor
 from ethos.repository.policy.commit import load_commit_policy
@@ -104,13 +105,12 @@ def hook_runtime_binding(
     expected_build_identity = expected.identity if expected is not None else None
     build_source = expected.source if expected is not None else None
     expected_source_identity = _expected_source(repo, expected_build_identity)
+    selected_runtime = selected_runtime or inspection_runtime(common)
     if selected_runtime is None:
         selected, selection_gap = _selected_runtime(common)
     else:
         try:
-            matches = (runtime_root / "CURRENT").read_bytes() == runtime_selection_bytes(
-                common, selected_runtime.root
-            )
+            matches = selected_runtime_path(common) == selected_runtime.root
         except (OSError, ValueError):
             matches = False
         selected, selection_gap = (selected_runtime, "") if matches else (None, "runtime_manifest")

@@ -9,6 +9,7 @@ import shlex
 import uuid
 from contextlib import contextmanager
 from contextlib import suppress
+from contextvars import ContextVar
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import NamedTuple
@@ -55,6 +56,27 @@ class SelectedRuntime(NamedTuple):
     architecture: str
     build: BuildIdentity
     repository_private: bool
+
+
+_INSPECTION_RUNTIME: ContextVar[tuple[Path, SelectedRuntime] | None] = ContextVar(
+    "inspection_runtime", default=None
+)
+
+
+@contextmanager
+def runtime_inspection_scope(common: Path, selected: SelectedRuntime) -> Generator[None]:
+    """Carry a validated image only across one console inspection of its repository."""
+    token = _INSPECTION_RUNTIME.set((common.resolve(), selected))
+    try:
+        yield
+    finally:
+        _INSPECTION_RUNTIME.reset(token)
+
+
+def inspection_runtime(common: Path) -> SelectedRuntime | None:
+    """Return the calling inspection's image, never another repository's observation."""
+    observed = _INSPECTION_RUNTIME.get()
+    return observed[1] if observed is not None and observed[0] == common.resolve() else None
 
 
 def current_runtime(

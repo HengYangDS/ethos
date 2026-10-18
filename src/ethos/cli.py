@@ -15,6 +15,7 @@ from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.runtime.selection import current_runtime
+from ethos.adapters.repo.runtime.selection import runtime_inspection_scope
 from ethos.adapters.store.state.schema import state_schema_report
 from ethos.contracts.admission import root_command
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -49,6 +50,10 @@ def console_main() -> None:
                 if sys.platform == "win32":
                     raise SystemExit(subprocess.run(commandline, check=False).returncode)
                 os.execv(executable, commandline)
+                return
+            if command == "status":
+                with runtime_inspection_scope(Path(common), selected):
+                    main()
                 return
     except ProcessExecutionError as exc:
         import_module("ethos.surface.cli.output").emit_process_execution_failure(

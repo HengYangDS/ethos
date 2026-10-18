@@ -14,7 +14,16 @@ import pytest
 import ethos.adapters.mutation.lane_lifecycle.start as lane_start
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.git import ref_head
+from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
+from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.repo.worktree_effects import remove_worktree
+from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
+from ethos.adapters.store.state.lease.projection import integer_value
+from ethos.adapters.store.state.schema import state_database
+from ethos.contracts.coordination import LeaseOperationRequest
+from ethos.contracts.plan import GitEffect
+from ethos.contracts.plan import GitRefUpdate
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_repo_with_candidate
@@ -261,6 +270,35 @@ def test_identical_start_after_compensated_failure_retains_every_effect(start_ca
     )
     assert recorded[("lane.start", reports[2]["ref_attestation"]["plan_digest"])] == 3
     assert sorted(recorded.values()) == [2, 3]
+
+
+def test_retired_lane_starts_again_under_the_same_name_and_head(start_case):
+    repo, _candidate, target, start = start_case
+    first = start(apply=True)
+    head, lease = first["head"], leases_by_branch(repo)[BRANCH]
+    remove_worktree(repo, target, branch=BRANCH, head=head, force=False)
+    revoke = LeaseOperationRequest(
+        operation="revoke",
+        branch=BRANCH,
+        holder_ref=HOLDER,
+        generation=integer_value(lease["generation"]),
+        expires_at=str(lease["expires_at"]),
+        apply=True,
+    )
+    revoke_lease(state_database(repo), request=revoke)
+    retirement = GitEffect(
+        updates={f"refs/heads/{BRANCH}": GitRefUpdate(expected=head, desired="0" * len(head))},
+        assertions={"refs/heads/dev": head},
+    )
+    policy = {"operation": "lane.retire", "subject": BRANCH}
+    plan = compile_observed_git_effect(repo, None, retirement, head=head, policy=policy)
+    execute_git_effect(repo, plan, issuer=HOLDER)
+    second = start(apply=True)
+    assert second["required_gaps"] == []
+    assert second["ref_attestation"]["plan_digest"] == first["ref_attestation"]["plan_digest"]
+    assert second["ref_attestation"]["id"] != first["ref_attestation"]["id"]
+    assert _observe(repo, target)[:2] == (head, True)
+    assert leases_by_branch(repo)[BRANCH]["holder_ref"] == HOLDER
 
 
 @pytest.mark.parametrize(

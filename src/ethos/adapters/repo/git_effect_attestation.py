@@ -268,33 +268,45 @@ def _matching_plan_attestations(
 def compensated(
     root: Path, attestation: Attestation, attestations: tuple[Attestation, ...]
 ) -> bool:
-    """Recognize a later attested exact inverse; both immutable records remain members."""
+    """Recognize a later attested reversal; both immutable records remain members.
+
+    A reversal sets every ref of the effect back to the value the effect expected, under any
+    assertions: the exact inverse and a Work Lane retirement both close a lane start.
+    """
     try:
-        inverse = git_effect_from_plan(plan_from_attestation(attestation)).inverse()
+        updates = git_effect_from_plan(plan_from_attestation(attestation)).updates
         completed = _observed_time(attestation, "after")
     except (TypeError, ValueError):
         return False
+    restored = {ref: update.expected for ref, update in updates.items()}
     for candidate in attestations:
-        if (
-            candidate.predicate != "effect:git-ref-update"
-            or candidate.effect_digest != inverse.digest()
-        ):
+        if candidate.predicate != "effect:git-ref-update" or not _restores(candidate, restored):
             continue
         try:
             if _observed_time(candidate, "before") < completed:
                 continue
+            plan = plan_from_attestation(candidate)
             validate(
                 root,
-                inverse,
+                git_effect_from_plan(plan),
                 candidate,
                 issuer=candidate.verifier,
-                plan=plan_from_attestation(candidate),
+                plan=plan,
                 current_postconditions=False,
             )
         except (TypeError, ValueError):
             continue
         return True
     return False
+
+
+def _restores(candidate: Attestation, restored: Mapping[str, str]) -> bool:
+    """Preselect a carried effect that sets each ref back; only validation accepts it."""
+    plan = _object_mapping(candidate.payload.body.get("plan"))
+    updates = _object_mapping(_object_mapping(plan.get("effect")).get("updates"))
+    return all(
+        _object_mapping(updates.get(ref)).get("desired") == value for ref, value in restored.items()
+    )
 
 
 def _observed_time(attestation: Attestation, phase: str) -> datetime:

@@ -425,15 +425,22 @@ def test_attestation_negative_claim_matrix(tmp_path: Path, kind: str) -> None:
         records(case.repo, carried, record)
 
 
-@pytest.mark.parametrize("compensation", ["attested", "forged"])
-def test_only_attested_exact_inverse_reopens_identical_plan(
+@pytest.mark.parametrize("compensation", ["attested", "reasserted", "unattested", "forged"])
+def test_only_an_attested_reversal_reopens_identical_plan(
     tmp_path: Path, compensation: str
 ) -> None:
     case = fixture(tmp_path)
     forward = plan(case.repo, case.effect)
     first = execute_git_effect(case.repo, forward, issuer=EFFECT_ISSUER)
     inverse = plan(case.repo, case.effect.inverse())
-    if compensation == "attested":
+    if compensation in {"attested", "reasserted"}:
+        if compensation == "reasserted":
+            git(case.repo, "update-ref", "refs/heads/accepted", case.new)
+            reversal = GitEffect(
+                updates=case.effect.inverse().updates,
+                assertions={"refs/heads/accepted": case.new},
+            )
+            inverse = plan(case.repo, reversal)
         execute_git_effect(case.repo, inverse, issuer=EFFECT_ISSUER)
         retried = execute_git_effect(case.repo, forward, issuer=EFFECT_ISSUER)
         assert records(case.repo, forward) == (retried,)
@@ -454,7 +461,8 @@ def test_only_attested_exact_inverse_reopens_identical_plan(
         ),
     )
     git(case.repo, "update-ref", "refs/heads/dev", case.old, case.new)
-    record_attestations(case.repo, (forged,))
+    if compensation == "forged":
+        record_attestations(case.repo, (forged,))
     with pytest.raises(ValueError, match="git_effect_attestation_content_mismatch"):
         execute_git_effect(case.repo, forward, issuer=EFFECT_ISSUER)
 

@@ -78,6 +78,7 @@ def pending_merge(tmp_path: Path) -> Path:
         "ambiguous",
         "independent-base",
         "compensated",
+        "retired",
     ],
 )
 def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
@@ -99,10 +100,9 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     ref = f"refs/heads/{branch}"
 
     def effect(head):
-        candidate_head = side if case == "independent-base" else head
         return GitEffect(
             updates={ref: GitRefUpdate(expected="0" * len(head), desired=head)},
-            assertions={"refs/heads/candidate/dev": candidate_head},
+            assertions={"refs/heads/candidate/dev": side if case == "independent-base" else head},
         )
 
     def execute(value, operation, head):
@@ -121,8 +121,12 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
         execute_git_effect(repo, plan, issuer="agent:test:case:agent-test")
 
     def start(head):
-        candidate_head = side if case == "independent-base" else head
-        git(repo, "update-ref", "refs/heads/candidate/dev", candidate_head)
+        git(
+            repo,
+            "update-ref",
+            "refs/heads/candidate/dev",
+            side if case == "independent-base" else head,
+        )
         execute(effect(head), "lane.start", git(repo, "rev-parse", "HEAD"))
 
     if case == "ambiguous":
@@ -131,6 +135,12 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     elif case == "compensated":
         start(base)
         execute(effect(base).inverse(), "lane.start.compensate", base)
+    elif case == "retired":
+        start(base)
+        retirement = GitEffect(
+            updates=effect(base).inverse().updates, assertions={"refs/heads/dev": merge}
+        )
+        execute(retirement, "lane.retire", merge)
     start(merge)
     git(repo, "checkout", branch)
     selected_root, records = read_attestation_set(repo)
@@ -150,7 +160,9 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     rows = [{"name": "active", "status": "in-progress"}]
     revision = base if case == "historical" else merge
     expected = (
-        "active" if case in {"valid", "historical", "independent-base", "compensated"} else None
+        "active"
+        if case in {"valid", "historical", "independent-base", "compensated", "retired"}
+        else None
     )
     selected, gap = resolve_change_selection(rows, None, root=repo, tree_ref=revision)
     assert selected == expected

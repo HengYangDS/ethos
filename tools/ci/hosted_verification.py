@@ -21,7 +21,8 @@ from ethos.repository.policy.quality_reports import coverage_report
 from ethos.repository.policy.quality_reports import junit_report
 
 PROVE = (
-    *("uv", "run", "--frozen", "--offline", "python", "-B", "-I", "-m", "ethos.cli", "prove"),
+    *("uv", "run", "--frozen", "--offline", "--no-sync"),
+    *("python", "-B", "-I", "-m", "ethos.cli", "prove"),
     *("--host", "--execute", "--full"),
 )
 DIAGNOSTIC_LINES = 200

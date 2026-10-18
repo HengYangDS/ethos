@@ -132,12 +132,12 @@ jobs:
         run: uv run --frozen python -B -m tools.ci.toolchain.commit_trust
       - name: Admit pushed commit range
         if: github.event_name == 'push'
-        run: uv run --frozen --offline python -B -I -m ethos.cli hook commit-range --target-ref "${{ github.ref }}" --proposed-head "${{ github.sha }}" --remote-head "${{ github.event.before }}" --remote origin --root . --json
+        run: uv run --frozen --offline --no-sync python -B -I -m ethos.cli hook commit-range --target-ref "${{ github.ref }}" --proposed-head "${{ github.sha }}" --remote-head "${{ github.event.before }}" --remote origin --root . --json
       - name: Admit pull request commit range
         if: github.event_name == 'pull_request'
-        run: uv run --frozen --offline python -B -I -m ethos.cli hook commit-range --target-ref "refs/heads/${{ github.event.pull_request.base.ref }}" --proposed-head "${{ github.event.pull_request.head.sha }}" --remote-head "${{ github.event.pull_request.base.sha }}" --remote origin --root . --json
+        run: uv run --frozen --offline --no-sync python -B -I -m ethos.cli hook commit-range --target-ref "refs/heads/${{ github.event.pull_request.base.ref }}" --proposed-head "${{ github.event.pull_request.head.sha }}" --remote-head "${{ github.event.pull_request.base.sha }}" --remote origin --root . --json
       - name: HEAD-bound hosted verification receipt
-        run: uv run --frozen --offline python -m nox -s hosted_verification
+        run: uv run --frozen --offline --no-sync python -m nox -s hosted_verification
       - name: Upload proof receipt
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -185,7 +185,7 @@ jobs:
       - name: Bind operator commit trust
         run: uv run --frozen python -B -m tools.ci.toolchain.commit_trust
       - name: External links
-        run: uv run --frozen --offline python -m nox -s external_links
+        run: uv run --frozen --offline --no-sync python -m nox -s external_links
       - name: Upload external link observation
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

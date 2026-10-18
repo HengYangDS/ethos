@@ -120,6 +120,36 @@ def test_prettier_inputs_are_the_carriers_it_is_declared_to_own() -> None:
     assert not {path for path in selected if path.endswith((".js", ".mjs", ".cjs"))}
 
 
+def test_markdown_lint_accepts_what_the_markdown_formatter_writes(tmp_path: Path) -> None:
+    """Prettier writes underscore emphasis but asterisks inside a word; the lint accepts both."""
+    page = tmp_path / "docs" / "page.md"
+    page.parent.mkdir()
+    page.write_text("# Title\n\nintra*word*emphasis first, then an *emphasised* word.\n")
+    node = str(sessions.RUNTIME.node_executable())
+    supply = sessions.RUNTIME.node_package_supply()
+    formatter = (node, str(supply / "prettier/bin/prettier.cjs"))
+    config = ("--config", str(ROOT / sessions.PRETTIER_CONFIG), "--write", str(page))
+    subprocess.run((*formatter, *config), cwd=tmp_path, check=True, capture_output=True, timeout=60)
+    assert "then an _emphasised_ word" in page.read_text(encoding="utf-8")
+
+    lint = subprocess.run(
+        (
+            node,
+            str(supply / "markdownlint-cli2/markdownlint-cli2-bin.mjs"),
+            "--config",
+            str(ROOT / ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml"),
+            "docs/page.md",
+        ),
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+
+    assert lint.returncode == 0, lint.stdout + lint.stderr
+
+
 @pytest.mark.parametrize(
     ("home", "allowed"),
     [("src/ethos/adapters/", True), ("distributions/npm/", True), ("src/ethos/domain/", False)],

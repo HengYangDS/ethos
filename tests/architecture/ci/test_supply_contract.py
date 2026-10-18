@@ -62,16 +62,33 @@ def test_hosted_bootstrap_rechecks_cached_tools_with_current_checkout_code() -> 
         "uv sync --locked --offline --no-install-project --group dev",
         "uv sync --locked --offline --no-build-isolation --group dev",
         (
-            "uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise "
-            "vale gitleaks scc syft"
+            "uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.native "
+            "--root . --mise vale gitleaks scc syft"
         ),
         (
-            "uv run --frozen --offline python -B -m tools.ci.toolchain.npm --seed ci "
+            "uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.npm --seed ci "
             "--ignore-scripts --offline"
         ),
-        "uv run --frozen --offline python -B -I tools/ci/toolchain/fixture_supply.py .",
-        "uv run --frozen --offline python -B -m tools.ci.toolchain.commit_trust",
+        "uv run --frozen --offline --no-sync python -B -I tools/ci/toolchain/fixture_supply.py .",
+        "uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.commit_trust",
     ]
+
+
+def test_offline_image_commands_never_resync_the_project() -> None:
+    """An implicit re-sync rebuilds the project and resolves its build requirements online."""
+    jobs = yaml.safe_load(GITLAB.read_text(encoding="utf-8")).values()
+    commands = [
+        command
+        for job in jobs
+        if isinstance(job, dict)
+        for key in ("before_script", "script")
+        for command in job.get(key, [])
+    ]
+    smoke = DOCKERFILE.read_text(encoding="utf-8").split("FROM supply AS smoke\n", 1)[1]
+    commands += [part.strip() for part in smoke.replace("\\\n", " ").split("&&")]
+    runs = [command for command in commands if command.startswith("uv run ")]
+    assert len(runs) > 8
+    assert [command for command in runs if " --no-sync " not in command] == []
 
 
 def test_fixture_supply_uses_tracked_locks_and_cleans_owned_environment(

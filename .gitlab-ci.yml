@@ -35,10 +35,10 @@ ethos:commit-policy:
     - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
     - uv sync --locked --offline --no-install-project --group dev
     - uv sync --locked --offline --no-build-isolation --group dev
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
-    - uv run --frozen --offline python -B -I tools/ci/toolchain/fixture_supply.py .
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.commit_trust
+    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
+    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
+    - uv run --frozen --offline --no-sync python -B -I tools/ci/toolchain/fixture_supply.py .
+    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.commit_trust
   stage: quality
   variables:
     GIT_STRATEGY: clone
@@ -60,17 +60,17 @@ ethos:commit-policy:
         ETHOS_COMMIT_REMOTE_HEAD: ${CI_MERGE_REQUEST_DIFF_BASE_SHA}
     - when: never
   script:
-    - uv run --frozen --offline python -B -I -m ethos.cli hook commit-range --target-ref "${ETHOS_COMMIT_TARGET_REF}" --proposed-head "${ETHOS_COMMIT_PROPOSED_HEAD}" --remote-head "${ETHOS_COMMIT_REMOTE_HEAD}" --remote origin --root . --json
+    - uv run --frozen --offline --no-sync python -B -I -m ethos.cli hook commit-range --target-ref "${ETHOS_COMMIT_TARGET_REF}" --proposed-head "${ETHOS_COMMIT_PROPOSED_HEAD}" --remote-head "${ETHOS_COMMIT_REMOTE_HEAD}" --remote origin --root . --json
 ethos:host-conformance:
   image: ghcr.io/hengyangds/ethos-ci-supply@sha256:dc2bd5a9cff226e61659cfea765bba9f113ef4159ebfe65b2d05b4ef3eafddfe
   before_script:
     - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
     - uv sync --locked --offline --no-install-project --group dev
     - uv sync --locked --offline --no-build-isolation --group dev
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
-    - uv run --frozen --offline python -B -I tools/ci/toolchain/fixture_supply.py .
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.commit_trust
+    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
+    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
+    - uv run --frozen --offline --no-sync python -B -I tools/ci/toolchain/fixture_supply.py .
+    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.commit_trust
   stage: verify
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
@@ -82,7 +82,7 @@ ethos:host-conformance:
       when: never
     - when: on_success
   script:
-    - uv run --frozen --offline python -m nox -s host_conformance
+    - uv run --frozen --offline --no-sync python -m nox -s host_conformance
   artifacts:
     when: always
     paths:
@@ -93,10 +93,10 @@ ethos:verify:
     - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
     - uv sync --locked --offline --no-install-project --group dev
     - uv sync --locked --offline --no-build-isolation --group dev
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
-    - uv run --frozen --offline python -B -I tools/ci/toolchain/fixture_supply.py .
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.commit_trust
+    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
+    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
+    - uv run --frozen --offline --no-sync python -B -I tools/ci/toolchain/fixture_supply.py .
+    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.commit_trust
   stage: verify
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
@@ -111,7 +111,7 @@ ethos:verify:
     GIT_STRATEGY: clone
     ETHOS_TEST_WORKERS: "4"
   script:
-    - uv run --frozen --offline python -m nox -s hosted_verification
+    - uv run --frozen --offline --no-sync python -m nox -s hosted_verification
   artifacts:
     when: always
     paths:
@@ -144,12 +144,12 @@ ethos:external-links:
     - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
     - uv sync --locked --offline --no-install-project --group dev
     - uv sync --locked --offline --no-build-isolation --group dev
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
-    - uv run --frozen --offline python -B -I tools/ci/toolchain/fixture_supply.py .
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.commit_trust
+    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
+    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
+    - uv run --frozen --offline --no-sync python -B -I tools/ci/toolchain/fixture_supply.py .
+    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.commit_trust
   script:
-    - uv run --frozen --offline python -m nox -s external_links
+    - uv run --frozen --offline --no-sync python -m nox -s external_links
   artifacts:
     when: always
     paths:
@@ -172,10 +172,10 @@ ethos:npm:
     - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
     - uv sync --locked --offline --no-install-project --group dev
     - uv sync --locked --offline --no-build-isolation --group dev
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
-    - uv run --frozen --offline python -B -I tools/ci/toolchain/fixture_supply.py .
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.commit_trust
+    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
+    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
+    - uv run --frozen --offline --no-sync python -B -I tools/ci/toolchain/fixture_supply.py .
+    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.commit_trust
   script:
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.npm run ethos -- --version
-    - uv run --frozen --offline python -m nox -s javascript_tests
+    - uv run --frozen --offline --no-sync python -B -m tools.ci.toolchain.npm run ethos -- --version
+    - uv run --frozen --offline --no-sync python -m nox -s javascript_tests

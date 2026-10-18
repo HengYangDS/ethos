@@ -1,5 +1,9 @@
 # Tasks
 
+## 3. ETHOS conformance
+
+- [ ] 3.8 Build the CI supply image that runs as its unprivileged user through the GitHub supply job, pin its digest in the CI model and accept the GitLab pipeline on it.
+
 ## 7. Hosted Execution and Publication
 
 - [ ] 7.3 Requalify hosted supply failure after repairing lost timeout output; retain native diagnostics and clear prior reports before any proof.
@@ -20,3 +24,4 @@
 ## Workflow follow-up
 
 - Prove the exact head, archive this Change, prove the archived head, then land, close out and publish.
+- Task 3.8 moved verbatim from `repository-paradigm` on 2026-10-18, so that Change could archive while its GitLab acceptance continues here.

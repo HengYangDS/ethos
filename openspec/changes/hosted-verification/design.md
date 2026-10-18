@@ -2,13 +2,13 @@
 
 ## Context
 
-The decisions behind these tasks are recorded in the archived design of `proof-throughput` (`openspec/changes/archive/2026-10-17-proof-throughput/design.md`). This Change keeps only the decisions needed to finish them.
+The decisions behind these tasks are recorded in the archived design of `proof-throughput` (`openspec/changes/archive/2026-10-17-proof-throughput/design.md`); those behind 3.8 are in the archived design of `repository-paradigm`. This Change keeps only the decisions needed to finish them.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Finish tasks 7.3, 7.4, 7.5, 7.9, 7.11, 7.12, 7.13 against their original acceptance conditions.
+- Finish tasks 3.8, 7.3, 7.4, 7.5, 7.9, 7.11, 7.12, 7.13 against their original acceptance conditions.
 
 **Non-Goals:**
 

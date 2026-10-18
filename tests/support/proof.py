@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 import tomli_w
 
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
+from ethos.adapters.gates.formatting import prepare_source_format
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
@@ -215,6 +216,8 @@ def declare_native_proof_checks(root: Path, *, test: str, typecheck: str) -> Non
 def declare_quality_profile(root: Path, gate_owner: str = "profile") -> None:
     """Bind complete native-quality intent to one profile or repository gate registry."""
     write_active_commitment(root)
+    for item in prepare_source_format(root, paths=("openspec/config.yaml",)):
+        (root / item.path).write_bytes(item.after)
     gates = [
         {
             "id": identity,

@@ -2,7 +2,7 @@
 
 ## 3. ETHOS conformance
 
-- [ ] 3.8 Build the CI supply image that runs as its unprivileged user through the GitHub supply job, pin its digest in the CI model and accept the GitLab pipeline on it.
+- [x] 3.8 Build the CI supply image that runs as its unprivileged user through the GitHub supply job, pin its digest in the CI model and accept the GitLab pipeline on it (GitHub run 39096910482 built `sha256:ce09f5cd`, pinned at `adda1acb4`; GitLab dev pipeline 11522 and main pipeline 11523 passed on it at `76e2161ad`).
 
 ## 7. Hosted Execution and Publication
 

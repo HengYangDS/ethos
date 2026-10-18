@@ -70,6 +70,9 @@ historical bindings are governed by [Release Governance](docs/governance/release
   reports that its bulk advisory request itself failed; npm never retries that
   POST. Every attempt stays in the receipt, and findings, malformed reports and
   other native failures are still observed once.
+- Stopped Markdown lint from rejecting what Prettier writes: Prettier uses
+  underscore emphasis but asterisks inside a word, so an emphasis style is now
+  required only in official OpenSpec artifacts, which Prettier does not format.
 
 ## [0.2.0-alpha.2] - 2026-08-30
 

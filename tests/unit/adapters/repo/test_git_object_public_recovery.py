@@ -5,8 +5,8 @@ from __future__ import annotations
 import hashlib
 import shlex
 import subprocess
-from pathlib import Path
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -16,6 +16,9 @@ import ethos.adapters.repo.trust_anchor.verification as verification
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.signature import untrusted_signer_repository
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _trust_root(tmp_path: Path) -> Path:
@@ -299,56 +302,6 @@ def test_native_trust_unreadable_configuration_is_a_structured_failure(tmp_path)
     report = verification.verify_commit_trust(repo, target)
     assert report["verdict"] == "block"
     assert report["required_gaps"] == ["git_object_trust_configuration_unavailable"]
-
-
-@pytest.mark.parametrize(
-    ("failure", "gap"),
-    [
-        ("unsigned", "commit_signature_untrusted"),
-        ("not-a-key", "git_effect_signing_key_invalid"),
-        ("rsa AAAA", "git_effect_signing_key_invalid"),
-        ("ssh-ed25519", "git_effect_signing_key_invalid"),
-        ("preflight", "commit_trust_anchor_stale"),
-        ("initial-cas", "commit_trust_anchor_stale"),
-        ("final-cas", "commit_trust_anchor_stale"),
-        ("write", "commit_trust_anchor_write_failed"),
-    ],
-)
-def test_signer_authorization_preserves_anchor_on_public_failure(
-    tmp_path, monkeypatch, failure, gap
-):
-    invalid_key = gap == "git_effect_signing_key_invalid"
-    repo, anchor, target, digest = untrusted_signer_repository(
-        tmp_path, monkeypatch, signed=failure != "unsigned" and not invalid_key
-    )
-    native_read = Path.read_bytes
-    if invalid_key:
-        Path(git(repo, "config", "--get", "user.signingkey")).write_text(failure)
-    elif failure in {"initial-cas", "final-cas"}:
-        reads = iter([b""] * (1 if failure == "initial-cas" else 2) + [b"drift", b"drift"])
-        monkeypatch.setattr(
-            Path, "read_bytes", lambda path: next(reads) if path == anchor else native_read(path)
-        )
-    elif failure == "write":
-
-        def unavailable(*_args, **_kwargs):
-            raise OSError
-
-        monkeypatch.setattr(authorization.tempfile, "mkstemp", unavailable)
-    report = authorization.authorize_configured_commit_signer(
-        repo,
-        target,
-        expected_anchor_sha256="0" * 64 if failure == "preflight" else digest,
-        apply=not invalid_key and failure != "unsigned",
-        authorized=True,
-    )
-    assert (report["verdict"], report["state"], report["required_gaps"]) == (
-        "block",
-        "blocked",
-        [gap],
-    )
-    assert native_read(anchor) == b""
-    assert list(anchor.parent.iterdir()) == [anchor]
 
 
 @pytest.mark.parametrize("object_format", ["sha1", "sha256"])

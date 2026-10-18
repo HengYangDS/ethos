@@ -14,10 +14,10 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Changed
 
-- A full proof waits for its repository's proof slot and for host load within
-  `ETHOS_PROOF_HOST_LOAD_LIMIT` before any gate runs, so concurrent proofs and local CI no longer
-  fail gates by timeout. A Work Lane proof whose candidate moved on ends at admission with
-  `candidate_base_stale` instead of running gates for a head that could not land.
+- A full proof waits for its repository's proof slot and until the host's 1- and 5-minute load
+  averages are within `ETHOS_PROOF_HOST_LOAD_LIMIT` before any gate runs, so it does not start
+  into concurrent proofs or local CI. A Work Lane proof whose candidate moved on ends at admission
+  with `candidate_base_stale` instead of running gates for a head that could not land.
 - Advanced the next product identity to `0.2.0-alpha.5`; local `commit-msg`,
   pre-push, GitHub, and GitLab now consume one repository commit-policy owner
   over the exact introduced commit range.

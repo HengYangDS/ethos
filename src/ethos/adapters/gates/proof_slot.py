@@ -3,10 +3,10 @@
 A full proof that starts beside another full proof, or on a host already loaded by local CI
 virtual machines or other test runs, fails its gates by timeout rather than by any defect.
 Admission therefore waits before the first gate runs: first for the repository's proof slot,
-then, while holding it, for the 1-minute load average to fall within the limit. Waiting is
-bounded; contention that outlasts the bound ends the proof with a gap before any gate runs.
-A Work Lane that falls behind its candidate meanwhile could no longer land, so its proof
-also ends before any gate runs.
+then, while holding it, for both the 1- and 5-minute load averages to fall within the limit, so
+a short lull between other jobs is not mistaken for room. Waiting is bounded; contention that
+outlasts the bound ends the proof with a gap before any gate runs. A Work Lane that falls behind
+its candidate meanwhile could no longer land, so its proof also ends before any gate runs.
 """
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ class SlotAdmission:
 
 
 def load_limit() -> float | None:
-    """Return the admitted 1-minute load average; `0` disables the load condition.
+    """Return the admitted host load; `0` disables the load condition.
 
     Half the CPUs stay free for others by default: a full proof's own test workers fill the
     rest, and a busier host stretches its slowest tests past their timeout.
@@ -74,9 +74,9 @@ def load_limit() -> float | None:
 
 
 def host_load() -> float | None:
-    """Observe the 1-minute load average, or None where the host does not report it."""
+    """Observe the higher of the 1- and 5-minute load averages, or None where unreported."""
     try:
-        return os.getloadavg()[0]
+        return max(os.getloadavg()[:2])
     except (AttributeError, OSError):
         return None
 

@@ -268,17 +268,21 @@ def test_an_invalid_load_limit_is_refused(monkeypatch: pytest.MonkeyPatch, raw: 
         proof_slot.load_limit()
 
 
-@pytest.mark.parametrize("reported", [True, False])
-def test_the_host_load_is_observed_where_the_host_reports_it(
-    monkeypatch: pytest.MonkeyPatch, *, reported: bool
+@pytest.mark.parametrize(
+    ("averages", "expected"), [((3.5, 2.0, 1.0), 3.5), ((3.5, 12.0, 20.0), 12.0), (None, None)]
+)
+def test_the_host_load_is_the_sustained_load_where_the_host_reports_it(
+    monkeypatch: pytest.MonkeyPatch,
+    averages: tuple[float, float, float] | None,
+    expected: float | None,
 ) -> None:
-    """A host without a load average leaves load unknown instead of failing admission."""
-    if reported:
-        monkeypatch.setattr(proof_slot.os, "getloadavg", lambda: (3.5, 2.0, 1.0))
+    """A lull between other jobs is not room: the 5-minute average counts beside the 1-minute."""
+    if averages is not None:
+        monkeypatch.setattr(proof_slot.os, "getloadavg", lambda: averages)
     else:
         monkeypatch.delattr(proof_slot.os, "getloadavg")
 
-    assert proof_slot.host_load() == (3.5 if reported else None)
+    assert proof_slot.host_load() == expected
 
 
 def test_admission_reports_its_grant_on_stderr(

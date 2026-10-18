@@ -60,8 +60,7 @@ before a queued successor executes; this is not a hard filesystem timeout.
 `ethos attestation record --input <file>` validates or previews one canonical
 record; `--apply` unions it by exact Git CAS. Neither operation grants effect
 authority. `ethos lane` and `ethos hook` are operational roots described below,
-not extra workflow lifecycles. Use the installed `ethos --help` and each root's
-`--help` for the current command inventory; this page is its semantic guide.
+not extra lifecycles. Native `--help` owns exact syntax; this page explains semantics.
 
 Native formatting uses [the installed formatter operation](../guides/quickstart.md#native-source-formatting), preserving preview/check/apply and runtime selection.
 
@@ -172,10 +171,8 @@ build. Missing or damaged external supply never triggers an implicit rebuild;
 restore the installation or explicitly rebind. A damaged selector also requires
 explicit selection. Package-manager upgrade/uninstall qualification is separate.
 
-These roots are capabilities, not a fixed lifecycle. `status` selects the sole
-current continuation; after an effect, the caller re-observes instead of
-replaying a remembered sequence. `adopt` binds an external repository to the
-same command semantics; it is not a parallel lifecycle.
+These are capabilities, not a fixed lifecycle. `status` selects the continuation;
+re-observe after effects. `adopt` uses the same semantics, not a parallel lifecycle.
 
 ## Accepted Release Selection
 
@@ -359,28 +356,30 @@ authorization decision; `state` remains the command-state projection; and
 `continuation` is derived as `continue`, `await-user`, `blocked`, or `done`;
 `missing_facts_or_evidence` derives from `required_gaps` only for
 `verdict=unknown`; `user_decision_required` marks the need for user judgment.
-These fields are projections, not another lifecycle store.
 
 ## Proof Depth
 
-Use a focused gate when one current owner is under review:
+Select a focused gate from its declared owner:
+
+| Option                | Source                        | Selection boundary                                                              |
+| --------------------- | ----------------------------- | ------------------------------------------------------------------------------- |
+| `--gate <id>`         | Repository-native declaration | The id and its dependencies must be declared.                                   |
+| `--product-gate <id>` | Selected ETHOS product        | Explicitly composes that product closure without extending the native registry. |
 
 ```bash
-ethos prove --gate <gate-id> --json
+ethos prove --gate <native-id> --product-gate <product-id> --json
 ```
 
-Use the full local proof plan when the transition requires every configured gate:
+Repeat either option for several roots. Common rules retain product origin;
+a same-named native gate cannot replace them. Conflicting descriptors or an id
+explicitly selected from both owners refuse. Complete identical dependencies may
+share execution. Native default/full/optional membership stays unchanged, and
+policy binds origin through execution and issuance.
 
-```bash
-ethos prove --full --json
-```
-
-Executed proof is distinct from readiness and binds the result to the expected
-head:
-
-```bash
-ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
-```
+`ethos prove --full --json` observes the complete configured plan without
+execution. Add `--execute --expect-head <head>` for frozen-source evidence.
+[Standard verification](#standard-exact-source-proof) owns its acceptance route;
+a focused result never implies the complete native floor.
 
 ## Hidden Operational Roots
 
@@ -532,9 +531,8 @@ copying a parser. For publication effects use the guarded `publish` surface.
 
 ## Standard And Fast Verification
 
-Use the standard path for acceptance and scoped execution for iteration. Select
-the scope from affected contracts and consumers; edit size alone does not
-establish risk. The
+Use standard acceptance and scoped iteration; affected contracts and consumers,
+not edit size, determine risk. The
 [ETHOS source Contributing guide](../../CONTRIBUTING.md#verification "source-only")
 is the workflow entry point. The installed CLI and current admission own the
 exact required gates; this reference does not create another policy.
@@ -570,8 +568,9 @@ ethos prove --host --execute --gate <gate-id> --json
 ```
 
 Omit `--expect-head` for working-tree feedback. Supply it when the check must bind
-to a clean frozen source. Repeat `--gate` to select several gates. Host execution
-does not issue a proof Attestation or grant tracked-write or landing authority.
+to a clean frozen source. [Proof selection](#proof-depth) defines native and
+product origins for this surface too. Host execution does not issue a proof
+Attestation or grant tracked-write or landing authority.
 
 For repository-bound selected proof, use the non-host surface:
 

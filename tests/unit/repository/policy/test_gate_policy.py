@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 from typing import TYPE_CHECKING
 
@@ -39,17 +38,11 @@ _MISSING_QUALITY = (
 )
 
 
-@pytest.mark.parametrize("requested", [("native",), ("schemas",), ("native", "schemas")])
-def test_gate_composition_retains_native_owner_and_exact_provider_sources(
+@pytest.mark.parametrize("requested", [("schemas",), ("native", "schemas")])
+def test_native_proof_refuses_undeclared_product_gate(
     tmp_path: Path, requested: tuple[str, ...]
 ) -> None:
-    """One selection preserves the target floor and binds only requested product providers."""
-    native = Gate(
-        id="native",
-        kind="test",
-        command=("tools/check.py",),
-        verification_providers=("ethos.adapters.gates.python_quality:behavior_report",),
-    )
+    """A product spelling cannot supplement the repository's declared proof graph."""
     profile = RepositoryProfile(
         root=tmp_path,
         exists=True,
@@ -57,47 +50,43 @@ def test_gate_composition_retains_native_owner_and_exact_provider_sources(
             profile_id="target",
             proof=ProofPolicy(
                 code_correctness_gates=("native",),
-                code_correctness_map={"behavior": "native", "static-analysis": "native"},
-                gates=(native,),
+                gates=(Gate(id="native", kind="check", command=("target-check",)),),
             ),
         ),
     )
-    materials = {
-        "tools/check.py": b"print('target check')\n",
-        "@ethos/adapters/gates/python_quality.py": b"native verification\n",
-        "@ethos/repository/policy/schema.py": b"installed schema provider\n",
-    }
-    baseline = compile_gate_policy(
-        profile=profile, source_materials=materials, repository_python="python", full=True
+    with pytest.raises(ValueError, match="unknown proof gate"):
+        compile_gate_policy(profile=profile, gate_ids=requested)
+
+
+@pytest.mark.parametrize("native_id", ["docs-registry", "document-registry"])
+def test_explicit_product_selection_cannot_be_captured_by_native_spelling(
+    tmp_path: Path, native_id: str
+) -> None:
+    """One bound origin keeps common checks distinct from the native floor."""
+    profile = RepositoryProfile(
+        root=tmp_path,
+        exists=True,
+        declaration=RepositoryProfileDeclaration(
+            profile_id="target",
+            proof=ProofPolicy(
+                code_correctness_gates=(native_id,),
+                gates=(Gate(id=native_id, kind="check", command=("target-check",)),),
+            ),
+        ),
     )
+    baseline = compile_gate_policy(profile=profile)
     selected = compile_gate_policy(
         profile=profile,
-        source_materials=materials,
-        repository_python="python",
-        gate_ids=requested,
+        gate_ids=("docs-registry", "schemas"),
+        product_gate_ids=("docs-registry", "schemas"),
     )
-    assert selected.profile is profile
     assert selected.declaration == baseline.declaration
-    assert selected.projection["owner"] == baseline.projection["owner"]
-    assert set(selected.gate_ids) == set(requested)
-    assert set(selected.registry) == {"native", *requested}
-    sources = dict(selected.sources)
-    for name in requested:
-        expected = (
-            ("tools/check.py", "@ethos/adapters/gates/python_quality.py")
-            if name == "native"
-            else ("@ethos/repository/policy/schema.py",)
-        )
-        assert dict(sources[name]) == {
-            path: hashlib.sha256(materials[path]).hexdigest() for path in expected
-        }
-    if "schemas" in requested:
-        assert selected.registry["schemas"].profile == "repository"
-        assert selected.registry["schemas"].tool_adapter == "ethos"
-    if requested == ("schemas",):
-        assert "quality_obligation_unproven:behavior" in selected.gaps
-    else:
-        assert selected.gaps == baseline.gaps
+    assert selected.profile is profile
+    assert selected.registry[native_id].command == ("target-check",)
+    assert all(gate.providers and not gate.command for gate in selected.gates)
+    assert selected.product_gate_ids == ("docs-registry", "schemas")
+    assert selected.projection["product_gate_ids"] == ["docs-registry", "schemas"]
+    assert baseline.gate_ids == (native_id,)
 
 
 def test_quality_axis_conjoins_scoped_evidence_from_distinct_gates() -> None:

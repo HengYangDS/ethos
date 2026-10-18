@@ -44,11 +44,14 @@ def resolve_gate_policy(
     *,
     tree_ref: str | None = None,
     gate_ids: tuple[str, ...] = (),
+    product_gate_ids: tuple[str, ...] = (),
     full: bool = False,
     acceptance_purpose: AcceptancePurpose = "repository",
 ) -> ResolvedGatePolicy:
     """Observe repository materials and compile one content-bound gate policy."""
-    return _resolve_policies(root, tree_ref, gate_ids, (full,), acceptance_purpose)[0]
+    return _resolve_policies(
+        root, tree_ref, gate_ids, (full,), acceptance_purpose, product_gate_ids
+    )[0]
 
 
 def resolve_proof_policies(
@@ -70,11 +73,17 @@ def _resolve_policies(
     gate_ids: tuple[str, ...],
     floors: tuple[bool, ...],
     acceptance_purpose: AcceptancePurpose,
+    product_gate_ids: tuple[str, ...] = (),
 ) -> tuple[ResolvedGatePolicy, ...]:
     """Share material observation only within this requested policy compilation."""
     if root is None:
         return tuple(
-            compile_gate_policy(gate_ids=gate_ids, full=full, acceptance_purpose=acceptance_purpose)
+            compile_gate_policy(
+                gate_ids=gate_ids,
+                product_gate_ids=product_gate_ids,
+                full=full,
+                acceptance_purpose=acceptance_purpose,
+            )
             for full in floors
         )
     profile = (
@@ -100,6 +109,7 @@ def _resolve_policies(
             script_paths=script_paths,
             carrier_roles=carrier_roles,
             gate_ids=gate_ids,
+            product_gate_ids=product_gate_ids,
             full=full,
             acceptance_purpose=acceptance_purpose,
         )
@@ -146,6 +156,7 @@ def _resolve_policies(
             script_paths=script_paths,
             carrier_roles=carrier_roles,
             gate_ids=gate_ids,
+            product_gate_ids=product_gate_ids,
             full=full,
             acceptance_purpose=acceptance_purpose,
         )

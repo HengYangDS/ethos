@@ -15,16 +15,23 @@ import pytest
 import ethos.adapters.gates.runner as gate_runner
 import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.gates.runner import ActionRunResult
+from ethos.adapters.mutation.proof import issue_proof_attestation
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.adapters.repo.profile import repository_identity
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Facts
+from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import execution_succeeded
 from ethos.repository.policy.gates import ResolvedGatePolicy
+from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import declare_fixture_documentation_proof
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.proof import conformant_proof_checks
 from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
@@ -83,7 +90,9 @@ def test_execution_carrier_rejects_policy_drift_before_running_checks(
     monkeypatch.setattr(
         proof_cli,
         "resolve_gate_policy",
-        lambda *_args, **_kwargs: SimpleNamespace(registry=registry, digest="different-policy"),
+        lambda *_args, **_kwargs: SimpleNamespace(
+            gates=tuple(registry.values()), digest="different-policy"
+        ),
     )
     monkeypatch.setattr(proof_cli, "LocalGateRunner", lambda: pytest.fail("gate ran"))
     carrier = cast("ProofExecutionCarrier", SimpleNamespace(recheck=lambda: None))
@@ -114,7 +123,9 @@ def test_run_plan_checks_executes_ready_checks_concurrently_in_plan_order(
             return ActionRunResult(node.id, node.command, "pass", 0)
 
     monkeypatch.setattr(
-        proof_cli, "resolve_gate_policy", lambda *_a, **_k: SimpleNamespace(registry=registry)
+        proof_cli,
+        "resolve_gate_policy",
+        lambda *_a, **_k: SimpleNamespace(gates=tuple(registry.values())),
     )
     monkeypatch.setattr(proof_cli, "LocalGateRunner", Runner)
 
@@ -377,3 +388,54 @@ def test_public_proof_stops_heavy_work_after_readiness_failure(
     assert f"gate_dependency_not_proven:{readiness_gate}" in build_diagnostic["required_gaps"]
     assert registry["generated-artifacts"].providers == registry["repository-audit"].providers[1:]
     assert registry["generated-artifacts"].depends_on == (postexecution_dependency,)
+
+
+@pytest.mark.parametrize("boundary", ["execution", "issuance"])
+def test_bound_product_origin_rejects_recompiled_policy_tampering(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str
+) -> None:
+    """A self-consistent plan digest cannot change the owner's gate-selection provenance."""
+    repo = init_git_repo(tmp_path / "repo")
+    declare_fixture_documentation_proof(repo)
+    head = commit_fixture(repo, "bind selected common source")
+    policy = resolve_gate_policy(
+        repo, tree_ref=head, gate_ids=("schemas",), product_gate_ids=("schemas",)
+    )
+    tree = git(repo, "rev-parse", "HEAD^{tree}")
+    altered = policy.projection | {"owner": {"kind": "forged"}}
+    plan = compile_plan(
+        None,
+        Facts(
+            repository=repository_identity(repo, tree_ref=head),
+            head=head,
+            tree=tree,
+            observed_at=datetime.now(UTC),
+            values={
+                "gate_ids": policy.gate_ids,
+                "execution_source": {"worktree": tree, "index": tree},
+            },
+        ),
+        policy.nodes,
+        policy=altered,
+    )
+    assert plan.inputs.policy == canonical_json_digest(altered)
+    if boundary == "execution":
+        monkeypatch.setattr(
+            "ethos.surface.cli.root.proof.LocalGateRunner",
+            lambda: pytest.fail("tampered source plan executed"),
+        )
+        with pytest.raises(ValueError, match="proof_execution_environment_mismatch"):
+            proof_cli.run_plan_checks(repo=repo, plan=plan, execute=True)
+    else:
+        with pytest.raises(ValueError, match="proof_plan_binding_mismatch"):
+            issue_proof_attestation(
+                repo,
+                {
+                    "plan": plan,
+                    "checks": conformant_proof_checks(plan),
+                    "verdict": "pass",
+                    "issuer": "agent:test:case:proof",
+                    "scope": "quality",
+                    "boundary": "focused",
+                },
+            )

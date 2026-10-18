@@ -23,13 +23,20 @@ from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
 from ethos.adapters.mutation.proof_validation import proof_statement_gaps
 from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.adapters.repo.profile import repository_identity
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.semantic import Commitment
 from ethos.contracts.semantic import Facts
 from ethos.contracts.value import mutable_json
+from ethos.surface.cli.root.proof import run_plan_checks
+from tests.support.ethos_cli_runner import result_data
+from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import adopt_and_commit
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
+from tests.support.governed_repository import commit_openspec_baseline
+from tests.support.governed_repository import declare_fixture_documentation_proof
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import prepared_work_lane
@@ -87,6 +94,54 @@ def test_proof_attestation_is_content_addressed_and_exactly_bound(tmp_path: Path
         "scope",
     }
     assert_selected_proof(repo, head, selected=record)
+
+
+@pytest.mark.parametrize("product_ids", [("schemas",), ("openspec",)])
+def test_product_selection_survives_execution_and_issuance(
+    tmp_path: Path, product_ids: tuple[str, ...]
+) -> None:
+    """Real execution and issuance retain common origins and their dependencies."""
+    repo = init_git_repo(tmp_path / "repo")
+    declare_fixture_documentation_proof(repo)
+    commit_openspec_baseline(repo)
+    head = commit_fixture(repo, "bind source for selected common checks")
+    policy = resolve_gate_policy(
+        repo, tree_ref=head, gate_ids=product_ids, product_gate_ids=product_ids
+    )
+    tree = git(repo, "rev-parse", "HEAD^{tree}")
+    plan = compile_plan(
+        None,
+        Facts(
+            repository=repository_identity(repo, tree_ref=head),
+            head=head,
+            tree=tree,
+            observed_at=datetime.now(UTC),
+            values={
+                "gate_ids": policy.gate_ids,
+                "execution_source": dict.fromkeys(("worktree", "index"), tree),
+            },
+        ),
+        policy.nodes,
+        policy=policy.projection,
+        required_gaps=policy.gaps,
+    )
+    checks, passed = run_plan_checks(repo=repo, plan=plan, execute=True)
+    assert passed, checks
+    record = issue_proof_attestation(
+        repo,
+        {
+            "plan": plan,
+            "checks": tuple(checks),
+            "verdict": "pass",
+            "issuer": "agent:test:case:proof",
+            "scope": "quality",
+            "boundary": "focused",
+        },
+    )
+    assert record.policy_digest == policy.digest
+    assert set(record.payload.body["plan"]["policy"]["product_gate_ids"]) == {
+        gate.id for gate in policy.gates
+    }
 
 
 @pytest.mark.parametrize("with_commitment", [False, True])
@@ -456,3 +511,29 @@ def test_proof_plan_rejects_unresolved_authority(tmp_path, verdict, gaps, coordi
     )
     with pytest.raises(ValueError, match=error):
         proof_plan(tmp_path, resolution=resolution)
+
+
+@pytest.mark.parametrize("execute", [False, True])
+def test_public_product_only_proof_retains_focused_scope(tmp_path: Path, *, execute: bool) -> None:
+    """An explicit common check never claims the unexecuted repository floor."""
+    repo = init_git_repo(tmp_path / "repo")
+    declare_fixture_documentation_proof(repo)
+    write_active_commitment(repo, change_id="focused-product")
+    head = commit_fixture(repo, "bind focused common check")
+    report = run_ethos(
+        "prove",
+        "--product-gate",
+        "schemas",
+        "--expect-head",
+        head,
+        *(("--execute",) if execute else ()),
+        "--json",
+        cwd=repo,
+    )
+    data = report["data"] if "boundary" in report["data"] else result_data(report)
+    assert report["verdict"] == "pass"
+    assert report["summary"]["boundary"] == data["boundary"] == "focused"
+    assert "transition_plan" in data
+    if execute:
+        assert report["next_action"] == "ethos prove --json"
+        assert data["attestation"]["payload"]["body"]["boundary"] == "focused"

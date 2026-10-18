@@ -18,12 +18,16 @@ from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.repository.policy.gates import bind_gate_source_digests
 from ethos.repository.policy.gates import gate_policy_fields
+from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
 from ethos.repository.policy.gates import source_paths_for_gate
 from ethos.repository.policy.quality.tool_configuration import native_gate_tools
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
 from ethos.repository.policy.quality.tool_configuration import native_tool_configurations
 from ethos.repository.policy.references.commands import canonical_gate_command
 from ethos.repository.policy.references.commands import python_module
+from ethos.repository.profile import ProofPolicy
+from ethos.repository.profile import RepositoryProfile
+from ethos.repository.profile import RepositoryProfileDeclaration
 
 if TYPE_CHECKING:
     from collections.abc import MutableMapping
@@ -436,3 +440,81 @@ def test_native_provider_binds_every_consumed_configuration(
             native_tool_configuration((misplaced,), tool)
         with pytest.raises(ValueError, match="native_tool_configuration_ambiguous"):
             native_tool_configuration((location, misplaced), tool)
+
+
+@pytest.mark.parametrize("selected", [("schemas", "schemas"), (True,), ("",)])
+def test_gate_selection_rejects_invalid_origin_ids(selected: tuple[object, ...]) -> None:
+    """Malformed origin inputs cannot normalize into an executable common gate."""
+    with pytest.raises(ValueError, match="product_gate_selection_invalid"):
+        compile_gate_policy(gate_ids=("schemas",), product_gate_ids=selected)
+
+
+def test_product_dependency_reuses_the_same_packaged_owner() -> None:
+    """One source can share a dependency without inventing a conflicting second gate."""
+    policy = compile_gate_policy(gate_ids=("openspec", "schemas"), product_gate_ids=("schemas",))
+    assert policy.gate_ids == ("schemas", "openspec")
+    assert policy.product_gate_ids == ("schemas",)
+    assert policy.gaps == ()
+
+
+@pytest.mark.parametrize("requested", [("native",), ("schemas",), ("native", "schemas")])
+def test_gate_composition_retains_native_owner_and_exact_provider_sources(
+    tmp_path: Path, requested: tuple[str, ...]
+) -> None:
+    """One selection preserves the target floor and binds only requested product providers."""
+    native = Gate(
+        id="native",
+        kind="test",
+        command=("tools/check.py",),
+        verification_providers=("ethos.adapters.gates.python_quality:behavior_report",),
+    )
+    profile = RepositoryProfile(
+        root=tmp_path,
+        exists=True,
+        declaration=RepositoryProfileDeclaration(
+            profile_id="target",
+            proof=ProofPolicy(
+                code_correctness_gates=("native",),
+                code_correctness_map={"behavior": "native", "static-analysis": "native"},
+                gates=(native,),
+            ),
+        ),
+    )
+    materials = {
+        "tools/check.py": b"print('target check')\n",
+        "@ethos/adapters/gates/python_quality.py": b"native verification\n",
+        "@ethos/repository/policy/schema.py": b"installed schema provider\n",
+    }
+    baseline = compile_gate_policy(
+        profile=profile, source_materials=materials, repository_python="python", full=True
+    )
+    selected = compile_gate_policy(
+        profile=profile,
+        source_materials=materials,
+        repository_python="python",
+        gate_ids=requested,
+        product_gate_ids=tuple(name for name in requested if name == "schemas"),
+    )
+    assert selected.profile is profile
+    assert selected.declaration == baseline.declaration
+    assert selected.projection["owner"] == baseline.projection["owner"]
+    assert set(selected.gate_ids) == set(requested)
+    assert set(selected.registry) == {"native"}
+    executed = {gate.id: gate for gate in selected.gates}
+    sources = dict(selected.sources)
+    for name in requested:
+        expected = (
+            ("tools/check.py", "@ethos/adapters/gates/python_quality.py")
+            if name == "native"
+            else ("@ethos/repository/policy/schema.py",)
+        )
+        assert dict(sources[name]) == {
+            path: hashlib.sha256(materials[path]).hexdigest() for path in expected
+        }
+    if "schemas" in requested:
+        assert executed["schemas"].profile == "repository"
+        assert executed["schemas"].tool_adapter == "ethos"
+    if requested == ("schemas",):
+        assert "quality_obligation_unproven:behavior" in selected.gaps
+    else:
+        assert selected.gaps == baseline.gaps

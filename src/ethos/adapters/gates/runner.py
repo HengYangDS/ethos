@@ -276,6 +276,7 @@ def observe_gate_execution(
     root: Path,
     *,
     gate_ids: tuple[str, ...] = (),
+    product_gate_ids: tuple[str, ...] = (),
     full: bool = False,
     expect_head: str | None = None,
 ) -> dict[str, Any]:
@@ -291,7 +292,13 @@ def observe_gate_execution(
     policy = None
     try:
         if not gaps:
-            policy = resolve_gate_policy(root, tree_ref=head, gate_ids=gate_ids, full=full)
+            policy = resolve_gate_policy(
+                root,
+                tree_ref=head,
+                gate_ids=gate_ids,
+                product_gate_ids=product_gate_ids,
+                full=full,
+            )
         if policy is not None:
             gaps.extend(policy.gaps)
             if not policy.nodes:
@@ -305,7 +312,7 @@ def observe_gate_execution(
             results = run_gate_graph(
                 LocalGateRunner(),
                 policy.nodes,
-                policy.registry,
+                {gate.id: gate for gate in policy.gates},
                 root=root,
                 capacity=max(1, os.cpu_count() or 1),
                 parallel=True,
@@ -316,7 +323,13 @@ def observe_gate_execution(
             if exact and (
                 current_tracked_head(root) != head
                 or observe_execution_source(root, head, tree) != source
-                or resolve_gate_policy(root, tree_ref=head, gate_ids=gate_ids, full=full).digest
+                or resolve_gate_policy(
+                    root,
+                    tree_ref=head,
+                    gate_ids=gate_ids,
+                    product_gate_ids=product_gate_ids,
+                    full=full,
+                ).digest
                 != policy.digest
             ):
                 gaps.append("proof_execution_source_changed")

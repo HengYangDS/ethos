@@ -94,10 +94,16 @@ def test_imported_native_audit_honors_source_purpose_without_changing_target_flo
         ),
     )
     requested = ("native", "dependency-vulnerabilities")
-    strict = compile_gate_policy(profile=profile, gate_ids=requested, repository_python="python")
+    strict = compile_gate_policy(
+        profile=profile,
+        gate_ids=requested,
+        product_gate_ids=("dependency-vulnerabilities",),
+        repository_python="python",
+    )
     source = compile_gate_policy(
         profile=profile,
         gate_ids=requested,
+        product_gate_ids=("dependency-vulnerabilities",),
         repository_python="python",
         acceptance_purpose="local-source",
     )
@@ -105,8 +111,10 @@ def test_imported_native_audit_honors_source_purpose_without_changing_target_flo
     assert source.declaration.proof_sets == strict.declaration.proof_sets
     assert source.gate_ids == strict.gate_ids
     assert source.registry["native"] == strict.registry["native"]
-    assert source.registry["dependency-vulnerabilities"].command == (
-        *strict.registry["dependency-vulnerabilities"].command,
+    source_gate = next(gate for gate in source.gates if gate.id == "dependency-vulnerabilities")
+    strict_gate = next(gate for gate in strict.gates if gate.id == "dependency-vulnerabilities")
+    assert source_gate.command == (
+        *strict_gate.command,
         "--",
         "--scope",
         "local-development",

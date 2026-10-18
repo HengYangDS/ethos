@@ -132,7 +132,13 @@ def plan_repository(root: Path, *, changed: bool = False, change: str | None = N
     adapter_gaps = tuple(string_sequence(profile_adapter.get("required_gaps")))
     profile_projection = {key: value for key, value in profile_adapter.items() if key != "commands"}
     gate_ids = tuple(str(gate.get("id") or "") for gate in required_gates)
-    policy = resolve_gate_policy(repo, gate_ids=gate_ids)
+    policy = resolve_gate_policy(
+        repo,
+        gate_ids=gate_ids,
+        product_gate_ids=tuple(
+            str(gate["id"]) for gate in required_gates if gate.get("gate_source") == "product"
+        ),
+    )
     archive_authority = generation_scope.archive_authority
     prior_attestations = {"openspec_archive": archive_authority} if archive_authority else {}
     foreign = cast("list[dict[str, object]]", status_payload.get("foreign_work_lanes") or [])

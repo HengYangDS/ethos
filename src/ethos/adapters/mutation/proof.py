@@ -34,6 +34,7 @@ from ethos.contracts.plan import compile_plan
 from ethos.contracts.plan import proof_effect_digest
 from ethos.contracts.proof.plan import AcceptancePurpose
 from ethos.contracts.proof.plan import execution_source_gaps
+from ethos.contracts.proof.plan import product_gate_ids_from_policy
 from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.contracts.semantic import Attestation
 from ethos.contracts.semantic import Commitment
@@ -78,16 +79,12 @@ def _proof_issue_values(
     if not isinstance(checks, tuple):
         msg = "proof_attestation_checks_invalid"
         raise TypeError(msg)
-    if (
-        not isinstance(verdict, str)
-        or not isinstance(issuer, str)
-        or not isinstance(scope, str)
-        or not isinstance(boundary, str)
-        or not isinstance(objective, str)
-        or not all((issuer, scope, boundary, objective))
-    ):
+    text_values = (issuer, scope, boundary, objective)
+    validated_text = tuple(value for value in text_values if isinstance(value, str) and value)
+    if not isinstance(verdict, str) or len(validated_text) != len(text_values):
         msg = "proof_attestation_payload_invalid"
         raise TypeError(msg)
+    issuer, scope, boundary, objective = validated_text
     if verdict not in {"pass", "block", "unknown"}:
         msg = "proof_attestation_verdict_invalid"
         raise ValueError(msg)
@@ -97,16 +94,13 @@ def _proof_issue_values(
     if not isinstance(required_gaps, tuple):
         msg = "proof_attestation_required_gaps_invalid"
         raise TypeError(msg)
-    normalized_required_gaps: tuple[str, ...] = tuple(
-        gap for gap in required_gaps if isinstance(gap, str)
-    )
+    normalized_required_gaps = tuple(gap for gap in required_gaps if isinstance(gap, str))
     if len(normalized_required_gaps) != len(required_gaps):
         msg = "proof_attestation_required_gaps_invalid"
         raise TypeError(msg)
-    normalized_checks = normalize_checks(checks, allow_empty=verdict != "pass")
     return (
         plan,
-        normalized_checks,
+        normalize_checks(checks, allow_empty=verdict != "pass"),
         verdict,
         issuer,
         scope,
@@ -215,6 +209,7 @@ def issue_proof_attestation(
         root,
         tree_ref=head,
         gate_ids=tuple(node.id for node in plan.nodes),
+        product_gate_ids=product_gate_ids_from_policy(plan.policy),
         acceptance_purpose=proof_acceptance_purpose(plan.policy),
     )
     if (
@@ -232,12 +227,11 @@ def issue_proof_attestation(
     ):
         msg = "proof_plan_binding_mismatch"
         raise ValueError(msg)
-    execution_order = tuple(node.id for node in plan.nodes)
     checks_by_id = {str(check["action_id"]): check for check in checks}
-    if set(checks_by_id) != set(execution_order):
+    if set(checks_by_id) != {node.id for node in plan.nodes}:
         msg = "proof_attestation_check_plan_mismatch"
         raise ValueError(msg)
-    normalized = tuple(checks_by_id[gate_id] for gate_id in execution_order)
+    normalized = tuple(checks_by_id[node.id] for node in plan.nodes)
     if gaps := dependency_acceptance_gaps(
         root,
         head,
@@ -359,6 +353,7 @@ def proof_plan(
     *,
     resolution: CurrentResolution,
     gate_ids: tuple[str, ...] = (),
+    product_gate_ids: tuple[str, ...] = (),
     full: bool = False,
     execution_root: Path | None = None,
     acceptance_purpose: AcceptancePurpose = "repository",
@@ -375,7 +370,12 @@ def proof_plan(
     work_lane = authority.required
     repository = repository_identity(root, tree_ref=head)
     policy = resolve_gate_policy(
-        root, tree_ref=head, gate_ids=gate_ids, full=full, acceptance_purpose=acceptance_purpose
+        root,
+        tree_ref=head,
+        gate_ids=gate_ids,
+        product_gate_ids=product_gate_ids,
+        full=full,
+        acceptance_purpose=acceptance_purpose,
     )
     observed_scope = resolution.scope
     effective_paths = observed_scope.paths

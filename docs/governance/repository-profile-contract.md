@@ -163,6 +163,17 @@ Valid optional descriptors outside the default closure remain available for
 explicit selection. They neither become default roots nor satisfy required code
 axes outside that closure.
 
+Gate selection preserves declaration provenance. `--gate <id>` selects the
+repository's native declaration; `--product-gate <id>` explicitly selects the
+product-owned closure. Common rules carry product origin into planning,
+execution and issuance, so an adopter's same-named gate cannot capture a common
+obligation. Selection never extends the native registry or changes its default,
+full or optional membership. A composed dependency may share an id only when its
+complete descriptor agrees; conflicting meanings fail rather than acquire aliases.
+The plan binds the selected product origins and exact policy digest. Execution
+and issuance re-observe that binding; partial selection cannot replace the native
+acceptance floor. See [proof selection](../reference/command-plane.md#proof-depth).
+
 An id without a descriptor is not executable truth. The strict profile and gate
 declaration contracts reject missing, duplicate, cyclic, or incomplete
 descriptors before planning; ETHOS never guesses a command or accepts an unverified

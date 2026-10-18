@@ -21,6 +21,7 @@ from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.proof.plan import AcceptancePurpose
+from ethos.contracts.proof.plan import product_gate_ids_from_policy
 from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.verdict import execution_succeeded
@@ -63,11 +64,15 @@ class ResolvedGatePolicy:
     script_paths: tuple[str, ...] = ()
     carrier_roles: tuple[tuple[str, str], ...] = ()
     acceptance_purpose: AcceptancePurpose = "repository"
+    product_gate_ids: tuple[str, ...] = ()
 
     @property
     def registry(self) -> dict[str, Gate]:
-        return self.declaration.registry(python_executable=self.python_executable) | {
-            gate.id: gate for gate in self.gates
+        return {
+            name: _execution_gate(gate, self.acceptance_purpose)
+            for name, gate in self.declaration.registry(
+                python_executable=self.python_executable
+            ).items()
         }
 
     @property
@@ -125,6 +130,7 @@ class ResolvedGatePolicy:
             ),
             "gates": [gate_policy_fields(gate, sources.get(gate.id, ())) for gate in self.gates],
             "gaps": list(self.gaps),
+            **({"product_gate_ids": list(self.product_gate_ids)} if self.product_gate_ids else {}),
             **(
                 {"acceptance_purpose": self.acceptance_purpose}
                 if self.acceptance_purpose != "repository"
@@ -305,35 +311,6 @@ def provider_module_sources(gate: Gate) -> tuple[tuple[str, str], ...]:
     )
 
 
-def _selected_declaration(
-    declaration: GateRegistryDeclaration, gate_ids: tuple[str, ...]
-) -> GateRegistryDeclaration:
-    """Complete only demanded product gates; declared ids retain target authority."""
-    owned = declaration.registry()
-    packaged = _PACKAGED_GATE_DECLARATION.registry()
-    extra: dict[str, Gate] = {}
-    pending = list(gate_ids)
-    while pending:
-        gate_id = pending.pop()
-        if gate_id in owned or gate_id in extra:
-            continue
-        gate = packaged.get(gate_id)
-        if gate is None:
-            message = "unknown proof gate"
-            raise ValueError(message)
-        extra[gate_id] = (
-            gate.model_copy(update={"profile": "repository", "tool_adapter": "ethos"})
-            if gate.providers or gate.verification_providers
-            else gate
-        )
-        pending.extend(gate.depends_on)
-    if not extra:
-        return declaration
-    return GateRegistryDeclaration.model_validate(
-        dict(declaration) | {"gates": (*declaration.gates, *extra.values())}
-    )
-
-
 def source_paths_for_gate(
     gate: Gate,
     *,
@@ -468,6 +445,7 @@ def resolve_gate_policy(
     script_paths: tuple[str, ...] = (),
     carrier_roles: tuple[tuple[str, str], ...] = (),
     gate_ids: tuple[str, ...] = (),
+    product_gate_ids: tuple[str, ...] = (),
     full: bool = False,
     acceptance_purpose: AcceptancePurpose = "repository",
 ) -> ResolvedGatePolicy:
@@ -476,18 +454,23 @@ def resolve_gate_policy(
         profile,
         gate_registry_source=gate_registry_source,
     )
-    selected = _selected_declaration(declaration, gate_ids)
-    selected = selected.model_copy(
-        update={
-            "gates": tuple(_execution_gate(gate, acceptance_purpose) for gate in selected.gates)
-        }
-    )
     python_executable = repository_python or sys.executable
-    gates = selected.proof_gates(
+    product_gate_ids = product_gate_ids_from_policy({"product_gate_ids": product_gate_ids})
+    gates, product_gate_ids = declaration.compose_proof_gates(
         gate_ids,
+        product=_PACKAGED_GATE_DECLARATION,
+        product_gate_ids=product_gate_ids,
         full=full,
         python_executable=python_executable,
     )
+    if declaration != _PACKAGED_GATE_DECLARATION:
+        gates = tuple(
+            gate.model_copy(update={"profile": "repository", "tool_adapter": "ethos"})
+            if gate.id in product_gate_ids and (gate.providers or gate.verification_providers)
+            else gate
+            for gate in gates
+        )
+    gates = tuple(_execution_gate(gate, acceptance_purpose) for gate in gates)
     sources, gaps = (
         bind_gate_source_digests(
             gates,
@@ -537,6 +520,7 @@ def resolve_gate_policy(
         script_paths,
         carrier_roles,
         acceptance_purpose,
+        product_gate_ids,
     )
 
 

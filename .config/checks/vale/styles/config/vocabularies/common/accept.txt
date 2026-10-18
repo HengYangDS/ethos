@@ -1,4 +1,4 @@
-(?:ABI|API|OID|SDK|TTL)s?
+(?:ABI|API|DR|OID|SDK|TTL)s?
 (?:Git|commit|maintainer|verifier)'s
 (?i:actionlint)
 (?i:allowlist(?:s|ed)?)
@@ -78,8 +78,14 @@
 (?i:subtasks?)
 (?i:subtests?)
 (?i:subtrees?)
+(?i:textlint)
 (?i:toolchains?)
 (?i:tracebacks?)
+(?i:uncategorized)
+(?i:unencrypted)
+(?i:unignored)
+(?i:unpausing)
+(?i:unscoped)
 (?i:unstaged)
 (?i:untracked)
 (?i:untrusted)
@@ -87,6 +93,7 @@
 (?i:validators?)
 (?i:worktrees?)
 (?i:yamllint)
+CSpell
 Cyclopts
 ESLint
 ETHOS
@@ -99,5 +106,6 @@ Pydantic
 SemVer
 Syft
 Taplo
+Trixie
 Vale
 Wasm

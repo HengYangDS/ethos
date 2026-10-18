@@ -52,6 +52,9 @@ if TYPE_CHECKING:
         "A basename belongs to a namespace; preconditions and postconditions differ.",
         "Shards are sharded; sharding retains a subpackage and subpackages.",
         "The dunder and dunders are language names; pytest's report is ready.",
+        "Use CSpell and textlint; Textlint checks prose on Debian Trixie.",
+        "DRs qualify uncategorized, unencrypted and unscoped inputs.",
+        "Keep unignored files before unpausing the runner.",
     ],
 )
 def test_native_software_vocabulary_accepts_canonical_usage(tmp_path: Path, prose: str) -> None:
@@ -84,6 +87,7 @@ def test_native_software_vocabulary_accepts_canonical_usage(tmp_path: Path, pros
         ("The qzxwvvv report is ready.", "Vale.Spelling", "qzxwvvv"),
         ("The preimgae is ready.", "Vale.Spelling", "preimgae"),
         ("The namespcae is ready.", "Vale.Spelling", "namespcae"),
+        ("Use Cspell for review.", "Vale.Terms", "Cspell"),
         ("Use Github for review.", "Vale.Terms", "Github"),
         ("Use Gitlab for review.", "Vale.Terms", "Gitlab"),
         ("Read the the report.", "Vale.Repetition", "the the"),

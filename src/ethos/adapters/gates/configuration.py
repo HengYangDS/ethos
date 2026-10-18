@@ -9,6 +9,7 @@ import tomllib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
+from typing import override
 
 from yamllint import config as yamllint_config
 from yamllint import linter as yamllint_linter
@@ -29,6 +30,15 @@ from ethos.normalization.coercion import string_sequence
 VALE_CONFIG = Path(".config/checks/vale/vale.ini")
 VALE_VOCABULARIES = ".config/checks/vale/styles/config/vocabularies/*/"
 SUPPORTED_SUFFIXES = frozenset({".toml", ".yaml", ".yml", ".json", ".ini", ".cfg", ".txt"})
+
+
+class _ValeConfigParser(configparser.ConfigParser):
+    """Preserve native Vale keys through ConfigParser's typed extension point."""
+
+    @override
+    def optionxform(self, optionstr: str) -> str:
+        """Retain option spelling when compiling the section vocabulary input."""
+        return optionstr
 
 
 def _configuration_inventory(root: Path) -> tuple[Path, ...]:
@@ -215,8 +225,7 @@ def _vale_section_vocabulary_failures(
     """Compile section-only terms with native Vale; its empty-input default skips them."""
     with TemporaryDirectory(prefix="ethos-vale-configuration-") as temporary:
         config = Path(temporary) / "vale.ini"
-        parser = configparser.ConfigParser(interpolation=None)
-        parser.optionxform = str
+        parser = _ValeConfigParser(interpolation=None)
         parser.read_dict(
             {
                 "DEFAULT": {

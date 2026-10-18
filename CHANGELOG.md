@@ -66,6 +66,10 @@ historical bindings are governed by [Release Governance](docs/governance/release
   selected existing task artifact from native schema and tracking observations.
 - Allowed planning without an unselected, observably absent local Skill portfolio;
   required, incomplete, dangling and unreadable portfolio state remains blocking.
+- Observed the npm dependency audit again, at most three attempts, when npm
+  reports that its bulk advisory request itself failed; npm never retries that
+  POST. Every attempt stays in the receipt, and findings, malformed reports and
+  other native failures are still observed once.
 
 ## [0.2.0-alpha.2] - 2026-08-30
 

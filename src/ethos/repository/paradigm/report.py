@@ -46,8 +46,13 @@ _NPM_DEPENDENCY_FIELDS = (
 )
 
 
-def repository_paradigm_report(root: Path, *, tracked_paths: tuple[str, ...]) -> dict[str, object]:
-    """Evaluate the shared repository paradigm over one repository's tracked paths."""
+def repository_paradigm_report(
+    root: Path, *, tracked_paths: tuple[str, ...], received_paths: Iterable[str] = ()
+) -> dict[str, object]:
+    """Evaluate the shared repository paradigm over one repository's tracked paths.
+
+    Received paths, which Git attributes mark vendored or generated, keep their names.
+    """
     paradigm = load_repository_paradigm()
     tracked = frozenset(tracked_paths)
     gaps = [
@@ -64,7 +69,7 @@ def repository_paradigm_report(root: Path, *, tracked_paths: tuple[str, ...]) ->
         *_peer_remote_gaps(paradigm, root, tracked),
         *workspace_gaps(paradigm, root, tracked),
         *_release_gaps(paradigm, root, tracked),
-        *authored_name_gaps(paradigm, tracked),
+        *authored_name_gaps(paradigm, tracked, frozenset(received_paths)),
         *pipeline_model_gaps(paradigm, tracked),
         *toolchain_gaps(paradigm, root, tracked),
         *tracked_script_gaps(paradigm, root, tracked),
@@ -80,11 +85,11 @@ def repository_paradigm_report(root: Path, *, tracked_paths: tuple[str, ...]) ->
     }
 
 
-def paradigm_path_gaps(path: str) -> tuple[ParadigmGap, ...]:
+def paradigm_path_gaps(path: str, *, received: bool = False) -> tuple[ParadigmGap, ...]:
     """Return the paradigm gaps that creating one tracked path would introduce.
 
     Every module's root entries are admitted here: whether a manifest applies is decided
-    over the whole tree by the report.
+    over the whole tree by the report. A received path keeps its name.
     """
     paradigm = load_repository_paradigm()
     tracked = frozenset({path})
@@ -92,7 +97,7 @@ def paradigm_path_gaps(path: str) -> tuple[ParadigmGap, ...]:
         *_root_entry_gaps(paradigm, tracked, _admitted_root_entries(paradigm, paradigm.module)),
         *_binding_gaps(paradigm, tracked),
         *_configuration_gaps(paradigm, tracked),
-        *name_path_gaps(paradigm, path),
+        *name_path_gaps(paradigm, path, received=received),
     )
 
 

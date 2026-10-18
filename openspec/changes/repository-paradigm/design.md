@@ -205,6 +205,10 @@ The repositories that publish to two Forges and generate both files from `.confi
 
 Repository-authored names use lowercase kebab-case. Exemptions follow the tool catalog and ecosystem modules: Python modules and test files, Go packages and test files, entry documents, and basenames a tool requires. A leading `.` or `_` marker, as in the `docs/_meta` that the docs registry reads, and dot-separated suffixes are not word separators.
 
+A dot-separated segment may be a BCP 47 language tag in its canonical case, as in `captions.zh-CN.vtt`: a lowercase language, an optional titlecase script and an optional uppercase region or three-digit area. Lowercasing the tag would rewrite localized deliveries whose manifests bind those names, and the standard defines the case. Other case variants of a tag are still reported.
+
+Vendored fonts, licenses, notices and generator output carry names chosen upstream, as in `NotoSansCJKsc-Bold.otf`, `OFL.txt` and wasm-bindgen's `index_bg.wasm`. They are received, not authored. A repository declares them with Git's own `linguist-vendored` and `linguist-generated` attributes, which both Forges already honor, and ETHOS reads them with `git check-attr`. A shared root or a paradigm-level list was rejected: such names sit in different places in every repository, and a central list would be a per-repository exception. When the attribute observation is unavailable, nothing is received, so every name is still judged.
+
 A name that another obligation judges keeps that obligation's single gap: root entries, binding files, configuration owners and decision records. Prewrite judges a new file's own name; the report judges directories, because only the whole tree shows whether a directory holds Python or Go modules. A rename must update its references, so the repair stays report-only.
 
 ### 13. Ecosystem modules stay thin

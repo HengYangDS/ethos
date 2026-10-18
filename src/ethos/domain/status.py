@@ -12,6 +12,7 @@ from ethos.adapters.repo.commit.admission import commit_policy_report
 from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.git import git_files
 from ethos.adapters.repo.git import tracked_paths
+from ethos.adapters.repo.git_attributes import received_paths
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -31,13 +32,15 @@ def audit_for_root(
             if openspec_profile_enabled(root)
             else {"verdict": "pass", "state": "not_applicable", "required_gaps": []}
         )
+    tracked = tracked_paths(root)
     return repository_audit_module.governance_audit(
         root,
         openspec=openspec,
         commit_policy_observer=commit_policy_report,
         tracked_documents=tuple(git_files(root, "*.md")),
-        tracked_paths=tracked_paths(root),
+        tracked_paths=tracked,
         retained_origins=observed_document_origins(root),
+        received_paths=received_paths(root, tracked),
     )
 
 

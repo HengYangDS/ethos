@@ -23,7 +23,7 @@ _GITHUB = ".github/workflows/verify.yml"
         ("rules/module_layout.md", "rules/module_layout.md", "rules/module-layout.md"),
         ("content/Design_Notes/intro.md", "content/Design_Notes", "content/design-notes"),
         ("styles/StockPhrases.yml", "styles/StockPhrases.yml", "styles/stock-phrases.yml"),
-        ("media/captions.zh-CN.srt", "media/captions.zh-CN.srt", "media/captions.zh-cn.srt"),
+        ("media/captions.zh_CN.srt", "media/captions.zh_CN.srt", "media/captions.zh-cn.srt"),
         ("Product_Area/intro.md", "Product_Area", "product-area"),
     ],
     ids=["snake-file", "directory", "camel-file", "suffix", "product-root"],
@@ -35,6 +35,34 @@ def test_an_authored_name_outside_kebab_case_names_its_kebab_form(
     report = paradigm_report(tmp_path, {**CONFORMING, path: ""})
     assert report["required_gaps"] == [f"repository_paradigm_authored_name:{carrier}"], report
     assert report["next_action"] == f"rename {carrier} to {kebab} and update its references"
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["captions.ZH-CN.srt", "captions.zh-Cn.srt", "captions.zh-HANS.srt", "captions.Zh-CN.srt"],
+)
+def test_a_language_tag_keeps_its_canonical_case(tmp_path: Path, name: str) -> None:
+    """Only the case BCP 47 recommends, language lower, script title, region upper, conforms."""
+    report = paradigm_report(tmp_path, {**CONFORMING, f"media/{name}": ""})
+    assert report["required_gaps"] == [f"repository_paradigm_authored_name:media/{name}"]
+
+
+def test_a_received_name_keeps_its_upstream_form(tmp_path: Path) -> None:
+    """Vendored or generated paths keep their names; a directory of only those keeps its own."""
+    files = {
+        **CONFORMING,
+        "assets/fonts/NotoSansCJKsc-Bold.otf": "",
+        "assets/fonts/OFL.txt": "",
+        "vendor/JetBrainsMono/OFL.txt": "",
+    }
+    received = ("assets/fonts/NotoSansCJKsc-Bold.otf", "assets/fonts/OFL.txt")
+    report = paradigm_report(tmp_path, files, received=(*received, "vendor/JetBrainsMono/OFL.txt"))
+    assert report["verdict"] == "pass", report
+    report = paradigm_report(tmp_path, files, received=received)
+    assert report["required_gaps"] == [
+        "repository_paradigm_authored_name:vendor/JetBrainsMono",
+        "repository_paradigm_authored_name:vendor/JetBrainsMono/OFL.txt",
+    ]
 
 
 def test_a_nonconforming_directory_is_reported_once(tmp_path: Path) -> None:
@@ -63,10 +91,14 @@ def test_a_nonconforming_directory_is_reported_once(tmp_path: Path) -> None:
         "src/check.test.mjs",
         ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
         "openspec/changes/archive/2026-01-01-sample/old_notes.md",
+        "media/captions.zh-CN.srt",
+        "content/narration.pt-BR.txt",
+        "media/transcript.zh-Hans-CN.md",
+        "content/voice.es-419.txt",
     ],
 )
 def test_a_name_an_ecosystem_or_tool_fixes_conforms(tmp_path: Path, path: str) -> None:
-    """Module, entry, tool-required, marked, suffixed and archived names keep their names."""
+    """Module, entry, tool-required, marked, suffixed, archived and language-tagged names pass."""
     report = paradigm_report(tmp_path, {**CONFORMING, path: ""})
     assert report["verdict"] == "pass", report
 
@@ -88,6 +120,18 @@ def test_a_name_an_ecosystem_or_tool_fixes_conforms(tmp_path: Path, path: str) -
 def test_prewrite_refuses_a_new_nonconforming_basename(path: str, gaps: list[str]) -> None:
     """Prewrite judges the new file's own name; its directories are the report's to judge."""
     assert [gap.required_gap for gap in paradigm_path_gaps(path)] == gaps
+
+
+def test_prewrite_admits_a_new_received_name() -> None:
+    """A new vendored or generated file keeps its upstream name; other obligations still apply."""
+    font = "assets/fonts/NotoSansCJKsc-Bold.otf"
+    assert [gap.required_gap for gap in paradigm_path_gaps(font)] == [
+        f"repository_paradigm_authored_name:{font}"
+    ]
+    assert paradigm_path_gaps(font, received=True) == ()
+    assert [gap.required_gap for gap in paradigm_path_gaps("pytest.ini", received=True)] == [
+        "repository_paradigm_root_catalog:pytest.ini"
+    ]
 
 
 def test_a_name_another_obligation_owns_is_reported_once(tmp_path: Path) -> None:

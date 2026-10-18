@@ -158,6 +158,7 @@ def governance_audit(
     tracked_documents: tuple[str, ...] | None = None,
     tracked_paths: tuple[str, ...] = (),
     retained_origins: DocumentOrigins | None = None,
+    received_paths: frozenset[str] = frozenset(),
 ) -> dict[str, object]:
     """Compose applicable repository obligations without product-layout requirements."""
     reports = {
@@ -168,7 +169,9 @@ def governance_audit(
         "docs": docs_health_report(
             root, tracked_documents=tracked_documents, retained_origins=retained_origins
         ),
-        "paradigm": repository_paradigm_report(root, tracked_paths=tracked_paths),
+        "paradigm": repository_paradigm_report(
+            root, tracked_paths=tracked_paths, received_paths=received_paths
+        ),
     }
     gaps = list(
         dict.fromkeys(

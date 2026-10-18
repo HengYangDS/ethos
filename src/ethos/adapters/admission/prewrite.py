@@ -19,6 +19,7 @@ from ethos.adapters.openspec.commitment import openspec_profile_enabled
 from ethos.adapters.repo.git import current_branch
 from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import run_git
+from ethos.adapters.repo.git_attributes import received_paths
 from ethos.adapters.repo.runtime.binding import runtime_binding
 from ethos.adapters.repo.runtime.binding import runtime_binding_check
 from ethos.adapters.store.state.lease.projection import integer_value
@@ -44,6 +45,7 @@ if TYPE_CHECKING:
 
     from ethos.adapters.admission.current.authority import CurrentAuthority
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
+    from ethos.repository.paradigm.gap import ParadigmGap
 
 _STATE_BINDINGS = ("root", "role", "branch", "paths", "holder_ref", "generation", "head")
 
@@ -473,7 +475,7 @@ def _check_path(
     decision: dict[str, object] = {}
     if topology["decision"] == "deny":
         reason = str(topology.get("required_gap") or "generated_artifact_topology_denied")
-    elif created and tracked and (paradigm := paradigm_path_gaps(relative)):
+    elif created and tracked and (paradigm := _paradigm_gaps(root_path, relative)):
         reason, decision["repair"] = paradigm[0].required_gap, paradigm[0].repair
     else:
         protected = role in PROTECTED_WRITE_ROLES and tracked
@@ -500,6 +502,14 @@ def _path_report(path: str, *, reason: str, **details: object) -> dict[str, obje
         "reason": reason,
         **details,
     }
+
+
+def _paradigm_gaps(root: Path, relative: str) -> tuple[ParadigmGap, ...]:
+    """Judge a new path; one that Git attributes mark received keeps its name."""
+    gaps = paradigm_path_gaps(relative)
+    if gaps and relative in received_paths(root, (relative,)):
+        return paradigm_path_gaps(relative, received=True)
+    return gaps
 
 
 def _is_ignored(root: Path, relative_path: str) -> bool:

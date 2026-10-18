@@ -58,11 +58,17 @@ CONFORMING = {
 }
 
 
-def paradigm_report(root: Path, files: dict[str, str], *, untracked: tuple[str, ...] = ()) -> dict:
+def paradigm_report(
+    root: Path,
+    files: dict[str, str],
+    *,
+    untracked: tuple[str, ...] = (),
+    received: tuple[str, ...] = (),
+) -> dict:
     """Write the files under root and evaluate the paradigm over the tracked ones."""
     for relative, content in files.items():
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
     tracked = tuple(path for path in files if path not in untracked)
-    return repository_paradigm_report(root, tracked_paths=tracked)
+    return repository_paradigm_report(root, tracked_paths=tracked, received_paths=received)

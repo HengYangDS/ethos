@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.mutation.carrier_edit import apply_carrier_edits
 from ethos.adapters.repo.git import tracked_paths
+from ethos.adapters.repo.git_attributes import received_paths
 from ethos.contracts.verdict import report_verdict
 from ethos.normalization.coercion import object_sequence
 from ethos.normalization.coercion import string_mapping
@@ -26,7 +27,8 @@ def repair_paradigm(*, root: Path, apply: bool = False) -> dict[str, object]:
     """Derive the repair plan, and apply it only after exact-path prewrite admission."""
     repo = root.resolve()
     tracked = tracked_paths(repo)
-    report = repository_paradigm_report(repo, tracked_paths=tracked)
+    received = received_paths(repo, tracked)
+    report = repository_paradigm_report(repo, tracked_paths=tracked, received_paths=received)
     gaps = [
         ParadigmGap(str(gap.get("obligation")), str(gap.get("carrier")), str(gap.get("repair")))
         for gap in map(string_mapping, object_sequence(report["gaps"]))
@@ -55,7 +57,7 @@ def repair_paradigm(*, root: Path, apply: bool = False) -> dict[str, object]:
     written = {edit.path for edit in plan.edits if edit.after is not None}
     removed = {edit.path for edit in plan.edits if edit.after is None}
     remaining = repository_paradigm_report(
-        repo, tracked_paths=tuple(sorted({*tracked, *written} - removed))
+        repo, tracked_paths=tuple(sorted({*tracked, *written} - removed)), received_paths=received
     )
     return {
         **result,

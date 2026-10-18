@@ -17,6 +17,7 @@ from ethos.adapters.repo.commit.admission import commit_policy_for_revision
 from ethos.adapters.repo.commit.admission import commit_policy_report
 from ethos.adapters.repo.dirty.change_provenance import changed_paths
 from ethos.adapters.repo.git import current_tracked_head
+from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.git import ref_head
 from ethos.adapters.repo.git import repository_root
 from ethos.adapters.repo.git import run_git
@@ -82,7 +83,11 @@ def _target(
     slug = _slug(name)
     lane_id = f"{observed_at.astimezone(UTC):%Y%m%d}-{slug}"
     branch = policy.work_branch(lane_id)
-    target = (repo.parent / f"{repo.name}-worktrees" / lane_id).resolve()
+    # The canonical checkout owns the Git common directory, so a lane started from an
+    # accepted sibling worktree still joins the repository's one lane family.
+    common = Path(git_common_dir(repo))
+    family = common.parent if common.name == ".git" else repo
+    target = (family.parent / f"{family.name}-worktrees" / lane_id).resolve()
     if undated := _undated_slug(slug):
         # Lane start supplies the date, so a dated name would repeat it in the path.
         return (

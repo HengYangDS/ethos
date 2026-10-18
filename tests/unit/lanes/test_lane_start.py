@@ -337,6 +337,20 @@ def test_start_places_every_work_lane_in_a_dated_sibling_worktree(start_case, mo
     assert _observe(repo, target) == ("", False, None)
 
 
+def test_start_names_the_lane_family_after_the_canonical_checkout(start_case):
+    """An accepted root checked out beside the canonical checkout shares its lane family."""
+    repo, _candidate, _target, start = start_case
+    accepted = repo.parent / "repo-accepted"
+    git(repo, "switch", "-q", "-c", "main")
+    git(repo, "worktree", "add", "-q", accepted.as_posix(), "dev")
+
+    report = start(root=accepted, name="semantic lane", path=None)
+
+    lane_id = f"{NOW:%Y%m%d}-semantic-lane"
+    assert report["path"] == (repo.parent / "repo-worktrees" / lane_id).as_posix()
+    assert not (repo.parent / "repo-accepted-worktrees").exists()
+
+
 @pytest.mark.parametrize("name", ["20261016-archive-relocation", "12345678-ticket", "relocation"])
 def test_start_refuses_a_name_that_already_carries_a_lane_date(start_case, name):
     """No lane path repeats its date: a dated name is refused with its undated slug."""

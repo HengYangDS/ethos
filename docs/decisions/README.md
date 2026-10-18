@@ -26,3 +26,4 @@ form; this entrance does not maintain another template or rule set.
 - [DR-0010: Source-budget non-compensation](dr-0010-source-budget-non-compensation.md): why unrelated source classes cannot subsidize each other's growth.
 - [DR-0011: Documentation portability](dr-0011-documentation-portability.md): why semantic discovery does not mandate one physical tree.
 - [DR-0012: Repository paradigm](dr-0012-repository-paradigm.md): why every governed repository follows one common repository contract and which structure stays repository-owned.
+- [DR-0013: Historical repair evidence reads its own policy location](dr-0013-historical-repair-policy-location.md): why moving a policy field does not reinterpret an earlier repair record.

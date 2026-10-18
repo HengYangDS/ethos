@@ -83,6 +83,7 @@ def pending_merge(tmp_path: Path) -> Path:
         "ambiguous",
         "independent-base",
         "compensated",
+        "retired",
     ],
 )
 def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
@@ -127,22 +128,24 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     if case == "ambiguous":
         start(base)
         git(repo, "update-ref", "-d", ref, base)
-    elif case == "compensated":
+    elif case in {"compensated", "retired"}:
         record = start(base)
-        plan = plan_from_attestation(record)
-        compensation = compile_observed_git_effect(
+        inverse = git_effect_from_plan(plan_from_attestation(record)).inverse()
+        if case == "retired":
+            inverse = GitEffect(updates=inverse.updates, assertions={"refs/heads/dev": merge})
+        plan = compile_observed_git_effect(
             repo,
             None,
-            git_effect_from_plan(plan).inverse(),
-            head=base,
+            inverse,
+            head=merge if case == "retired" else base,
             policy={
-                "operation": "lane.start.compensate",
+                "operation": "lane.retire" if case == "retired" else "lane.start.compensate",
                 "subject": branch,
                 "holder_ref": "agent:test:case:agent-test",
                 "candidate_branch": "candidate/dev",
             },
         )
-        execute_git_effect(repo, compensation, issuer="agent:test:case:agent-test")
+        execute_git_effect(repo, plan, issuer="agent:test:case:agent-test")
     start(merge)
     git(repo, "checkout", branch)
     selected_root, records = read_attestation_set(repo)
@@ -162,7 +165,9 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     rows = [{"name": "active", "status": "in-progress"}]
     revision = base if case == "historical" else merge
     expected = (
-        "active" if case in {"valid", "historical", "independent-base", "compensated"} else None
+        "active"
+        if case in {"valid", "historical", "independent-base", "compensated", "retired"}
+        else None
     )
     selected, gap = resolve_change_selection(rows, None, root=repo, tree_ref=revision)
     assert selected == expected

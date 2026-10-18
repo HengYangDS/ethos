@@ -13,10 +13,14 @@ import subprocess
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from urllib.parse import urlsplit
+from urllib.request import url2pathname
 
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.content.observation import observed_document_origins
+from ethos.adapters.repo.content.source import SourceTargetUnavailableError
+from ethos.adapters.repo.content.source import SourceTree
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_files
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
@@ -120,28 +124,162 @@ def external_links_report(root: Path) -> dict[str, object]:
 
 
 def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, object]:
+    files: list[str] = []
     try:
-        files = _markdown_files(root)
+        source = SourceTree.observe(root)
+        root = source.root
+        files = sorted(path for path in source.entries if path.endswith(".md"))
+        for relative in files:
+            source.resolve_target(relative)
+        files = _markdown_files(root, selected_paths=tuple(source.entries))
         configs = native_configurations(root, "lychee", ".config/checks/lychee/lychee.toml")
+        tool = str(
+            Path(sys.executable).absolute().with_name("lychee.exe" if os.name == "nt" else "lychee")
+        )
+        _require_link_inputs(files, tool)
+        native = []
+        for index, config in enumerate(configs):
+            configuration = Path(config)
+            if configuration.is_relative_to(source.root):
+                source.read(configuration.relative_to(source.root).as_posix())
+            command = (
+                tool,
+                "--config",
+                config,
+                "--no-progress",
+                "--no-ignore",
+                "--hidden",
+                "--offline=false" if online else "--offline",
+            )
+            inputs = tuple(str(source.root / relative) for relative in files)
+            _require_native_link_selection(source.root, command, inputs)
+            mode = (
+                ("--scheme", "http", "--scheme", "https")
+                if online
+                else (
+                    "--scheme",
+                    "file",
+                    "--include",
+                    "^file:",
+                    "--include-fragments=anchor-only",
+                    "--base-url",
+                    "",
+                    "--remap",
+                    "^(.*)$ $1",
+                )
+            )
+            if not online:
+                dumped = run_command(
+                    source.root, (*command, *mode, "--dump", "--", *inputs), timeout=60
+                )
+                _require_native_link_output(dumped)
+                _qualify_local_targets(source, dumped.stdout)
+            result = run_command(source.root, (*command, *mode, "--", *inputs), timeout=90)
+            gaps = (
+                []
+                if result.returncode == 0 and not result.stderr.strip()
+                else [f"quality_gate_failed:{gate_id}"]
+            )
+            native.append(
+                {
+                    "verdict": "block" if gaps else "pass",
+                    "id": gate_id if index == 0 else f"{gate_id}-increment",
+                    "tool": tool,
+                    "state": "failed" if gaps else "passed",
+                    "file_count": len(files),
+                    "command": list(result.args),
+                    "exit_code": result.returncode,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "required_gaps": gaps,
+                }
+            )
+        source.recheck()
     except (GitExecutionError, subprocess.CalledProcessError) as error:
         return quality_inventory_failure(root, gate_id, error)
-    except (OSError, ValueError) as error:
-        return _configuration_failure(gate_id, error)
-    mode = ["--offline=false", "--scheme", "http", "--scheme", "https"] if online else []
-    tool = str(
-        Path(sys.executable).absolute().with_name("lychee.exe" if os.name == "nt" else "lychee")
+    except SourceTargetUnavailableError as error:
+        return _link_observation_failure(gate_id, files, "block", str(error))
+    except (
+        OSError,
+        ValueError,
+        UnicodeError,
+        ProcessExecutionError,
+        subprocess.SubprocessError,
+    ) as error:
+        return _link_observation_failure(gate_id, files, "unknown", str(error))
+    return {**_native_report(gate_id, files, native), "source_tree": source.tree}
+
+
+def _require_link_inputs(files: list[str], tool: str) -> None:
+    if not files:
+        message = "markdown_link_source_empty"
+        raise ValueError(message)
+    if shutil.which(tool) is None:
+        message = "quality_tool_missing:lychee"
+        raise ValueError(message)
+
+
+def _require_native_link_selection(
+    root: Path, command: tuple[str, ...], inputs: tuple[str, ...]
+) -> None:
+    """Bind native line-framed output to whole input identities without guessing splits."""
+    ordinary = tuple(path for path in inputs if len(path.splitlines()) == 1)
+    groups = ((ordinary,) if ordinary else ()) + tuple(
+        (path,) for path in inputs if len(path.splitlines()) != 1
     )
-    native = [
-        quality_tool_report(
-            root=root,
-            gate_id=gate_id if index == 0 else f"{gate_id}-increment",
-            tool=tool,
-            command=[tool, "--config", config, "--no-progress", *mode, *files],
-            files=files,
+    for group in groups:
+        selected = run_command(
+            root, (*command, "--dump-inputs", "--", *group), text=False, timeout=60
         )
-        for index, config in enumerate(configs)
-    ]
-    return _native_report(gate_id, files, native)
+        _require_native_link_output(selected)
+        expected = tuple(os.fsencode(path) for path in group)
+        matches = (
+            selected.stdout == expected[0] + b"\n"
+            if len(group) == 1
+            else sorted(selected.stdout.splitlines()) == sorted(expected)
+        )
+        if not matches:
+            message = "markdown_link_input_selection_unproven"
+            raise ValueError(message)
+
+
+def _require_native_link_output(result: subprocess.CompletedProcess[str | bytes]) -> None:
+    if result.returncode or result.stderr.strip():
+        message = "markdown_link_extraction_unproven"
+        raise ValueError(message)
+
+
+def _qualify_local_targets(source: SourceTree, output: str) -> None:
+    """Native Lychee owns URI syntax; the shared observer owns delivered membership."""
+    for line in output.splitlines():
+        url = urlsplit(line.strip())
+        if url.scheme != "file":
+            message = "markdown_link_extraction_unproven"
+            raise ValueError(message)
+        if url.netloc not in {"", "localhost"}:
+            message = "source_target_nonlocal_file"
+            raise SourceTargetUnavailableError(message)
+        target = Path(url2pathname(url.path))
+        try:
+            relative = target.relative_to(source.root).as_posix()
+        except ValueError as error:
+            message = "source_target_outside_root"
+            raise SourceTargetUnavailableError(message) from error
+        source.resolve_target(relative)
+
+
+def _link_observation_failure(
+    gate_id: str, files: list[str], verdict: str, reason: str
+) -> dict[str, object]:
+    return {
+        "verdict": verdict,
+        "id": gate_id,
+        "tool": "lychee",
+        "state": "unavailable" if verdict == "block" else "unproven",
+        "file_count": len(files),
+        "required_gaps": [reason],
+        "diagnostics": [{"reason": reason}],
+    }
 
 
 def quality_source_files(root: Path, *patterns: str) -> list[str]:
@@ -176,19 +314,24 @@ def quality_inventory_failure(
     }
 
 
-def _markdown_files(root: Path) -> list[str]:
+def _markdown_files(root: Path, *, selected_paths: tuple[str, ...] | None = None) -> list[str]:
     """Current authored Markdown excludes immutable records and absent paths."""
+    files = (
+        quality_source_files(root, "*.md")
+        if selected_paths is None
+        else [path for path in selected_paths if path.endswith(".md")]
+    )
     outputs = frozenset(item.output for item in observe_projections(root))
     registry = build_docs_registry(
         root,
         generated_outputs=outputs,
         retained_origins=observed_document_origins(root),
-        selected_documents=tuple(quality_source_files(root, "*.md")),
+        selected_documents=tuple(files),
     )
     return [
         path
-        for path in authored_document_paths(registry, quality_source_files(root, "*.md"), outputs)
-        if (root / path).is_file()
+        for path in authored_document_paths(registry, files, outputs)
+        if selected_paths is not None or (root / path).is_file()
     ]
 
 

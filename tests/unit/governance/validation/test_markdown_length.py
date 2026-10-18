@@ -220,6 +220,7 @@ def _retained_original(tmp_path: Path, role: str = "evidence") -> tuple[Path, Pa
         'review_date = "2026-10-15"\n'
         'exit_condition = "Release after the current owner no longer needs this original."\n'
     )
+    git(root, "add", "--", "docs")
     return root, original
 
 
@@ -434,6 +435,7 @@ def test_retained_original_is_excluded_by_actual_native_quality_consumers(tmp_pa
             f'origin = "{revision}:docs/observation.md"',
         )
     )
+    commit_fixture(root, "bind current retained observation owner")
     before = original.read_bytes(), original.stat().st_mode
     for consumer in (
         quality_tools.markdown_lint_report,
@@ -533,6 +535,7 @@ def test_verified_historical_readme_remains_an_observation(tmp_path, current_chi
                 f"relations: {{}}\n---\n\n# {name.title()}\n\n"
                 "Purpose: explain the current reference.\n"
             )
+    commit_fixture(root, "record current navigation inputs")
     before = historical.read_bytes(), historical.stat().st_mode
     report = docs_registry_report(root)
     expected = ["docs_readme_missing:docs/closed/README.md"] if current_children else []

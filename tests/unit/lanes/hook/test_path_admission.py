@@ -366,7 +366,7 @@ PATCH_CASES = [
     ((), A, P_NEW, "pass"),
     ((), T + M, DECL + P_EXEC, E_EXEC),
     ((), T, DECL, "pass"),
-    ((), M, _patch(*M, 'COMMAND = ["external-runner"]'), "pass"),
+    ((), M, _patch(*M, 'COMMAND = ["external-runner"]'), E_EXEC),
 ]
 
 

@@ -274,7 +274,12 @@ def test_incoming_guard_preserves_local_change_not_authored_by_peer(tmp_path):
     commit_fixture(work, "feat: preserve local companion")
     assert git_process(work, "merge", "--no-ff", "--no-commit", incoming).returncode == 0
     before = git(work, "write-tree")
-    assert incoming_change_gaps(work, "publication", incoming) == []
+    assert incoming_change_gaps(work, "publication", incoming, ("README.md",)) == []
+    assert common.read_text() == "- [x] Common contribution\n"
+    assert peer.read_text() == "- [ ] Peer contribution\n"
+    assert incoming_change_gaps(
+        work, "publication", incoming, ("openspec/changes/common/tasks.md",)
+    ) == ["openspec_incoming_change_modified:common"]
     assert git(work, "write-tree") == before
 
 
@@ -317,7 +322,9 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
     _declare_executable_checks(work)
     tasks = work / "openspec/changes/publication/tasks.md"
     tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
-    source_head = commit_fixture(work, "feat: finish local publication")
+    source_head = commit_fixture(
+        work, "feat: finish local publication", format_paths=("openspec/config.yaml",)
+    )
     head = _archive(work, source_head, "publication")
     assert openspec_governance_report(work, lifecycle=True)["change"] == "publication"
     assert load_openspec_commitment(work, tree_ref=head).id == "change:publication"
@@ -447,7 +454,9 @@ def completed_product_work(tmp_path, monkeypatch):
     delta.write_text(delta.read_text().replace("Fixture change", "Second contribution"))
     for tasks in (work / "openspec/changes").glob("*/tasks.md"):
         tasks.write_text(tasks.read_text().replace("[ ]", "[x]"))
-    commit_fixture(work, "feat: declare completed contributions")
+    commit_fixture(
+        work, "feat: declare completed contributions", format_paths=("openspec/config.yaml",)
+    )
     monkeypatch.setenv("ETHOS_CHANGE", "second-local")
     return repo, candidate, work
 

@@ -253,7 +253,12 @@ def test_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Path) -
         "sample-tests",
         "sample-static",
     }
-    assert set(worktree.gate_ids) == {"sample-tests", "sample-static", "config-quality"}
+    assert set(worktree.gate_ids) == {
+        "sample-tests",
+        "sample-static",
+        "config-quality",
+        "source-format",
+    }
 
 
 def test_profile_gate_rejects_retired_registry_projection_field(tmp_path: Path) -> None:

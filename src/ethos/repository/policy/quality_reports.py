@@ -250,10 +250,12 @@ def _coverage_root_report(
     """Share identical count and scope validation for native path and stream readers."""
     if root.tag != "coverage":
         _invalid("coverage_root_invalid")
+    # A branch total declares branch measurement; kcov writes only a constant covered value.
+    names = ("lines", "branches") if "branches-valid" in root.attrib else ("lines",)
     try:
         pairs = tuple(
             (int(root.attrib[f"{name}-covered"]), int(root.attrib[f"{name}-valid"]))
-            for name in ("lines", "branches")
+            for name in names
         )
     except (KeyError, ValueError) as error:
         _invalid("coverage_count_invalid", error)
@@ -279,7 +281,9 @@ def _coverage_source_roots(root: ElementTree.Element, repository_root: Path) -> 
     for source in root.findall("sources/source"):
         native = Path(source.text or ".")
         try:
-            relative = native.relative_to(repository_root) if native.is_absolute() else native
+            relative = (
+                native.resolve().relative_to(repository_root) if native.is_absolute() else native
+            )
         except ValueError as error:
             _invalid("coverage_source_outside_repository", error)
         if ".." in relative.parts:

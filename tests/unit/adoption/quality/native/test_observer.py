@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import shutil
 import subprocess
@@ -58,7 +59,7 @@ def _supply_attempt(tmp_path: Path) -> tuple[Path, Gate]:
             "verification_providers": ("ethos.adapters.gates.python_quality:static_report",),
             "native_outputs": (
                 {"path": "nox.json", "format": "nox-json", "sessions": ("static",)},
-                {"path": "ruff.json", "format": "ruff-json", "sessions": ("static",)},
+                {"path": "ruff.sarif", "format": "sarif", "sessions": ("static",)},
                 {
                     "path": "runtime.json",
                     "format": "python-runtime-json",
@@ -328,7 +329,7 @@ def test_native_fixture_reclaims_scratch_when_setup_copy_fails(tmp_path, monkeyp
 
     monkeypatch.setattr(native_fixture.shutil, "copyfile", failed_copy)
     factory = SimpleNamespace(mktemp=lambda _name: scratch)
-    fixture = native_fixture.native_nox_supply.__wrapped__(factory)
+    fixture = inspect.unwrap(native_fixture.native_nox_supply)(factory)
     with pytest.raises(OSError, match="fixture_copy_failed"):
         next(fixture)
     assert not scratch.exists()

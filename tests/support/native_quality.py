@@ -90,7 +90,7 @@ def static(session):
     if OUTCOME == "static-detached":
         runtime(session, python)
         session.run(str(python), "-m", "ruff", "check", "--config", config,
-            "--output-format", "json", "--output-file", str(output / "ruff.json"),
+            "--output-format", "sarif", "--output-file", str(output / "ruff.sarif"),
             "src", "tests", "noxfile.py", external=True)
     else:
         binary = python.with_name("ruff.exe" if os.name == "nt" else "ruff")
@@ -98,7 +98,7 @@ def static(session):
             "--runtime-output", str(output / (session.name + "-runtime.json")),
             "--session", session.name + "-" + VERSION, "--configuration", config, "--",
             str(binary), "check", "--config", config, "--verbose", "--no-cache",
-            "--output-format", "json", "--output-file", str(output / "ruff.json"),
+            "--output-format", "sarif", "--output-file", str(output / "ruff.sarif"),
             *targets, external=True)
     if OUTCOME == "timeout":
         session.run(str(python), "-c",
@@ -179,8 +179,8 @@ def static(session):
         {"path": "nox.json", "format": "nox-json", "sessions": (behavior, static)},
         {"path": "behavior.xml", "format": "junit-xml", "sessions": (behavior,)},
         {"path": "behavior-events.jsonl", "format": "pytest-jsonl", "sessions": (behavior,)},
-        {"path": "coverage.xml", "format": "coverage-xml", "sessions": (behavior,)},
-        {"path": "ruff.json", "format": "ruff-json", "sessions": (static,)},
+        {"path": "coverage.xml", "format": "cobertura-xml", "sessions": (behavior,)},
+        {"path": "ruff.sarif", "format": "sarif", "sessions": (static,)},
         {
             "path": "behavior-runtime.json",
             "configuration": ".config/pytest/pytest.toml",

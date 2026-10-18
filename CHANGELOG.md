@@ -14,6 +14,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Changed
 
+- **Breaking:** declared native outputs use tool-neutral formats: `junit-xml`, `cobertura-xml`
+  (renamed from `coverage-xml`), `lcov` and `sarif`; `ruff-json` is removed. A Nox report, pytest
+  events and a Python runtime report are optional and checked only when declared. `code_quality`
+  judges native reports for every language by property and claims only the files they cover, so a
+  repository's own tests and analyzers can evidence languages ETHOS does not check itself.
 - A full proof waits for its repository's proof slot and until the host's 1- and 5-minute load
   averages are within `ETHOS_PROOF_HOST_LOAD_LIMIT` before any gate runs, so it does not start
   into concurrent proofs or local CI. A Work Lane proof whose candidate moved on ends at admission

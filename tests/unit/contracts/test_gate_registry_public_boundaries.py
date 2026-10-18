@@ -336,40 +336,23 @@ def test_native_output_contract_preserves_exact_producer_selection(binding: str)
         static_sessions = ("unexpected",)
     elif binding == "report-routing":
         command = (*command[:-1], "{native_output}/other.json")
+    runtime = {
+        "format": "python-runtime-json",
+        "configuration": ".config/quality.toml",
+        "python": "3.12",
+        "dependency_groups": ("quality",),
+    }
     outputs: list[dict[str, object]] = [
         {"path": "nox.json", "format": "nox-json", "sessions": ("tests-3.12", "static")},
         {"path": "tests.xml", "format": "junit-xml", "sessions": ("tests-3.12",)},
         {"path": "events.jsonl", "format": "pytest-jsonl", "sessions": ("tests-3.12",)},
-        {"path": "coverage.xml", "format": "coverage-xml", "sessions": ("tests-3.12",)},
-        {"path": "ruff.json", "format": "ruff-json", "sessions": ("static",)},
-        {
-            "path": "tests-runtime.json",
-            "format": "python-runtime-json",
-            "configuration": ".config/quality.toml",
-            "sessions": ("tests-3.12",),
-            "python": "3.12",
-            "dependency_groups": ("quality",),
-        },
-        {
-            "path": "static-runtime.json",
-            "format": "python-runtime-json",
-            "configuration": ".config/quality.toml",
-            "sessions": static_sessions,
-            "python": "3.12",
-            "dependency_groups": ("quality",),
-        },
+        {"path": "coverage.xml", "format": "cobertura-xml", "sessions": ("tests-3.12",)},
+        {"path": "ruff.sarif", "format": "sarif", "sessions": ("static",)},
+        {**runtime, "path": "tests-runtime.json", "sessions": ("tests-3.12",)},
+        {**runtime, "path": "static-runtime.json", "sessions": static_sessions},
     ]
     if binding == "duplicate-producer":
-        outputs.append(
-            {
-                "path": "other-static-runtime.json",
-                "format": "python-runtime-json",
-                "configuration": ".config/quality.toml",
-                "sessions": ("static",),
-                "python": "3.12",
-                "dependency_groups": ("quality",),
-            }
-        )
+        outputs.append({**runtime, "path": "other-static-runtime.json", "sessions": ("static",)})
     if binding == "missing-selection":
         outputs[-1].pop("dependency_groups")
     elif binding == "duplicate-group":
@@ -446,7 +429,9 @@ def test_native_provider_binds_every_consumed_configuration(
 def test_gate_selection_rejects_invalid_origin_ids(selected: tuple[object, ...]) -> None:
     """Malformed origin inputs cannot normalize into an executable common gate."""
     with pytest.raises(ValueError, match="product_gate_selection_invalid"):
-        compile_gate_policy(gate_ids=("schemas",), product_gate_ids=selected)
+        compile_gate_policy(
+            gate_ids=("schemas",), product_gate_ids=cast("tuple[str, ...]", selected)
+        )
 
 
 def test_product_dependency_reuses_the_same_packaged_owner() -> None:
@@ -518,3 +503,59 @@ def test_gate_composition_retains_native_owner_and_exact_provider_sources(
         assert "quality_obligation_unproven:behavior" in selected.gaps
     else:
         assert selected.gaps == baseline.gaps
+
+
+@pytest.mark.parametrize(
+    "binding",
+    [
+        "valid",
+        "unplaced",
+        "removed-coverage",
+        "removed-ruff",
+        "second-report",
+        "nested",
+        "unsessioned",
+    ],
+)
+def test_native_output_contract_accepts_tool_neutral_reports_without_nox(binding: str) -> None:
+    """Standard reports bind to one attempt without a Nox report or a per-session bundle."""
+    command: tuple[str, ...] = ("kcov", "{native_output}/kcov", "python", "-m", "pytest")
+    outputs: list[dict[str, object]] = [
+        {"path": "tests.xml", "format": "junit-xml", "sessions": ("scripts",)},
+        {"path": "kcov/cobertura.xml", "format": "cobertura-xml", "sessions": ("scripts",)},
+        {"path": "node.lcov", "format": "lcov", "sessions": ("scripts",)},
+        {"path": "lint.sarif", "format": "sarif", "sessions": ("lint",)},
+    ]
+    if binding == "unplaced":
+        command = ("python", "-m", "pytest")
+    elif binding == "removed-coverage":
+        outputs[1]["format"] = "coverage-xml"
+    elif binding == "removed-ruff":
+        outputs[3]["format"] = "ruff-json"
+    elif binding == "second-report":
+        outputs.extend(
+            {"path": name, "format": "nox-json", "sessions": ("scripts", "lint")}
+            for name in ("first.json", "second.json")
+        )
+    elif binding == "nested":
+        outputs[2]["path"] = "kcov/cobertura.xml/node.lcov"
+    elif binding == "unsessioned":
+        outputs[0]["sessions"] = ()
+    payload = {
+        "id": "native",
+        "kind": "test",
+        "command": command,
+        "verification_providers": ("ethos.adapters.gates.code_quality:behavior_report",),
+        "native_outputs": tuple(outputs),
+    }
+    if binding in {"valid", "unplaced"}:
+        gate = Gate.model_validate(payload)
+        assert [output.format for output in gate.native_outputs] == [
+            "junit-xml",
+            "cobertura-xml",
+            "lcov",
+            "sarif",
+        ]
+    else:
+        with pytest.raises(ValidationError):
+            Gate.model_validate(payload)

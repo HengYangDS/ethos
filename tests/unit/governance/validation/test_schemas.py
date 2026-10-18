@@ -168,7 +168,7 @@ def test_native_gate_schema_preserves_runtime_selection(groups: tuple[str, ...])
             "verification_providers": ("ethos.adapters.gates.python_quality:static_report",),
             "native_outputs": (
                 {"path": "nox.json", "format": "nox-json", "sessions": ("static",)},
-                {"path": "ruff.json", "format": "ruff-json", "sessions": ("static",)},
+                {"path": "ruff.sarif", "format": "sarif", "sessions": ("static",)},
                 {
                     "path": "runtime.json",
                     "format": "python-runtime-json",

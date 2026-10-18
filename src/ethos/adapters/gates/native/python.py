@@ -1,4 +1,4 @@
-"""Interpret original native Python reports under exact producer custody."""
+"""Qualify optional native Python producer reports under exact attempt custody."""
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ from pathlib import Path
 from time import monotonic
 from typing import TYPE_CHECKING
 from typing import Literal
-from typing import cast
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
@@ -19,17 +18,10 @@ from pydantic import Field
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
-from ethos.adapters.repo.git import current_tracked_head
-from ethos.repository.policy.gates import gate_execution_identity
-from ethos.repository.policy.layout.naming import identifier_naming_findings
-from ethos.repository.policy.quality_reports import coverage_stream_report
-from ethos.repository.policy.quality_reports import junit_stream_report
 
 if TYPE_CHECKING:
     from ethos.adapters.gates.verification import NativeEvidence
-    from ethos.adapters.gates.verification import NativeExecution
     from ethos.contracts.gates import NativeOutput
-    from ethos.repository.policy.code_subjects import CodeSubject
 from ethos.contracts.evidence.observer import ObserverIdentity
 
 
@@ -96,6 +88,17 @@ class RuffInvocation(BaseModel):
     stdout: str
     stderr: str
 
+    def checked_paths(self, root: Path) -> frozenset[str]:
+        """Repository files this launch's verbose diagnostics report it checked."""
+        subjects: set[str] = set()
+        for line in self.stderr.splitlines():
+            _prefix, separator, path = line.partition("[ruff::diagnostics][DEBUG] Checking: ")
+            if separator:
+                observed = Path(path).resolve()
+                if observed.is_relative_to(root.resolve()):
+                    subjects.add(observed.relative_to(root.resolve()).as_posix())
+        return frozenset(subjects)
+
     def require(self, runtime: PythonRuntime, root: Path, output: NativeOutput) -> None:
         """Explicit native config and binary must belong to the observed child."""
         selected = root / output.configuration
@@ -104,13 +107,7 @@ class RuffInvocation(BaseModel):
             arguments = self.argv
             config = arguments[arguments.index("--config") + 1]
             used_config = Path(config) if Path(config).is_absolute() else root / config
-            subjects: set[str] = set()
-            for line in self.stderr.splitlines():
-                _prefix, separator, path = line.partition("[ruff::diagnostics][DEBUG] Checking: ")
-                if separator:
-                    observed = Path(path).resolve()
-                    if observed.is_relative_to(root.resolve()):
-                        subjects.add(observed.relative_to(root.resolve()).as_posix())
+            subjects = self.checked_paths(root)
             _, selected_subjects = observe_quality_subjects(root, language="python")
             required = {subject.path for subject in selected_subjects}
             valid = (
@@ -161,7 +158,7 @@ class PythonRuntime(BaseModel):
         formats = {item.format for item in outputs if item.sessions == output.sessions}
         for kind, required, report in (
             ("pytest", "junit-xml", self.pytest),
-            ("static", "ruff-json", self.ruff),
+            ("static", "sarif", self.ruff),
         ):
             if required not in formats:
                 continue
@@ -270,47 +267,11 @@ class PythonRuntime(BaseModel):
             raise ValueError(msg)
 
 
-def _outputs(evidence: NativeEvidence, kind: str) -> tuple[tuple[NativeOutput, bytes], ...]:
-    return tuple(item for item in evidence.outputs if item[0].format == kind)
-
-
-def _producer(
-    root: Path, execution: NativeExecution
-) -> tuple[NoxReport, tuple[CodeSubject, ...], NativeEvidence]:
-    """Require complete source-bound output and terminal status from this invocation."""
-    evidence = execution.evidence
-    if evidence is None:
-        msg = "python_native_evidence_unavailable"
-        raise ValueError(msg)
-    type(evidence.gate).model_validate(evidence.gate.to_dict())
-    if evidence.gaps:
-        raise ValueError(evidence.gaps[0])
-    if execution.cwd != root.resolve() or not evidence.artifact:
-        msg = "python_native_custody_missing"
-        raise ValueError(msg)
-    expected_argv = tuple(
-        item.replace("{native_output}", evidence.output_root) for item in evidence.gate.command[1:]
-    )
-    if (
-        execution.declared_identity != gate_execution_identity(evidence.gate)
-        or execution.argv[1:] != expected_argv
-        or execution.executable != execution.argv[0]
-        or tuple(output for output, _ in evidence.outputs) != evidence.gate.native_outputs
-    ):
-        msg = "python_native_selection_invalid"
-        raise ValueError(msg)
-    tree, subjects = observe_quality_subjects(root, expected_tree=evidence.tree)
-    if (
-        tree != evidence.tree
-        or current_tracked_head(root) != evidence.head
-        or tuple(subject.path for subject in subjects) != evidence.subjects
-    ):
-        msg = "python_native_source_changed"
-        raise ValueError(msg)
-    reports = _outputs(evidence, "nox-json")
-    if len(reports) != 1:
-        msg = "python_native_report_missing"
-        raise ValueError(msg)
+def nox_sessions(evidence: NativeEvidence) -> list[dict[str, object]]:
+    """Require a declared Nox report to show every selected session succeeded."""
+    reports = tuple(item for item in evidence.outputs if item[0].format == "nox-json")
+    if not reports:
+        return []
     contract, payload = reports[0]
     report = NoxReport.model_validate_json(payload)
     selected = tuple(
@@ -324,23 +285,18 @@ def _producer(
     ):
         msg = "python_native_sessions_incomplete"
         raise ValueError(msg)
-    if (
-        execution.exit_code != 0
-        or report.result != 1
-        or any(
-            session.result != "success" or session.result_code != 1 or session.reason
-            for session in report.sessions
-        )
+    if report.result != 1 or any(
+        session.result != "success" or session.result_code != 1 or session.reason
+        for session in report.sessions
     ):
         msg = "python_native_execution_failed"
         raise ValueError(msg)
-    _runtimes(execution, evidence, found)
-    return report, tuple(subject for subject in subjects if subject.language == "python"), evidence
+    return [session.model_dump() for session in report.sessions]
 
 
-def _runtimes(execution: NativeExecution, evidence: NativeEvidence, found: tuple[str, ...]) -> None:
-    """Each required native session has one actual interpreter observation."""
-    runtimes = _outputs(evidence, "python-runtime-json")
+def runtime_scopes(root: Path, evidence: NativeEvidence) -> dict[str, frozenset[str]]:
+    """Qualify each declared session runtime; return the files its Ruff launch checked."""
+    runtimes = tuple(item for item in evidence.outputs if item[0].format == "python-runtime-json")
     runtime_sessions: set[str] = set()
     for output, content in runtimes:
         runtime = PythonRuntime.model_validate_json(content)
@@ -360,122 +316,12 @@ def _runtimes(execution: NativeExecution, evidence: NativeEvidence, found: tuple
     if tuple(output for output, _ in checks) != tuple(output for output, _ in runtimes):
         msg = "python_native_dependency_floor_unbound"
         raise ValueError(msg)
+    scopes: dict[str, frozenset[str]] = {}
     for (output, content), (_, check) in zip(runtimes, checks, strict=True):
         runtime = PythonRuntime.model_validate_json(content)
-        runtime.require_floor(root=execution.cwd, content=check)
+        runtime.require_floor(root=root, content=check)
         runtime.require_observer(evidence.observer)
-        runtime.require_checks(execution.cwd, output, evidence.gate.native_outputs)
-    if runtime_sessions != set(found):
-        msg = "python_native_toolchain_unbound"
-        raise ValueError(msg)
-
-
-def report(root: Path, execution: NativeExecution, axis: str) -> dict[str, object]:
-    """Consume the sole native attempt; never invoke another test or static tool."""
-    producer, subjects, evidence = _producer(root, execution)
-    selected = tuple(subject.path for subject in subjects)
-    native: dict[str, object] = {
-        "declared_identity": list(execution.declared_identity),
-        "argv": list(execution.argv),
-        "cwd": str(execution.cwd),
-        "exit_code": execution.exit_code,
-        "stdout": execution.stdout,
-        "stderr": execution.stderr,
-        "same_attempt": True,
-        "artifact": evidence.artifact,
-        "sessions": [session.model_dump() for session in producer.sessions],
-        "structural_validation_is_authentication": False,
-    }
-    observation: dict[str, object] = {
-        "verdict": "pass",
-        "state": "verified",
-        "required_gaps": [],
-        "native": native,
-        "quality_evidence": {
-            "axis": axis,
-            "source_tree": evidence.tree,
-            "selected_paths": list(selected),
-        },
-    }
-    if axis == "static-analysis":
-        for subject in subjects:
-            if subject.requires_authored_analysis:
-                findings = identifier_naming_findings(
-                    (root / subject.path).read_text(encoding="utf-8"), path=subject.path
-                )
-                if findings:
-                    raise ValueError(str(findings[0]["gap"]))
-        findings = _outputs(evidence, "ruff-json")
-        if not findings:
-            msg = "python_native_static_missing"
-            raise ValueError(msg)
-        for _, content in findings:
-            if json.loads(content) != []:
-                msg = "python_native_static_diagnostics"
-                raise ValueError(msg)
-        return observation
-    return _behavior(root, evidence, observation)
-
-
-def _behavior(
-    root: Path, evidence: NativeEvidence, observation: dict[str, object]
-) -> dict[str, object]:
-    """Conjoin native JUnit and coverage for every declared behavior producer."""
-    _, subjects = observe_quality_subjects(root, language="python", expected_tree=evidence.tree)
-    source = tuple(subject.path for subject in subjects if subject.requires_behavior)
-    cast("dict[str, object]", observation["quality_evidence"])["selected_paths"] = list(source)
-    tests = _outputs(evidence, "junit-xml")
-    events = _outputs(evidence, "pytest-jsonl")
-    coverage = _outputs(evidence, "coverage-xml")
-    if not source or not tests or not coverage:
-        msg = "python_native_behavior_missing"
-        raise ValueError(msg)
-    counts = {"total": 0, "failures": 0, "errors": 0, "skipped": 0}
-    covered, total = 0, 0
-    observed_tests: set[str] = set()
-    observed_coverage: set[str] = set()
-    for output, content in tests:
-        selected_events = tuple(
-            event for event_output, event in events if event_output.sessions == output.sessions
-        )
-        measured, failed = junit_stream_report(
-            content.decode("utf-8"),
-            pytest_events=selected_events[0].decode("utf-8") if selected_events else None,
-        )
-        if failed or observed_tests.intersection(output.sessions):
-            msg = "python_native_tests_failed"
-            raise ValueError(msg)
-        observed_tests.update(output.sessions)
-        for key in counts:
-            counts[key] += measured[key]
-    if any(not set(output.sessions) <= observed_tests for output, _ in events):
-        msg = "python_native_pytest_scope_invalid"
-        raise ValueError(msg)
-    for output, content in coverage:
-        measured = coverage_stream_report(
-            content,
-            include_files=True,
-            repository_root=root.resolve(),
-            source_paths=tuple(subject.path for subject in subjects),
-        )
-        files = cast("dict[str, dict[str, int]]", measured["files"])
-        if (
-            observed_coverage.intersection(output.sessions)
-            or any(path not in files for path in source)
-            or any(files[path]["lines"] > 0 and not files[path]["hit_lines"] for path in source)
-        ):
-            msg = "python_native_coverage_scope_incomplete"
-            raise ValueError(msg)
-        observed_coverage.update(output.sessions)
-        covered += cast("int", measured["covered"])
-        total += cast("int", measured["total"])
-    if observed_tests != observed_coverage or not covered:
-        msg = "python_native_coverage_scope_incomplete"
-        raise ValueError(msg)
-    observation["tests"] = counts
-    observation["coverage"] = {
-        "covered": covered,
-        "total": total,
-        "combined_percent": 100 * covered / total,
-    }
-    return observation
+        runtime.require_checks(root, output, evidence.gate.native_outputs)
+        if runtime.ruff is not None:
+            scopes[output.sessions[0]] = runtime.ruff.checked_paths(root)
+    return scopes

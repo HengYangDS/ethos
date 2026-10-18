@@ -193,7 +193,13 @@ def test_public_common_gate_cannot_omit_documentation_identity(tmp_path: Path) -
     commit_fixture(repo, "docs: preserve a decision choice")
 
     observed = run_ethos_raw(
-        "prove", "--host", "--execute", "--gate", "repository-audit", "--json", cwd=repo
+        "prove",
+        "--host",
+        "--execute",
+        "--product-gate",
+        "repository-audit",
+        "--json",
+        cwd=repo,
     )
     report = json.loads(observed.stdout)
 

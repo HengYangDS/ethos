@@ -434,6 +434,7 @@ def test_formation_first_change_binds_the_selected_runtime_origin(
         build=build,
         wheel_sha256="f" * 64,
         environment={"PATH": ""},
+        run=_run,
     )
 
     assert observed == [str(selected_origin)]

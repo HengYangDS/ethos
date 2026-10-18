@@ -56,17 +56,29 @@ Allowed outcomes:
 ```text
 replacement == incumbent
 replacement stricter than incumbent
+replacement corrects an incumbent false finding
 ```
 
 "Stricter" means the replacement preserves every incumbent blocking
 `required_gaps` item and may add additional blocking obligations. A missing
 incumbent blocking gap is a comparative false negative even when the replacement
-records an advisory signal for the same condition.
+records an advisory signal for the same condition, unless a retirement judgment
+admits it as a correction.
+
+A correction drops one incumbent blocking finding that evidence outside the candidate shows
+false: the repository's native tool run on the same subject under the configuration the
+repository accepted before the candidate, or a verifier admitted outside the candidate. The
+candidate's own policy, tests, exemptions or configuration changes never show a finding false.
+The correction names the finding, its subject, the obligation the finding claimed to judge and
+that evidence. It removes the false finding, not the obligation: the replacement still judges
+that subject under that obligation, and every other incumbent blocking gap stays required.
+[DR-0014](../decisions/dr-0014-comparative-correction.md) records why.
 
 Blocking outcomes:
 
 ```text
 replacement misses a required gap
+replacement drops a finding on its own policy, tests, exemptions or configuration
 replacement accepts stale evidence
 replacement turns blocking into advisory
 replacement treats dry-run as live proof
@@ -90,6 +102,7 @@ A retirement judgment must record:
 - which capabilities transition;
 - which surfaces remain adopter-owned;
 - comparative evidence proving the replacement is equivalent or stricter;
+- each admitted correction with its finding, subject, obligation and evidence;
 - profile validation evidence;
 - domain false-negative evidence;
 - exact-head/tree effects and their reachable Git recovery anchor;

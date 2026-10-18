@@ -31,6 +31,7 @@ from ethos.adapters.repo.runtime.materialization.node_package_supply import prod
 from ethos.contracts.verdict import close_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.layout.report import module_layout_report
+from ethos.repository.release.resources import canonical_resource
 
 
 def _observed_output(value: str | bytes | None) -> str:
@@ -136,9 +137,12 @@ def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, objec
         for relative in files:
             source.resolve_target(relative)
         configs = native_configurations(root, "lychee", ".config/checks/lychee/lychee.toml")
+        product_root = canonical_resource()
         for config in configs:
             path = Path(config).resolve()
-            if path.is_relative_to(source.root):
+            if path.is_relative_to(source.root) and not (
+                product_root != source.root and path.is_relative_to(product_root)
+            ):
                 source.read(path.relative_to(source.root).as_posix())
         tool = (
             Path(sys.executable).absolute().with_name("lychee.exe" if os.name == "nt" else "lychee")

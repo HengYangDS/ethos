@@ -15,6 +15,8 @@ from ethos.repository.policy.rules.config import path_matches
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.release.resources import canonical_resource
+from ethos.repository.release.resources import packaged_resource
+from ethos.repository.release.resources import require_packaged_resource
 
 if TYPE_CHECKING:
     import subprocess
@@ -100,6 +102,8 @@ def quality_inventory_failure(
 def native_configurations(root: Path, tool: str, shared: str) -> tuple[str, ...]:
     """The shipped policy is mandatory; repository policy is a native increment."""
     common = canonical_resource(shared)
+    if common == packaged_resource(shared):
+        common = require_packaged_resource(shared)
     selected = native_tool_configuration(tuple(quality_source_files(root)), tool)
     if selected:
         path = root / selected

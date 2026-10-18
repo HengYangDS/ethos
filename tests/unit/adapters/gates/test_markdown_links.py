@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import base64
+import csv
+import hashlib
 import os
 import shutil
 import subprocess
+from importlib.metadata import Distribution
 from pathlib import Path
 
 import pytest
 
 import ethos.adapters.gates.tool as gate_tool
+import ethos.repository.release.resources as product_resources
 from ethos.adapters.gates.tool import markdown_links_report
 from ethos.adapters.repo.content.source import SourceTree
 from ethos.adapters.repo.git import git_executable
@@ -327,3 +332,54 @@ def test_markdown_links_use_declared_installed_supply_without_ambient_lychee(
     assert report["file_count"] == 2
     assert report["source_tree"] == tree
     assert Path(report["native"][0]["command"][0]).is_absolute()
+
+
+@pytest.mark.parametrize("state", ["intact", "changed", "missing"])
+def test_installed_link_policy_retains_its_package_owner_inside_git_common(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, state: str
+) -> None:
+    """Native RECORD owns shipped policy even when its installation is inside the repository."""
+    repo = _repository(tmp_path, "# Links\n\n[Current](README.md)\n")
+    commit_fixture(repo, "declare repository-owned link inputs")
+    package = repo / ".git/ethos/runtime/installed/python/site-packages/ethos"
+    shipped = package / "resources"
+    inputs = {
+        relative: product_resources.canonical_resource(relative).read_bytes()
+        for relative in (
+            ".config/checks/format-selection/policy.toml",
+            ".config/checks/lychee/lychee.toml",
+        )
+    }
+    for relative, content in inputs.items():
+        path = shipped / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+    metadata = package.parent / "ethos-1.0.0.dist-info"
+    metadata.mkdir()
+    (metadata / "METADATA").write_text("Metadata-Version: 2.1\nName: ethos\nVersion: 1.0.0\n")
+    with (metadata / "RECORD").open("w", newline="") as stream:
+        record = csv.writer(stream)
+        for relative, content in inputs.items():
+            digest = base64.urlsafe_b64encode(hashlib.sha256(content).digest()).rstrip(b"=")
+            record.writerow(
+                (f"ethos/resources/{relative}", "sha256=" + digest.decode(), len(content))
+            )
+    monkeypatch.setattr(product_resources, "files", lambda _name: package)
+    monkeypatch.setattr(product_resources, "distribution", lambda _name: Distribution.at(metadata))
+    configuration = shipped / ".config/checks/lychee/lychee.toml"
+    if state == "changed":
+        configuration.write_bytes(configuration.read_bytes() + b"\n# changed\n")
+    elif state == "missing":
+        configuration.unlink()
+    original = {path: path.read_bytes() for path in shipped.rglob("*") if path.is_file()}
+
+    report = markdown_links_report(repo)
+
+    assert report["verdict"] == ("pass" if state == "intact" else "unknown"), report
+    assert report["required_gaps"] == (
+        []
+        if state == "intact"
+        else ["product_resource_integrity_invalid:.config/checks/lychee/lychee.toml"]
+    )
+    assert {path: path.read_bytes() for path in original} == original
+    assert git(repo, "status", "--porcelain") == ""

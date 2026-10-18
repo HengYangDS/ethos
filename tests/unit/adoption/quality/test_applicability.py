@@ -13,6 +13,7 @@ from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_active_commitment
+from tests.support.proof import current_proof_plan
 from tests.support.proof import run_quality_proof
 
 if TYPE_CHECKING:
@@ -52,7 +53,11 @@ def document_repository(tmp_path: Path) -> Path:
         "---\n\n# Handoff\n\n## Evidence\n\nCheck the current source before delivery.\n"
     )
     (repo / "README.md").write_text("# Documents\n\n[Handoff](docs/handoff.md#evidence).\n")
-    commit_fixture(repo, "declare native document proof")
+    commit_fixture(
+        repo,
+        "declare native document proof",
+        format_paths=(".ethos/profile.toml", "openspec/config.yaml"),
+    )
     return repo
 
 
@@ -67,12 +72,13 @@ def test_document_only_profile_executes_both_native_proof_roots(document_reposit
     assert result.returncode == 0, result.stderr or result.stdout
     assert payload["verdict"] == "pass"
     assert payload["required_gaps"] == []
-    assert [check["action_id"] for check in payload["data"]["checks"]] == [
-        "docs-registry",
-        "markdown-links",
-    ]
+    checks = {check["action_id"]: check for check in payload["data"]["checks"]}
+    plan = current_proof_plan(repo, expected_head=head, full=True)
+    assert set(checks) == {node.id for node in plan.nodes}
+    assert {"docs-registry", "markdown-links"} <= checks.keys()
     reports = [
-        json.loads(check["stdout"])["providers"][0]["report"] for check in payload["data"]["checks"]
+        json.loads(checks[gate]["stdout"])["providers"][0]["report"]
+        for gate in ("docs-registry", "markdown-links")
     ]
     assert reports[0]["document_count"] == 1
     assert reports[1]["source_tree"] == git(repo, "rev-parse", "HEAD^{tree}")

@@ -16,6 +16,11 @@ The decisions behind these tasks are recorded in the archived design of `proof-t
 
 ## Decisions
 
+- **Retain one fresh native liveness observation.** Intersect a complete current
+  device/inode observation with the reviewed worktree and external Git index
+  identities instead of repeating the worktree traversal. The native observation
+  and retirement owners retain freshness and failure semantics; source
+  `3291b23d73bf` preserves the original refinement.
 - **Move tasks verbatim with their original identities.** Renumbering was rejected, because commits, Attestations and peer threads already cite these identities.
 - **Carry no requirement delta.** The requirements were accepted when `proof-throughput` archived; restating them here would create a second authority.
 

@@ -43,6 +43,7 @@ if TYPE_CHECKING:
 
 _PACKAGED_GATE_DECLARATION = load_gate_registry_declaration()
 PRODUCT_PROVIDER_SOURCE = "@ethos/"
+_NATIVE_DEPENDENCY_AUDIT_COMMAND = ("python", "-m", "nox", "-s", "vulnerabilities")
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,7 +63,12 @@ class ResolvedGatePolicy:
 
     @property
     def registry(self) -> dict[str, Gate]:
-        return self.declaration.registry(python_executable=self.python_executable)
+        return {
+            identity: _execution_gate(gate, self.acceptance_purpose)
+            for identity, gate in self.declaration.registry(
+                python_executable=self.python_executable
+            ).items()
+        }
 
     @property
     def gate_ids(self) -> tuple[str, ...]:
@@ -425,25 +431,14 @@ def resolve_gate_policy(
         packaged = _PACKAGED_GATE_DECLARATION.registry().keys()
         if requested.isdisjoint(owned) and requested <= packaged:
             declaration, profile = _PACKAGED_GATE_DECLARATION, None
-    if acceptance_purpose == "local-source":
-        declaration = declaration.model_copy(
-            update={
-                "gates": tuple(
-                    gate.model_copy(
-                        update={"command": (*gate.command, "--", "--scope", "local-development")}
-                    )
-                    if native_dependency_audit_scope(gate.model_dump(mode="python"))
-                    == "production-release"
-                    else gate
-                    for gate in declaration.gates
-                )
-            }
-        )
     python_executable = repository_python or sys.executable
-    gates = declaration.proof_gates(
-        gate_ids,
-        full=full,
-        python_executable=python_executable,
+    gates = tuple(
+        _execution_gate(gate, acceptance_purpose)
+        for gate in declaration.proof_gates(
+            gate_ids,
+            full=full,
+            python_executable=python_executable,
+        )
     )
     sources, gaps = (
         bind_gate_source_digests(
@@ -457,7 +452,10 @@ def resolve_gate_policy(
     )
     if acceptance_purpose == "local-source" and any(
         gate.id not in {selected.id for selected in gates}
-        and native_dependency_audit_scope(gate.model_dump(mode="python")) == "local-development"
+        and native_dependency_audit_scope(
+            _execution_gate(gate, acceptance_purpose).model_dump(mode="python")
+        )
+        == "local-development"
         for gate in declaration.proof_gates(full=True, python_executable=python_executable)
     ):
         gaps = (*gaps, "proof_dependency_acceptance_audit_missing")
@@ -494,6 +492,26 @@ def resolve_gate_policy(
     )
 
 
+def _execution_gate(gate: Gate, purpose: AcceptancePurpose) -> Gate:
+    """Bind native audit execution without changing declared quality ownership."""
+    if (
+        purpose == "local-source"
+        and native_dependency_audit_scope(gate.model_dump(mode="python")) == "production-release"
+    ):
+        return gate.model_copy(
+            update={
+                "command": (
+                    gate.command[0],
+                    *_NATIVE_DEPENDENCY_AUDIT_COMMAND[1:],
+                    "--",
+                    "--scope",
+                    "local-development",
+                )
+            }
+        )
+    return gate
+
+
 def canonical_gate_command(command: tuple[str, ...]) -> tuple[str, ...]:
     """Remove only a host-specific absolute Python interpreter path."""
     if not command:
@@ -509,7 +527,7 @@ def native_dependency_audit_scope(gate: Mapping[str, object]) -> AuditScope | No
     if gate.get("tool_adapter") != "vulnerabilities" or not isinstance(command, tuple | list):
         return None
     identity = canonical_gate_command(bind_gate_command(tuple(command), sys.executable))
-    native = ("python", "-m", "nox", "-s", "vulnerabilities")
+    native = _NATIVE_DEPENDENCY_AUDIT_COMMAND
     if identity in (native, (*native, "--", "--scope", "production-release")):
         return "production-release"
     return (

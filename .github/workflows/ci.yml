@@ -78,10 +78,10 @@ jobs:
         run: uv python install --no-bin ${{ matrix.python }}
       - name: Synchronize build-only Python dependencies
         run: uv sync --locked --no-install-project --group dev
-      - name: Prepare locked native Node supply
+      - name: Prepare locked native build supply
         env:
           PYTHONPATH: src
-        run: uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise
+        run: uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale
       - name: Install locked npm packages
         env:
           PYTHONPATH: src
@@ -123,7 +123,7 @@ jobs:
       - name: Synchronize locked Python environment
         run: uv sync --locked --group dev
       - name: Prepare locked native tool supply
-        run: uv run --frozen python -B -m tools.ci.toolchain.native --root . --mise
+        run: uv run --frozen python -B -m tools.ci.toolchain.native --root . --mise vale
       - name: Install locked npm packages
         run: uv run --frozen python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts
       - name: Provision test fixture supply
@@ -177,7 +177,7 @@ jobs:
       - name: Synchronize locked Python environment
         run: uv sync --locked --group dev
       - name: Prepare locked native tool supply
-        run: uv run --frozen python -B -m tools.ci.toolchain.native --root . --mise
+        run: uv run --frozen python -B -m tools.ci.toolchain.native --root . --mise vale
       - name: Install locked npm packages
         run: uv run --frozen python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts
       - name: Provision test fixture supply

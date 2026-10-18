@@ -293,14 +293,12 @@ def _admit_content(root: Path, request: RetirementOperation) -> None:
         ):
             _fail("retirement_content_review_required")
         return
-    nodes = (expected["root"], expected["index"], *expected["entries"].values())
-    identities = {(int(node["identity"][0]), int(node["identity"][1])) for node in nodes}
-    if identities & process_file_identities(
-        root, tree=Path(request.worktree_path), index=Path(str(expected["index_path"]))
-    ):
-        _fail("retirement_content_in_use")
     verify_reviewed_content(
-        Path(request.worktree_path), cast("dict[str, object]", mutable_json(expected))
+        Path(request.worktree_path),
+        cast("dict[str, object]", mutable_json(expected)),
+        open_identities=process_file_identities(
+            root, tree=Path(request.worktree_path), index=Path(str(expected["index_path"]))
+        ),
     )
 
 

@@ -62,7 +62,7 @@ def _serve(monkeypatch: pytest.MonkeyPatch, payload: bytes) -> list[tuple[str, .
         target.write_bytes(payload)
         target.chmod(0o755)
 
-    monkeypatch.setattr(native, "download", download)
+    monkeypatch.setattr(native, "download_tool", download)
     return requests
 
 

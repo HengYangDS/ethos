@@ -75,6 +75,7 @@ def _prove(root: Path, expected: str, proof: Path, diagnostics: Path) -> tuple[i
                 "gitleaks",
                 "scc",
                 "syft",
+                "vale",
             ),
             cwd=root,
             stdout=subprocess.PIPE,

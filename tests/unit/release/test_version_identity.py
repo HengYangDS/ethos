@@ -21,6 +21,7 @@ import pytest
 from hatchling.builders.sdist import SdistBuilder
 from packaging.version import Version
 
+from ethos.adapters.repo.runtime.materialization.native_supply import NativeSupply
 from ethos.adapters.repo.runtime.materialization.node.supply import NodeSupply
 from ethos.adapters.repo.runtime.materialization.node_package_supply import (
     resolve_node_package_supply,
@@ -55,7 +56,7 @@ def test_version_file_is_the_single_product_owner_and_manifests_are_projections(
 
 @pytest.fixture
 def _native_build_supply(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Bind one verified test-owned archive without embedding or downloading it."""
+    """Bind verified Node and Vale archives without embedding or downloading supply."""
     root = Path.cwd()
     supply = NodeSupply.read(root)
     cache = tmp_path / "native-supply"
@@ -64,6 +65,12 @@ def _native_build_supply(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     archive = supply.cache(root) / supply.archive
     supply.verify_archive(archive)
     shutil.copyfile(archive, selected / supply.archive)
+    native = NativeSupply.read(root, "vale")
+    native_archive = native.cache(root) / native.archive
+    native.payload_bytes(native_archive)
+    selected_native = cache / native.name / native.version / native.platform
+    selected_native.mkdir(parents=True)
+    shutil.copyfile(native_archive, selected_native / native.archive)
     monkeypatch.setenv("ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR", str(cache))
 
 

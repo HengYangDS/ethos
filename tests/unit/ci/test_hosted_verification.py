@@ -29,6 +29,7 @@ def hosted_proof_transport(tmp_path_factory: pytest.TempPathFactory) -> Path:
         " stream.write(json.dumps(sys.argv[1:])+'\\n')\n"
         "case = json.loads(pathlib.Path('proof-case.json').read_text())\n"
         "assert pathlib.Path('.syft-prepared').is_file()\n"
+        "assert pathlib.Path('.vale-prepared').is_file()\n"
         "scanner = subprocess.check_output(['gitleaks', 'version'], text=True)\n"
         "assert scanner.strip() == 'fixture-scanner'\n"
         "expected = 'run --frozen --offline python -B -I -m ethos.cli prove'.split()\n"
@@ -51,7 +52,8 @@ def hosted_proof_transport(tmp_path_factory: pytest.TempPathFactory) -> Path:
         f"#!{sys.executable}\n"
         "import json, os, pathlib, subprocess, sys\n"
         "bodies = json.loads(pathlib.Path('supply-case.json').read_text())\n"
-        "assert sys.argv[1:] == ['--root', os.getcwd(), '--mise', 'gitleaks', 'scc', 'syft']\n"
+        "assert sys.argv[1:] == "
+        "['--root', os.getcwd(), '--mise', 'gitleaks', 'scc', 'syft', 'vale']\n"
         "for body in bodies:\n"
         " result = subprocess.run(['/bin/sh', '-c', body])\n"
         " if result.returncode: sys.exit(result.returncode)\n"
@@ -96,6 +98,7 @@ def _hosted_supply(
     supply_script: str,
     scanner_script: str = "exit 0\n",
     sbom_script: str = "touch .syft-prepared\n",
+    vale_script: str = "touch .vale-prepared\n",
 ) -> None:
     """Bind the repository runtime and native supply owner to isolated fixtures."""
     interpreter = repo / ".venv/bin/python"
@@ -104,7 +107,9 @@ def _hosted_supply(
     path = repo / "tools/ci/toolchain/native.py"
     path.parent.mkdir(parents=True)
     path.symlink_to(transport.with_name("prepare"))
-    (repo / "supply-case.json").write_text(json.dumps([scanner_script, supply_script, sbom_script]))
+    (repo / "supply-case.json").write_text(
+        json.dumps([scanner_script, supply_script, sbom_script, vale_script])
+    )
 
 
 def _run_hosted(
@@ -275,7 +280,7 @@ def test_hosted_receipt_requires_exact_executed_observation(
     ) in summary
 
 
-@pytest.mark.parametrize("failed_tool", ["scc", "gitleaks", "syft"])
+@pytest.mark.parametrize("failed_tool", ["scc", "gitleaks", "syft", "vale"])
 def test_tool_supply_failure_precedes_proof_and_clears_stale_evidence(
     tmp_path: Path,
     failed_tool: str,
@@ -289,7 +294,10 @@ def test_tool_supply_failure_precedes_proof_and_clears_stale_evidence(
     _hosted_supply(
         repo,
         hosted_proof_transport,
-        *(failure if name == failed_tool else "exit 0\n" for name in ("scc", "gitleaks", "syft")),
+        *(
+            failure if name == failed_tool else "exit 0\n"
+            for name in ("scc", "gitleaks", "syft", "vale")
+        ),
     )
     evidence = repo / "build/evidence/quality"
     stale = (

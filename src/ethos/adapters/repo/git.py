@@ -99,6 +99,7 @@ def run_git(
     text: Literal[True] = True,
     observation: bool = False,
     timeout: float | None = None,
+    spool_stdout: bool = False,
 ) -> subprocess.CompletedProcess[str]: ...
 
 
@@ -112,6 +113,7 @@ def run_git(
     text: Literal[False],
     observation: bool = False,
     timeout: float | None = None,
+    spool_stdout: bool = False,
 ) -> subprocess.CompletedProcess[bytes]: ...
 
 
@@ -124,6 +126,7 @@ def run_git(
     text: bool = True,
     observation: bool = False,
     timeout: float | None = None,
+    spool_stdout: bool = False,
 ) -> subprocess.CompletedProcess[Any]:
     """Run one Git command and preserve the complete subprocess result."""
     if observation and env:
@@ -166,6 +169,7 @@ def run_git(
             inherit_environment=False,
             stdin=stdin,
             timeout=timeout,
+            spool_stdout=spool_stdout,
         )
     except subprocess.TimeoutExpired as error:
         raise _timeout_error(root, command, error) from error

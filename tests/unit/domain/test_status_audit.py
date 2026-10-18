@@ -6,11 +6,13 @@ from pathlib import Path
 import pytest
 
 import ethos.domain.status as status
+from tests.support.documentation import decision_fixture
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_paradigm_toolchain
+from tests.support.paradigm import PARADIGM_OPENSPEC_CONFIG
 
 
 def test_product_source_audit_does_not_observe_local_hook_runtime(
@@ -56,7 +58,7 @@ def _adopter(root: Path, *, registry: bool) -> Path:
         encoding="utf-8",
     )
     (repo / "openspec/specs").mkdir(parents=True)
-    (repo / "openspec/config.yaml").write_text("schema: spec-driven\n", encoding="utf-8")
+    (repo / "openspec/config.yaml").write_text(PARADIGM_OPENSPEC_CONFIG, encoding="utf-8")
     return repo
 
 
@@ -139,11 +141,18 @@ def test_common_audit_enforces_the_selected_documentation_owner(
     handbook = repo / "handbook/rulings"
     handbook.mkdir(parents=True)
     decision = handbook / "dr-0006-supply-choice.md"
-    decision.write_text(_document("sample:supply-choice", "decision", "Supply Choice"))
+    decision.write_text(decision_fixture("DR-0006", subject="sample:supply-choice"))
     report = status.audit_for_root(repo)
     assert report["verdict"] == "pass", report
+    assert report["docs"]["document_count"] == 0
+
+    git(repo, "add", "--", "handbook")
+    report = status.audit_for_root(repo)
+    assert report["verdict"] == "pass", report
+    assert report["docs"]["document_count"] == 1
 
     decision.rename(handbook / "supply-choice.md")
+    git(repo, "add", "--all", "--", "handbook")
     report = status.audit_for_root(repo)
     assert report["verdict"] == "block", report
     gaps = report["required_gaps"]
@@ -154,7 +163,11 @@ def test_common_audit_enforces_the_selected_documentation_owner(
     assert docs["document_count"] == 1
 
     (handbook / "supply-choice.md").rename(decision)
+    git(repo, "add", "--all", "--", "handbook")
+    assert status.audit_for_root(repo)["verdict"] == "pass"
+
     (handbook / "explanation.md").write_text(_document("sample:supply", "explanation", "Supply"))
+    git(repo, "add", "--", "handbook")
     report = status.audit_for_root(repo)
     gaps = report["required_gaps"]
     assert isinstance(gaps, list)
@@ -164,6 +177,10 @@ def test_common_audit_enforces_the_selected_documentation_owner(
         _document("sample:rulings", "index", "Rulings")
         + "\nRead [the choice](dr-0006-supply-choice.md) and [explanation](explanation.md).\n"
     )
+    git(repo, "add", "--", "handbook")
+    assert status.audit_for_root(repo)["verdict"] == "pass"
+
+    (handbook / "unselected.md").write_text("malformed residue\n")
     assert status.audit_for_root(repo)["verdict"] == "pass"
 
 

@@ -7,7 +7,8 @@
 ## What Changes
 
 - Continue the listed tasks with their original identities, states, acceptance conditions, dependencies and evidence references, moved verbatim.
-- Add no requirement. Each task implements a requirement already accepted through `proof-throughput`.
+- Preserve the requirements already accepted through `proof-throughput`.
+- Add the unaccepted reader-route and decision-carrier scenarios through a complete `repository-governance` MODIFIED delta; do not insert new intent into the archived Change.
 
 ## Capabilities
 
@@ -17,8 +18,8 @@
 
 ### Modified Capabilities
 
-- None. The behavior these tasks implement is specified by the accepted specifications.
+- `repository-governance`: declared normative reader routes and consistent decision identity, disposition and rationale under the shared native documentation owner.
 
 ## Impact
 
-Code, tests and evidence owned by these tasks. Original execution history remains in Git, in the archived design of `proof-throughput`, and with its native evidence owners.
+The shared Docs Registry, retained decision records, documentation navigation and their native tests; ETHOS and unchanged adopter consumers retain the same common floor. Code, tests and evidence remain owned by these tasks. Original execution history remains in Git, in the archived design of `proof-throughput`, and with its native evidence owners.

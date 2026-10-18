@@ -63,7 +63,7 @@ def test_hosted_bootstrap_rechecks_cached_tools_with_current_checkout_code() -> 
         "uv sync --locked --offline --no-build-isolation --group dev",
         (
             "uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise "
-            "gitleaks scc syft"
+            "vale gitleaks scc syft"
         ),
         (
             "uv run --frozen --offline python -B -m tools.ci.toolchain.npm --seed ci "

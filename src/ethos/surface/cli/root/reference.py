@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 from ethos.adapters.repo.git import git_files
+from ethos.adapters.repo.git import git_stdout
 from ethos.repository.registry.docs.health import docs_health_report
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def _live_cyclopts_command(tokens: list[str]) -> str:
@@ -26,8 +24,11 @@ def _live_cyclopts_command(tokens: list[str]) -> str:
 def docs_registry_report(root: Path) -> dict[str, object]:
     """Validate docs metadata and examples against the live command surface."""
     load_command_groups([])
+    repository = git_stdout(root, "rev-parse", "--show-toplevel")
     return docs_health_report(
         root,
         command_validator=_live_cyclopts_command,
-        tracked_documents=tuple(git_files(root, "*.md")),
+        tracked_documents=tuple(git_files(root, "*.md"))
+        if repository and Path(repository).resolve() == root.resolve()
+        else None,
     )

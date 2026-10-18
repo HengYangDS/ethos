@@ -243,6 +243,7 @@ def read_objects(
         text=False,
         check=False,
         observation=True,
+        spool_stdout=True,
     )
     if result.returncode != 0:
         raise ValueError(gap)

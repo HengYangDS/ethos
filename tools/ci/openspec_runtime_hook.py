@@ -36,7 +36,9 @@ class OpenSpecRuntimeHook(BuildHookInterface):
         identity_bytes, distribution_version = _build_identity_payload(root)
         if version not in {"standard", distribution_version}:
             _distribution_identity_mismatch()
-        owned = tempfile.TemporaryDirectory(prefix="ethos-build-identity-")
+        owned = tempfile.TemporaryDirectory(
+            prefix="ethos-build-identity-", dir=Path(tempfile.gettempdir()).resolve(strict=True)
+        )
         self._owned_identity = owned
         try:
             identity_file = Path(owned.name) / "identity.json"
@@ -70,6 +72,10 @@ class OpenSpecRuntimeHook(BuildHookInterface):
             if self.target_name == "wheel":
                 native, tag = _node_projection(root, Path(owned.name) / "native")
                 build_data["force_include"][str(native)] = (Path(resource_root) / "node").as_posix()
+                tool = _native_tool_projection(root, Path(owned.name) / "vale")
+                build_data["force_include"][str(tool)] = (
+                    Path(resource_root) / "native/vale"
+                ).as_posix()
                 build_data.update(pure_python=False, tag=tag)
             for relative in production_roots:
                 target = modules / relative
@@ -121,6 +127,13 @@ def _node_projection(root: Path, directory: Path) -> tuple[Path, str]:
         supply = owner.NodeSupply.read(root)
         native = supply.project(supply.cache(root) / supply.archive, directory, bootstrap_npm=False)
         return native, supply.tag
+
+
+def _native_tool_projection(root: Path, directory: Path) -> Path:
+    """Project cached native policy tools without downloading or running their installer."""
+    with _source_module(root, "ethos.adapters.repo.runtime.materialization.native_supply") as owner:
+        supply = owner.NativeSupply.read(root, "vale")
+        return supply.project(supply.cache(root) / supply.archive, directory)
 
 
 def _distribution_identity_mismatch() -> None:

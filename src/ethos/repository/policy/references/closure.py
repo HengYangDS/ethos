@@ -412,9 +412,11 @@ def _superseded_current_carriers(
     if not (root / "docs").is_dir():
         return []
     try:
-        registry = build_docs_registry(root)
+        registry = build_docs_registry(root, selected_documents=tuple(files))
     except ValueError as exc:
-        if not str(exc).startswith(("docs_metadata_invalid:", "projection_")):
+        if not str(exc).startswith(
+            ("docs_metadata_invalid:", "docs_source_unavailable:", "projection_")
+        ):
             raise
         return [
             SemanticClosureFinding(

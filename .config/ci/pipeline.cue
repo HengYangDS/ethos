@@ -58,7 +58,7 @@ let bootstrapCommands = {
 		"uv run --frozen\(offline) python -B -m tools.ci.toolchain.commit_trust",
 	]
 }
-let githubBootstrap = (bootstrapCommands & {offline: "", isolation: "", tools: "", npm: ""}).out
+let githubBootstrap = (bootstrapCommands & {offline: "", isolation: "", tools: " vale", npm: ""}).out
 let githubBootstrapNames = [
 	"Synchronize build-only Python dependencies",
 	"Synchronize locked Python environment",
@@ -72,7 +72,7 @@ let githubBootstrapNames = [
 let gitlabBootstrap = list.Concat([["sha256sum --check --quiet \"$ETHOS_CI_SUPPLY_MANIFEST\""], (bootstrapCommands & {
 	offline:   " --offline"
 	isolation: " --no-build-isolation"
-	tools:     " gitleaks scc syft"
+	tools:     " vale gitleaks scc syft"
 	npm:       " --offline"
 }).out])
 let githubPythonBootstrap = list.Concat([[{
@@ -203,9 +203,9 @@ github: {
 				name: "Synchronize build-only Python dependencies"
 				run:  "uv sync --locked --no-install-project --group dev"
 			}, {
-				name: "Prepare locked native Node supply"
+				name: "Prepare locked native build supply"
 				env: PYTHONPATH: "src"
-				run: "uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise"
+				run: "uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale"
 			}, {
 				name: "Install locked npm packages"
 				env: PYTHONPATH: "src"

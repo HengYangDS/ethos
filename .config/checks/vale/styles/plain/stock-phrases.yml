@@ -1,0 +1,15 @@
+---
+extends: existence
+message: "Replace '%s' with the specific claim it is meant to convey."
+level: error
+ignorecase: true
+scope: text
+tokens:
+  - rich tapestry of insights
+tests:
+  - name: diagnosed stock phrase fires
+    input: This offers a rich tapestry of insights.
+    contains: "Replace 'rich tapestry of insights'"
+  - name: concrete explanation remains valid
+    input: This comparison identifies the changed values and their limits.
+    want: ""

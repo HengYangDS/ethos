@@ -35,7 +35,7 @@ ethos:commit-policy:
     - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
     - uv sync --locked --offline --no-install-project --group dev
     - uv sync --locked --offline --no-build-isolation --group dev
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise gitleaks scc syft
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
     - uv run --frozen --offline python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
     - uv run --frozen --offline python -B -I tools/ci/toolchain/fixture_supply.py .
     - uv run --frozen --offline python -B -m tools.ci.toolchain.commit_trust
@@ -67,7 +67,7 @@ ethos:host-conformance:
     - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
     - uv sync --locked --offline --no-install-project --group dev
     - uv sync --locked --offline --no-build-isolation --group dev
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise gitleaks scc syft
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
     - uv run --frozen --offline python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
     - uv run --frozen --offline python -B -I tools/ci/toolchain/fixture_supply.py .
     - uv run --frozen --offline python -B -m tools.ci.toolchain.commit_trust
@@ -93,7 +93,7 @@ ethos:verify:
     - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
     - uv sync --locked --offline --no-install-project --group dev
     - uv sync --locked --offline --no-build-isolation --group dev
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise gitleaks scc syft
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
     - uv run --frozen --offline python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
     - uv run --frozen --offline python -B -I tools/ci/toolchain/fixture_supply.py .
     - uv run --frozen --offline python -B -m tools.ci.toolchain.commit_trust
@@ -144,7 +144,7 @@ ethos:external-links:
     - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
     - uv sync --locked --offline --no-install-project --group dev
     - uv sync --locked --offline --no-build-isolation --group dev
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise gitleaks scc syft
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
     - uv run --frozen --offline python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
     - uv run --frozen --offline python -B -I tools/ci/toolchain/fixture_supply.py .
     - uv run --frozen --offline python -B -m tools.ci.toolchain.commit_trust
@@ -172,7 +172,7 @@ ethos:npm:
     - sha256sum --check --quiet "$ETHOS_CI_SUPPLY_MANIFEST"
     - uv sync --locked --offline --no-install-project --group dev
     - uv sync --locked --offline --no-build-isolation --group dev
-    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise gitleaks scc syft
+    - uv run --frozen --offline python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft
     - uv run --frozen --offline python -B -m tools.ci.toolchain.npm --seed ci --ignore-scripts --offline
     - uv run --frozen --offline python -B -I tools/ci/toolchain/fixture_supply.py .
     - uv run --frozen --offline python -B -m tools.ci.toolchain.commit_trust

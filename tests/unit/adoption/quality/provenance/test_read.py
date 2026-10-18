@@ -9,6 +9,7 @@ import tomli_w
 
 import ethos.adapters.gates.provenance.observation as source_observation
 import ethos.adapters.repo.content.observation as content_observation
+import ethos.adapters.repo.content.source as source_tree
 import ethos.repository.profile as profile_model
 from ethos.adapters.repo.git import run_git
 from tests.support.governed_repository import commit_fixture
@@ -101,7 +102,7 @@ def test_source_tree_has_one_aggregate_input_budget(
         relations += (("second.py", "outputs/second.py", content),)
     metadata = _bind_source_inputs(repo, relations)
     budget = sum(path.stat().st_size for path in metadata) + 3 * len(content)
-    monkeypatch.setattr(source_observation, "_MAX_OBSERVATION_BYTES", budget)
+    monkeypatch.setattr(source_tree, "MAX_OBSERVATION_BYTES", budget)
     reads = []
 
     def observe_git(root, *args, **kwargs):
@@ -110,7 +111,7 @@ def test_source_tree_has_one_aggregate_input_budget(
             reads.append(args[1].partition(":")[2])
         return result
 
-    monkeypatch.setattr(source_observation, "run_git", observe_git)
+    monkeypatch.setattr(source_tree, "run_git", observe_git)
     report = source_observation.integrity_report(repo)
     assert reads.count("first.py") == 1
     if source_count == 1:
@@ -163,7 +164,7 @@ def test_source_profile_is_bounded_before_native_parsing(
     profile.parent.mkdir()
     profile.write_text('profile_id = "example"\n#' + "x" * 256)
     commit_fixture(repo, "bind an over-budget native profile")
-    monkeypatch.setattr(source_observation, "_MAX_MEMBER_BYTES", 128)
+    monkeypatch.setattr(source_tree, "MAX_MEMBER_BYTES", 128)
 
     def oversized_parse(_text: str):
         pytest.fail("an over-budget profile must not reach its native parser")
@@ -212,8 +213,8 @@ def test_source_observation_binds_one_unchanged_committed_tree(
     elif fault == "changed":
         (repo / "member.py").write_bytes(b"y")
     else:
-        heads = iter((source_observation.current_tracked_head(repo), "0" * 40))
-        monkeypatch.setattr(source_observation, "current_tracked_head", lambda _root: next(heads))
+        heads = iter((source_tree.current_tracked_head(repo), "0" * 40))
+        monkeypatch.setattr(source_tree, "current_tracked_head", lambda _root: next(heads))
     report = source_observation.integrity_report(repo)
     reason = {
         "absent": "source_member_unavailable:outputs/member.py",

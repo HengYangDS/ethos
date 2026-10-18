@@ -20,12 +20,13 @@ import pytest
 from filelock import FileLock
 from filelock import Timeout
 
+import ethos.adapters.repo.runtime.materialization.native_supply as native_supply
 import tools.ci.toolchain.native as native
 from ethos.adapters.process import run_command
+from ethos.adapters.repo.runtime.materialization.native_supply import NativeSupply
 from tests.support.architecture import isolated_path
 from tests.support.architecture import write_reference_source
 from tests.support.subprocesses import ready_descendant
-from tools.ci.toolchain.native import NativeSupply
 
 if TYPE_CHECKING:
     import subprocess
@@ -68,6 +69,9 @@ def _native_supply(
         archive.addfile(entry, io.BytesIO(body) if entry.isfile() else None)
         if fault == "duplicate":
             archive.addfile(entry, io.BytesIO(body))
+        license_member = tarfile.TarInfo("LICENSE")
+        license_member.size = len(b"Publisher license\n")
+        archive.addfile(license_member, io.BytesIO(b"Publisher license\n"))
     digest = hashlib.sha256(package.read_bytes()).hexdigest()
     owner = {"scc": "boyter", "gitleaks": "gitleaks", "syft": "anchore"}[tool]
     backend = f"github:{owner}/{tool}"
@@ -78,7 +82,7 @@ def _native_supply(
     (repo / ".config/mise/mise.lock").write_text(
         f'lockfile_version = 3\n[[tools."{backend}"]]\nversion = "{version}"\n'
         f'[tools."{backend}"."platforms.{target}"]\nchecksum = "sha256:{checksum}"\n'
-        f'url = "https://github.com/fixture/{tool}/releases/download/v{version}/fixture.tar.gz"\n'
+        f'url = "https://github.com/{owner}/{tool}/releases/download/v{version}/fixture.tar.gz"\n'
     )
     transfer_log = tmp_path / "transfer.log"
     scripts["mise"] = (
@@ -200,7 +204,7 @@ def test_native_supply_converges_concurrently_reuses_identity_and_repairs_damage
     assert not list(executable.parent.glob(".prepare-*"))
 
 
-@pytest.mark.parametrize(("system", "machine"), [("Windows", "AMD64"), ("Linux", "unknown")])
+@pytest.mark.parametrize(("system", "machine"), [("Windows", "unknown"), ("Linux", "unknown")])
 def test_native_supply_rejects_unsupported_targets_before_creating_cache(
     tmp_path, monkeypatch, system, machine
 ):
@@ -208,7 +212,7 @@ def test_native_supply_rejects_unsupported_targets_before_creating_cache(
     monkeypatch.setattr(platform, "system", lambda: system)
     monkeypatch.setattr(platform, "machine", lambda: machine)
     with pytest.raises(ValueError, match="native_tool_platform_unsupported"):
-        native.prepare(tmp_path, "gitleaks")
+        native_supply.materialize_tool(tmp_path, "gitleaks")
     assert not (tmp_path / "build").exists()
 
 
@@ -216,7 +220,7 @@ def test_native_supply_lock_timeout_preserves_bytes_and_scratch(tmp_path):
     """A contending caller has a bounded wait, not permission to bypass the writer."""
     _invoke, executable, _package, _body = _native_supply(tmp_path, "scc")
     with FileLock(executable.parent / ".prepare.lock"), pytest.raises(Timeout):
-        native.prepare(tmp_path / "repo", "scc", lock_timeout=0.01)
+        native_supply.materialize_tool(tmp_path / "repo", "scc", lock_timeout=0.01)
     assert executable.read_text() == "retained-but-untrusted"
     assert not list(executable.parent.glob(".prepare-*"))
     assert not (tmp_path / "transfer.log").exists()
@@ -248,7 +252,7 @@ def _serve_mise(monkeypatch: pytest.MonkeyPatch, payload: bytes) -> None:
     def download(command: tuple[str, ...], **_options: object) -> None:
         Path(command[command.index("--output") + 1]).write_bytes(payload)
 
-    monkeypatch.setattr(native, "download", download)
+    monkeypatch.setattr(native, "download_tool", download)
 
 
 def test_mise_version_observation_disables_nonsemantic_update_notices(
@@ -295,13 +299,13 @@ def test_manifest_bound_native_tool_supply_does_not_download_on_a_cold_cache(
     _invoke, executable, _archive, _body = _native_supply(tmp_path, "scc")
     monkeypatch.setenv("ETHOS_CI_SUPPLY_MANIFEST", "/opt/ethos-supply/input.sha256")
     monkeypatch.setattr(
-        native,
-        "download",
+        native_supply,
+        "download_tool",
         lambda *_args, **_kwargs: pytest.fail("hosted job attempted a network download"),
     )
 
     with pytest.raises(ValueError, match="native_tool_offline_cache_missing:scc"):
-        native.prepare(tmp_path / "repo", "scc")
+        native_supply.materialize_tool(tmp_path / "repo", "scc")
     assert executable.read_text() == "retained-but-untrusted"
     assert not list(executable.parent.glob(".prepare-*"))
 
@@ -332,21 +336,21 @@ def test_native_supply_timeout_drains_descendants_before_cleanup(
 
         def execute():
             if boundary == "download":
-                return native.download((str(executable),), root=tmp_path, timeout=0.5)
+                return native_supply.download_tool((str(executable),), root=tmp_path, timeout=0.5)
             if boundary == "verify":
                 return NativeSupply.read(ROOT, "scc").verify(executable)
             _bootstrap_source(tmp_path)
             monkeypatch.setattr(native.shutil, "which", lambda _name: None)
-            staged = native.download
+            staged = native.download_tool
             monkeypatch.setattr(
                 native,
-                "download",
+                "download_tool",
                 lambda _command, *, root: staged((str(executable),), root=root, timeout=0.5),
             )
             return native.prepare_mise(tmp_path)
 
         monkeypatch.setattr(sys, "argv", ["native", "--root", str(tmp_path), "scc"])
-        monkeypatch.setattr(native, "prepare", lambda *_args, **_kwargs: execute())
+        monkeypatch.setattr(native, "materialize_tool", lambda *_args, **_kwargs: execute())
         assert native.main() == 1
         captured = capsys.readouterr()
         assert captured.out == ""
@@ -383,7 +387,7 @@ def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(
             raise native.subprocess.CalledProcessError(23, command, stderr="bootstrap-failed")
         Path(command[command.index("--output") + 1]).write_text(body)
 
-    monkeypatch.setattr(native, "download", download)
+    monkeypatch.setattr(native, "download_tool", download)
     home = tmp_path / "build/runtime/tool-cache/ci-tools"
     if source == "persistent-cache":
         home, source = tmp_path / "supply", "cache"
@@ -402,7 +406,7 @@ def test_mise_bootstrap_is_bounded_and_preserves_existing_supply(
         or (source == "cache" and fault == "failure")
     )
     prepared = Mock(return_value=target.parent)
-    monkeypatch.setattr(native, "prepare", prepared)
+    monkeypatch.setattr(native, "materialize_tool", prepared)
     monkeypatch.setattr(sys, "argv", ["native", "--root", str(tmp_path), "--mise", "scc"])
     assert native.main() == (0 if accepted else 1)
     expected = (

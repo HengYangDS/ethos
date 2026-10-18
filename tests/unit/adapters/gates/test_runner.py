@@ -19,6 +19,7 @@ from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_policy_fields
 from ethos.repository.policy.quality.obligations import quality_obligation_gaps
+from tests.support.governed_repository import committed_source_repo
 
 
 def _gate(*providers: str) -> Gate:
@@ -48,7 +49,16 @@ def test_runner_transports_one_deadline_to_native_and_provider_execution(
         budgets.append(timeout_seconds)
         return {"verdict": "pass"}
 
-    def command(_root: Path, argv: tuple[str, ...], *, timeout: float | None = None):
+    def command(
+        _root: Path,
+        argv: tuple[str, ...],
+        *,
+        timeout: float | None = None,
+        env: dict[str, str] | None = None,
+        remove_env: tuple[str, ...] = (),
+    ):
+        assert env is None
+        assert remove_env == ()
         budgets.append(timeout)
         return subprocess.CompletedProcess(argv, 0, "", "")
 
@@ -347,28 +357,32 @@ def test_quality_tool_public_failure_matrix(
 def test_markdown_link_gate_excludes_deleted_tracked_paths(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """A staged or unstaged deletion is not an input to the link checker."""
-    (tmp_path / "README.md").write_text("# Current\n", encoding="utf-8")
-    monkeypatch.setattr(
-        gate_tool,
-        "git_files",
-        lambda *_args: ["README.md", "docs/deleted.md"],
+    """Missing selected source fails before the native checker can omit it."""
+    repo = committed_source_repo(
+        tmp_path,
+        {
+            ".config/checks/lychee/lychee.toml": "offline = true\n",
+            "README.md": "# Current\n",
+            "docs/deleted.md": "# Deleted\n",
+        },
     )
-    monkeypatch.setattr(gate_tool.shutil, "which", lambda _tool: "/bin/lychee")
-    observed: list[list[str]] = []
+    (repo / "docs/deleted.md").unlink()
+    observed: list[tuple[str, ...]] = []
 
-    def run(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+    def run(
+        _root: Path, command: tuple[str, ...], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
         observed.append(command)
         return subprocess.CompletedProcess(command, 0, "", "")
 
-    monkeypatch.setattr(gate_tool.subprocess, "run", run)
+    monkeypatch.setattr(gate_tool, "run_command", run)
 
-    report = gate_tool.markdown_links_report(tmp_path)
+    report = gate_tool.markdown_links_report(repo)
 
-    assert report["verdict"] == "pass"
-    assert report["file_count"] == 1
-    assert observed[0][-1] == "README.md"
-    assert "docs/deleted.md" not in observed[0]
+    assert report["verdict"] == "unknown", report
+    assert report["file_count"] == 3
+    assert report["required_gaps"] == ["source_member_link_or_type_forbidden:docs/deleted.md"]
+    assert not observed
 
 
 def test_command_gate_executes_declared_python_not_ambient_canonical_identity(

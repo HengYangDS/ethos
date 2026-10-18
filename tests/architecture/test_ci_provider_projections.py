@@ -163,7 +163,7 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(tmp_path) -> N
     } <= copy_sources
     # The fixture's own uv settings, including its prerelease policy, bind its lock.
     assert "uv --directory /tmp/ethos-quality-sample sync --locked --group dev" in dockerfile
-    native_command = "tools/ci/toolchain/native.py --root . --mise gitleaks scc syft"
+    native_command = "tools/ci/toolchain/native.py --root . --mise gitleaks scc syft vale"
     assert f"PYTHONPATH=src .venv/bin/python {native_command}" in dockerfile
     for relative in copy_sources:
         target = tmp_path / relative
@@ -202,7 +202,7 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(tmp_path) -> N
     assert selected.stdout.strip() == str(tmp_path / "tool-cache")
     smoke = dockerfile.split("FROM supply AS smoke\n", 1)[1].replace("\\\n", " ")
     assert "RUN --network=none" in smoke
-    assert "python -B -m tools.ci.toolchain.native --root . --mise gitleaks scc syft" in smoke
+    assert "python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft" in smoke
     assert "test_real_locked_python_checks_qualify_the_selected_source[inline-none]" in smoke
 
 
@@ -350,7 +350,7 @@ def test_host_conformance_receives_native_python_supply_before_activation(github
     preparation = [
         "uv python install --no-bin ${{ matrix.python }}",
         "uv sync --locked --no-install-project --group dev",
-        "uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise",
+        "uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale",
         "uv sync --locked --group dev",
         "uv run --frozen python -m nox -s host_conformance",
         "uv run --frozen python -m nox -s javascript_tests",

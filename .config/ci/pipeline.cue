@@ -148,8 +148,9 @@ github: {
 					ref:           githubSourceSHA
 				}
 			}, {
+				// A build check reads every stage, so the smoke stage's named context must resolve.
 				name: "Check the supply definition"
-				run:  "docker buildx build --check --platform linux/arm64 --file \(supplyDockerfile) ."
+				run:  "docker buildx build --check --platform linux/arm64 --file \(supplyDockerfile) --build-context workspace=. ."
 			}, {
 				// The smoke stage runs this checkout offline as the image's unprivileged user.
 				name: "Accept the supply offline against this checkout"

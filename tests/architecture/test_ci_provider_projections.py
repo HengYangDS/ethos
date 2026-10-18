@@ -91,6 +91,9 @@ def test_dual_forge_projections_share_native_compilation(github, gitlab) -> None
     assert "External links" not in [step.get("name") for step in jobs["quality"]["steps"]]
     supply = [step.get("run", "") for step in github["jobs"]["supply-image"]["steps"]]
     assert any("--target smoke --build-context workspace=." in command for command in supply)
+    # A build check reads every stage, so the smoke stage's named context must resolve too.
+    check = next(command for command in supply if " --check " in command)
+    assert "--build-context workspace=." in check
     assert "UV_OFFLINE=true" not in str(github["jobs"]["supply-image"])
     assert sum("actions/checkout@" in step.get("uses", "") for step in steps) == 1
     assert not any(

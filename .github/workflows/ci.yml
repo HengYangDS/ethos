@@ -34,7 +34,7 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Check the supply definition
-        run: docker buildx build --check --platform linux/arm64 --file .config/ci/supply/Dockerfile .
+        run: docker buildx build --check --platform linux/arm64 --file .config/ci/supply/Dockerfile --build-context workspace=. .
       - name: Accept the supply offline against this checkout
         run: docker buildx build --platform linux/arm64 --file .config/ci/supply/Dockerfile --target smoke --build-context workspace=. .
       - name: Build the supply image

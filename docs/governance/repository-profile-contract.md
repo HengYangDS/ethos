@@ -143,10 +143,15 @@ Every root and dependency must have exactly one `[[proof.gates]]`
 descriptor with `id`, `kind`, and exactly one execution owner: a list-form native
 `command` or declared product `providers`. A native command reports its own
 execution; applicable `verification_providers` report independent product-owned
-observations. `[proof.code_correctness_map]` maps the required `behavior` and
+observations. Code applicability comes from the actual selected Git source tree,
+not the repository's name or a claimed document-only profile. A document-only
+closure may omit `[proof.code_correctness_map]` without adding code gates or
+fictional coverage. Observed code still activates the common quality floor and
+requires its native verifiers before execution, including code introduced in the
+prospective index. When declared, `[proof.code_correctness_map]` maps both `behavior` and
 `static-analysis` axes to resolved gates in that closure, including dependencies
 that are not default roots. One gate may provide both axes when
-its actual observations cover both. Missing axes, undeclared IDs, unsupported
+its actual observations cover both. A partial map, undeclared IDs, unsupported
 providers, and waivers are invalid; sharing execution is not an exemption.
 Optional descriptor fields such as `depends_on`, `evidence_class`,
 `trust_bearing`, and `network_policy` retain the shared gate semantics. ETHOS

@@ -174,6 +174,33 @@ def _dependency_proof() -> dict[str, object]:
     }
 
 
+def test_profile_native_document_roots_do_not_require_code_axes() -> None:
+    """Document gates have a complete native closure without fictional code evidence."""
+    declaration = RepositoryProfileDeclaration.model_validate(
+        {
+            "profile_id": "document-only",
+            "proof": {
+                "code_correctness_gates": ["docs-registry", "markdown-links"],
+                "gates": [
+                    {
+                        "id": "docs-registry",
+                        "kind": "docs",
+                        "providers": ["ethos.surface.cli.root.reference:docs_registry_report"],
+                    },
+                    {
+                        "id": "markdown-links",
+                        "kind": "docs",
+                        "providers": ["ethos.adapters.gates.tool:markdown_links_report"],
+                    },
+                ],
+            },
+        }
+    )
+
+    assert declaration.proof.code_correctness_gates == ("docs-registry", "markdown-links")
+    assert dict(declaration.proof.code_correctness_map) == {}
+
+
 @pytest.mark.parametrize(
     "fault", ["missing", "disconnected-axis", "cycle", "duplicate", "malformed", "unmapped"]
 )

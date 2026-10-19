@@ -71,4 +71,4 @@ RUN --network=none test "$(id -u)" -eq 65534 \
     && uv run --frozen --offline --no-sync python -B -I tools/ci/toolchain/fixture_supply.py . \
     && uv run --frozen --offline --no-sync python -B -I -m ethos.cli --version \
     && uv run --frozen --offline --no-sync python -B -m pytest -q \
-       'tests/unit/adoption/quality/test_floor.py::test_real_locked_python_checks_qualify_the_selected_source[inline-none]'
+       'tests/unit/adoption/quality/test_python_quality.py::test_real_locked_python_checks_qualify_the_selected_source[inline-none]'

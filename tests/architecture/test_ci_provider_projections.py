@@ -212,7 +212,23 @@ def test_linux_supply_image_bakes_native_tools_and_smokes_offline(tmp_path, monk
     smoke = dockerfile.split("FROM supply AS smoke\n", 1)[1].replace("\\\n", " ")
     assert "RUN --network=none" in smoke
     assert "python -B -m tools.ci.toolchain.native --root . --mise vale gitleaks scc syft" in smoke
-    assert "test_real_locked_python_checks_qualify_the_selected_source[inline-none]" in smoke
+    [selector] = re.findall(r"'(tests/[^']+::[^']+)'", smoke)
+    collected = run_command(
+        ROOT,
+        (
+            sys.executable,
+            "-B",
+            "-m",
+            "pytest",
+            "--collect-only",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            selector,
+        ),
+        timeout=60,
+    )
+    assert collected.returncode == 0, collected.stdout + collected.stderr
 
 
 @pytest.mark.parametrize("provider", ["github", "gitlab"])

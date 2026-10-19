@@ -8,7 +8,7 @@ The decisions behind these tasks are recorded in the archived design of `proof-t
 
 **Goals:**
 
-- Finish tasks 13.4 against their original acceptance conditions.
+- Finish tasks 13.4 against their original acceptance conditions, including the relocated 13.4.7 and 13.4.8.
 
 **Non-Goals:**
 
@@ -17,7 +17,7 @@ The decisions behind these tasks are recorded in the archived design of `proof-t
 ## Decisions
 
 - **Move tasks verbatim with their original identities.** Renumbering was rejected, because commits, Attestations and peer threads already cite these identities.
-- **Carry no requirement delta.** The requirements were accepted when `proof-throughput` archived; restating them here would create a second authority.
+- **Carry only the deltas that lanes implemented against `proof-throughput` before it archived.** Its accepted requirements are not restated. The two integrated lanes implemented explicit maintenance bases for lane start (13.4.7) and configurable peer names (13.4.8) while editing `proof-throughput`; those edits move here as one MODIFIED and one ADDED requirement, because an archived Change stays immutable.
 
 ## Risks / Trade-offs
 

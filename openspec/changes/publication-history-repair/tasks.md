@@ -11,6 +11,10 @@
     - [x] 13.4.3.1 Compose consecutive completed repair mappings and selected refs; verify missing/ambiguous evidence refusal, final-tip policy checks and unchanged advertised CAS through public creation/retirement hooks. Exact proof, installed pre-push, hosted observation, bounded real publication and deferred GitLab readback remain separate obligations.
   - [ ] 13.4.5 Deliver exact false-coauthor selection; verify every unselected message byte, genuine contributor, timestamp and ordered parent is conserved, then complete actual repair, immutable activation and GitHub Commit.authors readback.
   - [ ] 13.4.6 Resume the conserved full-product candidate after attribution closure; verify exact checkpoint/tree, recovery bundle and admitted inverse-patch bindings preserve every unrelated source, test, contract and plan obligation. Isolation does not retire those obligations.
+  - [x] 13.4.7 Start a maintenance Work Lane from an explicit trusted immutable accepted base (`lane start --base`), preserving candidate state and native birth, Lease and rollback semantics; verify invalid trust or identity refusal and compensation after a failed historical start.
+        Evidence: signed Git `5c9eb6785` (`tests/unit/lanes/test_lane_start.py`).
+  - [x] 13.4.8 Qualify configurable publication names at the shared topology owner: an explicit provider defaults its peer ID to the provider and its Git remote to the resolved ID; preserve zero, one, many and repeated-provider peers, selected-only observation and no-peer no-mutation.
+        Evidence: signed Git `d961afe97` (`tests/unit/release/test_policy_attestation.py`).
 
 ## Workflow follow-up
 

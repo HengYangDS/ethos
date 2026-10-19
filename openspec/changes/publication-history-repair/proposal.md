@@ -7,7 +7,7 @@
 ## What Changes
 
 - Continue the listed tasks with their original identities, states, acceptance conditions, dependencies and evidence references, moved verbatim.
-- Add no requirement. Each task implements a requirement already accepted through `proof-throughput`.
+- Specify two behaviors that integrated lanes implemented against `proof-throughput` before it archived: a Work Lane may start from an explicit trusted immutable accepted base for maintenance, and an explicit publication peer declaration defaults its ID to the provider and its Git remote to the resolved ID. Every other task implements a requirement already accepted through `proof-throughput`.
 
 ## Capabilities
 
@@ -17,7 +17,8 @@
 
 ### Modified Capabilities
 
-- None. The behavior these tasks implement is specified by the accepted specifications.
+- `adapters`: Lease-backed Lane Start admits an explicit trusted immutable base.
+- `repository-governance`: publication peer IDs and Git remote names default from their explicit declaration.
 
 ## Impact
 

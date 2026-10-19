@@ -35,7 +35,6 @@ from ethos.repository.policy.quality.obligations import source_verifier_gaps
 from ethos.repository.policy.quality.sources import source_contract_paths
 from ethos.repository.policy.quality.tool_configuration import native_gate_tools
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
-from ethos.repository.policy.quality.tool_configuration import native_tool_configurations
 from ethos.repository.policy.references.commands import python_module
 from ethos.repository.policy.references.python_syntax import module_source_paths
 from ethos.repository.profile import INVALID_PROFILE_ERROR
@@ -348,11 +347,6 @@ def source_paths_for_gate(
         dict.fromkeys(
             (
                 *[path for _reference, path in providers],
-                *(
-                    path
-                    for tool in native_gate_tools(gate)
-                    for path in native_tool_configurations(repository_paths, tool)
-                ),
                 *artifacts,
                 *noxfile,
                 *(output.configuration for output in gate.native_outputs if output.configuration),

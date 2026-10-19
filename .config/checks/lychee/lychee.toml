@@ -13,3 +13,12 @@ no_progress = true
 
 # Only Markdown docs carry governed cross-references.
 include_verbatim = false
+
+# github.com answers bursts of unauthenticated page requests with 429 or 503, so its
+# links are checked two at a time, 250 ms apart, and a transient failure is retried.
+max_retries = 4
+retry_wait_time = 2
+
+[hosts."github.com"]
+concurrency = 2
+request_interval = "250ms"

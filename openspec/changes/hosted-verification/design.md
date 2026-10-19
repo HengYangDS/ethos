@@ -17,6 +17,7 @@ The decisions behind these tasks are recorded in the archived design of `proof-t
 ## Decisions
 
 - **Move tasks verbatim with their original identities.** Renumbering was rejected, because commits, Attestations and peer threads already cite these identities.
+- **Pace github.com in the shared link configuration.** GitHub answers bursts of unauthenticated page requests from a shared egress address with 503 or 429, on GitLab's intranet egress and on GitHub-hosted runners alike, and a different link fails in each run. The lychee configuration therefore checks github.com links two at a time, 250 ms apart, and retries a transient failure. Checking through the GitHub API with a token was rejected: GitLab holds no GitHub credential, and the observation should mean the same on both providers.
 - **Carry no requirement delta.** The requirements were accepted when `proof-throughput` archived; restating them here would create a second authority.
 
 ## Risks / Trade-offs

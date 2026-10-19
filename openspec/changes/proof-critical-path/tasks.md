@@ -1,8 +1,8 @@
 # Tasks
 
-## 1. Baseline and Critical Path
+## 1. Measurement and Critical-Path Targets
 
-- [ ] 1.9 Restore complete repository proof with p90 within 900 seconds over at least five successful complete proofs, including preparation, every required gate and cleanup; preserve unrelated commitments and historical evidence at signed source `c6187cc5fb37872c84b608d9efad0166032d974c`. Current leaf evidence: `build/evidence/quality/{effect-profile-batching,commit-policy-observation}/manifest.json`; complete proof and installed acceptance remain open.
+- [ ] 1.11 Requalify the converged source within 900 seconds: p90 over at least five successful complete proofs and one exact-source proof of its installed package, each including preparation, every required gate and cleanup. Archived 1.9 stays complete; failed proof artifact `1aca729d12e47f7e155b954c52fa19dd6ab5f880148172656f34989f412de415`; leaf evidence at signed source `c6187cc5f` (`build/evidence/quality/{effect-profile-batching,commit-policy-observation}/manifest.json`).
 
 ## 2. Invocation-Scoped Facts and Proof Reuse
 

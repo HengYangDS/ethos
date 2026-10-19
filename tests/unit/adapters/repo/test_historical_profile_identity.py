@@ -210,7 +210,7 @@ def test_exact_historical_profile_reader_keeps_only_stable_identity(
 def test_recorded_effect_replay_uses_stable_historical_identity(
     tmp_path: Path, former_id: str, transition: str
 ) -> None:
-    """Recorded effect replay tolerates old fields, not changed identity."""
+    """Replay and current effects tolerate old pre-state fields, not changed identity."""
     case = fixture(tmp_path)
     profile = case.repo / ".ethos/profile.toml"
     profile.write_text(f'profile_id = "{former_id}"\n\n[roots]\nopenspec = "openspec"\n')
@@ -245,24 +245,21 @@ def test_recorded_effect_replay_uses_stable_historical_identity(
             "effect_digest": value.digest(),
         },
     )
-    _reject(
-        "repository_profile_invalid",
-        lambda: resolve_git_effect_repository(case.repo, value, before, plan=carried),
-    )
-    if former_id == "repo":
-        assert (
-            resolve_git_effect_repository(
-                case.repo, value, before, plan=carried, historical_identity=True
+    for historical in (False, True):
+        if former_id == "repo":
+            assert (
+                resolve_git_effect_repository(
+                    case.repo, value, before, plan=carried, historical_identity=historical
+                )
+                == "repository:repo"
             )
-            == "repository:repo"
-        )
-    else:
-        _reject(
-            "git_effect_repository_identity_mismatch",
-            lambda: resolve_git_effect_repository(
-                case.repo, value, before, plan=carried, historical_identity=True
-            ),
-        )
+        else:
+            _reject(
+                "git_effect_repository_identity_mismatch",
+                lambda historical=historical: resolve_git_effect_repository(
+                    case.repo, value, before, plan=carried, historical_identity=historical
+                ),
+            )
     observed_at = datetime.now(UTC).isoformat()
     record = attest.issue(
         value,
@@ -300,7 +297,7 @@ def test_recorded_effect_replay_uses_stable_historical_identity(
     if former_id == "repo":
         replay()
         _reject(
-            "repository_profile_invalid",
+            "git_effect_attestation_content_mismatch",
             lambda: attest.validate(case.repo, value, record, issuer=ISSUER, plan=carried),
         )
     else:

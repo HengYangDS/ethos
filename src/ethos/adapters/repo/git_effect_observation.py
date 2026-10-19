@@ -110,16 +110,13 @@ def resolve_git_effect_repository(
         if historical_identity
         else revisions & {update.desired for update in effect.updates.values()}
     )
-    identities = {
-        **repository_identities(
-            root,
-            tuple(revisions - produced),
-            environment=environment,
-            historical=True,
-            optional=frozenset(expected) if allow_absent_prestate else frozenset(),
-        ),
-        **repository_identities(root, tuple(produced), environment=environment),
-    }
+    identities = repository_identities(
+        root,
+        tuple(revisions),
+        environment=environment,
+        historical=frozenset(revisions - produced),
+        optional=frozenset(expected) if allow_absent_prestate else frozenset(),
+    )
     if plan is not None and "repository_identity_transitions" in plan.policy:
         return _transition_identity(
             root, effect, plan, identities, current_scope=current_scope, environment=environment

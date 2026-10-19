@@ -70,13 +70,16 @@ def repository_identities(
     tree_refs: tuple[str, ...],
     *,
     environment: Mapping[str, str] | None = None,
-    historical: bool = False,
+    historical: bool | frozenset[str] = False,
     optional: frozenset[str] = frozenset(),
 ) -> dict[str, str]:
-    """Read every selected relationship afresh, then decode each complete profile once."""
+    """Read every selected relationship afresh; historical revisions skip today's schema."""
     selected = tuple(dict.fromkeys(tree_refs))
+    if isinstance(historical, bool):
+        past = frozenset(selected) if historical else frozenset()
+    else:
+        past = historical
     required = tuple(revision for revision in selected if revision not in optional)
-    reader = historical_repository_identity if historical else repository_identity
     identities = {}
     unbatched = (
         selected
@@ -84,6 +87,7 @@ def repository_identities(
         else tuple(revision for revision in selected if revision in optional)
     )
     for revision in unbatched:
+        reader = historical_repository_identity if revision in past else repository_identity
         try:
             identities[revision] = reader(root, tree_ref=revision, environment=environment)
         except ValueError:
@@ -100,21 +104,21 @@ def repository_identities(
     payloads = dict(
         zip(object_ids, read_objects(root, object_ids, environment=environment), strict=True)
     )
-    decoded: dict[str, str] = {}
+    decoded: dict[tuple[str, bool], str] = {}
     for revision in required:
-        identity = observed[f"{revision}:.ethos/profile.toml"]
-        if identity not in decoded:
-            payload = payloads.get(identity, b"")
-            decoded[identity] = (
+        key = (observed[f"{revision}:.ethos/profile.toml"], revision in past)
+        if key not in decoded:
+            payload = payloads.get(key[0], b"")
+            decoded[key] = (
                 _historical_identity(payload)
-                if historical
+                if key[1]
                 else _profile_identity(
                     repository_profile_from_text(
-                        root, exists=bool(identity), text=payload.decode("utf-8")
+                        root, exists=bool(key[0]), text=payload.decode("utf-8")
                     )
                 )
             )
-        identities[revision] = decoded[identity]
+        identities[revision] = decoded[key]
     return {revision: identities[revision] for revision in selected if revision in identities}
 
 

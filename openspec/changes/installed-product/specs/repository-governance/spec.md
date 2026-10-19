@@ -427,13 +427,11 @@ active Change presence, or a historical authoring Lease.
 
 ETHOS SHALL validate repair and Git-ref-effect Attestations, and the accepted
 pre-state revisions of a current Git effect, against each exact former
-commit's stable repository identity declaration, not today's full profile
-schema. Missing, malformed or mismatched historical identity SHALL block
-without current-profile or caller fallback. Current effects SHALL still
-require the strict current profile in the current checkout and in every
-revision they produce, plus repair coordinates, policy and payload digests,
-replacement history, effect Attestations, source proof, ref role and exact
-remote CAS.
+commit's stable repository identity, not today's full profile schema.
+Missing, malformed or mismatched historical identity SHALL block without
+current-profile or caller fallback. Current effects SHALL still require the
+strict current profile in the current checkout and in every revision they
+produce, with every other existing binding unchanged.
 
 #### Scenario: Retired profile field does not erase a valid repair
 
@@ -467,7 +465,7 @@ remote CAS.
 - **AND THEN** the produced candidate revision is validated against the current
   schema
 - **AND THEN** a changed repository ID, an invalid produced profile and the
-  trust, CAS, proof and lease refusals still block.
+  trust, ref role, CAS, proof and lease refusals still block.
 
 #### Scenario: Historical identity cannot be guessed
 

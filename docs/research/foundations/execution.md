@@ -250,7 +250,7 @@ strength. Links identify inspected materials, not blanket endorsements.
 
 - [Pants resolver source](https://github.com/pantsbuild/pants/blob/release_2.33.1/src/python/pants/backend/python/subsystems/setup.py)
 - [Pants uv lock generation](https://github.com/pantsbuild/pants/blob/release_2.33.1/src/python/pants/backend/python/goals/lockfile.py)
-- [Pants test batching, isolation and reports](https://www.pantsbuild.org/2.33/docs/python/goals/test)
+- [Pants test batching, isolation and reports](https://www.pantsbuild.org/2.33/docs/python/goals/test/)
 - [Reported uv concurrency issue](https://github.com/pantsbuild/pants/issues/23657)
 - [uv2nix build/environment boundaries](https://pyproject-nix.github.io/uv2nix/usage/getting-started.html)
 - [Nix supported platforms](https://nix.dev/manual/nix/2.35/installation/supported-platforms.html)

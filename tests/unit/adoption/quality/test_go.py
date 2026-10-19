@@ -23,6 +23,41 @@ GO_QUALITY_FILES = {
     "answer_test.go": 'package quality\nimport "testing"\n'
     'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong") } }\n',
 }
+EMPTY_TEST_FILE = 'package quality\nimport "testing"\nfunc TestAnswer(t *testing.T) {}\n'
+SIBLING_SOURCES = {"module/answer.go": "answer.go", "module/sub/answer.go": "sub/answer.go"}
+LIVE_AND_EMPTY = {"module/live.go": "live.go", "module/empty.go": "empty.go"}
+ANSWER_COVERED = "mode: set\nexample.invalid/quality/answer.go:1.1,1.2 1 1\n"
+ANSWER_PASSED = '{"Action":"pass","Test":"TestAnswer"}\n'
+
+
+def _behavior_gaps(repo: Path) -> object:
+    """Read the required gaps of the public native behavior report."""
+    return native_quality.behavior_report(repo)["required_gaps"]
+
+
+def _write_coverage(command: tuple[str, ...], text: str) -> None:
+    """Write ``text`` where the native ``go test`` command requested its coverage profile."""
+    option = next(arg for arg in command if arg.startswith("-coverprofile="))
+    Path(option.partition("=")[2]).write_text(text, encoding="utf-8")
+
+
+def _bind_package_sources(monkeypatch: pytest.MonkeyPatch, *names: str) -> None:
+    """Pin native package discovery to exact files of the root quality package."""
+    sources = {f"example.invalid/quality/{name}": name for name in names}
+    monkeypatch.setattr(
+        native_quality, "_go_package_sources", lambda _root, _production, _native: sources
+    )
+
+
+def _bind_discovery(monkeypatch: pytest.MonkeyPatch, output: str, returncode: int = 0) -> None:
+    """Answer every native Go command with one fixed package-discovery result."""
+    monkeypatch.setattr(
+        native_quality,
+        "run_command",
+        lambda _root, command, **_kwargs: subprocess.CompletedProcess(
+            command, returncode, output, ""
+        ),
+    )
 
 
 @pytest.mark.parametrize(
@@ -38,11 +73,7 @@ GO_QUALITY_FILES = {
         (["mode: set", "module/answer.go:1.1,1.2 -1 1"], "go_coverage_invalid"),
         (["mode: set", "module/answer.go:1.1,1.2 1 0"], "go_source_unexercised"),
         (
-            [
-                "mode: set",
-                "module/answer.go:1.1,1.2 1 0",
-                "module/sub/answer.go:1.1,1.2 1 1",
-            ],
+            ["mode: set", "module/answer.go:1.1,1.2 1 0", "module/sub/answer.go:1.1,1.2 1 1"],
             "go_source_unexercised",
         ),
     ],
@@ -52,28 +83,14 @@ def test_go_coverage_rejects_invalid_or_misattributed_blocks(
 ) -> None:
     """Go coverage cannot credit a sibling or a malformed profile."""
     with pytest.raises(ValueError, match=reason):
-        go_covered_paths(
-            profile,
-            ("answer.go", "sub/answer.go"),
-            {"module/answer.go": "answer.go", "module/sub/answer.go": "sub/answer.go"},
-        )
+        go_covered_paths(profile, ("answer.go", "sub/answer.go"), SIBLING_SOURCES)
 
 
 def test_go_coverage_accepts_exact_positive_blocks() -> None:
     """The same parser has a reachable valid path for distinct source names."""
-    profile = [
-        "mode: set",
-        "module/answer.go:1.1,1.2 1 1",
-        "module/sub/answer.go:1.1,1.2 1 1",
-    ]
-    assert go_covered_paths(
-        profile,
-        ("answer.go", "sub/answer.go"),
-        {"module/answer.go": "answer.go", "module/sub/answer.go": "sub/answer.go"},
-    ) == [
-        "answer.go",
-        "sub/answer.go",
-    ]
+    profile = ["mode: set", "module/answer.go:1.1,1.2 1 1", "module/sub/answer.go:1.1,1.2 1 1"]
+    covered = go_covered_paths(profile, ("answer.go", "sub/answer.go"), SIBLING_SOURCES)
+    assert covered == ["answer.go", "sub/answer.go"]
 
 
 def test_go_coverage_rejects_suffix_alias_from_another_package() -> None:
@@ -108,7 +125,7 @@ def test_go_coverage_accepts_independently_proved_statementless_source() -> None
     assert go_covered_paths(
         ["mode: set", "module/live.go:1.1,1.2 1 1"],
         ("live.go", "empty.go"),
-        {"module/live.go": "live.go", "module/empty.go": "empty.go"},
+        LIVE_AND_EMPTY,
         zero_statement_paths=frozenset({"empty.go"}),
     ) == ["live.go"]
 
@@ -122,11 +139,7 @@ def test_go_zero_statement_source_is_observed_but_not_credited(zero_count: int) 
         f"module/empty.go:1.1,2.1 0 {zero_count}",
     ]
 
-    assert go_covered_paths(
-        profile,
-        ("live.go", "empty.go"),
-        {"module/live.go": "live.go", "module/empty.go": "empty.go"},
-    ) == ["live.go"]
+    assert go_covered_paths(profile, ("live.go", "empty.go"), LIVE_AND_EMPTY) == ["live.go"]
 
 
 def test_go_all_zero_statement_profile_cannot_prove_behavior() -> None:
@@ -150,9 +163,7 @@ def test_go_skipped_tests_do_not_prove_behavior(tmp_path: Path) -> None:
             'func TestAnswer(t *testing.T) { t.Skip("not executed") }\n',
         },
     )
-    assert native_quality.behavior_report(repo)["required_gaps"] == [
-        "quality_behavior_go_tests_unexecuted"
-    ]
+    assert _behavior_gaps(repo) == ["quality_behavior_go_tests_unexecuted"]
 
 
 def test_go_behavior_uses_native_build_scope_and_cross_package_coverage(tmp_path: Path) -> None:
@@ -184,26 +195,16 @@ def test_go_behavior_uses_native_build_scope_and_cross_package_coverage(tmp_path
     assert isinstance(covered, list)
     assert isinstance(non_applicable, list)
     assert set(covered) == {"answer.go", "lib/lib.go"}
-    assert set(non_applicable) == {
-        "empty.go",
-        "platform_windows.go",
-        "provenance/_source/snapshot.go",
-    }
+    excluded = {"empty.go", "platform_windows.go", "provenance/_source/snapshot.go"}
+    assert set(non_applicable) == excluded
 
 
 def test_go_behavior_rejects_uncovered_cross_package_statements(tmp_path: Path) -> None:
     """Native package selection cannot make an untested dependency disappear."""
-    repo = committed_source_repo(
-        tmp_path,
-        {
-            **GO_QUALITY_FILES,
-            "lib/unused.go": "package lib\nfunc Unused() int { return 1 }\n",
-        },
-    )
+    unused = "package lib\nfunc Unused() int { return 1 }\n"
+    repo = committed_source_repo(tmp_path, {**GO_QUALITY_FILES, "lib/unused.go": unused})
 
-    assert native_quality.behavior_report(repo)["required_gaps"] == [
-        "quality_behavior_go_source_unexercised"
-    ]
+    assert _behavior_gaps(repo) == ["quality_behavior_go_source_unexercised"]
 
 
 def test_go_behavior_rejects_unlisted_nested_module(tmp_path: Path) -> None:
@@ -217,22 +218,15 @@ def test_go_behavior_rejects_unlisted_nested_module(tmp_path: Path) -> None:
         },
     )
 
-    assert native_quality.behavior_report(repo)["required_gaps"] == [
-        "quality_behavior_go_source_scope_unknown"
-    ]
+    assert _behavior_gaps(repo) == ["quality_behavior_go_source_scope_unknown"]
 
 
 def test_go_behavior_rejects_omitted_executable_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Go's instrumenter, not a missing profile row, proves applicability."""
-    repo = committed_source_repo(
-        tmp_path,
-        {
-            **GO_QUALITY_FILES,
-            "missing.go": "package quality\nfunc Missing() int { return 1 }\n",
-        },
-    )
+    missing = "package quality\nfunc Missing() int { return 1 }\n"
+    repo = committed_source_repo(tmp_path, {**GO_QUALITY_FILES, "missing.go": missing})
     real_command = native_quality.run_command
 
     def observed_command(
@@ -245,19 +239,11 @@ def test_go_behavior_rejects_omitted_executable_file(
     ):
         if command[1] != "test":
             return real_command(root, command, timeout=timeout, env=env)
-        option = next(arg for arg in command if arg.startswith("-coverprofile="))
-        Path(option.partition("=")[2]).write_text(
-            "mode: set\nexample.invalid/quality/answer.go:1.1,1.2 1 1\n",
-            encoding="utf-8",
-        )
-        return subprocess.CompletedProcess(
-            command, 0, '{"Action":"pass","Test":"TestAnswer"}\n', ""
-        )
+        _write_coverage(command, ANSWER_COVERED)
+        return subprocess.CompletedProcess(command, 0, ANSWER_PASSED, "")
 
     monkeypatch.setattr(native_quality, "run_command", observed_command)
-    assert native_quality.behavior_report(repo)["required_gaps"] == [
-        "quality_behavior_go_coverage_source_missing"
-    ]
+    assert _behavior_gaps(repo) == ["quality_behavior_go_coverage_source_missing"]
 
 
 @pytest.mark.parametrize("outcome", ["failed", "missing-marker", "missing-count"])
@@ -265,21 +251,9 @@ def test_go_behavior_rejects_unproved_statementless_classification(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, outcome: str
 ) -> None:
     """An omitted build file needs a valid independent Go instrumenter result."""
-    repo = committed_source_repo(
-        tmp_path,
-        {
-            **GO_QUALITY_FILES,
-            "empty.go": "package quality\ntype Empty struct{}\n",
-        },
-    )
-    monkeypatch.setattr(
-        native_quality,
-        "_go_package_sources",
-        lambda _root, _production, _native: {
-            "example.invalid/quality/answer.go": "answer.go",
-            "example.invalid/quality/empty.go": "empty.go",
-        },
-    )
+    empty = "package quality\ntype Empty struct{}\n"
+    repo = committed_source_repo(tmp_path, {**GO_QUALITY_FILES, "empty.go": empty})
+    _bind_package_sources(monkeypatch, "answer.go", "empty.go")
 
     def observed_command(root: Path, command: tuple[str, ...], **_kwargs: object):
         assert root == repo
@@ -290,19 +264,11 @@ def test_go_behavior_rejects_unproved_statementless_classification(
             elif outcome == "missing-count":
                 output.write_text("var EthosCoverageProbe = struct {\nOther [0]uint32\n}\n")
             return subprocess.CompletedProcess(command, int(outcome == "failed"), "", "")
-        option = next(arg for arg in command if arg.startswith("-coverprofile="))
-        Path(option.partition("=")[2]).write_text(
-            "mode: set\nexample.invalid/quality/answer.go:1.1,1.2 1 1\n",
-            encoding="utf-8",
-        )
-        return subprocess.CompletedProcess(
-            command, 0, '{"Action":"pass","Test":"TestAnswer"}\n', ""
-        )
+        _write_coverage(command, ANSWER_COVERED)
+        return subprocess.CompletedProcess(command, 0, ANSWER_PASSED, "")
 
     monkeypatch.setattr(native_quality, "run_command", observed_command)
-    assert native_quality.behavior_report(repo)["required_gaps"] == [
-        "quality_behavior_go_coverage_applicability_unknown"
-    ]
+    assert _behavior_gaps(repo) == ["quality_behavior_go_coverage_applicability_unknown"]
 
 
 @pytest.mark.parametrize(
@@ -328,79 +294,42 @@ def test_go_behavior_rejects_invalid_native_discovery(
     reason: str,
 ) -> None:
     """Native package discovery must be complete and bound to tracked source."""
-    repo = committed_source_repo(
-        tmp_path,
-        {
-            **GO_QUALITY_FILES,
-            "answer_test.go": 'package quality\nimport "testing"\n'
-            "func TestAnswer(t *testing.T) {}\n",
-        },
-    )
+    repo = committed_source_repo(tmp_path, {**GO_QUALITY_FILES, "answer_test.go": EMPTY_TEST_FILE})
     package: dict[str, object] = {
         "Dir": str(repo if discovery != "outside-root" else tmp_path),
         "ImportPath": "example.invalid/quality",
         "GoFiles": ["answer.go"],
     }
     package.update(change)
-    output = {
-        "invalid-json": "not-json",
-        "invalid-object": "[]",
-    }.get(discovery, json.dumps(package))
-    monkeypatch.setattr(
-        native_quality,
-        "run_command",
-        lambda _root, command, **_kwargs: subprocess.CompletedProcess(
-            command, 1 if discovery == "failed" else 0, output, ""
-        ),
+    output = {"invalid-json": "not-json", "invalid-object": "[]"}.get(
+        discovery, json.dumps(package)
     )
-    assert native_quality.behavior_report(repo)["required_gaps"] == [f"quality_behavior_{reason}"]
+    _bind_discovery(monkeypatch, output, int(discovery == "failed"))
+    assert _behavior_gaps(repo) == [f"quality_behavior_{reason}"]
 
 
 def test_go_behavior_rejects_ambiguous_native_source_identity(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Two repository files cannot claim the same native package-file identity."""
-    repo = committed_source_repo(
-        tmp_path,
-        {
-            **GO_QUALITY_FILES,
-            "sub/answer.go": "package sub\nfunc Answer() int { return 1 }\n",
-            "answer_test.go": 'package quality\nimport "testing"\n'
-            "func TestAnswer(t *testing.T) {}\n",
-        },
-    )
-    output = "\n".join(
-        json.dumps(
-            {
-                "Dir": str(directory),
-                "ImportPath": "example.invalid/quality",
-                "GoFiles": ["answer.go"],
-            }
-        )
-        for directory in (repo, repo / "sub")
-    )
-    monkeypatch.setattr(
-        native_quality,
-        "run_command",
-        lambda _root, command, **_kwargs: subprocess.CompletedProcess(command, 0, output, ""),
+    sub_answer = "package sub\nfunc Answer() int { return 1 }\n"
+    files = {**GO_QUALITY_FILES, "sub/answer.go": sub_answer, "answer_test.go": EMPTY_TEST_FILE}
+    repo = committed_source_repo(tmp_path, files)
+    package = {"ImportPath": "example.invalid/quality", "GoFiles": ["answer.go"]}
+    _bind_discovery(
+        monkeypatch,
+        "\n".join(json.dumps({"Dir": str(path), **package}) for path in (repo, repo / "sub")),
     )
 
-    assert native_quality.behavior_report(repo)["required_gaps"] == [
-        "quality_behavior_go_package_scope_invalid"
-    ]
+    assert _behavior_gaps(repo) == ["quality_behavior_go_package_scope_invalid"]
 
 
 @pytest.mark.parametrize(
     ("returncode", "stdout", "coverage_text", "reason"),
     [
         (1, '{"Action":"fail","Test":"TestAnswer"}\n', None, "go_tests_failed"),
-        (0, '{"Action":"pass","Test":"TestAnswer"}\n', None, "go_coverage_missing"),
-        (
-            0,
-            "not-json\n",
-            "mode: set\nexample.invalid/quality/answer.go:1.1,1.2 1 1\n",
-            "go_test_report_invalid",
-        ),
+        (0, ANSWER_PASSED, None, "go_coverage_missing"),
+        (0, "not-json\n", ANSWER_COVERED, "go_test_report_invalid"),
     ],
 )
 def test_go_behavior_rejects_failed_or_incomplete_native_result(
@@ -426,18 +355,13 @@ def test_go_behavior_rejects_failed_or_incomplete_native_result(
         assert root == repo
         assert command[1:3] == ("test", "-json")
         if coverage_text is not None:
-            option = next(arg for arg in command if arg.startswith("-coverprofile="))
-            Path(option.partition("=")[2]).write_text(coverage_text)
+            _write_coverage(command, coverage_text)
         return subprocess.CompletedProcess(command, returncode, stdout, "")
 
     monkeypatch.setattr(native_quality, "_executable", lambda _root, name: name)
-    monkeypatch.setattr(
-        native_quality,
-        "_go_package_sources",
-        lambda _root, _production, _native: {"example.invalid/quality/answer.go": "answer.go"},
-    )
+    _bind_package_sources(monkeypatch, "answer.go")
     monkeypatch.setattr(native_quality, "run_command", observed_command)
-    assert native_quality.behavior_report(repo)["required_gaps"] == [f"quality_behavior_{reason}"]
+    assert _behavior_gaps(repo) == [f"quality_behavior_{reason}"]
 
 
 def test_go_behavior_reports_non_applicable_source_without_crediting_it(
@@ -456,24 +380,15 @@ def test_go_behavior_reports_non_applicable_source_without_crediting_it(
 
     def observed_command(root: Path, command: tuple[str, ...], **_kwargs: object):
         assert root == repo
-        option = next(arg for arg in command if arg.startswith("-coverprofile="))
-        Path(option.partition("=")[2]).write_text(
-            "mode: atomic\n"
-            "example.invalid/quality/live.go:1.1,2.1 1 1\n"
+        _write_coverage(
+            command,
+            "mode: atomic\nexample.invalid/quality/live.go:1.1,2.1 1 1\n"
             "example.invalid/quality/empty.go:1.1,2.1 0 0\n",
-            encoding="utf-8",
         )
         return subprocess.CompletedProcess(command, 0, '{"Action":"pass","Test":"TestLive"}\n', "")
 
     monkeypatch.setattr(native_quality, "_executable", lambda _root, name: name)
-    monkeypatch.setattr(
-        native_quality,
-        "_go_package_sources",
-        lambda _root, _production, _native: {
-            "example.invalid/quality/live.go": "live.go",
-            "example.invalid/quality/empty.go": "empty.go",
-        },
-    )
+    _bind_package_sources(monkeypatch, "live.go", "empty.go")
     monkeypatch.setattr(native_quality, "run_command", observed_command)
     report = native_quality.behavior_report(repo)
 
@@ -481,14 +396,8 @@ def test_go_behavior_reports_non_applicable_source_without_crediting_it(
     quality_evidence = report["quality_evidence"]
     assert isinstance(quality_evidence, dict)
     assert quality_evidence["selected_paths"] == ["empty.go", "live.go"]
-    assert report["native"] == [
-        {
-            "language": "go",
-            "tests_passed": 1,
-            "covered_paths": ["live.go"],
-            "non_applicable_paths": ["empty.go"],
-        }
-    ]
+    native = {"language": "go", "tests_passed": 1, "covered_paths": ["live.go"]}
+    assert report["native"] == [{**native, "non_applicable_paths": ["empty.go"]}]
 
 
 def test_go_vet_diagnostics_are_not_silenced(tmp_path: Path) -> None:

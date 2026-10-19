@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 import pytest
@@ -38,17 +39,46 @@ def _status(root: Path, *, role: str = "work_lane") -> dict[str, object]:
     }
 
 
-def _bind_common(monkeypatch: pytest.MonkeyPatch, root: Path, *, role: str = "work_lane") -> None:
-    monkeypatch.setattr(
-        prewrite,
-        "_prewrite_status",
-        lambda _root, **_kwargs: _status(root, role=role),
-    )
+def _bind_admission(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pass the non-OpenSpec patch and ignore owners so each case observes one owner."""
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: False)
     monkeypatch.setattr(
         prewrite, "patch_admission", lambda **_kwargs: {"verdict": "pass", "reason": "matched"}
     )
     monkeypatch.setattr(path_admission, "ignored_paths", lambda _root, _paths: set())
+
+
+def _bind_common(monkeypatch: pytest.MonkeyPatch, root: Path, *, role: str = "work_lane") -> None:
+    monkeypatch.setattr(
+        prewrite, "_prewrite_status", lambda _root, **_kwargs: _status(root, role=role)
+    )
+    _bind_admission(monkeypatch)
+
+
+def _authority(**changes: object) -> CurrentAuthority:
+    """Use one valid Lease authority; cases replace only the coordinates they observe."""
+    authority = CurrentAuthority(
+        verdict="pass",
+        reason="matched",
+        branch="work/example",
+        actor="agent:test:case:owner",
+        lease={
+            "lane_ref": "work/example",
+            "holder_ref": "agent:test:case:owner",
+            "generation": 1,
+            "expires_at": "2099-01-01T00:00:00+00:00",
+        },
+        current_head="a" * 40,
+        current_tree="b" * 40,
+    )
+    return replace(authority, **changes)
+
+
+def _bind_observed_authority(monkeypatch: pytest.MonkeyPatch, root: Path) -> None:
+    """Grant a lease-free test actor at the freshly observed HEAD and tree."""
+    head, tree = git(root, "rev-parse", "HEAD"), git(root, "rev-parse", "HEAD^{tree}")
+    authority = _authority(actor="agent:test", lease={}, current_head=head, current_tree=tree)
+    monkeypatch.setattr(prewrite, "observe_current_authority", lambda **_kwargs: authority)
 
 
 @pytest.mark.parametrize("coordinate", ["head", "index", "unchanged"])
@@ -63,16 +93,7 @@ def test_staged_coordinates_are_rechecked_after_other_admission_owners(
     source.write_text('{"candidate":true}\n', encoding="utf-8")
     git(root, "add", "input.json")
     _bind_common(monkeypatch, root)
-    authority = CurrentAuthority(
-        verdict="pass",
-        reason="matched",
-        branch="work/example",
-        actor="agent:test",
-        lease={},
-        current_head=git(root, "rev-parse", "HEAD"),
-        current_tree=git(root, "rev-parse", "HEAD^{tree}"),
-    )
-    monkeypatch.setattr(prewrite, "observe_current_authority", lambda **_kwargs: authority)
+    _bind_observed_authority(monkeypatch, root)
 
     def injected_scope(*_args):
         if coordinate == "head":
@@ -99,15 +120,9 @@ def test_prewrite_fails_closed_on_non_repository_root(
 ) -> None:
     monkeypatch.setattr(prewrite, "git_stdout", lambda *_args: "")
     monkeypatch.setattr(
-        prewrite,
-        "runtime_binding",
-        lambda root, **_kwargs: {"audit_root": str(root)},
+        prewrite, "runtime_binding", lambda root, **_kwargs: {"audit_root": str(root)}
     )
-    monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: False)
-    monkeypatch.setattr(
-        prewrite, "patch_admission", lambda **_kwargs: {"verdict": "pass", "reason": "matched"}
-    )
-    monkeypatch.setattr(path_admission, "ignored_paths", lambda _root, _paths: set())
+    _bind_admission(monkeypatch)
 
     report = prewrite.prewrite_guard(root=tmp_path, paths=[tmp_path / "README.md"])
 
@@ -171,9 +186,7 @@ def test_prewrite_reports_outside_path_without_inventing_path_scope(
     _bind_common(monkeypatch, tmp_path, role="accepted_root")
     outside = tmp_path.parent / "outside.txt"
     report = prewrite.prewrite_guard(
-        root=tmp_path,
-        paths=[outside, tmp_path / "src/code.py"],
-        editor_root=tmp_path,
+        root=tmp_path, paths=[outside, tmp_path / "src/code.py"], editor_root=tmp_path
     )
 
     assert report["verdict"] == "block"
@@ -220,29 +233,11 @@ def test_prewrite_projects_unknown_openspec_scope_fail_closed(
     assert report["openspec"] == {"verdict": "unknown", "required_gaps": gaps}
 
 
-def _current_authority() -> CurrentAuthority:
-    """Use identical valid authority for current intent and bootstrap scope cases."""
-    return CurrentAuthority(
-        verdict="pass",
-        reason="matched",
-        branch="work/example",
-        actor="agent:test:case:owner",
-        lease={
-            "lane_ref": "work/example",
-            "holder_ref": "agent:test:case:owner",
-            "generation": 1,
-            "expires_at": "2099-01-01T00:00:00+00:00",
-        },
-        current_head="a" * 40,
-        current_tree="b" * 40,
-    )
-
-
 @pytest.mark.parametrize("bootstrap", [False, True])
 def test_prewrite_preserves_current_resolution_and_exact_paths(tmp_path, monkeypatch, bootstrap):
     """Valid Lease and exact scope are shared without treating repair as valid intent."""
     _bind_common(monkeypatch, tmp_path)
-    authority = _current_authority()
+    authority = _authority()
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
     monkeypatch.setattr(prewrite, "observe_current_authority", lambda **_kwargs: authority)
     paths = (
@@ -297,12 +292,8 @@ def test_prewrite_reuses_exact_archive_generation_binding(
 ) -> None:
     _bind_common(monkeypatch, tmp_path)
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
-    authority = _current_authority()
-    monkeypatch.setattr(
-        prewrite,
-        "observe_current_authority",
-        lambda **_kwargs: authority,
-    )
+    authority = _authority()
+    monkeypatch.setattr(prewrite, "observe_current_authority", lambda **_kwargs: authority)
     monkeypatch.setattr(
         prewrite,
         "resolve_current_resolution",
@@ -312,18 +303,13 @@ def test_prewrite_reuses_exact_archive_generation_binding(
             commitment=commitment_fixture(id="change:example"),
             scope=CurrentScope(
                 paths=("README.md",),
-                archive_authority={
-                    "attestation_id": "c" * 64,
-                    "authorized_paths": ["README.md"],
-                },
+                archive_authority={"attestation_id": "c" * 64, "authorized_paths": ["README.md"]},
             ),
         ),
     )
 
     report = prewrite.prewrite_guard(
-        root=tmp_path,
-        paths=[tmp_path / "README.md"],
-        editor_root=tmp_path,
+        root=tmp_path, paths=[tmp_path / "README.md"], editor_root=tmp_path
     )
 
     assert report["verdict"] == "pass"
@@ -338,15 +324,7 @@ def test_prewrite_archive_authority_rejects_unattested_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _bind_common(monkeypatch, tmp_path)
-    authority = CurrentAuthority(
-        verdict="pass",
-        reason="matched",
-        branch="work/example",
-        actor="agent:test:case:owner",
-        lease={"holder_ref": "agent:test:case:owner", "generation": 1},
-        current_head="a" * 40,
-        current_tree="b" * 40,
-    )
+    authority = _authority(lease={"holder_ref": "agent:test:case:owner", "generation": 1})
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
     monkeypatch.setattr(prewrite, "observe_current_authority", lambda **_kwargs: authority)
     monkeypatch.setattr(
@@ -364,9 +342,7 @@ def test_prewrite_archive_authority_rejects_unattested_path(
     )
 
     report = prewrite.prewrite_guard(
-        root=tmp_path,
-        paths=[tmp_path / "src/unattested.py"],
-        editor_root=tmp_path,
+        root=tmp_path, paths=[tmp_path / "src/unattested.py"], editor_root=tmp_path
     )
 
     assert report["verdict"] == "block"
@@ -391,24 +367,11 @@ def test_prewrite_projects_only_minimal_lease_and_fresh_git_coordinates(
         "expires_at": "2099-01-01T00:00:00+00:00",
     }
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:owner")
-    monkeypatch.setattr(
-        prewrite,
-        "observe_current_authority",
-        lambda **_kwargs: CurrentAuthority(
-            verdict="pass",
-            reason="matched",
-            branch="work/example",
-            actor="agent:test:case:owner",
-            lease=lease,
-            current_head="a" * 40,
-            current_tree="b" * 40,
-        ),
-    )
+    authority = _authority(lease=lease)
+    monkeypatch.setattr(prewrite, "observe_current_authority", lambda **_kwargs: authority)
 
     report = prewrite.prewrite_guard(
-        root=tmp_path,
-        paths=[tmp_path / "README.md"],
-        editor_root=tmp_path,
+        root=tmp_path, paths=[tmp_path / "README.md"], editor_root=tmp_path
     )
 
     projected = report["work_lane_lease"]
@@ -495,21 +458,12 @@ def test_prewrite_admits_edits_to_an_existing_non_conforming_carrier(
 def test_prewrite_admits_only_exact_active_identity_repair(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, choice: str | None
 ) -> None:
-    repo, head, paths, patch = active_change_relocation_patch(tmp_path)
+    repo, _, paths, patch = active_change_relocation_patch(tmp_path)
     before = git(repo, "status", "--porcelain=v1", "--untracked-files=all")
     _bind_common(monkeypatch, repo)
     monkeypatch.setattr(prewrite, "patch_admission", patch_admission)
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
-    authority = CurrentAuthority(
-        verdict="pass",
-        reason="matched",
-        branch="work/example",
-        actor="agent:test",
-        lease={},
-        current_head=head,
-        current_tree=git(repo, "rev-parse", "HEAD^{tree}"),
-    )
-    monkeypatch.setattr(prewrite, "observe_current_authority", lambda **_kwargs: authority)
+    _bind_observed_authority(monkeypatch, repo)
     monkeypatch.delenv("ETHOS_CHANGE", raising=False)
     if choice is not None:
         monkeypatch.setenv("ETHOS_CHANGE", choice)
@@ -533,20 +487,10 @@ def test_prewrite_admits_only_exact_active_identity_repair(
 def test_prewrite_fences_active_identity_repair_at_current_head(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo, head, paths, patch = active_change_relocation_patch(tmp_path)
+    repo, _, paths, patch = active_change_relocation_patch(tmp_path)
     _bind_common(monkeypatch, repo)
     monkeypatch.setattr(prewrite, "openspec_profile_enabled", lambda _root: True)
-    authority = CurrentAuthority(
-        verdict="pass",
-        reason="matched",
-        branch="work/example",
-        actor="agent:test",
-        lease={},
-        current_head=head,
-        current_tree=git(repo, "rev-parse", "HEAD^{tree}"),
-    )
-    monkeypatch.setattr(prewrite, "observe_current_authority", lambda **_kwargs: authority)
-
+    _bind_observed_authority(monkeypatch, repo)
     monkeypatch.delenv("ETHOS_CHANGE", raising=False)
 
     def concurrent_commit(**kwargs):
@@ -557,10 +501,7 @@ def test_prewrite_fences_active_identity_repair_at_current_head(
     monkeypatch.setattr(prewrite, "patch_admission", concurrent_commit)
 
     report = prewrite.prewrite_guard(
-        root=repo,
-        paths=[repo / path for path in paths],
-        editor_root=repo,
-        patch=patch,
+        root=repo, paths=[repo / path for path in paths], editor_root=repo, patch=patch
     )
 
     assert report["verdict"] == "block", report

@@ -17,12 +17,33 @@ from ethos.repository.profile import render_repository_profile
 from tests.support.governed_repository import git
 from tests.support.literal_cases import literal_case
 
+RELOCATED_OPENSPEC_PROFILE = 'profile_id = "sample"\n\n[roots]\nopenspec = "contracts"\n'
+RETIRED_PROFILES = {
+    "registry-projection": 'profile_id = "sample"\n\n[proof]\ncode_correctness_gates = ["tests"]\n'
+    '\n[[proof.gates]]\nid = "tests"\nkind = "test"\n'
+    'command = ["pytest"]\nregistries = ["quality"]\n',
+    "former-envelope": 'schema_version = 1\nprofile_id = "sample"\nprofile_version = "1"\n'
+    'ethos_contract_version = "1"\n\n[repository]\nkind = "documentation"\n'
+    'root_subject = "sample"\n\n[openspec]\nmaterial_paths = ["openspec/**"]\n',
+    "root-rules-workaround": 'profile_id = "sample"\n\n[roots]\nrules = "."\n\n'
+    '[openspec]\nmaterial_paths = ["openspec/**"]\n',
+    "openspec-relocation": RELOCATED_OPENSPEC_PROFILE,
+}
+
 
 def _write_profile(root: Path, text: str) -> Path:
     profile = root / ".ethos" / "profile.toml"
     profile.parent.mkdir()
     profile.write_text(text, encoding="utf-8")
     return profile
+
+
+def _validate_metadata_binding(field: str, file_name: str, authority_ref: str) -> None:
+    """Validate one OpenSpec metadata binding through the immutable profile declaration."""
+    binding = {"file_name": file_name, "authority_ref": authority_ref}
+    RepositoryProfileDeclaration.model_validate(
+        {"profile_id": "sample", "openspec": {"material_paths": ["**"], field: [binding]}}
+    )
 
 
 @pytest.mark.parametrize(
@@ -43,15 +64,7 @@ def _write_profile(root: Path, text: str) -> Path:
 def test_profile_rejects_unsafe_capability_metadata_bindings(file_name: str, field: str) -> None:
     """Metadata is an exact native data member, never a new normative or executable carrier."""
     with pytest.raises(ValidationError):
-        RepositoryProfileDeclaration.model_validate(
-            {
-                "profile_id": "sample",
-                "openspec": {
-                    "material_paths": ["**"],
-                    field: [{"file_name": file_name, "authority_ref": "rules/native-contract.md"}],
-                },
-            }
-        )
+        _validate_metadata_binding(field, file_name, "rules/native-contract.md")
 
 
 @pytest.mark.parametrize(
@@ -63,15 +76,7 @@ def test_metadata_authority_requires_an_exact_repository_path(
 ) -> None:
     """A metadata owner is an exact contained file path, not an external or ambiguous locator."""
     with pytest.raises(ValidationError):
-        RepositoryProfileDeclaration.model_validate(
-            {
-                "profile_id": "sample",
-                "openspec": {
-                    "material_paths": ["**"],
-                    field: [{"file_name": "data.json", "authority_ref": authority_ref}],
-                },
-            }
-        )
+        _validate_metadata_binding(field, "data.json", authority_ref)
 
 
 def _assert_invalid_profile(root: Path, text: str) -> None:
@@ -91,12 +96,7 @@ def test_profile_contract_is_strict_frozen_and_deterministic(tmp_path: Path) -> 
     with pytest.raises(TypeError):
         declaration.proof.code_correctness_map["behavior"] = "mutable"
     with pytest.raises(ValidationError):
-        RepositoryProfileDeclaration.model_validate(
-            {
-                "profile_id": "sample",
-                "extra": True,
-            }
-        )
+        RepositoryProfileDeclaration.model_validate({"profile_id": "sample", "extra": True})
 
     _write_profile(tmp_path, rendered)
     loaded = load_repository_profile(tmp_path)
@@ -109,10 +109,7 @@ def test_profile_contract_is_strict_frozen_and_deterministic(tmp_path: Path) -> 
 
 @pytest.mark.parametrize(
     "fields",
-    [
-        {"roots": {"durable_evidence": "evidence"}},
-        {"evidence": {"durable_roots": ["evidence"]}},
-    ],
+    [{"roots": {"durable_evidence": "evidence"}}, {"evidence": {"durable_roots": ["evidence"]}}],
 )
 def test_profile_cannot_select_current_proof_by_directory(fields) -> None:
     """Retired directory declarations cannot become a parallel proof selector."""
@@ -154,29 +151,20 @@ def test_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Path) -
     assert worktree.profile.state == "valid"
     assert worktree.digest == committed.digest
     assert worktree.gate_ids == committed.gate_ids
-    assert worktree.profile.declaration.proof.code_correctness_gates == ("checks", "static")
-    assert set(worktree.gate_ids) == {
-        "checks",
-        "static",
-        "behavior",
-        "config-quality",
-        "source-format",
-    }
+    proof = worktree.profile.declaration.proof
+    assert proof.code_correctness_gates == ("checks", "static")
+    gates = set(worktree.gate_ids)
+    assert gates == {"checks", "static", "behavior", "config-quality", "source-format"}
     assert worktree.declaration.proof_sets == committed.declaration.proof_sets
     assert worktree.declaration.proof_sets.default == ("checks", "static")
     assert worktree.declaration.proof_sets.full == ("checks", "static")
     assert worktree.gate_ids.index("behavior") < worktree.gate_ids.index("checks")
     assert worktree.registry["behavior"].command == ()
     assert worktree.registry["behavior"].execution_mode == "provider"
-    assert worktree.profile.declaration.proof.code_correctness_map == {
-        "behavior": "behavior",
-        "static-analysis": "static",
-    }
+    assert proof.code_correctness_map == {"behavior": "behavior", "static-analysis": "static"}
     assert "optional" in worktree.registry
     assert "optional" not in worktree.gate_ids
-    assert tuple(gate.id for gate in worktree.declaration.proof_gates(("optional",))) == (
-        "optional",
-    )
+    assert [gate.id for gate in worktree.declaration.proof_gates(("optional",))] == ["optional"]
 
 
 def _dependency_proof() -> dict[str, object]:
@@ -252,18 +240,10 @@ def test_profile_rejects_incomplete_native_dependency_closure(fault: str) -> Non
         RepositoryProfileDeclaration.model_validate({"profile_id": "sample", "proof": proof})
 
 
-def test_profile_gate_rejects_retired_registry_projection_field(tmp_path: Path) -> None:
-    _assert_invalid_profile(
-        tmp_path,
-        'profile_id = "sample"\n\n'
-        "[proof]\n"
-        'code_correctness_gates = ["tests"]\n\n'
-        "[[proof.gates]]\n"
-        'id = "tests"\n'
-        'kind = "test"\n'
-        'command = ["pytest"]\n'
-        'registries = ["quality"]\n',
-    )
+@pytest.mark.parametrize("text", RETIRED_PROFILES.values(), ids=list(RETIRED_PROFILES))
+def test_profile_rejects_retired_shapes_and_root_workarounds(tmp_path: Path, text: str) -> None:
+    """Retired fields, the former envelope and renamed native roots such as OpenSpec never load."""
+    _assert_invalid_profile(tmp_path, text)
 
 
 @pytest.mark.parametrize(
@@ -287,51 +267,12 @@ def test_profile_contract_rejects_non_string_paths() -> None:
         )
 
 
-def test_profile_contract_rejects_complete_former_envelope(tmp_path: Path) -> None:
-    _assert_invalid_profile(
-        tmp_path,
-        "schema_version = 1\n"
-        'profile_id = "sample"\n'
-        'profile_version = "1"\n'
-        'ethos_contract_version = "1"\n\n'
-        "[repository]\n"
-        'kind = "documentation"\n'
-        'root_subject = "sample"\n\n'
-        "[openspec]\n"
-        'material_paths = ["openspec/**"]\n',
-    )
-
-
-def test_current_profile_rejects_root_rules_workaround(tmp_path: Path) -> None:
-    _assert_invalid_profile(
-        tmp_path,
-        'profile_id = "sample"\n\n'
-        "[roots]\n"
-        'rules = "."\n\n'
-        "[openspec]\n"
-        'material_paths = ["openspec/**"]\n',
-    )
-
-
-def test_profile_rejects_open_spec_root_relocation(tmp_path: Path) -> None:
-    """The native OpenSpec CLI cannot consume a renamed repository root."""
-    _assert_invalid_profile(
-        tmp_path,
-        'profile_id = "sample"\n\n[roots]\nopenspec = "contracts"\n',
-    )
-
-
-def test_adopter_inspection_does_not_accept_a_relocated_open_spec_root(
-    tmp_path: Path,
-) -> None:
+def test_adopter_inspection_does_not_accept_a_relocated_open_spec_root(tmp_path: Path) -> None:
     """Capability discovery must agree with the native OpenSpec reader."""
     relocated = tmp_path / "contracts"
     (relocated / "specs").mkdir(parents=True)
     (relocated / "config.yaml").write_text("schema: spec-driven\n", encoding="utf-8")
-    _write_profile(
-        tmp_path,
-        'profile_id = "sample"\n\n[roots]\nopenspec = "contracts"\n',
-    )
+    _write_profile(tmp_path, RELOCATED_OPENSPEC_PROFILE)
 
     report = inspect_adopter(tmp_path)
 
@@ -363,10 +304,7 @@ def test_profile_loader_rejects_unreadable_profile(tmp_path: Path, monkeypatch) 
 
 
 def test_invalid_profile_never_falls_back_to_default_roots(tmp_path: Path) -> None:
-    _write_profile(
-        tmp_path,
-        "profile_id = 'sample'\n[roots]\ndocs = '../docs'\n",
-    )
+    _write_profile(tmp_path, "profile_id = 'sample'\n[roots]\ndocs = '../docs'\n")
 
     loaded = load_repository_profile(tmp_path)
 

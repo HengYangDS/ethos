@@ -24,20 +24,23 @@ _RELEASE = (
     'capabilities = ["repository"]\n\n'
     '[[publication.peers]]\nid = "github"\nprovider = "github"\n'
 )
+_PRETTIER = ".config/checks/prettier/prettier.toml"
+_TAPLO = ".config/checks/taplo/taplo.toml"
+_EDITOR_DEFAULTS = "[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n"
+_WORKSPACE = ".ethos/workspace.toml"
+_SCOPES = '[commit_policy]\nscopes = ["cli"]\n'
 
 
 def _plan(root: Path, changes: dict[str, str | None]) -> tuple[RepairPlan, dict]:
-    """Write the conforming tree with changes, then plan repairs for its report."""
-    files = {**CONFORMING, **{path: text for path, text in changes.items() if text is not None}}
-    for path in (path for path, text in changes.items() if text is None):
-        files.pop(path, None)
-    report = paradigm_report(root, files)
-    gaps = [ParadigmGap(**gap) for gap in report["gaps"]]
+    """Write the conforming tree with changes, None removing a carrier, then plan its repairs."""
+    merged = {**CONFORMING, **changes}
+    files = {path: text for path, text in merged.items() if text is not None}
+    gaps = [ParadigmGap(**gap) for gap in paradigm_report(root, files)["gaps"]]
     return paradigm_repair_plan(root, gaps), files
 
 
-def _apply(root: Path, plan: RepairPlan, files: dict[str, str]) -> dict:
-    """Write the planned edits, deleting removed carriers, and re-evaluate the repaired tree."""
+def _apply(root: Path, plan: RepairPlan, files: dict[str, str], prefix: str = "") -> list[str]:
+    """Write the planned edits, deleting removed carriers, and return the gaps left by prefix."""
     repaired = dict(files)
     for edit in plan.edits:
         if edit.after is None:
@@ -45,7 +48,8 @@ def _apply(root: Path, plan: RepairPlan, files: dict[str, str]) -> dict:
             (root / edit.path).unlink()
         else:
             repaired[edit.path] = edit.after
-    return paradigm_report(root, repaired)
+    gaps = paradigm_report(root, repaired)["required_gaps"]
+    return [gap for gap in gaps if gap.startswith(prefix)]
 
 
 def test_conforming_tree_plans_nothing(tmp_path: Path) -> None:
@@ -61,130 +65,120 @@ def test_missing_normalization_carriers_are_created(tmp_path: Path) -> None:
     assert edits[".gitattributes"].before is None
     assert edits[".gitattributes"].after == "* text=auto eol=lf\n"
     assert edits[".editorconfig"].after.startswith("root = true\n\n[*]\n")
-    assert _apply(tmp_path, plan, files)["required_gaps"] == []
-
-
-@pytest.mark.parametrize(
-    ("before", "after"),
-    [
-        ("*.png binary\n* -text\n\n", "*.png binary\n* -text\n* text=auto eol=lf\n"),
-        ("", "* text=auto eol=lf\n"),
-    ],
-)
-def test_gitattributes_ends_with_the_shared_rule(tmp_path: Path, before: str, after: str) -> None:
-    """The shared rule becomes the last catch-all pattern and earlier lines stay."""
-    plan, files = _plan(tmp_path, {".gitattributes": before})
-    assert [edit.after for edit in plan.edits] == [after]
-    assert _apply(tmp_path, plan, files)["required_gaps"] == []
-
-
-@pytest.mark.parametrize(
-    ("before", "after"),
-    [
-        (
-            "root = true\n\n[*]\ncharset = latin1\n\n[*.py]\nindent_size = 4\n",
-            (
-                "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\n"
-                "insert_final_newline = true\n\n[*.py]\nindent_size = 4\n"
-            ),
-        ),
-        (
-            "root = true\n\n[*.py]\nindent_size = 4\n",
-            (
-                "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\n"
-                "insert_final_newline = true\n\n[*.py]\nindent_size = 4\n"
-            ),
-        ),
-        (
-            "root = true\n",
-            "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n",
-        ),
-        (
-            "\n",
-            "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n",
-        ),
-    ],
-)
-def test_editorconfig_defaults_apply_to_every_file(tmp_path: Path, before: str, after: str) -> None:
-    """The shared defaults land in [*], ahead of narrower sections that may refine them."""
-    plan, files = _plan(tmp_path, {".editorconfig": before})
-    assert [edit.after for edit in plan.edits] == [after]
-    assert _apply(tmp_path, plan, files)["required_gaps"] == []
+    assert _apply(tmp_path, plan, files) == []
 
 
 def test_missing_formatter_carriers_are_created_with_the_shared_settings(tmp_path: Path) -> None:
     """A missing carrier is written with the paradigm settings in their native tables."""
-    missing = (".config/checks/taplo/taplo.toml", ".config/checks/prettier/prettier.toml")
-    plan, files = _plan(tmp_path, dict.fromkeys(missing))
+    plan, files = _plan(tmp_path, {_TAPLO: None, _PRETTIER: None})
     edits = {edit.path: edit.after for edit in plan.edits}
-    assert edits[missing[0]] == "[formatting]\ncolumn_width = 100\n"
-    assert edits[missing[1]] == 'proseWrap = "preserve"\nprintWidth = 100\n'
-    assert _apply(tmp_path, plan, files)["required_gaps"] == []
+    assert edits[_TAPLO] == "[formatting]\ncolumn_width = 100\n"
+    assert edits[_PRETTIER] == 'proseWrap = "preserve"\nprintWidth = 100\n'
+    assert _apply(tmp_path, plan, files) == []
 
 
-@pytest.mark.parametrize(
-    ("path", "before", "after"),
-    [
+# Each repair edits or removes one carrier and leaves the repaired tree conforming.
+_REPAIRS = {
+    # The shared rule becomes the last catch-all pattern and earlier lines stay.
+    "gitattributes-overridden": (
+        ".gitattributes",
+        "*.png binary\n* -text\n\n",
+        "*.png binary\n* -text\n* text=auto eol=lf\n",
+    ),
+    "gitattributes-empty": (".gitattributes", "", "* text=auto eol=lf\n"),
+    # The shared defaults land in [*], ahead of narrower sections that may refine them.
+    "editorconfig-wrong-default": (
+        ".editorconfig",
+        "root = true\n\n[*]\ncharset = latin1\n\n[*.py]\nindent_size = 4\n",
+        f"root = true\n\n{_EDITOR_DEFAULTS}\n[*.py]\nindent_size = 4\n",
+    ),
+    "editorconfig-narrower-only": (
+        ".editorconfig",
+        "root = true\n\n[*.py]\nindent_size = 4\n",
+        f"root = true\n\n{_EDITOR_DEFAULTS}\n[*.py]\nindent_size = 4\n",
+    ),
+    "editorconfig-root": (".editorconfig", "root = true\n", f"root = true\n\n{_EDITOR_DEFAULTS}"),
+    "editorconfig-blank": (".editorconfig", "\n", f"root = true\n\n{_EDITOR_DEFAULTS}"),
+    # A wrong or missing setting is set without disturbing comments or other keys.
+    "prettier-width": (
+        _PRETTIER,
+        '# shared width\nprintWidth = 80\nproseWrap = "preserve"\n',
+        '# shared width\nprintWidth = 100\nproseWrap = "preserve"\n',
+    ),
+    "ruff-target": (
+        ".config/checks/ruff/ruff.toml",
+        "line-length = 100\n\n[lint]\nselect = []\n",
+        'line-length = 100\ntarget-version = "py312"\n\n[lint]\nselect = []\n',
+    ),
+    "taplo-width": (
+        _TAPLO,
+        "[formatting]\nalign_entries = false\n\n[schema]\nenabled = false\n",
+        "[formatting]\nalign_entries = false\ncolumn_width = 100\n\n[schema]\nenabled = false\n",
+    ),
+    "taplo-table": (
+        _TAPLO,
+        'include = ["**/*.toml"]\n',
+        'include = ["**/*.toml"]\n\n[formatting]\ncolumn_width = 100\n',
+    ),
+    # The <!-- and --> lines go; the front matter and the body keep every byte.
+    "front-matter-wrapped": (
+        "docs/guide.md",
+        "<!--\n---\nsubject: sample:guide\n---\n-->\n\n# Guide\n",
+        "---\nsubject: sample:guide\n---\n\n# Guide\n",
+    ),
+    # The default mirror needs no declaration, so a binding that held only it goes.
+    "independent-mirror": (
+        _WORKSPACE,
+        '# Branch roles.\n[branch_roles]\nrelease_mirror = "independent"\n',
+        None,
+    ),
+    # Every header of an unread table goes; a binding left with nothing is removed.
+    "legacy-schema": (
+        _WORKSPACE,
         (
-            ".config/checks/prettier/prettier.toml",
-            '# shared width\nprintWidth = 80\nproseWrap = "preserve"\n',
-            '# shared width\nprintWidth = 100\nproseWrap = "preserve"\n',
+            '[workspace]\nmode = "monorepo"\n\n[packages.root]\npath = "."\n\n'
+            '# Core.\n[packages.core]\npath = "packages/core"\n'
         ),
-        (
-            ".config/checks/ruff/ruff.toml",
-            "line-length = 100\n\n[lint]\nselect = []\n",
-            'line-length = 100\ntarget-version = "py312"\n\n[lint]\nselect = []\n',
-        ),
-        (
-            ".config/checks/taplo/taplo.toml",
-            "[formatting]\nalign_entries = false\n\n[schema]\nenabled = false\n",
-            (
-                "[formatting]\nalign_entries = false\ncolumn_width = 100\n"
-                "\n[schema]\nenabled = false\n"
-            ),
-        ),
-        (
-            ".config/checks/taplo/taplo.toml",
-            'include = ["**/*.toml"]\n',
-            'include = ["**/*.toml"]\n\n[formatting]\ncolumn_width = 100\n',
-        ),
-    ],
-)
-def test_formatter_settings_are_set_in_place(
-    tmp_path: Path, path: str, before: str, after: str
+        None,
+    ),
+    # Either signing field goes; a binding left with nothing to declare is removed.
+    "signature-alone": (
+        _WORKSPACE,
+        '# Signed commits.\n[commit_policy]\nsigning_required = false\nsigning_format = "ssh"\n',
+        None,
+    ),
+    # The scopes the binding restricts stay with their table.
+    "signature-beside-scopes": (
+        _WORKSPACE,
+        '[commit_policy]\nscopes = ["cli"]\nsigning_required = true\nsigning_format = "ssh"\n',
+        _SCOPES,
+    ),
+}
+
+
+@pytest.mark.parametrize(("path", "before", "after"), _REPAIRS.values(), ids=_REPAIRS)
+def test_a_deterministic_repair_edits_only_its_carrier(
+    tmp_path: Path, path: str, before: str, after: str | None
 ) -> None:
-    """A wrong or missing setting is set without disturbing comments or other keys."""
+    """The plan edits or removes the one carrier, and the repaired tree reports no gap."""
     plan, files = _plan(tmp_path, {path: before})
     assert [(edit.path, edit.after) for edit in plan.edits] == [(path, after)]
-    assert _apply(tmp_path, plan, files)["required_gaps"] == []
+    assert _apply(tmp_path, plan, files) == []
 
 
 def test_a_setting_that_cannot_be_rewritten_stays_report_only(tmp_path: Path) -> None:
     """A multi-line value would break the document, so the gap keeps its canonical repair."""
-    path = ".config/checks/prettier/prettier.toml"
-    plan, _ = _plan(tmp_path, {path: 'printWidth = [\n  80,\n]\nproseWrap = "preserve"\n'})
+    plan, _ = _plan(tmp_path, {_PRETTIER: 'printWidth = [\n  80,\n]\nproseWrap = "preserve"\n'})
     assert plan.edits == ()
-    assert [gap.carrier for gap in plan.report_only] == [f"{path}:printWidth"]
+    assert [gap.carrier for gap in plan.report_only] == [f"{_PRETTIER}:printWidth"]
 
 
 def test_an_untracked_carrier_is_tracked_rather_than_rewritten(tmp_path: Path) -> None:
     """A carrier present on disk but untracked needs `git add`, not new text."""
-    path = ".config/checks/taplo/taplo.toml"
-    report = paradigm_report(tmp_path, CONFORMING, untracked=(path,))
+    report = paradigm_report(tmp_path, CONFORMING, untracked=(_TAPLO,))
     plan = paradigm_repair_plan(tmp_path, [ParadigmGap(**gap) for gap in report["gaps"]])
     assert plan.edits == ()
-    assert plan.actions == (f"git add {path}",)
-
-
-def test_wrapped_front_matter_loses_only_its_comment_lines(tmp_path: Path) -> None:
-    """The <!-- and --> lines go; the front matter and the body keep every byte."""
-    document = "docs/guide.md"
-    wrapped = "<!--\n---\nsubject: sample:guide\n---\n-->\n\n# Guide\n"
-    plan, files = _plan(tmp_path, {document: wrapped})
-    assert [(edit.path, edit.after) for edit in plan.edits] == [
-        (document, "---\nsubject: sample:guide\n---\n\n# Guide\n")
-    ]
-    assert _apply(tmp_path, plan, files)["required_gaps"] == []
+    assert plan.actions == (f"git add {_TAPLO}",)
 
 
 @pytest.mark.parametrize(
@@ -209,11 +203,7 @@ def test_a_peer_remote_is_named_after_its_peer(tmp_path: Path) -> None:
     assert 'id = "gitlab"\nprovider = "gitlab"\ngit_remote = "gitlab"\n' in release.after
     assert 'id = "github"\ngit_remote = "github"\nprovider = "github"\n' in release.after
     assert plan.actions == ("git remote rename origin gitlab",)
-    assert not [
-        gap
-        for gap in _apply(tmp_path, plan, files)["required_gaps"]
-        if gap.startswith("repository_paradigm_peer_remote")
-    ]
+    assert not _apply(tmp_path, plan, files, "repository_paradigm_peer_remote")
 
 
 def test_a_peer_block_that_cannot_be_read_alone_stays_report_only(tmp_path: Path) -> None:
@@ -241,9 +231,6 @@ def test_gaps_without_a_deterministic_repair_stay_report_only(tmp_path: Path) ->
     assert plan.report_only == tuple(gaps)
 
 
-_WORKSPACE = ".ethos/workspace.toml"
-
-
 def _workspace_plan(root: Path, workspace: str, gaps: list[ParadigmGap]) -> RepairPlan:
     """Plan repairs for the given gaps over one workspace binding."""
     (root / ".ethos").mkdir()
@@ -263,10 +250,7 @@ def test_restated_standard_role_names_are_deleted(tmp_path: Path) -> None:
         for role in ("release_branch", "accepted_branch", "work_branch_prefix")
     ]
     plan = _workspace_plan(tmp_path, workspace, gaps)
-    repaired = (
-        '# The native train.\n[branch_roles]\nrelease_mirror = "accepted_ff"\n\n'
-        '[commit_policy]\nscopes = ["cli"]\n'
-    )
+    repaired = f'# The native train.\n[branch_roles]\nrelease_mirror = "accepted_ff"\n\n{_SCOPES}'
     assert [(edit.path, edit.after) for edit in plan.edits] == [(_WORKSPACE, repaired)]
     assert plan.repaired == tuple(gaps)
 
@@ -286,11 +270,7 @@ def test_a_restated_shared_commit_grammar_is_deleted(tmp_path: Path) -> None:
     policy = {"commit_policy": {"subject_pattern": grammar}}
     plan, files = _plan(tmp_path, {_WORKSPACE: tomli_w.dumps(policy)})
     assert [(edit.path, edit.after) for edit in plan.edits] == [(_WORKSPACE, None)]
-    assert not [
-        gap
-        for gap in _apply(tmp_path, plan, files)["required_gaps"]
-        if gap.startswith("repository_paradigm_commit_grammar")
-    ]
+    assert not _apply(tmp_path, plan, files, "repository_paradigm_commit_grammar")
 
 
 def test_a_repository_commit_grammar_stays_report_only(tmp_path: Path) -> None:
@@ -338,14 +318,6 @@ _RELEASE_BINDING = ".ethos/release.toml"
 _PUBLICATION = '[publication]\nlocal_verification_command = "check"\n'
 
 
-def test_an_independent_mirror_and_its_emptied_binding_are_deleted(tmp_path: Path) -> None:
-    """The default mirror needs no declaration, so a binding that held only it goes."""
-    workspace = '# Branch roles.\n[branch_roles]\nrelease_mirror = "independent"\n'
-    plan, files = _plan(tmp_path, {_WORKSPACE: workspace})
-    assert [(edit.path, edit.after) for edit in plan.edits] == [(_WORKSPACE, None)]
-    assert _apply(tmp_path, plan, files)["required_gaps"] == []
-
-
 @pytest.mark.parametrize(
     ("release", "repaired"),
     [
@@ -365,26 +337,12 @@ def test_an_accepted_mirror_moves_to_the_release_binding(
     workspace = (
         '[[package]]\nname = "root"\npath = "."\n\n'
         "# The native train keeps main release-facing.\n"
-        '[branch_roles]\nrelease_branch = "main"\nrelease_mirror = "accepted_ff"\n\n'
-        '[commit_policy]\nscopes = ["cli"]\n'
+        f'[branch_roles]\nrelease_branch = "main"\nrelease_mirror = "accepted_ff"\n\n{_SCOPES}'
     )
     plan, files = _plan(tmp_path, {_WORKSPACE: workspace, _RELEASE_BINDING: release})
-    assert {edit.path: edit.after for edit in plan.edits} == {
-        _WORKSPACE: '[commit_policy]\nscopes = ["cli"]\n',
-        _RELEASE_BINDING: repaired,
-    }
-    assert _apply(tmp_path, plan, files)["required_gaps"] == []
-
-
-def test_an_unread_legacy_schema_is_deleted_with_its_sub_tables(tmp_path: Path) -> None:
-    """Every header of an unread table goes; a binding left with nothing is removed."""
-    workspace = (
-        '[workspace]\nmode = "monorepo"\n\n[packages.root]\npath = "."\n\n'
-        '# Core.\n[packages.core]\npath = "packages/core"\n'
-    )
-    plan, files = _plan(tmp_path, {_WORKSPACE: workspace})
-    assert [(edit.path, edit.after) for edit in plan.edits] == [(_WORKSPACE, None)]
-    assert _apply(tmp_path, plan, files)["required_gaps"] == []
+    edits = {edit.path: edit.after for edit in plan.edits}
+    assert edits == {_WORKSPACE: _SCOPES, _RELEASE_BINDING: repaired}
+    assert _apply(tmp_path, plan, files) == []
 
 
 def test_an_unread_value_outside_a_table_header_stays_report_only(tmp_path: Path) -> None:
@@ -398,18 +356,13 @@ def test_an_unread_value_outside_a_table_header_stays_report_only(tmp_path: Path
 @pytest.mark.parametrize("value", ["true", "false"])
 def test_the_retired_sibling_worktree_setting_is_deleted(tmp_path: Path, value: str) -> None:
     """No reader consults the setting, so either value goes and the report no longer names it."""
-    kept = '[commit_policy]\nscopes = ["cli"]\n'
     workspace = (
-        f"{kept}\n# Lanes live beside the repository.\n"
+        f"{_SCOPES}\n# Lanes live beside the repository.\n"
         f"[branch_roles]\ncanonical_sibling_worktrees = {value}\n"
     )
     plan, files = _plan(tmp_path, {_WORKSPACE: workspace})
-    assert [(edit.path, edit.after) for edit in plan.edits] == [(_WORKSPACE, kept)]
-    assert not [
-        gap
-        for gap in _apply(tmp_path, plan, files)["required_gaps"]
-        if gap.startswith("repository_paradigm_branch_roles")
-    ]
+    assert [(edit.path, edit.after) for edit in plan.edits] == [(_WORKSPACE, _SCOPES)]
+    assert not _apply(tmp_path, plan, files, "repository_paradigm_branch_roles")
 
 
 def test_a_retired_field_the_binding_no_longer_declares_stays_report_only(tmp_path: Path) -> None:
@@ -419,25 +372,3 @@ def test_a_retired_field_the_binding_no_longer_declares_stays_report_only(tmp_pa
     plan = _workspace_plan(tmp_path, '[branch_roles]\nrelease_mirror = "independent"\n', [gap])
     assert plan.edits == ()
     assert plan.report_only == (gap,)
-
-
-def test_a_restated_signature_and_its_emptied_binding_are_deleted(tmp_path: Path) -> None:
-    """Either signing field goes; a binding left with nothing to declare is removed."""
-    workspace = (
-        '# Signed commits.\n[commit_policy]\nsigning_required = false\nsigning_format = "ssh"\n'
-    )
-    plan, files = _plan(tmp_path, {_WORKSPACE: workspace})
-    assert [(edit.path, edit.after) for edit in plan.edits] == [(_WORKSPACE, None)]
-    assert _apply(tmp_path, plan, files)["required_gaps"] == []
-
-
-def test_a_restated_signature_is_deleted_beside_declared_scopes(tmp_path: Path) -> None:
-    """The scopes the binding restricts stay with their table."""
-    workspace = (
-        '[commit_policy]\nscopes = ["cli"]\nsigning_required = true\nsigning_format = "ssh"\n'
-    )
-    plan, files = _plan(tmp_path, {_WORKSPACE: workspace})
-    assert [(edit.path, edit.after) for edit in plan.edits] == [
-        (_WORKSPACE, '[commit_policy]\nscopes = ["cli"]\n')
-    ]
-    assert _apply(tmp_path, plan, files)["required_gaps"] == []

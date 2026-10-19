@@ -1,6 +1,9 @@
 """Publish accepted forward work after exact historical identity replacement."""
 
 import json
+from collections.abc import Iterable
+from collections.abc import Iterator
+from contextlib import contextmanager
 from contextlib import redirect_stderr
 from io import StringIO
 from pathlib import Path
@@ -26,7 +29,67 @@ from tests.unit.cli.land.publication.support import PROPOSAL_REF
 from tests.unit.cli.land.publication.support import apply_receipt
 from tests.unit.cli.land.publication.support import branch_publication
 from tests.unit.cli.land.publication.support import configure_signature_publication
+from tests.unit.cli.land.publication.support import proposal_ref
 from tests.unit.cli.land.publication.support import publication_peers
+
+SIGNATURE_PREDICATE = "effect:commit-signature"
+
+
+@contextmanager
+def _attestations_without(repo: Path, field: str, value: str) -> Iterator[None]:
+    """Select the set without matching attestations for one observation, then restore it."""
+    selected, records = read_attestation_set(repo)
+    git(repo, "update-ref", "-d", ATTESTATION_SET_REF, selected)
+    kept = tuple(item for item in records if getattr(item, field) != value)
+    subset = record_attestations(repo, kept)
+    root = subset["root"]
+    assert isinstance(root, str)
+    try:
+        yield
+    finally:
+        git(repo, "update-ref", ATTESTATION_SET_REF, selected, root)
+
+
+def _pre_push(repo: Path, head: str, remote_head: str, *, blocked: bool = False) -> dict:
+    """Admit one dev update through the native pre-push hook against an exact peer head."""
+    runner = run_ethos_blocked if blocked else run_ethos
+    update = ("refs/heads/dev", head, "--remote-head", remote_head, "--remote", "gitlab")
+    return runner("hook", "pre-push", *update, "--json", cwd=repo)
+
+
+def _land_forward(repo: Path, candidate: Path, baseline: str) -> str:
+    """Accept a signed candidate that declares independent publication peers."""
+    configure_signature_publication(candidate)
+    git(candidate, "add", "-A")
+    git(candidate, "commit", "-S", "-m", "fix: declare independent publication peers")
+    head = git(candidate, "rev-parse", "HEAD")
+    install_fixture_hook_runtime(repo)
+    seed_executed_proof(candidate, head)
+    closeout = ("--closeout", "--apply", "--authorize", "--expect-head", baseline)
+    accepted = run_ethos("land", *closeout, "--candidate-head", head, "--json", cwd=repo)
+    assert accepted["verdict"] == "pass", accepted
+    return head
+
+
+def _publish_preview(repo: Path, head: str, old: str, peers: Iterable[Path]) -> dict:
+    """Preview both protected branches as exact CAS from the peers' unchanged heads."""
+    request = ("--ref", "refs/heads/dev", "--ref", "refs/heads/main", "--probe-remote")
+    preview = run_ethos("publish", *request, "--expect-head", head, "--json", cwd=repo)
+    assert preview["verdict"] == "pass", preview
+    assert {
+        (update["expected"], update["desired"])
+        for target in preview["data"]["remote_effect"]["targets"]
+        for update in target["updates"]
+    } == {(old, head)}
+    assert all(git(peer, "rev-parse", "dev") == old for peer in peers)
+    return preview["data"]["request_receipt"]
+
+
+def _publish_apply(repo: Path, receipt: dict, head: str, peers: Iterable[Path]) -> None:
+    """Apply the previewed receipt and require both protected branches on every peer."""
+    result = apply_receipt(repo, receipt, head)
+    assert result["state"] == "published", result
+    assert {git(peer, "rev-parse", ref) for peer in peers for ref in ("dev", "main")} == {head}
 
 
 @pytest.mark.parametrize("peer_history", ["original", "repaired"])
@@ -46,21 +109,10 @@ def test_completed_history_repair_resolves_proposal_objects_without_ref_rewrite(
     assert isinstance(mapping, dict)
     assert mapping[old] == replacement
     assert relation["attestation_id"]
-
-    previous, records = read_attestation_set(repo)
-    git(repo, "update-ref", "-d", ATTESTATION_SET_REF, previous)
-    changed = record_attestations(
-        repo,
-        tuple(item for item in records if item.predicate != "effect:commit-signature"),
-    )
-    changed_root = changed["root"]
-    assert isinstance(changed_root, str)
-    try:
+    with _attestations_without(repo, "predicate", SIGNATURE_PREDICATE):
         assert (
             signature_observation.repaired_object_provenance(repo, old=old, new=replacement) is None
         )
-    finally:
-        git(repo, "update-ref", ATTESTATION_SET_REF, previous, changed_root)
 
     write_publication_topology(repo)
     release = repo / ".ethos/release.toml"
@@ -82,9 +134,7 @@ def test_completed_history_repair_resolves_proposal_objects_without_ref_rewrite(
         report["contribution"]["state"] for report in preview["data"]["push_admission"].values()
     } == {"repaired"}
     assert apply_receipt(repo, preview["data"]["request_receipt"], accepted)["state"] == "retired"
-    assert {
-        git(peer, "for-each-ref", "--format=%(objectname)", PROPOSAL_REF) for peer in peers
-    } == {""}
+    assert {proposal_ref(peer) for peer in peers} == {""}
     local = retire_absorbed_ref(
         root=repo,
         branch="proposal/old-signature",
@@ -107,65 +157,16 @@ def test_publication_consumes_repaired_forward_baseline_at_every_boundary(tmp_pa
     replacement = repair_fixture_history(
         repo, tmp_path / "original.bundle", corrections={old: {"resign": True}}
     )
-    configure_signature_publication(candidate)
-    git(candidate, "add", "-A")
-    git(candidate, "commit", "-S", "-m", "fix: declare independent publication peers")
-    head = git(candidate, "rev-parse", "HEAD")
-    install_fixture_hook_runtime(repo)
-    seed_executed_proof(candidate, head)
-    accepted = run_ethos(
-        "land",
-        "--closeout",
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        replacement,
-        "--candidate-head",
-        head,
-        "--json",
-        cwd=repo,
-    )
-    assert accepted["verdict"] == "pass", accepted
+    head = _land_forward(repo, candidate, replacement)
     peers = publication_peers(
         repo, tmp_path, f"{old}:refs/heads/dev", f"{old}:refs/heads/main"
     ).values()
-    report = run_ethos(
-        "hook",
-        "pre-push",
-        "refs/heads/dev",
-        head,
-        "--remote-head",
-        old,
-        "--remote",
-        "gitlab",
-        "--json",
-        cwd=repo,
-    )
+    report = _pre_push(repo, head, old)
     assert report["verdict"] == "pass", report
     assert report["data"]["commit_policy_admission"]["integration_baseline"] == replacement
     _require_independent_admission(repo, candidate, old, head, report["data"])
-    preview = run_ethos(
-        "publish",
-        "--ref",
-        "refs/heads/dev",
-        "--ref",
-        "refs/heads/main",
-        "--probe-remote",
-        "--expect-head",
-        head,
-        "--json",
-        cwd=repo,
-    )
-    assert preview["verdict"] == "pass", preview
-    assert {
-        (update["expected"], update["desired"])
-        for target in preview["data"]["remote_effect"]["targets"]
-        for update in target["updates"]
-    } == {(old, head)}
-    assert all(git(peer, "rev-parse", "dev") == old for peer in peers)
-    result = apply_receipt(repo, preview["data"]["request_receipt"], head)
-    assert result["state"] == "published", result
-    assert {git(peer, "rev-parse", ref) for peer in peers for ref in ("dev", "main")} == {head}
+    receipt = _publish_preview(repo, head, old, peers)
+    _publish_apply(repo, receipt, head, peers)
 
 
 def _historical_peer_fixture(
@@ -187,37 +188,13 @@ def _historical_peer_fixture(
     old_tip = git(repo, "rev-parse", "HEAD")
     git(candidate, "reset", "--hard", old_tip)
     git(repo, "update-ref", "refs/heads/main", old_tip, old)
+    wrong = {"name": "Wrong", "email": "wrong@example.invalid"}
+    fixed = {"name": "ETHOS Test", "email": "test@example.invalid"}
+    corrections = {peer_old: {"author": {"expected": wrong, "replacement": fixed}}}
     replacement = repair_fixture_history(
-        repo,
-        tmp_path / "original.bundle",
-        corrections={
-            peer_old: {
-                "author": {
-                    "expected": {"name": "Wrong", "email": "wrong@example.invalid"},
-                    "replacement": {"name": "ETHOS Test", "email": "test@example.invalid"},
-                }
-            }
-        },
+        repo, tmp_path / "original.bundle", corrections=corrections
     )
-    configure_signature_publication(candidate)
-    git(candidate, "add", "-A")
-    git(candidate, "commit", "-S", "-m", "fix: declare independent publication peers")
-    head = git(candidate, "rev-parse", "HEAD")
-    install_fixture_hook_runtime(repo)
-    seed_executed_proof(candidate, head)
-    accepted = run_ethos(
-        "land",
-        "--closeout",
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        replacement,
-        "--candidate-head",
-        head,
-        "--json",
-        cwd=repo,
-    )
-    assert accepted["verdict"] == "pass", accepted
+    head = _land_forward(repo, candidate, replacement)
     return repo, candidate, peer_old, replacement, head
 
 
@@ -229,18 +206,7 @@ def test_historical_peer_prefix_uses_verified_replacement_tip(
     peers = publication_peers(
         repo, tmp_path, f"{peer_old}:refs/heads/dev", f"{peer_old}:refs/heads/main"
     ).values()
-    report = run_ethos(
-        "hook",
-        "pre-push",
-        "refs/heads/dev",
-        head,
-        "--remote-head",
-        peer_old,
-        "--remote",
-        "gitlab",
-        "--json",
-        cwd=repo,
-    )
+    report = _pre_push(repo, head, peer_old)
     assert report["verdict"] == "pass", report
     commits = report["data"]["commit_policy_admission"]
     assert commits["integration_baseline"] == replacement
@@ -257,68 +223,18 @@ def test_historical_peer_prefix_uses_verified_replacement_tip(
     assert isinstance(bad_range, dict)
     assert bad_range["integration_baseline"] == replacement
     assert {item["commit"] for item in bad_range["violations"]} == {bad}
-    preview = run_ethos(
-        "publish",
-        "--ref",
-        "refs/heads/dev",
-        "--ref",
-        "refs/heads/main",
-        "--probe-remote",
-        "--expect-head",
-        head,
-        "--json",
-        cwd=repo,
-    )
-    assert preview["verdict"] == "pass", preview
-    assert {
-        (update["expected"], update["desired"])
-        for target in preview["data"]["remote_effect"]["targets"]
-        for update in target["updates"]
-    } == {(peer_old, head)}
-    assert all(git(peer, "rev-parse", "dev") == peer_old for peer in peers)
-    selected, records = read_attestation_set(repo)
-    git(repo, "update-ref", "-d", ATTESTATION_SET_REF, selected)
-    changed = record_attestations(
-        repo, tuple(item for item in records if item.predicate != "effect:commit-signature")
-    )
-    try:
-        blocked = run_ethos_blocked(
-            "hook",
-            "pre-push",
-            "refs/heads/dev",
-            head,
-            "--remote-head",
-            peer_old,
-            "--remote",
-            "gitlab",
-            "--json",
-            cwd=repo,
-        )
+    receipt = _publish_preview(repo, head, peer_old, peers)
+    with _attestations_without(repo, "predicate", SIGNATURE_PREDICATE):
+        blocked = _pre_push(repo, head, peer_old, blocked=True)
         assert blocked["data"]["commit_policy_admission"]["update_kind"] == "existing"
         assert any(gap.startswith("commit_subject_invalid:") for gap in blocked["required_gaps"])
-    finally:
-        git(repo, "update-ref", ATTESTATION_SET_REF, selected, str(changed["root"]))
-    result = apply_receipt(repo, preview["data"]["request_receipt"], head)
-    assert result["state"] == "published", result
-    assert {git(peer, "rev-parse", ref) for peer in peers for ref in ("dev", "main")} == {head}
+    _publish_apply(repo, receipt, head, peers)
 
 
 def _require_independent_admission(
     repo: Path, candidate: Path, old: str, head: str, admitted: dict
 ) -> None:
     """Remove one necessary fact at a time without replacing its observing owner."""
-    command = (
-        "hook",
-        "pre-push",
-        "refs/heads/dev",
-        head,
-        "--remote-head",
-        old,
-        "--remote",
-        "gitlab",
-        "--json",
-    )
-    selected, records = read_attestation_set(repo)
     cases = (
         (admitted["proof_admission"]["attestation"]["id"], "proof_not_proven"),
         (
@@ -326,29 +242,21 @@ def _require_independent_admission(
             "accepted_closeout_effect_not_attested",
         ),
     )
+    update = f"refs/heads/dev {head} refs/heads/dev {old}\n"
     for identity, gap in cases:
-        git(repo, "update-ref", "-d", ATTESTATION_SET_REF, selected)
-        subset = record_attestations(repo, tuple(item for item in records if item.id != identity))
-        try:
-            blocked = run_ethos_blocked(*command, cwd=repo)
+        with _attestations_without(repo, "id", identity):
+            blocked = _pre_push(repo, head, old, blocked=True)
             assert gap in blocked["required_gaps"], blocked
             assert blocked["data"]["commit_policy_admission"]["update_kind"] == "repair"
             stream = StringIO()
             with redirect_stderr(stream):
-                code = execute_hook(
-                    repo,
-                    "pre-push",
-                    ("gitlab",),
-                    stdin=StringIO(f"refs/heads/dev {head} refs/heads/dev {old}\n"),
-                )
+                code = execute_hook(repo, "pre-push", ("gitlab",), stdin=StringIO(update))
             assert code == 1
             assert gap in json.loads(stream.getvalue())["required_gaps"]
-        finally:
-            git(repo, "update-ref", ATTESTATION_SET_REF, selected, str(subset["root"]))
     git(candidate, "commit", "--allow-empty", "-S", "-m", "fix: later candidate")
     later = git(candidate, "rev-parse", "HEAD")
     try:
-        blocked = run_ethos_blocked(*command, cwd=repo)
+        blocked = _pre_push(repo, head, old, blocked=True)
         assert "accepted_ref_move_not_candidate_head" in blocked["required_gaps"], blocked
     finally:
         git(candidate, "update-ref", "refs/heads/candidate/dev", head, later)

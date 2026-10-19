@@ -30,6 +30,9 @@ if TYPE_CHECKING:
 
     from ethos.contracts.plan import TransitionPlan
 
+PASSING_GATE = "print('current gate passed')"
+FAILING_GATE = "raise SystemExit(75)"
+
 
 def _authoring_snapshot(root: Path) -> tuple[str, str, str]:
     """Retain both staged and unstaged bytes in test observations."""
@@ -41,7 +44,7 @@ def _authoring_snapshot(root: Path) -> tuple[str, str, str]:
 
 
 def _staged_archive(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, test_program: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, test_program: str = PASSING_GATE
 ) -> tuple[Path, str, tuple[str, str, str]]:
     """Create committed intent and an untouched staged official archive."""
     lifecycle = completed_lifecycle(tmp_path, monkeypatch)
@@ -54,20 +57,30 @@ def _staged_archive(
     return authoring, head, _authoring_snapshot(authoring)
 
 
-def _prove(authoring: Path, head: str, carrier: Path) -> dict[str, Any]:
-    """Exercise public proof with original authority and a chosen executor."""
+def _detached_carrier(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, test_program: str = PASSING_GATE
+) -> tuple[Path, str, tuple[str, str, str], Path]:
+    """Add a clean detached executor at the committed head of a staged archive."""
+    authoring, head, before = _staged_archive(tmp_path, monkeypatch, test_program)
+    carrier = tmp_path / "execution-carrier"
+    git(authoring, "worktree", "add", "--detach", str(carrier), head)
+    return authoring, head, before, carrier
+
+
+def _captured_guard(authoring: Path, carrier: Path, head: str) -> ProofExecutionCarrier:
+    """Capture the executor guard against the authoring lane's current Lease."""
+    branch = git(authoring, "branch", "--show-current")
+    tree = git(authoring, "rev-parse", "HEAD^{tree}")
+    lease = leases_by_branch(authoring)[branch]
+    return ProofExecutionCarrier.capture(authoring, carrier, head=head, tree=tree, lease=lease)
+
+
+def _prove(authoring: Path, head: str | None, carrier: Path | None = None) -> dict[str, Any]:
+    """Exercise public proof with original authority, an exact head and a chosen executor."""
+    exact = ("--full", "--execute", "--expect-head", head) if head is not None else ("--execute",)
+    executor = ("--execution-root", str(carrier)) if carrier is not None else ()
     completed = run_ethos_raw(
-        "prove",
-        "--change",
-        "fixture-change",
-        "--full",
-        "--execute",
-        "--expect-head",
-        head,
-        "--execution-root",
-        str(carrier),
-        "--json",
-        cwd=authoring,
+        "prove", "--change", "fixture-change", *exact, *executor, "--json", cwd=authoring
     )
     report = json.loads(completed.stdout)
     assert (completed.returncode == 0) is (report["verdict"] == "pass"), completed.stderr
@@ -78,34 +91,17 @@ def test_staged_archive_can_reprove_its_head_from_clean_carrier(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Keep the original Lease and archive bytes while executing real current gates."""
-    authoring, head, before = _staged_archive(
-        tmp_path,
-        monkeypatch,
-        test_program=(
-            "import subprocess; "
-            "assert subprocess.run(['git', 'symbolic-ref', '-q', 'HEAD'], "
-            "check=False, capture_output=True).returncode == 1"
-        ),
+    program = (
+        "import subprocess; "
+        "assert subprocess.run(['git', 'symbolic-ref', '-q', 'HEAD'], "
+        "check=False, capture_output=True).returncode == 1"
     )
-    carrier = tmp_path / "clean-carrier"
-    git(authoring, "worktree", "add", "--detach", str(carrier), head)
+    authoring, head, before, carrier = _detached_carrier(tmp_path, monkeypatch, program)
     assert git(carrier, "rev-parse", "HEAD") == head
     assert git(carrier, "branch", "--show-current") == ""
     assert git(carrier, "status", "--porcelain=v1") == ""
 
-    blocked = run_ethos_raw(
-        "prove",
-        "--change",
-        "fixture-change",
-        "--full",
-        "--execute",
-        "--expect-head",
-        head,
-        "--json",
-        cwd=authoring,
-    )
-    assert blocked.returncode != 0
-    assert json.loads(blocked.stdout)["verdict"] != "pass"
+    assert _prove(authoring, head)["verdict"] != "pass"
     assert before == _authoring_snapshot(authoring)
 
     report = _prove(authoring, head, carrier)
@@ -131,11 +127,7 @@ def test_fresh_carrier_proof_admits_native_staged_archive_effect(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The original lane can consume new proof without rebuilding archive bytes."""
-    authoring, head, before = _staged_archive(
-        tmp_path, monkeypatch, test_program="print('current gate passed')"
-    )
-    carrier = tmp_path / "execution-carrier"
-    git(authoring, "worktree", "add", "--detach", str(carrier), head)
+    authoring, head, before, carrier = _detached_carrier(tmp_path, monkeypatch)
     assert _prove(authoring, head, carrier)["verdict"] == "pass"
 
     monkeypatch.setattr(archive_command, "proof_gaps", proof_gaps)
@@ -156,18 +148,8 @@ def test_fresh_carrier_proof_admits_native_staged_archive_effect(
     assert not (authoring / "openspec/changes/fixture-change").exists()
     assert git(authoring, "status", "--porcelain=v1") == ""
 
-    post_proof = run_ethos_raw(
-        "prove",
-        "--change",
-        "fixture-change",
-        "--full",
-        "--execute",
-        "--expect-head",
-        archived_head,
-        "--json",
-        cwd=authoring,
-    )
-    assert post_proof.returncode == 0, post_proof.stdout
+    post_proof = _prove(authoring, archived_head)
+    assert post_proof["verdict"] == "pass", post_proof
     recovered = archive_command.archive_change(
         root=authoring, change="fixture-change", expect_head=head, apply=True
     )
@@ -190,9 +172,7 @@ def test_invalid_carrier_never_runs_checks_or_changes_staged_archive(
     expected_gap: str,
 ) -> None:
     """Reject independent carrier defects before spending a gate or signing proof."""
-    authoring, head, before = _staged_archive(
-        tmp_path, monkeypatch, test_program="raise SystemExit(75)"
-    )
+    authoring, head, before = _staged_archive(tmp_path, monkeypatch, FAILING_GATE)
     carrier = tmp_path / "execution-carrier"
     if condition == "foreign":
         init_git_repo(carrier)
@@ -228,9 +208,7 @@ def test_source_drift_during_real_gate_retains_checks_but_signs_no_pass(
         "import os; from pathlib import Path; "
         "Path(os.environ['PROOF_DRIFT_TARGET']).write_text('drift\\n')"
     )
-    authoring, head, before = _staged_archive(tmp_path, monkeypatch, test_program=program)
-    carrier = tmp_path / "execution-carrier"
-    git(authoring, "worktree", "add", "--detach", str(carrier), head)
+    authoring, head, before, carrier = _detached_carrier(tmp_path, monkeypatch, program)
     target = authoring / "README.md" if changed_root == "authoring" else carrier / "untracked.txt"
     monkeypatch.setenv("PROOF_DRIFT_TARGET", str(target))
     report = _prove(authoring, head, carrier)
@@ -245,11 +223,7 @@ def test_lease_transfer_after_checks_retains_diagnostics_and_signs_no_pass(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A fresh Lease owner, not completed checks, controls proof issuance."""
-    authoring, head, before = _staged_archive(
-        tmp_path, monkeypatch, test_program="print('current gate passed')"
-    )
-    carrier = tmp_path / "execution-carrier"
-    git(authoring, "worktree", "add", "--detach", str(carrier), head)
+    authoring, head, before, carrier = _detached_carrier(tmp_path, monkeypatch)
     native = proof_cli.run_plan_checks
 
     def transfer_after_checks(
@@ -294,19 +268,8 @@ def test_index_only_authoring_drift_is_not_hidden_by_unchanged_working_bytes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A new staged blob changes the authoring effect even if its file stays put."""
-    authoring, head, _before = _staged_archive(
-        tmp_path, monkeypatch, test_program="print('current gate passed')"
-    )
-    carrier = tmp_path / "execution-carrier"
-    git(authoring, "worktree", "add", "--detach", str(carrier), head)
-    branch = git(authoring, "branch", "--show-current")
-    guard = ProofExecutionCarrier.capture(
-        authoring,
-        carrier,
-        head=head,
-        tree=git(authoring, "rev-parse", "HEAD^{tree}"),
-        lease=leases_by_branch(authoring)[branch],
-    )
+    authoring, head, _before, carrier = _detached_carrier(tmp_path, monkeypatch)
+    guard = _captured_guard(authoring, carrier, head)
     archive_before = git(authoring, "diff", "--cached", "--binary", "--", "openspec")
     working_before = (authoring / "README.md").read_bytes()
     blob = tmp_path / "index-blob"
@@ -324,19 +287,9 @@ def test_authoring_ref_move_invalidates_captured_carrier(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The original lane's HEAD, not only the carrier commit, remains bound."""
-    authoring, head, _before = _staged_archive(
-        tmp_path, monkeypatch, test_program="print('current gate passed')"
-    )
-    carrier = tmp_path / "execution-carrier"
-    git(authoring, "worktree", "add", "--detach", str(carrier), head)
+    authoring, head, _before, carrier = _detached_carrier(tmp_path, monkeypatch)
     branch = git(authoring, "branch", "--show-current")
-    guard = ProofExecutionCarrier.capture(
-        authoring,
-        carrier,
-        head=head,
-        tree=git(authoring, "rev-parse", "HEAD^{tree}"),
-        lease=leases_by_branch(authoring)[branch],
-    )
+    guard = _captured_guard(authoring, carrier, head)
     git(authoring, "update-ref", f"refs/heads/{branch}", f"{head}^", head)
 
     with pytest.raises(ValueError, match=r"^proof_authoring_source_changed$"):
@@ -354,19 +307,8 @@ def test_carrier_recheck_rejects_untrusted_git_observation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, defect: str, expected: str
 ) -> None:
     """A matching HEAD cannot substitute for a registered, observable executor."""
-    authoring, head, before = _staged_archive(
-        tmp_path, monkeypatch, test_program="print('current gate passed')"
-    )
-    carrier = tmp_path / "execution-carrier"
-    git(authoring, "worktree", "add", "--detach", str(carrier), head)
-    branch = git(authoring, "branch", "--show-current")
-    guard = ProofExecutionCarrier.capture(
-        authoring,
-        carrier,
-        head=head,
-        tree=git(authoring, "rev-parse", "HEAD^{tree}"),
-        lease=leases_by_branch(authoring)[branch],
-    )
+    authoring, head, before, carrier = _detached_carrier(tmp_path, monkeypatch)
+    guard = _captured_guard(authoring, carrier, head)
     if defect == "toplevel":
         monkeypatch.setattr(execution_carrier, "git_stdout", lambda *_args: str(tmp_path))
     else:
@@ -385,23 +327,9 @@ def test_execution_root_requires_exact_full_repository_proof(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A partial or unspecified request cannot borrow carrier authority."""
-    authoring, head, before = _staged_archive(
-        tmp_path, monkeypatch, test_program="raise SystemExit(75)"
-    )
-    carrier = tmp_path / "execution-carrier"
-    git(authoring, "worktree", "add", "--detach", str(carrier), head)
-    completed = run_ethos_raw(
-        "prove",
-        "--change",
-        "fixture-change",
-        "--execute",
-        "--execution-root",
-        str(carrier),
-        "--json",
-        cwd=authoring,
-    )
-    assert completed.returncode != 0
-    report = json.loads(completed.stdout)
+    authoring, head, before, carrier = _detached_carrier(tmp_path, monkeypatch, FAILING_GATE)
+    report = _prove(authoring, None, carrier)
+    assert report["verdict"] != "pass"
     assert report["required_gaps"] == ["proof_execution_carrier_requires_full_exact_head"]
     assert before == _authoring_snapshot(authoring)
     assert proof_gaps(authoring, head, change_id="fixture-change")
@@ -411,27 +339,10 @@ def test_stale_expected_head_blocks_before_carrier_checks(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Do not spend or accept gates for a caller's stale exact-head coordinate."""
-    authoring, head, before = _staged_archive(
-        tmp_path, monkeypatch, test_program="raise SystemExit(75)"
-    )
-    carrier = tmp_path / "execution-carrier"
-    git(authoring, "worktree", "add", "--detach", str(carrier), head)
+    authoring, _head, before, carrier = _detached_carrier(tmp_path, monkeypatch, FAILING_GATE)
     stale = git(authoring, "rev-parse", "HEAD^")
-    completed = run_ethos_raw(
-        "prove",
-        "--change",
-        "fixture-change",
-        "--full",
-        "--execute",
-        "--expect-head",
-        stale,
-        "--execution-root",
-        str(carrier),
-        "--json",
-        cwd=authoring,
-    )
-    assert completed.returncode != 0
-    report = json.loads(completed.stdout)
+    report = _prove(authoring, stale, carrier)
+    assert report["verdict"] != "pass"
     assert report["required_gaps"] == ["expected_head_mismatch"], report
     assert report["data"] == {}
     assert before == _authoring_snapshot(authoring)
@@ -441,32 +352,17 @@ def test_stale_expected_head_blocks_before_in_place_checks(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A stale request must not execute native gates without a separate carrier."""
-    lifecycle = completed_lifecycle(tmp_path, monkeypatch)
-    authoring = lifecycle.worktree
+    authoring = completed_lifecycle(tmp_path, monkeypatch).worktree
     marker = tmp_path / "gate-executed"
-    declare_native_proof_checks(
-        authoring,
-        test=f"from pathlib import Path; Path({str(marker)!r}).touch()",
-        typecheck="print('static green')",
-    )
+    program = f"from pathlib import Path; Path({str(marker)!r}).touch()"
+    declare_native_proof_checks(authoring, test=program, typecheck="print('static green')")
     commit_fixture(authoring, "ci: declare current proof gates")
     stale = git(authoring, "rev-parse", "HEAD^")
     before = _authoring_snapshot(authoring)
 
-    completed = run_ethos_raw(
-        "prove",
-        "--change",
-        "fixture-change",
-        "--full",
-        "--execute",
-        "--expect-head",
-        stale,
-        "--json",
-        cwd=authoring,
-    )
+    report = _prove(authoring, stale)
 
-    assert completed.returncode != 0
-    report = json.loads(completed.stdout)
+    assert report["verdict"] != "pass"
     assert report["required_gaps"] == ["expected_head_mismatch"], report
     assert report["data"] == {}
     assert not marker.exists()

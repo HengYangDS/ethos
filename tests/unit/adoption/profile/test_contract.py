@@ -154,7 +154,7 @@ def test_adopter_profile_is_identical_from_worktree_and_commit(tmp_path: Path) -
     proof = worktree.profile.declaration.proof
     assert proof.code_correctness_gates == ("checks", "static")
     gates = set(worktree.gate_ids)
-    assert gates == {"checks", "static", "behavior", "config-quality", "source-format"}
+    assert gates == {"checks", "static", "behavior"}
     assert worktree.declaration.proof_sets == committed.declaration.proof_sets
     assert worktree.declaration.proof_sets.default == ("checks", "static")
     assert worktree.declaration.proof_sets.full == ("checks", "static")

@@ -111,9 +111,7 @@ def test_real_locked_python_checks_qualify_the_selected_source(
         assert payload["required_gaps"] == []
         if gate_owner == "inline":
             checks = {check["action_id"]: check for check in payload["data"]["checks"]}
-            assert {"behavior", "checks", "static", "config-quality", "source-format"} <= set(
-                checks
-            )
+            assert {"behavior", "checks", "static"} == set(checks)
             assert "optional" not in checks
             assert all(check["verdict"] == "pass" for check in checks.values())
             assert tuple(checks).index("behavior") < tuple(checks).index("checks")

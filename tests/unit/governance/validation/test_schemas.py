@@ -195,7 +195,9 @@ def test_common_gate_applicability_is_bound_in_native_schema_and_declaration() -
     """The same shipped contract owns applicability, execution and proof membership."""
     selected = resolve_gate_policy().registry["markdown-lint"]
     payload = selected.to_dict()
-    assert payload["required_for_paths"] == ["*.md"]
+    assert "required_for_paths" not in payload
+    assert validate_schema_instance("gate.schema.json", payload)["verdict"] == "pass"
+    payload["required_for_paths"] = ["*.md"]
     assert validate_schema_instance("gate.schema.json", payload)["verdict"] == "pass"
     assert (
         load_schema("gate.schema.json")["properties"]["required_for_paths"]

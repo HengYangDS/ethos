@@ -317,7 +317,7 @@ def test_native_code_provider_checks_real_sources(
     assert payload["summary"]["proof_attestation_issued"] is False
     checks = {check["action_id"]: check for check in payload["data"]["checks"]}
     if defect != "syntax":
-        assert checks["source-format"]["verdict"] == "pass", checks["source-format"]
+        assert "source-format" not in checks, checks["source-format"]
         assert checks["behavior"]["exit_code"] is not None
     if defect == "none":
         assert result.returncode == 0, payload["required_gaps"]
@@ -396,7 +396,7 @@ def test_public_proof_rejects_test_forged_precise_coverage(tmp_path: Path) -> No
     assert payload["verdict"] == "block"
     assert "quality_obligation_unproven:behavior" in payload["required_gaps"]
     checks = {check["action_id"]: check for check in payload["data"]["checks"]}
-    assert checks["source-format"]["verdict"] == "pass"
+    assert "source-format" not in checks
     assert checks["behavior"]["exit_code"] is not None
 
 

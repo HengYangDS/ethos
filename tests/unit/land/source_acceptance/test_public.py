@@ -241,14 +241,6 @@ def test_public_native_source_acceptance(
         "behavior",
         "static",
         "native-dependencies",
-        "config-quality",
-        "docs-registry",
-        "markdown-lint",
-        "markdown-links",
-        "openspec",
-        "prose",
-        "schemas",
-        "source-format",
     }
     landed = run_ethos(
         "land",

@@ -289,7 +289,7 @@ def test_source_format_gate_is_supplied_by_the_installed_product() -> None:
     assert gate.providers == ("ethos.adapters.gates.formatting:source_format_report",)
     assert gate.command == ()
     assert gate.writes_files is False
-    assert gate.required_for_paths
+    assert gate.required_for_paths == ()
     assert "source-format" in declaration.proof_sets.default
     assert "source-format" in declaration.proof_sets.full
 

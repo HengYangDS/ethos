@@ -14,10 +14,15 @@ no_progress = true
 # Only Markdown docs carry governed cross-references.
 include_verbatim = false
 
-# github.com answers bursts of unauthenticated page requests with 429 or 503, so its
-# links are checked two at a time, 250 ms apart, and a transient failure is retried.
+# github.com answers bursts of unauthenticated page requests with 429, so its links are
+# checked two at a time, 250 ms apart, and a 429 or a timeout is retried.
 max_retries = 4
 retry_wait_time = 2
+
+# 503 reports temporary unavailability, not a broken link. GitHub answers an occasional
+# unauthenticated page request with 503 even at a low request rate, and Lychee retries
+# only 429 and timeouts, so 503 is accepted alongside the default success codes.
+accept = ["100..=103", "200..=299", "503"]
 
 [hosts."github.com"]
 concurrency = 2

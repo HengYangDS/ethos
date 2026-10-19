@@ -351,7 +351,7 @@ marketing claims were not used as evidence of comparative performance.
 [allure3]: https://github.com/allure-framework/allure3/blob/e3bd84f644e1c58276a673f9d0ec546d2aba5855/README.md
 [opentelemetry-mechanism]: https://github.com/open-telemetry/opentelemetry-specification/blob/5507eb587b3b3500ccd681e816e7c26729f38aa0/specification/overview.md
 [cloudevents]: https://github.com/cloudevents/spec/blob/2ed3806b4ad8fda35813263cfefb2d73098b7655/cloudevents/spec.md
-[semgrep-rules-license]: https://semgrep.dev/legal/rules-license
+[semgrep-rules-license]: https://semgrep.dev/legal/rules-license/
 [codeql-data-flow]: https://codeql.github.com/docs/writing-codeql-queries/about-data-flow-analysis/
-[semgrep-advanced]: https://semgrep.dev/docs/semgrep-code/semgrep-pro-engine-intro
+[semgrep-advanced]: https://docs.semgrep.dev/semgrep-code/semgrep-pro-engine-intro
 [crosshair-contracts]: https://crosshair.readthedocs.io/en/latest/contracts.html

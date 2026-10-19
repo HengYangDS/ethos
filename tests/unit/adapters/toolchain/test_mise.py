@@ -18,7 +18,28 @@ from ethos.adapters.process import run_command
 from ethos.repository.release.resources import canonical_resource
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from collections.abc import Mapping
+
+# Owned installs are POSIX executables; hosted Windows runs package conformance, not these.
+POSIX_INSTALLS = pytest.mark.skipif(os.name != "posix", reason="POSIX executable installs")
+
+
+@pytest.fixture
+def mise_installs(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> Callable[[str, str, str], None]:
+    """Own native Mise storage; each install reports its version, so no host install is used."""
+    data = tmp_path_factory.mktemp("mise-data")
+    monkeypatch.setenv("MISE_DATA_DIR", str(data))
+
+    def install(tool: str, version: str, report: str) -> None:
+        executable = data / "installs" / tool / version / "bin" / tool
+        executable.parent.mkdir(parents=True)
+        executable.write_text(f"#!/bin/sh\necho {report}\n", encoding="utf-8", newline="\n")
+        executable.chmod(0o755)
+
+    return install
 
 
 @pytest.mark.parametrize("interrupt", [False, True])
@@ -215,7 +236,10 @@ def test_repository_mise_files_rejects_incomplete_selection(tmp_path: Path, layo
         mise.repository_mise_files(tmp_path)
 
 
-def test_native_idiomatic_declaration_survives_locked_input_isolation(tmp_path: Path) -> None:
+@POSIX_INSTALLS
+def test_native_idiomatic_declaration_survives_locked_input_isolation(
+    tmp_path: Path, mise_installs: Callable[[str, str, str], None]
+) -> None:
     """The producer and native consumer retain versions owned by package.json."""
     repo = tmp_path / "idiomatic"
     config = repo / mise.MISE_CONFIG
@@ -230,6 +254,8 @@ def test_native_idiomatic_declaration_survives_locked_input_isolation(tmp_path: 
     npm = json.loads(canonical_resource("package.json").read_text(encoding="utf-8"))[
         "dependencies"
     ]["npm"]
+    mise_installs("node", node["version"], "v" + node["version"])
+    mise_installs("npm", npm, npm)
     (repo / mise.MISE_LOCK).write_text(
         lock + f'\n[[tools.npm]]\nversion = "{npm}"\nbackend = "npm:npm"\nspecifiers = ["{npm}"]\n',
         encoding="utf-8",
@@ -426,14 +452,19 @@ def test_locked_mise_execution_rejects_unadmitted_input_without_native_effect(
     assert set(tmp_path.iterdir()) == entries
 
 
+@POSIX_INSTALLS
 @pytest.mark.parametrize("carrier", [".node-version", ".nvmrc"])
 def test_native_version_carriers_preserve_locked_selection_without_hooks(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, carrier: str
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mise_installs: Callable[[str, str, str], None],
+    carrier: str,
 ) -> None:
     """Native metadata selects exact installed tools without executing candidate hooks."""
     root = Path(__file__).resolve().parents[4]
     declared = tomllib.loads((root / mise.MISE_CONFIG).read_text())["tools"]["node"]
     locked = tomllib.loads((root / mise.MISE_LOCK).read_text())["tools"]["node"]
+    mise_installs("node", declared, f"v{declared}")
     config = tmp_path / mise.MISE_CONFIG
     config.parent.mkdir(parents=True)
     config.write_text(

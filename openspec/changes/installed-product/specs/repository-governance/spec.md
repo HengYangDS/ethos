@@ -1,5 +1,54 @@
 ## ADDED Requirements
 
+### Requirement: Active Change identity repair preserves complete source
+
+ETHOS SHALL admit an exact relocation of one legacy temporally suffixed active
+Change to its valid logical identity through the existing Work Lane prewrite and
+staged admission owners. The complete regular source SHALL retain every byte,
+file mode and unfinished task, with an unowned destination at the bound source
+and baseline. This admission SHALL authorize identity repair only; current
+authority and subsequent official validation, proof and delivery remain required.
+
+#### Scenario: A complete legacy source moves without accepting unfinished work
+
+- **WHEN** an owned Work Lane presents the complete matching delete/create patch
+  or staged tree for one dated active Change and its logical root
+- **THEN** native admission binds that exact source transition without changing
+  the working preimage or index during observation
+- **AND** every member and task retains its original content and state
+- **AND** later authoring resolves the logical Change through ordinary native intent
+
+#### Scenario: A transition does not match the complete current source
+
+- **WHEN** member identity, bytes, modes, destination ownership, selected intent
+  or fresh HEAD and staged-tree coordinates do not match the relocation
+- **THEN** the transition acquires no identity-repair scope and preserves source
+- **AND** current Lease, editor, runtime, profile and effect checks remain independent
+
+### Requirement: Exact supporting template relocation restores native write admission
+
+ETHOS SHALL admit one exact supporting-template relocation from the canonical
+spec root to a distinct template in the current repository-local native schema.
+The admitted patch SHALL preserve the original authored content, all concrete
+reference destinations, the selected complete Change and all other obligations.
+
+#### Scenario: A supporting template blocks its own corrective move
+
+- **WHEN** the current native root audit rejects that regular Markdown member
+  and the owned Work Lane supplies its exact relocation patch
+- **THEN** prewrite admits only the template move and parser-derived link changes
+- **AND** ordinary writes, proof and remaining strict validation stay blocked
+- **AND** the official delta template is not overwritten or relabeled as metadata
+
+#### Scenario: Unbound source or incomplete consumers cannot gain repair scope
+
+- **WHEN** the patch changes authored meaning, omits a concrete consumer, targets
+  another owner or carries unrelated work
+- **THEN** it does not acquire supporting-relocation admission
+- **AND** missing official observations, stale configuration, another Change or
+  unrelated governance gaps preserve the blocking decision
+- **AND** historical code mentions and unrelated references remain unchanged
+
 ### Requirement: Adoption rejects invalid existing intent configuration before binding
 
 Adoption SHALL consume the existing official OpenSpec configuration audit before
@@ -17,31 +66,6 @@ invalid carrier. CLI, SDK and MCP SHALL share this decision and retain its gaps.
 - **WHEN** its owning audit passes
 - **THEN** adoption preserves its exact bytes and does not replace its schema, context or rules
 - **AND** this preservation does not certify full mutation readiness or executed proof
-
-### Requirement: Source acceptance preserves the declared native audit owner
-
-Local-source proof SHALL derive dependency-audit applicability from the exact
-declared full gate policy. It SHALL preserve all selected native checks and
-existing captured-input, scope, freshness and disposition obligations. A native
-adopter SHALL NOT acquire Python audit inputs from an unrelated product floor.
-
-#### Scenario: A native adopter has its own complete proof floor
-
-- **WHEN** every declared native check and required product observation passes
-- **THEN** proof issuance and consumption use that exact native policy
-- **AND** they do not impose an undeclared canonical Python audit
-
-#### Scenario: A declared canonical audit is omitted
-
-- **WHEN** local-source planning selects a subset missing the declared canonical audit
-- **THEN** it blocks before executing the subset
-- **AND** a saved partial proof cannot authorize a candidate transition
-
-#### Scenario: A declared native dependency check fails
-
-- **WHEN** the repository's selected native dependency check fails
-- **THEN** no passing proof is issued and the candidate ref remains unchanged
-- **AND** canonical audit findings, expiration and source bindings retain their original refusals
 
 ### Requirement: Signed object transport preserves non-product meaning
 
@@ -126,6 +150,123 @@ Lease generation. Ordinary cross-identity CAS SHALL remain rejected.
 - **WHEN** an identity transition is previewed before applying it
 - **THEN** no ref changes and its continuation retains the exact root, source, target and explicit identity mode
 - **AND** a future signed tag is distinguished from the branch scope already admitted by that preview
+
+### Requirement: Adopter runtime selection preserves incumbent enforcement
+
+Explicit native adoption MAY select the exact immutable package runtime independently of
+hook installation. Preview SHALL bind the source build and current selector. Authorized apply
+SHALL use the existing runtime materialization and compare-and-swap owners, preserve incumbent
+Git configuration and hooks, and compensate failed selection without overwriting intervening
+state. Runtime provenance SHALL NOT imply hook enforcement, source qualification or delivery.
+
+#### Scenario: Incumbent domain hooks remain active during adoption
+
+- **WHEN** an owned adopter explicitly selects the runtime through native adoption
+- **THEN** the selected package may validate tracked-write provenance without replacing its hooks
+- **AND** hook, domain, signing, full-proof and delivery obligations remain independently required
+- **AND** preview, missing authorization or a stale selector produces no runtime-selection effect
+
+### Requirement: Supplemental OpenSpec metadata has explicit native ownership
+
+An adopter MAY bind exact non-executable capability metadata filenames to existing repository
+authority files in its typed profile. Required normative specs SHALL remain authoritative;
+metadata SHALL NOT establish domain correctness. An identity-preserving profile repair MAY
+resolve this shape conflict only
+when it changes these bindings alone and satisfies every other admission obligation without
+mutating its preimage.
+
+#### Scenario: Native capability metadata coexists with normative specs
+
+- **WHEN** declared metadata is valid, regular and bound to its existing native owner
+- **THEN** OpenSpec observation preserves both the metadata and required normative spec
+- **AND** each capability retains one required regular `spec.md`
+- **AND** undeclared files, unsafe names, symlinks, missing owners and malformed metadata fail closed
+- **AND** absent specs and unrelated profile weakening remain inadmissible
+
+### Requirement: Applicable shared quality is supplied by the product
+
+ETHOS SHALL select shared documentation, native carrier and official intent
+obligations from actual authored inputs. Its source and installed execution
+SHALL use the same shipped native verifier, locked supply and mandatory policy.
+Adopter checks and tool configuration MAY add requirements but SHALL NOT replace
+or disable the shared floor. Focused diagnosis SHALL remain distinguishable
+from the complete applicable proof closure.
+
+#### Scenario: A document repository retains its native development workflow
+
+- **WHEN** its authored Markdown and OpenSpec inputs select common obligations
+- **THEN** the product composes those obligations with existing adopter checks
+- **AND** no ETHOS Python development environment or copied quality controller is required
+
+#### Scenario: Local policy attempts to disable a shared rule
+
+- **WHEN** a repository's native configuration disables a common Markdown rule or supplies competing discovery configuration
+- **THEN** the mandatory shipped policy still checks the same exact authored inputs
+- **AND** local configuration cannot hide a shared failure, skip an input or cause source mutation
+
+#### Scenario: Native configuration has one formatter and independent semantics
+
+- **WHEN** original locked Prettier accepts authored JSON or YAML structure
+- **THEN** shared configuration checks accept that formatting without a competing serializer or layout rule
+- **AND** native syntax, duplicate keys and undeclared aliases remain independently checked
+- **AND** package-manager dependency records and explicitly bound source inputs keep their original owners and bytes
+- **AND** native policy errors and formatting refusal block without source writes
+
+#### Scenario: Native formatter and linter have distinct responsibilities
+
+- **WHEN** official Prettier accepts a tight list with a nested fenced block
+- **THEN** semantic Markdown lint accepts its container structure while still rejecting empty links
+- **AND** check refusal preserves bytes, native fixing succeeds and a second fix leaves bytes unchanged
+- **AND** secure native YAML preserves nested heading parameters without a vendor patch or dependency downgrade
+
+#### Scenario: Native source check and fix share one exact selection
+
+- **WHEN** authored inputs select the installed source-format capability
+- **THEN** preview and check prepare the same original native postimages without writes
+- **AND** an authorized fix requires current HEAD, actor, Work Lane and Lease admission for the complete patch
+- **AND** source bytes, modes and index are re-observed before effect, the index and HEAD remain unchanged, and a second fix is a no-op
+- **AND** literal names, native ignore controls and byte-exact formatting pragmas retain their meanings
+- **AND** foreign source, immutable evidence, dependency records and generated projections retain their owners
+- **AND** missing inputs remain unknown while unsafe paths, native parse errors and conflicting policy refuse without source writes
+- **AND** Nox and proof project this same owner, while independent semantic gates remain required
+
+#### Scenario: A Decision Record has no authored choice
+
+- **WHEN** a current decision record omits a core role or supplies only comments, quotations, code or one multi-role section
+- **THEN** the portable Docs Registry rejects the unproven role
+- **AND** distinct canonical sections and meaningful authored rationale are checked within the profile-selected documentation root
+
+#### Scenario: An adopter uses the canonical five-section Decision Record
+
+- **WHEN** a current record has distinct `Context`, `Decision`, `Alternatives Rejected`, `Consequences and Boundary`, and `Evidence and Revisit` sections in that order
+- **THEN** the shared registry checks visible authored rationale in every section through the same portable contract
+- **AND** the selected documentation-root name does not change its identity or section grammar
+- **AND** missing, quoted, hidden, or code-only rationale remains unproven; no adopter-local parser or exemption is required
+
+### Requirement: Source acceptance preserves the declared native audit owner
+
+Local-source proof SHALL derive dependency-audit applicability from the exact
+declared full gate policy. It SHALL preserve all selected native checks and
+existing captured-input, scope, freshness and disposition obligations. A native
+adopter SHALL NOT acquire Python audit inputs from an unrelated product floor.
+
+#### Scenario: A native adopter has its own complete proof floor
+
+- **WHEN** every declared native check and required product observation passes
+- **THEN** proof issuance and consumption use that exact native policy
+- **AND** they do not impose an undeclared canonical Python audit
+
+#### Scenario: A declared canonical audit is omitted
+
+- **WHEN** local-source planning selects a subset missing the declared canonical audit
+- **THEN** it blocks before executing the subset
+- **AND** a saved partial proof cannot authorize a candidate transition
+
+#### Scenario: A declared native dependency check fails
+
+- **WHEN** the repository's selected native dependency check fails
+- **THEN** no passing proof is issued and the candidate ref remains unchanged
+- **AND** canonical audit findings, expiration and source bindings retain their original refusals
 
 ## MODIFIED Requirements
 

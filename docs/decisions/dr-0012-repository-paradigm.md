@@ -69,6 +69,7 @@ It never requires an empty carrier. Product and domain structure, test organizat
 - A gap blocks prove, land and publish, and prewrite refuses a non-conforming path. The audit names the canonical repair.
 - Every adopter migrates through its own Change and switches runtime in the same batch. The deferred alphasim and di-effect families follow later.
 - Shell scripts that orchestrate verbs, gates or CI retire into native commands and owner tasks, so the same invocation runs on Windows, macOS and Linux.
+- A CI step keeps a shell program only as an official installer or operating-system glue. The retention record binds it to the step's exact text, with owner, reason, platforms and target-platform evidence. Such a record admits bytes under evidence the obligation names, not a repository, so it is not an exception; review judges the evidence.
 - Bare tool invocations at a repository root no longer discover project policy. The verbs and documented editor settings carry the explicit paths.
 - DR-0011 remains valid for documentation subject layout. This record only adds the metadata syntax and the decision-record name grammar.
 
@@ -76,5 +77,6 @@ It never requires an empty carrier. Product and domain structure, test organizat
 
 - The `repository-paradigm` Change proposal and design record the inventory and the decision for each concern.
 - Its `repository-paradigm` delta specification states the observable obligations and their falsifiers.
+- The `retained-ci-steps` Change records why necessary glue in a CI step is retained by record rather than by exception.
 
 Revisit when a governed repository demonstrates a shared need that the core or a module cannot express without an exception, or when a module obligation turns out to be shared by only part of its ecosystem. Retire this record when the paradigm specification itself preserves these rejected alternatives and limits.

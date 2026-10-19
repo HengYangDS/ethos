@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from typing import TYPE_CHECKING
 
 import pytest
 
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
+from ethos.repository.paradigm.orchestration import CiStep
 from ethos.repository.paradigm.orchestration import ci_steps
 from ethos.repository.paradigm.orchestration import inline_shell
 from ethos.repository.paradigm.orchestration import orchestration_gaps
@@ -59,7 +62,7 @@ def test_a_shell_program_in_one_step_is_inline_shell(command: str) -> None:
 
 
 def test_ci_steps_read_every_gitlab_script_and_github_run() -> None:
-    """Each script entry and run step is one step with a carrier naming its position."""
+    """Each script entry and run step is one step with its job and a carrier naming its position."""
     gitlab = (
         "default:\n  before_script: [mise run bootstrap]\n"
         ".shared: &shared\n  - mise run check\n"
@@ -68,17 +71,21 @@ def test_ci_steps_read_every_gitlab_script_and_github_run() -> None:
         "variables:\n  FOO: bar\n"
     )
     assert ci_steps("gitlab", ".gitlab-ci.yml", gitlab) == [
-        (".gitlab-ci.yml:default.before_script[0]", "mise run bootstrap"),
-        (".gitlab-ci.yml:verify.script[1]", "mise run fix"),
-        (".gitlab-ci.yml:verify.after_script[0]", "echo done"),
+        CiStep(".gitlab-ci.yml:default.before_script[0]", "default", "mise run bootstrap"),
+        CiStep(".gitlab-ci.yml:verify.script[1]", "verify", "mise run fix"),
+        CiStep(".gitlab-ci.yml:verify.after_script[0]", "verify", "echo done"),
     ]
     github = (
         "on: push\njobs:\n  quality:\n    steps:\n      - uses: actions/checkout@v5\n"
         "      - run: mise run check\n      - name: Fix\n        run: mise run fix\n"
     )
     assert ci_steps("github", ".github/workflows/ci.yml", github) == [
-        (".github/workflows/ci.yml:jobs.quality.steps[1]", "mise run check"),
-        (".github/workflows/ci.yml:jobs.quality.steps[2]", "mise run fix"),
+        CiStep(
+            ".github/workflows/ci.yml:jobs.quality.steps[1]",
+            "quality",
+            "mise run check",
+        ),
+        CiStep(".github/workflows/ci.yml:jobs.quality.steps[2]", "quality", "mise run fix"),
     ]
     assert ci_steps("gitlab", ".gitlab-ci.yml", "verify: [\n") == []
     assert ci_steps("forgejo", ".forgejo/workflows/ci.yml", github) == []
@@ -114,8 +121,14 @@ def test_a_gate_or_step_running_a_repository_script_is_shell_orchestration(
     }
     repair = f"replace {script} with a native command or toolchain-owner task"
     assert _gaps(tmp_path, files) == [
-        ("repository_paradigm_shell_orchestration:.gitlab-ci.yml:secrets.script[0]", repair),
-        ("repository_paradigm_shell_orchestration:system/gates.toml:gates.secrets", repair),
+        (
+            "repository_paradigm_shell_orchestration:.gitlab-ci.yml:secrets.script[0]",
+            repair,
+        ),
+        (
+            "repository_paradigm_shell_orchestration:system/gates.toml:gates.secrets",
+            repair,
+        ),
     ]
 
 
@@ -133,7 +146,8 @@ def test_a_ci_step_with_a_shell_program_is_inline_shell(tmp_path: Path) -> None:
             (
                 "make the step invoke one native command or toolchain-owner task; move a sequence "
                 "into a task, environment into the Forge's variables and a directory change into "
-                "its working-directory key"
+                "its working-directory key; record only an official installer or necessary "
+                "operating-system glue in .config/ci/retained-steps.toml"
             ),
         )
     ]
@@ -149,7 +163,9 @@ def test_a_gate_that_runs_a_shell_program_is_inline_shell(tmp_path: Path) -> Non
     assert gap == "repository_paradigm_inline_shell:system/gates.toml:gates.secrets"
 
 
-def test_a_profile_gate_that_runs_a_shell_program_is_inline_shell(tmp_path: Path) -> None:
+def test_a_profile_gate_that_runs_a_shell_program_is_inline_shell(
+    tmp_path: Path,
+) -> None:
     """Gates declared in the profile itself are judged like registry gates."""
     gates = "".join(
         f'[[proof.gates]]\nid = "{name}"\nkind = "{kind}"\ncommand = {command}\n'
@@ -163,7 +179,13 @@ def test_a_profile_gate_that_runs_a_shell_program_is_inline_shell(tmp_path: Path
                 '["test"]',
                 "proof",
             ),
-            ("sample-static", "typing", '["ty", "check"]', '["static-analysis"]', "contract"),
+            (
+                "sample-static",
+                "typing",
+                '["ty", "check"]',
+                '["static-analysis"]',
+                "contract",
+            ),
         )
     )
     profile = (
@@ -198,3 +220,179 @@ def test_native_gates_and_steps_conform(tmp_path: Path) -> None:
         ),
     }
     assert _gaps(tmp_path, files) == []
+
+
+_RECORD = ".config/ci/retained-steps.toml"
+_GLUE = "Set-Location $env:CI_PROJECT_DIR\ngit config --system core.longpaths true\n"
+_GLUE_STEP = (
+    f"windows:\n  script:\n    - |\n      {_GLUE.replace(chr(10), chr(10) + '      ').rstrip()}\n"
+)
+
+
+def _record(command: str, **fields: object) -> str:
+    """Return one `[[step]]` entry that retains a command, with fields overridden or dropped."""
+    entry: dict[str, object] = {
+        "file": ".gitlab-ci.yml",
+        "jobs": ["windows"],
+        "sha256": hashlib.sha256(command.encode("utf-8")).hexdigest(),
+        "class": "operating-system-glue",
+        "owner": "CI pipeline model",
+        "reason": "Git needs long paths before the checkout that every native command follows.",
+        "platforms": ["windows"],
+        "evidence": "GitLab job 55210 ran it on ci-windows-arm64-shell",
+    }
+    entry.update(fields)
+    lines = [f"{key} = {json.dumps(value)}" for key, value in entry.items() if value is not None]
+    return "[[step]]\n" + "\n".join(lines) + "\n"
+
+
+def _identities(root: Path, files: dict[str, str]) -> list[str]:
+    return sorted(gap for gap, _repair in _gaps(root, files))
+
+
+def test_recorded_glue_in_a_ci_step_conforms(tmp_path: Path) -> None:
+    """The scenario's complete record names the step's file, job and exact text digest."""
+    files = {".gitlab-ci.yml": _GLUE_STEP, _RECORD: _record(_GLUE)}
+    assert _gaps(tmp_path, files) == []
+
+
+def test_recorded_glue_survives_another_yaml_quoting(tmp_path: Path) -> None:
+    """The digest covers the parsed step text, so a quoted scalar keeps the record current."""
+    quoted = f"windows:\n  script:\n    - {json.dumps(_GLUE)}\n"
+    files = {".gitlab-ci.yml": quoted, _RECORD: _record(_GLUE)}
+    assert _gaps(tmp_path, files) == []
+
+
+def test_edited_glue_reports_the_step_and_the_stale_record(tmp_path: Path) -> None:
+    """Changing what runs re-reports the inline shell and leaves the record matching nothing."""
+    edited = _GLUE_STEP.replace("--system", "--global")
+    files = {".gitlab-ci.yml": edited, _RECORD: _record(_GLUE)}
+    assert _gaps(tmp_path, files) == [
+        (
+            "repository_paradigm_inline_shell:.gitlab-ci.yml:windows.script[0]",
+            (
+                "make the step invoke one native command or toolchain-owner task; move a sequence "
+                "into a task, environment into the Forge's variables and a directory change into "
+                "its working-directory key; record only an official installer or necessary "
+                "operating-system glue in .config/ci/retained-steps.toml"
+            ),
+        ),
+        (
+            "repository_paradigm_retained_step:.config/ci/retained-steps.toml:step[0].windows",
+            (
+                "re-record the edited step after re-justifying it, or remove windows from this "
+                "record when the job no longer needs a retained shell program"
+            ),
+        ),
+    ]
+
+
+def test_each_listed_job_must_carry_the_recorded_step(tmp_path: Path) -> None:
+    """A matching sibling cannot keep a deleted copy alive, and an unlisted copy is not admitted."""
+    body = _GLUE_STEP.split("\n", 1)[1]
+    pipeline = (
+        f"windows:\n{body}windows-review:\n{body}windows-release:\n  script: [mise run release]\n"
+    )
+    files = {
+        ".gitlab-ci.yml": pipeline,
+        _RECORD: _record(_GLUE, jobs=["windows", "windows-release"]),
+    }
+    assert _identities(tmp_path, files) == [
+        "repository_paradigm_inline_shell:.gitlab-ci.yml:windows-review.script[0]",
+        "repository_paradigm_retained_step:.config/ci/retained-steps.toml:step[0].windows-release",
+    ]
+
+
+def test_github_glue_is_retained_by_its_job(tmp_path: Path) -> None:
+    """A GitHub run step is named by its workflow file and job like a GitLab entry."""
+    workflow = "on: push\njobs:\n  native:\n    steps:\n      - run: " + json.dumps(_GLUE) + "\n"
+    files = {
+        ".github/workflows/verify.yml": workflow,
+        _RECORD: _record(_GLUE, file=".github/workflows/verify.yml", jobs=["native"]),
+    }
+    assert _gaps(tmp_path, files) == []
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"evidence": None},
+        {"evidence": " "},
+        {"owner": ""},
+        {"class": "convenience"},
+        {"platforms": ["beos"]},
+        {"platforms": []},
+        {"jobs": []},
+        {"jobs": ["windows", "windows"]},
+        {"sha256": "ABC"},
+        {"waiver": "always"},
+    ],
+    ids=[
+        "no-evidence",
+        "blank-evidence",
+        "blank-owner",
+        "uncatalogued-class",
+        "uncatalogued-platform",
+        "no-platforms",
+        "no-jobs",
+        "duplicate-job",
+        "malformed-digest",
+        "unknown-key",
+    ],
+)
+def test_an_incomplete_record_admits_nothing(tmp_path: Path, fields: dict[str, object]) -> None:
+    """The scenario's record without evidence or with an uncatalogued value is reported itself."""
+    files = {".gitlab-ci.yml": _GLUE_STEP, _RECORD: _record(_GLUE, **fields)}
+    gaps = dict(_gaps(tmp_path, files))
+    assert sorted(gaps) == [
+        "repository_paradigm_inline_shell:.gitlab-ci.yml:windows.script[0]",
+        "repository_paradigm_retained_step:.config/ci/retained-steps.toml:step[0]",
+    ]
+    assert gaps["repository_paradigm_retained_step:.config/ci/retained-steps.toml:step[0]"] == (
+        "give each [[step]] exactly file, jobs, sha256, class, owner, reason, platforms and "
+        "evidence: distinct jobs and platforms, a class from official-installer, "
+        "operating-system-glue, platforms from darwin, linux, windows, and the lowercase "
+        "SHA-256 of the step text"
+    )
+
+
+@pytest.mark.parametrize("record", ["[[step]\n", "step = 1\n", "[[step]]\n[step.file]\n"])
+def test_an_unreadable_record_is_reported(tmp_path: Path, record: str) -> None:
+    """A record that is not TOML with `[[step]]` tables admits no step and is reported."""
+    files = {".gitlab-ci.yml": _GLUE_STEP, _RECORD: record}
+    assert (
+        _identities(tmp_path, files)[0]
+        == "repository_paradigm_inline_shell:.gitlab-ci.yml:windows.script[0]"
+    )
+    assert any(
+        gap.startswith(f"repository_paradigm_retained_step:{_RECORD}")
+        for gap in _identities(tmp_path, files)
+    )
+
+
+def test_a_gate_cannot_be_retained(tmp_path: Path) -> None:
+    """The scenario's gate keeps its inline shell gap, and a record naming it matches nothing."""
+    command = '["bash", "-c", "gitleaks dir ."]'
+    files = {
+        ".ethos/profile.toml": _PROFILE,
+        "system/gates.toml": _REGISTRY.format(command=command),
+        _RECORD: _record("gitleaks dir .", file="system/gates.toml", jobs=["secrets"]),
+    }
+    assert _identities(tmp_path, files) == [
+        "repository_paradigm_inline_shell:system/gates.toml:gates.secrets",
+        "repository_paradigm_retained_step:.config/ci/retained-steps.toml:step[0].secrets",
+    ]
+
+
+def test_a_step_running_a_tracked_script_is_not_retained(tmp_path: Path) -> None:
+    """Retention admits inline shell only; a tracked script keeps its own admission path."""
+    script = "tools/ci/run.sh"
+    files = {
+        script: "#!/bin/sh\nmise run check\n",
+        ".gitlab-ci.yml": f"windows:\n  script: [{script}]\n",
+        _RECORD: _record(script),
+    }
+    assert _identities(tmp_path, files) == [
+        "repository_paradigm_retained_step:.config/ci/retained-steps.toml:step[0].windows",
+        "repository_paradigm_shell_orchestration:.gitlab-ci.yml:windows.script[0]",
+    ]

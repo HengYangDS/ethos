@@ -14,6 +14,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Changed
 
+- A CI step may keep a shell program only as an official installer or operating-system glue that
+  `.config/ci/retained-steps.toml` records by Forge file, job and the SHA-256 of the step text,
+  with its owner, reason, platforms and target-platform evidence. Every listed job must still
+  carry that exact text, so an edited step reports inline shell again and its record as stale.
+  Gates and steps that run tracked scripts gain no such record.
 - **Breaking:** declared native outputs use tool-neutral formats: `junit-xml`, `cobertura-xml`
   (renamed from `coverage-xml`), `lcov` and `sarif`; `ruff-json` is removed. A Nox report, pytest
   events and a Python runtime report are optional and checked only when declared. `code_quality`

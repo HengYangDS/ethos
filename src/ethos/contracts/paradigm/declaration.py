@@ -141,6 +141,16 @@ class ForgePipelines(BaseModel):
     files: FrozenTuple[str] = Field(min_length=1)
 
 
+class StepRetention(BaseModel):
+    """Where a repository records the CI steps it keeps as shell programs, and what they may be."""
+
+    model_config = _DECLARATION
+
+    record: str
+    classes: FrozenTuple[str] = Field(min_length=1)
+    platforms: FrozenTuple[str] = Field(min_length=1)
+
+
 class PipelineModel(BaseModel):
     """Where a repository that runs CI on several Forges keeps its one pipeline model."""
 
@@ -149,6 +159,7 @@ class PipelineModel(BaseModel):
     model_root: str
     model_suffix: str
     forge: FrozenTuple[ForgePipelines] = Field(min_length=2)
+    retention: StepRetention
 
 
 class CommitGrammar(BaseModel):

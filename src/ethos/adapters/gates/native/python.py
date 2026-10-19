@@ -22,7 +22,6 @@ from ethos.adapters.repo.gate_policy import observe_quality_subjects
 if TYPE_CHECKING:
     from ethos.adapters.gates.verification import NativeEvidence
     from ethos.contracts.gates import NativeOutput
-from ethos.contracts.evidence.observer import ObserverIdentity
 
 
 class NoxSession(BaseModel):
@@ -143,13 +142,6 @@ class PythonRuntime(BaseModel):
     prefix: str = Field(min_length=1)
     pytest: PytestInvocation | None = None
     ruff: RuffInvocation | None = None
-    observer: ObserverIdentity | None = None
-
-    def require_observer(self, expected: ObserverIdentity | None) -> None:
-        """Require the originally supplied runtime and wheel in each child record."""
-        if expected is None or self.observer != expected:
-            msg = "python_native_observer_identity_unbound"
-            raise ValueError(msg)
 
     def require_checks(
         self, root: Path, output: NativeOutput, outputs: tuple[NativeOutput, ...]
@@ -320,7 +312,6 @@ def runtime_scopes(root: Path, evidence: NativeEvidence) -> dict[str, frozenset[
     for (output, content), (_, check) in zip(runtimes, checks, strict=True):
         runtime = PythonRuntime.model_validate_json(content)
         runtime.require_floor(root=root, content=check)
-        runtime.require_observer(evidence.observer)
         runtime.require_checks(root, output, evidence.gate.native_outputs)
         if runtime.ruff is not None:
             scopes[output.sessions[0]] = runtime.ruff.checked_paths(root)

@@ -454,6 +454,41 @@ def test_distribution_preserves_previous_outputs_when_cask_projection_fails(
     assert not list(tmp_path.glob(".ethos-distribution-*"))
 
 
+@pytest.mark.parametrize("drift", [False, True])
+def test_retained_distribution_binds_acceptance_before_publication(tmp_path, monkeypatch, drift):
+    repo, python = materialize_runtime_case(tmp_path, monkeypatch)
+    selected = require_selected_runtime(python.parent)
+    wheel = Path(git_common_dir(repo)) / "ethos/packages" / selected.wheel_sha256 / "ethos-test.whl"
+    qualified = distribution.package_runtime(selected.root, wheel, tmp_path / "smoke/ethos.tar.gz")
+    qualified["shared_supply"] = {"state": "passed"}
+    destination = tmp_path / "artifacts/ethos.tar.gz"
+    destination.parent.mkdir()
+    destination.write_bytes(b"previous archive")
+    cask = destination.parent / "homebrew/Casks/ethos.rb"
+    cask.parent.mkdir(parents=True)
+    cask.write_bytes(b"previous Cask")
+    if drift:
+        qualified["sha256"] = "0" * 64
+    with (
+        pytest.raises(ValueError, match="local_install_distribution_changed")
+        if drift
+        else nullcontext()
+    ):
+        retained = distribution.retain_qualified_distribution(
+            qualified, selected.root, wheel, destination
+        )
+    if drift:
+        assert destination.read_bytes() == b"previous archive"
+        assert cask.read_bytes() == b"previous Cask"
+    else:
+        assert retained["sha256"] == qualified["sha256"]
+        assert retained["retained"] is True
+        assert retained["shared_supply"] == qualified["shared_supply"]
+        assert str(destination) in cask.read_text()
+    assert require_selected_runtime(selected.root) == selected
+    assert not list(destination.parent.glob(".ethos-distribution-*"))
+
+
 @pytest.mark.parametrize("producer", ["archive", "wheel", "diskutil", "hdiutil", "failed"])
 def test_distribution_retains_exact_input_and_previous_output(tmp_path, monkeypatch, producer):
     """One source-bound workload covers archive and native-envelope success and refusal."""

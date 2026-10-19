@@ -33,8 +33,9 @@ if TYPE_CHECKING:
     from ethos.adapters.repo.runtime.selection import SelectedRuntime
     from ethos.repository.release.identity import BuildIdentity
 
-_ACTIVATION_KEYS = ("extensions.worktreeConfig", "gc.packRefs", "core.hooksPath")
-_WORKTREE_ACTIVATION_KEYS = ("core.hooksPath", "gc.packRefs")
+_REF_STORAGE_CONFIG = {"gc.packRefs": "false", "maintenance.pack-refs.enabled": "false"}
+_WORKTREE_ACTIVATION_KEYS = ("core.hooksPath", *_REF_STORAGE_CONFIG)
+_ACTIVATION_KEYS = ("extensions.worktreeConfig", *_WORKTREE_ACTIVATION_KEYS)
 
 
 class HookActivationError(ValueError):
@@ -257,7 +258,7 @@ def _activate_common_runtime(
     )
     config_effects.set_common_config(
         repo,
-        {"gc.packRefs": "false", "core.hooksPath": hooks.as_posix()},
+        {**_REF_STORAGE_CONFIG, "core.hooksPath": hooks.as_posix()},
     )
     for worktree in linked:
         config_effects.unset_worktree_config(worktree, _WORKTREE_ACTIVATION_KEYS)
@@ -341,7 +342,7 @@ def _runtime_selection_bytes(common: Path) -> bytes | None:
 def _common_activation(hooks: Path) -> dict[str, tuple[str, ...]]:
     return {
         "extensions.worktreeConfig": ("true",),
-        "gc.packRefs": ("false",),
+        **{key: (value,) for key, value in _REF_STORAGE_CONFIG.items()},
         "core.hooksPath": (hooks.as_posix(),),
     }
 

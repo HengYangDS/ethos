@@ -12,7 +12,7 @@ from typing import Any
 from ethos.adapters.store.content_addressed import write_content_addressed
 from ethos.adapters.store.state.schema import local_state_root
 from ethos.contracts.verdict import execution_succeeded
-from ethos.repository.policy.references.commands import canonical_gate_command
+from ethos.repository.policy.quality.gate_composition import canonical_gate_command
 
 if TYPE_CHECKING:
     from ethos.contracts.semantic import Attestation

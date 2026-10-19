@@ -48,7 +48,7 @@ unselected peers. A successful selected-peer result does not claim that
 another declared peer received the object, and an unavailable peer is never
 skipped automatically.
 
-`status`, `plan`, `prove`, `land`, `publish`, `adopt` are workflow roots; `format` and `mcp` are not.
+`status`, `plan`, `prove`, `land`, `publish`, `adopt` are workflow roots; `mcp` is not.
 MCP tools project status, planning, adoption and integration over the same typed owners;
 it does not yet project every operation. Root and process actor bind at startup.
 Strict tool inputs cannot replace either binding. Diagnostics stay on stderr;
@@ -88,31 +88,6 @@ an invalid profile blocks observation, while adoption preserves conflicting
 authored content rather than overwriting it. Integration keeps candidate, accepted
 and release transitions distinct, including preview, exact coordinates and fresh
 effect admission. Proof and publication do not yet have equivalent SDK and MCP surfaces.
-
-## Native Python Observer Interface
-
-The native attempt exports `ETHOS_NATIVE_OBSERVER_REQUIREMENT` as the exact
-hash-qualified file requirement `ethos @ file://...#sha256=...`, together with
-`ETHOS_NATIVE_OBSERVER_RUNTIME_DIGEST`, the selected immutable runtime's 64-hex
-digest. The native producer verifies the wheel's SHA256 before child-only
-`--no-deps` installation; it does not import or install ETHOS in the Nox parent,
-edit adopter metadata or locks, build from source, or select an ambient package.
-
-Run Ruff custody through the installed child, preserving the original Ruff argv:
-
-```text
-python -B -I -m ethos.domain.quality.nox run \
-  --runtime-output PATH --session ID --configuration PATH \
-  -- <exact original Ruff argv>
-```
-
-This operation records the actual child interpreter, validates supplied-wheel
-PEP 610 provenance, launches Ruff once, and retains its stdout/stderr. It is not
-another scheduler or authority. The pytest interface remains
-`-p ethos.surface.pytest.plugin`, `--ethos-runtime-output` and
-`--ethos-native-session`. Both child records and `execution.json` retain the
-observer requirement, runtime digest and wheel SHA256. Supply applies only to
-declared Python observer outputs; audit events do not authenticate hostile producers.
 
 ## Retained Candidate Materialization
 
@@ -169,7 +144,10 @@ then uses a compatible invoking package or builds a new source-bound generation
 before changing the selector. An explicit `--runtime` must match the requested
 build. Missing or damaged external supply never triggers an implicit rebuild;
 restore the installation or explicitly rebind. A damaged selector also requires
-explicit selection. Package-manager upgrade/uninstall qualification is separate.
+explicit selection. Valid supplied bytes may repair it without guessing a
+predecessor location; the result reports unavailable rollback selection, and a
+failed cutover restores the exact damaged selector bytes through compare-and-swap.
+Package-manager upgrade/uninstall qualification is separate.
 
 These are capabilities, not a fixed lifecycle. `status` selects the continuation;
 re-observe after effects. `adopt` uses the same semantics, not a parallel lifecycle.
@@ -233,12 +211,13 @@ rebase for unpublished replay; a pending merge instead routes to its own reader.
 command binding HEAD, parents, index, tracked and untracked content, runtime and
 Lease generation. Apply requires `--authorize`; a preview is not permission.
 
-`--source-ref refs/heads/work/<name>` explicitly selects an existing Work Lane
-for merge strategy only. Preview binds its exact source head; apply refuses
-source movement. During continuation that source must still contain the recorded
-pending parent, which remains the commit parent. Default continuation does not
-assert the mutable candidate ref. Neither selection updates candidate or
-protected refs; their integration remains independent.
+For a coordinated peer contribution, `--source-ref refs/heads/work/<lane>`
+selects an existing Work Lane for merge strategy, not abort. Preview and apply
+bind its full ref and exact commit; missing, non-Work-Lane or changed sources
+are refused. Continuation requires that source to contain the recorded pending
+parent, which remains the commit parent. Default continuation does not assert
+the mutable candidate ref. Neither selection updates candidate or protected
+refs; their integration remains independent.
 
 Resolve reported conflicts, admit their exact paths and stage the accepted
 resolution before requesting `--mode continue`. The shared commit-policy owner
@@ -247,7 +226,9 @@ lane; cleanup follows it. Proof, candidate integration and accepted closeout
 remain separate obligations. Coexisting official Changes retain separate task
 states; ambiguous contributions require explicit resolution, not fabricated
 completion of incoming intent. Continue rejects newly authored edits to incoming
-Change artifacts, while preserving the original parents' native composition. Archiving the local Change retains its archive attribution instead
+Change artifacts while preserving the original parents' native composition;
+unchanged incoming staged trees authorize no ordinary cross-Change authoring and
+claim no incoming task completion. Archiving the local Change retains its archive attribution instead
 of selecting an unchanged incoming Change merely because it is still active.
 
 If a merge CAS completed but its acknowledgement or metadata cleanup did not,
@@ -361,21 +342,8 @@ JSON results use schema version `2`: `verdict` alone decides authorization,
 
 ## Proof Depth
 
-Select a gate from its declared owner:
-
-| Option                | Source                        | Selection boundary                                                              |
-| --------------------- | ----------------------------- | ------------------------------------------------------------------------------- |
-| `--gate <id>`         | Repository-native declaration | The id and its dependencies must be declared.                                   |
-| `--product-gate <id>` | Selected ETHOS product        | Explicitly composes that product closure without extending the native registry. |
-
-```bash
-ethos prove --gate <native-id> --product-gate <product-id> --json
-```
-
-Repeat either option for several roots. Product rules retain their origin;
-same-named native gates cannot replace them. Conflicting descriptors or selecting
-one id from both owners refuse. Identical complete dependencies may share execution;
-default/full/optional native membership and origin-bound issuance stay unchanged.
+`ethos prove --gate <id> --json` runs one declared gate with its dependencies;
+repeat it for several roots.
 
 `ethos prove --full --json` observes the complete configured plan without
 execution. Add `--execute --expect-head <head>` for frozen-source evidence.
@@ -385,6 +353,17 @@ a focused result never implies the complete native floor.
 Full proof holds the repository's shared slot, then waits for both host 1- and 5-minute loads to meet `ETHOS_PROOF_HOST_LOAD_LIMIT` (default: half the CPUs; `0` skips load checks). Waiting reports on stderr and stops after one hour with `proof_admission_contended`, before gates run. Results record wait duration and admitted load. At start or while queued, a lane missing candidate ancestry stops with `candidate_base_stale` and its refresh command; it cannot land.
 
 ## Hidden Operational Roots
+
+`ethos lane format` prepares native source postimages without writes. Optional
+literal paths select exact inputs; omission selects tracked and non-ignored new
+authored source while retaining foreign, generated, immutable and dependency
+owners. `--check` evaluates those same postimages. Fixing requires `--apply
+--authorize --expect-head <current-head>` and the current Work Lane admission;
+it preserves HEAD, index and source modes. Missing inputs remain unknown and
+policy or parse conflicts refuse before effect. Native formatter ignores and
+pragmas preserve bytes but do not waive independent semantic gates. Nox `format`
+and `format_check` project this operation; they do not own another formatter or
+replace the complete proof closure.
 
 `ethos lane` and `ethos hook` are hidden operational roots. They support Work
 Lane admission and guard reporting; they do not expand the public lifecycle.

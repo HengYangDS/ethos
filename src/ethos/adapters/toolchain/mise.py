@@ -124,15 +124,19 @@ def repository_mise_files(root: Path, *, executable: Path | None = None) -> dict
         raise ValueError(message)
     origins = {MISE_CONFIG: config, MISE_LOCK: lock}
     materials = {name: _mise_input(canonical, path) for name, path in origins.items()}
-    environment = _mise_environment(canonical, offline=True, files=materials)
-    if (
-        environment["MISE_IDIOMATIC_VERSION_FILE_ENABLE_TOOLS"]
-        or (canonical / ".tool-versions").is_file()
-    ):
-        for relative in _mise_declaration_paths(canonical, environment, executable):
-            if relative != config:
-                materials[relative] = _mise_input(canonical, relative)
-                origins[relative] = relative
+    with TemporaryDirectory(prefix="ethos-mise-discovery-") as directory:
+        environment = _mise_environment(Path(directory), offline=True, files=materials)
+        environment["MISE_CEILING_PATHS"] = str(canonical.parent)
+        declared = (
+            _mise_declaration_paths(canonical, environment, executable)
+            if environment["MISE_IDIOMATIC_VERSION_FILE_ENABLE_TOOLS"]
+            or (canonical / ".tool-versions").is_file()
+            else ()
+        )
+    for relative in declared:
+        if relative != config:
+            materials[relative] = _mise_input(canonical, relative)
+            origins[relative] = relative
     if any(_mise_input(canonical, path) != materials[name] for name, path in origins.items()):
         message = "mise_declaration_changed"
         raise ValueError(message)

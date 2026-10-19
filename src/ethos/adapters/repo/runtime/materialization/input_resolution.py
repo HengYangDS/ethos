@@ -91,9 +91,9 @@ def resolve_runtime_wheel(
             return wheel_dir / wheels[0].name
         finally:
             shutil.rmtree(staging, ignore_errors=True)
-    selected = selected_runtime_source(source)
-    if selected is not None:
-        return runtime_wheel(selected)
+    managed = _managed_runtime_wheel(source)
+    if managed is not None:
+        return managed
     try:
         metadata = distribution("ethos")
         direct_url = json.loads(metadata.read_text("direct_url.json") or "")
@@ -186,22 +186,39 @@ def run_runtime_tool(
     return completed
 
 
-def runtime_wheel(selected: SelectedRuntime) -> Path:
-    """Resolve selected package bytes through their sole private-layout owner."""
+def invoking_runtime_requirement() -> str | None:
+    """Name the invoking immutable runtime's exact wheel as one hashed direct reference.
+
+    A source checkout has no immutable wheel and names none. A selected runtime
+    whose package wheel is absent or changed refuses instead of naming another.
+    """
+    selected = selected_runtime_source(Path(__file__))
+    if selected is None:
+        return None
     try:
-        package_root = selected.root.parent.parent / "packages" / selected.wheel_sha256
-        if package_root.is_symlink() or not package_root.is_dir():
-            _fail("hook_runtime_wheel_provenance_missing")
-        wheels = tuple(
-            path
-            for path in package_root.glob("ethos-*.whl")
-            if path.is_file() and not path.is_symlink()
-        )
-        if len(wheels) != 1 or file_sha256(wheels[0]) != selected.wheel_sha256:
-            _fail("hook_runtime_wheel_provenance_missing")
-        return wheels[0]
+        wheel = _selected_runtime_wheel(selected)
     except OSError as error:
         _fail("hook_runtime_wheel_provenance_missing", error)
+    return f"ethos @ {wheel.as_uri()}#sha256={selected.wheel_sha256}"
+
+
+def _managed_runtime_wheel(source: Path) -> Path | None:
+    selected = selected_runtime_source(source)
+    return None if selected is None else _selected_runtime_wheel(selected)
+
+
+def _selected_runtime_wheel(selected: SelectedRuntime) -> Path:
+    package_root = selected.root.parent.parent / "packages" / selected.wheel_sha256
+    if package_root.is_symlink() or not package_root.is_dir():
+        _fail("hook_runtime_wheel_provenance_missing")
+    wheels = tuple(
+        path
+        for path in package_root.glob("ethos-*.whl")
+        if path.is_file() and not path.is_symlink()
+    )
+    if len(wheels) != 1 or file_sha256(wheels[0]) != selected.wheel_sha256:
+        _fail("hook_runtime_wheel_provenance_missing")
+    return wheels[0]
 
 
 def selected_runtime_source(source: Path) -> SelectedRuntime | None:

@@ -35,7 +35,6 @@ from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.proof_execution_carrier import ProofExecutionCarrier
 from ethos.adapters.repo.status.workspace import workspace_status_observation
 from ethos.contracts.proof.plan import AcceptancePurpose
-from ethos.contracts.proof.plan import product_gate_ids_from_policy
 from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.contracts.verdict import execution_succeeded
 from ethos.contracts.verdict import report_verdict
@@ -65,7 +64,6 @@ class _ProofOptions:
     scope: str = "repository"
     execute: bool = False
     gate: tuple[str, ...] = ()
-    product_gate: Annotated[tuple[str, ...], Parameter(name="--product-gate")] = ()
     full: bool = False
     change: str | None = None
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
@@ -83,20 +81,11 @@ _DEFAULT_PROOF_OPTIONS = _ProofOptions()
 def _emit_proof_preflight(*, repo: Path, options: _ProofOptions, json_output: bool) -> bool:
     """Admit one proof mode before any governed repository observation."""
     execution_root = getattr(options, "execution_root", None)
-    product_ids = getattr(options, "product_gate", ())
-    conflicts = set(options.gate) & set(product_ids)
-    if conflicts:
-        _emit_proof_gap(
-            ValueError("gate_selection_origin_conflict:" + ",".join(sorted(conflicts))),
-            json_output=json_output,
-        )
-        return True
     if getattr(options, "acceptance_purpose", "repository") == "local-source" and (
         options.host
         or options.probe
         or options.scope != "repository"
         or options.gate
-        or product_ids
         or not options.full
     ):
         _emit_proof_gap(
@@ -109,7 +98,6 @@ def _emit_proof_preflight(*, repo: Path, options: _ProofOptions, json_output: bo
         or not options.expect_head
         or options.scope != "repository"
         or options.gate
-        or product_ids
         or options.host
         or options.probe
     ):
@@ -122,8 +110,7 @@ def _emit_proof_preflight(*, repo: Path, options: _ProofOptions, json_output: bo
     emit(
         host_gate_observation(
             repo=repo,
-            gate_ids=tuple(dict.fromkeys((*options.gate, *getattr(options, "product_gate", ())))),
-            product_gate_ids=product_ids,
+            gate_ids=options.gate,
             expect_head=options.expect_head,
             full=options.full,
         ),
@@ -205,13 +192,12 @@ def run_plan_checks(
         repo,
         tree_ref=plan_head,
         gate_ids=tuple(node.id for node in plan.nodes),
-        product_gate_ids=product_gate_ids_from_policy(plan.policy),
         acceptance_purpose=proof_acceptance_purpose(plan.policy),
     )
-    if (carrier is not None or plan.policy) and gates_by_id.digest != plan.inputs.policy:
+    if carrier is not None and gates_by_id.digest != plan.inputs.policy:
         message = "proof_execution_environment_mismatch"
         raise ValueError(message)
-    registry = {gate.id: gate for gate in gates_by_id.gates}
+    registry = gates_by_id.registry
     runner = LocalGateRunner() if execute else DryRunRunner()
     node_capacity = capacity or max(1, os.cpu_count() or 1)
     results = run_gate_graph(
@@ -270,9 +256,7 @@ def _proof_next_action(
 ) -> str:
     """Return the next public lifecycle command for one proof outcome."""
     if result_state == "proven":
-        focused = bool(options.gate or options.product_gate) or (
-            proof_scope_binding(options.scope)["scope"] != "repository"
-        )
+        focused = bool(options.gate) or proof_scope_binding(options.scope)["scope"] != "repository"
         return "ethos prove --json" if focused else "ethos land"
     if result_state == "ready":
         return "ethos prove --execute"
@@ -400,8 +384,7 @@ def prove(
         plan = proof_plan(
             repo,
             resolution=resolution,
-            gate_ids=tuple(dict.fromkeys((*options.gate, *getattr(options, "product_gate", ())))),
-            product_gate_ids=getattr(options, "product_gate", ()),
+            gate_ids=options.gate,
             full=options.full,
             acceptance_purpose=getattr(options, "acceptance_purpose", "repository"),
             execution_root=carrier.execution if carrier is not None else None,
@@ -443,7 +426,7 @@ def prove(
         proof_scope_binding(options.scope),
         host_probe_boundary(host=options.host, probe=options.probe),
     )
-    focused = bool(options.gate or options.product_gate) or scope_binding["scope"] != "repository"
+    focused = bool(options.gate) or scope_binding["scope"] != "repository"
     verdict, required_gaps = assess_proof_execution(
         audit=audit,
         lifecycle=openspec_lifecycle,
@@ -485,7 +468,7 @@ def prove(
         if verdict == "pass"
         else "gapped"
     )
-    detailed = options.execute or bool(options.gate or options.product_gate) or options.full
+    detailed = options.execute or bool(options.gate) or options.full
     check_summaries = summarize_checks(checks)
     artifact = attestation.payload.body.get("artifact") if attestation is not None else {}
     data = {

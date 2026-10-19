@@ -44,6 +44,7 @@ class SourceTree:
     def observe(cls, root: Path) -> SourceTree:
         head = current_tracked_head(root)
         if not head:
+            run_git(root, "rev-parse", "--git-dir", check=True)
             message = "source_head_missing"
             raise ValueError(message)
         raw = run_git(root, "ls-tree", "-rlz", head, text=False, check=True).stdout

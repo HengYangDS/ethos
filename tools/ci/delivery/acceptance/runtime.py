@@ -135,12 +135,13 @@ def require_manifest(
 def require_production_dependencies(
     python: Path, *, environment: Mapping[str, str]
 ) -> dict[str, object]:
-    """Require the immutable package runtime to exclude development dependencies."""
+    """Exercise production-only staged and shared native formatters in isolation."""
     probe = """
 import importlib.util
 import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from ethos.adapters.gates.formatting import render_source_content
 from ethos.adapters.repo.hook.admission import _check_staged_python_format
 
 assert importlib.util.find_spec("pytest") is None
@@ -165,6 +166,39 @@ with TemporaryDirectory(prefix="ethos-installed-format-") as temporary:
         assert source.read_text() == working
         observed = subprocess.check_output(["git", "-C", str(root), "show", ":change.py"])
         assert observed == staged.encode()
+    cases = (
+        ("native.py", "ruff", b"value=1\\n"),
+        ("docs/with space.md", "prettier", b"# Native\\n\\ntext   \\n"),
+        ("native.json", "prettier", b'{"value":true}\\n'),
+        ("native.yaml", "prettier", b"value: [ one,two ]\\n"),
+        ("native.mjs", "prettier", b"export const value={valid:true};\\n"),
+        ("native.toml", "taplo", b"value=[1,2]\\n"),
+        ("native.sh", "shfmt", b"if true;then echo native;fi\\n"),
+        ("native.svg", "svgo", (
+            b'<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1">'
+            b'<path d="M0 0h1v1H0z"/></svg>\\n'
+        )),
+    )
+    for relative, _owner, content in cases:
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+    subprocess.run(["git", "-C", str(root), "add", "--", *(item[0] for item in cases)],
+                   check=True)
+    index = subprocess.check_output(["git", "-C", str(root), "write-tree"])
+    for relative, owner, content in cases:
+        path = root / relative
+        mode = path.stat().st_mode
+        rendered, ignored = render_source_content(root, relative, owner, content)
+        assert not ignored and rendered != content and rendered.endswith(b"\\n"), relative
+        assert render_source_content(root, relative, owner, rendered) == (rendered, False)
+        assert path.read_bytes() == content and path.stat().st_mode == mode, relative
+    assert subprocess.check_output(["git", "-C", str(root), "write-tree"]) == index
+    (root / ".prettierignore").write_text("docs/ignored.md\\n")
+    preserved = b"# Captured\\n\\ntext   \\n"
+    assert render_source_content(root, "docs/ignored.md", "prettier", preserved) == (
+        preserved, True
+    )
 """
     completed = run_command(
         python.parent,
@@ -176,7 +210,13 @@ with TemporaryDirectory(prefix="ethos-installed-format-") as temporary:
     if completed.returncode:
         message = f"package_runtime_dependency_acceptance_failed:{completed.stderr.strip()}"
         raise RuntimeError(message)
-    return {"state": "passed", "excluded": ["pytest"], "staged_format": "passed"}
+    return {
+        "state": "passed",
+        "excluded": ["pytest"],
+        "staged_format": "passed",
+        "source_format": "passed",
+        "formatters": ["ruff", "prettier", "taplo", "shfmt", "svgo"],
+    }
 
 
 @observe_stage("immutable_identity")

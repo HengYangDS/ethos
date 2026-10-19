@@ -6,6 +6,7 @@ receive the structured report and stay free of subprocess concerns.
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -16,22 +17,21 @@ from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit
 from urllib.request import url2pathname
 
+import ethos.adapters.gates.native.inputs as native_inputs
+from ethos.adapters.gates.formatting import render_source_content
+from ethos.adapters.gates.native.inputs import native_configurations
+from ethos.adapters.gates.native.inputs import quality_inventory_failure
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
-from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.content.source import SourceTargetUnavailableError
 from ethos.adapters.repo.content.source import SourceTree
 from ethos.adapters.repo.git import GitExecutionError
-from ethos.adapters.repo.git import git_files
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.contracts.verdict import close_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.layout.report import module_layout_report
-from ethos.repository.policy.projections import observe_projections
-from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
-from ethos.repository.registry.docs.registry import authored_document_paths
-from ethos.repository.registry.docs.registry import build_docs_registry
+from ethos.repository.policy.quality.format_selection import audit
 from ethos.repository.release.resources import canonical_resource
 
 
@@ -124,26 +124,51 @@ def external_links_report(root: Path) -> dict[str, object]:
 
 
 def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, object]:
+    """Check delivered members with mandatory installed policy and native increments."""
     files: list[str] = []
     try:
         source = SourceTree.observe(root)
-        root = source.root
-        files = sorted(path for path in source.entries if path.endswith(".md"))
+        files = sorted(
+            native_inputs.authored_source_files(
+                root,
+                "*.md",
+                paths=tuple(relative for relative in source.entries if relative.endswith(".md")),
+            )
+        )
         for relative in files:
             source.resolve_target(relative)
-        files = authored_markdown_paths(root, selected_paths=tuple(source.entries))
         configs = native_configurations(root, "lychee", ".config/checks/lychee/lychee.toml")
-        tool = str(
+        product_root = canonical_resource()
+        for config in configs:
+            path = Path(config).resolve()
+            if path.is_relative_to(source.root) and not (
+                product_root != source.root and path.is_relative_to(product_root)
+            ):
+                source.read(path.relative_to(source.root).as_posix())
+        tool = (
             Path(sys.executable).absolute().with_name("lychee.exe" if os.name == "nt" else "lychee")
         )
         _require_link_inputs(files, tool)
+        inputs = tuple(str(source.root / relative) for relative in files)
+        mode = (
+            ("--scheme", "http", "--scheme", "https")
+            if online
+            else (
+                "--scheme",
+                "file",
+                "--include",
+                "^file:",
+                "--include-fragments=anchor-only",
+                "--base-url",
+                "",
+                "--remap",
+                "^(.*)$ $1",
+            )
+        )
         native = []
         for index, config in enumerate(configs):
-            configuration = Path(config)
-            if configuration.is_relative_to(source.root):
-                source.read(configuration.relative_to(source.root).as_posix())
             command = (
-                tool,
+                str(tool),
                 "--config",
                 config,
                 "--no-progress",
@@ -151,23 +176,7 @@ def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, objec
                 "--hidden",
                 "--offline=false" if online else "--offline",
             )
-            inputs = tuple(str(source.root / relative) for relative in files)
             _require_native_link_selection(source.root, command, inputs)
-            mode = (
-                ("--scheme", "http", "--scheme", "https")
-                if online
-                else (
-                    "--scheme",
-                    "file",
-                    "--include",
-                    "^file:",
-                    "--include-fragments=anchor-only",
-                    "--base-url",
-                    "",
-                    "--remap",
-                    "^(.*)$ $1",
-                )
-            )
             if not online:
                 dumped = run_command(
                     source.root, (*command, *mode, "--dump", "--", *inputs), timeout=60
@@ -184,7 +193,7 @@ def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, objec
                 {
                     "verdict": "block" if gaps else "pass",
                     "id": gate_id if index == 0 else f"{gate_id}-increment",
-                    "tool": tool,
+                    "tool": str(tool),
                     "state": "failed" if gaps else "passed",
                     "file_count": len(files),
                     "command": list(result.args),
@@ -192,29 +201,25 @@ def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, objec
                     "stdout": result.stdout,
                     "stderr": result.stderr,
                     "required_gaps": gaps,
+                    "source_tree": source.tree,
                 }
             )
         source.recheck()
-    except (GitExecutionError, subprocess.CalledProcessError) as error:
-        return quality_inventory_failure(root, gate_id, error)
+        return {**_native_report(gate_id, files, native), "source_tree": source.tree}
     except SourceTargetUnavailableError as error:
         return _link_observation_failure(gate_id, files, "block", str(error))
-    except (
-        OSError,
-        ValueError,
-        UnicodeError,
-        ProcessExecutionError,
-        subprocess.SubprocessError,
-    ) as error:
+    except (GitExecutionError, subprocess.CalledProcessError) as error:
+        return quality_inventory_failure(root, gate_id, error)
+    except (OSError, ValueError, ProcessExecutionError, subprocess.SubprocessError) as error:
         return _link_observation_failure(gate_id, files, "unknown", str(error))
-    return {**_native_report(gate_id, files, native), "source_tree": source.tree}
 
 
-def _require_link_inputs(files: list[str], tool: str) -> None:
+def _require_link_inputs(files: list[str], tool: Path) -> None:
+    """Require complete selected inputs and the exact installed executable."""
     if not files:
         message = "markdown_link_source_empty"
         raise ValueError(message)
-    if shutil.which(tool) is None:
+    if not tool.is_file() or not os.access(tool, os.X_OK):
         message = "quality_tool_missing:lychee"
         raise ValueError(message)
 
@@ -282,104 +287,32 @@ def _link_observation_failure(
     }
 
 
-def quality_source_files(root: Path, *patterns: str) -> list[str]:
-    """Read current authored input through native Git without swallowing inventory failure."""
-    return git_files(
-        root, "--cached", "--others", "--exclude-standard", "--", *patterns, check=True
-    )
-
-
-def quality_inventory_failure(
-    root: Path, gate_id: str, error: GitExecutionError | subprocess.CalledProcessError
-) -> dict[str, object]:
-    """Unavailable input remains unknown with its original native execution evidence."""
-    evidence = (
-        error.evidence()
-        if isinstance(error, GitExecutionError)
-        else {
-            "command": list(error.cmd),
-            "cwd": str(root),
-            "exit_code": error.returncode,
-            "stdout": _observed_output(error.stdout),
-            "stderr": _observed_output(error.stderr),
-        }
-    )
-    return {
-        "id": gate_id,
-        "verdict": "unknown",
-        "state": "inventory_unavailable",
-        "file_count": 0,
-        "required_gaps": [f"quality_input_inventory_unavailable:{gate_id}"],
-        "errors": [evidence],
-    }
-
-
-def authored_markdown_paths(
-    root: Path, *, selected_paths: tuple[str, ...] | None = None
-) -> list[str]:
-    """Current authored Markdown excludes immutable records and absent paths."""
-    files = (
-        quality_source_files(root, "*.md")
-        if selected_paths is None
-        else [path for path in selected_paths if path.endswith(".md")]
-    )
-    outputs = frozenset(item.output for item in observe_projections(root))
-    registry = build_docs_registry(
-        root,
-        generated_outputs=outputs,
-        retained_origins=observed_document_origins(root),
-        selected_documents=tuple(files),
-    )
+def _markdown_files(root: Path) -> list[str]:
+    """Use the common authored-input join while preserving absent-path filtering."""
     return [
         path
-        for path in authored_document_paths(registry, files, outputs)
-        if selected_paths is not None or (root / path).is_file()
+        for path in native_inputs.authored_source_files(root, "*.md")
+        if path.endswith(".md") and (root / path).is_file()
     ]
-
-
-def native_configurations(
-    root: Path, tool: str, shared: str, *, selected_paths: tuple[str, ...] | None = None
-) -> tuple[str, ...]:
-    """The shipped policy is mandatory; repository policy is a native increment."""
-    common = canonical_resource(shared)
-    paths = tuple(quality_source_files(root)) if selected_paths is None else selected_paths
-    selected = native_tool_configuration(paths, tool)
-    if selected:
-        path = root / selected
-        if (
-            path.is_symlink()
-            or not path.resolve().is_relative_to(root.resolve())
-            or not path.is_file()
-        ):
-            message = f"native_tool_configuration_invalid:{tool}"
-            raise ValueError(message)
-        if path.resolve() != common.resolve():
-            return str(common), str(path)
-    return (str(common),)
 
 
 def prose_report(root: Path) -> dict[str, object]:
     """Run native spelling on exact copies without ambient policy or source writes."""
     try:
-        files = authored_markdown_paths(root)
+        files = _markdown_files(root)
         configs = native_configurations(
             root, "codespell", ".config/checks/codespell/codespell.toml"
         )
+        for config in configs:
+            settings = tomllib.loads(Path(config).read_text(encoding="utf-8")).get("tool")
+            if not isinstance(settings, dict) or not isinstance(settings.get("codespell"), dict):
+                message = f"codespell_configuration_table_missing:{config}"
+                return _configuration_failure("prose", ValueError(message))
         sources = {relative: (root / relative).read_bytes() for relative in files}
         if any((root / relative).is_symlink() for relative in files):
             return _configuration_failure("prose", ValueError("native_prose_input_invalid"))
         native = []
         for ordinal, config in enumerate(configs):
-            try:
-                declared = tomllib.loads(Path(config).read_text(encoding="utf-8"))
-            except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
-                message = "native_prose_configuration_invalid"
-                raise ValueError(message) from error
-            tool = declared.get("tool")
-            if not isinstance(tool, dict) or not isinstance(tool.get("codespell"), dict):
-                return _configuration_failure(
-                    "prose", ValueError("native_prose_configuration_invalid")
-                )
             with TemporaryDirectory(prefix="ethos-native-prose-") as temporary:
                 work = Path(temporary)
                 for relative, content in sources.items():
@@ -426,60 +359,6 @@ def prose_report(root: Path) -> dict[str, object]:
         return _configuration_failure("prose", error)
 
 
-def format_source_contents(root: Path, owner: str, sources: dict[str, bytes]) -> dict[str, bytes]:
-    """Render literal source copies in one native batch, without source writes.
-
-    Product policy remains mandatory. A repository increment must have the same
-    fixed point; conflicting native policies refuse rather than oscillate.
-    """
-    if not sources:
-        return {}
-    node = str(resolve_node_runtime().executable)
-    if owner == "prettier":
-        executable = str(product_node_module(owner) / "bin/prettier.cjs")
-        configs = native_configurations(root, owner, ".config/checks/prettier/prettier.toml")
-        options = ("--write", "--no-editorconfig", "--ignore-path", os.devnull)
-    elif owner == "taplo":
-        executable = str(product_node_module("@taplo/cli") / "dist/cli.js")
-        configs = native_configurations(root, owner, ".config/checks/taplo/taplo.toml")
-        options = ("format", "--no-auto-config", "--colors", "never")
-    else:
-        message = f"native_format_owner_unsupported:{owner}"
-        raise ValueError(message)
-    with TemporaryDirectory(prefix="ethos-native-format-") as temporary:
-        work = Path(temporary)
-        for relative, content in sources.items():
-            target = work / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(content)
-        rendered: dict[str, bytes] = {}
-        for ordinal, config in enumerate(configs):
-            command = (node, executable, *options, "--config", config)
-            if owner == "prettier":
-                command += ("--print-width", "100", "--prose-wrap", "preserve")
-            command += tuple(str(work / relative) for relative in sources)
-            try:
-                completed = run_command(
-                    work,
-                    command,
-                    timeout=120,
-                    remove_env=("NODE_OPTIONS", "NODE_PATH", "TAPLO_CONFIG"),
-                )
-            except (OSError, ProcessExecutionError, subprocess.TimeoutExpired) as error:
-                message = f"native_format_unavailable:{owner}:{error}"
-                raise ValueError(message) from error
-            if completed.returncode:
-                message = completed.stderr or completed.stdout
-                message = f"native_format_failed:{owner}:{message.strip()}"
-                raise ValueError(message)
-            observed = {relative: (work / relative).read_bytes() for relative in sources}
-            if ordinal and observed != rendered:
-                message = f"native_format_policy_conflict:{owner}"
-                raise ValueError(message)
-            rendered = observed
-        return rendered
-
-
 def _configuration_failure(gate_id: str, error: Exception) -> dict[str, object]:
     return {
         "id": gate_id,
@@ -487,6 +366,72 @@ def _configuration_failure(gate_id: str, error: Exception) -> dict[str, object]:
         "state": "configuration_invalid",
         "required_gaps": [str(error)],
     }
+
+
+def markdown_lint_report(root: Path) -> dict[str, object]:
+    """Check the shared floor and native repository increments on the same authored inputs."""
+    try:
+        files = _markdown_files(root)
+        if not files:
+            return {"verdict": "pass", "state": "skipped", "file_count": 0, "required_gaps": []}
+        node = str(resolve_node_runtime().executable)
+        markdownlint = str(product_node_module("markdownlint-cli2") / "markdownlint-cli2.mjs")
+        lint_configs = native_configurations(
+            root, "markdownlint-cli2", ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml"
+        )
+    except (GitExecutionError, subprocess.CalledProcessError) as error:
+        return quality_inventory_failure(root, "markdown-lint", error)
+    except (OSError, ValueError) as error:
+        return _configuration_failure("markdown-lint", error)
+    format_gaps: list[str] = []
+    formatted: tuple[tuple[str, str], ...] = ()
+    try:
+        formatted = _native_formatter_owners(root, files)
+        for relative, owner in formatted:
+            content = (root / relative).read_bytes()
+            rendered, _ignored = render_source_content(root, relative, owner, content)
+            if rendered != content:
+                format_gaps.append(f"source_format_drift:{relative}")
+    except (OSError, ValueError, TypeError, subprocess.SubprocessError) as error:
+        format_gaps.append(str(error))
+    format_report: dict[str, object] = {
+        "id": "markdown-format",
+        "verdict": "block" if format_gaps else "pass",
+        "state": "failed" if format_gaps else "passed",
+        "required_gaps": format_gaps,
+        "files": [relative for relative, _owner in formatted],
+        "file_count": len(formatted),
+    }
+    commands = []
+    adapter = str(Path(__file__).with_name("markdown.mjs"))
+    commands.extend(
+        ("markdown-lint", [node, adapter, markdownlint, config, str(root), json.dumps(files)])
+        for config in lint_configs
+    )
+    native = [
+        format_report,
+        *[
+            quality_tool_report(root=root, gate_id=gate_id, tool=node, command=command, files=files)
+            for gate_id, command in commands
+        ],
+    ]
+    return _native_report("markdown-lint", files, native)
+
+
+def _native_formatter_owners(root: Path, files: list[str]) -> tuple[tuple[str, str], ...]:
+    """Check only declared native-formatter carriers; official owners keep their own bytes."""
+    ownership = audit(
+        root,
+        paths=tuple(files),
+        configuration=canonical_resource(".config/checks/format-selection/policy.toml"),
+    )
+    if ownership["verdict"] != "pass":
+        raise ValueError(str(ownership["failures"]))
+    return tuple(
+        (item["path"], item["format_owner"])
+        for item in ownership["assignments"]
+        if item["mutation_policy"] == "native-formatter"
+    )
 
 
 def _native_report(
@@ -507,7 +452,9 @@ def module_layout_gate_report(root: Path) -> dict[str, object]:
     """Audit tracked and non-ignored untracked Python through the layout policy."""
     try:
         files = tuple(
-            root / path for path in quality_source_files(root, "*.py") if (root / path).is_file()
+            root / path
+            for path in native_inputs.quality_source_files(root, "*.py")
+            if (root / path).is_file()
         )
     except (GitExecutionError, subprocess.CalledProcessError) as error:
         return quality_inventory_failure(root, "module-layout", error)

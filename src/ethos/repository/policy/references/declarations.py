@@ -15,11 +15,13 @@ from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import bind_gate_command
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import declaration_files
+from ethos.repository.policy.references.manifests import PythonManifest
 from ethos.repository.policy.references.manifests import normalized_distribution
 from ethos.repository.policy.references.manifests import npm_script_commands
 from ethos.repository.policy.references.manifests import package_json_references
 from ethos.repository.policy.references.manifests import pyproject_references
 from ethos.repository.profile import RepositoryProfileDeclaration
+from ethos.repository.release.resources import canonical_resource
 
 if TYPE_CHECKING:
     from ast import AST
@@ -192,8 +194,17 @@ def _declared_profiles(
 
 
 def _declared_profile_capabilities(files: dict[str, str], owned: dict[str, set[str]]) -> None:
-    profile = _toml(_declaration_text(files, "profile"))
-    if isinstance(profile.get("openspec"), dict):
+    try:
+        profile = RepositoryProfileDeclaration.model_validate(
+            _toml(_declaration_text(files, "profile"))
+        )
+    except ValidationError:
+        return
+    product = PythonManifest.read(canonical_resource("pyproject.toml").read_text(encoding="utf-8"))
+    if product is not None:
+        owned["executable"].update(product.project.scripts)
+        owned["executable"].update(product.project.gui_scripts)
+    if profile.openspec is not None:
         owned["executable"].add("openspec")
 
 

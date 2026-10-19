@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import json
+import sys
 from typing import TYPE_CHECKING
 
+import ethos.adapters.gates.native.inputs as native_inputs
+import ethos.adapters.gates.tool as gate_tool
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.materialization.native_supply import resolve_native_tool
+from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.names import authored_name_gaps
 from ethos.repository.release.resources import canonical_resource
@@ -189,3 +193,36 @@ def test_common_vale_policy_separates_machine_front_matter_from_human_prose(
         }, rejected.stdout
         assert all(item["Line"] in {7, 8} for item in findings[str(source)])
         assert source.read_bytes() == original
+
+
+def test_prose_gate_keeps_native_spelling_without_adopter_toolchain(tmp_path, monkeypatch):
+    """The installed owner ignores ambient policy and preserves exact authored bytes."""
+    gate = load_gate_registry_declaration().registry()["prose"]
+    assert gate.providers == ("ethos.adapters.gates.tool:prose_report",)
+    assert not gate.command
+    document = tmp_path / "README.md"
+    local = tmp_path / ".config/checks/codespell/codespell.toml"
+    local.parent.mkdir(parents=True)
+    local.write_text('[tool.codespell]\nignore-words-list = "teh"\n')
+    (tmp_path / "pyproject.toml").write_text('[tool.codespell]\nskip = "*"\n')
+    files = ["README.md", local.relative_to(tmp_path).as_posix()]
+    monkeypatch.setattr(native_inputs, "quality_source_files", lambda *_args: files)
+    monkeypatch.setenv("PATH", "")
+    for source, verdict in (
+        ("The result is verified.\n", "pass"),
+        ("The result is teh result.\n", "block"),
+    ):
+        document.write_text(source)
+        report = gate_tool.prose_report(tmp_path)
+        assert (report["verdict"], document.read_text()) == (verdict, source), report
+        assert len(report["native"]) == 2
+        commands = [result["command"][:4] for result in report["native"]]
+        assert commands == [[sys.executable, "-B", "-I", "-m"]] * 2
+    assert report["native"][0]["exit_code"] != 0
+    assert report["native"][1]["exit_code"] == 0
+    local.write_text("[tool.codespell]\nwrite-changes = true\n")
+    report = gate_tool.prose_report(tmp_path)
+    assert (report["verdict"], document.read_text()) == ("block", source)
+    files.clear()
+    report = gate_tool.prose_report(tmp_path)
+    assert (report["verdict"], report["file_count"]) == ("pass", 0)

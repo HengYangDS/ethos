@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from pathlib import PurePosixPath
 from stat import S_ISREG
-from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.normalization.coercion import string_sequence
@@ -14,77 +14,134 @@ from ethos.repository.openspec.identifiers import logical_change_identifier_issu
 _INFO_SPEC = "openspec_validation_issue:INFO:spec:"
 _FAILED_SPEC = "openspec_validation_failed:spec:"
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
 
 def validation_items(payload: dict[str, Any]) -> list[dict[str, Any]] | None:
-    """Select exactly one supported official validation envelope."""
-    if "items" in payload and set(payload) <= {"items", "summary", "version", "root"}:
-        items = payload["items"]
-    elif "itemFindings" in payload and set(payload) <= {
-        "report",
-        "itemFindings",
-        "summary",
-        "root",
-    }:
+    """Admit one complete official envelope, including additive producer metadata."""
+    if not isinstance(payload, dict) or ("items" in payload) == ("itemFindings" in payload):
+        return None
+    findings = "itemFindings" in payload
+    items = payload["itemFindings" if findings else "items"]
+    if not isinstance(items, list) or any(not _valid_item(item) for item in items):
+        return None
+    identities = [(item["type"], item["id"]) for item in items]
+    if (
+        len(set(identities)) != len(identities)
+        or not _valid_summary(payload, items, findings=findings)
+        or not _valid_root(payload.get("root"))
+    ):
+        return None
+    if findings:
         report = payload.get("report")
-        items = payload["itemFindings"]
         if not (
             isinstance(report, dict)
             and report.get("kind") == "validation-findings"
             and report.get("version") == "1.0"
-            and isinstance(report.get("returnedItems"), int)
-            and not isinstance(report["returnedItems"], bool)
-            and isinstance(report.get("totalItems"), int)
-            and not isinstance(report["totalItems"], bool)
-            and 0 <= report["returnedItems"] <= report["totalItems"]
-            and isinstance(items, list)
-            and len(items) == report["returnedItems"]
+            and report.get("scope") in ("all", "changes", "specs", "archived")
+            and type(report.get("returnedItems")) is int
+            and report["returnedItems"] == len(items)
+            and type(report.get("totalItems")) is int
+            and report["totalItems"] == payload["summary"]["totals"]["items"]
+            and all(item["issues"] for item in items)
         ):
             return None
-    else:
+    elif payload.get("version") != "1.0" or "report" in payload:
         return None
-    return items if isinstance(items, list) else None
+    return items
+
+
+def _valid_item(item: object) -> bool:
+    """Require a unique typed native item and every complete issue record."""
+    return (
+        isinstance(item, dict)
+        and isinstance(item.get("id"), str)
+        and bool(item["id"].strip())
+        and item.get("type") in ("change", "spec")
+        and isinstance(item.get("valid"), bool)
+        and isinstance(item.get("issues"), list)
+        and all(
+            isinstance(issue, dict)
+            and issue.get("level") in ("ERROR", "WARNING", "INFO")
+            and isinstance(issue.get("path"), str)
+            and isinstance(issue.get("message"), str)
+            for issue in item["issues"]
+        )
+    )
+
+
+def _valid_counts(value: object) -> bool:
+    """One complete nonnegative count triple conserves all item outcomes."""
+    return (
+        isinstance(value, dict)
+        and all(
+            type(value.get(key)) is int and value[key] >= 0 for key in ("items", "passed", "failed")
+        )
+        and value["items"] == value["passed"] + value["failed"]
+    )
+
+
+def _valid_root(root: object) -> bool:
+    """Require the original native root record without constraining future sources."""
+    return (
+        isinstance(root, dict)
+        and isinstance(root.get("path"), str)
+        and root["path"].strip() == root["path"]
+        and bool(root["path"])
+        and not any(character in root["path"] for character in ("\0", "\r", "\n"))
+        and Path(root["path"]).is_absolute()
+        and isinstance(root.get("source"), str)
+        and bool(root["source"].strip())
+    )
+
+
+def _valid_summary(payload: dict[str, Any], items: list[dict[str, Any]], *, findings: bool) -> bool:
+    """Full counts are exact; findings conserve all failures and silent valid items."""
+    summary = payload.get("summary")
+    if not isinstance(summary, dict) or not _valid_counts(summary.get("totals")):
+        return False
+    totals, by_type = summary["totals"], summary.get("byType")
+    if (
+        not isinstance(by_type, dict)
+        or set(by_type) - {"change", "spec"}
+        or any(not _valid_counts(value) for value in by_type.values())
+        or any(item["type"] not in by_type for item in items)
+        or any(
+            sum(value[key] for value in by_type.values()) != totals[key]
+            for key in ("items", "passed", "failed")
+        )
+    ):
+        return False
+    for kind, counts in by_type.items():
+        rows = [item for item in items if item["type"] == kind]
+        passed = sum(item["valid"] for item in rows)
+        observed = {"items": len(rows), "passed": passed, "failed": len(rows) - passed}
+        if any(
+            observed[key] > counts[key]
+            if findings and key != "failed"
+            else observed[key] != counts[key]
+            for key in observed
+        ):
+            return False
+    return True
 
 
 def _valid_issue_gaps(item: dict[str, Any]) -> list[str]:
     """Keep canonical spec guidance strict without rejecting normal Change INFO."""
-    issues = item.get("issues", [])
-    if not isinstance(issues, list):
-        return ["openspec_validation_unreadable"]
-    gaps: list[str] = []
-    for issue in issues:
-        if (
-            not isinstance(issue, dict)
-            or issue.get("level") not in {"ERROR", "WARNING", "INFO"}
-            or not isinstance(issue.get("path"), str)
-        ):
-            gaps.append("openspec_validation_unreadable")
-        elif item["type"] == "spec" or issue["level"] != "INFO":
-            gaps.append(
-                f"openspec_validation_issue:{issue['level']}:"
-                f"{item['type']}:{item['id']}:{issue['path'] or 'root'}"
-            )
-    return gaps
+    return [
+        f"openspec_validation_issue:{issue['level']}:"
+        f"{item['type']}:{item['id']}:{issue['path'] or 'root'}"
+        for issue in item["issues"]
+        if item["type"] == "spec" or issue["level"] != "INFO"
+    ]
 
 
 def validation_failures(payload: dict[str, Any]) -> list[str]:
-    """Admit native validity and issue content from one declared report envelope."""
+    """Project findings only after one complete native envelope is admitted."""
     items = validation_items(payload)
     if items is None:
         return ["openspec_validation_unreadable"]
     gaps: list[str] = []
     for item in items:
-        if not (
-            isinstance(item, dict)
-            and isinstance(item.get("id"), str)
-            and item["id"].strip()
-            and item.get("type") in ("change", "spec")
-            and isinstance(item.get("valid"), bool)
-        ):
-            gaps.append("openspec_validation_unreadable")
-        elif not item["valid"]:
+        if not item["valid"]:
             gaps.append(f"openspec_validation_failed:{item['type']}:{item['id']}")
         else:
             gaps.extend(_valid_issue_gaps(item))
@@ -92,13 +149,33 @@ def validation_failures(payload: dict[str, Any]) -> list[str]:
 
 
 def validation_result_gaps(result: dict[str, Any]) -> list[str]:
-    """Combine native validation content, exit and transport at one boundary."""
-    gaps = validation_failures(result["json"])
-    if result["exit_code"] != 0 and not gaps:
+    """Bind complete native validation to its actual execution root and transport."""
+    payload = result.get("json")
+    gaps = (
+        validation_failures(payload)
+        if isinstance(payload, dict)
+        else ["openspec_validation_unreadable"]
+    )
+    expected = result.get("cwd")
+    observed = payload.get("root") if isinstance(payload, dict) else None
+    try:
+        same_root = (
+            isinstance(expected, str)
+            and Path(expected).is_absolute()
+            and isinstance(observed, dict)
+            and isinstance(observed.get("path"), str)
+            and Path(observed["path"]).resolve() == Path(expected).resolve()
+        )
+    except (OSError, ValueError):
+        same_root = False
+    if not same_root and "openspec_validation_unreadable" not in gaps:
+        gaps.append("openspec_validation_root_mismatch")
+    exit_code = result.get("exit_code")
+    if type(exit_code) is not int or (exit_code != 0 and not gaps):
         gaps.append("openspec_validate_failed")
-    if result["parse_error"]:
+    if result.get("parse_error"):
         gaps.append("openspec_validate_json_parse_failed")
-    return gaps
+    return list(dict.fromkeys(gaps))
 
 
 def validation_issue_diagnostics(payload: object) -> tuple[dict[str, str], ...]:

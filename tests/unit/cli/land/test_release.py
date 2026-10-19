@@ -17,18 +17,17 @@ import ethos.adapters.mutation.accepted.release as release_owner
 import ethos.adapters.repo.commit.creation as signing_owner
 import ethos.adapters.repo.git_effect_attestation as effect_attestation
 import ethos.adapters.repo.git_effects as git_effects
-import ethos.adapters.repo.release as release_source_owner
+import ethos.adapters.repo.release as release_source
 from ethos.adapters.admission.git_admission import ref_move_admission_report
 from ethos.adapters.admission.publication import push_admission_report
 from ethos.adapters.mutation.proof import proof_gaps
 from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.repo.hook.protocol import execute_hook
-from ethos.adapters.repo.release import committed_release_version
 from ethos.adapters.repo.release import release_ref_subject
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
-from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_release_mirror
 from tests.support.proof import seed_executed_proof
 from tests.support.subprocesses import kill_after_marker
 from tests.unit.cli.land.publication.support import accepted_release_fixture
@@ -57,7 +56,9 @@ def test_native_pre_push_rejects_peeled_commit_as_release_tag(tmp_path: Path) ->
     assert "release_tag_source_untrusted" in report["required_gaps"]
 
 
-def test_native_pre_push_preserves_signed_tag_noop_and_immutability(tmp_path: Path) -> None:
+def test_native_pre_push_preserves_signed_tag_noop_and_immutability(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """A real release tag is eligible, but cannot replace a different peer tag."""
     repo, _main, old, head = accepted_release_fixture(tmp_path)
     publication_peers(repo, tmp_path)
@@ -65,6 +66,10 @@ def test_native_pre_push_preserves_signed_tag_noop_and_immutability(tmp_path: Pa
     assert applied["verdict"] == "pass", applied
     tag = git(repo, "rev-parse", "refs/tags/v1.2.3")
     zero = "0" * len(head)
+    observed = Mock(wraps=release_source.accepted_release_source)
+    monkeypatch.setattr(release_source, "accepted_release_source", observed)
+    assert release_ref_subject(repo, ref="refs/tags/v1.2.3", old=zero, new=tag) == head
+    assert observed.call_count == 1
     for remote_oid in (zero, tag):
         stream = StringIO()
         with redirect_stderr(stream):
@@ -203,9 +208,9 @@ def test_public_release_preserves_native_package_and_signed_tag(
     store = Path(git_common_dir(repo)) / "ethos/requests/release"
     store.mkdir(parents=True, exist_ok=True)
     # Count both in-process imports; native hooks qualify in their own processes.
-    observed = Mock(wraps=release_source_owner.accepted_release_source)
+    observed = Mock(wraps=release_source.accepted_release_source)
     monkeypatch.setattr(release_owner, "accepted_release_source", observed)
-    monkeypatch.setattr(release_source_owner, "accepted_release_source", observed)
+    monkeypatch.setattr(release_source, "accepted_release_source", observed)
     with FileLock(store / ".lock", timeout=0, preserve_lock_file=True):
         blocked = release_cli(repo, head, previous, "--apply", "--authorize", blocked=True)
     assert (blocked["state"], blocked["required_gaps"]) == ("waiting", ["release_in_progress"])
@@ -270,12 +275,7 @@ def test_release_rechecks_exact_inputs_after_signing(
         elif changed_input == "accepted":
             git(repo, "update-ref", "refs/heads/dev", old, head)
         elif changed_input == "policy":
-            workspace = repo / ".ethos/workspace.toml"
-            content = workspace.read_text()
-            assert 'release_mirror = "independent"' in content
-            workspace.write_text(
-                content.replace('release_mirror = "independent"', 'release_mirror = "accepted_ff"')
-            )
+            write_release_mirror(repo, "accepted_ff")
         else:
             anchor = Path(git(repo, "config", "--path", "--get", "gpg.ssh.allowedSignersFile"))
             assert anchor.read_text()
@@ -529,29 +529,3 @@ def test_release_public_rejection_preserves_all_refs(
         assert result["required_gaps"] == ["release_mirror_requires_accepted_closeout"]
         assert "land --closeout" in result["next_action"]
     assert git(repo, "show-ref") == refs
-
-
-@pytest.mark.parametrize(
-    ("path", "content", "gap"),
-    [
-        ("package.json", '{"version":"1.2.3"}', ""),
-        ("pyproject.toml", '[project]\nversion="1.2.3"\n', ""),
-        (
-            "pyproject.toml",
-            '[project]\nversion="1.2.3"\ndynamic=["version"]\n',
-            "release_version_source_invalid",
-        ),
-        ("package.json", '{"version":3}', "release_version_source_invalid"),
-        ("package.json", "[]", "release_version_source_invalid"),
-    ],
-)
-def test_native_version_sources_are_explicit(
-    tmp_path: Path, path: str, content: str, gap: str
-) -> None:
-    repo = init_git_repo(tmp_path / "version")
-    commit_fixture_file(repo, path, content, "version fixture")
-    if gap:
-        with pytest.raises(ValueError, match=gap):
-            committed_release_version(repo, "HEAD")
-    else:
-        assert committed_release_version(repo, "HEAD") == {"version": "1.2.3", "source": path}

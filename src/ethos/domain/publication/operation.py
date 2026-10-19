@@ -25,7 +25,7 @@ from ethos.contracts.verdict import Verdict
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.domain.publication.inspection import observe_publication
-from ethos.domain.publication.readiness import publication_readiness_result
+from ethos.domain.publication.inspection import publication_readiness_result
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.release.publication import select_publication_peers
 from ethos.result import EthosResult

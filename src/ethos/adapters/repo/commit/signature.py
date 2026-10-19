@@ -415,12 +415,25 @@ def repaired_ref_provenance(
     return matches[0] if matches else None
 
 
-def repaired_object_provenance(root: Path, *, old: str, new: str) -> dict[str, object] | None:
+def repaired_object_provenance(
+    root: Path, *, old: str, new: str, ref: str | None = None
+) -> dict[str, object] | None:
     """Resolve one exact old object through completed repairs beneath accepted history."""
     _, attestations = read_attestation_set(root)
-    records = tuple(item for item in attestations if item.predicate == RESULT)
+    records = []
+    for item in attestations:
+        if item.predicate != RESULT:
+            continue
+        if ref is not None:
+            coordinates = item.payload.body.get("coordinates")
+            refs = coordinates.get("refs") if isinstance(coordinates, Mapping) else None
+            if not isinstance(refs, Mapping) or ref not in refs:
+                continue
+        records.append(item)
     validated: dict[str, dict[str, object] | None] = {}
-    return _repaired_object_path(root, old, new, records, attestations, validated, frozenset())
+    return _repaired_object_path(
+        root, old, new, tuple(records), attestations, validated, frozenset()
+    )
 
 
 def _repaired_object_path(
@@ -488,7 +501,7 @@ def repaired_peer_ref_provenance(
     """Bind one advertised peer prefix to a completed repair of that exact ref."""
     if not ref.startswith("refs/heads/"):
         return None
-    repair = repaired_object_provenance(root, old=old, new=new)
+    repair = repaired_object_provenance(root, old=old, new=new, ref=ref)
     if repair is None:
         return None
     refs = repair["refs"]

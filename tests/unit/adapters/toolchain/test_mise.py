@@ -311,6 +311,9 @@ def test_native_declaration_discovery_preserves_selection_and_refuses_unproved_i
         environment = options["env"]
         assert environment["MISE_SAFE"] == environment["MISE_OFFLINE"] == "1"
         assert environment["MISE_IDIOMATIC_VERSION_FILE_ENABLE_TOOLS"] == "node"
+        assert not Path(environment["MISE_GLOBAL_CONFIG_FILE"]).is_relative_to(tmp_path)
+        assert not Path(environment["MISE_SYSTEM_CONFIG_DIR"]).is_relative_to(tmp_path)
+        assert environment["MISE_CEILING_PATHS"] == str(tmp_path.parent)
         paths = [config, package]
         if fault == "outside":
             paths.append(tmp_path.parent / "external.json")
@@ -341,6 +344,28 @@ def test_native_declaration_discovery_preserves_selection_and_refuses_unproved_i
     assert config.read_text() == (
         source + "[tasks]\ncheck = 'changed'\n" if fault == "drift" else source
     )
+
+
+def test_native_mise_discovery_refuses_a_linked_declaration(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A discovered repository symlink cannot import non-repository material."""
+    root = tmp_path / "repository"
+    root.mkdir()
+    (root / "mise.toml").write_text('[settings]\nidiomatic_version_file_enable_tools = ["node"]\n')
+    (root / "mise.lock").write_text("lockfile_version = 3\n")
+    outside = tmp_path / "external-package.json"
+    outside.write_text('{"private":"outside the selected repository"}\n')
+    selected = root / "package.json"
+    selected.symlink_to(outside)
+
+    def discover(_root: Path, command: tuple[str, ...], **_options: object):
+        return subprocess.CompletedProcess(command, 0, json.dumps([{"path": str(selected)}]), "")
+
+    monkeypatch.setattr(mise, "run_command", discover)
+    monkeypatch.setattr(mise, "mise_executable", lambda: tmp_path / "native-mise")
+    with pytest.raises(ValueError, match="mise_declaration_unsafe"):
+        mise.repository_mise_files(root)
 
 
 @pytest.mark.parametrize(

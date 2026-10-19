@@ -1,537 +1,401 @@
+# Design
+
 ## Context
 
-The accepted CUE boundary is complete locally. The canonical terminal plan now
-selects independent product delivery; this Change does not replace that plan.
-Status and adoption already have mature lower-level owners, but their public
-result composition lives inside CLI handlers. Runtime materialization and
-selection still assume a Git common-directory installation.
-
-## Integrated Product Decision
+ETHOS needs usable installed operations without a source checkout. Its existing
+domain, admission, Git, runtime and evidence owners supply the foundation; this
+Change connects their product delivery surfaces. The [proposal](proposal.md)
+owns motivation and scope, and the capability deltas own observable requirements.
+The [product contract](../../../docs/governance/product-design-contract.md) and
+[terminal plan](../../../docs/plans/terminal-governance-product-design.md) retain
+their broader authority.
 
 Product delivery follows one chain: installed capability discovery and repository
-context -> accepted OpenSpec intent -> typed application operation -> fresh
-admission -> bounded effect -> post-observation -> result and continuation.
-Research, interpretation, collaboration, delivery and actual-outcome obligations
-remain in the canonical plan; this Change supplies their usable product boundary,
-not a replacement lifecycle or a reduced compiler-only product.
+context, accepted OpenSpec intent, typed application operation, fresh admission,
+bounded effect, post-observation, result and continuation. Research,
+interpretation, collaboration and actual-outcome obligations retain their existing
+owners. Execution engines, CEL policy, telemetry and CI projection remain
+supporting capabilities rather than prerequisites for basic installed use.
 
-Three identities remain separate: the selected ETHOS product, the governed
-repository, and that repository's own build toolchain. Shared immutable supply
-may serve multiple repositories, but a host upgrade cannot silently change their
-selections or merge their mutable state. Missing selection is actionable, not
-permission to run arbitrary checkout code or an ambient interpreter.
-
-CLI, SDK, MCP and Skills are coordinated delivery surfaces. CLI renders human or
-machine results; SDK exposes typed operations; FastMCP over the official MCP SDK
-provides protocol/session mechanics; Skills teach discovery and safe use of those same
-operations. Installed guidance includes its product identity, applicability and
-links to the target's accepted intent, rules and current continuation. Discovery
-does not grant authorization. Preserve authored adopter guidance, including
-conflicts, instead of overwriting it with a product-owned tutorial.
-
-Native macOS and Linux delivery are required. Windows is desirable, not a
-prerequisite that delays those platforms; no native Windows claim follows from
-POSIX tests or WSL. Architecture/OS baseline, executable relocation, permissions,
-hooks, MCP, update and exit are verified per declared release target.
-
-Host qualification starts with the existing executable and native ACL checks,
-before package construction. The Windows trust owner reads owner and access-rule
-SIDs directly from the security descriptor; account names are not an intermediate
-authority. Native execution retains missing environment, unavailable executable,
-creation and timeout reasons instead of returning an ambiguous empty result.
-This does not establish that a historical runner failure was caused by name
-resolution: the full installed workload must pass on that exact native platform.
-
-Homebrew is a required supported installation channel, not a package-builder
-selection. Use native formula/bottle mechanics and one Homebrew installation owner;
-do not write another package manager. The Python wheel remains the SDK artifact.
-The current npm trampoline is not adequate product delivery: it delegates to
-ambient uv/Python or a checkout. Remove that path after its real consumers migrate;
-npm remains legitimate internal supply for official OpenSpec.
-
-PyInstaller is an evaluated option, not an endorsed optimum. The actual frozen
-package starts and adopts, but hook installation assumes sys.executable is a
-Python interpreter. Correct that product/interpreter boundary independently of
-builder selection. Its exploratory build also used foreign site-packages and
-emitted a deprecation warning; that build is not a qualified release recipe.
-
-Compare native Homebrew Python packaging, a portable interpreter plus wheel,
-and a frozen/native bundle against the same delivered workload. Compare complete
-dependency closure, cold/warm startup, size, hooks, MCP, SDK coexistence,
-offline operation, interruption, upgrade, rollback, signing and cleanup.
-One-file appearance, fewer Python lines and successful --help are not selection
-criteria. No tool is adopted merely because another product uses it.
-
-Existing mise/uv supply, CUE projection and quality owners remain below product
-meaning. Execution engines, CEL policy evaluation, reports and telemetry belong
-to their existing foundation/quality decisions; they must not become prerequisites
-for basic installed use or parallel policy, execution or proof authorities.
-A replacement must name deleted responsibility, preserved counterexamples,
-operational cost and migration exit. Missing evidence calls for one bounded
-comparison, not indefinite deferral or a speculative dependency stack.
+Product identity, repository identity and the repository's build toolchain are
+independent. Multiple repositories can share immutable supply while retaining
+separate selections, policy, state and hooks. Missing or invalid selection is an
+actionable failure, never permission to execute ambient Python or checkout code.
 
 ## Goals / Non-Goals
 
-Provide one transport-independent application path and a real installed stdio
-MCP client journey, then migrate installation ownership without losing exact
-repository selections. The first implementation slice exposes status and
-adoption, with the remaining command family and installation lifecycle kept
-explicitly incomplete.
+**Goals:**
 
-No new lifecycle, broker, task database, global authorization cache or
-agent-specific identity. Network serving and A2A remain separate optional
-deployment boundaries, not prerequisites for local stdio.
+- Provide one typed application path to CLI, SDK, MCP and version-matched guidance.
+- Deliver an installed CLI and a real stdio MCP client journey outside the source
+  checkout, with explicit repository selection and recoverable effects.
+- Support native Homebrew installation and required native macOS/Linux targets;
+  claim Windows support only after its own native qualification.
+- Migrate reusable immutable supply and real consumers before retiring their
+  replaced implementations, bindings and generations.
+
+**Non-Goals:**
+
+- A second lifecycle, broker, task store, authorization cache or agent identity.
+- Mandatory network serving, A2A or optional framework capabilities for local use.
+- A toolchain copied from ETHOS into adopters, a floating host selection, or a
+  required Windows target that delays macOS/Linux delivery.
+- Treating source tests, package construction, discovery or installation as proof
+  of publication, supported platforms or actual user benefit.
 
 ## Decisions
 
-Adoption composes two owners: the typed ETHOS profile and official OpenSpec
-configuration. Native configuration/schema/template observation belongs in the
-adapter layer; pure repository policy consumes that observation. The shared
-adoption adapter replaces the repository-local renderer and owns exact file
-effects and compensation. CLI, SDK and MCP retain one application operation.
+### Typed application and native adoption
 
-Use OpenSpec's own default and serializer, and compare generated bytes with its
-CLI initializer. The native config-only first-Change probe succeeds without
-directory anchors, so no `.gitkeep` files are projected. Existing YAML or YML,
-custom schemas, context and rules remain authored inputs. Interpret them through
-the official reader, schema resolver, rule validator and template loader; retain
-warnings, including native root-selection warnings, rather than silently accept
-dropped meaning. Template discovery alone
-is rejected as readiness evidence. Host-global configuration is not an implicit
-input. Native classification identifies externalized stores as unsupported by
-this repository-bound operation, not invalid merely because host state is isolated.
+Domain operations compose `EthosResult`; CLI resolves arguments and renders it,
+while SDK and MCP call the same typed operations with explicit repository paths.
+Existing policy, observation and effect owners retain their responsibilities.
+A subprocess CLI wrapper would retain presentation coupling and add parsing,
+so it is rejected. Skills project discovery and safe use rather than duplicate
+command semantics or overwrite authored adopter guidance.
 
-Bind the selected configuration, schema and template bytes to the preview digest.
-Re-observe at apply, check each write preimage, validate native postconditions and
-preserve intervening content while attempting every independent safe compensation.
-Standard exception groups retain the initiating and cleanup failures; cancellation
-is not converted into a successful result. Individual replacements are
-atomic; multi-file crash atomicity and hostile same-user concurrency are not
-claimed. Generic governed-state fixtures declare their own inputs rather than
-rerun onboarding; dedicated adoption acceptance executes the actual native path.
+Adoption composes the typed ETHOS profile with official OpenSpec configuration.
+Native configuration, schema and template observation belongs to the adapter;
+pure repository policy consumes that observation. The shared adoption owner
+controls exact writes, postconditions and compensation. Its continuation binds
+the same root: preview requests exact-plan review, successful apply selects
+status, and conflicts, stale input and missing authorization remain distinct.
+The binding planner returns facts without a competing next action.
 
-- Move result composition to the existing domain layer, retaining its current
-  Git, policy and effect owners. CLI only resolves native arguments and renders
-  the returned EthosResult. SDK and MCP call that same operation directly.
-  A subprocess CLI wrapper is rejected because it retains presentation coupling
-  and adds parsing rather than removing it.
-- Select standalone FastMCP with strict input validation as the MCP framework,
-  over the official MCP SDK. Native tools, resources, schemas and transport
-  lifecycle replace manual Server callback assembly. Keep repository operations
-  and effect admission in their existing ETHOS owners. The isolated 4.0.5
-  comparison establishes input behavior, not installed-product qualification.
-  Account for its complete locked supply and use only required capabilities.
-- Bind one exact repository and the launcher process actor per MCP instance.
-  Client arguments cannot select another root, change environment identity or
-  turn an actor label into permission. Different repositories use independently
-  bound instances over reusable installed bytes, not per-repository product copies.
-- Preserve native SDK schemas and structured EthosResult. Protocol stdout carries
-  only protocol messages; diagnostics use stderr. Unknown, blocked and successful
-  application outcomes stay distinct from transport failure.
-- Do not claim prompt cancellation from abandoning a thread. Native synchronous
-  operations must finish or be drained before cancellation reports a completed
-  boundary; interrupted mutations require existing post-observation/recovery.
-  Prototype this behavior through the real client before enabling mutation tools.
-- Host supply migration replaces the existing locator/materializer ownership,
-  not its identity, live-use, rollback and exact selection guarantees. A symlink
-  workaround or floating global executable is not the terminal design.
+Use OpenSpec's own defaults, reader and serializer. Compare initialization with
+the official CLI; project no directory anchors. Preserve authored YAML/YML,
+custom schemas, context and rules. Native validation retains warnings, including
+root-selection warnings, rather than silently dropping meaning. Template
+discovery alone proves no mutation readiness. Host-global configuration is not
+an implicit input; externalized stores are explicitly unsupported by this
+repository-bound operation rather than classified as malformed user content.
 
-## Risks / Trade-offs
+Preview binds exact configuration, schema and template bytes. Apply re-observes
+them, checks each preimage and validates native postconditions. Compensation
+attempts every independently safe owned write while preserving intervening
+content. Exception groups retain the initiating failure and cleanup failures;
+cancellation is never converted to success. Individual atomic replacement does
+not establish multi-file crash atomicity or protection from hostile same-user
+concurrency. General governance fixtures declare their inputs; dedicated adoption
+acceptance runs the actual native initialization path.
 
-- The SDK brings async and HTTP dependencies even for stdio: measure the locked
-  package closure; do not write an inferior protocol implementation to avoid it.
-- Synchronous operation cancellation can delay acknowledgement: expose that limit
-  until real cancellation/drain tests prove the stronger boundary.
-- Source-only extraction can look complete while installation remains embedded:
-  tasks distinguish shared API, protocol, artifact and installed acceptance.
-- Existing tests reach CLI-local dependencies: migrate those consumers to the
-  shared owner while preserving every distinguishing valid and failure case.
+### Contribution and identity transitions
 
-## Migration Plan
+Local and remote proposal retirement consume one accepted-contribution observer.
+It recognizes native ancestry, verified signature repair and conserved native
+refresh; patch similarity supplies no such authority. Exact OIDs, topic role,
+closed review, absent Lease/worktree, fresh observation and CAS remain independent
+conditions. A remote receipt does not authorize local deletion. Replay observes
+completed peer effects and retains the exact-root continuation for pending local
+refs without repeating effects.
 
-First repair truthful root-bound continuation at the shared adoption owner:
-preview requires review of the exact plan; successful application selects status
-for the same root; conflicts, stale inputs and missing authorization retain their
-different recovery obligations. The binding planner returns facts, not a competing
-next action. Keep public result composition out of individual transports.
+Repeated accepted closeout observes refs, worktrees and its prior Git-backed
+effect. The existing Attestation selector resolves identity and ambiguity;
+aligned refs without that effect are an unattested no-op. Incomplete, dirty or
+unavailable observations retain recovery. Official OpenSpec setup and archive
+validation use the existing bounded transport; incomplete or timed-out output
+cannot establish an archive result even when it resembles complete JSON.
 
-Then complete extraction with CLI/SDK parity and no duplicated behavior.
-Then add the official protocol transport and real subprocess-client acceptance.
-Next deliver the usable installed CLI through the common package workload,
-deliver the native Homebrew channel and matched Skills/context, and migrate
-shared host installation with exact repository version selection,
-prove retained-state upgrade/rollback/exit, and only then reclaim replaced
-common-directory generations. Each accepted boundary uses normal source proof,
-current effect admission and installed readback; no dirty candidate self-activates.
+Ordinary effects retain one profile-bound identity. An explicit typed rename
+binds both identities, object-database continuity, exact commits/trees, linear
+ancestry, per-ref expected/desired HEAD, accepted intent and proof, actor and
+Lease generation. TransitionPlan, GitEffect, Attestation and CAS remain the
+owners. Authorization is one-use for one declared effect. A work lane may
+integrate into an old-identity candidate; accepted and release transitions need
+separate admission. Historical old-ID revisions remain recoverable without
+current aliases or history rewriting. A new signed tag has no inherited old
+identity, and an atomic mirror describes each admitted branch edge explicitly.
 
-Remaining proof-throughput obligations retain their original Change. Current
-CUE local acceptance does not imply hosted qualification or complete CI reports.
+Preview preserves root, source, target and identity mode; a future signed tag is
+not yet an exact effect. Replay observes the original result without authorizing
+another movement. If ref CAS completed but its linked checkout still has the
+exact preimage, recovery freshly admits only the remaining file effect and
+preserves the original Attestation. Unrelated edits block synchronization.
+Compare actual bytes with the index without refreshing it: stale stat metadata
+is distinct from content drift, and unavailable observation is not cleanliness.
 
-## Shared Application Boundary Evidence
+### Strict native MCP
 
-Status, planning, adoption, integration and publication compose results in their
-existing domain operations. CLI resolves arguments and renders `EthosResult`;
-SDK and MCP invoke the same typed operations with an explicit repository path.
-Intent, admission, Git effects and evidence retain their existing owners. There
-is no command subprocess, second parser or transport-specific verdict.
+Use locked standalone FastMCP over the official MCP SDK for registration,
+resources, schemas and stdio mechanics. The SDK's MCPServer is a different
+implementation; retaining manual Server callbacks would duplicate framework
+responsibility. Strict validation preserves real annotations and native
+`EthosResult` serialization. Register existing typed functions through native
+`FunctionTool.from_function` and `add_tool`, preserving Python 3.12 compatibility.
+MCP owns no additional signature, output rule, parser or task store.
 
-A published remote receipt does not authorize local proposal deletion. Pending
-local refs retain the exact-root absorbed-ref continuation; replay observes
-completed peer effects without repeating them. Remote retirement and local
-retirement use one accepted-contribution observer. Native ancestry, verified
-signature repair and conserved native refresh are admissible relationships;
-patch similarity is not. Exact OIDs, topic role, absent Lease/worktree, fresh
-observation and CAS remain independent conditions. Unknown conservation blocks
-deletion.
+Each instance binds one repository and its startup-process actor. Client
+arguments cannot replace either or mint permission. Instance-local middleware
+rejects changed process identity and serializes calls. Protocol stdout contains
+only protocol messages; diagnostics use stderr. Application PASS, BLOCK and
+UNKNOWN remain distinct from malformed requests and transport failures.
 
-Repeated accepted closeout observes refs, linked worktrees and the prior
-Git-backed effect. The existing Attestation selector resolves identity and
-ambiguity; aligned refs without a prior effect are an unattested no-op. Stale,
-dirty or partially observed results retain recovery rather than new authority.
-The shared OpenSpec transport and archive validator own setup: incomplete or
-timed-out output cannot satisfy a native archive result, even if it resembles
-complete JSON. Preserve their bounded execution and cleanup.
+A deadline includes queueing. Synchronous native work must finish or drain
+before cancellation acknowledges a completed boundary. Timeout, disconnect and
+lost acknowledgement are not rollback; effects require existing post-observation
+and recovery. This is neither a cross-process lock nor forced-kill recovery.
+Framework background tasks stay disabled. An authorized command declaration
+enters the existing patch/reference owner rather than a new registration path.
 
-### Repository Identity Transition Boundary
+Use one conformance workload through CLI, SDK and MCP in separately bound
+disposable repositories. It covers adoption, refusal, stale input, planned-byte
+identity, replay preserving inode/mtime and reconnect. Installed invocation uses
+its own interpreter. Missing Git blocks startup without corrupting JSON-RPC;
+native observation timeout remains UNKNOWN. Real subprocess stdio, cancellation,
+disconnect and installed lifecycle acceptance precede broader mutation exposure.
+Optional MCP expansion does not delay the usable installed CLI.
 
-Ordinary Git effects and Attestations require one profile-bound identity per
-effect. An explicit typed rename instead binds the old and new identities,
-object-database continuity, exact commits/trees, linear ancestry, each ref's
-expected/desired HEAD, accepted intent and proof, actor and Lease generation.
-Use the existing TransitionPlan, GitEffect, Attestation and CAS owners. The
-authorization is one-use for one declared effect, not a global rename permit.
+### Immutable installation and Homebrew
 
-A new-identity work lane may first integrate into an old-identity candidate;
-accepted and release transitions require separately admitted effects. Preserve
-old-ID revisions as historical or untransitioned inputs, not current aliases.
-Do not roll back the profile, rewrite history, infer identity from a shared
-object database or silently widen the target set. New signed tags have no old
-identity; an accepted mirror can contain separately described branch edges in
-one declared atomic effect.
+The installed console selects the repository's verified CURRENT runtime.
+Explicit module invocation selects the caller's package for development or
+recovery; hook installation can use the invoking product for an admitted upgrade.
+Ordinary operations never float with the host version. The existing relocatable
+renderer owns the POSIX console entry and argument/interpreter isolation. Actual
+acceptance executes that entry rather than only the Python module.
 
-Preview preserves exact root, source, target and identity mode; a future signed
-tag is not yet an exact effect. Replay observes the original result but cannot
-authorize another movement. Reject stale refs, foreign object databases,
-non-ancestry, forged relationships, missing proof, wrong actor and repeated
-consumption through native positive and negative cases.
+Source, lock and wheel agreement establishes provenance, not complete installed
+capability. A retained predecessor can construct matching bytes while deleting
+the required console entry. The materialization owner rejects that generation,
+rebuilds it through the immutable-generation path, and preserves valid reuse.
+It never patches a generation or weakens its manifest. Retained-predecessor
+upgrade and public repair test a different boundary from fresh installation.
+Windows entry relocation requires independent native evidence.
 
-Ref completion is not checkout completion. If CAS succeeded but the linked
-checkout still holds the exact preimage, recovery re-observes the original
-effect, freshly admits the remaining file effect and preserves its Attestation.
-Unrelated user edits block synchronization. Compare actual bytes with the
-index without refreshing index bytes: stale stat metadata is not drift, while
-unavailable observation is not cleanliness. Task 1.6 owns implementation and
-task 4.2 owns installed qualification.
+Select a relocatable interpreter with an exact locked-wheel image as portable
+supply. Native Homebrew Python and a frozen bundle remain meaningful builder
+alternatives, evaluated against dependency closure, startup, size, hooks, MCP,
+SDK coexistence, offline use, interruption, upgrade, rollback, signing and exit.
+Framework Python needs a congruent external interpreter for this image; a frozen
+entry cannot be treated as a Python interpreter by hook installation. A foreign
+site-packages build or successful help output does not qualify either approach.
 
-## Installed Entry Recovery
+Homebrew Cask projects the exact archive through native `command_wrapper`.
+Formula/bottle relocation rewrites dylib identities and conflicts with sealed
+payload validation; Cask avoids that transformation. Native preflight restores
+sealed modes after extraction and revalidates the manifest. Homebrew remains
+one installation owner, and the wheel remains the SDK artifact. A local-file
+qualification does not establish the published channel. Remove the ambient
+uv/Python npm trampoline after its consumers migrate; npm retains its legitimate
+official OpenSpec supply role.
 
-The adopter feedback identifies two distinct failures: immutable materialization
-deletes the product console script, and no host-installed dispatcher provides
-repository-selected execution in a fresh shell. Restore the POSIX image entry
-through the existing relocatable console-script renderer, including its argument
-and interpreter isolation rules. Installed version acceptance must execute that
-entry rather than only `python -m ethos.cli`, so a deleted entry cannot pass.
+Explicit hook installation takes a validated package carrier, copies its runtime
+and wheel into one user-owned content-addressed generation, then selects that
+canonical path by CURRENT. Legacy repository-local digest selectors retain
+their existing interpretation. The launcher parses bounded location fields;
+Python owns manifest, platform, build and admission checks. An exact owner marker,
+host lock and same-parent atomic exposure bound import and recovery without a
+host-wide mutable selector or catalogue.
 
-This is a prerequisite, not host installation completion. Windows executable
-relocation remains unverified and must not inherit a POSIX claim. The host
-dispatcher still needs one official installation owner, exact repository
-selection, independent versions, explicit-root handling, interruption recovery,
-upgrade/rollback and live-consumer-safe removal. Do not install aliases or
-adopter-local wrappers, create another Change, or edit existing immutable images.
-The full product path and existing installation tasks remain required.
+Supply must match the admitted invoking/accepted build, dependency lock and exact
+wheel. Validate paths, regularity, payload integrity and executable modes before
+changing selectors or state. Independent repositories may select the same bytes
+while retaining separate hooks and CAS. Compensation restores the exact prior
+selector without overwriting intervening state. Missing or replaced pinned
+supply blocks use rather than selecting ambient executables or rebuilding
+silently; even an unavailable payload retains native selector interpretation.
 
-## Retained-Predecessor Installation Boundary
+Package-carrier removal must leave selected clients usable. Preserve local
+generations until all selectors and live consumers migrate, including predecessor
+runtime/wheel recovery. Repository retirement observes external selection but
+does not enumerate the host store for deletion. Shared-store reclamation and
+package-manager uninstall retain separate consumer-safe acceptance. Native
+selection may preserve incumbent domain hooks; runtime provenance never substitutes
+for their enforcement or the adopter's full proof.
 
-Matching source, lock and wheel identities establishes provenance, not installed
-capability completeness. A predecessor materializer can construct a generation
-from the new wheel while still deleting its console entry. The current reuse
-fast path must not accept that generation solely because its manifest and
-identities are internally consistent. Required native entry semantics belong
-to the existing materialization and acceptance owners.
+### Native trust and release envelope
 
-Rebuild an incompatible generation through the normal immutable-generation
-path; do not patch its bytes, change its manifest or add an installation bypass.
-Keep valid reuse cheap and preserve live-consumer-safe retirement. Acceptance
-must exercise the retained-predecessor transition, then the public repair and
-actual installed entry, rather than only a fresh installation using the new
-materializer. POSIX requirements must not silently claim Windows qualification.
+Check native executable and trust prerequisites before package construction.
+Windows reads owner and access-rule SIDs directly from security descriptors;
+account-name resolution is not authority. Preserve missing environment,
+unavailable executable, creation, timeout and ACL rejection as distinct outcomes.
+Required macOS/Linux and optional Windows targets each qualify their actual
+architecture, OS baseline, relocation, permissions, hooks, MCP, update and exit.
+POSIX tests or WSL cannot establish native Windows behavior.
 
-## Product Presentation Projection
+Publisher identity, operator execution access, project release admission and
+artifact evidence remain separate. Keep secret values in the existing native
+store and carry only public constraints and credential references in project
+configuration. Developer ID signing and notarization API keys have different
+purposes; a Keychain profile is a locator, and team API keys are not app-scoped.
+Separate keys permit independent revocation, not product isolation. Shared
+publishers require an admitted trust boundary; differing hosts, maintainers,
+CI trust or revocation needs justify separate access.
 
-Update meaning without replacing the original visual design. The poster retains
-its broad whitespace, thin left continuity axis and dominant right aperture mark;
-the social preview retains its left mark, right wordmark and quiet enclosing
-frame. Preserve proportions, restrained palette and typographic hierarchy.
-Replace only obsolete terminology, the fixed command sequence and the narrowed
-product definition. Do not substitute dense feature lists or generic text panels.
+Secret-free builders produce candidates. Trusted release adapters validate exact
+requests and invoke fixed native signing operations on disposable copies, never
+installed generations or original candidates. They execute no candidate Python,
+plugins, build commands or arbitrary pre-seal callback. Sign before inventory
+and sealing, bind transformed output to admitted input, and submit that frozen
+identity for notarization. Preserve quarantine and platform trust policy.
+Serialize genuinely shared mutable credential operations rather than all builds.
+Protected provider environments alone do not isolate a self-hosted runner;
+unauthorized and cross-project requests require actual boundary tests.
+
+The existing materialization and manifest owners seal changed bytes into a new
+identity. Byte-only publication checks remain separate from credential-free
+execution qualification. Publication distinguishes created and reused generations
+so failure cleanup removes only newly created output. Ad-hoc signature or mounted
+inventory evidence does not establish Developer ID, Gatekeeper or notarization.
+Platform credentials remain distinct from Git and package-registry authorities.
+
+Select a notarizable, stapleable DMG for macOS release and deterministic portable
+archives for internal qualification and other platforms. ZIP cannot itself carry
+the stapled ticket; a flat installer package adds unnecessary signing identity
+and installation policy. Submitted and stapled envelope identities differ while
+the sealed inner runtime remains unchanged. Homebrew projects the final artifact.
+
+Native construction copies and validates sealed bytes without executing them,
+preserves archive modes, selects an available image producer by capability and
+bounds creation. Host-specific tool deprecation never redefines the product OS
+floor. Creation failure does not retry another producer or replace prior output.
+Mounted inventory and wheel checks qualify the carrier transformation separately
+from signing, installation and release acceptance.
+
+### Shared quality and native formatting
+
+Applicable shared gates derive from authored inputs and compose with native
+adopter checks. Markdown selects documentation, formatting/lint and links;
+official intent selects OpenSpec and its schema prerequisite. A local gate with
+the same name cannot replace a shipped verifier or identity. Applicable default
+roots include their dependency closure while focused diagnosis stays explicit.
+Each repository retains its business meaning and native development workflow.
+
+The product supplies locked official Node, Prettier, Markdownlint and Lychee with
+their common policies to both source and installed consumers. Repository policy
+adds checks without disabling or replacing the mandatory floor. Prettier owns
+spacing and container layout with preserved prose wrapping; Markdownlint owns
+semantic rules. Immutable evidence, external publisher sources and captured
+originals retain their separate mutation boundaries.
+
+Markdownlint consumes native YAML. A secure TOML parser's nested representation
+is incompatible with the official linter's parameter interpretation; a vulnerable
+downgrade is rejected. A thin IO adapter supplies exact named documents to the
+unchanged native API with explicit configuration and no discovery, imports,
+inline overrides or fixing. Native parsing and diagnostics remain upstream.
+Local policy cannot omit inputs, suppress the mandatory pass or mutate through
+a fix setting. Native nested parameters need actual-consumer acceptance.
+
+The [Docs Registry](../../../docs/governance/docs-registry.md) owns the shared DR
+identity, metadata, five-section rationale and execution-content contract.
+Distinct visible authored rationale supplies each role; quotations, literals and
+metadata alone do not. One registry serves profile-selected documentation roots
+without an adopter parser or copied decision register. Mechanical conformance
+does not judge the decision's soundness or establish present delivery.
+
+Source formatting compiles existing carrier assignments over literal tracked and
+non-ignored new Git inputs. Ruff, Prettier, Taplo, shfmt and SVGO retain their
+native responsibilities. Dependency records, generated projections, foreign
+inputs and immutable originals keep their owners. Preview, check and admitted
+fix use the same native postimages; ignores and pragmas preserve exact bytes
+without waiving independent semantic proof. Shared/local postimage disagreement
+refuses before writing.
+
+Native format is preview-only by default. Fix needs explicit authorization,
+current HEAD and complete-patch prewrite admission. It re-observes source bytes,
+modes and index, applies through Git and verifies exact postimages without
+staging or changing HEAD. Missing inventory remains UNKNOWN; unsafe paths,
+native parse failures and authority conflicts remain blocking. Nox format/check
+and proof are projections of this owner, with independent behavioral, static,
+syntax, provenance and documentation acceptance preserved. Optimizing repeated
+pure decoding never replaces the fresh native Git reads required for admission.
+
+### Release identity and artifact acceptance
+
+VERSION owns the next product-release target. Unpublished builds can share it;
+an accepted release identity is immutable before remote publication. Changed
+released semantics need a new version. Canonical SemVer and PEP 440 derive from
+one product version with explicit prerelease channels; persisted-state and
+protocol versions retain independent meanings. Compatibility covers CLI
+arguments/exits/JSON, SDK, MCP and persisted state. Stable readiness follows
+supported journeys, not alpha age, branch names or commit counts.
+
+Hash-bearing development versions identify exact source but have no monotonic
+upgrade order and are not PyPI releases. They stay on exact-selection and local
+qualification paths; provenance digests do not establish public ordering.
+A development channel needs its own demonstrated ordering contract rather than
+an epoch, timestamp or reset that conceals release conflicts.
+
+The existing uv/Hatch and Nox owners build release-identity wheels from clean,
+exact, disposable archived Git inputs after applicable proof. Recheck source
+before output and remove failed temporary roots. Freeze source and target before
+signing and delivered-artifact validation. Install smoke consumes one exact
+release wheel without rebuilding, validates its source identity and executes
+the existing offline lifecycle workload. Its receipt records invocation and
+artifact; construction and smoke do not issue publisher release acceptance.
+
+Observe acceptance before recording release identity. Publish immutable artifacts
+with their matching signed tag, version notes and source only after required
+installed acceptance, enforcing version-reuse refusal and independently admitted
+peer recovery. Check occupied registry versions and local release Attestations
+directly; an empty tag list proves neither absence. Adopters validate package,
+manifest and platform without copying publisher Attestations or publishing a
+release during activation. Same-version source/wheel disagreement remains a
+conflict across targets; rollback of selection is not publication rollback.
+
+### Product presentation projection
+
+Update meaning while retaining the original visual design. The poster keeps
+its broad whitespace, thin left continuity axis and dominant right aperture
+mark; the social preview keeps its left mark, right wordmark and quiet enclosing
+frame. Preserve proportions, the restrained palette and typographic hierarchy.
+Replace obsolete terminology, the fixed command sequence and the narrowed
+product definition without substituting dense feature lists or generic panels.
 
 Faithfulness preserves current product meaning and distinguishes terminal vision
 from delivered capability. Clarity requires understandable wording and readable
 relationships at the intended size. Elegance retains the original visual identity
-and removes needless detail. All three are required; format/schema success is
-not aesthetic acceptance. The preceding redesign was rejected and its presentation
-task is reopened. The revised assets remain candidates pending aesthetic review.
+and removes needless detail. All three require acceptance; format/schema success
+does not establish aesthetic acceptance. The revised assets remain candidates
+pending the separate review retained by [task 4.3](tasks.md).
 
-SVG masters and native librsvg rendering retain the established PNG consumer paths;
-they add no product authority or application dependency. Actual raster inspection,
-source/output parity and hosted application are separate evidence boundaries.
+SVG masters and native librsvg rendering retain the established PNG consumer
+paths without adding product authority or application dependencies. Actual
+raster inspection, source/output parity and hosted application retain separate
+evidence boundaries.
 
-The adoption continuation repair has six original RED cases, 95 focused GREEN
-cases and six public subprocess CLI outcomes at the shared owner. Preview,
-missing authorization, stale HEAD, stale plan digest, conflict and applied state
-remain distinct; planner-owned next_action was removed. These source observations
-do not complete package, MCP, supported-platform or installed-client acceptance.
+## Risks / Trade-offs
 
-## Strict Native MCP Boundary
+- FastMCP/SDK brings async and HTTP dependencies even for stdio. Measure its
+  locked closure and use required capabilities rather than duplicate protocol
+  handling to avoid the cost.
+- Draining synchronous work can delay cancellation acknowledgement. Expose the
+  actual limit and preserve unknown-effect recovery; stronger claims need real
+  client and native-process acceptance.
+- Shared immutable supply reduces copies but requires exact consumer and custody
+  checks before reclaiming generations. Activation success survives deferred
+  cleanup; unknown liveness never permits deletion.
+- Native package extraction and signing can change modes or bytes. Revalidate
+  the exact sealed identity at each transformation without relaxing manifests.
+- Source, artifact, installed, hosted and published proof are separate planes.
+  [Tasks](tasks.md) retain each unfinished acceptance; a local comparison cannot
+  close a dependent delivery or authorize another repository's cutover.
 
-The official SDK MCPServer and standalone FastMCP are different implementations.
-The isolated FastMCP comparison rejected undeclared root/actor fields in both
-input modes and rejected a string Boolean in strict mode. Select locked FastMCP
-with strict input validation, native registration, schema, resource and stdio
-mechanics; delete manual Server callbacks. That comparison did not qualify
-ETHOS effects, installed stdio, cancellation or recovery.
+## Migration Plan
 
-Bind one exact repository and startup-process actor per instance. Client
-arguments cannot replace either binding or mint permission. Register the
-existing typed application functions through native `FunctionTool.from_function`
-and `add_tool`, avoiding the decorator path that failed on Python 3.12.
-Retain real annotations and `EthosResult` serialization; MCP has no duplicate
-signature, output-shaping rule, parser or task store. Protocol stdout is reserved
-for MCP; diagnostics use stderr.
+1. Complete root-bound application extraction with CLI/SDK agreement, native
+   adoption and existing reference, profile and incoming-selection consumers.
+2. Compose current source through native integration, preserving peer work and
+   fresh reads; qualify one signed source with full proof before packaging.
+3. Run the exact installed CLI and real MCP workload outside the checkout,
+   then retained-state upgrade, interruption, rollback and live-consumer exit.
+4. Deliver native required-platform artifacts, matched guidance and Homebrew;
+   qualify release identity and protected signing at their respective owners.
+5. Migrate exact real-adopter and cold-CI bindings, verify equivalent or stricter
+   behavior, and retire replaced controllers, config, locators and generations
+   in that accepted batch. Preserve failed evidence and active recovery consumers.
 
-Instance-local middleware rejects changed process identity and serializes tool
-calls. A deadline includes queueing and checks cancellation after synchronous
-native work drains. Timeout, disconnect or lost ACK is not rollback; never
-acknowledge complete cleanup while work can still mutate. This is not a
-cross-process lock or forced-kill recovery. Existing effect-time admission and
-post-observation remain authoritative; background framework tasks stay disabled.
+Changes descended from `proof-throughput` retain their own task identities and
+acceptance. Their archived requirements remain authoritative; this delivery
+does not reopen the retired Change or substitute for hosted qualification.
+Locked Python supply changes require trusted GitHub dev-image publication and
+readback before updating the single CUE declaration and GitLab projection.
+Independent peers have no cross-provider atomicity.
 
-One shared conformance workload exercises CLI, SDK and MCP against separate
-disposable repositories: adoption, authorization refusal, stale input,
-planned-byte identity, replay without inode/mtime change and reconnect. Installed
-invocation uses its own interpreter. Source tests alone do not prove package,
-native Windows, hard deadlines or unknown-effect recovery. Missing Git blocks
-startup without contaminating JSON-RPC; a native observation timeout remains
-UNKNOWN and requires observation. Preserve application verdict, malformed
-request and transport failure as distinct outcomes.
+## References
 
-An authorized new command declaration is not prior execution authority.
-The existing patch/reference owner admits its declaration and rejects
-undeclared consumers; do not solve this with alternate registration or a new
-command registry. Complete real subprocess stdio, cancellation, disconnect and
-installed-lifecycle cases before expanding mutation tools. Deliver the normal
-CLI installation and version selection before optional MCP expansion.
-
-## Host Console And Portable Distribution
-
-The installed console selects the repository's verified CURRENT runtime;
-explicit `python -m ethos.cli` uses the caller-selected package for development
-or recovery. Hook installation may use the invoking product for an upgrade,
-but ordinary operations never float with a host version. Invalid selectors or
-payloads fail closed. No shell alias, adopter wrapper or copied parser.
-
-Use the accepted relocatable interpreter plus exact locked-wheel image as the
-portable runtime. Ordinary Homebrew framework Python needs an external
-congruent interpreter for that image; the frozen experiment failed its
-interpreter boundary. Neither experiment proves clean-host delivery. The
-existing package owner builds reproducible archives from sealed bytes and
-preserves the runtime manifest, wheel, modes and executable entry.
-
-A Homebrew Cask projects the exact archive using native `command_wrapper`;
-the formula experiment rewrote dylib identities and failed payload validation.
-Cask extraction can add owner-write permission, so native preflight restores
-sealed modes and revalidates the existing manifest before activation. A local
-file URL is qualification input, not remote publication. Actual Homebrew
-upgrade/uninstall and supported-platform journeys remain open.
-
-Before repository activation, pin the validated runtime and wheel in one
-user-owned content-addressed installation generation. CURRENT selects that
-canonical path; two repositories may share immutable bytes but retain separate
-hooks, state and selector CAS. A host lock, exact owner marker and same-parent
-atomic exposure bound import and recovery. Removing the package carrier must
-not break selected clients. Missing pinned supply blocks; it does not trigger
-a floating host fallback or private rebuild.
-
-When locked Python inputs change, publish and read back the trusted GitHub dev
-supply image before updating its one CUE declaration and GitLab projection.
-Independent peers have no cross-provider atomicity. Preserve repository-local
-generations until every external selector and live consumer is proved migrated;
-a digest-shaped directory is not deletion authority. Shared-store reclamation
-and native package-manager exit remain separate acceptance obligations.
-
-Sign native payloads before inventory and sealing; notarization submits that
-frozen signed identity. Use the operator's existing native credential store
-without embedding a project profile name or secret. Do not remove quarantine,
-disable platform policy or infer a loader wait's sole cause from a ticket.
-The publisher boundary below owns signer authorization; neither a successful
-`--version` nor a mounted archive proves installed behavior.
-
-## Publisher Identity and Release Authorization
-
-Separate publisher identity, operator execution access, project release admission
-and artifact evidence. Reuse the operator's existing credential authority and
-native secret store; each project's release configuration carries only its own
-public constraints and credential references. Do not embed this workstation's
-team, certificate, profile, recovery path or another project's name in ETHOS.
-
-For Apple delivery, Developer ID code-signing keys and notarization API keys have
-different purposes. A Keychain profile is a locator, not an authorization rule.
-Team API keys are not app-scoped: separate keys permit independent revocation,
-not product isolation. Reuse a publisher within an admitted trust boundary;
-separate access when hosts, maintainers, CI trust or revocation needs differ.
-Do not infer trust merely because projects share an owner or operating-system user.
-
-Secret-free builders produce candidates. A trusted release controller validates
-the exact request and invokes fixed native signing operations, not candidate-owned
-commands. Sign before payload sealing and bind transformed output to the original
-admitted input. Keep per-project evidence, submission IDs and temporary resources;
-serialize only genuinely shared mutable credential operations, not all builds.
-Native protected environments help control access but do not by themselves
-isolate a self-hosted runner. Verify the actual boundary with unauthorized and
-cross-project requests before declaring release qualification.
-
-Credentials remain provider-specific; this model does not make Apple keys valid
-for Git, Windows or package-registry signing. Reuse existing release adapters
-rather than adding a generic credential service. Local profile migration,
-provider rotation and revocation have separate effects and recovery obligations.
-The existing platform and release tasks own these implementation and acceptance
-gaps; this design is not evidence that protected signing has been delivered.
-
-References: [Apple API key scope][apple-api-scope],
-[Apple notarization workflow][apple-notary-workflow] and
-[GitHub execution environment limits][github-release-environments].
-
-[apple-api-scope]: https://developer.apple.com/documentation/appstoreconnectapi/creating-api-keys-for-app-store-connect-api
-[apple-notary-workflow]: https://developer.apple.com/documentation/security/customizing-the-notarization-workflow
-[github-release-environments]: https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments
-
-## Native Release Envelope and Execution Boundary
-
-Native signing transforms an admitted disposable copy, never an installed
-generation or original candidate. Reuse the existing materialization and manifest
-owner to seal the changed bytes into a new identity. Do not add a signing
-manifest, credential platform or arbitrary pre-seal command callback.
-
-Select a notarizable, stapleable DMG for macOS release delivery. Retain portable
-archives for internal qualification and other platforms. ZIP cannot itself carry
-a stapled ticket for a standalone CLI; a flat installer package adds unnecessary
-installer-signing identity and installation policy. Homebrew projects the exact
-final native artifact. Submitted and stapled envelope identities differ without
-changing the sealed inner runtime.
-
-The signing domain must not run candidate Python, plugins or build commands.
-Runtime publication and identity checks inspect sealed bytes without executing
-them. Explicit runtime-execution qualification observes interpreter relocation
-and product behavior in a credential-free target. The normal builder composes
-these operations; no old combined check or generic callback remains. Publication
-reports whether a generation was created or reused, so a later execution failure
-can remove only newly created output, never a previously valid generation.
-
-An isolated 2026-09-21 probe of accepted ddc213d58 re-signed 23 Mach-O files ad hoc.
-Native verification passed; the old manifest rejected changed bytes; read-only
-DMG mounting preserved the full inventory. Original bytes remained unchanged,
-and the owned mount and temporary tree were removed. This establishes feasibility,
-not Developer ID trust, sufficient entitlements, Gatekeeper or notarization.
-
-This host deprecates hdiutil create and supports diskutil image create from.
-Select by native producer capability without redefining the product's OS floor.
-Preserve archive modes: the earlier data-filter probe changed file modes and
-failed manifest validation before signing. Use the already-qualified exact
-artifact extraction path, not relaxed manifest checks.
-
-The existing distribution owner selects native macOS media through a `.dmg`
-destination; internal qualification retains deterministic `.tar.gz` archives.
-Native construction copies and revalidates the sealed runtime without executing
-it, selects the available native image producer, and bounds creation time. A
-creation failure does not retry a different producer or replace prior output.
-Mounted inventory and wheel-byte checks qualify this carrier transformation,
-not signing, notarization, installed behavior or release acceptance.
-
-## Shared Installed Supply Activation
-
-Use the existing hook installation operation with an explicit runtime path as
-the package-carrier input. The runtime and wheel are copied together into one
-user-owned installation generation before CURRENT selects its canonical path.
-CURRENT remains the single repository selector; local digest-only selectors
-retain their existing behavior. The launcher reads only bounded location
-fields; Python still owns manifest, platform, build and admission checks.
-
-The supplied runtime must match the invoking/accepted product build, its carried
-dependency lock and its exact wheel. Reject symbolic links, junctions, invalid
-paths and altered payloads before selector or state changes. This is explicit
-installation ownership, not permission to execute a path inferred from PATH,
-an environment variable or another repository. No host-wide mutable selection,
-catalogue, source-checkout copy or additional package manager is introduced.
-
-Two independent repositories select the same pinned bytes while retaining
-separate hooks, policy, state and selector CAS. Compensation restores the prior
-selector exactly. Repository retirement observes the selected external identity
-but never enumerates the host store for deletion. Removing the package carrier
-after selection must leave pinned clients usable. Missing or replaced pinned
-supply blocks use rather than floating to a host upgrade or silently rebuilding
-a private copy. The native selector reader owns location parsing even when its
-payload is unavailable. Actual package-manager uninstall and host-store
-reclamation still require separate consumer-safe acceptance.
-
-The retained predecessor migration probe preserves one live Lease and five
-authored files while changing from repository-local to shared installed supply.
-An old-runtime process retains its generation until it exits; a fresh cleanup then
-removes that local generation. Rollback to the predecessor and reactivation of
-shared supply preserve the same state. These are isolated native package
-observations, not authorization to migrate unrelated repositories or evidence
-that package-manager removal already protects shared consumers.
-
-Implement in the existing selection, materialization, hook activation/observation
-and launcher owners. Prove external selection, native launcher resolution,
-exact rollback and non-deletion with focused counterexamples; then execute two
-installed adopter paths, source proof and current runtime acceptance. Shared-store
-reclamation and published Homebrew remain separate open tasks.
-
-## Release Version And Artifact Boundary
-
-VERSION is the single next product-release target. Unpublished source builds
-may share it, but an accepted release identity is immutable even before remote
-publication. Changed released semantics need a new version. Acceptance of
-source, alpha distribution and stable delivery are distinct claims. Readiness
-comes from supported journeys, not alpha age, branch name or commit count.
-
-Public compatibility covers CLI arguments/exits/JSON, SDK, MCP and persisted
-state. State-schema and protocol versions retain independent meanings. Compile
-canonical SemVer and PEP 440 from one product version; pre-release channel
-selection is explicit and cannot displace stable delivery. Do not jump to 1.0,
-reset published numbering, add an epoch or use timestamps to hide identity
-conflicts.
-
-The current hash-bearing development version identifies exact source but has
-no monotonic upgrade order and is not a PyPI release. Keep such builds on exact
-selection and local qualification paths. Source commit/tree, wheel digest and
-platform runtime digest prove provenance, not public version ordering. A future
-development channel needs a demonstrated ordering contract.
-
-Release preparation freezes accepted source and target, creates release-identity
-wheels through the existing uv/Hatch builder, signs native payloads before
-sealing and validates the delivered artifacts. The Nox build owner requires
-clean exact source and applicable proof, builds from disposable archived Git
-bytes, rechecks before output and removes failed temporary roots. Ordinary
-builds remain non-releasing.
-
-Install smoke selects one exact release wheel without rebuilding it, checks
-source identity and uses the existing content-addressed package owner for the
-offline lifecycle workload. Its separate release-smoke receipt records actual
-invocation and artifact; neither construction nor smoke issues publisher
-release acceptance. Missing, redirected or changed wheels fail before effects.
-
-Record release identity only after observation. Publish immutable artifacts
-and their matching signed tag after required installed acceptance, with
-version-reuse rejection and per-peer interrupted-effect recovery. Adopters
-validate selected package, manifest and platform without copying publisher
-Attestations or minting a release during hook installation. Task 3.7 retains
-public-channel and release-materializer closure. Check occupied registry
-versions and existing local release Attestations live; an empty tag list proves
-neither absence. Rollback of a selected runtime is not publication rollback.
-
-Official references: [Python packaging versioning][release-python-versioning]
-and [Semantic Versioning][release-semver].
-
-[release-python-versioning]: https://packaging.python.org/en/latest/specifications/version-specifiers/
-[release-semver]: https://semver.org/spec/v2.0.0.html
+- [Apple API key scope](https://developer.apple.com/documentation/appstoreconnectapi/creating-api-keys-for-app-store-connect-api)
+- [Apple notarization workflow](https://developer.apple.com/documentation/security/customizing-the-notarization-workflow)
+- [GitHub execution environment limits](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments)
+- [Python packaging versioning](https://packaging.python.org/en/latest/specifications/version-specifiers/)
+- [Semantic Versioning](https://semver.org/spec/v2.0.0.html)

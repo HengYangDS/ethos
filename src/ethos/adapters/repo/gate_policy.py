@@ -46,13 +46,18 @@ def resolve_gate_policy(
     *,
     tree_ref: str | None = None,
     gate_ids: tuple[str, ...] = (),
-    product_gate_ids: tuple[str, ...] = (),
     full: bool = False,
     acceptance_purpose: AcceptancePurpose = "repository",
+    selected_obligations: bool = False,
 ) -> ResolvedGatePolicy:
     """Observe repository materials and compile one content-bound gate policy."""
     return _resolve_policies(
-        root, tree_ref, gate_ids, (full,), acceptance_purpose, product_gate_ids
+        root,
+        tree_ref,
+        gate_ids,
+        (full,),
+        acceptance_purpose,
+        selected_obligations=selected_obligations,
     )[0]
 
 
@@ -75,16 +80,17 @@ def _resolve_policies(
     gate_ids: tuple[str, ...],
     floors: tuple[bool, ...],
     acceptance_purpose: AcceptancePurpose,
-    product_gate_ids: tuple[str, ...] = (),
+    *,
+    selected_obligations: bool = False,
 ) -> tuple[ResolvedGatePolicy, ...]:
     """Share material observation only within this requested policy compilation."""
     if root is None:
         return tuple(
             compile_gate_policy(
                 gate_ids=gate_ids,
-                product_gate_ids=product_gate_ids,
                 full=full,
                 acceptance_purpose=acceptance_purpose,
+                selected_obligations=selected_obligations,
             )
             for full in floors
         )
@@ -112,9 +118,9 @@ def _resolve_policies(
             script_paths=script_paths,
             carrier_roles=carrier_roles,
             gate_ids=gate_ids,
-            product_gate_ids=product_gate_ids,
             full=full,
             acceptance_purpose=acceptance_purpose,
+            selected_obligations=selected_obligations,
             product_source=product_source,
         )
         for full in floors
@@ -160,9 +166,9 @@ def _resolve_policies(
             script_paths=script_paths,
             carrier_roles=carrier_roles,
             gate_ids=gate_ids,
-            product_gate_ids=product_gate_ids,
             full=full,
             acceptance_purpose=acceptance_purpose,
+            selected_obligations=selected_obligations,
             product_source=product_source,
         )
         for full in floors

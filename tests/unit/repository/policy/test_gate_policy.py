@@ -3,18 +3,22 @@
 from __future__ import annotations
 
 import json
+import tomllib
 from typing import TYPE_CHECKING
 
 import pytest
+import tomli_w
 
 import ethos.adapters.process as process_adapter
+import ethos.adapters.repo.gate_policy as gate_policy
+from ethos.adapters.repo.dependency_acceptance import dependency_acceptance_gaps
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from ethos.adapters.repo.gate_policy import resolve_proof_policies
 from ethos.contracts.gates import Gate
 from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
+from ethos.repository.policy.quality.gate_composition import canonical_gate_command
 from ethos.repository.policy.quality.obligations import quality_obligation_gaps
-from ethos.repository.policy.references.commands import canonical_gate_command
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import RepositoryProfileDeclaration
@@ -33,26 +37,6 @@ _MISSING_QUALITY = (
     "quality_obligation_unproven:behavior",
     "quality_obligation_unproven:static-analysis",
 )
-
-
-@pytest.mark.parametrize("requested", [("schemas",), ("native", "schemas")])
-def test_native_proof_refuses_undeclared_product_gate(
-    tmp_path: Path, requested: tuple[str, ...]
-) -> None:
-    """A product spelling cannot supplement the repository's declared proof graph."""
-    profile = RepositoryProfile(
-        root=tmp_path,
-        exists=True,
-        declaration=RepositoryProfileDeclaration(
-            profile_id="target",
-            proof=ProofPolicy(
-                code_correctness_gates=("native",),
-                gates=(Gate(id="native", kind="check", command=("target-check",)),),
-            ),
-        ),
-    )
-    with pytest.raises(ValueError, match="unknown proof gate"):
-        compile_gate_policy(profile=profile, gate_ids=requested)
 
 
 def test_document_profile_applicability_follows_the_selected_git_tree(tmp_path: Path) -> None:
@@ -79,7 +63,14 @@ def test_document_profile_applicability_follows_the_selected_git_tree(tmp_path: 
     document_head = commit_fixture(repo, "declare document-only proof roots")
     documents = resolve_gate_policy(repo, tree_ref=document_head, full=True)
 
-    assert documents.gate_ids == ("docs-registry", "markdown-links")
+    assert set(documents.gate_ids) == {
+        "docs-registry",
+        "markdown-links",
+        "markdown-lint",
+        "prose",
+        "config-quality",
+        "source-format",
+    }
     assert documents.gaps == ()
     assert "quality_floor_version" not in documents.projection["owner"]
 
@@ -96,35 +87,84 @@ def test_document_profile_applicability_follows_the_selected_git_tree(tmp_path: 
     assert resolve_gate_policy(repo, tree_ref=document_head, full=True).digest == documents.digest
 
 
-@pytest.mark.parametrize("native_id", ["docs-registry", "document-registry"])
-def test_explicit_product_selection_cannot_be_captured_by_native_spelling(
-    tmp_path: Path, native_id: str
+@pytest.mark.parametrize("canonical", [False, True], ids=["native", "canonical"])
+@pytest.mark.parametrize("carrier", ["registry", "profile"])
+def test_audit_applicability_reads_only_the_committed_declaration(
+    tmp_path: Path, monkeypatch, carrier: str, *, canonical: bool
 ) -> None:
-    """One bound origin keeps common checks distinct from the native floor."""
-    profile = RepositoryProfile(
-        root=tmp_path,
-        exists=True,
-        declaration=RepositoryProfileDeclaration(
-            profile_id="target",
-            proof=ProofPolicy(
-                code_correctness_gates=(native_id,),
-                gates=(Gate(id=native_id, kind="check", command=("target-check",)),),
-            ),
-        ),
+    """A partial proof keeps the full audit obligation without expanding source bindings."""
+    repo = init_git_repo(tmp_path / "repo")
+    write_script_gate_policy(repo, full=True)
+    registry = repo / "system/gates.toml"
+    declaration = tomllib.loads(registry.read_text())
+    declaration["proof_sets"]["full"].append("audit")
+    declaration["gates"].append(
+        {
+            "id": "audit",
+            "kind": "lint",
+            "command": ["{python}", "-m", "nox", "-s", "vulnerabilities"],
+            "tool_adapter": "vulnerabilities" if canonical else "repository-native",
+            "depends_on": ["check"],
+        }
     )
-    baseline = compile_gate_policy(profile=profile)
-    selected = compile_gate_policy(
-        profile=profile,
-        gate_ids=("docs-registry", "schemas"),
-        product_gate_ids=("docs-registry", "schemas"),
+    registry.write_text(tomli_w.dumps(declaration))
+    if carrier == "profile":
+        registry = repo / ".ethos/profile.toml"
+        registry.write_text(
+            tomli_w.dumps(
+                {
+                    "profile_id": "policy-test",
+                    "proof": {
+                        "code_correctness_gates": [gate["id"] for gate in declaration["gates"]],
+                        "code_correctness_map": {"behavior": "check", "static-analysis": "audit"},
+                        "gates": declaration["gates"],
+                    },
+                }
+            )
+        )
+    head = commit_fixture(repo, "declare audit ownership")
+
+    def source_binding_forbidden(*_args, **_options):
+        pytest.fail("audit applicability must not expand the repository source binding")
+
+    monkeypatch.setattr(gate_policy, "_repository_paths", source_binding_forbidden)
+    monkeypatch.setattr(gate_policy, "source_paths_for_gates", source_binding_forbidden)
+    monkeypatch.setattr(gate_policy, "compile_gate_policy", source_binding_forbidden)
+    policy = {"gates": ({"id": "check", "command": ("tools/check.sh",)},)}
+    expected = (
+        ["proof_dependency_acceptance_audit_missing"] if canonical and carrier == "registry" else []
     )
-    assert selected.declaration == baseline.declaration
-    assert selected.profile is profile
-    assert selected.registry[native_id].command == ("target-check",)
-    assert all(gate.providers and not gate.command for gate in selected.gates)
-    assert selected.product_gate_ids == ("docs-registry", "schemas")
-    assert selected.projection["product_gate_ids"] == ["docs-registry", "schemas"]
-    assert baseline.gate_ids == (native_id,)
+    assert (
+        dependency_acceptance_gaps(repo, head, policy, (), acceptance_purpose="local-source")
+        == expected
+    )
+
+    registry.write_text("uncommitted invalid registry")
+    assert (
+        dependency_acceptance_gaps(repo, head, policy, (), acceptance_purpose="local-source")
+        == expected
+    )
+    invalid = commit_fixture(repo, "invalidate audit declaration")
+    assert dependency_acceptance_gaps(
+        repo, invalid, policy, (), acceptance_purpose="local-source"
+    ) == ["proof_dependency_acceptance_audit_missing"]
+
+
+@pytest.mark.parametrize("profile", ["", "invalid profile"], ids=["absent", "invalid"])
+def test_audit_applicability_never_exempts_an_absent_or_invalid_profile(
+    tmp_path: Path, profile: str
+) -> None:
+    """Only a valid committed native declaration can select its own audit owner."""
+    repo = init_git_repo(tmp_path / "repo")
+    (repo / "README.md").write_text("Audit applicability fixture\n")
+    if profile:
+        path = repo / ".ethos/profile.toml"
+        path.parent.mkdir()
+        path.write_text(profile)
+    head = commit_fixture(repo, "capture profile state")
+    assert dependency_acceptance_gaps(
+        repo, head, {"gates": ()}, (), acceptance_purpose="local-source"
+    ) == ["proof_dependency_acceptance_audit_missing"]
 
 
 def test_quality_axis_conjoins_scoped_evidence_from_distinct_gates() -> None:
@@ -257,12 +297,21 @@ def test_gate_policy_binds_committed_sources_and_reports_missing_source(
 
     monkeypatch.setattr(process_adapter, "run_command", observe)
     first = dict(resolve_proof_policies(repo, tree_ref=head))[floor]
-    assert first.gate_ids == (("check", "publish") if floor == "full" else ("check",))
+    assert set(first.gate_ids) == {
+        "check",
+        "docs-registry",
+        "markdown-links",
+        "markdown-lint",
+        "config-quality",
+        "source-format",
+        "prose",
+        *({"publish"} if floor == "full" else set()),
+    }
     assert first.gaps == _MISSING_QUALITY
     objects = {
         git(repo, "rev-parse", f"{head}:{path}").encode() for path in ("tools/check.sh", publisher)
     }
-    assert any(set(batch.splitlines()) == objects for batch in batches)
+    assert any(objects <= set(batch.splitlines()) for batch in batches)
     assert not any(query[:1] == ("show",) and query[-1].endswith(".sh") for query in queries)
 
     registry.write_text(registry.read_text().replace("tools/check.sh", script))

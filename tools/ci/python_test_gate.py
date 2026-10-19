@@ -27,16 +27,12 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.runtime.filesystem import remove_owned_path as remove_generated_path
 from ethos.repository.policy.quality_reports import junit_report
 from tools.ci import python_test_bytecode
-from tools.ci.delivery.artifact import require_artifact_current
-from tools.ci.delivery.artifact import selected_wheel
 from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
     import nox
-
-    from ethos.adapters.repo.runtime.transition import PackageArtifact
 
 ROOT = Path(__file__).resolve().parents[2]
 PYTHON = Path(sys.executable)
@@ -149,7 +145,6 @@ class PythonTestGate:
         self.head_file = self.coverage / "head.txt"
         self.bytecode: Path | None = None
         self._allure_started = False
-        self.observer_artifact: PackageArtifact | None = None
 
     @classmethod
     def from_environment(cls, *, node_package_supply: Path) -> Self:
@@ -168,10 +163,8 @@ class PythonTestGate:
             self._allure_started = False
             try:
                 self._prepare()
-                self.observer_artifact = selected_wheel(ROOT, head=self.s.head)
                 self._report_resources("start")
                 self._sharded(session) if self.s.shards not in {None, 1} else self._single(session)
-                require_artifact_current(self.observer_artifact, head=self.s.head, repo=ROOT)
             except Exception:
                 self._report_resources("failure")
                 raise
@@ -369,9 +362,6 @@ class PythonTestGate:
             "COVERAGE_FILE": str(data or self.data),
             "ETHOS_ACTOR": None,
             "ETHOS_NODE_PACKAGE_SUPPLY": str(self.s.node_package_supply),
-            "ETHOS_TEST_OBSERVER_WHEEL": (
-                str(self.observer_artifact.path) if self.observer_artifact else None
-            ),
             "GIT_CONFIG_GLOBAL": os.devnull,
             "GIT_CONFIG_NOSYSTEM": "1",
             "GIT_CONFIG_COUNT": str(len(config)),
@@ -459,11 +449,7 @@ class PythonTestGate:
         if shards is None:
             message = "sharded execution requires a positive shard count"
             raise RuntimeError(message)
-        shard_dir = self.pytest / "shards"
-        if self.observer_artifact is None:
-            message = "package_build_output_invalid"
-            raise ValueError(message)
-        key = f"{self.observer_artifact.sha256}:shards={shards}"
+        shard_dir, key = self.pytest / "shards", f"{self.s.head}:shards={shards}"
         head = shard_dir / "head.txt"
         if not head.is_file() or head.read_text(encoding="utf-8").strip() != key:
             for path in (

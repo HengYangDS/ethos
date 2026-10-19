@@ -31,7 +31,6 @@ from ethos.repository.policy.gates import provider_module_sources
 
 if TYPE_CHECKING:
     from ethos.adapters.gates.javascript.execution import NodeAttempt
-    from ethos.contracts.evidence.observer import ObserverIdentity
     from ethos.contracts.gates import Gate
     from ethos.contracts.gates import NativeOutput
 
@@ -49,7 +48,8 @@ class NativeEvidence:
     gaps: tuple[str, ...]
     artifact: str
     dependency_checks: tuple[tuple[NativeOutput, bytes], ...] = ()
-    observer: ObserverIdentity | None = None
+    # The exact wheel supplied to this attempt's observers; a source checkout supplies none.
+    observer_requirement: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

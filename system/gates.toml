@@ -3,8 +3,8 @@ id = "gate-registry"
 source_refs = ["system/gates.toml"]
 
 [proof_sets]
-default = ["repository-audit", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "config-quality", "shell-lint"]
-full = ["repository-audit", "repository-hygiene", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "github-workflow-syntax", "source-budget", "markdown-lint", "javascript-lint", "javascript-tests", "svg-format", "asset-validation", "ci-projection", "format-selection", "architecture-projection", "prose", "dependency-vulnerabilities", "release-sbom", "secrets"]
+default = ["repository-audit", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "config-quality", "source-format", "shell-lint"]
+full = ["repository-audit", "repository-hygiene", "docs-registry", "schemas", "skills", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "coverage-floor", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "github-workflow-syntax", "source-budget", "markdown-lint", "javascript-lint", "javascript-tests", "svg-format", "asset-validation", "ci-projection", "format-selection", "source-format", "architecture-projection", "prose", "dependency-vulnerabilities", "release-sbom", "secrets"]
 
 [[gates]]
 id = "repository-audit"
@@ -43,6 +43,7 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "docs-registry"
 kind = "docs"
+required_for_paths = ["*.md"]
 providers = ["ethos.surface.cli.root.reference:docs_registry_report"]
 policy = "required"
 profile = "product"
@@ -129,6 +130,7 @@ version_source = "product"
 [[gates]]
 id = "openspec"
 kind = "governance"
+required_for_paths = ["openspec/config.yaml", "openspec/specs/*.md", "openspec/changes/*.md"]
 providers = ["ethos.adapters.openspec.governance:openspec_validation_report"]
 policy = "required"
 profile = "product"
@@ -148,7 +150,6 @@ version_source = "locked-toolchain"
 id = "unit-architecture"
 kind = "test"
 depends_on = [
-  "build",
   "repository-audit",
   "schemas",
   "skills",
@@ -175,7 +176,7 @@ trust_bearing = true
 tool_adapter = "pytest"
 writes_files = true
 cpu_reservation = 2
-resource_locks = { repository = "shared", supply = "shared", "artifacts/python" = "shared", "evidence/tests" = "exclusive", "scratch/tests" = "exclusive" }
+resource_locks = { repository = "shared", supply = "shared", "evidence/tests" = "exclusive", "scratch/tests" = "exclusive" }
 network_policy = "offline"
 version_source = "locked-toolchain"
 
@@ -255,7 +256,7 @@ command = ["{python}", "-m", "nox", "-s", "build"]
 policy = "required"
 profile = "product-toolchain"
 toolchain = "uv-python"
-depends_on = ["ruff"]
+depends_on = ["ruff", "dependency-vulnerabilities"]
 asset_classes = ["release-artifacts"]
 dimensions = ["reproducibility", "attestation"]
 execution_mode = "adapter"
@@ -273,7 +274,7 @@ kind = "package"
 command = ["{python}", "-m", "nox", "-s", "install_smoke"]
 profile = "product-toolchain"
 toolchain = "uv-python"
-depends_on = ["build", "dependency-vulnerabilities"]
+depends_on = ["build"]
 asset_classes = ["release-artifacts"]
 dimensions = ["installability", "isolation", "provenance"]
 execution_mode = "adapter"
@@ -289,6 +290,7 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "markdown-links"
 kind = "docs"
+required_for_paths = ["*.md"]
 providers = ["ethos.adapters.gates.tool:markdown_links_report"]
 policy = "required"
 profile = "product"
@@ -340,6 +342,7 @@ version_source = "adopter-toolchain"
 [[gates]]
 id = "config-quality"
 kind = "config"
+required_for_paths = ["*.toml", "*.yaml", "*.yml", "*.json", "*.ini", "*.cfg"]
 providers = ["ethos.adapters.gates.configuration:configuration_report"]
 policy = "required"
 profile = "product"
@@ -443,7 +446,8 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "markdown-lint"
 kind = "lint"
-providers = ["ethos.adapters.gates.markdown:markdown_format_report"]
+required_for_paths = ["*.md"]
+providers = ["ethos.adapters.gates.tool:markdown_lint_report"]
 policy = "required"
 profile = "product-toolchain"
 toolchain = "ethos"
@@ -562,6 +566,24 @@ network_policy = "offline"
 version_source = "locked-toolchain"
 
 [[gates]]
+id = "source-format"
+kind = "format"
+required_for_paths = ["*.py", "*.pyi", "*.md", "*.toml", "*.yaml", "*.yml", "*.json", "*.js", "*.mjs", "*.cjs", "*.sh", "*.bash", "*.svg"]
+providers = ["ethos.adapters.gates.formatting:source_format_report"]
+policy = "required"
+profile = "product"
+toolchain = "ethos"
+asset_classes = ["python-code", "config", "markdown-docs", "assets"]
+dimensions = ["native-source-format"]
+execution_mode = "provider"
+evidence_class = "contract"
+trust_bearing = true
+tool_adapter = "ethos-source-format"
+writes_files = false
+network_policy = "offline"
+version_source = "product"
+
+[[gates]]
 id = "architecture-projection"
 kind = "architecture"
 command = ["{python}", "-m", "nox", "-s", "architecture_projection"]
@@ -581,6 +603,7 @@ version_source = "locked-toolchain"
 [[gates]]
 id = "prose"
 kind = "docs"
+required_for_paths = ["*.md"]
 providers = ["ethos.adapters.gates.tool:prose_report"]
 policy = "required"
 profile = "product"

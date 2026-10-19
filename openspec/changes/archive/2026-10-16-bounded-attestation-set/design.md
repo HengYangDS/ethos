@@ -17,21 +17,19 @@ MiB account for 11 s of that validation, so moving custody bytes alone is not en
 
 Every product reader selects members for an in-flight transition or a small lineage:
 
-| Reader                                                                         | Selects                                                  | Lifetime          |
-| ------------------------------------------------------------------------------ | -------------------------------------------------------- | ----------------- |
-| Proof admission, OpenSpec archive transition                                   | proof and archive records of the head being admitted     | head              |
-| Lane Change selection, refresh provenance, merge recognition, lease resolution | records bound to a lane, live or retired                 | operation, window |
-| Ref-effect idempotence and recovery                                            | the effect of one unfinished transition                  | operation, head   |
-| Accepted provenance and maintenance bases                                      | exact acceptance of the selected head or historical base | lineage           |
-| Release catch-up                                                               | `release.promote` of an existing tag                     | lineage           |
-| Signature repair provenance                                                    | repair results while pre-repair objects remain           | lineage           |
-| Runtime admission and retention                                                | accepted release identities of kept generations          | lineage           |
-| Starter evolution                                                              | the single starter formation                             | lineage           |
+| Reader                                                                         | Selects                                                   | Lifetime          |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------- | ----------------- |
+| Proof admission, OpenSpec archive transition                                   | proof and archive records of the head being admitted      | head              |
+| Lane Change selection, refresh provenance, merge recognition, lease resolution | records bound to a lane, live or retired                  | operation, window |
+| Ref-effect idempotence and recovery                                            | the effect of one unfinished transition                   | operation, head   |
+| Accepted provenance                                                            | the latest acceptance of the accepted head, repairs since | head              |
+| Release catch-up                                                               | `release.promote` of an existing tag                      | lineage           |
+| Signature repair provenance                                                    | repair results while pre-repair objects remain            | lineage           |
+| Runtime admission and retention                                                | accepted release identities of kept generations           | lineage           |
+| Starter evolution                                                              | the single starter formation                              | lineage           |
 
 No product reader selects the open custody predicates. Accepted provenance stops at the first
-validated acceptance for the requested commit. Maintenance release can request a historical
-accepted base, so earlier acceptance records remain lineage rather than current-head evidence.
-Their embedded proof remains the original acceptance witness; no expired proof is reactivated.
+validated acceptance, so it never reads older acceptances.
 
 ## Goals / Non-Goals
 
@@ -76,10 +74,8 @@ worktree HEAD or peer's latest publication selecting the head, absent pre-repair
 window or an explicit release. A missing branch, tag or package is not evidence. Operation records
 outlive their lane: proof admission resolves archived intent and proposal retirement resolves
 refresh provenance through a retired lane's records. Version admission refuses rollback against
-every accepted release identity, so runtime lineage never ends by observation. Historical
-acceptance likewise remains maintenance-base provenance; a later train advance alone cannot end
-that consumer relationship. When facts cannot be observed, the update removes nothing and reports
-the gap.
+every accepted release identity, so runtime lineage never ends by observation. When the facts cannot
+be observed, the update removes nothing and reports the gap.
 
 Alternative considered: let each ending operation remove its own members. That spreads one rule over
 many commands and misses members whose operation never runs again.
@@ -108,9 +104,8 @@ File-backed native output capture stays: it repairs a general transport defect.
 - [A member that a reader still needs is classified as ended] → Ending needs positive evidence. The
   land, closeout, publish, retire, release catch-up, repair and starter journeys are verified after
   historical members leave, and a missing member fails closed with the reader's existing gap.
-- [Accepted lineage grows with actual accepted commits] → Necessary provenance for historical
-  maintenance bases remains. Superseded standalone proofs, candidate integrations and publication
-  observations still shrink independently; an acceptance witness does not authorize a fresh effect.
+- [ETHOS can no longer answer which proof admitted an old commit] → Accepted. Git signatures, merge
+  structure, Forge CI and release records remain.
 - [Foreign evidence] → Custody members change only through their owners' decisions; bytes move
   byte-exact and are verified before release.
 - [A concurrent writer binds a digest that a release is deleting] → One Git-common custody lock

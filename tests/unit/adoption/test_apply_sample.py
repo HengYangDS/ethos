@@ -14,13 +14,128 @@ from ethos.adapters.openspec.cli import openspec_base_command
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.adoption import adoption_plan
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.selection import current_runtime
 from ethos.domain.adoption import adopt_repository
 from ethos.repository.profile import load_repository_profile
 from tests.support.governed_repository import declare_fixture_code_correctness
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.runtime_scenarios import install_fixture_hook_runtime
 
 ROOT = Path(__file__).resolve().parents[3]
+
+
+@pytest.mark.parametrize("apply", [False, True])
+@pytest.mark.parametrize("selector_present", [False, True])
+def test_adoption_selects_runtime_without_replacing_incumbent_hooks(
+    tmp_path, monkeypatch, apply, selector_present
+):
+    """Preview is read-only and native runtime selection leaves domain hooks unchanged."""
+    repo = init_git_repo(tmp_path / "repo")
+    install_fixture_hook_runtime(repo)
+    common = Path(git_common_dir(repo))
+    selected = current_runtime(common)
+    selector = common / "ethos/runtime/CURRENT"
+    original = selector.read_bytes()
+    if not selector_present:
+        selector.unlink()
+    git(repo, "config", "--worktree", "core.hooksPath", ".incumbent-hooks")
+    calls = []
+
+    def materialize(root, _python, **_kwargs):
+        assert root == repo
+        calls.append(root)
+        return selected.root / "python"
+
+    monkeypatch.setattr(adoption_effect, "materialize_runtime", materialize, raising=False)
+    result = adopt_repository(
+        repo,
+        select_runtime=True,
+        apply=apply,
+        authorize=True,
+        expect_head=git(repo, "rev-parse", "HEAD"),
+    )
+
+    assert result.verdict == "pass", result.to_dict()
+    assert result.data["runtime_selection"]["applied"] is apply
+    assert bool(calls) is apply
+    assert (selector.read_bytes() if selector.exists() else None) == (
+        original if apply or selector_present else None
+    )
+    assert git(repo, "config", "core.hooksPath") == ".incumbent-hooks"
+
+
+@pytest.mark.parametrize("failure", ["selector", "source", "postcondition", "concurrent"])
+def test_adoption_runtime_refusal_preserves_exact_selection_and_bindings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    """Stale inputs and failed writes retain exact predecessors or independently changed state."""
+    repo = init_git_repo(tmp_path / "repo")
+    install_fixture_hook_runtime(repo)
+    common = Path(git_common_dir(repo))
+    selected = current_runtime(common)
+    selector = common / "ethos/runtime/CURRENT"
+    original = selector.read_bytes()
+    selector.unlink()
+    git(repo, "config", "--worktree", "core.hooksPath", ".incumbent-hooks")
+    preview = adopt_repository(repo, select_runtime=True)
+    assert preview.verdict == "pass", preview.to_dict()
+    calls = []
+
+    def materialize(_root, _python, **_kwargs):
+        calls.append(_root)
+        return selected.root / "python"
+
+    monkeypatch.setattr(adoption_effect, "materialize_runtime", materialize)
+    if failure == "selector":
+        selector.write_bytes(original)
+    if failure == "source":
+        native = adoption_effect.expected_runtime_build
+        observations = []
+
+        def changed_source(root):
+            observed = native(root)
+            observations.append(observed)
+            return (
+                observed
+                if len(observations) == 1
+                else observed._replace(identity=observed.identity._replace(source_tree="f" * 40))
+            )
+
+        monkeypatch.setattr(adoption_effect, "expected_runtime_build", changed_source)
+    if failure in {"postcondition", "concurrent"}:
+
+        def failed_postcondition(_root):
+            if failure == "concurrent":
+                selector.write_bytes(b"peer-owned-selection\n")
+            message = "native_postcondition_failed"
+            raise ValueError(message)
+
+        monkeypatch.setattr(adoption_effect, "_verify_native_postcondition", failed_postcondition)
+
+    result = adopt_repository(
+        repo,
+        select_runtime=True,
+        apply=True,
+        authorize=True,
+        expect_head=git(repo, "rev-parse", "HEAD"),
+        expect_plan_digest=preview.data["plan_digest"],
+    )
+
+    assert result.verdict == ("block" if failure == "selector" else "unknown"), result.to_dict()
+    assert "--select-runtime" in result.next_action
+    expected = (
+        original
+        if failure == "selector"
+        else (b"peer-owned-selection\n" if failure == "concurrent" else None)
+    )
+    assert (selector.read_bytes() if selector.exists() else None) == expected
+    assert bool(calls) is (failure in {"postcondition", "concurrent"})
+    assert not (repo / ".ethos/profile.toml").exists()
+    assert not (repo / "openspec/config.yaml").exists()
+    assert git(repo, "config", "core.hooksPath") == ".incumbent-hooks"
+    assert selected.root.is_dir()
 
 
 def _official_spec_driven_schema() -> Path:

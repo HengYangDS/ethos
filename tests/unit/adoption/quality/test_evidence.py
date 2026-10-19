@@ -210,7 +210,18 @@ def test_provider_only_javascript_does_not_credit_a_failed_native_test(
         (repo / "unused.js").write_text("export const neverUsed = 1;\n")
         commit_fixture(repo, "include uncovered subject")
     declare_quality_profile(repo)
-    head = commit_fixture(repo, "bind one native attempt to public quality")
+    head = commit_fixture(
+        repo,
+        "bind one native attempt to public quality",
+        format_paths=(
+            ".ethos/profile.toml",
+            "package.json",
+            ".config/coverage.json",
+            "preload.mjs",
+            "answer.js",
+            "answer.test.js",
+        ),
+    )
     result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
     assert result.returncode == int(outcome != "pass"), payload["required_gaps"]

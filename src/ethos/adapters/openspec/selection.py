@@ -88,11 +88,38 @@ def incoming_change_gaps(
     changes = _change_trees(root, incoming)
     if changes is None:
         return ["openspec_incoming_change_observation_unavailable"]
+    bases = run_git(root, "merge-base", "--all", "HEAD", incoming, check=False, observation=True)
+    base = _change_trees(root, bases.stdout.strip()) if len(bases.stdout.split()) == 1 else None
+    if bases.returncode or base is None:
+        return ["openspec_incoming_change_observation_unavailable"]
     return [
         f"openspec_incoming_change_modified:{name}"
         for name in sorted(changes.keys() - {selected})
         if any(path.startswith(f"{active_change_root(name)}/") for path in authored_paths)
     ]
+
+
+def preserved_incoming_change_paths(
+    root: Path, paths: tuple[str, ...], *, tree_ref: str
+) -> tuple[str, ...]:
+    """Bind a whole-Change import or removal to the exact pending native merge."""
+    pending = pending_merge_heads(root)
+    if len(pending) != 1:
+        return ()
+    incoming, staged, prior = (
+        _change_trees(root, revision) for revision in (pending[0], tree_ref, "HEAD")
+    )
+    if incoming is None or staged is None or prior is None:
+        return ()
+    known = incoming.keys() | prior.keys()
+    return tuple(
+        path
+        for path in paths
+        if len(parts := path.split("/")) >= 4
+        and parts[:2] == ["openspec", "changes"]
+        and parts[2] in known
+        and incoming.get(parts[2]) == staged.get(parts[2])
+    )
 
 
 def _change_trees(root: Path, revision: str) -> dict[str, str] | None:

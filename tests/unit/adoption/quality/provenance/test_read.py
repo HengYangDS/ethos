@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
@@ -14,6 +15,7 @@ import ethos.repository.profile as profile_model
 from ethos.adapters.repo.git import run_git
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_test_profile
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -38,25 +40,20 @@ def _bind_source_inputs(
     owner.write_text(
         tomli_w.dumps({"schema": "ethos-ci-template-consistency-v1", "projection": projections})
     )
-    profile = repo / ".ethos/profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
-        tomli_w.dumps(
-            {
-                "profile_id": "example",
-                "proof": {
-                    "gate_registry": "system/gates.toml",
-                    "source_contracts": [
-                        {
-                            "kind": "generated",
-                            "input_refs": [declaration],
-                            "members": members,
-                            "integrity_gate": "integrity",
-                        }
-                    ],
-                },
-            }
-        )
+    profile = write_test_profile(
+        repo,
+        profile_id="example",
+        proof={
+            "gate_registry": "system/gates.toml",
+            "source_contracts": [
+                {
+                    "kind": "generated",
+                    "input_refs": [declaration],
+                    "members": members,
+                    "integrity_gate": "integrity",
+                }
+            ],
+        },
     )
     commit_fixture(repo, "bind complete finite source inputs")
     return profile, owner
@@ -224,3 +221,21 @@ def test_source_observation_binds_one_unchanged_committed_tree(
     assert report["verdict"] == "unknown", report
     assert report["required_gaps"] == ["source_integrity_unproven:outputs/member.py"]
     assert report["diagnostics"] == [{"reason": reason}]
+
+
+def test_source_tree_preserves_native_repository_failure(tmp_path: Path) -> None:
+    """An unreadable repository keeps Git's own failure; only an unborn HEAD is missing."""
+    broken = tmp_path / "broken"
+    broken.mkdir()
+    (broken / ".git").write_text("gitdir: missing-repository\n")
+    with pytest.raises(subprocess.CalledProcessError) as raised:
+        source_tree.SourceTree.observe(broken)
+    assert raised.value.returncode == 128
+    assert "gitfile does not point to a valid repository" in raised.value.stderr
+    report = source_observation.integrity_report(broken)
+    assert (report["verdict"], report["state"]) == ("unknown", "unproven")
+    unborn = tmp_path / "unborn"
+    unborn.mkdir()
+    run_git(unborn, "init", "-q")
+    with pytest.raises(ValueError, match="source_head_missing"):
+        source_tree.SourceTree.observe(unborn)

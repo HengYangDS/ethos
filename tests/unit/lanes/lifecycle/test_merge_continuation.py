@@ -16,36 +16,19 @@ import ethos.adapters.admission.current.resolution as resolution_owner
 import ethos.adapters.mutation.lane_lifecycle.merge as merge_admission
 import ethos.adapters.repo.git_effect_attestation as ref_evidence
 import ethos.adapters.repo.merge.effect as merge_effect
-import ethos.adapters.repo.runtime.binding as runtime_binding_owner
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.merge.observation import observe_merge
-from ethos.adapters.repo.merge.recovery import preserve_merge
 from ethos.adapters.store.state.schema import state_database
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import commit_fixture
-from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
-from tests.support.governed_repository import start_adopted_candidate
-from tests.support.governed_repository import write_active_commitment
-from tests.support.openspec_lifecycle import HOLDER
+from tests.support.openspec_lifecycle import apply_merge
 from tests.support.openspec_lifecycle import killed_merge_effect
 from tests.support.openspec_lifecycle import native_merge_fixture
+from tests.support.openspec_lifecycle import preview_merge
 from tests.support.runtime_scenarios import git_process
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
-
-
-def _preview(work: Path, mode: str = "inspect", source: str | None = None) -> dict:
-    """Read the public exact-state preview without performing an effect."""
-    args = ("lane", "refresh-base", "--strategy", "merge", "--mode", mode, "--json")
-    report = run_ethos(*args, *(("--source-ref", source) if source else ()), cwd=work)
-    assert report["verdict"] == "pass", json.dumps(report, indent=2)
-    return report
-
-
-def _apply(work: Path, preview: dict) -> dict:
-    """Execute only the public next action returned by the owning command."""
-    return run_ethos(*shlex.split(preview["next_action"])[1:], cwd=work)
 
 
 def test_public_merge_abort_preserves_conflict_edits_and_native_state(tmp_path):
@@ -53,10 +36,10 @@ def test_public_merge_abort_preserves_conflict_edits_and_native_state(tmp_path):
     before = git(work, "rev-parse", "HEAD")
     (work / "README.md").write_text("# Valuable partial resolution\n")
     (work / "personal.txt").write_bytes(b"untracked unchanged\n")
-    preview = _preview(work, "abort")
+    preview = preview_merge(work, "abort")
     assert preview["verdict"] == "pass", preview
     assert "--expect-state" in preview["next_action"]
-    result = _apply(work, preview)
+    result = apply_merge(work, preview)
     assert result["verdict"] == "pass", result
     assert result["data"]["state"] == "merge_aborted"
     assert git(work, "rev-parse", "HEAD") == before
@@ -66,7 +49,7 @@ def test_public_merge_abort_preserves_conflict_edits_and_native_state(tmp_path):
     payload = json.loads(Path(recovery["path"]).read_text())
     assert payload["observation"]["conflicts"] == ["README.md"]
     assert payload["files"]["README.md"]["content"]
-    again = _apply(work, preview)
+    again = apply_merge(work, preview)
     assert again["verdict"] == "pass", again
     assert again["data"]["state"] == "merge_aborted"
 
@@ -80,130 +63,32 @@ def test_public_merge_continue_preserves_both_parents_and_untracked_work(tmp_pat
     official = Mock(wraps=merge_admission.openspec_governance_report)
     monkeypatch.setattr(merge_admission, "openspec_governance_report", official)
     monkeypatch.setattr(resolution_owner, "openspec_governance_report", official)
-    preview = _preview(work, "continue")
+    preview = preview_merge(work, "continue")
     assert preview["verdict"] == "pass", preview
-    result = _apply(work, preview)
+    result = apply_merge(work, preview)
     assert result["verdict"] == "pass", result
     head, *parents = git(work, "rev-list", "--parents", "-n", "1", "HEAD").split()
     assert parents == [ours, theirs]
     assert result["data"]["head"] == head
     assert git(work, "show", "HEAD:README.md") == "# Accepted combined resolution"
     assert (work / "personal.txt").read_text() == "not part of commit\n"
-    assert _apply(work, preview)["verdict"] == "pass"
+    assert apply_merge(work, preview)["verdict"] == "pass"
     assert official.call_count == 2  # Preview and effect each observe once; replay has no effect.
-
-
-def test_explicit_merge_intent_preserves_unchanged_incoming_change(tmp_path, monkeypatch):
-    """Explicit authoring scope does not adopt the other parent's unchanged intent."""
-    work = native_merge_fixture(tmp_path)
-    monkeypatch.setenv("ETHOS_CHANGE", "publication")
-    (work / "README.md").write_text("# Accepted combined resolution\n")
-    git(work, "add", "README.md")
-    incoming = git(work, "rev-parse", "MERGE_HEAD")
-    path = "openspec/changes/static-delivery/tasks.md"
-    before = git(work, "show", f":{path}")
-    assert before == git(work, "show", f"{incoming}:{path}")
-    preview = _preview(work, "continue")
-    assert preview["data"]["observation"]["parents"] == [incoming]
-    assert git(work, "show", f":{path}") == before
-    assert git(work, "rev-parse", "MERGE_HEAD") == incoming
-
-
-def test_merge_intent_preserves_native_composition_of_prior_change(tmp_path, monkeypatch):
-    """Earlier contributions from both parents are not new continuation authoring."""
-    repo, candidate = start_adopted_candidate(tmp_path)
-    write_active_commitment(candidate, change_id="shared")
-    commit_fixture(candidate, "feat: declare shared intent")
-    work = create_change_source_lane(
-        repo,
-        tmp_path / "work",
-        change_id="publication",
-        holder_ref=HOLDER,
-        base_ref="candidate/dev",
-    )
-    path = "openspec/changes/shared/design.md"
-    own = work / path
-    own.write_text(own.read_text().replace("Test-only governed fixture.", "Local contribution."))
-    (work / "README.md").write_text("# Local contribution\n")
-    commit_fixture(work, "feat: extend local design")
-    other = candidate / path
-    other.write_text(other.read_text().replace("Run focused lifecycle tests.", "Incoming proof."))
-    (candidate / "README.md").write_text("# Incoming contribution\n")
-    incoming = commit_fixture(candidate, "feat: extend incoming proof")
-    assert git_process(work, "merge", "--no-ff", "--no-commit", incoming).returncode == 1
-    (work / "README.md").write_text("# Accepted combined resolution\n")
-    git(work, "add", "README.md")
-    before = git(work, "show", f":{path}")
-    assert "Local contribution." in before
-    assert "Incoming proof." in before
-    monkeypatch.setenv("ETHOS_CHANGE", "publication")
-    preview = _preview(work, "continue")
-    assert preview["data"]["observation"]["parents"] == [incoming]
-    assert git(work, "show", f":{path}") == before
-
-
-@pytest.mark.parametrize("disposition", ["present", "absent"])
-def test_merge_continue_preserves_exact_incoming_task_disposition(
-    tmp_path, monkeypatch, disposition
-):
-    """Exact import or incoming deletion resolves a conflict without authoring progress."""
-    repo, candidate = start_adopted_candidate(tmp_path)
-    write_active_commitment(candidate, change_id="shared")
-    commit_fixture(candidate, "feat: declare shared intent")
-    work = create_change_source_lane(
-        repo,
-        tmp_path / "work",
-        change_id="publication",
-        holder_ref=HOLDER,
-        base_ref="candidate/dev",
-    )
-    path = "openspec/changes/shared/tasks.md"
-    own, other = work / path, candidate / path
-    own.write_text(own.read_text().replace("fixture lifecycle", "local qualification"))
-    (work / "README.md").write_text("# Local contribution\n")
-    before = commit_fixture(work, "feat: extend local task")
-    if disposition == "present":
-        other.write_text(other.read_text().replace("fixture lifecycle", "incoming qualification"))
-        imported = other.read_bytes()
-    else:
-        git(candidate, "rm", "-r", "--", "openspec/changes/shared")
-        imported = None
-    (candidate / "README.md").write_text("# Incoming contribution\n")
-    incoming = commit_fixture(candidate, "feat: update incoming task disposition")
-    assert git_process(work, "merge", "--no-ff", "--no-commit", incoming).returncode == 1
-    assert path in git(work, "diff", "--name-only", "--diff-filter=U").splitlines()
-    if imported is None:
-        git(work, "rm", "--", path)
-    else:
-        own.write_bytes(imported)
-        git(work, "add", path)
-    (work / "README.md").write_text("# Accepted combined resolution\n")
-    git(work, "add", "README.md")
-    monkeypatch.setenv("ETHOS_CHANGE", "publication")
-    result = _apply(work, _preview(work, "continue"))
-    assert result["verdict"] == "pass", result
-    assert git(work, "rev-list", "--parents", "-n", "1", "HEAD").split()[1:] == [before, incoming]
-    if imported is None:
-        assert not own.exists()
-        assert git_process(work, "cat-file", "-e", f"HEAD:{path}").returncode != 0
-    else:
-        assert own.read_bytes() == imported
-        assert git(work, "show", f"HEAD:{path}") == git(work, "show", f"{incoming}:{path}")
 
 
 @pytest.mark.parametrize("movement", ["before-preview", "before-apply"])
 def test_public_merge_continuation_uses_pending_parent_when_candidate_advances(tmp_path, movement):
     """Candidate integration is separate from finishing an exact pending native merge."""
     work = native_merge_fixture(tmp_path)
-    ours, incoming = (git(work, "rev-parse", "HEAD"), git(work, "rev-parse", "MERGE_HEAD"))
+    ours, incoming = git(work, "rev-parse", "HEAD"), git(work, "rev-parse", "MERGE_HEAD")
     (work / "README.md").write_text("# Accepted combined resolution\n")
     git(work, "add", "README.md")
     candidate = tmp_path / "repo-candidate-dev"
-    preview = _preview(work, "continue") if movement == "before-apply" else None
+    preview = preview_merge(work, "continue") if movement == "before-apply" else None
     (candidate / "later.txt").write_text("Unrelated candidate progress\n")
     advanced = commit_fixture(candidate, "fix: advance candidate independently")
-    preview = preview or _preview(work, "continue")
-    result = _apply(work, preview)
+    preview = preview or preview_merge(work, "continue")
+    result = apply_merge(work, preview)
     assert result["verdict"] == "pass", result
     head, *parents = git(work, "rev-list", "--parents", "-n", "1", "HEAD").split()
     assert parents == [ours, incoming]
@@ -213,16 +98,108 @@ def test_public_merge_continuation_uses_pending_parent_when_candidate_advances(t
     assert not Path(git(work, "rev-parse", "--git-path", "MERGE_HEAD")).exists()
 
 
+@pytest.mark.parametrize("mode", ["pending", "start", "advanced"])
+def test_public_merge_accepts_exact_peer_ref_without_moving_candidate(tmp_path, mode):
+    """One existing native executor accepts a selected peer with unchanged protected refs."""
+    work = native_merge_fixture(tmp_path, pending=mode != "start")
+    ours, theirs = git(work, "rev-parse", "HEAD"), git(work, "rev-parse", "candidate/dev")
+    peer = "refs/heads/work/peer"
+    git(work, "update-ref", peer, theirs)
+    git(work, "update-ref", "refs/heads/candidate/dev", ours)
+    if mode == "advanced":
+        tree = git(work, "rev-parse", f"{theirs}^{{tree}}")
+        successor = git(work, "commit-tree", tree, "-p", theirs, "-m", "feat: later peer")
+        git(work, "update-ref", peer, successor)
+    selection = ("--source-ref", peer)
+    if mode == "start":
+        preview = run_ethos(
+            "lane",
+            "refresh-base",
+            "--strategy",
+            "merge",
+            "--mode",
+            "start",
+            *selection,
+            "--json",
+            cwd=work,
+        )
+        assert apply_merge(work, preview)["data"]["state"] == "merge_pending"
+    (work / "README.md").write_text("# Qualified peer contribution\n")
+    git(work, "add", "README.md")
+    preview = run_ethos(
+        "lane",
+        "refresh-base",
+        "--strategy",
+        "merge",
+        "--mode",
+        "continue",
+        *selection,
+        "--json",
+        cwd=work,
+    )
+    arguments = shlex.split(preview["next_action"])
+    assert arguments[arguments.index("--source-ref") + 1] == peer
+    result = apply_merge(work, preview)
+    assert result["verdict"] == "pass", result
+    assert git(work, "rev-list", "--parents", "-n", "1", "HEAD").split()[1:] == [ours, theirs]
+    assert git(work, "rev-parse", "candidate/dev") == ours
+    assert git(work, "rev-parse", peer) == (successor if mode == "advanced" else theirs)
+    assert not Path(git(work, "rev-parse", "--git-path", "MERGE_HEAD")).exists()
+
+
+@pytest.mark.parametrize("fault", ["advance", "diverge", "missing", "short", "protected", "rebase"])
+def test_peer_merge_ref_selection_refuses_unbound_or_changed_source(tmp_path, fault):
+    """The exact source snapshot fences effects without treating ancestry as permission."""
+    work = native_merge_fixture(tmp_path)
+    head, incoming = git(work, "rev-parse", "HEAD"), git(work, "rev-parse", "MERGE_HEAD")
+    (work / "README.md").write_text("# Combined contribution\n")
+    git(work, "add", "README.md")
+    peer = "refs/heads/work/peer"
+    git(work, "update-ref", peer, incoming)
+    args = (
+        "lane",
+        "refresh-base",
+        "--strategy",
+        "merge",
+        "--mode",
+        "continue",
+        "--source-ref",
+        peer,
+        "--json",
+    )
+    if fault == "advance":
+        preview = run_ethos(*args, cwd=work)
+        tree = git(work, "rev-parse", f"{incoming}^{{tree}}")
+        successor = git(work, "commit-tree", tree, "-p", incoming, "-m", "feat: later peer")
+        git(work, "update-ref", peer, successor)
+        with pytest.raises(AssertionError, match="merge_state_stale"):
+            apply_merge(work, preview)
+    else:
+        if fault == "diverge":
+            git(work, "update-ref", peer, head)
+        elif fault == "missing":
+            git(work, "update-ref", "-d", peer)
+        elif fault in {"short", "protected"}:
+            args = (*args[:-2], "work/peer" if fault == "short" else "refs/heads/dev", "--json")
+        elif fault == "rebase":
+            args = (*args[:3], "rebase", *args[4:])
+        report = run_ethos(*args, cwd=work)
+        assert report["verdict"] == "block", report
+        assert any(gap.startswith("merge_source_ref") for gap in report["required_gaps"])
+    assert git(work, "rev-parse", "HEAD") == head
+    assert git(work, "rev-parse", "MERGE_HEAD") == incoming
+
+
 def test_public_merge_preparation_is_explicit_and_conflicts_remain_recoverable(tmp_path):
     work = native_merge_fixture(tmp_path, pending=False)
     before = git(work, "rev-parse", "HEAD")
-    preview = _preview(work, "start")
+    preview = preview_merge(work, "start")
     assert preview["verdict"] == "pass", preview
-    result = _apply(work, preview)
+    result = apply_merge(work, preview)
     assert result["data"]["state"] == "merge_pending", result
     assert git(work, "rev-parse", "HEAD") == before
     assert git(work, "diff", "--name-only", "--diff-filter=U") == "README.md"
-    assert _preview(work, "abort")["verdict"] == "pass"
+    assert preview_merge(work, "abort")["verdict"] == "pass"
 
 
 @pytest.mark.parametrize("mode", ["abort", "continue"])
@@ -232,7 +209,7 @@ def test_public_merge_apply_rejects_changed_observation(tmp_path, monkeypatch, f
     if mode == "continue":
         (work / "README.md").write_text("# Accepted combined resolution\n")
         git(work, "add", "README.md")
-    preview = _preview(work, mode)
+    preview = preview_merge(work, mode)
     before = git(work, "rev-parse", "HEAD")
     if fault == "holder":
         monkeypatch.setenv("ETHOS_ACTOR", "agent:other")
@@ -241,7 +218,7 @@ def test_public_merge_apply_rejects_changed_observation(tmp_path, monkeypatch, f
         if fault == "index":
             git(work, "add", "README.md")
     with pytest.raises(AssertionError, match=r"lease_holder_mismatch|merge_state_stale"):
-        _apply(work, preview)
+        apply_merge(work, preview)
     assert git(work, "rev-parse", "HEAD") == before
     assert git(work, "rev-parse", "MERGE_HEAD")
 
@@ -249,12 +226,12 @@ def test_public_merge_apply_rejects_changed_observation(tmp_path, monkeypatch, f
 def test_completed_abort_does_not_recognize_a_new_merge_at_same_head(tmp_path):
     """Equal branch HEAD alone does not prove the old operation is still current."""
     work = native_merge_fixture(tmp_path)
-    preview = _preview(work, "abort")
-    _apply(work, preview)
+    preview = preview_merge(work, "abort")
+    apply_merge(work, preview)
     incoming = git(work, "rev-parse", "candidate/dev")
     assert git_process(work, "merge", "--no-ff", "--no-commit", incoming).returncode == 1
     with pytest.raises(AssertionError, match="merge_result_stale"):
-        _apply(work, preview)
+        apply_merge(work, preview)
     assert git(work, "rev-parse", "MERGE_HEAD") == incoming
 
 
@@ -281,7 +258,7 @@ def _interrupt_merge_ack(work, preview, monkeypatch, boundary):
         else:
             patch.setattr(merge_effect, "record_attestations", lost_result)
         with pytest.raises(AssertionError):
-            _apply(work, preview)
+            apply_merge(work, preview)
 
 
 @pytest.mark.parametrize(
@@ -311,7 +288,7 @@ def test_lost_ack_recovers_original_request_without_repeating_effect(
             "feat: later peer contribution",
         )
         git(work, "update-ref", source, successor)
-    preview = _preview(work, mode, source)
+    preview = preview_merge(work, mode, source)
     _interrupt_merge_ack(work, preview, monkeypatch, boundary)
     after = git(work, "rev-parse", "HEAD")
     if boundary == "ref":
@@ -327,18 +304,18 @@ def test_lost_ack_recovers_original_request_without_repeating_effect(
         assert installed["runtime_digest"] != previous
     if mode == "continue":
         before_inspect = observe_merge(work), git(work, "show-ref"), read_attestation_set(work)[0]
-        recovery_preview = _preview(work)
+        recovery_preview = preview_merge(work)
         assert recovery_preview["next_action"] == preview["next_action"]
         assert (
             observe_merge(work),
             git(work, "show-ref"),
             read_attestation_set(work)[0],
         ) == before_inspect
-    recovered = _apply(work, preview)
+    recovered = apply_merge(work, preview)
     assert recovered["verdict"] == "pass", recovered
     assert git(work, "rev-parse", "HEAD") == after
     assert not observe_merge(work).parents
-    repeated = _apply(work, preview)
+    repeated = apply_merge(work, preview)
     assert repeated["verdict"] == "pass"
     assert repeated["data"]["state"] == recovered["data"]["state"]
     assert git(work, "rev-parse", "HEAD") == after
@@ -352,12 +329,45 @@ def test_lost_ack_recovers_original_request_without_repeating_effect(
         assert attestation.payload.body["result"]["executed"] is False
 
 
+def test_merge_start_cannot_overwrite_ignored_local_content(tmp_path):
+    """An ignored path is not permission for Git's merge checkout to overwrite it."""
+    work = native_merge_fixture(tmp_path, pending=False)
+    candidate = next(
+        Path(row.split(" ", 1)[1])
+        for row in git(work, "worktree", "list", "--porcelain").splitlines()
+        if row.startswith("worktree ")
+        and Path(row.split(" ", 1)[1]).name != "work"
+        and git(Path(row.split(" ", 1)[1]), "branch", "--show-current") == "candidate/dev"
+    )
+    (candidate / "personal-cache.bin").write_bytes(b"incoming tracked data\n")
+    commit_fixture(candidate, "feat: add incoming tracked data")
+    exclude = Path(git(work, "rev-parse", "--path-format=absolute", "--git-path", "info/exclude"))
+    exclude.parent.mkdir(exist_ok=True)
+    with exclude.open("a") as stream:
+        stream.write("\npersonal-cache.bin\n")
+    local = work / "personal-cache.bin"
+    local.write_bytes(b"valuable ignored local data\n")
+    preview = run_ethos(
+        "lane", "refresh-base", "--strategy", "merge", "--mode", "start", "--json", cwd=work
+    )
+    assert preview["required_gaps"] == ["merge_ignored_content_collision:personal-cache.bin"]
+    assert local.read_bytes() == b"valuable ignored local data\n"
+
+
+def test_default_refresh_routes_pending_merge_to_its_owner(tmp_path):
+    """A pending native merge cannot be treated as an ordinary dirty rebase."""
+    work = native_merge_fixture(tmp_path)
+    report = run_ethos("lane", "refresh-base", "--json", cwd=work)
+    assert "merge_in_progress" in report["required_gaps"], report
+    assert report["next_action"].startswith("ethos lane refresh-base --strategy merge")
+
+
 def test_abort_does_not_depend_on_an_existing_candidate_ref(tmp_path):
     """Rollback does not integrate the candidate and must not require its existence."""
     work = native_merge_fixture(tmp_path)
     git(work, "-c", "core.hooksPath=/dev/null", "update-ref", "-d", "refs/heads/candidate/dev")
     before = git(work, "rev-parse", "HEAD")
-    result = _apply(work, _preview(work, "abort"))
+    result = apply_merge(work, preview_merge(work, "abort"))
     assert result["data"]["state"] == "merge_aborted"
     assert git(work, "rev-parse", "HEAD") == before
 
@@ -369,10 +379,10 @@ def test_real_kill_recovers_without_repeating_native_effect(tmp_path, boundary):
     if boundary == "continue":
         (work / "README.md").write_text("# Resolution before killed effect\n")
         git(work, "add", "README.md")
-    preview = _preview(work, boundary)
+    preview = preview_merge(work, boundary)
     killed_merge_effect(work, preview)
     after = git(work, "rev-parse", "HEAD")
-    result = _apply(work, preview)
+    result = apply_merge(work, preview)
     assert result["verdict"] == "pass", result
     assert git(work, "rev-parse", "HEAD") == after
 
@@ -385,7 +395,7 @@ def test_abort_material_reconstructs_conflict_index_and_unique_staged_bytes(tmp_
     git(work, "add", "valuable.sh")
     (work / "valuable.sh").write_bytes(b"#!/bin/sh\necho unstaged\n")
     stages = git(work, "ls-files", "--stage")
-    preview = _preview(work, "abort")
+    preview = preview_merge(work, "abort")
     result = run_ethos_blocked(*shlex.split(preview["next_action"])[1:], cwd=work)
     # Native abort refuses staged + unstaged divergence; it must expose preservation.
     assert result["verdict"] == "unknown"
@@ -413,7 +423,7 @@ def test_abort_material_reconstructs_conflict_index_and_unique_staged_bytes(tmp_
 def test_merge_apply_requires_fresh_lease_runtime_and_exclusive_effect(tmp_path, fault):
     """Exact prior permission cannot survive an authority or execution-boundary change."""
     work = native_merge_fixture(tmp_path)
-    preview = _preview(work, "abort")
+    preview = preview_merge(work, "abort")
     before = git(work, "rev-parse", "HEAD")
     lock = FileLock(str(merge_effect.git_path(work, "ethos-merge.lock")), timeout=0)
     if fault in {"expired", "generation"}:
@@ -439,31 +449,36 @@ def test_merge_apply_requires_fresh_lease_runtime_and_exclusive_effect(tmp_path,
     assert git(work, "rev-parse", "MERGE_HEAD")
 
 
-@pytest.mark.parametrize("case", ["absent", "symlink", "directory", "stale"])
-def test_recovery_inventory_preserves_kinds_and_rejects_unsafe_or_stale_bytes(tmp_path, case):
-    """Destructive preimages distinguish absence, link payload and unsupported file kinds."""
+@pytest.mark.parametrize(
+    "case", ["unresolved", "unstaged", "autostash", "competing", "multi-parent"]
+)
+def test_native_unsupported_state_rejects_continue_without_side_effect(tmp_path, case):
+    """Unsupported native protocols are explicit boundaries, not optimistic execution."""
     work = native_merge_fixture(tmp_path)
-    observed = observe_merge(work)
-    path = work / "README.md"
-    if case == "stale":
-        path.write_text("changed after observation\n")
-    else:
-        path.unlink()
-        if case == "symlink":
-            path.symlink_to("unread-target")
-        elif case == "directory":
-            path.mkdir()
-        observed = observe_merge(work)
-    if case in {"directory", "stale"}:
-        with pytest.raises(ValueError, match=r"merge_recovery_content_unsafe|merge_state_stale"):
-            preserve_merge(work, observed)
-    else:
-        artifact = preserve_merge(work, observed)
-        artifact_path = artifact["path"]
-        assert isinstance(artifact_path, str)
-        data = json.loads(Path(artifact_path).read_text())
-        assert data["files"]["README.md"]["kind"] == ("absent" if case == "absent" else "symlink")
-        assert preserve_merge(work, observed) == artifact
+    if case == "unstaged":
+        (work / "README.md").write_text("staged resolution\n")
+        git(work, "add", "README.md")
+        (work / "README.md").write_text("later unaccepted resolution\n")
+    elif case == "autostash":
+        merge_effect.git_path(work, "MERGE_AUTOSTASH").write_text(git(work, "rev-parse", "HEAD"))
+    elif case == "competing":
+        merge_effect.git_path(work, "CHERRY_PICK_HEAD").write_text(git(work, "rev-parse", "HEAD"))
+    elif case == "multi-parent":
+        parent_file = merge_effect.git_path(work, "MERGE_HEAD")
+        parent_file.write_text(parent_file.read_text() + git(work, "rev-parse", "HEAD") + "\n")
+    before = git(work, "rev-parse", "HEAD"), git(work, "ls-files", "--stage")
+    report = run_ethos(
+        "lane", "refresh-base", "--strategy", "merge", "--mode", "continue", "--json", cwd=work
+    )
+    expected = {
+        "unresolved": "merge_unresolved_index",
+        "unstaged": "merge_unstaged_resolution",
+        "autostash": "merge_autostash_recovery_unsupported",
+        "competing": "merge_competing_native_operation",
+        "multi-parent": "merge_multiple_parents_unsupported",
+    }
+    assert report["required_gaps"] == [expected[case]], report
+    assert (git(work, "rev-parse", "HEAD"), git(work, "ls-files", "--stage")) == before
 
 
 def test_merge_apply_requires_explicit_exact_request_and_preserves_preview(tmp_path):
@@ -495,20 +510,34 @@ def test_merge_apply_requires_explicit_exact_request_and_preserves_preview(tmp_p
     assert report["required_gaps"] == ["merge_exact_request_required"]
     assert "--mode abort" in report["next_action"]
     assert "--apply" not in report["next_action"]
-    assert _preview(work, "abort")["verdict"] == "pass"
+    assert preview_merge(work, "abort")["verdict"] == "pass"
 
 
-def test_merge_preview_observes_runtime_once_per_admission(tmp_path, monkeypatch):
-    """Reuse one observation within admission, never across effect boundaries."""
+def test_conflicted_inspection_selects_exact_prewrite_not_a_status_loop(tmp_path):
     work = native_merge_fixture(tmp_path)
-    reads = []
-    observe = merge_admission.hook_runtime_binding
+    report = run_ethos("lane", "refresh-base", "--strategy", "merge", "--json", cwd=work)
+    assert report["required_gaps"] == ["merge_unresolved_index"]
+    assert shlex.split(report["next_action"])[:4] == ["ethos", "lane", "prewrite", "README.md"]
+    assert report["data"]["observation"]["conflicts"] == ["README.md"]
 
-    def counted(root, **kwargs):
-        reads.append(root)
-        return observe(root, **kwargs)
 
-    monkeypatch.setattr(merge_admission, "hook_runtime_binding", counted)
-    monkeypatch.setattr(runtime_binding_owner, "hook_runtime_binding", counted)
-    assert _preview(work, "abort")["verdict"] == "pass"
-    assert reads == [work]
+def test_authority_changed_after_ref_cas_prevents_metadata_cleanup(tmp_path, monkeypatch):
+    """An observed ref effect cannot grant the following cleanup current authority."""
+    work = native_merge_fixture(tmp_path)
+    (work / "README.md").write_text("accepted resolution\n")
+    git(work, "add", "README.md")
+    preview = preview_merge(work, "continue")
+    before = git(work, "rev-parse", "HEAD")
+    execute = merge_effect.execute_git_effect
+
+    def changed_authority(*args, **kwargs):
+        result = execute(*args, **kwargs)
+        with closing(sqlite3.connect(state_database(work))) as db, db:
+            db.execute("update leases set generation = generation + 1")
+        return result
+
+    monkeypatch.setattr(merge_effect, "execute_git_effect", changed_authority)
+    report = run_ethos_blocked(*shlex.split(preview["next_action"])[1:], cwd=work)
+    assert "merge_state_stale" in report["required_gaps"]
+    assert git(work, "rev-parse", "HEAD") != before
+    assert git(work, "rev-parse", "MERGE_HEAD")

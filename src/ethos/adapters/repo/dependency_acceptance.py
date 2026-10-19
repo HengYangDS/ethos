@@ -17,13 +17,13 @@ from typing import TYPE_CHECKING
 from ethos.adapters.repo.gate_policy import resolve_committed_gate_declaration
 from ethos.adapters.repo.git import committed_file_bytes
 from ethos.adapters.repo.runtime.authority import invoking_build_identity
-from ethos.repository.policy.gates import native_dependency_audit_scope
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_INPUTS
 from ethos.repository.policy.quality.dependency_acceptance import AUDIT_POLICY_PATH
 from ethos.repository.policy.quality.dependency_acceptance import AuditPolicy
 from ethos.repository.policy.quality.dependency_acceptance import audit_workspace_manifests
 from ethos.repository.policy.quality.dependency_acceptance import compose_audit_policies
 from ethos.repository.policy.quality.dependency_acceptance import evaluate_dependency_acceptance
+from ethos.repository.policy.quality.dependency_acceptance import native_dependency_audit_scope
 from ethos.repository.policy.quality.dependency_acceptance import product_audit_projection
 from ethos.repository.release.resources import canonical_resource
 from ethos.repository.release.resources import packaged_resource

@@ -25,7 +25,9 @@ from tests.support.signature import signature_repository
 TRAILER = "Co-authored-by: Legacy Agent <legacy@example.invalid>"
 
 
-def _consecutive_repairs(tmp_path, monkeypatch, *, independent: bool = False):
+def _consecutive_repairs(
+    tmp_path, monkeypatch, *, independent: bool = False, legacy_subject: bool = False
+):
     repo, initial, candidate = signature_repository(tmp_path, coupled=True)
     (repo / "peer.txt").write_text("Original peer content\n")
     git(repo, "add", "peer.txt")
@@ -48,6 +50,8 @@ def _consecutive_repairs(tmp_path, monkeypatch, *, independent: bool = False):
             }
         },
     )
+    if legacy_subject:
+        git(repo, "commit", "-S", "--allow-empty", "-m", "invalid historical subject")
     (repo / "forward.txt").write_text("Forward content before the second repair\n")
     if independent:
         write_release_mirror(repo, "independent")
@@ -229,6 +233,84 @@ def test_new_proposal_keeps_completed_baseline_ref_provenance(tmp_path, monkeypa
     assert git(repo, "show-ref") == before
 
 
+@pytest.mark.parametrize("creation", [False, True], ids=["existing", "new-proposal"])
+@pytest.mark.parametrize("case", ["valid", "subject", "unsigned", "excluded_ref"])
+def test_ancestry_bridge_keeps_exact_completed_repair_scope(tmp_path, monkeypatch, creation, case):
+    """A merge preserves both admitted prefixes without excusing any new forward object."""
+    repo, original, _first, second = _consecutive_repairs(
+        tmp_path, monkeypatch, independent=case == "excluded_ref", legacy_subject=True
+    )
+    forward = git(
+        repo,
+        "commit-tree",
+        *(("-S",) if case != "unsigned" else ()),
+        f"{second}^{{tree}}",
+        "-p",
+        second,
+        "-m",
+        "invalid forward subject" if case == "subject" else "fix: forward before bridge",
+    )
+    head = git(
+        repo,
+        "commit-tree",
+        "-S",
+        f"{forward}^{{tree}}",
+        "-p",
+        forward,
+        "-p",
+        original,
+        "-m",
+        "fix: preserve original peer ancestry",
+    )
+    assert is_ancestor(repo, original, head)
+    source_ref = "main" if case == "excluded_ref" else "dev"
+    baseline_ref = f"refs/remotes/origin/{source_ref}"
+    git(repo, "update-ref", baseline_ref, original)
+    target_ref = "refs/heads/proposal/ancestry-bridge" if creation else f"refs/heads/{source_ref}"
+    remote_head = "0" * len(head) if creation else original
+    before = git(repo, "show-ref")
+    report = commit_range_admission_report(
+        repo,
+        target_ref=target_ref,
+        proposed_head=head,
+        remote_head=remote_head,
+        remote_name="origin",
+        trusted_baseline=baseline_ref if creation else "",
+    )
+    valid = case == "valid"
+    assert report["verdict"] == ("pass" if valid else "block"), report
+    assert report["remote_head"] == remote_head
+    assert report["baseline_commit"] == original
+    assert report["update_kind"] == (
+        "create" if creation else "existing" if case == "excluded_ref" else "repair"
+    )
+    if case == "excluded_ref":
+        assert "integration_baseline" not in report
+        assert "repair_attestations" not in report
+    else:
+        assert report["integration_baseline"] == second
+        assert report["revisions"] == [forward, head]
+        assert len(report["repair_attestations"]) == 2
+        assert {item["commit"] for item in report["violations"]} == (set() if valid else {forward})
+    cli = (run_ethos if valid else run_ethos_blocked)(
+        "hook",
+        "commit-range",
+        "--target-ref",
+        target_ref,
+        "--proposed-head",
+        head,
+        "--remote-head",
+        remote_head,
+        "--remote",
+        "origin",
+        *(("--trusted-baseline", baseline_ref) if creation else ()),
+        "--json",
+        cwd=repo,
+    )
+    assert cli["verdict"] == report["verdict"], cli
+    assert git(repo, "show-ref") == before
+
+
 @pytest.mark.parametrize(
     "case", ["missing_result", "missing_effect", "ambiguous", "tampered", "revoked_trust"]
 )
@@ -286,5 +368,23 @@ def test_repair_chain_keeps_only_refs_named_at_every_step(tmp_path, monkeypatch)
     assert repaired_peer_ref_provenance(repo, ref="refs/heads/dev", old=original, new=second)
     assert (
         repaired_peer_ref_provenance(repo, ref="refs/heads/main", old=original, new=second) is None
+    )
+    assert git(repo, "show-ref") == before
+
+
+def test_unrepaired_peer_ref_does_not_validate_unrelated_history(tmp_path, monkeypatch):
+    """An unselected peer ref cannot consume another ref's expensive repair proof."""
+    repo, original, _first, second = _consecutive_repairs(tmp_path, monkeypatch)
+
+    def unrelated_history(*_args, **_kwargs):
+        pytest.fail("An unrepaired ref selected unrelated historical validation")
+
+    monkeypatch.setattr(signature, "completed_signature_repair", unrelated_history)
+    before = git(repo, "show-ref")
+    assert (
+        repaired_peer_ref_provenance(
+            repo, ref="refs/heads/work/unrepaired", old=original, new=second
+        )
+        is None
     )
     assert git(repo, "show-ref") == before

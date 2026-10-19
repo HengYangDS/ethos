@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shlex
 import sqlite3
+import tomllib
 from contextlib import closing
 from datetime import UTC
 from datetime import datetime
@@ -15,6 +16,7 @@ import ethos.adapters.mutation.lane_lifecycle.lease.acquisition as lease_acquisi
 import ethos.adapters.store.state.lease.lifecycle.transitions as lease_storage
 import ethos.adapters.store.state.lease.projection as lease_projection
 from ethos.adapters.store.state.schema import state_database
+from ethos.repository.profile import load_repository_profile
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_repo_with_candidate
@@ -249,3 +251,88 @@ def test_reacquire_recovers_evidence_failure_without_replacing_committed_lease(
     recovered = _reacquire(repo, target, **_reacquire_arguments(planned))
     assert recovered["verdict"] == "pass"
     assert recovered["lease"] == lease
+
+
+@pytest.mark.parametrize("declared_roles", [False, True])
+def test_reacquire_preserves_invalid_historical_profile_before_repair(
+    tmp_path, monkeypatch, declared_roles
+):
+    """Missing coordination must not depend on accepting the profile it will repair."""
+    repo, target = _unleased_dirty_lane(tmp_path)
+    profile = repo / ".ethos/profile.toml"
+    profile_id = tomllib.loads(profile.read_text())["profile_id"]
+    profile.write_text(f'profile_id = "{profile_id}"\nprofile_version = "1"\n')
+    workspace = repo / ".ethos/workspace.toml"
+    workspace.write_text(
+        '[branch_roles]\nrelease_branch = "main"\naccepted_branch = "dev"\n'
+        'candidate_branch = "candidate/dev"\nwork_branch_prefix = "work/"\n'
+        'proposal_branch_prefix = "proposal/"\nrelease_mirror = "independent"\n'
+        "canonical_sibling_worktrees = true\n"
+        if declared_roles
+        else '[workspace]\nmode = "monorepo"\n'
+    )
+    git(repo, "add", str(profile), str(workspace))
+    git(repo, "commit", "-m", "retain historical profile before repair")
+    monkeypatch.setenv("ETHOS_ACTOR", TARGET)
+    before = (
+        git(repo, "rev-parse", "HEAD"),
+        profile.read_bytes(),
+        workspace.read_bytes(),
+        git(target, "rev-parse", "HEAD"),
+        git(target, "diff", "--cached"),
+        (target / "README.md").read_bytes(),
+        (target / "untracked.txt").read_bytes(),
+    )
+
+    planned = _reacquire(repo, target)
+    assert planned["verdict"] == "pass", planned
+    assert lease_projection.observe_lease(state_database(repo), "work/retained").state == "missing"
+    arguments = shlex.split(planned["next_action"])
+    applied = run_ethos(*arguments[1:], cwd=repo)["data"]
+
+    assert applied["verdict"] == "pass", applied
+    assert applied["state"] == "acquired"
+    assert load_repository_profile(repo).state == "invalid"
+    assert applied["attestation"]["payload"]["body"]["repository"] == f"repository:{profile_id}"
+    assert before == (
+        git(repo, "rev-parse", "HEAD"),
+        profile.read_bytes(),
+        workspace.read_bytes(),
+        git(target, "rev-parse", "HEAD"),
+        git(target, "diff", "--cached"),
+        (target / "README.md").read_bytes(),
+        (target / "untracked.txt").read_bytes(),
+    )
+
+
+@pytest.mark.parametrize("invalid_owner", ["release", "identity"])
+def test_reacquire_rejects_unproved_control_roles_or_historical_identity(
+    tmp_path, monkeypatch, invalid_owner
+):
+    """A historical profile does not excuse an explicitly invalid control boundary."""
+    repo, target = _unleased_dirty_lane(tmp_path)
+    relative, content, gap = (
+        (
+            ".ethos/release.toml",
+            '[release]\nmirror = "invalid"\n',
+            "lease_reacquire_control_root_unavailable",
+        )
+        if invalid_owner == "release"
+        else (
+            ".ethos/profile.toml",
+            'profile_id = ""\nprofile_version = "1"\n',
+            "repository_historical_identity_invalid:.ethos/profile.toml",
+        )
+    )
+    (repo / relative).write_text(content)
+    git(repo, "add", relative)
+    git(repo, "commit", "-m", "retain invalid control boundary")
+    monkeypatch.setenv("ETHOS_ACTOR", TARGET)
+    before = (git(repo, "rev-parse", "HEAD"), git(target, "status", "--porcelain"))
+
+    planned = _reacquire(repo, target)
+
+    assert planned["verdict"] == "block"
+    assert gap in planned["required_gaps"]
+    assert lease_projection.observe_lease(state_database(repo), "work/retained").state == "missing"
+    assert before == (git(repo, "rev-parse", "HEAD"), git(target, "status", "--porcelain"))

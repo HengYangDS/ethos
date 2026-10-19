@@ -9,43 +9,38 @@ from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
-from ethos.contracts.gates import bind_gate_command
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.proof.plan import AcceptancePurpose
-from ethos.contracts.proof.plan import product_gate_ids_from_policy
 from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.verdict import execution_succeeded
 from ethos.repository.policy.code_subjects import observed_code_subjects
 from ethos.repository.policy.code_subjects import source_binding_gaps
+from ethos.repository.policy.quality.dependency_acceptance import native_dependency_audit_scope
+from ethos.repository.policy.quality.gate_composition import canonical_gate_command
+from ethos.repository.policy.quality.gate_composition import select_gate_declaration
 from ethos.repository.policy.quality.obligations import INTEGRITY_PROVIDER
 from ethos.repository.policy.quality.obligations import QUALITY_PROVIDERS
 from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 from ethos.repository.policy.quality.obligations import quality_verifier_gaps
 from ethos.repository.policy.quality.obligations import source_verifier_gaps
-from ethos.repository.policy.quality.sources import native_document_source_paths
 from ethos.repository.policy.quality.sources import source_contract_paths
 from ethos.repository.policy.quality.tool_configuration import native_gate_tools
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
 from ethos.repository.policy.quality.tool_configuration import native_tool_configurations
-from ethos.repository.policy.references.commands import canonical_gate_command
 from ethos.repository.policy.references.commands import python_module
 from ethos.repository.policy.references.python_syntax import module_source_paths
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import SourceContract
-
-if TYPE_CHECKING:
-    from ethos.repository.policy.quality.dependency_acceptance import AuditScope
 
 _PACKAGED_GATE_DECLARATION = load_gate_registry_declaration()
 PRODUCT_PROVIDER_SOURCE = "@ethos/"
@@ -66,17 +61,18 @@ class ResolvedGatePolicy:
     script_paths: tuple[str, ...] = ()
     carrier_roles: tuple[tuple[str, str], ...] = ()
     acceptance_purpose: AcceptancePurpose = "repository"
-    product_gate_ids: tuple[str, ...] = ()
+    selected_obligations: bool = False
     product_source: bool = False
 
     @property
     def registry(self) -> dict[str, Gate]:
+        """Overlay selected execution while retaining native declaration authority."""
         return {
-            name: _execution_gate(gate, self.acceptance_purpose)
-            for name, gate in self.declaration.registry(
+            identity: _execution_gate(gate, self.acceptance_purpose)
+            for identity, gate in self.declaration.registry(
                 python_executable=self.python_executable
             ).items()
-        }
+        } | {gate.id: gate for gate in self.gates}
 
     @property
     def gate_ids(self) -> tuple[str, ...]:
@@ -130,16 +126,17 @@ class ResolvedGatePolicy:
                 self.repository_paths,
                 self.script_paths,
                 self.carrier_roles,
+                self.gates if self.selected_obligations else None,
                 product_source=self.product_source,
             ),
             "gates": [gate_policy_fields(gate, sources.get(gate.id, ())) for gate in self.gates],
             "gaps": list(self.gaps),
-            **({"product_gate_ids": list(self.product_gate_ids)} if self.product_gate_ids else {}),
             **(
                 {"acceptance_purpose": self.acceptance_purpose}
                 if self.acceptance_purpose != "repository"
                 else {}
             ),
+            **({"obligation_scope": "selected"} if self.selected_obligations else {}),
         }
 
     @property
@@ -153,6 +150,7 @@ def _owner_projection(
     repository_paths: tuple[str, ...],
     script_paths: tuple[str, ...],
     carrier_roles: tuple[tuple[str, str], ...],
+    selected_gates: tuple[Gate, ...] | None = None,
     *,
     product_source: bool,
 ) -> dict[str, object]:
@@ -171,15 +169,8 @@ def _owner_projection(
         roles=dict(carrier_roles),
         source_kinds=proof.source_kinds,
     )
-    prerequisites = source_binding_gaps(code_subjects)
     if proof.gate_registry:
         owner: dict[str, object] = {"kind": "registry", "path": proof.gate_registry, **identity}
-        if contracts:
-            owner["source_contracts"] = contracts
-        if prerequisites:
-            owner["source_binding_gaps"] = list(prerequisites)
-        if product_source:
-            return owner
         axes = {
             axis: next(
                 (
@@ -201,10 +192,33 @@ def _owner_projection(
             **identity,
         }
         axes = dict(proof.code_correctness_map)
+    if selected_gates is not None:
+        inputs = set(
+            source_paths_for_gates(
+                selected_gates,
+                repository_paths=repository_paths,
+                source_contracts=proof.source_contracts,
+            )
+        )
+        code_selected = any(
+            gate.id in axes.values() or set(gate.dimensions).intersection(QUALITY_PROVIDERS)
+            for gate in selected_gates
+        ) or any(subject.path in inputs for subject in code_subjects)
+        if not code_selected:
+            code_subjects, axes = (), {}
+            selected_ids = {gate.id for gate in selected_gates}
+            contracts = [
+                contract.model_dump(mode="json")
+                for contract in proof.source_contracts
+                if contract.integrity_gate in selected_ids or inputs.intersection(contract.members)
+            ]
+    prerequisites = source_binding_gaps(code_subjects)
     if contracts:
         owner["source_contracts"] = contracts
     if prerequisites:
         owner["source_binding_gaps"] = list(prerequisites)
+    if proof.gate_registry and product_source:
+        return owner
     # A declared code obligation survives incomplete carrier discovery.
     if code_subjects or any(axes.values()):
         owner["quality_floor_version"] = 2
@@ -316,7 +330,6 @@ def source_paths_for_gate(
                 prefix + "repository/policy/quality/sources.py",
                 *source_contract_paths(source_contracts, source_materials or {}),
             )
-        artifacts += native_document_source_paths(reference, source)
     command = canonical_gate_command(gate.command)
     module = python_module(command)
     noxfile = ("noxfile.py", "pyproject.toml", "uv.lock") if module == "nox" else ()
@@ -411,18 +424,6 @@ def bind_gate_source_digests(
     return tuple(bound), tuple(dict.fromkeys(gaps))
 
 
-def _execution_gate(gate: Gate, acceptance_purpose: AcceptancePurpose) -> Gate:
-    """Normalize native execution scope once for selection and completeness checks."""
-    if (
-        acceptance_purpose == "local-source"
-        and native_dependency_audit_scope(gate.model_dump(mode="python")) == "production-release"
-    ):
-        return gate.model_copy(
-            update={"command": (*gate.command, "--", "--scope", "local-development")}
-        )
-    return gate
-
-
 def resolve_gate_policy(
     *,
     profile: RepositoryProfile | None = None,
@@ -433,33 +434,33 @@ def resolve_gate_policy(
     script_paths: tuple[str, ...] = (),
     carrier_roles: tuple[tuple[str, str], ...] = (),
     gate_ids: tuple[str, ...] = (),
-    product_gate_ids: tuple[str, ...] = (),
     full: bool = False,
     acceptance_purpose: AcceptancePurpose = "repository",
+    selected_obligations: bool = False,
     product_source: bool = False,
 ) -> ResolvedGatePolicy:
     acceptance_purpose = proof_acceptance_purpose({"acceptance_purpose": acceptance_purpose})
+    selected_obligations = selected_obligations and bool(gate_ids) and not full
     declaration, profile = resolve_gate_declaration(
         profile,
         gate_registry_source=gate_registry_source,
     )
-    python_executable = repository_python or sys.executable
-    product_gate_ids = product_gate_ids_from_policy({"product_gate_ids": product_gate_ids})
-    gates, product_gate_ids = declaration.compose_proof_gates(
+    selected = select_gate_declaration(
+        declaration,
         gate_ids,
-        product=_PACKAGED_GATE_DECLARATION,
-        product_gate_ids=product_gate_ids,
+        _PACKAGED_GATE_DECLARATION,
+        repository_paths=repository_paths,
         full=full,
-        python_executable=python_executable,
     )
-    if declaration != _PACKAGED_GATE_DECLARATION:
-        gates = tuple(
-            gate.model_copy(update={"profile": "repository", "tool_adapter": "ethos"})
-            if gate.id in product_gate_ids and (gate.providers or gate.verification_providers)
-            else gate
-            for gate in gates
+    python_executable = repository_python or sys.executable
+    gates = tuple(
+        _execution_gate(gate, acceptance_purpose)
+        for gate in selected.proof_gates(
+            tuple(dict.fromkeys((*selected.proof_sets.full, *gate_ids))) if full else gate_ids,
+            full=full,
+            python_executable=python_executable,
         )
-    gates = tuple(_execution_gate(gate, acceptance_purpose) for gate in gates)
+    )
     sources, gaps = (
         bind_gate_source_digests(
             gates,
@@ -470,8 +471,9 @@ def resolve_gate_policy(
         if profile is not None and profile.declaration is not None
         else ((), ())
     )
+    selected_ids = {gate.id for gate in gates}
     if acceptance_purpose == "local-source" and any(
-        gate.id not in {selected.id for selected in gates}
+        gate.id not in selected_ids
         and native_dependency_audit_scope(
             _execution_gate(gate, acceptance_purpose).model_dump(mode="python")
         )
@@ -496,6 +498,7 @@ def resolve_gate_policy(
             repository_paths,
             script_paths,
             carrier_roles,
+            gates if selected_obligations else None,
             product_source=product_source,
         )
         gaps = (
@@ -514,23 +517,29 @@ def resolve_gate_policy(
         script_paths,
         carrier_roles,
         acceptance_purpose,
-        product_gate_ids,
+        selected_obligations,
         product_source,
     )
 
 
-def native_dependency_audit_scope(gate: Mapping[str, object]) -> AuditScope | None:
-    """Select only the canonical audit owner and its explicit execution scope."""
-    command = gate.get("execution_identity", gate.get("command"))
-    if gate.get("tool_adapter") != "vulnerabilities" or not isinstance(command, tuple | list):
-        return None
-    identity = canonical_gate_command(bind_gate_command(tuple(command), sys.executable))
-    native = _NATIVE_DEPENDENCY_AUDIT_COMMAND
-    if identity in (native, (*native, "--", "--scope", "production-release")):
-        return "production-release"
-    return (
-        "local-development" if identity == (*native, "--", "--scope", "local-development") else None
-    )
+def _execution_gate(gate: Gate, purpose: AcceptancePurpose) -> Gate:
+    """Bind native audit execution without changing declared quality ownership."""
+    if (
+        purpose == "local-source"
+        and native_dependency_audit_scope(gate.model_dump(mode="python")) == "production-release"
+    ):
+        return gate.model_copy(
+            update={
+                "command": (
+                    gate.command[0],
+                    *_NATIVE_DEPENDENCY_AUDIT_COMMAND[1:],
+                    "--",
+                    "--scope",
+                    "local-development",
+                )
+            }
+        )
+    return gate
 
 
 def gate_execution_identity(gate: Gate) -> tuple[str, ...]:

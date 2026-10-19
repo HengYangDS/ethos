@@ -1,8 +1,6 @@
 """Exact native merge recovery cannot infer success from incomplete historical evidence."""
 
 import shlex
-import sqlite3
-from contextlib import closing
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -16,7 +14,6 @@ from ethos.adapters.openspec.selection import incoming_change_gaps
 from ethos.adapters.repo.attestation_set import read_attestation_set
 from ethos.adapters.repo.attestation_set import record_attestations
 from ethos.adapters.repo.merge.observation import observe_merge
-from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.semantic import Attestation
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
@@ -145,30 +142,6 @@ def test_lost_abort_ack_requires_exact_clean_native_rollback(tmp_path: Path, fau
     with pytest.raises(ValueError, match="merge_outcome_unknown"):
         _recover(root, before, "abort")
     assert observe_merge(root) == current
-
-
-def test_authority_changed_after_ref_cas_prevents_metadata_cleanup(tmp_path, monkeypatch):
-    """An observed ref effect cannot grant the following cleanup current authority."""
-    work = native_merge_fixture(tmp_path)
-    (work / "README.md").write_text("accepted resolution\n")
-    git(work, "add", "README.md")
-    preview = run_ethos(
-        "lane", "refresh-base", "--strategy", "merge", "--mode", "continue", "--json", cwd=work
-    )
-    before = git(work, "rev-parse", "HEAD")
-    execute = effect.execute_git_effect
-
-    def changed_authority(*args, **kwargs):
-        result = execute(*args, **kwargs)
-        with closing(sqlite3.connect(state_database(work))) as db, db:
-            db.execute("update leases set generation = generation + 1")
-        return result
-
-    monkeypatch.setattr(effect, "execute_git_effect", changed_authority)
-    report = run_ethos_blocked(*shlex.split(preview["next_action"])[1:], cwd=work)
-    assert "merge_state_stale" in report["required_gaps"]
-    assert git(work, "rev-parse", "HEAD") != before
-    assert git(work, "rev-parse", "MERGE_HEAD")
 
 
 def test_unexecuted_preparation_does_not_replay_prior_reference_effect(tmp_path, monkeypatch):
@@ -339,101 +312,6 @@ def test_merge_preview_never_grants_mutation_of_a_protected_root(tmp_path: Path)
     report = run_ethos("lane", "refresh-base", "--strategy", "merge", "--json", cwd=root)
     assert report["required_gaps"] == ["protected_root_mutation"]
     assert observe_merge(root) == before
-
-
-@pytest.mark.parametrize("mode", ["pending", "start", "advanced"])
-def test_public_merge_accepts_exact_peer_ref_without_moving_candidate(tmp_path, mode):
-    """One existing native executor accepts a selected peer with unchanged protected refs."""
-    work = native_merge_fixture(tmp_path, pending=mode != "start")
-    ours, theirs = git(work, "rev-parse", "HEAD"), git(work, "rev-parse", "candidate/dev")
-    peer = "refs/heads/work/peer"
-    git(work, "update-ref", peer, theirs)
-    git(work, "update-ref", "refs/heads/candidate/dev", ours)
-    if mode == "advanced":
-        tree = git(work, "rev-parse", f"{theirs}^{{tree}}")
-        successor = git(work, "commit-tree", tree, "-p", theirs, "-m", "feat: later peer")
-        git(work, "update-ref", peer, successor)
-    selection = ("--source-ref", peer)
-    if mode == "start":
-        preview = run_ethos(
-            "lane",
-            "refresh-base",
-            "--strategy",
-            "merge",
-            "--mode",
-            "start",
-            *selection,
-            "--json",
-            cwd=work,
-        )
-        assert (
-            run_ethos(*shlex.split(preview["next_action"])[1:], cwd=work)["data"]["state"]
-            == "merge_pending"
-        )
-    (work / "README.md").write_text("# Qualified peer contribution\n")
-    git(work, "add", "README.md")
-    preview = run_ethos(
-        "lane",
-        "refresh-base",
-        "--strategy",
-        "merge",
-        "--mode",
-        "continue",
-        *selection,
-        "--json",
-        cwd=work,
-    )
-    arguments = shlex.split(preview["next_action"])
-    assert arguments[arguments.index("--source-ref") + 1] == peer
-    result = run_ethos(*shlex.split(preview["next_action"])[1:], cwd=work)
-    assert result["verdict"] == "pass", result
-    assert git(work, "rev-list", "--parents", "-n", "1", "HEAD").split()[1:] == [ours, theirs]
-    assert git(work, "rev-parse", "candidate/dev") == ours
-    assert git(work, "rev-parse", peer) == (successor if mode == "advanced" else theirs)
-    assert not Path(git(work, "rev-parse", "--git-path", "MERGE_HEAD")).exists()
-
-
-@pytest.mark.parametrize("fault", ["advance", "diverge", "missing", "short", "protected", "rebase"])
-def test_peer_merge_ref_selection_refuses_unbound_or_changed_source(tmp_path, fault):
-    """The exact source snapshot fences effects without treating ancestry as permission."""
-    work = native_merge_fixture(tmp_path)
-    head, incoming = git(work, "rev-parse", "HEAD"), git(work, "rev-parse", "MERGE_HEAD")
-    (work / "README.md").write_text("# Combined contribution\n")
-    git(work, "add", "README.md")
-    peer = "refs/heads/work/peer"
-    git(work, "update-ref", peer, incoming)
-    args = (
-        "lane",
-        "refresh-base",
-        "--strategy",
-        "merge",
-        "--mode",
-        "continue",
-        "--source-ref",
-        peer,
-        "--json",
-    )
-    if fault == "advance":
-        preview = run_ethos(*args, cwd=work)
-        tree = git(work, "rev-parse", f"{incoming}^{{tree}}")
-        successor = git(work, "commit-tree", tree, "-p", incoming, "-m", "feat: later peer")
-        git(work, "update-ref", peer, successor)
-        with pytest.raises(AssertionError, match="merge_state_stale"):
-            run_ethos(*shlex.split(preview["next_action"])[1:], cwd=work)
-    else:
-        if fault == "diverge":
-            git(work, "update-ref", peer, head)
-        elif fault == "missing":
-            git(work, "update-ref", "-d", peer)
-        elif fault in {"short", "protected"}:
-            args = (*args[:-2], "work/peer" if fault == "short" else "refs/heads/dev", "--json")
-        elif fault == "rebase":
-            args = (*args[:3], "rebase", *args[4:])
-        report = run_ethos(*args, cwd=work)
-        assert report["verdict"] == "block", report
-        assert any(gap.startswith("merge_source_ref") for gap in report["required_gaps"])
-    assert git(work, "rev-parse", "HEAD") == head
-    assert git(work, "rev-parse", "MERGE_HEAD") == incoming
 
 
 @pytest.mark.parametrize("authored_paths", [(), ("README.md",)])

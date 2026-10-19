@@ -1,7 +1,6 @@
 # runtime-activation Specification
 
 ## Purpose
-
 Define atomic activation of immutable ETHOS runtimes, hooks, configuration,
 and Git-common Lease state so upgrades either become mutually readable or
 leave the prior installation unchanged.

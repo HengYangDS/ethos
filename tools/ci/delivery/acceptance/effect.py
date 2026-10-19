@@ -40,6 +40,7 @@ from tools.ci.delivery.artifact import require_artifact_current
 from tools.ci.delivery.artifact import selected_wheel
 from tools.ci.delivery.distribution import package_runtime
 from tools.ci.delivery.distribution import prove_shared_supply
+from tools.ci.delivery.distribution import retain_qualified_distribution
 from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
@@ -309,7 +310,7 @@ def observe_installed_package(
     return origin, version, command_plane
 
 
-def _observe_package(
+def observe_package(
     session: nox.Session,
     selected: PackageArtifact,
     *,
@@ -365,6 +366,8 @@ def _observe_package(
                 installed_ethos,
                 WORK,
                 origin=origin,
+                build=build,
+                wheel_sha256=wheel_sha256,
                 environment=package_environment,
                 run=_run,
             ),
@@ -416,12 +419,13 @@ def _observe_package(
     distribution["shared_supply"] = prove_shared_supply(
         Path(str(distribution["path"])), WORK, environment=package_environment
     )
-    distribution.pop("path")
-    distribution.pop("homebrew_cask", None)
-    distribution["retained"] = False
     require_artifact_current(selected, head=head, repo=ROOT)
     if current_tracked_head(ROOT) != head:
         session.error(f"local install smoke HEAD moved from {head}")
+    retained = ROOT / "build/artifacts/native" / str(distribution["runtime_digest"])
+    archive = retained / f"ethos-{build.distribution_version}.tar.gz"
+    with observe_stage("distribution_retention"):
+        distribution = retain_qualified_distribution(distribution, runtime.root, wheel, archive)
     payload = package_acceptance_evidence(
         root=ROOT,
         head=head,
@@ -500,7 +504,7 @@ def run(
                     WORK.mkdir(parents=True)
                 with observe_stage("package_acceptance"):
                     payload = {
-                        **_observe_package(
+                        **observe_package(
                             session,
                             selected,
                             head=head,

@@ -13,29 +13,22 @@ import pytest
 
 import ethos.adapters.gates.native.attempt as gate_attempt
 from ethos.adapters.gates.native.attempt import native_attempt
-from ethos.adapters.gates.native.attempt import retained_execution
 from ethos.adapters.gates.python_quality import behavior_report
 from ethos.adapters.gates.python_quality import static_report
 from ethos.adapters.gates.runner import LocalGateRunner
-from ethos.adapters.gates.verification import NativeExecution
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
-from ethos.contracts.evidence.observer import ObserverIdentity
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_execution_identity
-from tests.support.governed_repository import commit_fixture
+from tests.support.native_quality import native_quality_execution
 from tests.support.native_quality import native_quality_gate
 
 if TYPE_CHECKING:
-    from tests.unit.adoption.quality.native.conftest import NativeNoxSupply
+    from ethos.adapters.gates.verification import NativeExecution
 
 
-def test_native_nox_reports_qualify_the_original_attempt(
-    tmp_path: Path, native_nox_supply: NativeNoxSupply
-) -> None:
-    """Two native sessions produce one complete, interpreter-bound observation."""
-    gate = native_quality_gate(tmp_path, native_nox_supply)
-    root = tmp_path / "repo"
-    locks = {name: (root / name).read_bytes() for name in ("uv.lock", "pyproject.toml")}
+def test_native_nox_reports_qualify_the_original_attempt(tmp_path: Path) -> None:
+    """The session child's observer binds one complete, interpreter-bound observation."""
+    gate = native_quality_gate(tmp_path)
     node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
     result = LocalGateRunner().run(node, gate, root=tmp_path / "repo")
     assert result.verdict == "pass", (result.stdout, result.stderr, result.verification)
@@ -60,11 +53,7 @@ def test_native_nox_reports_qualify_the_original_attempt(
     artifact = Path(artifact_value)
     with ZipFile(artifact) as stored:
         identity = json.loads(stored.read("execution.json"))
-        observer = identity["observer"]
-        assert observer["wheel_sha256"] == native_nox_supply.wheel_sha256
-        for output in gate.native_outputs:
-            if output.format == "python-runtime-json":
-                assert json.loads(stored.read("reports/" + output.path))["observer"] == observer
+        assert identity["observer_requirement"] is None
         checks = identity["dependency_checks"]
         assert len(checks) == 2
         assert {tuple(item["dependency_groups"]) for item in checks} == {("dev",)}
@@ -75,42 +64,6 @@ def test_native_nox_reports_qualify_the_original_attempt(
             == []
             for index in range(len(checks))
         )
-    assert all((root / name).read_bytes() == content for name, content in locks.items())
-    assert not Path(identity["output_root"]).exists()
-    selected = ObserverIdentity.from_requirement(
-        observer["requirement"], observer["runtime_digest"]
-    )
-    selected.wheel.write_bytes(b"changed selected observer wheel\n")
-    completed, refused = native_attempt(root, gate, gate.command, timeout=45)
-    assert completed.returncode == 1
-    assert refused.gaps == ("hook_runtime_wheel_provenance_missing",)
-    assert refused.outputs == ()
-    assert not Path(refused.output_root).exists()
-
-
-def test_native_static_quality_requires_semantic_code_identities(
-    tmp_path: Path, native_nox_supply: NativeNoxSupply
-) -> None:
-    """A clean native Ruff result cannot certify a numbered authored identity."""
-    gate = native_quality_gate(tmp_path, native_nox_supply)
-    root = tmp_path / "repo"
-    source = root / "src/app.py"
-    source.write_text(source.read_text() + "\nanswer_v2 = 42\n", encoding="utf-8")
-    commit_fixture(root, "declare a nonsemantic identity")
-    node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
-
-    result = LocalGateRunner().run(node, gate, root=root)
-
-    assert result.exit_code == 0, (result.stdout, result.stderr)
-    assert result.verdict == "block"
-    assert result.verification is not None
-    providers = result.verification["providers"]
-    assert isinstance(providers, list)
-    reports = [item["report"] for item in providers]
-    assert reports[0]["verdict"] == "pass"
-    assert reports[1]["required_gaps"] == [
-        "quality_static_code_identifier_semantics:src/app.py:4:answer_v2"
-    ]
 
 
 @pytest.mark.parametrize(
@@ -118,10 +71,10 @@ def test_native_static_quality_requires_semantic_code_identities(
     ["missing", "runtime", "runtime-path", "junit", "toolchain", "lock-missing", "group-missing"],
 )
 def test_native_nox_reports_refuse_incomplete_producer_outputs(
-    tmp_path: Path, native_nox_supply: NativeNoxSupply, outcome: str
+    tmp_path: Path, outcome: str
 ) -> None:
     """Successful session text cannot repair missing evidence or another interpreter."""
-    gate = native_quality_gate(tmp_path, native_nox_supply, outcome)
+    gate = native_quality_gate(tmp_path, outcome)
     node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
     result = LocalGateRunner().run(node, gate, root=tmp_path / "repo")
     assert result.verdict == "block"
@@ -148,11 +101,9 @@ def test_native_nox_reports_refuse_incomplete_producer_outputs(
 
 
 @pytest.mark.parametrize("outcome", ["runtime-detached", "runtime-config"])
-def test_native_behavior_requires_same_run_configuration(
-    tmp_path: Path, native_nox_supply: NativeNoxSupply, outcome: str
-) -> None:
+def test_native_behavior_requires_same_run_configuration(tmp_path: Path, outcome: str) -> None:
     """A separate interpreter print cannot qualify the actual pytest invocation."""
-    gate = native_quality_gate(tmp_path, native_nox_supply, outcome)
+    gate = native_quality_gate(tmp_path, outcome)
     node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
     result = LocalGateRunner().run(node, gate, root=tmp_path / "repo")
     assert result.verdict == "block", result.verification
@@ -169,10 +120,10 @@ def test_native_behavior_requires_same_run_configuration(
     ],
 )
 def test_native_static_requires_the_actual_checker_launch(
-    tmp_path: Path, native_nox_supply: NativeNoxSupply, outcome: str, gap: str
+    tmp_path: Path, outcome: str, gap: str
 ) -> None:
     """A different environment or config cannot reuse another Ruff runtime print."""
-    gate = native_quality_gate(tmp_path, native_nox_supply, outcome)
+    gate = native_quality_gate(tmp_path, outcome)
     node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
     result = LocalGateRunner().run(node, gate, root=tmp_path / "repo")
     assert result.verdict == "block", result.verification
@@ -180,25 +131,11 @@ def test_native_static_requires_the_actual_checker_launch(
 
 
 @pytest.mark.parametrize("boundary", ["command", "outputs", "sessions", "runtime-scope"])
-def test_native_evidence_is_bound_to_one_declared_attempt(
-    tmp_path: Path, native_nox_supply: NativeNoxSupply, boundary: str
-) -> None:
+def test_native_evidence_is_bound_to_one_declared_attempt(tmp_path: Path, boundary: str) -> None:
     """Original bytes cannot be promoted through a different command or producer scope."""
-    gate = native_quality_gate(tmp_path, native_nox_supply)
+    gate = native_quality_gate(tmp_path)
     root = tmp_path / "repo"
-    completed, evidence = native_attempt(root, gate, gate.command, timeout=45)
-    execution = retained_execution(
-        NativeExecution(
-            gate_execution_identity(gate),
-            tuple(completed.args),
-            root.resolve(),
-            completed.returncode,
-            completed.stdout,
-            completed.stderr,
-            executable=gate.command[0],
-            evidence=evidence,
-        )
-    )
+    execution = native_quality_execution(root, gate)
     behavior = behavior_report(root, execution=execution)
     static = static_report(root, execution=execution)
     assert behavior["verdict"] == "pass", behavior
@@ -228,11 +165,9 @@ def test_native_evidence_is_bound_to_one_declared_attempt(
     assert static_report(root, execution=execution)["verdict"] == "block"
 
 
-def test_native_each_selected_session_requires_its_quality_outputs(
-    tmp_path: Path, native_nox_supply: NativeNoxSupply
-) -> None:
-    """One reported session cannot lend its quality evidence to another session."""
-    gate = native_quality_gate(tmp_path, native_nox_supply)
+def test_native_session_cannot_borrow_another_runtime_qualification(tmp_path: Path) -> None:
+    """A copied runtime report without its own dependency check cannot qualify a session."""
+    gate = native_quality_gate(tmp_path)
     extra = "unobserved-static"
     outputs = [
         output.model_copy(update={"sessions": (*output.sessions, extra)})
@@ -244,19 +179,7 @@ def test_native_each_selected_session_requires_its_quality_outputs(
     outputs.append(runtime.model_copy(update={"path": "extra-runtime.json", "sessions": (extra,)}))
     gate = gate.model_copy(update={"native_outputs": tuple(outputs)})
     root = tmp_path / "repo"
-    completed, evidence = native_attempt(root, gate, gate.command, timeout=45)
-    retained = retained_execution(
-        NativeExecution(
-            gate_execution_identity(gate),
-            tuple(completed.args),
-            root.resolve(),
-            completed.returncode,
-            completed.stdout,
-            completed.stderr,
-            executable=gate.command[0],
-            evidence=evidence,
-        )
-    )
+    retained = native_quality_execution(root, gate)
     assert retained.evidence is not None
     reports = list(retained.evidence.outputs)
     descriptor, content = reports[0]
@@ -280,11 +203,9 @@ def test_native_each_selected_session_requires_its_quality_outputs(
         assert "python_native_dependency_floor_unbound" in json.dumps(verdict)
 
 
-def test_native_timeout_preserves_partial_output_and_owned_cleanup(
-    tmp_path: Path, native_nox_supply: NativeNoxSupply
-) -> None:
+def test_native_timeout_preserves_partial_output_and_owned_cleanup(tmp_path: Path) -> None:
     """A timed-out original command retains its partial reports before scratch disposal."""
-    gate = native_quality_gate(tmp_path, native_nox_supply, "timeout")
+    gate = native_quality_gate(tmp_path, "timeout")
     node = PlanNode(id=gate.id, kind="check", command=gate_execution_identity(gate))
     result = LocalGateRunner().run(node, gate, root=tmp_path / "repo")
     assert result.verdict == "unknown"
@@ -301,25 +222,11 @@ def test_native_timeout_preserves_partial_output_and_owned_cleanup(
     assert not Path(metadata["output_root"]).exists()
 
 
-def test_native_reports_refuse_an_altered_attempt_record(
-    tmp_path: Path, native_nox_supply: NativeNoxSupply
-) -> None:
+def test_native_reports_refuse_an_altered_attempt_record(tmp_path: Path) -> None:
     """Every field of the retained attempt record stays bound to the original run."""
-    gate = native_quality_gate(tmp_path, native_nox_supply)
+    gate = native_quality_gate(tmp_path)
     root = tmp_path / "repo"
-    completed, evidence = native_attempt(root, gate, gate.command, timeout=45)
-    execution = retained_execution(
-        NativeExecution(
-            gate_execution_identity(gate),
-            tuple(completed.args),
-            root.resolve(),
-            completed.returncode,
-            completed.stdout,
-            completed.stderr,
-            executable=gate.command[0],
-            evidence=evidence,
-        )
-    )
+    execution = native_quality_execution(root, gate)
     assert execution.evidence is not None
     outputs = execution.evidence.outputs
     without_report = tuple(item for item in outputs if item[0].format != "nox-json")
@@ -377,9 +284,6 @@ def test_native_reports_refuse_an_altered_attempt_record(
     altered["python_native_toolchain_unbound"] = with_record(
         "behavior-runtime.json", "version", [2, 7, 0]
     )
-    altered["python_native_observer_identity_unbound"] = with_record(
-        "behavior-runtime.json", "observer", None
-    )
     altered["python_native_static_invocation_unbound"] = with_record(
         "static-runtime.json", "argv", ["ruff", "check"]
     )
@@ -404,11 +308,9 @@ def test_native_reports_refuse_an_altered_attempt_record(
     assert "native_static_findings:F401" in json.dumps(findings), findings
 
 
-def test_native_attempt_refuses_uncommitted_source_before_launch(
-    tmp_path: Path, native_nox_supply: NativeNoxSupply
-) -> None:
+def test_native_attempt_refuses_uncommitted_source_before_launch(tmp_path: Path) -> None:
     """A dirty tracked source cannot be measured as the committed subject."""
-    gate = native_quality_gate(tmp_path, native_nox_supply)
+    gate = native_quality_gate(tmp_path)
     root = tmp_path / "repo"
     project = root / "pyproject.toml"
     project.write_text(project.read_text(encoding="utf-8") + "\n", encoding="utf-8")
@@ -418,14 +320,10 @@ def test_native_attempt_refuses_uncommitted_source_before_launch(
 
 @pytest.mark.parametrize("captured", [False, True])
 def test_gate_attempt_preserves_scoped_environment_and_native_output_ownership(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    native_nox_supply: NativeNoxSupply,
-    *,
-    captured: bool,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, captured: bool
 ) -> None:
     """One launch keeps caller isolation while native output and observer stay product-owned."""
-    gate = native_quality_gate(tmp_path, native_nox_supply)
+    gate = native_quality_gate(tmp_path)
     script = (
         "import json, os, pathlib; "
         "result = json.dumps({name: os.environ.get(name) for name in "
@@ -480,9 +378,64 @@ def test_gate_attempt_preserves_scoped_environment_and_native_output_ownership(
     ],
 )
 def test_native_attempt_reports_unsafe_output_and_changed_source(
-    tmp_path: Path, native_nox_supply: NativeNoxSupply, outcome: str, gap: str
+    tmp_path: Path, outcome: str, gap: str
 ) -> None:
     """A non-regular report or a source edit during the run cannot become evidence."""
-    gate = native_quality_gate(tmp_path, native_nox_supply, outcome)
+    gate = native_quality_gate(tmp_path, outcome)
     _, evidence = native_attempt(tmp_path / "repo", gate, gate.command, timeout=45)
     assert gap in evidence.gaps, evidence.gaps
+
+
+_WHEEL = "ethos @ file:///runtime/packages/ethos.whl#sha256=" + "a" * 64
+
+
+@pytest.mark.parametrize(
+    ("runtime_report", "requirement"), [(True, None), (True, _WHEEL), (False, _WHEEL)]
+)
+def test_native_attempt_supplies_only_its_own_observer(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    runtime_report: bool,
+    requirement: str | None,
+) -> None:
+    """The command sees the invoking runtime's wheel, never an inherited requirement."""
+    script = (
+        "import os, pathlib; "
+        "pathlib.Path(os.environ['ETHOS_NATIVE_OUTPUT_DIR'], 'ruff.sarif').write_text("
+        f"os.environ.get({gate_attempt.OBSERVER_REQUIREMENT!r}, 'absent'))"
+    )
+    gate = native_quality_gate(tmp_path)
+    outputs = tuple(
+        output
+        for output in gate.native_outputs
+        if runtime_report or output.format != "python-runtime-json"
+    )
+    gate = gate.model_copy(
+        update={"command": (sys.executable, "-c", script), "native_outputs": outputs}
+    )
+    monkeypatch.setattr(gate_attempt, "invoking_runtime_requirement", lambda: requirement)
+    monkeypatch.setenv(gate_attempt.OBSERVER_REQUIREMENT, "ethos @ file:///ambient.whl")
+    _, evidence = native_attempt(tmp_path / "repo", gate, gate.command, timeout=45)
+    supplied = requirement if runtime_report else None
+    observed = next(content for output, content in evidence.outputs if output.path == "ruff.sarif")
+    assert observed.decode() == (supplied or "absent")
+    assert evidence.observer_requirement == supplied
+
+
+def test_native_attempt_refuses_a_runtime_without_its_wheel_before_launch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A selected runtime that cannot name its exact wheel launches nothing."""
+    gate = native_quality_gate(tmp_path)
+    launched: list[tuple[str, ...]] = []
+
+    def unavailable() -> str:
+        msg = "hook_runtime_wheel_provenance_missing"
+        raise ValueError(msg)
+
+    monkeypatch.setattr(gate_attempt, "invoking_runtime_requirement", unavailable)
+    monkeypatch.setattr(gate_attempt, "run_command", lambda _root, argv, **_: launched.append(argv))
+    with pytest.raises(ValueError, match=r"^hook_runtime_wheel_provenance_missing$"):
+        native_attempt(tmp_path / "repo", gate, gate.command, timeout=45)
+    assert launched == []

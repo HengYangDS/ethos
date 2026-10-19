@@ -8,10 +8,15 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.adapters.openspec.lifecycle.root_repair import supporting_file_relocation
+from ethos.adapters.openspec.relocation import active_change_relocation
 from ethos.adapters.projections.compiler import render_projections
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
+from ethos.adapters.repo.git_patch import unified_patch_changes
+from ethos.adapters.repo.profile import ProfilePostimage
 from ethos.adapters.repo.profile import historical_repository_identity
+from ethos.adapters.repo.profile import profile_postimage
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.verdict import report_verdict
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
@@ -25,12 +30,9 @@ from ethos.repository.policy.references.observation import ProductReferences
 from ethos.repository.policy.references.observation import deleted_input_gaps
 from ethos.repository.policy.references.observation import product_references_from_files
 from ethos.repository.profile import INVALID_PROFILE_ERROR
-from ethos.repository.profile import repository_profile_from_text
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-
-_UNIFIED_DIFF_HEADER_PART_COUNT = 4
 
 
 def patch_admission(
@@ -51,7 +53,7 @@ def patch_admission(
             "references": {},
             "reference_coverage": "not_evaluated",
         }
-    changes, parse_gap = _unified_patch_changes(patch)
+    changes, parse_gap = unified_patch_changes(root, patch)
     patch_paths = sorted({str(change["path"]) for change in changes})
     requested = sorted(set(requested_paths))
     reason = parse_gap
@@ -65,41 +67,61 @@ def patch_admission(
     unknown: list[str] = []
     effects: dict[str, str] = {}
     outputs: list[str] = []
-    profile_postimage_id = ""
+    profile = ProfilePostimage(gap="", profile_id="", metadata_repair=False)
+    root_repair: dict[str, object] = {}
+    relocation: dict[str, object] = {}
     observation: ProductReferences | None = None
     if not reason:
         try:
             baseline_files = _baseline_reference_files(root, baseline_head)
             baseline_references = native_owned_references_from_files(baseline_files)
-            observation, effect_gaps, unknown, effects, outputs, profile_postimage_id = (
-                _patch_references(
-                    root,
-                    patch,
-                    changes,
-                    context_files=baseline_files,
-                    declared_commands=baseline_references["command"],
-                )
+            (
+                observation,
+                effect_gaps,
+                unknown,
+                effects,
+                outputs,
+                profile,
+                root_repair,
+                relocation,
+            ) = _patch_references(
+                root,
+                patch,
+                changes,
+                context_files=baseline_files,
+                declared_commands=baseline_references["command"],
+                baseline=baseline_head,
             )
             references = observation.references
             reason = effect_gaps[0] if effect_gaps else ""
         except (OSError, UnicodeError, ValueError):
             reason = "prewrite_patch_postimage_failed"
     if not reason:
-        gaps = product_reference_gaps(baseline_references, references)
+        gaps = product_reference_gaps(baseline_references, {} if root_repair else references)
         reason = gaps[0] if gaps else ""
+    success_reason = (
+        "native_reference_relocation_preserved"
+        if root_repair
+        else "baseline_product_closure_matched"
+    )
     return {
         "verdict": "block" if reason else "unknown" if unknown else "pass",
         "state": "blocked" if reason else "unknown" if unknown else "admitted",
-        "reason": reason or (unknown[0] if unknown else "baseline_product_closure_matched"),
+        "reason": reason or (unknown[0] if unknown else success_reason),
         "effects": effects,
         "origin_outputs": outputs,
         "unknown_inputs": unknown,
-        "reference_coverage": observation.coverage if observation is not None else "not_evaluated",
         "coverage": "changed_references_and_explicit_native_inputs",
+        "reference_coverage": (
+            "not_evaluated" if observation is None else "unknown" if unknown else "evaluated"
+        ),
         "baseline_head": baseline_head,
         "paths": patch_paths,
         "references": {key: sorted(value) for key, value in references.items() if value},
-        **({"profile_postimage_id": profile_postimage_id} if profile_postimage_id else {}),
+        **({"profile_postimage_id": profile.profile_id} if profile.profile_id else {}),
+        **({"profile_metadata_repair": True} if profile.metadata_repair else {}),
+        **({"openspec_root_repair": root_repair} if root_repair else {}),
+        **({"active_change_relocation": relocation} if relocation else {}),
     }
 
 
@@ -268,6 +290,9 @@ def staged_artifact_admission(
         )
         after = _object_files(root, tree, prior_paths)
         effects = _indexed_effects(root, index_env=index_env)
+        relocation = active_change_relocation(
+            root, None, effects, baseline=baseline, tree=tree, environment=index_env
+        )
         postimages = {path: after.get(path) for path in effects}
         # Non-carrier changes have no text observation, but are not deletions.
         postimages = {
@@ -276,12 +301,14 @@ def staged_artifact_admission(
             if path in before or path in after or effects[path] == "delete"
         }
         gaps, unknown = _effect_gaps(root, projection_relations(before), after, postimages)
-        profile_gap, _ = _profile_postimage(root, postimages)
+        profile_gap, _, _ = profile_postimage(root, postimages)
         if profile_gap:
             gaps.insert(0, profile_gap)
     except (OSError, ValueError, UnicodeError) as exc:
         return {
-            "verdict": "unknown",
+            "verdict": "block"
+            if str(exc) == "openspec_active_change_relocation_unverified"
+            else "unknown",
             "reason": f"staged_artifact_observation_unknown:{exc}",
             "effects": {},
         }
@@ -296,6 +323,7 @@ def staged_artifact_admission(
             {item.output for item in (*projection_relations(before), *projection_relations(after))}
         ),
         "required_gaps": [*gaps, *unknown],
+        **({"active_change_relocation": relocation} if relocation else {}),
     }
     return revalidate_staged_admission(root, report, index_env=index_env)
 
@@ -349,64 +377,24 @@ def _indexed_effects(root: Path, *, index_env: Mapping[str, str] | None = None) 
     }
 
 
-def _unified_patch_changes(patch: str) -> tuple[list[dict[str, object]], str]:
-    changes: list[dict[str, object]] = []
-    current: dict[str, object] | None = None
-    for line in patch.splitlines():
-        if line.startswith(("GIT binary patch", "Binary files ")):
-            return changes, "prewrite_patch_binary_unsupported"
-        if line.startswith("diff --git "):
-            current = _new_patch_change(line)
-            if current is None:
-                return changes, "prewrite_patch_invalid"
-            changes.append(current)
-        elif current is not None:
-            _update_patch_change(current, line)
-    if not changes or any(not change["path"] for change in changes):
-        return changes, "prewrite_patch_invalid"
-    return changes, ""
-
-
-def _new_patch_change(line: str) -> dict[str, object] | None:
-    try:
-        parts = shlex.split(line)
-    except ValueError:
-        return None
-    if len(parts) != _UNIFIED_DIFF_HEADER_PART_COUNT:
-        return None
-    return {
-        "old_path": _patch_path(parts[2]),
-        "path": _patch_path(parts[3]),
-        "new": False,
-        "deleted": False,
-    }
-
-
-def _update_patch_change(change: dict[str, object], line: str) -> None:
-    if line.startswith("--- "):
-        change["old_path"] = _patch_path(line[4:].split("\t", 1)[0])
-        change["new"] = change["old_path"] == "/dev/null"
-    elif line.startswith("+++ "):
-        path = _patch_path(line[4:].split("\t", 1)[0])
-        change["deleted"] = path == "/dev/null"
-        if path != "/dev/null":
-            change["path"] = path
-
-
-def _patch_path(raw: str) -> str:
-    if raw == "/dev/null":
-        return raw
-    return raw.removeprefix("a/").removeprefix("b/")
-
-
 def _patch_references(
     root: Path,
     patch: str,
     changes: list[dict[str, object]],
     *,
     context_files: dict[str, str],
+    baseline: str,
     declared_commands: tuple[str, ...] | frozenset[str] = (),
-) -> tuple[ProductReferences, list[str], list[str], dict[str, str], list[str], str]:
+) -> tuple[
+    ProductReferences,
+    list[str],
+    list[str],
+    dict[str, str],
+    list[str],
+    ProfilePostimage,
+    dict[str, object],
+    dict[str, object],
+]:
     with tempfile.TemporaryDirectory(prefix="ethos-prewrite-postimage-") as temporary:
         workspace = Path(temporary)
         for change in changes:
@@ -451,9 +439,9 @@ def _patch_references(
         )
         gaps, unknown, outputs = _source_effect_gaps(root, context_files, postimages)
         unknown.extend(f"reference_carrier_unknown:{path}" for path in observation.unknown_paths)
-        profile_gap, profile_id = _profile_postimage(root, postimages)
-        if profile_gap:
-            gaps.insert(0, profile_gap)
+        profile = profile_postimage(root, postimages)
+        if profile.gap:
+            gaps.insert(0, profile.gap)
         effects = {
             str(change["path"]): "delete"
             if change["deleted"]
@@ -462,20 +450,9 @@ def _patch_references(
             else "modify"
             for change in changes
         }
-        return observation, gaps, unknown, effects, outputs, profile_id
-
-
-def _profile_postimage(root: Path, postimages: dict[str, str | None]) -> tuple[str, str]:
-    """Validate only a supplied profile after-image through its sole typed owner."""
-    text = postimages.get(".ethos/profile.toml")
-    if text is None:
-        return "", ""
-    profile = repository_profile_from_text(root, exists=True, text=text)
-    return (
-        ("", profile.declaration.profile_id)
-        if profile.declaration is not None
-        else (INVALID_PROFILE_ERROR, "")
-    )
+        root_repair = supporting_file_relocation(root, postimages, postimage_root=workspace)
+        relocation = active_change_relocation(root, workspace, effects, baseline=baseline)
+        return observation, gaps, unknown, effects, outputs, profile, root_repair, relocation
 
 
 def _source_effect_gaps(

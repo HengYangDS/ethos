@@ -17,8 +17,8 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
 
-def test_normalize_projected_specs_changes_only_terminal_newlines(tmp_path: Path) -> None:
-    original = b"## Purpose\n\nKeep interior spacing.  \n\n## Requirements\n\nBody.\n\n\n"
+def test_normalize_projected_specs_formats_only_canonical_markdown(tmp_path: Path) -> None:
+    original = b"## Purpose\nKeep the authored purpose.\n\n## Requirements\n\nBody.\n\n\n"
     contents = {
         "openspec/specs/contracts/spec.md": original,
         "openspec/changes/archive/2026-08-08-change/spec.md": b"archived carrier\n\n",
@@ -31,8 +31,11 @@ def test_normalize_projected_specs_changes_only_terminal_newlines(tmp_path: Path
     assert normalize_projected_specs(tmp_path, paths=tuple(contents)) == (
         "openspec/specs/contracts/spec.md",
     )
-    contents["openspec/specs/contracts/spec.md"] = original.rstrip(b"\n") + b"\n"
+    contents["openspec/specs/contracts/spec.md"] = (
+        b"## Purpose\n\nKeep the authored purpose.\n\n## Requirements\n\nBody.\n"
+    )
     assert {path: (tmp_path / path).read_bytes() for path in contents} == contents
+    assert normalize_projected_specs(tmp_path, paths=tuple(contents)) == ()
 
 
 def test_absent_archive_is_a_noop_but_unobservable_postimage_is_not(tmp_path: Path) -> None:

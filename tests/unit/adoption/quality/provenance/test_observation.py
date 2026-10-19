@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_test_profile
 
 
 def test_artifact_partition_cannot_replace_integrity_evidence() -> None:
@@ -89,25 +90,20 @@ def test_generated_observer_rebuilds_complete_native_owner(tmp_path: Path, defec
     owner.write_text(
         tomli_w.dumps({"schema": "ethos-ci-template-consistency-v1", "projection": entries})
     )
-    profile = repo / ".ethos/profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
-        tomli_w.dumps(
-            {
-                "profile_id": "example",
-                "proof": {
-                    "gate_registry": "system/gates.toml",
-                    "source_contracts": [
-                        {
-                            "kind": "generated",
-                            "input_refs": [declaration],
-                            "members": {"generated.py": [declaration, "generated.py"]},
-                            "integrity_gate": "integrity",
-                        }
-                    ],
-                },
-            }
-        )
+    write_test_profile(
+        repo,
+        profile_id="example",
+        proof={
+            "gate_registry": "system/gates.toml",
+            "source_contracts": [
+                {
+                    "kind": "generated",
+                    "input_refs": [declaration],
+                    "members": {"generated.py": [declaration, "generated.py"]},
+                    "integrity_gate": "integrity",
+                }
+            ],
+        },
     )
     commit_fixture(repo, "declare complete native copy relation")
     if defect == "missing":

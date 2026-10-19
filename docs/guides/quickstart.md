@@ -86,25 +86,26 @@ These are alternative readiness and execution requests, not automatic steps.
 
 ## Native Source Formatting
 
-`ethos format` previews native edits to tracked authored Markdown, YAML and TOML.
+`ethos lane format` prepares native postimages for authored source without writing.
 Exact path arguments are literal repository-relative files, not glob patterns.
-Without paths it selects applicable carriers through the common ownership policy;
-generated output, dependency locks, retained originals and official OpenSpec
-carriers keep their separate owners.
+Without paths it selects tracked and non-ignored new authored source through the
+common ownership policy; generated output, dependency locks, retained originals
+and official OpenSpec carriers keep their separate owners.
 
 ```bash
-ethos format docs/guide.md --root <worktree> --json
-ethos format docs/guide.md --check --root <worktree> --json
-ethos format docs/guide.md --apply --root <worktree> --json
+ethos lane format docs/guide.md --root <worktree> --json
+ethos lane format docs/guide.md --check --root <worktree> --json
+ethos lane format docs/guide.md --apply --authorize --expect-head <head> --root <worktree> --json
 ```
 
 Preview and check never write source bytes. Check refuses formatting drift; apply
-requires fresh exact-path Work Lane admission, unchanged source and index bindings,
-and matching written bytes. Prettier uses width 100 and preserved prose wrapping;
-TOML uses native Taplo. Repository increments cannot replace the common policy or
-create competing fixed points. Unavailable tools, malformed input and stale bindings
-remain explicit non-pass results. This command formats source; `ethos prove` still
-owns complete quality evidence, release semantics and acceptance.
+requires current Work Lane admission of the complete patch, unchanged HEAD, index,
+source bytes and modes, and matching written bytes. Prettier uses width 100 and
+preserved prose wrapping; TOML uses native Taplo and Python uses Ruff. Repository
+increments cannot replace the common policy or create competing fixed points.
+Unavailable tools, malformed input and stale bindings remain explicit non-pass
+results. This command formats source; `ethos prove` still owns complete quality
+evidence, release semantics and acceptance.
 
 The installed console honors the target repository's selected immutable runtime.
 Invoking a newer console does not upgrade that selection or make an unsupported

@@ -230,27 +230,30 @@ def test_managed_runtime_requires_one_exact_wheel(tmp_path, monkeypatch, content
             runtime_inputs.resolve_runtime_wheel(source, tmp_path / "unused")
 
 
-def test_selected_runtime_supplies_its_exact_verified_wheel(
+def test_invoking_runtime_names_its_exact_wheel_as_one_hashed_requirement(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """One selected immutable runtime resolves only its byte-verified package."""
+    """Only a selected runtime holding its exact package wheel names a requirement."""
+    assert runtime_inputs.invoking_runtime_requirement() is None
     source, package_root = _managed_runtime_case(monkeypatch, tmp_path)
-    selected = runtime_inputs.selected_runtime_source(source)
-    assert selected is not None
+    monkeypatch.setattr(runtime_inputs, "__file__", str(source / "ethos/input_resolution.py"))
     with pytest.raises(ValueError, match=r"^hook_runtime_wheel_provenance_missing$"):
-        runtime_inputs.runtime_wheel(selected)
+        runtime_inputs.invoking_runtime_requirement()
     package_root.mkdir(parents=True)
     wheel = package_root / "ethos-0.2.0+local-py3-none-any.whl"
     wheel.write_bytes(b"wheel")
-    assert runtime_inputs.runtime_wheel(selected) == wheel
-    assert "ethos-0.2.0%2Blocal-py3-none-any.whl" in wheel.as_uri()
+    digest = hashlib.sha256(b"wheel").hexdigest()
+    requirement = runtime_inputs.invoking_runtime_requirement()
+    assert requirement == f"ethos @ {wheel.as_uri()}#sha256={digest}"
+    assert requirement.startswith("ethos @ file:///")
+    assert "ethos-0.2.0%2Blocal-py3-none-any.whl#sha256=" in requirement
 
     def unreadable(_path: Path) -> str:
         raise PermissionError
 
     monkeypatch.setattr(runtime_inputs, "file_sha256", unreadable)
     with pytest.raises(ValueError, match=r"^hook_runtime_wheel_provenance_missing$"):
-        runtime_inputs.runtime_wheel(selected)
+        runtime_inputs.invoking_runtime_requirement()
 
 
 @pytest.mark.parametrize("layout", ["bin/python", "python/python.exe"])

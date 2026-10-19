@@ -174,6 +174,9 @@ def test_publication_contract_failure_matrix(tmp_path: Path) -> None:
         topology = release_publication.publication_topology(tmp_path, {"publication": declaration})
         assert isinstance(topology["required_gaps"], list)
         assert any(gap in item for item in topology["required_gaps"])
+    assert release_publication.publication_source_version_gaps(
+        source_ref="refs/tags/v1", annotated_tag=True, version_text=None
+    ) == ("publication_source_version_invalid:v1",)
     topology = {"required_gaps": [], "remotes": [{"id": "gitlab", "git_remote": "gitlab"}]}
     for ref, remote, gap in (
         ("invalid", "gitlab", "ref_unavailable"),

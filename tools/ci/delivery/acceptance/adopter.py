@@ -8,6 +8,9 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+# The runtime owner imports this fixture; bind it as a module so either import order loads.
+import tools.ci.delivery.acceptance.runtime as runtime_acceptance
+from ethos.adapters.openspec.archive_projection import normalize_projected_specs
 from ethos.adapters.openspec.cli import archive_result
 from ethos.adapters.openspec.cli import openspec_base_command
 from ethos.adapters.openspec.cli import run_json
@@ -21,6 +24,8 @@ from tools.ci.delivery.acceptance.invocation import observe_stage
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+    from ethos.repository.release.identity import BuildIdentity
 
 CommandRunner = Callable[..., str]
 
@@ -271,6 +276,8 @@ def prove_formation(
     work: Path,
     *,
     origin: str,
+    build: BuildIdentity,
+    wheel_sha256: str,
     environment: Mapping[str, str],
     run: CommandRunner,
 ) -> dict[str, object]:
@@ -280,11 +287,7 @@ def prove_formation(
     ).read_bytes()
     expected_guidance = hashlib.sha256(package_guidance).hexdigest()
     formed: list[dict[str, object]] = []
-    journey = {
-        "first_change": "not_attempted",
-        "agent_handoff": "not_attempted",
-        "formatting": "not_attempted",
-    }
+    journey = dict.fromkeys(("first_change", "agent_handoff", "formatting"), "not_attempted")
     for starter in ("foundation", "python-library"):
         target = work / f"formed-{starter}"
         # Formation signs the initial commit with the creator's reviewed signer.
@@ -379,9 +382,35 @@ def prove_formation(
             expected_guidance,
         )
         if starter == "foundation":
+            data = preserved[1].get("data")
+            runtime = data.get("hook_runtime") if isinstance(data, dict) else None
+            if not isinstance(runtime, dict):
+                message = "installed_formation_runtime_missing"
+                raise RuntimeError(message)
+            python = runtime_acceptance.require_manifest(
+                runtime, target, build=build, wheel_sha256=wheel_sha256
+            )
+            selected_origin = run_command(
+                target,
+                (
+                    str(python),
+                    "-B",
+                    "-I",
+                    "-c",
+                    (
+                        "from pathlib import Path; import ethos; "
+                        "print(Path(ethos.__file__).resolve(strict=True))"
+                    ),
+                ),
+                env=environment,
+                inherit_environment=False,
+                check=True,
+                timeout=20,
+            ).stdout.strip()
             journey = prove_first_change(
                 executable,
                 target,
+                origin=selected_origin,
                 environment=environment,
             )
         if starter == "python-library":
@@ -465,6 +494,7 @@ def prepare_acceptance_topology(
     if archive_result(root, "smoke-change", archived)[0]:
         message = f"package_acceptance_openspec_archive_failed:{archived}"
         raise RuntimeError(message)
+    normalize_projected_specs(root, paths=("openspec/specs/package-smoke/spec.md",))
     run(git, "add", "--all", "--", "openspec", cwd=root)
     run(git, "commit", "--quiet", "-m", "complete package smoke change", cwd=root)
     candidate = root.parent / "repo-candidate-dev"

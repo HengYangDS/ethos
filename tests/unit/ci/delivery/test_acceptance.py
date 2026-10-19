@@ -13,7 +13,6 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from typing import cast
 from unittest.mock import Mock
-from unittest.mock import call
 
 import pytest
 
@@ -21,120 +20,15 @@ from ethos.adapters.process import command_scope
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.transition import PackageArtifact
 from ethos.repository.release.identity import build_identity
-from tools.ci import dependency_audit
-from tools.ci import sessions
 from tools.ci.delivery import artifact as artifact_owner
-from tools.ci.delivery import pipeline
+from tools.ci.delivery import distribution as native_distribution
 from tools.ci.delivery.acceptance import effect
 from tools.ci.delivery.acceptance import receipt
-from tools.ci.toolchain.environment import ProjectRuntime
 
 if TYPE_CHECKING:
     import nox
 
 ROOT = Path(__file__).resolve().parents[4]
-
-
-@pytest.mark.parametrize("release_head", ["", "a" * 40])
-@pytest.mark.parametrize("predecessor", [False, True])
-def test_install_smoke_invokes_one_acceptance_transaction(
-    monkeypatch, tmp_path, release_head, predecessor
-):
-    previous = tmp_path / "predecessor"
-    supplied = previous if predecessor else None
-    session = SimpleNamespace(
-        posargs=(("--release", "--expect-head", release_head) if release_head else ())
-        + (("--predecessor-runtime", str(previous)) if predecessor else ())
-    )
-    artifact = object()
-    accept = Mock()
-    audit = Mock()
-    prepare = Mock(return_value=artifact)
-    monkeypatch.setattr(dependency_audit, "run", audit)
-    monkeypatch.setattr(pipeline.acceptance_effect, "run", accept)
-    monkeypatch.setattr(pipeline, "prepare_release_candidate", prepare)
-    monkeypatch.setattr(sessions, "RUNTIME", ProjectRuntime.discover(tmp_path))
-    monkeypatch.setattr(ProjectRuntime, "node_package_supply", lambda _: tmp_path / "node_modules")
-    sessions.install_smoke(session)
-    if release_head:
-        audit.assert_called_once_with(session, root=tmp_path, scope="production-release")
-        prepare.assert_called_once_with(tmp_path, release_head)
-        accept.assert_called_once_with(
-            session,
-            artifact=artifact,
-            evidence=tmp_path / "build/evidence/local-install/release-smoke.json",
-            predecessor=supplied,
-        )
-    else:
-        audit.assert_not_called()
-        prepare.assert_not_called()
-        accept.assert_called_once_with(session, predecessor=supplied)
-
-
-def test_wheel_build_reuses_the_locked_project_environment(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    session = Mock()
-
-    monkeypatch.setattr(pipeline, "publish_built_wheel", lambda *_args: tmp_path / "ethos.whl")
-    runtime = ProjectRuntime(tmp_path, Path("/locked/bin/python"), Path("/locked/bin"))
-    monkeypatch.setattr(ProjectRuntime, "script", lambda _self, name: f"/locked/bin/{name}")
-
-    pipeline.DeliveryPipeline(
-        runtime=runtime,
-        node_package_supply=tmp_path / "node_modules",
-    ).build(session)
-
-    session.run.assert_called_once()
-    command = session.run.call_args.args
-    assert command[:8] == (
-        "/locked/bin/uv",
-        "build",
-        "--offline",
-        "--no-build-isolation",
-        "--python",
-        "/locked/bin/python",
-        "--wheel",
-        "--out-dir",
-    )
-    assert Path(command[8]).name.startswith("ethos-wheel-build-")
-    assert command[9:] == ("--no-create-gitignore",)
-
-
-def test_host_conformance_reuses_the_single_package_acceptance_effect(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls, session = Mock(), Mock()
-    for name in ("build", "prove_install"):
-        monkeypatch.setattr(pipeline.DeliveryPipeline, name, getattr(calls, name))
-    calls.attach_mock(session.run, "run")
-    delivery = pipeline.DeliveryPipeline(
-        ProjectRuntime(ROOT, Path("/locked/python"), Path("/locked")),
-        ROOT / "node_modules",
-    )
-    preflight = call.run(
-        "/locked/python",
-        "-m",
-        "pytest",
-        "-q",
-        "-c",
-        str(ROOT / ".config/checks/pytest/pytest.toml"),
-        "tests/architecture/test_portable_toolchain.py",
-        "tests/unit/adapters/repo/trust_anchor/test_filesystem.py"
-        "::test_windows_native_acl_protection_rejects_foreign_writer",
-    )
-    delivery.prove_host(session)
-    assert calls.mock_calls == [
-        preflight,
-        call.build(session),
-        call.prove_install(session),
-    ]
-    calls.reset_mock()
-    session.run.side_effect = RuntimeError("native preflight failed")
-    with pytest.raises(RuntimeError, match="native preflight failed"):
-        delivery.prove_host(session)
-    assert calls.mock_calls == [preflight]
 
 
 @pytest.fixture
@@ -191,8 +85,25 @@ def acceptance_case(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     )
     monkeypatch.setattr(artifact_owner, "source_build_identity", lambda _root: build)
     monkeypatch.setattr(artifact_owner, "wheel_build_identity", lambda _wheel: build)
+
+    def package_runtime(_runtime: Path, wheel: Path, destination: Path, **_kwargs):
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(b"qualified native archive")
+        cask = destination.parent / "homebrew/Casks/ethos.rb"
+        cask.parent.mkdir(parents=True, exist_ok=True)
+        cask.write_text(destination.as_uri())
+        return {
+            "path": str(destination),
+            "homebrew_cask": str(cask),
+            "runtime_digest": "f" * 64,
+            "wheel_sha256": hashlib.sha256(wheel.read_bytes()).hexdigest(),
+            "sha256": hashlib.sha256(destination.read_bytes()).hexdigest(),
+        }
+
+    package = Mock(side_effect=package_runtime)
+    monkeypatch.setattr(effect, "package_runtime", package)
+    monkeypatch.setattr(native_distribution, "package_runtime", package)
     for owner, method, value in (
-        (effect, "package_runtime", {"path": "archive", "runtime_digest": "f" * 64}),
         (effect, "prove_shared_supply", {"state": "passed"}),
         (effect.adopter_fixture, "materialize_adopter", "d" * 40),
         (effect.adopter_fixture, "line_ending_conformance", ["lf", "crlf"]),
@@ -294,6 +205,7 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
         with pytest.raises(ValueError, match="package_acceptance_artifact_changed"):
             effect.run(cast("nox.Session", session), artifact=artifact, evidence=output)
         assert not output.exists()
+        assert not (tmp_path / "build/artifacts/native").exists()
         assert case.sealed_payload.exists() == (selection != "changed-after")
     else:
         effect.run(cast("nox.Session", session), artifact=artifact, evidence=output)
@@ -308,14 +220,10 @@ def test_acceptance_runs_one_offline_lifecycle_and_cleans_before_evidence(
             event.get("name") == "owned_cleanup" and event.get("state") == "completed"
             for event in events
         )
-        assert (
-            cast("Mock", effect.package_runtime).call_args.args[0]
-            == case.sealed_payload.parent.parent
-        )
         case.selected_runtime.assert_called_once_with(
             work / "adopter/.git", expected_build=case.build
         )
-        assert cast("Mock", effect.package_runtime).call_args.args[2].is_relative_to(work)
+        _assert_retained_distribution(case, payload, work=work, root=tmp_path)
         assert case.observed["supply"] == (
             tmp_path,
             tmp_path / "project-python",
@@ -479,6 +387,22 @@ def test_concurrent_formation_failure_fails_acceptance_and_cleans_owned_work(
     assert not effect.EVIDENCE.exists()
 
 
+def _assert_retained_distribution(case, payload, *, work: Path, root: Path) -> None:
+    """Retain the same native package the smoke qualified, beside the source artifacts."""
+    packages = cast("Mock", effect.package_runtime).call_args_list
+    assert [package.args[0] for package in packages] == [case.sealed_payload.parent.parent] * 2
+    assert packages[0].args[2].is_relative_to(work)
+    distribution = payload["distribution"]
+    archive = Path(distribution["path"])
+    assert archive == packages[1].args[2]
+    assert archive.is_relative_to(root / "build/artifacts/native" / ("f" * 64))
+    assert hashlib.sha256(archive.read_bytes()).hexdigest() == distribution["sha256"]
+    assert Path(distribution["homebrew_cask"]).read_text() == archive.as_uri()
+    assert distribution["runtime_digest"] == "f" * 64
+    assert distribution["shared_supply"] == {"state": "passed"}
+    assert distribution["retained"] is True
+
+
 def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact, output):
     """Check the real producer's binding and the negative incomplete-stage contract."""
     assert payload["build_identity"] == case.build.projection()
@@ -487,11 +411,6 @@ def _assert_acceptance_receipt(case, payload, selected, tmp_path, artifact, outp
     inputs = case.receipt.call_args.kwargs
     assert payload["generated_at"] == inputs["generated_at"].isoformat()
     assert payload["execution_events"] == output.with_suffix(".events.jsonl").as_posix()
-    assert payload["distribution"] == {
-        "runtime_digest": "f" * 64,
-        "shared_supply": {"state": "passed"},
-        "retained": False,
-    }
     assert payload["qualification"] == {
         "fresh_installation": "passed",
         "cross_repository_activation": "passed",

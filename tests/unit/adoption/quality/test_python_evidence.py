@@ -240,28 +240,6 @@ def test_native_quality_requires_committed_python_scope(tmp_path: Path) -> None:
     ]
 
 
-def test_adopter_static_quality_requires_semantic_code_identities(tmp_path: Path) -> None:
-    """The shared product owner rejects numbered identities without a local gate."""
-    repo = committed_source_repo(tmp_path, {"src/app.py": "answer_v2 = 42\n"})
-
-    report = python_quality.static_report(repo)
-
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == [
-        "quality_static_code_identifier_semantics:src/app.py:1:answer_v2"
-    ]
-
-
-def test_adopter_static_quality_retains_invalid_source_as_a_report(tmp_path: Path) -> None:
-    """Malformed source is a scoped quality refusal, not an adapter traceback."""
-    repo = committed_source_repo(tmp_path, {"src/app.py": "def broken(:\n"})
-
-    report = python_quality.static_report(repo)
-
-    assert report["verdict"] == "block"
-    assert report["required_gaps"] == ["quality_static_code_identifier_syntax:src/app.py:1"]
-
-
 def test_native_behavior_requires_source_tests_and_a_lock(tmp_path: Path) -> None:
     """An unrecognized or unlocked scope cannot claim behavior coverage."""
     repo = init_git_repo(tmp_path / "repo")

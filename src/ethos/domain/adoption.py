@@ -60,8 +60,17 @@ def adopt_repository(
     authorize: bool = False,
     expect_head: str | None = None,
     expect_plan_digest: str | None = None,
+    select_runtime: bool = False,
 ) -> EthosResult:
     """Plan or apply native adoption with unchanged exact-request admission."""
+    if select_runtime and (create or evolve_starter):
+        return EthosResult(
+            command="adopt",
+            verdict="block",
+            state="blocked",
+            required_gaps=("adoption_runtime_selection_requires_existing_repository",),
+            next_action="Form the repository before selecting its immutable runtime",
+        )
     if evolve_starter:
         return _evolve_starter(
             root,
@@ -102,14 +111,18 @@ def adopt_repository(
             target,
             apply=do_apply,
             expect_plan_digest=expect_plan_digest,
+            select_runtime=select_runtime,
         )
-    except (OSError, ExceptionGroup) as error:
+    except (OSError, ExceptionGroup, ValueError) as error:
         return EthosResult(
             command="adopt",
             verdict="unknown",
             state="unknown",
             required_gaps=("adoption_effect_observation_required",),
-            next_action=shlex.join(("ethos", "adopt", "--root", str(target), "--json")),
+            next_action=shlex.join(
+                ("ethos", "adopt", "--root", str(target), "--json")
+                + (("--select-runtime",) if select_runtime else ())
+            ),
             data={"root": str(target), "failure": _failure_evidence(error)},
         )
     required_gaps = tuple(gaps) + tuple(string_sequence(plan_payload.get("required_gaps")))
@@ -118,6 +131,8 @@ def adopt_repository(
     applied = do_apply and ok
     conflicts = tuple(gap for gap in required_gaps if gap.startswith("adoption_conflict:"))
     action = ["ethos", "status" if applied else "adopt", "--root", str(target), "--json"]
+    if select_runtime and not applied:
+        action.append("--select-runtime")
     if not apply and ok:
         action.extend(
             [

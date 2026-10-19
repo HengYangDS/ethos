@@ -23,7 +23,9 @@ _CAPACITY = 256 * 1024
 @pytest.fixture(autouse=True)
 def bounded_reuse(monkeypatch: pytest.MonkeyPatch) -> None:
     """Exercise the reuse bound with small inputs instead of production-sized members."""
-    monkeypatch.setattr(attestation_set, "_member_reuse", attestation_set.MemberReuse(_CAPACITY))
+    monkeypatch.setattr(
+        attestation_set, "_validated_member", attestation_set.member_validator(_CAPACITY)
+    )
 
 
 @pytest.mark.parametrize("payload_bytes", [0, 131_072])
@@ -56,13 +58,13 @@ def test_attestation_set_reuses_validation_but_not_selected_membership(
     assert attestation_set.read_attestation_set(repo) == ("", ())
 
 
-def test_attestation_set_rereads_only_new_member_objects(
+def test_attestation_set_rereads_members_without_repeated_validation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A repeated read fetches only the selected root and members not yet validated."""
+    """Warm pure validation still freshly reads every selected immutable object."""
     repo = init_git_repo(tmp_path / "repo")
     one, two = occurrence_attestation(3_101), occurrence_attestation(3_102)
-    attestation_set.record_attestations(repo, (one,))
+    first = attestation_set.record_attestations(repo, (one,))
     attestation_set.read_attestation_set(repo)
     second = attestation_set.record_attestations(repo, (two,))
     requested: list[tuple[str, ...]] = []
@@ -75,13 +77,26 @@ def test_attestation_set_rereads_only_new_member_objects(
         return read(repository, object_ids, **options)
 
     monkeypatch.setattr(attestation_set, "read_objects", observed)
-
-    assert attestation_set.read_attestation_set(repo) == (
+    validate = Mock(wraps=Attestation.model_validate_json)
+    monkeypatch.setattr(Attestation, "model_validate_json", validate)
+    records = tuple(sorted((one, two), key=lambda item: item.id))
+    expected = (
         second["root"],
-        tuple(sorted((one, two), key=lambda item: item.id)),
+        *(
+            git(
+                repo,
+                "rev-parse",
+                f"{second['root']}:evidence/attestations/{item.id[:2]}/{item.id}.json",
+            )
+            for item in records
+        ),
     )
-    member = f"{second['root']}:evidence/attestations/{two.id[:2]}/{two.id}.json"
-    assert requested == [(second["root"], git(repo, "rev-parse", member))]
+
+    for _ in range(2):
+        assert attestation_set.read_attestation_set(repo) == (second["root"], records)
+    assert requested == [expected, expected]
+    assert validate.call_count == 1
+    assert first["root"] != second["root"]
 
 
 def test_attestation_set_oversized_member_does_not_consume_reuse_capacity(
@@ -97,6 +112,32 @@ def test_attestation_set_oversized_member_does_not_consume_reuse_capacity(
     assert attestation_set.read_attestation_set(repo)[1] == (large,)
     assert attestation_set.read_attestation_set(repo)[1] == (large,)
     assert validate.call_count == 2
+
+
+def test_attestation_set_reuses_retained_members_before_scan_admission(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A set larger than the byte budget reuses every retained current member."""
+    repo = init_git_repo(tmp_path / "repo")
+    records = tuple(
+        sorted(
+            (
+                occurrence_attestation(ordinal, payload_bytes=_CAPACITY * 3 // 10)
+                for ordinal in range(5_000, 5_004)
+            ),
+            key=lambda item: item.id,
+        )
+    )
+    selected = attestation_set.record_attestations(repo, records)["root"]
+    validate = Mock(wraps=Attestation.model_validate_json)
+    monkeypatch.setattr(Attestation, "model_validate_json", validate)
+
+    assert attestation_set.read_attestation_set(repo) == (selected, records)
+    assert validate.call_count == len(records)
+    for _ in range(3):
+        before = validate.call_count
+        assert attestation_set.read_attestation_set(repo) == (selected, records)
+        assert validate.call_count - before == 1
 
 
 def test_attestation_set_eviction_changes_work_not_membership_or_meaning(

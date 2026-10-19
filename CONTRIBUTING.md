@@ -78,9 +78,9 @@ is not yet generally available.
 
 ### Shared Source Formatting
 
-Use the selected installed runtime's `ethos format` operation for authored
-Markdown, YAML and TOML rather than copying a formatter controller into the
-repository. See [native source formatting](docs/guides/quickstart.md#native-source-formatting)
+Use the selected installed runtime's `ethos lane format` operation for authored
+source rather than copying a formatter controller into the repository. See
+[native source formatting](docs/guides/quickstart.md#native-source-formatting)
 for literal selection, preview, nonmutating check and admitted apply. Formatting
 is not complete quality proof; official OpenSpec, generated files and lockfiles
 retain their native owners.

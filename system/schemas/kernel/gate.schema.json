@@ -1,1 +1,148 @@
-{"$defs":{"NativeOutput":{"additionalProperties":false,"allOf":[{"else":{"not":{"required":["dependency_groups"]},"properties":{"configuration":{"const":""},"python":{"const":""}}},"if":{"properties":{"format":{"const":"python-runtime-json"}}},"then":{"properties":{"configuration":{"minLength":1},"dependency_groups":{"type":"array","uniqueItems":true},"python":{"minLength":1,"pattern":"^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$"}},"required":["python","configuration","dependency_groups"]}}],"description":"A native report's producer and exact path within one owned attempt.","properties":{"configuration":{"default":"","title":"Configuration","type":"string"},"dependency_groups":{"anyOf":[{"items":{"type":"string"},"type":"array"},{"type":"null"}],"default":null,"title":"Dependency Groups"},"format":{"enum":["junit-xml","cobertura-xml","lcov","sarif","nox-json","pytest-jsonl","python-runtime-json"],"title":"Format","type":"string"},"path":{"minLength":1,"title":"Path","type":"string"},"python":{"default":"","title":"Python","type":"string"},"sessions":{"items":{"type":"string"},"minItems":1,"title":"Sessions","type":"array","uniqueItems":true}},"required":["path","format","sessions"],"title":"NativeOutput","type":"object"}},"$id":"https://ethos.local/schemas/gate.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"oneOf":[{"not":{"required":["providers"]},"required":["command"]},{"not":{"required":["command"]},"required":["providers"]}],"properties":{"asset_classes":{"items":{"minLength":1,"type":"string"},"type":"array"},"command":{"items":{"type":"string"},"minItems":1,"type":"array"},"cpu_reservation":{"default":1,"minimum":1,"title":"Cpu Reservation","type":"integer"},"depends_on":{"items":{"type":"string"},"type":"array"},"dimensions":{"items":{"minLength":1,"type":"string"},"type":"array"},"evidence_class":{"minLength":1,"type":"string"},"execution_mode":{"minLength":1,"type":"string"},"id":{"minLength":1,"type":"string"},"kind":{"minLength":1,"type":"string"},"native_outputs":{"default":[],"items":{"$ref":"#/$defs/NativeOutput"},"title":"Native Outputs","type":"array"},"network_policy":{"minLength":1,"type":"string"},"policy":{"minLength":1,"type":"string"},"profile":{"minLength":1,"type":"string"},"providers":{"items":{"pattern":"^ethos\\.[^:]+:[^:]+$","type":"string"},"minItems":1,"type":"array","uniqueItems":true},"resource_locks":{"anyOf":[{"additionalProperties":{"enum":["shared","exclusive"],"type":"string"},"type":"object"},{"type":"null"}],"default":null,"propertyNames":{"pattern":"^(?:\\*|[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*)$"},"title":"Resource Locks"},"timeout_seconds":{"anyOf":[{"minimum":1,"type":"integer"},{"type":"null"}],"default":null,"title":"Timeout Seconds"},"tool_adapter":{"minLength":1,"type":"string"},"toolchain":{"minLength":1,"type":"string"},"trust_bearing":{"type":"boolean"},"verification_providers":{"default":[],"items":{"type":"string"},"title":"Verification Providers","type":"array"},"version_source":{"minLength":1,"type":"string"},"writes_files":{"type":"boolean"}},"required":["id","kind","policy","profile","toolchain","asset_classes","dimensions","execution_mode","evidence_class","trust_bearing","tool_adapter","writes_files","network_policy","version_source"],"title":"ETHOS Gate","type":"object"}
+{
+  "$defs": {
+    "NativeOutput": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "not": { "required": ["dependency_groups"] },
+            "properties": { "configuration": { "const": "" }, "python": { "const": "" } }
+          },
+          "if": { "properties": { "format": { "const": "python-runtime-json" } } },
+          "then": {
+            "properties": {
+              "configuration": { "minLength": 1 },
+              "dependency_groups": { "type": "array", "uniqueItems": true },
+              "python": { "minLength": 1, "pattern": "^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$" }
+            },
+            "required": ["python", "configuration", "dependency_groups"]
+          }
+        }
+      ],
+      "description": "A native report's producer and exact path within one owned attempt.",
+      "properties": {
+        "configuration": { "default": "", "title": "Configuration", "type": "string" },
+        "dependency_groups": {
+          "anyOf": [{ "items": { "type": "string" }, "type": "array" }, { "type": "null" }],
+          "default": null,
+          "title": "Dependency Groups"
+        },
+        "format": {
+          "enum": [
+            "junit-xml",
+            "cobertura-xml",
+            "lcov",
+            "sarif",
+            "nox-json",
+            "pytest-jsonl",
+            "python-runtime-json"
+          ],
+          "title": "Format",
+          "type": "string"
+        },
+        "path": { "minLength": 1, "title": "Path", "type": "string" },
+        "python": { "default": "", "title": "Python", "type": "string" },
+        "sessions": {
+          "items": { "type": "string" },
+          "minItems": 1,
+          "title": "Sessions",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": ["path", "format", "sessions"],
+      "title": "NativeOutput",
+      "type": "object"
+    }
+  },
+  "$id": "https://ethos.local/schemas/gate.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "oneOf": [
+    { "not": { "required": ["providers"] }, "required": ["command"] },
+    { "not": { "required": ["command"] }, "required": ["providers"] }
+  ],
+  "properties": {
+    "asset_classes": { "items": { "minLength": 1, "type": "string" }, "type": "array" },
+    "command": { "items": { "type": "string" }, "minItems": 1, "type": "array" },
+    "cpu_reservation": {
+      "default": 1,
+      "minimum": 1,
+      "title": "Cpu Reservation",
+      "type": "integer"
+    },
+    "depends_on": { "items": { "type": "string" }, "type": "array" },
+    "dimensions": { "items": { "minLength": 1, "type": "string" }, "type": "array" },
+    "evidence_class": { "minLength": 1, "type": "string" },
+    "execution_mode": { "minLength": 1, "type": "string" },
+    "id": { "minLength": 1, "type": "string" },
+    "kind": { "minLength": 1, "type": "string" },
+    "native_outputs": {
+      "default": [],
+      "items": { "$ref": "#/$defs/NativeOutput" },
+      "title": "Native Outputs",
+      "type": "array"
+    },
+    "network_policy": { "minLength": 1, "type": "string" },
+    "policy": { "minLength": 1, "type": "string" },
+    "profile": { "minLength": 1, "type": "string" },
+    "providers": {
+      "items": { "pattern": "^ethos\\.[^:]+:[^:]+$", "type": "string" },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "required_for_paths": {
+      "default": [],
+      "items": { "type": "string" },
+      "title": "Required For Paths",
+      "type": "array"
+    },
+    "resource_locks": {
+      "anyOf": [
+        {
+          "additionalProperties": { "enum": ["shared", "exclusive"], "type": "string" },
+          "type": "object"
+        },
+        { "type": "null" }
+      ],
+      "default": null,
+      "propertyNames": { "pattern": "^(?:\\*|[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*)$" },
+      "title": "Resource Locks"
+    },
+    "timeout_seconds": {
+      "anyOf": [{ "minimum": 1, "type": "integer" }, { "type": "null" }],
+      "default": null,
+      "title": "Timeout Seconds"
+    },
+    "tool_adapter": { "minLength": 1, "type": "string" },
+    "toolchain": { "minLength": 1, "type": "string" },
+    "trust_bearing": { "type": "boolean" },
+    "verification_providers": {
+      "default": [],
+      "items": { "type": "string" },
+      "title": "Verification Providers",
+      "type": "array"
+    },
+    "version_source": { "minLength": 1, "type": "string" },
+    "writes_files": { "type": "boolean" }
+  },
+  "required": [
+    "id",
+    "kind",
+    "policy",
+    "profile",
+    "toolchain",
+    "asset_classes",
+    "dimensions",
+    "execution_mode",
+    "evidence_class",
+    "trust_bearing",
+    "tool_adapter",
+    "writes_files",
+    "network_policy",
+    "version_source"
+  ],
+  "title": "ETHOS Gate",
+  "type": "object"
+}

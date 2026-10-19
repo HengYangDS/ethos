@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 import shlex
 from dataclasses import dataclass
-from pathlib import Path
 
 
 @dataclass(frozen=True, slots=True)
@@ -209,15 +208,6 @@ def _command_tokens(tokens: tuple[str, ...], *, shell_context: bool = False) -> 
         else:
             break
     return tokens[index:]
-
-
-def canonical_gate_command(command: tuple[str, ...]) -> tuple[str, ...]:
-    """Remove only a host-specific absolute Python interpreter path."""
-    if not command:
-        return command
-    head, *rest = command
-    name = Path(head).name
-    return ("python", *rest) if Path(head).is_absolute() and name.startswith("python") else command
 
 
 def python_module(tokens: tuple[str, ...]) -> str:

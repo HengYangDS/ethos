@@ -10,12 +10,14 @@ from datetime import timedelta
 from pathlib import Path
 from typing import NamedTuple
 
+from ethos.adapters.gates.formatting import prepare_source_format
 from ethos.adapters.store.state.lease.lifecycle.transitions import acquire_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import LaneLease
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
+from ethos.repository.release.resources import canonical_resource
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.fixture_signer import configure_fixture_signer
 from tests.support.paradigm import PARADIGM_OPENSPEC_CONFIG
@@ -25,9 +27,12 @@ PARADIGM_EDITORCONFIG = (
     "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n"
 )
 PARADIGM_FORMATTERS = {
-    ".config/checks/prettier/prettier.toml": 'printWidth = 100\nproseWrap = "preserve"\n',
-    ".config/checks/taplo/taplo.toml": "[formatting]\ncolumn_width = 100\n",
-    ".config/checks/ruff/ruff.toml": 'line-length = 100\ntarget-version = "py312"\n',
+    relative: canonical_resource(relative).read_text(encoding="utf-8")
+    for relative in (
+        ".config/checks/prettier/prettier.toml",
+        ".config/checks/taplo/taplo.toml",
+        ".config/checks/ruff/ruff.toml",
+    )
 }
 # A task-only mise owner exposes the common verbs and selects no native tools.
 PARADIGM_TOOLCHAIN = {
@@ -469,12 +474,18 @@ def write_script_gate_policy(root: Path, *, full: bool = False) -> None:
     (root / "tools/check.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
 
 
-def commit_fixture(root: Path, message: str, *, signed: bool = True) -> str:
+def commit_fixture(
+    root: Path, message: str, *, signed: bool = True, format_paths: tuple[str, ...] = ()
+) -> str:
     """Commit all fixture changes and return the resulting HEAD.
 
     Fixtures sign like every governed repository; a test that needs an unsigned
     source object, such as a signature repair, asks for one explicitly.
+    Native formatting applies only to explicitly selected fixture inputs.
     """
+    if format_paths:
+        for item in prepare_source_format(root, paths=format_paths):
+            (root / item.path).write_bytes(item.after)
     git(root, "add", ".")
     return _commit_fixture(root, message, signed=signed)
 

@@ -19,7 +19,6 @@ from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_policy_fields
 from ethos.repository.policy.quality.obligations import quality_obligation_gaps
-from tests.support.governed_repository import committed_source_repo
 
 
 def _gate(*providers: str) -> Gate:
@@ -351,38 +350,7 @@ def test_quality_tool_public_failure_matrix(
     if state == "skipped":
         assert report["file_count"] == 0
     if state == "failed":
-        assert report["stdout"] == "x" * 5000
-
-
-def test_markdown_link_gate_excludes_deleted_tracked_paths(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """Missing selected source fails before the native checker can omit it."""
-    repo = committed_source_repo(
-        tmp_path,
-        {
-            ".config/checks/lychee/lychee.toml": "offline = true\n",
-            "README.md": "# Current\n",
-            "docs/deleted.md": "# Deleted\n",
-        },
-    )
-    (repo / "docs/deleted.md").unlink()
-    observed: list[tuple[str, ...]] = []
-
-    def run(
-        _root: Path, command: tuple[str, ...], **_kwargs: object
-    ) -> subprocess.CompletedProcess[str]:
-        observed.append(command)
-        return subprocess.CompletedProcess(command, 0, "", "")
-
-    monkeypatch.setattr(gate_tool, "run_command", run)
-
-    report = gate_tool.markdown_links_report(repo)
-
-    assert report["verdict"] == "unknown", report
-    assert report["file_count"] == 3
-    assert report["required_gaps"] == ["source_member_link_or_type_forbidden:docs/deleted.md"]
-    assert not observed
+        assert (report["stdout"], report["stderr"]) == ("x" * 5000, "failed")
 
 
 def test_command_gate_executes_declared_python_not_ambient_canonical_identity(

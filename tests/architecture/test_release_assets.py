@@ -65,6 +65,7 @@ def test_native_tool_declarations_have_one_locked_supply_identity() -> None:
 
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())
     assert any(item.startswith("lychee-bin>=") for item in project["project"]["dependencies"])
+    assert not any(item.startswith("lychee-bin>=") for item in project["dependency-groups"]["dev"])
 
 
 def test_ci_supply_provides_the_declared_linux_signing_tool() -> None:
@@ -222,7 +223,6 @@ def test_local_ci_requires_complete_exact_source_evidence(tmp_path, monkeypatch,
 
 @pytest.mark.parametrize("workers", [None, 1, 8])
 @pytest.mark.parametrize(("cores", "expected_default"), [(3, 3), (18, 12)])
-@pytest.mark.usefixtures("python_gate_artifact")
 def test_test_environment_freezes_locked_supply_as_absolute_paths(
     tmp_path, monkeypatch, workers, cores, expected_default
 ) -> None:
@@ -277,18 +277,18 @@ def test_project_capability_supply_revalidates_each_operation(tmp_path, monkeypa
     assert pipeline.node_package_supply == supply
 
 
-def test_config_quality_consumes_source_bound_node_package_supply(tmp_path, monkeypatch) -> None:
-    """The native product provider owns supply; Nox only projects its selected root."""
-    check = Mock(return_value={"verdict": "pass", "required_gaps": []})
-    monkeypatch.setattr(ci_sessions, "ROOT", tmp_path)
+def test_config_quality_projects_the_installed_owner(monkeypatch) -> None:
+    """Nox owns transport and source hook validation, not generic configuration rules."""
+    check = Mock(return_value={"verdict": "pass"})
     monkeypatch.setattr(
         ci_sessions, "import_module", lambda _name: SimpleNamespace(configuration_report=check)
     )
-    session = SimpleNamespace(posargs=(), run=Mock(), error=pytest.fail)
+    session = SimpleNamespace(posargs=(), run=Mock(), log=Mock(), error=pytest.fail)
 
     ci_sessions.config_quality(cast("nox.Session", session))
 
-    check.assert_called_once_with(tmp_path, paths=())
+    check.assert_called_once_with(ci_sessions.ROOT, paths=())
+    session.log.assert_called_once()
     session.run.assert_called_once_with(
         ci_sessions.RUNTIME.script("pre-commit"), "validate-config", ci_sessions.PRE_COMMIT_CONFIG
     )

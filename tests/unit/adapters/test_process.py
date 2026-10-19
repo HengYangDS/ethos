@@ -11,14 +11,15 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 from contextlib import nullcontext
+from contextlib import suppress
 from contextvars import copy_context
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
 
 import ethos.adapters.gates.runner as gate_runner
 import ethos.adapters.process as process_adapter
-import ethos.adapters.repo.runtime.retirement as retirement
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
 from ethos.repository.policy.gates import gate_execution_identity
@@ -209,47 +210,6 @@ def test_command_scope_conserves_one_deadline_across_native_calls(tmp_path, monk
     assert process_adapter.run_command(tmp_path, (sys.executable, "-c", "pass")).returncode == 0
 
 
-@pytest.mark.parametrize("platform", ["posix", "nt"])
-def test_process_observer_resolves_native_authority(tmp_path, monkeypatch, platform):
-    """Native observation excludes ambient executable and incompatible module paths."""
-    relative = "System32/WindowsPowerShell/v1.0/powershell.exe" if platform == "nt" else "bin/ps"
-    native = tmp_path / relative
-    native.parent.mkdir(parents=True)
-    native.write_text(
-        '#!/bin/sh\n[ -z "${PSModulePath+x}${GIT_INDEX_FILE+x}" ] || exit 91\nprintf "%s\\n" "$*"\n'
-    )
-    native.chmod(0o700)
-    monkeypatch.setenv("SYSTEMROOT", tmp_path.as_posix())
-    monkeypatch.setenv("PATH", (tmp_path / "ambient").as_posix())
-    monkeypatch.setenv("PSModulePath", "foreign-powershell-modules")
-    monkeypatch.setenv("GIT_INDEX_FILE", "foreign-index")
-    native_run = retirement.run_command
-
-    def observe(root, command, **options):
-        assert (root, options["timeout"]) == (tmp_path, 10)
-        return native_run(root, command, **options)
-
-    monkeypatch.setattr(retirement, "run_command", observe)
-
-    def resolve(name, *, path):
-        assert (name, path) == ("ps", os.defpath)
-        return native.as_posix()
-
-    monkeypatch.setattr(process_adapter.shutil, "which", resolve)
-    expected = (
-        "-NoLogo -NoProfile -NonInteractive -Command Get-CimInstance Win32_Process | % CommandLine"
-        if platform == "nt"
-        else "-axww -o command="
-    )
-    assert retirement.process_commands(tmp_path, platform_name=platform).strip() == expected
-    if platform == "nt":
-        monkeypatch.delenv("SYSTEMROOT")
-        with pytest.raises(process_adapter.ProcessExecutionError) as caught:
-            process_adapter.windows_powershell()
-        assert caught.value.code == "native_windows_powershell_unavailable"
-        assert caught.value.reason == "system_root_missing"
-
-
 @pytest.mark.parametrize("phase", ["spawn", "communication", "completed"])
 def test_process_failure_preserves_its_actual_boundary(tmp_path, monkeypatch, phase):
     """Only failure before successful creation is a process-creation error."""
@@ -350,19 +310,6 @@ def _observe_ready_parent(process, parent_exited, failure):
             assert process.poll() == 0
 
 
-@pytest.mark.timeout(30)
-def test_native_output_is_captured_through_regular_files(tmp_path):
-    """Bulk output never makes a native child wait for this process to drain a pipe."""
-    body = (
-        "import os,stat,sys; assert stat.S_ISREG(os.fstat(1).st_mode); "
-        "sys.stdout.buffer.write(b'o' * 8388608); sys.stderr.buffer.write(b'e' * 65536)"
-    )
-    result = process_adapter.run_command(
-        tmp_path, (sys.executable, "-c", body), text=False, check=True, timeout=20
-    )
-    assert (result.stdout, result.stderr) == (b"o" * 8388608, b"e" * 65536)
-
-
 @pytest.mark.skipif(os.name != "posix", reason="POSIX process-group boundary")
 @pytest.mark.parametrize(
     ("failure", "spool_stdout"),
@@ -448,3 +395,53 @@ def test_command_failure_closes_owned_descendants(
         assert closed()
         assert not fallback, "caller cancellation waited for external rescue"
         assert sum(call.args[1] == signal.SIGKILL for call in signals.call_args_list) == 1
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX nested command-group signals")
+@pytest.mark.parametrize("boundary", ["command-timeout", "cli-termination"])
+def test_catchable_cancellation_closes_nested_registered_groups(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str
+) -> None:
+    """A live nested owner gets cancellation before its caller can hard-kill it."""
+    marker = tmp_path / "owned-child.pid"
+
+    def after_ready(parent, _options):
+        if boundary == "cli-termination":
+            parent.send_signal(signal.SIGTERM)
+
+    with ready_descendant(monkeypatch, after_ready) as (body, closed):
+        child = (
+            "import os; from pathlib import Path; "
+            f"Path({str(marker)!r}).write_text(str(os.getpid())); " + body
+        )
+        launch = (
+            "import sys; from pathlib import Path; from types import SimpleNamespace; "
+            f"sys.path.insert(0, {str(Path(process_adapter.__file__).resolve().parents[2])!r}); "
+            "from ethos.adapters.process import run_command; from ethos import cli; "
+            f"command = (sys.executable, '-B', '-I', '-c', {child!r}); "
+            "application = SimpleNamespace(load_command_groups=lambda _: None, "
+            "dispatch_arguments=lambda args: args, "
+            "app=lambda _: run_command(Path.cwd(), command, timeout=10)); "
+            "native_import = cli.import_module; "
+            "cli.import_module = lambda name: application if "
+            "name == 'ethos.surface.cli.application' else native_import(name); "
+            "sys.argv = ['ethos', 'probe']; cli.main()"
+        )
+        try:
+            failure = (
+                pytest.raises(subprocess.TimeoutExpired)
+                if boundary == "command-timeout"
+                else nullcontext()
+            )
+            with failure:
+                result = process_adapter.run_command(
+                    tmp_path,
+                    (sys.executable, "-B", "-I", "-c", launch),
+                    timeout=0.2 if boundary == "command-timeout" else 10,
+                )
+                assert result.returncode != 0
+            assert closed(), "catchable cancellation left the registered child's socket open"
+        finally:
+            if marker.exists():
+                with suppress(ProcessLookupError):
+                    os.killpg(int(marker.read_text()), signal.SIGKILL)

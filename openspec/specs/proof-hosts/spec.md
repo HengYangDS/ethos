@@ -8,24 +8,20 @@ and migration replay proof separate from runtime packages.
 ## Requirements
 
 ### Requirement: Proof Separation
-
 ETHOS SHALL host conformance fixtures and parity proof helpers outside the
 runtime semantic packages.
 
 #### Scenario: Conformance package is inspected
-
 - **WHEN** tests inspect `proof-hosts`
 - **THEN** it contains proof fixtures and sample helpers rather than runtime
   command semantics
 
 ### Requirement: Product Migration Closure Proof
-
 ETHOS SHALL prove product migration closure through conformance tests, local
 build smoke, npm launcher smoke, OpenSpec validation, parity evidence, and
 execution-backed ETHOS proof.
 
 #### Scenario: Closure proof runs
-
 - **WHEN** product migration closure is verified
 - **THEN** unit and architecture tests pass
 - **AND** all Python packages build wheel and sdist locally
@@ -33,30 +29,25 @@ execution-backed ETHOS proof.
 - **AND** OpenSpec validation and ETHOS proof report no required gaps
 
 ### Requirement: Governance Lifecycle Fixtures
-
 ETHOS SHALL provide reusable tests and fixtures for complete and malformed
 governance lifecycles.
 
 #### Scenario: Complete lifecycle fixture passes
-
 - **WHEN** tests load a complete governance lifecycle fixture
 - **THEN** claim admission, OpenSpec lifecycle review, proof evidence, and
   promotion target validation all report no required gaps
 
 #### Scenario: Malformed lifecycle fixture fails
-
 - **WHEN** tests load a malformed governance lifecycle fixture
 - **THEN** ETHOS reports specific required gaps for missing claim binding,
   missing promotion target, missing executed proof, or malformed OpenSpec
   carrier state
 
 ### Requirement: Reference Adopter Boundary Fixtures
-
 ETHOS SHALL test adopter parity through generic profiles instead of product-package
 adopter terminology.
 
 #### Scenario: Reference adopter fixture is validated
-
 - **WHEN** tests validate a reference adopter profile fixture
 - **THEN** adopter-specific terms remain in the fixture or evidence
 - **AND** product runtime packages remain provider-neutral

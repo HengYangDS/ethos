@@ -142,6 +142,7 @@ class Gate(BaseModel):
     toolchain: str = "quality-adapter"
     depends_on: FrozenTuple[str] = ()
     asset_classes: FrozenTuple[str] = ()
+    required_for_paths: FrozenTuple[str] = Field(default=(), exclude_if=lambda value: not value)
     dimensions: FrozenTuple[str] = ()
     execution_mode: str = "inprocess"
     evidence_class: str = "contract"
@@ -320,45 +321,6 @@ class GateRegistryDeclaration(BaseModel):
             for gate in registry.values()
         )
         return tuple(registry[node.id] for node in TransitionPlan.closure(nodes, selected))
-
-    def compose_proof_gates(
-        self,
-        gate_ids: tuple[str, ...] = (),
-        *,
-        product: "GateRegistryDeclaration",
-        product_gate_ids: tuple[str, ...] = (),
-        full: bool = False,
-        python_executable: str | None = None,
-    ) -> tuple[tuple[Gate, ...], tuple[str, ...]]:
-        """Join explicit source closures, refusing conflicting identities without aliases."""
-        if not product_gate_ids:
-            return self.proof_gates(gate_ids, full=full, python_executable=python_executable), ()
-        if not gate_ids or not set(product_gate_ids) <= set(gate_ids):
-            message = "product_gate_selection_invalid"
-            raise ValueError(message)
-        imported = product.proof_gates(product_gate_ids, python_executable=python_executable)
-        native_ids = tuple(name for name in gate_ids if name not in product_gate_ids)
-        native = (
-            self.proof_gates(native_ids, python_executable=python_executable) if native_ids else ()
-        )
-        native_by_id = {gate.id: gate for gate in native}
-        conflicts = {
-            gate.id
-            for gate in imported
-            if gate.id in native_by_id and gate != native_by_id[gate.id]
-        }
-        if conflicts:
-            raise ValueError("gate_selection_origin_conflict:" + ",".join(sorted(conflicts)))
-        selected = native_by_id | {gate.id: gate for gate in imported}
-        nodes = TransitionPlan.closure(
-            tuple(
-                PlanNode(id=gate.id, kind="check", command=gate.command, depends_on=gate.depends_on)
-                for gate in selected.values()
-            )
-        )
-        return tuple(selected[node.id] for node in nodes), tuple(
-            sorted(gate.id for gate in imported)
-        )
 
 
 def _validate_gate_graph(gates: tuple[Gate, ...]) -> set[str]:

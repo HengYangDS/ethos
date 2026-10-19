@@ -9,7 +9,7 @@ from typing import cast
 import pytest
 
 import ethos.domain.source_budget.measurement as source_budget
-from ethos.repository.policy.quality.measurement import PYTHON_CATEGORIES
+from ethos.repository.policy.quality.source_budget import PYTHON_CATEGORIES
 from tests.support.literal_cases import literal_case
 from tests.support.source_budget import budget_repository
 from tests.support.source_budget import measure_budget

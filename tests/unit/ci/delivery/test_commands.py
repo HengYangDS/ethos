@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import importlib
 import json
 import sys
@@ -16,16 +15,14 @@ from ethos.adapters.repo.runtime.materialization.node_package_supply import (
     resolve_node_package_supply,
 )
 from ethos.adapters.toolchain.mise import native_tool_cache
-from ethos.repository.release.resources import GUIDANCE_RESOURCE
-from ethos.repository.release.resources import packaged_resource
+from ethos.repository.release.identity import build_identity
 from ethos.result import EthosResult
+from tests.support.installed_guidance import installed_guidance
 from tools.ci.delivery.acceptance import adopter as fixture
 from tools.ci.delivery.acceptance import brownfield as brownfield_fixture
 from tools.ci.delivery.acceptance import effect
-from tools.ci.delivery.acceptance import first_change
 from tools.ci.delivery.acceptance import invocation
 from tools.ci.delivery.acceptance import lane
-from tools.ci.delivery.acceptance.adopter import verify_formed
 
 ROOT = Path(__file__).resolve().parents[4]
 
@@ -95,37 +92,6 @@ def test_brownfield_conformance_checks_authored_content(
             "planned_files": planned,
         }
     assert stages == (["preview"] if phase == "preview" else ["preview", "apply"])
-
-
-def test_installed_formation_observation_binds_the_effect_head(tmp_path: Path) -> None:
-    """A formation plan is not the result; the applied effect owns the commit OID."""
-    target = tmp_path / "formed"
-    target.mkdir()
-    entry = target / "AGENTS.md"
-    entry.write_text("Run ethos status --root . --json\n", encoding="utf-8")
-    guide = tmp_path / "SKILL.md"
-    guide.write_text("Use the installed product.\n", encoding="utf-8")
-    digest = hashlib.sha256(guide.read_bytes()).hexdigest()
-    head = "a" * 40
-    plan: dict[str, object] = {
-        "write_plan": [
-            {"path": "AGENTS.md", "content_sha256": hashlib.sha256(entry.read_bytes()).hexdigest()}
-        ]
-    }
-    status: dict[str, object] = {
-        "verdict": "pass",
-        "data": {
-            "head": head,
-            "dirty": False,
-            "hook_runtime": {"current": True},
-            "candidate": {"worktree_exists": True},
-        },
-        "governance_context": {"agent_guidance": {"sha256": digest, "path": str(guide)}},
-    }
-
-    assert verify_formed(target, plan, {"effect": {"head": head}}, (0, status, ""), digest) == head
-    with pytest.raises(RuntimeError, match="installed_formation_status_invalid"):
-        verify_formed(target, plan, {"head": head}, (0, status, ""), digest)
 
 
 def _run(*command: str, cwd: Path | None = None, env: dict[str, str] | None = None) -> str:
@@ -259,10 +225,7 @@ def test_installed_observation_runs_shared_isolated_conformance(
     smoke, adopter = tmp_path / "venv", tmp_path / "adopter"
     adopter.mkdir()
     package = smoke / "site-packages/ethos"
-    guide = package / "resources/skills/ethos-repository-work/SKILL.md"
-    guide.parent.mkdir(parents=True)
-    guide.write_text("Run ethos status.\n", encoding="utf-8")
-    (package / "__init__.py").write_text("", encoding="utf-8")
+    _guide, _origin, status = installed_guidance(package)
     executed: list[tuple[str, ...]] = []
     environments: list[object] = []
     environment, _git = effect.independent_host_environment()
@@ -277,18 +240,7 @@ def test_installed_observation_runs_shared_isolated_conformance(
         if "Path(ethos.__file__)" in " ".join(command):
             return (smoke / "site-packages/ethos/__init__.py").as_posix()
         if "status" in command:
-            return json.dumps(
-                {
-                    "governance_context": {
-                        "agent_guidance": {
-                            "authority": "product_projection",
-                            "media_type": "text/markdown",
-                            "path": str(guide),
-                            "sha256": hashlib.sha256(guide.read_bytes()).hexdigest(),
-                        }
-                    }
-                }
-            )
+            return json.dumps(status)
         if len(command) > 3 and Path(command[3]).name == "mcp.py":
             return '{"state":"passed","native_git_loss":"not_qualified"}'
         return ""
@@ -321,20 +273,72 @@ def test_installed_observation_runs_shared_isolated_conformance(
     assert probe[5] == str(effect.WORK)
 
 
+def test_formation_first_change_binds_the_selected_runtime_origin(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Formation selects immutable supply before the first Change consumes guidance."""
+    bootstrap = tmp_path / "bootstrap/ethos"
+    _guide, origin, _status = installed_guidance(bootstrap)
+    selected_origin = tmp_path / "immutable/site-packages/ethos/__init__.py"
+    build = build_identity(product="0.2.0-alpha.3", source_commit="a" * 40, source_tree="b" * 40)
+    observed: list[str] = []
+
+    def invoke(_root: Path, command: tuple[str, ...], **_kwargs: object) -> tuple:
+        target = Path(command[command.index("--root") + 1])
+        if "--create" in command:
+            if "--apply" in command:
+                if target.exists():
+                    return 1, {"required_gaps": ["formation_target_exists"]}, ""
+                target.mkdir()
+                data = {"applied": True}
+            else:
+                data = {
+                    "plan_digest": "a" * 64,
+                    "candidate_worktree_path": str(target) + "-candidate",
+                }
+        else:
+            data = {"hook_runtime": {"current": True}}
+        return 0, {"verdict": "pass", "data": data}, ""
+
+    def first(_executable: Path, _target: Path, **kwargs: object) -> dict[str, str]:
+        observed.append(str(kwargs["origin"]))
+        return {"first_change": "lane_admitted", "agent_handoff": "passed", "formatting": "passed"}
+
+    monkeypatch.setattr(fixture, "invoke", invoke)
+    monkeypatch.setattr(fixture, "verify_formed", lambda *_args: "a" * 40)
+    monkeypatch.setattr(fixture, "_verify_candidate", lambda *_args: None)
+    monkeypatch.setattr(fixture, "prove_first_change", first)
+    monkeypatch.setattr(
+        fixture.runtime_acceptance, "require_manifest", lambda *_a, **_k: tmp_path / "python"
+    )
+    monkeypatch.setattr(
+        fixture,
+        "run_command",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=0, stdout=str(selected_origin), stderr=""
+        ),
+    )
+
+    fixture.prove_formation(
+        tmp_path / "ethos",
+        tmp_path,
+        origin=str(origin),
+        build=build,
+        wheel_sha256="f" * 64,
+        environment={"PATH": ""},
+        run=_run,
+    )
+
+    assert observed == [str(selected_origin)]
+
+
 def test_installed_guidance_must_match_the_package_that_served_status(tmp_path: Path) -> None:
     """An installed CLI cannot point an Agent at source or altered guidance."""
     package = tmp_path / "venv/site-packages/ethos"
-    guide = package / "resources/skills/ethos-repository-work/SKILL.md"
-    guide.parent.mkdir(parents=True)
-    guide.write_text("Run ethos status and follow next_action.\n", encoding="utf-8")
-    origin = package / "__init__.py"
-    origin.write_text("", encoding="utf-8")
-    guidance = {
-        "authority": "product_projection",
-        "media_type": "text/markdown",
-        "path": str(guide),
-        "sha256": hashlib.sha256(guide.read_bytes()).hexdigest(),
-    }
+    guide, origin, status = installed_guidance(
+        package, "Run ethos status and follow next_action.\n"
+    )
+    guidance = status["governance_context"]["agent_guidance"]
 
     def payload(value: dict[str, str] | None) -> str:
         return json.dumps({"governance_context": {"agent_guidance": value}})
@@ -400,170 +404,3 @@ def test_independent_cli_checks_do_not_replace_a_blocked_request(
     assert "plan --changed" in observation["commands"]
     assert sum(command[1:3] == ("plan", "--changed") for command in commands) == 1
     assert not any(command[1] == "plan" and "--changed" not in command for command in commands[1:])
-
-
-def _format_response(root: Path, request: tuple[str, ...], *, fail_apply: bool):
-    """Simulate one native command result while preserving the actual consumer protocol."""
-    paths = [part for part in request[2 : request.index("--root")] if not part.startswith("--")]
-    candidates = {
-        path: (root / path).read_bytes().replace(b"   ", b" ").replace(b"  \n", b"\n")
-        for path in paths
-    }
-    changed = [path for path in paths if candidates[path] != (root / path).read_bytes()]
-    applying = "--apply" in request
-    if applying and not fail_apply:
-        for path, content in candidates.items():
-            (root / path).write_bytes(content)
-    refusal = bool(changed) and "--check" in request
-    state = "format_required" if refusal else "formatted" if applying else "planned"
-    return (
-        int(refusal),
-        {
-            "verdict": "block" if refusal else "pass",
-            "data": {
-                "state": state if changed else "conforming",
-                "applied": applying and not fail_apply,
-                "changed_paths": changed,
-                "selected_paths": paths,
-            },
-        },
-        "",
-    )
-
-
-def _first_change_effect(lane, executable, command, effects, request, **kwargs):
-    """Execute the synthetic official artifact boundary or its independent native Git staging."""
-    if request[1] == "add":
-        paths = tuple(request[request.index("--") + 1 :])
-        assert all(Path(path).name.startswith("format-draft.") for path in paths)
-        assert all(path.startswith("docs/") for path in paths)
-        return SimpleNamespace(returncode=0, stdout="", stderr="")
-    effects.append(request)
-    assert request[:2] == (str(executable), str(command))
-    assert not kwargs["inherit_environment"]
-    assert kwargs["env"]["ETHOS_ACTOR"].endswith(":successor")
-    if request[2] == "new":
-        metadata = lane / "openspec/changes/first-change/.openspec.yaml"
-        metadata.parent.mkdir(parents=True)
-        metadata.write_text("schema: spec-driven\n", encoding="utf-8")
-    report = {"summary": {"totals": {"items": 1, "passed": 1, "failed": 0}}}
-    return SimpleNamespace(returncode=0, stdout=json.dumps(report), stderr="")
-
-
-@pytest.mark.parametrize("projection", ["resources", "data", "outside", "digest", "format_failure"])
-def test_first_change_uses_native_packaged_resource_ownership(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, projection: str
-) -> None:
-    """Exercise resource admission through the public installed first-Change journey."""
-    package = tmp_path / "installed/ethos"
-    guide = (
-        package / "data" / GUIDANCE_RESOURCE
-        if projection == "data"
-        else packaged_resource(GUIDANCE_RESOURCE, package=package)
-    )
-    executable = tmp_path / "node"
-    command = (
-        tmp_path / "foreign/cli.js"
-        if projection == "outside"
-        else packaged_resource("node_modules/openspec/cli.js", package=package)
-    )
-    for path, content in {
-        package / "__init__.py": "",
-        guide: "Run ethos status.\n",
-        executable: "",
-        command: "",
-    }.items():
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
-    status: dict[str, object] = {
-        "governance_context": {
-            "official_openspec": {"base_command": [str(executable), str(command)]},
-            "agent_guidance": {
-                "path": str(guide),
-                "authority": "product_projection",
-                "media_type": "text/markdown",
-                "sha256": "invalid"
-                if projection == "digest"
-                else hashlib.sha256(guide.read_bytes()).hexdigest(),
-            },
-        }
-    }
-    lane_root = tmp_path / "work"
-    lane_root.mkdir()
-    branch = "work/first-change"
-    calls: list[tuple[str, ...]] = []
-    effects: list[tuple[str, ...]] = []
-
-    def invoke(_root: Path, request: tuple[str, ...], *, environment):
-        calls.append(request)
-        if request[1:3] == ("lane", "start"):
-            return (
-                0,
-                {
-                    "verdict": "pass",
-                    "data": {
-                        "path": str(lane_root),
-                        "branch": branch,
-                        "lease": {"generation": 1, "expires_at": "2099-01-01T00:00:00Z"},
-                    },
-                },
-                "",
-            )
-        if request[1:3] == ("lane", "handoff"):
-            applied = "--apply" in request
-            return (
-                0,
-                {
-                    "verdict": "pass",
-                    "state": "transferred" if applied else "planned",
-                    "data": {
-                        "lease": {
-                            "generation": 2,
-                            "holder_ref": request[request.index("--target-holder-ref") + 1],
-                        }
-                    },
-                },
-                "",
-            )
-        if request[1] == "status":
-            successor = environment["ETHOS_ACTOR"].endswith(":successor")
-            return (
-                0,
-                {
-                    **status,
-                    "required_gaps": [
-                        "openspec_requested_change_missing:first-change"
-                        if successor
-                        else f"lease_holder_mismatch:{branch}"
-                    ],
-                },
-                "",
-            )
-        if request[1] == "format":
-            return _format_response(lane_root, request, fail_apply=projection == "format_failure")
-        assert request[1:3] == ("lane", "prewrite")
-        return 0, {"verdict": "pass"}, ""
-
-    def run(_root: Path, request: tuple[str, ...], **kwargs):
-        return _first_change_effect(lane_root, executable, command, effects, request, **kwargs)
-
-    monkeypatch.setattr(first_change, "invoke", invoke)
-    monkeypatch.setattr(first_change, "run_command", run)
-    if projection == "resources":
-        assert first_change.prove_first_change(executable, tmp_path, environment={"PATH": ""}) == {
-            "first_change": "lane_admitted",
-            "agent_handoff": "passed",
-            "formatting": "passed",
-        }
-        assert [request[2] for request in effects] == ["new", "validate"]
-        assert sum(request[1:3] == ("lane", "prewrite") for request in calls) == 4
-        assert (lane_root / "openspec/changes/first-change/specs/foundation/spec.md").is_file()
-    else:
-        with pytest.raises(
-            RuntimeError,
-            match=r"installed_(first_change_tool_unavailable|agent_guidance_invalid|source_format_unproven)",
-        ):
-            first_change.prove_first_change(executable, tmp_path, environment={"PATH": ""})
-        assert [request[2] for request in effects] == {"format_failure": ["new", "validate"]}.get(
-            projection, []
-        )

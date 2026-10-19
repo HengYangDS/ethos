@@ -39,19 +39,6 @@ def proof_acceptance_purpose(policy: Mapping[str, object]) -> AcceptancePurpose:
     return cast("AcceptancePurpose", purpose)
 
 
-def product_gate_ids_from_policy(policy: Mapping[str, object]) -> tuple[str, ...]:
-    """Read explicit source selection; absence preserves native proof ownership."""
-    selected = policy.get("product_gate_ids", ())
-    if (
-        not isinstance(selected, tuple | list)
-        or any(not isinstance(name, str) or not name for name in selected)
-        or len(set(selected)) != len(selected)
-    ):
-        message = "product_gate_selection_invalid"
-        raise ValueError(message)
-    return tuple(selected)
-
-
 def execution_source_gaps(facts: Mapping[str, object]) -> tuple[str, ...]:
     """Require explicit native checkout/index correspondence for exact-commit proof."""
     values = facts.get("values")

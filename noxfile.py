@@ -9,6 +9,6 @@ nox.options.error_on_external_run = True
 nox.options.sessions = ["lint"]
 
 for _name in sessions.PUBLIC_SESSIONS:
-    _implementation = getattr(sessions, _name)
+    _implementation = sessions.SESSION_IMPLEMENTATIONS.get(_name) or getattr(sessions, _name)
     _implementation.__name__ = _name
     nox.session(python=False, name=_name)(_implementation)

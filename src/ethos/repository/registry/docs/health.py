@@ -271,7 +271,9 @@ def readme_disposition_gaps(
     by_parent: dict[Path, set[Path]] = {}
     sources = [root / entry["path"] for entry in registry]
     sources.extend(
-        path for path in docs.rglob("*.toml") if path.is_file() and not path.is_symlink()
+        path
+        for path in docs.rglob("*")
+        if path.suffix in {".toml", ".json"} and path.is_file() and not path.is_symlink()
     )
     sources.extend(_linked_metadata_children(root, registry, generated_outputs))
     for source in sources:

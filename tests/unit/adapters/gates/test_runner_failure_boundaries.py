@@ -3,23 +3,239 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.gates.configuration as configuration_gate
+import ethos.adapters.gates.formatting as formatting_gate
 import ethos.adapters.gates.runner as gate_runner
+import ethos.adapters.gates.tool as gate_tool
 import ethos.adapters.gates.verification as gate_verification
+import ethos.adapters.mutation.proof_artifacts as proof_artifacts
+import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.gates.verification import classify_action_result
 from ethos.contracts.gates import Gate
 from ethos.contracts.plan import PlanNode
+from ethos.surface.cli.proof.report import summarize_checks
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+@pytest.mark.parametrize("boundary", ["invalid-repository", "missing-executable"])
+@pytest.mark.parametrize(
+    ("provider", "gate_id"),
+    [
+        ("markdown_lint_report", "markdown-lint"),
+        ("markdown_links_report", "markdown-links"),
+        ("external_links_report", "external-links"),
+        ("prose_report", "prose"),
+        ("module_layout_gate_report", "module-layout"),
+        ("configuration_report", "config-quality"),
+        ("source_format_report", "source-format"),
+    ],
+)
+def test_native_quality_inventory_failure_is_not_empty_success(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, provider: str, gate_id: str, boundary: str
+) -> None:
+    """Unavailable native input retains its actual failure instead of granting a pass."""
+    (tmp_path / "source.json").write_text('{\n  "value": 1\n}\n')
+    (tmp_path / ".git").write_text("gitdir: missing-repository\n")
+    if boundary == "missing-executable":
+        monkeypatch.setattr(git_adapter, "git_executable", lambda _: str(tmp_path / "missing-git"))
+    try:
+        owner = (
+            configuration_gate
+            if provider == "configuration_report"
+            else formatting_gate
+            if provider == "source_format_report"
+            else gate_tool
+        )
+        report = (
+            configuration_gate.configuration_report(tmp_path, paths=("source.json",))
+            if provider == "configuration_report"
+            else getattr(owner, provider)(tmp_path)
+        )
+    except (ValueError, subprocess.CalledProcessError) as error:
+        pytest.fail(f"native inventory failure escaped its public result: {error}")
+    assert (report["verdict"], report["state"]) == ("unknown", "inventory_unavailable")
+    assert report["required_gaps"] == [f"quality_input_inventory_unavailable:{gate_id}"]
+    evidence = report["errors"][0]
+    assert evidence["cwd"] == str(tmp_path)
+    if boundary == "invalid-repository":
+        assert evidence["exit_code"] == 128
+        assert "gitfile does not point to a valid repository" in evidence["stderr"]
+    else:
+        assert evidence["code"] == "git_process_spawn_failed"
+        assert evidence["command"][0] == str(tmp_path / "missing-git")
+    assert (tmp_path / "source.json").read_text() == '{\n  "value": 1\n}\n'
+
+
+def test_native_markdown_consumes_literal_tracked_and_untracked_authored_inputs(tmp_path: Path):
+    """Native selection includes pending Unicode paths but not immutable or ignored bytes."""
+    repo = init_git_repo(tmp_path / "repo")
+    (repo / "README.md").unlink()
+    contents = {
+        ".gitignore": "build/\n",
+        "docs/usage-\u03b1-[literal].md": "# Usage\n\nWords.\n",
+        "docs/deleted.md": "# Deleted\n",
+        "evidence/retained.md": "[Empty]()\n",
+        "openspec/changes/archive/2020-01-01-old/README.md": "[Empty]()\n",
+        "build/ignored.md": "[Empty]()\n",
+    }
+    for relative, content in contents.items():
+        path = repo / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
+    commit_fixture(repo, "record authored Markdown")
+    (repo / "docs/deleted.md").unlink()
+    pending = "docs/pending-\u03b2-[literal].md"
+    (repo / pending).write_text("# Pending\n\n[Empty]()\n")
+    report = gate_tool.markdown_lint_report(repo)
+    expected = {"AGENTS.md", "docs/usage-\u03b1-[literal].md", pending}
+    assert (report["verdict"], report["file_count"]) == ("block", len(expected))
+    assert "MD042" in report["native"][1]["stderr"]
+    assert set(report["native"][0]["files"]) == expected
+    accepted, _ignored = formatting_gate.render_source_content(
+        repo, pending, "prettier", b"# Pending\n\nWords.\n"
+    )
+    (repo / pending).write_bytes(accepted)
+    for _ in range(2):
+        assert gate_tool.markdown_lint_report(repo)["verdict"] == "pass"
+        assert (repo / pending).read_bytes() == accepted
+    assert (repo / "evidence/retained.md").read_text() == "[Empty]()\n"
+    assert (repo / "build/ignored.md").read_text() == "[Empty]()\n"
+
+
+def test_native_configuration_consumes_untracked_repository_increment(tmp_path: Path) -> None:
+    """A pending stricter policy cannot silently disappear behind the shared floor."""
+    repo = init_git_repo(tmp_path / "repo")
+    source = repo / "source.json"
+    source.write_text('{\n  "value": 1\n}\n')
+    relative = ".config/checks/prettier/prettier.toml"
+    git(repo, "rm", relative)
+    commit_fixture(repo, "record configuration without repository increment")
+    increment = repo / relative
+    increment.parent.mkdir(parents=True, exist_ok=True)
+    policy = "tabWidth = "
+    increment.write_text(policy + "4\n")
+    refused = configuration_gate.configuration_report(repo, paths=("source.json",))
+    assert refused["verdict"] == "block"
+    assert "source.json" in str(refused["required_gaps"])
+    assert source.read_text() == '{\n  "value": 1\n}\n'
+    increment.write_text(policy + "2\n")
+    assert (
+        configuration_gate.configuration_report(repo, paths=("source.json",))["verdict"] == "pass"
+    )
+
+
+@pytest.mark.parametrize("provider", ["markdown_lint_report", "prose_report"])
+def test_native_markdown_verified_empty_inventory_still_passes(tmp_path: Path, provider: str):
+    """An actual empty Git inventory remains legal without quality-tool execution.
+
+    Link checks bind a committed delivery, so an empty one stays unknown with
+    `markdown_link_source_empty` in the link tests instead.
+    """
+    repo = init_git_repo(tmp_path / "repo")
+    for relative in ("AGENTS.md", "README.md"):
+        (repo / relative).unlink()
+    commit_fixture(repo, "record empty Markdown inventory")
+    report = getattr(gate_tool, provider)(repo)
+    assert (report["verdict"], report["file_count"]) == ("pass", 0)
+    assert all(item["state"] == "skipped" for item in report.get("native", []))
+
+
+@pytest.mark.parametrize("exit_code", [0, 7])
+def test_quality_tool_complete_streams_survive_native_proof_custody(
+    tmp_path: Path, exit_code: int
+) -> None:
+    """Read-only reports retain native text; existing proof artifacts own persistence."""
+    repo = init_git_repo(tmp_path / "repo")
+    work = repo / "work"
+    work.mkdir()
+    stdout, stderr = "stdout \u03b1\n" * 700 + "stdout-end", "stderr \u03b2\n" * 700 + "stderr-end"
+    command = [
+        sys.executable,
+        "-c",
+        (
+            f"import sys; print({stdout!r}, end=''); "
+            f"print({stderr!r}, end='', file=sys.stderr); sys.exit({exit_code})"
+        ),
+    ]
+    report = gate_tool.quality_tool_report(
+        root=repo,
+        gate_id="quality",
+        tool=sys.executable,
+        command=command,
+        files=["source.py"],
+        cwd=work,
+    )
+    assert (report["stdout"], report["stderr"]) == (stdout, stderr)
+    assert (report["verdict"], report["exit_code"]) == (
+        "pass" if exit_code == 0 else "block",
+        exit_code,
+    )
+    store = proof_artifacts.proof_artifact_root(repo)
+    assert not store.exists()
+    check = {
+        "action_id": "quality",
+        "command": command,
+        "verdict": report["verdict"],
+        "exit_code": exit_code,
+        "stdout": "native provider result",
+        "diagnostics": [],
+        "evidence_class": "test",
+        "trust_bearing": False,
+        "verification": {
+            "gate": "quality",
+            "providers": [
+                {"provider": "ethos.adapters.gates.tool:quality_tool_report", "report": report},
+            ],
+        },
+    }
+    normalized = proof_artifacts.normalize_checks((check,))
+    descriptor = proof_artifacts.write_proof_artifact(store, "a" * 40, normalized)
+    stored = json.loads((store / str(descriptor["path"])).read_text())
+    assert stored["checks"][0]["verification"] == check["verification"]
+    summary = summarize_checks([check])[0]
+    assert not {"stdout", "stderr", "verification"}.intersection(summary)
+
+
+@pytest.mark.parametrize("encoded", [False, True])
+def test_quality_tool_timeout_preserves_observed_partial_streams(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, encoded: bool
+) -> None:
+    """A deadline remains unknown while retaining all output observed before it."""
+    stdout, stderr = "partial \u03b1\n" * 700, "partial \u03b2\n" * 700
+
+    def expired(_root: Path, command: tuple[str, ...], **_options: object):
+        raise subprocess.TimeoutExpired(
+            command,
+            1,
+            output=stdout.encode() if encoded else stdout,
+            stderr=stderr.encode() if encoded else stderr,
+        )
+
+    monkeypatch.setattr(gate_tool, "run_command", expired)
+    report = gate_tool.quality_tool_report(
+        root=tmp_path,
+        gate_id="quality",
+        tool=sys.executable,
+        command=[sys.executable, "-c", "pass"],
+        files=["source.py"],
+    )
+    assert (report["verdict"], report["state"]) == ("unknown", "tool_error")
+    assert report["required_gaps"] == ["quality_tool_execution_unknown:quality"]
+    assert (report["stdout"], report["stderr"]) == (stdout, stderr)
+    assert report["exit_code"] is None
 
 
 @pytest.mark.parametrize("boundary", ["nonzero", "missing", "denied", "identity"])

@@ -6,6 +6,7 @@ from pathlib import Path
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
+from ethos.adapters.gates.formatting import render_source_content
 from ethos.adapters.openspec.relocation import archive_relocation
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.worktree_postimage import observe_worktree_postimage
@@ -96,7 +97,7 @@ def _blob(
 
 
 def normalize_projected_specs(root: Path, *, paths: tuple[str, ...]) -> tuple[str, ...]:
-    """Give changed canonical Markdown specs exactly one terminal newline."""
+    """Format only changed canonical specs through the shared native content owner."""
     normalized: list[str] = []
     for relative in dict.fromkeys(paths):
         path = PurePosixPath(relative)
@@ -107,7 +108,9 @@ def normalize_projected_specs(root: Path, *, paths: tuple[str, ...]) -> tuple[st
             content = target.read_bytes()
         except OSError:
             continue
-        canonical = content.rstrip(b"\n") + b"\n"
+        canonical, _ignored = render_source_content(
+            root, relative, "prettier", content, repository_policy=False
+        )
         if canonical == content:
             continue
         target.write_bytes(canonical)

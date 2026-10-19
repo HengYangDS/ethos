@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import subprocess
 from dataclasses import dataclass
 from dataclasses import field
 from pathlib import Path
@@ -249,7 +250,15 @@ def integrity_report(root: Path, *, timeout_seconds: float | None = None) -> dic
                 snapshot, tuple(contract for contract in contracts if contract.kind == "upstream")
             )
             snapshot.recheck()
-    except (OSError, ValueError, KeyError, TypeError, UnicodeError, ProcessExecutionError) as error:
+    except (
+        OSError,
+        ValueError,
+        KeyError,
+        TypeError,
+        UnicodeError,
+        ProcessExecutionError,
+        subprocess.CalledProcessError,
+    ) as error:
         paths = [artifact for contract in contracts for artifact in contract.members]
         return {
             "verdict": "unknown",

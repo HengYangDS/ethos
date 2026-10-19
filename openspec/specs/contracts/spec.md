@@ -9,59 +9,49 @@ before provider implementations.
 ## Requirements
 
 ### Requirement: Provider-neutral Contracts
-
 ETHOS SHALL keep JSON schemas, TOML config contracts, public result contracts,
 attestation envelopes, and evidence contracts free of provider-specific
 execution behavior.
 
 #### Scenario: Contracts are inspected
-
 - **WHEN** architecture tests scan `contracts`
 - **THEN** contract modules do not import Git, SQLite, subprocess, hosted CI,
   assistant runtime, or adopter-private implementation modules
 
 ### Requirement: Trust Envelope Contract
-
 ETHOS SHALL define a provider-neutral trust envelope contract for claim
 admission and proof consumers.
 
 #### Scenario: Trust envelope is emitted
-
 - **WHEN** ETHOS reports active claim governance
 - **THEN** every trust envelope includes claim id, claim state, boundary,
   evidence, carriers, fallback, kill signal, promotion, and required gaps
 
 ### Requirement: Promotion Target Contract
-
 ETHOS SHALL define promotion targets as provider-neutral repository authority
 references.
 
 #### Scenario: Promotion target is validated
-
 - **WHEN** ETHOS validates a promotion target
 - **THEN** the target kind is one of source, tests, docs, schema, openspec, or
   evidence
 - **AND** the target path is repository-relative
 
 ### Requirement: Capability Profile Contract
-
 ETHOS SHALL define capability profiles that map OpenSpec capabilities to owner,
 boundary, routing, and proof metadata.
 
 #### Scenario: Capability profile is inspected
-
 - **WHEN** ETHOS validates capability profile metadata
 - **THEN** the profile names a family, owner object, primary invariant,
   routing question, boundary rules, and proof profile
 
 ### Requirement: Governed Repository Context Contract
-
 ETHOS SHALL define a governed repository context contract for every repository
 subject. This is the shared governance context contract for repository audit,
 proof and command payloads.
 
 #### Scenario: Governance context is provider-neutral
-
 - **WHEN** ETHOS emits `governance_context`
 - **THEN** the context identifies the subject as a repository
 - **AND** the context records the profile, kernel
@@ -98,24 +88,20 @@ algorithm, quality rules, and capability classes.
 - **AND** guarded mutation capabilities declare a guard
 
 ### Requirement: Explicit mutation context contract
-
 ETHOS SHALL define mutation-capable operations with explicit target-root,
 checkout-role, editor-root, target-path, and admission-result fields.
 
 #### Scenario: Mutation context is auditable
-
 - **WHEN** a mutation-capable operation is admitted or blocked
 - **THEN** the machine result includes target root, editor root, branch role,
   target paths, decision, and required gaps
 
 ### Requirement: Documentation carrier contract
-
 ETHOS SHALL distinguish human-facing Markdown, durable TOML config, public JSON
 command output, ecosystem-native YAML, generated JSONL, ignored local indexes,
 and tracked evidence by author, lifecycle, and truth status.
 
 #### Scenario: Machine and human carriers do not collapse
-
 - **WHEN** ETHOS defines a repository governance record
 - **THEN** durable hand-authored configuration uses TOML unless an ecosystem
   standard requires another carrier
@@ -123,12 +109,10 @@ and tracked evidence by author, lifecycle, and truth status.
 - **AND** human judgment, design, reviews, and retrospectives use Markdown
 
 ### Requirement: Projection digest contract
-
 ETHOS SHALL require generated tracked agent or host projections to carry source
 identity sufficient for drift detection.
 
 #### Scenario: Projection drift is checkable
-
 - **WHEN** ETHOS generates a tracked agent or host projection
 - **THEN** the projection records its source surface or digest
 - **AND** a later drift check can determine whether the projection is stale
@@ -159,12 +143,10 @@ support exact recovery but SHALL NOT become a semantic root.
 - **AND** every dependency is acyclic and effect authority is plan-bound
 
 ### Requirement: Handoff Package Contract
-
 ETHOS SHALL define digest-bound handoff packages as context projections over
 repository truth.
 
 #### Scenario: Handoff package is validated
-
 - **WHEN** a handoff package is inspected
 - **THEN** it records source refs, source digests, target actor, intended use, freshness state, and proof/evidence refs
 - **AND** stale source digests block trust-bearing handoff claims

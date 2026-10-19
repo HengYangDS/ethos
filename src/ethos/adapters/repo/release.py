@@ -23,8 +23,8 @@ from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effect_attestation import recover_plan
 from ethos.adapters.repo.git_object import observe_git_object
 from ethos.adapters.repo.git_object import zero_oid
-from ethos.contracts.branch.roles import branch_role_policy_from_release_text
 from ethos.contracts.branch.roles import load_branch_role_policy
+from ethos.contracts.branch.roles import strict_branch_role_policy_from_release_text
 from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.value import mutable_json
 from ethos.repository.release.changelog import changelog_errors
@@ -50,7 +50,7 @@ def require_release(condition: object, gap: str) -> None:
 def release_branch_policy(root: Path) -> BranchRolePolicy:
     """Keep release roles anchored to current accepted policy, not candidate edits."""
     policy = load_branch_role_policy(root)
-    committed = branch_role_policy_from_release_text(
+    committed = strict_branch_role_policy_from_release_text(
         committed_file_text(root, ref_head(root, policy.accepted_branch), ".ethos/release.toml")
     )
     require_release(policy == committed, "release_branch_policy_changed")
@@ -315,7 +315,8 @@ def release_ref_subject(
 ) -> str:
     """Require native release identity; callers separately admit proof and intent."""
     policy = release_branch_policy(root)
-    head = ref_head(root, policy.accepted_branch)
+    accepted_head = ref_head(root, policy.accepted_branch)
+    head = accepted_head
     if ref.startswith("refs/tags/"):
         selected = _immutable_tag_commit(
             root, ref=ref, old=old, new=new, allow_identical=allow_identical
@@ -336,6 +337,10 @@ def release_ref_subject(
         base=base,
         ref=ref if allow_identical else "",
         new=new if allow_identical else "",
+    )
+    require_release(
+        ref_head(root, policy.accepted_branch) == accepted_head,
+        "release_source_not_current_accepted",
     )
     return head
 
@@ -387,6 +392,17 @@ def release_publication_head(root: Path, *, ref: str = "", new: str = "") -> str
         return current
     plan = release_provenance(root, ref=ref, oid=new)
     return selected if plan is not None else current
+
+
+def publication_proof_head(root: Path, refs: tuple[str, ...], head: str) -> str:
+    """Prove a tag's release commit; every other publication proves the checkout head."""
+    if not refs or not all(ref.startswith("refs/tags/") for ref in refs):
+        return head
+    tag = ref_head(root, refs[0])
+    try:
+        return release_publication_head(root, ref=refs[0], new=tag) if tag else head
+    except ValueError:
+        return head
 
 
 def _immutable_tag_commit(

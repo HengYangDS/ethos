@@ -13,7 +13,6 @@ import tarfile
 from pathlib import Path
 
 import pytest
-import tomli_w
 
 import ethos.adapters.gates.provenance.observation as source_observation
 import ethos.adapters.repo.content.observation as content_observation
@@ -22,6 +21,7 @@ from ethos.adapters.repo.runtime.materialization.input_resolution import resolve
 from ethos.repository.policy.quality.sources import locked_archive
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_test_profile
 
 
 @pytest.mark.parametrize(
@@ -77,25 +77,20 @@ def test_upstream_archive_qualification_uses_native_sri_and_complete_tar(
         archive.write_bytes(original + b"changed")
         assert archive.read_bytes() != original
     reference = "package-lock.json#packages/node_modules/example"
-    profile = repo / ".ethos/profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
-        tomli_w.dumps(
-            {
-                "profile_id": "example",
-                "proof": {
-                    "gate_registry": "system/gates.toml",
-                    "source_contracts": [
-                        {
-                            "kind": "upstream",
-                            "input_refs": [reference],
-                            "members": {"snapshot.py": [reference, member]},
-                            "integrity_gate": "integrity",
-                        }
-                    ],
-                },
-            }
-        )
+    write_test_profile(
+        repo,
+        profile_id="example",
+        proof={
+            "gate_registry": "system/gates.toml",
+            "source_contracts": [
+                {
+                    "kind": "upstream",
+                    "input_refs": [reference],
+                    "members": {"snapshot.py": [reference, member]},
+                    "integrity_gate": "integrity",
+                }
+            ],
+        },
     )
     commit_fixture(repo, "declare exact locked archive member")
     observer = importlib.import_module("ethos.adapters.gates.provenance.observation")
@@ -357,24 +352,19 @@ def _write_source_relationships(repo: Path, packages: dict[str, dict[str, str]])
         (repo / artifact).write_bytes(b"native member\n")
         reference = f"package-lock.json#packages/{location}"
         members[artifact] = [reference, "package/source.py"]
-    profile = repo / ".ethos/profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
-        tomli_w.dumps(
-            {
-                "profile_id": "example",
-                "proof": {
-                    "gate_registry": "system/gates.toml",
-                    "source_contracts": [
-                        {
-                            "kind": "upstream",
-                            "input_refs": [reference for reference, _member in members.values()],
-                            "members": members,
-                            "integrity_gate": "integrity",
-                        }
-                    ],
-                },
-            }
-        )
+    write_test_profile(
+        repo,
+        profile_id="example",
+        proof={
+            "gate_registry": "system/gates.toml",
+            "source_contracts": [
+                {
+                    "kind": "upstream",
+                    "input_refs": [reference for reference, _member in members.values()],
+                    "members": members,
+                    "integrity_gate": "integrity",
+                }
+            ],
+        },
     )
     commit_fixture(repo, "bind selected native archive inputs")

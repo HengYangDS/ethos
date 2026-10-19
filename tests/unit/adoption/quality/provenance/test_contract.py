@@ -21,6 +21,7 @@ from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
+from tests.support.governed_repository import write_test_profile
 
 
 def test_native_source_contract_round_trips_without_a_second_manifest() -> None:
@@ -85,25 +86,20 @@ def test_static_selection_preserves_artifact_obligations(tmp_path: Path) -> None
             }
         )
     )
-    profile = repo / ".ethos/profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
-        tomli_w.dumps(
-            {
-                "profile_id": "example",
-                "proof": {
-                    "gate_registry": "system/gates.toml",
-                    "source_contracts": [
-                        {
-                            "kind": "generated",
-                            "input_refs": [owner],
-                            "members": {"generated.py": [owner, "generated.py"]},
-                            "integrity_gate": "source-integrity",
-                        }
-                    ],
-                },
-            }
-        )
+    write_test_profile(
+        repo,
+        profile_id="example",
+        proof={
+            "gate_registry": "system/gates.toml",
+            "source_contracts": [
+                {
+                    "kind": "generated",
+                    "input_refs": [owner],
+                    "members": {"generated.py": [owner, "generated.py"]},
+                    "integrity_gate": "source-integrity",
+                }
+            ],
+        },
     )
     commit_fixture(repo, "declare exact native source relationship")
 

@@ -9,10 +9,9 @@ import pytest
 from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
-import ethos.adapters.gates.markdown as markdown_quality
+import ethos.adapters.gates.formatting as source_formatting
 import ethos.adapters.gates.tool as quality_tools
 import ethos.adapters.repo.content.observation as original_observation
-from ethos.adapters.gates.format_selection import audit
 from ethos.adapters.gates.verification import provider_reports
 from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.content.observation import read_regular_bytes
@@ -321,20 +320,20 @@ def test_retained_origin_requires_a_live_independent_reader(tmp_path, owner):
 
 
 def test_retained_origin_is_one_native_authored_input_boundary(tmp_path):
-
+    """Prose and the native formatter share one authored set without the original."""
     root, original = _retained_original(tmp_path)
     before = original.read_bytes(), original.stat().st_mode
     git(root, "add", "docs")
 
     current = quality_tools.prose_report(root)["native"][0]["command"]
-    ownership = audit(root, paths=("docs/observation.md", "docs/owner.md"))
+    formatted = {item.path for item in source_formatting.prepare_source_format(root)}
 
     assert "docs/observation.md" not in current
     assert "docs/owner.md" in current
-    by_path = {entry["path"]: entry for entry in ownership["assignments"]}
-    assert by_path["docs/observation.md"]["mutation_policy"] == "forbidden"
-    assert by_path["docs/observation.md"]["validation_owner"] == "docs-registry"
-    assert by_path["docs/owner.md"]["mutation_policy"] != "forbidden"
+    assert "docs/observation.md" not in formatted
+    assert "docs/owner.md" in formatted
+    with pytest.raises(ValueError, match=r"source_format_other_owner:docs/observation\.md"):
+        source_formatting.prepare_source_format(root, paths=("docs/observation.md",))
     assert (original.read_bytes(), original.stat().st_mode) == before
 
 
@@ -420,14 +419,12 @@ def test_native_retained_observation_reaches_existing_semantic_consumers(tmp_pat
     assert (original.read_bytes(), original.stat().st_mode) == before
 
 
-def test_authored_selection_does_not_exempt_directory_names_or_metadata_state(tmp_path):
+def test_authored_selection_does_not_exempt_metadata_state(tmp_path):
     """Only verified originals and exact native carriers leave authored checks."""
     root, _ = _retained_original(tmp_path)
     sources = {
-        "docs/archive/current.md": "---\nsubject: sample:current\nrole: history\n"
-        "state: archived\nrelations: {}\n---\n\n# Current\n",
-        "evidence/current.md": "# Current\n",
-        "openspec/changes/archive/not-an-archive/current.md": "# Current\n",
+        "docs/closed.md": "---\nsubject: sample:closed\nrole: history\n"
+        "state: archived\nrelations: {}\n---\n\n# Closed\n",
         "openspec/changes/archive/2026-10-14-old/design.md": "# Native history\n",
         "openspec/changes/current/tasks.md": "# Native tasks\n",
         "openspec/specs/quality/spec.md": "# Native spec\n",
@@ -439,12 +436,7 @@ def test_authored_selection_does_not_exempt_directory_names_or_metadata_state(tm
         path.write_text(text)
     git(root, "add", ".")
     selected = quality_tools.prose_report(root)["native"][0]["command"]
-    assert {
-        "docs/archive/current.md",
-        "evidence/current.md",
-        "openspec/changes/archive/not-an-archive/current.md",
-        "openspec/changes/README.md",
-    } <= set(selected)
+    assert {"docs/closed.md", "openspec/changes/README.md"} <= set(selected)
     assert not {
         "docs/observation.md",
         "openspec/changes/archive/2026-10-14-old/design.md",
@@ -467,27 +459,26 @@ def test_retained_original_is_excluded_by_actual_native_quality_consumers(tmp_pa
     commit_fixture(root, "bind current retained observation owner")
     before = original.read_bytes(), original.stat().st_mode
     for consumer in (
-        markdown_quality.markdown_format_report,
+        quality_tools.markdown_lint_report,
         quality_tools.prose_report,
         quality_tools.markdown_links_report,
     ):
         report = consumer(root)
         assert report["verdict"] == "pass", report
-        commands = (
-            [item["command"] for item in report["native"]]
-            if "native" in report
-            else [report["command"]]
-        )
-        assert all("docs/observation.md" not in command for command in commands)
+        selections = [
+            json.dumps(item.get("command", item.get("files", []))) for item in report["native"]
+        ]
+        assert all("docs/observation.md" not in selection for selection in selections), report
     assert (original.read_bytes(), original.stat().st_mode) == before
 
 
 @pytest.mark.parametrize(
     "consumer",
     [
-        markdown_quality.markdown_format_report,
+        quality_tools.markdown_lint_report,
         quality_tools.prose_report,
         quality_tools.markdown_links_report,
+        source_formatting.source_format_report,
     ],
 )
 def test_retained_original_native_git_failure_remains_unknown(tmp_path, monkeypatch, consumer):

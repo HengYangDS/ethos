@@ -133,15 +133,17 @@ def test_docs_health_routes_nested_topics_from_a_portable_root(tmp_path: Path) -
     ]
 
 
-@pytest.mark.parametrize("target", ["taxonomy.toml", "./taxonomy.toml", "../_meta/taxonomy.toml"])
+@pytest.mark.parametrize("suffix", [".toml", ".json"])
+@pytest.mark.parametrize("prefix", ["", "./", "../_meta/"])
 def test_docs_health_routes_metadata_without_indexing_generated_diagrams(
-    tmp_path: Path, target: str
+    tmp_path: Path, prefix: str, suffix: str
 ) -> None:
-    """Document declarations need an entrance; diagram outputs do not."""
+    """Native documentation data needs an entrance; generated diagrams do not."""
     metadata = tmp_path / "docs/_meta"
     metadata.mkdir(parents=True)
-    for name in ("stable-paths.toml", "taxonomy.toml"):
-        (metadata / name).write_text("[meta]\nversion = 1\n")
+    contents = "[meta]\nversion = 1\n" if suffix == ".toml" else "{}\n"
+    for name in ("stable-paths", "taxonomy"):
+        (metadata / f"{name}{suffix}").write_text(contents)
     diagrams = tmp_path / "docs/_generated"
     diagrams.mkdir()
     for name in ("a.mmd", "b.mmd"):
@@ -153,8 +155,8 @@ def test_docs_health_routes_metadata_without_indexing_generated_diagrams(
 
     (metadata / "README.md").write_text(
         documentation_fixture("docs:metadata", "index", "canonical", "Metadata")
-        + f"\nRead [Taxonomy]({target}) "
-        + f"and [Stable paths]({target.replace('taxonomy', 'stable-paths')}).\n"
+        + f"\nRead [Taxonomy]({prefix}taxonomy{suffix}) "
+        + f"and [Stable paths]({prefix}stable-paths{suffix}).\n"
     )
     assert docs_health_report(tmp_path)["readme_disposition"] == []
 

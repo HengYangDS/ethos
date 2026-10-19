@@ -80,10 +80,7 @@ def _rationale_gaps(path: Path, relative: str, identity: str) -> list[str]:
     else:
         for number, (start, _) in enumerate(sections):
             stop = sections[number + 1][0] if number + 1 < len(sections) else len(tokens)
-            if not any(
-                token.type == "inline" and _readable_text(token).strip()
-                for token in tokens[start + 3 : stop]
-            ):
+            if not _authored_rationale(tokens[start + 3 : stop]):
                 gaps.append(
                     f"docs_decision_rationale_missing:{relative}:{DECISION_SECTIONS[number]}"
                 )
@@ -92,10 +89,23 @@ def _rationale_gaps(path: Path, relative: str, identity: str) -> list[str]:
     return gaps
 
 
-def _readable_text(token: Token) -> str:
-    return "".join(
-        child.content for child in token.children or () if child.type in {"text", "code_inline"}
-    )
+def _authored_rationale(tokens: tuple[Token, ...]) -> bool:
+    """Distinguish authored rationale from supporting quotations in one section."""
+    quoted = 0
+    for token in tokens:
+        if token.type == "blockquote_open":
+            quoted += 1
+        elif token.type == "blockquote_close":
+            quoted -= 1
+        elif token.type == "inline" and not quoted:
+            text = "".join(
+                child.content
+                for child in token.children or ()
+                if child.type in {"text", "code_inline"}
+            )
+            if text.strip():
+                return True
+    return False
 
 
 def _execution_violation(tokens: tuple[Token, ...]) -> str:

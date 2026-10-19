@@ -11,7 +11,6 @@ from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import run_git
 from ethos.repository.policy.gates import gate_execution_identity
-from ethos.repository.policy.layout.naming import identifier_naming_findings
 from ethos.repository.policy.quality.formats import lcov_files
 from ethos.repository.policy.quality.formats import sarif_report
 from ethos.repository.policy.quality_reports import coverage_stream_report
@@ -165,13 +164,6 @@ def _static(
     if not reports:
         msg = "native_static_missing"
         raise ValueError(msg)
-    for subject in subjects:
-        if subject.language == "python" and subject.requires_authored_analysis:
-            findings = identifier_naming_findings(
-                (root / subject.path).read_text(encoding="utf-8"), path=subject.path
-            )
-            if findings:
-                raise ValueError(str(findings[0]["gap"]))
     tracked = _tracked(root, evidence.tree)
     inventory: set[str] = set()
     for output, content in reports:

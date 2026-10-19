@@ -257,15 +257,12 @@ def test_attestation_set_empty_and_invalid_ref_observations_fail_closed(
 def test_attestation_set_rejects_failed_or_corrupt_current_reads(
     tmp_path, monkeypatch, fault, warm
 ):
-    """Warm reuse never hides failed reads or corrupt typed frames of the objects it reads."""
-    monkeypatch.setattr(attestation_set, "_member_reuse", attestation_set.MemberReuse(1 << 20))
+    """Warm pure validation never hides failed reads or corrupt typed object frames."""
     repo = init_git_repo(tmp_path / "repo")
     record = occurrence_attestation(9)
     selected = attestation_set.record_attestations(repo, (record,))["root"]
     if warm:
         assert attestation_set.read_attestation_set(repo) == (selected, (record,))
-        # Validated members are not read again, so the corrupt frame belongs to a new member.
-        selected = attestation_set.record_attestations(repo, (occurrence_attestation(10),))["root"]
     original = attestation_set.run_git
     command = "ls-tree" if fault.startswith("tree-") else "cat-file"
 

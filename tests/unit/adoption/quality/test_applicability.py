@@ -9,14 +9,11 @@ from typing import TYPE_CHECKING
 import pytest
 import tomli_w
 
-from ethos.adapters.repo.gate_policy import resolve_gate_policy
-from ethos.contracts.gates import Gate
-from ethos.repository.profile import ProofPolicy
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_active_commitment
-from tests.support.governed_repository import write_test_profile
+from tests.support.proof import current_proof_plan
 from tests.support.proof import run_quality_proof
 
 if TYPE_CHECKING:
@@ -56,7 +53,11 @@ def document_repository(tmp_path: Path) -> Path:
         "---\n\n# Handoff\n\n## Evidence\n\nCheck the current source before delivery.\n"
     )
     (repo / "README.md").write_text("# Documents\n\n[Handoff](docs/handoff.md#evidence).\n")
-    commit_fixture(repo, "declare native document proof")
+    commit_fixture(
+        repo,
+        "declare native document proof",
+        format_paths=(".ethos/profile.toml",),
+    )
     return repo
 
 
@@ -71,12 +72,13 @@ def test_document_only_profile_executes_both_native_proof_roots(document_reposit
     assert result.returncode == 0, result.stderr or result.stdout
     assert payload["verdict"] == "pass"
     assert payload["required_gaps"] == []
-    assert [check["action_id"] for check in payload["data"]["checks"]] == [
-        "docs-registry",
-        "markdown-links",
-    ]
+    checks = {check["action_id"]: check for check in payload["data"]["checks"]}
+    plan = current_proof_plan(repo, expected_head=head, full=True)
+    assert set(checks) == {node.id for node in plan.nodes}
+    assert {"docs-registry", "markdown-links"} <= checks.keys()
     reports = [
-        json.loads(check["stdout"])["providers"][0]["report"] for check in payload["data"]["checks"]
+        json.loads(checks[gate]["stdout"])["providers"][0]["report"]
+        for gate in ("docs-registry", "markdown-links")
     ]
     assert reports[0]["document_count"] == 1
     assert reports[1]["source_tree"] == git(repo, "rev-parse", "HEAD^{tree}")
@@ -115,47 +117,3 @@ def test_document_profile_cannot_omit_observed_code_obligations(
     }
     assert git(repo, "rev-parse", "HEAD") == head
     assert git(repo, "status", "--porcelain") == ""
-
-
-def test_document_profile_applicability_follows_the_selected_git_tree(tmp_path: Path) -> None:
-    """New code activates the floor even when the same document profile omits code axes."""
-    repo = init_git_repo(tmp_path / "documents")
-    write_test_profile(
-        repo,
-        proof=ProofPolicy(
-            code_correctness_gates=("docs-registry", "markdown-links"),
-            gates=(
-                Gate(
-                    id="docs-registry",
-                    kind="docs",
-                    providers=("ethos.surface.cli.root.reference:docs_registry_report",),
-                ),
-                Gate(
-                    id="markdown-links",
-                    kind="docs",
-                    providers=("ethos.adapters.gates.tool:markdown_links_report",),
-                ),
-            ),
-        ),
-    )
-    document_head = commit_fixture(repo, "declare document-only proof roots")
-    documents = resolve_gate_policy(repo, tree_ref=document_head, full=True)
-
-    assert documents.gate_ids == ("docs-registry", "markdown-links")
-    assert documents.gaps == ()
-    assert "quality_floor_version" not in documents.projection["owner"]
-
-    (repo / "app.py").write_text('raise RuntimeError("not document content")\n')
-    git(repo, "add", "app.py")
-    staged_tree = git(repo, "write-tree")
-    staged = resolve_gate_policy(repo, tree_ref=staged_tree, full=True)
-
-    assert staged.gaps == (
-        "quality_obligation_unproven:behavior",
-        "quality_obligation_unproven:static-analysis",
-    )
-    assert staged.projection["owner"]["quality_subjects"] == {
-        "behavior": ["app.py"],
-        "static-analysis": ["app.py"],
-    }
-    assert resolve_gate_policy(repo, tree_ref=document_head, full=True).digest == documents.digest

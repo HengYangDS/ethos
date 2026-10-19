@@ -10,6 +10,7 @@ import tomli_w
 
 import ethos.adapters.admission.patch_admission as admission
 from ethos.adapters.admission.patch_admission import patch_admission
+from ethos.adapters.openspec.selection import artifact_path_change
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import GateRegistryDeclaration
@@ -19,6 +20,7 @@ from ethos.repository.profile import render_repository_profile
 from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.openspec_lifecycle import active_change_relocation_patch
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -75,6 +77,38 @@ def test_patch_admission_rejects_missing_preimage(tmp_path: Path) -> None:
     assert report["reason"] == "prewrite_patch_preimage_mismatch"
 
 
+@pytest.mark.parametrize("relative", ["native space.txt", "native-é.txt", 'native "quote".txt'])
+def test_original_git_quoted_patch_retains_literal_path(tmp_path: Path, relative: str) -> None:
+    repo, head = _repository(tmp_path)
+    source = repo / relative
+    source.write_text("old\n")
+    git(repo, "add", relative)
+    source.write_text("old\nnew\n")
+    patch = admission.run_git(repo, "-c", "core.quotePath=true", "diff", "--", relative).stdout
+    source.write_text("old\n")
+    report = patch_admission(
+        root=repo, requested_paths=(relative,), baseline_head=head, patch=patch
+    )
+    assert report["verdict"] == "pass", report
+    assert report["paths"] == [relative]
+    assert source.read_text() == "old\n"
+
+
+def test_unified_deletion_without_file_mode_retains_preimage_path(tmp_path: Path) -> None:
+    repo, head = _repository(tmp_path)
+    before = git(repo, "status", "--porcelain=v1")
+    patch = "diff --git a/safe.txt b/safe.txt\n--- a/safe.txt\n+++ /dev/null\n@@ -1 +0,0 @@\n-old\n"
+
+    report = patch_admission(
+        root=repo, requested_paths=("safe.txt",), baseline_head=head, patch=patch
+    )
+
+    assert report["verdict"] == "pass", report
+    assert report["paths"] == ["safe.txt"]
+    assert (repo / "safe.txt").read_text() == "old\n"
+    assert git(repo, "status", "--porcelain=v1") == before
+
+
 def test_patch_admission_rejects_escaping_postimage(tmp_path: Path) -> None:
     repo, head = _repository(tmp_path)
 
@@ -100,7 +134,7 @@ def test_patch_admission_reports_failed_postimage_apply(
     def fail_second_apply(root: Path, *args: str, **kwargs):
         nonlocal calls
         completed = real_run(root, *args, **kwargs)
-        if args[:1] != ("apply",):
+        if args[:1] != ("apply",) or "--numstat" in args:
             return completed
         calls += 1
         return completed if calls == 1 else completed.__class__(completed.args, 1, "", "")
@@ -196,5 +230,92 @@ def test_native_proof_gate_owner_binds_immutable_document_admission(
         if owner == "undeclared"
         else "baseline_product_closure_matched"
     )
+    assert report["reference_coverage"] == "evaluated"
     assert document.read_text(encoding="utf-8") == before
     assert git(repo, "show", f"{baseline}:.ethos/profile.toml") == profile.strip()
+
+
+_DATE_CHANGE = "legacy-change-20261008"
+_LOGICAL_CHANGE = "legacy-change"
+
+
+@pytest.mark.parametrize("source_state", ["working", "committed"])
+def test_exact_active_change_relocation_retains_unfinished_source(
+    tmp_path: Path, source_state: str
+) -> None:
+    repo, head, paths, patch = active_change_relocation_patch(
+        tmp_path, committed=source_state == "committed"
+    )
+    source = repo / f"openspec/changes/{_DATE_CHANGE}"
+    preimage = {
+        path.relative_to(source): path.read_bytes() for path in source.rglob("*") if path.is_file()
+    }
+    index = git(repo, "write-tree")
+
+    report = patch_admission(root=repo, requested_paths=paths, baseline_head=head, patch=patch)
+
+    assert report["verdict"] == "pass", report
+    assert report.get("active_change_relocation") == {
+        "source_change": _DATE_CHANGE,
+        "target_change": _LOGICAL_CHANGE,
+        "authorized_paths": sorted(paths),
+    }
+    assert git(repo, "write-tree") == index
+    assert {
+        path.relative_to(source): path.read_bytes() for path in source.rglob("*") if path.is_file()
+    } == preimage
+    assert not (repo / f"openspec/changes/{_LOGICAL_CHANGE}").exists()
+
+
+@pytest.mark.parametrize("mutation", ["partial", "content", "mode", "collision", "symlink"])
+def test_active_change_relocation_refuses_nonidentical_or_owned_effects(
+    tmp_path: Path, mutation: str
+) -> None:
+    repo, head, paths, patch = active_change_relocation_patch(tmp_path, mutation=mutation)
+
+    report = patch_admission(root=repo, requested_paths=paths, baseline_head=head, patch=patch)
+
+    assert report["verdict"] == "block", report
+    assert not report.get("active_change_relocation")
+
+
+def test_active_change_relocation_applies_as_the_same_logical_source(tmp_path: Path) -> None:
+    repo, head, paths, patch = active_change_relocation_patch(tmp_path)
+    report = patch_admission(root=repo, requested_paths=paths, baseline_head=head, patch=patch)
+    assert report.get("active_change_relocation"), report
+    request = repo / "move.patch"
+    request.write_text(patch, encoding="utf-8")
+    git(repo, "apply", str(request))
+
+    assert not (repo / f"openspec/changes/{_DATE_CHANGE}").exists()
+    assert (
+        artifact_path_change(repo, (f"openspec/changes/{_LOGICAL_CHANGE}/tasks.md",))
+        == _LOGICAL_CHANGE
+    )
+    assert (repo / f"openspec/changes/{_LOGICAL_CHANGE}/tasks.md").read_text() == (
+        "# Tasks\n\n- [x] 1.1 Keep accepted work.\n- [ ] 1.2 Verify delivery.\n"
+    )
+
+
+@pytest.mark.parametrize("mutation", ["", "content", "partial", "mode"])
+def test_staged_active_change_relocation_uses_only_exact_git_source(
+    tmp_path: Path, mutation: str
+) -> None:
+    repo, head, _paths, patch = active_change_relocation_patch(
+        tmp_path, committed=True, mutation=mutation
+    )
+    request = repo / "move.patch"
+    request.write_text(patch, encoding="utf-8")
+    git(repo, "apply", str(request))
+    git(repo, "add", "openspec/changes")
+    index = git(repo, "write-tree")
+    # A changed working tree is not allowed to launder an observed index transition.
+    target = repo / f"openspec/changes/{_LOGICAL_CHANGE}/proposal.md"
+    target.write_text("Unstaged unrelated source\n", encoding="utf-8")
+
+    report = admission.staged_artifact_admission(repo, head)
+
+    assert report["verdict"] == ("block" if mutation else "pass"), report
+    assert bool(report.get("active_change_relocation")) is (not mutation)
+    assert git(repo, "write-tree") == index
+    assert target.read_text() == "Unstaged unrelated source\n"

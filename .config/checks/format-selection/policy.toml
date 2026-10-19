@@ -57,11 +57,28 @@ semantic_companions = ["official-openspec-history"]
 mutation_policy = "forbidden"
 
 [[ownership]]
+id = "publisher-captured-source-bundles"
+priority = 100
+paths = [
+  "integrations/architecture-publisher/migration-baseline.json",
+  "integrations/architecture-publisher/src/edition/authoring/**",
+  "integrations/architecture-publisher/src/edition/static/authoring/**",
+  "integrations/architecture-publisher/src/edition/refresh.json",
+  "integrations/architecture-publisher/src/edition/verification-policy.json",
+]
+format_owner = "immutable-carrier"
+format_command = "not-applicable:captured-source-bundle"
+format_check = "npm run test:architecture-publisher"
+validation_owner = "architecture-publisher-source-bundle"
+validation_command = "npm run test:architecture-publisher"
+mutation_policy = "forbidden"
+
+[[ownership]]
 id = "ruff"
 extensions = [".py", ".pyi"]
 format_owner = "ruff"
-format_command = "uv run --frozen --offline python -m nox -s format -- python"
-format_check = "uv run --frozen --offline python -m nox -s lint"
+format_command = "ethos lane format --apply --authorize --expect-head <current-head>"
+format_check = "ethos lane format --check"
 validation_owner = "ruff"
 validation_command = "uv run --frozen --offline python -m nox -s lint"
 mutation_policy = "native-formatter"
@@ -70,8 +87,8 @@ mutation_policy = "native-formatter"
 id = "markdownlint-cli2"
 extensions = [".md"]
 format_owner = "prettier"
-format_command = "uv run --frozen --offline python -m nox -s format -- markdown"
-format_check = "uv run --frozen --offline python -m nox -s markdown_lint"
+format_command = "ethos lane format --apply --authorize --expect-head <current-head>"
+format_check = "ethos lane format --check"
 validation_owner = "markdownlint-cli2"
 semantic_companions = ["markdownlint-cli2"]
 validation_command = "uv run --frozen --offline python -m nox -s markdown_lint"
@@ -81,8 +98,8 @@ mutation_policy = "native-formatter"
 id = "taplo"
 extensions = [".toml"]
 format_owner = "taplo"
-format_command = "uv run --frozen --offline python -m nox -s format -- config"
-format_check = "uv run --frozen --offline python -m nox -s config_quality"
+format_command = "ethos lane format --apply --authorize --expect-head <current-head>"
+format_check = "ethos lane format --check"
 validation_owner = "taplo"
 validation_command = "uv run --frozen --offline python -m nox -s config_quality"
 mutation_policy = "native-formatter"
@@ -91,28 +108,28 @@ mutation_policy = "native-formatter"
 id = "yaml"
 extensions = [".yaml", ".yml"]
 format_owner = "prettier"
-format_command = "uv run --frozen --offline python -m nox -s format -- config"
-format_check = "uv run --frozen --offline python -m nox -s config_quality"
+format_command = "ethos lane format --apply --authorize --expect-head <current-head>"
+format_check = "ethos lane format --check"
 validation_owner = "yamllint"
 validation_command = "uv run --frozen --offline python -m nox -s config_quality"
 mutation_policy = "native-formatter"
 
 [[ownership]]
-id = "canonical-json"
+id = "json"
 extensions = [".json"]
-format_owner = "python-stdlib-json"
-format_command = "uv run --frozen --offline python -m nox -s format -- config"
-format_check = "uv run --frozen --offline python -m nox -s config_quality"
+format_owner = "prettier"
+format_command = "ethos lane format --apply --authorize --expect-head <current-head>"
+format_check = "ethos lane format --check"
 validation_owner = "python-stdlib-json"
 validation_command = "uv run --frozen --offline python -m nox -s config_quality"
-mutation_policy = "canonical-serializer"
+mutation_policy = "native-formatter"
 
 [[ownership]]
 id = "shell"
 extensions = [".sh", ".bash", ".zsh"]
 format_owner = "shfmt"
-format_command = "uv run --frozen --offline python -m nox -s format -- shell"
-format_check = "uv run --frozen --offline python -m nox -s shell_lint"
+format_command = "ethos lane format --apply --authorize --expect-head <current-head>"
+format_check = "ethos lane format --check"
 validation_owner = "shellcheck"
 validation_command = "uv run --frozen --offline python -m nox -s shell_lint"
 mutation_policy = "native-formatter"
@@ -154,8 +171,8 @@ mutation_policy = "package-manager-only"
 id = "javascript-adapters"
 extensions = [".js", ".mjs", ".cjs"]
 format_owner = "prettier"
-format_command = "uv run --frozen --offline python -m nox -s format -- javascript"
-format_check = "uv run --frozen --offline python -m nox -s javascript_lint"
+format_command = "ethos lane format --apply --authorize --expect-head <current-head>"
+format_check = "ethos lane format --check"
 validation_owner = "prettier"
 validation_command = "uv run --frozen --offline python -m nox -s javascript_lint"
 semantic_companions = ["javascript-tests"]
@@ -175,8 +192,8 @@ mutation_policy = "generator-only"
 id = "svg-assets"
 extensions = [".svg"]
 format_owner = "svgo"
-format_command = "uv run --frozen --offline python -m nox -s format -- svg"
-format_check = "uv run --frozen --offline python -m nox -s svg_lint"
+format_command = "ethos lane format --apply --authorize --expect-head <current-head>"
+format_check = "ethos lane format --check"
 validation_owner = "svgo"
 validation_command = "uv run --frozen --offline python -m nox -s svg_lint"
 mutation_policy = "native-formatter"
@@ -270,7 +287,7 @@ budget = [
 [[format]]
 extensions = [".json"]
 carrier = "JSON"
-owner = ".config/checks/config-quality/policy.toml"
+owner = ".config/checks/prettier/prettier.toml"
 execution = "uv run --frozen --offline python -m nox -s config_quality"
 truth_boundary = "machine output, schemas, and external standards"
 budget = [{ category = "json", measure = "structured", baseline_measure = "lines" }]
@@ -404,6 +421,7 @@ budget = [{ category = "cue", comment_prefixes = ["//"], comment_wrappers = [["/
 
 [[ownership]]
 id = "ci-projection"
+projection_kind = "cue"
 priority = 100
 paths = [".github/workflows/ci.yml", ".gitlab-ci.yml"]
 format_owner = "cue"

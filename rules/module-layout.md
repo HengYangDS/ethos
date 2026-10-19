@@ -221,7 +221,10 @@ _root`). That is compatibility residue — it exists only to preserve old
 ## 3. Size and split
 
 The single effective-LOC ceiling for every Python file is a repository paradigm
-value, enforced by the paradigm report in the repository audit.
+value, enforced by the paradigm report in the repository audit. The `python-size`
+gate projects that same obligation over tracked and non-ignored new Python sources.
+Roles describe ownership without granting capacity. Unavailable inventory or
+invalid syntax cannot certify a passing measurement.
 A breach requires semantic review, but only a distinct concept, invariant,
 authority, or reason to change can justify a split; otherwise the module is
 simplified or absorbed.

@@ -118,8 +118,9 @@ def test_public_proof_rejects_source_changes_during_successful_gates(
         store = Path(git(root, "rev-parse", "--git-common-dir"))
         store = store if store.is_absolute() else root / store
         evidence = json.loads((store / "ethos" / descriptor["path"]).read_text())
-    assert {check["action_id"] for check in evidence["checks"]} == {"sample-tests", "sample-static"}
-    assert all(check["exit_code"] == 0 for check in evidence["checks"])
+    checks = {check["action_id"]: check for check in evidence["checks"]}
+    assert {"sample-tests", "sample-static"} <= checks.keys()
+    assert all(checks[name]["exit_code"] == 0 for name in ("sample-tests", "sample-static"))
     assert read_attestation_set(root) == before
 
 
@@ -300,7 +301,9 @@ def test_public_proof_preserves_native_failure_and_skipped_dependants(
     declaration = tomllib.loads(profile.read_text())
     declaration["proof"]["gates"][0]["depends_on"] = ["static"]
     profile.write_text(tomli_w.dumps(declaration))
-    head = commit_fixture(repo, "build: declare a native quality dependency")
+    head = commit_fixture(
+        repo, "build: declare a native quality dependency", format_paths=(".ethos/profile.toml",)
+    )
     before = read_attestation_set(repo)
 
     completed = _execute(repo, head)

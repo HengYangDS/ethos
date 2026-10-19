@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 import tomli_w
 
 from ethos.adapters.admission.current.resolution import resolve_current_resolution
+from ethos.adapters.gates.formatting import prepare_source_format
 from ethos.adapters.mutation.proof import issue_proof_attestation
 from ethos.adapters.mutation.proof import persist_proof_attestation
 from ethos.adapters.mutation.proof import proof_attestation
@@ -205,7 +206,8 @@ def declare_native_proof_checks(root: Path, *, test: str, typecheck: str) -> Non
                 "id": "fixture-native-checks",
                 "proof_sets": {"default": ids, "full": ids},
                 "gates": gates,
-            }
+            },
+            indent=2,
         ),
         encoding="utf-8",
     )
@@ -255,6 +257,11 @@ def declare_quality_profile(root: Path, gate_owner: str = "profile") -> None:
         )
         proof = {"gate_registry": "system/gates.toml"}
     write_test_profile(root, profile_id="native-quality-adopter", proof=proof)
+    paths = ("openspec/config.yaml", ".ethos/profile.toml")
+    if gate_owner != "profile":
+        paths += ("system/gates.toml",)
+    for item in prepare_source_format(root, paths=paths):
+        (root / item.path).write_bytes(item.after)
 
 
 def run_quality_proof(root: Path, head: str) -> CompletedProcess[str]:

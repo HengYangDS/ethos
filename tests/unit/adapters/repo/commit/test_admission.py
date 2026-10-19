@@ -10,6 +10,7 @@ import pytest
 
 import ethos.adapters.repo.commit.admission as admission
 import ethos.adapters.repo.commit.integration as integration
+import ethos.adapters.repo.trust_anchor.verification as verification
 from ethos.adapters.repo.git_object import observe_commit
 from ethos.adapters.repo.git_object import zero_oid
 from ethos.repository.policy.commit import CommitPolicy
@@ -233,7 +234,10 @@ def test_new_ref_baseline_matrix(tmp_path: Path, case: str) -> None:
 def test_diverged_proposal_selects_its_accepted_native_lane_birth(tmp_path: Path) -> None:
     """Real lane.start and candidate.accept effects select the range; a lane name alone cannot."""
     accepted_root, _, accepted = branch_publication_fixture(tmp_path, accepted=True)
-    lane = Path(run_ethos(*lane_start_arguments(accepted_root), cwd=accepted_root)["data"]["path"])
+    started = run_ethos(*lane_start_arguments(accepted_root), cwd=accepted_root, full_payload=True)[
+        "data"
+    ]
+    lane = Path(started["path"])
     proposed = commit_fixture_file(lane, "FIX.md", "# fix\n", "fix: historical maintenance")
     git(lane, "checkout", "-q", "--detach", f"{accepted}~1")
     later = commit_fixture_file(lane, "LATER.md", "# later\n", "fix: later accepted line")
@@ -387,9 +391,9 @@ def test_object_policy_and_optional_trust_matrix(
     )
     verified: list[str] = []
     monkeypatch.setattr(
-        admission,
-        "verify_commit_trust",
-        lambda _root, value: verified.append(value) or {"required_gaps": trust or []},
+        verification,
+        "verify_git_object_trust",
+        lambda _root, value, _kind: verified.append(value) or {"required_gaps": trust or []},
     )
     monkeypatch.setattr(integration, "verify_commit_trust", admission.verify_commit_trust)
 
@@ -411,8 +415,8 @@ def test_object_policy_and_optional_trust_matrix(
             )
             == formatted
         )
-        # Replay checks the baseline's paradigm policy beside the selected one.
-        assert verified == [revision, revision]
+        # Both policy evaluations share one fresh native signature verification.
+        assert verified == [revision] * 2
     assert report["head"] == {
         "object_oid": revision,
         "subject": "invalid" if expected and "subject" in expected[0] else "fix: valid",
@@ -470,7 +474,7 @@ def test_unreadable_introduced_range_fails_closed(
 
 
 @pytest.mark.parametrize(
-    "case", ["valid", "invalid", "unreadable", "candidate_subject", "incumbent_subject"]
+    "case", ["valid", "invalid", "unreadable", "absent", "candidate_subject", "incumbent_subject"]
 )
 def test_replay_admission_owns_range_and_candidate_policy(tmp_path: Path, case: str) -> None:
     repo = init_git_repo(tmp_path / "repo")
@@ -493,7 +497,7 @@ def test_replay_admission_owns_range_and_candidate_policy(tmp_path: Path, case: 
         repo,
         baseline_commit=baseline,
         proposed_commit=tip,
-        policy=candidate,
+        policy=commit_policy_from_text("") if case == "absent" else candidate,
     )
     assert gaps == (
         [f"commit_subject_invalid:{proposed}:invalid"]

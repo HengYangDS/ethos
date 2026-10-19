@@ -29,7 +29,12 @@ if TYPE_CHECKING:
 
 
 def package_runtime(
-    runtime: Path, wheel: Path, destination: Path, *, download_url: str | None = None
+    runtime: Path,
+    wheel: Path,
+    destination: Path,
+    *,
+    download_url: str | None = None,
+    acceptance: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Archive exact installed bytes; project Homebrew only on supported hosts."""
     selected = require_selected_runtime(runtime)
@@ -85,6 +90,13 @@ def package_runtime(
             raise ValueError(message)
         with archive_path.open("rb") as stream:
             digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        if acceptance is not None and (
+            digest != acceptance["sha256"]
+            or selected.digest != acceptance["runtime_digest"]
+            or selected.wheel_sha256 != acceptance["wheel_sha256"]
+        ):
+            message = "local_install_distribution_changed"
+            raise ValueError(message)
         cask = None if selected.platform == "windows" else homebrew_cask(selected, url, digest)
         cask_path = _publish_outputs(archive_path, destination, cask, Path(work))
     return {
@@ -98,6 +110,19 @@ def package_runtime(
         "architecture": selected.architecture,
         **selected.build.projection(),
     }
+
+
+def retain_qualified_distribution(
+    qualified: dict[str, object],
+    runtime: Path,
+    wheel: Path,
+    destination: Path,
+) -> dict[str, object]:
+    """Retain the same deterministic package only after its native journey passes."""
+    retained = package_runtime(runtime, wheel, destination, acceptance=qualified)
+    retained["shared_supply"] = qualified["shared_supply"]
+    retained["retained"] = True
+    return retained
 
 
 def _publish_outputs(archive: Path, destination: Path, cask: str | None, work: Path) -> Path | None:

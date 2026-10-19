@@ -16,6 +16,7 @@ from ethos.adapters.openspec.lifecycle.validation import official_regular_file
 from ethos.adapters.openspec.lifecycle.validation import resolved_issue_repairs
 from ethos.adapters.openspec.lifecycle.validation import strict_blocking_issue_paths
 from ethos.adapters.openspec.relocation import archived_reference_repair_paths
+from ethos.adapters.openspec.selection import preserved_incoming_change_paths
 from ethos.contracts.semantic import Commitment
 from ethos.normalization.coercion import repository_path_matches
 from ethos.normalization.coercion import string_sequence
@@ -62,8 +63,15 @@ def material_change_scope_report(
     )
 
 
-def prospective_change_scope_report(paths: tuple[str, ...], selected: str) -> dict[str, object]:
+def prospective_change_scope_report(
+    paths: tuple[str, ...], selected: str, *, root: Path, staged_tree_ref: str | None = None
+) -> dict[str, object]:
     """Block cross-Change authoring without blocking a proved incoming merge."""
+    preserved = (
+        preserved_incoming_change_paths(root, paths, tree_ref=staged_tree_ref)
+        if staged_tree_ref is not None
+        else ()
+    )
     gaps = [
         f"openspec_change_path_mismatch:{selected}:{path}"
         for path in paths
@@ -71,6 +79,7 @@ def prospective_change_scope_report(paths: tuple[str, ...], selected: str) -> di
         and len(parts) >= 3
         and parts[:2] == ("openspec", "changes")
         and parts[2] not in {"archive", selected}
+        and path not in preserved
     ]
     if not gaps:
         return {}
@@ -360,18 +369,25 @@ def _active_change_validation_repair_context_valid(
     )
 
 
-def _canonical_spec_repair_context_valid(official: dict[str, object], *, change: str) -> bool:
+def canonical_repair_context_valid(
+    official: dict[str, object], *, change: str, exact_repair_gaps: tuple[str, ...] = ()
+) -> bool:
     """Require one valid selected Change and no non-repair governance gap."""
     gaps = string_sequence(official.get("required_gaps"))
-    if not gaps or any(
-        not gap.startswith(
-            (
-                "openspec_validation_failed:spec:",
-                "openspec_validation_failed:change:",
-                "openspec_validation_issue:INFO:spec:",
+    if (
+        not _official_observation_available(official)
+        or not gaps
+        or any(
+            gap not in exact_repair_gaps
+            and not gap.startswith(
+                (
+                    "openspec_validation_failed:spec:",
+                    "openspec_validation_failed:change:",
+                    "openspec_validation_issue:INFO:spec:",
+                )
             )
+            for gap in gaps
         )
-        for gap in gaps
     ):
         return False
     projected = official.get("commitment")
@@ -421,7 +437,7 @@ def canonical_active_repair_paths(
     root: Path, official: dict[str, object], *, change: str
 ) -> tuple[str, ...]:
     """Expose only validated active-Change repairs to prewrite and status."""
-    if not _canonical_spec_repair_context_valid(official, change=change):
+    if not canonical_repair_context_valid(official, change=change):
         return ()
     canonical = canonical_spec_repair_paths(root, official)
     inherited = inherited_validation_repair_paths(root, official, change=change)

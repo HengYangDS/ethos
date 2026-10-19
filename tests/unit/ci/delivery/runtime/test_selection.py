@@ -23,7 +23,6 @@ from tests.support.runtime_scenarios import runtime_build
 from tools.ci.delivery.acceptance import effect
 from tools.ci.delivery.acceptance import receipt
 from tools.ci.delivery.acceptance import runtime as runtime_acceptance
-from tools.ci.delivery.acceptance.effect import _observe_package
 
 
 @pytest.mark.parametrize(
@@ -187,17 +186,30 @@ def test_package_upgrade_uses_the_successors_repository_selection(monkeypatch, t
         assert selected.digest == successor.digest
         assert package == wheel
         assert destination.parent == work / "native"
-        return {"path": "archive"}
+        return {"path": "archive", "runtime_digest": successor.digest}
+
+    def retain(qualified, runtime, package, destination):
+        assert runtime == pinned
+        assert package == wheel
+        assert destination.parent == tmp_path / "build/artifacts/native" / successor.digest
+        return {**qualified, "retained": True}
 
     monkeypatch.setattr(runtime_acceptance, "prove_retained_upgrade", retained)
     monkeypatch.setattr(effect, "package_runtime", archive)
-    result = _observe_package(
+    monkeypatch.setattr(effect, "retain_qualified_distribution", retain)
+    result = effect.observe_package(
         Mock(),
         PackageArtifact(wheel, "c" * 64, successor.build),
         head=successor.build.source_commit,
         predecessor=previous,
     )
     assert targets == [repository]
+    assert result["distribution"] == {
+        "path": "archive",
+        "runtime_digest": successor.digest,
+        "shared_supply": {"state": "passed"},
+        "retained": True,
+    }
     qualification = result["qualification"]
     assert isinstance(qualification, dict)
     assert qualification["retained_state_upgrade"] == "passed"

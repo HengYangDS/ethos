@@ -28,9 +28,7 @@
               "unknown",
               "blocked",
               {
-                "items": [
-                  "independent_verification_receipt_required"
-                ],
+                "items": ["independent_verification_receipt_required"],
                 "type": "list"
               }
             ],
@@ -104,9 +102,7 @@
               "unknown",
               "blocked",
               {
-                "items": [
-                  "independent_verification_receipt_required"
-                ],
+                "items": ["independent_verification_receipt_required"],
                 "type": "list"
               }
             ],
@@ -119,9 +115,7 @@
               "block",
               "invalid",
               {
-                "items": [
-                  "independent_verification_receipt_invalid"
-                ],
+                "items": ["independent_verification_receipt_invalid"],
                 "type": "list"
               }
             ],
@@ -134,9 +128,7 @@
               "block",
               "invalid",
               {
-                "items": [
-                  "independent_verification_receipt_invalid"
-                ],
+                "items": ["independent_verification_receipt_invalid"],
                 "type": "list"
               }
             ],
@@ -158,24 +150,15 @@
       "value": {
         "items": [
           {
-            "items": [
-              null,
-              "independent_verification_provider_config_missing"
-            ],
+            "items": [null, "independent_verification_provider_config_missing"],
             "type": "tuple"
           },
           {
-            "items": [
-              "[receipt_store\n",
-              "independent_verification_provider_config_invalid"
-            ],
+            "items": ["[receipt_store\n", "independent_verification_provider_config_invalid"],
             "type": "tuple"
           },
           {
-            "items": [
-              "",
-              "independent_verification_provider_config_invalid"
-            ],
+            "items": ["", "independent_verification_provider_config_invalid"],
             "type": "tuple"
           },
           {
@@ -196,7 +179,7 @@
         "kind": "parametrize",
         "line": 82,
         "owner": "test_profile_rejects_retired_or_incomplete_proof_owners",
-        "path": "tests/unit/adoption/test_profile_contract.py"
+        "path": "tests/unit/adoption/profile/test_contract.py"
       },
       "value": {
         "items": [
@@ -215,7 +198,7 @@
         "kind": "parametrize",
         "line": 168,
         "owner": "test_profile_contract_rejects_incomplete_or_undeclared_shape",
-        "path": "tests/unit/adoption/test_profile_contract.py"
+        "path": "tests/unit/adoption/profile/test_contract.py"
       },
       "value": {
         "items": [
@@ -347,12 +330,7 @@
           {
             "items": [
               {
-                "items": [
-                  "--root",
-                  "status",
-                  "plan",
-                  "--json"
-                ],
+                "items": ["--root", "status", "plan", "--json"],
                 "type": "list"
               },
               "plan"
@@ -362,12 +340,7 @@
           {
             "items": [
               {
-                "items": [
-                  "--root",
-                  "openspec",
-                  "status",
-                  "--json"
-                ],
+                "items": ["--root", "openspec", "status", "--json"],
                 "type": "list"
               },
               "status"
@@ -415,9 +388,7 @@
             "items": [
               "land",
               {
-                "items": [
-                  "--apply"
-                ],
+                "items": ["--apply"],
                 "type": "tuple"
               },
               true
@@ -440,17 +411,11 @@
       "value": {
         "items": [
           {
-            "items": [
-              "git_executable_unavailable",
-              "not_found_on_effective_path"
-            ],
+            "items": ["git_executable_unavailable", "not_found_on_effective_path"],
             "type": "tuple"
           },
           {
-            "items": [
-              "git_process_spawn_failed",
-              "working_directory_unavailable"
-            ],
+            "items": ["git_process_spawn_failed", "working_directory_unavailable"],
             "type": "tuple"
           }
         ],
@@ -467,15 +432,7 @@
         "path": "tests/unit/cli/test_terminal_command_surface.py"
       },
       "value": {
-        "items": [
-          "status",
-          "plan",
-          "prove",
-          "land",
-          "publish",
-          "adopt",
-          "mcp"
-        ],
+        "items": ["status", "plan", "prove", "land", "publish", "adopt", "mcp"],
         "type": "tuple"
       },
       "value_sha256": "abcceec7dbca79a8a83d1a843e7fc9d371014699cbd6274e489bb16996249d6c"
@@ -524,11 +481,7 @@
           {
             "items": [
               {
-                "items": [
-                  "lane",
-                  "bind-claim",
-                  "--claim-id=retired"
-                ],
+                "items": ["lane", "bind-claim", "--claim-id=retired"],
                 "type": "tuple"
               },
               "Unknown command"
@@ -595,13 +548,7 @@
               "python_product",
               null,
               {
-                "items": [
-                  1,
-                  1000,
-                  1000,
-                  1000,
-                  2000
-                ],
+                "items": [1, 1000, 1000, 1000, 2000],
                 "type": "tuple"
               }
             ],
@@ -612,13 +559,7 @@
               "python_tests",
               "tests/test_demo.py",
               {
-                "items": [
-                  1000,
-                  1,
-                  1000,
-                  1000,
-                  2000
-                ],
+                "items": [1000, 1, 1000, 1000, 2000],
                 "type": "tuple"
               }
             ],
@@ -629,13 +570,7 @@
               "python_tools",
               "tools/demo.py",
               {
-                "items": [
-                  1000,
-                  1000,
-                  1,
-                  1000,
-                  2000
-                ],
+                "items": [1000, 1000, 1, 1000, 2000],
                 "type": "tuple"
               }
             ],
@@ -646,13 +581,7 @@
               "python_other",
               "demo.py",
               {
-                "items": [
-                  1000,
-                  1000,
-                  1000,
-                  1,
-                  2000
-                ],
+                "items": [1000, 1000, 1000, 1, 2000],
                 "type": "tuple"
               }
             ],
@@ -683,30 +612,15 @@
             "type": "tuple"
           },
           {
-            "items": [
-              "toml",
-              ".toml",
-              "a = 1\nb = [2, 3]\n",
-              "b=[2,3]\na=1\n"
-            ],
+            "items": ["toml", ".toml", "a = 1\nb = [2, 3]\n", "b=[2,3]\na=1\n"],
             "type": "tuple"
           },
           {
-            "items": [
-              "yaml",
-              ".yaml",
-              "a: 1\nb: [2, 3]\n",
-              "b:\n  - 2\n  - 3\na: 1\n"
-            ],
+            "items": ["yaml", ".yaml", "a: 1\nb: [2, 3]\n", "b:\n  - 2\n  - 3\na: 1\n"],
             "type": "tuple"
           },
           {
-            "items": [
-              "ini",
-              ".ini",
-              "[section]\na = 1\nb = 2\n",
-              "[section]\nb=2\na=1\n"
-            ],
+            "items": ["ini", ".ini", "[section]\na = 1\nb = 2\n", "[section]\nb=2\na=1\n"],
             "type": "tuple"
           }
         ],
@@ -725,24 +639,15 @@
       "value": {
         "items": [
           {
-            "items": [
-              "ethos quality provenance --json",
-              "ethos quality provenance"
-            ],
+            "items": ["ethos quality provenance --json", "ethos quality provenance"],
             "type": "tuple"
           },
           {
-            "items": [
-              "ethos lane lease migrate --json",
-              "ethos lane lease migrate"
-            ],
+            "items": ["ethos lane lease migrate --json", "ethos lane lease migrate"],
             "type": "tuple"
           },
           {
-            "items": [
-              "uv run --no-sync ethos lane lease renew --json",
-              null
-            ],
+            "items": ["uv run --no-sync ethos lane lease renew --json", null],
             "type": "tuple"
           }
         ],
@@ -785,11 +690,7 @@
             "type": "tuple"
           },
           {
-            "items": [
-              "sha256:",
-              "md5:",
-              "skill_package_expected_digest_invalid:sample-skill"
-            ],
+            "items": ["sha256:", "md5:", "skill_package_expected_digest_invalid:sample-skill"],
             "type": "tuple"
           },
           {
@@ -816,31 +717,15 @@
       "value": {
         "items": [
           {
-            "items": [
-              "ethos",
-              "lane",
-              "start",
-              "feature",
-              "--apply"
-            ],
+            "items": ["ethos", "lane", "start", "feature", "--apply"],
             "type": "tuple"
           },
           {
-            "items": [
-              "ethos",
-              "land",
-              "--authorize=true"
-            ],
+            "items": ["ethos", "land", "--authorize=true"],
             "type": "tuple"
           },
           {
-            "items": [
-              "openspec",
-              "archive",
-              "example",
-              "--yes",
-              "--json"
-            ],
+            "items": ["openspec", "archive", "example", "--yes", "--json"],
             "type": "tuple"
           }
         ],
@@ -859,35 +744,19 @@
       "value": {
         "items": [
           {
-            "items": [
-              "build/runtime/report.json",
-              "build",
-              "match"
-            ],
+            "items": ["build/runtime/report.json", "build", "match"],
             "type": "tuple"
           },
           {
-            "items": [
-              "build/runtime/report.json",
-              "build/runtime",
-              "match"
-            ],
+            "items": ["build/runtime/report.json", "build/runtime", "match"],
             "type": "tuple"
           },
           {
-            "items": [
-              "build/runtime/report.json",
-              "build/runtime/work",
-              "no-match"
-            ],
+            "items": ["build/runtime/report.json", "build/runtime/work", "no-match"],
             "type": "tuple"
           },
           {
-            "items": [
-              "build-tools/report.json",
-              "build",
-              "no-match"
-            ],
+            "items": ["build-tools/report.json", "build", "no-match"],
             "type": "tuple"
           }
         ],
@@ -926,24 +795,15 @@
       "value": {
         "items": [
           {
-            "items": [
-              "valid",
-              "handoff_import_lease_conflict"
-            ],
+            "items": ["valid", "handoff_import_lease_conflict"],
             "type": "tuple"
           },
           {
-            "items": [
-              "expired",
-              "handoff_import_lease_conflict"
-            ],
+            "items": ["expired", "handoff_import_lease_conflict"],
             "type": "tuple"
           },
           {
-            "items": [
-              "unknown",
-              "handoff_import_lease_unknown"
-            ],
+            "items": ["unknown", "handoff_import_lease_unknown"],
             "type": "tuple"
           }
         ],
@@ -966,14 +826,8 @@
               "claim",
               {
                 "items": [
-                  [
-                    "objective",
-                    "other"
-                  ],
-                  [
-                    "verdict",
-                    "block"
-                  ]
+                  ["objective", "other"],
+                  ["verdict", "block"]
                 ],
                 "type": "dict"
               },
@@ -993,11 +847,7 @@
             "type": "tuple"
           },
           {
-            "items": [
-              "plane",
-              "hosted",
-              "proof_attestation_plane_mismatch"
-            ],
+            "items": ["plane", "hosted", "proof_attestation_plane_mismatch"],
             "type": "tuple"
           },
           {
@@ -1012,19 +862,11 @@
             "type": "tuple"
           },
           {
-            "items": [
-              "boundary",
-              "other",
-              "proof_attestation_boundary_mismatch"
-            ],
+            "items": ["boundary", "other", "proof_attestation_boundary_mismatch"],
             "type": "tuple"
           },
           {
-            "items": [
-              "novel_semantics",
-              true,
-              "model_gap"
-            ],
+            "items": ["novel_semantics", true, "model_gap"],
             "type": "tuple"
           }
         ],
@@ -1043,24 +885,15 @@
       "value": {
         "items": [
           {
-            "items": [
-              "head",
-              "proof_attestation_plan_head_mismatch"
-            ],
+            "items": ["head", "proof_attestation_plan_head_mismatch"],
             "type": "tuple"
           },
           {
-            "items": [
-              "tree",
-              "proof_attestation_live_tree_mismatch"
-            ],
+            "items": ["tree", "proof_attestation_live_tree_mismatch"],
             "type": "tuple"
           },
           {
-            "items": [
-              "policy",
-              "proof_attestation_repository_policy_mismatch"
-            ],
+            "items": ["policy", "proof_attestation_repository_policy_mismatch"],
             "type": "tuple"
           }
         ],
@@ -1106,9 +939,7 @@
             "items": [
               "block",
               {
-                "items": [
-                  "proof_not_proven"
-                ],
+                "items": ["proof_not_proven"],
                 "type": "tuple"
               },
               "repair the selected Commitment",
@@ -1120,9 +951,7 @@
             "items": [
               "block",
               {
-                "items": [
-                  "authorization_required"
-                ],
+                "items": ["authorization_required"],
                 "type": "tuple"
               },
               "ethos land --apply --authorize --json",
@@ -1205,79 +1034,38 @@
         "items": [
           {
             "items": [
-              [
-                "command",
-                "status"
-              ],
-              [
-                "verdict",
-                "passed"
-              ],
-              [
-                "state",
-                "ready"
-              ]
+              ["command", "status"],
+              ["verdict", "passed"],
+              ["state", "ready"]
             ],
             "type": "dict"
           },
           {
             "items": [
-              [
-                "command",
-                "status"
-              ],
-              [
-                "verdict",
-                "pass"
-              ],
-              [
-                "state",
-                3
-              ]
+              ["command", "status"],
+              ["verdict", "pass"],
+              ["state", 3]
             ],
             "type": "dict"
           },
           {
             "items": [
-              [
-                "command",
-                "status"
-              ],
-              [
-                "verdict",
-                "pass"
-              ],
-              [
-                "state",
-                "ready"
-              ],
-              [
-                "ok",
-                true
-              ]
+              ["command", "status"],
+              ["verdict", "pass"],
+              ["state", "ready"],
+              ["ok", true]
             ],
             "type": "dict"
           },
           {
             "items": [
-              [
-                "command",
-                "status"
-              ],
-              [
-                "verdict",
-                "pass"
-              ],
-              [
-                "state",
-                "ready"
-              ],
+              ["command", "status"],
+              ["verdict", "pass"],
+              ["state", "ready"],
               [
                 "next_actions",
                 {
-                  "items": [
-                    "ethos plan --changed --json"
-                  ],
+                  "items": ["ethos plan --changed --json"],
                   "type": "list"
                 }
               ]
@@ -1286,22 +1074,10 @@
           },
           {
             "items": [
-              [
-                "command",
-                "status"
-              ],
-              [
-                "verdict",
-                "pass"
-              ],
-              [
-                "state",
-                "ready"
-              ],
-              [
-                "extra",
-                "blocked"
-              ]
+              ["command", "status"],
+              ["verdict", "pass"],
+              ["state", "ready"],
+              ["extra", "blocked"]
             ],
             "type": "dict"
           }
@@ -1334,9 +1110,7 @@
             "items": [
               "gaps",
               {
-                "items": [
-                  "gate_policy_source_missing:check"
-                ],
+                "items": ["gate_policy_source_missing:check"],
                 "type": "list"
               }
             ],
@@ -1429,66 +1203,39 @@
       "value": {
         "items": [
           {
-            "items": [
-              "pyproject.toml",
-              "pyproject"
-            ],
+            "items": ["pyproject.toml", "pyproject"],
             "type": "tuple"
           },
           {
-            "items": [
-              "packages/worker/pyproject.toml",
-              "pyproject"
-            ],
+            "items": ["packages/worker/pyproject.toml", "pyproject"],
             "type": "tuple"
           },
           {
-            "items": [
-              "package.json",
-              "package-json"
-            ],
+            "items": ["package.json", "package-json"],
             "type": "tuple"
           },
           {
-            "items": [
-              "packages/web/package.json",
-              "package-json"
-            ],
+            "items": ["packages/web/package.json", "package-json"],
             "type": "tuple"
           },
           {
-            "items": [
-              "src/example/runtime.py",
-              "python"
-            ],
+            "items": ["src/example/runtime.py", "python"],
             "type": "tuple"
           },
           {
-            "items": [
-              ".github/workflows/ci.yml",
-              "yaml"
-            ],
+            "items": [".github/workflows/ci.yml", "yaml"],
             "type": "tuple"
           },
           {
-            "items": [
-              "tools/check.sh",
-              "shell"
-            ],
+            "items": ["tools/check.sh", "shell"],
             "type": "tuple"
           },
           {
-            "items": [
-              "docs/start.md",
-              "markdown"
-            ],
+            "items": ["docs/start.md", "markdown"],
             "type": "tuple"
           },
           {
-            "items": [
-              "system/gates.toml",
-              "text"
-            ],
+            "items": ["system/gates.toml", "text"],
             "type": "tuple"
           }
         ],
@@ -1506,26 +1253,11 @@
       },
       "value": {
         "items": [
-          [
-            "id",
-            "local"
-          ],
-          [
-            "role",
-            "local_verification_install"
-          ],
-          [
-            "mode",
-            "offline"
-          ],
-          [
-            "verification_command",
-            "uv run --frozen --offline python -m nox -s local_ci"
-          ],
-          [
-            "installation_command",
-            "uv run --frozen --offline python -m nox -s install_smoke"
-          ]
+          ["id", "local"],
+          ["role", "local_verification_install"],
+          ["mode", "offline"],
+          ["verification_command", "uv run --frozen --offline python -m nox -s local_ci"],
+          ["installation_command", "uv run --frozen --offline python -m nox -s install_smoke"]
         ],
         "type": "dict"
       },
@@ -1563,12 +1295,7 @@
           {
             "items": [
               {
-                "items": [
-                  [
-                    "local_verification_command",
-                    ""
-                  ]
-                ],
+                "items": [["local_verification_command", ""]],
                 "type": "dict"
               },
               "publication_topology_local_verification_command_missing"
@@ -1578,12 +1305,7 @@
           {
             "items": [
               {
-                "items": [
-                  [
-                    "local_installation_command",
-                    "../install"
-                  ]
-                ],
+                "items": [["local_installation_command", "../install"]],
                 "type": "dict"
               },
               "publication_topology_local_installation_command_path_escape:../install"
@@ -1593,12 +1315,7 @@
           {
             "items": [
               {
-                "items": [
-                  [
-                    "local_verification_command",
-                    "missing"
-                  ]
-                ],
+                "items": [["local_verification_command", "missing"]],
                 "type": "dict"
               },
               "publication_topology_local_verification_command_missing:missing"
@@ -1608,12 +1325,7 @@
           {
             "items": [
               {
-                "items": [
-                  [
-                    "github_ci_surface",
-                    "/tmp/verify.yml"
-                  ]
-                ],
+                "items": [["github_ci_surface", "/tmp/verify.yml"]],
                 "type": "dict"
               },
               "publication_topology_github_ci_surface_path_escape:/tmp/verify.yml"
@@ -1623,12 +1335,7 @@
           {
             "items": [
               {
-                "items": [
-                  [
-                    "gitlab_ci_surface",
-                    "missing.yml"
-                  ]
-                ],
+                "items": [["gitlab_ci_surface", "missing.yml"]],
                 "type": "dict"
               },
               "publication_topology_gitlab_ci_surface_missing:missing.yml"
@@ -1697,34 +1404,16 @@
       },
       "value": {
         "items": [
-          [
-            "remote",
-            "https://example.invalid/org/repo.git"
-          ],
-          [
-            "commit",
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-          ],
-          [
-            "tree",
-            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-          ],
-          [
-            "action",
-            "publish"
-          ],
-          [
-            "proof_floor_id",
-            "proof-floor:default"
-          ],
+          ["remote", "https://example.invalid/org/repo.git"],
+          ["commit", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+          ["tree", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],
+          ["action", "publish"],
+          ["proof_floor_id", "proof-floor:default"],
           [
             "proof_floor_digest",
             "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
           ],
-          [
-            "policy_digest",
-            "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-          ],
+          ["policy_digest", "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"],
           [
             "implementation_digest",
             "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
@@ -1744,30 +1433,15 @@
       },
       "value": {
         "items": [
-          [
-            "local_verification_command",
-            "uv run --frozen --offline python -m nox -s local_ci"
-          ],
+          ["local_verification_command", "uv run --frozen --offline python -m nox -s local_ci"],
           [
             "local_installation_command",
             "uv run --frozen --offline python -m nox -s install_smoke"
           ],
-          [
-            "gitlab_remote",
-            "origin"
-          ],
-          [
-            "gitlab_ci_surface",
-            ".gitlab-ci.yml"
-          ],
-          [
-            "github_remote",
-            "github"
-          ],
-          [
-            "github_ci_surface",
-            ".github/workflows/verify.yml"
-          ]
+          ["gitlab_remote", "origin"],
+          ["gitlab_ci_surface", ".gitlab-ci.yml"],
+          ["github_remote", "github"],
+          ["github_ci_surface", ".github/workflows/verify.yml"]
         ],
         "type": "dict"
       },
@@ -1806,9 +1480,7 @@
                 "type": "dict"
               },
               {
-                "items": [
-                  "publication_topology_declaration_invalid"
-                ],
+                "items": ["publication_topology_declaration_invalid"],
                 "type": "list"
               }
             ],
@@ -1825,10 +1497,7 @@
                         [
                           "remotes",
                           {
-                            "items": [
-                              "origin",
-                              "github"
-                            ],
+                            "items": ["origin", "github"],
                             "type": "list"
                           }
                         ]
@@ -1840,9 +1509,7 @@
                 "type": "dict"
               },
               {
-                "items": [
-                  "publication_topology_declaration_invalid"
-                ],
+                "items": ["publication_topology_declaration_invalid"],
                 "type": "list"
               }
             ],
@@ -1855,9 +1522,7 @@
                 "type": "dict"
               },
               {
-                "items": [
-                  "publication_topology_declaration_invalid"
-                ],
+                "items": ["publication_topology_declaration_invalid"],
                 "type": "list"
               }
             ],
@@ -1866,18 +1531,11 @@
           {
             "items": [
               {
-                "items": [
-                  [
-                    "publication",
-                    "invalid"
-                  ]
-                ],
+                "items": [["publication", "invalid"]],
                 "type": "dict"
               },
               {
-                "items": [
-                  "publication_topology_declaration_invalid"
-                ],
+                "items": ["publication_topology_declaration_invalid"],
                 "type": "list"
               }
             ],
@@ -1890,12 +1548,7 @@
                   [
                     "publication",
                     {
-                      "items": [
-                        [
-                          "gitlab_remote",
-                          "origin"
-                        ]
-                      ],
+                      "items": [["gitlab_remote", "origin"]],
                       "type": "dict"
                     }
                   ]
@@ -1951,14 +1604,8 @@
                     "publication",
                     {
                       "items": [
-                        [
-                          "gitlab_remote",
-                          "origin"
-                        ],
-                        [
-                          "github_remote",
-                          "origin"
-                        ]
+                        ["gitlab_remote", "origin"],
+                        ["github_remote", "origin"]
                       ],
                       "type": "dict"
                     }
@@ -1999,14 +1646,8 @@
               "[protected_refs]\nbranches = [\"main\", \"dev\"]\ntags = [\"v*\"]\n\n[gitlab]\nci = \".gitlab-ci.yml\"\n\n[attestation]\nformats = [\"spdx-2.3-json\"]\n",
               {
                 "items": [
-                  [
-                    "provider",
-                    ""
-                  ],
-                  [
-                    "layer",
-                    "profile_config"
-                  ],
+                  ["provider", ""],
+                  ["layer", "profile_config"],
                   [
                     "surfaces",
                     {

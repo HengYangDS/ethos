@@ -17,7 +17,6 @@ from ethos.adapters.gates.runner import ActionRunResult
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.support.governed_repository import commit_fixture
-from tests.support.governed_repository import declare_fixture_documentation_proof
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import write_script_gate_policy
@@ -156,6 +155,27 @@ def test_host_admission_requires_committed_executable_source(tmp_path: Path, *, 
     assert git(repo, "status", "--short") == before
 
 
+def test_host_document_diagnostic_does_not_require_unselected_code_proof(tmp_path: Path) -> None:
+    """A real shared document provider executes independently of the native code floor."""
+    repo = init_git_repo(tmp_path / "repo")
+    write_script_gate_policy(repo, full=True)
+    (repo / "tools/check.sh").chmod(0o700)
+    head = commit_fixture(repo, "declare separate code and document obligations")
+    before = git(repo, "status", "--short")
+
+    completed = _host(repo, head, "--gate", "docs-registry")
+
+    payload = json.loads(completed.stdout)
+    assert completed.returncode == 0, payload
+    assert payload["verdict"] == "pass"
+    assert payload["required_gaps"] == []
+    assert payload["data"]["executed"] is True
+    assert [check["action_id"] for check in payload["data"]["checks"]] == ["docs-registry"]
+    assert payload["data"]["host_probe"]["satisfies_repository_proof"] is False
+    assert payload["data"]["attestation"] == {}
+    assert git(repo, "status", "--short") == before
+
+
 @pytest.mark.parametrize("full", [False, True])
 def test_host_invalid_policy_is_a_reported_nonexecution(tmp_path: Path, *, full: bool) -> None:
     """Malformed committed policy blocks without a traceback or executing checks."""
@@ -171,27 +191,3 @@ def test_host_invalid_policy_is_a_reported_nonexecution(tmp_path: Path, *, full:
     assert payload["required_gaps"] == ["repository_profile_invalid:.ethos/profile.toml"]
     assert payload["data"]["checks"] == []
     assert payload["data"]["executed"] is False
-
-
-@pytest.mark.parametrize("source", ["repository", "product", "conflict"])
-def test_host_selection_keeps_product_origin_explicit(tmp_path: Path, source: str) -> None:
-    """Only explicit product selection executes a gate absent from the native declaration."""
-    root = init_git_repo(tmp_path / "repo")
-    declare_fixture_documentation_proof(root)
-    head = commit_fixture(root, "declare native document checks")
-    selection = ("--gate", "schemas") if source == "repository" else ("--product-gate", "schemas")
-    if source == "conflict":
-        selection += ("--gate", "schemas")
-    result = _host(root, head, *selection)
-    payload = json.loads(result.stdout)
-    assert result.returncode == (0 if source == "product" else 1)
-    assert payload["verdict"] == ("pass" if source == "product" else "block")
-    if source == "product":
-        assert [check["action_id"] for check in payload["data"]["checks"]] == ["schemas"]
-        assert not payload["summary"]["proof_attestation_issued"]
-    else:
-        assert payload["required_gaps"] == [
-            "unknown proof gate"
-            if source == "repository"
-            else "gate_selection_origin_conflict:schemas"
-        ]

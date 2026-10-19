@@ -15,7 +15,6 @@ _COMMAND_MODULES = {
     "status": "ethos.surface.cli.root.inspection",
     "plan": "ethos.surface.cli.root.planning",
     "prove": "ethos.surface.cli.root.proof",
-    "format": "ethos.surface.cli.root.formatting",
     "land": "ethos.surface.cli.root.land",
     "publish": "ethos.surface.cli.root.publish",
     "mcp": "ethos.surface.cli.root.mcp",
@@ -38,11 +37,11 @@ def load_command_groups(argv: list[str]) -> None:
     for module in selected:
         importlib.import_module(module)
         if module == _COMMAND_MODULES["lane"]:
+            importlib.import_module("ethos.surface.cli.lane.formatting")
             importlib.import_module("ethos.surface.cli.lane.commit_signer")
             importlib.import_module("ethos.surface.cli.lane.lease")
             importlib.import_module("ethos.surface.cli.lane.handoff")
             importlib.import_module("ethos.surface.cli.lane.paradigm_repair")
-            importlib.import_module("ethos.surface.cli.lane.document_format")
             importlib.import_module("ethos.surface.cli.lane.retirement")
 
 

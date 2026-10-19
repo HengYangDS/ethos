@@ -23,9 +23,9 @@ configuration plane, not a truth center.
   remaining native tool tables are not permission to duplicate policy owned
   by an explicit configuration file.
 - `.config/checks/pytest/pytest.toml` is the pytest config owner and points pytest runtime cache to `build/runtime/tool-cache/pytest`, not `.config/`. Owner scripts pass it with `-c` and `--rootdir=.`. Native `pythonpath` entries are relative to the configuration directory and explicitly resolve to the repository and its `src/`; `--rootdir` does not rebase those entries.
-- [The Ruff policy](../../.config/checks/ruff/ruff.toml) owns lint and formatting rules. Every
-  consumer passes it explicitly, with the cache under `build/runtime/tool-cache/ruff/`;
-  no root discovery entry exists, and editors point their Ruff setting at this file.
+- [The Ruff policy](../../.config/checks/ruff/ruff.toml) owns lint and formatting rules. Native
+  CLI and hook consumers select this exact nested policy; no root pointer remains.
+  CLI caches are bound explicitly to `build/runtime/tool-cache/ruff/`.
   The package runtime supplies Ruff for selected staged Python checks. These
   checks consume index bytes through native stdin, not uncommitted worktree
   contents. Missing bound supply is a failure, not an implicit skipped check.
@@ -33,9 +33,10 @@ configuration plane, not a truth center.
 - `.config/checks/<owner>/` and `.config/release/<owner>/` are named by the consuming tool, keeping its
   native file name, or by the repository check whose parameters live in `policy.toml`.
 - [Native format selection](../../.config/checks/format-selection/policy.toml) has one product owner,
-  `ethos.adapters.gates.format_selection`. Nox invokes that owner; the shared
-  configuration provider uses the same assignments. Native generators, locked
-  upstream members and package-manager outputs retain their exact byte owners.
+  `ethos.repository.policy.quality.format_selection`. The `format_selection` Nox session runs
+  `tools/ci/format_selection.py`; `ethos lane format` and the shared configuration provider use
+  the same assignments. Native generators, locked upstream members and package-manager outputs
+  retain their exact byte owners.
 - Root `noxfile.py` is the native discovery entry for `tools/ci/sessions.py`,
   which owns the executable Python lint proof surface inside the
   single uv-locked `.venv`: unsuppressed Ruff check and Ruff format check,
@@ -48,23 +49,41 @@ configuration plane, not a truth center.
   repository-wide semantic scope, plus the narrower product-package topology
   scope, ambiguous naming, facade, command-owner, and import-boundary policy.
   `uv run --frozen --offline python -m nox -s module_layout` is the reusable runner.
-- `.config/checks/taplo/taplo.toml` owns TOML canonical formatting. `.config/checks/config-quality/policy.toml` owns path-selected Python stdlib JSON formatting: ordinary JSON is two-space pretty form, while schemas and evidence remain compact machine carriers. The `config_quality` Nox session invokes the exact locked owners without shell, PATH, or dynamic dependency fallback.
-- `.config/checks/yamllint/.yamllint.yaml` owns ETHOS-authored YAML linting,
-  including CI, hook, and quality configurations. OpenSpec YAML remains under
-  the pinned OpenSpec validator. CI invokes both owners through their existing
-  lifecycle gates.
+- `.config/checks/taplo/taplo.toml` owns TOML canonical formatting. Original
+  locked Prettier owns authored JSON and YAML formatting through
+  `.config/checks/prettier/prettier.toml`; JSON parsing and the native semantic
+  yamllint rules retain syntax, duplicate-key and alias obligations without a
+  second layout policy. The installed `config-quality` provider and native
+  `config_quality` Nox projection check the same exact authored inputs. Native
+  format fixing uses the commands declared in `.config/checks/format-selection/policy.toml`.
+  Dependency resolution members keep their existing package-manager byte owner
+  from that declaration; official OpenSpec, projections and explicitly bound
+  source contracts retain their separate verification. The replaced stdlib JSON
+  formatter and its configuration are retired, not retained as another authority.
+  Shipped policy remains mandatory, native increments cannot hide its failures,
+  and refusal preserves bytes. No adopter controller or source environment is
+  required by the installed provider.
+- `.config/checks/yamllint/.yamllint.yaml` owns native YAML semantic lint, including CI,
+  hook and quality configurations. OpenSpec YAML remains under the pinned
+  official validator. CI invokes both owners through their existing gates.
+- [The Gitleaks policy](../../.config/checks/gitleaks/gitleaks.toml) owns custom rules and
+  extension of native defaults. Hook and CI select it explicitly. Mise owns
+  its locked supply; `tools/ci/toolchain/native.py` verifies the installed bytes.
+  The `secrets` Nox session scans an isolated `git ls-files` mirror,
+  preserving tracked-source coverage without scanning ignored host state.
 - `.config/checks/shellcheck/.shellcheckrc` owns ShellCheck policy; the `shell_lint` Nox session resolves the locked cross-platform `shellcheck-py` executable.
-- `.config/checks/markdownlint-cli2/.markdownlint-cli2.yaml` owns Markdown lint policy;
-  the `markdown_lint` Nox session executes the exact `package-lock.json`
-  dependency without ambient installation. The lint-only gate covers declared
-  maintained Markdown, including official OpenSpec artifacts under the native
-  artifact-specific rules. Historical evidence paths grant no format exemption;
-  generated and local outputs remain outside the declared source globs.
-- `.config/checks/codespell/codespell.toml` owns native codespell settings in its
-  `[tool.codespell]` table, and `.config/checks/codespell/policy.toml` owns the
-  checked paths. The `prose` Nox session passes the settings with `--toml`,
-  refuses a carrier without that table, and runs locked `codespell` without
-  rewriting files.
+- `.config/checks/prettier/prettier.toml` owns Markdown spacing, container layout
+  and formatting style; `.config/checks/markdownlint-cli2/.markdownlint-cli2.yaml` owns
+  non-formatting document and link semantics, plus the spacing and style rules of
+  official OpenSpec Markdown, which has no formatter. The `markdown_lint` Nox session
+  projects the shared product gate and its shipped, lock-bound native tools.
+  Both checks consume the same current authored files. Immutable records are
+  retained without rewrite; generated and local outputs are not source inputs.
+- `.config/checks/codespell/codespell.toml` supplies the mandatory native spelling
+  policy in both wheel and source distributions. The shared `prose` Gate and
+  source Nox projection use one installed owner over exact authored copies,
+  rejecting source writes and ambient policy; local policy only adds checks.
+  Codespell does not replace repository-owned Vale styles or terminology rules.
 - `.config/checks/deptry/policy.toml` owns dependency hygiene policy. The
   `dependencies` Nox session invokes `tools/ci/dependency_hygiene.py` for the
   sole Python distribution and its locked supply. The runner passes the declared
@@ -95,7 +114,8 @@ configuration plane, not a truth center.
   and the bound Python environment; missing supply fails without PATH fallback.
 - `.config/checks/lychee/lychee.toml` owns link-check behavior. Its supply
   declaration maps the executable to the official `lychee-bin` wheel; the
-  development dependency and `uv.lock` own version and artifact identity.
+  production dependency and `uv.lock` own version and artifact identity. The
+  gate resolves the executable beside its bound Python, without ambient PATH.
 - `.config/checks/hosted-observation/policy.toml` owns hosted provider observation envelopes; the `hosted_observation` Nox session records GitHub/GitLab provider facts or tool-discovery state without claiming repository proof, hosted CI success, or remote publication.
 - `.config/checks/format-selection/policy.toml` owns fail-closed executable-carrier
   admission and file-format boundary checks; `uv run --frozen --offline python -m nox -s format_selection`
@@ -123,12 +143,12 @@ Placement follows the actual consumer, not a blanket root-file exemption.
 
 - Python and npm manifests remain beside their ecosystem lockfiles at the
   workspace boundary. Native Git metadata and attributes retain their Git scope.
+- Ruff consumers pass `--config .config/checks/ruff/ruff.toml` explicitly.
 - `noxfile.py` is a small native entrypoint, not another session implementation.
 - `.gitlab-ci.yml` is a generated provider entrypoint. Its meaning comes from
   the CUE source and native inputs, not separately authored YAML.
-  It preserves discovery and the installed hook across the cutover without
-  duplicating rules. Consumers run from the repository root; a missing or
-  malformed referenced policy is rejected.
+- Gitleaks consumers pass `--config .config/checks/gitleaks/gitleaks.toml`
+  explicitly; missing or malformed policy is an execution failure.
 - [The optional pre-commit configuration](../../.config/checks/pre-commit/.pre-commit-config.yaml) invokes
   existing Nox checks. Run it with an explicit `--config` path; no root copy
   is retained. Do not install it over the ETHOS-owned Git hook.

@@ -10,15 +10,14 @@ from pathlib import Path
 import pytest
 import yaml
 
-import ethos.adapters.gates.format_selection as format_selection
-from ethos.adapters.gates.configuration import configuration_report
-from ethos.repository.profile import ProofPolicy
-from ethos.repository.profile import RepositoryProfileDeclaration
-from ethos.repository.profile import SourceContract
-from ethos.repository.profile import render_repository_profile
+import tools.ci.format_selection as format_selection
+from ethos.adapters.gates.formatting import render_source_content
+from ethos.adapters.process import run_command
+from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
+from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
+from ethos.repository.policy.quality.format_selection import audit
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
-from tools.ci import sessions
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -38,7 +37,7 @@ def test_packaged_agent_guidance_is_selected_by_native_markdown_lint() -> None:
 def carrier_report():
     return json.loads(
         subprocess.check_output(
-            (sys.executable, "-B", "-m", "ethos.adapters.gates.format_selection"),
+            (sys.executable, "tools/ci/format_selection.py"),
             cwd=ROOT,
             text=True,
         )
@@ -70,6 +69,10 @@ def test_current_openspec_markdown_has_generic_and_semantic_validation(carrier_r
     for relative in sorted(selected):
         assignment = assignments[relative]
         assert assignment["format_owner"] == "official-openspec"
+        assert assignment["format_check"] == (
+            "uv run --frozen --offline python -m nox -s format_check"
+        )
+        assert assignment["mutation_policy"] == "official-owner-only"
         assert assignment["validation_owner"] == "official-openspec"
         assert assignment["validation_command"] == "ethos prove --gate openspec --json"
         assert assignment["semantic_companions"]
@@ -89,7 +92,9 @@ def test_immutable_markdown_is_linted_without_rewrite_authority(carrier_report) 
     assert {entry["validation_owner"] for entry in immutable} == {"markdownlint-cli2"}
 
 
-def test_native_carriers_separate_canonicalization_from_validation(carrier_report) -> None:
+def test_native_carriers_separate_canonicalization_from_validation(
+    carrier_report, tmp_path
+) -> None:
     assignments = {entry["path"]: entry for entry in carrier_report["assignments"]}
 
     expected = {
@@ -110,46 +115,82 @@ def test_native_carriers_separate_canonicalization_from_validation(carrier_repor
     assert assignments[".config/checks/pytest/pytest.toml"]["validation_command"].endswith(
         "-s config_quality"
     )
+    adopter = init_git_repo(tmp_path / "adopter")
+    provider_paths = (".github/workflows/ci.yml", ".gitlab-ci.yml")
+    report = audit(adopter, paths=provider_paths, configuration=format_selection.CONFIG_PATH)
+    assert report["verdict"] == "pass", report
+    assert len(report["assignments"]) == len(provider_paths)
+    assert all(
+        (entry["format_owner"], entry["mutation_policy"]) == ("prettier", "native-formatter")
+        for entry in report["assignments"]
+    )
+    declaration = adopter / ".config/checks/ci-projection/policy.toml"
+    declaration.parent.mkdir(parents=True)
+    declaration.write_text(
+        'schema = "ethos-ci-template-consistency-v1"\n'
+        '[[projection]]\nkind = "cue"\nprovider = "gitlab"\n'
+        'projection = ".gitlab-ci.yml"\n'
+        '[compiler]\nsource = ".config/ci/pipeline.cue"\n'
+        'inputs = { gates = "system/gates.toml" }\n'
+        'supply = { config = ".config/mise/config.toml", lock = ".config/mise/mise.lock" }\n'
+    )
+    projected = audit(adopter, paths=provider_paths, configuration=format_selection.CONFIG_PATH)
+    owners = {entry["path"]: entry for entry in projected["assignments"]}
+    assert projected["verdict"] == "pass", projected
+    assert (
+        owners[".gitlab-ci.yml"]["format_owner"],
+        owners[".gitlab-ci.yml"]["mutation_policy"],
+    ) == (
+        "cue",
+        "generator-only",
+    )
+    assert owners[".github/workflows/ci.yml"]["mutation_policy"] == "native-formatter"
+    declaration.write_text("not = [valid\n")
+    with pytest.raises(ValueError, match="projection_declaration_invalid"):
+        audit(adopter, paths=provider_paths, configuration=format_selection.CONFIG_PATH)
 
 
 def test_prettier_inputs_are_the_carriers_it_is_declared_to_own() -> None:
-    """The Markdown check formats only Prettier-owned carriers, never official or archived ones."""
-    selected = set(sessions.prettier_paths())
+    """One native formatter respects producers and official artifact ownership."""
+    tracked = tuple(filter(None, git(ROOT, "ls-files", "-z").split("\0")))
+    assignments = audit(ROOT, paths=tracked)["assignments"]
+    selected = {item["path"] for item in assignments if item["format_owner"] == "prettier"}
     assert "docs/README.md" in selected
     assert ".config/checks/pre-commit/.pre-commit-config.yaml" in selected
-    assert ".gitlab-ci.yml" not in selected, "generated projections keep their producer"
+    assert ".gitlab-ci.yml" not in selected
     assert not {
         path for path in selected if path.startswith(("openspec/specs/", "openspec/changes/"))
     }
     assert "openspec/config.yaml" not in selected
-    assert not {path for path in selected if path.endswith((".js", ".mjs", ".cjs"))}
+    assert "distributions/npm/bin/ethos.mjs" in selected
 
 
 def test_markdown_lint_accepts_what_the_markdown_formatter_writes(tmp_path: Path) -> None:
     """Prettier writes underscore emphasis but asterisks inside a word; the lint accepts both."""
-    page = tmp_path / "docs" / "page.md"
+    root = init_git_repo(tmp_path / "repo")
+    page = root / "docs" / "page.md"
     page.parent.mkdir()
     page.write_text("# Title\n\nintra*word*emphasis first, then an *emphasised* word.\n")
-    node = str(sessions.RUNTIME.node_executable())
-    supply = sessions.RUNTIME.node_package_supply()
-    formatter = (node, str(supply / "prettier/bin/prettier.cjs"))
-    config = ("--config", str(ROOT / sessions.PRETTIER_CONFIG), "--write", str(page))
-    subprocess.run((*formatter, *config), cwd=tmp_path, check=True, capture_output=True, timeout=60)
+    formatted, ignored = render_source_content(root, "docs/page.md", "prettier", page.read_bytes())
+    assert not ignored
+    page.write_bytes(formatted)
     assert "then an _emphasised_ word" in page.read_text(encoding="utf-8")
+    assert render_source_content(root, "docs/page.md", "prettier", formatted) == (
+        formatted,
+        False,
+    )
 
-    lint = subprocess.run(
+    lint = run_command(
+        root,
         (
-            node,
-            str(supply / "markdownlint-cli2/markdownlint-cli2-bin.mjs"),
+            str(resolve_node_runtime().executable),
+            str(product_node_module("markdownlint-cli2") / "markdownlint-cli2-bin.mjs"),
             "--config",
             str(ROOT / ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml"),
             "docs/page.md",
         ),
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
         timeout=60,
-        check=False,
+        remove_env=("NODE_OPTIONS", "NODE_PATH"),
     )
 
     assert lint.returncode == 0, lint.stdout + lint.stderr
@@ -200,7 +241,7 @@ def test_format_selection_rejects_malformed_native_policy(
     config = tmp_path / "selection.toml"
     config.write_text(declaration)
     monkeypatch.setattr(format_selection, "CONFIG_PATH", config)
-    monkeypatch.setattr(format_selection, "audit", lambda _root: {})
+    monkeypatch.setattr(format_selection, "audit", lambda _root, **_kwargs: {})
 
     with pytest.raises(error):
         format_selection.main()
@@ -215,8 +256,7 @@ def test_format_selection_rejects_malformed_native_policy(
 )
 def test_carrier_assignment_rejects_malformed_owned_fields(tmp_path, fields: str) -> None:
     """The producer, not each consumer, validates assignment field types."""
-    root = init_git_repo(tmp_path / "repo")
-    config = root / ".config/checks/format-selection/policy.toml"
+    config = tmp_path / ".config/checks/format-selection/policy.toml"
     config.parent.mkdir(parents=True)
     config.write_text(
         '[[ownership]]\npaths = ["example.py"]\nformat_owner = "ruff"\n'
@@ -226,13 +266,12 @@ def test_carrier_assignment_rejects_malformed_owned_fields(tmp_path, fields: str
     )
 
     with pytest.raises(TypeError):
-        format_selection.audit(root, paths=("example.py",))
+        audit(tmp_path, paths=("example.py",))
 
 
 def test_unused_malformed_owner_cannot_hide_behind_a_valid_fallback(tmp_path) -> None:
     """Every declaration must be valid even when another owner covers the file."""
-    root = init_git_repo(tmp_path / "repo")
-    config = root / ".config/checks/format-selection/policy.toml"
+    config = tmp_path / ".config/checks/format-selection/policy.toml"
     config.parent.mkdir(parents=True)
     config.write_text(
         '[[ownership]]\nid = "valid"\npaths = ["example.py"]\n'
@@ -243,69 +282,14 @@ def test_unused_malformed_owner_cannot_hide_behind_a_valid_fallback(tmp_path) ->
     )
 
     with pytest.raises(TypeError):
-        format_selection.audit(root, paths=("example.py",))
-
-
-def test_native_byte_owners_are_shared_by_format_and_configuration_selection(tmp_path) -> None:
-    """An authored schema is formatted; native output and lock bytes keep their owners."""
-    root = init_git_repo(tmp_path / "repo")
-    policy = root / ".config/checks/format-selection/policy.toml"
-    policy.parent.mkdir(parents=True)
-    policy.write_bytes((ROOT / ".config/checks/format-selection/policy.toml").read_bytes())
-    artifact = "generated/result.json"
-    profile = RepositoryProfileDeclaration(
-        profile_id="native-selection",
-        proof=ProofPolicy(
-            source_contracts=(
-                SourceContract(
-                    kind="generated",
-                    input_refs=(".config/checks/architecture/projection.toml",),
-                    members={artifact: (".config/checks/architecture/projection.toml", artifact)},
-                    integrity_gate="generated-integrity",
-                ),
-            )
-        ),
-    )
-    carrier = root / ".ethos/profile.toml"
-    carrier.parent.mkdir()
-    carrier.write_text(render_repository_profile(profile))
-    inputs = {
-        "system/schemas/contracts/example.schema.json": '{"type":"object"}\n',
-        artifact: '{"native":[1,2]}',
-        "package-lock.json": '{"lockfileVersion":3}',
-    }
-    for relative, content in inputs.items():
-        path = root / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content)
-    assignments = {
-        item["path"]: item
-        for item in format_selection.audit(root, paths=tuple(inputs))["assignments"]
-    }
-    assert (
-        assignments["system/schemas/contracts/example.schema.json"]["format_owner"]
-        == "python-stdlib-json"
-    )
-    assert (
-        assignments[artifact]["validation_command"]
-        == "ethos prove --gate generated-integrity --json"
-    )
-    assert assignments[artifact]["mutation_policy"] == "forbidden"
-    assert assignments["package-lock.json"]["mutation_policy"] == "package-manager-only"
-    for relative in (artifact, "package-lock.json"):
-        report = configuration_report(root, paths=(relative,))
-        assert report["verdict"] == "block"
-        assert "another owner" in str(report["required_gaps"])
-    report = configuration_report(root, paths=("system/schemas/contracts/example.schema.json",))
-    assert report["verdict"] == "pass", report
-    assert {relative: (root / relative).read_text() for relative in inputs} == inputs
+        audit(tmp_path, paths=("example.py",))
 
 
 @pytest.mark.parametrize("name", ["accept", "reject"])
 def test_native_vocabulary_has_one_executable_quality_owner(name: str) -> None:
     """Vale vocabulary parsing is configuration validation, not a prose waiver."""
     relative = f".config/checks/vale/styles/config/vocabularies/common/{name}.txt"
-    report = format_selection.audit(ROOT, paths=(relative,))
+    report = audit(ROOT, paths=(relative,))
 
     assert report["verdict"] == "pass", report
     assert report["assignment_count"] == 1
@@ -314,4 +298,4 @@ def test_native_vocabulary_has_one_executable_quality_owner(name: str) -> None:
     assert assignment["validation_command"].endswith("-s config_quality")
     assert assignment["format_check"].endswith("-s repository_hygiene")
     assert assignment["mutation_policy"] == "canonical-text"
-    assert format_selection.audit(ROOT, paths=("docs/unowned.txt",))["verdict"] == "block"
+    assert audit(ROOT, paths=("docs/unowned.txt",))["verdict"] == "block"

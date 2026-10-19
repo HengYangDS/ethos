@@ -82,7 +82,6 @@ def _options(**updates: object) -> SimpleNamespace:
         "scope": "repository",
         "execute": False,
         "gate": (),
-        "product_gate": (),
         "full": False,
         "change": None,
         "expect_head": None,

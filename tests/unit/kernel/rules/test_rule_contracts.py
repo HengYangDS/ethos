@@ -12,6 +12,8 @@ from pydantic import ValidationError
 
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.contracts.gates import Gate
+from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.rules import Rule
 from ethos.contracts.rules import RuleSet
@@ -19,7 +21,6 @@ from ethos.domain.plan import matching_rule_gates
 from ethos.repository.policy.rules.compile import compile_rules
 from ethos.repository.policy.rules.config import resolve_profile_stack
 from ethos.repository.policy.schema import validate_schema_instance
-from tests.support.ethos_cli_runner import result_data
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import declare_fixture_documentation_proof
@@ -180,7 +181,7 @@ def test_compiled_rule_matching_treats_trailing_glob_as_its_directory(tmp_path: 
 def test_compile_rules_uses_selected_root_gate_authority(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, registry_file: bool
 ) -> None:
-    """Rule selection uses the target's native owner, never ambient or packaged gates."""
+    """Shared gates retain product authority; native increments never use ambient gates."""
     target = tmp_path / "target"
     target.mkdir()
     _write_rules(
@@ -188,8 +189,11 @@ def test_compile_rules_uses_selected_root_gate_authority(
         _rule(id="custom.native", path_globs=["notes/**"], required_gates=["native-quality"]),
     )
     gate_ids = ["docs-registry", "schemas", "skills", "native-quality"]
+    shared = load_gate_registry_declaration().registry()
     gates = [
-        {"id": gate_id, "kind": "check", "command": ["target-quality", gate_id]}
+        shared[gate_id].model_dump(mode="json", exclude_none=True)
+        if gate_id in shared
+        else {"id": gate_id, "kind": "check", "command": ["target-quality", gate_id]}
         for gate_id in gate_ids
     ]
     proof = (
@@ -231,7 +235,6 @@ def test_compile_rules_uses_selected_root_gate_authority(
     compiled = compile_rules(target)
     expected = {
         "id": "native-quality",
-        "gate_source": "repository",
         "command": "target-quality native-quality",
         "blocking": True,
     }
@@ -284,7 +287,7 @@ def test_compile_rules_rejects_unavailable_native_gate_authority(
 
 
 def test_product_starter_rules_keep_product_gates_beside_target_authority(tmp_path: Path) -> None:
-    """Rules reuse product-owned checks while native descriptors retain target authority."""
+    """Product-owned rules use product gates the target does not own; target rules do not."""
     gate = {"id": "native-quality", "kind": "check", "command": ["target-quality"]}
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos/profile.toml").write_text(
@@ -301,12 +304,7 @@ def test_product_starter_rules_keep_product_gates_beside_target_authority(tmp_pa
         ),
         encoding="utf-8",
     )
-    packaged = {
-        name: descriptor | {"gate_source": "product"}
-        for name, descriptor in compile_rules(tmp_path.parent / "absent")[
-            "gate_definitions"
-        ].items()
-    }
+    packaged = compile_rules(tmp_path.parent / "absent")["gate_definitions"]
 
     compiled = compile_rules(tmp_path)
     assert compiled["compile_gaps"] == []
@@ -318,64 +316,40 @@ def test_product_starter_rules_keep_product_gates_beside_target_authority(tmp_pa
     assert selected == [packaged["schemas"]]
     assert gaps == []
 
-    _write_rules(
-        tmp_path,
-        _rule(id="custom.governance", required_gates=["openspec", "schemas"]),
-    )
-    compiled = compile_rules(tmp_path)
-    assert compiled["compile_gaps"] == []
-    assert compiled["gate_definitions"]["openspec"] == packaged["openspec"]
-    assert compiled["gate_definitions"]["schemas"] == packaged["schemas"]
-    assert "unit-architecture" not in compiled["gate_definitions"]
-    matched, selected, gaps = matching_rule_gates(tmp_path, ("docs/guide.md",))
-    assert {rule["id"] for rule in matched} == {"starter.docs", "custom.governance"}
-    assert {gate["id"] for gate in selected} == {"docs-registry", "openspec", "schemas"}
-    assert gaps == []
+    _write_rules(tmp_path, _rule(id="custom.product", required_gates=["schemas"]))
+    assert compile_rules(tmp_path)["compile_gaps"] == ["unknown_rule_gate:custom.product:schemas"]
 
 
-@pytest.mark.parametrize("native_id", ["docs-registry", "document-registry"])
-def test_common_rule_preserves_product_gate_origin(tmp_path: Path, native_id: str) -> None:
-    """Renaming an adopter gate cannot capture or alter a common-rule obligation."""
-    (tmp_path / ".ethos").mkdir()
-    (tmp_path / ".ethos/profile.toml").write_text(
-        tomli_w.dumps(
-            {
-                "profile_id": "target",
-                "proof": {
-                    "code_correctness_gates": [native_id],
-                    "gates": [{"id": native_id, "kind": "check", "command": ["target-check"]}],
-                },
-            }
-        ),
-        encoding="utf-8",
-    )
-    packaged = {
-        name: descriptor | {"gate_source": "product"}
-        for name, descriptor in compile_rules(tmp_path.parent / "absent")[
-            "gate_definitions"
-        ].items()
-    }
-    compiled = compile_rules(tmp_path)
-    assert compiled["compile_gaps"] == []
-    for name in ("docs-registry", "schemas"):
-        assert compiled["gate_definitions"][name]["command"] == packaged[name]["command"]
-    matched, selected, gaps = matching_rule_gates(
-        tmp_path, ("docs/guide.md", "openspec/changes/x/tasks.md")
-    )
-    assert {rule["id"] for rule in matched} == {"starter.docs", "starter.governance"}
-    assert {gate["id"] for gate in selected} == {"docs-registry", "schemas"}
-    assert gaps == []
-
-
-def test_public_native_product_composition_binds_target_and_refuses_stale_source(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Rules, public planning and actual CLI execution retain one target-bound selection."""
-    monkeypatch.delenv("ETHOS_CHANGE", raising=False)
-    monkeypatch.delenv("ETHOS_ACTOR", raising=False)
+def _composed_document_repository(tmp_path: Path, *, mixed_code: bool) -> Path:
+    """Retain native code obligations beside one selected document journey."""
     root = init_git_repo(tmp_path / "repo")
     declare_fixture_documentation_proof(root)
     write_active_commitment(root, change_id="gate-composition")
+    if mixed_code:
+        source = root / "src/native.py"
+        source.parent.mkdir()
+        source.write_text('"""Native repository code outside this document change."""\n')
+        registry = root / "system/gates.toml"
+        declaration = load_gate_registry_declaration(registry)
+        native = Gate(
+            id="native-code",
+            kind="test",
+            command=(sys.executable, "-c", "pass"),
+            verification_providers=(
+                "ethos.adapters.gates.python_quality:behavior_report",
+                "ethos.adapters.gates.python_quality:static_report",
+            ),
+        )
+        mixed = declaration.model_copy(
+            update={
+                "gates": (*declaration.gates, native),
+                "proof_sets": GateProofSets(
+                    default=(*declaration.proof_sets.default, native.id),
+                    full=(*declaration.proof_sets.full, native.id),
+                ),
+            }
+        )
+        registry.write_text(tomli_w.dumps(mixed.model_dump(mode="json", exclude_none=True)))
     _write_rules(
         root,
         _rule(
@@ -387,27 +361,43 @@ def test_public_native_product_composition_binds_target_and_refuses_stale_source
     commit_fixture(root, "declare composed rule demand")
     tasks = root / "openspec/changes/gate-composition/tasks.md"
     tasks.write_text(tasks.read_text().replace("fixture lifecycle", "native composition"))
+    return root
+
+
+@pytest.mark.parametrize("mixed_code", [False, True])
+def test_public_native_product_composition_binds_target_and_refuses_stale_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, mixed_code: bool
+) -> None:
+    """Rules, public planning and actual CLI execution retain one target-bound selection."""
+    monkeypatch.delenv("ETHOS_CHANGE", raising=False)
+    monkeypatch.delenv("ETHOS_ACTOR", raising=False)
+    root = _composed_document_repository(tmp_path, mixed_code=mixed_code)
     plan = run_ethos("plan", "--changed", "--change", "gate-composition", "--json", cwd=root)
     assert plan["verdict"] == "pass"
-    plan_data = result_data(plan)
-    assert {gate["id"] for gate in plan_data["required_gates"]} == {
+    assert {gate["id"] for gate in plan["data"]["required_gates"]} == {
         "openspec-baseline",
         "schemas",
     }
-    assert {node["id"] for node in plan_data["transition_plan"]["nodes"]} == {
+    assert {node["id"] for node in plan["data"]["transition_plan"]["nodes"]} == {
         "openspec-baseline",
         "schemas",
     }
+    planned_policy = plan["data"]["transition_plan"]["policy"]
+    assert planned_policy["obligation_scope"] == "selected"
+    assert "code_correctness_map" not in planned_policy["owner"]
     head = commit_fixture(root, "bind composed rule demand")
     policy = resolve_gate_policy(
         root,
         tree_ref=head,
         gate_ids=("openspec-baseline", "schemas"),
-        product_gate_ids=("schemas",),
+        selected_obligations=True,
     )
     assert policy.gaps == ()
-    assert set(policy.registry) == {"openspec-baseline"}
-    assert policy.product_gate_ids == ("schemas",)
+    assert policy.projection["obligation_scope"] == "selected"
+    assert set(policy.registry) == {"openspec-baseline", "schemas"} | (
+        {"native-code"} if mixed_code else set()
+    )
+    assert set(policy.gate_ids) == {"openspec-baseline", "schemas"}
     assert policy.declaration == load_gate_registry_declaration(root / "system/gates.toml")
     assert policy.registry["openspec-baseline"].command == (
         "git",
@@ -418,6 +408,18 @@ def test_public_native_product_composition_binds_target_and_refuses_stale_source
         "--",
         "openspec/specs",
     )
+    if mixed_code:
+        full_policy = resolve_gate_policy(root, tree_ref=head, full=True)
+        assert "obligation_scope" not in full_policy.projection
+        assert full_policy.projection["owner"]["code_correctness_map"] == {
+            "behavior": "native-code",
+            "static-analysis": "native-code",
+        }
+        assert full_policy.projection["owner"]["quality_subjects"] == {
+            "behavior": ["src/native.py"],
+            "static-analysis": ["src/native.py"],
+        }
+        assert "native-code" in full_policy.gate_ids
     assert {path for path, _ in dict(policy.sources)["schemas"]} == {
         "@ethos/repository/policy/schema.py"
     }
@@ -434,7 +436,7 @@ def test_public_native_product_composition_binds_target_and_refuses_stale_source
         "--execute",
         "--gate",
         "openspec-baseline",
-        "--product-gate",
+        "--gate",
         "schemas",
         "--expect-head",
         head,
@@ -464,77 +466,3 @@ def test_public_native_product_composition_binds_target_and_refuses_stale_source
     observation = json.loads(schema["stdout"])["providers"][0]["report"]
     assert observation["required_gaps"] == ["schema_retired:capability-profile.schema.json"]
     assert schema["verdict"] == "block"
-
-
-@pytest.mark.parametrize("owner", ["command", "provider"])
-def test_rule_sources_refuse_distinct_owners_for_the_same_gate(tmp_path: Path, owner: str) -> None:
-    """Empty provider commands cannot hide a conflicting native/common rule meaning."""
-    execution = (
-        {"command": ["target-check"]}
-        if owner == "command"
-        else {"providers": ["ethos.adapters.gates.ty:ty_gate_report"]}
-    )
-    _write_rules(tmp_path, _rule())
-    (tmp_path / ".ethos/profile.toml").write_text(
-        tomli_w.dumps(
-            {
-                "profile_id": "target",
-                "proof": {
-                    "code_correctness_gates": ["docs-registry"],
-                    "gates": [{"id": "docs-registry", "kind": "check", **execution}],
-                },
-            }
-        ),
-        encoding="utf-8",
-    )
-    _, _, gaps = matching_rule_gates(tmp_path, ("docs/guide.md",))
-    assert "rule_gate_origin_conflict:custom.docs:docs-registry" in gaps
-
-
-@pytest.mark.parametrize("registry_file", [False, True])
-def test_rule_source_comparison_precedes_execution_remapping(
-    tmp_path: Path, *, registry_file: bool
-) -> None:
-    """A complete equal source remains equal when execution adapts its repository boundary."""
-    _write_rules(tmp_path, _rule(required_gates=["schemas"]))
-    schema = load_gate_registry_declaration().registry()["schemas"]
-    (tmp_path / ".ethos/profile.toml").write_text(
-        tomli_w.dumps(
-            {
-                "profile_id": "target",
-                "proof": {
-                    "code_correctness_gates": ["native", "schemas"],
-                    "gates": [
-                        {"id": "native", "kind": "check", "command": ["target-check"]},
-                        schema.model_dump(mode="json", exclude_none=True),
-                    ],
-                },
-            }
-        ),
-        encoding="utf-8",
-    )
-    if registry_file:
-        registry = tmp_path / ".config/checks/gates.toml"
-        registry.parent.mkdir(parents=True)
-        registry.write_text(
-            tomli_w.dumps(
-                {
-                    "id": "target",
-                    "proof_sets": {"default": ["schemas"], "full": ["schemas"]},
-                    "gates": [schema.model_dump(mode="json", exclude_none=True)],
-                }
-            ),
-            encoding="utf-8",
-        )
-        (tmp_path / ".ethos/profile.toml").write_text(
-            tomli_w.dumps(
-                {
-                    "profile_id": "target",
-                    "proof": {"gate_registry": ".config/checks/gates.toml"},
-                }
-            ),
-            encoding="utf-8",
-        )
-    compiled = compile_rules(tmp_path)
-    assert compiled["compile_gaps"] == []
-    assert compiled["gate_definitions"]["schemas"]["gate_source"] == "product"

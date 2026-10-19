@@ -19,10 +19,10 @@ import yaml
 
 import ethos.adapters.repo.git as git_adapter
 from ethos.measure import effective_code_lines_for_source
-from ethos.repository.policy.quality.measurement import PYTHON_CATEGORIES
-from ethos.repository.policy.quality.measurement import Carrier
-from ethos.repository.policy.quality.measurement import Policy
-from ethos.repository.policy.quality.measurement import policy_for_root
+from ethos.repository.policy.quality.source_budget import PYTHON_CATEGORIES
+from ethos.repository.policy.quality.source_budget import Carrier
+from ethos.repository.policy.quality.source_budget import Policy
+from ethos.repository.policy.quality.source_budget import policy_for_root
 
 
 class Inventory(TypedDict):

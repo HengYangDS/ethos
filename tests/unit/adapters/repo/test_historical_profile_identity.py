@@ -30,11 +30,12 @@ ISSUER = "agent:test:case:one"
 
 
 @pytest.mark.parametrize("historical", [False, True], ids=["current", "recorded"])
-@pytest.mark.parametrize("count", [2, 8], ids=["small-subject", "multi-ref"])
+@pytest.mark.parametrize("count", [2, 3, 8], ids=["small-subject", "three-ref", "multi-ref"])
+@pytest.mark.parametrize("allow_absent_prestate", [False, True], ids=["strict", "former-optional"])
 def test_effect_profile_observation_batches_fresh_native_reads(
-    tmp_path: Path, historical, count: int
+    tmp_path: Path, historical, count: int, *, allow_absent_prestate: bool
 ) -> None:
-    """Keep small subjects native; larger subjects need two fresh reads, not eight launches."""
+    """Optional former identity must not force required peers back to per-ref reads."""
     case = fixture(tmp_path)
     revisions = tuple(
         git(case.repo, "commit-tree", "HEAD^{tree}", "-p", case.old, "-m", f"peer-{index}")
@@ -54,6 +55,7 @@ def test_effect_profile_observation_batches_fresh_native_reads(
         {"head": case.old},
         plan=plan(case.repo, value) if historical else None,
         historical_identity=historical,
+        allow_absent_prestate=allow_absent_prestate,
     )
 
     assert result == "repository:repo"
@@ -62,47 +64,71 @@ def test_effect_profile_observation_batches_fresh_native_reads(
         for entry in profile.getstats()
         if hasattr(entry.code, "co_name") and entry.code.co_name == "run_git"
     )
-    assert launches == 2
+    assert launches == (min(count, 3) if allow_absent_prestate else 2)
     assert git(case.repo, "rev-parse", "HEAD") == case.old
     assert git(case.repo, "status", "--porcelain") == ""
 
 
-def test_effect_profile_batch_uses_the_selected_object_store_and_fresh_material(tmp_path: Path):
+@pytest.mark.parametrize("allow_absent_prestate", [False, True], ids=["strict", "former-optional"])
+def test_effect_profile_batch_uses_the_selected_object_store_and_fresh_material(
+    tmp_path: Path, *, allow_absent_prestate: bool
+):
     """All profile reads share quarantine context and reject later object disappearance."""
     case = fixture(tmp_path / "target")
     source = fixture(tmp_path / "source", "repository:isolated")
     third = git(source.repo, "commit-tree", "HEAD^{tree}", "-p", source.new, "-m", "third")
+    fourth = git(source.repo, "commit-tree", "HEAD^{tree}", "-p", source.new, "-m", "fourth")
     value = GitEffect(
         updates={"refs/heads/dev": GitRefUpdate(expected=source.old, desired=source.new)},
-        assertions={"refs/heads/third": third},
+        assertions={"refs/heads/third": third, "refs/heads/fourth": fourth},
     )
     environment = {"GIT_ALTERNATE_OBJECT_DIRECTORIES": (source.repo / ".git/objects").as_posix()}
     before: dict[str, object] = {"head": source.old}
     assert (
-        resolve_git_effect_repository(case.repo, value, before, environment=environment)
+        resolve_git_effect_repository(
+            case.repo,
+            value,
+            before,
+            environment=environment,
+            allow_absent_prestate=allow_absent_prestate,
+        )
         == "repository:isolated"
     )
     profile = git(source.repo, "rev-parse", "HEAD:.ethos/profile.toml")
     (source.repo / ".git/objects" / profile[:2] / profile[2:]).unlink()
     with pytest.raises(ValueError, match="invalid"):
-        resolve_git_effect_repository(case.repo, value, before, environment=environment)
+        resolve_git_effect_repository(
+            case.repo,
+            value,
+            before,
+            environment=environment,
+            allow_absent_prestate=allow_absent_prestate,
+        )
     assert git(case.repo, "rev-parse", "HEAD") == case.old
     assert git(case.repo, "status", "--porcelain") == ""
 
 
-def test_effect_profile_observation_reads_current_bytes_after_ref_change(tmp_path: Path):
+@pytest.mark.parametrize("allow_absent_prestate", [False, True], ids=["strict", "former-optional"])
+def test_effect_profile_observation_reads_current_bytes_after_ref_change(
+    tmp_path: Path, *, allow_absent_prestate: bool
+):
     """A second observation cannot authorize from a previous profile answer."""
     case = fixture(tmp_path)
-    selected = ("HEAD", case.old, case.new)
-    assert repository_identities(case.repo, selected) == dict.fromkeys(selected, "repository:repo")
+    third = git(case.repo, "commit-tree", "HEAD^{tree}", "-p", case.old, "-m", "third")
+    selected = ("HEAD", case.old, case.new, third)
+    optional = frozenset({case.old}) if allow_absent_prestate else frozenset()
+    assert repository_identities(case.repo, selected, optional=optional) == dict.fromkeys(
+        selected, "repository:repo"
+    )
     profile = case.repo / ".ethos/profile.toml"
     profile.write_text('profile_id = "changed"\n', encoding="utf-8")
     git(case.repo, "add", ".ethos/profile.toml")
     git(case.repo, "commit", "-m", "change current profile")
-    assert repository_identities(case.repo, selected) == {
+    assert repository_identities(case.repo, selected, optional=optional) == {
         "HEAD": "repository:changed",
         case.old: "repository:repo",
         case.new: "repository:repo",
+        third: "repository:repo",
     }
 
 
@@ -114,10 +140,12 @@ def test_effect_profile_prestate_optional_scope_does_not_cover_new_refs(tmp_path
     git(case.repo, "add", ".ethos/profile.toml")
     git(case.repo, "commit", "-m", "malformed former profile")
     former = git(case.repo, "rev-parse", "HEAD")
-    selected = (former, case.old, case.new)
+    third = git(case.repo, "commit-tree", f"{case.old}^{{tree}}", "-p", case.old, "-m", "third")
+    selected = (former, case.old, case.new, third)
     assert repository_identities(case.repo, selected, optional=frozenset({former})) == {
         case.old: "repository:repo",
         case.new: "repository:repo",
+        third: "repository:repo",
     }
     with pytest.raises(ValueError, match="repository_profile_invalid"):
         repository_identities(case.repo, selected, optional=frozenset({case.old}))

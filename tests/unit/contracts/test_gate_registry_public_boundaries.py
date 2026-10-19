@@ -18,16 +18,12 @@ from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.repository.policy.gates import bind_gate_source_digests
 from ethos.repository.policy.gates import gate_policy_fields
-from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
 from ethos.repository.policy.gates import source_paths_for_gate
+from ethos.repository.policy.quality.gate_composition import canonical_gate_command
 from ethos.repository.policy.quality.tool_configuration import native_gate_tools
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
 from ethos.repository.policy.quality.tool_configuration import native_tool_configurations
-from ethos.repository.policy.references.commands import canonical_gate_command
 from ethos.repository.policy.references.commands import python_module
-from ethos.repository.profile import ProofPolicy
-from ethos.repository.profile import RepositoryProfile
-from ethos.repository.profile import RepositoryProfileDeclaration
 
 if TYPE_CHECKING:
     from collections.abc import MutableMapping
@@ -336,23 +332,40 @@ def test_native_output_contract_preserves_exact_producer_selection(binding: str)
         static_sessions = ("unexpected",)
     elif binding == "report-routing":
         command = (*command[:-1], "{native_output}/other.json")
-    runtime = {
-        "format": "python-runtime-json",
-        "configuration": ".config/quality.toml",
-        "python": "3.12",
-        "dependency_groups": ("quality",),
-    }
     outputs: list[dict[str, object]] = [
         {"path": "nox.json", "format": "nox-json", "sessions": ("tests-3.12", "static")},
         {"path": "tests.xml", "format": "junit-xml", "sessions": ("tests-3.12",)},
         {"path": "events.jsonl", "format": "pytest-jsonl", "sessions": ("tests-3.12",)},
         {"path": "coverage.xml", "format": "cobertura-xml", "sessions": ("tests-3.12",)},
         {"path": "ruff.sarif", "format": "sarif", "sessions": ("static",)},
-        {**runtime, "path": "tests-runtime.json", "sessions": ("tests-3.12",)},
-        {**runtime, "path": "static-runtime.json", "sessions": static_sessions},
+        {
+            "path": "tests-runtime.json",
+            "format": "python-runtime-json",
+            "configuration": ".config/quality.toml",
+            "sessions": ("tests-3.12",),
+            "python": "3.12",
+            "dependency_groups": ("quality",),
+        },
+        {
+            "path": "static-runtime.json",
+            "format": "python-runtime-json",
+            "configuration": ".config/quality.toml",
+            "sessions": static_sessions,
+            "python": "3.12",
+            "dependency_groups": ("quality",),
+        },
     ]
     if binding == "duplicate-producer":
-        outputs.append({**runtime, "path": "other-static-runtime.json", "sessions": ("static",)})
+        outputs.append(
+            {
+                "path": "other-static-runtime.json",
+                "format": "python-runtime-json",
+                "configuration": ".config/quality.toml",
+                "sessions": ("static",),
+                "python": "3.12",
+                "dependency_groups": ("quality",),
+            }
+        )
     if binding == "missing-selection":
         outputs[-1].pop("dependency_groups")
     elif binding == "duplicate-group":
@@ -371,138 +384,6 @@ def test_native_output_contract_preserves_exact_producer_selection(binding: str)
     else:
         with pytest.raises(ValidationError):
             Gate.model_validate(payload)
-
-
-@pytest.mark.parametrize(
-    ("provider", "tools"),
-    [
-        ("ethos.adapters.gates.markdown:markdown_format_report", ("prettier", "markdownlint-cli2")),
-        ("ethos.adapters.gates.tool:markdown_links_report", ("lychee",)),
-        ("ethos.adapters.gates.tool:external_links_report", ("lychee",)),
-        ("ethos.adapters.gates.tool:prose_report", ("codespell",)),
-        (
-            "ethos.adapters.gates.configuration:configuration_report",
-            ("taplo", "prettier", "yamllint", "python-stdlib-json", "format-selection"),
-        ),
-    ],
-)
-def test_native_provider_binds_every_consumed_configuration(
-    provider: str, tools: tuple[str, ...]
-) -> None:
-    """Executed native policies participate in freshness and exact source identity."""
-    gate = Gate.model_validate({"id": "native-policy", "kind": "test", "providers": (provider,)})
-    assert native_gate_tools(gate) == tools
-    locations = tuple(
-        relative
-        for tool in tools
-        for relative in native_tool_configurations(
-            (
-                ".config/checks/prettier/prettier.toml",
-                ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
-                ".config/checks/lychee/lychee.toml",
-                ".config/checks/codespell/codespell.toml",
-                ".config/checks/taplo/taplo.toml",
-                ".config/checks/yamllint/.yamllint.yaml",
-                ".config/checks/config-quality/policy.toml",
-                ".config/checks/format-selection/policy.toml",
-            ),
-            tool,
-        )
-    )
-    assert len(locations) == len(tools)
-    selected = source_paths_for_gate(gate, repository_paths=locations)
-    assert set(locations) <= set(selected)
-    for tool, location in zip(tools, locations, strict=True):
-        assert native_tool_configuration(locations, tool) == location
-        sources = dict.fromkeys(selected, b"original")
-        before = bind_gate_source_digests((gate,), sources, repository_paths=locations)
-        sources[location] = b"changed"
-        assert bind_gate_source_digests((gate,), sources, repository_paths=locations) != before
-        misplaced = "other/" + "/".join(location.split("/")[-2:])
-        with pytest.raises(ValueError, match="native_tool_configuration_location_invalid"):
-            native_tool_configuration((misplaced,), tool)
-        with pytest.raises(ValueError, match="native_tool_configuration_ambiguous"):
-            native_tool_configuration((location, misplaced), tool)
-
-
-@pytest.mark.parametrize("selected", [("schemas", "schemas"), (True,), ("",)])
-def test_gate_selection_rejects_invalid_origin_ids(selected: tuple[object, ...]) -> None:
-    """Malformed origin inputs cannot normalize into an executable common gate."""
-    with pytest.raises(ValueError, match="product_gate_selection_invalid"):
-        compile_gate_policy(
-            gate_ids=("schemas",), product_gate_ids=cast("tuple[str, ...]", selected)
-        )
-
-
-def test_product_dependency_reuses_the_same_packaged_owner() -> None:
-    """One source can share a dependency without inventing a conflicting second gate."""
-    policy = compile_gate_policy(gate_ids=("openspec", "schemas"), product_gate_ids=("schemas",))
-    assert policy.gate_ids == ("schemas", "openspec")
-    assert policy.product_gate_ids == ("schemas",)
-    assert policy.gaps == ()
-
-
-@pytest.mark.parametrize("requested", [("native",), ("schemas",), ("native", "schemas")])
-def test_gate_composition_retains_native_owner_and_exact_provider_sources(
-    tmp_path: Path, requested: tuple[str, ...]
-) -> None:
-    """One selection preserves the target floor and binds only requested product providers."""
-    native = Gate(
-        id="native",
-        kind="test",
-        command=("tools/check.py",),
-        verification_providers=("ethos.adapters.gates.python_quality:behavior_report",),
-    )
-    profile = RepositoryProfile(
-        root=tmp_path,
-        exists=True,
-        declaration=RepositoryProfileDeclaration(
-            profile_id="target",
-            proof=ProofPolicy(
-                code_correctness_gates=("native",),
-                code_correctness_map={"behavior": "native", "static-analysis": "native"},
-                gates=(native,),
-            ),
-        ),
-    )
-    materials = {
-        "tools/check.py": b"print('target check')\n",
-        "@ethos/adapters/gates/python_quality.py": b"native verification\n",
-        "@ethos/repository/policy/schema.py": b"installed schema provider\n",
-    }
-    baseline = compile_gate_policy(
-        profile=profile, source_materials=materials, repository_python="python", full=True
-    )
-    selected = compile_gate_policy(
-        profile=profile,
-        source_materials=materials,
-        repository_python="python",
-        gate_ids=requested,
-        product_gate_ids=tuple(name for name in requested if name == "schemas"),
-    )
-    assert selected.profile is profile
-    assert selected.declaration == baseline.declaration
-    assert selected.projection["owner"] == baseline.projection["owner"]
-    assert set(selected.gate_ids) == set(requested)
-    assert set(selected.registry) == {"native"}
-    executed = {gate.id: gate for gate in selected.gates}
-    sources = dict(selected.sources)
-    for name in requested:
-        expected = (
-            ("tools/check.py", "@ethos/adapters/gates/python_quality.py")
-            if name == "native"
-            else ("@ethos/repository/policy/schema.py",)
-        )
-        assert dict(sources[name]) == {
-            path: hashlib.sha256(materials[path]).hexdigest() for path in expected
-        }
-    if "schemas" in requested:
-        assert executed["schemas"].profile == "repository"
-        assert executed["schemas"].tool_adapter == "ethos"
-    if requested == ("schemas",):
-        assert "quality_obligation_unproven:behavior" in selected.gaps
-    else:
-        assert selected.gaps == baseline.gaps
 
 
 @pytest.mark.parametrize(
@@ -559,3 +440,55 @@ def test_native_output_contract_accepts_tool_neutral_reports_without_nox(binding
     else:
         with pytest.raises(ValidationError):
             Gate.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    ("provider", "tools"),
+    [
+        ("ethos.adapters.gates.formatting:source_format_report", ("prettier", "taplo", "ruff")),
+        ("ethos.adapters.gates.tool:markdown_lint_report", ("prettier", "markdownlint-cli2")),
+        ("ethos.adapters.gates.tool:markdown_links_report", ("lychee",)),
+        ("ethos.adapters.gates.tool:external_links_report", ("lychee",)),
+        ("ethos.adapters.gates.tool:prose_report", ("codespell",)),
+        (
+            "ethos.adapters.gates.configuration:configuration_report",
+            ("taplo", "prettier", "yamllint"),
+        ),
+    ],
+)
+def test_native_provider_binds_every_consumed_configuration(
+    provider: str, tools: tuple[str, ...]
+) -> None:
+    """Executed native policies participate in freshness and exact source identity."""
+    gate = Gate.model_validate({"id": "native-policy", "kind": "test", "providers": (provider,)})
+    assert native_gate_tools(gate) == tools
+    locations = tuple(
+        relative
+        for tool in tools
+        for relative in native_tool_configurations(
+            (
+                ".config/checks/prettier/prettier.toml",
+                ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
+                ".config/checks/lychee/lychee.toml",
+                ".config/checks/codespell/codespell.toml",
+                ".config/checks/taplo/taplo.toml",
+                ".config/checks/yamllint/.yamllint.yaml",
+                ".config/checks/ruff/ruff.toml",
+            ),
+            tool,
+        )
+    )
+    assert len(locations) == len(tools)
+    selected = source_paths_for_gate(gate, repository_paths=locations)
+    assert set(locations) <= set(selected)
+    for tool, location in zip(tools, locations, strict=True):
+        assert native_tool_configuration(locations, tool) == location
+        sources = dict.fromkeys(selected, b"original")
+        before = bind_gate_source_digests((gate,), sources, repository_paths=locations)
+        sources[location] = b"changed"
+        assert bind_gate_source_digests((gate,), sources, repository_paths=locations) != before
+        misplaced = "other/" + "/".join(location.split("/")[-2:])
+        with pytest.raises(ValueError, match="native_tool_configuration_location_invalid"):
+            native_tool_configuration((misplaced,), tool)
+        with pytest.raises(ValueError, match="native_tool_configuration_ambiguous"):
+            native_tool_configuration((location, misplaced), tool)

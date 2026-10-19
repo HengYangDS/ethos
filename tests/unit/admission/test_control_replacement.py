@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import tomllib
@@ -278,6 +279,14 @@ def test_control_path_matrix_requires_independent_verification(
         )
         assert report["subject"] == report["independent_verification"] == {}
         return
+    if path.endswith(".py"):
+        assert report["verdict"] == "block"
+        assert set(report["required_gaps"]) == {
+            "quality_obligation_unproven:behavior",
+            "quality_obligation_unproven:static-analysis",
+        }
+        assert report["verification_request"] == report["independent_verification"] == {}
+        return
     assert (
         report["required"],
         report["control_paths"],
@@ -493,4 +502,62 @@ def test_axis_remapping_changes_the_floor_without_changing_gate_commands(
     assert (
         "quality_carrier_roles:src/app.py"
         in changed_roles["subject"]["verification_floor"]["changed_obligations"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("locations", "expected_gap"),
+    [
+        ((".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",), ""),
+        ((".config/checks/markdownlint-cli2/.markdownlint-cli2.jsonc",), "location_invalid"),
+        ((".markdownlint-cli2.yaml",), "location_invalid"),
+        (
+            (
+                ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
+                ".config/checks/markdownlint-cli2/.markdownlint-cli2.jsonc",
+            ),
+            "ambiguous",
+        ),
+    ],
+)
+def test_predecessor_configuration_is_observed_without_admitting_candidate_drift(
+    tmp_path: Path, locations: tuple[str, ...], expected_gap: str
+) -> None:
+    """Bind historical bytes; only the strictly valid successor reaches trusted verification."""
+    candidate, _accepted, _head = _control_change(tmp_path)
+    legacy = ".config/checks/markdownlint-cli2/.markdownlint-cli2.jsonc"
+    content = "[rules]\nMD013 = false\n"
+    accepted = commit_fixture_file(candidate, legacy, content, "historical native configuration")
+    (candidate / legacy).unlink()
+    for location in locations:
+        path = candidate / location
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("rules:\n  MD013: false\n", encoding="utf-8")
+    git(candidate, "add", "-A")
+    head = commit_fixture(candidate, "successor native configuration")
+    if not expected_gap:
+        seed_executed_proof(candidate, head)
+    report = _report(candidate, accepted, head)
+    if expected_gap:
+        assert report["verdict"] == "block", report
+        assert any(
+            f"native_tool_configuration_{expected_gap}:markdownlint-cli2" in gap
+            for gap in report["required_gaps"]
+        )
+        assert report["verification_request"] == report["independent_verification"] == {}
+        return
+    assert (report["verdict"], report["required_gaps"]) == (
+        "unknown",
+        ["independent_verification_receipt_required"],
+    )
+    floor = report["subject"]["verification_floor"]
+    prior = floor["accepted_policy"]
+    assert canonical_json_digest(prior) == floor["accepted_policy_digest"]
+    assert any(
+        "native_tool_configuration_location_invalid:markdownlint-cli2" in gap
+        for gap in prior["gaps"]
+    )
+    assert any(
+        {"path": legacy, "sha256": hashlib.sha256(content.encode()).hexdigest()} in gate["sources"]
+        for gate in prior["gates"]
     )

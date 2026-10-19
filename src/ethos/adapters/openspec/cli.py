@@ -286,12 +286,21 @@ def run_json(
             "stderr": stderr or f"openspec command timed out after {timeout:g} seconds",
             "json": {},
             "parse_error": "openspec_command_timeout",
+            "cwd": root.resolve().as_posix(),
         }
-    return _json_result(command, completed.returncode, completed.stdout, completed.stderr)
+    return _json_result(
+        command, completed.returncode, completed.stdout, completed.stderr, root=root
+    )
 
 
 def _json_result(
-    command: tuple[str, ...], exit_code: int, stdout: str, stderr: str, *, error: str = ""
+    command: tuple[str, ...],
+    exit_code: int,
+    stdout: str,
+    stderr: str,
+    *,
+    root: Path,
+    error: str = "",
 ) -> dict[str, Any]:
     """Decode native output once; incomplete transport never supplies a JSON result."""
     payload: dict[str, Any] = {}
@@ -313,6 +322,7 @@ def _json_result(
         "stderr": stderr,
         "json": payload,
         "parse_error": parse_error,
+        "cwd": root.resolve().as_posix(),
     }
 
 
@@ -429,6 +439,7 @@ def run_json_batch(
                 rows[index]["exit_code"],
                 rows[index]["stdout"],
                 rows[index]["stderr"],
+                root=root,
             )
             if index < len(rows)
             else _json_result(
@@ -437,6 +448,7 @@ def run_json_batch(
                 "",
                 stderr,
                 error=gap or "openspec_batch_interrupted",
+                root=root,
             )
         )
         results.append(

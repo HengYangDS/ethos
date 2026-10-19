@@ -8,6 +8,7 @@ import pytest
 import tomli_w
 
 from ethos.adapters.repo.dependency_acceptance import dependency_acceptance_gaps
+from ethos.contracts.gates import Gate
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.proof.plan import proof_acceptance_purpose
 from ethos.repository.policy.gates import ResolvedGatePolicy
@@ -28,9 +29,10 @@ _MISSING_QUALITY = (
 )
 
 
+@pytest.mark.parametrize("full", [False, True])
 @pytest.mark.parametrize("owner_kind", ["packaged", "registry"])
 def test_source_acceptance_preserves_floors_and_binds_native_audit(
-    tmp_path: Path, owner_kind: str
+    tmp_path: Path, owner_kind: str, *, full: bool
 ) -> None:
     """One explicit purpose changes the audit command, never the required gate set."""
     declaration = load_gate_registry_declaration()
@@ -54,7 +56,7 @@ def test_source_acceptance_preserves_floors_and_binds_native_audit(
             ).encode(),
             repository_python="python",
             repository_paths=("src/ethos/cli.py",),
-            full=True,
+            full=full,
             acceptance_purpose=purpose,
             product_source=owner_kind == "registry",
         )
@@ -63,6 +65,8 @@ def test_source_acceptance_preserves_floors_and_binds_native_audit(
     source = compiled("local-source")
     assert source.projection["owner"] == strict.projection["owner"]
     assert not set(_MISSING_QUALITY).intersection(source.gaps)
+    missing_audit = () if full else ("proof_dependency_acceptance_audit_missing",)
+    assert source.gaps == (*strict.gaps, *missing_audit)
     assert source.declaration == strict.declaration
     assert source.gate_ids == strict.gate_ids
     assert source.digest != strict.digest
@@ -78,6 +82,8 @@ def test_source_acceptance_preserves_floors_and_binds_native_audit(
             assert selected == gate
     with pytest.raises(ValueError, match="proof_acceptance_purpose_invalid"):
         proof_acceptance_purpose({"acceptance_purpose": "publishing"})
+    with pytest.raises(ValueError, match="proof_acceptance_purpose_invalid"):
+        compile_gate_policy(full=True, acceptance_purpose="publishing")
 
 
 def test_partial_product_source_floor_still_requires_its_native_audit(tmp_path: Path) -> None:
@@ -108,3 +114,40 @@ def test_release_acceptance_requires_each_selected_audit_attempt(tmp_path: Path,
     assert dependency_acceptance_gaps(
         tmp_path, "a" * 40, {"gates": gates}, (), acceptance_purpose="repository"
     ) == ["proof_dependency_acceptance_audit_missing"]
+
+
+def test_imported_native_audit_honors_source_purpose_without_changing_target_floor(
+    tmp_path: Path,
+) -> None:
+    """Purpose interpretation follows selected closure, including newly imported commands."""
+    profile = RepositoryProfile(
+        root=tmp_path,
+        exists=True,
+        declaration=RepositoryProfileDeclaration(
+            profile_id="target",
+            proof=ProofPolicy(
+                code_correctness_gates=("native",),
+                code_correctness_map={"behavior": "native", "static-analysis": "native"},
+                gates=(Gate(id="native", kind="check", command=("target-check",)),),
+            ),
+        ),
+    )
+    requested = ("native", "dependency-vulnerabilities")
+    strict = compile_gate_policy(profile=profile, gate_ids=requested, repository_python="python")
+    source = compile_gate_policy(
+        profile=profile,
+        gate_ids=requested,
+        repository_python="python",
+        acceptance_purpose="local-source",
+    )
+    assert strict.profile is source.profile is profile
+    assert source.declaration.proof_sets == strict.declaration.proof_sets
+    assert source.gate_ids == strict.gate_ids
+    assert source.registry["native"] == strict.registry["native"]
+    assert source.registry["dependency-vulnerabilities"].command == (
+        *strict.registry["dependency-vulnerabilities"].command,
+        "--",
+        "--scope",
+        "local-development",
+    )
+    assert source.digest != strict.digest

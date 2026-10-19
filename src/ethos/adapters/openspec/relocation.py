@@ -3,21 +3,57 @@
 from __future__ import annotations
 
 import json
+import stat
 from pathlib import Path
+from pathlib import PurePosixPath
 from subprocess import TimeoutExpired
 from typing import TYPE_CHECKING
 
 from ethos.adapters.openspec.cli import openspec_base_command
 from ethos.adapters.openspec.lifecycle.archive_binding import archived_change_from_path
+from ethos.adapters.openspec.selection import requested_change
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
+from ethos.contracts.branch.roles import ROLE_WORK_LANE
+from ethos.contracts.verdict import report_verdict
+from ethos.repository.openspec.identifiers import TEMPORAL_SUFFIX_PATTERN
 from ethos.repository.openspec.identifiers import active_change_root
+from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
 type TreeEntries = dict[str, tuple[str, str, str]]
+
+
+def relocate_documents(
+    root: Path,
+    *,
+    documents: Mapping[str, str],
+    files: Mapping[str, str],
+    postimage_files: Mapping[str, str],
+    moves: Mapping[str, str],
+    reference_targets: tuple[str, ...] = (),
+) -> dict[str, str]:
+    """Derive exact Markdown destination changes through the existing native parser."""
+    expected: set[str | None] = {moves.get(path, path) for path in documents}
+    payload = _observe(
+        root,
+        {
+            "documents": [
+                {"before": path, "after": moves.get(path, path), "content": text}
+                for path, text in documents.items()
+            ],
+            "canonical": [],
+            "files": dict(files),
+            "postimage_files": dict(postimage_files),
+            "moves": list(moves.items()),
+            **({"reference_targets": list(reference_targets)} if reference_targets else {}),
+        },
+    )
+    rows = _result_rows(payload, "documents", expected, complete=True)
+    return {row["path"]: row["content"] for row in rows}
 
 
 def archive_relocation(
@@ -326,3 +362,136 @@ def _blob(root: Path, revision: str, path: str, environment: Mapping[str, str] |
         message = f"archive_reference_blob_unavailable:{path}"
         raise ValueError(message)
     return result.stdout
+
+
+def active_change_relocation(
+    root: Path,
+    postimage: Path | None,
+    effects: dict[str, str],
+    *,
+    baseline: str,
+    tree: str = "",
+    environment: Mapping[str, str] | None = None,
+) -> dict[str, object]:
+    """Observe one complete byte-and-mode preserving dated active source move."""
+    names = {
+        parts[2]
+        for path in effects
+        if len(parts := PurePosixPath(path).parts) >= 4 and parts[:2] == ("openspec", "changes")
+    }
+    dated = {name for name in names if logical_change_identifier_issue(name) == "temporal_suffix"}
+    if not dated:
+        return {}
+    gap = "openspec_active_change_relocation_unverified"
+    if len(dated) != 1:
+        raise ValueError(gap)
+    source_change = dated.pop()
+    target_change = TEMPORAL_SUFFIX_PATTERN.sub("", source_change)
+    if logical_change_identifier_issue(target_change) or names != {source_change, target_change}:
+        raise ValueError(gap)
+    source_root, target_root = (
+        f"openspec/changes/{source_change}",
+        active_change_root(target_change),
+    )
+    before = _entries(root, baseline, environment)
+    if any(path.startswith(target_root + "/") for path in before):
+        raise ValueError(gap)
+    if tree:
+        after = _entries(root, tree, environment)
+        originals = _active_tree_members(before, source_root, gap)
+        candidates = _active_tree_members(after, target_root, gap)
+        remains = any(path.startswith(source_root + "/") for path in after)
+    elif postimage is not None:
+        destination = root / target_root
+        if destination.exists() or destination.is_symlink():
+            raise ValueError(gap)
+        originals = _active_source_members(root, root / source_root, gap)
+        candidates = _active_source_members(postimage, postimage / target_root, gap)
+        remains = any(
+            path.is_file() or path.is_symlink() for path in (postimage / source_root).rglob("*")
+        )
+    else:
+        raise ValueError(gap)
+    expected = {
+        f"openspec/changes/{change}/{relative}": effect
+        for relative in originals
+        for change, effect in ((source_change, "delete"), (target_change, "create"))
+    }
+    if (
+        ".openspec.yaml" not in originals
+        or effects != expected
+        or remains
+        or candidates != originals
+    ):
+        raise ValueError(gap)
+    return {
+        "source_change": source_change,
+        "target_change": target_change,
+        "authorized_paths": sorted(expected),
+    }
+
+
+def _active_tree_members(entries: TreeEntries, prefix: str, gap: str) -> TreeEntries:
+    """Use native blob identities and modes, never a mutable working postimage."""
+    members = {
+        path.removeprefix(prefix + "/"): entry
+        for path, entry in entries.items()
+        if path.startswith(prefix + "/")
+    }
+    if any(
+        entry[0] not in {"100644", "100755"} or entry[1] != "blob" for entry in members.values()
+    ):
+        raise ValueError(gap)
+    return members
+
+
+def _active_source_members(root: Path, source: Path, gap: str) -> dict[str, tuple[int, bytes]]:
+    """Read complete regular members; no hidden, linked or unknown-kind exception."""
+    if not source.is_dir() or any(
+        path.is_symlink() for path in (source, *source.parents) if path.is_relative_to(root)
+    ):
+        raise ValueError(gap)
+    members = {}
+    for path in source.rglob("*"):
+        observed = path.lstat()
+        if stat.S_ISDIR(observed.st_mode):
+            continue
+        mode = stat.S_IMODE(observed.st_mode)
+        if not stat.S_ISREG(observed.st_mode) or mode not in {0o644, 0o755}:
+            raise ValueError(gap)
+        members[path.relative_to(source).as_posix()] = mode, path.read_bytes()
+    return members
+
+
+def active_change_relocation_scope(
+    root: Path, *, role: str, requested_paths: tuple[str, ...], report: dict[str, object]
+) -> dict[str, object]:
+    """Admit only the observed identity move, not edits or later qualification."""
+    relocation = report.get("active_change_relocation")
+    if role != ROLE_WORK_LANE or not isinstance(relocation, dict):
+        return {}
+    source, target = relocation["source_change"], relocation["target_change"]
+    selected = requested_change()
+    matched = (
+        report_verdict(report) == "pass"
+        and sorted(set(requested_paths)) == relocation["authorized_paths"]
+        and selected in {None, source, target}
+    )
+    gaps = [] if matched else ["openspec_active_change_relocation_scope_mismatch"]
+    if matched and not report.get("index_tree"):
+        observed = run_git(root, "rev-parse", "--verify", "HEAD", check=False)
+        if observed.returncode or observed.stdout.strip() != report.get("baseline_head"):
+            gaps = ["openspec_active_change_relocation_head_changed"]
+            matched = False
+    return {
+        "verdict": "pass" if matched else "block",
+        "state": "active_change_relocation",
+        "changed_paths": list(requested_paths),
+        "material_paths": list(requested_paths) if matched else [],
+        "authorized_paths": relocation["authorized_paths"] if matched else [],
+        "changes": [{"name": target}],
+        "required_gaps": gaps,
+        "next_action": "" if matched else "unset ETHOS_CHANGE",
+        "evidence_boundary": "exact_source_identity_repair_only",
+        "openspec": {"verdict": "unknown", "state": "identity_repair_only", "required_gaps": []},
+    }

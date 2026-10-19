@@ -532,6 +532,7 @@ dependencies = [
     { name = "pyyaml" },
     { name = "ruff" },
     { name = "semver" },
+    { name = "shfmt-py" },
     { name = "tomli-w" },
     { name = "uv" },
     { name = "yamllint" },
@@ -555,7 +556,6 @@ dev = [
     { name = "pytest-timeout" },
     { name = "pytest-xdist" },
     { name = "shellcheck-py" },
-    { name = "shfmt-py" },
     { name = "ty" },
     { name = "uv" },
 ]
@@ -579,6 +579,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "ruff", specifier = ">=0.17.0" },
     { name = "semver", specifier = ">=3.1.0" },
+    { name = "shfmt-py", specifier = ">=4.2.0" },
     { name = "tomli-w", specifier = ">=1.2.0" },
     { name = "uv", specifier = ">=0.13.1" },
     { name = "yamllint", specifier = ">=1.38.0" },
@@ -602,7 +603,6 @@ dev = [
     { name = "pytest-timeout", specifier = ">=2.4.0" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "shellcheck-py", specifier = ">=0.11.0.1" },
-    { name = "shfmt-py", specifier = ">=4.2.0" },
     { name = "ty", specifier = ">=0.0.87" },
     { name = "uv", specifier = ">=0.13.1" },
 ]

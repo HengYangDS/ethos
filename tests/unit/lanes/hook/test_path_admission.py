@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import shutil
+import subprocess
 from pathlib import Path
 from typing import cast
 
 import pytest
 
+import ethos.adapters.admission.paths as path_admission
 import ethos.adapters.admission.prewrite as admission_prewrite
 import ethos.adapters.openspec.cli as openspec_cli
+import ethos.adapters.repo.git as git_adapter
+import ethos.adapters.repo.git_attributes as git_attributes
 from ethos.adapters.admission.git_admission import hook_admission_report
 from ethos.contracts.admission import HookAdmissionRequest
 from tests.support.ethos_cli_runner import run_ethos
@@ -44,6 +48,74 @@ def _hook(root: Path, path: Path) -> dict[str, object]:
         require_editor_root=True,
     )
     return hook_admission_report(request)
+
+
+def test_prewrite_batches_fresh_native_ignore_reads(
+    worktree: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Current native reads preserve ignored, tracked and spaced path admission."""
+    ignore = worktree / ".gitignore"
+    before_ignore = ignore.read_text()
+    ignore.write_text(before_ignore + "scratch/\n")
+    scratch = worktree / "scratch"
+    scratch.mkdir()
+    paths = [scratch / name for name in ("output.txt", "with space.txt", "tracked.txt")]
+    for path in paths:
+        path.write_text("retained content\n", encoding="utf-8")
+    git(worktree, "add", "-f", "scratch/tracked.txt")
+    index = git(worktree, "write-tree")
+    native = git_adapter.run_git
+    reads = []
+
+    def observe(root, *args, **kwargs):
+        if args[0] == "check-ignore":
+            reads.append(kwargs.get("stdin"))
+        return native(root, *args, **kwargs)
+
+    monkeypatch.setattr(git_adapter, "run_git", observe)
+    first = admission_prewrite.prewrite_guard(root=worktree, paths=paths, editor_root=worktree)
+    assert first["verdict"] == "pass", first
+    assert [item["ignored"] for item in first["paths"]] == [True, True, False]
+    assert [item["tracked_candidate"] for item in first["paths"]] == [False, False, True]
+    assert reads == ["scratch/output.txt\0scratch/with space.txt\0scratch/tracked.txt\0"]
+
+    ignore.write_text(before_ignore)
+    second = admission_prewrite.prewrite_guard(root=worktree, paths=paths, editor_root=worktree)
+    assert second["verdict"] == "pass", second
+    assert [item["ignored"] for item in second["paths"]] == [False, False, False]
+    assert len(reads) == 2
+    assert git(worktree, "write-tree") == index
+    assert all(path.read_text() == "retained content\n" for path in paths)
+
+
+@pytest.mark.parametrize("with_patch", [False, True])
+def test_prewrite_refuses_unavailable_native_ignore_observation(
+    worktree: Path, monkeypatch: pytest.MonkeyPatch, *, with_patch: bool
+) -> None:
+    """Failed required native reads never authorize an ordinary source path."""
+    before = git(worktree, "status", "--porcelain=v1", "--untracked-files=all")
+    native = git_adapter.run_git
+
+    def unavailable(root, *args, **kwargs):
+        if args[0] == "check-ignore":
+            return subprocess.CompletedProcess(args, 128, "", "fatal: ignore observation failed")
+        return native(root, *args, **kwargs)
+
+    monkeypatch.setattr(git_adapter, "run_git", unavailable)
+
+    def unavailable_projections(*_args):
+        message = "projection observation unavailable"
+        raise ValueError(message)
+
+    if with_patch:
+        monkeypatch.setattr(path_admission, "projection_preimages", unavailable_projections)
+    patch = _patch("src/source.py", "VALUE = 1", new=True) if with_patch else ""
+    report = _guard(worktree, ("src/source.py",), patch)
+    assert report["verdict"] == "unknown", report
+    assert any(
+        gap.startswith("prewrite_ignore_observation_unavailable") for gap in report["required_gaps"]
+    )
+    assert git(worktree, "status", "--porcelain=v1", "--untracked-files=all") == before
 
 
 def _guard(lane: Path, paths: tuple[str, ...], patch: str = "") -> dict[str, object]:
@@ -126,13 +198,15 @@ def test_literal_path_transport_preserves_naming_admission(
         requested.write_bytes(original)
         git(worktree, "add", "--", relative)
         index = git(worktree, "ls-files", "--stage")
-        result = run_ethos("format", relative, "--apply", "--root", str(worktree), "--json")
-        assert result["data"]["selected_paths"] == [relative]
-        assert result["data"]["applied"] is True
+        head = git(worktree, "rev-parse", "HEAD")
+        lane_format = ("lane", "format", relative, "--root", str(worktree), "--json")
+        result = run_ethos(*lane_format, "--apply", "--authorize", "--expect-head", head)
+        assert result["data"]["files"] == [relative]
+        assert result["state"] == "formatted"
         assert result["required_gaps"] == []
         assert git(worktree, "ls-files", "--stage") == index
         formatted = requested.read_bytes()
-        fixed = run_ethos("format", relative, "--check", "--root", str(worktree), "--json")
+        fixed = run_ethos(*lane_format, "--check")
         assert fixed["data"]["changed_paths"] == []
         assert requested.read_bytes() == formatted == b"# Native source\n"
 
@@ -293,16 +367,34 @@ def test_cli_path_token(worktree: Path) -> None:
     [("linguist-vendored", True), ("linguist-generated=true", True), ("-linguist-vendored", False)],
 )
 def test_new_path_its_attributes_mark_received_keeps_its_name(
-    worktree: Path, attribute: str, *, received: bool
+    worktree: Path, monkeypatch: pytest.MonkeyPatch, attribute: str, *, received: bool
 ) -> None:
-    """A new vendored or generated file keeps its upstream name; an unset attribute does not."""
-    font = "assets/fonts/NotoSansCJKsc-Bold.otf"
+    """New received names use one fresh native attribute read per admission request."""
+    fonts = ("assets/fonts/NotoSansCJKsc-Bold.otf", "assets/fonts/NotoSansCJKsc-Regular.otf")
     attributes = worktree / ".gitattributes"
     original = attributes.read_text(encoding="utf-8")
+    index = git(worktree, "write-tree")
+    native = git_attributes.run_git
+    reads = []
+
+    def observe(root, *args, **kwargs):
+        if args[0] == "check-attr":
+            reads.append(kwargs.get("stdin"))
+        return native(root, *args, **kwargs)
+
+    monkeypatch.setattr(git_attributes, "run_git", observe)
     attributes.write_text(f"assets/fonts/** {attribute}\n{original}", encoding="utf-8")
-    [path] = cast("list[dict[str, object]]", _guard(worktree, (font,))["paths"])
-    gap = f"repository_paradigm_authored_name:{font}"
-    assert (path["reason"] != gap) is received, path
+    for font, path in zip(fonts, _guard(worktree, fonts)["paths"], strict=True):
+        gap = f"repository_paradigm_authored_name:{font}"
+        assert (path["reason"] != gap) is received, path
+    frame = b"".join(font.encode() + b"\0" for font in fonts)
+    assert reads == [frame]
+
+    attributes.write_text(original, encoding="utf-8")
+    for font, path in zip(fonts, _guard(worktree, fonts)["paths"], strict=True):
+        assert path["reason"] == f"repository_paradigm_authored_name:{font}"
+    assert reads == [frame, frame]
+    assert git(worktree, "write-tree") == index
 
 
 def _lane(tmp: Path, imports: tuple[str, ...]) -> Path:
@@ -332,7 +424,11 @@ def _patch(path: str, added: str, *, new: bool = False) -> str:
             + f"@@ -0,0 +1,{len(added.splitlines())} @@\n"
             + "".join(f"+{line}\n" for line in added.splitlines())
         )
-    return header + f"--- a/{path}\n+++ b/{path}\n@@ -1 +1,2 @@\n VALUE = 1\n+{added}\n"
+    return (
+        header
+        + f"--- a/{path}\n+++ b/{path}\n@@ -1 +1,{len(added.splitlines()) + 1} @@\n VALUE = 1\n"
+        + "".join(f"+{line}\n" for line in added.splitlines())
+    )
 
 
 DECL = "diff --git a/system/surfaces.toml b/system/surfaces.toml\n"
@@ -347,7 +443,7 @@ E_IMPORT = "product_reference_not_admitted_at_baseline:import:external_sdk"
 E_EXEC = "product_reference_not_admitted_at_baseline:executable:external-runner"
 E_COMMAND = "product_reference_not_admitted_at_baseline:command:ethos external-operation"
 P_IMPORT = _patch(*M, "import external_sdk")
-P_EXEC = _patch(*M, 'COMMAND = ["external-runner"]')
+P_EXEC = _patch(*M, 'import subprocess\nCOMMAND = ["external-runner"]\nsubprocess.run(COMMAND)')
 C = ("src/commands.py",)
 P_COMMAND = _patch(
     *C,
@@ -366,6 +462,7 @@ PATCH_CASES = [
     ((), A, P_NEW, "pass"),
     ((), T + M, DECL + P_EXEC, E_EXEC),
     ((), T, DECL, "pass"),
+    ((), M, _patch(*M, 'COMMAND = ["external-runner"]'), E_EXEC),
 ]
 
 

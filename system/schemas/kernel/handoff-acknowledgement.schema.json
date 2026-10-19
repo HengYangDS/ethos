@@ -1,1 +1,41 @@
-{"$id":"https://ethos.local/schemas/handoff-acknowledgement.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"properties":{"acknowledgement_id":{"pattern":"^handoff-ack:[a-f0-9]{64}$","type":"string"},"destination_head":{"pattern":"^(?:[a-f0-9]{40}|[a-f0-9]{64})$","type":"string"},"destination_holder_ref":{"pattern":"^[^\\s:]+:[^\\s:]+:[^\\s:]+:[^\\s:]+$","type":"string"},"destination_lane_ref":{"minLength":1,"type":"string"},"destination_lease_expires_at":{"format":"date-time","type":"string"},"destination_lease_generation":{"minimum":1,"type":"integer"},"destination_tree":{"pattern":"^(?:[a-f0-9]{40}|[a-f0-9]{64})$","type":"string"},"package_id":{"pattern":"^handoff:[a-f0-9]{64}$","type":"string"},"schema_version":{"const":1}},"required":["acknowledgement_id","schema_version","package_id","destination_lane_ref","destination_head","destination_tree","destination_holder_ref","destination_lease_generation","destination_lease_expires_at"],"title":"ETHOS Handoff Acknowledgement","type":"object"}
+{
+  "$id": "https://ethos.local/schemas/handoff-acknowledgement.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "acknowledgement_id": {
+      "pattern": "^handoff-ack:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "destination_head": {
+      "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$",
+      "type": "string"
+    },
+    "destination_holder_ref": {
+      "pattern": "^[^\\s:]+:[^\\s:]+:[^\\s:]+:[^\\s:]+$",
+      "type": "string"
+    },
+    "destination_lane_ref": { "minLength": 1, "type": "string" },
+    "destination_lease_expires_at": { "format": "date-time", "type": "string" },
+    "destination_lease_generation": { "minimum": 1, "type": "integer" },
+    "destination_tree": {
+      "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$",
+      "type": "string"
+    },
+    "package_id": { "pattern": "^handoff:[a-f0-9]{64}$", "type": "string" },
+    "schema_version": { "const": 1 }
+  },
+  "required": [
+    "acknowledgement_id",
+    "schema_version",
+    "package_id",
+    "destination_lane_ref",
+    "destination_head",
+    "destination_tree",
+    "destination_holder_ref",
+    "destination_lease_generation",
+    "destination_lease_expires_at"
+  ],
+  "title": "ETHOS Handoff Acknowledgement",
+  "type": "object"
+}

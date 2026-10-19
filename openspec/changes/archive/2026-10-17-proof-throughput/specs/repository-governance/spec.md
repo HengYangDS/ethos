@@ -373,9 +373,7 @@ checkout and compare-delete its exact ref in a transaction verifying accepted.
 #### Scenario: Unrelated native file-descriptor churn is not a retirement consumer
 
 - **WHEN** unrelated processes close descriptors during selected content retirement
-- **THEN** the native observer intersects one complete current device/inode observation
-  with the existing reviewed worktree and external Git index identities, without
-  repeating the worktree traversal
+- **THEN** the native observer scopes its search to the worktree and external Git index
 - **AND** cwd, file, mapping, writer, hardlink and index holders still block deletion
 - **AND** an already absent reviewed worktree is not a deletion target; its surviving index remains observed
 - **AND** a present unsafe worktree, missing index, incomplete output, permission failure or timeout remains unknown
@@ -409,86 +407,6 @@ checkout and compare-delete its exact ref in a transaction verifying accepted.
   transaction cannot commit
 - **THEN** ETHOS re-observes the ref, worktree, and Lease postconditions
 - **AND** it reports the exact non-terminal state without claiming retirement.
-
-### Requirement: Declared publication peer topology
-
-The repository SHALL explicitly declare zero or more peers with unique IDs and
-Git remotes. Repeatable provider labels SHALL select only transport/observation
-adapters, never a primary, product identity, object producer, signing authority
-or inter-peer dependency. Existing local Git objects SHALL be the sole source.
-Each optional peer SHALL be independently observed, updated, verified, retried
-and attested.
-The peer ID and Git remote name SHALL be independently configurable. Within an
-explicit peer declaration only, an omitted ID SHALL default to the declared
-provider and an omitted Git remote SHALL default to the resolved ID. Defaults
-SHALL NOT create undeclared peers, infer a provider or rename existing remotes.
-Explicit empty or invalid names and duplicate resolved identities SHALL fail
-closed before observation or mutation.
-
-#### Scenario: local-only publication remains valid
-
-- **WHEN** valid local verification and installation are declared with no peers
-- **THEN** the local publication lifecycle SHALL complete without remote observation
-- **AND** it SHALL NOT claim hosted CI or remote publication
-
-#### Scenario: independent remote observations remain no-push
-
-- **WHEN** publish readiness observes one or more declared peers
-- **THEN** it SHALL expose each target separately without pushing
-- **AND** hosted CI status SHALL remain unclaimed unless separately evidenced
-
-#### Scenario: publication is local only
-
-- **WHEN** the peer collection is empty and both local commands are valid
-- **THEN** topology and local publication readiness SHALL remain valid
-- **AND** no remote observation or hosted claim SHALL be manufactured
-
-#### Scenario: GitLab is the only declared peer
-
-- **WHEN** exactly one GitLab peer is declared
-- **THEN** publication SHALL observe and update only that peer
-- **AND** it SHALL NOT require GitHub or infer a primary provider
-
-#### Scenario: GitHub is the only declared peer
-
-- **WHEN** exactly one GitHub peer is declared
-- **THEN** publication SHALL observe and update only that peer
-- **AND** it SHALL NOT require GitLab or infer a primary provider
-
-#### Scenario: both remote peers are declared
-
-- **WHEN** several peers have unique IDs and Git remotes
-- **THEN** every peer SHALL receive the same selected local Git object
-- **AND** no peer SHALL read, wait on, rewrite, or act as the source for another peer
-
-#### Scenario: provider labels repeat
-
-- **WHEN** several distinct peers use the same provider adapter
-- **THEN** topology SHALL remain valid
-- **AND** peer identity SHALL remain the declared ID and Git remote rather than the provider label
-
-#### Scenario: peer identity is ambiguous
-
-- **WHEN** two peers reuse an ID or Git remote
-- **THEN** topology SHALL fail closed before remote observation or mutation
-
-#### Scenario: retired and current declarations coexist
-
-- **WHEN** peer tables coexist with a fixed provider publication scalar
-- **THEN** topology SHALL fail closed as an ambiguous declaration
-
-#### Scenario: Selected providers use conventional configurable defaults
-
-- **WHEN** GitLab or GitHub is explicitly declared without an ID or Git remote name
-- **THEN** the resolved names SHALL be `gitlab` or `github` respectively
-- **AND** an explicit ID or remote SHALL replace only its corresponding default
-- **AND** no `origin` remote or undeclared provider SHALL be introduced
-
-#### Scenario: Several independently named instances share one provider
-
-- **WHEN** peers `gitlab_a`, `gitlab_b` and `github` are explicitly declared
-- **THEN** both GitLab peers SHALL use the GitLab adapter without sharing identity
-- **AND** publication SHALL support selecting any declared subset independently
 
 ## REMOVED Requirements
 
@@ -880,6 +798,7 @@ SHALL not be mistaken for authored directory entrypoints.
 - **AND** semantic hierarchy and meaningful links preserve progressive detail
   without fragmenting one cohesive explanation or duplicating authority
 - **AND** a move repairs affected links without changing subject identity
+
 
 ### Requirement: Accepted history repair preserves original acceptance provenance
 

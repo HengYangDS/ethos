@@ -6,7 +6,7 @@ import pytest
 
 import ethos.adapters.gates.code_quality as code_quality
 import ethos.adapters.gates.native.attempt as gate_attempt
-from ethos.repository.policy.references.commands import canonical_gate_command
+from ethos.repository.policy.quality.gate_composition import canonical_gate_command
 from tests.unit.land.source_acceptance.support import COMMAND
 from tests.unit.land.source_acceptance.support import native_result
 from tests.unit.land.source_acceptance.support import quality_report

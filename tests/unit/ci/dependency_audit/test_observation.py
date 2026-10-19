@@ -100,18 +100,18 @@ def test_invalid_policy_replaces_previous_success(repository, monkeypatch, fault
 
 
 def test_registry_has_one_security_owner_without_making_offline_tests_online() -> None:
-    """Offline construction supplies tests; online security still guards acceptance."""
+    """Online security guards delivery without changing the offline test plane."""
     root = Path(tests.__file__).resolve().parent.parent
     declaration = load_gate_registry_declaration(root / "system/gates.toml")
     registry = declaration.registry()
     assert "python-vulnerabilities" not in registry
     assert "dependency-vulnerabilities" in registry
     assert "dependency-vulnerabilities" in {gate.id for gate in declaration.proof_gates(full=True)}
-    for selected in ((), ("unit-architecture",), ("build",)):
+    for selected in ((), ("unit-architecture",)):
         assert "dependency-vulnerabilities" not in {
             gate.id for gate in declaration.proof_gates(selected)
         }
-    for gate_id in ("local-install-smoke",):
+    for gate_id in ("build", "local-install-smoke"):
         assert "dependency-vulnerabilities" in {
             gate.id for gate in declaration.proof_gates((gate_id,))
         }

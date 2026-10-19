@@ -81,14 +81,18 @@ def control_replacement_report(
         return report
     prior = resolve_gate_policy(candidate_root, tree_ref=accepted_head, full=True)
     proposed = resolve_gate_policy(candidate_root, tree_ref=candidate_head, full=True)
+    if proposed.gaps:
+        report.update(verdict="block", required_gaps=list(proposed.gaps))
+        return report
     changed_obligations = _changed_obligations(prior, proposed)
     floor: dict[str, object] = (
         {
             "accepted_policy_digest": prior.digest,
             "candidate_policy_digest": proposed.digest,
             "changed_obligations": list(changed_obligations),
+            **({"accepted_policy": prior.projection} if prior.gaps else {}),
         }
-        if changed_obligations
+        if changed_obligations or prior.gaps
         else {}
     )
     subject, request, gaps = _verification_subject(

@@ -197,7 +197,7 @@ def cleanup(path):
     if (path / "ready").exists():
         time.sleep(2)
     native_cleanup(path)
-effect._observe_package, effect.remove_generated_tree = observe, cleanup
+effect.observe_package, effect.remove_generated_tree = observe, cleanup
 effect.run(SimpleNamespace(log=lambda _: None))
 """
     with (
@@ -266,7 +266,7 @@ def test_terminal_refresh_preserves_complete_failure(monkeypatch, tmp_path, fail
         events.append("cleanup")
         cleanup(path)
 
-    monkeypatch.setattr(effect, "_observe_package", fail)
+    monkeypatch.setattr(effect, "observe_package", fail)
     monkeypatch.setattr(Path, "write_text", interrupt)
     monkeypatch.setattr(CommandScope, "cancel", cancel_owned)
     monkeypatch.setattr(effect, "remove_generated_tree", remove)
@@ -344,7 +344,7 @@ def test_failed_stage_observation_cannot_skip_owned_cleanup(monkeypatch, tmp_pat
             raise OSError(message)
         return original(path, mode, *args, **kwargs)
 
-    monkeypatch.setattr(effect, "_observe_package", fail)
+    monkeypatch.setattr(effect, "observe_package", fail)
     monkeypatch.setattr(Path, "open", open_observation)
     with pytest.raises(OSError, match="stage observation refused"):
         effect.run(

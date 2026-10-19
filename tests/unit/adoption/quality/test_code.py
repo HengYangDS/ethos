@@ -130,7 +130,9 @@ def test_public_adopter_proof_reports_native_go_test_failure(tmp_path: Path) -> 
         'func TestAnswer(t *testing.T) { if Answer() != 42 { t.Fatal("wrong answer") } }\n'
     )
     subprocess.run(["gofmt", "-w", "answer.go", "answer_test.go"], cwd=repo, check=True)
-    head = commit_fixture(repo, "bind failing native Go test")
+    head = commit_fixture(
+        repo, "bind failing native Go test", format_paths=(".ethos/profile.toml",)
+    )
 
     completed = run_ethos_raw(
         "prove", "--host", "--execute", "--full", "--expect-head", head, "--json", cwd=repo
@@ -294,12 +296,29 @@ def test_native_code_provider_checks_real_sources(
         _write_go_fixture(repo, defect)
     else:
         _write_javascript_fixture(repo, defect)
-    head = commit_fixture(repo, "declare native code quality")
+    format_paths = tuple(
+        path
+        for path in (
+            ".ethos/profile.toml",
+            "system/gates.toml",
+            "package.json",
+            "answer.js",
+            "answer.test.js",
+            "unused.js",
+            "sub/answer.js",
+        )
+        if (repo / path).is_file() and not (defect == "syntax" and path == "answer.js")
+    )
+    head = commit_fixture(repo, "declare native code quality", format_paths=format_paths)
 
     result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
 
     assert payload["summary"]["proof_attestation_issued"] is False
+    checks = {check["action_id"]: check for check in payload["data"]["checks"]}
+    if defect != "syntax":
+        assert checks["source-format"]["verdict"] == "pass", checks["source-format"]
+        assert checks["behavior"]["exit_code"] is not None
     if defect == "none":
         assert result.returncode == 0, payload["required_gaps"]
         assert payload["verdict"] == "pass"
@@ -330,7 +349,11 @@ def test_javascript_test_directory_uses_native_test_identity(tmp_path: Path) -> 
         'import {answer} from "../answer.js";\n'
         'test("answer", () => assert.equal(answer(), 42));\n'
     )
-    head = commit_fixture(repo, "declare directory-owned native test")
+    head = commit_fixture(
+        repo,
+        "declare directory-owned native test",
+        format_paths=(".ethos/profile.toml", "package.json", "answer.js", "tests/behavior.js"),
+    )
 
     result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
@@ -360,7 +383,11 @@ def test_public_proof_rejects_test_forged_precise_coverage(tmp_path: Path) -> No
         "JSON.stringify({result: [entry]}));\n"
         "});\n"
     )
-    head = commit_fixture(repo, "declare forged coverage test")
+    head = commit_fixture(
+        repo,
+        "declare forged coverage test",
+        format_paths=(".ethos/profile.toml", "package.json", "answer.js", "answer.test.js"),
+    )
 
     result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
@@ -368,6 +395,9 @@ def test_public_proof_rejects_test_forged_precise_coverage(tmp_path: Path) -> No
     assert result.returncode != 0
     assert payload["verdict"] == "block"
     assert "quality_obligation_unproven:behavior" in payload["required_gaps"]
+    checks = {check["action_id"]: check for check in payload["data"]["checks"]}
+    assert checks["source-format"]["verdict"] == "pass"
+    assert checks["behavior"]["exit_code"] is not None
 
 
 def test_public_proof_rejects_command_authored_evidence_adapter(tmp_path: Path) -> None:
@@ -422,7 +452,11 @@ def test_public_proof_conjoins_native_commands_with_product_verifiers(
     gate["verification_providers"] = gate.pop("providers")
     gate["command"] = command
     profile.write_text(tomli_w.dumps(declaration))
-    head = commit_fixture(repo, "bind outer native command and product verification")
+    head = commit_fixture(
+        repo,
+        "bind outer native command and product verification",
+        format_paths=(".ethos/profile.toml", "package.json", "answer.js", "answer.test.js"),
+    )
     result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)
     tested = "--test" in command
@@ -474,7 +508,11 @@ def test_public_python_quality_covers_repository_tool_sources(
     adopter_environment.mkdir()
     sentinel = adopter_environment / "adopter-owned"
     sentinel.write_bytes(b"retain exactly")
-    head = commit_fixture(repo, "bind product and repository-tool quality")
+    head = commit_fixture(
+        repo,
+        "bind product and repository-tool quality",
+        format_paths=(".ethos/profile.toml", f"{test_root}/test_sample.py"),
+    )
 
     result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)

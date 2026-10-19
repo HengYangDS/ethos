@@ -10,6 +10,7 @@ from typing import cast
 from ethos.adapters.admission.ref_intent import committed_ref_intent
 from ethos.adapters.mutation.decision import admission_decision
 from ethos.adapters.mutation.decision import mutation_envelope
+from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.commit.conservation import accepted_contribution
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import ref_head
@@ -22,6 +23,7 @@ from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
+from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
@@ -82,6 +84,7 @@ def retire_absorbed_ref(
     gaps = [
         gap
         for failed, gap in (
+            (status.get("role") != ROLE_ACCEPTED_ROOT, "absorbed_ref_requires_accepted_root"),
             (not policy.is_topic_branch(branch), "absorbed_ref_role_invalid"),
             (not branch, "branch_required"),
             (not expect_head, "expect_head_required"),
@@ -159,24 +162,47 @@ def retire_absorbed_ref(
         required_gaps=required_gaps,
     )
 
-    def block_effect(current: dict[str, object], error: OSError | ValueError) -> dict[str, object]:
-        gaps = [str(error)]
-        return current | {
-            "verdict": "block",
-            "state": "blocked",
-            "required_gaps": gaps,
-            "mutation": _mutation(
-                repo=repo,
+    def block_transition(
+        current: dict[str, object],
+        gaps: list[str],
+        *,
+        error: OSError | ValueError | None = None,
+    ) -> dict[str, object]:
+        verdict = "unknown" if gaps == ["absorbed_ref_conservation_unknown"] else "block"
+        return (
+            current
+            | {
+                "verdict": verdict,
+                "state": "blocked",
+                "required_gaps": gaps,
+                "mutation": _mutation(
+                    repo=repo,
+                    branch=branch,
+                    expect_head=expect_head,
+                    accepted_head=accepted_head,
+                    authorize=authorize,
+                    confirm_irreversible=confirm_irreversible,
+                    apply=apply,
+                    verdict=verdict,
+                    required_gaps=gaps,
+                ),
+                **(
+                    {"failure": error.evidence()}
+                    if isinstance(error, ProcessExecutionError)
+                    else {}
+                ),
+            }
+            | _continuation(
+                repo,
                 branch=branch,
                 expect_head=expect_head,
                 accepted_head=accepted_head,
                 authorize=authorize,
                 confirm_irreversible=confirm_irreversible,
                 apply=apply,
-                verdict="block",
                 required_gaps=gaps,
-            ),
-        }
+            )
+        )
 
     if verdict != "pass":
         return report
@@ -193,7 +219,7 @@ def retire_absorbed_ref(
             recovery_intent=recovery_intent,
         )
     except (OSError, ValueError) as error:
-        return block_effect(report, error)
+        return block_transition(report, [str(error)], error=error)
     transition = {
         "state": "git_effect_admitted",
         "effect": plan.effect,
@@ -214,11 +240,7 @@ def retire_absorbed_ref(
         else []
     )
     if drift:
-        return admitted_report | {
-            "verdict": "unknown" if drift == ["absorbed_ref_conservation_unknown"] else "block",
-            "state": "blocked",
-            "required_gaps": drift,
-        }
+        return block_transition(admitted_report, drift)
     try:
         attestation = execute_git_effect(
             repo,
@@ -226,7 +248,7 @@ def retire_absorbed_ref(
             issuer=os.environ.get("ETHOS_ACTOR", "").strip(),
         )
     except (OSError, ValueError) as error:
-        return block_effect(admitted_report, error)
+        return block_transition(admitted_report, [str(error)], error=error)
     return _project_retirement_postcondition(
         admitted_report
         | {"transition": transition | {"attestation": attestation.model_dump(mode="json")}},
@@ -444,6 +466,7 @@ def _effect_drift_gaps(
     return [
         gap
         for failed, gap in (
+            (status.get("role") != ROLE_ACCEPTED_ROOT, "absorbed_ref_requires_accepted_root"),
             (ref_head(repo, branch) != expect_head, "absorbed_ref_head_drift"),
             (ref_head(repo, accepted_branch) != accepted_head, "accepted_head_drift"),
             (

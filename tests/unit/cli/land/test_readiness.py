@@ -8,11 +8,10 @@ from pathlib import Path
 import pytest
 import tomli_w
 
-import ethos.domain.publication.readiness as publication_domain
+import ethos.domain.publication.inspection as publication_domain
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.domain.publication.inspection import observe_publication
-from ethos.domain.publication.readiness import local_ci_owner_scripts
-from ethos.domain.publication.readiness import publication_readiness
+from ethos.domain.publication.inspection import local_ci_owner_scripts
+from ethos.domain.publication.inspection import publication_readiness
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.governed_repository import adopt_and_commit
@@ -195,7 +194,7 @@ def test_publish_local_readiness_does_not_project_a_publication_plan(tmp_path: P
     assert publication["source_branch"] == "work/topic"
     assert publication["source_role"] == "work_lane"
     assert not {"proposal_branch", "local_proposal_package"} & publication.keys()
-    context = observe_publication(
+    context = publication_domain.observe_publication(
         repo, apply=False, authorized=False, expect_head=None, target_refs=()
     )
     observed = publication_domain.publication_readiness_result(

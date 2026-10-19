@@ -8,28 +8,24 @@ semantics.
 ## Requirements
 
 ### Requirement: Public Command Plane
-
 ETHOS SHALL keep the normal user workflow under six public commands:
 `ethos adopt`, `ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
 `ethos publish`. Accepted-head admission is an exact `ethos land --closeout`
 operation, not a seventh top-level command or a hidden Git-hook procedure.
 
 #### Scenario: Cyclopts exposes the terminal root surface
-
 - **WHEN** the root CLI help is rendered
 - **THEN** it exposes exactly the six public commands
 - **AND** `ethos status` is the single bounded reader
 - **AND** maintainer mechanics remain hidden or semantically namespaced
 
 #### Scenario: TransitionPlan is the single transition projection
-
 - **WHEN** `ethos plan --json` compiles the current Commitment, repository
   facts, and declared nodes
 - **THEN** it returns one deterministic `transition_plan`
 - **AND** no parallel workflow-runtime or domain-contract read model is emitted
 
 #### Scenario: Default payloads stay bounded
-
 - **WHEN** `ethos status --json` or `ethos plan --json` would exceed its declared
   default payload budget
 - **THEN** the command preserves `verdict`, `state`, `summary`, `required_gaps`,
@@ -39,7 +35,6 @@ operation, not a seventh top-level command or a hidden Git-hook procedure.
 - **AND** no alternate reader command or truth source is introduced
 
 #### Scenario: a reader derives continuation
-
 - **WHEN** current authoritative facts are sufficient to select the next boundary
 - **THEN** the schema-version-`2` result preserves `state` and `required_gaps`,
   exposes one `next_action`, and derives exactly one `continuation`: `continue`,
@@ -49,7 +44,6 @@ operation, not a seventh top-level command or a hidden Git-hook procedure.
 - **AND** Continuation is recomputed rather than stored as lifecycle truth
 
 #### Scenario: accepted closeout remediation is directly executable
-
 - **WHEN** accepted-head admission is blocked by missing proof, missing external
   verification, stale coordinates, or an unapplied exact effect
 - **THEN** status, plan, land, and hook projections SHALL expose the same single
@@ -59,34 +53,29 @@ operation, not a seventh top-level command or a hidden Git-hook procedure.
 - **AND** it SHALL contain no prose-only instruction or placeholder token.
 
 ### Requirement: Cyclopts And API Own Interface Semantics
-
 Concrete Cyclopts declarations and the in-process operation API SHALL own command
 names, parameters, help, and dispatch. ETHOS SHALL NOT maintain a parallel command
 registry, lazy report-handler DSL, re-export facade, or command-shaped quality
 plane.
 
 #### Scenario: A command signature changes
-
 - **WHEN** a public operation changes its parameters or help
 - **THEN** CLI, SDK metadata, generated docs, and protocol projections derive from
   the same operation declaration
 - **AND** no tracked command declaration must be synchronized by hand
 
 #### Scenario: ETHOS runs from an installed wheel
-
 - **WHEN** the package runs outside a source checkout
 - **THEN** packaged lifecycle and gate resources remain available
 - **AND** command discovery still comes from Cyclopts declarations, not a packaged
   command registry
 
 ### Requirement: Prove Is The Singular Quality Execution Surface
-
 Quality checks SHALL be selected by gate ID through `ethos prove --gate <gate-id>`.
 `system/gates.toml` SHALL bind each gate to concrete Python providers or an external
 owner command without looping back through another ETHOS command.
 
 #### Scenario: One focused gate is requested
-
 - **WHEN** `ethos prove --execute --gate <gate-id> --json` runs
 - **THEN** the declared provider or external adapter executes directly
 - **AND** the proof evidence records the gate ID, adapter identity, verdict, and
@@ -94,23 +83,19 @@ owner command without looping back through another ETHOS command.
 - **AND** no `ethos quality` command is registered or invoked
 
 ### Requirement: CLI Surface Delegation
-
 The CLI SHALL compose output and UX while delegating semantics to contracts,
 operations, repository policy, and adapters.
 
 #### Scenario: CLI package is scanned
-
 - **WHEN** architecture tests inspect imports
 - **THEN** command modules call concrete operation and adapter owners
 - **AND** no command registry, generic report compiler, or CLI subprocess loopback
   exists
 
 ### Requirement: Retired Family Command Vocabulary
-
 ETHOS SHALL reject retired family-style command prefixes from governed docs.
 
 #### Scenario: Retired capability command appears
-
 - **WHEN** governed docs contain `ethos governance`, `ethos workspace`,
   `ethos agent`, `ethos project`, `ethos kernel`, or `ethos node` as a command
 - **THEN** the command-surface and documentation gates report a required gap
@@ -327,25 +312,21 @@ modes of this command, not separate commands or hook exceptions.
 - **AND** both SHALL identify `ethos prove --execute --expect-head <oid> --json` as the sole continuation
 
 ### Requirement: Hook runtime inspection exposes one exact repair action
-
 The existing hook runtime and status projections SHALL report installed source
 identity, expected source identity, currentness, and one deterministic repair
 command without requiring digest archaeology.
 
 #### Scenario: stale runtime is observed in an ETHOS repository family
-
 - **WHEN** the installed runtime identity differs from the accepted ETHOS ref identity
 - **THEN** the result reports both source commit/tree pairs and the stale-source gap
 - **AND** `next_action` is a complete copyable command bound to the current worktree and accepted source checkout
 
 #### Scenario: stale runtime is observed by a package-only installation
-
 - **WHEN** no ETHOS source checkout supplies the runner
 - **THEN** expected identity comes from the invoking wheel's immutable build identity
 - **AND** `next_action` repairs the current worktree through the existing `ethos hook install` command
 
 #### Scenario: repair completes
-
 - **WHEN** hook installation post-observes a current runtime
 - **THEN** the result reports `verdict=pass` with no repair action
 - **AND** status, JSON, and hook inspection consume the same runtime binding rather than deriving separate remedies
@@ -370,18 +351,15 @@ than only the invoking worktree.
 - **AND** `next_action` is the complete root-bound `ethos hook install` command.
 
 ### Requirement: Public version inspection exposes immutable provenance
-
 ETHOS SHALL provide one public version inspection path whose human and JSON
 projections are derived from the same identity result.
 
 #### Scenario: Human version is requested
-
 - **WHEN** a user runs `ethos --version`
 - **THEN** ETHOS prints a concise product and distribution identity
 - **AND** it does not serialize a JSON document inside a string.
 
 #### Scenario: Machine version is requested
-
 - **WHEN** an agent runs `ethos --version --json`
 - **THEN** stdout is one valid UTF-8 JSON document containing product version,
   distribution version, source commit/tree, wheel SHA256 or explicit absence,

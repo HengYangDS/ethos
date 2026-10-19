@@ -3,22 +3,21 @@
 from __future__ import annotations
 
 import configparser
-import fnmatch
 import json
-import os
 import subprocess
 import tomllib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
+from typing import override
 
-import yaml
 from yamllint import config as yamllint_config
 from yamllint import linter as yamllint_linter
 
-from ethos.adapters.gates.format_selection import audit as carrier_ownership
-from ethos.adapters.gates.tool import native_configurations
-from ethos.adapters.gates.tool import quality_inventory_failure
+from ethos.adapters.gates.formatting import source_format_report
+from ethos.adapters.gates.native.inputs import authored_source_files
+from ethos.adapters.gates.native.inputs import native_configurations
+from ethos.adapters.gates.native.inputs import quality_inventory_failure
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import GitExecutionError
@@ -26,10 +25,20 @@ from ethos.adapters.repo.runtime.materialization.input_resolution import resolve
 from ethos.adapters.repo.runtime.materialization.native_supply import resolve_native_tool
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.contracts.verdict import close_verdict
+from ethos.normalization.coercion import string_sequence
 
 VALE_CONFIG = Path(".config/checks/vale/vale.ini")
 VALE_VOCABULARIES = ".config/checks/vale/styles/config/vocabularies/*/"
 SUPPORTED_SUFFIXES = frozenset({".toml", ".yaml", ".yml", ".json", ".ini", ".cfg", ".txt"})
+
+
+class _ValeConfigParser(configparser.ConfigParser):
+    """Preserve native Vale keys through ConfigParser's typed extension point."""
+
+    @override
+    def optionxform(self, optionstr: str) -> str:
+        """Retain option spelling when compiling the section vocabulary input."""
+        return optionstr
 
 
 def _configuration_inventory(root: Path) -> tuple[Path, ...]:
@@ -52,10 +61,16 @@ def _configuration_inventory(root: Path) -> tuple[Path, ...]:
 
 
 def _candidate_paths(root: Path, requested: tuple[str, ...]) -> dict[str, tuple[Path, ...]]:
-    selected = []
-    for raw in tuple(map(Path, requested)) or _configuration_inventory(root):
+    inventory = tuple(map(Path, requested)) or _configuration_inventory(root)
+    candidates = []
+    for raw in inventory:
         path = root / raw
-        if raw.suffix.lower() not in SUPPORTED_SUFFIXES:
+        if raw.suffix.lower() not in SUPPORTED_SUFFIXES or (
+            raw.suffix.lower() == ".txt"
+            and not any(
+                raw.match(VALE_VOCABULARIES + name) for name in ("accept.txt", "reject.txt")
+            )
+        ):
             message = f"unsupported config lint targets: {raw}"
             raise ValueError(message)
         if path.is_symlink() or not path.resolve().is_relative_to(root.resolve()):
@@ -66,29 +81,23 @@ def _candidate_paths(root: Path, requested: tuple[str, ...]) -> dict[str, tuple[
                 message = f"config target missing or not a file: {raw}"
                 raise ValueError(message)
             continue
-        relative = path.resolve().relative_to(root.resolve()).as_posix()
+        candidates.append(path.resolve().relative_to(root.resolve()).as_posix())
+    authored = set(authored_source_files(root, paths=tuple(candidates))) if candidates else set()
+    selected = []
+    for relative in candidates:
+        owned_elsewhere = (
+            relative not in authored
+            or relative.startswith(("openspec/changes/", "openspec/specs/"))
+            or relative in {"openspec/config.yaml", "openspec/config.yml"}
+        )
+        if owned_elsewhere:
+            if requested:
+                message = f"config target has another owner: {relative}"
+                raise ValueError(message)
+            continue
         selected.append(Path(relative))
-    ownership = carrier_ownership(root, paths=tuple(map(str, dict.fromkeys(selected))))
-    if ownership["failures"]:
-        message = f"config ownership unresolved: {ownership['failures']}"
-        raise ValueError(message)
-    candidates = []
-    for assignment in ownership["assignments"]:
-        if assignment["mutation_policy"] not in {
-            "forbidden",
-            "official-owner-only",
-            "package-manager-only",
-            "generator-only",
-        } and assignment["validation_command"].endswith("-s config_quality"):
-            candidates.append(Path(assignment["path"]))
-        elif requested:
-            message = (
-                f"config target has another owner: {assignment['path']}; "
-                f"run {assignment['validation_command']}"
-            )
-            raise ValueError(message)
     return {
-        kind: tuple(path for path in candidates if path.suffix.lower() in suffixes)
+        kind: tuple(path for path in dict.fromkeys(selected) if path.suffix.lower() in suffixes)
         for kind, suffixes in {
             "toml": {".toml"},
             "yaml": {".yaml", ".yml"},
@@ -128,81 +137,32 @@ def _toml_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
     taplo = product_node_module("@taplo/cli") / "dist/cli.js"
     configs = native_configurations(root, "taplo", ".config/checks/taplo/taplo.toml")
     for config in configs:
-        for arguments in (("format", "--check"), ("lint", "--no-schema")):
-            completed = run_command(
-                root,
-                (str(node), str(taplo), *arguments, "--config", config, *map(str, paths)),
-                timeout=60,
-                remove_env=("NODE_OPTIONS", "NODE_PATH"),
-            )
-            if completed.returncode:
-                failures.append((completed.stdout + completed.stderr).strip())
-    return failures
-
-
-def _native_format_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
-    """Use the original Prettier check on the same exact authored configuration."""
-    if not paths:
-        return []
-    failures = []
-    configs = native_configurations(root, "prettier", ".config/checks/prettier/prettier.toml")
-    node = str(resolve_node_runtime().executable)
-    prettier = str(product_node_module("prettier") / "bin/prettier.cjs")
-    for config in configs:
         completed = run_command(
             root,
             (
-                node,
-                prettier,
+                str(node),
+                str(taplo),
+                "lint",
+                "--no-schema",
                 "--config",
                 config,
-                "--no-editorconfig",
-                "--ignore-path",
-                os.devnull,
-                "--check",
-                "--",
                 *map(str, paths),
             ),
             timeout=60,
             remove_env=("NODE_OPTIONS", "NODE_PATH"),
         )
-        if completed.returncode or completed.stderr:
+        if completed.returncode:
             failures.append((completed.stdout + completed.stderr).strip())
     return failures
 
 
 def _json_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
-    """Preserve the native serializer's authored JSON policy and exact bytes."""
     failures = []
-    policies = tuple(
-        tomllib.loads(Path(config).read_text(encoding="utf-8"))
-        for config in native_configurations(
-            root, "python-stdlib-json", ".config/checks/config-quality/policy.toml"
-        )
-    )
     for path in paths:
         try:
-            data = (root / path).read_bytes()
-            parsed = json.loads(data.decode("utf-8"))
+            json.loads((root / path).read_text(encoding="utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as error:
             failures.append(f"{path}: JSON parse failed: {error}")
-            continue
-        for policy in policies:
-            mode = next(
-                (
-                    rule["mode"]
-                    for rule in reversed(policy.get("rule", []))
-                    if any(fnmatch.fnmatchcase(str(path), pattern) for pattern in rule["globs"])
-                ),
-                policy["default_mode"],
-            )
-            rendered = (
-                json.dumps(parsed, ensure_ascii=False, separators=(",", ":"))
-                if mode == "compact"
-                else json.dumps(parsed, ensure_ascii=False, indent=policy["indent"])
-            ) + "\n"
-            if data != rendered.encode("utf-8"):
-                failures.append(f"{path}: JSON format drift")
     return failures
 
 
@@ -214,25 +174,12 @@ def _yaml_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
     for path in paths:
         text = (root / path).read_text(encoding="utf-8")
         for policy in policies:
-            problems = tuple(yamllint_linter.run(text, policy, filepath=path.as_posix()))
-            scalar_lines: set[int] = set()
-            if any(problem.rule == "empty-lines" for problem in problems):
-                try:
-                    scalar_lines = {
-                        line
-                        for token in yaml.scan(text)
-                        if isinstance(token, yaml.ScalarToken)
-                        for line in range(token.start_mark.line + 2, token.end_mark.line + 1)
-                    }
-                except yaml.YAMLError:
-                    scalar_lines = set()
             failures.extend(
                 f"{path}:{problem.line}:{problem.column}: {problem.message}"
-                for problem in problems
-                if (problem.rule is None or problem.rule in semantic_rules)
-                and (problem.rule != "empty-lines" or problem.line not in scalar_lines)
+                for problem in yamllint_linter.run(text, policy, filepath=path.as_posix())
+                if problem.rule is None or problem.rule in semantic_rules
             )
-    return [*failures, *_native_format_failures(root, paths)]
+    return failures
 
 
 def _ini_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
@@ -272,20 +219,13 @@ def _vale_vocabulary_directories(configuration: Any) -> dict[str, Path]:
     return directories
 
 
-class _ValeConfiguration(configparser.ConfigParser):
-    """Preserve native Vale option names during bounded configuration serialization."""
-
-    def optionxform(self, optionstr: str) -> str:
-        return optionstr
-
-
 def _vale_section_vocabulary_failures(
     root: Path, executable: Path, name: str, directory: Path
 ) -> list[str]:
     """Compile section-only terms with native Vale; its empty-input default skips them."""
     with TemporaryDirectory(prefix="ethos-vale-configuration-") as temporary:
         config = Path(temporary) / "vale.ini"
-        parser = _ValeConfiguration(interpolation=None)
+        parser = _ValeConfigParser(interpolation=None)
         parser.read_dict(
             {
                 "DEFAULT": {
@@ -362,6 +302,12 @@ def configuration_report(root: Path, *, paths: tuple[str, ...] = ()) -> dict[str
             *_ini_failures(root, candidates["ini"]),
             *_vale_failures(root, candidates["vale"], candidates["ini"]),
         )
+        format_paths = tuple(
+            path.as_posix() for kind in ("toml", "json", "yaml") for path in candidates[kind]
+        )
+        if format_paths:
+            formatted = source_format_report(root, paths=format_paths)
+            failures = (*failures, *string_sequence(formatted["required_gaps"]))
     except (GitExecutionError, subprocess.CalledProcessError) as error:
         return quality_inventory_failure(root, "config-quality", error)
     except (

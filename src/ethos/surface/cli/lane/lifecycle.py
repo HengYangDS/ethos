@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 
 import ethos.domain.prove as prove_domain
-from ethos.adapters.admission.prewrite import has_invalid_path_character
+from ethos.adapters.admission.paths import has_invalid_path_character
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation.lane_lifecycle.archive.command import archive_change
 from ethos.adapters.mutation.lane_lifecycle.candidate.materialization import materialize_candidate

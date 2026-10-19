@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
 import tomli_w
 
 from ethos.contracts.gates import Gate
@@ -272,10 +273,17 @@ subprocess.run(["rogue-tool"], check=True)
     ]
 
 
-def test_malformed_reference_carriers_fail_closed_without_inventing_references() -> None:
+@pytest.mark.parametrize(
+    "python_carrier",
+    ["[project", '[project]\nname = "demo"\ndependencies = ["requests", 42]\n'],
+    ids=["syntax", "consumed-shape"],
+)
+def test_malformed_reference_carriers_fail_closed_without_inventing_references(
+    python_carrier: str,
+) -> None:
     observed = product_references_from_files(
         {
-            "pyproject.toml": "[project",
+            "pyproject.toml": python_carrier,
             "package.json": "{",
             ".github/workflows/ci.yml": "jobs: [",
             "README.md": "Use `unterminated ' command` safely.",

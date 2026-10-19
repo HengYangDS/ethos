@@ -7,16 +7,11 @@ import json
 from typing import TYPE_CHECKING
 
 import pytest
-import tomli_w
 
 from ethos.adapters.admission.patch_admission import patch_admission
-from ethos.contracts.gates import Gate
-from ethos.contracts.gates import GateProofSets
-from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
 from ethos.repository.policy.references.manifests import NodeManifest
-from ethos.repository.policy.references.observation import product_references_from_files
-from ethos.repository.profile import ProofPolicy
+from ethos.repository.policy.references.observation import reference_consumer_sources_from_files
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
 from tests.support.governed_repository import git
@@ -38,7 +33,7 @@ def test_native_package_manager_declares_npm_without_duplicate(manager: object) 
 
     assert manifest is not None
     assert native_owned_references_from_files({"package.json": text})["executable"] == {"npm"}
-    assert product_references_from_files({"package.json": text}).unknown_paths == ()
+    assert reference_consumer_sources_from_files({"package.json": text}).unknown_paths == ()
 
 
 @pytest.mark.parametrize(
@@ -50,7 +45,7 @@ def test_absent_native_package_manager_remains_undeclared(payload: dict[str, obj
 
     assert NodeManifest.read(text) is not None
     assert native_owned_references_from_files({"package.json": text})["executable"] == set()
-    assert product_references_from_files({"package.json": text}).unknown_paths == ()
+    assert reference_consumer_sources_from_files({"package.json": text}).unknown_paths == ()
 
 
 @pytest.mark.parametrize(
@@ -77,7 +72,9 @@ def test_invalid_native_package_manager_preserves_unknown_carrier(engines: objec
 
     assert NodeManifest.read(text) is None
     assert native_owned_references_from_files({"package.json": text})["executable"] == set()
-    assert product_references_from_files({"package.json": text}).unknown_paths == ("package.json",)
+    assert reference_consumer_sources_from_files({"package.json": text}).unknown_paths == (
+        "package.json",
+    )
 
 
 def test_native_package_manager_alternatives_and_legacy_declaration() -> None:
@@ -96,6 +93,72 @@ def test_native_package_manager_alternatives_and_legacy_declaration() -> None:
         "pnpm",
         "yarn",
     }
+
+
+def test_valid_repository_binding_inherits_product_console_ownership() -> None:
+    """Governed content consumes the product's console without a duplicate package."""
+    profile = render_repository_profile(RepositoryProfileDeclaration.bootstrap("native-docs"))
+
+    owned = native_owned_references_from_files({".ethos/profile.toml": profile})
+
+    assert owned["executable"] == {"ethos"}
+    assert owned["distribution"] == set()
+    assert owned["import"] == set()
+
+
+@pytest.mark.parametrize(
+    ("binding", "verdict"),
+    [
+        ('profile_id = "native-docs"\n', "pass"),
+        (None, "block"),
+        ('profile_id = ""\n', "block"),
+        ("[profile", "block"),
+    ],
+    ids=("governed", "unadopted", "invalid", "malformed"),
+)
+def test_product_console_patch_admission_uses_immutable_governed_binding(
+    tmp_path: Path, binding: str | None, verdict: str
+) -> None:
+    """A mutable binding cannot grant or withdraw the product's baseline ownership."""
+    repo = tmp_path / "governed-content"
+    repo.mkdir()
+    git(repo, "init", "-b", "dev")
+    profile = repo / ".ethos/profile.toml"
+    profile.parent.mkdir()
+    if binding is not None:
+        profile.write_text(binding, encoding="utf-8")
+    path = "docs/README.md"
+    document = repo / path
+    document.parent.mkdir()
+    before = "# Product entry\n\n```console\n$ ethos --help\n```\n"
+    after = "# Product entry\n\n```console\n$ ethos --version\n```\n"
+    document.write_text(before, encoding="utf-8")
+    git(repo, "add", ".")
+    baseline = git(repo, "write-tree")
+    poisoned = "" if verdict == "pass" else 'profile_id = "native-docs"\n'
+    profile.write_text(poisoned, encoding="utf-8")
+    patch = f"diff --git a/{path} b/{path}\n" + "".join(
+        difflib.unified_diff(
+            before.splitlines(keepends=True),
+            after.splitlines(keepends=True),
+            fromfile=f"a/{path}",
+            tofile=f"b/{path}",
+        )
+    )
+
+    report = patch_admission(
+        root=repo, requested_paths=(path,), baseline_head=baseline, patch=patch
+    )
+
+    assert report["references"] == {"executable": ["ethos"]}
+    assert report["verdict"] == verdict, report
+    assert report["reason"] == (
+        "baseline_product_closure_matched"
+        if verdict == "pass"
+        else "product_reference_not_admitted_at_baseline:executable:ethos"
+    )
+    assert document.read_text(encoding="utf-8") == before
+    assert profile.read_text(encoding="utf-8") == poisoned
 
 
 @pytest.mark.parametrize("manager", [NPM_ENGINE, [NPM_ENGINE], None])
@@ -185,86 +248,3 @@ def test_public_patch_admission_reports_invalid_native_declaration(
     assert report["reason"] == "reference_carrier_unknown:package.json"
     assert report["reference_coverage"] == "unknown"
     assert package.read_text(encoding="utf-8") == before
-
-
-@pytest.mark.parametrize("owner", ["profile", "registry", "undeclared"])
-def test_native_proof_gate_owner_binds_immutable_document_admission(
-    tmp_path: Path, owner: str
-) -> None:
-    """Both native gate carriers close references against only their selected baseline."""
-    gate = Gate(id="quality", kind="check", command=("mise", "exec", "--", "python", "--version"))
-    registry = GateRegistryDeclaration(
-        id="native-quality",
-        proof_sets=GateProofSets(default=("quality",), full=("quality",)),
-        gates=(gate,),
-    )
-    inline = ProofPolicy(
-        code_correctness_gates=("quality",),
-        gates=(gate,),
-        code_correctness_map={"behavior": "quality", "static-analysis": "quality"},
-    )
-    proof = (
-        ProofPolicy(gate_registry=".config/quality/gates.toml")
-        if owner == "registry"
-        else inline
-        if owner == "profile"
-        else ProofPolicy()
-    )
-    profile = render_repository_profile(
-        RepositoryProfileDeclaration(profile_id="native-reference", proof=proof)
-    )
-    repo = tmp_path / "native-docs"
-    repo.mkdir()
-    git(repo, "init", "-b", "dev")
-    binding = repo / ".ethos/profile.toml"
-    binding.parent.mkdir()
-    binding.write_text(profile, encoding="utf-8")
-    if owner == "registry":
-        declaration = repo / ".config/quality/gates.toml"
-        declaration.parent.mkdir(parents=True)
-        declaration.write_text(
-            tomli_w.dumps(registry.model_dump(mode="json", exclude_defaults=True)), encoding="utf-8"
-        )
-    path = "docs/README.md"
-    document = repo / path
-    document.parent.mkdir()
-    before = "# Native checks\n\n```sh\nmise exec -- python --version\n```\n"
-    after = (
-        "---\nsubject: native:checks\nrole: reference\nstate: canonical\nrelations: {}\n---\n\n"
-        + before
-    )
-    document.write_text(before, encoding="utf-8")
-    git(repo, "add", ".")
-    baseline = git(repo, "write-tree")
-    # Mutable profile edits cannot create or withdraw baseline command ownership.
-    binding.write_text(
-        render_repository_profile(RepositoryProfileDeclaration.bootstrap("native-reference"))
-        if owner != "undeclared"
-        else render_repository_profile(
-            RepositoryProfileDeclaration(profile_id="native-reference", proof=inline)
-        ),
-        encoding="utf-8",
-    )
-    patch = f"diff --git a/{path} b/{path}\n" + "".join(
-        difflib.unified_diff(
-            before.splitlines(keepends=True),
-            after.splitlines(keepends=True),
-            fromfile=f"a/{path}",
-            tofile=f"b/{path}",
-        )
-    )
-
-    report = patch_admission(
-        root=repo, requested_paths=(path,), baseline_head=baseline, patch=patch
-    )
-
-    assert report["references"] == {"executable": ["mise"]}
-    assert report["verdict"] == ("block" if owner == "undeclared" else "pass"), report
-    assert report["reason"] == (
-        "product_reference_not_admitted_at_baseline:executable:mise"
-        if owner == "undeclared"
-        else "baseline_product_closure_matched"
-    )
-    assert report["reference_coverage"] == "evaluated"
-    assert document.read_text(encoding="utf-8") == before
-    assert git(repo, "show", f"{baseline}:.ethos/profile.toml") == profile.strip()

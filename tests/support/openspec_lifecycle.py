@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import difflib
 import json
 import shlex
 from dataclasses import dataclass
@@ -18,10 +19,13 @@ from ethos.adapters.admission.current.resolution import CurrentScope
 from ethos.adapters.mutation.lane_lifecycle.archive.command import archive_change
 from ethos.adapters.openspec.lifecycle.archive_transition import ArchivePostimage
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from tests.support.ethos_cli_runner import run_ethos
+from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import create_change_source_lane
 from tests.support.governed_repository import git
+from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import prepared_work_lane
 from tests.support.governed_repository import start_adopted_candidate
 from tests.support.governed_repository import write_active_commitment
@@ -33,6 +37,110 @@ if TYPE_CHECKING:
     import pytest
 
 HOLDER = "agent:test:case:agent-test"
+
+
+def official_validation_payload(root: Path, items: list[dict[str, Any]]) -> dict[str, Any]:
+    """Complete authored item fixtures with the original producer envelope."""
+    passed = sum(item.get("valid") is True for item in items)
+    summary: dict[str, Any] = {
+        "totals": {"items": len(items), "passed": passed, "failed": len(items) - passed},
+        "byType": {},
+    }
+    for kind in ("change", "spec"):
+        rows = [item for item in items if item.get("type") == kind]
+        valid = sum(item.get("valid") is True for item in rows)
+        if rows:
+            summary["byType"][kind] = {
+                "items": len(rows),
+                "passed": valid,
+                "failed": len(rows) - valid,
+            }
+    return {
+        "items": items,
+        "summary": summary,
+        "version": "1.0",
+        "root": {"path": root.resolve().as_posix(), "source": "nearest"},
+    }
+
+
+def active_change_relocation_patch(
+    tmp_path: Path, *, mutation: str = "", committed: bool = False
+) -> tuple[Path, str, tuple[str, ...], str]:
+    """Build the exact working-source move, including unfinished task bytes."""
+    repo = init_git_repo(tmp_path / "dated")
+    commit_active_change(repo)
+    old = "openspec/changes/legacy-change-20261008"
+    new = "openspec/changes/legacy-change"
+    members = {
+        ".openspec.yaml": "schema: spec-driven\ncreated: 2026-10-08\n",
+        "proposal.md": "# Proposal\n\nPreserve the original meaning.\n",
+        "tasks.md": "# Tasks\n\n- [x] 1.1 Keep accepted work.\n- [ ] 1.2 Verify delivery.\n",
+        "specs/contracts/spec.md": "# Contract\n\nThe original requirement SHALL survive.\n",
+    }
+    for relative, content in members.items():
+        source = repo / old / relative
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text(content, encoding="utf-8")
+    if committed:
+        git(repo, "add", old)
+        git(repo, "commit", "-m", "retain dated active source")
+    if mutation == "collision":
+        destination = repo / new
+        destination.mkdir()
+        (destination / "proposal.md").write_text("Existing owner\n", encoding="utf-8")
+    if mutation == "symlink":
+        source = repo / old / "proposal.md"
+        source.unlink()
+        source.symlink_to(repo / old / "tasks.md")
+        members["proposal.md"] = members["tasks.md"]
+    patches, paths = [], []
+    for relative, content in members.items():
+        if mutation == "partial" and relative == "tasks.md":
+            continue
+        before, after = f"{old}/{relative}", f"{new}/{relative}"
+        replacement = (
+            content.replace("- [ ] 1.2", "- [x] 1.2") if mutation == "content" else content
+        )
+        for name, prior, post in ((before, content, ""), (after, "", replacement)):
+            mode = "100755" if mutation == "mode" and name == after else "100644"
+            header = f"diff --git a/{name} b/{name}\n"
+            header += f"{'deleted' if prior else 'new'} file mode {mode}\n"
+            patches.append(
+                header
+                + "".join(
+                    difflib.unified_diff(
+                        prior.splitlines(keepends=True),
+                        post.splitlines(keepends=True),
+                        fromfile=f"a/{name}" if prior else "/dev/null",
+                        tofile=f"b/{name}" if post else "/dev/null",
+                    )
+                )
+            )
+            paths.append(name)
+    return repo, git(repo, "rev-parse", "HEAD"), tuple(paths), "".join(patches)
+
+
+def preview_merge(work: Path, mode: str = "inspect", source: str | None = None) -> dict:
+    """Read the public exact-state preview without performing an effect."""
+    selection = ("--source-ref", source) if source else ()
+    report = run_ethos(
+        "lane",
+        "refresh-base",
+        "--strategy",
+        "merge",
+        "--mode",
+        mode,
+        *selection,
+        "--json",
+        cwd=work,
+    )
+    assert report["verdict"] == "pass", json.dumps(report, indent=2)
+    return report
+
+
+def apply_merge(work: Path, preview: dict) -> dict:
+    """Execute only the public next action returned by the owning command."""
+    return run_ethos(*shlex.split(preview["next_action"])[1:], cwd=work)
 
 
 def native_merge_fixture(tmp_path: Path, *, pending: bool = True) -> Path:

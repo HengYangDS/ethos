@@ -10,27 +10,24 @@ from ethos.contracts.paradigm.declaration import load_repository_paradigm
 if TYPE_CHECKING:
     from ethos.contracts.gates import Gate
 
+NATIVE_TOOL_LOCATIONS = {tool.id: tool.carrier for tool in load_repository_paradigm().tool}
+_PROVIDER_TOOLS = {
+    "ethos.adapters.gates.formatting:source_format_report": ("prettier", "taplo", "ruff"),
+    "ethos.adapters.gates.tool:markdown_lint_report": ("prettier", "markdownlint-cli2"),
+    "ethos.adapters.gates.tool:markdown_links_report": ("lychee",),
+    "ethos.adapters.gates.tool:external_links_report": ("lychee",),
+    "ethos.adapters.gates.tool:prose_report": ("codespell",),
+    "ethos.adapters.gates.configuration:configuration_report": ("taplo", "prettier", "yamllint"),
+}
+
 
 def native_gate_tools(gate: Gate) -> tuple[str, ...]:
     """Select the native policy owners invoked by this gate's providers."""
-    providers = {
-        "ethos.adapters.gates.markdown:markdown_format_report": ("prettier", "markdownlint-cli2"),
-        "ethos.adapters.gates.tool:markdown_links_report": ("lychee",),
-        "ethos.adapters.gates.tool:external_links_report": ("lychee",),
-        "ethos.adapters.gates.tool:prose_report": ("codespell",),
-        "ethos.adapters.gates.configuration:configuration_report": (
-            "taplo",
-            "prettier",
-            "yamllint",
-            "python-stdlib-json",
-            "format-selection",
-        ),
-    }
     return tuple(
         dict.fromkeys(
             tool
             for reference in (*gate.providers, *gate.verification_providers)
-            for tool in providers.get(reference, ())
+            for tool in _PROVIDER_TOOLS.get(reference, ())
         )
     )
 
@@ -56,35 +53,12 @@ def _configuration_carriers(
     repository_paths: tuple[str, ...], tool: str
 ) -> tuple[str | None, tuple[str, ...]]:
     """Select carrier identities once for strict admission and historical observation."""
-    locations = {item.id: item.carrier for item in load_repository_paradigm().tool}
-    locations.update(
-        {
-            "python-stdlib-json": ".config/checks/config-quality/policy.toml",
-            "format-selection": ".config/checks/format-selection/policy.toml",
-        }
-    )
-    location = locations.get(tool)
-    names = {
-        "lychee": {"lychee.toml"},
-        "markdownlint-cli2": {
-            "markdownlint.toml",
-            "markdownlint.yaml",
-            ".markdownlint-cli2.yaml",
-            ".markdownlint-cli2.jsonc",
-        },
-        "prettier": {"prettier.toml", ".prettierrc.toml", ".prettierrc.json", ".prettierrc.yaml"},
-        "codespell": {"codespell.toml", ".codespellrc"},
-        "taplo": {"taplo.toml", ".taplo.toml"},
-        "yamllint": {"yamllint.yaml", ".yamllint", ".yamllint.yaml", ".yamllint.yml"},
-        "python-stdlib-json": {"format.toml"},
-        "format-selection": {"selection.toml"},
-    }
-    identity = Path(location).parts[-2:] if location else ()
-    selected = tuple(
-        path
-        for path in repository_paths
-        if Path(path).name in names.get(tool, set()) or Path(path).parts[-2:] == identity
-    )
+    location = NATIVE_TOOL_LOCATIONS.get(tool)
+    declaration = next((item for item in load_repository_paradigm().tool if item.id == tool), None)
+    names = set(declaration.root_names) if declaration is not None else set()
+    if location:
+        names.add(Path(location).name)
+    selected = tuple(path for path in repository_paths if Path(path).name in names)
     if location in repository_paths and location not in selected:
         selected = (*selected, location)
     return location, selected

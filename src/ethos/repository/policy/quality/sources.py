@@ -18,44 +18,6 @@ if TYPE_CHECKING:
     from ethos.repository.profile import SourceContract
 
 
-_DOCUMENT_NATIVE_INPUTS = {
-    "markdown_format_report": (
-        ".config/mise/config.toml",
-        ".config/mise/mise.lock",
-        "package.json",
-        "package-lock.json",
-        ".config/checks/prettier/prettier.toml",
-        ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
-    ),
-    "markdown_prose_report": (
-        ".config/mise/config.toml",
-        ".config/mise/mise.lock",
-        ".config/checks/vale/vale.ini",
-        ".config/checks/vale/styles/plain/concise.yml",
-        ".config/checks/vale/styles/plain/stock-phrases.yml",
-        ".config/checks/vale/styles/config/vocabularies/common/accept.txt",
-        ".config/checks/vale/styles/config/vocabularies/common/reject.txt",
-    ),
-}
-
-
-def native_document_source_paths(reference: str, source: str) -> tuple[str, ...]:
-    """Bind the invoked document capability to its native program and effective inputs."""
-    module, _, function = reference.partition(":")
-    if module != "ethos.adapters.gates.markdown" or function not in _DOCUMENT_NATIVE_INPUTS:
-        return ()
-    prefix = source.removesuffix("adapters/gates/markdown.py")
-    resources = prefix + "resources/" if prefix == "@ethos/" else ""
-    return (
-        *(
-            (prefix + "adapters/gates/markdown.mjs",)
-            if function == "markdown_format_report"
-            else ()
-        ),
-        *(resources + path for path in _DOCUMENT_NATIVE_INPUTS[function]),
-    )
-
-
 @dataclass(frozen=True, slots=True)
 class LockedArchive:
     """A native npm content identity, not evidence that cached archive bytes match."""

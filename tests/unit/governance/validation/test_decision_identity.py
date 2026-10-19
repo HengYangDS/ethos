@@ -198,3 +198,44 @@ def test_shared_decision_contract_refuses_diagnosed_mismatches_without_mutation(
         for value in report["required_gaps"]
     )
     assert path.read_text() == source
+
+
+@pytest.mark.parametrize("docs", ["docs", "handbook"])
+@pytest.mark.parametrize("section", ["Decision", "Evidence and Revisit"])
+@pytest.mark.parametrize(
+    ("rationale", "gap"),
+    [
+        (None, "docs_decision_sections_invalid"),
+        ("", "docs_decision_rationale_missing"),
+        ("<!-- Hidden rationale. -->", "docs_decision_execution_content"),
+        ("```text\nLiteral rationale.\n```", "docs_decision_execution_content"),
+        ("> Quoted rationale.", "docs_decision_rationale_missing"),
+        ("The native owner preserves the contract.", None),
+        ("- The native owner preserves the contract.\n\n> Supporting quotation.", None),
+    ],
+)
+def test_decision_role_requires_visible_authored_choice_in_portable_root(
+    tmp_path: Path, docs: str, section: str, rationale: str | None, gap: str | None
+) -> None:
+    """Canonical DR sections need authored rationale, not metadata or literal content."""
+    if docs != "docs":
+        profile = tmp_path / ".ethos/profile.toml"
+        profile.parent.mkdir()
+        profile.write_text("profile_id='sample'\n[roots]\ndocs='handbook'\n")
+    path = tmp_path / docs / "dr-0001-native-owner.md"
+    path.parent.mkdir(parents=True)
+    text = decision_fixture(subject="example:decision")
+    before, body = text.split(f"## {section}\n\n", 1)
+    _original, separator, after = body.partition("\n## ")
+    replacement = "" if rationale is None else f"## {section}\n\n{rationale}\n"
+    text = before + replacement + (separator + after if separator else "")
+    path.write_text(text)
+    report = docs_registry_report(tmp_path)
+    assert report["verdict"] == ("pass" if gap is None else "block")
+    if gap is not None:
+        assert any(
+            value.startswith(f"{gap}:{docs}/{path.name}") for value in report["required_gaps"]
+        )
+    else:
+        assert report["required_gaps"] == []
+    assert path.read_text() == text

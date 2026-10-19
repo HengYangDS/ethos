@@ -98,6 +98,17 @@ projection into a transient Commitment containing only `schema_version`, `id`,
 and `acceptance`. It derives changed paths from Git rather than a second scope
 carrier.
 
+Supplemental data binds its existing native owner through
+`[[openspec.capability_metadata]]` for capability members or
+`[[openspec.specs_root_metadata]]` for specs-root members. Both use an exact
+`file_name` and repository-relative `authority_ref`; native TOML, JSON or YAML
+must be non-executable, parseable mappings. These declarations neither replace
+`spec.md` nor admit supporting Markdown templates as data. Binding-only profile
+repair may add these references only when it strictly reduces the current
+root-shape gap set while preserving identity and all other policy. Remaining
+shape gaps and strict specification failures still block ordinary writes and
+proof; they do not prevent this exact metadata-only repair.
+
 Work ownership is independent: a Lease contains only `lane_ref`, `holder_ref`,
 `generation`, and `expires_at`. Lane creation, archive, continuation, handoff,
 and retirement observe the current Lease and Git state, compile one exact ref
@@ -181,17 +192,6 @@ Valid optional descriptors outside the default closure remain available for
 explicit selection. They neither become default roots nor satisfy required code
 axes outside that closure.
 
-Gate selection preserves declaration provenance. `--gate <id>` selects the
-repository's native declaration; `--product-gate <id>` explicitly selects the
-product-owned closure. Common rules carry product origin into planning,
-execution and issuance, so an adopter's same-named gate cannot capture a common
-obligation. Selection never extends the native registry or changes its default,
-full or optional membership. A composed dependency may share an id only when its
-complete descriptor agrees; conflicting meanings fail rather than acquire aliases.
-The plan binds the selected product origins and exact policy digest. Execution
-and issuance re-observe that binding; partial selection cannot replace the native
-acceptance floor. See [proof selection](../reference/command-plane.md#proof-depth).
-
 An id without a descriptor is not executable truth. The strict profile and gate
 declaration contracts reject missing, duplicate, cyclic, or incomplete
 descriptors before planning; ETHOS never guesses a command or accepts an unverified
@@ -228,23 +228,6 @@ lookalike neither changes schema selection nor proves runner identity. A selecte
 package need not be a source checkout; an external source runner must match its
 selected build. Lease ownership, runtime currentness, proof and exact-effect
 permission remain independent conditions.
-
-### Native Python Observer Supply
-
-For declared `python-runtime-json` outputs, the native attempt supplies
-`ETHOS_NATIVE_OBSERVER_REQUIREMENT="ethos @ file://...#sha256=..."` and
-`ETHOS_NATIVE_OBSERVER_RUNTIME_DIGEST` from the repository's selected immutable
-runtime. The requirement binds one exact local wheel and its SHA256; the runtime
-digest binds the selected runtime identity. Missing or invalid selected supply
-refuses before launch. Gates without Python observer outputs need no ETHOS wheel.
-
-The native producer byte-checks that wheel before installing it with `--no-deps`
-in the Nox child only. The Nox parent remains ETHOS-free; adopter metadata and
-lockfiles do not acquire an ETHOS dependency. The installed child validates loaded
-PEP 610 provenance against the supplied wheel. `execution.json` and child runtime
-records retain the same requirement, runtime digest and wheel SHA256. Audit events
-observe launch custody, not hostile-producer authentication. See the
-[child invocation interface](../reference/command-plane.md#native-python-observer-interface).
 
 ## Validation
 

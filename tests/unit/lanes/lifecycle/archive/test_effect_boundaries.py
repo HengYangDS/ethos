@@ -18,6 +18,7 @@ from ethos.contracts.plan import compile_git_effect_plan
 from ethos.contracts.semantic import Facts
 from tests.support.governed_repository import git
 from tests.support.openspec_lifecycle import completed_lifecycle
+from tests.support.openspec_lifecycle import official_validation_payload
 from tests.support.semantic import commitment_fixture
 
 if TYPE_CHECKING:
@@ -224,16 +225,14 @@ _LONG_REQUIREMENT = {
         ("openspec_validation_unreadable", {"items": [None]}, []),
         (
             "openspec_validation_failed:spec:unrelated",
-            {
-                "items": [
-                    {
-                        "id": "unrelated",
-                        "type": "spec",
-                        "valid": False,
-                        "issues": [_LONG_REQUIREMENT, {**_LONG_REQUIREMENT, "level": "INFO"}],
-                    }
-                ]
-            },
+            [
+                {
+                    "id": "unrelated",
+                    "type": "spec",
+                    "valid": False,
+                    "issues": [_LONG_REQUIREMENT, {**_LONG_REQUIREMENT, "level": "INFO"}],
+                }
+            ],
             [
                 {
                     "kind": "openspec_validation_issue",
@@ -250,20 +249,24 @@ def test_unrepairable_native_postimage_compensates_without_inventing_repair(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     gap: str,
-    payload: dict[str, object],
+    payload: dict[str, object] | list[dict[str, object]],
     diagnostics: list[dict[str, str]],
 ) -> None:
-    """Unreadable or unrelated native findings cannot name a false Change delta."""
+    """Unreadable or unrelated native findings cannot name a false Change delta.
+
+    Item lists become the complete official envelope; dictionaries stay unreadable as written.
+    """
     lifecycle = completed_lifecycle(tmp_path, monkeypatch)
     root = lifecycle.worktree
     head = lifecycle.head
+    native = official_validation_payload(root, payload) if isinstance(payload, list) else payload
     monkeypatch.setattr(
         archive_effect,
         "openspec_validation_report",
         lambda _root: {
             "verdict": "block",
             "required_gaps": [gap],
-            "validation": {"json": payload},
+            "validation": {"json": native},
         },
     )
 

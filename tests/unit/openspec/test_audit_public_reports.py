@@ -22,6 +22,63 @@ def _write(path: Path, content: str = "") -> None:
     path.write_text(content, encoding="utf-8")
 
 
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        None,
+        "undeclared",
+        "missing-owner",
+        "missing-spec",
+        "symlink",
+        "malformed",
+        "owner-symlink",
+        "owner-parent-symlink",
+        "executable",
+    ],
+)
+@pytest.mark.parametrize("placement", ["capability", "specs_root"])
+def test_capability_metadata_requires_declared_native_ownership(
+    tmp_path: Path, invalid: str | None, placement: str
+) -> None:
+    """Supplemental data cannot replace a spec, escape ownership or become implicit authority."""
+    specs = tmp_path / "openspec/specs"
+    metadata = specs / ("sample/capability.toml" if placement == "capability" else "families.toml")
+    _write(metadata, 'family = "sample"\n' if invalid != "malformed" else "family = [\n")
+    if invalid != "missing-spec":
+        _write(specs / "sample/spec.md", "## Requirements\n")
+    else:
+        (specs / "sample").mkdir(exist_ok=True)
+    if invalid != "missing-owner":
+        _write(tmp_path / "rules/capability-metadata.md", "# Native metadata contract\n")
+    if invalid == "symlink":
+        metadata.unlink()
+        metadata.symlink_to(tmp_path / "rules/capability-metadata.md")
+    if invalid == "owner-symlink":
+        owner = tmp_path / "rules/capability-metadata.md"
+        owner.unlink()
+        owner.symlink_to(metadata)
+    if invalid == "owner-parent-symlink":
+        (tmp_path / "rules").rename(tmp_path / "external-rules")
+        (tmp_path / "rules").symlink_to(tmp_path / "external-rules", target_is_directory=True)
+    if invalid == "executable":
+        metadata.chmod(0o755)
+    if invalid != "undeclared":
+        field = "capability_metadata" if placement == "capability" else "specs_root_metadata"
+        _write(
+            tmp_path / ".ethos/profile.toml",
+            'profile_id = "sample"\n[openspec]\nmaterial_paths = ["**"]\n'
+            f'[[openspec.{field}]]\nfile_name = "{metadata.name}"\n'
+            'authority_ref = "rules/capability-metadata.md"\n',
+        )
+
+    gaps = audit.accepted_spec_root_gaps(specs)
+
+    assert bool(gaps) is (invalid is not None), gaps
+    assert metadata.exists()
+    if invalid is None:
+        assert metadata.read_text() == 'family = "sample"\n'
+
+
 def test_official_config_reports_malformed_unavailable_and_invalid_shapes(monkeypatch, tmp_path):
     config = tmp_path / "openspec/config.yaml"
     missing = configuration.official_config_report(tmp_path)

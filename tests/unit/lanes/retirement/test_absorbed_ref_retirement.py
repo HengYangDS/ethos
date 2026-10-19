@@ -11,6 +11,7 @@ import pytest
 import ethos.adapters.mutation.lane_retirement.absorbed as absorbed_retirement
 from ethos.adapters.admission.ref_intent import claim_ref_intent
 from ethos.adapters.admission.ref_intent import write_ref_intent
+from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.store.state.lease.projection import observe_lease
@@ -258,6 +259,78 @@ def test_current_topic_ref_requires_exact_retirement_intent(tmp_path: Path) -> N
     assert _retire(repo, branch=branch, source=source, accepted=accepted)["verdict"] == "pass"
 
 
+@pytest.mark.parametrize("apply", [False, True])
+def test_absorbed_ref_requires_the_accepted_root_before_effect(
+    tmp_path: Path, *, apply: bool
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    source = git(repo, "rev-parse", "HEAD")
+    adopt_and_commit(repo)
+    accepted = git(repo, "rev-parse", "HEAD")
+    git(repo, "branch", "work/absorbed", source)
+    install_fixture_hook_runtime(repo)
+    operator = tmp_path / "operator"
+    git(repo, "worktree", "add", "-b", "work/operator", operator.as_posix(), "dev")
+    git(operator, "commit", "--allow-empty", "-m", "advance the operator lane")
+    before = git(repo, "for-each-ref", "--format=%(refname) %(objectname)", "refs/heads")
+
+    payload = _retire(
+        operator,
+        branch="work/absorbed",
+        source=source,
+        accepted=accepted,
+        apply=apply,
+        blocked=apply,
+    )
+
+    assert payload["verdict"] == "block"
+    assert payload["required_gaps"] == ["absorbed_ref_requires_accepted_root"]
+    action = payload["next_action"]
+    assert isinstance(action, str)
+    assert "--apply" not in action
+    assert payload["user_decision_required"] is False
+    assert git(repo, "for-each-ref", "--format=%(refname) %(objectname)", "refs/heads") == before
+    assert observe_lease(state_database(repo), "work/absorbed").state == "missing"
+
+
+@pytest.mark.parametrize("boundary", ["admission", "effect"])
+def test_absorbed_ref_preserves_native_failure_and_nonmutating_continuation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str
+) -> None:
+    repo, source, accepted = _absorbed_ref(tmp_path)
+    failure = GitExecutionError(
+        "git_effect_cas_rejected",
+        reason="native_exit_nonzero",
+        command=("git", "update-ref", "--stdin", "-z"),
+        cwd=repo.as_posix(),
+        observation={
+            "returncode": 128,
+            "stderr": '{"required_gaps":["ref_move_policy_unavailable"]}\n',
+            "outcome": "unchanged",
+        },
+    )
+
+    def reject(*_args: object, **_kwargs: object) -> None:
+        raise failure
+
+    monkeypatch.setattr(
+        absorbed_retirement,
+        "admit_git_effect" if boundary == "admission" else "execute_git_effect",
+        reject,
+    )
+    payload = _retire(repo, branch="work/absorbed", source=source, accepted=accepted, blocked=True)
+
+    assert payload["required_gaps"] == [failure.code]
+    data = payload["data"]
+    assert isinstance(data, dict)
+    assert data["failure"] == failure.evidence()
+    action = payload["next_action"]
+    assert isinstance(action, str)
+    assert "--apply" not in action
+    assert payload["user_decision_required"] is False
+    assert git(repo, "rev-parse", "work/absorbed") == source
+
+
 @pytest.mark.parametrize("branch", ["dev", "main", "candidate/dev"])
 def test_absorbed_ref_never_retires_repository_roots(tmp_path: Path, branch: str) -> None:
     repo, _source, accepted = _absorbed_ref(tmp_path)
@@ -287,26 +360,40 @@ def test_absorbed_ref_fails_closed_when_ref_is_not_an_accepted_ancestor(tmp_path
     assert git(repo, "rev-parse", "work/absorbed") == changed
 
 
+@pytest.mark.parametrize("boundary", ["worktree", "conservation", "root"])
 def test_absorbed_ref_reobserves_before_delete(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str
 ) -> None:
     repo, source, accepted = _absorbed_ref(tmp_path)
     original = absorbed_retirement.workspace_status
     calls = 0
 
-    def worktree_appeared(root: Path) -> dict[str, object]:
+    def workspace_drifted(root: Path) -> dict[str, object]:
         nonlocal calls
         calls += 1
         status = original(root)
         if calls == 2:
-            worktrees = cast("list[dict[str, object]]", status["worktrees"])
-            status["worktrees"] = [
-                *worktrees,
-                {"branch": "work/absorbed", "path": "/appeared"},
-            ]
+            if boundary == "root":
+                status["role"] = "work_lane"
+            else:
+                worktrees = cast("list[dict[str, object]]", status["worktrees"])
+                status["worktrees"] = [
+                    *worktrees,
+                    {"branch": "work/absorbed", "path": "/appeared"},
+                ]
         return status
 
-    monkeypatch.setattr(absorbed_retirement, "workspace_status", worktree_appeared)
+    if boundary in {"worktree", "root"}:
+        monkeypatch.setattr(absorbed_retirement, "workspace_status", workspace_drifted)
+    else:
+        contribution = absorbed_retirement.accepted_contribution
+
+        def conservation_unknown(root: Path, old: str, new: str) -> dict[str, object]:
+            nonlocal calls
+            calls += 1
+            return contribution(root, old, new) if calls == 1 else {"verdict": "unknown"}
+
+        monkeypatch.setattr(absorbed_retirement, "accepted_contribution", conservation_unknown)
     payload = _retire(
         repo,
         branch="work/absorbed",
@@ -315,5 +402,20 @@ def test_absorbed_ref_reobserves_before_delete(
         blocked=True,
     )
 
-    assert payload["required_gaps"] == ["absorbed_ref_worktree_appeared"]
+    expected_verdict = "unknown" if boundary == "conservation" else "block"
+    gap = {
+        "worktree": "absorbed_ref_worktree_appeared",
+        "conservation": "absorbed_ref_conservation_unknown",
+        "root": "absorbed_ref_requires_accepted_root",
+    }[boundary]
+    assert payload["verdict"] == expected_verdict
+    assert payload["required_gaps"] == [gap]
+    data = payload["data"]
+    assert isinstance(data, dict)
+    assert data["mutation"]["decision"]["verdict"] == expected_verdict
+    assert data["mutation"]["decision"]["required_gaps"] == [gap]
+    assert payload["user_decision_required"] is False
+    action = payload["next_action"]
+    assert isinstance(action, str)
+    assert "--apply" not in action
     assert git(repo, "rev-parse", "work/absorbed") == source

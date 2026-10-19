@@ -20,11 +20,11 @@
     "npm": "12.2.0",
     "@taplo/cli": "0.7.0",
     "markdownlint-cli2": "0.23.3",
-    "prettier": "3.9.10"
+    "prettier": "3.9.10",
+    "svgo": "4.1.0"
   },
   "devDependencies": {
-    "allure": "3.20.1",
-    "svgo": "4.1.0"
+    "allure": "3.20.1"
   },
   "overrides": {
     "markdownlint-cli2": {

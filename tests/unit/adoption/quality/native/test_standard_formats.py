@@ -12,6 +12,7 @@ import pytest
 import tomli_w
 
 import ethos.adapters.gates.code_quality as code_quality
+from ethos.adapters.gates.formatting import prepare_source_format
 from ethos.adapters.gates.native.attempt import native_attempt
 from ethos.adapters.gates.native.attempt import retained_execution
 from ethos.adapters.gates.verification import NativeExecution
@@ -213,6 +214,8 @@ def test_public_proof_joins_native_script_behavior_with_ethos_static(
         {"path": "coverage.lcov", "format": "lcov", "sessions": ["scripts"]},
     ]
     profile.write_text(tomli_w.dumps(declaration), encoding="utf-8")
+    for item in prepare_source_format(repo, paths=(".ethos/profile.toml",)):
+        (repo / item.path).write_bytes(item.after)
     head = commit_fixture(repo, "measure script behavior with native reports")
     result = run_quality_proof(repo, head)
     payload = json.loads(result.stdout)

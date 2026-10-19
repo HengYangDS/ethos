@@ -15,6 +15,7 @@ from subprocess import CompletedProcess
 import tomli_w
 
 import tests
+from ethos.adapters.gates.formatting import prepare_source_format
 from ethos.adapters.mutation.proof_admission import proof_attestation
 from ethos.adapters.mutation.proof_artifacts import artifact_checks
 from ethos.adapters.mutation.proof_artifacts import proof_artifact_root
@@ -259,6 +260,8 @@ def prepare_source(
         )
         ignore = repo / ".gitignore"
         ignore.write_text(ignore.read_text() + "\nbuild/\n.venv/\n", encoding="utf-8")
+    for item in prepare_source_format(repo):
+        (repo / item.path).write_bytes(item.after)
     before = commit_fixture(repo, "test: native audit declaration")
     git(candidate, "reset", "--hard", before)
     git(repo, "branch", roles.release_branch, before)
@@ -303,7 +306,11 @@ def prove_source(work: Path, head: str, stdout_attempts: list[str]) -> Attestati
     assert not gaps
     assert checks is not None
     declared = load_gate_registry_declaration(work / "system/gates.toml")
-    assert {check["action_id"] for check in checks} == set(declared.proof_sets.full)
+    checked = {check["action_id"] for check in checks}
+    assert set(declared.proof_sets.full) <= checked
+    assert checked == {
+        node["id"] for node in proof.payload.body["plan"]["nodes"] if node["kind"] == "check"
+    }
     audit = next(check for check in checks if check["action_id"] == AUDIT)
     assert stdout_attempts[-1] == audit["stdout"]
     raw = json.loads(audit["stdout"])

@@ -46,6 +46,9 @@ function relocated(raw, before, after) {
     fail("encoding_invalid", before, raw);
   }
   const target = local.normalize(local.join(local.dirname(before), unescaped));
+  if (source.reference_targets && before === after && !source.reference_targets.includes(target)) {
+    return raw;
+  }
   if (target === ".." || target.startsWith("../") || /[\0\\]/.test(unescaped)) {
     fail("target_outside_repository", before, raw);
   }

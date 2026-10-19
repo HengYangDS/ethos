@@ -17,11 +17,9 @@ probes as well as the public adapter, so background requests cannot delay exit.
 
 from __future__ import annotations
 
-import hashlib
 import os
 import shutil
 import sys
-import zipfile
 from pathlib import Path
 
 import allure
@@ -29,12 +27,6 @@ import pytest
 from hypothesis.configuration import set_hypothesis_home_dir
 
 import tests.support.runtime_scenarios as runtime_scenarios
-import tools.ci.python_test_gate as python_test_gate
-from ethos.adapters.repo.runtime.transition import PackageArtifact
-from ethos.repository.release.identity import build_identity
-from ethos.repository.release.identity import build_identity_bytes
-from ethos.repository.release.resources import BUILD_IDENTITY_RESOURCE
-from ethos.repository.release.resources import WHEEL_RESOURCE_ROOT
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 set_hypothesis_home_dir(
@@ -42,32 +34,6 @@ set_hypothesis_home_dir(
     / "build/runtime/tool-cache/hypothesis"
     / os.environ.get("PYTEST_XDIST_WORKER", "local")
 )
-
-
-@pytest.fixture
-def python_gate_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> PackageArtifact:
-    """Supply valid package bytes to scheduling tests without building an entire product."""
-    build = build_identity(product="0.2.0-alpha.5", source_commit="a" * 40, source_tree="b" * 40)
-    wheel = tmp_path / "ethos-test.whl"
-    with zipfile.ZipFile(wheel, "w") as archive:
-        archive.writestr(
-            (WHEEL_RESOURCE_ROOT / BUILD_IDENTITY_RESOURCE).as_posix(),
-            build_identity_bytes(build),
-        )
-    artifact = PackageArtifact(wheel, hashlib.sha256(wheel.read_bytes()).hexdigest(), build)
-
-    def select(_repo: Path, *, head: str) -> PackageArtifact:
-        assert head == build.source_commit
-        if artifact.path.is_relative_to(_repo):
-            return artifact
-        selected = _repo / "build/artifacts/python" / wheel.name
-        selected.parent.mkdir(parents=True, exist_ok=True)
-        selected.write_bytes(wheel.read_bytes())
-        return PackageArtifact(selected, artifact.sha256, build)
-
-    monkeypatch.setattr("tools.ci.delivery.artifact.source_build_identity", lambda _: build)
-    monkeypatch.setattr(python_test_gate, "selected_wheel", select)
-    return artifact
 
 
 @pytest.fixture(autouse=True)

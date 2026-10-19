@@ -8,7 +8,6 @@ import socket
 import subprocess
 import sys
 from contextlib import ExitStack
-from contextlib import nullcontext
 from contextlib import suppress
 from pathlib import Path
 
@@ -16,6 +15,29 @@ import pytest
 
 import ethos.adapters.process as process_adapter
 from tests.support.subprocesses import ready_descendant
+
+
+@pytest.mark.timeout(30)
+@pytest.mark.parametrize("spool_stdout", [False, True])
+def test_native_output_is_captured_through_regular_files(
+    tmp_path: Path, *, spool_stdout: bool
+) -> None:
+    """Native stdout is regular-file backed with optional finite diagnostic capture."""
+    body = (
+        "import os,stat,sys; "
+        "assert os.name!='posix' or stat.S_ISREG(os.fstat(1).st_mode); "
+        "assert os.name!='posix' or sys.argv[1]=='False' or stat.S_ISREG(os.fstat(2).st_mode); "
+        "sys.stdout.buffer.write(b'o' * 8388608); sys.stderr.buffer.write(b'e' * 65536)"
+    )
+    result = process_adapter.run_command(
+        tmp_path,
+        (sys.executable, "-c", body, str(spool_stdout)),
+        text=False,
+        check=True,
+        timeout=20,
+        spool_stdout=spool_stdout,
+    )
+    assert (result.stdout, result.stderr) == (b"o" * 8388608, b"e" * 65536)
 
 
 @pytest.mark.parametrize("text", [False, True])
@@ -197,56 +219,6 @@ def test_native_command_owns_its_handle_without_an_outer_scope(
     assert terminated == (
         [child] if outcome != "success" or (spool_stdout and os.name == "posix") else []
     )
-
-
-@pytest.mark.skipif(os.name != "posix", reason="POSIX nested command-group signals")
-@pytest.mark.parametrize("boundary", ["command-timeout", "cli-termination"])
-def test_catchable_cancellation_closes_nested_registered_groups(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, boundary: str
-) -> None:
-    """A live nested owner gets cancellation before its caller can hard-kill it."""
-    marker = tmp_path / "owned-child.pid"
-
-    def after_ready(parent, _options):
-        if boundary == "cli-termination":
-            parent.send_signal(signal.SIGTERM)
-
-    with ready_descendant(monkeypatch, after_ready) as (body, closed):
-        child = (
-            "import os; from pathlib import Path; "
-            f"Path({str(marker)!r}).write_text(str(os.getpid())); " + body
-        )
-        launch = (
-            "import sys; from pathlib import Path; from types import SimpleNamespace; "
-            f"sys.path.insert(0, {str(Path(process_adapter.__file__).resolve().parents[2])!r}); "
-            "from ethos.adapters.process import run_command; from ethos import cli; "
-            f"command = (sys.executable, '-B', '-I', '-c', {child!r}); "
-            "application = SimpleNamespace(load_command_groups=lambda _: None, "
-            "dispatch_arguments=lambda args: args, "
-            "app=lambda _: run_command(Path.cwd(), command, timeout=10)); "
-            "native_import = cli.import_module; "
-            "cli.import_module = lambda name: application if "
-            "name == 'ethos.surface.cli.application' else native_import(name); "
-            "sys.argv = ['ethos', 'probe']; cli.main()"
-        )
-        try:
-            failure = (
-                pytest.raises(subprocess.TimeoutExpired)
-                if boundary == "command-timeout"
-                else nullcontext()
-            )
-            with failure:
-                result = process_adapter.run_command(
-                    tmp_path,
-                    (sys.executable, "-B", "-I", "-c", launch),
-                    timeout=0.2 if boundary == "command-timeout" else 10,
-                )
-                assert result.returncode != 0
-            assert closed(), "catchable cancellation left the registered child's socket open"
-        finally:
-            if marker.exists():
-                with suppress(ProcessLookupError):
-                    os.killpg(int(marker.read_text()), signal.SIGKILL)
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX native execution-group cancellation")

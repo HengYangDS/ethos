@@ -5,10 +5,18 @@ from __future__ import annotations
 import hashlib
 import os
 import stat
+import sys
 import tempfile
 from pathlib import Path
 
 from ethos.adapters.openspec.configuration import official_config_report
+from ethos.adapters.repo.git import git_common_dir
+from ethos.adapters.repo.runtime.authority import expected_runtime_build
+from ethos.adapters.repo.runtime.materialization.effect import materialize_runtime
+from ethos.adapters.repo.runtime.selection import activate_runtime
+from ethos.adapters.repo.runtime.selection import restore_runtime_selection
+from ethos.adapters.repo.runtime.selection import runtime_selection_bytes
+from ethos.adapters.repo.runtime.selection import runtime_selection_transaction
 from ethos.contracts.openspec.models import OpenSpecPolicy
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
@@ -30,6 +38,7 @@ def adoption_plan(
     *,
     apply: bool = False,
     expect_plan_digest: str | None = None,
+    select_runtime: bool = False,
 ) -> dict[str, object]:
     """Compose native initialization with one reviewed, source-bound file-effect plan."""
     current_profile = _current_binding(root, root / PROFILE_PATH)
@@ -103,6 +112,9 @@ def adoption_plan(
                 "preview": content.partition("\n")[0],
             }
         )
+    runtime = _runtime_plan(root) if select_runtime else {}
+    if runtime.get("required_gaps"):
+        required_gaps.extend(string_sequence(runtime["required_gaps"]))
     plan_digest = hashlib.sha256(
         (
             str(configuration["input_digest"])
@@ -111,12 +123,16 @@ def adoption_plan(
                 f"{item['path']}:{item['action']}:{item['content_sha256']}" for item in write_plan
             )
         ).encode()
+        + (repr(runtime).encode() if select_runtime else b"")
     ).hexdigest()
     if apply and expect_plan_digest is not None and expect_plan_digest != plan_digest:
         required_gaps.append("adoption_plan_digest_mismatch")
     applied = apply and not required_gaps
     if applied:
-        _apply_bindings(root, pending)
+        if select_runtime:
+            _apply_runtime(root, pending, runtime)
+        else:
+            _apply_bindings(root, pending)
     return {
         "root": str(root),
         "repository_id": f"repository:{profile_id}",
@@ -147,12 +163,67 @@ def adoption_plan(
         "write_plan": write_plan,
         "apply_criteria": list(APPLY_CRITERIA),
         "required_gaps": required_gaps,
+        **({"runtime_selection": {**runtime, "applied": applied}} if select_runtime else {}),
         "rollback": {
             "mode": "remove_generated_binding_or_restore_git_state",
             "planned_files": [PROFILE_PATH, config_path],
             "generated_files": generated,
         },
     }
+
+
+def _runtime_plan(root: Path) -> dict[str, object]:
+    """Bind runtime source and selector without configuring any Git hook."""
+    common = Path(git_common_dir(root))
+    selector = common / "ethos/runtime/CURRENT"
+    if selector.is_symlink() or selector.parent.is_symlink() or selector.parent.parent.is_symlink():
+        return {"required_gaps": ["hook_runtime_current_target_invalid"]}
+    try:
+        previous = selector.read_bytes() if selector.exists() else None
+        expected = expected_runtime_build(root).identity
+    except (OSError, ValueError) as error:
+        return {"required_gaps": [str(error)]}
+    return {
+        "source_commit": expected.source_commit,
+        "source_tree": expected.source_tree,
+        "previous_selector": previous.decode("utf-8") if previous is not None else None,
+        "hooks": "preserved",
+        "evidence_boundary": "selected_runtime_provenance_not_hook_or_delivery_acceptance",
+    }
+
+
+def _apply_runtime(
+    root: Path, bindings: list[tuple[Path, str, str | None]], plan: dict[str, object]
+) -> None:
+    """Select admitted native supply under its existing exact selector transaction."""
+    expected = expected_runtime_build(root)
+    if (expected.identity.source_commit, expected.identity.source_tree) != (
+        plan["source_commit"],
+        plan["source_tree"],
+    ):
+        message = "adoption_runtime_source_changed"
+        raise ValueError(message)
+    common = Path(git_common_dir(root))
+    previous = plan["previous_selector"]
+    if not isinstance(previous, (str, type(None))):
+        message = "adoption_runtime_selector_invalid"
+        raise TypeError(message)
+    prior = previous.encode("utf-8") if previous is not None else None
+    python = materialize_runtime(
+        root, Path(sys.executable), expected_build=expected.identity, build_source=expected.source
+    )
+    selected = activate_runtime(common, python.parent, expected_current=prior)
+    desired = runtime_selection_bytes(common, selected.root)
+    try:
+        with runtime_selection_transaction(common, expected_current=desired):
+            _apply_bindings(root, bindings)
+    except BaseException as original:
+        try:
+            restore_runtime_selection(common, prior, expected_current=desired)
+        except (OSError, ValueError) as compensation:
+            message = "adoption_runtime_compensation_incomplete"
+            raise BaseExceptionGroup(message, [original, compensation]) from None
+        raise
 
 
 def _existing_profile_is_valid(root: Path, binding: tuple[str | None, bool, bool]) -> bool:

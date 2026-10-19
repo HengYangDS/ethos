@@ -10,6 +10,7 @@ from typing import cast
 
 from ethos.adapters.admission.ref_move_policy import accepted_advance_gaps
 from ethos.adapters.mutation.proof import proof_admission_report
+from ethos.adapters.mutation.proof_admission import unavailable_proof_admission
 from ethos.adapters.mutation.publication.retirement import proposal_retirement_report
 from ethos.adapters.openspec.observation import active_change_names_in_ref
 from ethos.adapters.repo.commit.integration import commit_range_admission_report
@@ -419,14 +420,7 @@ def push_admission_report(
         )
     commits = cast("dict[str, object]", observed["commit_policy_admission"])
     proof = (
-        {
-            "verdict": "block",
-            "state": "unavailable",
-            "selection": "",
-            "attestation": {},
-            "required_gaps": [],
-            "next_action": "",
-        }
+        unavailable_proof_admission()
         if ref_admission["enforcement_gaps"]
         else publication_proof_admission(
             repo,

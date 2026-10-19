@@ -1,4 +1,5 @@
-# Prettier owns spacing, container layout and style.
+# Prettier owns spacing, container layout and style of authored Markdown.
+# Official OpenSpec Markdown has no formatter, so its override keeps spacing and style rules.
 # Native semantic lint uses YAML to preserve nested rule parameters.
 ---
 globs:
@@ -19,24 +20,35 @@ overrides:
     combine: replace
     config:
       default: false
+      MD003: { style: atx }
+      MD004: { style: dash }
+      MD005: true
+      MD009: true
       MD011: true
       MD014: true
-      MD024: { siblings_only: true }
-      MD025: true
+      MD018: true
+      MD019: true
+      MD020: true
+      MD021: true
+      MD023: true
+      MD027: true
       MD034: true
-      MD040: true
+      MD037: true
+      MD039: true
       MD042: true
       MD044: true
       MD045: true
+      MD047: true
+      MD048: { style: backtick }
+      MD049: { style: asterisk }
       MD051: true
       MD052: true
       MD053: true
       MD054: true
+      MD055: true
       MD056: true
+      MD058: true
       MD059: true
-      whitespace: false
-      blank_lines: false
-      indentation: false
 config:
   default: false
   MD001: true

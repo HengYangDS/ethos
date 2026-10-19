@@ -172,6 +172,32 @@ def test_packaged_resource_requires_a_contained_relative_input(tmp_path: Path) -
         resource_owner.packaged_resource("escape/input", package=package)
 
 
+@pytest.mark.parametrize(
+    "relative",
+    [
+        ".config/checks/prettier/prettier.toml",
+        ".config/checks/codespell/codespell.toml",
+        ".config/checks/taplo/taplo.toml",
+        ".config/checks/yamllint/.yamllint.yaml",
+        ".config/checks/format-selection/policy.toml",
+        ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
+        ".config/checks/lychee/lychee.toml",
+    ],
+)
+def test_installed_document_quality_preserves_shipped_native_policy(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, relative: str
+) -> None:
+    """Installed quality reads native policy bytes without a source checkout."""
+    root = Path(__file__).resolve().parents[3]
+    package = _installed_package(tmp_path)
+    monkeypatch.setattr(resource_owner, "files", lambda _name: package)
+    policy = resource_owner.canonical_resource(relative)
+    assert policy == package / "resources" / relative
+    assert policy.read_bytes() == (root / relative).read_bytes()
+    declaration = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    assert relative in declaration["tool"]["hatch"]["build"]["targets"]["sdist"]["only-include"]
+
+
 def _installed_package(tmp_path: Path) -> Path:
     """Stage resources from the native package declaration, not another source map."""
     root = Path(__file__).resolve().parents[3]

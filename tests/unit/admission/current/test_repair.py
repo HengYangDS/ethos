@@ -138,13 +138,25 @@ def _combined_validation_report(root: Path) -> tuple[dict[str, object], tuple[st
                     "id": "distribution",
                     "type": "spec",
                     "valid": False,
-                    "issues": [{"level": "WARNING", "path": "requirements[0]"}],
+                    "issues": [
+                        {
+                            "level": "WARNING",
+                            "path": "requirements[0]",
+                            "message": "Long requirement",
+                        }
+                    ],
                 },
                 {
                     "id": inherited,
                     "type": "change",
                     "valid": False,
-                    "issues": [{"level": "WARNING", "path": "distribution/spec.md"}],
+                    "issues": [
+                        {
+                            "level": "WARNING",
+                            "path": "distribution/spec.md",
+                            "message": "Long requirement",
+                        }
+                    ],
                 },
             ]
         },
@@ -444,7 +456,11 @@ def test_archived_canonical_repair_uses_verified_source_without_masking_proof(
                     "type": "spec",
                     "valid": False,
                     "issues": [
-                        {"level": "INFO" if mode == "info" else "ERROR", "path": "overview"}
+                        {
+                            "level": "INFO" if mode == "info" else "ERROR",
+                            "path": "overview",
+                            "message": "Canonical purpose is incomplete",
+                        }
                     ],
                 }
             ]

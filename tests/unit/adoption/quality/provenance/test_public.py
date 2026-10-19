@@ -17,13 +17,10 @@ import tests
 import tools.ci.sessions as ci_sessions
 from ethos.adapters.gates.code_quality import behavior_report
 from ethos.adapters.gates.code_quality import static_report
+from ethos.adapters.gates.formatting import render_source_content
 from ethos.adapters.gates.provenance.observation import integrity_report
-from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import observe_quality_subjects
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
-from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
-from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
-from ethos.repository.release.resources import canonical_resource
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
 from tests.support.proof import declare_quality_profile
@@ -77,10 +74,11 @@ def test_public_quality_gate_requires_native_artifact_integrity(
     )
     original = b"import math\nVALUE = 42\n"
     (repo / "template.txt").write_bytes(original)
-    generated_path, upstream_path = "src/sample/generated.py", "src/sample/upstream.py"
+    generated_path = "src/sample/generated.py"
     (repo / generated_path).write_bytes(
         original + b"# drift\n" if defect == "artifact-drift" else original
     )
+    upstream_path = "src/sample/upstream.py"
     (repo / upstream_path).write_bytes(
         original + b"# drift\n" if defect == "upstream-drift" else original
     )
@@ -95,13 +93,18 @@ def test_public_quality_gate_requires_native_artifact_integrity(
     declaration = ".config/checks/ci-projection/policy.toml"
     owner = repo / declaration
     owner.parent.mkdir(parents=True)
-    owner.write_text(
-        tomli_w.dumps(
-            {
-                "schema": "ethos-ci-template-consistency-v1",
-                "projection": [{"template": "template.txt", "projection": generated_path}],
-            }
-        )
+    owner.write_bytes(
+        render_source_content(
+            repo,
+            declaration,
+            "taplo",
+            tomli_w.dumps(
+                {
+                    "schema": "ethos-ci-template-consistency-v1",
+                    "projection": [{"template": "template.txt", "projection": generated_path}],
+                }
+            ).encode(),
+        )[0]
     )
     (repo / ".gitattributes").write_text(f"{generated_path} ethos-role=generated\n")
     profile = repo / ".ethos/profile.toml"
@@ -132,22 +135,10 @@ def test_public_quality_gate_requires_native_artifact_integrity(
                 "integrity_gate": "integrity",
             },
         ]
-    profile.write_text(tomli_w.dumps(payload))
-    run_command(
-        repo,
-        (
-            str(resolve_node_runtime().executable),
-            str(product_node_module("@taplo/cli") / "dist/cli.js"),
-            "format",
-            "--no-auto-config",
-            "--config",
-            str(canonical_resource(".config/checks/taplo/taplo.toml")),
-            declaration,
-            profile.relative_to(repo).as_posix(),
-        ),
-        timeout=30,
-        check=True,
-        remove_env=("NODE_OPTIONS", "NODE_PATH"),
+    profile.write_bytes(
+        render_source_content(
+            repo, profile.relative_to(repo).as_posix(), "taplo", tomli_w.dumps(payload).encode()
+        )[0]
     )
     head = commit_fixture(repo, "declare complete mixed native quality obligations")
     result = run_quality_proof(repo, head)
@@ -176,23 +167,13 @@ def test_public_quality_gate_requires_native_artifact_integrity(
 
 
 class _JavaScriptLintSession:
-    """Run the existing session's native commands against the committed fixture."""
+    """Capture the existing session's real native reports and propagate refusals."""
 
-    def __init__(self, root: Path) -> None:
-        self.root = root
-        self.commands: list[tuple[str, ...]] = []
+    def __init__(self) -> None:
+        self.reports: list[dict[str, object]] = []
 
-    def run(self, *command: str) -> None:
-        self.commands.append(command)
-        result = run_command(
-            self.root,
-            command,
-            timeout=60,
-            remove_env=("NODE_OPTIONS", "NODE_PATH"),
-            remove_env_prefixes=("MISE_",),
-        )
-        assert result.returncode == 0, (result.stdout, result.stderr)
-        assert not result.stderr
+    def log(self, message: str) -> None:
+        self.reports.append(json.loads(message))
 
     def error(self, message: str) -> None:
         raise ValueError(message)
@@ -340,18 +321,58 @@ def test_javascript_lint_session_uses_native_authored_partition(
 ) -> None:
     """The Nox consumer cannot apply authored ESLint or formatting to frozen supply."""
     repo = _javascript_supply_repository(tmp_path, kind=kind, role=role, entered=False)
+    originals = {path: path.read_bytes() for path in repo.glob("*.js")}
     monkeypatch.setattr(ci_sessions, "ROOT", repo)
-    session = _JavaScriptLintSession(repo)
+    session = _JavaScriptLintSession()
     if kind == "authored":
         reason = "source_contract_missing:supply.js" if role == "snapshot" else "no-unused-vars"
         with pytest.raises(ValueError, match=reason):
             ci_sessions.javascript_lint(session)
-        assert session.commands == []
+        assert session.reports == []
     else:
         ci_sessions.javascript_lint(session)
-        assert len(session.commands) == 1
-        assert session.commands[0][-2:] == ("answer.js", "answer.test.js")
-        assert "supply.js" not in session.commands[0]
+        assert session.reports == [
+            {
+                "id": "source-format",
+                "verdict": "pass",
+                "state": "passed",
+                "files": ["answer.js", "answer.test.js"],
+                "file_count": 2,
+                "changed_paths": [],
+                "ignored_paths": [],
+                "required_gaps": [],
+            }
+        ]
+    assert all(path.read_bytes() == original for path, original in originals.items())
+
+
+def test_javascript_lint_session_refuses_authored_format_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Authored format drift remains a native refusal without rewriting any source."""
+    repo = _javascript_supply_repository(tmp_path, kind="generated", role="snapshot", entered=False)
+    (repo / "answer.js").write_text("export function answer(){return 42;}\n")
+    commit_fixture(repo, "record authored formatting drift")
+    originals = {path: path.read_bytes() for path in repo.glob("*.js")}
+    monkeypatch.setattr(ci_sessions, "ROOT", repo)
+    session = _JavaScriptLintSession()
+
+    with pytest.raises(ValueError, match="native source formatting did not pass"):
+        ci_sessions.javascript_lint(session)
+
+    assert session.reports == [
+        {
+            "id": "source-format",
+            "verdict": "block",
+            "state": "failed",
+            "files": ["answer.js", "answer.test.js"],
+            "file_count": 2,
+            "changed_paths": ["answer.js"],
+            "ignored_paths": [],
+            "required_gaps": ["source_format_drift:answer.js"],
+        }
+    ]
+    assert all(path.read_bytes() == original for path, original in originals.items())
 
 
 @pytest.mark.parametrize("role", ["snapshot", "generated"])

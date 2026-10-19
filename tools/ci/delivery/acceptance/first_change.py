@@ -8,8 +8,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
-from ethos.repository.release.resources import GUIDANCE_RESOURCE
-from ethos.repository.release.resources import WHEEL_RESOURCE_ROOT
 from tools.ci.delivery.acceptance.invocation import invoke
 from tools.ci.delivery.acceptance.invocation import require_installed_guidance
 
@@ -63,26 +61,23 @@ def _admitted(root: Path, executable: Path, environment: Mapping[str, str], *pat
         raise RuntimeError(message)
 
 
-def _official_command(status: dict[str, object], environment: Mapping[str, str]) -> tuple[str, str]:
+def _official_command(
+    status: dict[str, object], environment: Mapping[str, str], *, origin: str
+) -> tuple[str, str]:
+    require_installed_guidance(json.dumps(status), origin)
+    package = Path(origin).resolve(strict=True).parent
     context = status.get("governance_context")
     native = context.get("official_openspec") if isinstance(context, dict) else None
-    guidance = context.get("agent_guidance") if isinstance(context, dict) else None
     command = native.get("base_command") if isinstance(native, dict) else None
-    guide = guidance.get("path") if isinstance(guidance, dict) else None
-    suffix = (WHEEL_RESOURCE_ROOT.name, *GUIDANCE_RESOURCE.parts)
-    package = (
-        Path(guide).resolve().parents[len(suffix) - 1]
-        if isinstance(guide, str)
-        and Path(guide).is_absolute()
-        and Path(guide).parts[-len(suffix) :] == suffix
-        else None
-    )
     if (
         not isinstance(command, list)
         or len(command) != 2
-        or not all(isinstance(part, str) and Path(part).is_file() for part in command)
-        or package is None
-        or not Path(command[1]).resolve().is_relative_to(package)
+        or not all(
+            isinstance(part, str)
+            and Path(part).is_file()
+            and Path(part).resolve().is_relative_to(package)
+            for part in command
+        )
         or shutil.which("openspec", path=environment.get("PATH", "")) is not None
     ):
         message = "installed_first_change_tool_unavailable"
@@ -166,7 +161,7 @@ _FORMAT_SOURCES = {
 
 
 def _prove_format(lane: Path, executable: Path, environment: Mapping[str, str]) -> None:
-    """Qualify native preview/check/apply against one real installed, admitted source."""
+    """Qualify installed lane format preview, check and admitted apply on one real source."""
     git = shutil.which("git")
     if git is None:
         message = "installed_source_format_unproven:native_git_missing"
@@ -183,11 +178,15 @@ def _prove_format(lane: Path, executable: Path, environment: Mapping[str, str]) 
         inherit_environment=False,
         timeout=30,
     )
-    if staged.returncode:
+    observed = run_command(
+        lane, (git, "rev-parse", "HEAD"), env=environment, inherit_environment=False, timeout=30
+    )
+    head = observed.stdout.strip()
+    if staged.returncode or observed.returncode or not head:
         message = "installed_source_format_unproven:source_not_tracked"
         raise RuntimeError(message)
     authored = {path: (lane / path).read_bytes() for path in _CONTENT}
-    command = (str(executable), "format", *_FORMAT_SOURCES, "--root", str(lane), "--json")
+    command = (str(executable), "lane", "format", *_FORMAT_SOURCES, "--root", str(lane), "--json")
     preview_code, preview, _detail = invoke(lane, command, environment=environment)
     check_code, check, _detail = invoke(lane, (*command, "--check"), environment=environment)
     preview_data, check_data = preview.get("data"), check.get("data")
@@ -198,7 +197,9 @@ def _prove_format(lane: Path, executable: Path, environment: Mapping[str, str]) 
         preview_code
         or preview.get("verdict") != "pass"
         or not isinstance(preview_data, dict)
-        or preview_data.get("applied") is not False
+        or preview_data.get("state") != "ready"
+        or preview_data.get("head") != head
+        or set(preview_data.get("changed_paths", ())) != set(_FORMAT_SOURCES)
         or not check_code
         or check.get("verdict") != "block"
         or not isinstance(check_data, dict)
@@ -207,7 +208,8 @@ def _prove_format(lane: Path, executable: Path, environment: Mapping[str, str]) 
     ):
         message = "installed_source_format_unproven:preview_or_check"
         raise RuntimeError(message)
-    apply_code, applied, _detail = invoke(lane, (*command, "--apply"), environment=environment)
+    apply = (*command, "--apply", "--authorize", "--expect-head", head)
+    apply_code, applied, _detail = invoke(lane, apply, environment=environment)
     after = {path: (lane / path).read_bytes() for path in _FORMAT_SOURCES}
     fixed_code, fixed, _detail = invoke(lane, (*command, "--check"), environment=environment)
     applied_data, fixed_data = applied.get("data"), fixed.get("data")
@@ -215,7 +217,7 @@ def _prove_format(lane: Path, executable: Path, environment: Mapping[str, str]) 
         apply_code
         or applied.get("verdict") != "pass"
         or not isinstance(applied_data, dict)
-        or applied_data.get("applied") is not True
+        or applied_data.get("state") != "formatted"
         or not all(after[path] != content for path, content in _FORMAT_SOURCES.items())
         or fixed_code
         or fixed.get("verdict") != "pass"
@@ -232,6 +234,7 @@ def prove_first_change(
     executable: Path,
     target: Path,
     *,
+    origin: str,
     environment: Mapping[str, str],
 ) -> dict[str, str]:
     """Prove first ADDED intent and write admission without source or candidate edits."""
@@ -268,7 +271,7 @@ def prove_first_change(
         message = "installed_first_change_lane_missing"
         raise RuntimeError(message)
     status, selected = _handoff(executable, lane, data, environment, actor)
-    command = _official_command(status, selected)
+    command = _official_command(status, selected, origin=origin)
     _admitted(lane, executable, selected, f"{_ROOT}/.openspec.yaml")
     created = run_command(
         lane,

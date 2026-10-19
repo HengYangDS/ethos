@@ -18,6 +18,8 @@ from unittest.mock import patch
 
 from cyclopts.exceptions import CycloptsError
 
+from ethos.result import PAYLOAD_BUDGETS
+from ethos.result import EthosResult
 from ethos.surface.cli.application import app
 from ethos.surface.cli.application import load_command_groups
 
@@ -76,11 +78,30 @@ def _without_test_git_config_overlay(env: MutableMapping[str, str]) -> dict[str,
     return clean
 
 
-def run_ethos(*args: str, cwd: Path | None = None) -> dict[str, Any]:
+def run_ethos(*args: str, cwd: Path | None = None, full_payload: bool = False) -> dict[str, Any]:
+    """Preserve native output; read exact bounded detail only when explicitly requested."""
     completed = run_ethos_raw(*args, cwd=cwd)
     if completed.returncode != 0:
         raise AssertionError(completed.stderr or completed.stdout)
-    return json.loads(completed.stdout)
+    payload = json.loads(completed.stdout)
+    if (
+        full_payload
+        and payload["command"] in PAYLOAD_BUDGETS
+        and set(payload["data"]) == {"artifact_reference"}
+    ):
+        reference = payload["data"]["artifact_reference"]
+        content = Path(reference["path"]).read_bytes()
+        assert reference["media_type"] == "application/json", "payload_artifact_mismatch"
+        assert len(content) == reference["size_bytes"], "payload_artifact_mismatch"
+        assert f"sha256:{hashlib.sha256(content).hexdigest()}" == reference["sha256"], (
+            "payload_artifact_mismatch"
+        )
+        expanded = EthosResult.from_payload(json.loads(content)).to_dict()
+        assert all(expanded[key] == value for key, value in payload.items() if key != "data"), (
+            "payload_artifact_mismatch"
+        )
+        return expanded
+    return payload
 
 
 def result_data(payload: dict[str, Any]) -> dict[str, Any]:

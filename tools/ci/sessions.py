@@ -11,7 +11,6 @@ import sys
 from importlib import import_module
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Literal
 from typing import cast
 
 from tools.ci.toolchain.environment import ProjectRuntime
@@ -20,10 +19,10 @@ ROOT = Path(__file__).resolve().parents[2]
 RUNTIME = ProjectRuntime.discover(ROOT)
 RUFF_CACHE = ROOT / "build/runtime/tool-cache/ruff"
 PRE_COMMIT_CONFIG = ".config/checks/pre-commit/.pre-commit-config.yaml"
-PRETTIER_CONFIG = ".config/checks/prettier/prettier.toml"
 GITLEAKS_CONFIG = ROOT / ".config/checks/gitleaks/gitleaks.toml"
 PUBLIC_SESSIONS = (
     "lint",
+    "format",
     "format_check",
     "fix",
     "tests",
@@ -104,63 +103,60 @@ def _host(session, name: str) -> None:
     )
 
 
+def source_format(session) -> None:
+    """Project native preview or explicitly authorized fixing without owning format policy."""
+    _source_format(session, checking=False)
+
+
 def format_check(session) -> None:
-    lint(session)
-    config_quality(session)
-    markdown_lint(session)
-    shell_lint(session)
-    javascript_lint(session)
-    svg_lint(session)
-    asset_validation(session)
+    """Check the exact same selected native postimages without source writes."""
+    _source_format(session, checking=True)
+
+
+def _source_format(session, *, checking: bool) -> None:
+    session.run(
+        str(RUNTIME.python),
+        "-B",
+        "-m",
+        "ethos.cli",
+        "lane",
+        "format",
+        "--root",
+        str(ROOT),
+        *(("--check",) if checking else ()),
+        *session.posargs,
+        "--json",
+    )
+
+
+SESSION_IMPLEMENTATIONS = {"format": source_format}
 
 
 def fix(session) -> None:
-    """Apply the common formatters to the carriers that format_check verifies."""
-    paths = _python_paths(session)
-    RUFF_CACHE.mkdir(parents=True, exist_ok=True)
-    common = ("--cache-dir", str(RUFF_CACHE), "--config", ".config/checks/ruff/ruff.toml")
-    executable = RUNTIME.script("ruff")
-    session.run(executable, "check", "--fix", *common, *paths)
-    session.run(executable, "format", *common, *paths)
-    selection = import_module("ethos.adapters.gates.format_selection").audit(ROOT)
-    if selection["failures"]:
-        session.error("Format ownership unresolved: " + json.dumps(selection["failures"]))
-    originals = {
-        item["path"]: (ROOT / item["path"]).read_bytes()
-        for item in selection["assignments"]
-        if item["format_owner"] in {"prettier", "taplo"}
-        and item["mutation_policy"] == "native-formatter"
-    }
-    render = import_module("ethos.adapters.gates.tool").format_source_contents
-    rendered = {
-        relative: content
-        for owner in ("prettier", "taplo")
-        for relative, content in render(
-            ROOT,
-            owner,
-            {
-                item["path"]: originals[item["path"]]
-                for item in selection["assignments"]
-                if item["format_owner"] == owner and item["path"] in originals
-            },
-        ).items()
-    }
-    if any((ROOT / relative).read_bytes() != content for relative, content in originals.items()):
-        session.error("Format input changed during native rendering")
-    for relative, content in rendered.items():
-        if content != originals[relative]:
-            (ROOT / relative).write_bytes(content)
+    """Project explicit fixing through the native source-format admission owner."""
+    head = cast("str", session.run("git", "rev-parse", "HEAD", silent=True)).strip()
+    session.run(
+        str(RUNTIME.python),
+        "-B",
+        "-m",
+        "ethos.cli",
+        "lane",
+        "format",
+        "--root",
+        str(ROOT),
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        head,
+        *session.posargs,
+        "--json",
+    )
 
 
 def lint(session) -> None:
     paths = _python_paths(session)
     RUFF_CACHE.mkdir(parents=True, exist_ok=True)
-    common = (
-        "--cache-dir",
-        str(RUFF_CACHE),
-        "--config",
-        ".config/checks/ruff/ruff.toml",
-    )
+    common = ("--cache-dir", str(RUFF_CACHE), "--config", ".config/checks/ruff/ruff.toml")
     executable = RUNTIME.script("ruff")
     session.run(executable, "check", "--ignore-noqa", *common, *paths)
     session.run(executable, "format", *common, "--check", *paths)
@@ -264,7 +260,7 @@ def architecture_projection(session) -> None:
 
 
 def format_selection(session) -> None:
-    if import_module("ethos.adapters.gates.format_selection").main():
+    if import_module("tools.ci.format_selection").main():
         session.error("format selection policy did not pass")
 
 
@@ -276,8 +272,9 @@ def repository_hygiene(session) -> None:
 
 def prose(session) -> None:
     report = import_module("ethos.adapters.gates.tool").prose_report(ROOT)
+    session.log(json.dumps(report))
     if report["verdict"] != "pass":
-        session.error("Prose quality failed:\n" + json.dumps(report["required_gaps"], indent=2))
+        session.error("native spelling did not pass")
 
 
 def secrets(session) -> None:
@@ -328,64 +325,25 @@ def shell_lint(session) -> None:
     paths = _paths("*.sh")
     if paths:
         session.run(
-            RUNTIME.script("shellcheck"),
-            "--rcfile=.config/checks/shellcheck/.shellcheckrc",
-            *paths,
+            RUNTIME.script("shellcheck"), "--rcfile=.config/checks/shellcheck/.shellcheckrc", *paths
         )
         session.run(RUNTIME.script("shfmt"), "-d", *paths)
 
 
-def prettier_paths() -> tuple[str, ...]:
-    """Select the carriers whose declared format owner is Prettier, as the paradigm names them."""
-    paradigm = import_module("ethos.contracts.paradigm.declaration").load_repository_paradigm()
-    suffixes = next(item.suffixes for item in paradigm.formatter if item.tool == "prettier")
-    audit = import_module("ethos.adapters.gates.format_selection").audit(ROOT)
-    return tuple(
-        item["path"]
-        for item in audit["assignments"]
-        if item["format_owner"] == "prettier" and item["path"].endswith(suffixes)
-    )
-
-
-def _prettier(session, *paths: str, write: bool = False) -> None:
-    """Format or check the declared Prettier carriers with the locked binary."""
-    if not paths:
-        return
-    node = RUNTIME.node_executable()
-    prettier = RUNTIME.node_package_supply() / "prettier/bin/prettier.cjs"
-    if not prettier.is_file():
-        session.error("locked prettier is missing; run npm ci --ignore-scripts")
-    session.run(
-        str(node),
-        str(prettier),
-        "--config",
-        PRETTIER_CONFIG,
-        "--write" if write else "--check",
-        *paths,
-    )
-
-
-def _document_report(session, *, kind: Literal["format", "prose"]) -> None:
-    """Nox projects the product-owned nonmutating authoring check."""
-    report = import_module("ethos.adapters.gates.markdown").working_document_report(ROOT, kind=kind)
-    session.log(json.dumps(report, sort_keys=True))
-    if report["verdict"] != "pass":
-        session.error(json.dumps(report))
-
-
 def markdown_lint(session) -> None:
-    _document_report(session, kind="format")
-    _prettier(session, *(path for path in prettier_paths() if not path.endswith(".md")))
+    report = import_module("ethos.adapters.gates.tool").markdown_lint_report(ROOT)
+    session.log(json.dumps(report))
+    if report["verdict"] != "pass":
+        session.error("native Markdown format and semantic lint did not pass")
 
 
 def config_quality(session) -> None:
     report = import_module("ethos.adapters.gates.configuration").configuration_report(
         ROOT, paths=tuple(session.posargs)
     )
+    session.log(json.dumps(report))
     if report["verdict"] != "pass":
-        session.error(
-            "Configuration quality failed:\n" + json.dumps(report["required_gaps"], indent=2)
-        )
+        session.error("configuration quality failed: " + str(report["required_gaps"]))
     if not session.posargs or PRE_COMMIT_CONFIG in session.posargs:
         session.run(RUNTIME.script("pre-commit"), "validate-config", PRE_COMMIT_CONFIG)
 
@@ -499,48 +457,22 @@ def javascript_lint(session) -> None:
         observation = analyzer.static_observation(ROOT, paths)
         if observation["verdict"] != "pass":
             session.error(json.dumps(observation))
-        node = RUNTIME.node_executable()
-        prettier = RUNTIME.node_package_supply() / "prettier/bin/prettier.cjs"
-        session.run(
-            str(node),
-            str(prettier),
-            "--check",
-            "--no-config",
-            "--print-width",
-            "100",
-            *paths,
-        )
+        _check_source_paths(session, paths)
 
 
 def svg_lint(session) -> None:
     paths = _paths("*.svg")
-    if not paths:
-        return
-    node = RUNTIME.node_executable()
-    svgo = RUNTIME.node_package_supply() / "svgo/bin/svgo.js"
-    for relative in paths:
-        result = subprocess.run(
-            (
-                str(node),
-                str(svgo),
-                "--multipass",
-                "--pretty",
-                "--indent",
-                "2",
-                "--eol",
-                "lf",
-                "--final-newline",
-                "--input",
-                relative,
-                "--output",
-                "-",
-            ),
-            cwd=ROOT,
-            capture_output=True,
-            check=True,
-        )
-        if result.stdout != (ROOT / relative).read_bytes():
-            session.error(f"{relative}: SVG format drift")
+    if paths:
+        _check_source_paths(session, paths)
+
+
+def _check_source_paths(session, paths: tuple[str, ...]) -> None:
+    report = import_module("ethos.adapters.gates.formatting").source_format_report(
+        ROOT, paths=paths
+    )
+    session.log(json.dumps(report))
+    if report["verdict"] != "pass":
+        session.error("native source formatting did not pass")
 
 
 def asset_validation(session) -> None:

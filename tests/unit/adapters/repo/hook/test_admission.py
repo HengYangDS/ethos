@@ -59,16 +59,16 @@ def _commit_fixture(repo: Path, message: str) -> None:
 @pytest.mark.parametrize(
     ("extend", "gap"),
     [
-        ('extend = "base.toml"\n', ""),
-        ("extend = 1\n", f"pre_commit_native_policy_invalid_dependency:{_FORMAT_POLICY}"),
+        ('extend = "../../../config/base.toml"\n', ""),
+        (
+            "extend = 1\n",
+            "pre_commit_native_policy_invalid_dependency:.config/checks/ruff/ruff.toml",
+        ),
         (
             'extend = "../../../../outside.toml"\n',
-            f"pre_commit_native_policy_outside_root:{_FORMAT_POLICY}",
+            "pre_commit_native_policy_outside_root:.config/checks/ruff/ruff.toml",
         ),
-        (
-            'extend = "missing.toml"\n',
-            "pre_commit_native_policy_unavailable:.config/checks/ruff/missing.toml",
-        ),
+        ('extend = "../../../missing.toml"\n', "pre_commit_native_policy_unavailable:missing.toml"),
     ],
     ids=["closure", "type", "outside", "missing"],
 )
@@ -77,28 +77,43 @@ def test_pre_commit_projects_the_exact_staged_formatter_closure(
 ) -> None:
     """Formatter includes resolve once inside the staged policy closure or fail closed."""
     (repo / "change.py").write_text("VALUE = 1\n")
-    policy = repo / _FORMAT_POLICY
-    policy.parent.mkdir(parents=True)
-    policy.write_text(extend + "line-length = 100\n")
-    (policy.parent / "base.toml").write_text("indent-width = 4\n")
-    assert git_process(repo, "add", "change.py", ".config").returncode == 0
+    (repo / ".config/checks/ruff").mkdir(parents=True)
+    (repo / ".config/checks/ruff/ruff.toml").write_text(extend + "line-length = 100\n")
+    (repo / "config").mkdir()
+    (repo / "config/base.toml").write_text("indent-width = 4\n")
+    assert (
+        git_process(
+            repo, "add", "change.py", ".config/checks/ruff/ruff.toml", "config/base.toml"
+        ).returncode
+        == 0
+    )
     assert execute_hook(repo, "pre-commit", (), stdin=StringIO()) == int(bool(gap))
     error = capsys.readouterr().err
     assert (gap in error) if gap else not error
 
 
 @pytest.mark.parametrize(
-    "retained", [".gitleaks.toml", "ruff.toml", ".gitleaksignore", ".ruff.toml"]
+    ("canonical", "retained"),
+    [
+        (".config/checks/ruff/ruff.toml", "ruff.toml"),
+        (".config/checks/gitleaks/gitleaks.toml", ".gitleaks.toml"),
+        (".config/checks/gitleaks/gitleaksignore", ".gitleaksignore"),
+    ],
+    ids=["ruff", "gitleaks", "gitleaks-ignore"],
 )
-def test_pre_commit_names_native_policy_left_at_the_root(
-    repo: Path, capsys: pytest.CaptureFixture[str], retained: str
+def test_pre_commit_requires_the_single_canonical_native_policy(
+    repo: Path, capsys: pytest.CaptureFixture[str], canonical: str, retained: str
 ) -> None:
-    """A root policy carrier is a named gap, never a silently skipped check."""
-    (repo / retained).write_text("line-length = 100\n")
-    (repo / "notes.txt").write_text("staged\n")
-    assert git_process(repo, "add", retained, "notes.txt").returncode == 0
+    """Canonical nested selection rejects a competing root policy before execution."""
+    path = repo / canonical
+    path.parent.mkdir(parents=True)
+    path.write_text("title = 'native policy'\n")
+    (repo / retained).write_text("title = 'competing root policy'\n")
+    assert git_process(repo, "add", ".").returncode == 0
+    before = {p: p.read_bytes() for p in repo.rglob("*") if p.is_file()}
     assert execute_hook(repo, "pre-commit", (), stdin=StringIO()) == 1
     assert f"pre_commit_native_policy_noncanonical:{retained}" in capsys.readouterr().err
+    assert {p: p.read_bytes() for p in repo.rglob("*") if p.is_file()} == before
 
 
 def test_pre_commit_does_not_format_a_staged_deletion(
@@ -106,10 +121,9 @@ def test_pre_commit_does_not_format_a_staged_deletion(
 ) -> None:
     """A committed Python source staged for deletion has no index bytes to format."""
     (repo / "change.py").write_text("VALUE=1\n")
-    policy = repo / _FORMAT_POLICY
-    policy.parent.mkdir(parents=True)
-    policy.write_text("line-length = 100\n")
-    assert git_process(repo, "add", "change.py", _FORMAT_POLICY).returncode == 0
+    (repo / ".config/checks/ruff").mkdir(parents=True)
+    (repo / ".config/checks/ruff/ruff.toml").write_text("line-length = 100\n")
+    assert git_process(repo, "add", "change.py", ".config/checks/ruff/ruff.toml").returncode == 0
     _commit_fixture(repo, "record formatter and source")
     assert git_process(repo, "rm", "--quiet", "change.py").returncode == 0
 
@@ -129,15 +143,21 @@ def test_pre_commit_scans_the_staged_secret_policy_closure(
     outcome: str,
 ) -> None:
     """Gitleaks reads the staged policy closure and ignore file, never working-tree policy."""
-    policy = repo / _SECRET_POLICY
-    policy.parent.mkdir(parents=True)
-    policy.write_text('[extend]\npath = "config/base.toml"\n')
+    (repo / ".config/checks/gitleaks").mkdir(parents=True, exist_ok=True)
+    (repo / ".config/checks/gitleaks/gitleaks.toml").write_text(
+        '[extend]\npath = "config/base.toml"\n'
+    )
     (repo / "config").mkdir()
-    (repo / "config/base.toml").write_text(f'[extend]\npath = "{_SECRET_POLICY}"\n')
-    (repo / _SECRET_IGNORE).write_text("fixture:ignored\n")
+    (repo / "config/base.toml").write_text(
+        '[extend]\npath = ".config/checks/gitleaks/gitleaks.toml"\n'
+    )
+    (repo / ".config/checks/gitleaks/gitleaksignore").write_text("fixture:ignored\n")
     (repo / "notes.txt").write_text("staged\n")
     assert git_process(repo, "add", ".").returncode == 0
-    policy.write_text("title = 'unstaged working policy'\n")
+    (repo / ".config/checks/gitleaks").mkdir(parents=True, exist_ok=True)
+    (repo / ".config/checks/gitleaks/gitleaks.toml").write_text(
+        "title = 'unstaged working policy'\n"
+    )
     monkeypatch.setattr(
         hook_runtime, "shutil", SimpleNamespace(which=lambda _name: "/fixture/gitleaks")
     )
@@ -167,7 +187,7 @@ def test_pre_commit_scans_the_staged_secret_policy_closure(
     assert command[:3] == ("/fixture/gitleaks", "git", "--staged")
     assert env["GIT_WORK_TREE"] == str(cwd)
     assert projected == {
-        _SECRET_POLICY: '[extend]\npath = "config/base.toml"\n',
-        _SECRET_IGNORE: "fixture:ignored\n",
-        "config/base.toml": f'[extend]\npath = "{_SECRET_POLICY}"\n',
+        ".config/checks/gitleaks/gitleaks.toml": '[extend]\npath = "config/base.toml"\n',
+        ".config/checks/gitleaks/gitleaksignore": "fixture:ignored\n",
+        "config/base.toml": '[extend]\npath = ".config/checks/gitleaks/gitleaks.toml"\n',
     }

@@ -43,7 +43,6 @@ def _gate(
     )
 
 
-@pytest.mark.usefixtures("python_gate_artifact")
 def test_test_gate_replaces_stale_allure_results_in_the_same_attempt(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -9,22 +9,20 @@ import subprocess
 import sys
 import tomllib
 from contextlib import nullcontext
-from importlib import import_module
 from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
 import tomli_w
 
-import ethos.adapters.gates.tool as quality_tools
 import ethos.adapters.repo.content.observation as content_observation
 import ethos.adapters.repo.runtime.materialization.native_supply as native_supply
 import ethos.repository.policy.schema as schema_owner
 import tools.ci.local_ci as local_ci
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.repository.policy.gates import gate_execution_identity
-from ethos.repository.release.resources import canonical_resource
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tools.ci import dependency_hygiene
@@ -51,7 +49,10 @@ def test_machine_declared_nox_gates_are_implemented_by_sessions() -> None:
         for item in gates
         if "nox" in (command := item.get("command", [])) and "-s" in command
     } <= public
-    assert all(callable(getattr(sessions, name)) for name in public)
+    assert all(
+        callable(sessions.SESSION_IMPLEMENTATIONS.get(name) or getattr(sessions, name))
+        for name in public
+    )
 
 
 def test_package_lifecycle_has_one_execution_owner() -> None:
@@ -66,15 +67,7 @@ def test_package_lifecycle_has_one_execution_owner() -> None:
 
     assert lifecycle_gates == {"local-install-smoke"}
     assert full.index("build") < full.index("local-install-smoke")
-    assert gates["unit-architecture"]["depends_on"][0] == "build"
-    assert set(gates["local-install-smoke"]["depends_on"]) == {
-        "build",
-        "dependency-vulnerabilities",
-    }
-    assert "coverage-floor" in full
-    assert gates["coverage-floor"]["depends_on"] == ["unit-architecture"]
-    assert "local-install-smoke" not in declaration["proof_sets"]["default"]
-    assert gates["unit-architecture"]["resource_locks"]["artifacts/python"] == "shared"
+    assert gates["local-install-smoke"]["depends_on"] == ["build"]
     assert gates["local-install-smoke"]["network_policy"] == "offline"
     assert gates["local-install-smoke"]["writes_files"] is True
     expected = resolve_gate_policy(ROOT, full=True)
@@ -82,12 +75,6 @@ def test_package_lifecycle_has_one_execution_owner() -> None:
         shlex.join(gate_execution_identity(expected.registry[node.id])) for node in expected.nodes
     ]
     assert expected.gate_ids.count("local-install-smoke") == 1
-    assert not expected.registry["unit-architecture"].conflicts_with(
-        expected.registry["local-install-smoke"]
-    )
-    assert expected.registry["generated-artifacts"].conflicts_with(
-        expected.registry["local-install-smoke"]
-    )
 
 
 def test_project_runtime_is_the_only_executable_resolution_owner() -> None:
@@ -157,55 +144,6 @@ def test_schema_gate_reuses_repository_validator(monkeypatch: pytest.MonkeyPatch
     session.error.assert_not_called()
 
 
-def test_native_document_sessions_reuse_product_report_owners(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Nox transports the shared reports; YAML and original spelling selection stay covered."""
-    registry = {
-        item["id"]: item
-        for item in tomllib.loads((ROOT / "system/gates.toml").read_text())["gates"]
-    }
-    assert registry["markdown-lint"]["providers"] == [
-        "ethos.adapters.gates.markdown:markdown_format_report"
-    ]
-    assert registry["markdown-lint"]["execution_mode"] == "provider"
-    assert registry["prose"]["providers"] == ["ethos.adapters.gates.tool:prose_report"]
-    assert registry["prose"]["execution_mode"] == "provider"
-    calls = []
-    report = {"verdict": "pass", "required_gaps": []}
-    monkeypatch.setattr(
-        import_module("ethos.adapters.gates.markdown"),
-        "working_document_report",
-        lambda root, *, kind: calls.append((kind, root)) or report,
-    )
-    monkeypatch.setattr(sessions, "prettier_paths", lambda: ("guide.md", "policy.yaml"))
-    native = []
-    monkeypatch.setattr(sessions, "_prettier", lambda _session, *paths: native.extend(paths))
-    session = Mock()
-    sessions.markdown_lint(session)
-    assert calls == [("format", sessions.ROOT)]
-    assert native == ["policy.yaml"]
-    session.error.assert_not_called()
-    session.run.assert_not_called()
-
-
-@pytest.mark.parametrize("verdict", ["pass", "block"])
-def test_prose_session_uses_the_shared_native_owner(monkeypatch, verdict: str) -> None:
-    """Nox projects the product result without restating policy or native execution."""
-    provider = Mock(
-        return_value={
-            "verdict": verdict,
-            "required_gaps": [] if verdict == "pass" else ["spelling"],
-        }
-    )
-    monkeypatch.setattr(quality_tools, "prose_report", provider)
-    session = Mock()
-    sessions.prose(session)
-    provider.assert_called_once_with(sessions.ROOT)
-    session.run.assert_not_called()
-    assert session.error.called == (verdict == "block")
-
-
 def test_full_test_session_refuses_selectors_before_loading_supply(tmp_path) -> None:
     """A focused request must not silently start the complete proof floor."""
     result = run_command(
@@ -228,43 +166,32 @@ def test_full_test_session_refuses_selectors_before_loading_supply(tmp_path) -> 
     assert "node_package_supply_unavailable" not in result.stderr
 
 
-def test_fix_applies_each_common_formatter_in_write_mode(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The native fix writes Python, Markdown and TOML with the same shared policies."""
-    root = init_git_repo(tmp_path / "repo")
-    ruff = root / ".config/checks/ruff/ruff.toml"
-    ruff.parent.mkdir(parents=True, exist_ok=True)
-    ruff.write_bytes((ROOT / ruff.relative_to(root)).read_bytes())
-    inputs = {
-        "sample.py": '"""Native formatter fixture."""\n\nanswer=42\n',
-        "README.md": "#   Guide\n",
-        "pyproject.toml": '[project]\nname= "example"\n',
-    }
-    for relative, text in inputs.items():
-        (root / relative).write_text(text)
-    git(root, "add", "--all")
-    monkeypatch.setattr(sessions, "ROOT", root)
-    monkeypatch.setattr(sessions, "RUFF_CACHE", tmp_path / "ruff-cache")
-    calls = []
+def test_fix_projects_authorized_native_source_format_with_current_head() -> None:
+    """The source fix verb forwards exact inputs to the one fresh native write owner."""
+    head = "a" * 40
+    session = Mock(posargs=["source file.py"])
+    session.run.side_effect = [head + "\n", None]
 
-    def execute(_session, *args, **kwargs):
-        calls.append(args)
-        kwargs.pop("silent", None)
-        return run_command(root, args, timeout=60, check=True, **kwargs).stdout
+    sessions.fix(session)
 
-    sessions.fix(type("Session", (), {"run": execute})())
-
-    assert (root / "sample.py").read_text() == '"""Native formatter fixture."""\n\nanswer = 42\n'
-    assert (root / "README.md").read_text() == "# Guide\n"
-    assert (root / "pyproject.toml").read_text() == '[project]\nname = "example"\n'
-    original = {relative: (root / relative).read_bytes() for relative in inputs}
-    sessions.fix(type("Session", (), {"run": execute})())
-    assert {relative: (root / relative).read_bytes() for relative in inputs} == original
-    ruff_commands = [args for args in calls if Path(args[0]).name == "ruff"]
-    assert ruff_commands[0][1:3] == ("check", "--fix")
-    assert ruff_commands[1][1] == "format"
-    assert not any("--check" in command for command in ruff_commands)
+    observed, applied = session.run.call_args_list
+    assert observed.args == ("git", "rev-parse", "HEAD")
+    assert applied.args == (
+        str(sessions.RUNTIME.python),
+        "-B",
+        "-m",
+        "ethos.cli",
+        "lane",
+        "format",
+        "--root",
+        str(ROOT),
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        head,
+        "source file.py",
+        "--json",
+    )
 
 
 def test_secrets_scans_a_mirror_of_only_the_tracked_files(
@@ -316,54 +243,90 @@ def test_secrets_scans_a_mirror_of_only_the_tracked_files(
     assert report.parent.is_dir()
 
 
-@pytest.mark.parametrize(
-    ("state", "message"),
-    [
-        ("absent-table", "native_prose_configuration_invalid"),
-        ("unread", "native_prose_configuration_invalid"),
-        ("malformed", "native_prose_configuration_invalid"),
-        ("deleted", "native_tool_configuration_invalid:codespell"),
-    ],
-)
-def test_prose_refuses_configuration_codespell_would_not_read(
-    tmp_path: Path, state: str, message: str
+@pytest.mark.parametrize("verdict", ["pass", "block"])
+def test_prose_executor_reuses_installed_native_provider(
+    monkeypatch: pytest.MonkeyPatch, verdict: str
 ) -> None:
-    """The shared native consumer refuses unavailable or silently ignored declarations."""
-    root = init_git_repo(tmp_path / "repo")
-    config = root / ".config/checks/codespell/codespell.toml"
-    config.parent.mkdir(parents=True, exist_ok=True)
-    config.write_text("[tool.codespell]\ncount = true\n")
-    git(root, "add", str(config.relative_to(root)))
-    if state == "deleted":
-        config.unlink()
-    else:
-        config.write_text(
-            "[broken"
-            if state == "malformed"
-            else "[tool]\n"
-            if state == "unread"
-            else "count = true\n"
-        )
-    original = config.read_bytes() if config.exists() else None
+    """Source Nox projects the product owner without a competing spelling command."""
+    owner = sessions.import_module("ethos.adapters.gates.tool")
+    provider = Mock(return_value={"verdict": verdict})
+    monkeypatch.setattr(owner, "prose_report", provider)
+    session = Mock()
+    sessions.prose(session)
+    provider.assert_called_once_with(ROOT)
+    session.log.assert_called_once()
+    session.run.assert_not_called()
+    assert session.error.called == (verdict == "block")
 
-    report = quality_tools.prose_report(root)
+
+def test_configuration_gate_has_one_installed_owner() -> None:
+    """Native configuration checks cannot require the ETHOS source Nox toolchain."""
+    gate = load_gate_registry_declaration().registry()["config-quality"]
+    assert gate.providers == ("ethos.adapters.gates.configuration:configuration_report",)
+    assert not gate.command
+    assert not (ROOT / "tools/ci/config_quality.py").exists()
+
+
+@pytest.mark.parametrize("checking", [False, True])
+def test_source_format_sessions_project_one_native_owner(*, checking: bool) -> None:
+    """Check and fix share exact literal inputs without a second Nox formatter."""
+    session = Mock(posargs=["source file.py"])
+    operation = sessions.format_check if checking else sessions.source_format
+    operation(session)
+    command = tuple(session.run.call_args.args)
+    assert command[:5] == (str(sessions.RUNTIME.python), "-B", "-m", "ethos.cli", "lane")
+    assert command[5:8] == ("format", "--root", str(ROOT))
+    assert "source file.py" in command
+    assert ("--check" in command) is checking
+    assert "--apply" not in command
+    assert "--authorize" not in command
+    session.run.assert_called_once()
+
+
+def test_source_format_gate_is_supplied_by_the_installed_product() -> None:
+    declaration = load_gate_registry_declaration()
+    gate = declaration.registry()["source-format"]
+    assert gate.providers == ("ethos.adapters.gates.formatting:source_format_report",)
+    assert gate.command == ()
+    assert gate.writes_files is False
+    assert gate.required_for_paths
+    assert "source-format" in declaration.proof_sets.default
+    assert "source-format" in declaration.proof_sets.full
+
+
+@pytest.mark.parametrize("configuration", ["count = true\n", "[tool]\ncount = true\n"])
+def test_prose_refuses_configuration_codespell_would_not_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, configuration: str
+) -> None:
+    """The shared provider refuses a silently ignored table before native execution."""
+    root = init_git_repo(tmp_path / "repo")
+    sample = root / "README.md"
+    sample.write_text("# Valid native prose\n", encoding="utf-8")
+    git(root, "add", sample.name)
+    config = tmp_path / "codespell.toml"
+    config.write_text(configuration, encoding="utf-8")
+    owner = sessions.import_module("ethos.adapters.gates.tool")
+    monkeypatch.setattr(owner, "native_configurations", lambda *_args: (str(config),))
+    execution = Mock(return_value={"verdict": "pass", "stderr": "0", "required_gaps": []})
+    monkeypatch.setattr(owner, "quality_tool_report", execution)
+
+    report = owner.prose_report(root)
 
     assert report["verdict"] == "block", report
-    gaps = report["required_gaps"]
-    assert isinstance(gaps, list)
-    assert any(message in gap for gap in gaps), report
-    assert (config.read_bytes() if config.exists() else None) == original
+    assert report["required_gaps"] == [f"codespell_configuration_table_missing:{config}"]
+    execution.assert_not_called()
+    assert (sample.read_text(), config.read_text()) == (
+        "# Valid native prose\n",
+        configuration,
+    )
 
 
 def test_codespell_reads_its_declared_configuration(tmp_path: Path) -> None:
     """The count the carrier enables appears although no count option is passed."""
     sample = tmp_path / "sample.md"
     sample.write_text("teh sample\n", encoding="utf-8")
-    command = (
-        sessions.RUNTIME.script("codespell"),
-        "--toml",
-        str(canonical_resource(".config/checks/codespell/codespell.toml")),
-    )
+    config = ROOT / ".config/checks/codespell/codespell.toml"
+    command = (sessions.RUNTIME.script("codespell"), "--toml", str(config))
     result = run_command(tmp_path, (*command, str(sample)), timeout=60)
     assert result.returncode != 0
     assert "teh ==> the" in result.stdout

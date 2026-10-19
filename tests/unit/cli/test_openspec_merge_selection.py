@@ -17,12 +17,14 @@ from ethos.adapters.openspec.commitment import load_openspec_commitment
 from ethos.adapters.openspec.governance import openspec_governance_report
 from ethos.adapters.openspec.selection import resolve_change_selection
 from ethos.adapters.repo.attestation_set import read_attestation_set
+from ethos.adapters.repo.git_effect_attestation import plan_from_attestation
 from ethos.adapters.repo.git_effect_observation import compile_observed_git_effect
 from ethos.adapters.repo.git_effects import execute_git_effect
 from ethos.adapters.repo.status.bindings import lease_generation
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.plan import git_effect_from_plan
 from ethos.contracts.value import mutable_json
 from tests.support.ethos_cli_runner import result_data
 from tests.support.ethos_cli_runner import run_ethos
@@ -99,48 +101,48 @@ def test_lane_birth_selection_uses_only_valid_applicable_native_evidence(
     branch = "work/native"
     ref = f"refs/heads/{branch}"
 
-    def effect(head):
-        return GitEffect(
+    def start(head):
+        candidate_head = side if case == "independent-base" else head
+        git(repo, "update-ref", "refs/heads/candidate/dev", candidate_head)
+        effect = GitEffect(
             updates={ref: GitRefUpdate(expected="0" * len(head), desired=head)},
-            assertions={"refs/heads/candidate/dev": side if case == "independent-base" else head},
+            assertions={"refs/heads/candidate/dev": candidate_head},
         )
-
-    def execute(value, operation, head):
         plan = compile_observed_git_effect(
             repo,
             None,
-            value,
-            head=head,
+            effect,
+            head=git(repo, "rev-parse", "HEAD"),
             policy={
-                "operation": operation,
+                "operation": "lane.start",
+                "subject": branch,
+                "holder_ref": "agent:test:case:agent-test",
+                "candidate_branch": "candidate/dev",
+            },
+        )
+        return execute_git_effect(repo, plan, issuer="agent:test:case:agent-test")
+
+    if case == "ambiguous":
+        start(base)
+        git(repo, "update-ref", "-d", ref, base)
+    elif case in {"compensated", "retired"}:
+        record = start(base)
+        inverse = git_effect_from_plan(plan_from_attestation(record)).inverse()
+        if case == "retired":
+            inverse = GitEffect(updates=inverse.updates, assertions={"refs/heads/dev": merge})
+        plan = compile_observed_git_effect(
+            repo,
+            None,
+            inverse,
+            head=merge if case == "retired" else base,
+            policy={
+                "operation": "lane.retire" if case == "retired" else "lane.start.compensate",
                 "subject": branch,
                 "holder_ref": "agent:test:case:agent-test",
                 "candidate_branch": "candidate/dev",
             },
         )
         execute_git_effect(repo, plan, issuer="agent:test:case:agent-test")
-
-    def start(head):
-        git(
-            repo,
-            "update-ref",
-            "refs/heads/candidate/dev",
-            side if case == "independent-base" else head,
-        )
-        execute(effect(head), "lane.start", git(repo, "rev-parse", "HEAD"))
-
-    if case == "ambiguous":
-        start(base)
-        git(repo, "update-ref", "-d", ref, base)
-    elif case == "compensated":
-        start(base)
-        execute(effect(base).inverse(), "lane.start.compensate", base)
-    elif case == "retired":
-        start(base)
-        retirement = GitEffect(
-            updates=effect(base).inverse().updates, assertions={"refs/heads/dev": merge}
-        )
-        execute(retirement, "lane.retire", merge)
     start(merge)
     git(repo, "checkout", branch)
     selected_root, records = read_attestation_set(repo)
@@ -294,7 +296,7 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
         {"path": "openspec/changes/static-delivery/tasks.md", "changes": ["static-delivery"]}
     ]
     for arguments in (("plan",), ("plan", "--change", "static-delivery")):
-        planned = run_ethos(*arguments, "--json", cwd=next_lane)
+        planned = run_ethos(*arguments, "--json", cwd=next_lane, full_payload=True)
         assert planned["verdict"] == "pass", planned
         assert result_data(planned)["commitment"]["id"] == "change:static-delivery"
     assert proof_gaps(next_lane, head) == ["proof_lane_mismatch"]
@@ -304,6 +306,7 @@ def test_new_lane_selects_active_intent_after_inherited_archive(pending_merge, m
         assert attestation is not None
         assert attestation.id != previous.id
         plan = mutable_json(attestation.payload.body["plan"])
+        assert isinstance(plan, dict)
         assert plan["commitment"]["id"] == "change:static-delivery"
         expected = lease_generation(leases_by_branch(next_lane)[next_branch])
         assert plan["facts"]["values"]["lease_generation"] == mutable_json(expected)
@@ -400,10 +403,10 @@ def test_process_intent_carries_product_work_through_native_integration(
         ((), "second-local"),
         (("--change", "fixture-change"), "fixture-change"),
     ):
-        planned = run_ethos("plan", *choice, "--json", cwd=work)
+        planned = run_ethos("plan", *choice, "--json", cwd=work, full_payload=True)
         assert result_data(planned)["commitment"]["id"] == f"change:{expected}"
     _prove(work, head)
-    selected = proof_attestation(work, head)
+    assert (selected := proof_attestation(work, head)) is not None
     monkeypatch.setenv("ETHOS_CHANGE", "fixture-change")
     assert proof_gaps(work, head) == ["proof_not_proven"]
     monkeypatch.setenv("ETHOS_CHANGE", "second-local")
@@ -418,13 +421,15 @@ def test_process_intent_carries_product_work_through_native_integration(
         "--apply",
         "--json",
     )
-    denied = run_ethos_blocked(*arguments, cwd=work)
-    assert denied["required_gaps"] == ["proof_not_proven"]
+    assert (denied := run_ethos_blocked(*arguments, cwd=work))["required_gaps"] == [
+        "proof_not_proven"
+    ]
     assert "--change fixture-change" in denied["next_action"]
     assert (git(work, "rev-parse", "HEAD"), git(work, "status", "--porcelain")) == (head, "")
     assert git(work, "ls-files", "--stage") == before
     other_id = _prove(work, head, "--change", "fixture-change")["id"]
     observed, gaps = proof_for_repository_transition(work, head, attestation_id=other_id)
+    assert observed is not None
     assert (observed.id, gaps) == (other_id, [])
     assert query_proof(
         work,
@@ -475,5 +480,5 @@ def test_process_intent_carries_product_work_through_native_integration(
     )
     assert git(repo, "rev-parse", "HEAD") == git(candidate, "rev-parse", "HEAD") == head
     monkeypatch.delenv("ETHOS_CHANGE")
-    planned = run_ethos("plan", "--change", "second-local", "--json", cwd=work)
+    planned = run_ethos("plan", "--change", "second-local", "--json", cwd=work, full_payload=True)
     assert result_data(planned)["commitment"]["id"] == "change:second-local"

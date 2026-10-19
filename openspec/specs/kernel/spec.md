@@ -34,7 +34,6 @@ The kernel chain SHALL preserve the root text as a judgment constraint. It
 SHALL NOT turn that text into a subsystem, feature map, or low-level implementation label.
 
 #### Scenario: Root text remains canonical and restrained
-
 - **WHEN** ETHOS adds or changes an active code, config, hook, system contract, or
   provider projection surface
 - **THEN** that surface cites concrete engineering invariants rather than philosophical labels
@@ -45,7 +44,6 @@ SHALL NOT turn that text into a subsystem, feature map, or low-level implementat
   a new truth center
 
 #### Scenario: Lifecycle declarations compile directly into TransitionPlan
-
 - **WHEN** ETHOS evaluates lifecycle, handoff, or skill-evaluation metadata
 - **THEN** tracked declarations and current facts compile directly into TransitionPlan
 - **AND** no parallel workflow-runtime read model or state store is required
@@ -53,14 +51,12 @@ SHALL NOT turn that text into a subsystem, feature map, or low-level implementat
   OpenSpec records, attestations, evidence, or command JSON
 
 ### Requirement: Closed Verdict Reduction
-
 ETHOS SHALL derive one public `verdict` from required facts and diagnostics.
 The only values are `pass`, `block`, and `unknown`; missing or unverifiable
 required facts produce `unknown`, while conflicts, explicit failures, and
 warnings produce `block`. Only `pass` may authorize an effect.
 
 #### Scenario: Required facts reduce to a closed verdict
-
 - **WHEN** ETHOS reduces current required facts and diagnostics
 - **THEN** missing or unverifiable required facts produce `unknown`, conflicts,
   explicit failures, or warnings produce `block`, and only `pass` authorizes an
@@ -68,14 +64,12 @@ warnings produce `block`. Only `pass` may authorize an effect.
 - **AND** the result has no top-level `ok` field
 
 ### Requirement: Kernel Result Contract
-
 ETHOS SHALL emit schema-version-`2` JSON result envelopes with `verdict`,
 `state`, `summary`, `diagnostics`, `required_gaps`, singular `next_action`,
 `user_decision_required`, and `data`. `continuation` and
 `missing_facts_or_evidence` are derived fields, not lifecycle state.
 
 #### Scenario: Automation reads command output
-
 - **WHEN** an automation consumer requests JSON output from an ETHOS command
 - **THEN** the response is one parseable schema-version-`2` object with the
   stable result fields
@@ -85,35 +79,29 @@ ETHOS SHALL emit schema-version-`2` JSON result envelopes with `verdict`,
   `unknown` verdict
 
 ### Requirement: Deterministic TransitionPlan
-
 ETHOS SHALL serialize TransitionPlan deterministically, including validation gaps
 for invalid dependency sets.
 
 #### Scenario: Proof readiness is planned
-
 - **WHEN** ETHOS plans or runs proof gates
 - **THEN** selected gates are represented as ordered TransitionPlan nodes with
   explicit dependencies and validation gaps
 
 ### Requirement: Physical Target Product Homes
-
 ETHOS SHALL provide buildable target product package homes for the semantic kernel,
 contracts, repository semantics, assistants, adapters, CLI, and conformance
 proof.
 
 #### Scenario: Target package homes are audited
-
 - **WHEN** architecture tests inspect product package topology
 - **THEN** each target package has package metadata and a canonical README
 - **AND** semantic target packages do not import provider execution modules
 
 ### Requirement: Product Core Adopter Isolation
-
 ETHOS SHALL keep adopter-specific domain names out of product Python code except
 for explicit parity contract records.
 
 #### Scenario: Product code is scanned
-
 - **WHEN** architecture tests scan package source files
 - **THEN** adopter names are absent from semantic product implementation code
 

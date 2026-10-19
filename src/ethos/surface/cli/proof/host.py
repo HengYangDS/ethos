@@ -25,21 +25,10 @@ def host_probe_boundary(*, host: bool, probe: bool) -> dict[str, object]:
 
 
 def host_gate_observation(
-    *,
-    repo: Path,
-    gate_ids: tuple[str, ...],
-    expect_head: str | None,
-    product_gate_ids: tuple[str, ...] = (),
-    full: bool = False,
+    *, repo: Path, gate_ids: tuple[str, ...], expect_head: str | None, full: bool = False
 ) -> EthosResult:
     """Execute focused gates without repository lifecycle or Attestation authority."""
-    observed = observe_gate_execution(
-        repo,
-        gate_ids=gate_ids,
-        product_gate_ids=product_gate_ids,
-        full=full,
-        expect_head=expect_head,
-    )
+    observed = observe_gate_execution(repo, gate_ids=gate_ids, full=full, expect_head=expect_head)
     checks, required_gaps = observed["checks"], tuple(observed["required_gaps"])
     current_head, verdict = observed["head"], observed["verdict"]
     return EthosResult(

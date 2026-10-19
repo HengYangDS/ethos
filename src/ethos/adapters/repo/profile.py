@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import tomllib
 from typing import TYPE_CHECKING
+from typing import NamedTuple
 
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.git_object import resolve_revisions
+from ethos.repository.openspec.audit import accepted_spec_root_gaps
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import load_repository_profile
@@ -63,6 +65,65 @@ def repository_identity(
     return _profile_identity(profile)
 
 
+def repository_identities(
+    root: Path,
+    tree_refs: tuple[str, ...],
+    *,
+    environment: Mapping[str, str] | None = None,
+    historical: bool = False,
+    optional: frozenset[str] = frozenset(),
+) -> dict[str, str]:
+    """Read every selected relationship afresh, then decode each complete profile once."""
+    selected = tuple(dict.fromkeys(tree_refs))
+    required = tuple(revision for revision in selected if revision not in optional)
+    reader = historical_repository_identity if historical else repository_identity
+    identities = {}
+    unbatched = (
+        selected
+        if len(required) <= 2
+        else tuple(revision for revision in selected if revision in optional)
+    )
+    for revision in unbatched:
+        try:
+            identities[revision] = reader(root, tree_ref=revision, environment=environment)
+        except ValueError:
+            if revision not in optional:
+                raise
+    if len(required) <= 2:
+        return identities
+    observed = resolve_revisions(
+        root,
+        tuple(f"{revision}:.ethos/profile.toml" for revision in required),
+        environment=environment,
+    )
+    object_ids = tuple(dict.fromkeys(identity for identity in observed.values() if identity))
+    payloads = dict(
+        zip(object_ids, read_objects(root, object_ids, environment=environment), strict=True)
+    )
+    decoded: dict[str, str] = {}
+    for revision in required:
+        identity = observed[f"{revision}:.ethos/profile.toml"]
+        if identity not in decoded:
+            payload = payloads.get(identity, b"")
+            decoded[identity] = (
+                _historical_identity(payload)
+                if historical
+                else _profile_identity(
+                    repository_profile_from_text(
+                        root, exists=bool(identity), text=payload.decode("utf-8")
+                    )
+                )
+            )
+        identities[revision] = decoded[identity]
+    return {revision: identities[revision] for revision in selected if revision in identities}
+
+
+def _profile_identity(profile: RepositoryProfile) -> str:
+    if profile.state != "valid" or profile.declaration is None:
+        raise ValueError(INVALID_PROFILE_ERROR)
+    return f"repository:{profile.declaration.profile_id}"
+
+
 def historical_repository_identity(
     root: Path,
     *,
@@ -84,60 +145,6 @@ def historical_repository_identity(
     return _historical_identity(result.stdout)
 
 
-def repository_identities(
-    root: Path,
-    tree_refs: tuple[str, ...],
-    *,
-    environment: Mapping[str, str] | None = None,
-    historical: bool = False,
-    optional: frozenset[str] = frozenset(),
-) -> dict[str, str]:
-    """Read every selected relationship afresh, then decode each complete profile once."""
-    selected = tuple(dict.fromkeys(tree_refs))
-    if len(selected) <= 2 or optional:
-        reader = historical_repository_identity if historical else repository_identity
-        identities = {}
-        for revision in selected:
-            try:
-                identities[revision] = reader(root, tree_ref=revision, environment=environment)
-            except ValueError:
-                if revision not in optional:
-                    raise
-        return identities
-    observed = resolve_revisions(
-        root,
-        tuple(f"{revision}:.ethos/profile.toml" for revision in selected),
-        environment=environment,
-    )
-    object_ids = tuple(dict.fromkeys(identity for identity in observed.values() if identity))
-    payloads = dict(
-        zip(object_ids, read_objects(root, object_ids, environment=environment), strict=True)
-    )
-    decoded: dict[str, str] = {}
-    identities: dict[str, str] = {}
-    for revision in selected:
-        identity = observed[f"{revision}:.ethos/profile.toml"]
-        if identity not in decoded:
-            payload = payloads.get(identity, b"")
-            decoded[identity] = (
-                _historical_identity(payload)
-                if historical
-                else _profile_identity(
-                    repository_profile_from_text(
-                        root, exists=bool(identity), text=payload.decode("utf-8")
-                    )
-                )
-            )
-        identities[revision] = decoded[identity]
-    return identities
-
-
-def _profile_identity(profile: RepositoryProfile) -> str:
-    if profile.state != "valid" or profile.declaration is None:
-        raise ValueError(INVALID_PROFILE_ERROR)
-    return f"repository:{profile.declaration.profile_id}"
-
-
 def _historical_identity(payload: bytes) -> str:
     message = "repository_historical_identity_invalid:.ethos/profile.toml"
     try:
@@ -148,3 +155,43 @@ def _historical_identity(payload: bytes) -> str:
     if not isinstance(profile_id, str) or not profile_id:
         raise ValueError(message)
     return f"repository:{profile_id}"
+
+
+class ProfilePostimage(NamedTuple):
+    """One strict profile observation, identity and narrowly bound repair eligibility."""
+
+    gap: str
+    profile_id: str
+    metadata_repair: bool
+
+
+def profile_postimage(root: Path, postimages: Mapping[str, str | None]) -> ProfilePostimage:
+    """Validate the strict profile and recognize only additive metadata binding repair."""
+    text = postimages.get(".ethos/profile.toml")
+    if text is None:
+        return ProfilePostimage(gap="", profile_id="", metadata_repair=False)
+    proposed = repository_profile_from_text(root, exists=True, text=text).declaration
+    if proposed is None:
+        return ProfilePostimage(gap=INVALID_PROFILE_ERROR, profile_id="", metadata_repair=False)
+    current = load_repository_profile(root).declaration
+    repair = False
+    if (
+        len(postimages) == 1
+        and current is not None
+        and current.openspec is not None
+        and proposed.openspec is not None
+    ):
+        fields = ("capability_metadata", "specs_root_metadata")
+        previous = {field: getattr(current.openspec, field) for field in fields}
+        incoming = {field: getattr(proposed.openspec, field) for field in fields}
+        restored = proposed.model_copy(
+            update={"openspec": proposed.openspec.model_copy(update=previous)}
+        )
+        repair = (
+            previous != incoming
+            and all(item in incoming[field] for field in fields for item in previous[field])
+            and restored == current
+            and set(accepted_spec_root_gaps(root / "openspec/specs", policy=proposed.openspec))
+            < set(accepted_spec_root_gaps(root / "openspec/specs", policy=current.openspec))
+        )
+    return ProfilePostimage("", proposed.profile_id, repair)

@@ -21,6 +21,7 @@ import ethos.adapters.openspec.selection as selection
 import tests.support.governed_repository as fixture
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
+from tests.support.openspec_lifecycle import official_validation_payload
 
 
 def _repo(tmp_path: Path) -> Path:
@@ -173,7 +174,7 @@ def test_public_plan_batches_fresh_intent_and_preserves_native_failure(
                 result.update(
                     exit_code=1,
                     stderr="native validation stopped without item diagnostics",
-                    json={"items": []},
+                    json=official_validation_payload(root, []),
                 )
                 observed.append(result)
         return results

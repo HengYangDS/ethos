@@ -2,18 +2,26 @@
 
 from __future__ import annotations
 
+import json
 import re
+import tomllib
 from typing import TYPE_CHECKING
 from typing import cast
+
+import yaml
 
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.verdict import reduce_verdicts
 from ethos.contracts.verdict import report_verdict
 from ethos.repository.openspec.identifiers import logical_change_identifier_issue
+from ethos.repository.profile import INVALID_PROFILE_ERROR
+from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
     from collections.abc import Collection
     from pathlib import Path
+
+    from ethos.contracts.openspec.models import OpenSpecPolicy
 
 OPENSPEC_SPEC_OBLIGATION_PATTERN = re.compile(r"^\*\*(WHEN|THEN|AND)\*\*")
 _OPEN_SPEC_CHANGE_PATH_MIN_PARTS = 4
@@ -153,30 +161,101 @@ def changed_openspec_spec_obligation_removal_gaps(diff_text: str | None) -> list
     return gaps
 
 
-def accepted_spec_root_gaps(specs_root: Path) -> list[str]:
+def accepted_spec_root_gaps(specs_root: Path, *, policy: OpenSpecPolicy | None = None) -> list[str]:
     """Accept no prior capabilities; validate the physical shape when specs exist."""
     if not specs_root.exists() and not specs_root.is_symlink():
         return []
     if not specs_root.is_dir() or specs_root.is_symlink():
         return ["openspec_specs_not_directory"]
-    gaps: list[str] = []
-    for entry in sorted(specs_root.iterdir(), key=lambda path: path.name):
-        if entry.name == "README.md":
-            if not entry.is_file() or entry.is_symlink():
-                gaps.append("openspec_specs_root_entry_unexpected:README.md")
-            continue
-        if not entry.is_dir() or entry.is_symlink():
-            gaps.append(f"openspec_specs_root_entry_unexpected:{entry.name}")
-            continue
-        spec = entry / "spec.md"
-        gaps.extend(
-            f"openspec_spec_capability_entry_unexpected:{entry.name}:{child.name}"
-            for child in sorted(entry.iterdir(), key=lambda path: path.name)
-            if child.name != "spec.md" or not child.is_file() or child.is_symlink()
+    root = specs_root.parent.parent
+    if policy is None:
+        profile = load_repository_profile(root)
+        if profile.state == "invalid":
+            return [INVALID_PROFILE_ERROR]
+        policy = profile.declaration.openspec if profile.declaration is not None else None
+    metadata, root_metadata = (
+        (
+            {item.file_name: item.authority_ref for item in policy.capability_metadata},
+            {item.file_name: item.authority_ref for item in policy.specs_root_metadata},
         )
-        if not spec.is_file() or spec.is_symlink():
-            gaps.append(f"openspec_spec_capability_spec_missing:{entry.name}")
+        if policy
+        else ({}, {})
+    )
+    gaps = [
+        f"openspec_metadata_authority_unavailable:{name}:{authority}"
+        for name, authority in (*metadata.items(), *root_metadata.items())
+        if not _regular_repository_file(root, root / authority)
+    ]
+    for entry in sorted(specs_root.iterdir(), key=lambda path: path.name):
+        gaps.extend(_specs_root_member_gaps(root, entry, metadata, root_metadata))
     return gaps
+
+
+def _specs_root_member_gaps(
+    root: Path, entry: Path, metadata: Collection[str], root_metadata: Collection[str]
+) -> list[str]:
+    """Classify one native root member without giving data capability authority."""
+    if entry.name in root_metadata:
+        return (
+            []
+            if _regular_repository_file(root, entry) and _valid_metadata(entry)
+            else [f"openspec_specs_root_metadata_invalid:{entry.name}"]
+        )
+    if entry.name == "README.md":
+        return (
+            []
+            if _regular_repository_file(root, entry)
+            else ["openspec_specs_root_entry_unexpected:README.md"]
+        )
+    if not entry.is_dir() or entry.is_symlink():
+        return [f"openspec_specs_root_entry_unexpected:{entry.name}"]
+    return _capability_member_gaps(root, entry, metadata)
+
+
+def _capability_member_gaps(root: Path, capability: Path, metadata: Collection[str]) -> list[str]:
+    """Validate one normative spec and its explicitly selected supplemental data."""
+    gaps = []
+    for child in sorted(capability.iterdir(), key=lambda path: path.name):
+        if child.name not in {"spec.md", *metadata} or not _regular_repository_file(root, child):
+            gaps.append(f"openspec_spec_capability_entry_unexpected:{capability.name}:{child.name}")
+        elif child.name in metadata and not _valid_metadata(child):
+            gaps.append(f"openspec_capability_metadata_invalid:{capability.name}:{child.name}")
+    spec = capability / "spec.md"
+    if not spec.is_file() or spec.is_symlink():
+        gaps.append(f"openspec_spec_capability_spec_missing:{capability.name}")
+    return gaps
+
+
+def _regular_repository_file(root: Path, path: Path) -> bool:
+    """Require each native path component and a contained regular file."""
+    try:
+        relative = path.relative_to(root)
+        current = root
+        for part in relative.parts:
+            current /= part
+            if current.is_symlink():
+                return False
+        return path.is_file() and path.resolve().is_relative_to(root.resolve())
+    except (OSError, ValueError):
+        return False
+
+
+def _valid_metadata(path: Path) -> bool:
+    """Parse only native data; the declared domain owner validates its meaning."""
+    try:
+        if path.stat().st_mode & 0o111:
+            return False
+        text = path.read_text(encoding="utf-8")
+        payload = (
+            tomllib.loads(text)
+            if path.suffix == ".toml"
+            else json.loads(text)
+            if path.suffix == ".json"
+            else yaml.safe_load(text)
+        )
+        return isinstance(payload, dict) and bool(payload)
+    except (OSError, UnicodeError, ValueError, yaml.YAMLError):
+        return False
 
 
 def openspec_shape_report(

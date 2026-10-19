@@ -25,6 +25,7 @@ def adopt(
     authorize: bool = False,
     expect_head: str | None = None,
     expect_plan_digest: str | None = None,
+    select_runtime: bool = False,
     json_output: JsonFlag = False,
 ) -> None:
     """Plan or apply ETHOS adoption for a repository."""
@@ -47,5 +48,6 @@ def adopt(
         authorize=authorize,
         expect_head=expect_head,
         expect_plan_digest=expect_plan_digest,
+        select_runtime=select_runtime,
     )
     emit(result, json_output=json_output, enforce=apply)

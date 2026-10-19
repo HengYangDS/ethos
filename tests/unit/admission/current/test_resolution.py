@@ -68,6 +68,22 @@ def test_current_resolution_preserves_the_first_authority_gap() -> None:
     assert resolution.user_decision_required is False
 
 
+def test_scope_projection_retains_resolution_failure_and_recovery() -> None:
+    """Each consumer receives the same closed failure and executable recovery facts."""
+    resolution = resolve_current_resolution(
+        ROOT,
+        status={"role": "work_lane", "head": HEAD},
+        authority=authority(verdict="block", reason="invocation_actor_missing:work/example"),
+    )
+
+    scope = resolution.scope_report()
+
+    assert scope["verdict"] == resolution.verdict
+    assert scope["required_gaps"] == list(resolution.required_gaps)
+    assert scope["next_action"] == resolution.next_action
+    assert scope["user_decision_required"] is resolution.user_decision_required
+
+
 def test_current_resolution_owns_acceptance_and_fresh_paths(monkeypatch) -> None:
     commitment = Commitment(
         schema_version=3,

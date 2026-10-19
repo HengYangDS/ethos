@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 import ethos.adapters.openspec.governance as governance
 import ethos.adapters.openspec.lifecycle.report as report
@@ -19,6 +16,7 @@ from tests.support.governed_repository import init_git_repo
 from tests.support.governed_repository import prepared_work_lane
 from tests.support.governed_repository import write_active_commitment
 from tests.support.governed_repository import write_test_profile
+from tests.support.openspec_lifecycle import official_validation_payload
 
 
 def _completed(name: str = "change", **updates: object) -> dict[str, object]:
@@ -26,7 +24,7 @@ def _completed(name: str = "change", **updates: object) -> dict[str, object]:
 
 
 def _validation_item(**fields: object) -> dict[str, object]:
-    return {"id": "native", "type": "change", "valid": True, **fields}
+    return {"id": "native", "type": "change", "valid": True, "issues": [], **fields}
 
 
 def test_public_prewrite_closes_combined_inherited_validation_repair(
@@ -209,7 +207,20 @@ def test_validation_results_preserve_execution_and_item_failures(
 ) -> None:
     """Neither process success nor missing diagnostics can erase native failure."""
     expected = expected or (["openspec_validate_failed"] if exit_code else [])
-    validation = {"exit_code": exit_code, "json": payload, "parse_error": parse_error}
+    payload = dict(payload)
+    if isinstance(payload.get("items"), list) and all(
+        isinstance(item, dict) for item in payload["items"]
+    ):
+        payload = official_validation_payload(tmp_path, payload["items"])
+    elif "itemFindings" in payload:
+        envelope = official_validation_payload(tmp_path, payload["itemFindings"])
+        payload.update(summary=envelope["summary"], root=envelope["root"])
+    validation = {
+        "exit_code": exit_code,
+        "json": payload,
+        "parse_error": parse_error,
+        "cwd": tmp_path.resolve().as_posix(),
+    }
     expected = expected + (["openspec_validate_json_parse_failed"] if parse_error else [])
     monkeypatch.setattr(governance.openspec_cli, "openspec_base_command", lambda: ("native",))
     monkeypatch.setattr(governance.openspec_cli, "run_json", lambda *_args: validation)
@@ -255,7 +266,9 @@ def test_official_rows_selection_and_command_gaps_reject_malformed_authority() -
         doctor=result(json={"root": {"healthy": True}}),
         list_result=result(),
         status=result(parse_error="invalid"),
-        validate=result(json={"items": []}),
+        validate=result(
+            json=official_validation_payload(Path("/repository"), []), cwd="/repository"
+        ),
         selected=None,
     )
     assert gaps == ["openspec_status_json_parse_failed"]

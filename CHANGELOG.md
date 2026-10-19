@@ -82,6 +82,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- An active proposal or design that lacks a heading of its official template no longer locks
+  its repository. Strict validation accepts such a Change, so prewrite previously blocked every
+  path on the template gap, including the drifted file and an exact restoring patch. When template
+  drift is the only blocking gap, prewrite now admits the selected Change's drifted files, and no
+  other path, for repair; any other blocking gap keeps the repair closed.
 - Lane retirement no longer counts an empty directory that another process holds open, such as
   an agent's `.claude/.cc-writes`, as content in use; held files and non-empty directories
   still block.

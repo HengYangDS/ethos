@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.openspec.lifecycle.bootstrap import bootstrap_artifacts
 from ethos.adapters.openspec.lifecycle.bootstrap import new_change_root_intent
+from ethos.adapters.openspec.lifecycle.template_repair import template_conformance_repair_paths
 from ethos.adapters.openspec.lifecycle.validation import canonical_info_only_capabilities
 from ethos.adapters.openspec.lifecycle.validation import canonical_spec_repair_paths
 from ethos.adapters.openspec.relocation import archived_reference_repair_paths
@@ -140,7 +141,7 @@ def official_validation_repair_scope_report(
     requested_paths: tuple[str, ...],
     archived: tuple[Commitment, dict[str, object]] | None = None,
 ) -> dict[str, object]:
-    """Admit exact official files named by current strict validation failures."""
+    """Admit exact official files named by current strict validation or template failures."""
     paths = tuple(dict.fromkeys(filter(None, requested_paths)))
     if not paths or not _official_observation_available(official):
         return {}
@@ -165,6 +166,11 @@ def official_validation_repair_scope_report(
             change=change,
             official_artifact_paths=official_artifact_paths,
         )
+    if not repair_paths and archived is None:
+        state = "official_template_conformance_repair"
+        repair_paths = template_conformance_repair_paths(
+            root, official, change=change, official_artifact_paths=official_artifact_paths
+        )
     if not repair_paths:
         return {}
     covered = tuple(path for path in paths if path in repair_paths)
@@ -185,7 +191,12 @@ def official_validation_repair_scope_report(
         gaps=gaps,
     )
     report["authorized_paths"] = list(repair_paths)
-    report["next_action"] = "openspec validate --all --strict --json"
+    # ETHOS, not the official validator, reports template drift, so its status rechecks it.
+    report["next_action"] = (
+        "ethos status --json"
+        if state == "official_template_conformance_repair"
+        else "openspec validate --all --strict --json"
+    )
     return report
 
 

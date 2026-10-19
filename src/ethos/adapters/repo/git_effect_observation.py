@@ -33,8 +33,6 @@ from ethos.contracts.value import mutable_json
 from ethos.normalization.coercion import string_mapping
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from ethos.contracts.plan import GitEffect
     from ethos.contracts.plan import GitRefUpdate
     from ethos.contracts.plan import TransitionPlan
@@ -79,7 +77,7 @@ def resolve_git_effect_repository(
     current_scope: bool = True,
     historical_identity: bool = False,
 ) -> str:
-    """Resolve one repository identity across every revision touched by an effect."""
+    """Resolve one identity across an effect; only produced revisions meet today's schema."""
     if historical_identity and plan is None:
         message = "git_effect_historical_identity_plan_required"
         raise ValueError(message)
@@ -107,22 +105,27 @@ def resolve_git_effect_repository(
             )
         }
         expected |= retained
-    identity_reader = historical_repository_identity if historical_identity else repository_identity
-    identities = repository_identities(
-        root,
-        tuple(revisions),
-        environment=environment,
-        historical=historical_identity,
-        optional=frozenset(expected) if allow_absent_prestate else frozenset(),
+    produced = (
+        set()
+        if historical_identity
+        else revisions & {update.desired for update in effect.updates.values()}
     )
+    identities = {
+        **repository_identities(
+            root,
+            tuple(revisions - produced),
+            environment=environment,
+            historical=True,
+            optional=frozenset(expected) if allow_absent_prestate else frozenset(),
+        ),
+        **repository_identities(root, tuple(produced), environment=environment),
+    }
     if plan is not None and "repository_identity_transitions" in plan.policy:
         return _transition_identity(
             root, effect, plan, identities, current_scope=current_scope, environment=environment
         )
     if deletion:
-        for revision in _inherited_identities(
-            root, identities, expected, identity_reader, environment=environment
-        ):
+        for revision in _inherited_identities(root, identities, expected, environment=environment):
             del identities[revision]
     if len(set(identities.values())) != 1:
         raise ValueError(_MISMATCH)
@@ -133,7 +136,6 @@ def _inherited_identities(
     root: Path,
     identities: Mapping[str, str],
     expected: set[str],
-    identity_reader: Callable[..., str],
     *,
     environment: Mapping[str, str] | None,
 ) -> set[str]:
@@ -152,7 +154,9 @@ def _inherited_identities(
         try:
             if all(
                 base.returncode == 0
-                and identity_reader(root, tree_ref=base.stdout.strip(), environment=environment)
+                and historical_repository_identity(
+                    root, tree_ref=base.stdout.strip(), environment=environment
+                )
                 == identity
                 for base in bases
             ):

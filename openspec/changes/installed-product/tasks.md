@@ -7,39 +7,53 @@
 - [ ] 1.3 Route the remaining command family through typed application operations; verify public compatibility and remove replaced CLI-local composition.
 - [x] 1.4 Centralize root-bound adoption continuation; distinguish preview, applied, conflict, stale request and missing authorization through SDK/CLI with no planner-owned competing action.
 - [ ] 1.5 Deliver source-free, version-matched Skills/context through fresh Agent discovery, governed change, refusal, recovery and handoff; verify one native resources closure, offline executable modes and CLI/SDK/MCP agreement without user retelling.
-  - Source-only maintenance links are not adopter obligations; prior qualification: signed Git `69910fdabcf8` at this path.
+      Evidence: signed Git `69910fdabcf8` and `build/evidence/native-adopter-repair-20261011/{formed-runtime-*,installed-format-probe-*,first-change-resource-*}`; source-only maintenance links are not adopter obligations.
 - [x] 1.6 Add an explicit typed repository identity transition through the existing effect and Attestation owners; preserve ordinary cross-identity refusal and verify exact intent/proof, object-database continuity, target-ref coordinates, actor/Lease generation, per-effect one-shot recovery, independently authorized later stages and absence of compatibility aliases.
 - [x] 1.7 Reconcile the sole ETHOS binding with official OpenSpec initialization and verified mutation readiness at the shared adoption owner; preserve preview, existing customizations, precise conflicts, bounded recovery and CLI/SDK/MCP agreement without hand-rendered native configuration or a second lifecycle.
-- [ ] 1.8 Deliver profile-bound native-audit applicability through exact-source acceptance, installed runtime, native adopter proof/candidate transition and actual AIGW use. Preserve every declared gate and canonical audit input, scope, finding and expiry; refuse failed or omitted required checks before execution. Apply the official Handlebars patch and bind unchanged npm dispositions to its reviewed lock without widening subject, host, scope or expiry.
-  - Retain failed custody `b73ee412b05c`; source-purpose proof grants no closeout authority. Responsibility transfers only after reviewed native Lease handoff.
+- [ ] 1.8 Deliver profile-bound native-audit applicability through exact-source acceptance, installed runtime, native adopter proof/candidate transition and actual AIGW use independently of unrelated changes. Preserve every declared gate and canonical audit input, scope, finding and expiry; refuse failed or omitted required checks before execution. Apply the official Handlebars patch and bind unchanged npm dispositions to its reviewed lock without widening subject, host, scope or expiry.
+      Retain failed custody `b73ee412b05cf49ec4367f49613cdc9220cf121a781cda5b4a1d24d729083397`; qualify the semantic-closure owner before full proof. Source-purpose proof grants no closeout authority; responsibility transfers only after reviewed native Lease handoff.
 - [x] 1.9 Permit pure retirement deletion of pre-rename refs only when their common ancestor with every retained ref carries the inherited identity; verify introduced or unrelated identities still fail and cross-identity integration requires its explicit transition.
-  - Prior distinguishing regressions and execution evidence: signed Git `69910fdabcf8` at this path.
+      Evidence: signed Git `69910fdabcf8` at this path.
 - [x] 1.10 Permit ignored Claude Code host-local state without admitting a second agent entry point; verify `.claude/.cc-writes` can coexist with proof, remains untracked, and root `CLAUDE.md` stays refused.
-  - Prior distinguishing regressions and execution evidence: signed Git `69910fdabcf8` at this path.
+      Evidence: signed Git `69910fdabcf8` at this path.
 
 ## 2. Installed MCP Transport
 
 - [x] 2.1 Add locked FastMCP supply and the installed stdio entry; distinguish new command declarations from undeclared consumers in native admission, then verify discovery and structured schemas with a real subprocess client.
 - [x] 2.2 Bind repository and actor at startup; verify untrusted root/actor arguments cannot escape the binding.
 - [ ] 2.3 Verify valid observations, admitted mutation, denied and unknown results through CLI, SDK and MCP.
+      Evidence: `build/evidence/native-adopter-repair-20261011/control-retained-68760e251-native-acceptance-20261012.json`.
 - [ ] 2.4 Verify cancellation, deadlines, protocol-only stdout including startup failure, client exit and reconnect without duplicate effects or orphan execution.
 
 ## 3. Independent Installation
 
 - [x] 3.0 Restore the immutable POSIX console entry and verify actual installed invocation, including upgrade from a predecessor that removes it. Reject reuse of an identity-matching generation missing the required entry; preserve valid reuse, immutable old bytes and native recovery. Keep Windows entry and host dispatcher acceptance distinct.
-- [x] 3.1 Separate host immutable supply from exact repository selection; verify two repositories reuse bytes without sharing mutable state.
+- [ ] 3.1 Separate host immutable supply from exact repository selection; verify independent repository state, complete 3.1.1 and 3.1.2, and preserve valid shared-supply acceptance.
+  - [ ] 3.1.1 Qualify explicit native runtime selection without replacing incumbent domain hooks; retain independent enforcement, exact selector admission and rollback.
+        Evidence: `build/evidence/native-adopter-repair-20261011/exact-817b9fe-shared-supply-v2.json`; actual adopter cutover remains unqualified.
+  - [ ] 3.1.2 Qualify typed supplemental OpenSpec metadata and exact binding-only repair without removing native consumers or weakening normative specs and other profile obligations.
+        Evidence: `build/evidence/native-adopter-repair-20261011/{metadata-bootstrap-*,readme-native-json-*,root-companion-*}`.
 - [ ] 3.2 Prove retained-state upgrade, interruption, rollback and live-consumer-safe uninstall outside the source checkout.
-  - Historical macOS package `198a0be4`: custody `e26c9fa2ecdc`; current-package, channel and target-platform acceptance remain open.
+      Evidence: `build/evidence/native-adopter-repair-20261011/native-process-tail-retirement-*`.
 - [ ] 3.3 Migrate existing runtime consumers and remove replaced locators/generations after exact dependency and recovery checks.
 - [ ] 3.4 Resolve the builder using native Homebrew Python, portable interpreter/wheel and frozen-bundle evidence against the same complete CLI lifecycle; record the selected implementation and rejected alternatives without blocking on optional MCP expansion.
 - [ ] 3.5 Publish the native Homebrew channel from explicitly accepted release artifacts; verify clean install, CLI/MCP invocation, native upgrade ordering, selection preservation and uninstall.
 - [ ] 3.6 Qualify native macOS and Linux release targets, including hooks, recovery and credential-backed delivery. Verify shared-publisher project isolation, altered-request denial, bounded UNKNOWN recovery and consumer-safe credential transitions. Attempt native Windows without blocking required platforms; report unqualified targets explicitly.
 - [ ] 3.7 Connect explicit release construction and identity admission at the existing owners; enforce SemVer compatibility and Keep a Changelog target-entry validation, reject development publication and version reuse, verify immutable version/notes/source/artifact/tag correspondence, and reconcile unpublished targets and historical release evidence.
+      Qualify native metadata applicability, target entry, date and category checks; DDWG reuse and actual signed transport remain unqualified.
 - [ ] 3.8 Move native trust preflight before package work, preserve precise failure reasons, and qualify direct SID admission through real Windows installed acceptance.
 - [x] 3.9 Bind uv to the selected locked environment rather than an invoking environment that shares its base interpreter, so `ethos hook install` from a separately installed CLI checks the repository environment; done when a focused regression with two environments on one interpreter targets the selected one and the full proof passes.
 
 ## 4. Delivery
 
-- [ ] 4.1 Update installation, CLI/MCP and canonical plan projections from actual acceptance; keep unverified platform and hosted claims explicit.
-- [ ] 4.2 Consolidate repetitive test setup without removing distinct assertions; retain 70k product / 85k test budgets after the measured single 5k allowance, repository-external scratch and signed timeout-owner repairs `0deed1d3` and `d2e61dfcb`; qualify one exact source, package and installed client before native integration and required publication. Preserve failed proof originals; focused acceptance is not delivery.
+- [ ] 4.1 Update installation, CLI/MCP and canonical plan projections after 4.2 acceptance; preserve explicit unverified platform and hosted boundaries.
+- [ ] 4.2 Consolidate repetitive setup and native prerequisite reads without removing distinct assertions or fresh Git admission; qualify one signed final source through full proof, its exact package and installed clients, then complete native integration and required publication.
+      Dependency: integrate current candidate and requalify reference, profile and incoming-selection consumers before final proof. Retain signed transport, recovery preselection, single-source validation, timeout-owner repairs (`0deed1d3`, `d2e61dfcb`), fresh batched ignore reads and active-Change relocation. Evidence: `build/evidence/native-adopter-repair-20261011/prewrite-ignore-consumer-native-root-20261018.junit.xml`; focused acceptance is not delivery.
+  - [x] 4.2.1 Preserve retained member validation across over-budget scans and reuse native finite-output capture; verify unchanged strict semantics, failure cleanup and the same immutable-set read before and after without raising capacity or deadlines.
+        Evidence: `build/evidence/native-adopter-repair-20261011/{attestation-repeat-integrated-20261015.json,timeout-canonical-set-final-20261015.junit.xml,timeout-process-capture-acceptance-20261015.junit.xml,timeout-merge-effect-acceptance-20261015.junit.xml}`.
+  - [x] 4.2.2 Bind both native automatic ref-packing paths to the shared hook activation contract; verify real maintenance preserves refs without invoking packing, linked override removal and exact failure rollback within existing limits.
+        Evidence: `build/evidence/native-adopter-repair-20261011/timeout-maintenance-final-acceptance-20261015.junit.xml`.
 - [ ] 4.3 Update poster/social semantics while retaining the original mark, whitespace, proportions, palette and composition; verify faithful wording, readable rendering and aesthetic acceptance separately from format checks and hosted publication.
+- [x] 4.4 Bind applicable shared documentation and OpenSpec gates to authored inputs, ship native format/link execution, preserve nested YAML parameters and non-degradable shared policy, and enforce distinct declared Decision roles; qualify focused native and composition regressions without imposing the ETHOS development toolchain on adopters.
+- [ ] 4.5 Use the qualified source and package from 4.2 to migrate real adopters and cold CI; prove equivalent or stricter behavior, then retire superseded implementations, configuration, bindings and released evidence through their native owners.
+      This supplier retains exact successor inputs until qualified consumption or rejection, then retires them natively; review 2026-10-17. Evidence: `build/evidence/native-adopter-repair-20261011/{openspec-identity-20261015.*,shared-ownership-20261015.*}`.

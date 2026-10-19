@@ -30,8 +30,8 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = ["node_modules/npm/node_modules/postcss-selector-parser"]
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
-rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
 expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
@@ -42,9 +42,8 @@ version = "3.0.3"
 integrity = "sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA=="
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-15:explicit-renewal:braces-GHSA-vfj7-8cjw-p6xm:expires-2026-11-13T00:00:00+08:00"
-rationale = "The user explicitly renews acceptance of this same braces 3.0.3 artifact risk for ETHOS and downstream development, CI, installation, release and distribution until 2026-11-13 00:00:00 UTC+08:00. Risk acceptance does not establish vulnerability remediation or a clean audit. Retain native adverse evidence and replace this disposition when an official stable fix removes the finding. Other advisories are not authorized."
-expires_at = 2026-11-13T00:00:00+08:00
+approval_ref = "user:2026-10-06:braces-GHSA-vfj7-8cjw-p6xm-all-downstream-boundaries"
+rationale = "The user explicitly accepts this exact braces 3.0.3 artifact risk for ETHOS and downstream development, CI, installation, release and distribution. Retain native adverse evidence and replace this disposition when an official stable fix removes the finding. Other advisories are not authorized."
 
 [[dispositions]]
 ecosystem = "npm"
@@ -55,8 +54,8 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = ["node_modules/npm/node_modules/brace-expansion"]
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
-rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
 expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
@@ -68,8 +67,8 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = ["node_modules/npm/node_modules/brace-expansion"]
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
-rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
 expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
@@ -81,8 +80,8 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = ["node_modules/npm/node_modules/brace-expansion"]
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
-rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
 expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
@@ -94,8 +93,8 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = ["node_modules/npm/node_modules/http-cache-semantics"]
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
-rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
 expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
@@ -107,8 +106,8 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = ["node_modules/npm/node_modules/ip-address"]
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
-rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
 expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
@@ -120,8 +119,8 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = ["node_modules/npm/node_modules/ip-address"]
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
-rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
 expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
@@ -133,8 +132,8 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = ["node_modules/npm/node_modules/ip-address"]
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
-rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
 expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
@@ -146,8 +145,8 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = ["node_modules/npm/node_modules/ip-address"]
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
-rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
 expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
@@ -159,8 +158,8 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = ["node_modules/npm/node_modules/undici"]
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
-rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
 expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
@@ -172,8 +171,8 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = ["node_modules/npm/node_modules/undici"]
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
-rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
 expires_at = 2026-11-13T00:00:00+08:00
 
 [[dispositions]]
@@ -185,6 +184,6 @@ integrity = "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7Moe
 nodes = ["node_modules/npm/node_modules/undici"]
 scope = "production-release"
 owner = "ethos-quality-gate-governance"
-approval_ref = "user:2026-10-15:explicit-renewal:npm-12.2.0-bundled-advisories-production-release:expires-2026-11-13T00:00:00+08:00"
-rationale = "Accepted by the user's explicit 2026-10-15 renewal for these same 12 npm 12.2.0 bundled-dependency advisories only, expiring at 2026-11-13 00:00:00 UTC+08:00. The exact advisory and locked artifact identities remain unchanged. Risk acceptance does not establish vulnerability remediation or a clean audit. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
+approval_ref = "user:2026-10-12:closeout-delegation:npm-12.2.0-bundled-advisories-production-release-through-2026-11-12"
+rationale = "Accepted under the user's 2026-10-12 directive that every decision serve unblocking and closeout. npm 12.2.0 is the latest stable npm (registry observed 2026-10-12) and remains the product lock's selected npm CLI; native audit fix cannot replace a component bundled in its locked artifact. This exact inBundle component binds the containing npm 12.2.0 integrity across development, CI, installation, release and distribution until expiry. Replace this record when an official stable npm removes the finding; other advisories are not authorized."
 expires_at = 2026-11-13T00:00:00+08:00

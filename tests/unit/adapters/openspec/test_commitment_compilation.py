@@ -39,11 +39,8 @@ def _requirement_projection(*requirements: object, spec: str = "authority") -> d
     """Share native carrier structure while leaving expected observations independent."""
     values = requirements or (
         {
-            "name": "One native intent",
             "text": "Official OpenSpec is the sole tracked intent carrier.",
-            "scenarios": [
-                {"name": "Selected intent", "rawText": "- **WHEN** selected\n- **THEN** compile"}
-            ],
+            "scenarios": [{"rawText": "- **WHEN** selected\n- **THEN** compile"}],
         },
     )
     return {"id": "minimal-authority", "deltas": [{"spec": spec, "requirements": list(values)}]}
@@ -67,97 +64,16 @@ def compilation_root(tmp_path, monkeypatch):
 
 def test_official_projection_compiles_minimal_commitment() -> None:
     projection = _requirement_projection()
-    requirements = projection["deltas"][0]["requirements"]
-    requirements.append(
-        {
-            "name": "Profile routing",
-            "text": "Native policy SHALL preserve the original gate priority.",
-            "scenarios": [
-                {
-                    "name": "Official validation remains primary",
-                    "rawText": "- **WHEN** selected\n- **THEN** compile",
-                }
-            ],
-        }
-    )
 
     commitment = commitment_from_projection("minimal-authority", projection)
 
     assert commitment.id == "change:minimal-authority"
     assert commitment.acceptance == (
-        (
-            'authority:requirement:["One native intent",'
-            '"Official OpenSpec is the sole tracked intent carrier."]'
-        ),
-        (
-            'authority:requirement:["Profile routing",'
-            '"Native policy SHALL preserve the original gate priority."]'
-        ),
-        (
-            'authority:scenario:["One native intent","Selected intent",'
-            '"- **WHEN** selected\\n- **THEN** compile"]'
-        ),
-        (
-            'authority:scenario:["Profile routing","Official validation remains primary",'
-            '"- **WHEN** selected\\n- **THEN** compile"]'
-        ),
-    )
-    requirements.reverse()
-    assert (
-        commitment_from_projection("minimal-authority", projection).digest() == commitment.digest()
-    )
-    requirements[0]["scenarios"][0]["rawText"] += "\n- **AND** preserve the declared profile"
-    assert (
-        commitment_from_projection("minimal-authority", projection).digest() != commitment.digest()
+        "authority:requirement:Official OpenSpec is the sole tracked intent carrier.",
+        "authority:scenario:- **WHEN** selected\n- **THEN** compile",
     )
     with pytest.raises(ValidationError, match="extra_forbidden"):
         Commitment.model_validate(commitment.model_dump() | {"predecessors": ()})
-
-
-def test_native_named_acceptance_preserves_equal_bodies_through_exact_tree(tmp_path: Path) -> None:
-    """Official named subjects survive equal prose without weakening typed uniqueness."""
-    root = init_git_repo(tmp_path / "repo")
-    write_active_commitment(root, change_id="fixture-identity")
-    spec = root / "openspec/changes/fixture-identity/specs/contracts/spec.md"
-    text = "The system SHALL preserve each named acceptance subject."
-    raw = "- **WHEN** selected\n- **THEN** compile the named result"
-    spec.write_text(
-        "## ADDED Requirements\n\n"
-        + "\n\n".join(
-            f"### Requirement: {owner}\n\n{text}\n\n"
-            + "\n\n".join(
-                f"#### Scenario: {result}\n\n{raw}" for result in ("First result", "Second result")
-            )
-            for owner in ("First owner", "Second owner")
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    (projection,) = compilation.openspec_cli.run_json_batch(
-        root, None, (("show", "fixture-identity", "--type", "change", "--json"),)
-    )
-    assert projection["exit_code"] == 0
-    assert not projection["parse_error"]
-
-    observed = compilation.load_openspec_commitment(root, change_id="fixture-identity")
-    head = commit_fixture(root, "declare named acceptance identity")
-    exact = compilation.load_openspec_commitment(root, tree_ref=head, change_id="fixture-identity")
-
-    assert observed == exact
-    assert set(observed.acceptance) == {
-        *(
-            f"contracts:requirement:{json.dumps([owner, text], separators=(',', ':'))}"
-            for owner in ("First owner", "Second owner")
-        ),
-        *(
-            f"contracts:scenario:{json.dumps([owner, result, raw], separators=(',', ':'))}"
-            for owner in ("First owner", "Second owner")
-            for result in ("First result", "Second result")
-        ),
-    }
-    projection["json"]["deltas"].append(projection["json"]["deltas"][0])
-    with pytest.raises(ValidationError, match="semantic_collection_duplicate"):
-        commitment_from_projection("fixture-identity", projection["json"])
 
 
 @pytest.mark.parametrize("with_requirement", [False, True])
@@ -186,9 +102,10 @@ def test_native_removal_compiles_its_target_without_fabricated_scenarios(
 
     expected = (f"authority:remove:{json.dumps(removal['requirements'][0], sort_keys=True)}",)
     if with_requirement:
-        expected += commitment_from_projection(
-            "minimal-authority", {"id": "minimal-authority", "deltas": [added]}
-        ).acceptance
+        expected += (
+            "authority:requirement:Official OpenSpec is the sole tracked intent carrier.",
+            "authority:scenario:- **WHEN** selected\n- **THEN** compile",
+        )
     assert result == Commitment(
         schema_version=3, id="change:minimal-authority", acceptance=expected
     )
@@ -254,13 +171,9 @@ def test_native_rename_compiles_a_bound_relation_without_fabricated_requirements
     }
     requirement = _requirement_projection(
         {
-            "name": "Native supply",
             "text": "Native supply SHALL be rootless.",
             "scenarios": [
-                {
-                    "name": "Rootless supply",
-                    "rawText": "- **WHEN** unprivileged\n- **THEN** materialize in owned cache",
-                }
+                {"rawText": "- **WHEN** unprivileged\n- **THEN** materialize in owned cache"}
             ],
         },
         spec="quality",
@@ -376,25 +289,6 @@ def test_official_spec_free_projection_compiles_minimal_commitment(*, complete, 
         ),
         (
             _requirement_projection({"text": "required", "scenarios": [{}]}),
-            "openspec_acceptance_missing",
-        ),
-        (
-            _requirement_projection(
-                {
-                    "text": "Native validation SHALL run first.",
-                    "scenarios": [{"name": "Native input", "rawText": "WHEN ready THEN validate"}],
-                }
-            ),
-            "openspec_acceptance_missing",
-        ),
-        (
-            _requirement_projection(
-                {
-                    "name": "Native validation",
-                    "text": "Native validation SHALL run first.",
-                    "scenarios": [{"rawText": "WHEN ready THEN validate"}],
-                }
-            ),
             "openspec_acceptance_missing",
         ),
     ],

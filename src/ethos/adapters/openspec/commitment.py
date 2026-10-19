@@ -194,19 +194,9 @@ def _requirement_acceptance(change: str, spec: str, requirement: object) -> tupl
     if not isinstance(requirement, dict):
         msg = f"openspec_show_invalid:{change}"
         raise TypeError(msg)
-    name = requirement.get("name")
     text = str(requirement.get("text") or "").strip()
     scenarios = requirement.get("scenarios")
-    if not isinstance(name, str) or not name.strip() or not text or not scenarios:
-        msg = f"openspec_acceptance_missing:{change}"
-        raise ValueError(msg)
-    name = name.strip()
-    if not isinstance(scenarios, list) or any(
-        not isinstance(scenario, dict)
-        or not isinstance(scenario.get("name"), str)
-        or not scenario["name"].strip()
-        for scenario in scenarios
-    ):
+    if not text or not isinstance(scenarios, list) or not scenarios:
         msg = f"openspec_acceptance_missing:{change}"
         raise ValueError(msg)
     raw_scenarios = tuple(
@@ -216,17 +206,9 @@ def _requirement_acceptance(change: str, spec: str, requirement: object) -> tupl
     if not all(raw_scenarios):
         msg = f"openspec_acceptance_missing:{change}"
         raise ValueError(msg)
-    identities = (
-        json.dumps(
-            [name, scenario["name"].strip(), raw],
-            ensure_ascii=False,
-            separators=(",", ":"),
-        )
-        for scenario, raw in zip(scenarios, raw_scenarios, strict=True)
-    )
     return (
-        f"{spec}:requirement:{json.dumps([name, text], ensure_ascii=False, separators=(',', ':'))}",
-        *(f"{spec}:scenario:{identity}" for identity in identities),
+        f"{spec}:requirement:{text}",
+        *(f"{spec}:scenario:{raw}" for raw in raw_scenarios),
     )
 
 

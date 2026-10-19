@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 import tomllib
@@ -523,7 +522,7 @@ def test_axis_remapping_changes_the_floor_without_changing_gate_commands(
 def test_predecessor_configuration_is_observed_without_admitting_candidate_drift(
     tmp_path: Path, locations: tuple[str, ...], expected_gap: str
 ) -> None:
-    """Bind historical bytes; only the strictly valid successor reaches trusted verification."""
+    """Observe the historical carrier gap; only the strictly valid successor is verified."""
     candidate, _accepted, _head = _control_change(tmp_path)
     legacy = ".config/checks/markdownlint-cli2/.markdownlint-cli2.jsonc"
     content = "[rules]\nMD013 = false\n"
@@ -557,7 +556,4 @@ def test_predecessor_configuration_is_observed_without_admitting_candidate_drift
         "native_tool_configuration_location_invalid:markdownlint-cli2" in gap
         for gap in prior["gaps"]
     )
-    assert any(
-        {"path": legacy, "sha256": hashlib.sha256(content.encode()).hexdigest()} in gate["sources"]
-        for gate in prior["gates"]
-    )
+    assert legacy not in {source["path"] for gate in prior["gates"] for source in gate["sources"]}

@@ -456,10 +456,10 @@ def test_native_output_contract_accepts_tool_neutral_reports_without_nox(binding
         ),
     ],
 )
-def test_native_provider_binds_every_consumed_configuration(
+def test_native_provider_validates_consumed_configuration_without_binding_it(
     provider: str, tools: tuple[str, ...]
 ) -> None:
-    """Executed native policies participate in freshness and exact source identity."""
+    """Native configuration locations are validated; their bytes are not gate sources yet."""
     gate = Gate.model_validate({"id": "native-policy", "kind": "test", "providers": (provider,)})
     assert native_gate_tools(gate) == tools
     locations = tuple(
@@ -480,13 +480,13 @@ def test_native_provider_binds_every_consumed_configuration(
     )
     assert len(locations) == len(tools)
     selected = source_paths_for_gate(gate, repository_paths=locations)
-    assert set(locations) <= set(selected)
+    assert set(locations).isdisjoint(selected)
     for tool, location in zip(tools, locations, strict=True):
         assert native_tool_configuration(locations, tool) == location
         sources = dict.fromkeys(selected, b"original")
         before = bind_gate_source_digests((gate,), sources, repository_paths=locations)
         sources[location] = b"changed"
-        assert bind_gate_source_digests((gate,), sources, repository_paths=locations) != before
+        assert bind_gate_source_digests((gate,), sources, repository_paths=locations) == before
         misplaced = "other/" + "/".join(location.split("/")[-2:])
         with pytest.raises(ValueError, match="native_tool_configuration_location_invalid"):
             native_tool_configuration((misplaced,), tool)

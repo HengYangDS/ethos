@@ -17,8 +17,9 @@ def select_gate_declaration(
     *,
     repository_paths: tuple[str, ...] = (),
     full: bool = False,
+    product_source: bool = False,
 ) -> GateRegistryDeclaration:
-    """Compose applicable shared floors and native increments; explicit diagnosis stays focused."""
+    """Compose applicable shared floors into adopters; explicit diagnosis stays focused."""
     owned = declaration.registry()
     packaged = packaged_declaration.registry()
     authored = tuple(
@@ -30,6 +31,7 @@ def select_gate_declaration(
         gate.id
         for gate in packaged.values()
         if gate.required_for_paths
+        and not product_source
         and (
             gate.id in gate_ids
             or (

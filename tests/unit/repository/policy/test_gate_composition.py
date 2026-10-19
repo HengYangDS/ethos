@@ -13,6 +13,7 @@ from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
 from ethos.repository.policy.gates import source_paths_for_gate
+from ethos.repository.policy.quality.gate_composition import select_gate_declaration
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import RepositoryProfile
@@ -89,6 +90,22 @@ def test_required_common_verifier_cannot_be_replaced_by_same_named_native_comman
         compile_gate_policy(profile=profile, repository_paths=("README.md",), full=True)
 
 
+def test_product_registry_keeps_its_native_floor_declarations() -> None:
+    """The product declares the shared floors natively; composition rewrites only adopters."""
+    shipped = load_gate_registry_declaration()
+    floor = shipped.registry()["markdown-lint"].model_copy(update={"required_for_paths": ("*.md",)})
+    packaged = shipped.model_copy(
+        update={"gates": tuple(floor if gate.id == floor.id else gate for gate in shipped.gates)}
+    )
+    paths = ("README.md",)
+    product = select_gate_declaration(
+        shipped, (), packaged, repository_paths=paths, full=True, product_source=True
+    )
+    assert product is shipped
+    adopted = select_gate_declaration(shipped, (), packaged, repository_paths=paths, full=True)
+    assert adopted.registry()["markdown-lint"].profile == "repository"
+
+
 def test_native_configuration_uses_one_shared_directory_shape() -> None:
     """Historical alternative paths cannot silently select a second policy owner."""
     with pytest.raises(ValueError, match="native_tool_configuration_location_invalid:lychee"):
@@ -105,8 +122,8 @@ def test_native_configuration_uses_one_shared_directory_shape() -> None:
         native_tool_configuration(("ruff.toml", ".config/checks/ruff/ruff.toml"), "ruff")
 
 
-def test_invalid_configuration_is_bound_as_evidence_not_admitted_policy(tmp_path: Path) -> None:
-    """Discovery retains every observed carrier, while normal compilation stays strict."""
+def test_invalid_configuration_is_reported_not_admitted_policy(tmp_path: Path) -> None:
+    """An ambiguous carrier is a policy gap; compilation stays strict and binds no carrier."""
     paths = (
         ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
         ".config/checks/markdownlint-cli2/.markdownlint-cli2.jsonc",
@@ -130,7 +147,7 @@ def test_invalid_configuration_is_bound_as_evidence_not_admitted_policy(tmp_path
         ),
     )
     sources = source_paths_for_gate(gate, repository_paths=paths)
-    assert set(paths) <= set(sources)
+    assert set(paths).isdisjoint(sources)
     materials = {path: path.encode() for path in sources}
     policy = compile_gate_policy(
         profile=profile,

@@ -445,6 +445,7 @@ def resolve_gate_policy(
         _PACKAGED_GATE_DECLARATION,
         repository_paths=repository_paths,
         full=full,
+        product_source=product_source,
     )
     python_executable = repository_python or sys.executable
     gates = tuple(

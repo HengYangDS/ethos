@@ -11,6 +11,7 @@ import pytest
 from ethos.adapters.admission.patch_admission import patch_admission
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
 from ethos.repository.policy.references.manifests import NodeManifest
+from ethos.repository.policy.references.observation import installed_distribution_modules
 from ethos.repository.policy.references.observation import reference_consumer_sources_from_files
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import render_repository_profile
@@ -21,6 +22,8 @@ if TYPE_CHECKING:
 
 
 NPM_ENGINE = {"name": "npm", "version": "12.2.0", "onFail": "error"}
+ADOPTER_PROJECT = '[project]\nname = "adopter"\ndependencies = ["PyYAML==6.0.3"]\n'
+INSTALLED = {"pyyaml": ("_yaml", "yaml"), "requests": ("requests",)}
 
 
 @pytest.mark.parametrize(
@@ -104,6 +107,95 @@ def test_valid_repository_binding_inherits_product_console_ownership() -> None:
     assert owned["executable"] == {"ethos"}
     assert owned["distribution"] == set()
     assert owned["import"] == set()
+
+
+@pytest.mark.parametrize(
+    ("policy", "installed", "expected"),
+    [
+        ("", {}, {"pyyaml"}),
+        ("", INSTALLED, {"_yaml", "yaml"}),
+        (
+            'known_first_party = ["adopter_tools"]\n[package_module_name_map]\nPyYAML = "yaml"\n',
+            INSTALLED,
+            {"adopter_tools", "yaml"},
+        ),
+        (
+            (
+                '[[package]]\nknown_first_party = ["adopter_tools"]\n'
+                'package_module_name_map = ["pyyaml=yaml|_yaml"]\n'
+            ),
+            {},
+            {"adopter_tools", "_yaml", "yaml"},
+        ),
+    ],
+    ids=("normalized", "installed", "native-map", "product-map"),
+)
+def test_declared_distributions_resolve_imports_as_native_deptry(
+    policy: str, installed: dict[str, tuple[str, ...]], expected: set[str]
+) -> None:
+    """An explicit map, then installed metadata, then the normalized name; never undeclared."""
+    files = {"pyproject.toml": ADOPTER_PROJECT, ".config/checks/deptry/policy.toml": policy}
+
+    owned = native_owned_references_from_files(files, distribution_modules=installed)
+
+    assert owned["import"] == {"adopter", *expected}
+
+
+@pytest.mark.parametrize(
+    ("installed", "added", "reason"),
+    [
+        (True, "", "baseline_product_closure_matched"),
+        (False, "", "product_reference_not_admitted_at_baseline:import:yaml"),
+        (True, "import requests\n", "product_reference_not_admitted_at_baseline:import:requests"),
+    ],
+    ids=("installed", "uninstalled", "undeclared"),
+)
+def test_patch_admission_closes_locked_imports_through_the_environment(
+    tmp_path: Path, *, installed: bool, added: str, reason: str
+) -> None:
+    """A touched carrier's locked import closes as deptry resolves it; a new one stays refused."""
+    repo = tmp_path / "adopter"
+    (repo / "tests").mkdir(parents=True)
+    git(repo, "init", "-b", "dev")
+    (repo / "pyproject.toml").write_text(ADOPTER_PROJECT, encoding="utf-8")
+    path = "tests/test_count.py"
+    before = "import yaml\n\nCOUNT = 1\n"
+    (repo / path).write_text(before, encoding="utf-8")
+    git(repo, "add", ".")
+    baseline = git(repo, "write-tree")
+    site = repo / ".venv/lib/python3.14/site-packages"
+    distributions = {
+        "PyYAML-6.0.3": {"METADATA": b"Name: PyYAML\n", "top_level.txt": b"_yaml\nyaml\n"},
+        "requests-2.32.5": {
+            "METADATA": b"Name: requests\n",
+            "RECORD": b"requests/__init__.py,,\nrequests-2.32.5.dist-info/RECORD,,\n",
+        },
+        "undecodable-1.0": {"METADATA": b"Name: undecodable\n", "top_level.txt": b"\xff"},
+        "unnamed-1.0": {"top_level.txt": b"unnamed\n"},
+    }
+    for directory, members in distributions.items() if installed else ():
+        (site / f"{directory}.dist-info").mkdir(parents=True)
+        for member, data in members.items():
+            (site / f"{directory}.dist-info" / member).write_bytes(data)
+    if installed:
+        (site / "requests").mkdir()
+        (site / "requests/__init__.py").touch()
+    patch = f"diff --git a/{path} b/{path}\n" + "".join(
+        difflib.unified_diff(
+            before.splitlines(keepends=True),
+            f"{added}import yaml\n\nCOUNT = 2\n".splitlines(keepends=True),
+            fromfile=f"a/{path}",
+            tofile=f"b/{path}",
+        )
+    )
+
+    report = patch_admission(
+        root=repo, requested_paths=(path,), baseline_head=baseline, patch=patch
+    )
+
+    assert installed_distribution_modules(repo) == (INSTALLED if installed else {})
+    assert report["reason"] == reason, report
+    assert report["verdict"] == ("pass" if reason.startswith("baseline") else "block")
 
 
 @pytest.mark.parametrize(

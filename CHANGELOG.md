@@ -15,7 +15,8 @@ historical bindings are governed by [Release Governance](docs/governance/release
 ### Changed
 
 - Accepted closeout renames a legacy release branch such as `master` to `main` with its worktree,
-  together with the legacy accepted and candidate names, instead of refusing with
+  in the same ref transaction as any legacy accepted and candidate names and from the accepted
+  root under whichever name its table gives it, instead of refusing with
   `legacy_release_rename_unsupported`. Publication retirement deletes a published legacy release
   ref and refs under a legacy proposal prefix such as `submit/` only when the workspace table
   committed at the ref's head names them; an unreadable table grants no deletion. A peer that still

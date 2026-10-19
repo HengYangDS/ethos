@@ -27,7 +27,6 @@ from ethos.repository.policy.gates import ResolvedGatePolicy
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import RepositoryProfileDeclaration
-from tests.support.gate_floors import restore_packaged_floors
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
@@ -521,10 +520,9 @@ def test_axis_remapping_changes_the_floor_without_changing_gate_commands(
     ],
 )
 def test_predecessor_configuration_is_observed_without_admitting_candidate_drift(
-    tmp_path: Path, locations: tuple[str, ...], expected_gap: str, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, locations: tuple[str, ...], expected_gap: str
 ) -> None:
     """Observe the historical carrier gap; only the strictly valid successor is verified."""
-    restore_packaged_floors(monkeypatch)
     candidate, _accepted, _head = _control_change(tmp_path)
     legacy = ".config/checks/markdownlint-cli2/.markdownlint-cli2.jsonc"
     content = "[rules]\nMD013 = false\n"

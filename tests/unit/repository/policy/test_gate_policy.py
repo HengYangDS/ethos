@@ -66,6 +66,10 @@ def test_document_profile_applicability_follows_the_selected_git_tree(tmp_path: 
     assert set(documents.gate_ids) == {
         "docs-registry",
         "markdown-links",
+        "markdown-lint",
+        "prose",
+        "config-quality",
+        "source-format",
     }
     assert documents.gaps == ()
     assert "quality_floor_version" not in documents.projection["owner"]
@@ -295,6 +299,12 @@ def test_gate_policy_binds_committed_sources_and_reports_missing_source(
     first = dict(resolve_proof_policies(repo, tree_ref=head))[floor]
     assert set(first.gate_ids) == {
         "check",
+        "docs-registry",
+        "markdown-links",
+        "markdown-lint",
+        "config-quality",
+        "source-format",
+        "prose",
         *({"publish"} if floor == "full" else set()),
     }
     assert first.gaps == _MISSING_QUALITY

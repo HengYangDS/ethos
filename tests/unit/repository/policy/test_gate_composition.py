@@ -19,21 +19,11 @@ from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import SourceContract
-from tests.support.gate_floors import restore_packaged_floors
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ethos.contracts.gates import GateRegistryDeclaration
 
-
-@pytest.fixture
-def packaged_floors(monkeypatch: pytest.MonkeyPatch) -> GateRegistryDeclaration:
-    """Supply the packaged floor applicability that the stage-1 shipped registry withholds."""
-    return restore_packaged_floors(monkeypatch)
-
-
-@pytest.mark.usefixtures("packaged_floors")
 @pytest.mark.parametrize("mode", ["default", "full", "focused"])
 def test_applicable_common_document_floor_preserves_native_increment_and_focus(
     tmp_path: Path, mode: str
@@ -77,7 +67,6 @@ def test_applicable_common_document_floor_preserves_native_increment_and_focus(
         assert {gate["id"] for gate in policy.projection["gates"]} == {"native", *common}
 
 
-@pytest.mark.usefixtures("packaged_floors")
 def test_required_common_verifier_cannot_be_replaced_by_same_named_native_command(
     tmp_path: Path,
 ) -> None:
@@ -181,7 +170,7 @@ def test_invalid_configuration_is_reported_not_admitted_policy(tmp_path: Path) -
 
 @pytest.mark.parametrize("mode", ["default", "full", "focused"])
 def test_same_executor_preserves_the_complete_applicable_common_contract(
-    tmp_path: Path, mode: str, packaged_floors: GateRegistryDeclaration
+    tmp_path: Path, mode: str
 ) -> None:
     """A native redeclaration cannot lower the shared floor's policy or evidence bounds."""
     profile = RepositoryProfile(
@@ -215,8 +204,10 @@ def test_same_executor_preserves_the_complete_applicable_common_contract(
         gate_ids=("markdown-lint",) if mode == "focused" else (),
         full=mode == "full",
     )
-    expected = packaged_floors.registry()["markdown-lint"].model_copy(
-        update={"profile": "repository", "tool_adapter": "ethos"}
+    expected = (
+        load_gate_registry_declaration()
+        .registry()["markdown-lint"]
+        .model_copy(update={"profile": "repository", "tool_adapter": "ethos"})
     )
     assert policy.registry["markdown-lint"] == expected
     assert profile.declaration is not None

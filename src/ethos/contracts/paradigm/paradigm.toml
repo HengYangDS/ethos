@@ -89,6 +89,15 @@ files = [".github/workflows/*.yaml", ".github/workflows/*.yml"]
 id = "gitlab"
 files = [".gitlab-ci.yml"]
 
+# A CI step keeps a shell program only as an official installer or operating-system glue
+# that the retention record names by Forge file, job and the SHA-256 of its parsed step
+# text, with its owner, reason, platforms and target-platform evidence. Review judges the
+# evidence; the paradigm checks that each record is complete and still matches its jobs.
+[pipelines.retention]
+record = ".config/ci/retained-steps.toml"
+classes = ["official-installer", "operating-system-glue"]
+platforms = ["darwin", "linux", "windows"]
+
 # The commit subject grammar and signature every governed repository shares. A
 # repository may restrict scopes to a declared list; the type set does not vary, and
 # every commit carries an SSH signature.

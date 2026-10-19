@@ -42,6 +42,10 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
     assert grammar.endswith(r"(\((cli)\))?!?: .+")
     assert paradigm.openspec.artifact_schema == "spec-driven"
     assert all(paradigm.openspec.rules.model_dump().values())
+    retention = paradigm.pipelines.retention
+    assert retention.record == ".config/ci/retained-steps.toml"
+    assert retention.classes == ("official-installer", "operating-system-glue")
+    assert retention.platforms == ("darwin", "linux", "windows")
 
 
 @pytest.mark.parametrize(
@@ -58,6 +62,8 @@ def test_packaged_paradigm_names_canonical_carriers() -> None:
         "openspec-unknown-artifact",
         "openspec-other-schema",
         "openspec-empty-rules",
+        "retention-unknown-key",
+        "retention-no-classes",
     ],
 )
 def test_paradigm_declaration_fails_closed(mutation: str) -> None:
@@ -81,10 +87,24 @@ def test_paradigm_declaration_fails_closed(mutation: str) -> None:
         modules[0] = {**modules[0], "lock_scope": "optional"}
     elif mutation == "duplicate-table":
         tools.append(
-            {"id": "copy", "carrier": ".config/checks/copy/copy.toml", "manifest_tables": ["ruff"]}
+            {
+                "id": "copy",
+                "carrier": ".config/checks/copy/copy.toml",
+                "manifest_tables": ["ruff"],
+            }
         )
     elif mutation == "size-not-positive":
         payload["size"] = {**payload["size"], "python_effective_lines": 0}
+    elif mutation.startswith("retention-"):
+        pipelines = payload["pipelines"]
+        assert isinstance(pipelines, dict)
+        retention = pipelines["retention"]
+        assert isinstance(retention, dict)
+        pipelines["retention"] = (
+            {**retention, "waiver": "always"}
+            if mutation == "retention-unknown-key"
+            else {**retention, "classes": []}
+        )
     elif mutation.startswith("openspec-"):
         openspec = payload["openspec"]
         assert isinstance(openspec, dict)
@@ -94,7 +114,10 @@ def test_paradigm_declaration_fails_closed(mutation: str) -> None:
                 "rules": {**openspec["rules"], "review": ["Review it."]},
             },
             "openspec-other-schema": {**openspec, "artifact_schema": "custom"},
-            "openspec-empty-rules": {**openspec, "rules": {**openspec["rules"], "tasks": []}},
+            "openspec-empty-rules": {
+                **openspec,
+                "rules": {**openspec["rules"], "tasks": []},
+            },
         }[mutation]
     else:
         tools[0] = {**tools[0], "exceptions": ["mise.toml"]}
@@ -104,7 +127,12 @@ def test_paradigm_declaration_fails_closed(mutation: str) -> None:
 
 @pytest.mark.parametrize(
     "commit",
-    [{"types": ["fix", "fix"]}, {"types": []}, {"scope": "[a-z"}, {"breaking_marker": "!!"}],
+    [
+        {"types": ["fix", "fix"]},
+        {"types": []},
+        {"scope": "[a-z"},
+        {"breaking_marker": "!!"},
+    ],
     ids=["duplicate-type", "no-types", "uncompilable-scope", "marker-length"],
 )
 def test_commit_grammar_fails_closed(commit: dict[str, object]) -> None:

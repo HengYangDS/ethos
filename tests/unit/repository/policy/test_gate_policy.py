@@ -470,7 +470,7 @@ def test_gate_policy_identity_binds_profile_semantics_and_python_command(tmp_pat
 
 
 def test_script_discovery_reads_selected_git_object_not_mutable_checkout(tmp_path: Path) -> None:
-    """Script role follows Git content at the selected tree or index."""
+    """Script role follows Git content at the selected tree or index; malformed views refuse."""
     repo = init_git_repo(tmp_path / "repo")
     write_script_gate_policy(repo)
     (repo / "notes.txt").write_text("example\n#!/bin/sh\n", encoding="utf-8")
@@ -487,6 +487,19 @@ def test_script_discovery_reads_selected_git_object_not_mutable_checkout(tmp_pat
     git(repo, "add", "tools/check.sh")
     assert "tools/check.sh" not in resolve_gate_policy(repo).script_paths
     assert resolve_gate_policy(repo, tree_ref=head).script_paths == committed.script_paths
+
+    script.rename(repo / "tools/target.sh")
+    script.symlink_to("target.sh")
+    assert "gate_policy_source_missing:check:tools/check.sh" in resolve_gate_policy(repo).gaps
+    git(repo, "update-index", "--add", "--cacheinfo", f"160000,{head},\udcff")
+    with pytest.raises(ValueError, match="quality_subject_path_encoding_unknown"):
+        resolve_gate_policy(repo)
+    git(repo, "config", "grep.column", "true")
+    with pytest.raises(ValueError, match="quality_script_discovery_invalid"):
+        resolve_gate_policy(repo, tree_ref=head)
+    git(repo, "config", "grep.threads", "invalid")
+    with pytest.raises(ValueError, match="quality_script_discovery_unknown"):
+        resolve_gate_policy(repo, tree_ref=head)
 
 
 def test_carrier_role_projection_reads_selected_git_tree(tmp_path: Path) -> None:

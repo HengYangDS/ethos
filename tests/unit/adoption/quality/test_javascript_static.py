@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import json
+import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
 
 import ethos.adapters.gates.code_quality as native_quality
+import ethos.adapters.gates.javascript.analysis as analysis
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import init_git_repo
 
@@ -75,8 +78,10 @@ _BROWSER_CALLBACK = (
             '[[environment]]\npaths = ["missing.mjs"]\nglobals = ["browser"]\nreason = "x"\n',
             "block",
         ),
+        ("[[environment]\n", "block"),
+        ("", "block"),
     ],
-    ids=["undeclared", "declared", "unknown-set", "no-reason", "untracked-path"],
+    ids=["undeclared", "declared", "unknown-set", "no-reason", "untracked-path", "syntax", "empty"],
 )
 def test_javascript_static_quality_admits_only_a_declared_execution_environment(
     tmp_path: Path, policy: str | None, verdict: str
@@ -92,6 +97,8 @@ def test_javascript_static_quality_admits_only_a_declared_execution_environment(
     commit_fixture(repo, "browser callback source")
     report = native_quality.static_report(repo)
     assert report["verdict"] == verdict, report
+    # A refused declaration stops before ESLint; an absent or valid one lets ESLint judge.
+    assert ("native" in report) is (policy is None or verdict == "pass"), report
 
 
 def test_a_declared_environment_does_not_extend_to_other_files(tmp_path: Path) -> None:
@@ -115,3 +122,27 @@ def test_a_declared_environment_does_not_extend_to_other_files(tmp_path: Path) -
         item["filePath"].rsplit("/", 1)[-1] for item in native["reports"] if item["errorCount"]
     }
     assert failing == {"server.mjs"}
+
+
+@pytest.mark.parametrize(
+    ("name", "reported", "gap"),
+    [
+        ("answer.js", "answer.js", "javascript_package_type_invalid"),
+        ("answer.cjs", "other.cjs", "javascript_static_report_invalid"),
+        ("answer.cjs", "answer.cjs", "javascript_static_source_changed"),
+    ],
+)
+def test_eslint_reports_bind_the_unchanged_source(tmp_path, monkeypatch, name, reported, gap):
+    """Only .js reads the package type; ESLint must report each requested file, unchanged."""
+    (tmp_path / "package.json").write_text('{"type": "esm"}\n')
+    (tmp_path / name).write_text("module.exports = 42;\n")
+    report = {"filePath": tmp_path / reported, "messages": [], "errorCount": 0, "warningCount": 0}
+
+    # The ESLint process is the only substituted boundary; it edits the source as it runs.
+    def eslint(*_args, **_options):
+        (tmp_path / name).write_text("module.exports = 43;\n")
+        return subprocess.CompletedProcess((), 0, json.dumps([report], default=str), "")
+
+    monkeypatch.setattr(analysis, "run_command", eslint)
+    with pytest.raises(ValueError, match=f"^{gap}$"):
+        analysis.static_observation(tmp_path, (name,), node="node")

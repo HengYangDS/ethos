@@ -15,6 +15,7 @@ import ethos.adapters.gates.code_quality as code_quality
 from ethos.adapters.gates.formatting import prepare_source_format
 from ethos.adapters.gates.native.attempt import native_attempt
 from ethos.adapters.gates.native.attempt import retained_execution
+from ethos.adapters.gates.native.evidence import native_report
 from ethos.adapters.gates.verification import NativeExecution
 from ethos.contracts.gates import Gate
 from ethos.repository.policy.gates import gate_execution_identity
@@ -53,7 +54,7 @@ def _cobertura(root: Path, hits: int) -> str:
     )
 
 
-def _sarif(root: Path, *, inventory: bool = True, finding: bool = False) -> str:
+def _sarif(root: Path, outcome: str) -> str:
     result = {
         "ruleId": "SC2086",
         "level": "warning",
@@ -64,37 +65,42 @@ def _sarif(root: Path, *, inventory: bool = True, finding: bool = False) -> str:
     }
     run: dict[str, object] = {
         "tool": {"driver": {"name": "linter"}},
-        "results": [result] if finding else [],
+        "invocations": [{"executionSuccessful": outcome != "aborted"}],
+        "results": [result] if outcome == "finding" else [],
     }
-    if inventory:
+    if outcome != "unscoped":
         run["artifacts"] = [
             {"location": {"uri": path}, "roles": ["analysisTarget"]}
             for path in ("bin/run.sh", "tests/run_test.sh")
+            if outcome != "empty-inventory"
         ]
     return json.dumps({"version": "2.1.0", "runs": [run]})
 
 
 def _execution(root: Path, outcome: str) -> NativeExecution:
-    """Run one native attempt whose reports describe the committed scripts."""
+    """Run one native attempt whose declared reports describe the committed scripts."""
     resolved = root.resolve()
+    measured = "tests/run_test.sh" if outcome == "tests-only" else "bin/run.sh"
     reports = {
         "tests.xml": _junit(failed=outcome == "failed"),
         "coverage.xml": _cobertura(resolved, 0 if outcome == "unexecuted" else 1),
-        "coverage.lcov": "SF:bin/run.sh\nDA:2,1\nend_of_record\n",
-        "lint.sarif": _sarif(
-            resolved, inventory=outcome != "unscoped", finding=outcome == "finding"
-        ),
+        "coverage.lcov": f"SF:{measured}\nDA:2,1\nend_of_record\n",
+        "lint.sarif": _sarif(resolved, outcome),
+        "events.jsonl": "",
     }
-    coverage = "coverage.lcov" if outcome == "lcov" else "coverage.xml"
+    coverage = "coverage.lcov" if outcome in {"lcov", "tests-only"} else "coverage.xml"
     outputs = [
         {"path": "tests.xml", "format": "junit-xml", "sessions": ("tests",)},
         {
             "path": coverage,
-            "format": "lcov" if outcome == "lcov" else "cobertura-xml",
+            "format": "lcov" if coverage == "coverage.lcov" else "cobertura-xml",
             "sessions": ("untested" if outcome == "untested" else "tests",),
         },
         {"path": "lint.sarif", "format": "sarif", "sessions": ("lint",)},
+        # Pytest events from a session that wrote no JUnit report.
+        {"path": "events.jsonl", "format": "pytest-jsonl", "sessions": ("events",)},
     ]
+    declared = {"no-sarif": outputs[:2], "no-tests": outputs[2:3], "unpaired-events": outputs}
     gate = Gate.model_validate(
         {
             "id": "native-scripts",
@@ -104,7 +110,7 @@ def _execution(root: Path, outcome: str) -> NativeExecution:
                 "ethos.adapters.gates.code_quality:behavior_report",
                 "ethos.adapters.gates.code_quality:static_report",
             ),
-            "native_outputs": tuple(outputs),
+            "native_outputs": tuple(declared.get(outcome, outputs[:3])),
         }
     )
     completed, evidence = native_attempt(root, gate, gate.command, timeout=45)
@@ -132,6 +138,12 @@ def _execution(root: Path, outcome: str) -> NativeExecution:
         ("untested", "quality_behavior_native_coverage_untested", ""),
         ("finding", "", "quality_static-analysis_native_static_findings:SC2086:bin/run.sh"),
         ("unscoped", "", "quality_static-analysis_native_static_scope_unknown:lint.sarif"),
+        ("tests-only", "quality_behavior_native_behavior_scope_empty", ""),
+        ("unpaired-events", "quality_behavior_python_native_pytest_scope_invalid", ""),
+        ("no-tests", "quality_behavior_native_behavior_missing", ""),
+        ("no-sarif", "", "quality_static-analysis_native_static_missing"),
+        ("aborted", "", "quality_static-analysis_native_static_run_failed:sarif_execution_failed"),
+        ("empty-inventory", "", "quality_static-analysis_native_static_scope_empty"),
     ],
 )
 def test_script_reports_are_judged_by_property(
@@ -155,6 +167,12 @@ def test_script_reports_are_judged_by_property(
             assert evidence["selected_paths"] == (
                 ["bin/run.sh"] if axis == "behavior" else ["bin/run.sh", "tests/run_test.sh"]
             )
+
+
+def test_native_report_requires_the_attempts_retained_evidence(tmp_path: Path) -> None:
+    """An attempt that retained no native reports is refused before any property is judged."""
+    with pytest.raises(ValueError, match=r"^native_evidence_unavailable$"):
+        native_report(tmp_path, NativeExecution((), (), tmp_path, 0, "", ""), "behavior")
 
 
 def test_ethos_checks_claim_only_the_languages_they_judge(tmp_path: Path) -> None:

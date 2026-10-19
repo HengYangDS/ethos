@@ -391,16 +391,3 @@ def deleted_python_input_gaps(
             for module in sorted(imported & retired.keys())
         )
     return gaps, unknown
-
-
-def plain_method_class(node: ast.ClassDef, required: frozenset[str]) -> bool:
-    """An ordinary class of undecorated methods that defines one of the required names."""
-    return (
-        not (node.bases or node.decorator_list or node.keywords)
-        and all(
-            (isinstance(item, ast.FunctionDef) and not item.decorator_list)
-            or (isinstance(item, ast.Expr) and isinstance(item.value, ast.Constant))
-            for item in node.body
-        )
-        and any(getattr(item, "name", "") in required for item in node.body)
-    )

@@ -129,7 +129,7 @@ def _floor_owned(repo: Path, ref: str) -> bool:
 def test_product_registry_is_recognized_by_history_shared_with_the_running_build(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A rewritten or edited product keeps its owner; foreign history and paths keep the floor."""
+    """Shared history keeps the product owner; foreign history, paths or unknown builds do not."""
     repo = init_git_repo(tmp_path / "repo")
     root = git(repo, "rev-parse", "HEAD")
     write_script_gate_policy(repo, full=True)
@@ -161,4 +161,6 @@ def test_product_registry_is_recognized_by_history_shared_with_the_running_build
         moved: True,
     }
     monkeypatch.setattr(gate_policy, "invoking_source_commit", lambda: "0" * 40)
+    assert _floor_owned(repo, build)
+    monkeypatch.setattr(gate_policy, "invoking_source_commit", (tmp_path / "absent").read_text)
     assert _floor_owned(repo, build)

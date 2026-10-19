@@ -148,24 +148,47 @@ def test_preview_apply_and_repeat_use_dirty_bytes_and_native_patch(
     assert _git_snapshot(root) == snapshot
 
 
-def test_preview_patch_mismatch_refuses_without_admission(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize(
+    ("path", "gap"),
+    [
+        ("docs/guide.md", "carrier_edit_preview_patch_mismatch"),
+        ("absent/guide.md", "carrier_edit_preimage_changed:absent/guide.md"),
+        ("../guide.md", "carrier_edit_preview_unavailable"),
+        ("unrelated.txt/guide.md", "carrier_edit_preview_unavailable"),
+    ],
+)
+def test_unusable_preview_refuses_without_admission(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, path: str, gap: str
 ) -> None:
-    """A caller cannot substitute a different action patch for its preview."""
+    """A substituted patch, a changed preimage or an unsafe path refuses before admission."""
     root = _repository(tmp_path)
     calls: list[dict[str, object]] = []
     monkeypatch.setattr(carrier_edit, "prewrite_guard", _guard(calls))
     result = carrier_edit.apply_carrier_edits(
         root=root,
-        edits=(CarrierEdit("docs/guide.md", "# Committed\n", "# New\n"),),
+        edits=(CarrierEdit(path, "# Committed\n", "# New\n"),),
         apply=True,
         preview_patch="different patch",
     )
     assert result["verdict"] == "block"
-    assert result["required_gaps"] == ["carrier_edit_preview_patch_mismatch"]
+    assert result["required_gaps"] == [gap]
     assert (root / "docs/guide.md").read_bytes() == b"# Committed\n"
     assert calls == []
+
+
+def test_duplicate_paths_and_unresolvable_head_block_before_admission(tmp_path: Path) -> None:
+    """Duplicates refuse first; an absent index is tolerated but an unresolvable HEAD blocks."""
+    root = _repository(tmp_path)
+    (root / ".git/index").unlink()
+    (root / ".git/HEAD").write_text("ref: refs/heads/packed\n")
+    (root / ".git/packed-refs").write_text("corrupt\n")
+    edit = CarrierEdit("docs/guide.md", "# Committed\n", "# New\n")
+    duplicate = carrier_edit.apply_carrier_edits(root=root, edits=(edit, edit), apply=True)
+    assert duplicate["required_gaps"] == ["carrier_edit_duplicate_path"]
+    result = carrier_edit.apply_carrier_edits(root=root, edits=(edit,), apply=True)
+    assert result["required_gaps"] == ["carrier_edit_prewrite_unavailable"]
+    assert result["failure"] == {"type": "ValueError", "message": "carrier_edit_head_unavailable"}
+    assert (root / "docs/guide.md").read_bytes() == b"# Committed\n"
 
 
 def test_missing_native_authority_refuses_without_effect(
@@ -305,11 +328,11 @@ def test_partial_native_effect_is_reobserved_without_compensation(
     assert _git_snapshot(root) == snapshot
 
 
+@pytest.mark.parametrize(("effect", "verdict"), [("diverged", "block"), ("unknown", "unknown")])
 def test_postimage_contestation_is_not_overwritten(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, effect: str, verdict: str
 ) -> None:
-    """A later author retains their bytes even when Git reported successful application."""
+    """A later author keeps their bytes, even behind an unreadable alias, after Git applied."""
     root = _repository(tmp_path)
     monkeypatch.setattr(carrier_edit, "prewrite_guard", _guard([]))
     native = carrier_edit.run_git
@@ -319,6 +342,9 @@ def test_postimage_contestation_is_not_overwritten(
         result = native(repo, *args, **options)
         if args and args[0] == "apply":
             (root / "docs/guide.md").write_bytes(intervening)
+            if effect == "unknown":
+                (root / "docs/guide.md").rename(root / "docs/later.md")
+                (root / "docs/guide.md").symlink_to("later.md")
         return result
 
     monkeypatch.setattr(carrier_edit, "run_git", contested)
@@ -327,9 +353,9 @@ def test_postimage_contestation_is_not_overwritten(
         edits=(CarrierEdit("docs/guide.md", "# Committed\n", "# New\n"),),
         apply=True,
     )
-    assert result["verdict"] == "block"
+    assert result["verdict"] == verdict
     assert result["partial_transition"] is True
-    assert result["effects"] == {"docs/guide.md": "diverged"}
+    assert result["effects"] == {"docs/guide.md": effect}
     assert result["recovery"]["contested_paths"] == ["docs/guide.md"]
     assert result["recovery"]["restorable_paths"] == []
     assert (root / "docs/guide.md").read_bytes() == intervening

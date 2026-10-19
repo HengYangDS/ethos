@@ -6,11 +6,18 @@ import pytest
 
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.openspec.selection import incoming_change_gaps
+from ethos.adapters.openspec.selection import preserved_incoming_change_paths
+from ethos.adapters.openspec.selection import resolve_change_selection
 from tests.support.governed_repository import commit_fixture
+from tests.support.governed_repository import commit_fixture_file
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.openspec_lifecycle import native_merge_fixture
 from tests.support.runtime_scenarios import git_process
+
+ACTIVE = [{"name": "active", "status": "in-progress"}]
+UNRESOLVED = (None, "openspec_change_provenance_unresolved")
+UNAVAILABLE = ["openspec_incoming_change_observation_unavailable"]
 
 
 @pytest.fixture
@@ -90,3 +97,28 @@ def test_incoming_guard_preserves_local_change_not_authored_by_peer(tmp_path):
         work, "publication", incoming, ("openspec/changes/common/tasks.md",)
     ) == ["openspec_incoming_change_modified:common"]
     assert git(work, "write-tree") == before
+
+
+def test_unattributable_histories_supply_no_change_provenance(tmp_path: Path) -> None:
+    """Unknown, unrelated, invalid, shared or octopus parents supply no Change provenance."""
+    work, invalid_tasks = init_git_repo(tmp_path / "repo"), "openspec/changes/Invalid/tasks.md"
+    heads, active = [], "openspec/changes/active/tasks.md"
+    for path in (invalid_tasks, active, active, "openspec/changes"):
+        heads.append(commit_fixture_file(work, path, f"{len(heads)}\n", "feat: side intent"))
+        git(work, "reset", "--hard", "HEAD~1")
+    invalid, own, peer, file_root = heads
+    unrelated = git(work, "commit-tree", "HEAD^{tree}", "-m", "unrelated root")
+    evil = git(work, "commit-tree", f"{invalid}^{{tree}}", "-p", "HEAD", "-p", own, "-m", "merge")
+    shared = git(work, "commit-tree", "HEAD^{tree}", "-p", own, "-p", peer, "-m", "merge")
+    octopus = git(work, "commit-tree", "HEAD^{tree}", "-p", own, "-p", peer, "-p", evil, "-m", "m")
+    for tree_ref in ("0" * 40, evil, shared, octopus):
+        assert resolve_change_selection(ACTIVE, None, root=work, tree_ref=tree_ref) == UNRESOLVED
+    for parents in ((invalid,), (unrelated,), (invalid, own)):
+        git(work, "merge", "--no-commit", "--no-ff", "--allow-unrelated-histories", *parents)
+        assert resolve_change_selection(ACTIVE, None, root=work) == UNRESOLVED
+        assert preserved_incoming_change_paths(work, (invalid_tasks,), tree_ref=invalid) == ()
+        git(work, "merge", "--abort")
+    tree = git(work, "rev-parse", f"{invalid}:openspec/changes")
+    (work / ".git/objects" / tree[:2] / tree[2:]).unlink()
+    for incoming in ("0" * 40, unrelated, file_root, invalid):
+        assert incoming_change_gaps(work, "change", incoming, ()) == UNAVAILABLE

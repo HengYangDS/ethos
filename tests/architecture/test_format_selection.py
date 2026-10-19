@@ -20,6 +20,10 @@ from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 
 ROOT = Path(__file__).resolve().parents[2]
+OWNER = (
+    '[[ownership]]\nid = "x"\npaths = ["x.py"]\nformat_owner = "o"\nformat_command = "o"\n'
+    'format_check = "o"\nvalidation_owner = "o"\nvalidation_command = "o"\nmutation_policy = "o"\n'
+)
 
 
 def test_packaged_agent_guidance_is_selected_by_native_markdown_lint() -> None:
@@ -259,7 +263,7 @@ def test_carrier_assignment_rejects_malformed_owned_fields(tmp_path, fields: str
     config = tmp_path / ".config/checks/format-selection/policy.toml"
     config.parent.mkdir(parents=True)
     config.write_text(
-        '[[ownership]]\npaths = ["example.py"]\nformat_owner = "ruff"\n'
+        '[[ownership]]\nid = "example"\npaths = ["example.py"]\nformat_owner = "ruff"\n'
         'format_command = "ruff format"\nformat_check = "ruff format --check"\n'
         'validation_owner = "ruff"\n'
         f'{fields}\nmutation_policy = "native-formatter"\n'
@@ -273,16 +277,35 @@ def test_unused_malformed_owner_cannot_hide_behind_a_valid_fallback(tmp_path) ->
     """Every declaration must be valid even when another owner covers the file."""
     config = tmp_path / ".config/checks/format-selection/policy.toml"
     config.parent.mkdir(parents=True)
-    config.write_text(
-        '[[ownership]]\nid = "valid"\npaths = ["example.py"]\n'
-        'format_owner = "ruff"\nformat_command = "ruff format"\n'
-        'format_check = "ruff format --check"\nvalidation_owner = "ruff"\n'
-        'validation_command = "ruff check"\nmutation_policy = "native-formatter"\n'
-        '\n[[ownership]]\nid = "ignored-invalid"\npaths = 7\n'
-    )
+    config.write_text(OWNER + OWNER.replace('"x"', '"bad"').replace('["x.py"]', "7"))
 
-    with pytest.raises(TypeError):
-        audit(tmp_path, paths=("example.py",))
+    with pytest.raises(TypeError, match=r"not a string list: bad:paths$"):
+        audit(tmp_path, paths=("x.py",))
+
+
+def test_malformed_ownership_is_refused_before_selection(tmp_path: Path) -> None:
+    """Malformed ownership is refused with a typed error before any carrier is selected."""
+    config = tmp_path / "policy.toml"
+    for policy, error, message in (
+        ("ownership = 7", TypeError, "declarations must be records"),
+        (OWNER + 'projection_kind = ""', ValueError, "projection kind is empty: x"),
+        (OWNER + "priority = true", TypeError, "priority is not an integer: x"),
+    ):
+        config.write_text(policy)
+        with pytest.raises(error, match=f"^format ownership {message}$"):
+            audit(tmp_path, paths=("x.py",), configuration=config)
+
+
+def test_carrier_requires_one_complete_primary_owner(tmp_path: Path) -> None:
+    """Tied top-priority owners or an empty owner field leave the carrier unassigned."""
+    config = tmp_path / "policy.toml"
+    for policy, reason in (
+        (OWNER * 2, "multiple primary quality owners: x,x"),
+        (OWNER.replace('"o"', '""', 1), "quality ownership is incomplete"),
+    ):
+        config.write_text(policy)
+        report = audit(tmp_path, paths=("x.py",), configuration=config)
+        assert report["failures"] == [{"path": "x.py", "reason": reason}], report
 
 
 @pytest.mark.parametrize("name", ["accept", "reject"])

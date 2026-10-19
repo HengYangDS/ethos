@@ -111,10 +111,6 @@ def _ownership_declarations(value: object) -> list[OwnerDeclaration]:
     return cast("list[OwnerDeclaration]", value)
 
 
-def _matches_any(path: str, roots: list[str]) -> bool:
-    return any(path == root.rstrip("/") or path.startswith(root) for root in roots)
-
-
 def _matches_glob(path: str, pattern: str) -> bool:
     return fnmatch.fnmatchcase(path, pattern) or Path(path).match(pattern)
 

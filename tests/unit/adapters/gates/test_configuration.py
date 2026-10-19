@@ -2,22 +2,25 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 import tomli_w
 
+import ethos.adapters.gates.configuration as configuration
 from ethos.adapters.gates.configuration import configuration_report
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.release.resources import canonical_resource
+from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.subprocesses import completed
 
-if TYPE_CHECKING:
-    from pathlib import Path
+VALE_FAILED = "Vale configuration validation failed: Vale native"
+VALE_VOCABULARY = '{"Paths": [], "Vocabularies": {"A": 0}, "Vocab": []}'
 
 
 @pytest.mark.parametrize(
@@ -236,6 +239,22 @@ def test_config_selection_keeps_native_failures_and_ownership(tmp_path, state, e
             assert state != "external" or "another owner" in "\n".join(failures)
 
 
+def test_configuration_leads_with_the_refusal_of_each_input(tmp_path: Path) -> None:
+    """Unsupported, escaping, unterminated or unparsable inputs lead the gaps with their cause."""
+    root = init_git_repo(tmp_path / "repo")
+    for relative, content, gap in (
+        ("a.py", "", "unsupported config lint targets: a.py"),
+        ("../a.json", "", "config target outside repository: ../a.json"),
+        ("a.toml", "a = 1", "a.toml: missing final newline"),
+        ("a.toml", "a = 1\n\n", "a.toml: more than one trailing newline"),
+        ("a.toml", "a = [\n", "a.toml: TOML parse failed: "),
+        ("a.json", "{\n", "a.json: JSON parse failed: "),
+    ):
+        (root / relative).write_text(content)
+        gaps = string_sequence(configuration_report(root, paths=(relative,))["required_gaps"])
+        assert gaps[0].startswith(gap), gaps
+
+
 @pytest.mark.parametrize("explicit", [False, True])
 @pytest.mark.parametrize("state", ["valid", "malformed", "missing"])
 def test_native_configuration_compiles_declared_vale_vocabulary(
@@ -346,3 +365,20 @@ def test_native_configuration_compiles_section_vocabulary_without_optional_files
     assert not (common.parent / "reject.txt").exists()
     assert not (additional.parent / "reject.txt").exists()
     assert not (root / "build").exists()
+
+
+@pytest.mark.parametrize(
+    ("stdout", "stderr", "gap"),
+    [
+        ("[]", "", f"{VALE_FAILED} configuration is unobservable"),
+        (VALE_VOCABULARY, "", f"{VALE_FAILED} vocabulary directory is unobservable: A"),
+        ("", "W100 native warning", "W100 native warning"),
+    ],
+)
+def test_unusable_native_vale_observation_is_a_gap(tmp_path, monkeypatch, stdout, stderr, gap):
+    """Native Vale diagnostics, or output that cannot bind its vocabularies, block the check."""
+    root = committed_source_repo(tmp_path, {".config/checks/vale/vale.ini": ""})
+    monkeypatch.setattr(configuration, "resolve_native_tool", Path)
+    monkeypatch.setattr(configuration, "run_command", lambda *_a, **_k: completed(stdout, stderr))
+    report = configuration_report(root, paths=(".config/checks/vale/vale.ini",))
+    assert report["required_gaps"] == [gap], report

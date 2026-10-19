@@ -14,6 +14,14 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Changed
 
+- Accepted closeout renames a legacy release branch such as `master` to `main` with its worktree,
+  in the same ref transaction as any legacy accepted and candidate names and from the accepted
+  root under whichever name its table gives it, instead of refusing with
+  `legacy_release_rename_unsupported`. Publication retirement deletes a published legacy release
+  ref and refs under a legacy proposal prefix such as `submit/` only when the workspace table
+  committed at the ref's head names them; an unreadable table grants no deletion. A peer that still
+  serves the legacy release name as its default branch refuses the deletion, so move each peer's
+  default branch to `main` first.
 - **Breaking:** declared native outputs use tool-neutral formats: `junit-xml`, `cobertura-xml`
   (renamed from `coverage-xml`), `lcov` and `sarif`; `ruff-json` is removed. A Nox report, pytest
   events and a Python runtime report are optional and checked only when declared. `code_quality`
@@ -74,6 +82,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- An active proposal or design that lacks a heading of its official template no longer locks
+  its repository. Strict validation accepts such a Change, so prewrite previously blocked every
+  path on the template gap, including the drifted file and an exact restoring patch. When template
+  drift is the only blocking gap, prewrite now admits the selected Change's drifted files, and no
+  other path, for repair; any other blocking gap keeps the repair closed.
 - Lane retirement no longer counts an empty directory that another process holds open, such as
   an agent's `.claude/.cc-writes`, as content in use; held files and non-empty directories
   still block.

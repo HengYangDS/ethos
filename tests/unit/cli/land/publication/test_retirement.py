@@ -164,15 +164,25 @@ def test_retirement_never_deletes_an_integration_or_release_resource(tmp_path: P
     assert {git(peer, "rev-parse", "dev") for peer in peers.values()} == {accepted}
 
 
-@pytest.mark.parametrize(("target", "admitted"), [("accepted/train", True), ("topic", False)])
+@pytest.mark.parametrize(
+    ("declaration", "target", "admitted"),
+    [
+        ('accepted_branch = "accepted/train"', "accepted/train", True),
+        ('accepted_branch = "accepted/train"', "topic", False),
+        ('release_branch = "master"', "master", True),
+        ('proposal_branch_prefix = "submit/"', "submit/topic", True),
+        ('proposal_branch_prefix = "submit/"', "other/topic", False),
+        ("release_branch = 7", "master", False),
+    ],
+)
 def test_retirement_retires_a_published_legacy_role_ref(
-    tmp_path: Path, monkeypatch, target: str, *, admitted: bool
+    tmp_path: Path, monkeypatch, declaration: str, target: str, *, admitted: bool
 ) -> None:
     """A role ref that the table at its head names under a legacy name retires once accepted."""
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     repo, peers, _proposal, _accepted = retirement_fixture(tmp_path)
     workspace = repo / ".ethos/workspace.toml"
-    workspace.write_text('[branch_roles]\naccepted_branch = "accepted/train"\n')
+    workspace.write_text(f"[branch_roles]\n{declaration}\n")
     git(repo, "add", workspace.as_posix())
     git(repo, "commit", "-m", "chore: declare the legacy accepted name")
     legacy = git(repo, "rev-parse", "HEAD")
@@ -181,6 +191,10 @@ def test_retirement_retires_a_published_legacy_role_ref(
     accepted = git(repo, "rev-parse", "HEAD")
     for remote in ("gitlab", "github"):
         git(repo, "push", remote, "HEAD:refs/heads/dev", f"{legacy}:refs/heads/{target}")
+    for peer in peers.values():
+        # A peer refuses to delete the branch it serves as its default, so the fixed
+        # release name is already each peer's default when a legacy release name retires.
+        git(peer, "symbolic-ref", "HEAD", "refs/heads/main")
 
     preview = branch_publication(
         repo, accepted, "--retire", target_ref=f"refs/heads/{target}", blocked=not admitted

@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from ethos.adapters.admission.role_rename import RENAMED_ROLES
 from ethos.adapters.admission.role_rename import ROLE_RENAME_OPERATION
+from ethos.adapters.admission.role_rename import legacy_role_names
 from ethos.adapters.admission.role_rename import legacy_role_renames
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import current_branch
@@ -36,12 +37,18 @@ if TYPE_CHECKING:
 def rename_legacy_roles(
     root: Path, *, current_head: str, apply: bool, authorized: bool, expect_head: str | None
 ) -> dict[str, object] | None:
-    """Rename the accepted root's legacy role refs, or return None when none remain."""
+    """Rename the legacy role refs from the accepted root, or return None when none remain.
+
+    The accepted root runs the rename under whichever name the committed table gives it, so a
+    table that names only its release branch under a legacy name renames it from `dev`.
+    """
     try:
         renames = legacy_role_renames(root, current_head)
+        names = legacy_role_names(committed_file_text(root, current_head, ".ethos/workspace.toml"))
     except (TypeError, ValueError):
         return None
-    if f"refs/heads/{current_branch(root)}" not in renames:
+    accepted = names.get("accepted_branch", BranchRolePolicy().accepted_branch)
+    if not renames or current_branch(root) != accepted:
         return None
     targets = {legacy: target for legacy, (target, _head) in renames.items()}
     gaps = _rename_gaps(root, current_head, renames, authorized=authorized, expect_head=expect_head)
@@ -133,11 +140,6 @@ def _rename_gaps(
     return [
         *(["authorization_required"] if not authorized else []),
         *(["expected_head_mismatch"] if expect_head != head else []),
-        *(
-            ["legacy_release_rename_unsupported"]
-            if declared.get("release_branch", standard.release_branch) != standard.release_branch
-            else []
-        ),
         *(
             f"legacy_role_rename_target_exists:{target.removeprefix('refs/heads/')}"
             for target, _head in renames.values()

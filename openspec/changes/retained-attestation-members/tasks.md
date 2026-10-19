@@ -10,6 +10,8 @@
 - [x] 2.2 End those records by that evidence in the lifetime owner; verify one regression per reader and that the records stay while a reader cannot be observed.
 - [ ] 2.3 Verify the land, closeout, publish, retire and proposal-retirement journeys on a scratch copy of the real set with ended lane records removed. Blocked for proposal retirement while `repository-paradigm` keeps historical repair validation on the current mirror location (DR-0013): every local proposal ref reports `signature_repair_source_coordinates_mismatch` before the reader under test runs.
 - [x] 2.4 Close an effect by any later attested reversal of its refs, not only the exact inverse, so a retired lane's start no longer blocks the same name at the same head (`git_effect_attestation_content_mismatch`, web-ingestion-benchmark 2026-10-18); verify the executor, lane-birth and lane-start regressions and that an unattested or forged reversal still blocks.
+- [x] 2.5 Keep each superseded head's acceptance record as lineage provenance for historical maintenance bases while its proof, integration and publication records still end; verify a maintenance lane started from an earlier accepted base selects and fully validates the original accepted-effect record and still needs current proof, signatures, actor and Lease admission.
+      Evidence: signed Git `86b98c47d` (`tests/unit/kernel/attestation_set/test_lifetime.py`).
 
 ## 3. Writer Gaps
 

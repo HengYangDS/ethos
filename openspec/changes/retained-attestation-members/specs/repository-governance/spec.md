@@ -24,9 +24,18 @@ that the set update observes, never on the absence of a branch or ref alone.
 #### Scenario: An accepted head is superseded
 
 - **WHEN** closeout advances the accepted ref from one commit to a later one
-- **THEN** the proof, integration, acceptance and publication records of the earlier commit end once
-  no local ref, fully peeled tag, worktree HEAD or declared peer's last publication selects it
+- **THEN** the proof, integration and publication records of the earlier commit end once no local
+  ref, fully peeled tag, worktree HEAD or declared peer's last publication selects it
+- **AND** its acceptance record remains as provenance for historical maintenance bases
 - **AND** the current head's proof, acceptance and publication records remain
+
+#### Scenario: Maintenance starts from a historical accepted base
+
+- **WHEN** a native maintenance lane selects an earlier accepted base after the current train
+  advances
+- **THEN** its original accepted-effect record remains selectable and fully validated
+- **AND** the new source still requires current proof, signatures, actor and Lease admission
+- **AND** retaining provenance does not restore an expired proof or authorize an effect
 
 #### Scenario: A release tag or repair lineage still exists
 

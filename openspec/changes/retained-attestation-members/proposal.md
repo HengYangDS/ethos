@@ -14,6 +14,8 @@ still resolve retired lanes through them, and three set-writer gaps remain.
   select them. A reader whose facts cannot be observed keeps them.
 - A lane's attested retirement closes its start like an exact inverse does, so the same name can
   start again at the same head instead of being refused as a content mismatch.
+- A superseded head's acceptance record stays as lineage provenance for historical maintenance
+  bases; its proof, integration and publication records still end with the head.
 - Every set writer reports lifetime and custody gaps to its caller. An update that exhausts its
   retries deletes the custody bytes it stored that no selected member binds. A replay of a member
   already in the set reports it unchanged instead of applying the size bound.

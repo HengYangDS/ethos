@@ -65,6 +65,13 @@ missing locally, or a walk that fails, keeps every lane record and reports the g
 Alternative considered: copy the needed intent into each proof record. That duplicates Commitment
 content in every proof and still leaves old proofs carrying it.
 
+### Historical acceptance stays maintenance provenance
+
+Maintenance release can request a historical accepted base, so a superseded head's acceptance
+record has the lineage lifetime rather than the head lifetime. Its embedded proof stays the original
+acceptance witness; no expired proof is reactivated and the record authorizes no fresh effect. The
+proof, integration and publication records of that head still end with the head (task 2.5).
+
 ### The set writer owns its gaps and its custody
 
 A reported gap never needs caller action. An unobservable lifetime fact keeps every member, and

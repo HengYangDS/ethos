@@ -58,6 +58,13 @@ historical bindings are governed by [Release Governance](docs/governance/release
   as a dot-separated segment, such as `captions.zh-CN.vtt`. Paths that Git
   attributes mark `linguist-vendored` or `linguist-generated` keep their upstream
   names.
+- Lane retirement's open-file observation covers the processes the invoking user
+  may inspect. On Linux, a process that denies every `/proc` entry `lsof` reads,
+  its descriptor links and threads' entries included, is uninspectable rather than
+  an incomplete observation, so non-root users can retire reviewed content; each
+  admission reports such processes once by PID, UID and command, a recovered
+  retirement reports the admission that removed the worktree, and Darwin, whose
+  `lsof` omits them, reports the list as unavailable.
 
 ### Removed
 
@@ -98,8 +105,14 @@ historical bindings are governed by [Release Governance](docs/governance/release
 - Stopped Linux lane retirement from treating a process that exits during the
   open-file scan as an unreadable observation. `lsof` records such a process or
   descriptor only by the `/proc` entry it failed to read, or by the target it read
-  before the descriptor's `stat` failed, without a type, device or inode;
-  permission and other read failures still block retirement.
+  before the descriptor's `stat` failed, without a type, device or inode. A scan
+  left incomplete by an unreadable record is taken again, at most three times
+  within one 30-second timeout, and a record that stays unreadable still blocks
+  retirement.
+- Stopped Linux lane retirement from treating a netlink socket as an unreadable
+  observation. `lsof` prints a socket it finds in the kernel's socket tables by
+  its socket inode alone, netlink as unix, and no such socket is a file a
+  worktree holds.
 
 ## [0.2.0-alpha.2] - 2026-08-30
 

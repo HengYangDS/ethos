@@ -184,6 +184,28 @@ class RetirementOperation(BaseModel):
         return canonical_json_digest(self.model_dump(mode="json"))
 
 
+class UninspectableProcess(BaseModel):
+    """A process that denied every /proc entry the open-file observer read."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    pid: int = Field(ge=1)
+    uid: int = Field(ge=0)
+    command: str
+
+
+class OpenFileBoundary(BaseModel):
+    """The processes one open-file observation covered and those it could not inspect."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    observation_boundary: Literal["inspectable processes of the invoking user"] = (
+        "inspectable processes of the invoking user"
+    )
+    # None where the platform omits uninspectable processes without a record.
+    uninspectable_processes: FrozenTuple[UninspectableProcess] | None
+
+
 class RetirementProgress(BaseModel):
     """Pure projection of one operation against current native carriers."""
 
@@ -196,3 +218,5 @@ class RetirementProgress(BaseModel):
     observation: RetirementObservation
     completed_effects: FrozenTuple[RetirementEffect]
     remaining_effects: FrozenTuple[RetirementEffect]
+    # The open-file observation of the content admission behind this snapshot.
+    open_file_observation: OpenFileBoundary | None = None

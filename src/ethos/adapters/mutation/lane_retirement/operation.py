@@ -19,8 +19,8 @@ from ethos.adapters.mutation.lane_retirement.content import remove_reviewed_cont
 from ethos.adapters.mutation.lane_retirement.content import unreviewed_content
 from ethos.adapters.mutation.lane_retirement.content import verify_reviewed_content
 from ethos.adapters.mutation.lane_retirement.continuation import retirement_continuation
+from ethos.adapters.open_files import observe_open_files
 from ethos.adapters.process import ProcessExecutionError
-from ethos.adapters.process import process_file_identities
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git_effects import admit_git_effect
@@ -40,6 +40,7 @@ from ethos.contracts.coordination import LeaseOperationRequest
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.retirement import AcceptedState
 from ethos.contracts.retirement import CarrierState
+from ethos.contracts.retirement import OpenFileBoundary
 from ethos.contracts.retirement import RetirementObservation
 from ethos.contracts.retirement import RetirementOperation
 from ethos.contracts.retirement import RetirementProgress
@@ -136,6 +137,23 @@ def persist_progress(
         progress.model_dump(mode="json"),
         collision="lane_retirement_progress_collision",
     )
+
+
+def _removal_observation(root: Path, request: RetirementOperation) -> OpenFileBoundary | None:
+    """Return the one boundary this request's verified snapshots record for its removal."""
+    store = local_state_root(root) / "operations" / "lane-retirement" / request.digest()
+    recorded: set[OpenFileBoundary] = set()
+    for path in store.glob("*.json"):
+        try:
+            snapshot = RetirementProgress.model_validate_json(
+                _load_bytes(store, str(path), path.stem)
+            )
+        except ValueError:
+            # Recovery acts on current facts; an unverifiable snapshot only reports nothing.
+            continue
+        if "remove_worktree" in snapshot.completed_effects and snapshot.open_file_observation:
+            recorded.add(snapshot.open_file_observation)
+    return recorded.pop() if len(recorded) == 1 else None
 
 
 def persist_terminal_receipt(
@@ -284,22 +302,24 @@ def _git_plan(request: RetirementOperation) -> TransitionPlan:
     return TransitionPlan.model_validate(mutable_json(request.git_plan))
 
 
-def _admit_content(root: Path, request: RetirementOperation) -> None:
-    """Require either no nontracked content or the exact reviewed destructive preimage."""
+def _admit_content(root: Path, request: RetirementOperation) -> OpenFileBoundary | None:
+    """Require no nontracked content, or the exact reviewed preimage no inspected process holds."""
     expected = request.reviewed_content
     if not expected:
         if os.path.lexists(request.worktree_path) and unreviewed_content(
             Path(request.worktree_path)
         ):
             _fail("retirement_content_review_required")
-        return
+        return None
+    observation = observe_open_files(
+        root, tree=Path(request.worktree_path), index=Path(str(expected["index_path"]))
+    )
     verify_reviewed_content(
         Path(request.worktree_path),
         cast("dict[str, object]", mutable_json(expected)),
-        open_identities=process_file_identities(
-            root, tree=Path(request.worktree_path), index=Path(str(expected["index_path"]))
-        ),
+        open_identities=observation.identities,
     )
+    return observation.boundary
 
 
 def preflight_operation(root: Path, request: RetirementOperation) -> RetirementProgress:
@@ -340,18 +360,20 @@ def preflight_operation(root: Path, request: RetirementOperation) -> RetirementP
     if "delete_ref" in progress.remaining_effects:
         admit_git_effect(execution_root, _git_plan(request))
     if "remove_worktree" in progress.remaining_effects:
-        _admit_content(control, request)
+        observation = _admit_content(control, request)
+        progress = progress.model_copy(update={"open_file_observation": observation})
     return progress
 
 
-def remove_operation_worktree(root: Path, request: RetirementOperation) -> None:
-    """Remove or recognize the exact target worktree from the surviving root."""
+def remove_operation_worktree(root: Path, request: RetirementOperation) -> OpenFileBoundary | None:
+    """Remove or recognize the target worktree; return the observation that admitted removal."""
+    admissions: list[RetirementProgress] = []
     remove_worktree(
         Path(request.control_root),
         Path(request.worktree_path),
         branch=request.branch or "detached",
         head=request.head,
-        admit=partial(preflight_operation, root, request),
+        admit=lambda: admissions.append(preflight_operation(root, request)),
         dispose=(
             partial(
                 remove_reviewed_content,
@@ -362,6 +384,7 @@ def remove_operation_worktree(root: Path, request: RetirementOperation) -> None:
             else None
         ),
     )
+    return admissions[-1].open_file_observation if admissions else None
 
 
 def delete_operation_ref(_root: Path, request: RetirementOperation) -> None:
@@ -429,6 +452,11 @@ def _report(
             progress_receipt=dict(progress_receipt or {}),
             terminal_receipt=dict(terminal_receipt or {}),
             observed=progress.observation.model_dump(mode="json"),
+            open_file_observation=(
+                progress.open_file_observation.model_dump(mode="json")
+                if progress.open_file_observation is not None
+                else None
+            ),
             completed_effects=list(progress.completed_effects),
             remaining_effects=list(progress.remaining_effects),
         )
@@ -453,8 +481,15 @@ def apply_operation(
     with acquired:
         failure: dict[str, object] = {}
         terminal_receipt: dict[str, object] = {}
+        observation: OpenFileBoundary | None = None
         try:
             progress = preflight_operation(control_root, request)
+            if "remove_worktree" in progress.completed_effects:
+                # A recovered run removes nothing, so it reports the removal it continues.
+                progress = progress.model_copy(
+                    update={"open_file_observation": _removal_observation(control_root, request)}
+                )
+            observation = progress.open_file_observation
             if not apply:
                 return report(progress)
             progress_receipt = persist_progress(control_root, request, progress)
@@ -464,8 +499,12 @@ def apply_operation(
                 "revoke_lease": revoke_operation_lease,
             }
             for effect in progress.remaining_effects:
-                actions[effect](control_root, request)
-                progress = reduce_progress(request, observe_operation(control_root, request))
+                admitted = actions[effect](control_root, request)
+                if effect == "remove_worktree":
+                    observation = admitted
+                progress = reduce_progress(
+                    request, observe_operation(control_root, request)
+                ).model_copy(update={"open_file_observation": observation})
                 progress_receipt = persist_progress(control_root, request, progress)
                 _require_accepted_coordinate(progress)
             terminal_receipt = (
@@ -476,7 +515,9 @@ def apply_operation(
         except (GitExecutionError, OSError, RuntimeError, TypeError, ValueError) as error:
             failure = retirement_failure(error)
             try:
-                progress = reduce_progress(request, observe_operation(control_root, request))
+                progress = reduce_progress(
+                    request, observe_operation(control_root, request)
+                ).model_copy(update={"open_file_observation": observation})
                 progress_receipt = (
                     persist_progress(control_root, request, progress) if apply else {}
                 )

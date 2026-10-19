@@ -16,10 +16,12 @@ import ethos.adapters.mutation.lane_retirement.abandonment as abandonment
 import ethos.adapters.mutation.lane_retirement.content as content
 import ethos.adapters.mutation.lane_retirement.operation as operation
 import ethos.adapters.repo.worktree_effects as worktree_effects
+from ethos.adapters.open_files import OpenFileObservation
 from ethos.adapters.process import ProcessExecutionError
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.store.state.lease.projection import observe_lease
 from ethos.adapters.store.state.schema import state_database
+from ethos.contracts.retirement import OpenFileBoundary
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.governed_repository import git
 from tests.support.lane_scenarios import apply_retirement_receipt
@@ -296,7 +298,7 @@ def test_reviewed_retirement_rejects_unknown_process_references(
     def unavailable(_root, **_scope):
         raise error
 
-    monkeypatch.setattr(operation, "process_file_identities", unavailable)
+    monkeypatch.setattr(operation, "observe_open_files", unavailable)
     result = apply_retirement_receipt(repo, receipt)
 
     assert result["required_gaps"] == ["native_process_observer_unavailable"], result
@@ -414,7 +416,8 @@ def test_retirement_rechecks_after_native_worktree_observation(
     divergent_lane, monkeypatch, drift, detached
 ):
     """Isolate authority/content races; live-process and unknown scans have dedicated cases."""
-    monkeypatch.setattr(operation, "process_file_identities", lambda _root, **_scope: frozenset())
+    observation = OpenFileObservation(frozenset(), OpenFileBoundary(uninspectable_processes=()))
+    monkeypatch.setattr(operation, "observe_open_files", lambda _root, **_scope: observation)
     repo, lane = divergent_lane
     if detached:
         git(lane, "switch", "--detach")
@@ -432,7 +435,7 @@ def test_retirement_rechecks_after_native_worktree_observation(
         record = native_observation(*args, **kwargs)
         monkeypatch.setattr(worktree_effects, "worktree_record", native_observation)
         if drift in {"process-scan", "git-admission"}:
-            observer = "process_file_identities" if drift == "process-scan" else "admit_git_effect"
+            observer = "observe_open_files" if drift == "process-scan" else "admit_git_effect"
             native_admission_observation = getattr(operation, observer)
 
             def observe_then_write(*args, **kwargs):

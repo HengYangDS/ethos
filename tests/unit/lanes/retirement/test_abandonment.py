@@ -11,9 +11,13 @@ import pytest
 
 import ethos.adapters.mutation.lane_retirement.content as content
 import ethos.adapters.mutation.lane_retirement.operation as operation
+from ethos.adapters.open_files import OpenFileObservation
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.store.state.lease.projection import observe_lease
+from ethos.adapters.store.state.schema import local_state_root
 from ethos.adapters.store.state.schema import state_database
+from ethos.contracts.retirement import OpenFileBoundary
+from ethos.contracts.retirement import UninspectableProcess
 from tests.support.governed_repository import git
 from tests.support.lane_scenarios import apply_retirement_receipt
 from tests.support.lane_scenarios import derive_abandonment
@@ -80,6 +84,45 @@ def test_reviewed_disposal_preserves_shared_files_and_recovers_before_deregistra
     _assert_terminal_recovery(repo, lane, receipt, detached)
 
 
+@pytest.mark.parametrize(
+    ("uninspectable", "reported"),
+    [
+        (
+            (UninspectableProcess(pid=1, uid=0, command="systemd"),),
+            [{"pid": 1, "uid": 0, "command": "systemd"}],
+        ),
+        (None, None),
+    ],
+    ids=["linux", "darwin"],
+)
+def test_reviewed_disposal_reports_the_boundary_of_its_removing_admission(
+    divergent_lane, monkeypatch, uninspectable, reported
+):
+    """The result and terminal receipt claim only the processes the removal admission inspected."""
+    repo, _lane = divergent_lane
+    derived = derive_abandonment(repo, review_content=True)
+    assert derived["verdict"] == "pass", derived
+    admissions = []
+
+    def observe(_root, **_scope):
+        admissions.append(_scope)
+        boundary = uninspectable if len(admissions) > 1 else ()
+        return OpenFileObservation(frozenset(), OpenFileBoundary(uninspectable_processes=boundary))
+
+    monkeypatch.setattr(operation, "observe_open_files", observe)
+    result = apply_retirement_receipt(repo, derived["receipt"])
+
+    assert result["state"] == "retired", _failure(result)
+    assert len(admissions) == 2
+    expected = {
+        "observation_boundary": "inspectable processes of the invoking user",
+        "uninspectable_processes": reported,
+    }
+    assert result["open_file_observation"] == expected
+    terminal = json.loads(Path(result["terminal_receipt"]["path"]).read_text(encoding="utf-8"))
+    assert terminal["progress"]["open_file_observation"] == expected
+
+
 def _failure(result):
     """Show the complete gap and cause, which a truncated result representation hides."""
     keys = ("state", "required_gaps", "stderr", "process_failure")
@@ -94,6 +137,24 @@ def _assert_terminal_recovery(repo, lane, receipt, detached):
         (lane / "replacement").write_text("new unreviewed bytes\n")
         assert apply_retirement_receipt(repo, receipt)["verdict"] == "block"
         assert (lane / "replacement").read_text() == "new unreviewed bytes\n"
+
+
+def _assert_retired_receipt(recovered, request, removing):
+    """A recovered result and its terminal receipt carry every effect and the removal boundary."""
+    assert recovered["state"] == "retired", recovered
+    assert recovered["open_file_observation"] == removing
+    terminal = recovered["terminal_receipt"]
+    assert isinstance(terminal, dict)
+    payload = json.loads(Path(terminal["path"]).read_text())
+    assert payload["kind"] == "lane-retirement-receipt"
+    assert payload["request"] == request.model_dump(mode="json")
+    assert payload["progress"]["completed_effects"] == [
+        "remove_worktree",
+        "delete_ref",
+        "revoke_lease",
+    ]
+    assert payload["progress"]["remaining_effects"] == []
+    assert payload["progress"]["open_file_observation"] == removing
 
 
 def _change_reviewed_survivor(
@@ -246,7 +307,8 @@ def test_reviewed_retirement_observes_only_surviving_file_identities(
         selected.rmdir()
     elif consumer == "removed-file":
         selected.unlink()
-    monkeypatch.setattr(operation, "process_file_identities", lambda _root, **_scope: identity)
+    observation = OpenFileObservation(identity, OpenFileBoundary(uninspectable_processes=()))
+    monkeypatch.setattr(operation, "observe_open_files", lambda _root, **_scope: observation)
     before = (git(repo, "show-ref"), index.read_bytes())
 
     result = operation.execute_retirement_operation(
@@ -313,6 +375,8 @@ def test_real_abandonment_recovers_after_worktree_removal_and_git_spawn_failure(
     assert partial["state"] == "partial_transition"
     assert partial["completed_effects"] == ["remove_worktree"]
     assert partial["remaining_effects"] == ["delete_ref", "revoke_lease"]
+    removing = partial["open_file_observation"]
+    assert (removing is not None) == review_content
     assert not lane.exists()
     assert not admin.exists()
     assert git(repo, "rev-parse", "work/abandon") == head
@@ -324,25 +388,16 @@ def test_real_abandonment_recovers_after_worktree_removal_and_git_spawn_failure(
         "remove_operation_worktree",
         lambda *_a: pytest.fail("recovery replays worktree removal"),
     )
+    # An unverifiable snapshot neither blocks recovery nor replaces the recorded boundary.
+    store = local_state_root(repo) / "operations" / "lane-retirement" / request.digest()
+    (store / f"{'0' * 64}.json").write_bytes(b"{}")
     for _ in range(2):
-        recovered = apply_retirement_receipt(repo, receipt)
-        assert recovered["state"] == "retired", recovered
+        _assert_retired_receipt(apply_retirement_receipt(repo, receipt), request, removing)
         monkeypatch.setattr(
             operation,
             "delete_operation_ref",
             lambda *_a: pytest.fail("terminal recovery replays deletion"),
         )
-        terminal = recovered["terminal_receipt"]
-        assert isinstance(terminal, dict)
-        payload = json.loads(Path(terminal["path"]).read_text())
-        assert payload["kind"] == "lane-retirement-receipt"
-        assert payload["request"] == request.model_dump(mode="json")
-        assert payload["progress"]["completed_effects"] == [
-            "remove_worktree",
-            "delete_ref",
-            "revoke_lease",
-        ]
-        assert payload["progress"]["remaining_effects"] == []
     operation.revoke_operation_lease(repo, request)
     assert git(repo, "branch", "--list", "work/abandon") == ""
     assert observe_lease(state_database(repo), "work/abandon").state == "missing"

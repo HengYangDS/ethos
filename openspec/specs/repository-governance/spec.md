@@ -302,14 +302,16 @@ local provenance or signature authority.
 
 ### Requirement: Commit And Hosted Verification Policy
 
-One owner SHALL compile tracked commit policy for subject, signature and optional
-author/committer constraints. Identity, cryptographic trust, transport and Forge
-attribution SHALL remain distinct. Admission SHALL apply trusted prestate policy;
-a candidate SHALL NOT waive its own integration obligations.
+One owner SHALL compile commit policy for subject, signature and optional
+author/committer constraints from the paradigm contract and the tracked
+`[commit_policy]` declaration; every introduced commit carries an SSH signature.
+Identity, cryptographic trust, transport and Forge attribution SHALL remain
+distinct. Admission SHALL apply trusted prestate policy; a candidate SHALL NOT
+waive its own integration obligations.
 
 #### Scenario: Real signature verification
 
-- **WHEN** a signed commit is required by the selected policy
+- **WHEN** admission evaluates an introduced commit
 - **THEN** admission verifies exact object bytes against the protected trust anchor
 - **AND** a signature envelope with invalid cryptography is rejected
 
@@ -328,8 +330,9 @@ a candidate SHALL NOT waive its own integration obligations.
 
 #### Scenario: Candidate weakens signing policy
 
-- **WHEN** a candidate disables signing required by the trusted integration base
-- **THEN** its introduced range is still evaluated under that trusted requirement
+- **WHEN** a candidate declares `signing_required = false` or another signing format
+- **THEN** compilation ignores the restated field
+- **AND** its introduced range still requires a trusted SSH signature on every commit
 
 #### Scenario: Malformed policy fails closed
 
@@ -345,7 +348,7 @@ a candidate SHALL NOT waive its own integration obligations.
 #### Scenario: Current commit policy is audited
 
 - **WHEN** repository audit or head-bound proof evaluates current commit policy
-- **THEN** it reports the tracked declaration, local identity, subject, and
+- **THEN** it reports the compiled declaration, local identity, subject, and
   signature facts through the same compiler used by mutation
 - **AND** it does not infer tracked policy from mutable Git configuration or
   GitLab verification from local Git output.
@@ -1877,25 +1880,25 @@ remote probe or minting proof, hosted-success, or publication authority.
 ### Requirement: Refresh-base replay is signing-bound and compare-and-swap safe
 
 ETHOS SHALL replay the admitted Work Lane SHA onto the admitted candidate SHA
-through native Git rebase using the compiled tracked commit policy. It SHALL
-revalidate both admitted SHA snapshots immediately before replay, validate every
-new replayed subject and required signature before any Git-common effect, and
-compare-and-swap the Work Lane ref from its admitted old SHA before attaching it
-again.
+through native Git rebase using the compiled commit policy and the paradigm's
+SSH signature. It SHALL revalidate both admitted SHA snapshots immediately
+before replay, validate every new replayed subject and signature before any
+Git-common effect, and compare-and-swap the Work Lane ref from its admitted old
+SHA before attaching it again.
 
 #### Scenario: Ambient Git configuration attempts to disable tracked signing
 
-- **GIVEN** the tracked commit policy requires signing
+- **GIVEN** a governed repository
 - **AND** ambient or local Git configuration disables `commit.gpgsign`
 - **WHEN** `ethos lane refresh-base --apply` replays one or more commits
-- **THEN** every new replayed object is still signed through the declared format
+- **THEN** every new replayed object is still SSH-signed
 - **AND** every object passes the configured trust verifier before the Work Lane
   ref or Lease changes.
 
 #### Scenario: unavailable signing transport blocks before replay
 
-- **GIVEN** the tracked commit policy requires signing but its configured signer
-  cannot create a replayed object non-interactively
+- **GIVEN** the repository's configured signer cannot create a replayed object
+  non-interactively
 - **WHEN** native rebase attempts to create its first replayed object
 - **THEN** ETHOS reports the captured Git failure instead of a speculative
   signer-probe result
@@ -1906,7 +1909,7 @@ again.
 
 - **GIVEN** native rebase produced a candidate-descended detached HEAD
 - **WHEN** any commit in the exact candidate-to-rebased range violates the
-  tracked subject policy or fails required signature trust
+  compiled subject policy or fails signature trust
 - **THEN** ETHOS reports the first exact policy or trust gap
 - **AND** it restores the pre-refresh state before any Git-common effect.
 
@@ -2593,8 +2596,18 @@ checkout and compare-delete its exact ref in a transaction verifying accepted.
 - **THEN** the native observer scopes its search to the worktree and external Git index
 - **AND** cwd, file, mapping, writer, hardlink and index holders still block deletion
 - **AND** an already absent reviewed worktree is not a deletion target; its surviving index remains observed
-- **AND** a present unsafe worktree, missing index, incomplete output, permission failure or timeout remains unknown
+- **AND** an observation that an unreadable record leaves incomplete is taken again, at most three times within the observer's one 30-second timeout
+- **AND** a present unsafe worktree, missing index, incomplete output, a permission failure inside an otherwise inspected process, or a timeout remains unknown
 - **AND** reviewed content is rechecked after the process observation
+
+#### Scenario: Processes outside the inspection boundary are reported, not hidden
+
+- **WHEN** a content admission observes open files while processes the invoking user may not inspect are running
+- **THEN** the observation covers only the processes the invoking user may inspect
+- **AND** a process that denies every `/proc` entry the observer reads, its descriptor links and threads' entries included, is reported once as uninspectable by process ID, user ID and command, not as a consumer
+- **AND** where the platform omits uninspectable processes without a record, the report marks their list unavailable rather than empty
+- **AND** each content admission records its observation in the progress it produces
+- **AND** the terminal receipt and result carry the observation of the admission that removed the worktree, including after recovery
 
 #### Scenario: Exact Lease observation changed after planning
 
@@ -3758,11 +3771,12 @@ schemas.
 
 ### Requirement: Commit policy applies to exact introduced commit ranges
 
-ETHOS SHALL compile the optional tracked `.ethos/workspace.toml
-[commit_policy]` declaration through the existing repository-policy owner and
-apply that compiled policy only to the commits newly introduced by one proposed
-Git ref update. The range projection SHALL be provider-neutral, SHALL preserve
-the repository object format, and SHALL NOT reinterpret or revalidate commits
+ETHOS SHALL compile the commit policy, the paradigm's subject grammar and SSH
+signature with the optional tracked `.ethos/workspace.toml [commit_policy]`
+declaration, through the existing repository-policy owner and apply that
+compiled policy only to the commits newly introduced by one proposed Git ref
+update. The range projection SHALL be provider-neutral, SHALL preserve the
+repository object format, and SHALL NOT reinterpret or revalidate commits
 already reachable from the trusted baseline.
 
 #### Scenario: Existing ref receives a normal fast-forward
@@ -3824,28 +3838,29 @@ already reachable from the trusted baseline.
 #### Scenario: Commit policy is absent or malformed at the proposed tip
 
 - **WHEN** the proposed committed tree contains no `[commit_policy]` table
-- **THEN** ETHOS adds no subject or signature constraint to the introduced range
+- **THEN** ETHOS applies the paradigm's subject grammar and SSH signature to the
+  introduced range
 - **AND** when the table is present but malformed, admission fails closed before
   returning a passing range result.
 
 ### Requirement: Commit signature declaration and signer trust remain distinct
 
-For commit-range admission, `signing_required` and `signing_format` SHALL govern
-the presence and format of the signature embedded in each introduced commit.
+For commit-range admission, the paradigm's SSH signature SHALL govern the
+presence and format of the signature embedded in each introduced commit.
 Signer authorization and trust-anchor verification SHALL remain a separate
 operation-specific observation and SHALL NOT require a repository-tracked key
 list or provider-specific policy parser.
 
 #### Scenario: A declared signature is missing or has the wrong format
 
-- **WHEN** an introduced commit lacks a required signature or carries a format
-  different from the compiled policy
+- **WHEN** an introduced commit lacks a signature or carries a format other
+  than SSH
 - **THEN** the shared range validator reports the exact commit and signature gap
 - **AND** local push admission and hosted CI reach the same verdict.
 
 #### Scenario: A lifecycle operation creates or replays commits
 
-- **WHEN** ETHOS itself creates or replays an object under a signing requirement
+- **WHEN** ETHOS itself creates or replays an object
 - **THEN** it uses the same subject and signature-format validator
 - **AND** its existing local trust verifier additionally proves the configured
   signer before any ref, Lease, or worktree effect is retained.
@@ -5166,21 +5181,6 @@ that admission, so a fixed constant alone SHALL NOT bound it.
 - **AND** a push that exceeds the derived deadline is reported as an unknown
   outcome and reobserved, exactly as before.
 
-### Requirement: Predecessor branch-role tables keep their incumbent meaning
-
-ETHOS SHALL read an incumbent branch-role table that lacks `canonical_sibling_worktrees`, or lacks both that field and `release_mirror`, with the predecessor defaults of no canonical sibling worktrees and an independent release mirror when it selects accepted closeout or lease control roles, and SHALL reject every other incomplete or unknown table.
-
-#### Scenario: A five-field incumbent table governs closeout
-
-- **WHEN** the accepted head declares only the release, accepted and candidate branches and the work and proposal prefixes
-- **THEN** closeout reads those roles with an independent release mirror and no canonical sibling worktrees
-- **AND** the candidate's own table does not decide the incumbent roles
-
-#### Scenario: Another incomplete table stays unavailable
-
-- **WHEN** the incumbent table omits any other field, or omits `release_mirror` while declaring `canonical_sibling_worktrees`
-- **THEN** closeout reports `accepted_policy_unavailable`
-
 ### Requirement: Unclassified ref moves fail with an explicit reason
 
 ETHOS SHALL reject a candidate-integration ref move whose ref matches no declared branch role with `ref_transition_operation_unresolved:<ref>`, and SHALL leave that ref unmoved.
@@ -5582,10 +5582,9 @@ representations SHALL agree on the same declared meaning.
 
 #### Scenario: Selected documentation renders its title before metadata
 
-- **WHEN** a profile-selected Markdown document encloses its leading YAML metadata in one complete HTML comment
-- **THEN** the same registry parser preserves its identity, role, state, and relations while the first visible rendered element is its title
-- **AND** duplicate keys, incomplete delimiters, or premature comment terminators block rather than expose metadata or fall back to missing metadata
-- **AND** the separate system-axiom derivation reader does not adopt the documentation-only carrier
+- **WHEN** a profile-selected Markdown document encloses its leading YAML metadata in an HTML comment
+- **THEN** the registry reads no metadata from it and reports the document's metadata as missing
+- **AND** the repository paradigm names the comment wrapper to remove, so plain front matter is the only carrier
 
 #### Scenario: Adopter-native guidance satisfies a portable reader floor
 
@@ -5593,7 +5592,7 @@ representations SHALL agree on the same declared meaning.
 - **THEN** the docs report accepts its reader surface if metadata, relations, and navigation are valid
 - **AND** a missing title or guidance hidden entirely in a literal fence blocks
 - **AND** an authored empty or contradictory `Status:` remains a gap
-- **AND** observational roles may omit reader guidance but cannot bypass a commented carrier's title-first rule
+- **AND** observational roles may omit reader guidance
 
 ### Requirement: ETHOS directory navigation uses README only
 

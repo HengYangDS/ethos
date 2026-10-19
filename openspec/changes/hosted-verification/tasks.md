@@ -1,12 +1,16 @@
 # Tasks
 
+## 3. ETHOS conformance
+
+- [x] 3.8 Build the CI supply image that runs as its unprivileged user through the GitHub supply job, pin its digest in the CI model and accept the GitLab pipeline on it (GitHub run 39096910482 built `sha256:ce09f5cd`, pinned at `adda1acb4`; GitLab dev pipeline 11522 and main pipeline 11523 passed on it at `76e2161ad`).
+
 ## 7. Hosted Execution and Publication
 
 - [ ] 7.3 Requalify hosted supply failure after repairing lost timeout output; retain native diagnostics and clear prior reports before any proof.
   - [x] 7.3.1 Report the bootstrap failure that a staging cleanup error masks in native tool supply; done when a supply failure followed by a cleanup failure reports both (windows-latest run 38658885061 printed only the cleanup's WinError 32 on the staged `mise.exe`).
 - [ ] 7.4 Consolidate hosted full execution and fail-closed required checks; observe external-link health separately without starving proof reports or hiding its failure.
   - [ ] 7.4.1 Decide how GitLab external-links handles intermittent github.com 503 responses from the intranet egress (different links each run in pipelines 10526/10575/10576; GitHub-hosted runs pass); done when GitLab external-links passes or its provider scope is recorded with a rationale.
-  - [ ] 7.4.2 Admit the Linux `lsof` record of a process or descriptor that exits during the open-file scan, which carries no type, device or inode, while every other unreadable record keeps the observation incomplete; done when the GitHub hosted quality job passes the reviewed-disposal retirement cases at the fix head (they were its only failures in runs 39090251125 and 39092249050).
+  - [x] 7.4.2 Admit the Linux `lsof` record of a process or descriptor that exits during the open-file scan, which carries no type, device or inode; done when a committed regression replays a real vanished record of each form captured from the pinned supply image and admits it. Every one of the 728 anomalous scans captured there holds such a record, and `tests/unit/adapters/test_open_files.py` replays one per form; permission records and the hosted reviewed-disposal cases belong to `retirement-observation-boundary`.
 - [ ] 7.5 Qualify and deliver the exact single-execution CI candidate.
 - [ ] 7.9 Qualify the rootless dual-provider successor through exact proof, installed runtime and hosted observation.
 - [ ] 7.11 Qualify both CUE-generated Forge projections through current hosted runs.
@@ -20,3 +24,4 @@
 ## Workflow follow-up
 
 - Prove the exact head, archive this Change, prove the archived head, then land, close out and publish.
+- Task 3.8 moved verbatim from `repository-paradigm` on 2026-10-18, so that Change could archive while its GitLab acceptance continues here.

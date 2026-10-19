@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import locale
 import os
-import re
 import shutil
 import signal
-import stat
 import subprocess
 import sys
 from contextlib import ExitStack
@@ -250,131 +248,6 @@ def process_listing_command(*, platform_name: str | None = None) -> tuple[str, .
             reason="native_executable_missing",
         )
     return (Path(executable).resolve().as_posix(), "-axww", "-o", "command=")
-
-
-def _file_observation_failure(reason: str) -> None:
-    raise ValueError(reason)
-
-
-# lsof records a process or descriptor that exits during its scan without a type, device or
-# inode. Only that absence is admitted; any other unreadable entry leaves the observation
-# incomplete. Darwin names the vanished object. Linux names the /proc entry it failed to
-# read or, when the link read but its stat then failed, the target it read; lsof prints the
-# note of a failed lstat before that stat note without its opening parenthesis.
-_DARWIN_VANISHED_REFERENCE = re.compile(
-    rb"(?:kqueue|pipe|semaphore|POSIX shared memory|vnode|socket): "
-    rb"(?:FD unavailable|process unavailable)"
-)
-_LINUX_VANISHED_REFERENCE = re.compile(
-    rb"/proc/[0-9]+(?:/task/[0-9]+)?/(?:(?P<entry>cwd|root|exe|fd)|fd/(?P<descriptor>[0-9]+)) "
-    rb"\((?:readlink|opendir): No such file or directory\)"
-)
-_LINUX_VANISHED_TARGET = re.compile(
-    rb".+ (?:lstat: No such file or directory\) )?\(stat: No such file or directory\)", re.DOTALL
-)
-_LINUX_VANISHED_LABELS = {b"cwd": b"cwd", b"root": b"rtd", b"exe": b"txt", b"fd": b"NOFD"}
-
-
-def _vanished_reference(fields: dict[bytes, bytes]) -> bool:
-    if sys.platform == "darwin":
-        return (
-            set(fields) == {b"f", b"n"}
-            and fields[b"f"].isdigit()
-            and _DARWIN_VANISHED_REFERENCE.fullmatch(fields[b"n"]) is not None
-        )
-    if (
-        not sys.platform.startswith("linux")
-        or set(fields) - {b"f", b"t", b"n"}
-        or fields.get(b"t", b"unknown") != b"unknown"
-    ):
-        return False
-    descriptor, name = fields.get(b"f", b""), fields.get(b"n", b"")
-    if match := _LINUX_VANISHED_REFERENCE.fullmatch(name):
-        return descriptor == (match["descriptor"] or _LINUX_VANISHED_LABELS[match["entry"]])
-    return (descriptor.isdigit() or descriptor in {b"cwd", b"rtd", b"txt"}) and bool(
-        _LINUX_VANISHED_TARGET.fullmatch(name)
-    )
-
-
-def _file_identities(payload: bytes) -> frozenset[tuple[int, int]]:
-    if not payload.endswith(b"\0\n"):
-        _file_observation_failure("file_observation_incomplete")
-    identities: set[tuple[int, int]] = set()
-    process_seen = False
-    for frame in payload[:-2].split(b"\0\n"):
-        fields = {item[:1]: item[1:] for item in frame.split(b"\0")}
-        if len(fields) != frame.count(b"\0") + 1:
-            _file_observation_failure("file_observation_duplicate_field")
-        if b"p" in fields:
-            if set(fields) != {b"p"} or not fields[b"p"].isdigit():
-                _file_observation_failure("file_observation_process_invalid")
-            process_seen = True
-            continue
-        if process_seen and _vanished_reference(fields):
-            continue
-        fields.pop(b"n", None)
-        if (
-            not process_seen
-            or set(fields) not in ({b"f", b"t"}, {b"f", b"t", b"D", b"i"}, {b"f", b"t", b"i"})
-            or not all(fields.values())
-            or fields.get(b"f", b"NOFD") == b"NOFD"
-            or fields.get(b"t", b"unknown") == b"unknown"
-            or (b"i" in fields and not fields[b"i"].isdigit())
-            or (b"i" in fields and b"D" not in fields and fields[b"t"] != b"unix")
-            or (fields[b"t"] in {b"REG", b"DIR"} and b"i" not in fields)
-        ):
-            _file_observation_failure(f"file_observation_unreadable:{frame[:256]!r}")
-        if b"D" in fields:
-            identities.add((int(fields[b"D"], 16), int(fields[b"i"])))
-    if not identities:
-        _file_observation_failure("file_observation_empty")
-    return frozenset(identities)
-
-
-def process_file_identities(root: Path, *, tree: Path, index: Path) -> frozenset[tuple[int, int]]:
-    """Observe complete native identities; the reviewed manifest selects retirement consumers."""
-    command: tuple[str, ...] = ()
-    try:
-        executable = shutil.which("lsof", path=os.defpath + os.pathsep + "/usr/sbin")
-        if os.name != "posix" or executable is None:
-            _file_observation_failure("native_file_observer_missing")
-        try:
-            tree_status = tree.lstat()
-        except FileNotFoundError:
-            tree_status = None
-        if (
-            not tree.is_absolute()
-            or not index.is_absolute()
-            or index.is_symlink()
-            or (tree_status is not None and not stat.S_ISDIR(tree_status.st_mode))
-            or not index.is_file()
-        ):
-            _file_observation_failure("file_observation_scope_unavailable")
-        command = (str(executable), "-nP", "-F0pftDin")
-        # The C locale fixes lsof's error text, which identifies a vanished /proc entry.
-        result = run_command(
-            root,
-            command,
-            text=False,
-            timeout=30,
-            env={"LC_ALL": "C"},
-            remove_env_prefixes=("GIT_",),
-        )
-        if result.returncode != 0 or result.stderr:
-            _file_observation_failure(
-                result.stderr.decode(errors="replace") or "file_observation_incomplete"
-            )
-        if not result.stdout:
-            _file_observation_failure("file_observation_empty_success")
-        return _file_identities(result.stdout)
-    except (OSError, ValueError, subprocess.TimeoutExpired) as error:
-        raise ProcessExecutionError(
-            NATIVE_PROCESS_OBSERVER_UNAVAILABLE,
-            reason="file_references_unavailable",
-            command=command,
-            cwd=root.as_posix(),
-            cause=str(error),
-        ) from error
 
 
 def run_command(

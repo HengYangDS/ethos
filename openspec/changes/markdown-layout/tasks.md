@@ -7,7 +7,7 @@
 
 ## 2. Conformance
 
-- [ ] 2.1 Lay out ETHOS's own documents with `ethos lane repair-paradigm --apply`; done when the repository audit reports no `markdown-layout` gap.
+- [x] 2.1 Lay out ETHOS's own documents with `ethos lane repair-paradigm --apply`; done when the repository audit reports no `markdown-layout` gap.
 
 ## 3. Documentation
 

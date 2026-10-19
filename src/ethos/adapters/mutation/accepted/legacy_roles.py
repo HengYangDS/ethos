@@ -134,11 +134,6 @@ def _rename_gaps(
         *(["authorization_required"] if not authorized else []),
         *(["expected_head_mismatch"] if expect_head != head else []),
         *(
-            ["legacy_release_rename_unsupported"]
-            if declared.get("release_branch", standard.release_branch) != standard.release_branch
-            else []
-        ),
-        *(
             f"legacy_role_rename_target_exists:{target.removeprefix('refs/heads/')}"
             for target, _head in renames.values()
             if ref_head(root, target)

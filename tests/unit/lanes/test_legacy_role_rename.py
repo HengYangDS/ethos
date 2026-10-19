@@ -34,11 +34,12 @@ _LEGACY_DECLARATIONS = [
 ]
 
 
-def _legacy_repository(tmp_path: Path) -> tuple[Path, Path, str]:
+def _legacy_repository(tmp_path: Path, *, release: str = "") -> tuple[Path, Path, str]:
     """Adopt a repository whose committed table and refs still use legacy role names."""
     repo, candidate = start_adopted_candidate(tmp_path)
     workspace = repo / ".ethos/workspace.toml"
-    workspace.write_text(f"[branch_roles]\n{_LEGACY}")
+    declared = f'release_branch = "{release}"\n' if release else ""
+    workspace.write_text(f"[branch_roles]\n{declared}{_LEGACY}")
     git(repo, "add", workspace.as_posix())
     git(repo, "commit", "-m", "chore: declare legacy branch roles")
     git(repo, "branch", "-m", "dev", "accepted/train")
@@ -68,6 +69,33 @@ def test_closeout_renames_legacy_role_refs_without_moving_content(tmp_path: Path
     assert git(candidate, "branch", "--show-current") == "candidate/dev"
     rerun = run_ethos_blocked(*_closeout(head, "--apply", "--authorize"), cwd=repo)
     assert rerun["required_gaps"] == _LEGACY_DECLARATIONS
+
+
+def test_closeout_renames_a_legacy_release_ref_with_its_worktree(tmp_path: Path) -> None:
+    """A declared legacy release name renames to the fixed name, and its worktree follows."""
+    repo, _candidate, head = _legacy_repository(tmp_path, release="master")
+    release = tmp_path / "repo-master"
+    git(repo, "branch", "master", head)
+    git(repo, "worktree", "add", release.as_posix(), "master")
+
+    renamed = run_ethos(*_closeout(head, "--apply", "--authorize"), cwd=repo)
+
+    assert renamed["state"] == "branch_roles_renamed", renamed
+    assert git(repo, "rev-parse", "main") == head
+    assert not git(repo, "branch", "--list", "master")
+    assert git(release, "branch", "--show-current") == "main"
+
+
+def test_closeout_refuses_a_legacy_release_rename_onto_an_existing_name(tmp_path: Path) -> None:
+    """The release rename never overwrites a live ref that already holds the fixed name."""
+    repo, _candidate, head = _legacy_repository(tmp_path, release="master")
+    git(repo, "branch", "master", head)
+    git(repo, "branch", "main", head)
+
+    blocked = run_ethos_blocked(*_closeout(head, "--apply", "--authorize"), cwd=repo)
+
+    assert "legacy_role_rename_target_exists:main" in blocked["required_gaps"], blocked
+    assert git(repo, "rev-parse", "master") == head
 
 
 def test_closeout_finishes_an_interrupted_worktree_binding(

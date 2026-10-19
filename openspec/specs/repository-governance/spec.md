@@ -14,6 +14,7 @@ ETHOS SHALL identify accepted OpenSpec capabilities by stable product semantics
 rather than implementation package names.
 
 #### Scenario: accepted specs use semantic capability IDs
+
 - **WHEN** repository audit inspects `openspec/specs`
 - **THEN** the required capability directories are `kernel`, `contracts`,
   `repository-governance`, `adapters`, `command-plane`,
@@ -24,6 +25,7 @@ rather than implementation package names.
   than capability identity
 
 ### Requirement: Official OpenSpec Governance
+
 ETHOS SHALL keep `openspec/` as an official repository governance capability for
 spec-driven planning and change records while preserving `ethos ...` as the
 public product command plane.
@@ -32,11 +34,13 @@ OpenSpec remains mandatory governance, not a product substrate and not a second 
 ETHOS status is the singular reader for repository readiness.
 
 #### Scenario: OpenSpec validation is used
+
 - **WHEN** ETHOS audits OpenSpec repository governance
 - **THEN** it invokes the official OpenSpec CLI for status and strict validation
   instead of replacing OpenSpec with ad hoc repository parsing
 
 ### Requirement: Coupling Binding Registry
+
 ETHOS SHALL classify product-semantic hard bindings, mandatory governance
 dependencies, native protocols, product toolchains, profile or adapter
 bindings, historical evidence, and test fixtures through a machine-readable
@@ -44,6 +48,7 @@ coupling registry. Profile or adapter bindings SHALL carry explicit admission
 metadata before they can participate in the registry.
 
 #### Scenario: Binding registry is audited
+
 - **WHEN** `ethos prove --gate repository-audit --json` runs
 - **THEN** the output includes `binding_registry`
 - **AND** Git repository substrate and configured branch roles are classified as
@@ -67,15 +72,18 @@ metadata before they can participate in the registry.
   required gaps
 
 #### Scenario: Adapter binding lacks admission
+
 - **WHEN** a `profile_or_adapter_binding` lacks admission metadata
 - **THEN** coupling audit reports a required gap naming the binding
 - **AND** the adapter cannot silently become repository truth.
 
 ### Requirement: Standards Adapter Lifecycle
+
 ETHOS SHALL adopt mature standards through adapters with explicit lifecycle,
 input contract, output contract, fallback, and exit strategy.
 
 #### Scenario: Standards are checked
+
 - **WHEN** `ethos prove --gate repository-audit --json` runs
 - **THEN** the canonical repository audit verifies each current standard adapter
   against its declared boundary, lifecycle, contracts, fallback, and retirement
@@ -144,10 +152,12 @@ matches.
   presence alone
 
 ### Requirement: Fast Daily Governance Checks
+
 ETHOS SHALL keep daily proof and report commands fast while preserving explicit
 deep OpenSpec validation.
 
 #### Scenario: Daily proof avoids deep OpenSpec
+
 - **WHEN** `ethos prove --json` runs without `--full`
 - **THEN** repository-audit uses OpenSpec shape mode
 - **AND** official OpenSpec validation remains available through deep commands
@@ -278,10 +288,12 @@ declared by that topology.
 - **AND** it SHALL NOT inspect or execute the outside target as a release owner.
 
 ### Requirement: Release Attestation
+
 ETHOS SHALL bind a standard SBOM to the exact built artifact without inventing
 local provenance or signature authority.
 
 #### Scenario: Built artifact SBOM is generated
+
 - **WHEN** `uv run --frozen --offline python -m nox -s supply_chain` runs
 - **THEN** the policy-owned Syft release emits SPDX 2.3 JSON for exactly one built wheel
 - **AND** the receipt binds HEAD, artifact and SBOM digests, and generator version
@@ -358,22 +370,26 @@ waive its own integration obligations.
   without an embedded TOML parser or policy default.
 
 ### Requirement: Provider-neutral Repository Audit Composition
+
 ETHOS repository lifecycle semantics SHALL accept provider reports through
 explicit proof-gate composition rather than importing provider execution
 packages into the repository audit.
 
 #### Scenario: Repository audit runs without a provider
+
 - **WHEN** `ethos prove --gate repository-audit --json` runs
 - **THEN** the repository audit evaluates repository-owned semantics without
   importing or executing provider-specific OpenSpec adapters
 
 #### Scenario: Full proof composes official OpenSpec validation
+
 - **WHEN** `ethos prove --full --execute --expect-head <head> --json` runs
 - **THEN** the proof plan evaluates repository audit and the official OpenSpec
   gate as separate declared gates
 - **AND** neither gate becomes a second lifecycle command plane
 
 #### Scenario: Empty current scope does not rehydrate historic archive authority
+
 - **GIVEN** proof resolution has no current changed paths and retains only a
   valid historic OpenSpec archive authority
 - **WHEN** full proof compiles its TransitionPlan for the current HEAD
@@ -385,20 +401,24 @@ packages into the repository audit.
   validation.
 
 ### Requirement: Proof States Distinguish Planning From Execution
+
 ETHOS SHALL distinguish planned gate readiness from executed proof.
 
 #### Scenario: Dry-run proof is readiness
+
 - **WHEN** `ethos prove --json` runs without `--execute`
 - **THEN** ETHOS reports `state=ready` when static checks and gate graph
   planning pass
 - **AND** ETHOS does not report `state=proven`
 
 #### Scenario: Executed proof is proven
+
 - **WHEN** `ethos prove --execute --json` runs and all required gates pass
 - **THEN** ETHOS reports `state=proven`
 - **AND** every required proof run records an exit code and `state=passed`
 
 #### Scenario: Full proof requires execution
+
 - **WHEN** `ethos prove --full --json` runs without `--execute`
 - **THEN** ETHOS reports `state=gapped`
 - **AND** ETHOS reports `full_proof_requires_execute`
@@ -446,7 +466,7 @@ branch as ready for another closeout mutation.
 - **GIVEN** the accepted root and configured candidate branch resolve to the same
   HEAD
 - **WHEN** `ethos land --closeout --apply --authorize --expect-head <HEAD>
-  --json` runs
+--json` runs
 - **THEN** ETHOS reports `state=accepted_current`
 - **AND** no new proof is required for a candidate head that is already accepted
 - **AND** the accepted root remains at the same HEAD
@@ -533,10 +553,12 @@ required.
   recreating the active Change or repeating its completed archive effect
 
 ### Requirement: Reference Adopter Parity Closure
+
 ETHOS SHALL prove reference adopter parity through generic profile and shadow
 evidence mechanisms rather than product-runtime adopter terms.
 
 #### Scenario: Reference adopter parity is closed
+
 - **GIVEN** tracked parity evidence for a reference adopter reports `verdict=pass`
 - **AND** the evidence covers OpenSpec claims trust review, Work Lane
   lifecycle, proof evidence, and profile boundaries
@@ -545,11 +567,13 @@ evidence mechanisms rather than product-runtime adopter terms.
 - **AND** product runtime packages remain free of adopter-private terminology
 
 ### Requirement: Contextual Authority Resolution
+
 ETHOS SHALL resolve authority and currentness for the exact subject, predicate,
 scope, plane, validity, and bindings without a persisted graph, rank, current
 pointer, directory status, or manual index.
 
 #### Scenario: independent planes report different states
+
 - **WHEN** local proof passes while a configured forge has no hosted Attestation
 - **THEN** local proof is current only for its local plane and hosted state remains unknown
 
@@ -576,17 +600,20 @@ carrier before mutation.
   the binding is written.
 
 ### Requirement: OpenSpec-first governance mutation
+
 ETHOS SHALL require a dedicated OpenSpec change, or an explicit active
 non-complete OpenSpec change attachment, before non-trivial tracked mutations
 to repository governance semantics.
 
 #### Scenario: Governance design starts with OpenSpec
+
 - **WHEN** an agent plans to change rules, skills, hook policy, product shape,
   architecture design, or governance workflow semantics
 - **THEN** the agent verifies the relevant OpenSpec change with
   `openspec status --change <change> --json` before tracked mutation
 
 #### Scenario: Complete changes are not reused silently
+
 - **WHEN** all existing relevant OpenSpec changes are complete
 - **THEN** ETHOS treats them as insufficient carriers for new semantic work
 - **AND** the agent creates or selects a new non-complete change before editing
@@ -610,7 +637,7 @@ repository truth surfaces.
 
 - **WHEN** a host cannot install a pre-tool mutation hook
 - **THEN** the agent MUST run `ethos lane prewrite <paths> --editor-root <root>
-  --require-editor-root --json` before tracked writes
+--require-editor-root --json` before tracked writes
 - **AND** the terminal design still treats manual prewrite as weaker than a
   bound mutation hook
 
@@ -658,7 +685,7 @@ repository truth surfaces.
 - **AND** replaying the Work Lane onto the candidate branch conflicts only on
   `evidence/parity/*-shadow.json`
 - **WHEN** `ethos lane refresh-base --apply --authorize --expect-head <head>
-  --json` runs
+--json` runs
 - **THEN** ETHOS completes the replay and returns
   `state = "base_refreshed_projection_stale"`
 - **AND** the payload exposes `projection_refresh_required = true`,
@@ -673,7 +700,7 @@ repository truth surfaces.
 - **AND** replaying the Work Lane onto the candidate branch conflicts on any path
   outside the admitted projection set
 - **WHEN** `ethos lane refresh-base --apply --authorize --expect-head <head>
-  --json` runs
+--json` runs
 - **THEN** ETHOS aborts the replay and reports `refresh_base_failed`
 - **AND** the Work Lane branch remains at the expected head
 
@@ -702,16 +729,19 @@ repository truth surfaces.
 - **AND** the observation does not authorize using stash as repository truth
 
 ### Requirement: Failure blocking moves upstream
+
 ETHOS SHALL promote repeated late failures to earlier controls until the normal
 workflow prevents the invalid state before mutation when practical.
 
 #### Scenario: Late failure is promoted
+
 - **WHEN** a repeated violation is detected after write, commit, CI, land, or
   publish
 - **THEN** ETHOS records the diagnosis and promotes the control toward rule,
   hook, scaffold/template, or schema/default placement
 
 #### Scenario: Bypassable guidance is incomplete
+
 - **WHEN** a normal mutation path can bypass a documented guard
 - **THEN** ETHOS treats the guard design as incomplete until the guard is bound
   to the mutation capability or an explicit degraded mode is declared
@@ -1034,6 +1064,7 @@ status reader without treating them as transition-blocking required gaps.
 - **AND** status remains read-only and does not authorize foreign Work Lane cleanup
 
 ### Requirement: Generated Evidence Boundary
+
 Generated proof artifacts SHALL remain outside repository truth, with
 deterministic latest-artifact writes. Product and contributor package builds
 SHALL clear and write `build/artifacts/python`, SHALL rely on the repository-level
@@ -1065,7 +1096,7 @@ ignore, and SHALL NOT use root `dist/` or add an output-local `.gitignore`.
 - **WHEN** the product full proof executes its package build gate or a
   contributor follows the documented package-build command
 - **THEN** `uv build --out-dir build/artifacts/python --clear
-  --no-create-gitignore` is the invoked command
+--no-create-gitignore` is the invoked command
 - **AND** generated package artifacts remain disposable local state under
   `build/artifacts/python`
 - **AND** concurrent workspace package builds do not race on an output-local
@@ -1544,7 +1575,7 @@ HEAD.
 - **AND** the replay subprocess returns zero without making the captured
   candidate HEAD an ancestor of the Work Lane HEAD
 - **WHEN** `ethos lane refresh-base --apply --authorize --expect-head <head>
-  --json` evaluates the replay result
+--json` evaluates the replay result
 - **THEN** ETHOS reports `state=blocked`
 - **AND** it reports `refresh_base_postcondition_failed`
 - **AND** it does not report `base_refreshed` or offer landing as the next
@@ -1626,6 +1657,7 @@ OpenSpec/repository-governance gaps and SHALL NOT be represented as
 `code_correctness_gates` or method-package authority.
 
 #### Scenario: Valid adopter has an invalid Change lifecycle
+
 - **WHEN** the adopter runs plan or prove
 - **THEN** the lifecycle payload and its required gap are returned
 - **AND** the command is not clean merely because the root is not the product.
@@ -1901,7 +1933,7 @@ SHA before attaching it again.
 
 ETHOS SHALL resolve adopter proof policy from the promoted committed tree when
 accepted-root closeout evaluates an exact candidate advance before the accepted
-worktree has reset to that candidate commit.  The implementation of this policy
+worktree has reset to that candidate commit. The implementation of this policy
 SHALL remain subject to the active proof floor; a proof failure SHALL be
 remediated in a separately active Change without weakening closeout policy,
 direct source-measurement ceilings or integrity, evidence binding, or the
@@ -2004,10 +2036,10 @@ Any target drift invalidates the decision.
 ### Requirement: Dirty and unbound Work Lane content is preserved before destructive closeout
 
 ETHOS SHALL preserve a dirty foreign Work Lane or diverged unbound Work Lane
-reference before an irreversible closeout action.  The preservation outcome
+reference before an irreversible closeout action. The preservation outcome
 SHALL record Git status provenance, exact target head, recoverable content
 manifest or patch digest, semantic comparison result, and the resulting
-disposition.  A clean accepted-absorption finding alone SHALL NOT discard an
+disposition. A clean accepted-absorption finding alone SHALL NOT discard an
 unpreserved dirty overlay.
 
 #### Scenario: Dirty foreign lane requires preservation first
@@ -2355,11 +2387,13 @@ external receipt.
 - **AND** the receipt binds exact accepted and candidate heads, control paths, both control digests, verifier digest, and executed-proof digest
 
 ### Requirement: Repository profile is a strict current binding
+
 ETHOS SHALL validate repository profiles directly through one typed current binding.
 Unknown, malformed, or incompatible data SHALL fail without normalization,
 reinterpretation, or synthesized declarations.
 
 #### Scenario: Former envelope and invalid root remain blocked
+
 - **WHEN** a repository profile contains former envelope fields, including
   `schema_version`, `profile_version`, `ethos_contract_version`, or
   `[repository]`, or declares `roots.rules = "."`
@@ -2383,23 +2417,27 @@ documentation locations or historical evidence directories.
   second evidence-root candidate selector.
 
 ### Requirement: Invalid repository profile commands return structured blocks
+
 Every public ETHOS reader, planning, proof, landing, publication, and OpenSpec
 lifecycle command SHALL return a structured `EthosResult` when the target
 repository profile is invalid. The result SHALL contain the stable invalid-profile
 gap and SHALL not emit an uncaught traceback as its command result.
 
 #### Scenario: JSON reader observes an invalid profile
+
 - **WHEN** `ethos status --json` targets an invalid repository profile
 - **THEN** it SHALL emit parseable JSON with `verdict = block`
 - **AND** `required_gaps` SHALL contain
   `repository_profile_invalid:.ethos/profile.toml`.
 
 #### Scenario: Enforcing proof command observes an invalid profile
+
 - **WHEN** `ethos prove --json` targets an invalid repository profile
 - **THEN** it SHALL emit parseable blocked JSON and exit non-zero
 - **AND** it SHALL not start a mutation or create proof evidence.
 
 #### Scenario: Landing does not mask an invalid adopter profile
+
 - **WHEN** `ethos land --json` targets an invalid repository profile
 - **THEN** it SHALL emit parseable JSON with the invalid-profile gap before
   reporting another mutation-admission gap
@@ -3298,27 +3336,32 @@ same public operation and exact CAS.
 - **AND** unavailable observation fails closed without re-entering maintenance
 
 ### Requirement: Hook runtime currentness is mutation admission
+
 ETHOS SHALL distinguish runtime byte integrity from accepted-source currentness.
 A hook runtime SHALL authorize repository mutation only when it is the single
 Git-common-dir selected runtime, its manifest is valid, and its source commit
 and tree equal the exact expected ETHOS identity.
 
 #### Scenario: intact runtime was built from older accepted source
+
 - **WHEN** every recorded runtime byte is intact but its source commit or tree differs from the expected accepted identity
 - **THEN** runtime observation reports a stable stale-source required gap
 - **AND** prewrite, hook, ref effect, and lifecycle mutation paths fail closed
 
 #### Scenario: accepted runtime is current
+
 - **WHEN** the selected runtime bytes, launchers, source commit, and source tree all match their expected identities
 - **THEN** the existing hook runtime binding reports no required gap
 - **AND** hooks, diagnosis, repair, and package-only commands resolve that same selected immutable runtime.
 
 #### Scenario: repair replaces the stale projection
+
 - **WHEN** the exact public repair command succeeds
 - **THEN** the command validates the candidate runtime and complete hook bundle before atomically selecting it
 - **AND** post-observation proves selection, byte integrity, source currentness, and launcher binding before reporting success.
 
 #### Scenario: proof is missing at hook admission
+
 - **WHEN** a hook denies an exact HEAD because its required proof is absent
 - **THEN** the report contains one executable command bound to the selected runtime, repository root, and exact HEAD
 - **AND** the command does not depend on ambient `PATH` command discovery.
@@ -3901,6 +3944,7 @@ transition SHALL reuse the existing retirement owner, exact Git effect,
 Lease coordination, immutable receipt, and recovery mechanism.
 
 #### Scenario: Redundant clean history is retained by a local descendant
+
 - **WHEN** an authorized actor requests `lane retire superseded` from the
   accepted control root with an exact target HEAD and a distinct local
   `refs/heads/...` retention ref containing that HEAD
@@ -3911,17 +3955,20 @@ Lease coordination, immutable receipt, and recovery mechanism.
 - **AND** the result reports history retention rather than accepted semantics
 
 #### Scenario: Retention or deletion coordinates do not hold
+
 - **WHEN** the target is dirty, protected, candidate, stale, or foreign-owned,
   or the retained ref is missing, identical, protected, candidate, or unrelated
 - **THEN** retirement fails closed without deleting any target resource
 
 #### Scenario: Retained ref moves after derivation
+
 - **WHEN** the exact retained ref no longer resolves to its planned OID
 - **THEN** preflight rejects before worktree removal
 - **AND** the Git transaction independently checks the retained-ref assertion
   atomically with deletion, preserving existing partial-effect recovery
 
 #### Scenario: Historical topic lacks current authoring policy
+
 - **WHEN** the accepted owner has admitted one exact retirement intent for a
   historical topic whose own policy cannot be compiled
 - **THEN** the reference-transaction hook consumes accepted policy and that exact
@@ -3963,6 +4010,7 @@ actor and Lease SHALL remain exact inputs. Ignored status SHALL NOT imply dispos
 permission, and hashes SHALL NOT claim semantic acceptance.
 
 #### Scenario: Reviewed absorbed lane has residual content
+
 - **WHEN** an operator derives and reviews an exact receipt for a non-protected
   historical topic whose remaining content has been absorbed, superseded or
   explicitly rejected with a reason
@@ -3971,12 +4019,14 @@ permission, and hashes SHALL NOT claim semantic acceptance.
 - **AND** no backup lane, archive directory or parallel lifecycle is created.
 
 #### Scenario: Content or authority changes after review
+
 - **WHEN** the selected filesystem, index, ref, accepted object, actor or Lease
   no longer matches the receipt, or its observation is unsafe or unavailable
 - **THEN** retirement stops before the next destructive effect
 - **AND** unresolved bytes and current resources remain protected.
 
 #### Scenario: Historical coordination has expired or disappeared
+
 - **WHEN** a reviewed non-protected topic has missing or expired coordination,
   including a historical commit predating the repository adoption profile
 - **THEN** an identified operator can derive and authorize exact deletion from
@@ -3987,12 +4037,14 @@ permission, and hashes SHALL NOT claim semantic acceptance.
   of additional or unrelated refs.
 
 #### Scenario: Ignored and read-only generated resources are selected
+
 - **WHEN** an exact reviewed inventory includes ignored or read-only resources
   in an owned isolated root with no active consumers
 - **THEN** their safe removal is part of that same bounded retirement
 - **AND** external link targets and shared file permissions remain unchanged.
 
 #### Scenario: Native node ownership or filesystem boundary is foreign
+
 - **WHEN** a selected root, descendant or index node has a different native
   owner, or its device differs from the containing directory
 - **THEN** derivation rejects the node before opening its content or traversing
@@ -4000,6 +4052,7 @@ permission, and hashes SHALL NOT claim semantic acceptance.
 - **AND** effect-time observation applies the same admission boundary.
 
 #### Scenario: An admitted retirement is interrupted
+
 - **WHEN** retirement has partially completed and the operator invokes recovery
   with the original exact receipt
 - **THEN** current observations select only remaining admitted effects
@@ -4007,6 +4060,7 @@ permission, and hashes SHALL NOT claim semantic acceptance.
   deleted under an obsolete receipt.
 
 #### Scenario: Another retirement holds repository coordination
+
 - **WHEN** application or recovery encounters an already-held retirement lock
 - **THEN** it promptly returns `lane_retirement_in_progress`, the exact request
   receipt identity and the existing receipt-bound recovery command
@@ -4016,6 +4070,7 @@ permission, and hashes SHALL NOT claim semantic acceptance.
   lock and revalidates current facts rather than replaying assumed effects.
 
 #### Scenario: Ref transaction advances during stale-intent reclamation
+
 - **WHEN** reclamation observes an expired issued ref intent but its record is
   renewed or advances to prepared or committed before the existing lock is held
 - **THEN** reclamation preserves the current record and reports that it changed
@@ -4023,6 +4078,7 @@ permission, and hashes SHALL NOT claim semantic acceptance.
   alone never authorizes deletion of a changed transaction state.
 
 #### Scenario: Ref intent writer exits while holding coordination
+
 - **WHEN** a live writer holds intent coordination, including during cleanup
 - **THEN** competing mutations return a bounded timeout and preserve its record
 - **AND** normal exit or process death permits a fresh exact claim without
@@ -4040,6 +4096,7 @@ exclude arbitrary uncooperative same-UID writes. Unknown liveness SHALL block
 destructive application.
 
 #### Scenario: Actual writer is stopped before reviewed retirement
+
 - **WHEN** a writer still consumes the selected worktree
 - **THEN** retirement rejects application and preserves its content and refs
 - **AND** after the writer exits, the operator reviews the final exact content
@@ -5728,7 +5785,7 @@ reclamation. Historical provenance alone SHALL NOT pin local executables.
 
 ### Requirement: Active proposals and designs follow their official templates
 
-For every active Change, ETHOS SHALL resolve the artifact outputs and the schema's templates through the official OpenSpec CLI. Each proposal and design SHALL contain every literal heading of its resolved template, in template order and under its template parent. Sections that the template does not name SHALL remain allowed.
+For every active Change, ETHOS SHALL resolve the artifact outputs and the schema's templates through the official OpenSpec CLI. Each proposal and design SHALL contain every literal heading of its resolved template, in template order and under its template parent. Sections that the template does not name SHALL remain allowed. When template drift is the only blocking governance gap, prewrite SHALL admit the selected Change's drifted proposal and design files, and no other path, for repair.
 
 #### Scenario: A design omits an official section
 
@@ -5745,6 +5802,22 @@ For every active Change, ETHOS SHALL resolve the artifact outputs and the schema
 
 - **WHEN** the template that the official CLI resolves for a Change's schema gains a literal heading
 - **THEN** that heading is required of the Change's artifact without a change to ETHOS
+
+#### Scenario: Drift that strict validation accepts is repairable
+
+- **WHEN** an active Change passes strict validation, its design lacks a template heading, and that drift is the only blocking gap
+- **THEN** prewrite in the owning Work Lane admits that design for repair
+- **AND** prewrite of any other path reports that path as uncovered
+
+#### Scenario: Another blocking gap keeps the repair closed
+
+- **WHEN** template drift blocks together with another governance gap, such as an unavailable official CLI
+- **THEN** prewrite admits no repair and reports the other gap
+
+#### Scenario: Two drifted Changes do not hold each other's repair
+
+- **WHEN** another active Change also lacks a template heading
+- **THEN** the selected Change's drifted artifacts are still admitted for repair
 
 ### Requirement: Proof requires an archivable Change
 

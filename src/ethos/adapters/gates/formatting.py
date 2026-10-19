@@ -115,7 +115,8 @@ def _run(
         stdin=content,
         text=False,
         timeout=30,
-        remove_env=("NODE_OPTIONS", "NODE_PATH", "TAPLO_CONFIG"),
+        env={"NODE_DISABLE_COMPILE_CACHE": "1"},
+        remove_env=("NODE_COMPILE_CACHE", "NODE_OPTIONS", "NODE_PATH", "TAPLO_CONFIG"),
     )
     if completed.returncode or (reject_diagnostics and completed.stderr):
         raise subprocess.CalledProcessError(

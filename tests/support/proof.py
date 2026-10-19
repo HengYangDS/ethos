@@ -257,7 +257,7 @@ def declare_quality_profile(root: Path, gate_owner: str = "profile") -> None:
         )
         proof = {"gate_registry": "system/gates.toml"}
     write_test_profile(root, profile_id="native-quality-adopter", proof=proof)
-    paths = ("openspec/config.yaml", ".ethos/profile.toml")
+    paths = (".ethos/profile.toml",)
     if gate_owner != "profile":
         paths += ("system/gates.toml",)
     for item in prepare_source_format(root, paths=paths):

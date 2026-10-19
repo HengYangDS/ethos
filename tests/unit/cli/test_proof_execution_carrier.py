@@ -114,6 +114,14 @@ def test_staged_archive_can_reprove_its_head_from_clean_carrier(
     assert {check["action_id"] for check in report["data"]["checks"]} == {
         "sample-tests",
         "sample-static",
+        "config-quality",
+        "docs-registry",
+        "markdown-lint",
+        "markdown-links",
+        "openspec",
+        "prose",
+        "schemas",
+        "source-format",
     }
     assert proof_gaps(authoring, head, change_id="fixture-change") == []
     assert before == _authoring_snapshot(authoring)

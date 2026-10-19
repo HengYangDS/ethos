@@ -105,7 +105,7 @@ def test_public_prewrite_repairs_native_strict_warning_without_weakening_status(
     assert repair["data"]["material_scope"]["state"] == "canonical_spec_repair"
     assert repair["data"]["material_scope"]["authorized_paths"] == [path]
     ordinary = run_ethos_blocked("lane", "prewrite", "README.md", *options, cwd=root)
-    assert ordinary["data"]["material_scope"]["state"] == "canonical_spec_repair"
+    assert ordinary["data"]["material_scope"]["state"] == "not_available"
     assert "openspec_material_path_uncovered:README.md" in ordinary["required_gaps"]
     assert ordinary["data"]["openspec"]["required_gaps"] == official["required_gaps"]
     mixed = run_ethos_blocked("lane", "prewrite", path, "README.md", *options, cwd=root)

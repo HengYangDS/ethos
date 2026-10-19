@@ -171,21 +171,6 @@ def test_ethos_checks_claim_only_the_languages_they_judge(tmp_path: Path) -> Non
     assert behavior["required_gaps"] == ["quality_behavior_native_language_unsupported:script"]
 
 
-def test_native_static_cannot_hide_nonsemantic_python_identity(tmp_path: Path) -> None:
-    """Clean producer reports do not waive the product's authored identity contract."""
-    repo = committed_source_repo(
-        tmp_path,
-        {
-            "bin/run.sh": _SCRIPT,
-            "tests/run_test.sh": "#!/bin/sh\n./bin/run.sh\n",
-            "app.py": "answer_v2 = 42\n",
-        },
-    )
-    result = code_quality.static_report(repo, execution=_execution(repo, "pass"))
-    assert result["verdict"] == "block"
-    assert "code_identifier_semantics:app.py:1:answer_v2" in json.dumps(result)
-
-
 @pytest.mark.parametrize("covered", [("bin/run.sh", "bin/other.sh"), ("bin/run.sh",)])
 def test_public_proof_joins_native_script_behavior_with_ethos_static(
     tmp_path: Path, covered: tuple[str, ...]

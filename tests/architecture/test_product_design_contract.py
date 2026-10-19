@@ -193,7 +193,7 @@ def test_decision_records_are_audited_product_surfaces() -> None:
 
 def test_decision_records_preserve_complete_cross_change_rationale() -> None:
     """Retained decisions consume the shared contract and keep known dates and owners."""
-    registry = build_docs_registry(ROOT)
+    registry = build_docs_registry(ROOT, retained_origins=observed_document_origins(ROOT))
     assert decision_record_gaps(ROOT, registry) == []
     for entry in registry:
         if entry.get("role") != "decision":

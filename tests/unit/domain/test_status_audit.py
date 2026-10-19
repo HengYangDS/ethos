@@ -193,13 +193,7 @@ def test_public_common_gate_cannot_omit_documentation_identity(tmp_path: Path) -
     commit_fixture(repo, "docs: preserve a decision choice")
 
     observed = run_ethos_raw(
-        "prove",
-        "--host",
-        "--execute",
-        "--product-gate",
-        "repository-audit",
-        "--json",
-        cwd=repo,
+        "prove", "--host", "--execute", "--gate", "repository-audit", "--json", cwd=repo
     )
     report = json.loads(observed.stdout)
 
@@ -213,15 +207,7 @@ def test_public_common_gate_cannot_omit_documentation_identity(tmp_path: Path) -
 
 def _document(subject: str, role: str, title: str) -> str:
     """Supply a complete native metadata and visible reading fixture."""
-    content = (
+    return (
         f"---\nsubject: {subject}\nrole: {role}\nstate: canonical\nrelations: {{}}\n"
         f"---\n\n# {title}\n\nStatus: canonical.\n\nPurpose: explain one choice.\n"
     )
-    if role == "decision":
-        content += (
-            "\n## Context\n\nNative supply needs one accountable owner.\n"
-            "\n## Decision\n\nSelect the immutable product supply.\n"
-            "\n## Consequences\n\nKeep repository state independent of shared bytes.\n"
-            "\n## Revisit\n\nReview this choice when the supply contract changes.\n"
-        )
-    return content

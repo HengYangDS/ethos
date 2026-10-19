@@ -372,7 +372,9 @@ def test_public_native_product_composition_binds_target_and_refuses_stale_source
     monkeypatch.delenv("ETHOS_CHANGE", raising=False)
     monkeypatch.delenv("ETHOS_ACTOR", raising=False)
     root = _composed_document_repository(tmp_path, mixed_code=mixed_code)
-    plan = run_ethos("plan", "--changed", "--change", "gate-composition", "--json", cwd=root)
+    plan = run_ethos(
+        "plan", "--changed", "--change", "gate-composition", "--json", cwd=root, full_payload=True
+    )
     assert plan["verdict"] == "pass"
     assert {gate["id"] for gate in plan["data"]["required_gates"]} == {
         "openspec-baseline",

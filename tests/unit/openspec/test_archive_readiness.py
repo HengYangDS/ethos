@@ -15,6 +15,7 @@ from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+from tests.support.openspec_lifecycle import official_validation_payload
 from tests.support.proof import declare_native_proof_checks
 from tests.support.proof import proof_repository
 
@@ -105,8 +106,9 @@ def test_an_issue_without_a_resolvable_requirement_names_its_specification(
 ) -> None:
     repo, tree = _committed_change(tmp_path)
     issue = {"level": "ERROR", "message": "invalid"}
-    validation = {
-        "items": [
+    validation = official_validation_payload(
+        repo,
+        [
             {"type": "change", "id": "change", "valid": True, "issues": []},
             {"type": "spec", "id": "alpha", "valid": False, "issues": []},
             {
@@ -119,8 +121,8 @@ def test_an_issue_without_a_resolvable_requirement_names_its_specification(
                     {**issue, "path": "requirements[1]"},
                 ],
             },
-        ]
-    }
+        ],
+    )
     official = openspec_cli.run_json
 
     def run_json(

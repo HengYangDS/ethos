@@ -220,7 +220,13 @@ def design_integrity_report(
         registry = {
             entry["path"]: entry
             for entry in build_docs_registry(
-                root, retained_origins=retained_origins, selected_documents=tracked_documents
+                root,
+                retained_origins=retained_origins,
+                selected_documents=tuple(
+                    relative for relative in tracked_documents if (root / relative).is_file()
+                )
+                if tracked_documents is not None
+                else None,
             )
         }
     except ValueError as exc:

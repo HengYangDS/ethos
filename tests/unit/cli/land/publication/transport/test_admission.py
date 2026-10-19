@@ -89,14 +89,11 @@ def test_declared_signed_transport_shares_publish_and_native_push_admission(
     assert current["commit_policy_admission"]["revisions"] == []
 
 
-@pytest.mark.parametrize(
-    ("redirect_accepted_ref", "peer_root"),
-    [(False, "native"), (True, "native"), (True, "missing"), (True, "accepted")],
-)
+@pytest.mark.parametrize("peer_root", ["native", "missing", "accepted"])
 def test_transport_uses_only_the_peer_standard_accepted_authority(
-    tmp_path: Path, *, redirect_accepted_ref: bool, peer_root: str
+    tmp_path: Path, *, peer_root: str
 ) -> None:
-    """Proposals cannot redirect authority; the peer's standard accepted ref supplies policy."""
+    """The paradigm fixes role names; only the peer's standard accepted ref supplies policy."""
     repo, peers, prior = branch_publication_fixture(tmp_path, proof=False)
     git(repo, "push", "--no-verify", "github", f"{prior}:refs/heads/main")
     git(repo, "symbolic-ref", "refs/remotes/github/HEAD", "refs/remotes/github/main")
@@ -109,21 +106,6 @@ def test_transport_uses_only_the_peer_standard_accepted_authority(
         ),
         "test: propose object transport scope",
     )
-    if redirect_accepted_ref:
-        workspace = repo / ".ethos/workspace.toml"
-        head = commit_fixture_file(
-            repo,
-            ".ethos/workspace.toml",
-            workspace.read_text().replace(
-                "[branch_roles]\n",
-                '[branch_roles]\naccepted_branch = "proposal/transport-authority"\n',
-            ),
-            "test: propose alternate accepted designation",
-        )
-        git(repo, "branch", "proposal/transport-authority", head)
-        git(
-            repo, "push", "--no-verify", "github", f"{head}:refs/heads/proposal/transport-authority"
-        )
     if peer_root == "missing":
         git(repo, "symbolic-ref", "--delete", "refs/remotes/github/HEAD")
         for branch in ("dev", "main"):

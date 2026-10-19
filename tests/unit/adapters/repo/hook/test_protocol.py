@@ -128,7 +128,7 @@ def test_prepared_branch_cannot_use_the_notification_path(tmp_path: Path) -> Non
     result = _protocol(tmp_path, "prepared", f"{'a' * 40} {'b' * 40} refs/heads/work/change\n")
     assert result.returncode == 1
     assert json.loads(result.stderr)["required_gaps"] == [
-        "unused authority initialized: ethos.adapters.repo.runtime.selection"
+        "unused authority initialized: ethos.adapters.admission"
     ]
 
 

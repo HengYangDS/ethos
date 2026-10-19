@@ -25,7 +25,6 @@ The decisions behind these tasks are recorded in the archived design of `proof-t
 ## Risks / Trade-offs
 
 - [A merge makes local scenarios appear historically accepted] → Preserve archive bytes and qualify the active delta through native validation, exact proof and installed ETHOS/DDWG consumers.
-
 - [An accepted requirement is specified before its implementation task closes] → The open task in this Change names the remaining work, and proof of this Change cannot pass until its tasks are complete.
 - [A lane still edits `proof-throughput`] → That lane moves its edits to the successor named here when it next refreshes onto dev.
 

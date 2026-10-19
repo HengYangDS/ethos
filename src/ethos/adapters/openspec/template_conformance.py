@@ -12,6 +12,8 @@ from ethos.repository.openspec.template_outline import outline_gaps
 from ethos.repository.openspec.template_outline import template_outline
 
 STATUS_ALL = ("status", "--all", "--json")
+# Every template-heading gap begins with this prefix; repair admission reads it.
+TEMPLATE_HEADING_GAP = "openspec_template_heading_"
 _TEMPLATE_ARTIFACTS = ("proposal", "design")
 _MAX_MARKDOWN_BYTES = 1 << 20
 
@@ -72,7 +74,7 @@ def template_conformance_gaps(
                     gaps.append(f"openspec_artifact_unreadable:{name}:{artifact}")
                     continue
                 gaps.extend(
-                    f"openspec_template_heading_{kind}:{name}:{artifact}:{path}"
+                    f"{TEMPLATE_HEADING_GAP}{kind}:{name}:{artifact}:{path}"
                     for kind, path in outline_gaps(outline, markdown_outline(text))
                 )
     return list(dict.fromkeys(gaps))

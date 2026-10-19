@@ -10,6 +10,7 @@ from typing import cast
 from urllib.parse import urlsplit
 
 import ethos.adapters.process as process
+from ethos.adapters.admission.role_rename import legacy_proposal_prefix
 from ethos.adapters.admission.role_rename import legacy_role_names
 from ethos.adapters.mutation.lane_retirement.absorbed import retire_absorbed_ref
 from ethos.adapters.mutation.publication.observation import observe_remote_ref
@@ -138,15 +139,22 @@ def observe_proposal_review(
 
 
 def _retirement_role(root: Path, policy: BranchRolePolicy, target_ref: str, old: str) -> str:
-    """Admit a proposal ref, or a role ref that the table committed at its head names as legacy."""
+    """Admit a proposal ref, or a ref that the table committed at its head names as legacy.
+
+    The table names a legacy release or integration branch exactly and a legacy proposal
+    family by its prefix.
+    """
     _, role, _ = publication_ref_role(policy, target_ref, ())
     if role != ROLE_OTHER:
         return role
     try:
-        names = legacy_role_names(committed_file_text(root, old, ".ethos/workspace.toml"))
+        text = committed_file_text(root, old, ".ethos/workspace.toml")
+        names, prefix = legacy_role_names(text), legacy_proposal_prefix(text)
     except (TypeError, ValueError):
         return role
-    return LEGACY_ROLE_REF if target_ref.removeprefix("refs/heads/") in names.values() else role
+    branch = target_ref.removeprefix("refs/heads/")
+    legacy = branch in names.values() or bool(prefix and branch.startswith(prefix))
+    return LEGACY_ROLE_REF if legacy else role
 
 
 def _retirement_context(

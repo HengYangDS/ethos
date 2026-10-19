@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 ROLE_RENAME_OPERATION = "branch-roles.rename"
-RENAMED_ROLES = ("accepted_branch", "candidate_branch")
+RENAMED_ROLES = ("release_branch", "accepted_branch", "candidate_branch")
 _ZERO_OIDS = {"0" * 40, "0" * 64}
 
 
@@ -35,6 +35,12 @@ def legacy_role_names(text: str) -> dict[str, str]:
         for role in RENAMED_ROLES
         if (name := declared.get(role, "")) and name != getattr(standard, role)
     }
+
+
+def legacy_proposal_prefix(text: str) -> str:
+    """Return the proposal prefix a workspace table declares under a legacy name, or ''."""
+    prefix = declared_role_names(text).get("proposal_branch_prefix", "")
+    return prefix if prefix != BranchRolePolicy().proposal_branch_prefix else ""
 
 
 def legacy_role_renames(root: Path, head: str) -> dict[str, tuple[str, str]]:

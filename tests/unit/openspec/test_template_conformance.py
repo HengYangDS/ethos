@@ -9,6 +9,7 @@ import pytest
 
 import ethos.adapters.openspec.governance as governance
 import tests.support.governed_repository as fixture
+from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.openspec.template_conformance import template_conformance_gaps
 from ethos.repository.openspec.template_outline import markdown_outline
 from ethos.repository.openspec.template_outline import outline_gaps
@@ -182,3 +183,21 @@ def test_an_artifact_the_repository_cannot_supply_is_a_gap(tmp_path: Path, artif
     gaps = template_conformance_gaps(root, changes, {"custom": _template_read(proposal=template)})
 
     assert gaps == ["openspec_artifact_unreadable:first:proposal"]
+
+
+def test_a_work_lane_repairs_only_its_drifted_design(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Drift that strict validation accepts is repairable, and nothing else becomes writable."""
+    work = fixture.prepared_work_lane(tmp_path).worktree
+    fixture.write_active_commitment(work, change_id="drifted")
+    design = work / "openspec/changes/drifted/design.md"
+    design.write_text(design.read_text().replace("## Risks / Trade-offs", "## Hazards"))
+    monkeypatch.setenv("ETHOS_CHANGE", "drifted")
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+
+    repaired = prewrite_guard(root=work, paths=[design], editor_root=work)
+    unrelated = prewrite_guard(root=work, paths=[work / "README.md"], editor_root=work)
+
+    assert repaired["verdict"] == "pass", repaired["required_gaps"]
+    assert unrelated["required_gaps"] == ["openspec_material_path_uncovered:README.md"]

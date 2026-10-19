@@ -29,6 +29,65 @@ if TYPE_CHECKING:
 
 CommandRunner = Callable[..., str]
 
+# The adopted repository's authored files, written as LF bytes on every host.
+_SMOKE_CHANGE = "openspec/changes/smoke-change"
+_ADOPTER_FILES = {
+    ".ethos/profile.toml": (
+        'profile_id = "installed-cli-adopter"\n\n[openspec]\nmaterial_paths = ["**"]\n'
+    ),
+    ".ethos/release.toml": """[publication]
+local_verification_command = "git fsck --no-reflogs"
+local_installation_command = "git --version"
+
+[[publication.peers]]
+id = "file"
+provider = "git"
+role = "package_smoke"
+git_remote = "file"
+capabilities = ["repository", "publication"]
+""",
+    ".gitattributes": "* text=auto eol=lf\nline-ending-*.txt -text\n",
+    f"{_SMOKE_CHANGE}/.openspec.yaml": "schema: spec-driven\n",
+    f"{_SMOKE_CHANGE}/proposal.md": (
+        "## Why\n\nExercise the installed package lifecycle.\n\n"
+        "## What Changes\n\n- Add one package-smoke change.\n\n"
+        "## Capabilities\n\n### New Capabilities\n\n"
+        "- `package-smoke`: installed governance of one official Change.\n\n"
+        "### Modified Capabilities\n\n- None.\n\n"
+        "## Impact\n\n- Disposable package-smoke fixture.\n\n"
+        "## Out of Scope\n\n- Product behavior.\n"
+    ),
+    f"{_SMOKE_CHANGE}/design.md": (
+        "## Context\n\nPackage-only lifecycle proof.\n\n"
+        "## Goals / Non-Goals\n\nGovern one Change without product behavior.\n\n"
+        "## Decisions\n\nUse only official OpenSpec artifacts.\n\n"
+        "## Risks / Trade-offs\n\nNone beyond the disposable fixture.\n"
+    ),
+    f"{_SMOKE_CHANGE}/tasks.md": "## 1. Package smoke\n\n- [x] 1.1 Exercise installed lifecycle.\n",
+    f"{_SMOKE_CHANGE}/specs/package-smoke/spec.md": (
+        "## Purpose\n\n"
+        "Verify installed governance of native repository changes without source access.\n\n"
+        "## ADDED Requirements\n\n"
+        "### Requirement: Installed lifecycle\n\n"
+        "The installed package SHALL govern an official OpenSpec Change.\n\n"
+        "#### Scenario: Package smoke runs\n\n"
+        "- **WHEN** the installed lifecycle executes\n"
+        "- **THEN** no parallel intent carrier is required\n"
+    ),
+    "README.md": "# installed CLI adopter\n",
+    "AGENTS.md": "# Agents\n",
+    ".editorconfig": (
+        "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n"
+    ),
+    ".config/checks/prettier/prettier.toml": 'printWidth = 100\nproseWrap = "preserve"\n',
+    ".config/checks/taplo/taplo.toml": "[formatting]\ncolumn_width = 100\n",
+    ".config/mise/config.toml": (
+        '[settings]\nlocked = true\n\n[tasks]\nbootstrap = "git --version"\n'
+        'check = "git fsck --no-reflogs"\nfix = "git add --renormalize ."\n'
+    ),
+    ".config/mise/mise.lock": "",
+}
+
 
 def _required_executable(name: str) -> str:
     executable = shutil.which(name)
@@ -50,6 +109,7 @@ def product_signer(root: Path, *, run: CommandRunner) -> dict[str, str]:
     trust_anchor.write_text(
         f'ethos-install-smoke@example.invalid namespaces="git" {public_key}\n',
         encoding="utf-8",
+        newline="\n",
     )
     protect_for_current_identity(trust_root)
     protect_for_current_identity(trust_anchor)
@@ -91,88 +151,11 @@ def materialize_adopter(
     run(git, "config", "user.name", "ETHOS Install Smoke", cwd=root)
     run(git, "config", "user.email", "ethos-install-smoke@example.invalid", cwd=root)
     _configure_product_signer(root, git=git, run=run)
-    (root / ".ethos").mkdir()
-    change = root / "openspec/changes/smoke-change"
-    change.mkdir(parents=True)
-    (root / ".ethos/profile.toml").write_text(
-        'profile_id = "installed-cli-adopter"\n\n[openspec]\nmaterial_paths = ["**"]\n',
-        encoding="utf-8",
-    )
-    (root / ".ethos/release.toml").write_text(
-        """[publication]
-local_verification_command = "git fsck --no-reflogs"
-local_installation_command = "git --version"
-
-[[publication.peers]]
-id = "file"
-provider = "git"
-role = "package_smoke"
-git_remote = "file"
-capabilities = ["repository", "publication"]
-""",
-        encoding="utf-8",
-    )
-    (root / ".gitattributes").write_text(
-        "* text=auto eol=lf\nline-ending-*.txt -text\n",
-        encoding="utf-8",
-    )
-    shutil.copy2(openspec_config, root / "openspec/config.yaml")
-    (change / ".openspec.yaml").write_text("schema: spec-driven\n", encoding="utf-8")
-    (change / "proposal.md").write_text(
-        "## Why\n\nExercise the installed package lifecycle.\n\n"
-        "## What Changes\n\n- Add one package-smoke change.\n\n"
-        "## Capabilities\n\n### New Capabilities\n\n"
-        "- `package-smoke`: installed governance of one official Change.\n\n"
-        "### Modified Capabilities\n\n- None.\n\n"
-        "## Impact\n\n- Disposable package-smoke fixture.\n\n"
-        "## Out of Scope\n\n- Product behavior.\n",
-        encoding="utf-8",
-    )
-    (change / "design.md").write_text(
-        "## Context\n\nPackage-only lifecycle proof.\n\n"
-        "## Goals / Non-Goals\n\nGovern one Change without product behavior.\n\n"
-        "## Decisions\n\nUse only official OpenSpec artifacts.\n\n"
-        "## Risks / Trade-offs\n\nNone beyond the disposable fixture.\n",
-        encoding="utf-8",
-    )
-    (change / "tasks.md").write_text(
-        "## 1. Package smoke\n\n- [x] 1.1 Exercise installed lifecycle.\n",
-        encoding="utf-8",
-    )
-    spec = change / "specs/package-smoke/spec.md"
-    spec.parent.mkdir(parents=True)
-    spec.write_text(
-        "## Purpose\n\n"
-        "Verify installed governance of native repository changes without source access.\n\n"
-        "## ADDED Requirements\n\n"
-        "### Requirement: Installed lifecycle\n\n"
-        "The installed package SHALL govern an official OpenSpec Change.\n\n"
-        "#### Scenario: Package smoke runs\n\n"
-        "- **WHEN** the installed lifecycle executes\n"
-        "- **THEN** no parallel intent carrier is required\n",
-        encoding="utf-8",
-    )
-    (root / "README.md").write_text("# installed CLI adopter\n", encoding="utf-8")
-    (root / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
-    (root / ".editorconfig").write_text(
-        "root = true\n\n[*]\ncharset = utf-8\nend_of_line = lf\ninsert_final_newline = true\n",
-        encoding="utf-8",
-    )
-    for relative, content in (
-        (".config/checks/prettier/prettier.toml", 'printWidth = 100\nproseWrap = "preserve"\n'),
-        (".config/checks/taplo/taplo.toml", "[formatting]\ncolumn_width = 100\n"),
-        (
-            ".config/mise/config.toml",
-            (
-                '[settings]\nlocked = true\n\n[tasks]\nbootstrap = "git --version"\n'
-                'check = "git fsck --no-reflogs"\nfix = "git add --renormalize ."\n'
-            ),
-        ),
-        (".config/mise/mise.lock", ""),
-    ):
+    for relative, content in _ADOPTER_FILES.items():
         carrier = root / relative
         carrier.parent.mkdir(parents=True, exist_ok=True)
-        carrier.write_text(content, encoding="utf-8")
+        carrier.write_text(content, encoding="utf-8", newline="\n")
+    shutil.copy2(openspec_config, root / "openspec/config.yaml")
     peer = root.parent / "publication-peer.git"
     run(git, "init", "--quiet", "--bare", str(peer))
     run(git, "remote", "add", "file", str(peer), cwd=root)
@@ -500,17 +483,18 @@ def prepare_acceptance_topology(
     candidate = root.parent / "repo-candidate-dev"
     run(git, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev", cwd=root)
     (root / "notes").mkdir(exist_ok=True)
-    (root / "notes/accepted.txt").write_text("accepted\n", encoding="utf-8")
+    (root / "notes/accepted.txt").write_text("accepted\n", encoding="utf-8", newline="\n")
     run(git, "add", "notes/accepted.txt", cwd=root)
     run(git, "commit", "--quiet", "-m", "advance accepted independently", cwd=root)
     (candidate / "notes").mkdir(exist_ok=True)
-    (candidate / "notes/candidate.txt").write_text("candidate\n", encoding="utf-8")
+    (candidate / "notes/candidate.txt").write_text("candidate\n", encoding="utf-8", newline="\n")
     run(git, "add", "notes/candidate.txt", cwd=candidate)
     run(git, "commit", "--quiet", "-m", "advance candidate independently", cwd=candidate)
     profile = root / ".ethos/profile.toml"
     profile.write_text(
         profile.read_text(encoding="utf-8") + '\n[proof]\ngate_registry = "system/gates.toml"\n',
         encoding="utf-8",
+        newline="\n",
     )
     registry = root / "system/gates.toml"
     registry.parent.mkdir()
@@ -533,6 +517,7 @@ def prepare_acceptance_topology(
         'trust_bearing = true\ntool_adapter = "repository-native"\n'
         'version_source = "git"\n',
         encoding="utf-8",
+        newline="\n",
     )
     run(git, "add", ".ethos/profile.toml", "system/gates.toml", cwd=root)
     run(

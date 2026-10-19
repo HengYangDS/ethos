@@ -64,7 +64,7 @@ def _change(root: Path, name: str) -> None:
     for relative, content in sources.items():
         path = target / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
+        path.write_text(content, encoding="utf-8", newline="\n")
 
 
 def _prepare_fixture(repo: Path, env: Mapping[str, str]) -> tuple[Path, Path, str, str]:
@@ -88,7 +88,7 @@ def _prepare_fixture(repo: Path, env: Mapping[str, str]) -> tuple[Path, Path, st
     _git(target, "worktree", "add", "-b", "work/merge", str(work), environment=env)
     for root, name in ((work, "lane-contribution"), (candidate, "incoming-contribution")):
         _change(root, name)
-        (root / "README.md").write_text(f"# {name}\n", encoding="utf-8")
+        (root / "README.md").write_text(f"# {name}\n", encoding="utf-8", newline="\n")
         _git(root, "add", "README.md", "openspec", environment=env)
         _git(root, "commit", "-m", f"feat: {name}", environment=env)
     ours = _git(work, "rev-parse", "HEAD", environment=env)
@@ -164,7 +164,9 @@ def prove_native_merge(
         str(work),
         "--json",
     )
-    (work / "README.md").write_text("# Accepted packaged resolution\n", encoding="utf-8")
+    (work / "README.md").write_text(
+        "# Accepted packaged resolution\n", encoding="utf-8", newline="\n"
+    )
     _git(work, "add", "README.md", environment=env)
     continued = apply(work, command(work, *refresh, "--mode", "continue", "--json"))
     head, *parents = _git(work, "rev-list", "--parents", "-n", "1", "HEAD", environment=env).split()

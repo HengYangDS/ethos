@@ -16,6 +16,7 @@ from tests.support.fixture_signer import fixture_signer_inputs
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
+from tests.support.text_mode import translate_like_windows
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -86,6 +87,24 @@ def test_greenfield_preview_has_no_target_effect(tmp_path: Path) -> None:
     )
     assert not target.exists()
     assert not list(tmp_path.glob(".ethos-preview-*"))
+
+
+def test_greenfield_plan_is_identical_under_windows_text_mode(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Formation writes LF content on every host, so its reviewed plan cannot vary."""
+    request = {
+        "create": True,
+        "purpose": "Steward a new project with verifiable changes.",
+        "starter": "foundation",
+        **fixture_signer_inputs(),
+    }
+    native = adopt_repository(tmp_path / "new-project", **request)
+    translate_like_windows(monkeypatch)
+    translated = adopt_repository(tmp_path / "new-project", **request)
+
+    assert translated.verdict == native.verdict == "pass"
+    assert translated.data["write_plan"] == native.data["write_plan"]
 
 
 def test_greenfield_preview_is_public_cli_output(tmp_path: Path) -> None:

@@ -268,7 +268,7 @@ def prove_repair(
     if returncode or not isinstance(hook_runtime, dict) or hook_runtime.get("current") is not True:
         message = f"package_runtime_status_failed:{diagnostic}"
         raise RuntimeError(message)
-    (hooks_path / "pre-push").write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    (hooks_path / "pre-push").write_text("#!/bin/sh\nexit 1\n", encoding="utf-8", newline="\n")
     _returncode, stale, _stderr = invoke(repo, status, environment=environment)
     stale_data = stale.get("data")
     stale_runtime = stale_data.get("hook_runtime") if isinstance(stale_data, dict) else {}

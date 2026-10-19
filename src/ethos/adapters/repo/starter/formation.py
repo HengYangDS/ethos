@@ -106,9 +106,9 @@ def formation_plan(
                         "candidate_worktree_path": str(candidate_path)
                     }
                 (candidate / "README.md").write_text(
-                    f"# {target.name}\n\n{purpose.strip()}\n", encoding="utf-8"
+                    f"# {target.name}\n\n{purpose.strip()}\n", encoding="utf-8", newline="\n"
                 )
-                (candidate / "AGENTS.md").write_text(_AGENT_ENTRY, encoding="utf-8")
+                (candidate / "AGENTS.md").write_text(_AGENT_ENTRY, encoding="utf-8", newline="\n")
                 outputs, starter_outputs, starter_gap, detail = compose_starter(
                     candidate, starter, purpose.strip()
                 )

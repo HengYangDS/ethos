@@ -60,7 +60,9 @@ def _signer(target: Path) -> dict[str, str]:
     )
     public_key = key.with_suffix(".pub").read_text(encoding="utf-8").strip()
     anchor.write_text(
-        f'conformance@example.invalid namespaces="git" {public_key}\n', encoding="utf-8"
+        f'conformance@example.invalid namespaces="git" {public_key}\n',
+        encoding="utf-8",
+        newline="\n",
     )
     protect_for_current_identity(trust_root)
     protect_for_current_identity(anchor)

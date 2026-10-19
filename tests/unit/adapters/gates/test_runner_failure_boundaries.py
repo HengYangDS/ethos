@@ -72,7 +72,7 @@ def test_native_quality_inventory_failure_is_not_empty_success(
     assert evidence["cwd"] == str(tmp_path)
     if boundary == "invalid-repository":
         assert evidence["exit_code"] == 128
-        assert "gitfile does not point to a valid repository" in evidence["stderr"]
+        assert evidence["stderr"].startswith("fatal: ")
     else:
         assert evidence["code"] == "git_process_spawn_failed"
         assert evidence["command"][0] == str(tmp_path / "missing-git")

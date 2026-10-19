@@ -15,6 +15,7 @@
         Evidence: signed Git `5c9eb6785` (`tests/unit/lanes/test_lane_start.py`).
   - [x] 13.4.8 Qualify configurable publication names at the shared topology owner: an explicit provider defaults its peer ID to the provider and its Git remote to the resolved ID; preserve zero, one, many and repeated-provider peers, selected-only observation and no-peer no-mutation.
         Evidence: signed Git `d961afe97` (`tests/unit/release/test_policy_attestation.py`).
+  - [ ] 13.4.9 Reconcile adopter release tags whose peers name different signed objects for the same version through authorized native history repair, recording which peer object is authoritative and the receipt per peer, without copied tag maps or checkers. AIGW has 11 such tags (`v0.1.0-rc.74` to `rc.77`, `rc.82` to `rc.88`); its task 3.1 retains each peer's tag object and peeled commit as read with `git ls-remote` on 2026-10-20. Done when both peers name the authoritative object for each reconciled tag under a per-peer receipt, and a differing tag without an authorized repair still refuses publication.
 
 ## Workflow follow-up
 

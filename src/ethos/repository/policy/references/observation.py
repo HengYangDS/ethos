@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib.metadata
+import inspect
 import json
 import posixpath
 import sys
@@ -20,6 +22,7 @@ from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import reference_carrier
 from ethos.repository.policy.references.carriers import reference_paths
 from ethos.repository.policy.references.commands import normalize_command
+from ethos.repository.policy.references.manifests import normalized_distribution
 from ethos.repository.policy.references.manifests import npm_script_commands
 from ethos.repository.policy.references.manifests import package_json_references
 from ethos.repository.policy.references.manifests import pyproject_references
@@ -61,6 +64,30 @@ def observe_repository_references(root: Path) -> RepositoryReferenceObservation:
         files=files,
         unreadable_paths=tuple(sorted(unreadable_paths)),
     )
+
+
+def installed_distribution_modules(root: Path) -> dict[str, tuple[str, ...]]:
+    """Map installed distributions to the modules they provide, as native deptry reads them."""
+    paths = [
+        str(path)
+        for pattern in ("lib/python*/site-packages", "Lib/site-packages")
+        for path in sorted((root / ".venv").glob(pattern))
+    ]
+    modules: dict[str, set[str]] = defaultdict(set)
+    for distribution in importlib.metadata.distributions(path=paths) if paths else ():
+        try:
+            name = distribution.metadata.get("Name")
+            names = (distribution.read_text("top_level.txt") or "").split() or [
+                file.parts[0] if len(file.parts) > 1 else inspect.getmodulename(file.name) or ""
+                for file in distribution.files or ()
+            ]
+        except (OSError, TypeError, UnicodeError, ValueError):
+            continue
+        if isinstance(name, str):
+            modules[normalized_distribution(name)].update(
+                module for module in names if module.isidentifier()
+            )
+    return {name: tuple(sorted(found)) for name, found in sorted(modules.items()) if found}
 
 
 @dataclass(frozen=True, slots=True)

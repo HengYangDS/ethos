@@ -32,18 +32,21 @@ def native_owned_references_from_files(
     files: dict[str, str],
     *,
     command_owners: dict[str, frozenset[str]] | None = None,
+    distribution_modules: Mapping[str, tuple[str, ...]] | None = None,
 ) -> dict[str, frozenset[str]]:
-    """Compile positive closure from native package, gate, and profile owners."""
+    """Compile positive closure from native owners, resolving distributions as deptry does."""
     owned = {kind: set() for kind in REFERENCE_KINDS}
     npm_scripts = npm_script_commands(files)
     mappings, first_party = _python_import_owners(files)
+    installed = distribution_modules or {}
     before = set(owned["distribution"])
     for text in declaration_files(files, "python-project").values():
         pyproject_references(text, owned)
     owned["import"].update(
-        mappings.get(name, name.replace("-", "_"))
+        module
         for name in owned["distribution"] - before
         if not name.startswith("@")
+        for module in mappings.get(name) or installed.get(name) or (name.replace("-", "_"),)
     )
     for text in declaration_files(files, "node-package").values():
         package_json_references(text, npm_scripts, owned, declarations=True)
@@ -92,16 +95,20 @@ def command_owner_sources_from_files(
     return {command: frozenset(symbols) for command, symbols in owners.items()}
 
 
-def _python_import_owners(files: dict[str, str]) -> tuple[dict[str, str], set[str]]:
+def _python_import_owners(files: dict[str, str]) -> tuple[dict[str, tuple[str, ...]], set[str]]:
     payload = _toml(_declaration_text(files, "python-import-policy"))
-    mappings: dict[str, str] = {}
-    first_party = set()
+    mappings: dict[str, tuple[str, ...]] = {}
+    first_party = set(_string_items(payload.get("known_first_party")))
+    native = payload.get("package_module_name_map")
+    for distribution, modules in native.items() if isinstance(native, dict) else ():
+        if names := ((modules,) if isinstance(modules, str) else _string_items(modules)):
+            mappings[normalized_distribution(distribution)] = names
     for package in _table_items(payload.get("package")):
         first_party.update(_string_items(package.get("known_first_party")))
         for item in _string_items(package.get("package_module_name_map")):
-            distribution, separator, module = item.partition("=")
-            if separator and distribution and module:
-                mappings[normalized_distribution(distribution)] = module
+            distribution, separator, modules = item.partition("=")
+            if separator and distribution and (names := tuple(filter(None, modules.split("|")))):
+                mappings[normalized_distribution(distribution)] = names
     return mappings, first_party
 
 

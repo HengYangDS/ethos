@@ -28,6 +28,7 @@ from ethos.repository.policy.references.closure import product_reference_gaps
 from ethos.repository.policy.references.declarations import native_owned_references_from_files
 from ethos.repository.policy.references.observation import ProductReferences
 from ethos.repository.policy.references.observation import deleted_input_gaps
+from ethos.repository.policy.references.observation import installed_distribution_modules
 from ethos.repository.policy.references.observation import product_references_from_files
 from ethos.repository.profile import INVALID_PROFILE_ERROR
 
@@ -74,7 +75,9 @@ def patch_admission(
     if not reason:
         try:
             baseline_files = _baseline_reference_files(root, baseline_head)
-            baseline_references = native_owned_references_from_files(baseline_files)
+            baseline_references = native_owned_references_from_files(
+                baseline_files, distribution_modules=installed_distribution_modules(root)
+            )
             (
                 observation,
                 effect_gaps,

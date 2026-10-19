@@ -23,6 +23,12 @@ if TYPE_CHECKING:
 
     from ethos.repository.registry.docs.registry import RetainedDocument
 
+# Whether this host offers the no-follow descriptor chain that read_regular_bytes requires.
+DESCRIPTOR_CHAIN_READS = (
+    all(hasattr(os, name) for name in ("O_DIRECTORY", "O_NOFOLLOW", "O_NONBLOCK"))
+    and os.open in os.supports_dir_fd
+)
+
 
 @dataclass(frozen=True, slots=True)
 class _ReadSnapshot:

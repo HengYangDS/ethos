@@ -368,6 +368,34 @@ def test_native_mise_discovery_refuses_a_linked_declaration(
         mise.repository_mise_files(root)
 
 
+@pytest.mark.parametrize("descriptor_chain", [True, False])
+@pytest.mark.parametrize("alias", ["", "mise.lock", "config"])
+def test_hosts_without_descriptor_chains_read_declarations_and_refuse_aliases(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, descriptor_chain: bool, alias: str
+) -> None:
+    """A host without descriptor-relative opens reads the same bytes and refuses the same links."""
+    monkeypatch.setattr(mise, "DESCRIPTOR_CHAIN_READS", descriptor_chain)
+    root = tmp_path / "repository"
+    for directory in (root / ".config/mise", tmp_path / "outside"):
+        directory.mkdir(parents=True)
+        (directory / "config.toml").write_text('[tools]\nnode = "26.12.0"\n')
+        (directory / "mise.lock").write_text("lockfile_version = 3\n")
+    if alias == "mise.lock":
+        (root / ".config/mise/mise.lock").unlink()
+        (root / ".config/mise/mise.lock").symlink_to(tmp_path / "outside/mise.lock")
+    elif alias == "config":
+        shutil.rmtree(root / ".config/mise")
+        (root / ".config/mise").symlink_to(tmp_path / "outside", target_is_directory=True)
+    if alias:
+        with pytest.raises(ValueError, match="mise_declaration_unsafe"):
+            mise.repository_mise_files(root)
+        return
+    assert mise.repository_mise_files(root) == {
+        mise.MISE_CONFIG: '[tools]\nnode = "26.12.0"\n',
+        mise.MISE_LOCK: "lockfile_version = 3\n",
+    }
+
+
 @pytest.mark.parametrize(
     ("fault", "gap"),
     [

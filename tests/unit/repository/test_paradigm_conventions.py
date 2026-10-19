@@ -255,7 +255,7 @@ def test_malformed_bindings_leave_their_owner_to_report_them(
     ("changes", "gap", "repair"),
     [
         (
-            {"docs/guide.md": "<!--\n---\nsubject: sample:guide\n---\n-->\n# Guide\n"},
+            {"docs/guide.md": "<!--\n---\nsubject: sample:guide\n---\n-->\n\n# Guide\n"},
             "repository_paradigm_front_matter:docs/guide.md",
             "remove the <!-- and --> lines so YAML front matter starts docs/guide.md",
         ),

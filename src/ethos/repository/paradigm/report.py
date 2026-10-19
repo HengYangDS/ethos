@@ -18,6 +18,7 @@ from ethos.measure import effective_code_lines_for_source
 from ethos.repository.paradigm.documents import document_gaps
 from ethos.repository.paradigm.gap import ParadigmGap
 from ethos.repository.paradigm.gap import tracked_text
+from ethos.repository.paradigm.markdown import markdown_layout_gaps
 from ethos.repository.paradigm.names import authored_name_gaps
 from ethos.repository.paradigm.names import name_path_gaps
 from ethos.repository.paradigm.openspec import openspec_gaps
@@ -55,6 +56,7 @@ def repository_paradigm_report(
     """
     paradigm = load_repository_paradigm()
     tracked = frozenset(tracked_paths)
+    received = frozenset(received_paths)
     gaps = [
         *_root_gaps(paradigm, tracked),
         *_binding_gaps(paradigm, tracked),
@@ -65,11 +67,12 @@ def repository_paradigm_report(
         *_size_gaps(paradigm, root, tracked),
         *_formatter_gaps(paradigm, root, tracked),
         *document_gaps(paradigm, root, tracked),
+        *markdown_layout_gaps(paradigm, root, tracked, received),
         *openspec_gaps(paradigm, root, tracked),
         *_peer_remote_gaps(paradigm, root, tracked),
         *workspace_gaps(paradigm, root, tracked),
         *_release_gaps(paradigm, root, tracked),
-        *authored_name_gaps(paradigm, tracked, frozenset(received_paths)),
+        *authored_name_gaps(paradigm, tracked, received),
         *pipeline_model_gaps(paradigm, tracked),
         *toolchain_gaps(paradigm, root, tracked),
         *tracked_script_gaps(paradigm, root, tracked),

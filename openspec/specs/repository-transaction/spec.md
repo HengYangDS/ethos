@@ -1,6 +1,7 @@
 # repository-transaction Specification
 
 ## Purpose
+
 Define the single Git-native transaction boundary that compiles official OpenSpec intent and fresh repository facts into exact compare-and-swap effects and durable Attestations.
 
 ## Requirements

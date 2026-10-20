@@ -502,6 +502,18 @@ def test_script_discovery_reads_selected_git_object_not_mutable_checkout(tmp_pat
         resolve_gate_policy(repo, tree_ref=head)
 
 
+def test_script_discovery_refuses_an_unreadable_blob(tmp_path: Path) -> None:
+    """A blob Git cannot read stays unknown even when another script matches."""
+    repo = init_git_repo(tmp_path / "repo")
+    write_script_gate_policy(repo)
+    (repo / "tools/other.sh").write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    head = commit_fixture(repo, "declare scripts")
+    blob = git(repo, "rev-parse", f"{head}:tools/other.sh")
+    (repo / ".git/objects" / blob[:2] / blob[2:]).unlink()
+    with pytest.raises(ValueError, match="quality_script_discovery_unknown"):
+        resolve_gate_policy(repo, tree_ref=head)
+
+
 def test_carrier_role_projection_reads_selected_git_tree(tmp_path: Path) -> None:
     """A mutable attribute file cannot reinterpret committed carrier roles."""
     repo = init_git_repo(tmp_path / "repo")

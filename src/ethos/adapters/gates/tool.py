@@ -438,7 +438,7 @@ def markdown_lint_report(root: Path) -> dict[str, object]:
         formatted = _native_formatter_owners(root, files)
         for relative, owner in formatted:
             content = (root / relative).read_bytes()
-            rendered, _ignored = render_source_content(root, relative, owner, content)
+            rendered, _ignored = render_source_content(root, relative, owner, content, node=node)
             if rendered != content:
                 format_gaps.append(f"source_format_drift:{relative}")
     except (OSError, ValueError, TypeError, subprocess.SubprocessError) as error:

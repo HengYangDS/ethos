@@ -41,6 +41,7 @@ _SUFFIXES = frozenset(
         ".svg",
     }
 )
+_NODE_FORMATTERS = frozenset({"prettier", "taplo", "svgo"})
 
 
 @dataclass(frozen=True)
@@ -127,10 +128,10 @@ def _run(
 
 
 def _prettier(
-    root: Path, relative: str, content: bytes, *, repository_policy: bool
+    root: Path, relative: str, content: bytes, *, repository_policy: bool, node: str | None
 ) -> tuple[bytes, bool]:
     binary = (
-        str(resolve_node_runtime().executable),
+        node or str(resolve_node_runtime().executable),
         str(product_node_module("prettier") / "bin/prettier.cjs"),
     )
     ignore = native_repository_configuration(root, "prettier-ignore") if repository_policy else None
@@ -189,10 +190,14 @@ def render_source_content(
     content: bytes,
     *,
     repository_policy: bool = True,
+    node: str | None = None,
 ) -> tuple[bytes, bool]:
-    """Render one original native postimage for authored checks or owned projections."""
+    """Render one original native postimage for authored checks or owned projections.
+
+    Callers that render many files pass ``node``, one resolved Node executable.
+    """
     if owner == "prettier":
-        return _prettier(root, relative, content, repository_policy=repository_policy)
+        return _prettier(root, relative, content, repository_policy=repository_policy, node=node)
     scripts = runtime_scripts(Path(sys.prefix))
     if owner == "ruff":
         rendered = tuple(
@@ -219,7 +224,7 @@ def render_source_content(
         return rendered[0], False
     if owner == "taplo":
         binary = (
-            str(resolve_node_runtime().executable),
+            node or str(resolve_node_runtime().executable),
             str(product_node_module("@taplo/cli") / "dist/cli.js"),
         )
         rendered = tuple(
@@ -252,7 +257,7 @@ def render_source_content(
         )
     elif owner == "svgo":
         command = (
-            str(resolve_node_runtime().executable),
+            node or str(resolve_node_runtime().executable),
             str(product_node_module("svgo") / "bin/svgo.js"),
             "--multipass",
             "--pretty",
@@ -274,11 +279,16 @@ def render_source_content(
 
 def prepare_source_format(root: Path, *, paths: tuple[str, ...] = ()) -> tuple[FormattedFile, ...]:
     """Prepare all selected files first; native refusal leaves every source byte untouched."""
-    prepared = []
-    for relative, owner in _selected_files(root, paths):
+    prepared, selected = [], _selected_files(root, paths)
+    node = (
+        str(resolve_node_runtime().executable)
+        if any(owner in _NODE_FORMATTERS for _relative, owner in selected)
+        else None
+    )
+    for relative, owner in selected:
         path = root / relative
         before, mode = path.read_bytes(), stat.S_IMODE(path.stat().st_mode)
-        after, ignored = render_source_content(root, relative, owner, before)
+        after, ignored = render_source_content(root, relative, owner, before, node=node)
         prepared.append(FormattedFile(relative, before, after, mode, ignored))
     return tuple(prepared)
 

@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
 
+import ethos.adapters.gates.formatting as formatting_gate
 import ethos.adapters.gates.tool as gate_tool
 import ethos.adapters.mutation.source_format as mutation
 from ethos.adapters.gates.formatting import prepare_source_format
@@ -82,8 +84,7 @@ def test_public_native_fix_and_check_share_literal_inputs(lane: Path) -> None:
     paths = tuple(sources)
     code, preview = _command(lane, *paths)
     assert (code, preview["verdict"], preview["state"]) == (0, "pass", "ready")
-    assert set(preview["data"]["files"]) == set(paths)
-    assert set(preview["data"]["changed_paths"]) == set(paths)
+    assert set(preview["data"]["files"]) == set(preview["data"]["changed_paths"]) == set(paths)
     assert all((lane / path).read_text() == content for path, content in sources.items())
 
     code, refused = _command(lane, *paths, "--check")
@@ -107,14 +108,16 @@ def test_public_native_fix_and_check_share_literal_inputs(lane: Path) -> None:
 
     code, inventory = _command(lane)
     assert (code, inventory["verdict"]) == (0, "pass"), inventory
-    assert {"src/ignored.py", "docs/new.md"} <= set(inventory["data"]["files"])
-    assert not {"openspec/changes/archive/old/spec.md", "package-lock.json"} & set(
-        inventory["data"]["files"]
-    )
+    files = set(inventory["data"]["files"])
+    assert {"src/ignored.py", "docs/new.md"} <= files
+    assert not {"openspec/changes/archive/old/spec.md", "package-lock.json"} & files
     assert inventory["data"]["ignored_paths"] == ["docs/untouched.md"]
 
 
-def test_native_markdown_and_formatting_share_declared_authored_inputs(tmp_path: Path) -> None:
+def test_native_markdown_and_formatting_share_declared_authored_inputs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Both share authored inputs and resolve Node, which reads Git state, once per operation."""
     root = init_git_repo(tmp_path / "repo")
     preserved = {
         "docs/upstream.md": "# Upstream\n\ntext   \n",
@@ -157,9 +160,11 @@ def test_native_markdown_and_formatting_share_declared_authored_inputs(tmp_path:
         ),
     )
     expected = {"AGENTS.md", "README.md", "docs/current.md"}
+    resolve = Mock(wraps=formatting_gate.resolve_node_runtime)
+    monkeypatch.setattr(formatting_gate, "resolve_node_runtime", resolve)
     formatted = {item.path for item in prepare_source_format(root) if item.path.endswith(".md")}
     report = gate_tool.markdown_lint_report(root)
-    assert formatted == expected
+    assert (formatted, resolve.call_count) == (expected, 1)
     assert set(report["native"][0]["files"]) == expected, report
     assert report["native"][0]["verdict"] == "pass", report
     assert all((root / path).read_text() == content for path, content in preserved.items())
@@ -181,8 +186,7 @@ def test_official_openspec_keeps_its_owner_and_is_never_formatted(lane: Path) ->
             code, report = _command(lane, relative, *arguments)
             assert (code, report["verdict"]) == (1, "block"), report
             assert report["required_gaps"] == [f"source_format_other_owner:{relative}"], report
-    assert (lane / tasks).read_text() == original
-    assert (lane / metadata).read_text() == yaml
+    assert ((lane / tasks).read_text(), (lane / metadata).read_text()) == (original, yaml)
     assert (git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")) == (head, index)
 
 
@@ -222,7 +226,7 @@ def test_captured_source_bundles_share_native_selection(lane: Path) -> None:
     code, checked = _command(lane, "--check")
     assert (code, checked["verdict"]) == (0, "pass"), checked
     code, repeated = _command(lane, "--apply", "--authorize", "--expect-head", head)
-    assert (code, repeated["data"]["changed_paths"]) == (0, [])
+    assert (code, repeated["data"]["changed_paths"]) == (0, []), repeated
     assert all((lane / path).read_text() == content for path, content in captured.items())
     assert all((lane / path).stat().st_mode & 0o777 == 0o640 for path in captured)
     assert (git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")) == (head, index)

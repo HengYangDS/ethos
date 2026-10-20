@@ -149,6 +149,33 @@ def historical_repository_identity(
     return _historical_identity(result.stdout)
 
 
+def profile_blocks_operation(root: Path, *, closeout: bool = False) -> bool:
+    """Today's schema governs a checkout, except the accepted pre-state a closeout advances."""
+    if load_repository_profile(root).state != "invalid":
+        return False
+    if not closeout:
+        return True
+    edited = run_git(root, "diff", "--quiet", "HEAD", "--", ".ethos/profile.toml", check=False)
+    try:
+        historical_repository_identity(root, tree_ref="HEAD")
+    except ValueError:
+        return True
+    return edited.returncode != 0
+
+
+def historical_verification_mode(root: Path, action: str, *, tree_ref: str) -> str:
+    """Read one past tree's declared verification mode; an unreadable declaration requires it."""
+    result = run_git(root, "show", f"{tree_ref}:.ethos/profile.toml", check=False, text=False)
+    try:
+        policy = tomllib.loads(result.stdout.decode("utf-8")).get("independent_verification", {})
+    except (UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return "required"
+    actions = policy.get("actions", {}) if isinstance(policy, dict) else {}
+    owner = actions.get(action, policy) if isinstance(actions, dict) else None
+    mode = owner.get("mode", "disabled") if isinstance(owner, dict) else None
+    return mode if mode in {"disabled", "optional", "required"} else "required"
+
+
 def _historical_identity(payload: bytes) -> str:
     message = "repository_historical_identity_invalid:.ethos/profile.toml"
     try:

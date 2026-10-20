@@ -13,8 +13,11 @@ from ethos.adapters.admission.evidence.external import independent_verification_
 from ethos.adapters.admission.evidence.external import repository_remote_url
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
+from ethos.adapters.repo.profile import historical_verification_mode
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.verdict import report_verdict
+from ethos.repository.profile import INVALID_PROFILE_ERROR
+from ethos.repository.profile import IndependentVerificationPolicy
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -79,20 +82,21 @@ def control_replacement_report(
         return report
     if not control_paths:
         return report
-    prior = resolve_gate_policy(candidate_root, tree_ref=accepted_head, full=True)
+    prior = _accepted_gate_policy(candidate_root, accepted_head)
     proposed = resolve_gate_policy(candidate_root, tree_ref=candidate_head, full=True)
     if proposed.gaps:
         report.update(verdict="block", required_gaps=list(proposed.gaps))
         return report
-    changed_obligations = _changed_obligations(prior, proposed)
+    changed_obligations = _changed_obligations(prior, proposed) if prior else ()
+    accepted_policy = prior.projection if prior else {"gaps": [INVALID_PROFILE_ERROR]}
     floor: dict[str, object] = (
         {
-            "accepted_policy_digest": prior.digest,
+            "accepted_policy_digest": canonical_json_digest(accepted_policy),
             "candidate_policy_digest": proposed.digest,
             "changed_obligations": list(changed_obligations),
-            **({"accepted_policy": prior.projection} if prior.gaps else {}),
+            **({"accepted_policy": accepted_policy} if not prior or prior.gaps else {}),
         }
-        if changed_obligations or prior.gaps
+        if changed_obligations or not prior or prior.gaps
         else {}
     )
     subject, request, gaps = _verification_subject(
@@ -112,6 +116,16 @@ def control_replacement_report(
     report["required_gaps"] = list(cast("list[str]", verification["required_gaps"]))
     report["verdict"] = report_verdict(verification)
     return report
+
+
+def _accepted_gate_policy(root: Path, accepted_head: str) -> ResolvedGatePolicy | None:
+    """Compile the accepted policy; one under a since-retired profile schema stays unreadable."""
+    try:
+        return resolve_gate_policy(root, tree_ref=accepted_head, full=True)
+    except ValueError as error:
+        if str(error) != INVALID_PROFILE_ERROR:
+            raise
+        return None
 
 
 def _preserves_required_gate(prior: Gate, proposed: Gate) -> bool:
@@ -239,7 +253,13 @@ def _verification_report(
     request: dict[str, object],
     receipt_path: Path | None,
 ) -> dict[str, object]:
-    prior = independent_verification_policy(root, "control_replacement", tree_ref=accepted_head)
+    try:
+        prior = independent_verification_policy(root, "control_replacement", tree_ref=accepted_head)
+    except ValueError as error:
+        if str(error) != INVALID_PROFILE_ERROR:
+            raise
+        mode = historical_verification_mode(root, "control_replacement", tree_ref=accepted_head)
+        prior = IndependentVerificationPolicy(mode=mode)
     proposed = independent_verification_policy(root, "control_replacement", tree_ref=candidate_head)
     modes = {"disabled": 0, "optional": 1, "required": 2}
     policy = max((prior, proposed), key=lambda item: modes[item.mode])

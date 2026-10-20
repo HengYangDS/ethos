@@ -426,12 +426,12 @@ active Change presence, or a historical authoring Lease.
 ### Requirement: Historical effect identity survives profile schema evolution
 
 ETHOS SHALL validate repair and Git-ref-effect Attestations, and the accepted
-pre-state revisions of a current Git effect, against each exact former
-commit's stable repository identity, not today's full profile schema.
-Missing, malformed or mismatched historical identity SHALL block without
-current-profile or caller fallback. Current effects SHALL still require the
-strict current profile in the current checkout and in every revision they
-produce, with every other existing binding unchanged.
+pre-state revisions of a current Git effect, including the unedited accepted
+checkout a closeout advances, against each exact former commit's stable
+repository identity, not today's schema. Missing, malformed or mismatched
+historical identity SHALL block without current-profile or caller fallback.
+Current effects SHALL still require the strict current profile in every other
+checkout and every revision they produce.
 
 #### Scenario: Retired profile field does not erase a valid repair
 
@@ -456,16 +456,20 @@ produce, with every other existing binding unchanged.
 
 #### Scenario: An adopter lands its profile migration across a retired schema
 
-- **GIVEN** an adopter whose accepted candidate head declares the same
-  repository ID with formats removed from the current profile schema
+- **GIVEN** an adopter whose accepted candidate head and unedited accepted
+  checkout declare the same repository ID with formats removed from the current
+  profile schema
 - **WHEN** its Work Lane lands a candidate that migrates the profile to the
-  current schema
-- **THEN** the Git effect reads that accepted pre-state through its stable
+  current schema and closeout advances the accepted checkout to it
+- **THEN** each Git effect reads that accepted pre-state through its stable
   historical identity
+- **AND THEN** control replacement keeps the predecessor's committed
+  verification mode, requires it when unreadable, and binds the exact candidate
 - **AND THEN** the produced candidate revision is validated against the current
   schema
-- **AND THEN** a changed repository ID, an invalid produced profile and the
-  trust, ref role, CAS, proof and lease refusals still block.
+- **AND THEN** an edited accepted checkout, a changed repository ID, an invalid
+  produced profile and the trust, ref role, CAS, proof and lease refusals still
+  block.
 
 #### Scenario: Historical identity cannot be guessed
 

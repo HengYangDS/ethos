@@ -195,10 +195,15 @@ def compile_observed_git_effect(
             actor=os.environ.get("ETHOS_ACTOR", "").strip(),
             execution_branch=current_branch(root),
         )
+    # A closeout acts from the accepted pre-state it advances; only produced revisions are strict.
+    prestate = {update.expected for update in effect.updates.values()} - {
+        update.desired for update in effect.updates.values()
+    }
+    reader = historical_repository_identity if head in prestate else repository_identity
     return compile_git_effect_plan(
         commitment,
         Facts(
-            repository=repository_identity(root, tree_ref=head, environment=environment),
+            repository=reader(root, tree_ref=head, environment=environment),
             head=head,
             tree=current_tree(root, head, environment=environment),
             observed_at=datetime.now(UTC),

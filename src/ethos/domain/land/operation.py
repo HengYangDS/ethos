@@ -15,6 +15,7 @@ from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.landing import apply_land_to_candidate
 from ethos.adapters.mutation.landing import candidate_transition_readiness
 from ethos.adapters.openspec.profile import active_change_progress_report
+from ethos.adapters.repo.profile import profile_blocks_operation
 from ethos.adapters.repo.status.workspace import integration_coordinates
 from ethos.adapters.repo.status.workspace import workspace_status
 from ethos.contracts.admission import DecisionBasis
@@ -37,7 +38,6 @@ from ethos.domain.land.legacy_roles import legacy_role_rename_result
 from ethos.normalization.coercion import string_mapping
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.context import repository_context
-from ethos.repository.profile import load_repository_profile
 from ethos.result import EthosResult
 
 
@@ -462,7 +462,7 @@ def land_repository(
             required_gaps=("local_source_acceptance_effect_forbidden",),
             next_action="produce strict repository proof before accepted or release integration",
         )
-    if load_repository_profile(repo).state == "invalid":
+    if profile_blocks_operation(repo, closeout=closeout):
         return profile_failure_result("land")
     if release:
         report = (

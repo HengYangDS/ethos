@@ -15,6 +15,7 @@ from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import bind_gate_command
 from ethos.repository.policy.references.carriers import REFERENCE_KINDS
 from ethos.repository.policy.references.carriers import declaration_files
+from ethos.repository.policy.references.carriers import reference_carrier
 from ethos.repository.policy.references.manifests import PythonManifest
 from ethos.repository.policy.references.manifests import normalized_distribution
 from ethos.repository.policy.references.manifests import npm_script_commands
@@ -165,14 +166,26 @@ def _declare_selected_scripts(
         owned["executable"].update(
             command_references.command_executables((path.rsplit("/", 1)[-1],), {})
         )
-        owned["executable"].update(
-            command_references.shell_executables(text, npm_scripts, module_imports=owned["import"])
-        )
+        owned["executable"].update(_invoked_executables(path, text, npm_scripts, owned["import"]))
         if text.startswith("#!") and (
             executable := command_references.shebang_executable(text.splitlines()[0])
         ):
             owned["executable"].add(executable)
         pending.extend(_selected_script_references(path, text, files) - visited)
+
+
+def _invoked_executables(
+    path: str, text: str, npm_scripts: dict[str, set[str]], imports: set[str]
+) -> set[str]:
+    """Compile one selected script with its own carrier syntax; other scripts stay shell."""
+    try:
+        carrier = reference_carrier(path).name
+    except ValueError:
+        carrier = "shell"
+    if carrier == "python":
+        tree = python_references.complete_python_tree(text)
+        return python_references.python_references(tree, npm_scripts)[1] if tree else set()
+    return command_references.shell_executables(text, npm_scripts, module_imports=imports)
 
 
 def _selected_script_references(path: str, text: str, files: dict[str, str]) -> set[str]:

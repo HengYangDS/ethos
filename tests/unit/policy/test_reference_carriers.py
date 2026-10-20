@@ -135,3 +135,33 @@ def test_selected_native_script_owns_its_executable_only_while_declared_and_pres
     policy.write_text(declaration, encoding="utf-8")
     script.unlink()
     assert repository_semantic_closure(tmp_path)["required_gaps"] == expected
+
+
+@pytest.mark.parametrize(
+    ("command", "orphan"),
+    [("git status", ""), ("hygiene.py", ""), ("def", "def"), ("json.loads", "json.loads")],
+)
+def test_selected_python_owner_script_owns_only_what_its_syntax_invokes(
+    tmp_path: Path, command: str, orphan: str
+) -> None:
+    """A Python owner script is compiled as Python, so its statements own no executables."""
+    script = tmp_path / "tools/ci/hygiene.py"
+    script.parent.mkdir(parents=True)
+    script.write_text(
+        "import json\nimport subprocess\n\n\ndef main() -> None:\n"
+        '    json.loads(subprocess.run(["git", "status"], check=True).stdout)\n',
+        encoding="utf-8",
+    )
+    policy = tmp_path / ".config/checks/ci-projection/policy.toml"
+    policy.parent.mkdir(parents=True)
+    policy.write_text(
+        '[[projection]]\nprovider = "github"\nrequired_owner_scripts = ["tools/ci/hygiene.py"]\n',
+        encoding="utf-8",
+    )
+    workflow = tmp_path / ".github/workflows/check.yml"
+    workflow.parent.mkdir(parents=True)
+    workflow.write_text(f"jobs:\n  check:\n    steps:\n      - run: {command}\n", encoding="utf-8")
+
+    gaps = repository_semantic_closure(tmp_path)["required_gaps"]
+    expected = f"semantic_consumer_orphan:executable:{orphan}:.github/workflows/check.yml"
+    assert gaps == ([expected] if orphan else [])

@@ -37,3 +37,15 @@ def without_descriptor_chain(monkeypatch: pytest.MonkeyPatch) -> None:
     host = SimpleNamespace(**{name: getattr(os, name) for name in dir(os) if name not in absent})
     monkeypatch.setattr(observation, "os", host)
     monkeypatch.setattr(observation, "DESCRIPTOR_CHAIN_READS", False)
+
+
+def with_creation_time_path_ctime(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Report a path stat's st_ctime as the creation time, as Python 3.12 does on Windows."""
+    lstat = Path.lstat
+
+    def creation_ctime(path: Path) -> SimpleNamespace:
+        observed = lstat(path)
+        fields = {name: getattr(observed, name) for name in dir(observed) if name.startswith("st_")}
+        return SimpleNamespace(**{**fields, "st_ctime": 0.0, "st_ctime_ns": 0})
+
+    monkeypatch.setattr(Path, "lstat", creation_ctime)

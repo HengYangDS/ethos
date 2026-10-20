@@ -57,7 +57,8 @@ def read_regular_bytes(
     and directory identity, not authorization or a persistent filesystem snapshot.
     Native aliases above the selected root resolve once; its canonical descriptor
     chain and repository-relative components are opened without following links.
-    A host without that chain binds the same member identity through plain paths.
+    A host without that chain binds the selected root and member identities through
+    plain paths.
     """
     if not DESCRIPTOR_CHAIN_READS:
         return _portable_regular_bytes(
@@ -178,21 +179,31 @@ def _portable_regular_bytes(
     max_bytes: int,
     expected_mode: int | None,
 ) -> bytes:
-    """Read through plain paths whose every component stays one non-alias identity.
+    """Read through plain paths bound to the selected root's own directory identity.
 
-    Such hosts do not expose native mode bits, so a requested mode remains a refusal.
+    Every ancestor, the root and each member component keep one non-alias identity
+    through the read, and the opened handle must be the observed member. Such hosts
+    do not expose native mode bits, so a requested mode remains a refusal. Path and
+    handle observations share device, file id, size and modification time only:
+    Python 3.12 path stats on Windows report the creation time as st_ctime.
     """
     unsafe_gap, unstable_gap, size_gap = gaps
     if expected_mode is not None or _member_path_invalid(root, relative):
         raise ValueError(unsafe_gap)
     try:
+        selected = root.lstat()
         canonical = root.resolve(strict=True)
         parts = PurePosixPath(relative).parts
-        chain = tuple(canonical.joinpath(*parts[: index + 1]) for index in range(len(parts)))
+        chain = (
+            *reversed((canonical, *canonical.parents)),
+            *(canonical.joinpath(*parts[: index + 1]) for index in range(len(parts))),
+        )
         before = _plain_chain(chain, unsafe_gap)
+        if _identity(selected)[:2] != _identity(before[len(canonical.parents)])[:2]:
+            raise ValueError(unstable_gap)
         with chain[-1].open("rb") as source:
             opened = os.fstat(source.fileno())
-            if _identity(opened)[:2] != _identity(before[-1])[:2]:
+            if _identity(opened)[:4] != _identity(before[-1])[:4]:
                 raise ValueError(unstable_gap)
             if opened.st_size > max_bytes:
                 raise ValueError(size_gap)
@@ -206,7 +217,8 @@ def _portable_regular_bytes(
     if (
         _identity(opened) != _identity(after)
         or len(content) != after.st_size
-        or _identity(current[-1]) != _identity(after)
+        or _identity(before[-1]) != _identity(current[-1])
+        or _identity(current[-1])[:4] != _identity(after)[:4]
         or any(
             old[:2] != new[:2]
             for old, new in zip(map(_identity, before), map(_identity, current), strict=True)

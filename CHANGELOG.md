@@ -101,6 +101,13 @@ historical bindings are governed by [Release Governance](docs/governance/release
 - Patch admission and `lane format --apply` give `git apply` the patch as bytes. A Windows text
   stream writes each newline as CRLF, and Git read each carriage return as trailing whitespace, so
   on Windows patch admission refused every installed format apply as a preimage mismatch.
+- Quality script discovery reports `quality_script_discovery_unknown` when `git grep` writes an
+  error, such as an unreadable blob, even though another script matched and Git exited 0. The
+  unreadable file was dropped from script roles without a gap.
+- Accepted closeout of a self-hosted root now names `mise --cd <root> run bootstrap` as its next
+  action when the advance leaves the hook runtime, built from the replaced accepted head, stale.
+  It named `ethos publish`, while write admission reported `runtime_build_stale` until the lander
+  refreshed the environment and reinstalled the hook by hand.
 - The prose, Markdown lint, link, source format and configuration quality gates now bind the
   native configuration their tools read, as each gate's `tools` in the gate registry declares,
   Vale's styles and vocabularies included. Changing only one of those files changes the gate's

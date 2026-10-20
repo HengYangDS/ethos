@@ -221,7 +221,8 @@ def _repository_script_paths(
     completed = run_git(root, *arguments, check=False, text=False, observation=True)
     if completed.returncode == 1 and not completed.stdout and not completed.stderr:
         return ()
-    if completed.returncode or not completed.stdout:
+    # Git exits 0 when one blob is unreadable and another matches; the error is the evidence.
+    if completed.returncode or not completed.stdout or completed.stderr.strip():
         message = "quality_script_discovery_unknown"
         raise ValueError(message)
     data = completed.stdout

@@ -91,6 +91,13 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- The source format, Markdown lint and configuration quality gates read the repository's
+  Prettier ignore file at its paradigm carrier, `.config/checks/prettier/prettierignore`, whose
+  patterns resolve from that directory. They read only a root `.prettierignore`, so an ignore
+  file in its carrier excluded nothing and the immutable records it names reported format drift.
+  A root `.prettierignore` is now refused as
+  `native_tool_configuration_location_invalid:prettier-ignore`, like any misplaced native
+  configuration, and the repository paradigm already reports its move.
 - An active proposal or design that lacks a heading of its official template no longer locks
   its repository. Strict validation accepts such a Change, so prewrite previously blocked every
   path on the template gap, including the drifted file and an exact restoring patch. When template

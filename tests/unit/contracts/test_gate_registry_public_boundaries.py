@@ -445,14 +445,20 @@ def test_native_output_contract_accepts_tool_neutral_reports_without_nox(binding
 @pytest.mark.parametrize(
     ("provider", "tools"),
     [
-        ("ethos.adapters.gates.formatting:source_format_report", ("prettier", "taplo", "ruff")),
-        ("ethos.adapters.gates.tool:markdown_lint_report", ("prettier", "markdownlint-cli2")),
+        (
+            "ethos.adapters.gates.formatting:source_format_report",
+            ("prettier", "prettier-ignore", "taplo", "ruff"),
+        ),
+        (
+            "ethos.adapters.gates.tool:markdown_lint_report",
+            ("prettier", "prettier-ignore", "markdownlint-cli2"),
+        ),
         ("ethos.adapters.gates.tool:markdown_links_report", ("lychee",)),
         ("ethos.adapters.gates.tool:external_links_report", ("lychee",)),
         ("ethos.adapters.gates.tool:prose_report", ("codespell",)),
         (
             "ethos.adapters.gates.configuration:configuration_report",
-            ("taplo", "prettier", "yamllint"),
+            ("taplo", "prettier", "prettier-ignore", "yamllint"),
         ),
     ],
 )
@@ -468,6 +474,7 @@ def test_native_provider_validates_consumed_configuration_without_binding_it(
         for relative in native_tool_configurations(
             (
                 ".config/checks/prettier/prettier.toml",
+                ".config/checks/prettier/prettierignore",
                 ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
                 ".config/checks/lychee/lychee.toml",
                 ".config/checks/codespell/codespell.toml",

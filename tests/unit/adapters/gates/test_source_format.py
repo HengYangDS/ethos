@@ -72,7 +72,7 @@ def test_public_native_fix_and_check_share_literal_inputs(lane: Path) -> None:
             **sources,
             **preserved,
             ".gitignore": "src/ignored.py\n",
-            ".prettierignore": "docs/untouched.md\n",
+            ".config/checks/prettier/prettierignore": "../../../docs/untouched.md\n",
         },
     )
     (lane / "src/product.py").chmod(0o755)
@@ -283,10 +283,21 @@ def test_native_ignore_and_literal_pragma_preserve_original_bytes(lane: Path) ->
         "docs/untouched.md": "# Ignored\n\ntext   \n",
         "docs/example.md": "# Native\n\n<!-- prettier-ignore -->\n|a|b|\n|-|-|\n|1|2|\n",
     }
-    _write(lane, {**sources, ".prettierignore": "docs/untouched.md\n"})
+    _write(
+        lane, {**sources, ".config/checks/prettier/prettierignore": "../../../docs/untouched.md\n"}
+    )
     code, result = _command(lane, *sources, "--check")
     assert (code, result["verdict"]) == (0, "pass"), result
     assert result["data"]["ignored_paths"] == ["docs/untouched.md"]
+    assert all((lane / path).read_text() == content for path, content in sources.items())
+
+
+def test_ignore_file_outside_its_carrier_is_refused_without_writes(lane: Path) -> None:
+    sources = {"docs/untouched.md": "# Ignored\n\ntext   \n"}
+    _write(lane, {**sources, ".prettierignore": "docs/untouched.md\n"})
+    code, result = _command(lane, *sources, "--check")
+    assert (code, result["verdict"]) == (1, "block"), result
+    assert "native_tool_configuration_location_invalid:prettier-ignore" in json.dumps(result)
     assert all((lane / path).read_text() == content for path, content in sources.items())
 
 

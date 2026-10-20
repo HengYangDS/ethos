@@ -14,6 +14,7 @@ from ruff import find_ruff_bin
 
 from ethos.adapters.gates.native.inputs import authored_source_files
 from ethos.adapters.gates.native.inputs import native_configurations
+from ethos.adapters.gates.native.inputs import native_repository_configuration
 from ethos.adapters.gates.native.inputs import quality_inventory_failure
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import GitExecutionError
@@ -132,10 +133,7 @@ def _prettier(
         str(resolve_node_runtime().executable),
         str(product_node_module("prettier") / "bin/prettier.cjs"),
     )
-    ignore = root / ".prettierignore"
-    if repository_policy and ignore.is_symlink():
-        message = "native_formatter_ignore_invalid"
-        raise ValueError(message)
+    ignore = native_repository_configuration(root, "prettier-ignore") if repository_policy else None
     ignored = (
         repository_policy
         and json.loads(
@@ -144,7 +142,7 @@ def _prettier(
                 (
                     *binary,
                     "--ignore-path",
-                    str(ignore) if ignore.is_file() else os.devnull,
+                    str(ignore) if ignore is not None else os.devnull,
                     "--file-info",
                     str(root / relative),
                 ),

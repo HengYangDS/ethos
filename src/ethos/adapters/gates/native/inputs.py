@@ -105,21 +105,24 @@ def quality_inventory_failure(
     }
 
 
+def native_repository_configuration(root: Path, tool: str) -> Path | None:
+    """Return the repository's own native configuration at its paradigm carrier, if any."""
+    selected = native_tool_configuration(tuple(quality_source_files(root)), tool)
+    if selected is None:
+        return None
+    path = root / selected
+    if path.is_symlink() or not path.resolve().is_relative_to(root.resolve()) or not path.is_file():
+        message = f"native_tool_configuration_invalid:{tool}"
+        raise ValueError(message)
+    return path
+
+
 def native_configurations(root: Path, tool: str, shared: str) -> tuple[str, ...]:
     """The shipped policy is mandatory; repository policy is a native increment."""
     common = canonical_resource(shared)
     if common == packaged_resource(shared):
         common = require_packaged_resource(shared)
-    selected = native_tool_configuration(tuple(quality_source_files(root)), tool)
-    if selected:
-        path = root / selected
-        if (
-            path.is_symlink()
-            or not path.resolve().is_relative_to(root.resolve())
-            or not path.is_file()
-        ):
-            message = f"native_tool_configuration_invalid:{tool}"
-            raise ValueError(message)
-        if path.resolve() != common.resolve():
-            return str(common), str(path)
+    path = native_repository_configuration(root, tool)
+    if path is not None and path.resolve() != common.resolve():
+        return str(common), str(path)
     return (str(common),)

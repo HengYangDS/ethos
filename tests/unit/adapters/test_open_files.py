@@ -137,6 +137,8 @@ def _file_reference_payloads() -> dict[str, bytes]:
         "unknown-inode-only": payload + unix.replace(b"tunix", b"tunknown"),
         "fd-gone": payload + absent,
         "process-gone": payload + b"f5\0nvnode: process unavailable\0\n",
+        # Captured from a Darwin host whose Codex processes kept a revoked terminal open.
+        "revoked": payload + b"f10\0n(revoked)\0\n",
         "permission": payload + b"f5\0nsocket: Operation not permitted\0\n",
         "unclassified": payload + b"f5\0\n",
         "unknown-source": payload + absent.replace(b"socket:", b"unknown:"),
@@ -203,6 +205,7 @@ _OBSERVED = {
     "valid",
     "fd-gone",
     "process-gone",
+    "revoked",
     "linux-process-gone",
     "linux-fd-gone",
     "linux-task-gone",

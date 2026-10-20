@@ -96,6 +96,9 @@ historical bindings are governed by [Release Governance](docs/governance/release
   the ANSI code page failed on the summary's emoji and left both gates unknown.
 - The product npm lock overrides markdownlint-cli2's exact `markdown-it` 15.0.1 pin with 15.0.3,
   which fixes GHSA-r7fv-28h4-cvq7; the dependency audit blocked every proof on that finding.
+- Lane retirement on macOS admits the `lsof` record of a revoked descriptor, such as the terminal
+  of an ended session, which names `(revoked)` without a type, device or inode and holds no file.
+  Any process holding one made the open-file observation unavailable and blocked retirement.
 - The repair for an authored-name gap now also names marking the path `linguist-vendored` or
   `linguist-generated` in `.gitattributes`. It named only the kebab-case rename, so adopters were
   told to rename third-party fonts, license and notice files that keep their upstream names once

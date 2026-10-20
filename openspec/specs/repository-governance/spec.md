@@ -466,7 +466,7 @@ branch as ready for another closeout mutation.
 - **GIVEN** the accepted root and configured candidate branch resolve to the same
   HEAD
 - **WHEN** `ethos land --closeout --apply --authorize --expect-head <HEAD>
-  --json` runs
+--json` runs
 - **THEN** ETHOS reports `state=accepted_current`
 - **AND** no new proof is required for a candidate head that is already accepted
 - **AND** the accepted root remains at the same HEAD
@@ -637,7 +637,7 @@ repository truth surfaces.
 
 - **WHEN** a host cannot install a pre-tool mutation hook
 - **THEN** the agent MUST run `ethos lane prewrite <paths> --editor-root <root>
-  --require-editor-root --json` before tracked writes
+--require-editor-root --json` before tracked writes
 - **AND** the terminal design still treats manual prewrite as weaker than a
   bound mutation hook
 
@@ -685,7 +685,7 @@ repository truth surfaces.
 - **AND** replaying the Work Lane onto the candidate branch conflicts only on
   `evidence/parity/*-shadow.json`
 - **WHEN** `ethos lane refresh-base --apply --authorize --expect-head <head>
-  --json` runs
+--json` runs
 - **THEN** ETHOS completes the replay and returns
   `state = "base_refreshed_projection_stale"`
 - **AND** the payload exposes `projection_refresh_required = true`,
@@ -700,7 +700,7 @@ repository truth surfaces.
 - **AND** replaying the Work Lane onto the candidate branch conflicts on any path
   outside the admitted projection set
 - **WHEN** `ethos lane refresh-base --apply --authorize --expect-head <head>
-  --json` runs
+--json` runs
 - **THEN** ETHOS aborts the replay and reports `refresh_base_failed`
 - **AND** the Work Lane branch remains at the expected head
 
@@ -1096,7 +1096,7 @@ ignore, and SHALL NOT use root `dist/` or add an output-local `.gitignore`.
 - **WHEN** the product full proof executes its package build gate or a
   contributor follows the documented package-build command
 - **THEN** `uv build --out-dir build/artifacts/python --clear
-  --no-create-gitignore` is the invoked command
+--no-create-gitignore` is the invoked command
 - **AND** generated package artifacts remain disposable local state under
   `build/artifacts/python`
 - **AND** concurrent workspace package builds do not race on an output-local
@@ -1575,7 +1575,7 @@ HEAD.
 - **AND** the replay subprocess returns zero without making the captured
   candidate HEAD an ancestor of the Work Lane HEAD
 - **WHEN** `ethos lane refresh-base --apply --authorize --expect-head <head>
-  --json` evaluates the replay result
+--json` evaluates the replay result
 - **THEN** ETHOS reports `state=blocked`
 - **AND** it reports `refresh_base_postcondition_failed`
 - **AND** it does not report `base_refreshed` or offer landing as the next
@@ -1933,7 +1933,7 @@ SHA before attaching it again.
 
 ETHOS SHALL resolve adopter proof policy from the promoted committed tree when
 accepted-root closeout evaluates an exact candidate advance before the accepted
-worktree has reset to that candidate commit.  The implementation of this policy
+worktree has reset to that candidate commit. The implementation of this policy
 SHALL remain subject to the active proof floor; a proof failure SHALL be
 remediated in a separately active Change without weakening closeout policy,
 direct source-measurement ceilings or integrity, evidence binding, or the
@@ -2036,10 +2036,10 @@ Any target drift invalidates the decision.
 ### Requirement: Dirty and unbound Work Lane content is preserved before destructive closeout
 
 ETHOS SHALL preserve a dirty foreign Work Lane or diverged unbound Work Lane
-reference before an irreversible closeout action.  The preservation outcome
+reference before an irreversible closeout action. The preservation outcome
 SHALL record Git status provenance, exact target head, recoverable content
 manifest or patch digest, semantic comparison result, and the resulting
-disposition.  A clean accepted-absorption finding alone SHALL NOT discard an
+disposition. A clean accepted-absorption finding alone SHALL NOT discard an
 unpreserved dirty overlay.
 
 #### Scenario: Dirty foreign lane requires preservation first
@@ -5785,7 +5785,7 @@ reclamation. Historical provenance alone SHALL NOT pin local executables.
 
 ### Requirement: Active proposals and designs follow their official templates
 
-For every active Change, ETHOS SHALL resolve the artifact outputs and the schema's templates through the official OpenSpec CLI. Each proposal and design SHALL contain every literal heading of its resolved template, in template order and under its template parent. Sections that the template does not name SHALL remain allowed.
+For every active Change, ETHOS SHALL resolve the artifact outputs and the schema's templates through the official OpenSpec CLI. Each proposal and design SHALL contain every literal heading of its resolved template, in template order and under its template parent. Sections that the template does not name SHALL remain allowed. When template drift is the only blocking governance gap, prewrite SHALL admit the selected Change's drifted proposal and design files, and no other path, for repair.
 
 #### Scenario: A design omits an official section
 
@@ -5802,6 +5802,22 @@ For every active Change, ETHOS SHALL resolve the artifact outputs and the schema
 
 - **WHEN** the template that the official CLI resolves for a Change's schema gains a literal heading
 - **THEN** that heading is required of the Change's artifact without a change to ETHOS
+
+#### Scenario: Drift that strict validation accepts is repairable
+
+- **WHEN** an active Change passes strict validation, its design lacks a template heading, and that drift is the only blocking gap
+- **THEN** prewrite in the owning Work Lane admits that design for repair
+- **AND** prewrite of any other path reports that path as uncovered
+
+#### Scenario: Another blocking gap keeps the repair closed
+
+- **WHEN** template drift blocks together with another governance gap, such as an unavailable official CLI
+- **THEN** prewrite admits no repair and reports the other gap
+
+#### Scenario: Two drifted Changes do not hold each other's repair
+
+- **WHEN** another active Change also lacks a template heading
+- **THEN** the selected Change's drifted artifacts are still admitted for repair
 
 ### Requirement: Proof requires an archivable Change
 

@@ -185,13 +185,19 @@ def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, objec
                 "--offline=false" if online else "--offline",
             )
             _require_native_link_selection(source.root, command, inputs)
+            # Lychee writes UTF-8 on every platform, not the Windows ANSI code page.
             if not online:
                 dumped = run_command(
-                    source.root, (*command, *mode, "--dump", "--", *literal), timeout=60
+                    source.root,
+                    (*command, *mode, "--dump", "--", *literal),
+                    output_encoding="utf-8",
+                    timeout=60,
                 )
                 _require_native_link_output(dumped)
                 _qualify_local_targets(source, dumped.stdout)
-            result = run_command(source.root, (*command, *mode, "--", *literal), timeout=90)
+            result = run_command(
+                source.root, (*command, *mode, "--", *literal), output_encoding="utf-8", timeout=90
+            )
             gaps = (
                 []
                 if result.returncode == 0 and not result.stderr.strip()

@@ -20,9 +20,6 @@ from ethos.repository.policy.gates import bind_gate_source_digests
 from ethos.repository.policy.gates import gate_policy_fields
 from ethos.repository.policy.gates import source_paths_for_gate
 from ethos.repository.policy.quality.gate_composition import canonical_gate_command
-from ethos.repository.policy.quality.tool_configuration import native_gate_tools
-from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
-from ethos.repository.policy.quality.tool_configuration import native_tool_configurations
 from ethos.repository.policy.references.commands import python_module
 
 if TYPE_CHECKING:
@@ -442,60 +439,39 @@ def test_native_output_contract_accepts_tool_neutral_reports_without_nox(binding
             Gate.model_validate(payload)
 
 
+_PRETTIER = (".config/checks/prettier/prettier.toml", ".config/checks/prettier/prettierignore")
+_TAPLO = ".config/checks/taplo/taplo.toml"
+_VALE = (
+    ".config/checks/vale/vale.ini",
+    ".config/checks/vale/styles/plain/concise.yml",
+    ".config/checks/vale/styles/config/vocabularies/common/accept.txt",
+)
+
+
 @pytest.mark.parametrize(
-    ("provider", "tools"),
+    ("gate_id", "carriers"),
     [
-        (
-            "ethos.adapters.gates.formatting:source_format_report",
-            ("prettier", "prettier-ignore", "taplo", "ruff"),
-        ),
-        (
-            "ethos.adapters.gates.tool:markdown_lint_report",
-            ("prettier", "prettier-ignore", "markdownlint-cli2"),
-        ),
-        ("ethos.adapters.gates.tool:markdown_links_report", ("lychee",)),
-        ("ethos.adapters.gates.tool:external_links_report", ("lychee",)),
-        ("ethos.adapters.gates.tool:prose_report", ("codespell",)),
-        (
-            "ethos.adapters.gates.configuration:configuration_report",
-            ("taplo", "prettier", "prettier-ignore", "yamllint"),
-        ),
+        ("source-format", (*_PRETTIER, _TAPLO, ".config/checks/ruff/ruff.toml")),
+        ("markdown-lint", (*_PRETTIER, ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml")),
+        ("markdown-links", (".config/checks/lychee/lychee.toml",)),
+        ("external-links", (".config/checks/lychee/lychee.toml",)),
+        ("prose", (".config/checks/codespell/codespell.toml", *_VALE)),
+        ("config-quality", (*_PRETTIER, _TAPLO, ".config/checks/yamllint/.yamllint.yaml")),
     ],
 )
-def test_native_provider_validates_consumed_configuration_without_binding_it(
-    provider: str, tools: tuple[str, ...]
+def test_shipped_provider_gates_bind_their_native_policy_carriers(
+    gate_id: str, carriers: tuple[str, ...]
 ) -> None:
-    """Native configuration locations are validated; their bytes are not gate sources yet."""
-    gate = Gate.model_validate({"id": "native-policy", "kind": "test", "providers": (provider,)})
-    assert native_gate_tools(gate) == tools
-    locations = tuple(
-        relative
-        for tool in tools
-        for relative in native_tool_configurations(
-            (
-                ".config/checks/prettier/prettier.toml",
-                ".config/checks/prettier/prettierignore",
-                ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
-                ".config/checks/lychee/lychee.toml",
-                ".config/checks/codespell/codespell.toml",
-                ".config/checks/taplo/taplo.toml",
-                ".config/checks/yamllint/.yamllint.yaml",
-                ".config/checks/ruff/ruff.toml",
-            ),
-            tool,
-        )
-    )
-    assert len(locations) == len(tools)
-    selected = source_paths_for_gate(gate, repository_paths=locations)
-    assert set(locations).isdisjoint(selected)
-    for tool, location in zip(tools, locations, strict=True):
-        assert native_tool_configuration(locations, tool) == location
-        sources = dict.fromkeys(selected, b"original")
-        before = bind_gate_source_digests((gate,), sources, repository_paths=locations)
-        sources[location] = b"changed"
-        assert bind_gate_source_digests((gate,), sources, repository_paths=locations) == before
-        misplaced = "other/" + "/".join(location.split("/")[-2:])
-        with pytest.raises(ValueError, match="native_tool_configuration_location_invalid"):
-            native_tool_configuration((misplaced,), tool)
-        with pytest.raises(ValueError, match="native_tool_configuration_ambiguous"):
-            native_tool_configuration((location, misplaced), tool)
+    """A consumed policy carrier, a Vale style or vocabulary included, binds into gate sources.
+
+    Changing only that carrier changes the bound digests, so a proof made before it is not reused.
+    """
+    gate = load_gate_registry_declaration().registry()[gate_id]
+    selected = source_paths_for_gate(gate, repository_paths=carriers)
+    assert set(carriers) <= set(selected)
+    sources = dict.fromkeys(selected, b"original")
+    before = bind_gate_source_digests((gate,), sources, repository_paths=carriers)
+    assert not before[1], before
+    for carrier in carriers:
+        changed = {**sources, carrier: b"changed"}
+        assert bind_gate_source_digests((gate,), changed, repository_paths=carriers) != before

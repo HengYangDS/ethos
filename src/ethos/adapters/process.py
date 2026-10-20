@@ -255,6 +255,7 @@ def run_command(
     command: tuple[str, ...],
     *,
     text: bool = True,
+    output_encoding: str | None = None,
     check: bool = False,
     timeout: float | None = None,
     env: Mapping[str, str] | None = None,
@@ -264,7 +265,10 @@ def run_command(
     stdin: str | bytes | None = None,
     spool_stdout: bool = False,
 ) -> subprocess.CompletedProcess[Any]:
-    """Run one exact argv command and preserve process-creation evidence."""
+    """Run one exact argv command and preserve process-creation evidence.
+
+    Text output uses the locale encoding unless the command declares the one it always writes.
+    """
     resolved_root = root.resolve()
     if not root.is_dir():
         raise ProcessExecutionError(
@@ -286,6 +290,7 @@ def run_command(
         cwd=resolved_root,
         check=check,
         text=text,
+        output_encoding=output_encoding,
         env=effective_env,
         input=stdin,
         timeout=timeout,
@@ -309,6 +314,7 @@ def _execute_command(
         if timeout <= 0:
             raise subprocess.TimeoutExpired(command, timeout)
     stdin = kwargs.pop("input")
+    encoding = kwargs.pop("output_encoding")
     text_mode = kwargs["text"]
     scope = _COMMAND_SCOPE.get() or CommandScope()
     with (
@@ -323,6 +329,7 @@ def _execute_command(
             finite_input.write(stdin)
             finite_input.seek(0)
         kwargs["text"] = text_mode and diagnostic is None
+        kwargs["encoding"] = encoding if kwargs["text"] else None
         try:
             process = scope.start(
                 command,
@@ -344,8 +351,8 @@ def _execute_command(
         _unpiped, stderr = process.communicate(timeout=timeout)
         if diagnostic is not None:
             scope.terminate(process)
-            stderr = _decoded(_written(diagnostic), text=text_mode)
-        stdout = _decoded(_written(output), text=text_mode)
+            stderr = _decoded(_written(diagnostic), text=text_mode, encoding=encoding)
+        stdout = _decoded(_written(output), text=text_mode, encoding=encoding)
         result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
         if check:
             result.check_returncode()
@@ -373,11 +380,11 @@ def _written(output: BinaryIO) -> bytes:
     return output.read()
 
 
-def _decoded(data: bytes, *, text: bool) -> str | bytes:
-    """Decode captured output exactly as a default text-mode pipe would."""
+def _decoded(data: bytes, *, text: bool, encoding: str | None) -> str | bytes:
+    """Decode captured output exactly as a text-mode pipe with that encoding would."""
     if not text:
         return data
-    encoding = "utf-8" if sys.flags.utf8_mode else locale.getencoding()
+    encoding = encoding or ("utf-8" if sys.flags.utf8_mode else locale.getencoding())
     return data.decode(encoding).replace("\r\n", "\n").replace("\r", "\n")
 
 

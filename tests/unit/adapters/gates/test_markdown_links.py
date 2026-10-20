@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import csv
 import hashlib
+import locale
 import os
 import shutil
 import subprocess
@@ -330,7 +331,7 @@ def test_markdown_link_gate_excludes_deleted_tracked_paths(
 def test_markdown_links_use_declared_installed_supply_without_ambient_lychee(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The interpreter's own scripts supply the link checker, not adopter or ambient tools."""
+    """Only the interpreter's scripts supply the link checker; its UTF-8 report decodes anywhere."""
     repo = committed_source_repo(
         tmp_path,
         {
@@ -342,8 +343,10 @@ def test_markdown_links_use_declared_installed_supply_without_ambient_lychee(
     git_path = str(Path(git_executable(os.environ)).parent)
     assert shutil.which("lychee", path=git_path) is None
     monkeypatch.setenv("PATH", git_path)
-    # Windows interpreter homes keep python.exe outside their Scripts directory.
+    # Windows interpreter homes keep python.exe outside their Scripts directory, and an ANSI
+    # code page such as cp1252 cannot decode the emoji in Lychee's UTF-8 summary.
     monkeypatch.setattr(sys, "executable", str(tmp_path / "home" / "python"))
+    monkeypatch.setattr(locale, "getencoding", lambda: "cp1252")
 
     report = gate_tool.markdown_links_report(repo)
 

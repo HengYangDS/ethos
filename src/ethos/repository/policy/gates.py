@@ -33,7 +33,6 @@ from ethos.repository.policy.quality.obligations import quality_obligation_gaps
 from ethos.repository.policy.quality.obligations import quality_verifier_gaps
 from ethos.repository.policy.quality.obligations import source_verifier_gaps
 from ethos.repository.policy.quality.sources import source_contract_paths
-from ethos.repository.policy.quality.tool_configuration import native_gate_tools
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
 from ethos.repository.policy.quality.tool_configuration import native_tool_configurations
 from ethos.repository.policy.references.commands import python_module
@@ -409,7 +408,7 @@ def bind_gate_source_digests(
             paths = source_paths_for_gate(
                 gate, repository_paths=repository_paths, source_contracts=source_contracts
             )
-        for tool in dict.fromkeys((*native_gate_tools(gate), *gate.tools)):
+        for tool in gate.tools:
             try:
                 native_tool_configuration(repository_paths, tool)
             except ValueError as error:

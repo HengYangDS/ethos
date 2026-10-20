@@ -36,12 +36,14 @@ def _file_observation_failure(reason: str) -> None:
 
 # lsof records a process or descriptor that exits during its scan without a type, device or
 # inode. Only that absence is admitted; any other unreadable entry leaves the observation
-# incomplete. Darwin names the vanished object. Linux names the /proc entry it failed to
-# read or, when the link read but its stat then failed, the target it read; lsof prints the
-# note of a failed lstat before that stat note without its opening parenthesis.
+# incomplete. Darwin names the vanished object, and names a descriptor whose vnode was
+# revoked, such as the terminal of an ended session, `(revoked)` alone; it holds no file.
+# Linux names the /proc entry it failed to read or, when the link read but its stat then
+# failed, the target it read; lsof prints the note of a failed lstat before that stat note
+# without its opening parenthesis.
 _DARWIN_VANISHED_REFERENCE = re.compile(
     rb"(?:kqueue|pipe|semaphore|POSIX shared memory|vnode|socket): "
-    rb"(?:FD unavailable|process unavailable)"
+    rb"(?:FD unavailable|process unavailable)|\(revoked\)"
 )
 # Linux lsof lists each thread it observes as a set of its own, naming that task's entries.
 _LINUX_PROC_ENTRY = rb"/proc/[0-9]+(?:/task/[0-9]+)?/"

@@ -93,6 +93,19 @@ historical bindings are governed by [Release Governance](docs/governance/release
   action when the advance leaves the hook runtime, built from the replaced accepted head, stale.
   It named `ethos publish`, while write admission reported `runtime_build_stale` until the lander
   refreshed the environment and reinstalled the hook by hand.
+- The prose, Markdown lint, link, source format and configuration quality gates now bind the
+  native configuration their tools read, as each gate's `tools` in the gate registry declares,
+  Vale's styles and vocabularies included. Changing only one of those files changes the gate's
+  bound sources, so a proof made before the change no longer satisfies it. Before, the prose
+  gate's Vale configuration was outside its sources and an edited rule could reuse a stale
+  result.
+- On Windows the link gates decode Lychee's report as the UTF-8 it always writes. Decoding it with
+  the ANSI code page failed on the summary's emoji and left both gates unknown.
+- The product npm lock overrides markdownlint-cli2's exact `markdown-it` 15.0.1 pin with 15.0.3,
+  which fixes GHSA-r7fv-28h4-cvq7; the dependency audit blocked every proof on that finding.
+- Lane retirement on macOS admits the `lsof` record of a revoked descriptor, such as the terminal
+  of an ended session, which names `(revoked)` without a type, device or inode and holds no file.
+  Any process holding one made the open-file observation unavailable and blocked retirement.
 - The repair for an authored-name gap now also names marking the path `linguist-vendored` or
   `linguist-generated` in `.gitattributes`. It named only the kebab-case rename, so adopters were
   told to rename third-party fonts, license and notice files that keep their upstream names once

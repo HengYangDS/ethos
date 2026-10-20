@@ -7,9 +7,12 @@ from typing import TYPE_CHECKING
 from ethos.adapters.repo.content.observation import observed_document_origins
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.git import git_files
+from ethos.repository.policy.gates import resolve_gate_declaration
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
 from ethos.repository.policy.projections import projection_relations
+from ethos.repository.policy.quality.format_selection import POLICY_PATH
 from ethos.repository.policy.quality.format_selection import audit
+from ethos.repository.policy.quality.format_selection import repository_carriers
 from ethos.repository.policy.quality.source_budget import policy_for_root
 from ethos.repository.policy.quality.tool_configuration import native_tool_configuration
 from ethos.repository.policy.rules.config import path_matches
@@ -22,6 +25,8 @@ from ethos.repository.release.resources import require_packaged_resource
 if TYPE_CHECKING:
     import subprocess
     from pathlib import Path
+
+    from ethos.repository.policy.quality.format_selection import CarrierAudit
 
 
 def quality_source_files(root: Path, *patterns: str) -> list[str]:
@@ -65,15 +70,42 @@ def authored_source_files(root: Path, *patterns: str, paths: tuple[str, ...] = (
         if origins.required_gaps:
             raise ValueError(origins.required_gaps[0])
         selected = [relative for relative in selected if relative not in origins.entries]
+    # Only shipped ownership narrows what read-only checks read; a repository carrier forbids
+    # rewriting its bytes, not checking them, so it enters only the formatter join below.
     ownership = audit(
-        root,
-        paths=tuple(selected),
-        configuration=canonical_resource(".config/checks/format-selection/policy.toml"),
+        root, paths=tuple(selected), configuration=canonical_resource(POLICY_PATH.as_posix())
     )
     captured = {
         item["path"] for item in ownership["assignments"] if item["mutation_policy"] == "forbidden"
     }
     return [relative for relative in selected if relative not in captured]
+
+
+def format_ownership(root: Path, paths: tuple[str, ...]) -> CarrierAudit:
+    """Join the shipped format ownership with the repository's byte-bound carriers once."""
+    product = canonical_resource(POLICY_PATH.as_posix())
+    increment = root / POLICY_PATH
+    carriers = (
+        tuple(repository_carriers(root, gate_ids=_proof_gate_ids(root)))
+        if (increment.is_file() or increment.is_symlink())
+        and increment.resolve() != product.resolve()
+        else ()
+    )
+    return audit(root, paths=paths, configuration=product, carriers=carriers)
+
+
+def _proof_gate_ids(root: Path) -> frozenset[str]:
+    """Name the full proof set whose gates may verify byte-bound carriers."""
+    profile = load_repository_profile(root)
+    registry = profile.declaration.proof.gate_registry if profile.declaration else None
+    source = root / registry if registry else None
+    declaration, _profile = resolve_gate_declaration(
+        profile,
+        gate_registry_source=source.read_bytes()
+        if source is not None and source.is_file() and not source.is_symlink()
+        else None,
+    )
+    return frozenset(declaration.proof_sets.full)
 
 
 def quality_inventory_failure(

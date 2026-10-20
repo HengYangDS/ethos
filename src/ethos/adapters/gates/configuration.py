@@ -16,6 +16,7 @@ from yamllint import linter as yamllint_linter
 
 from ethos.adapters.gates.formatting import source_format_report
 from ethos.adapters.gates.native.inputs import authored_source_files
+from ethos.adapters.gates.native.inputs import format_ownership
 from ethos.adapters.gates.native.inputs import native_configurations
 from ethos.adapters.gates.native.inputs import quality_inventory_failure
 from ethos.adapters.process import ProcessExecutionError
@@ -305,6 +306,14 @@ def configuration_report(root: Path, *, paths: tuple[str, ...] = ()) -> dict[str
         format_paths = tuple(
             path.as_posix() for kind in ("toml", "json", "yaml") for path in candidates[kind]
         )
+        if format_paths:
+            # A byte-bound carrier keeps the checks above and leaves only the format check.
+            bound = {
+                item["path"]
+                for item in format_ownership(root, format_paths)["assignments"]
+                if item["mutation_policy"] == "forbidden"
+            }
+            format_paths = tuple(path for path in format_paths if path not in bound)
         if format_paths:
             formatted = source_format_report(root, paths=format_paths)
             failures = (*failures, *string_sequence(formatted["required_gaps"]))

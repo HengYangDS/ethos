@@ -86,6 +86,10 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- The repair for an authored-name gap now also names marking the path `linguist-vendored` or
+  `linguist-generated` in `.gitattributes`. It named only the kebab-case rename, so adopters were
+  told to rename third-party fonts, license and notice files that keep their upstream names once
+  marked received.
 - The source format, Markdown lint and configuration quality gates read the repository's
   Prettier ignore file at its paradigm carrier, `.config/checks/prettier/prettierignore`, whose
   patterns resolve from that directory. They read only a root `.prettierignore`, so an ignore

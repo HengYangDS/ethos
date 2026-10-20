@@ -31,10 +31,13 @@ _GITHUB = ".github/workflows/verify.yml"
 def test_an_authored_name_outside_kebab_case_names_its_kebab_form(
     tmp_path: Path, path: str, carrier: str, kebab: str
 ) -> None:
-    """The gap names the nonconforming component with its kebab-case form."""
+    """The gap names the kebab-case form, and marking the path received for a third-party file."""
     report = paradigm_report(tmp_path, {**CONFORMING, path: ""})
     assert report["required_gaps"] == [f"repository_paradigm_authored_name:{carrier}"], report
-    assert report["next_action"] == f"rename {carrier} to {kebab} and update its references"
+    assert report["next_action"] == (
+        f"rename {carrier} to {kebab} and update its references, or mark it linguist-vendored "
+        "or linguist-generated in .gitattributes if it is third-party or generated"
+    )
 
 
 @pytest.mark.parametrize(

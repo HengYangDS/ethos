@@ -43,6 +43,22 @@ A formatter's declared inputs SHALL exclude carriers that already have another d
 - **WHEN** a repository declares its OpenSpec artifacts official-owner-only
 - **THEN** the Markdown formatter's inputs exclude them, their own checks still run, and no other rule lays them out.
 
+### Requirement: Language tags and received names keep their form
+
+A dot-separated name segment MAY be a BCP 47 language tag in its canonical case. A path that the repository's Git attributes mark `linguist-vendored` or `linguist-generated` is received rather than authored and SHALL keep its name, and so SHALL a directory that holds only such paths. The repair for a name outside kebab-case SHALL name both ways out: renaming it to its kebab-case form, and marking it received when a third party or a generator authored it.
+
+#### Scenario: A localized carrier names its language
+
+- **WHEN** a repository tracks `media/captions.zh-CN.vtt` and `media/transcript.zh-Hans-CN.md`
+- **THEN** no name is reported
+- **AND** `media/captions.ZH-CN.vtt` is reported, because its language subtag is not lowercase.
+
+#### Scenario: A vendored font keeps its upstream name
+
+- **WHEN** the repository's `.gitattributes` marks `assets/fonts/**` as `linguist-vendored` and the repository tracks `assets/fonts/NotoSansCJKsc-Bold.otf`
+- **THEN** no name is reported, and prewrite admits a new file there under its upstream name
+- **AND** without that attribute the same name is reported, with a repair that names its kebab-case form and the `linguist-vendored` or `linguist-generated` marking.
+
 ## REMOVED Requirements
 
 ### Requirement: Markdown layout follows parsed structure

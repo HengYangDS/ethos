@@ -96,7 +96,10 @@ def _gap(carrier: str) -> ParadigmGap:
     directory, name = posixpath.split(carrier)
     renamed = posixpath.join(directory, kebab_name(name))
     return ParadigmGap(
-        "authored-name", carrier, f"rename {carrier} to {renamed} and update its references"
+        "authored-name",
+        carrier,
+        f"rename {carrier} to {renamed} and update its references, or mark it linguist-vendored "
+        "or linguist-generated in .gitattributes if it is third-party or generated",
     )
 
 

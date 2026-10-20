@@ -18,7 +18,7 @@ from ethos.adapters.toolchain.mise import native_tool_cache
 from ethos.repository.release.identity import build_identity
 from ethos.result import EthosResult
 from tests.support.installed_guidance import installed_guidance
-from tests.support.text_mode import translate_like_windows
+from tests.support.windows_host import translate_like_windows
 from tools.ci.delivery.acceptance import adopter as fixture
 from tools.ci.delivery.acceptance import brownfield as brownfield_fixture
 from tools.ci.delivery.acceptance import effect

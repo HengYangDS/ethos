@@ -16,7 +16,7 @@ from tests.support.fixture_signer import fixture_signer_inputs
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
 from tests.support.runtime_scenarios import install_fixture_hook_runtime
-from tests.support.text_mode import translate_like_windows
+from tests.support.windows_host import translate_like_windows
 
 ROOT = Path(__file__).resolve().parents[3]
 

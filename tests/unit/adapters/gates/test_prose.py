@@ -10,6 +10,7 @@ import ethos.adapters.gates.native.inputs as native_inputs
 import ethos.adapters.gates.tool as gate_tool
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.runtime.materialization.native_supply import resolve_native_tool
+from ethos.adapters.toolchain.mise import native_tool_cache
 from ethos.contracts.gates import load_gate_registry_declaration
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.repository.paradigm.names import authored_name_gaps
@@ -17,6 +18,8 @@ from ethos.repository.release.resources import canonical_resource
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    import pytest
 
 
 def test_common_vale_policy_enforces_concise_specific_and_correct_prose(tmp_path: Path) -> None:
@@ -184,6 +187,13 @@ def test_common_vale_policy_separates_machine_front_matter_from_human_prose(
         assert source.read_bytes() == original
 
 
+def _without_ambient_toolchain(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Clear PATH and bind the prepared supply cache explicitly, as hosted CI binds it."""
+    project = canonical_resource("pyproject.toml").parent
+    monkeypatch.setenv("ETHOS_CI_TOOL_CACHE_DIR", native_tool_cache(project).as_posix())
+    monkeypatch.setenv("PATH", "")
+
+
 def test_prose_gate_keeps_native_spelling_without_adopter_toolchain(tmp_path, monkeypatch):
     """The installed owner ignores ambient policy and preserves exact authored bytes."""
     gate = load_gate_registry_declaration().registry()["prose"]
@@ -196,7 +206,7 @@ def test_prose_gate_keeps_native_spelling_without_adopter_toolchain(tmp_path, mo
     (tmp_path / "pyproject.toml").write_text('[tool.codespell]\nskip = "*"\n')
     files = ["README.md", local.relative_to(tmp_path).as_posix()]
     monkeypatch.setattr(native_inputs, "quality_source_files", lambda *_args: files)
-    monkeypatch.setenv("PATH", "")
+    _without_ambient_toolchain(monkeypatch)
     for source, verdict in (
         ("The result is verified.\n", "pass"),
         ("The result is teh result.\n", "block"),
@@ -223,7 +233,7 @@ def test_prose_gate_runs_the_shipped_and_repository_vale_policy(tmp_path, monkey
     local = tmp_path / ".config/checks/vale/vale.ini"
     files = ["README.md"]
     monkeypatch.setattr(native_inputs, "quality_source_files", lambda *_args: files)
-    monkeypatch.setenv("PATH", "")
+    _without_ambient_toolchain(monkeypatch)
     for source, verdict in (
         ("We use the data to decide.\n", "pass"),
         ("We utilize the data to decide.\n", "block"),

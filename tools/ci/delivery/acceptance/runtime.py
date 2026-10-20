@@ -194,7 +194,9 @@ with TemporaryDirectory(prefix="ethos-installed-format-") as temporary:
         assert render_source_content(root, relative, owner, rendered) == (rendered, False)
         assert path.read_bytes() == content and path.stat().st_mode == mode, relative
     assert subprocess.check_output(["git", "-C", str(root), "write-tree"]) == index
-    (root / ".prettierignore").write_text("docs/ignored.md\\n")
+    ignore = root / ".config/checks/prettier/prettierignore"
+    ignore.parent.mkdir(parents=True, exist_ok=True)
+    ignore.write_text("../../../docs/ignored.md\\n")
     preserved = b"# Captured\\n\\ntext   \\n"
     assert render_source_content(root, "docs/ignored.md", "prettier", preserved) == (
         preserved, True

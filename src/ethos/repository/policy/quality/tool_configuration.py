@@ -12,12 +12,26 @@ if TYPE_CHECKING:
 
 NATIVE_TOOL_LOCATIONS = {tool.id: tool.carrier for tool in load_repository_paradigm().tool}
 _PROVIDER_TOOLS = {
-    "ethos.adapters.gates.formatting:source_format_report": ("prettier", "taplo", "ruff"),
-    "ethos.adapters.gates.tool:markdown_lint_report": ("prettier", "markdownlint-cli2"),
+    "ethos.adapters.gates.formatting:source_format_report": (
+        "prettier",
+        "prettier-ignore",
+        "taplo",
+        "ruff",
+    ),
+    "ethos.adapters.gates.tool:markdown_lint_report": (
+        "prettier",
+        "prettier-ignore",
+        "markdownlint-cli2",
+    ),
     "ethos.adapters.gates.tool:markdown_links_report": ("lychee",),
     "ethos.adapters.gates.tool:external_links_report": ("lychee",),
     "ethos.adapters.gates.tool:prose_report": ("codespell",),
-    "ethos.adapters.gates.configuration:configuration_report": ("taplo", "prettier", "yamllint"),
+    "ethos.adapters.gates.configuration:configuration_report": (
+        "taplo",
+        "prettier",
+        "prettier-ignore",
+        "yamllint",
+    ),
 }
 
 

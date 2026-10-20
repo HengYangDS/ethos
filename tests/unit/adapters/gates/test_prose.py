@@ -228,21 +228,28 @@ def test_prose_gate_keeps_native_spelling_without_adopter_toolchain(tmp_path, mo
 
 
 def test_prose_gate_runs_the_shipped_and_repository_vale_policy(tmp_path, monkeypatch):
-    """Plain-language findings block beside spelling; each repository policy adds its own rules."""
+    """Plain-language findings block beside spelling; each repository policy adds its own rules.
+
+    A Vale comment control would weaken the shared floor, so the gate refuses it; code examples
+    and ordinary comments stay text.
+    """
     document = tmp_path / "README.md"
     local = tmp_path / ".config/checks/vale/vale.ini"
     files = ["README.md"]
     monkeypatch.setattr(native_inputs, "quality_source_files", lambda *_args: files)
     _without_ambient_toolchain(monkeypatch)
-    for source, verdict in (
-        ("We use the data to decide.\n", "pass"),
-        ("We utilize the data to decide.\n", "block"),
+    refused = ["native_prose_control_refused:README.md:1"]
+    for source, gaps in (
+        ("We use the data to decide.\n", []),
+        ("```md\n<!-- vale off -->\n```\n\n<!-- Reviewed. -->\nWe use `<!-- vale off -->`.\n", []),
+        ("We utilize the data to decide.\n", ["quality_gate_failed:prose-vale"]),
+        ("<!-- vale off -->\nWe utilize the data to decide.\n", refused),
+        ("We use the data. <!-- vale plain.concise = NO -->\n", refused),
     ):
         document.write_text(source)
         report = gate_tool.prose_report(tmp_path)
-        assert (report["verdict"], document.read_text()) == (verdict, source), report
+        assert (report["required_gaps"], document.read_text()) == (gaps, source), report
         assert [result["id"] for result in report["native"]] == ["prose", "prose-vale"]
-    assert "quality_gate_failed:prose-vale" in report["required_gaps"]
     local.parent.mkdir(parents=True)
     local.write_text("[*.md]\nBasedOnStyles = Vale\nVale.Spelling = error\n")
     files.append(local.relative_to(tmp_path).as_posix())

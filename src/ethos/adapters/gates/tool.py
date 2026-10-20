@@ -9,6 +9,7 @@ from __future__ import annotations
 import glob
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -17,6 +18,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit
 from urllib.request import url2pathname
+
+from markdown_it import MarkdownIt
 
 import ethos.adapters.gates.native.inputs as native_inputs
 from ethos.adapters.gates.formatting import render_source_content
@@ -36,6 +39,9 @@ from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.layout.report import module_layout_report
 from ethos.repository.policy.quality.format_selection import audit
 from ethos.repository.release.resources import canonical_resource
+
+_MARKDOWN = MarkdownIt("commonmark")
+_VALE_CONTROL = re.compile(r"<!--\s*vale\s")
 
 
 def _observed_output(value: str | bytes | None) -> str:
@@ -370,13 +376,24 @@ def prose_report(root: Path) -> dict[str, object]:
         return _configuration_failure("prose", error)
 
 
+def _vale_controls(sources: dict[str, bytes]) -> list[str]:
+    """Locate each Vale comment control, which would weaken the shared floor; code stays text."""
+    return [
+        f"native_prose_control_refused:{relative}:{(token.map or [0])[0] + 1}"
+        for relative, content in sources.items()
+        for token in _MARKDOWN.parse(content.decode("utf-8"))
+        for item in (token, *(token.children or ()))
+        if item.type in {"html_block", "html_inline"} and _VALE_CONTROL.search(item.content)
+    ]
+
+
 def _vale_reports(
     root: Path, files: list[str], sources: dict[str, bytes]
 ) -> list[dict[str, object]]:
     """Run the shipped Vale policy, then any repository policy, on exact copies."""
     configs = native_configurations(root, "vale", ".config/checks/vale/vale.ini")
     executable = str(resolve_native_tool("vale"))
-    reports = []
+    controls, reports = _vale_controls(sources), []
     for ordinal, config in enumerate(configs):
         with TemporaryDirectory(prefix="ethos-native-vale-") as temporary:
             work = Path(temporary)
@@ -404,6 +421,9 @@ def _vale_reports(
                     *string_sequence(result["required_gaps"]),
                     "native_prose_not_read_only_clean",
                 ]
+            if ordinal == 0 and controls:
+                result.update(verdict="block", state="unproven")
+                result["required_gaps"] = [*string_sequence(result["required_gaps"]), *controls]
             reports.append(result)
     return reports
 

@@ -118,6 +118,9 @@ historical bindings are governed by [Release Governance](docs/governance/release
   the ANSI code page failed on the summary's emoji and left both gates unknown.
 - The product npm lock overrides markdownlint-cli2's exact `markdown-it` 15.0.1 pin with 15.0.3,
   which fixes GHSA-r7fv-28h4-cvq7; the dependency audit blocked every proof on that finding.
+- The locked uv, its CI setup and the Linux supply image base move to uv 0.13.4. Earlier uv
+  releases trust a compromised emSign root in their bundled CA store (GHSA-hq85-5cpj-mr62), and
+  the dependency audit blocked every proof on that finding.
 - Lane retirement on macOS admits the `lsof` record of a revoked descriptor, such as the terminal
   of an ended session, which names `(revoked)` without a type, device or inode and holds no file.
   Any process holding one made the open-file observation unavailable and blocked retirement.

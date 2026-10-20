@@ -127,6 +127,24 @@ def test_native_selection_cannot_join_distinct_line_separated_inputs(tmp_path: P
     assert report["required_gaps"] == ["markdown_link_input_selection_unproven"]
 
 
+@pytest.mark.parametrize(
+    "name", ["[literal].md"] if os.name == "nt" else ["[literal]*.md", "guide?.md"]
+)
+@pytest.mark.parametrize("target", ["member.txt", "missing.txt"])
+def test_native_inputs_keep_glob_syntax_literal(tmp_path: Path, name: str, target: str) -> None:
+    """A committed name containing glob syntax is selected, extracted and checked as itself."""
+    repo = _repository(tmp_path, f"# Guide\n\n[Member]({target})\n")
+    (repo / "README.md").rename(repo / name)
+    (repo / "member.txt").write_text("Delivered member.\n")
+    commit_fixture(repo, "declare one glob-literal input")
+    expected = sum(path.endswith((".md", ".markdown")) for path in SourceTree.observe(repo).entries)
+
+    report = markdown_links_report(repo)
+
+    assert report["verdict"] == ("pass" if target == "member.txt" else "block"), report
+    assert report["file_count"] == expected
+
+
 @pytest.mark.timeout(2)
 def test_source_alias_expansion_is_bounded(tmp_path: Path) -> None:
     """A repeated alias cannot evade cycle detection by lengthening its suffix."""

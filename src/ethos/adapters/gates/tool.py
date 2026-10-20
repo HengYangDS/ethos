@@ -6,6 +6,7 @@ receive the structured report and stay free of subprocess concerns.
 
 from __future__ import annotations
 
+import glob
 import json
 import os
 import shutil
@@ -151,6 +152,7 @@ def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, objec
         )
         _require_link_inputs(files, tool)
         inputs = tuple(str(source.root / relative) for relative in files)
+        literal = _native_link_inputs(inputs)
         mode = (
             ("--scheme", "http", "--scheme", "https")
             if online
@@ -180,11 +182,11 @@ def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, objec
             _require_native_link_selection(source.root, command, inputs)
             if not online:
                 dumped = run_command(
-                    source.root, (*command, *mode, "--dump", "--", *inputs), timeout=60
+                    source.root, (*command, *mode, "--dump", "--", *literal), timeout=60
                 )
                 _require_native_link_output(dumped)
                 _qualify_local_targets(source, dumped.stdout)
-            result = run_command(source.root, (*command, *mode, "--", *inputs), timeout=90)
+            result = run_command(source.root, (*command, *mode, "--", *literal), timeout=90)
             gaps = (
                 []
                 if result.returncode == 0 and not result.stderr.strip()
@@ -235,7 +237,10 @@ def _require_native_link_selection(
     )
     for group in groups:
         selected = run_command(
-            root, (*command, "--dump-inputs", "--", *group), text=False, timeout=60
+            root,
+            (*command, "--dump-inputs", "--", *_native_link_inputs(group)),
+            text=False,
+            timeout=60,
         )
         _require_native_link_output(selected)
         expected = tuple(os.fsencode(path) for path in group)
@@ -247,6 +252,11 @@ def _require_native_link_selection(
         if not matches:
             message = "markdown_link_input_selection_unproven"
             raise ValueError(message)
+
+
+def _native_link_inputs(paths: tuple[str, ...]) -> tuple[str, ...]:
+    """Escape glob syntax, which Lychee interprets in inputs, so each path names itself."""
+    return tuple(glob.escape(path) for path in paths)
 
 
 def _require_native_link_output(result: subprocess.CompletedProcess[str | bytes]) -> None:

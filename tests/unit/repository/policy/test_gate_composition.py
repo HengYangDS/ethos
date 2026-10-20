@@ -125,7 +125,7 @@ def test_native_configuration_uses_one_shared_directory_shape() -> None:
 
 
 def test_invalid_configuration_is_reported_not_admitted_policy(tmp_path: Path) -> None:
-    """An ambiguous carrier is a policy gap; compilation stays strict and binds no carrier."""
+    """An ambiguous carrier is a policy gap; only the carrier the tool reads binds as a source."""
     paths = (
         ".config/checks/markdownlint-cli2/.markdownlint-cli2.yaml",
         ".config/checks/markdownlint-cli2/.markdownlint-cli2.jsonc",
@@ -136,6 +136,7 @@ def test_invalid_configuration_is_reported_not_admitted_policy(tmp_path: Path) -
         profile="repository",
         tool_adapter="ethos",
         providers=("ethos.adapters.gates.tool:markdown_lint_report",),
+        tools=("prettier", "prettier-ignore", "markdownlint-cli2"),
     )
     declaration = load_gate_registry_declaration().model_copy(
         update={"gates": (gate,), "proof_sets": GateProofSets(default=(gate.id,), full=(gate.id,))}
@@ -149,7 +150,7 @@ def test_invalid_configuration_is_reported_not_admitted_policy(tmp_path: Path) -
         ),
     )
     sources = source_paths_for_gate(gate, repository_paths=paths)
-    assert set(paths).isdisjoint(sources)
+    assert set(paths) & set(sources) == {paths[0]}
     materials = {path: path.encode() for path in sources}
     policy = compile_gate_policy(
         profile=profile,

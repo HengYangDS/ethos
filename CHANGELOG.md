@@ -86,6 +86,12 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- The prose, Markdown lint, link, source format and configuration quality gates now bind the
+  native configuration their tools read, as each gate's `tools` in the gate registry declares,
+  Vale's styles and vocabularies included. Changing only one of those files changes the gate's
+  bound sources, so a proof made before the change no longer satisfies it. Before, the prose
+  gate's Vale configuration was outside its sources and an edited rule could reuse a stale
+  result.
 - The repair for an authored-name gap now also names marking the path `linguist-vendored` or
   `linguist-generated` in `.gitattributes`. It named only the kebab-case rename, so adopters were
   told to rename third-party fonts, license and notice files that keep their upstream names once

@@ -3,48 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from ethos.contracts.paradigm.declaration import load_repository_paradigm
 
-if TYPE_CHECKING:
-    from ethos.contracts.gates import Gate
-
 NATIVE_TOOL_LOCATIONS = {tool.id: tool.carrier for tool in load_repository_paradigm().tool}
 _NESTED_TOOLS = frozenset(tool.id for tool in load_repository_paradigm().tool if tool.nested)
-_PROVIDER_TOOLS = {
-    "ethos.adapters.gates.formatting:source_format_report": (
-        "prettier",
-        "prettier-ignore",
-        "taplo",
-        "ruff",
-    ),
-    "ethos.adapters.gates.tool:markdown_lint_report": (
-        "prettier",
-        "prettier-ignore",
-        "markdownlint-cli2",
-    ),
-    "ethos.adapters.gates.tool:markdown_links_report": ("lychee",),
-    "ethos.adapters.gates.tool:external_links_report": ("lychee",),
-    "ethos.adapters.gates.tool:prose_report": ("codespell",),
-    "ethos.adapters.gates.configuration:configuration_report": (
-        "taplo",
-        "prettier",
-        "prettier-ignore",
-        "yamllint",
-    ),
-}
-
-
-def native_gate_tools(gate: Gate) -> tuple[str, ...]:
-    """Select the native policy owners invoked by this gate's providers."""
-    return tuple(
-        dict.fromkeys(
-            tool
-            for reference in (*gate.providers, *gate.verification_providers)
-            for tool in _PROVIDER_TOOLS.get(reference, ())
-        )
-    )
 
 
 def native_tool_configuration(repository_paths: tuple[str, ...], tool: str) -> str | None:
@@ -60,9 +23,13 @@ def native_tool_configuration(repository_paths: tuple[str, ...], tool: str) -> s
 
 
 def native_tool_configurations(repository_paths: tuple[str, ...], tool: str) -> tuple[str, ...]:
-    """Observe every exact carrier, a nested owner's tree included, without asserting placement."""
-    location, selected = _configuration_carriers(repository_paths, tool)
+    """Select the carrier a tool reads at its location, a nested owner's tree included.
+
+    A misplaced or competing carrier is never read, so it binds nothing; admission reports it.
+    """
+    location = NATIVE_TOOL_LOCATIONS.get(tool)
     tree = f"{Path(location).parent.as_posix()}/" if location and tool in _NESTED_TOOLS else None
+    selected = (location,) if location and location in repository_paths else ()
     nested = (path for path in repository_paths if tree and path.startswith(tree))
     return tuple(dict.fromkeys((*selected, *nested)))
 

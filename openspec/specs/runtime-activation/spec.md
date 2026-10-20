@@ -168,7 +168,7 @@ share this owner.
 
 Construction SHALL preserve standalone native layout and compare paths by native
 identity so the generated executable reports its image as sys.prefix and
-sys.base_prefix. Authenticated Python with -B -I -m ethos.cli SHALL be the sole
+sys.base_prefix. Authenticated Python with `-B -I -m ethos.cli` SHALL be the sole
 internal ETHOS execution authority. Generated console scripts SHALL NOT define
 runtime identity, currentness or internal execution.
 

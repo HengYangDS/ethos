@@ -1,4 +1,6 @@
-"""A finite shared software vocabulary preserves native prose rejection.
+"""A finite shared software vocabulary preserves native term and prose rejection.
+
+Codespell owns shared spelling; a repository may add Vale spelling in its own policy.
 
 Names come from pyproject.toml, uv.lock and .config/mise/config.toml. Technical
 terms follow the Python sys API and Git glossary; shared data words follow the
@@ -83,10 +85,6 @@ def test_native_software_vocabulary_accepts_canonical_usage(tmp_path: Path, pros
 @pytest.mark.parametrize(
     ("prose", "check", "match"),
     [
-        ("The veriified report is ready.", "Vale.Spelling", "veriified"),
-        ("The qzxwvvv report is ready.", "Vale.Spelling", "qzxwvvv"),
-        ("The preimgae is ready.", "Vale.Spelling", "preimgae"),
-        ("The namespcae is ready.", "Vale.Spelling", "namespcae"),
         ("Use Cspell for review.", "Vale.Terms", "Cspell"),
         ("Use Github for review.", "Vale.Terms", "Github"),
         ("Use Gitlab for review.", "Vale.Terms", "Gitlab"),
@@ -131,7 +129,7 @@ def test_native_software_vocabulary_keeps_adverse_findings(
 
 
 def test_native_software_vocabulary_separates_prose_and_literal_code(tmp_path: Path) -> None:
-    """An unseen typo is inert in code but rejected at its original prose coordinates."""
+    """A wrong term is inert in code but rejected at its original prose coordinates."""
     source = tmp_path / "literal [scope].md"
     contents = (
         "# Guide\n\nKeep `veriified qzxwvvv Github Gitlab utilize the the` literal.\n\n"
@@ -155,7 +153,7 @@ def test_native_software_vocabulary_separates_prose_and_literal_code(tmp_path: P
     assert source.read_bytes() == original
 
     source.write_text(
-        contents.replace("The report is ready.", "The veriified report is ready."),
+        contents.replace("The report is ready.", "The Github report is ready."),
         encoding="utf-8",
     )
     original = source.read_bytes()
@@ -167,5 +165,5 @@ def test_native_software_vocabulary_separates_prose_and_literal_code(tmp_path: P
     assert {
         (item["Check"], item["Match"], item["Line"], tuple(item["Span"]))
         for item in findings[str(source)]
-    } == {("Vale.Spelling", "veriified", 9, (5, 13))}, result.stdout
+    } == {("Vale.Avoid", "Github", 9, (5, 10)), ("Vale.Terms", "Github", 9, (5, 10))}, result.stdout
     assert source.read_bytes() == original

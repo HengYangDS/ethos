@@ -27,6 +27,7 @@ from ethos.adapters.repo.content.source import SourceTargetUnavailableError
 from ethos.adapters.repo.content.source import SourceTree
 from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
+from ethos.adapters.repo.runtime.materialization.native_supply import resolve_native_tool
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.contracts.verdict import close_verdict
 from ethos.normalization.coercion import string_sequence
@@ -297,7 +298,7 @@ def _markdown_files(root: Path) -> list[str]:
 
 
 def prose_report(root: Path) -> dict[str, object]:
-    """Run native spelling on exact copies without ambient policy or source writes."""
+    """Run native spelling and Vale on exact copies without ambient policy or source writes."""
     try:
         files = _markdown_files(root)
         configs = native_configurations(
@@ -352,11 +353,50 @@ def prose_report(root: Path) -> dict[str, object]:
                         "native_prose_not_read_only_clean",
                     ]
                 native.append(result)
+        native.extend(_vale_reports(root, files, sources))
         return _native_report("prose", files, native)
     except (GitExecutionError, subprocess.CalledProcessError) as error:
         return quality_inventory_failure(root, "prose", error)
     except (OSError, ValueError) as error:
         return _configuration_failure("prose", error)
+
+
+def _vale_reports(
+    root: Path, files: list[str], sources: dict[str, bytes]
+) -> list[dict[str, object]]:
+    """Run the shipped Vale policy, then any repository policy, on exact copies."""
+    configs = native_configurations(root, "vale", ".config/checks/vale/vale.ini")
+    executable = str(resolve_native_tool("vale"))
+    reports = []
+    for ordinal, config in enumerate(configs):
+        with TemporaryDirectory(prefix="ethos-native-vale-") as temporary:
+            work = Path(temporary)
+            for relative, content in sources.items():
+                target = work / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(content)
+            result = quality_tool_report(
+                root=root,
+                gate_id="prose-vale" if ordinal == 0 else "prose-vale-increment",
+                tool=executable,
+                command=[executable, "--no-global", f"--config={config}", "--output=line", *files],
+                files=files,
+                cwd=work,
+            )
+            if files and (
+                str(result.get("stderr", "")).strip()
+                or any(
+                    (work / relative).read_bytes() != content
+                    for relative, content in sources.items()
+                )
+            ):
+                result.update(verdict="block", state="unproven")
+                result["required_gaps"] = [
+                    *string_sequence(result["required_gaps"]),
+                    "native_prose_not_read_only_clean",
+                ]
+            reports.append(result)
+    return reports
 
 
 def _configuration_failure(gate_id: str, error: Exception) -> dict[str, object]:

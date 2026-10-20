@@ -39,7 +39,7 @@ references.
 #### Scenario: Promotion target is validated
 
 - **WHEN** ETHOS validates a promotion target
-- **THEN** the target kind is one of source, tests, docs, schema, openspec, or
+- **THEN** the target kind is one of source, tests, docs, schema, `openspec`, or
   evidence
 - **AND** the target path is repository-relative
 

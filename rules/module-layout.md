@@ -159,7 +159,7 @@ obligations remain tracked in the sole terminal plan until enforced and verified
   delete the shell.
 - One import per line (ruff isort `force-single-line`); absolute imports only
   (ruff `TID`). Runtime-only type imports go under `if TYPE_CHECKING:` — EXCEPT
-  cyclopts command signatures, whose annotation types must stay runtime imports.
+  Cyclopts command signatures, whose annotation types must stay runtime imports.
 
 ## 2.5 Import rules (explicit)
 

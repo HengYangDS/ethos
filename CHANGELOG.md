@@ -202,7 +202,7 @@ historical bindings are governed by [Release Governance](docs/governance/release
   runner faults) while genuine gate breaches still fail immediately.
 - Cross-platform coverage: `git_common_dir` and lease-expiry branches are pinned
   so the 100% floor holds on Linux and macOS alike.
-- Hardened `coverage.xml` parsing against XXE (defusedxml) and installed taplo
+- Hardened `coverage.xml` parsing against XXE (defusedxml) and installed Taplo
   from a prebuilt binary to avoid a broken aarch64 source build.
 - GitLab verification reclones complete history so replay checks resolve pinned
   commits even when a runner workspace was previously shallow.

@@ -114,7 +114,7 @@ delivery or platforms. Its 66-package isolated environment is an observed supply
 closure, not proof that every package is necessary for ETHOS deployment.
 
 Evidence remains in the existing build/evidence/quality/commit-integrity output:
-fastmcp-contract-probe.log and the owned script under the recorded mcp-sdk-scratch
+fastmcp-contract-probe.log and the owned script under the recorded `mcp-sdk-scratch`
 root. Official [FastMCP tool validation][fastmcp-tools] documents strict mode;
 the measured behavior, not the documentation alone, supports this choice.
 

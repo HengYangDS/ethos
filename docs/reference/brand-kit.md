@@ -22,13 +22,13 @@ See also: [Product Design Contract](../governance/product-design-contract.md),
 
 | Use                   | File                                                                    | Notes                                                        |
 | --------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------ |
-| Square project image  | [ethos-logo-1024.png](../../assets/brand/ethos-logo-1024.png)           | Use where a forge or account accepts a square project image. |
-| Editable master mark  | [ethos-logo.svg](../../assets/brand/ethos-logo.svg)                     | Dark-background vector version.                              |
-| Light-background mark | [ethos-logo-light.svg](../../assets/brand/ethos-logo-light.svg)         | Use on paper or light surfaces.                              |
-| One-color mark        | [ethos-logo-mono.svg](../../assets/brand/ethos-logo-mono.svg)           | Use where color is unavailable.                              |
-| Wordmark lockup       | [ethos-lockup-dark.svg](../../assets/brand/ethos-lockup-dark.svg)       | Use in wide headers.                                         |
-| Social preview        | [ethos-social-preview.png](../../assets/brand/ethos-social-preview.png) | Use where a forge accepts a repository social image.         |
-| Product poster        | [ethos-poster.png](../../assets/brand/ethos-poster.png)                 | Use for long-form product introduction, not as an avatar.    |
+| Square project image  | [`ethos-logo-1024.png`](../../assets/brand/ethos-logo-1024.png)           | Use where a forge or account accepts a square project image. |
+| Editable master mark  | [`ethos-logo.svg`](../../assets/brand/ethos-logo.svg)                     | Dark-background vector version.                              |
+| Light-background mark | [`ethos-logo-light.svg`](../../assets/brand/ethos-logo-light.svg)         | Use on paper or light surfaces.                              |
+| One-color mark        | [`ethos-logo-mono.svg`](../../assets/brand/ethos-logo-mono.svg)           | Use where color is unavailable.                              |
+| Wordmark lockup       | [`ethos-lockup-dark.svg`](../../assets/brand/ethos-lockup-dark.svg)       | Use in wide headers.                                         |
+| Social preview        | [`ethos-social-preview.png`](../../assets/brand/ethos-social-preview.png) | Use where a forge accepts a repository social image.         |
+| Product poster        | [`ethos-poster.png`](../../assets/brand/ethos-poster.png)                 | Use for long-form product introduction, not as an avatar.    |
 
 ## Positioning
 

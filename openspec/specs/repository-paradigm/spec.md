@@ -335,7 +335,7 @@ A repository that keeps decision records SHALL name each `dr-NNNN-<topic>.md`, w
 
 ### Requirement: Text formatting uses the common formatters
 
-Markdown and YAML SHALL be formatted by Prettier, TOML by taplo and Python by Ruff. Each formatter SHALL be bound through the repository's `fix` and `check` verbs, with configuration under `.config/checks/` declaring the common settings. Blank lines SHALL be what these formatters write for the parsed structure.
+Markdown and YAML SHALL be formatted by Prettier, TOML by Taplo and Python by Ruff. Each formatter SHALL be bound through the repository's `fix` and `check` verbs, with configuration under `.config/checks/` declaring the common settings. Blank lines SHALL be what these formatters write for the parsed structure.
 
 #### Scenario: Markdown is only linted
 
@@ -382,7 +382,7 @@ Every governed repository SHALL keep `.editorconfig` and `.gitattributes` that s
 
 ### Requirement: Configured formatters share one width
 
-Every configured formatter SHALL use a line width of 100, including Prettier, taplo and Ruff. A repository that configures Ruff SHALL also target Python 3.12.
+Every configured formatter SHALL use a line width of 100, including Prettier, Taplo and Ruff. A repository that configures Ruff SHALL also target Python 3.12.
 
 #### Scenario: A formatter keeps its default width
 

@@ -1849,7 +1849,7 @@ remote probe or minting proof, hosted-success, or publication authority.
 
 #### Scenario: Current hosted observation is projected
 
-- **WHEN** ethos status runs and the configured hosted observation artifact
+- **WHEN** `ethos status` runs and the configured hosted observation artifact
   binds the current tracked head
 - **THEN** status data SHALL include hosted_observation state, freshness,
   provider-state summary, and bounded observation gaps
@@ -1870,12 +1870,12 @@ remote probe or minting proof, hosted-success, or publication authority.
 
 #### Scenario: Local publication readiness is projected
 
-- **WHEN** ethos status summarizes current blockers and proof readiness
+- **WHEN** `ethos status` summarizes current blockers and proof readiness
 - **THEN** status data SHALL include a local_publication projection that
   distinguishes ready from blocked local state
 - **AND** the projection SHALL list its local blockers
 - **AND** remote publication claimed SHALL remain false
-- **AND** the projection SHALL NOT replace the ethos publish transition verdict
+- **AND** the projection SHALL NOT replace the `ethos publish` transition verdict
 
 ### Requirement: Refresh-base replay is signing-bound and compare-and-swap safe
 

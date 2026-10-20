@@ -26,8 +26,7 @@ def test_common_vale_policy_enforces_concise_specific_and_correct_prose(tmp_path
     executable = resolve_native_tool("vale")
     source = tmp_path / "guide [literal].md"
     source.write_text(
-        "# Guide\n\nWe utilize the the data.\n\n"
-        "This offers a rich tapestry of insights.\n\nThe qzxwvvv report is ready.\n",
+        "# Guide\n\nWe utilize the the data.\n\nThis offers a rich tapestry of insights.\n",
         encoding="utf-8",
     )
     original = source.read_bytes()
@@ -49,12 +48,8 @@ def test_common_vale_policy_enforces_concise_specific_and_correct_prose(tmp_path
     assert not result.stderr
     findings = json.loads(result.stdout)
     checks = {item["Check"] for entries in findings.values() for item in entries}
-    assert {
-        "plain.concise",
-        "plain.stock-phrases",
-        "Vale.Repetition",
-        "Vale.Spelling",
-    } <= checks
+    assert {"plain.concise", "plain.stock-phrases", "Vale.Repetition"} <= checks
+    assert "Vale.Spelling" not in checks
     assert source.read_bytes() == original
 
 
@@ -164,18 +159,12 @@ def test_common_vale_policy_separates_machine_front_matter_from_human_prose(
         (
             "description: The report is ready.",
             "description: The teh report is on Github.",
-            {
-                ("Vale.Spelling", "teh", 8, (18, 20)),
-                ("Vale.Terms", "Github", 8, (35, 40)),
-            },
+            {("Vale.Terms", "Github", 8, (35, 40))},
         ),
         (
             "title: Quality Guide",
             "title: teh Github Guide",
-            {
-                ("Vale.Spelling", "teh", 7, (8, 10)),
-                ("Vale.Terms", "Github", 7, (12, 17)),
-            },
+            {("Vale.Terms", "Github", 7, (12, 17))},
         ),
     ):
         source.write_text(contents.replace(correct, defective), encoding="utf-8")
@@ -215,14 +204,49 @@ def test_prose_gate_keeps_native_spelling_without_adopter_toolchain(tmp_path, mo
         document.write_text(source)
         report = gate_tool.prose_report(tmp_path)
         assert (report["verdict"], document.read_text()) == (verdict, source), report
-        assert len(report["native"]) == 2
-        commands = [result["command"][:4] for result in report["native"]]
-        assert commands == [[sys.executable, "-B", "-I", "-m"]] * 2
-    assert report["native"][0]["exit_code"] != 0
-    assert report["native"][1]["exit_code"] == 0
+        spelling = [result for result in report["native"] if result["tool"] == sys.executable]
+        assert [result["command"][:4] for result in spelling] == [
+            [sys.executable, "-B", "-I", "-m"]
+        ] * 2
+    assert [result["exit_code"] != 0 for result in spelling] == [True, False]
     local.write_text("[tool.codespell]\nwrite-changes = true\n")
     report = gate_tool.prose_report(tmp_path)
     assert (report["verdict"], document.read_text()) == ("block", source)
     files.clear()
     report = gate_tool.prose_report(tmp_path)
     assert (report["verdict"], report["file_count"]) == ("pass", 0)
+
+
+def test_prose_gate_runs_the_shipped_and_repository_vale_policy(tmp_path, monkeypatch):
+    """Plain-language findings block beside spelling; each repository policy adds its own rules."""
+    document = tmp_path / "README.md"
+    local = tmp_path / ".config/checks/vale/vale.ini"
+    files = ["README.md"]
+    monkeypatch.setattr(native_inputs, "quality_source_files", lambda *_args: files)
+    monkeypatch.setenv("PATH", "")
+    for source, verdict in (
+        ("We use the data to decide.\n", "pass"),
+        ("We utilize the data to decide.\n", "block"),
+    ):
+        document.write_text(source)
+        report = gate_tool.prose_report(tmp_path)
+        assert (report["verdict"], document.read_text()) == (verdict, source), report
+        assert [result["id"] for result in report["native"]] == ["prose", "prose-vale"]
+    assert "quality_gate_failed:prose-vale" in report["required_gaps"]
+    local.parent.mkdir(parents=True)
+    local.write_text("[*.md]\nBasedOnStyles = Vale\nVale.Spelling = error\n")
+    files.append(local.relative_to(tmp_path).as_posix())
+    document.write_text("We use the qzxwvvv data to decide.\n")
+    report = gate_tool.prose_report(tmp_path)
+    assert [result["id"] for result in report["native"]] == [
+        "prose",
+        "prose-vale",
+        "prose-vale-increment",
+    ]
+    assert report["required_gaps"] == ["quality_gate_failed:prose-vale-increment"], report
+    local.write_text("[*.md]\nBasedOnStyles = Missing\n")
+    report = gate_tool.prose_report(tmp_path)
+    assert report["native"][-1]["required_gaps"] == [
+        "quality_gate_failed:prose-vale-increment",
+        "native_prose_not_read_only_clean",
+    ], report

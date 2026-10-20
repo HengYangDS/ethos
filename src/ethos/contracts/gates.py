@@ -12,6 +12,7 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import model_validator
 
+from ethos.contracts.paradigm.declaration import load_repository_paradigm
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import TransitionPlan
 from ethos.contracts.value import FrozenMapping
@@ -27,6 +28,7 @@ _FULL_MISSING_DEFAULT = "full proof set missing default"
 _UNKNOWN_PROOF_GATE = "unknown proof gate"
 _DUPLICATE_PROOF_GATE = "duplicate proof gate"
 _GATE_RESOURCES_INVALID = "gate resources invalid"
+_GATE_TOOLS_INVALID = "gate tools invalid"
 _RESOURCE_NAME = re.compile(r"^(?:\*|[a-z0-9][a-z0-9._-]*(?:/[a-z0-9][a-z0-9._-]*)*)$")
 
 
@@ -137,6 +139,10 @@ class Gate(BaseModel):
     native_outputs: FrozenTuple[NativeOutput] = Field(
         default=(), exclude_if=lambda value: not value
     )
+    # Native tools whose policy carriers belong to this gate's sources.
+    tools: FrozenTuple[str] = Field(
+        default=(), exclude_if=lambda value: not value, json_schema_extra={"uniqueItems": True}
+    )
     policy: str = "required"
     profile: str = "product"
     toolchain: str = "quality-adapter"
@@ -218,6 +224,14 @@ class Gate(BaseModel):
             ):
                 msg = "native_output_contract_invalid"
                 raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
+    def validate_tools(self) -> Self:
+        """Name each native policy owner once, from the repository paradigm's tool catalog."""
+        known = {tool.id for tool in load_repository_paradigm().tool}
+        if len(set(self.tools)) != len(self.tools) or not set(self.tools) <= known:
+            raise ValueError(_GATE_TOOLS_INVALID)
         return self
 
     def conflicts_with(self, other: Self) -> bool:

@@ -7,10 +7,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 import tomli_w
+from pydantic import ValidationError
 
 from ethos.contracts.gates import Gate
 from ethos.contracts.gates import GateProofSets
 from ethos.contracts.gates import load_gate_registry_declaration
+from ethos.repository.policy.gates import bind_gate_source_digests
 from ethos.repository.policy.gates import resolve_gate_policy as compile_gate_policy
 from ethos.repository.policy.gates import source_paths_for_gate
 from ethos.repository.policy.quality.gate_composition import select_gate_declaration
@@ -166,6 +168,40 @@ def test_invalid_configuration_is_reported_not_admitted_policy(tmp_path: Path) -
     assert dict(dict(policy.sources)[gate.id]) == {
         path: hashlib.sha256(value).hexdigest() for path, value in materials.items()
     }
+
+
+@pytest.mark.parametrize("tools", [(), ("lychee",)])
+def test_declared_tools_bind_their_native_policy_carriers(tools: tuple[str, ...]) -> None:
+    """Only the registry's declared tools bind their policy carriers into gate sources."""
+    carrier = ".config/checks/lychee/lychee.toml"
+    gate = Gate(
+        id="markdown-links",
+        kind="lint",
+        profile="repository",
+        providers=("ethos.adapters.gates.tool:markdown_links_report",),
+        tools=tools,
+    )
+    sources = source_paths_for_gate(gate, repository_paths=(carrier, "README.md"))
+    assert (carrier in sources) is bool(tools)
+    assert "README.md" not in sources
+    assert ("tools" in gate.to_dict()) is bool(tools)
+    bound, gaps = bind_gate_source_digests(
+        (gate,), {path: b"" for path in sources if path != carrier}, repository_paths=(carrier,)
+    )
+    assert (f"gate_policy_source_missing:markdown-links:{carrier}" in gaps) is bool(tools)
+    assert carrier not in dict(dict(bound)[gate.id])
+
+
+@pytest.mark.parametrize("tools", [("lychee", "lychee"), ("undeclared-tool",)])
+def test_gate_tools_name_each_paradigm_tool_once(tools: tuple[str, ...]) -> None:
+    """A gate cannot bind a repeated native owner or one the paradigm does not declare."""
+    with pytest.raises(ValidationError, match="gate tools invalid"):
+        Gate(
+            id="markdown-links",
+            kind="lint",
+            providers=("ethos.adapters.gates.tool:markdown_links_report",),
+            tools=tools,
+        )
 
 
 @pytest.mark.parametrize("mode", ["default", "full", "focused"])

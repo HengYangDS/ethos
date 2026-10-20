@@ -203,6 +203,19 @@ def test_common_gate_applicability_is_bound_in_native_schema_and_declaration() -
     )
 
 
+def test_gate_schema_matches_declared_native_tools_contract() -> None:
+    """A gate names each native policy owner once in both native contracts."""
+    assert (
+        load_schema("gate.schema.json")["properties"]["tools"]
+        == (Gate.model_json_schema()["properties"]["tools"])
+    )
+    payload = resolve_gate_policy().registry["markdown-links"].to_dict()
+    payload["tools"] = ["lychee"]
+    assert validate_schema_instance("gate.schema.json", payload)["verdict"] == "pass"
+    payload["tools"] = ["lychee", "lychee"]
+    assert validate_schema_instance("gate.schema.json", payload)["verdict"] == "block"
+
+
 def test_gate_schema_matches_positive_cpu_reservation_contract() -> None:
     """A product gate's capacity claim is valid in both native contracts."""
     assert (

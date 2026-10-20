@@ -117,6 +117,13 @@
     },
     "tool_adapter": { "minLength": 1, "type": "string" },
     "toolchain": { "minLength": 1, "type": "string" },
+    "tools": {
+      "default": [],
+      "items": { "type": "string" },
+      "title": "Tools",
+      "type": "array",
+      "uniqueItems": true
+    },
     "trust_bearing": { "type": "boolean" },
     "verification_providers": {
       "default": [],

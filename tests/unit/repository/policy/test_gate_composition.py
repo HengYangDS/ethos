@@ -170,10 +170,18 @@ def test_invalid_configuration_is_reported_not_admitted_policy(tmp_path: Path) -
     }
 
 
-@pytest.mark.parametrize("tools", [(), ("lychee",)])
-def test_declared_tools_bind_their_native_policy_carriers(tools: tuple[str, ...]) -> None:
-    """Only the registry's declared tools bind their policy carriers into gate sources."""
-    carrier = ".config/checks/lychee/lychee.toml"
+@pytest.mark.parametrize(
+    ("tools", "carrier"),
+    [
+        ((), ".config/checks/lychee/lychee.toml"),
+        (("lychee",), ".config/checks/lychee/lychee.toml"),
+        (("vale",), ".config/checks/vale/styles/plain/concise.yml"),
+    ],
+)
+def test_declared_tools_bind_their_native_policy_carriers(
+    tools: tuple[str, ...], carrier: str
+) -> None:
+    """Only the registry's declared tools bind their policy carriers, nested trees included."""
     gate = Gate(
         id="markdown-links",
         kind="lint",

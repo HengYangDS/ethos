@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from ethos.contracts.gates import Gate
 
 NATIVE_TOOL_LOCATIONS = {tool.id: tool.carrier for tool in load_repository_paradigm().tool}
+_NESTED_TOOLS = frozenset(tool.id for tool in load_repository_paradigm().tool if tool.nested)
 _PROVIDER_TOOLS = {
     "ethos.adapters.gates.formatting:source_format_report": (
         "prettier",
@@ -59,8 +60,11 @@ def native_tool_configuration(repository_paths: tuple[str, ...], tool: str) -> s
 
 
 def native_tool_configurations(repository_paths: tuple[str, ...], tool: str) -> tuple[str, ...]:
-    """Observe every exact carrier without asserting its current placement validity."""
-    return _configuration_carriers(repository_paths, tool)[1]
+    """Observe every exact carrier, a nested owner's tree included, without asserting placement."""
+    location, selected = _configuration_carriers(repository_paths, tool)
+    tree = f"{Path(location).parent.as_posix()}/" if location and tool in _NESTED_TOOLS else None
+    nested = (path for path in repository_paths if tree and path.startswith(tree))
+    return tuple(dict.fromkeys((*selected, *nested)))
 
 
 def _configuration_carriers(

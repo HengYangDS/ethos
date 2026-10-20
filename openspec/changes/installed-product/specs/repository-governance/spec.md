@@ -268,6 +268,20 @@ adopter SHALL NOT acquire Python audit inputs from an unrelated product floor.
 - **THEN** no passing proof is issued and the candidate ref remains unchanged
 - **AND** canonical audit findings, expiration and source bindings retain their original refusals
 
+### Requirement: Accepted closeout leads a self-hosted root through re-arming
+
+When accepted closeout advances a root whose hook runtime it built from the replaced accepted head and that runtime is no longer current, the closeout SHALL name the repository's `bootstrap` verb as its next action instead of `ethos publish`. A hook runtime built from any other source keeps `ethos publish` as the next action.
+
+#### Scenario: The advance stales the self-hosted hook runtime
+
+- **WHEN** closeout advances `dev` from the head its current hook runtime was built from
+- **THEN** the next action runs `bootstrap` in the accepted root instead of `ethos publish`
+
+#### Scenario: An adopter runs an installed runtime
+
+- **WHEN** closeout advances an adopter whose hook runtime was built from an ETHOS source
+- **THEN** the next action stays `ethos publish`
+
 ## MODIFIED Requirements
 
 ### Requirement: Minimal Adoption Binding

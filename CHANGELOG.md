@@ -86,6 +86,10 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- Accepted closeout of a self-hosted root now names `mise --cd <root> run bootstrap` as its next
+  action when the advance leaves the hook runtime, built from the replaced accepted head, stale.
+  It named `ethos publish`, while write admission reported `runtime_build_stale` until the lander
+  refreshed the environment and reinstalled the hook by hand.
 - The repair for an authored-name gap now also names marking the path `linguist-vendored` or
   `linguist-generated` in `.gitattributes`. It named only the kebab-case rename, so adopters were
   told to rename third-party fonts, license and notice files that keep their upstream names once

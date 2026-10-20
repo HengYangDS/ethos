@@ -12,6 +12,7 @@ import ethos.adapters.mutation.lane_lifecycle.archive.command as archive
 import ethos.adapters.mutation.lane_lifecycle.change_overlay as overlay
 import ethos.surface.cli.lane.commit_signer as commit_signer
 import ethos.surface.cli.lane.lifecycle as lifecycle
+from ethos.domain.land.closeout import closeout_continuation
 from ethos.domain.land.closeout import land_next_action
 
 ARCHIVE_BRANCH = "work/feature"
@@ -72,6 +73,20 @@ def test_predecessor_policy_gap_does_not_recommend_repeating_proof(gap: str) -> 
     assert land_next_action(verdict="block", gaps=(gap,), current_head=ARCHIVE_HEAD) == (
         "inspect and repair installed-runtime policy compatibility before landing"
     )
+
+
+@pytest.mark.parametrize(("source", "current"), [("old", False), ("old", True), ("", False)])
+def test_closeout_bootstraps_when_its_advance_stales_the_hook_runtime(
+    tmp_path: Path, source: str, *, current: bool
+) -> None:
+    """Only a hook runtime armed at the replaced accepted head leads through bootstrap first."""
+    binding = {"current": current, "source_commit": source}
+    root = tmp_path.resolve().as_posix()
+    action = closeout_continuation(
+        binding, root=tmp_path, accepted_head="old", candidate_head="new"
+    )
+    publish = f"ethos publish --expect-head new --root {root} --json"
+    assert action == (f"mise --cd {root} run bootstrap" if source and not current else publish)
 
 
 def _capture(monkeypatch: pytest.MonkeyPatch) -> list[Any]:

@@ -19,6 +19,7 @@ import ethos.adapters.repo.git as git_adapter
 import ethos.domain.status
 from ethos.adapters.mutation.proof import proof_admission_report
 from ethos.adapters.mutation.remediation.guidance import proof_recovery_command
+from ethos.adapters.repo.hook.observation import hook_runtime_binding
 from ethos.adapters.repo.runtime.binding import runner_source_root
 from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.workspace import worktree_records
@@ -28,6 +29,8 @@ from ethos.contracts.verdict import Verdict
 from ethos.normalization.coercion import string_mapping
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from ethos.contracts.admission import AdmissionDecision
 
 
@@ -171,9 +174,11 @@ def closeout_resolution(
     if verdict == "pass" and update.get("state") == "accepted_current":
         next_action = "ethos publish"
     elif verdict == "pass" and apply:
-        next_action = (
-            f"ethos publish --expect-head {candidate_head} "
-            f"--root {repo.resolve().as_posix()} --json"
+        next_action = closeout_continuation(
+            hook_runtime_binding(repo),
+            root=repo,
+            accepted_head=accepted_head,
+            candidate_head=candidate_head,
         )
     elif "candidate_diverged_from_accepted" in gaps:
         next_action = (
@@ -220,6 +225,20 @@ def closeout_resolution(
             or bool(verification.get("required_gaps"))
         ),
     )
+
+
+def closeout_continuation(
+    binding: Mapping[str, object], *, root: Path, accepted_head: str, candidate_head: str
+) -> str:
+    """Name publication, or the bootstrap verb when the advance staled an armed hook runtime.
+
+    Only a self-hosted root builds its hook runtime from its own accepted head, so a stale
+    runtime built from the replaced head needs the advanced environment before reinstalling.
+    """
+    location = root.resolve().as_posix()
+    if not binding.get("current") and binding.get("source_commit") == accepted_head:
+        return shlex.join(("mise", "--cd", location, "run", "bootstrap"))
+    return f"ethos publish --expect-head {candidate_head} --root {location} --json"
 
 
 def closeout_audit_root(repo: Path, decision: AdmissionDecision) -> Path:

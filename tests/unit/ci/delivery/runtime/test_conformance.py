@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
+from ethos.adapters.toolchain.mise import native_tool_cache
+from ethos.repository.release.resources import canonical_resource
 from tools.ci.delivery.acceptance import runtime as runtime_acceptance
 
 if TYPE_CHECKING:
@@ -27,8 +29,14 @@ def test_installed_format_probe_uses_current_native_configuration(
 
     monkeypatch.setattr(runtime_acceptance, "run_command", run)
 
+    # Hosted CI binds prepared supply explicitly; it has no Git-common tool cache.
+    supply = native_tool_cache(canonical_resource("pyproject.toml").parent)
     assert runtime_acceptance.require_production_dependencies(
-        Path(sys.executable), environment={"PATH": str(Path(shutil.which("git")).parent)}
+        Path(sys.executable),
+        environment={
+            "PATH": str(Path(shutil.which("git")).parent),
+            "ETHOS_CI_TOOL_CACHE_DIR": supply.as_posix(),
+        },
     ) == {
         "state": "passed",
         "excluded": ["pytest"],

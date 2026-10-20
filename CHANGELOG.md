@@ -98,6 +98,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- The configuration quality gate no longer fetches the schema a TOML document declares. Taplo
+  still loaded a `$schema` key or a `#:schema` directive under `--no-schema`, so the gate failed
+  offline and depended on remote content, such as a knip schema on unpkg. The shipped Taplo
+  configuration now disables schemas, and the gate lints with it alone, because a repository
+  increment adds nothing to a schema-free lint.
 - Patch admission and `lane format --apply` give `git apply` the patch as bytes. A Windows text
   stream writes each newline as CRLF, and Git read each carriage return as trailing whitespace, so
   on Windows patch admission refused every installed format apply as a preimage mismatch.

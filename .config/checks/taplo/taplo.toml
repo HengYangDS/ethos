@@ -13,3 +13,6 @@ inline_table_expand = true
 reorder_keys = false
 trailing_comma = false
 trailing_newline = true
+
+[schema]
+enabled = false

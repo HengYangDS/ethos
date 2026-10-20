@@ -32,9 +32,11 @@ VALE_VOCABULARY = '{"Paths": [], "Vocabularies": {"A": 0}, "Vocab": []}'
         (".github/workflows/ci.yml", "value: [one, two]\n"),
         ("source.yaml", "command: " + "word " * 48 + "end\n"),
         ("source.yaml", "value: |\n  first\n\n\n  second\n"),
+        ("source.toml", '"$schema" = "https://127.0.0.1:9/never.json"\nvalue = 1\n'),
+        (".config/checks/taplo/taplo.toml", "#:schema https://127.0.0.1:9/never.json\n"),
     ],
 )
-def test_native_prettier_accepted_layout_preserves_authored_bytes(
+def test_native_accepted_configuration_passes_offline_and_preserves_its_bytes(
     tmp_path: Path, relative: str, content: str
 ) -> None:
     root = init_git_repo(tmp_path / "repo")

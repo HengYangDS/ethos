@@ -27,6 +27,7 @@ from ethos.adapters.repo.runtime.materialization.native_supply import resolve_na
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
 from ethos.contracts.verdict import close_verdict
 from ethos.normalization.coercion import string_sequence
+from ethos.repository.release.resources import canonical_resource
 
 VALE_CONFIG = Path(".config/checks/vale/vale.ini")
 VALE_VOCABULARIES = ".config/checks/vale/styles/config/vocabularies/*/"
@@ -136,24 +137,24 @@ def _toml_failures(root: Path, paths: tuple[Path, ...]) -> list[str]:
         return failures
     node = resolve_node_runtime().executable
     taplo = product_node_module("@taplo/cli") / "dist/cli.js"
-    configs = native_configurations(root, "taplo", ".config/checks/taplo/taplo.toml")
-    for config in configs:
-        completed = run_command(
-            root,
-            (
-                str(node),
-                str(taplo),
-                "lint",
-                "--no-schema",
-                "--config",
-                config,
-                *map(str, paths),
-            ),
-            timeout=60,
-            remove_env=("NODE_OPTIONS", "NODE_PATH"),
-        )
-        if completed.returncode:
-            failures.append((completed.stdout + completed.stderr).strip())
+    # Taplo still fetches a schema the document declares under --no-schema; only the shipped
+    # configuration disables it, and a repository increment adds nothing to a schema-free lint.
+    completed = run_command(
+        root,
+        (
+            str(node),
+            str(taplo),
+            "lint",
+            "--no-schema",
+            "--config",
+            str(canonical_resource(".config/checks/taplo/taplo.toml")),
+            *map(str, paths),
+        ),
+        timeout=60,
+        remove_env=("NODE_OPTIONS", "NODE_PATH"),
+    )
+    if completed.returncode:
+        failures.append((completed.stdout + completed.stderr).strip())
     return failures
 
 

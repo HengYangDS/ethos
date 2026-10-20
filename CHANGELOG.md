@@ -92,6 +92,8 @@ historical bindings are governed by [Release Governance](docs/governance/release
   bound sources, so a proof made before the change no longer satisfies it. Before, the prose
   gate's Vale configuration was outside its sources and an edited rule could reuse a stale
   result.
+- The product npm lock overrides markdownlint-cli2's exact `markdown-it` 15.0.1 pin with 15.0.3,
+  which fixes GHSA-r7fv-28h4-cvq7; the dependency audit blocked every proof on that finding.
 - The repair for an authored-name gap now also names marking the path `linguist-vendored` or
   `linguist-generated` in `.gitattributes`. It named only the kebab-case rename, so adopters were
   told to rename third-party fonts, license and notice files that keep their upstream names once

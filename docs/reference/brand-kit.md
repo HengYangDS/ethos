@@ -20,8 +20,8 @@ See also: [Product Design Contract](../governance/product-design-contract.md),
 
 ## Canonical Files
 
-| Use                   | File                                                                    | Notes                                                        |
-| --------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Use                   | File                                                                      | Notes                                                        |
+| --------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | Square project image  | [`ethos-logo-1024.png`](../../assets/brand/ethos-logo-1024.png)           | Use where a forge or account accepts a square project image. |
 | Editable master mark  | [`ethos-logo.svg`](../../assets/brand/ethos-logo.svg)                     | Dark-background vector version.                              |
 | Light-background mark | [`ethos-logo-light.svg`](../../assets/brand/ethos-logo-light.svg)         | Use on paper or light surfaces.                              |

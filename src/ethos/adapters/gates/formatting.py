@@ -13,6 +13,7 @@ from pathlib import Path
 from ruff import find_ruff_bin
 
 from ethos.adapters.gates.native.inputs import authored_source_files
+from ethos.adapters.gates.native.inputs import format_ownership
 from ethos.adapters.gates.native.inputs import native_configurations
 from ethos.adapters.gates.native.inputs import native_repository_configuration
 from ethos.adapters.gates.native.inputs import quality_inventory_failure
@@ -21,7 +22,6 @@ from ethos.adapters.repo.git import GitExecutionError
 from ethos.adapters.repo.runtime.filesystem import runtime_scripts
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
-from ethos.repository.policy.quality.format_selection import audit
 from ethos.repository.release.resources import canonical_resource
 
 _SUFFIXES = frozenset(
@@ -65,11 +65,7 @@ def _selected_files(root: Path, requested: tuple[str, ...]) -> tuple[tuple[str, 
             root, relative, excluded=relative not in selected_paths, explicit=bool(requested)
         )
     ]
-    ownership = audit(
-        root,
-        paths=tuple(dict.fromkeys(files)),
-        configuration=canonical_resource(".config/checks/format-selection/policy.toml"),
-    )
+    ownership = format_ownership(root, tuple(dict.fromkeys(files)))
     if ownership["verdict"] != "pass":
         raise ValueError(str(ownership["failures"]))
     selected = []

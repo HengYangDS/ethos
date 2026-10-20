@@ -13,6 +13,23 @@ from typing import cast
 from ethos.repository.policy.projections import observe_projections
 
 POLICY_PATH = Path(".config/checks/format-selection/policy.toml")
+# A repository increment may only declare byte-bound carriers: it forbids formatting and names
+# the proof gate that verifies the bytes instead, so leaving a formatter never leaves verification.
+_CARRIER_FIELDS = frozenset(
+    {
+        "id",
+        "paths",
+        "exclude_paths",
+        "format_owner",
+        "format_command",
+        "format_check",
+        "validation_owner",
+        "validation_command",
+        "semantic_companions",
+        "mutation_policy",
+    }
+)
+_CARRIER_PRIORITY = 100
 
 
 class OwnerDeclaration(TypedDict):
@@ -148,10 +165,42 @@ def _assignment(path: str, declaration: OwnerDeclaration) -> CarrierAssignment:
     }
 
 
-def audit(root: Path, *, paths: tuple[str, ...], configuration: Path | None = None) -> CarrierAudit:
+def repository_carriers(root: Path, *, gate_ids: frozenset[str]) -> list[OwnerDeclaration]:
+    """Read a repository's byte-bound carriers, each verified by one of its proof gates."""
+    path = root / POLICY_PATH
+    invalid = f"format_selection_increment_invalid:{POLICY_PATH.as_posix()}"
+    if path.is_symlink() or not path.resolve().is_relative_to(root.resolve()):
+        raise ValueError(invalid)
+    try:
+        config = tomllib.loads(path.read_text(encoding="utf-8"))
+        declarations = _ownership_declarations(config.get("ownership", []))
+    except (UnicodeError, tomllib.TOMLDecodeError, TypeError, ValueError) as error:
+        raise ValueError(invalid) from error
+    if set(config) - {"ownership"}:
+        raise ValueError(invalid)
+    for declaration in declarations:
+        if (
+            set(declaration) - _CARRIER_FIELDS
+            or declaration["format_owner"] != "immutable-carrier"
+            or declaration["mutation_policy"] != "forbidden"
+            or not declaration.get("paths")
+            or declaration["validation_owner"] not in gate_ids
+        ):
+            message = f"format_selection_increment_invalid:{declaration['id']}"
+            raise ValueError(message)
+    return [{**declaration, "priority": _CARRIER_PRIORITY} for declaration in declarations]
+
+
+def audit(
+    root: Path,
+    *,
+    paths: tuple[str, ...],
+    configuration: Path | None = None,
+    carriers: tuple[OwnerDeclaration, ...] = (),
+) -> CarrierAudit:
     """Compile effective quality ownership for tracked or explicitly selected carriers."""
     config = tomllib.loads((configuration or root / POLICY_PATH).read_text(encoding="utf-8"))
-    declarations = _ownership_declarations(config.get("ownership"))
+    declarations = [*_ownership_declarations(config.get("ownership")), *carriers]
     projection_kinds = (
         {item.output: item.kind for item in observe_projections(root)}
         if any("projection_kind" in item for item in declarations)

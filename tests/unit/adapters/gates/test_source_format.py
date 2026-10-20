@@ -12,6 +12,7 @@ import pytest
 import ethos.adapters.gates.formatting as formatting_gate
 import ethos.adapters.gates.tool as gate_tool
 import ethos.adapters.mutation.source_format as mutation
+from ethos.adapters.gates.configuration import configuration_report
 from ethos.adapters.gates.formatting import prepare_source_format
 from ethos.repository.profile import ProofPolicy
 from ethos.repository.profile import SourceContract
@@ -230,6 +231,69 @@ def test_captured_source_bundles_share_native_selection(lane: Path) -> None:
     assert all((lane / path).read_text() == content for path, content in captured.items())
     assert all((lane / path).stat().st_mode & 0o777 == 0o640 for path in captured)
     assert (git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")) == (head, index)
+
+
+_CARRIERS = ".config/checks/format-selection/policy.toml"
+_DECLARATION = "format_selection_increment_invalid:custody-bound-sources"
+_INCREMENT = f"format_selection_increment_invalid:{_CARRIERS}"
+_CARRIER = (
+    '[[ownership]]\nid = "custody-bound-sources"\npaths = ["content/**", "assets/**"]\n'
+    'format_owner = "immutable-carrier"\nformat_command = "not-applicable:custody-bound"\n'
+    'format_check = "verify"\nvalidation_owner = "openspec-baseline"\n'
+    'validation_command = "verify"\nmutation_policy = "forbidden"\n'
+)
+
+
+def test_repository_immutable_carriers_keep_their_bytes_for_every_formatter(lane: Path) -> None:
+    """Byte-bound carriers leave every formatter, yet every read-only check still reads them."""
+    bound = {"content/data.json": '{"value":true}\n', "content/notes.md": "# B\n\nteh   \n"}
+    bound["assets/a.svg"] = '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h1v1z"/></svg>\n'
+    _write(lane, {**bound, "docs/new.md": "# New\n\ntext   \n", _CARRIERS: _CARRIER})
+    head, index = git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")
+
+    selected = {item.path for item in prepare_source_format(lane)}
+    assert (selected & {*bound, "docs/new.md"}) == {"docs/new.md"}
+    linted, prose = gate_tool.markdown_lint_report(lane), gate_tool.prose_report(lane)
+    assert "content/notes.md" not in linted["native"][0]["files"]
+    assert "content/notes.md" in json.dumps(linted["native"][1:]), linted
+    assert (prose["verdict"], "content/notes.md" in json.dumps(prose)) == ("block", True), prose
+    assert configuration_report(lane)["required_gaps"] == []
+    code, refused = _command(lane, "content/data.json", "--check")
+    assert (code, "source_format_other_owner" in json.dumps(refused)) == (1, True), refused
+    code, applied = _command(lane, "--apply", "--authorize", "--expect-head", head)
+    assert (code, applied["data"]["changed_paths"]) == (0, ["docs/new.md"]), applied
+    assert all((lane / path).read_text() == content for path, content in bound.items())
+    assert (git(lane, "rev-parse", "HEAD"), git(lane, "write-tree")) == (head, index)
+
+
+@pytest.mark.parametrize(
+    ("policy", "gap"),
+    [
+        (_CARRIER.replace('"immutable-carrier"', '"prettier"'), _DECLARATION),
+        (_CARRIER.replace('"forbidden"', '"native-formatter"'), _DECLARATION),
+        (_CARRIER + 'extensions = [".json"]\n', _DECLARATION),
+        (_CARRIER + "priority = 200\n", _DECLARATION),
+        (_CARRIER.replace('["content/**", "assets/**"]', "[]"), _DECLARATION),
+        (_CARRIER.replace("openspec-baseline", "unproven-verifier"), _DECLARATION),
+        (_CARRIER.replace("content/**", "openspec/changes/**"), "multiple primary quality owners"),
+        (_CARRIER + "[policy]\nline_width = 80\n", _INCREMENT),
+        ("[[ownership]\n", _INCREMENT),
+        (None, _INCREMENT),
+    ],
+)
+def test_repository_carriers_cannot_take_or_weaken_product_ownership(
+    lane: Path, policy: str | None, gap: str
+) -> None:
+    """An increment is one owned table that only forbids formatting under a proven verifier."""
+    sources = {"content/data.json": '{"value":true}\n', "openspec/changes/live/a.md": "# Live\n"}
+    target = "carriers.toml" if policy is None else _CARRIERS
+    _write(lane, {**sources, target: policy or _CARRIER})
+    if policy is None:
+        (lane / _CARRIERS).parent.mkdir(parents=True, exist_ok=True)
+        (lane / _CARRIERS).symlink_to(lane / target)
+    code, refused = _command(lane, *sources, "--check")
+    assert (code, gap in json.dumps(refused)) == (1, True), refused
+    assert all((lane / path).read_text() == content for path, content in sources.items())
 
 
 @pytest.mark.parametrize(

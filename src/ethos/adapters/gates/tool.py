@@ -37,7 +37,6 @@ from ethos.adapters.repo.runtime.materialization.node_package_supply import prod
 from ethos.contracts.verdict import close_verdict
 from ethos.normalization.coercion import string_sequence
 from ethos.repository.policy.layout.report import module_layout_report
-from ethos.repository.policy.quality.format_selection import audit
 from ethos.repository.release.resources import canonical_resource
 
 _MARKDOWN = MarkdownIt("commonmark")
@@ -495,11 +494,7 @@ def markdown_lint_report(root: Path) -> dict[str, object]:
 
 def _native_formatter_owners(root: Path, files: list[str]) -> tuple[tuple[str, str], ...]:
     """Check only declared native-formatter carriers; official owners keep their own bytes."""
-    ownership = audit(
-        root,
-        paths=tuple(files),
-        configuration=canonical_resource(".config/checks/format-selection/policy.toml"),
-    )
+    ownership = native_inputs.format_ownership(root, tuple(files))
     if ownership["verdict"] != "pass":
         raise ValueError(str(ownership["failures"]))
     return tuple(

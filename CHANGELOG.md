@@ -12,6 +12,18 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+### Added
+
+- A repository may declare its own byte-bound carriers in
+  `.config/checks/format-selection/policy.toml`. Each `[[ownership]]` record names explicit
+  `paths`, `format_owner = "immutable-carrier"`, `mutation_policy = "forbidden"` and a
+  `validation_owner` from the repository's full proof set, whose gate verifies those bytes. Every
+  formatter and every format check skips a bound file, while Markdown lint, prose, link and
+  configuration validation still read it: forbidding a rewrite exempts no file from validation.
+  Any other table or field, a gate outside the full proof set, or a linked or unreadable increment
+  is refused as `format_selection_increment_invalid`, and a path the product already owns reports
+  `multiple primary quality owners`.
+
 ### Changed
 
 - A CI step may keep a shell program only as an official installer or operating-system glue that

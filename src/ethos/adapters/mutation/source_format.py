@@ -134,9 +134,18 @@ def _format_source(
         message = "source_format_preimage_changed"
         raise ValueError(message)
     if patch:
-        result = run_git(root, "apply", "--whitespace=nowarn", "-", stdin=patch, check=False)
+        # Bytes, so that no platform's text stream rewrites the patch's line endings.
+        result = run_git(
+            root,
+            "apply",
+            "--whitespace=nowarn",
+            "-",
+            stdin=patch.encode("utf-8"),
+            text=False,
+            check=False,
+        )
         if result.returncode:
-            message = "source_format_apply_refused:" + result.stderr
+            message = "source_format_apply_refused:" + result.stderr.decode("utf-8", "replace")
             raise ValueError(message)
         for item in changed:
             (root / item.path).chmod(item.mode)

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.admission.patch_admission as admission
+import ethos.adapters.process as process
 from ethos.repository.policy.references.observation import deleted_input_gaps
 from tests.support.governed_repository import commit_active_change
 from tests.support.governed_repository import git
@@ -103,8 +104,14 @@ def test_patch_admission_blocks_when_postimage_reference_observation_fails(
 
 
 def test_patch_admission_accepts_new_file_with_exact_preimage_and_reference_closure(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """A native patch reaches Git as bytes, also where a text stream writes newlines as CRLF."""
+    temporary = process.TemporaryFile
+    crlf = {"newline": "\r\n"}
+    monkeypatch.setattr(
+        process, "TemporaryFile", lambda mode: temporary(mode, **(crlf if mode == "w+" else {}))
+    )
     repo = init_git_repo(tmp_path / "repo")
     commit_active_change(repo)
     head = git(repo, "rev-parse", "HEAD")

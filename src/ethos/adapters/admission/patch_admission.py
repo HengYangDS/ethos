@@ -204,7 +204,9 @@ def _patch_applies(root: Path, patch: str, *, check_preimage: bool = False) -> b
     command = ["apply", "--whitespace=error-all", "-"]
     if check_preimage:
         command.insert(2, "--check")
-    return run_git(root, *command, stdin=patch, text=True, check=False).returncode == 0
+    # Bytes, so that no platform's text stream rewrites the patch's line endings.
+    completed = run_git(root, *command, stdin=patch.encode("utf-8"), text=False, check=False)
+    return completed.returncode == 0
 
 
 def projection_preimages(root: Path, head: str) -> dict[str, str]:

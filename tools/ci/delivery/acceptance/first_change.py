@@ -226,7 +226,9 @@ def _prove_format(lane: Path, executable: Path, environment: Mapping[str, str]) 
         or any((lane / path).read_bytes() != content for path, content in after.items())
         or any((lane / path).read_bytes() != content for path, content in authored.items())
     ):
-        message = "installed_source_format_unproven:apply_or_fixed_point"
+        # Name the refusal and the drift, so a hosted failure shows which observation differed.
+        observed = {"apply": [apply_code, applied.get("required_gaps")], "fixed": fixed_data}
+        message = f"installed_source_format_unproven:apply_or_fixed_point:{json.dumps(observed)}"
         raise RuntimeError(message)
 
 

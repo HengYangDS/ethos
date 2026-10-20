@@ -338,6 +338,16 @@ def test_each_tracked_carrier_class_names_its_common_formatter(
     assert any(repair in detail["repair"] for detail in report["gaps"]), report["gaps"]
 
 
+def test_formatter_accepted_markdown_layout_conforms(tmp_path: Path) -> None:
+    """The shared formatter owns Markdown layout, so a loose list it accepts is no paradigm gap."""
+    guide = "content/guide.md"
+    loose = "---\nsubject: sample:guide\n---\n\n# Guide\n\n- First.\n\n- Second.\n"
+
+    report = paradigm_report(tmp_path, {**CONFORMING, guide: loose})
+
+    assert [gap for gap in report["gaps"] if gap["carrier"] == guide] == []
+
+
 def test_a_carrier_class_only_inside_an_immutable_root_needs_no_formatter(tmp_path: Path) -> None:
     """A repository with no current Python needs no Ruff binding, archived files aside."""
     files = _conforming_without("pyproject.toml", "uv.lock", "noxfile.py", _RUFF)

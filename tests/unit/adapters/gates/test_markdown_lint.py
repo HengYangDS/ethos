@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from markdown_it import MarkdownIt
+
 import ethos.adapters.gates.native.inputs as native_inputs
 import ethos.adapters.gates.tool as gate_tool
 from ethos.contracts.gates import load_gate_registry_declaration
@@ -93,3 +95,25 @@ def test_common_markdown_policy_accepts_native_formatter_container_layout(
     semantic = gate_tool.markdown_lint_report(tmp_path)
     assert semantic["verdict"] == "block"
     assert "MD042" in semantic["native"][1]["stderr"]
+
+
+def test_the_shared_formatter_keeps_a_loose_list_and_its_rendered_meaning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Prettier alone lays Markdown out: two passes reach a fixed point that renders as authored."""
+    document = tmp_path / "README.md"
+    authored = b"# Steps\n- First.\n\n\n- Second.\n\n- Third.\n"
+    document.write_bytes(authored)
+    _quality_files(monkeypatch, "README.md")
+    assert gate_tool.markdown_lint_report(tmp_path)["verdict"] == "block"
+    assert document.read_bytes() == authored
+
+    first, _ignored = gate_tool.render_source_content(tmp_path, "README.md", "prettier", authored)
+    second, _ignored = gate_tool.render_source_content(tmp_path, "README.md", "prettier", first)
+
+    assert first == second == b"# Steps\n\n- First.\n\n- Second.\n\n- Third.\n"
+    render = MarkdownIt("commonmark").render
+    assert render(first.decode()) == render(authored.decode())
+    assert render(first.decode()) != render("# Steps\n\n- First.\n- Second.\n- Third.\n")
+    document.write_bytes(first)
+    assert gate_tool.markdown_lint_report(tmp_path)["verdict"] == "pass"

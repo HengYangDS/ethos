@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
     from ethos.repository.registry.docs.registry import RetainedDocument
 
-# Whether this host offers the no-follow descriptor chain that read_regular_bytes requires.
+# Whether this host offers the no-follow descriptor chain that read_regular_bytes prefers.
 DESCRIPTOR_CHAIN_READS = (
     all(hasattr(os, name) for name in ("O_DIRECTORY", "O_NOFOLLOW", "O_NONBLOCK"))
     and os.open in os.supports_dir_fd
@@ -57,7 +57,16 @@ def read_regular_bytes(
     and directory identity, not authorization or a persistent filesystem snapshot.
     Native aliases above the selected root resolve once; its canonical descriptor
     chain and repository-relative components are opened without following links.
+    A host without that chain binds the same member identity through plain paths.
     """
+    if not DESCRIPTOR_CHAIN_READS:
+        return _portable_regular_bytes(
+            root,
+            relative,
+            gaps=(unsafe_gap, unstable_gap, size_gap),
+            max_bytes=max_bytes,
+            expected_mode=expected_mode,
+        )
     nonblock = getattr(os, "O_NONBLOCK", 0)
     if not nonblock:
         raise ValueError(unsafe_gap)
@@ -131,15 +140,7 @@ def _parent_descriptors(
     path = PurePosixPath(relative)
     nofollow = getattr(os, "O_NOFOLLOW", 0)
     directory = getattr(os, "O_DIRECTORY", 0)
-    if (
-        not all((nofollow, directory))
-        or path.is_absolute()
-        or not path.parts
-        or ".." in path.parts
-        or "\\" in relative
-        or "\0" in relative
-        or root.is_symlink()
-    ):
+    if not all((nofollow, directory)) or _member_path_invalid(root, relative):
         raise ValueError(gap)
     directories: list[int] = []
     try:
@@ -154,6 +155,80 @@ def _parent_descriptors(
     finally:
         for descriptor in reversed(directories):
             os.close(descriptor)
+
+
+def _member_path_invalid(root: Path, relative: str) -> bool:
+    """Accept only a relative member below a root that is not itself an alias."""
+    path = PurePosixPath(relative)
+    return (
+        path.is_absolute()
+        or not path.parts
+        or ".." in path.parts
+        or "\\" in relative
+        or "\0" in relative
+        or root.is_symlink()
+    )
+
+
+def _portable_regular_bytes(
+    root: Path,
+    relative: str,
+    *,
+    gaps: tuple[str, str, str],
+    max_bytes: int,
+    expected_mode: int | None,
+) -> bytes:
+    """Read through plain paths whose every component stays one non-alias identity.
+
+    Such hosts do not expose native mode bits, so a requested mode remains a refusal.
+    """
+    unsafe_gap, unstable_gap, size_gap = gaps
+    if expected_mode is not None or _member_path_invalid(root, relative):
+        raise ValueError(unsafe_gap)
+    try:
+        canonical = root.resolve(strict=True)
+        parts = PurePosixPath(relative).parts
+        chain = tuple(canonical.joinpath(*parts[: index + 1]) for index in range(len(parts)))
+        before = _plain_chain(chain, unsafe_gap)
+        with chain[-1].open("rb") as source:
+            opened = os.fstat(source.fileno())
+            if _identity(opened)[:2] != _identity(before[-1])[:2]:
+                raise ValueError(unstable_gap)
+            if opened.st_size > max_bytes:
+                raise ValueError(size_gap)
+            content = source.read(opened.st_size + 1)
+            after = os.fstat(source.fileno())
+        current = _plain_chain(chain, unstable_gap)
+    except OSError as error:
+        raise ValueError(unsafe_gap) from error
+    if len(content) > opened.st_size:
+        raise ValueError(size_gap)
+    if (
+        _identity(opened) != _identity(after)
+        or len(content) != after.st_size
+        or _identity(current[-1]) != _identity(after)
+        or any(
+            old[:2] != new[:2]
+            for old, new in zip(map(_identity, before), map(_identity, current), strict=True)
+        )
+    ):
+        raise ValueError(unstable_gap)
+    return content
+
+
+def _plain_chain(chain: tuple[Path, ...], gap: str) -> tuple[os.stat_result, ...]:
+    """Observe directories, then one regular member, refusing links and Windows reparse points."""
+    observed = tuple(item.lstat() for item in chain)
+    reparse = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+    if any(
+        stat.S_ISLNK(item.st_mode) or getattr(item, "st_file_attributes", 0) & reparse
+        for item in observed
+    ) or not (
+        all(stat.S_ISDIR(item.st_mode) for item in observed[:-1])
+        and stat.S_ISREG(observed[-1].st_mode)
+    ):
+        raise ValueError(gap)
+    return observed
 
 
 def _validate_snapshot(snapshot: _ReadSnapshot, gap: str, canonical: Path) -> None:

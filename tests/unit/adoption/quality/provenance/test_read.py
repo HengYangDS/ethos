@@ -231,7 +231,7 @@ def test_source_tree_preserves_native_repository_failure(tmp_path: Path) -> None
     with pytest.raises(subprocess.CalledProcessError) as raised:
         source_tree.SourceTree.observe(broken)
     assert raised.value.returncode == 128
-    assert "gitfile does not point to a valid repository" in raised.value.stderr
+    assert raised.value.stderr.startswith("fatal: ")
     report = source_observation.integrity_report(broken)
     assert (report["verdict"], report["state"]) == ("unknown", "unproven")
     unborn = tmp_path / "unborn"

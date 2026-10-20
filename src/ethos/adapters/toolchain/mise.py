@@ -14,7 +14,6 @@ from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
 from ethos.adapters.process import run_command
-from ethos.adapters.repo.content.observation import DESCRIPTOR_CHAIN_READS
 from ethos.adapters.repo.content.observation import read_regular_bytes
 
 if TYPE_CHECKING:
@@ -181,8 +180,6 @@ def _mise_declaration_paths(
 
 def _mise_input(root: Path, relative: str) -> str:
     """Read the native declaration bytes without following a repository alias."""
-    if not DESCRIPTOR_CHAIN_READS:
-        return _portable_mise_input(root, relative)
     return read_regular_bytes(
         root,
         relative,
@@ -190,19 +187,6 @@ def _mise_input(root: Path, relative: str) -> str:
         unstable_gap="mise_declaration_changed",
         size_gap="mise_declaration_size_exceeded",
     ).decode("utf-8")
-
-
-def _portable_mise_input(root: Path, relative: str) -> str:
-    """Refuse every alias on the selected path where the host lacks descriptor-relative opens."""
-    path = root / relative
-    message = "mise_declaration_unsafe"
-    within = (item for item in (path, *path.parents) if item != root and item.is_relative_to(root))
-    if any(item.is_symlink() or item.is_junction() for item in within) or not path.is_file():
-        raise ValueError(message)
-    try:
-        return path.read_bytes().decode("utf-8")
-    except OSError as error:
-        raise ValueError(message) from error
 
 
 def mise_executable() -> Path:

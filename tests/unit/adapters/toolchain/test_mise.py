@@ -16,6 +16,7 @@ import pytest
 import ethos.adapters.toolchain.mise as mise
 from ethos.adapters.process import run_command
 from ethos.repository.release.resources import canonical_resource
+from tests.support.windows_host import without_descriptor_chain
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -400,7 +401,8 @@ def test_hosts_without_descriptor_chains_read_declarations_and_refuse_aliases(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, descriptor_chain: bool, alias: str
 ) -> None:
     """A host without descriptor-relative opens reads the same bytes and refuses the same links."""
-    monkeypatch.setattr(mise, "DESCRIPTOR_CHAIN_READS", descriptor_chain)
+    if not descriptor_chain:
+        without_descriptor_chain(monkeypatch)
     root = tmp_path / "repository"
     for directory in (root / ".config/mise", tmp_path / "outside"):
         directory.mkdir(parents=True)

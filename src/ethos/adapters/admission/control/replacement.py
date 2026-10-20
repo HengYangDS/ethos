@@ -13,11 +13,10 @@ from ethos.adapters.admission.evidence.external import independent_verification_
 from ethos.adapters.admission.evidence.external import repository_remote_url
 from ethos.adapters.mutation.proof import proof_for_repository_transition
 from ethos.adapters.repo.gate_policy import resolve_gate_policy
-from ethos.adapters.repo.profile import historical_verification_mode
+from ethos.adapters.repo.profile import historical_verification_policy
 from ethos.contracts.semantic import canonical_json_digest
 from ethos.contracts.verdict import report_verdict
 from ethos.repository.profile import INVALID_PROFILE_ERROR
-from ethos.repository.profile import IndependentVerificationPolicy
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -258,8 +257,7 @@ def _verification_report(
     except ValueError as error:
         if str(error) != INVALID_PROFILE_ERROR:
             raise
-        mode = historical_verification_mode(root, "control_replacement", tree_ref=accepted_head)
-        prior = IndependentVerificationPolicy(mode=mode)
+        prior = historical_verification_policy(root, "control_replacement", tree_ref=accepted_head)
     proposed = independent_verification_policy(root, "control_replacement", tree_ref=candidate_head)
     modes = {"disabled": 0, "optional": 1, "required": 2}
     policy = max((prior, proposed), key=lambda item: modes[item.mode])

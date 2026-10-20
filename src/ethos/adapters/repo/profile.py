@@ -11,6 +11,7 @@ from ethos.adapters.repo.git_object import read_objects
 from ethos.adapters.repo.git_object import resolve_revisions
 from ethos.repository.openspec.audit import accepted_spec_root_gaps
 from ethos.repository.profile import INVALID_PROFILE_ERROR
+from ethos.repository.profile import IndependentVerificationPolicy
 from ethos.repository.profile import RepositoryProfile
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import repository_profile_from_text
@@ -163,17 +164,20 @@ def profile_blocks_operation(root: Path, *, closeout: bool = False) -> bool:
     return edited.returncode != 0
 
 
-def historical_verification_mode(root: Path, action: str, *, tree_ref: str) -> str:
+def historical_verification_policy(
+    root: Path, action: str, *, tree_ref: str
+) -> IndependentVerificationPolicy:
     """Read one past tree's declared verification mode; an unreadable declaration requires it."""
     result = run_git(root, "show", f"{tree_ref}:.ethos/profile.toml", check=False, text=False)
     try:
         policy = tomllib.loads(result.stdout.decode("utf-8")).get("independent_verification", {})
     except (UnicodeDecodeError, tomllib.TOMLDecodeError):
-        return "required"
+        policy = None
     actions = policy.get("actions", {}) if isinstance(policy, dict) else {}
     owner = actions.get(action, policy) if isinstance(actions, dict) else None
     mode = owner.get("mode", "disabled") if isinstance(owner, dict) else None
-    return mode if mode in {"disabled", "optional", "required"} else "required"
+    known = mode in {"disabled", "optional", "required"}
+    return IndependentVerificationPolicy.model_validate({"mode": mode if known else "required"})
 
 
 def _historical_identity(payload: bytes) -> str:

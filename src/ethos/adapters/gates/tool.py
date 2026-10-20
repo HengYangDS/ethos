@@ -27,6 +27,7 @@ from ethos.adapters.process import run_command
 from ethos.adapters.repo.content.source import SourceTargetUnavailableError
 from ethos.adapters.repo.content.source import SourceTree
 from ethos.adapters.repo.git import GitExecutionError
+from ethos.adapters.repo.runtime.filesystem import runtime_scripts
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.native_supply import resolve_native_tool
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
@@ -147,9 +148,7 @@ def _lychee_report(root: Path, *, gate_id: str, online: bool) -> dict[str, objec
                 product_root != source.root and path.is_relative_to(product_root)
             ):
                 source.read(path.relative_to(source.root).as_posix())
-        tool = (
-            Path(sys.executable).absolute().with_name("lychee.exe" if os.name == "nt" else "lychee")
-        )
+        tool = runtime_scripts(Path(sys.prefix)) / ("lychee.exe" if os.name == "nt" else "lychee")
         _require_link_inputs(files, tool)
         inputs = tuple(str(source.root / relative) for relative in files)
         literal = _native_link_inputs(inputs)

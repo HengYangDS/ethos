@@ -8,6 +8,7 @@ import hashlib
 import os
 import shutil
 import subprocess
+import sys
 from importlib.metadata import Distribution
 from pathlib import Path
 
@@ -18,10 +19,13 @@ import ethos.repository.release.resources as product_resources
 from ethos.adapters.gates.tool import markdown_links_report
 from ethos.adapters.repo.content.source import SourceTree
 from ethos.adapters.repo.git import git_executable
+from ethos.adapters.repo.runtime.filesystem import runtime_scripts
 from tests.support.governed_repository import commit_fixture
 from tests.support.governed_repository import committed_source_repo
 from tests.support.governed_repository import git
 from tests.support.governed_repository import init_git_repo
+
+_LYCHEE = runtime_scripts(Path(sys.prefix)) / ("lychee.exe" if os.name == "nt" else "lychee")
 
 
 def _repository(tmp_path: Path, markdown: str) -> Path:
@@ -105,8 +109,7 @@ def test_native_input_identity_preserves_literal_line_separators(tmp_path: Path,
 
     report = markdown_links_report(repo)
 
-    assert report["verdict"] == "pass", report
-    assert report["file_count"] == expected
+    assert (report["verdict"], report["file_count"]) == ("pass", expected), report
 
 
 def test_native_selection_cannot_join_distinct_line_separated_inputs(tmp_path: Path) -> None:
@@ -261,13 +264,8 @@ def test_native_link_refusal_preserves_source_and_stops_execution(
     source = SourceTree.observe(repo)
     original = {path: source.read(path) for path in source.entries}
     if boundary == "missing-tool":
-        installed = (
-            Path(gate_tool.sys.executable)
-            .absolute()
-            .with_name("lychee.exe" if os.name == "nt" else "lychee")
-        )
         is_file = Path.is_file
-        monkeypatch.setattr(Path, "is_file", lambda path: path != installed and is_file(path))
+        monkeypatch.setattr(Path, "is_file", lambda path: path != _LYCHEE and is_file(path))
     native = gate_tool.run_command
     calls = []
 
@@ -291,8 +289,7 @@ def test_native_link_refusal_preserves_source_and_stops_execution(
 
     report = markdown_links_report(repo)
 
-    assert report["verdict"] == verdict, report
-    assert report["required_gaps"] == [reason], report
+    assert (report["verdict"], report["required_gaps"]) == (verdict, [reason]), report
     if boundary == "missing-tool":
         assert not calls
     assert all("--dump" in command or "--dump-inputs" in command for command in calls)
@@ -333,7 +330,7 @@ def test_markdown_link_gate_excludes_deleted_tracked_paths(
 def test_markdown_links_use_declared_installed_supply_without_ambient_lychee(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The installed native link checker is independent of adopter and ambient tools."""
+    """The interpreter's own scripts supply the link checker, not adopter or ambient tools."""
     repo = committed_source_repo(
         tmp_path,
         {
@@ -345,13 +342,14 @@ def test_markdown_links_use_declared_installed_supply_without_ambient_lychee(
     git_path = str(Path(git_executable(os.environ)).parent)
     assert shutil.which("lychee", path=git_path) is None
     monkeypatch.setenv("PATH", git_path)
+    # Windows interpreter homes keep python.exe outside their Scripts directory.
+    monkeypatch.setattr(sys, "executable", str(tmp_path / "home" / "python"))
 
     report = gate_tool.markdown_links_report(repo)
 
     assert report["verdict"] == "pass", report
-    assert report["file_count"] == 2
-    assert report["source_tree"] == tree
-    assert Path(report["native"][0]["command"][0]).is_absolute()
+    assert (report["file_count"], report["source_tree"]) == (2, tree)
+    assert report["native"][0]["command"][0] == str(_LYCHEE)
 
 
 @pytest.mark.parametrize("state", ["intact", "changed", "missing"])

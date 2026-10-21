@@ -78,12 +78,17 @@ A dot-separated name segment MAY be a BCP 47 language tag in its canonical case.
 
 ### Requirement: A license grant is a recognized standard text
 
-A governed repository that tracks a root `LICENSE` SHALL keep in it the standard text of one license whose SPDX template the paradigm contract pins by digest, matched as the SPDX matching guidelines describe. A copyright notice that the template requires SHALL name its holder. Which license a repository grants remains its own choice.
+A governed repository that tracks a root `LICENSE` SHALL keep in it the standard text of one license whose SPDX template the paradigm contract pins by digest, matched as the SPDX matching guidelines describe, unless its package metadata names the license by a `LicenseRef-` identifier. A copyright notice that the template requires SHALL name its holder, and only the template's own title MAY precede it. Which license a repository grants remains its own choice.
 
 #### Scenario: A grant departs from its license
 
-- **WHEN** a repository's `LICENSE` edits the MIT permission text or keeps the template placeholder instead of a copyright holder
+- **WHEN** a repository's `LICENSE` edits or retitles the MIT text, or keeps the template placeholder instead of a copyright holder
 - **THEN** the paradigm reports the grant, naming the recognized licenses.
+
+#### Scenario: A license outside the SPDX list is declared
+
+- **WHEN** a repository's `LICENSE` holds its own proprietary terms and its `pyproject.toml` declares `LicenseRef-Proprietary`
+- **THEN** the grant conforms, and a `package.json` that declares `MIT` is reported.
 
 ### Requirement: A license grant is linked and consistently declared
 

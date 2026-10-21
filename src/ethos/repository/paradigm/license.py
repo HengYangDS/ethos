@@ -4,7 +4,9 @@ The license a repository chooses is its own. Its grant is recognized when the te
 one packaged SPDX template under the SPDX matching guidelines: spacing, case, quotation
 and dash forms and the HTTP scheme do not count, replaceable text matches its template
 pattern and optional text may be absent. A copyright notice the template requires must
-name its holder rather than keep the template placeholder.
+name its holder rather than keep the template placeholder, and only the template's own
+title may precede it. A license outside the SPDX list is the repository's own text, which
+its package metadata names by a `LicenseRef-` identifier.
 """
 
 from __future__ import annotations
@@ -51,11 +53,13 @@ def license_gaps(
             yield ParadigmGap("license-grant", carrier, repair)
         return
     identifier = _recognized(tracked_text(root, carrier, tracked) or "", conventions)
+    identifier = identifier or _custom_license(declared)
     if identifier is None:
         recognized = ", ".join(sorted(conventions.templates))
         repair = (
             f"keep the standard text of one recognized license ({recognized}) in {carrier},"
-            " naming its copyright holder"
+            " naming its copyright holder, or declare its own license by a LicenseRef-"
+            " identifier in the package metadata"
         )
         yield ParadigmGap("license-grant", carrier, repair)
     if not _links_grant(root, conventions, tracked):
@@ -94,6 +98,16 @@ def _license_owner(manifest: str, source: str | None) -> object:
         packages = payload.get("packages")
         return packages.get("") if isinstance(packages, dict) else None
     return payload
+
+
+def _custom_license(declared: dict[str, object]) -> str | None:
+    """Return the identifier a manifest gives a license outside the SPDX list, if any."""
+    custom = (
+        value
+        for value in declared.values()
+        if isinstance(value, str) and value.startswith("LicenseRef-")
+    )
+    return next(custom, None)
 
 
 def _consistent(value: object, identifier: str, carrier: str) -> bool:
@@ -170,5 +184,10 @@ def _normalize(text: str) -> str:
 
 
 def _named(notice: str | None, placeholder: str) -> bool:
+    """Return whether a required notice states its copyright first and names its holder.
+
+    The notice pattern accepts any text, so a title other than the template's own would
+    otherwise pass as part of the notice.
+    """
     lowered = (notice or "").lower()
-    return "copyright" in lowered and placeholder.lower() not in lowered
+    return lowered.startswith("copyright") and placeholder.lower() not in lowered

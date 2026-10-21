@@ -30,6 +30,8 @@ _MIT = (
 _APACHE = (_ROOT / "LICENSE").read_text(encoding="utf-8")
 _LINKED = "# Sample\n\nReleased under the [MIT License](LICENSE).\n"
 _PLACEHOLDER = _MIT.replace("2026 Sample Authors", "<year> <copyright holders>")
+_PROPRIETARY = "Sample Proprietary License\n\nCopyright (c) 2026 Sample Authors.\n"
+_PROPRIETARY_PROJECT = CONFORMING["pyproject.toml"] + 'license = "LicenseRef-Proprietary"\n'
 
 
 def _package(license_value: object) -> str:
@@ -61,6 +63,11 @@ _CASES = {
         [],
     ),
     "no-grant": ({}, []),
+    "untitled": ({"LICENSE": _MIT.removeprefix("MIT License\n\n"), "README.md": _LINKED}, []),
+    "retitled": (
+        {"LICENSE": _MIT.replace("MIT License", "Apache License", 1), "README.md": _LINKED},
+        ["license_grant:LICENSE"],
+    ),
     "edited": (
         {"LICENSE": _MIT.replace("free of charge", "for a fee"), "README.md": _LINKED},
         ["license_grant:LICENSE"],
@@ -79,6 +86,19 @@ _CASES = {
     ),
     "declared-without-grant": ({"package.json": _package("MIT")}, ["license_grant:LICENSE"]),
     "private-unlicensed": ({"package.json": _package("UNLICENSED")}, []),
+    "proprietary-declared": (
+        {
+            "LICENSE": _PROPRIETARY,
+            "README.md": _LINKED,
+            "package.json": _package("MIT"),
+            "pyproject.toml": _PROPRIETARY_PROJECT,
+        },
+        ["license_metadata:package.json"],
+    ),
+    "proprietary-undeclared": (
+        {"LICENSE": _PROPRIETARY, "README.md": _LINKED},
+        ["license_grant:LICENSE"],
+    ),
 }
 
 

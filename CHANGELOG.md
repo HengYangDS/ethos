@@ -29,9 +29,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
 - The repository paradigm judges a tracked license grant. A root `LICENSE` must keep the standard
   text of one license whose SPDX template ETHOS pins by digest (MIT and Apache-2.0, from SPDX
   license-list-data v3.29.0), matched as the SPDX matching guidelines describe, with any
-  copyright notice the template requires naming its holder. `README.md` must link it, and every
+  copyright notice the template requires naming its holder and only the template's own title
+  before it. A license outside that list is the repository's own text, which its package
+  metadata names by a `LicenseRef-` identifier. `README.md` must link the grant, and every
   root `package.json`, `package-lock.json` or `pyproject.toml` that declares a license must name
-  the same SPDX identifier. The license is the repository's choice, and a repository without a
+  the same identifier. The license is the repository's choice, and a repository without a
   package needs none. The ETHOS README now links its license.
 
 ### Removed

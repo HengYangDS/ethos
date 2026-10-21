@@ -40,7 +40,7 @@ def test_install_smoke_invokes_one_acceptance_transaction(
     sessions.install_smoke(session)
     if release_head:
         audit.assert_called_once_with(session, root=tmp_path, scope="production-release")
-        prepare.assert_called_once_with(tmp_path, release_head)
+        prepare.assert_called_once_with(tmp_path, release_head, tag="")
         accept.assert_called_once_with(
             session,
             artifact=artifact,

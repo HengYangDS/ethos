@@ -22,7 +22,11 @@ def bootstrap_artifacts(
 
 
 def _listed_change_names(official: dict[str, object]) -> frozenset[str] | None:
-    """Read native list identities without treating their presence as an exclusion."""
+    """Read native list identities without treating their presence as an exclusion.
+
+    A legacy peer may keep its dated name: that breaks only the naming rule a new target
+    must meet. A malformed or repeated name is no safe identity, so nothing is selected.
+    """
     commands = official.get("commands")
     listed = commands.get("list") if isinstance(commands, dict) else None
     payload = listed.get("json") if isinstance(listed, dict) else None
@@ -32,7 +36,11 @@ def _listed_change_names(official: dict[str, object]) -> frozenset[str] | None:
     names: set[str] = set()
     for row in changes:
         name = row.get("name") if isinstance(row, dict) else None
-        if not isinstance(name, str) or logical_change_identifier_issue(name) or name in names:
+        if (
+            not isinstance(name, str)
+            or logical_change_identifier_issue(name) not in {"", "temporal_suffix"}
+            or name in names
+        ):
             return None
         names.add(name)
     return frozenset(names)

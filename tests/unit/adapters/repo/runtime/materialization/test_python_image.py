@@ -144,9 +144,19 @@ def test_console_script_rewrite_preserves_binary_and_rejects_unowned_outputs(mon
     _fails("entrypoint_missing", rewrite, tmp_path / "runtime")
     entries["ethos"] = "ethos.cli:main"
     monkeypatch.setattr(python_image, "os", SimpleNamespace(name="nt"))
-    windows_ethos = _file(python.parent / "ethos.exe")
+    scripts = tmp_path / "runtime/Scripts"
+    monkeypatch.setattr(python_image, "runtime_scripts", lambda _r: scripts)
+    trampoline, root_decoy = _file(scripts / "ethos.exe"), _file(python.parent / "ethos.exe")
     rewrite(tmp_path / "runtime")
-    assert not windows_ethos.exists()
+    launcher = (scripts / "ethos.cmd").read_bytes()
+    assert not trampoline.exists()
+    assert root_decoy.exists()
+    assert launcher.startswith(b'@"%~dp0..\\python.exe" -B -I -c "import sys;')
+    assert launcher.endswith(b'"ethos" %*\r\n')
+    assert str(tmp_path).encode() not in launcher
+    _fails("console_script_invalid", rewrite, tmp_path / "runtime")
+    root_decoy.unlink()
+    monkeypatch.setattr(python_image, "runtime_scripts", lambda _r: python.parent)
     monkeypatch.setattr(python_image, "os", SimpleNamespace(name="posix"))
     for kind in ("directory", "symlink"):
         artifact = python.parent / kind

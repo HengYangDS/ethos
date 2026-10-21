@@ -81,25 +81,74 @@ let gitlabBootstrap = list.Concat([["sha256sum --check --quiet \"$ETHOS_CI_SUPPL
 	tools:     " vale gitleaks scc syft"
 	npm:       " --offline"
 }).out])
-let githubPythonBootstrap = list.Concat([[{
-	uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-	with: {
-		"fetch-depth": 0
-		ref:           githubSourceSHA
-	}
-}, {
-	uses: "astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884"
-	with: {
-		version:          "0.13.4"
-		"python-version": "3.14"
-	}
-}, {
-	name: "Provision native Python image supply"
-	run:  "uv python install --no-bin 3.14"
-}], [for index, command in githubBootstrap {
-	name: githubBootstrapNames[index]
-	run:  command
-}]])
+
+// One checkout and Python image supply ahead of the shared bootstrap; release jobs check out the tag.
+let githubPythonBootstrapAt = {
+	checkout: string
+	out: list.Concat([[{
+		uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+		with: {
+			"fetch-depth": 0
+			ref:           checkout
+		}
+	}, {
+		uses: "astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884"
+		with: {
+			version:          "0.13.4"
+			"python-version": "3.14"
+		}
+	}, {
+		name: "Provision native Python image supply"
+		run:  "uv python install --no-bin 3.14"
+	}], [for index, command in githubBootstrap {
+		name: githubBootstrapNames[index]
+		run:  command
+	}]])
+}
+let githubPythonBootstrap = (githubPythonBootstrapAt & {checkout: githubSourceSHA}).out
+let releaseTagRef = "refs/tags/${{ inputs.release_tag }}"
+
+// A release run is an explicit dispatch from accepted main naming one signed tag and its commit.
+let regularRun = "!inputs.supply_image && !inputs.release_tag"
+let releaseRun = "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.release_tag != ''"
+let releaseArguments = "--release --expect-head ${{ inputs.release_head }} --tag ${{ inputs.release_tag }}"
+
+// The host-conformance supply order that every hosted OS proves: checkout, Python image,
+// build-only dependencies, native and npm supply, then the project environment.
+let githubHostSupplyAt = {
+	checkout: string
+	python:   string
+	out: [{
+		uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+		with: {
+			"fetch-depth": 0
+			ref:           checkout
+		}
+	}, {
+		uses: "astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884"
+		with: {
+			version:          "0.13.4"
+			"python-version": python
+		}
+	}, {
+		name: "Provision native Python image supply"
+		run:  "uv python install --no-bin \(python)"
+	}, {
+		name: "Synchronize build-only Python dependencies"
+		run:  "uv sync --locked --no-install-project --group dev"
+	}, {
+		name: "Prepare locked native build supply"
+		env: PYTHONPATH: "src"
+		run: "uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale"
+	}, {
+		name: "Install locked npm packages"
+		env: PYTHONPATH: "src"
+		run: "uv run --no-sync \(nativeNpm) --seed ci --ignore-scripts"
+	}, {
+		name: "Synchronize locked Python environment"
+		run:  "uv sync --locked --group dev"
+	}]
+}
 
 compiled: {
 	checks: {
@@ -126,11 +175,25 @@ github: {
 			"main",
 			"proposal/**",
 		]
-		workflow_dispatch: inputs: supply_image: {
-			description: "Build the locked Linux ARM64 CI supply image"
-			required:    false
-			type:        "boolean"
-			default:     false
+		workflow_dispatch: inputs: {
+			supply_image: {
+				description: "Build the locked Linux ARM64 CI supply image"
+				required:    false
+				type:        "boolean"
+				default:     false
+			}
+			release_tag: {
+				description: "Qualify and publish this signed pre-release tag"
+				required:    false
+				type:        "string"
+				default:     ""
+			}
+			release_head: {
+				description: "The exact commit that the release tag signs"
+				required:    false
+				type:        "string"
+				default:     ""
+			}
 		}
 	}
 	permissions: contents: "read"
@@ -182,7 +245,7 @@ github: {
 		"host-conformance": {
 			name:      "${{ matrix.os }} / Python ${{ matrix.python }} / Node \(_inputs.node.tools.node)"
 			"runs-on": "${{ matrix.os }}"
-			if:        "${{ !inputs.supply_image }}"
+			if:        "${{ \(regularRun) }}"
 			env: UV_PYTHON_INSTALL_DIR: "${{ github.workspace }}/build/runtime/python"
 			strategy: {
 				"fail-fast": false
@@ -191,36 +254,7 @@ github: {
 					python: ["3.12", "3.13", "3.14"]
 				}
 			}
-			steps: [{
-				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
-				with: {
-					"fetch-depth": 0
-					ref:           githubSourceSHA
-				}
-			}, {
-				uses: "astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884"
-				with: {
-					version:          "0.13.4"
-					"python-version": "${{ matrix.python }}"
-				}
-			}, {
-				name: "Provision native Python image supply"
-				run:  "uv python install --no-bin ${{ matrix.python }}"
-			}, {
-				name: "Synchronize build-only Python dependencies"
-				run:  "uv sync --locked --no-install-project --group dev"
-			}, {
-				name: "Prepare locked native build supply"
-				env: PYTHONPATH: "src"
-				run: "uv run --no-sync python -B tools/ci/toolchain/native.py --root . --mise vale"
-			}, {
-				name: "Install locked npm packages"
-				env: PYTHONPATH: "src"
-				run: "uv run --no-sync \(nativeNpm) --seed ci --ignore-scripts"
-			}, {
-				name: "Synchronize locked Python environment"
-				run:  "uv sync --locked --group dev"
-			}, {
+			steps: list.Concat([(githubHostSupplyAt & {checkout: githubSourceSHA, python: "${{ matrix.python }}"}).out, [{
 				name: "Execute wheel conformance"
 				run:  "uv run --frozen python -m nox -s host_conformance"
 			}, {
@@ -238,12 +272,12 @@ github: {
 					path:                "build/evidence/local-install/smoke.json"
 					"if-no-files-found": "error"
 				}
-			}]
+			}]])
 		}
 		quality: {
 			name:      "quality gates"
 			"runs-on": "ubuntu-24.04-arm"
-			if:        "${{ !inputs.supply_image }}"
+			if:        "${{ \(regularRun) }}"
 			env: ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
 			steps: list.Concat([githubPythonBootstrap, [{
 				name: "Admit pushed commit range"
@@ -289,7 +323,7 @@ github: {
 		"external-links": {
 			name:                "external link health"
 			"runs-on":           "ubuntu-latest"
-			if:                  "${{ !inputs.supply_image }}"
+			if:                  "${{ \(regularRun) }}"
 			"continue-on-error": true
 			steps: list.Concat([githubPythonBootstrap, [{
 				name: "External links"
@@ -309,7 +343,7 @@ github: {
 			name:      "repository proof"
 			"runs-on": "ubuntu-latest"
 			needs:     "quality"
-			if:        "${{ always() && !inputs.supply_image }}"
+			if:        "${{ always() && \(regularRun) }}"
 			steps: [{
 				name: "Require successful hosted execution and artifact publication"
 				env: QUALITY_RESULT: "${{ needs.quality.result }}"
@@ -320,11 +354,98 @@ github: {
 			name:      "package artifacts"
 			"runs-on": "ubuntu-latest"
 			needs:     "quality"
-			if:        "${{ always() && !inputs.supply_image }}"
+			if:        "${{ always() && \(regularRun) }}"
 			steps: [{
 				name: "Require successful hosted execution and artifact publication"
 				env: QUALITY_RESULT: "${{ needs.quality.result }}"
 				run: "test \"$QUALITY_RESULT\" = success"
+			}]
+		}
+		// The signed tag admits the build: a runner holds no repository proof. Linux builds the
+		// one release wheel; every platform qualifies those bytes and retains its archive.
+		"release-wheel": {
+			name:      "release wheel"
+			"runs-on": "ubuntu-latest"
+			if:        "${{ \(releaseRun) }}"
+			env: ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
+			steps: list.Concat([(githubPythonBootstrapAt & {checkout: releaseTagRef}).out, [{
+				name: "Build the release wheel its signed tag admits"
+				run:  "\(offlineRun) python -m nox -s build -- \(releaseArguments)"
+			}, {
+				uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+				with: {
+					name:                "release-wheel"
+					path:                "build/artifacts/release/python/"
+					"if-no-files-found": "error"
+				}
+			}]])
+		}
+		"release-platforms": {
+			name:      "release runtime ${{ matrix.os }}"
+			"runs-on": "${{ matrix.os }}"
+			needs:     "release-wheel"
+			if:        "${{ \(releaseRun) }}"
+			// Windows remains an optional platform until its delivered artifact qualifies.
+			"continue-on-error": "${{ matrix.os == 'windows-latest' }}"
+			env: {
+				ETHOS_COMMIT_ALLOWED_SIGNERS: "${{ vars.ETHOS_COMMIT_ALLOWED_SIGNERS }}"
+				UV_PYTHON_INSTALL_DIR:        "${{ github.workspace }}/build/runtime/python"
+			}
+			strategy: {
+				"fail-fast": false
+				matrix: os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-latest", "windows-latest"]
+			}
+			steps: list.Concat([(githubHostSupplyAt & {checkout: releaseTagRef, python: "3.14"}).out, [{
+				name: "Bind operator commit trust"
+				run:  "uv run --frozen python -B -m tools.ci.toolchain.commit_trust"
+			}, {
+				uses: "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333"
+				with: {
+					name: "release-wheel"
+					path: "build/artifacts/release/python"
+				}
+			}, {
+				name: "Qualify the release wheel and retain its runtime archive"
+				run:  "uv run --frozen python -m nox -s install_smoke -- \(releaseArguments)"
+			}, {
+				uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"
+				with: {
+					name: "release-runtime-${{ matrix.os }}"
+					path: """
+						build/artifacts/native/
+						build/evidence/local-install/release-smoke.json
+
+						"""
+					"if-no-files-found": "error"
+				}
+			}]])
+		}
+		"release-publish": {
+			name:      "release publication"
+			"runs-on": "ubuntu-latest"
+			needs: ["release-wheel", "release-platforms"]
+			if: "${{ !cancelled() && \(releaseRun) }}"
+			permissions: contents: "write"
+			steps: [{
+				uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+				with: ref: releaseTagRef
+			}, {
+				uses: "astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884"
+				with: {
+					version:          "0.13.4"
+					"python-version": "3.14"
+				}
+			}, {
+				uses: "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333"
+				with: path: "build/release/inputs"
+			}, {
+				// The assembler admits only archives whose qualification evidence matches their bytes.
+				name: "Assemble the qualified release assets"
+				run:  "uv run --no-project python -B -I tools/ci/delivery/release_assets.py --tag ${{ inputs.release_tag }} --source build/release/inputs --output build/release/out --base-url https://github.com/${{ github.repository }}/releases/download/${{ inputs.release_tag }} --changelog CHANGELOG.md"
+			}, {
+				name: "Publish the signed pre-release"
+				env: GH_TOKEN: "${{ github.token }}"
+				run: "gh release create ${{ inputs.release_tag }} --repo ${{ github.repository }} --prerelease --verify-tag --title \"ETHOS ${{ inputs.release_tag }}\" --notes-file build/release/out/notes.md build/release/out/assets/*"
 			}]
 		}
 	}

@@ -19,6 +19,18 @@ historical bindings are governed by [Release Governance](docs/governance/release
   source-integrity gate checks the archive's pinned SHA-256 and compares each declared member with
   its exact entry in memory, without extracting it; unselected entries stay unread, and a
   missing, unqualified or different entry leaves its members unproven.
+
+## [0.2.0-alpha.5] - 2026-10-21
+
+### Added
+
+- A dispatch of the ETHOS CI workflow from accepted `main` with `release_tag` and `release_head`
+  builds the release wheel once, qualifies it on Linux x64 and arm64, macOS arm64 and Windows x64,
+  and publishes a GitHub pre-release whose archives match their qualification evidence, with
+  `SHA256SUMS` and a Mise `http:ethos` declaration. A hosted runner holds no repository proof, so
+  `nox -s build` and `nox -s install_smoke` accept `--tag v<version>` beside `--expect-head` and
+  admit only the trusted signed tag of that exact source, version and curated entry; an unsigned,
+  untrusted, misplaced or mismatched tag is refused before any build effect.
 - A repository may declare its own byte-bound carriers in
   `.config/checks/format-selection/policy.toml`. Each `[[ownership]]` record names explicit
   `paths`, `format_owner = "immutable-carrier"`, `mutation_policy = "forbidden"` and a
@@ -103,6 +115,16 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- A new OpenSpec Change bootstraps beside legacy Changes that keep dated names. The official list
+  read refused every listed name that broke the logical naming rule; it now refuses only a
+  malformed or repeated name, and the new target still meets the rule.
+- A package manager can remove the runtime archive it installed. Archive directories open to
+  their owner while file modes and bytes stay in the runtime digest, so `mise uninstall` no longer
+  fails with Permission denied on a sealed tree. Shared-supply qualification installs the archive
+  as a locked Mise `http:` tool, runs its relocated `ethos` console and uninstalls it natively.
+- Windows runtimes write relocatable `Scripts/<name>.cmd` console launchers. The rewrite looked
+  for console scripts beside the interpreter, where Windows keeps none, and kept the installer's
+  launcher, which names the build-time interpreter.
 - The configuration quality gate no longer fetches the schema a TOML document declares. Taplo
   still loaded a `$schema` key or a `#:schema` directive under `--no-schema`, so the gate failed
   offline and depended on remote content, such as a knip schema on unpkg. The shipped Taplo

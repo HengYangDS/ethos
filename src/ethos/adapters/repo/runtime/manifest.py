@@ -141,6 +141,10 @@ def runtime_file_inventory(runtime: Path) -> dict[str, str]:
 
 def _inventory_entry_digest(path: Path, *, root: Path, mode: int) -> str:
     permissions = stat.S_IMODE(mode)
+    if os.name == "nt":
+        # Windows withholds writes only through the read-only attribute, which archive
+        # installers such as Mise do not restore; a sealed runtime binds the same identity.
+        permissions &= ~0o222
     if stat.S_ISLNK(mode):
         target = path.readlink()
         if target.is_absolute():

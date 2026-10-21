@@ -322,7 +322,8 @@ def _mise(
         timeout=600,
     )
     if completed.returncode:
-        detail = f"{shlex.join(arguments)}:{completed.stderr.strip()}"
+        output = (completed.stderr.strip() or completed.stdout.strip())[-2000:]
+        detail = f"{shlex.join(arguments)}:exit={completed.returncode}:{output}"
         message = f"shared_supply_package_manager_failed:{detail}"
         raise RuntimeError(message)
     return completed.stdout
@@ -343,7 +344,11 @@ def _install_with_mise(
             message = "shared_supply_generation_ambiguous"
             raise ValueError(message)
         member = packed.extractfile(manifests[0])
-        version = json.load(member)["distribution_version"] if member else ""
+        manifest = json.load(member) if member else {}
+    # Adopters label the tool with its product version, which also keeps a Windows install's
+    # paths within what `cmd` runs; the console must still report the exact distribution.
+    version = manifest.get("product_version", "")
+    distribution = manifest.get("distribution_version")
     with archive.open("rb") as stream:
         digest = hashlib.file_digest(stream, "sha256").hexdigest()
     # The project is its own repository, as an adopter's is before ETHOS selects a runtime:
@@ -374,7 +379,7 @@ def _install_with_mise(
         _mise(mise, project, arguments, scoped)
     installed = Path(_mise(mise, project, ("where", "http:ethos"), scoped).strip())
     console = _mise(mise, project, ("exec", "--locked", "--", "ethos", "--version"), scoped)
-    if version not in console:
+    if not distribution or distribution not in console:
         message = f"shared_supply_console_failed:{console.strip()}"
         raise RuntimeError(message)
     return installed, project, scoped

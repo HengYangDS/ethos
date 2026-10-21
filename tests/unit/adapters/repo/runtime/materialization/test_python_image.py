@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
@@ -154,6 +155,7 @@ def test_console_script_rewrite_preserves_binary_and_rejects_unowned_outputs(mon
     assert launcher.startswith(b'@"%~dp0..\\python.exe" -B -I -c "import sys;')
     assert launcher.endswith(b'"ethos" %*\r\n')
     assert str(tmp_path).encode() not in launcher
+    _refuses_absent_entry(launcher.decode().split(' -c "', 1)[1].rsplit('" "', 1)[0])
     _fails("console_script_invalid", rewrite, tmp_path / "runtime")
     root_decoy.unlink()
     monkeypatch.setattr(python_image, "runtime_scripts", lambda _r: python.parent)
@@ -177,6 +179,7 @@ def test_console_script_rewrite_preserves_binary_and_rejects_unowned_outputs(mon
     assert binary.stat().st_mode & 0o111
     assert str(tmp_path) not in binary.read_text()
     assert '"$SCRIPT_DIR/python" -B -I' in binary.read_text()
+    _refuses_absent_entry(binary.read_text().split(" -c '", 1)[1].rsplit("' ", 1)[0])
     python.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\"\n")
     python.chmod(0o755)
     executed = subprocess.run(
@@ -189,6 +192,17 @@ def test_console_script_rewrite_preserves_binary_and_rejects_unowned_outputs(mon
     arguments = executed.stdout.splitlines()
     assert arguments[:3] == ["-B", "-I", "-c"]
     assert arguments[-2:] == ["ethos", "argument with spaces"]
+
+
+def _refuses_absent_entry(program: str) -> None:
+    """A launcher's program names an unregistered console script on stderr, not silently."""
+    refused = subprocess.run(
+        [sys.executable, "-B", "-I", "-c", program, "absent"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert (refused.returncode, refused.stderr) == (127, "absent: 0 console entry points\n")
 
 
 @pytest.mark.parametrize(

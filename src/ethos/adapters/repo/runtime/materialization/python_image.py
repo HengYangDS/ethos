@@ -81,7 +81,8 @@ def render_console_script(name: str) -> str:
         'exec "$SCRIPT_DIR/python" -B -I -c '
         "'import sys;from importlib.metadata import entry_points;"
         'name=sys.argv.pop(1);matches=tuple(entry_points(group="console_scripts",name=name));'
-        "len(matches)==1 or sys.exit(127);sys.argv[0]=name;sys.exit(matches[0].load()())' "
+        'len(matches)==1 or (sys.stderr.write(f"{name}: {len(matches)} console entry points\\n"),'
+        "sys.exit(127));sys.argv[0]=name;sys.exit(matches[0].load()())' "
         f'{json.dumps(name)} "$@"\n'
     )
 
@@ -91,7 +92,8 @@ def render_windows_console_script(name: str) -> str:
     return (
         '@"%~dp0..\\python.exe" -B -I -c "import sys;from importlib.metadata import entry_points;'
         "name=sys.argv.pop(1);matches=tuple(entry_points(group='console_scripts',name=name));"
-        'len(matches)==1 or sys.exit(127);sys.argv[0]=name;sys.exit(matches[0].load()())" '
+        "len(matches)==1 or (sys.stderr.write(f'{name}: {len(matches)} console entry points\\n'),"
+        'sys.exit(127));sys.argv[0]=name;sys.exit(matches[0].load()())" '
         f'"{name}" %*\n'
     )
 

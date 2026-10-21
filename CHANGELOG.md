@@ -12,21 +12,6 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
-### Removed
-
-- The shipped format-selection policy no longer names the retired
-  `integrations/architecture-publisher` capture paths, removed from this repository on
-  2026-10-14. Read-only checks no longer consult shipped byte-bound ownership; archived records
-  stay excluded by path, and a repository's own carriers still bind only its formatters.
-
-### Fixed
-
-- An adopter's `ethos prove --gate` selection of a packaged gate that has no provider, such as
-  `ruff` or `dependency-vulnerabilities`, returns `proof_gate_not_importable:<id>`, also when
-  another selected gate depends on it. Such a gate runs the product's own Nox session, which
-  an adopter does not have. Provider-backed packaged gates, such as the shared floors and
-  `external-links`, still run in process.
-
 ## [0.2.0-alpha.6] - 2026-10-22
 
 ### Added
@@ -48,6 +33,13 @@ historical bindings are governed by [Release Governance](docs/governance/release
   root `package.json`, `package-lock.json` or `pyproject.toml` that declares a license must name
   the same SPDX identifier. The license is the repository's choice, and a repository without a
   package needs none. The ETHOS README now links its license.
+
+### Removed
+
+- The shipped format-selection policy no longer names the retired
+  `integrations/architecture-publisher` capture paths, removed from this repository on
+  2026-10-14. Read-only checks no longer consult shipped byte-bound ownership; archived records
+  stay excluded by path, and a repository's own carriers still bind only its formatters.
 
 ### Fixed
 
@@ -73,6 +65,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
   write bits, which is what a sealed runtime records, so existing runtime digests are unchanged;
   POSIX modes stay bound in full. Installed-command acceptance also allows each command 600
   seconds instead of 180, because a hosted Windows runner timed out while installing a hook.
+- An adopter's `ethos prove --gate` selection of a packaged gate that has no provider, such as
+  `ruff` or `dependency-vulnerabilities`, returns `proof_gate_not_importable:<id>`, also when
+  another selected gate depends on it. Such a gate runs the product's own Nox session, which
+  an adopter does not have. Provider-backed packaged gates, such as the shared floors and
+  `external-links`, still run in process.
 
 ## [0.2.0-alpha.5] - 2026-10-21
 

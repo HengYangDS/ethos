@@ -417,7 +417,7 @@ def observe_package(
             WORK / "native" / f"ethos-{build.distribution_version}.tar.gz",
         )
     distribution["shared_supply"] = prove_shared_supply(
-        Path(str(distribution["path"])), WORK, environment=package_environment
+        Path(str(distribution["path"])), WORK, environment=package_environment, root=ROOT
     )
     require_artifact_current(selected, head=head, repo=ROOT)
     if current_tracked_head(ROOT) != head:

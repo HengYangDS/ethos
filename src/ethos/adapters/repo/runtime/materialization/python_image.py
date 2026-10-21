@@ -86,6 +86,16 @@ def render_console_script(name: str) -> str:
     )
 
 
+def render_windows_console_script(name: str) -> str:
+    """Render the same launcher for `cmd`, beside the interpreter root's `Scripts` directory."""
+    return (
+        '@"%~dp0..\\python.exe" -B -I -c "import sys;from importlib.metadata import entry_points;'
+        "name=sys.argv.pop(1);matches=tuple(entry_points(group='console_scripts',name=name));"
+        'len(matches)==1 or sys.exit(127);sys.argv[0]=name;sys.exit(matches[0].load()())" '
+        f'"{name}" %*\n'
+    )
+
+
 def _copy_python_runtime(home: Path, interpreter: Path, target: Path, version: str) -> None:
     if home.is_symlink() or not home.is_dir() or interpreter.is_symlink():
         _fail("hook_runtime_interpreter_source_unavailable")
@@ -212,16 +222,14 @@ def console_script_entries(python: Path) -> dict[str, str]:
 
 def _rewrite_console_scripts(runtime: Path) -> None:
     python = runtime_python(runtime)
-    scripts = python.parent
+    scripts = runtime_scripts(runtime)
     entries = console_script_entries(python)
     if "ethos" not in entries:
         _fail("hook_runtime_entrypoint_missing")
-    (scripts / "ethos").unlink(missing_ok=True)
-    (scripts / "ethos.exe").unlink(missing_ok=True)
-    (scripts / "ethos-script.py").unlink(missing_ok=True)
-    (scripts / "ethos.exe.manifest").unlink(missing_ok=True)
     if os.name == "nt":
+        _write_windows_console_scripts(scripts, entries)
         return
+    (scripts / "ethos").unlink(missing_ok=True)
     for path in scripts.iterdir():
         if path == python:
             continue
@@ -239,6 +247,17 @@ def _rewrite_console_scripts(runtime: Path) -> None:
             _fail("hook_runtime_console_script_invalid")
         script.write_text(render_console_script(name), encoding="utf-8", newline="\n")
         script.chmod(0o755)
+
+
+def _write_windows_console_scripts(scripts: Path, entries: dict[str, str]) -> None:
+    """Replace each installer launcher, which names the interpreter's absolute path."""
+    for name in sorted(entries):
+        for suffix in (".exe", "-script.py", ".exe.manifest"):
+            (scripts / f"{name}{suffix}").unlink(missing_ok=True)
+        launcher = scripts / f"{name}.cmd"
+        if launcher.exists() or launcher.is_symlink():
+            _fail("hook_runtime_console_script_invalid")
+        launcher.write_text(render_windows_console_script(name), encoding="utf-8", newline="\r\n")
 
 
 def _require_package_runtime_source(

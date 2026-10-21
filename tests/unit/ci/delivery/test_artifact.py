@@ -136,7 +136,7 @@ def test_release_candidate_requires_one_regular_wheel(monkeypatch, tmp_path, sha
     elif shape == "multiple":
         wheel.touch()
         wheel.with_name("ethos-other.whl").touch()
-    monkeypatch.setattr(pipeline, "_release_source_identity", lambda *_: object())
+    monkeypatch.setattr(pipeline, "_release_source_identity", lambda *_, **__: object())
     with pytest.raises(ValueError, match="release_wheel_output_invalid"):
         pipeline.prepare_release_candidate(tmp_path, "a" * 40)
     assert not (tmp_path / ".git").exists()

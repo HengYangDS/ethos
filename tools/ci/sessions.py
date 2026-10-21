@@ -197,7 +197,9 @@ def build(session) -> None:
         import_module("tools.ci.dependency_audit").run(
             session, root=RUNTIME.root, scope="production-release"
         )
-    owner.DeliveryPipeline.from_runtime(RUNTIME).build(session, release_head=head)
+    owner.DeliveryPipeline.from_runtime(RUNTIME).build(
+        session, release_head=head, release_tag=owner.release_build_tag(tuple(session.posargs))
+    )
 
 
 def install_smoke(session) -> None:
@@ -211,7 +213,10 @@ def install_smoke(session) -> None:
             session, root=RUNTIME.root, scope="production-release"
         )
     owner.DeliveryPipeline.from_runtime(RUNTIME).prove_install(
-        session, release_head=head, predecessor=options.predecessor_runtime
+        session,
+        release_head=head,
+        release_tag=owner.release_build_tag(tuple(remaining)),
+        predecessor=options.predecessor_runtime,
     )
 
 

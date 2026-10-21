@@ -1,4 +1,4 @@
-"""Native Git attribute observations of a repository's tracked paths."""
+"""Native Git attribute and text observations of a repository's paths."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
 _RECEIVED_ATTRIBUTES = (b"linguist-vendored", b"linguist-generated")
 _CHECKOUT_ATTRIBUTES = (b"text", b"eol")
+_NOT_TEXT = frozenset({b"i/-text", b"w/-text", b"attr/-text"})
 
 
 def received_paths(root: Path, paths: tuple[str, ...]) -> frozenset[str]:
@@ -39,6 +40,38 @@ def checkout_line_endings(root: Path, paths: tuple[str, ...]) -> dict[str, tuple
     return {
         path: (_text(values[b"text"]), _text(values[b"eol"])) for path, values in observed.items()
     }
+
+
+def text_paths(root: Path, paths: tuple[str, ...]) -> frozenset[str] | None:
+    """Return the paths whose content and attributes Git itself treats as text.
+
+    `git ls-files --eol` reports Git's classification of the index and worktree content
+    beside the attribute it applies: content Git judges binary, such as a NUL byte, and an
+    attribute that unsets `text` both read `-text`. None means Git did not classify every path.
+    """
+    if not paths:
+        return frozenset()
+    completed = run_git(
+        root,
+        "ls-files",
+        "--eol",
+        "-z",
+        "--cached",
+        "--others",
+        "--exclude-standard",
+        check=False,
+        text=False,
+        observation=True,
+    )
+    classified: dict[str, bool] = {}
+    for record in completed.stdout.split(b"\0")[:-1]:
+        info, separator, path = record.partition(b"\t")
+        if not separator:
+            return None
+        classified[_text(path)] = _NOT_TEXT.isdisjoint(info.split())
+    if completed.returncode or not set(paths) <= set(classified):
+        return None
+    return frozenset(path for path in paths if classified[path])
 
 
 def _native_attributes(

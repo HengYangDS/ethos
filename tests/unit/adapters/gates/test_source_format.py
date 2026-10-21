@@ -225,6 +225,33 @@ def test_repository_immutable_carriers_keep_their_bytes_for_every_formatter(lane
 
 
 @pytest.mark.parametrize(
+    ("attributes", "content", "gaps"),
+    [
+        ("", b"# Notes\n", []),
+        ("", b"# Notes\0\n", ["source_format_not_text:docs/notes.md"]),
+        ("docs/notes.md -text\n", b"# Notes\n", ["source_format_not_text:docs/notes.md"]),
+        ("content/notes.md -text\n", b"# Bound\n", []),
+    ],
+    ids=["text", "nul", "relabeled", "byte-bound"],
+)
+def test_formatted_carriers_are_text_as_git_classifies_them(
+    lane: Path, attributes: str, content: bytes, gaps: list[str]
+) -> None:
+    """Git's own text classification judges each formatted carrier, not a list of characters."""
+    with (lane / ".gitattributes").open("a", encoding="utf-8") as declared:
+        declared.write(attributes)
+    target = "content/notes.md" if attributes.startswith("content/") else "docs/notes.md"
+    _write(lane, {_CARRIERS: _CARRIER})
+    (lane / target).parent.mkdir(parents=True, exist_ok=True)
+    (lane / target).write_bytes(content)
+
+    report = formatting_gate.source_format_report(lane)
+
+    assert [gap for gap in report["required_gaps"] if "not_text" in gap] == gaps, report
+    assert report["verdict"] == ("block" if gaps else "pass"), report
+
+
+@pytest.mark.parametrize(
     ("policy", "gap"),
     [
         (_CARRIER.replace('"immutable-carrier"', '"prettier"'), _DECLARATION),

@@ -19,6 +19,7 @@ from ethos.adapters.gates.native.inputs import native_repository_configuration
 from ethos.adapters.gates.native.inputs import quality_inventory_failure
 from ethos.adapters.process import run_command
 from ethos.adapters.repo.git import GitExecutionError
+from ethos.adapters.repo.git_attributes import text_paths
 from ethos.adapters.repo.runtime.filesystem import runtime_scripts
 from ethos.adapters.repo.runtime.materialization.input_resolution import resolve_node_runtime
 from ethos.adapters.repo.runtime.materialization.node_package_supply import product_node_module
@@ -290,19 +291,30 @@ def prepare_source_format(root: Path, *, paths: tuple[str, ...] = ()) -> tuple[F
 
 
 def source_format_report(root: Path, *, paths: tuple[str, ...] = ()) -> dict[str, object]:
-    """Check the same native postimages used by the admitted fix operation."""
+    """Check the same native postimages used by the admitted fix operation.
+
+    Every formatted carrier must also be text as Git classifies it, so a NUL byte or an
+    attribute that unsets `text` is reported; a carrier that keeps exact bytes is byte-bound.
+    """
     try:
         prepared = prepare_source_format(root, paths=paths)
         changed = [item.path for item in prepared if item.before != item.after]
+        text = text_paths(root, tuple(item.path for item in prepared))
+        if text is None:
+            return source_format_failure(root, FileNotFoundError("source_format_text_unobserved"))
+        gaps = [
+            *(f"source_format_drift:{path}" for path in changed),
+            *(f"source_format_not_text:{item.path}" for item in prepared if item.path not in text),
+        ]
         return {
             "id": "source-format",
-            "verdict": "block" if changed else "pass",
-            "state": "failed" if changed else "passed",
+            "verdict": "block" if gaps else "pass",
+            "state": "failed" if gaps else "passed",
             "files": [item.path for item in prepared],
             "file_count": len(prepared),
             "changed_paths": changed,
             "ignored_paths": [item.path for item in prepared if item.ignored],
-            "required_gaps": [f"source_format_drift:{path}" for path in changed],
+            "required_gaps": gaps,
         }
     except (OSError, ValueError, TypeError, subprocess.SubprocessError) as error:
         return source_format_failure(root, error)

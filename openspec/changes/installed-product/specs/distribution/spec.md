@@ -185,8 +185,8 @@ upgrade versions. Pre-release and stable delivery SHALL remain distinct.
 - **THEN** only the trusted signed tag of that exact clean source, its committed version and
   curated entry admit the release identity
 - **AND** an unsigned, untrusted, misplaced or mismatched tag is refused before any build effect
-- **AND** publication carries only archives whose qualification evidence matches their bytes
-  and the one release wheel
+- **AND** publication carries only the wheels and archives whose qualification evidence
+  matches their bytes
 
 #### Scenario: Selected package bytes change during qualification
 

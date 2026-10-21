@@ -105,6 +105,9 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Fixed
 
+- A new OpenSpec Change bootstraps beside legacy Changes that keep dated names. The official list
+  read refused every listed name that broke the logical naming rule; it now refuses only a
+  malformed or repeated name, and the new target still meets the rule.
 - A package manager can remove the runtime archive it installed. Archive directories open to
   their owner while file modes and bytes stay in the runtime digest, so `mise uninstall` no longer
   fails with Permission denied on a sealed tree. Shared-supply qualification installs the archive

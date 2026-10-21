@@ -2,7 +2,7 @@
 
 ### Requirement: Text normalization is declared
 
-Every governed repository SHALL keep `.editorconfig` and `.gitattributes` that select UTF-8, LF line endings and a final newline for tracked text. The last `.gitattributes` pattern for every file SHALL be `* text=auto eol=lf`; narrower patterns MAY mark specific carriers as binary or byte-exact. Each tracked file's effective `text` and `eol` attributes, as native Git resolves them from every applicable pattern, SHALL check it out with LF or leave its bytes unconverted, so a later or nested pattern cannot select CRLF or a host-dependent line ending.
+Every governed repository SHALL keep `.editorconfig` and `.gitattributes` that select UTF-8, LF line endings and a final newline for tracked text. The last `.gitattributes` pattern for every file SHALL be `* text=auto eol=lf`; narrower patterns MAY mark specific carriers as binary or byte-exact, but SHALL NOT give a tracked file CRLF or host-dependent line endings under the attributes that Git resolves.
 
 #### Scenario: Line endings are undeclared
 

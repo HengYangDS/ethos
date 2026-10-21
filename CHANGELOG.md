@@ -14,6 +14,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ### Added
 
+- An upstream source contract may name a committed received archive as
+  `<path>.zip#sha256:<hex>`, for supplies released as a ZIP rather than an npm package. The
+  source-integrity gate checks the archive's pinned SHA-256 and compares each declared member with
+  its exact entry in memory, without extracting it; unselected entries stay unread, and a
+  missing, unqualified or different entry leaves its members unproven.
 - A repository may declare its own byte-bound carriers in
   `.config/checks/format-selection/policy.toml`. Each `[[ownership]]` record names explicit
   `paths`, `format_owner = "immutable-carrier"`, `mutation_policy = "forbidden"` and a

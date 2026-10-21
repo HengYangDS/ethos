@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import tomllib
 from collections.abc import Mapping
 from pathlib import Path
@@ -87,8 +88,36 @@ SourceMembers = Annotated[
 ]
 
 
+_RECEIVED_ARCHIVE = re.compile(r"(?P<archive>[^#]+\.zip)#sha256:(?P<digest>[0-9a-f]{64})")
+
+
+def received_archive(reference: str) -> tuple[str, str] | None:
+    """Name the committed ZIP and pinned SHA-256 of a received-archive reference, if it is one."""
+    match = _RECEIVED_ARCHIVE.fullmatch(reference)
+    return (match["archive"], match["digest"]) if match else None
+
+
+def _native_reference(kind: str, reference: str) -> bool:
+    """Return whether a source reference has one supported native meaning for its kind."""
+    archive = received_archive(reference) if kind == "upstream" else None
+    owner, separator, package = reference.partition("#packages/")
+    owner = archive[0] if archive else owner
+    _repository_path(owner)
+    if PurePosixPath(owner).as_posix() != owner:
+        message = "source reference must use an exact repository path"
+        raise ValueError(message)
+    if kind == "generated":
+        return not separator and "#" not in owner
+    if archive is not None:
+        return True
+    if not (separator and owner.endswith(".json") and package.startswith("node_modules/")):
+        return False
+    _repository_path(package)
+    return PurePosixPath(package).as_posix() == package and "#" not in package
+
+
 class SourceContract(_ProfileModel):
-    """Bind artifacts to an existing native producer or locked upstream member.
+    """Bind artifacts to a native producer, a locked upstream member or a received archive entry.
 
     This is an obligation declaration, not proof that the output is authentic.
     """
@@ -106,30 +135,15 @@ class SourceContract(_ProfileModel):
             message = "source contract must use each distinct input reference"
             raise ValueError(message)
         for reference in self.input_refs:
-            owner, separator, package = reference.partition("#packages/")
-            _repository_path(owner)
-            if PurePosixPath(owner).as_posix() != owner:
-                message = "source reference must use an exact repository path"
-                raise ValueError(message)
-            if self.kind == "generated":
-                valid = not separator and "#" not in owner
-            else:
-                valid = (
-                    bool(separator)
-                    and owner.endswith(".json")
-                    and package.startswith("node_modules/")
-                )
-                if valid:
-                    _repository_path(package)
-                    valid = PurePosixPath(package).as_posix() == package and "#" not in package
-            if not valid:
+            if not _native_reference(self.kind, reference):
                 message = "source reference has no supported native meaning"
                 raise ValueError(message)
-        for artifact, (_reference, member) in self.members.items():
+        for artifact, (reference, member) in self.members.items():
             valid = PurePosixPath(artifact).as_posix() == artifact
-            valid &= (
-                member == artifact if self.kind == "generated" else member.startswith("package/")
-            )
+            if self.kind == "generated":
+                valid &= member == artifact
+            elif received_archive(reference) is None:
+                valid &= member.startswith("package/")
             if not valid or PurePosixPath(member).as_posix() != member:
                 message = "source member must preserve its exact native identity"
                 raise ValueError(message)

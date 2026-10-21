@@ -3,8 +3,13 @@
 from __future__ import annotations
 
 import base64
+import hashlib
+import io
 import json
+import stat
 import subprocess
+import zipfile
+import zlib
 from dataclasses import dataclass
 from dataclasses import field
 from pathlib import Path
@@ -22,6 +27,7 @@ from ethos.adapters.repo.runtime.materialization.input_resolution import resolve
 from ethos.repository.policy.quality.sources import generated_relations
 from ethos.repository.policy.quality.sources import locked_archive
 from ethos.repository.profile import INVALID_PROFILE_ERROR
+from ethos.repository.profile import received_archive
 from ethos.repository.profile import repository_profile_from_text
 
 if TYPE_CHECKING:
@@ -190,17 +196,65 @@ def _read_archive_cache(
         entry.selected_integrity = identity["integrity"]
 
 
+def _received(
+    snapshot: SourceTree, received: Mapping[tuple[str, str], Mapping[str, _ArchiveMember]]
+) -> None:
+    """Compare declared entries of committed ZIP archives with their pinned original bytes."""
+    for (path, digest), members in received.items():
+        data = snapshot.read(path)
+        if hashlib.sha256(data).hexdigest() != digest:
+            message = f"source_upstream_archive_digest_mismatch:{path}"
+            raise ValueError(message)
+        try:
+            with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                entries = archive.infolist()
+                names = [entry.filename for entry in entries]
+                if len(entries) > _ARCHIVE_LIMITS["entries"] or len(set(names)) != len(names):
+                    message = f"source_upstream_archive_unqualified:{path}"
+                    raise ValueError(message)
+                by_name = {entry.filename: entry for entry in entries}
+                expanded = 0
+                for artifact, relation in members.items():
+                    entry = by_name.get(relation.member)
+                    # Archives without Unix type bits store plain files; a typed entry must be one.
+                    if (
+                        entry is None
+                        or entry.flag_bits & 0x1
+                        or entry.compress_type not in {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED}
+                        or stat.S_IFMT(entry.external_attr >> 16) not in {0, stat.S_IFREG}
+                    ):
+                        message = f"source_upstream_member_unqualified:{artifact}"
+                        raise ValueError(message)
+                    expanded += entry.file_size
+                    if expanded > _ARCHIVE_LIMITS["expanded_bytes"]:
+                        message = "source_upstream_request_size_exceeded"
+                        raise ValueError(message)
+                    with archive.open(entry) as stream:
+                        if stream.read() != relation.expected:
+                            message = f"source_upstream_member_mismatch:{artifact}"
+                            raise ValueError(message)
+        except (zipfile.BadZipFile, zipfile.LargeZipFile, zlib.error, EOFError) as error:
+            message = f"source_upstream_archive_unqualified:{path}"
+            raise ValueError(message) from error
+
+
 def _upstream(snapshot: SourceTree, contracts: tuple[SourceContract, ...]) -> None:
     """Read once, then conjoin native SRI and bounded framing/member observations."""
     archives: dict[str, _ArchiveInput] = {}
+    received: dict[tuple[str, str], dict[str, _ArchiveMember]] = {}
     for contract in contracts:
         for artifact, (reference, member) in contract.members.items():
+            if pin := received_archive(reference):
+                expected = snapshot.read(artifact)
+                received.setdefault(pin, {})[artifact] = _ArchiveMember(member, expected)
+                continue
             if reference not in archives:
                 lock = reference.partition("#packages/")[0]
                 archive = locked_archive(reference, snapshot.read(lock))
                 data = snapshot.read(archive.archive_path) if archive.archive_path else None
                 archives[reference] = _ArchiveInput(reference, archive.integrity, data)
             archives[reference].members[artifact] = _ArchiveMember(member, snapshot.read(artifact))
+    _received(snapshot, received)
     if not archives:
         return
     runtime = resolve_node_runtime()

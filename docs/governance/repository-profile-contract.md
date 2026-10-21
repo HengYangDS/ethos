@@ -273,7 +273,13 @@ a trusted-looking name, version, directory or successful command is insufficient
 | --------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | Generated | Native projection declaration, including all declared outputs and compiler inputs | Reproduce exact expected bytes from the same committed input group                     |
 | Upstream  | Exact npm lock `#packages/node_modules/...` member and locked SRI                 | Match authentic archive and selected member bytes without executing or extracting them |
+| Upstream  | Committed received ZIP named `<path>.zip#sha256:<hex>` with its pinned SHA-256    | Match the archive digest and each declared entry's bytes in memory                     |
 | Authored  | Repository's own maintained code or configuration                                 | Applicable native static and behavior checks; no artifact exemption                    |
+
+A received-archive member names its exact ZIP entry, such as
+`archify/bin/archify.mjs`. The entry must be unique, a regular file, stored or
+deflated and not encrypted. Unselected entries stay unread, and a repository
+file that no member declares stays authored.
 
 An exact source relationship can remove inappropriate authored-style inspection,
 not applicable behavior, build-input or integrity obligations. Authored policy

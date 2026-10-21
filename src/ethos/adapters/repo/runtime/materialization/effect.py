@@ -349,19 +349,25 @@ def _compatible_invoking_runtime(
 
 
 def _runtime_supply_current(selected: SelectedRuntime, project: Path) -> bool:
-    """Check the installed entry, lock and exact wheel without copying supply."""
+    """Check the lock, exact wheel and this source's launcher without copying supply."""
     return (
         selected.dependency_lock_sha256 == file_sha256(project / "uv.lock")
         and _runtime_supply_wheel(selected) is not None
+        and (
+            os.name == "nt"
+            or selected.python.with_name("ethos").read_text() == render_console_script("ethos")
+        )
     )
 
 
 def _runtime_supply_wheel(selected: SelectedRuntime) -> Path | None:
-    """Return the exact wheel only when the installed entry and package are intact."""
-    if os.name != "nt":
-        entry = selected.python.with_name("ethos")
-        if not os.access(entry, os.X_OK) or entry.read_text() != render_console_script("ethos"):
-            return None
+    """Return the exact wheel only when the installed entry and package are intact.
+
+    The entry need not be this source's launcher: the manifest binds an earlier ETHOS's
+    launcher as exactly, so a predecessor stays pinnable for rollback and upgrade.
+    """
+    if os.name != "nt" and not os.access(selected.python.with_name("ethos"), os.X_OK):
+        return None
     package_root = selected.root.parent.parent / "packages" / selected.wheel_sha256
     if package_root.is_symlink() or not package_root.is_dir():
         return None

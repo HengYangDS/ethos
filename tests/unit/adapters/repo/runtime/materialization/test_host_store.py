@@ -79,6 +79,18 @@ def test_explicit_installed_supply_is_pinned_before_repository_selection(
     assert _pin(repo, selected.build, installed_runtime=expected) == pinned_python
 
 
+def test_rollback_pins_a_predecessor_whose_entry_an_earlier_launcher_wrote(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The manifest binds an earlier ETHOS's launcher as exactly as the current one."""
+    with monkeypatch.context() as earlier:
+        earlier.setattr(materialization, "render_console_script", lambda _name: "#!/bin/sh\n")
+        _repo, selected, store = _host_case(tmp_path, monkeypatch)
+    pinned = materialization.pin_installed_runtime(selected)
+    assert pinned == store / selected.digest[:16] / "runtime" / selected.digest
+    assert (pinned / "python/bin/ethos").read_text() == "#!/bin/sh\n"
+
+
 def test_external_package_invoker_pins_shared_supply_without_an_explicit_runtime(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

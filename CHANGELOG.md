@@ -34,6 +34,11 @@ historical bindings are governed by [Release Governance](docs/governance/release
   at `mise exec -- ethos --version` with no output, so a failed Mise step now reports its exit
   status and output, and the installation takes the product version as its label, as adopters
   declare it, which shortens the path `cmd` must run from about 297 to 214 characters.
+- A runtime an earlier ETHOS installed stays preservable. Hook installation pinned the previous
+  runtime for rollback, and accepted a selected runtime pinned outside the repository, only if
+  its `bin/ethos` equalled the current launcher, so any launcher change blocked every upgrade
+  from an older runtime. The manifest still binds every runtime file; only reusing a runtime as
+  the current build requires the current launcher.
 
 ## [0.2.0-alpha.5] - 2026-10-21
 

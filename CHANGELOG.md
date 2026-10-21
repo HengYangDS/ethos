@@ -12,6 +12,8 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+## [0.2.0-alpha.6] - 2026-10-21
+
 ### Fixed
 
 - The hosted release dispatch builds the release wheel on each platform it qualifies. The ETHOS

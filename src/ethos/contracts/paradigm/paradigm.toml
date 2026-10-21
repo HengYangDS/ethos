@@ -38,7 +38,7 @@ editorconfig = { charset = "utf-8", end_of_line = "lf", insert_final_newline = "
 carrier = "LICENSE"
 entry = "README.md"
 
-# SHA-256 of each recognized SPDX template under licenses/.
+# SHA-256 of each recognized SPDX template, as licenses.toml holds it.
 [license.templates]
 "Apache-2.0" = "5567209d3a634ebd6ed122a7302563b9668ab141941149a4e30d9c7b887f41b9"
 MIT = "9b91e12dfe57d42e91ea96d2acb7624040bffc54182bd164d39d0fae33e77794"

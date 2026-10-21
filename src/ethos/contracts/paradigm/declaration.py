@@ -364,9 +364,9 @@ def load_repository_paradigm() -> RepositoryParadigm:
 def license_template(identifier: str) -> str:
     """Return one recognized license's packaged SPDX template, verified by its declared digest."""
     expected = load_repository_paradigm().license.templates[identifier]
-    source = resources.files(__package__).joinpath(f"licenses/{identifier}.template.txt")
-    payload = source.read_bytes()
-    if hashlib.sha256(payload).hexdigest() != expected:
+    source = resources.files(__package__).joinpath("licenses.toml")
+    template = tomllib.loads(source.read_text(encoding="utf-8"))["templates"][identifier]
+    if hashlib.sha256(template.encode("utf-8")).hexdigest() != expected:
         message = f"paradigm_license_template_invalid:{identifier}"
         raise ValueError(message)
-    return payload.decode("utf-8")
+    return template

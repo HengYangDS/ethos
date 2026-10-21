@@ -12,7 +12,7 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
-## [0.2.0-alpha.6] - 2026-10-21
+## [0.2.0-alpha.6] - 2026-10-22
 
 ### Added
 
@@ -39,6 +39,13 @@ historical bindings are governed by [Release Governance](docs/governance/release
   its `bin/ethos` equalled the current launcher, so any launcher change blocked every upgrade
   from an older runtime. The manifest still binds every runtime file; only reusing a runtime as
   the current build requires the current launcher.
+- A runtime that Mise installs on Windows keeps its identity. Mise extracts archives without their
+  file modes on Windows, so the installed files lack the read-only attribute of the sealed
+  runtime, and the manifest check refused the installation that had just run `ethos --version`.
+  On Windows the runtime identity now binds each file's content and its permissions without the
+  write bits, which is what a sealed runtime records, so existing runtime digests are unchanged;
+  POSIX modes stay bound in full. Installed-command acceptance also allows each command 600
+  seconds instead of 180, because a hosted Windows runner timed out while installing a hook.
 
 ## [0.2.0-alpha.5] - 2026-10-21
 

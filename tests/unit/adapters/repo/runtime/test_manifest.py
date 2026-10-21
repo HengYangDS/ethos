@@ -5,14 +5,17 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 import ethos
 import ethos.adapters.repo.runtime.filesystem as runtime_filesystem
+import ethos.adapters.repo.runtime.manifest as runtime_manifest
 import ethos.adapters.repo.runtime.materialization.effect as runtime_materialization
 import tests.support.runtime_scenarios as runtime_scenarios
 from ethos.adapters.repo.runtime.authority import expected_runtime_build
@@ -123,6 +126,22 @@ def test_runtime_inventory_hashes_actual_bytes_without_location_aliases(
         assert inventories[-1].keys() == {"link", "python/bin/ethos"}
         assert observed.count(script) == 1  # Only the link's resolved-target containment check.
     assert inventories[0] != inventories[1]
+
+
+@pytest.mark.parametrize(("system", "identities"), [("nt", 1), ("posix", 2)])
+def test_runtime_identity_binds_write_permission_only_where_installers_keep_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, system: str, identities: int
+) -> None:
+    """Archive installers drop the Windows read-only attribute; POSIX modes stay bound."""
+    payload = tmp_path / "python.exe"
+    payload.write_bytes(b"payload")
+    digest = vars(runtime_manifest)["_inventory_entry_digest"]
+    monkeypatch.setattr(runtime_manifest, "os", SimpleNamespace(name=system))
+    sealed, extracted = (
+        digest(payload, root=tmp_path, mode=stat.S_IFREG | permissions)
+        for permissions in (0o444, 0o666)
+    )
+    assert len({sealed, extracted}) == identities
 
 
 def test_runtime_identity_distinguishes_canonical_architectures() -> None:

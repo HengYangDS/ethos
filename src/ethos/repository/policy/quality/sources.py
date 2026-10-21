@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 
 from ethos.repository.policy.projections import PROJECTION_DECLARATIONS
 from ethos.repository.policy.projections import projection_relations
+from ethos.repository.profile import received_archive
 
 if TYPE_CHECKING:
     from ethos.repository.policy.projections import Projection
@@ -113,6 +114,9 @@ def source_contract_paths(
             for reference in contract.input_refs
         }
     ):
+        if received := received_archive(reference):
+            paths.append(received[0])
+            continue
         lock = reference.partition("#packages/")[0]
         paths.append(lock)
         if (raw := materials.get(lock)) is not None:

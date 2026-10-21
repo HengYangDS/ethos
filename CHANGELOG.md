@@ -14,6 +14,14 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [0.2.0-alpha.6] - 2026-10-21
 
+### Added
+
+- An upstream source contract may name a committed received archive as
+  `<path>.zip#sha256:<hex>`, for supplies released as a ZIP rather than an npm package. The
+  source-integrity gate checks the archive's pinned SHA-256 and compares each declared member with
+  its exact entry in memory, without extracting it; unselected entries stay unread, and a
+  missing, unqualified or different entry leaves its members unproven.
+
 ### Fixed
 
 - The hosted release dispatch builds the release wheel on each platform it qualifies. The ETHOS

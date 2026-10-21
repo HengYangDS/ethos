@@ -13,7 +13,7 @@ relations:
 Status: canonical rationale. Executable thresholds are owned by quality
 configuration.
 
-Date: 2026-09-02 (record established); revised 2026-10-18.
+Date: 2026-09-02 (record established); revised 2026-10-21.
 
 Purpose: preserve why unrelated source classes cannot compensate for one
 another and why size remains a tripwire rather than a design target.
@@ -106,6 +106,16 @@ coverage and all other quality obligations remain unchanged.
   and checked the remaining owner-specific tests at source `17a52bec5`.
   Structural relocation `efc63f685` removed physical lines but increased test
   ELOC by 343; it is not budget compression evidence.
+- The October 21 necessity review, approved by the maintainer, took a second
+  step to 90,000 test ELOC at 84,998 of 85,000 on source `80885ee6d`. Six
+  duplicated helper groups total 22 ELOC, and moving them into shared support
+  saves at most 8 after imports, a zero-benefit abstraction. Five same-shape
+  test pairs would merge distinct named obligations for about 25 ELOC.
+  Retiring the comment-wrapped docs metadata reader (legacy-carrier-retirement
+  2.16) frees 57 test ELOC once no adopter tracks such a document. Open
+  regressions, such as native-supply-and-configuration 11.4.2 and
+  quality-evidence-admission 11.9.2.6 to 11.9.2.8, need the space, and 16 test
+  files are within 31 ELOC of the per-file limit.
 - [Module Layout And Visibility Rules](../../rules/module-layout.md) prevents
   size thresholds from authorizing suffix-flat or metric-driven splits.
 

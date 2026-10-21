@@ -346,8 +346,11 @@ def _install_with_mise(
         version = json.load(member)["distribution_version"] if member else ""
     with archive.open("rb") as stream:
         digest = hashlib.file_digest(stream, "sha256").hexdigest()
+    # The project is its own repository, as an adopter's is before ETHOS selects a runtime:
+    # the installed console then runs its own runtime, not one an enclosing checkout selected.
     project = home / "project"
     project.mkdir(parents=True)
+    run_command(home, ("git", "init", "--quiet", "--initial-branch=dev", str(project)), check=True)
     declaration = project / "mise.toml"
     declaration.write_text(
         f'[tools."http:ethos"]\nversion = "{version}"\nurl = "{archive.resolve().as_uri()}"\n'

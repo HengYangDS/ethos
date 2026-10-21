@@ -12,6 +12,8 @@ historical bindings are governed by [Release Governance](docs/governance/release
 
 ## [Unreleased]
 
+## [0.2.0-alpha.5] - 2026-10-21
+
 ### Added
 
 - A dispatch of the ETHOS CI workflow from accepted `main` with `release_tag` and `release_head`

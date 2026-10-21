@@ -41,6 +41,13 @@ historical bindings are governed by [Release Governance](docs/governance/release
   the last catch-all `*` pattern, so a later or nested pattern could still check a file out with
   CRLF or a host-dependent line ending. Such a file is now a `line-ending` gap; a file marked
   `-text` keeps its exact bytes, and a checkout that Git does not report blocks.
+- The repository paradigm judges a tracked license grant. A root `LICENSE` must keep the standard
+  text of one license whose SPDX template ETHOS pins by digest (MIT and Apache-2.0, from SPDX
+  license-list-data v3.29.0), matched as the SPDX matching guidelines describe, with any
+  copyright notice the template requires naming its holder. `README.md` must link it, and every
+  root `package.json`, `package-lock.json` or `pyproject.toml` that declares a license must name
+  the same SPDX identifier. The license is the repository's choice, and a repository without a
+  package needs none. The ETHOS README now links its license.
 
 ### Fixed
 

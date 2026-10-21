@@ -152,3 +152,7 @@ uv run ethos status --json
 uv run ethos plan --changed --json
 uv run ethos prove --json
 ```
+
+## License
+
+ETHOS is released under the [Apache License 2.0](LICENSE).

@@ -18,6 +18,7 @@ from ethos.measure import effective_code_lines_for_source
 from ethos.repository.paradigm.documents import document_gaps
 from ethos.repository.paradigm.gap import ParadigmGap
 from ethos.repository.paradigm.gap import tracked_text
+from ethos.repository.paradigm.license import license_gaps
 from ethos.repository.paradigm.names import authored_name_gaps
 from ethos.repository.paradigm.names import name_path_gaps
 from ethos.repository.paradigm.openspec import openspec_gaps
@@ -67,6 +68,7 @@ def repository_paradigm_report(
         *_root_gaps(paradigm, tracked),
         *_binding_gaps(paradigm, tracked),
         *_normalization_gaps(paradigm, root, tracked, line_endings),
+        *license_gaps(paradigm, root, tracked),
         *_configuration_gaps(paradigm, tracked),
         *_embedded_policy_gaps(paradigm, root, tracked),
         *_module_gaps(paradigm, root, tracked),

@@ -74,6 +74,32 @@ A dot-separated name segment MAY be a BCP 47 language tag in its canonical case.
 - **THEN** no name is reported, and prewrite admits a new file there under its upstream name
 - **AND** without that attribute the same name is reported, with a repair that names its kebab-case form and the `linguist-vendored` or `linguist-generated` marking.
 
+## ADDED Requirements
+
+### Requirement: A license grant is a recognized standard text
+
+A governed repository that tracks a root `LICENSE` SHALL keep in it the standard text of one license whose SPDX template the paradigm contract pins by digest, matched as the SPDX matching guidelines describe. A copyright notice that the template requires SHALL name its holder. Which license a repository grants remains its own choice.
+
+#### Scenario: A grant departs from its license
+
+- **WHEN** a repository's `LICENSE` edits the MIT permission text or keeps the template placeholder instead of a copyright holder
+- **THEN** the paradigm reports the grant, naming the recognized licenses.
+
+### Requirement: A license grant is linked and consistently declared
+
+A repository that tracks a root `LICENSE` SHALL link it from its `README.md`. Every root `package.json`, `package-lock.json` or `pyproject.toml` that declares a license SHALL declare the same SPDX identifier, and a repository SHALL NOT need a package for these checks.
+
+#### Scenario: Metadata names another license
+
+- **WHEN** a repository grants MIT and its `package.json` declares `Apache-2.0`
+- **THEN** the paradigm reports the manifest, while a `pyproject.toml` that declares `MIT` conforms.
+
+#### Scenario: A grant stands without a package
+
+- **WHEN** a documentation repository tracks the standard MIT text and its `README.md` links it, with no package manifest
+- **THEN** no license gap is reported
+- **AND** removing the link reports the public entry.
+
 ## REMOVED Requirements
 
 ### Requirement: Markdown layout follows parsed structure
